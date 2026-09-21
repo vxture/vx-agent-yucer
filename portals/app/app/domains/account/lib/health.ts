@@ -165,11 +165,34 @@ export function deriveHealth(
 
 // --- Decision chain ---------------------------------------------------------
 
+/** How this person stands toward us on THIS deal - incr/0075. Separate from
+ *  `decisionRole`: the same technical buyer can be a champion on one deal and
+ *  an antagonist on the next, same per-deal reasoning ADR-024 already applied
+ *  to the role itself. Null = nobody has stated it (no guessed default). */
+export const STANCES = ["champion", "supporter", "neutral", "antagonist"] as const;
+export type Stance = (typeof STANCES)[number];
+
 export interface ContactNode {
   id: string;
   decisionRole: DecisionRole;
   influence: number | null;
   status: string;
+  stance: Stance | null;
+}
+
+export type InfluenceTier = "high" | "medium" | "low";
+
+/** Buckets the real 0-100 number for display - "核心圈/关键圈/边缘圈" (owner,
+ *  2026-09-21: 实际影响力权重). A pure display categorisation, not a stored
+ *  fact: the number stays the number, this just names which third of it a
+ *  given value falls in, in one place so the table and the graph never pick
+ *  different thresholds. Null in, null out - no influence stated is not the
+ *  same claim as "low influence". */
+export function influenceTier(influence: number | null): InfluenceTier | null {
+  if (influence == null) return null;
+  if (influence >= 70) return "high";
+  if (influence >= 40) return "medium";
+  return "low";
 }
 
 /** Mirrors chk_account_relation_type. A value outside this set is refused by
@@ -199,7 +222,12 @@ export interface ChainCoverage {
   covered: DecisionRole[];
   /** Roles the deal needs and does not have. */
   missing: DecisionRole[];
-  /** Contacts marked as actively opposed. */
+  /** Contacts marked as actively opposed - by `stance === "antagonist"`
+   *  (incr/0075) or, for rows predating that column, the legacy
+   *  `decisionRole === "blocker"` value. This field was always documented as
+   *  "actively opposed"; stance is just the honest way to say that now,
+   *  since a person's FUNCTION (EB/UB/TB/Coach) and whether they are against
+   *  us are two different facts - see health.ts's own note on Stance. */
   blockers: ContactNode[];
   /** Contacts who can be asked for help, ordered by influence. */
   coaches: ContactNode[];
@@ -235,7 +263,7 @@ export function analyzeChain(
   return {
     covered: DECISION_ROLES.filter((r) => r !== "unknown" && byRole.has(r)),
     missing: REQUIRED_ROLES.filter((r) => !byRole.has(r)),
-    blockers: active.filter((c) => c.decisionRole === "blocker"),
+    blockers: active.filter((c) => c.stance === "antagonist" || c.decisionRole === "blocker"),
     coaches,
     economicBuyerUnreachable:
       economic.length === 0 || !anyPathExists(coaches, economic, relations, new Set(active.map((c) => c.id))),

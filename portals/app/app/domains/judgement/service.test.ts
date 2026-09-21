@@ -145,6 +145,7 @@ function role(opportunityId: string, personId: string, buyingRole: string) {
     buyingRole: buyingRole as never,
     influence: 90,
     isPrimary: false,
+    stance: null,
   };
 }
 

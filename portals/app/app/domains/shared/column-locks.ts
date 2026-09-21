@@ -96,13 +96,14 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "sort_order",
   ],
 
-  // incr/0027. opportunity_id and person_id are ABSENT: the pair is the edge,
-  // and re-pointing it at another deal or another person is a different fact
-  // rather than an edit of this one.
+  // incr/0027, stance added incr/0075. opportunity_id and person_id are
+  // ABSENT: the pair is the edge, and re-pointing it at another deal or
+  // another person is a different fact rather than an edit of this one.
   "yucer_pipeline.opportunity_contact": [
     "buying_role",
     "influence",
     "is_primary",
+    "stance",
     "updated_at",
   ],
 

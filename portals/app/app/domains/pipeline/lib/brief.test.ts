@@ -51,7 +51,7 @@ function input(over: Partial<DealBriefInput> = {}): DealBriefInput {
       covered: ["economic", "technical", "coach"],
       missing: [],
       blockers: [],
-      coaches: [{ id: "c", decisionRole: "coach", influence: 50, status: "active" }],
+      coaches: [{ id: "c", decisionRole: "coach", influence: 50, status: "active", stance: null }],
       economicBuyerUnreachable: false,
     },
     rolesStated: true,

@@ -527,7 +527,7 @@ test("chainRecency resolves the workspace's own chainWarmDays, not the shipped o
     participants: [{ contactId: "coach" }],
   });
 
-  const contacts: ContactNode[] = [{ id: "coach", decisionRole: "coach", influence: 50, status: "active" }];
+  const contacts: ContactNode[] = [{ id: "coach", decisionRole: "coach", influence: 50, status: "active", stance: null }];
   const r = unwrap(await chainRecency(c, ACC, contacts, [], { now: NOW }));
   // 40 days ago is warm under the shipped 90-day default but cold under this
   // workspace's own 30-day window - proving the resolved value, not the

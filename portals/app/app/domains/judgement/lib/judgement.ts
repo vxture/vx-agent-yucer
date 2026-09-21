@@ -40,6 +40,7 @@ import {
   type ContactNode,
   type DecisionRole,
   type RelationEdge,
+  type Stance,
 } from "../../account/lib/health";
 import { chainForOpportunity, type ChainPerson } from "../../account/lib/buying-role";
 import type { CaptureWeek } from "../../account/lib/capture-metric";
@@ -181,6 +182,7 @@ export interface AccountInput {
     readonly personId: string;
     readonly buyingRole: DecisionRole;
     readonly influence: number | null;
+    readonly stance: Stance | null;
   }[];
   lastContactAt: Date | null;
   /**

@@ -4215,6 +4215,10 @@ export const ACCOUNT_TEXT = {
   graphMissingRole: "缺失，未识别到人",
   graphUnreachable: "经济决策人未触达",
   graphOpen: "查看决策链图谱",
+  // 关系图例的两条 (owner, 2026-09-21: 人际及利益博弈关系) - 线的图例, 跟
+  // 上面角色(点)的图例分开列。
+  graphRelationConnected: "有关系记录",
+  graphRelationOpposed: "对立关系",
 
   // 全链条内容的四个分区（商机/交付项目/回款/跟进记录），复用 AnalysisTabs。
   lifecycleDeals: "商机",
@@ -5385,6 +5389,10 @@ export const BUYING_ROLE_TEXT = {
   person: "联系人",
   pickPerson: "选择联系人",
   role: "在本单的角色",
+  // 立场是独立于角色的第二个维度 (owner, 2026-09-21: 对我方的立场态度), 跟
+  // "role" 分开两个 Field, 不是同一个下拉的另一组选项。
+  stance: "对我方的立场",
+  stanceNotStated: "还没表过态",
   influence: "在本单的影响力 0-100",
   save: "保存角色",
   saved: "已保存",
@@ -5521,12 +5529,22 @@ export const CHAIN_TEXT = {
   blockersUnreached: (n: number) => `${n} 位阻碍者未触达`,
   showAllChains: (n: number) => `查看全部（${n}）`,
   collapseChains: "收起",
+  // 决策链表格的六列 (owner, 2026-09-21: 决策链非常重要，重点完善 - 组织内
+  // 角色分类、立场、影响力权重、人际关系四个维度都要有, 应该表格化，不要
+  // 信息堆积)。
+  colPerson: "联系人",
+  colRole: "角色",
+  colStance: "立场",
+  colInfluence: "影响力",
+  colRelationship: "关系",
+  colReachable: "可达",
 } as const;
 
 export const CONTACT_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   name_required: "联系人需要一个姓名",
   unknown_decision_role: "未知的决策角色",
+  unknown_stance: "未知的立场",
   unknown_status: "未知的联系人状态",
   influence_range: "影响力是 0 到 100 之间的整数",
   not_found: "这个联系人不在该客户名下",
@@ -5603,6 +5621,35 @@ export const DECISION_ROLE_LABEL: Record<string, string> = {
   coach: "内线",
   blocker: "阻碍者",
   unknown: "未知",
+};
+
+// EB/UB/TB/Coach (owner, 2026-09-21: 组织内角色分类) - buying_role 早就是这
+// 四个值(economic/user/technical/coach, 只是这四个都还留着 blocker/unknown 做
+// 向后兼容), 这里只补上英文缩写, 不是重新发明一套角色。分开成自己的字典而不是
+// 改写 DECISION_ROLE_LABEL 本身, 因为后者已经有好几处消费者(标签、tooltip、
+// 表单下拉), 有的地方要缩写、有的地方要全名, 两个字典各自专心一件事。
+export const DECISION_ROLE_ABBR: Partial<Record<string, string>> = {
+  economic: "EB",
+  user: "UB",
+  technical: "TB",
+};
+
+// 拥护者/支持者/中立者/反对者 (owner, 2026-09-21: 对我方的立场态度) - 独立于
+// buying_role 的第二个维度, incr/0075。null 表示没有人表过态, 不在字典里
+// (调用方自己判断 null 走哪条分支, 不该有一个"未表态"的假标签)。
+export const STANCE_LABEL: Record<string, string> = {
+  champion: "拥护者",
+  supporter: "支持者",
+  neutral: "中立者",
+  antagonist: "反对者",
+};
+
+// 核心圈/关键圈/边缘圈 (owner, 2026-09-21: 实际影响力权重) - domains/account/
+// lib/health.ts 的 influenceTier() 算出属于哪一档, 这里只管怎么念。
+export const INFLUENCE_TIER_LABEL: Record<string, string> = {
+  high: "核心圈",
+  medium: "关键圈",
+  low: "边缘圈",
 };
 
 export const PREVIEW_TEXT = {

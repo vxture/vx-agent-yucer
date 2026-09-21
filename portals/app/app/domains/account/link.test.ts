@@ -104,6 +104,7 @@ async function chainOf(store: InMemoryAccountStore) {
         personId: c.id,
         buyingRole: (ROLE_OF.get(c.id) ?? "unknown") as never,
         influence: 50,
+        stance: null,
       })),
     ),
     relations,

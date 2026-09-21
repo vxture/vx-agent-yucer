@@ -88,8 +88,8 @@ test("the decision-maker rule needs BOTH the structure and the evidence to agree
     { id: "ct_econ", status: "active" },
   ];
   const buyingRoles = [
-    { opportunityId: "opp_1", personId: "ct_coach", buyingRole: "coach" as const, influence: 50 },
-    { opportunityId: "opp_1", personId: "ct_econ", buyingRole: "economic" as const, influence: 90 },
+    { opportunityId: "opp_1", personId: "ct_coach", buyingRole: "coach" as const, influence: 50, stance: null },
+    { opportunityId: "opp_1", personId: "ct_econ", buyingRole: "economic" as const, influence: 90, stance: null },
   ];
   // The buyer HAS been recorded - no judgement, even with no relation edge.
   const met = deriveJudgements({

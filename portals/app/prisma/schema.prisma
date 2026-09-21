@@ -526,6 +526,11 @@ model OpportunityContact {
   buyingRole    String   @default("unknown") @map("buying_role") @db.VarChar(32)
   influence     Int?     @db.SmallInt
   isPrimary     Boolean  @default(false) @map("is_primary")
+  /// incr/0075. Separate from buyingRole on purpose: the same TB can be a
+  /// champion on one deal and an antagonist on the next - a second question
+  /// about the same row, not a value of the first one. Null = nobody has
+  /// stated it (no backfill, same reasoning as buyingRole's own default).
+  stance        String?  @db.VarChar(16)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 

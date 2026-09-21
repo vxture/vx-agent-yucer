@@ -44,7 +44,9 @@ import {
   type DecisionRole,
   type HealthResult,
   type RelationEdge,
+  type Stance,
   DECISION_ROLES,
+  STANCES,
   analyzeChain,
   deriveHealth,
 } from "./lib/health";
@@ -968,7 +970,11 @@ export async function setBuyingRole(
   personId: string,
   buyingRole: DecisionRole,
   influence: number | null,
-): Promise<RuleResult<{ opportunityId: string; personId: string; buyingRole: DecisionRole }>> {
+  // incr/0075. Optional and defaulting to "leave it alone": a caller that has
+  // never heard of stance (the pipeline form predates it in older clients)
+  // must not accidentally null out a stance someone already stated.
+  stance?: Stance | null,
+): Promise<RuleResult<{ opportunityId: string; personId: string; buyingRole: DecisionRole; stance: Stance | null }>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
@@ -978,13 +984,17 @@ export async function setBuyingRole(
   if (influence !== null && (!Number.isInteger(influence) || influence < 0 || influence > 100)) {
     return fail(violation("influence_range", "influence is a whole number from 0 to 100", "influence"));
   }
+  if (stance != null && !(STANCES as readonly string[]).includes(stance)) {
+    return fail(violation("unknown_stance", `${String(stance)} is not a stance`, "stance"));
+  }
 
   const written = await ctx.store.setOpportunityContact(ctx.workspaceId, opportunityId, personId, {
     buyingRole,
     influence,
+    stance,
   });
   if (!written) return fail(violation("not_found", "that deal or person was not found", "opportunityId"));
-  return ok({ opportunityId, personId, buyingRole });
+  return ok({ opportunityId, personId, buyingRole, stance: written.stance });
 }
 
 /**

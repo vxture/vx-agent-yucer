@@ -18,7 +18,7 @@
 // seed data this repository writes. Removed rather than kept: the cost was the
 // exact one ADR-024 named, and it bought nothing.
 
-import type { ContactNode, DecisionRole } from "./health";
+import type { ContactNode, DecisionRole, Stance } from "./health";
 
 /** The person half: who is at this customer, and are they still there. */
 export interface ChainPerson {
@@ -31,6 +31,8 @@ export interface OpportunityContactLink {
   readonly personId: string;
   readonly buyingRole: DecisionRole;
   readonly influence: number | null;
+  /** incr/0075 - see health.ts's own note. Independent of buyingRole. */
+  readonly stance: Stance | null;
 }
 
 /**
@@ -66,6 +68,7 @@ export function chainForOpportunity(
       // reported coverage this deal had never established.
       decisionRole: link?.buyingRole ?? "unknown",
       influence: link?.influence ?? null,
+      stance: link?.stance ?? null,
     };
   });
 }

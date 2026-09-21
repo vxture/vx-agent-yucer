@@ -29,6 +29,9 @@ export async function saveBuyingRole(
   personId: string,
   buyingRole: string,
   influence: number | null,
+  // incr/0075. Optional, same reasoning as setBuyingRole's own: absent means
+  // "leave whatever stance is already on file alone", not "clear it".
+  stance?: string | null,
 ): Promise<SetBuyingRoleResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -43,11 +46,12 @@ export async function saveBuyingRole(
     },
     opportunityId,
     personId,
-    // The domain validates against DECISION_ROLES and refuses anything else, so
-    // the string crosses the boundary unnarrowed rather than being cast here
-    // into a type it might not be.
+    // The domain validates against DECISION_ROLES/STANCES and refuses
+    // anything else, so both strings cross the boundary unnarrowed rather
+    // than being cast here into a type they might not be.
     buyingRole as never,
     influence,
+    stance as never,
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]!.code };

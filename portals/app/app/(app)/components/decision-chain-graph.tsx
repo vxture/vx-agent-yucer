@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChainCoverage, ContactNode, DecisionRole } from "../../domains/account/lib/health";
+import type { ChainCoverage, ContactNode, DecisionRole, RelationEdge } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 
 // 决策链图谱 (owner, 2026-09-18: 客户详情页重排; 2026-09-20: 设计图严格
@@ -44,20 +44,35 @@ const ROLE_COLOR: Record<DecisionRole, string> = {
 interface RoleNode {
   readonly role: DecisionRole;
   readonly label: string;
+  readonly personId: string | null;
   readonly contactName: string | null;
   readonly title: string | null;
   readonly missing: boolean;
   readonly unreachable: boolean;
 }
 
+// 边的颜色按关系类型, 不按角色 (owner, 2026-09-21: 人际及利益博弈关系) -
+// 角色的颜色说的是"这个人是什么", 边说的是"这两个人什么关系", 混在一起会让
+// 一条线同时暗示两件不相关的事。opposed_to 是唯一一个"坏消息"关系, 单独给
+// 一个警示色+虚线; 其余四种(汇报/平级/同盟/引荐)都是"这两个人之间有条
+// 可用的路", 统一一个中性实线颜色。
+const OPPOSED_STROKE = "var(--destructive)";
+const CONNECTED_STROKE = "var(--muted-foreground)";
+
 export function DecisionChainGraph({
   coverage,
   people,
   contacts,
+  relations,
 }: {
   readonly coverage: ChainCoverage;
   readonly people: readonly ContactNode[];
   readonly contacts: readonly { id: string; name: string; title: string | null }[];
+  /** 真实的关系边(incr/0018 的 account_relation), 不再是"经济决策人到每个
+   *  人都连一条线"的固定假线 (owner, 2026-09-21: 人际及利益博弈关系) - 一条
+   *  边只在两端都在这张图的固定模板里出现时才画, 模板之外的人(这个客户的
+   *  其他联系人)不在这条链的图里, 边也就无处安放。 */
+  readonly relations: readonly RelationEdge[];
 }) {
   const { ACCOUNT_TEXT, DECISION_ROLE_LABEL } = useMessages();
   const nameOf = (id: string) => contacts.find((c) => c.id === id)?.name ?? id;
@@ -74,6 +89,7 @@ export function DecisionChainGraph({
     return {
       role,
       label: DECISION_ROLE_LABEL[role] ?? role,
+      personId: person?.id ?? null,
       contactName: person ? nameOf(person.id) : null,
       title: person ? titleOf(person.id) : null,
       missing: isMissing,
@@ -86,6 +102,29 @@ export function DecisionChainGraph({
   const top = nodes.find((n) => n.role === "economic");
   const rest = nodes.filter((n) => n.role !== "economic");
   const restX = rest.map((_, i) => 120 + i * ((600 - 240) / Math.max(rest.length - 1, 1)));
+
+  const posOf = (n: RoleNode): { x: number; y: number } | null => {
+    if (n.role === "economic") return top ? { x: 360, y: 62 } : null;
+    const i = rest.indexOf(n);
+    return i === -1 ? null : { x: restX[i]!, y: 150 };
+  };
+
+  // 真实关系边, 两端都要在这张固定模板里才画得出来 - 一个人的 personId 出现
+  // 在两个不同角色节点上是不可能的(chainForOpportunity 一个 personId 只对应
+  // 一个 decisionRole), 所以按 personId 找节点就是找那一个人在这条链里的
+  // 位置。
+  const nodeOfPerson = new Map(nodes.filter((n) => n.personId).map((n) => [n.personId!, n]));
+  const realEdges = relations
+    .map((r) => {
+      const from = nodeOfPerson.get(r.fromContactId);
+      const to = nodeOfPerson.get(r.toContactId);
+      if (!from || !to) return null;
+      const fromPos = posOf(from);
+      const toPos = posOf(to);
+      if (!fromPos || !toPos) return null;
+      return { key: `${r.fromContactId}-${r.toContactId}-${r.relationType}`, fromPos, toPos, opposed: r.relationType === "opposed_to" };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
 
   return (
     <div className="w-full">
@@ -103,6 +142,26 @@ export function DecisionChainGraph({
             {n.label}
           </span>
         ))}
+        {/* 关系图例单独一条 (owner: 人际及利益博弈关系) - 角色是"点"的颜色,
+            关系是"线"的颜色, 两套图例分开列, 不混在一行让人猜哪个说的是
+            点、哪个说的是线。 */}
+        {realEdges.length > 0 ? (
+          <>
+            <span className="gap-2xs inline-flex items-center">
+              <span className="inline-block h-0 w-[0.875rem] border-t-2" style={{ borderColor: CONNECTED_STROKE }} />
+              {ACCOUNT_TEXT.graphRelationConnected}
+            </span>
+            {realEdges.some((e) => e.opposed) ? (
+              <span className="gap-2xs inline-flex items-center">
+                <span
+                  className="inline-block h-0 w-[0.875rem] border-t-2 border-dashed"
+                  style={{ borderColor: OPPOSED_STROKE }}
+                />
+                {ACCOUNT_TEXT.graphRelationOpposed}
+              </span>
+            ) : null}
+          </>
+        ) : null}
       </div>
       {/* w-full (owner, 2026-09-21: 补充调查 - 图谱渲染只有 166px 宽, 文字
           糊成一团) - 这个组件自己没有类名的根 div 在栏2 的 flex-col 容器里
@@ -111,20 +170,43 @@ export function DecisionChainGraph({
           宽度)。显式给 w-full 让父元素有一个确定宽度, width="100%" 才有
           东西可以百分比。 */}
       <svg viewBox="0 0 720 260" width="100%" role="img" aria-label={ACCOUNT_TEXT.graphTitle}>
-        {top ? (
-          rest.map((n, i) => (
-            <line
-              key={n.role}
-              x1={360}
-              y1={62}
-              x2={restX[i]}
-              y2={150}
-              stroke={n.missing ? "var(--border)" : ROLE_COLOR[n.role]}
-              strokeWidth={2}
-              strokeDasharray={n.missing ? "4 3" : undefined}
-            />
-          ))
-        ) : null}
+        {/* 缺口用虚线画到经济决策人 (owner: coverage.missing 依然是唯一
+            "这里少一个人"的真实来源) - 只有 missing 的空位才画这条占位线,
+            真人和真人之间的线全部来自下面的 realEdges, 不再假设"每个人都
+            向经济决策人汇报"。 */}
+        {top
+          ? rest
+              .filter((n) => n.missing)
+              .map((n, i) => (
+                <line
+                  key={`missing-${n.role}`}
+                  x1={360}
+                  y1={62}
+                  x2={restX[rest.indexOf(n)]}
+                  y2={150}
+                  stroke="var(--border)"
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                />
+              ))
+          : null}
+
+        {/* 人与人之间的真实关系边 (owner, 2026-09-21: 人际及利益博弈关系) -
+            replaces 之前"经济决策人是唯一枢纽"的固定假设。一条边没有对应的
+            关系时, 这两个节点之间就是空白 - 空白本身也是一个真实的事实
+            (这个客户内部还没人记录过这两人的关系), 不是缺陷。 */}
+        {realEdges.map((e) => (
+          <line
+            key={e.key}
+            x1={e.fromPos.x}
+            y1={e.fromPos.y}
+            x2={e.toPos.x}
+            y2={e.toPos.y}
+            stroke={e.opposed ? OPPOSED_STROKE : CONNECTED_STROKE}
+            strokeWidth={2}
+            strokeDasharray={e.opposed ? "4 3" : undefined}
+          />
+        ))}
 
         {top ? <RoleCircle node={top} cx={360} cy={62} r={32} /> : null}
         {rest.map((n, i) => (

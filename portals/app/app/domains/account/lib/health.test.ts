@@ -128,6 +128,7 @@ const c = (id: string, role: ContactNode["decisionRole"], over: Partial<ContactN
   decisionRole: role,
   influence: 50,
   status: "active",
+  stance: null,
   ...over,
 });
 

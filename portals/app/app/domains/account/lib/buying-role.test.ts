@@ -23,7 +23,8 @@ const link = (
   personId: string,
   buyingRole: OpportunityContactLink["buyingRole"],
   influence: number | null = null,
-): OpportunityContactLink => ({ personId, buyingRole, influence });
+  stance: OpportunityContactLink["stance"] = null,
+): OpportunityContactLink => ({ personId, buyingRole, influence, stance });
 
 test("a deal that has said nothing gives everybody `unknown`", () => {
   // AND THAT IS THE HONEST ANSWER, not a gap being hidden: analyzeChain treats

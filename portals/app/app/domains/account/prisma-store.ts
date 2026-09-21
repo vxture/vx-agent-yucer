@@ -16,7 +16,7 @@ import {
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
-import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
+import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType, Stance } from "./lib/health";
 import type {
   AccountFilter,
   AccountPlanRecord,
@@ -765,7 +765,7 @@ export class PrismaAccountStore implements AccountStore {
     workspaceId: string,
     opportunityId: string,
     personId: string,
-    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean; stance?: Stance | null },
   ): Promise<OpportunityContactRecord | null> {
     const p = await this.client();
     const writable: Record<string, unknown> = {
@@ -774,6 +774,7 @@ export class PrismaAccountStore implements AccountStore {
       updatedAt: new Date(),
     };
     if (patch.isPrimary !== undefined) writable.isPrimary = patch.isPrimary;
+    if (patch.stance !== undefined) writable.stance = patch.stance;
 
     const guard = assertWritable(OPPORTUNITY_CONTACT_TABLE, writable);
     if (!guard.ok) {
@@ -1320,5 +1321,6 @@ function toOpportunityContact(r: Record<string, unknown>): OpportunityContactRec
     buyingRole: r.buyingRole as OpportunityContactRecord["buyingRole"],
     influence: (r.influence as number | null) ?? null,
     isPrimary: Boolean(r.isPrimary),
+    stance: (r.stance as OpportunityContactRecord["stance"]) ?? null,
   };
 }

@@ -278,6 +278,7 @@ const oc = (personId: string, buyingRole: string, opportunityId = "opp_1") => ({
   buyingRole: buyingRole as never,
   influence: 50,
   isPrimary: false,
+  stance: null,
 });
 const DEAL = [{ id: "opp_1", name: "Deal one" }];
 

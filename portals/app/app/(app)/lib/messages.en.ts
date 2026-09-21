@@ -1100,6 +1100,8 @@ export const en: Dictionary = {
     person: "Person",
     pickPerson: "Choose a person",
     role: "Role on this deal",
+    stance: "Stance toward us",
+    stanceNotStated: "Not stated yet",
     influence: "Influence on this deal 0-100",
     save: "Save role",
     saved: "Saved",
@@ -1216,6 +1218,12 @@ export const en: Dictionary = {
     blockersUnreached: (n: number) => `${n} blocker${n === 1 ? "" : "s"} unreached`,
     showAllChains: (n: number) => `Show all (${n})`,
     collapseChains: "Collapse",
+    colPerson: "Person",
+    colRole: "Role",
+    colStance: "Stance",
+    colInfluence: "Influence",
+    colRelationship: "Relationship",
+    colReachable: "Reachable",
   },
 
   DECISION_ROLE_LABEL: {
@@ -1225,6 +1233,25 @@ export const en: Dictionary = {
     coach: "Coach",
     blocker: "Blocker",
     unknown: "Unknown",
+  },
+
+  DECISION_ROLE_ABBR: {
+    economic: "EB",
+    user: "UB",
+    technical: "TB",
+  },
+
+  STANCE_LABEL: {
+    champion: "Champion",
+    supporter: "Supporter",
+    neutral: "Neutral",
+    antagonist: "Antagonist",
+  },
+
+  INFLUENCE_TIER_LABEL: {
+    high: "Core",
+    medium: "Key",
+    low: "Edge",
   },
 
   RELATION_TYPE_LABEL: {
@@ -2071,6 +2098,7 @@ export const en: Dictionary = {
     ...GATE_ERROR,
     name_required: "A contact needs a name",
     unknown_decision_role: "Unknown decision role",
+    unknown_stance: "Unknown stance",
     unknown_status: "Unknown contact status",
     influence_range: "Influence is a whole number from 0 to 100",
     not_found: "That contact is not on this customer",
@@ -3329,6 +3357,8 @@ export const en: Dictionary = {
     graphMissingRole: "Missing - nobody identified",
     graphUnreachable: "Economic buyer untouched",
     graphOpen: "View decision chain map",
+    graphRelationConnected: "Relationship on file",
+    graphRelationOpposed: "Opposed",
 
     lifecycleDeals: "Deals",
     lifecycleProjects: "Delivery",

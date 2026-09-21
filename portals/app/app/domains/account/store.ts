@@ -19,7 +19,7 @@ import {
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
-import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
+import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge, Stance } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
@@ -162,6 +162,8 @@ export interface OpportunityContactRecord {
   buyingRole: DecisionRole;
   influence: number | null;
   isPrimary: boolean;
+  /** incr/0075 - see health.ts's own note. Null = nobody has stated it. */
+  stance: Stance | null;
 }
 
 export interface AccountFilter {
@@ -320,7 +322,7 @@ export interface AccountStore {
     workspaceId: string,
     opportunityId: string,
     personId: string,
-    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean; stance?: Stance | null },
   ): Promise<OpportunityContactRecord | null>;
   /** The live plan for one account, or null when it has none. */
   getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null>;
@@ -723,7 +725,7 @@ export class InMemoryAccountStore implements AccountStore {
     workspaceId: string,
     opportunityId: string,
     personId: string,
-    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean; stance?: Stance | null },
   ): Promise<OpportunityContactRecord | null> {
     // The pair is the identity - uidx_opportunity_contact_pair says so - so a
     // second statement about the same person on the same deal REPLACES the
@@ -735,6 +737,7 @@ export class InMemoryAccountStore implements AccountStore {
       held.buyingRole = patch.buyingRole;
       held.influence = patch.influence;
       if (patch.isPrimary !== undefined) held.isPrimary = patch.isPrimary;
+      if (patch.stance !== undefined) held.stance = patch.stance;
       return held;
     }
     const made: OpportunityContactRecord = {
@@ -745,6 +748,7 @@ export class InMemoryAccountStore implements AccountStore {
       buyingRole: patch.buyingRole,
       influence: patch.influence,
       isPrimary: patch.isPrimary ?? false,
+      stance: patch.stance ?? null,
     };
     this.oppContacts.push(made);
     return made;

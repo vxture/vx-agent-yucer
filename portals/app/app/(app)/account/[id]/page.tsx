@@ -464,7 +464,7 @@ export default async function AccountDetailPage({
     ? await chainRecency(
         fieldCtx,
         id,
-        contacts.map((c) => ({ id: c.id, decisionRole: "unknown" as const, influence: null, status: c.status })),
+        contacts.map((c) => ({ id: c.id, decisionRole: "unknown" as const, influence: null, status: c.status, stance: null })),
         relations.value,
         { now },
       )
@@ -541,6 +541,7 @@ export default async function AccountDetailPage({
               coverage={c.coverage}
               people={c.people}
               contacts={contacts}
+              relations={relations.ok ? relations.value : []}
               recency={recencyRead}
               linkForm={
                 i === 0 ? (
