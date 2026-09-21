@@ -17,8 +17,24 @@ import type { CSSProperties } from "react";
  * the DS's own theme already defines, confirmed by reading the rendered
  * output of a live `Card` (owner, 2026-09-20: 死死记住这次的要求 - 各板块
  * 背景采用渐变背景，参考 /account 卡片背景).
+ *
+ * backgroundColor: "transparent" IS LOAD-BEARING, not decoration - the first
+ * pass of this fix left it out and the result rendered as plain white
+ * (owner: "样本浅蓝色渐变，你是纯白色"). `Card` never sets its own
+ * background-color at all (confirmed: `rgba(0,0,0,0)` on every real `Card`
+ * checked), so its gradient's own transparent end lets the page's actual
+ * background (`rgb(244,247,253)`, a pale blue - not white) show through and
+ * read as a tint. `Section`'s `tone="raised"` sets an OPAQUE `bg-card`
+ * (`rgb(255,255,255)`) UNDER the gradient - background-image always paints
+ * over background-color on the same box - so the same gradient was
+ * compositing over solid white instead of the page's blue, and a
+ * mostly-transparent veil over solid white is indistinguishable from white.
+ * Inline style beats the class regardless of Tailwind/cn merge order, so this
+ * is the one place `bg-card` can be cancelled without touching `Section`
+ * itself or any of its other tones.
  */
 export const CARD_VEIL_STYLE: CSSProperties = {
+  backgroundColor: "transparent",
   backgroundImage:
     "linear-gradient(180deg, color-mix(in srgb, var(--gradient-card-from) calc(var(--opacity-veil-base-top) * 100%), transparent), color-mix(in srgb, var(--gradient-card-to) calc(var(--opacity-veil-base-bottom) * 100%), transparent))",
 };
