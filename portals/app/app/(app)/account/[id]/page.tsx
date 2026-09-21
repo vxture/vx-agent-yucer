@@ -1,10 +1,12 @@
 import {
   EmptyState,
   Icon,
+  Section,
   ViewLayout,
 } from "@vxture/design-ui";
 import { DealsSummaryBadge, DimensionStat } from "../../components/dimension-stat";
 import { ScoreRing } from "../../components/score-ring";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../../lib/card-veil";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import {
@@ -42,19 +44,19 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 // class of issue as dimension-stat.tsx's toneSurfaceClasses note. DECISION_ROLES
 // is the same fact from a plain (non-"use client") domain lib instead.
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
-import { HealthPanel } from "../../components/health-panel";
+import { HealthPanel, RelationshipEvidenceDetail, type HealthEvidence } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
-import { RelationshipEvidencePanel } from "../../components/relationship-evidence";
 import {
   listCommitments,
   listInteractions,
   chainRecency,
   relationshipEvidence,
 } from "../../../domains/account/field-service";
+import { isOverdue } from "../../../domains/account/lib/commitment";
 import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
@@ -668,6 +670,31 @@ export default async function AccountDetailPage({
     ? { claim: topJudgement.claim, rule: topJudgement.rule ?? null }
     : null;
 
+  // 关系证据合并进客户评估 (owner, 2026-09-21: 梳理全景图中心区域 - 关系证据
+  // 应该合并进客户评估, 要详细信息, 不是几个数字) - commitments/interactions
+  // 都是本函数早前 Promise.all 已经读过的同一份数据(见上面 listCommitments/
+  // listInteractions 调用), relationshipEvidence() 内部其实也读了它们两个,
+  // 只是只往外吐聚合数(theyMissed/weMissed的计数) - 这里不重新读一次, 只是
+  // 用同一份列表再筛一遍, 筛法跟 domains/account/lib/commitment.ts 的
+  // reliability() 完全一致(they_owe + missed/逾期 = 对方错过), 数字对得上。
+  const healthEvidence: HealthEvidence | null = evidence.ok
+    ? {
+        interactionCount: evidence.value.interactionCount,
+        recentInteractions: (interactions.ok ? interactions.value : [])
+          .slice(0, 3)
+          .map((i) => ({ id: i.id, occurredAt: i.occurredAt, channel: i.channel, rawNote: i.rawNote })),
+        theyMissed: evidence.value.reliability.theyMissed,
+        missedByThem: (commitments.ok ? commitments.value : [])
+          .filter((c) => c.direction === "they_owe" && (c.status === "missed" || isOverdue(c, now)))
+          .map((c) => ({ id: c.id, statement: c.statement, dueAt: c.dueAt })),
+        weMissed: evidence.value.reliability.weMissed,
+        missedByUs: (commitments.ok ? commitments.value : [])
+          .filter((c) => c.direction === "we_owe" && (c.status === "missed" || isOverdue(c, now)))
+          .map((c) => ({ id: c.id, statement: c.statement, dueAt: c.dueAt })),
+        theirKeptRate: evidence.value.reliability.theirKeptRate,
+      }
+    : null;
+
   return (
     <ViewLayout>
       {/* HEADER 没了 (owner, 2026-09-20: 补充 - 把中部第一块-客户信息卡整合
@@ -845,28 +872,54 @@ export default async function AccountDetailPage({
               onRecompute={recomputeAccountHealth}
               statusTag={statusTag}
               judgement={judgement}
+              evidence={healthEvidence}
             />
           ) : (
             // 只读成员没有 health(见上面 persist:false 的说明), 状态标签和
             // 判定信息仍然要显示 - 退化成不挂卡片的纯文本/独立一行, 而不是
             // 整个消失 (owner: 判定信息应该移到客户评估板块 - health 不可用
             // 时也不能跟着 HealthPanel 一起消失, judgement-note.tsx 抽成
-            // 共享组件正是为了这里)。
+            // 共享组件正是为了这里)。关系证据不受 health 的 persist:false 影响
+            // (account.view 而不是 canWrite 的门), 所以只读成员这条路也要看得到
+            // - 用 RelationshipEvidenceDetail 而不是 HealthPanel, 自己起一张卡。
             <div className="flex flex-col gap-sm">
               <div className="flex items-center gap-xs">{statusTag}</div>
               {judgement ? <JudgementNote judgement={judgement} /> : null}
+              {healthEvidence ? (
+                <Section
+                  tone="raised"
+                  style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
+                  title={FIELD_TEXT.evidenceTitle}
+                >
+                  <RelationshipEvidenceDetail evidence={healthEvidence} />
+                </Section>
+              ) : null}
             </div>
           )}
 
-          {evidence.ok ? (
-            <RelationshipEvidencePanel evidence={evidence.value} now={now} />
-          ) : null}
-
           {/* 没有 description - 去掉所有垃圾说明 (owner, 2026-09-20; 理由见
-              components/org-unit-panel.tsx 同名注释). */}
+              components/org-unit-panel.tsx 同名注释). icon 换成 map-pin, 不用
+              AnalysisTabs 原来给三个图表切换块留的 chart-bar - 这五个 tab 是
+              清单, 不是图表 (owner, 2026-09-21: 梳理全景图中心区域)。 */}
           <AnalysisTabs
             id="account-lifecycle"
+            icon="map-pin"
             title={ACCOUNT_TEXT.roster}
+            // 默认展开第一个有内容的 tab, 而不是死板地永远停在"商机"
+            // (owner, 2026-09-21: 梳理全景图中心区域 - 阵地清单默认展开的
+            // tab) - 商机是这张清单最想展示的对象, 但一个没有开放商机的
+            // 账户打开这张卡, 第一眼看到的不该是一个空 tab。
+            defaultKey={
+              dealRows.length > 0
+                ? "deals"
+                : rosterProjects.length > 0
+                  ? "projects"
+                  : revenueRows.length > 0
+                    ? "revenue"
+                    : (commitments.ok ? commitments.value.length : 0) > 0
+                      ? "commitments"
+                      : "interactions"
+            }
             tabs={[
               {
                 key: "deals",

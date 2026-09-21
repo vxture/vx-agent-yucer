@@ -1205,6 +1205,8 @@ export const en: Dictionary = {
     healthShort: "Health",
     primaryConcern: "Biggest problem",
     recompute: "Reassess",
+    collapse: "Collapse",
+    expand: "Expand",
     factorPipeline: "Pipeline",
     factorRecency: "Contact recency",
     factorDelivery: "Delivery",

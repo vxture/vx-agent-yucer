@@ -2835,9 +2835,6 @@ export const FIELD_TEXT = {
   evidenceTitle: "关系证据",
   evidenceDescription:
     "全部来自已记录的事实，不是评分。「对方答应的三件事错了两件」是能行动的句子，一个 0-100 的健康分不是。",
-  evidenceDaysAgo: (n: number) => `${n} 天前`,
-  evidenceLastContact: "最近接触",
-  evidenceNever: "从未接触",
   evidenceInteractions: "跟进条数",
   evidenceTheyMissed: "对方错过",
   evidenceWeMissed: "我方错过",
@@ -5510,6 +5507,10 @@ export const CHAIN_TEXT = {
   // owner, 2026-09-20: 设计图严格对齐 - mockup 用词是"重新评估"，"重新计算"
   // 这个措辞这次才发现一直没跟上（早前只在 mockup 里改过）。
   recompute: "重新评估",
+  // 客户评估整卡可收起 (owner, 2026-09-21: 梳理全景图中心区域 - 客户评估
+  // 收起来应该收到一行).
+  collapse: "收起",
+  expand: "展开",
   factorPipeline: "商机",
   factorRecency: "互动时效",
   factorDelivery: "交付",

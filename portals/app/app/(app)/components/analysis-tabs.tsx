@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Section, Tabs, TabsContent, TabsList, TabsTrigger } from "@vxture/design-ui";
+import { Section, Tabs, TabsContent, TabsList, TabsTrigger, type IconName } from "@vxture/design-ui";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // 分析板块的图表切换 - owner ruling, 2026-09-06 (多张图改为 tab 切换，位置放在
@@ -30,12 +30,19 @@ export interface AnalysisTab {
 
 export function AnalysisTabs({
   id,
+  icon = "chart-bar",
   title,
   description,
   summary,
   tabs,
+  defaultKey,
 }: {
   readonly id: string;
+  /** Defaults to the original "chart-bar" (owner, 2026-09-06 ruling was
+   *  written for the three chart-switching blocks) - a caller whose tabs
+   *  are not charts (account/[id]/page.tsx's 阵地清单 is a roster, not a
+   *  graph) can pass its own. */
+  readonly icon?: IconName;
   readonly title: string;
   /** Optional (owner, 2026-09-20: 去掉所有垃圾说明 - 账户详情页不传这个了,
    *  见 account/[id]/page.tsx 的调用). 其他调用方仍可以传。 */
@@ -43,8 +50,13 @@ export function AnalysisTabs({
   /** The one number the block exists to state, always visible. */
   readonly summary?: ReactNode;
   readonly tabs: readonly AnalysisTab[];
+  /** Which tab opens first. Defaults to the first tab - a caller that knows
+   *  one of its tabs is empty while another is not (owner, 2026-09-21: 梳理
+   *  全景图中心区域 - 阵地清单默认展开的 tab) can steer the reader to a tab
+   *  that actually has something on it instead. */
+  readonly defaultKey?: string;
 }) {
-  const [active, setActive] = useState(tabs[0]?.key ?? "");
+  const [active, setActive] = useState(defaultKey ?? tabs[0]?.key ?? "");
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // components/org-unit-panel.tsx 同名注释).
@@ -54,7 +66,7 @@ export function AnalysisTabs({
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         id={id}
-        icon="chart-bar"
+        icon={icon}
         title={title}
         description={description}
         action={
