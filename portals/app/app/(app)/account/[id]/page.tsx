@@ -72,6 +72,7 @@ import { fillField } from "./completeness-action";
 import { askToComplete } from "./ask-complete-action";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
+import { AccountSidebarPortal } from "../../components/account-sidebar-portal";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import {
   DealLifecyclePanel,
@@ -591,18 +592,28 @@ export default async function AccountDetailPage({
           </span>
         }
         action={
-          <div className="flex items-center gap-md">
+          // max-w-40 + flex-wrap (owner, 2026-09-20: 死死记住这次的要求 -
+          // 三栏布局下中部内容栏比之前窄很多, header 硬塞三个维度+菜单在
+          // 一行会把标题挤到几乎读不出来). 40(10rem/160px) 只比最宽的一块
+          // 徽标(健康评估, 带逾期文字)略宽, 逼着窄屏下三块纵向堆叠成一列
+          // 而不是横向抢标题的空间; 屏幕够宽时 flex-wrap 仍然让它们排成一行,
+          // 不会平白无故占用没必要的高度。三块之间的竖线(border-r)统一去掉
+          // (全部传 last) - 横排时是分隔线, 纵向堆叠时同一条竖线会变成挂在
+          // 单独一块右边、毫无意义的短线。
+          <div className="flex max-w-40 flex-wrap items-center justify-end gap-sm">
             {/* 三个动态维度, 固定顺序: 商机数量 -> 客户级别 -> 健康评估 (owner,
                 2026-09-18: header 三维度顺序). 图形 + 两行文字, 不是彩色
                 胶囊 (owner, 2026-09-20: 严格按照设计实施 - mockup 的
                 `.health-mini`) - 都读现成的数据, 客户级别现在连普通级也
                 显示, 不再只在非 standard 时才出现. */}
             <DimensionStat
+              last
               figure={<CircleBadge tone="brand">{openDealsCount}</CircleBadge>}
               label={POSITION_TEXT.planDeals}
               value={ACCOUNT_TEXT.openDealsCount(openDealsCount)}
             />
             <DimensionStat
+              last
               figure={
                 <img src={TIER_ICON_SRC[account.tier]} alt="" className="h-[2.875rem] w-10 flex-none" />
               }
@@ -721,28 +732,24 @@ export default async function AccountDetailPage({
         </div>
       ) : null}
 
-      {/* TWO COLUMNS below the header, not three (owner, 2026-09-20: 严格
-          按照设计实施 - 栏3是平台全局的智能副驾，不是每个页面自己构建的三分
-          之一). Left is the dossier (facts that hold still); right is
-          everything else this account's own page owns - the lifecycle spine
-          AND this account's own decision items, stacked in one column
-          instead of a third grid track. The copilot conversation itself is
-          still never a column here (see the file-level note above; a second
-          chat box was the defect that comment describes, and folding 栏3
-          into 栏2 does not reopen it - TheatrePlan is a proposal LIST, not a
-          chat). */}
-      {/* ChainViewProvider spans both columns - 栏1 的摘要行点击要改栏2 显示
-          什么, 状态得提到两栏共同的父级 (owner: 决策链主从视图). */}
-      {/* 20rem, 不是 18rem (owner: 其他页面的三栏布局/边距/gap，客户详情页
-          是不是一致了) - 18rem 是这页重排前就有的老数字, 查了一圈发现整个
-          产品里唯一真的写了理由的侧栏宽度是 form-page.tsx 的 20rem
-          ("The 20rem second column is reserved..."), 18rem 在别处找不到
-          出处。gap-lg 本来就和 pipeline/[id]/page.tsx 的两栏一致, 不用改;
-          只有这一个数字是孤立的, 改成跟已有惯例对齐。 */}
+      {/* ONE COLUMN here now, not two (owner, 2026-09-20: 死死记住这次的要求 -
+          "整体页面是三栏，不是内容区还是两栏"). 栏1(the dossier) moved OUT of
+          this content column entirely - it now portals into the page-edge
+          sidebar app-shell.tsx renders for this exact route (same slot,
+          same width, same independent scroll NavBoard used on every other
+          page - see account-sidebar-portal.tsx and lib/sidebar-slot.ts). What
+          is left here is just 栏2: the lifecycle spine and this account's own
+          decision items. The copilot conversation itself is still never a
+          column here (see the file-level note above; a second chat box was
+          the defect that comment describes, and this move does not reopen
+          it - TheatrePlan is a proposal LIST, not a chat). */}
+      {/* ChainViewProvider still wraps both - 栏1 的摘要行(现在渲染在侧栏里)
+          点开要改栏2 显示什么, 状态得提到两者共同的父级 (owner: 决策链主从
+          视图). Portal 只改 DOM 位置, 不改 React 树, 这个 Provider 的
+          context 照样跨两处生效。 */}
       <ChainViewProvider chains={chainSummaryItems}>
-      <div className="grid gap-lg xl:grid-cols-[20rem_1fr]">
-
-        {/* ======== LEFT: the dossier ======== */}
+      <AccountSidebarPortal>
+        {/* ======== 栏1: the dossier, portaled into the shell's left sidebar ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
           <OrgUnitPanel
             parentId={account.parentId}
@@ -798,11 +805,12 @@ export default async function AccountDetailPage({
             />
           ) : null}
         </div>
+      </AccountSidebarPortal>
 
-        {/* ======== RIGHT (mockup's 栏2): the lifecycle spine, then this
-            account's own decision items - one column, two concerns, matching
-            the mockup's 栏2 (default view: 健康拆解 + 阵地清单) with
-            TheatrePlan appended rather than given its own track. ======== */}
+        {/* ======== 栏2: the lifecycle spine, then this account's own
+            decision items - one column, two concerns, matching the mockup's
+            栏2 (default view: 健康拆解 + 阵地清单) with TheatrePlan appended
+            rather than given its own track. ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
           {/* lifecycle 视图和某条决策链的详情视图二选一 (owner: 决策链展示时
               健康拆解也去除) - ChainDetailSlot 从 Context 里的 activeId 决定
@@ -896,7 +904,6 @@ export default async function AccountDetailPage({
           </>
           } />
         </div>
-      </div>
       </ChainViewProvider>
     </ViewLayout>
   );

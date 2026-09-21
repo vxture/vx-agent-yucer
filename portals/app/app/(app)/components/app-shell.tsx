@@ -37,6 +37,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
+import { ACCOUNT_SIDEBAR_SLOT_ID } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -221,9 +222,20 @@ export function AppShell({
    * happen to live under a prefix. A rule keyed on segment count would have
    * stripped the board from them and been wrong in a way nobody would notice
    * until they went looking for it.
+   *
+   * "account" REMOVED (owner, 2026-09-20: 客户详情页恢复三栏独立布局，跟
+   * /account 列表页一致) - the account detail page now keeps the board
+   * beside it like every first-level page does; only "pipeline" detail pages
+   * still free the width this way.
    */
-  const DETAIL_ROOTS = ["account", "pipeline"];
+  const DETAIL_ROOTS = ["pipeline"];
   const isDetail = segments.length >= 2 && DETAIL_ROOTS.includes(segments[0]!);
+  /** 栏1 取代通用模块导航, 不是并排加一个 (owner, 2026-09-20: 死死记住这次的
+   *  要求 - "整体页面是三栏，不是内容区还是两栏"). 客户详情路由下, 这一侧的
+   *  <aside> 还是同一个(宽度/独立滚动都不变, 见下面 boardVisible 的渲染),
+   *  只是内容从 NavBoard 换成这个客户自己的档案 - account-sidebar-portal.tsx
+   *  把 page.tsx 已经建好的栏1内容传送到这里, 不重新发起一次数据读。 */
+  const isAccountDetail = segments.length >= 2 && segments[0] === "account";
 
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
@@ -725,13 +737,17 @@ export function AppShell({
             rather than shrinking how far the pane can scroll. */}
         {boardVisible ? (
           <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
-            <NavBoard
-              sections={board}
-              modules={boardModules}
-              activeKey={activeKey}
-              pathname={pathname}
-              nav={nav}
-            />
+            {isAccountDetail ? (
+              <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
+            ) : (
+              <NavBoard
+                sections={board}
+                modules={boardModules}
+                activeKey={activeKey}
+                pathname={pathname}
+                nav={nav}
+              />
+            )}
           </aside>
         ) : null}
 
