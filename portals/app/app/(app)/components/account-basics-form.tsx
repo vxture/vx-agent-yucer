@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
-import { Button, Drawer, Field, FieldLabel, Icon, Input, NativeSelect, Separator, useToast } from "@vxture/design-ui";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { Button, Drawer, Field, FieldLabel, Input, NativeSelect, Separator, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
 
@@ -59,6 +59,8 @@ export interface AccountBasicsFormProps {
   readonly customerSizes: readonly VocabOption[];
   readonly customerNatures: readonly VocabOption[];
   readonly canWrite: boolean;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly onSave: (
     accountId: string,
     patch: {
@@ -109,12 +111,13 @@ export function AccountBasicsForm({
   customerSizes,
   customerNatures,
   canWrite,
+  open,
+  onOpenChange,
   onSave,
   orgRelations,
 }: AccountBasicsFormProps) {
   const { ACCOUNT_BASICS_TEXT, ACCOUNT_ERROR, DS_LABELS } = useMessages();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
 
   const [nameValue, setNameValue] = useState(name);
@@ -131,9 +134,12 @@ export function AccountBasicsForm({
     employeeCount != null ? String(employeeCount) : "",
   );
 
-  if (!canWrite) return null;
-
-  const openDrawer = () => {
+  // Reset to the current record every time the drawer opens, same as the old
+  // openDrawer() did on click - just triggered by the controlling prop now
+  // (owner, 2026-09-20: 死死记住设计文件 - the trigger moved to
+  // account-header-menu.tsx's shared "···" menu).
+  useEffect(() => {
+    if (!open) return;
     setNameValue(name);
     setRegionValue(blank(region));
     setProvinceValue(blank(province));
@@ -145,8 +151,10 @@ export function AccountBasicsForm({
     setCreditCodeValue(blank(creditCode));
     setWebsiteValue(blank(website));
     setEmployeeCountValue(employeeCount != null ? String(employeeCount) : "");
-    setOpen(true);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  if (!canWrite) return null;
 
   const submit = () =>
     start(async () => {
@@ -168,32 +176,28 @@ export function AccountBasicsForm({
         return;
       }
       toast({ tone: "success", title: ACCOUNT_BASICS_TEXT.saved });
-      setOpen(false);
+      onOpenChange(false);
     });
 
   return (
-    <>
-      <Button variant="ghost" size="icon-sm" onClick={openDrawer} aria-label={ACCOUNT_BASICS_TEXT.editButton} title={ACCOUNT_BASICS_TEXT.editButton}>
-        <Icon name="edit" size="sm" />
-      </Button>
-      <Drawer
-        open={open}
-        onClose={() => setOpen(false)}
-        width="md"
-        title={ACCOUNT_BASICS_TEXT.title}
-        description={ACCOUNT_BASICS_TEXT.why}
-        closeLabel={DS_LABELS.confirmCancel}
-        footer={
-          <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" disabled={pending} onClick={() => setOpen(false)}>
-              {ACCOUNT_BASICS_TEXT.cancel}
-            </Button>
-            <Button disabled={pending || nameValue.trim() === ""} onClick={submit}>
-              {ACCOUNT_BASICS_TEXT.save}
-            </Button>
-          </div>
-        }
-      >
+    <Drawer
+      open={open}
+      onClose={() => onOpenChange(false)}
+      width="md"
+      title={ACCOUNT_BASICS_TEXT.title}
+      description={ACCOUNT_BASICS_TEXT.why}
+      closeLabel={DS_LABELS.confirmCancel}
+      footer={
+        <div className="gap-sm flex items-center justify-end">
+          <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+            {ACCOUNT_BASICS_TEXT.cancel}
+          </Button>
+          <Button disabled={pending || nameValue.trim() === ""} onClick={submit}>
+            {ACCOUNT_BASICS_TEXT.save}
+          </Button>
+        </div>
+      }
+    >
         <div className="gap-lg flex flex-col">
           <Field>
             <FieldLabel>{ACCOUNT_BASICS_TEXT.name}</FieldLabel>
@@ -303,7 +307,6 @@ export function AccountBasicsForm({
             </>
           ) : null}
         </div>
-      </Drawer>
-    </>
+    </Drawer>
   );
 }

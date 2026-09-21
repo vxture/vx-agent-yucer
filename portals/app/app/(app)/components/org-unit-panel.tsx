@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { DetailList, DetailRow, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -23,33 +22,26 @@ import { useMessages } from "../lib/i18n/provider";
 // dossier card states facts, it does not carry an empty-state CTA for every
 // fact that could exist" - 下级单位同一条规则, 只在 count > 0 时显示,
 // 也没有按钮。编辑上下级关系的入口现在在 org-relations-editor.tsx 里，挂在
-// editForm(即"编辑单位信息"抽屉)里，不在这张只读卡片上。
+// account-header-menu.tsx 的共享"···"菜单里，不在这张只读卡片上。
 //
 // 销售负责人不在这张卡上 (owner: mockup 把"销售负责人 王涛"放在 header 第二
 // 行，跟 ACC-0001 并列，不是单位信息的一个字段) - 见 page.tsx 的 header。
+//
+// 这张卡的卡头暂时没有 action - mockup 原话是这个位置本该是"收起档案栏"
+// (整个栏1的折叠开关, `toggleCol1()`), 不是编辑入口; 那是一个独立的、还没
+// 建的功能(折叠整个栏1), 不属于这次 header 修正的范围, 留给下一轮检查。
 export function OrgUnitPanel({
   parentId,
   parentName,
   children,
   industry,
   region,
-  editForm,
 }: {
   readonly parentId: string | null;
   readonly parentName: string | null;
   readonly children: readonly { id: string; name: string }[];
   readonly industry: string | null;
   readonly region: string | null;
-  /** AccountBasicsForm, built server-side in page.tsx and mounted here as the
-   *  card's own action - same "server builds it, client just mounts it"
-   *  pattern linkForm has used all along (owner, 2026-09-20: 编辑单位信息 -
-   *  this card's own edit trigger, not a header ··· menu - see
-   *  designate-account.tsx's own note on why a header button beats a shared
-   *  menu here). Optional: absent for a read-only member. Now also carries
-   *  上下级关联's editing (org-relations-editor.tsx), nested inside the same
-   *  drawer - see that file's own note on why it belongs here and 销售负责人
-   *  does not. */
-  readonly editForm?: ReactNode;
 }) {
   const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT } = useMessages();
   // 没有 description (owner, 2026-09-20: 去掉所有垃圾说明) - 这是每天用的
@@ -60,7 +52,6 @@ export function OrgUnitPanel({
       tone="raised"
       icon="buildings"
       title={ACCOUNT_TEXT.orgUnitTitle}
-      action={editForm}
     >
       <div className="flex flex-col gap-sm">
         {industry || region || parentName ? (

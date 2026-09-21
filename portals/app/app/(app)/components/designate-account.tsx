@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Button,
   Drawer,
@@ -21,19 +21,23 @@ import type { AccountTier } from "../../domains/account/store";
 // deal, and it reads the plan. A strategic designation with no plan is a label
 // on a customer that changes which rules run - to none.
 //
-// A HEADER BUTTON + DRAWER, not a permanently-open form on the display page
-// (owner, 2026-09-09: display pages show, configuration lives behind one
-// button - see market-scope-control.tsx for the same shape). The button
-// states the current tier so the header answers "what is this account's tier"
-// without opening anything; the Drawer, not a dialog, because a strategic
-// choice grows a second step (the plan fields) the same way a province frame
-// does.
+// CONTROLLED, NOT SELF-TRIGGERING (owner, 2026-09-20: 死死记住设计文件 -
+// mockup 原话: "定级: a BADGE the same visual weight as 健康评估's ring...
+// not a button - modifying it moved to the ··· menu (owner: 三个点操作可以
+// 来修改定级、编辑等等)... rather than each one being its own header
+// button"). This used to render its own header Button (a second, redundant
+// "定级 · 普通级" control beside the read-only medal DimensionStat that
+// already states the same fact) - that predates this exact mockup section
+// and contradicts it directly. account-header-menu.tsx is the one shared
+// "···" trigger now; this component is just the Drawer, opened/closed from
+// outside.
 
 export interface DesignateAccountProps {
   readonly accountId: string;
   readonly tier: string;
   readonly period: string;
-  readonly canWrite: boolean;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly onDesignate: (input: {
     accountId: string;
     tier: string;
@@ -50,11 +54,11 @@ export function DesignateAccount({
   accountId,
   tier,
   period,
-  canWrite,
+  open,
+  onOpenChange,
   onDesignate,
 }: DesignateAccountProps) {
   const { ACCOUNT_ERROR, DS_LABELS, POSITION_TEXT } = useMessages();
-  const [open, setOpen] = useState(false);
   const [next, setNext] = useState(tier);
   const [target, setTarget] = useState("");
   const [contact, setContact] = useState("30");
@@ -62,14 +66,11 @@ export function DesignateAccount({
   const [pending, start] = useTransition();
   const { toast } = useToast();
 
-  if (!canWrite) return null;
-
   const TIERS = [
     ["standard", POSITION_TEXT.tierStandard, POSITION_TEXT.tierStandardDesc],
     ["key", POSITION_TEXT.tierKey, POSITION_TEXT.tierKeyDesc],
     ["strategic", POSITION_TEXT.tierStrategic, POSITION_TEXT.tierStrategicDesc],
   ] as const;
-  const currentLabel = TIERS.find(([k]) => k === tier)?.[1] ?? tier;
 
   const strategic = next === "strategic";
   const c = Number(contact);
@@ -82,13 +83,16 @@ export function DesignateAccount({
       e > 0 &&
       period.trim() !== "");
 
-  const openDrawer = () => {
+  // Reset to the current fact every time the drawer opens, same as the old
+  // openDrawer() did on click - just triggered by the controlling prop now.
+  useEffect(() => {
+    if (!open) return;
     setNext(tier);
     setTarget("");
     setContact("30");
     setExec("90");
-    setOpen(true);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const submit = () =>
     start(async () => {
@@ -116,33 +120,29 @@ export function DesignateAccount({
           TIERS.find(([k]) => k === (r.tier ?? next))?.[1] ?? r.tier ?? next,
         ),
       });
-      setOpen(false);
+      onOpenChange(false);
     });
 
   return (
-    <>
-      <Button variant="secondary" onClick={openDrawer}>
-        {POSITION_TEXT.designateButton(currentLabel)}
-      </Button>
-      <Drawer
-        open={open}
-        onClose={() => setOpen(false)}
-        width="sm"
-        title={POSITION_TEXT.designate}
-        description={POSITION_TEXT.designateWhy}
-        closeLabel={DS_LABELS.confirmCancel}
-        footer={
-          <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" disabled={pending} onClick={() => setOpen(false)}>
-              {DS_LABELS.confirmCancel}
-            </Button>
-            <Button disabled={!ready || pending || next === tier} onClick={submit}>
-              {POSITION_TEXT.designateSubmit}
-            </Button>
-          </div>
-        }
-      >
-        <div className="gap-lg flex flex-col">
+    <Drawer
+      open={open}
+      onClose={() => onOpenChange(false)}
+      width="sm"
+      title={POSITION_TEXT.designate}
+      description={POSITION_TEXT.designateWhy}
+      closeLabel={DS_LABELS.confirmCancel}
+      footer={
+        <div className="gap-sm flex items-center justify-end">
+          <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+            {DS_LABELS.confirmCancel}
+          </Button>
+          <Button disabled={!ready || pending || next === tier} onClick={submit}>
+            {POSITION_TEXT.designateSubmit}
+          </Button>
+        </div>
+      }
+    >
+      <div className="gap-lg flex flex-col">
           <Field>
             <FieldLabel>{POSITION_TEXT.designate}</FieldLabel>
             {/* 三张奖牌卡, 不是下拉框 (owner, 2026-09-20: mockup - 企业定级需要
@@ -209,8 +209,7 @@ export function DesignateAccount({
               <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planRequired}</p>
             </>
           ) : null}
-        </div>
-      </Drawer>
-    </>
+      </div>
+    </Drawer>
   );
 }

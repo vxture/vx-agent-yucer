@@ -33,7 +33,6 @@ import {
 } from "../../../domains/account/service";
 import { listSegments } from "../../../domains/strategy/service";
 import { getAuthzStore } from "../../../authz/store";
-import { AccountBasicsForm } from "../../components/account-basics-form";
 import { LinkContactDrawer } from "../../components/link-contact-drawer";
 import { OwnerEditor } from "../../components/owner-editor";
 import { OrgRelationsEditor } from "../../components/org-relations-editor";
@@ -82,7 +81,7 @@ import {
   type RevenueRow,
 } from "../../components/account-lifecycle";
 import { TheatrePlan } from "../../components/theatre-plan";
-import { DesignateAccount } from "../../components/designate-account";
+import { AccountHeaderMenu } from "../../components/account-header-menu";
 import { DEFAULT_PERIOD } from "../../lib/periods";
 import {
   designateAccountTier,
@@ -633,18 +632,52 @@ export default async function AccountDetailPage({
                 }
               />
             ) : null}
-            {/* 定级/计划 IS CONFIGURATION, not a fact to display - it lives
-                behind one button, never as an open form on the page (see
-                designate-account.tsx's own note). */}
-            <DesignateAccount
-              accountId={id}
-              tier={detail.value.account.tier}
-              period={DEFAULT_PERIOD}
-              canWrite={
-                can(session.authz, session.entitlement, "account.upsert", "ui")
-                  .allowed
-              }
-              onDesignate={designateAccountTier}
+            {/* 定级/计划 与 编辑单位信息 都是配置动作，共用一个 "···" 菜单
+                (owner, 2026-09-20: 死死记住设计文件 - mockup 原话: "···'s
+                menu - every configuration action in one place...rather than
+                each one being its own header button", 定级徽标自己"not a
+                button"). 之前这里单独放一个 DesignateAccount 按钮, 跟上面
+                客户级别徽标重复说同一件事 - 现在只保留徽标, 触发器搬进
+                account-header-menu.tsx。 */}
+            <AccountHeaderMenu
+              canWrite={canWrite}
+              tier={{
+                accountId: id,
+                tier: detail.value.account.tier,
+                period: DEFAULT_PERIOD,
+                onDesignate: designateAccountTier,
+              }}
+              basics={{
+                accountId: id,
+                accountNo: account.accountNo,
+                name: account.name,
+                region: account.region,
+                province: account.province,
+                industryId: account.industryId,
+                segmentCode: account.segmentCode,
+                customerTypeId: account.customerTypeId,
+                customerSizeId: account.customerSizeId,
+                customerNatureId: account.customerNatureId,
+                creditCode: account.creditCode,
+                website: account.website,
+                employeeCount: account.employeeCount,
+                industries: industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : [],
+                segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : [],
+                customerTypes: customerTypesRead && customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : [],
+                customerSizes: customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : [],
+                customerNatures: customerNaturesRead && customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : [],
+                canWrite,
+                onSave: updateAccountBasicsAction,
+                orgRelations: (
+                  <OrgRelationsEditor
+                    accountId={id}
+                    parentId={account.parentId}
+                    children={childUnits}
+                    accounts={accountRows}
+                    onSetParent={setAccountParentAction}
+                  />
+                ),
+              }}
             />
           </div>
         }
@@ -696,41 +729,6 @@ export default async function AccountDetailPage({
             children={childUnits}
             industry={account.industry}
             region={account.region}
-            editForm={
-              canWrite ? (
-                <AccountBasicsForm
-                  accountId={id}
-                  accountNo={account.accountNo}
-                  name={account.name}
-                  region={account.region}
-                  province={account.province}
-                  industryId={account.industryId}
-                  segmentCode={account.segmentCode}
-                  customerTypeId={account.customerTypeId}
-                  customerSizeId={account.customerSizeId}
-                  customerNatureId={account.customerNatureId}
-                  creditCode={account.creditCode}
-                  website={account.website}
-                  employeeCount={account.employeeCount}
-                  industries={industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : []}
-                  segments={segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : []}
-                  customerTypes={customerTypesRead && customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : []}
-                  customerSizes={customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : []}
-                  customerNatures={customerNaturesRead && customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : []}
-                  canWrite={canWrite}
-                  onSave={updateAccountBasicsAction}
-                  orgRelations={
-                    <OrgRelationsEditor
-                      accountId={id}
-                      parentId={account.parentId}
-                      children={childUnits}
-                      accounts={accountRows}
-                      onSetParent={setAccountParentAction}
-                    />
-                  }
-                />
-              ) : undefined
-            }
           />
 
           <ContactRoster
