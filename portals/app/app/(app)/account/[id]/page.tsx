@@ -48,6 +48,7 @@ import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
 import { ContactRoster } from "../../components/contact-roster";
+import { ContactManagementList } from "../../components/contact-management-list";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import { RelationshipEvidencePanel } from "../../components/relationship-evidence";
@@ -677,6 +678,26 @@ export default async function AccountDetailPage({
                     onSetParent={setAccountParentAction}
                   />
                 ),
+                contactManagement: (
+                  <ContactManagementList
+                    accountId={id}
+                    contacts={contacts}
+                    canEdit={canLinkContact}
+                    editHref={`/contact/new?account=${id}&back=/account/${id}`}
+                    onMove={moveContactAction}
+                    onUnlink={canLinkContact ? unlinkContactAction : undefined}
+                    recencyText={contactRecencyText}
+                    linkForm={
+                      canLinkContact ? (
+                        <LinkContactDrawer
+                          accountId={id}
+                          onSearch={searchContactsAction}
+                          onLink={linkExistingContactAction}
+                        />
+                      ) : undefined
+                    }
+                  />
+                ),
               }}
             />
           </div>
@@ -732,11 +753,9 @@ export default async function AccountDetailPage({
           />
 
           <ContactRoster
-            accountId={id}
             contacts={contacts}
             canEdit={canLinkContact}
             editHref={`/contact/new?account=${id}&back=/account/${id}`}
-            onMove={moveContactAction}
             recencyText={contactRecencyText}
             linkForm={
               canLinkContact ? (
@@ -747,7 +766,6 @@ export default async function AccountDetailPage({
                 />
               ) : undefined
             }
-            onUnlink={canLinkContact ? unlinkContactAction : undefined}
           />
 
           {/* 决策链在档案缺口前面 (owner, 2026-09-18: 栏1 排版 - 单位信息 /

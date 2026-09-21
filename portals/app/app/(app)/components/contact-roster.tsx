@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useState, type ReactNode } from "react";
 import {
   Button,
   EmptyState,
@@ -11,13 +10,9 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  useToast,
-  type ActionMenuItem,
 } from "@vxture/design-ui";
-import { moveItems, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
-import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The people inside a customer.
 //
@@ -105,22 +100,11 @@ export interface ContactRow {
 }
 
 export interface ContactRosterProps {
-  readonly accountId: string;
   readonly contacts: readonly ContactRow[];
   readonly canEdit: boolean;
   /** The person form's page, carrying this account - the create/edit form left
    *  the roster on 2026-09-05 (the consolidation ruling). */
   readonly editHref: string;
-  /** 排序四元组 (incr/0073) - persisted, unlike the 姓名 column's click-sort
-   *  below. Takes `accountId` itself, same shape as HealthPanel's
-   *  `onRecompute` - the component supplies its own id rather than the
-   *  caller binding one in. Optional so a caller with no write path yet
-   *  degrades to the read-only roster rather than a crash. */
-  readonly onMove?: (
-    accountId: string,
-    contactId: string,
-    direction: MoveDirection,
-  ) => Promise<{ ok: boolean; error?: string }>;
   /** 联系人和最近跟进合并 (owner, 2026-09-20: mockup - 一个最近跟进天数, 不是
    *  分开的两个事实) - contactId -> {text, warm}, from chainRecency() run
    *  over the FULL roster (account/[id]/page.tsx), not just decision-chain
@@ -138,13 +122,6 @@ export interface ContactRosterProps {
    *  两个按钮 (owner, 2026-09-20: 应该有 新增｜关联 两个按钮). Optional: a
    *  read-only member gets neither. */
   readonly linkForm?: ReactNode;
-  /** 取消关联 (owner, 2026-09-20: mockup 行菜单) - ends this person's CURRENT
-   *  affiliation; the person and their evidence survive. Optional, same
-   *  degrade-to-read-only-roster shape as `onMove`. */
-  readonly onUnlink?: (
-    accountId: string,
-    contactId: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 /* 截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem 宽, 一张
@@ -158,7 +135,11 @@ const CAP = 3;
  *  显示在第二行 (不是同款图标) - 这是这页早先就做过的、有意的取舍: mockup
  *  把手机也收成图标是因为那是一张纯展示卡, 真实产品里销售要拿这个号码去
  *  打电话, 收成图标这张卡就做不成它自己的事了。 */
-function ContactCard({
+/** Exported (owner, 2026-09-20: 死死记住设计文件 - mockup 的行菜单只该出现
+ *  在"编辑单位信息"里的只读联系人卡片上, 栏1这张常驻卡一个按钮都不该有) -
+ *  contact-management-list.tsx 复用同一套行外观, 只是那边带 actions, 这里
+ *  不带。`actions` 因此是可选的, 不是每个消费者都要给。 */
+export function ContactCard({
   contact,
   recency,
   statusLabels,
@@ -169,7 +150,7 @@ function ContactCard({
   readonly recency: { text: string; warm: boolean } | undefined;
   readonly statusLabels: Record<string, string>;
   readonly channelLabels: { readonly email: string; readonly wechat: string };
-  readonly actions: ReactNode;
+  readonly actions?: ReactNode;
 }) {
   const secondLine = [contact.title, contact.mobile].filter(Boolean).join(" · ");
   return (
@@ -196,38 +177,14 @@ function ContactCard({
 }
 
 export function ContactRoster({
-  accountId,
   contacts,
   canEdit,
   editHref,
-  onMove,
   recencyText,
   linkForm,
-  onUnlink,
 }: ContactRosterProps) {
-  const { ACCOUNT_TEXT, LINK_CONTACT_TEXT, ROW_OPS, ACCOUNT_ERROR } = useMessages();
-  const { toast } = useToast();
-  const router = useRouter();
+  const { ACCOUNT_TEXT } = useMessages();
   const [expanded, setExpanded] = useState(false);
-  const [pending, startTransition] = useTransition();
-
-  function move(id: string, direction: MoveDirection) {
-    if (!onMove) return;
-    startTransition(async () => {
-      const r = await onMove(accountId, id, direction);
-      if (!r.ok) toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error ?? "" });
-      else router.refresh();
-    });
-  }
-
-  function unlink(id: string) {
-    if (!onUnlink) return;
-    startTransition(async () => {
-      const r = await onUnlink(accountId, id);
-      if (!r.ok) toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error ?? "" });
-      else router.refresh();
-    });
-  }
 
   const visible = expanded ? contacts : contacts.slice(0, CAP);
 
@@ -270,55 +227,21 @@ export function ContactRoster({
         <FilterBar count={ACCOUNT_TEXT.contactCount(contacts.length)} />
 
         <div className="flex flex-col">
-          {visible.map((c) => {
-            // rowIndex/count against the TRUE server order (contacts, not the
-            // possibly-truncated visible slice) - moving a row acts on the
-            // persisted roster, not on whatever the collapsed cap happens to
-            // show.
-            const index = contacts.findIndex((row) => row.id === c.id);
-            // 查看详情 / 排序四元组 / 取消关联 - 归集到一个"···"菜单 (owner,
-            // 2026-09-20: mockup 行菜单 - 查看详细｜排序｜取消关联). 查看详情
-            // 直接带上这个人的 id, PersonForm 自己已经会照着它把这一行的
-            // 字段选出来编辑 - 不是一个新页面, 是 /contact/new 那张表单本来
-            // 就有的"编辑现有联系人"入口, 只是这里第一次替它接上一个具体的人。
-            // canEdit gates the WHOLE menu, not just the write items inside
-            // it - 查看详情 opens a form gated on the same permission
-            // (account.contact.upsert), and offering it to a reader who would
-            // only be redirected straight back is a dead end, not a view.
-            const items: ActionMenuItem[] = !canEdit
-              ? []
-              : [
-                  { id: "detail", label: ACCOUNT_TEXT.contactViewDetail, onSelect: () => router.push(`${editHref}&edit=${c.id}`) },
-                ];
-            if (canEdit && onMove) {
-              items.push(...moveItems(ROW_OPS, index, contacts.length, (d) => move(c.id, d)));
-            }
-            if (canEdit && onUnlink) {
-              items.push({
-                id: "unlink",
-                label: LINK_CONTACT_TEXT.unlink,
-                danger: true,
-                separatorBefore: true,
-                confirm: {
-                  verb: LINK_CONTACT_TEXT.unlinkVerb,
-                  target: c.name,
-                  consequence: LINK_CONTACT_TEXT.unlinkConsequence,
-                  cancelLabel: LINK_CONTACT_TEXT.cancel,
-                  onConfirm: () => unlink(c.id),
-                },
-              });
-            }
-            return (
-              <ContactCard
-                key={c.id}
-                contact={c}
-                recency={recencyText[c.id]}
-                statusLabels={ACCOUNT_TEXT.contactStatusLabel}
-                channelLabels={{ email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
-                actions={<RowActions disabled={pending} items={items} />}
-              />
-            );
-          })}
+          {/* NO ROW MENU HERE (owner, 2026-09-20: 死死记住设计文件 - mockup
+              原话: 栏1的联系人卡片"职责是列出谁是联系人、多久前联系过", 查看
+              详情/排序/取消关联的行菜单只出现在"编辑单位信息"里的只读联系人
+              卡片上 - "READ-ONLY here...这里能做的只是管理'这个人跟这个客户
+              的关系'"). 之前把这个菜单直接建在这张常驻卡上是错的; 同一套外观
+              和动词现在原样搬进 contact-management-list.tsx。 */}
+          {visible.map((c) => (
+            <ContactCard
+              key={c.id}
+              contact={c}
+              recency={recencyText[c.id]}
+              statusLabels={ACCOUNT_TEXT.contactStatusLabel}
+              channelLabels={{ email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
+            />
+          ))}
         </div>
         {contacts.length > CAP ? (
           <Button variant="ghost" size="sm" className="mt-xs w-full justify-center" onClick={() => setExpanded((v) => !v)}>

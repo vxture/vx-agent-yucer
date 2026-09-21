@@ -84,6 +84,13 @@ export interface AccountBasicsFormProps {
    *  the same way it covers industry/region. Absent for a read-only member,
    *  same as the rest of this form. */
   readonly orgRelations?: ReactNode;
+  /** contact-management-list.tsx, the third card in the same edit surface -
+   *  mockup nests "客户联系人" right after "上下级关联" (with 销售负责人's own
+   *  separate drawer between them in the raw mockup, which stays out of this
+   *  one per its own note). Same read-only-list-plus-row-menu content as the
+   *  mockup's own 客户联系人 card, reusing 栏1's ContactCard for the row
+   *  shape. Absent for a read-only member. */
+  readonly contactManagement?: ReactNode;
 }
 
 /** "" in a <select>/<input> means "unset" throughout this form - converted
@@ -115,6 +122,7 @@ export function AccountBasicsForm({
   onOpenChange,
   onSave,
   orgRelations,
+  contactManagement,
 }: AccountBasicsFormProps) {
   const { ACCOUNT_BASICS_TEXT, ACCOUNT_ERROR, DS_LABELS } = useMessages();
   const { toast } = useToast();
@@ -304,6 +312,13 @@ export function AccountBasicsForm({
             <>
               <Separator />
               {orgRelations}
+            </>
+          ) : null}
+
+          {contactManagement ? (
+            <>
+              <Separator />
+              {contactManagement}
             </>
           ) : null}
         </div>
