@@ -750,12 +750,14 @@ export function AppShell({
         {boardVisible ? (
           isAccountDetail ? (
             /* 客户详情页的侧栏顶部功能条 (owner, 2026-09-20: 补充 - 返回、
-               收起/展开=sidebar、客户总编辑三个按钮). 收起时只留这一条窄
-               的图标栏(宽度降到刚好放下一个再展开的按钮), 主档案内容和
-               编辑入口都随之隐藏 - 跟 mockup 自己收起栏1 后"只留一个贴边
-               缘的展开热区"是同一个精神, 只是这里选择保留一条常驻的窄栏
-               而不是纯 hover 触发, 因为这个按钮本身也需要在收起状态下
-               保持可点。 */
+               收起/展开=sidebar、客户总编辑三个按钮; owner, 2026-09-21:
+               收起/展开必须是这一条的第一个按钮 - 之前的实现把它挪到了
+               最右边, 跟这个产品别处"收起/展开永远是第一个控件"的既有
+               约定不一致, 现在改回来). 收起时只留这一条窄的图标栏(宽度
+               降到刚好放下一个再展开的按钮), 主档案内容和编辑入口都随之
+               隐藏 - 跟 mockup 自己收起栏1 后"只留一个贴边缘的展开热区"
+               是同一个精神, 只是这里选择保留一条常驻的窄栏而不是纯 hover
+               触发, 因为这个按钮本身也需要在收起状态下保持可点。 */
             accountSidebarCollapsed ? (
               <aside className="min-h-0 w-12 shrink-0 overflow-y-auto pb-2xl">
                 <Button
@@ -771,19 +773,7 @@ export function AppShell({
             ) : (
               <aside className="w-(--vx-pane-nav) flex min-h-0 shrink-0 flex-col gap-md overflow-y-auto pb-2xl">
                 <div className="flex items-center justify-between gap-sm">
-                  <Link
-                    href="/account"
-                    className="text-muted-foreground hover:text-foreground gap-2xs flex items-center text-body-sm"
-                  >
-                    <Icon name="arrow-left" size="sm" />
-                    {SHELL_TEXT.accountSidebarBack}
-                  </Link>
                   <div className="flex items-center gap-2xs">
-                    {/* 客户总编辑 (owner: 三个分散的编辑入口合并成一个) -
-                        page.tsx 建好 AccountHeaderMenu 传送到这里, 这个空
-                        div 只是传送门的落点, 内容跟这个客户的数据/动词是
-                        谁毫无关系的 shell 不需要也不应该知道。 */}
-                    <div id={ACCOUNT_SIDEBAR_EDIT_SLOT_ID} />
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -793,7 +783,19 @@ export function AppShell({
                     >
                       <Icon name="chevron-left" size="sm" />
                     </Button>
+                    <Link
+                      href="/account"
+                      className="text-muted-foreground hover:text-foreground gap-2xs flex items-center text-body-sm"
+                    >
+                      <Icon name="arrow-left" size="sm" />
+                      {SHELL_TEXT.accountSidebarBack}
+                    </Link>
                   </div>
+                  {/* 客户总编辑 (owner: 三个分散的编辑入口合并成一个) -
+                      page.tsx 建好 AccountHeaderMenu 传送到这里, 这个空
+                      div 只是传送门的落点, 内容跟这个客户的数据/动词是
+                      谁毫无关系的 shell 不需要也不应该知道。 */}
+                  <div id={ACCOUNT_SIDEBAR_EDIT_SLOT_ID} />
                 </div>
                 <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
               </aside>
