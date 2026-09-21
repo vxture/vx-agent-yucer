@@ -7,7 +7,6 @@ import {
   MetricGrid,
   Section,
   StatusBadge,
-  type IconName,
   type MetricGridItem,
 } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
@@ -26,38 +25,25 @@ import { JudgementNote, type Judgement } from "./judgement-note";
 // overdue instalment, delivery amber" is.
 //
 // 关系证据合并进来了 (owner, 2026-09-21: 梳理全景图中心区域 - 关系证据应该
-// 合并进客户评估, 可以展开收起, 要详细信息, 不是几个数字). 这张卡原来是
-// "评分卡", 关系证据原来是紧挨着的下一张"事实卡" - 两张卡都在回答"这段关系
-// 怎么样", 只是一张给分数一张给计数, 合成一张后不再是两次翻页才能看全。
-// 详细信息不是几个数字: 对方错过/我方错过不再只是计数, 挂着具体是哪几条
-// 承诺、错在哪天; 跟进条数挂着最近几条的实际内容, 不是空数字。
+// 合并进客户评估). 这张卡原来是"评分卡", 关系证据原来是紧挨着的下一张
+// "事实卡" - 两张卡都在回答"这段关系怎么样", 合成一张后不再是两次翻页才能
+// 看全。
+//
+// 只留结果, 不留过程 (owner, 2026-09-21: 更多的分析信息应该在下面几个阵地
+// 板块细化, 不要堆积在评估, 评估是结果, 不是过程) - 曾经在这里加过"具体是
+// 哪几条承诺、哪几条跟进记录"的明细列表, 撤回了: 那些明细本来就已经在阵地
+// 清单的"承诺"/"跟进记录"两个 tab 里完整存在, 评估卡只需要 4 个数字本身
+// (跟进条数/对方错过/我方错过/对方守约率), 想看是哪几条, 去阵地清单点开看,
+// 不是在结果卡里再摆一遍。
 //
 // 整张卡可收起, 收起后只剩标题行 (owner, 2026-09-21: 客户评估收起来应该收到
 // 一行) - Section 本身的 title+action 那一行已经就是"一行", 收起时只是不
 // 渲染 children, 不需要另外拼一条摘要行。
 
-export interface HealthEvidenceItem {
-  readonly id: string;
-  readonly statement: string;
-  readonly dueAt: Date;
-}
-
-export interface HealthEvidenceInteraction {
-  readonly id: string;
-  readonly occurredAt: Date;
-  readonly channel: string;
-  readonly rawNote: string;
-}
-
 export interface HealthEvidence {
   readonly interactionCount: number;
-  /** Most recent first, already capped by the caller - this panel does not
-   *  decide how many count as "recent". */
-  readonly recentInteractions: readonly HealthEvidenceInteraction[];
   readonly theyMissed: number;
-  readonly missedByThem: readonly HealthEvidenceItem[];
   readonly weMissed: number;
-  readonly missedByUs: readonly HealthEvidenceItem[];
   /** Null when nothing of theirs has closed yet - a fresh prospect is not a
    *  perfect record. */
   readonly theirKeptRate: number | null;
@@ -87,25 +73,19 @@ export interface HealthPanelProps {
   readonly evidence?: HealthEvidence | null;
 }
 
-const CHANNEL_ICON: Record<string, IconName> = {
-  meeting: "users",
-  call: "phone",
-  visit: "map-pin",
-  email: "mail",
-  im: "chat-circle",
-  event: "calendar",
-  other: "file-text",
-};
-
 /** The merged-in 关系证据 body - no title of its own, so it can sit inside
  *  HealthPanel's single card (a `<p>` label is enough there) or, for a
  *  read-only member with no `health` at all, inside its own small Section
  *  in account/[id]/page.tsx's degraded path. Exported so that second caller
- *  does not have to keep its own copy in sync with this one. */
+ *  does not have to keep its own copy in sync with this one.
+ *
+ *  FOUR NUMBERS, same shape as the health-factor grid above it - no per-item
+ *  breakdown here (see the file header note: 评估是结果不是过程, and the
+ *  breakdown already lives in 阵地清单's 承诺/跟进记录 tabs). */
 export function RelationshipEvidenceDetail({ evidence }: { readonly evidence: HealthEvidence }) {
-  const { FIELD_TEXT, CHANNEL_LABEL } = useMessages();
+  const { FIELD_TEXT } = useMessages();
 
-  const evidenceItems: MetricGridItem[] = [
+  const items: MetricGridItem[] = [
     {
       id: "interactions",
       label: FIELD_TEXT.evidenceInteractions,
@@ -143,54 +123,7 @@ export function RelationshipEvidenceDetail({ evidence }: { readonly evidence: He
     },
   ];
 
-  const dateText = (d: Date) => d.toISOString().slice(0, 10);
-
-  return (
-    <div className="flex flex-col gap-sm">
-      <MetricGrid items={evidenceItems} columns={2} />
-
-      {/* 详细信息, 不是几个数字 (owner, 2026-09-21) - 错过的具体是哪几条
-          承诺、错在哪天, 而不是只有"2"这个数字。最多列 3 条, 其余的去阵地
-          清单的"承诺" tab 看全部 - 这里是解释这个数字, 不是复刻那张清单。 */}
-      {evidence.missedByThem.length > 0 ? (
-        <div className="flex flex-col gap-2xs">
-          <span className="text-muted-foreground text-body-sm">{FIELD_TEXT.evidenceTheyMissed}</span>
-          {evidence.missedByThem.slice(0, 3).map((c) => (
-            <div key={c.id} className="text-body-sm flex items-center gap-xs">
-              <Icon name="warning" size="xs" className="text-destructive shrink-0" />
-              <span className="min-w-0 truncate">{c.statement}</span>
-              <span className="text-muted-foreground shrink-0 whitespace-nowrap tabular-nums">{dateText(c.dueAt)}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {evidence.missedByUs.length > 0 ? (
-        <div className="flex flex-col gap-2xs">
-          <span className="text-muted-foreground text-body-sm">{FIELD_TEXT.evidenceWeMissed}</span>
-          {evidence.missedByUs.slice(0, 3).map((c) => (
-            <div key={c.id} className="text-body-sm flex items-center gap-xs">
-              <Icon name="warning" size="xs" className="text-warning shrink-0" />
-              <span className="min-w-0 truncate">{c.statement}</span>
-              <span className="text-muted-foreground shrink-0 whitespace-nowrap tabular-nums">{dateText(c.dueAt)}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {evidence.recentInteractions.length > 0 ? (
-        <div className="flex flex-col gap-2xs">
-          <span className="text-muted-foreground text-body-sm">{FIELD_TEXT.evidenceInteractions}</span>
-          {evidence.recentInteractions.map((i) => (
-            <div key={i.id} className="text-body-sm flex items-start gap-xs">
-              <Icon name={CHANNEL_ICON[i.channel] ?? "file-text"} size="xs" className="text-muted-foreground mt-[0.1875rem] shrink-0" />
-              <span className="text-muted-foreground shrink-0 whitespace-nowrap tabular-nums">{dateText(i.occurredAt)}</span>
-              <span className="min-w-0 truncate">{CHANNEL_LABEL[i.channel] ?? i.channel} · {i.rawNote}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
+  return <MetricGrid items={items} columns={4} />;
 }
 
 export function HealthPanel({

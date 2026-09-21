@@ -56,7 +56,6 @@ import {
   chainRecency,
   relationshipEvidence,
 } from "../../../domains/account/field-service";
-import { isOverdue } from "../../../domains/account/lib/commitment";
 import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
@@ -671,26 +670,16 @@ export default async function AccountDetailPage({
     : null;
 
   // 关系证据合并进客户评估 (owner, 2026-09-21: 梳理全景图中心区域 - 关系证据
-  // 应该合并进客户评估, 要详细信息, 不是几个数字) - commitments/interactions
-  // 都是本函数早前 Promise.all 已经读过的同一份数据(见上面 listCommitments/
-  // listInteractions 调用), relationshipEvidence() 内部其实也读了它们两个,
-  // 只是只往外吐聚合数(theyMissed/weMissed的计数) - 这里不重新读一次, 只是
-  // 用同一份列表再筛一遍, 筛法跟 domains/account/lib/commitment.ts 的
-  // reliability() 完全一致(they_owe + missed/逾期 = 对方错过), 数字对得上。
+  // 应该合并进客户评估). 只传结果性质的四个数字 - 具体是哪几条承诺、哪几条
+  // 跟进记录属于过程, 已经在阵地清单的"承诺"/"跟进记录"两个 tab 里完整存在
+  // (owner: 更多的分析信息应该在下面几个阵地板块细化, 不要堆积在评估, 评估
+  // 是结果不是过程) - 不在这里重新摆一遍, evidence.value 本身已经是聚合数,
+  // 不需要再读 commitments/interactions 筛一次。
   const healthEvidence: HealthEvidence | null = evidence.ok
     ? {
         interactionCount: evidence.value.interactionCount,
-        recentInteractions: (interactions.ok ? interactions.value : [])
-          .slice(0, 3)
-          .map((i) => ({ id: i.id, occurredAt: i.occurredAt, channel: i.channel, rawNote: i.rawNote })),
         theyMissed: evidence.value.reliability.theyMissed,
-        missedByThem: (commitments.ok ? commitments.value : [])
-          .filter((c) => c.direction === "they_owe" && (c.status === "missed" || isOverdue(c, now)))
-          .map((c) => ({ id: c.id, statement: c.statement, dueAt: c.dueAt })),
         weMissed: evidence.value.reliability.weMissed,
-        missedByUs: (commitments.ok ? commitments.value : [])
-          .filter((c) => c.direction === "we_owe" && (c.status === "missed" || isOverdue(c, now)))
-          .map((c) => ({ id: c.id, statement: c.statement, dueAt: c.dueAt })),
         theirKeptRate: evidence.value.reliability.theirKeptRate,
       }
     : null;
