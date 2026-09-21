@@ -1,12 +1,10 @@
 import {
   EmptyState,
   Icon,
-  Section,
   ViewLayout,
 } from "@vxture/design-ui";
 import { DealsSummaryBadge, DimensionStat } from "../../components/dimension-stat";
 import { ScoreRing } from "../../components/score-ring";
-import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../../lib/card-veil";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import {
@@ -44,7 +42,7 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 // class of issue as dimension-stat.tsx's toneSurfaceClasses note. DECISION_ROLES
 // is the same fact from a plain (non-"use client") domain lib instead.
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
-import { HealthPanel, RelationshipEvidenceDetail, type HealthEvidence } from "../../components/health-panel";
+import { HealthPanel } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
@@ -54,7 +52,6 @@ import {
   listCommitments,
   listInteractions,
   chainRecency,
-  relationshipEvidence,
 } from "../../../domains/account/field-service";
 import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
@@ -217,10 +214,9 @@ export default async function AccountDetailPage({
 
   const fieldCtx = { ...ctx, store: getFieldStore() };
   const now = new Date();
-  const [interactions, commitments, evidence, accountsRead] = await Promise.all([
+  const [interactions, commitments, accountsRead] = await Promise.all([
     listInteractions(fieldCtx, { accountId: id, limit: 50 }),
     listCommitments(fieldCtx, { accountId: id }),
-    relationshipEvidence(fieldCtx, id, now),
     // 上级公司 (incr/0025): the picker's candidate list and the current
     // parent's display name both come off the same workspace-wide read -
     // setAccountParent's own cycle guard loads exactly this same list. The
@@ -669,21 +665,6 @@ export default async function AccountDetailPage({
     ? { claim: topJudgement.claim, rule: topJudgement.rule ?? null }
     : null;
 
-  // 关系证据合并进客户评估 (owner, 2026-09-21: 梳理全景图中心区域 - 关系证据
-  // 应该合并进客户评估). 只传结果性质的四个数字 - 具体是哪几条承诺、哪几条
-  // 跟进记录属于过程, 已经在阵地清单的"承诺"/"跟进记录"两个 tab 里完整存在
-  // (owner: 更多的分析信息应该在下面几个阵地板块细化, 不要堆积在评估, 评估
-  // 是结果不是过程) - 不在这里重新摆一遍, evidence.value 本身已经是聚合数,
-  // 不需要再读 commitments/interactions 筛一次。
-  const healthEvidence: HealthEvidence | null = evidence.ok
-    ? {
-        interactionCount: evidence.value.interactionCount,
-        theyMissed: evidence.value.reliability.theyMissed,
-        weMissed: evidence.value.reliability.weMissed,
-        theirKeptRate: evidence.value.reliability.theirKeptRate,
-      }
-    : null;
-
   return (
     <ViewLayout>
       {/* HEADER 没了 (owner, 2026-09-20: 补充 - 把中部第一块-客户信息卡整合
@@ -861,28 +842,16 @@ export default async function AccountDetailPage({
               onRecompute={recomputeAccountHealth}
               statusTag={statusTag}
               judgement={judgement}
-              evidence={healthEvidence}
             />
           ) : (
             // 只读成员没有 health(见上面 persist:false 的说明), 状态标签和
             // 判定信息仍然要显示 - 退化成不挂卡片的纯文本/独立一行, 而不是
             // 整个消失 (owner: 判定信息应该移到客户评估板块 - health 不可用
             // 时也不能跟着 HealthPanel 一起消失, judgement-note.tsx 抽成
-            // 共享组件正是为了这里)。关系证据不受 health 的 persist:false 影响
-            // (account.view 而不是 canWrite 的门), 所以只读成员这条路也要看得到
-            // - 用 RelationshipEvidenceDetail 而不是 HealthPanel, 自己起一张卡。
+            // 共享组件正是为了这里)。
             <div className="flex flex-col gap-sm">
               <div className="flex items-center gap-xs">{statusTag}</div>
               {judgement ? <JudgementNote judgement={judgement} /> : null}
-              {healthEvidence ? (
-                <Section
-                  tone="raised"
-                  style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
-                  title={FIELD_TEXT.evidenceTitle}
-                >
-                  <RelationshipEvidenceDetail evidence={healthEvidence} />
-                </Section>
-              ) : null}
             </div>
           )}
 

@@ -2831,15 +2831,6 @@ export const FIELD_TEXT = {
   commitGoSettle: "去处理",
   commitGoSettleHint: (name: string) => `打开 ${name}，处理这条承诺`,
   commitDueIn: (n: number) => `还有 ${n} 天`,
-
-  evidenceTitle: "关系证据",
-  evidenceDescription:
-    "全部来自已记录的事实，不是评分。「对方答应的三件事错了两件」是能行动的句子，一个 0-100 的健康分不是。",
-  evidenceInteractions: "跟进条数",
-  evidenceTheyMissed: "对方错过",
-  evidenceWeMissed: "我方错过",
-  evidenceKeptRate: "对方守约率",
-  evidenceNoHistory: "尚无记录",
 } as const;
 
 export const FIELD_ERROR: Record<string, string> = {

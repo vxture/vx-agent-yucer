@@ -24,30 +24,16 @@ import { JudgementNote, type Judgement } from "./judgement-note";
 // "This account is at 34" is not actionable. "No contact for 48 days, one
 // overdue instalment, delivery amber" is.
 //
-// 关系证据合并进来了 (owner, 2026-09-21: 梳理全景图中心区域 - 关系证据应该
-// 合并进客户评估). 这张卡原来是"评分卡", 关系证据原来是紧挨着的下一张
-// "事实卡" - 两张卡都在回答"这段关系怎么样", 合成一张后不再是两次翻页才能
-// 看全。
-//
-// 只留结果, 不留过程 (owner, 2026-09-21: 更多的分析信息应该在下面几个阵地
-// 板块细化, 不要堆积在评估, 评估是结果, 不是过程) - 曾经在这里加过"具体是
-// 哪几条承诺、哪几条跟进记录"的明细列表, 撤回了: 那些明细本来就已经在阵地
-// 清单的"承诺"/"跟进记录"两个 tab 里完整存在, 评估卡只需要 4 个数字本身
-// (跟进条数/对方错过/我方错过/对方守约率), 想看是哪几条, 去阵地清单点开看,
-// 不是在结果卡里再摆一遍。
+// 关系证据不再合并进这张卡 (owner, 2026-09-21: 几轮"太堆/太简"来回之后 -
+// 这种细节考虑放到 AI 板块去, 作为智能分析提醒) - 跟进条数/对方错过/我方
+// 错过/对方守约率这类过程性证据, 归属是智能助手栏的规则判断("华东零售集团
+// 在商务谈判阶段停了 48 天, 对方答应的事没兑现"这条 judgement 本身就是从
+// 承诺/接触记录算出来的), 不是评估卡该展示的原始数字。评估卡回到只有健康
+// 因子分数的样子。
 //
 // 整张卡可收起, 收起后只剩标题行 (owner, 2026-09-21: 客户评估收起来应该收到
 // 一行) - Section 本身的 title+action 那一行已经就是"一行", 收起时只是不
 // 渲染 children, 不需要另外拼一条摘要行。
-
-export interface HealthEvidence {
-  readonly interactionCount: number;
-  readonly theyMissed: number;
-  readonly weMissed: number;
-  /** Null when nothing of theirs has closed yet - a fresh prospect is not a
-   *  perfect record. */
-  readonly theirKeptRate: number | null;
-}
 
 export interface HealthPanelProps {
   readonly accountId: string;
@@ -68,62 +54,6 @@ export interface HealthPanelProps {
    *  line (owner: 提供展开收起功能，收起只有一行) - see judgement-note.tsx
    *  for the shared implementation (this panel is not its only consumer). */
   readonly judgement?: Judgement | null;
-  /** Undefined when the reader holds no account.view (same gate the old
-   *  standalone 关系证据卡片 checked before this merge). */
-  readonly evidence?: HealthEvidence | null;
-}
-
-/** The merged-in 关系证据 body - no title of its own, so it can sit inside
- *  HealthPanel's single card (a `<p>` label is enough there) or, for a
- *  read-only member with no `health` at all, inside its own small Section
- *  in account/[id]/page.tsx's degraded path. Exported so that second caller
- *  does not have to keep its own copy in sync with this one.
- *
- *  FOUR NUMBERS, same shape as the health-factor grid above it - no per-item
- *  breakdown here (see the file header note: 评估是结果不是过程, and the
- *  breakdown already lives in 阵地清单's 承诺/跟进记录 tabs). */
-export function RelationshipEvidenceDetail({ evidence }: { readonly evidence: HealthEvidence }) {
-  const { FIELD_TEXT } = useMessages();
-
-  const items: MetricGridItem[] = [
-    {
-      id: "interactions",
-      label: FIELD_TEXT.evidenceInteractions,
-      value: String(evidence.interactionCount),
-      tone: "neutral",
-    },
-    {
-      id: "they-missed",
-      label: FIELD_TEXT.evidenceTheyMissed,
-      value: String(evidence.theyMissed),
-      tone: evidence.theyMissed > 0 ? "danger" : "neutral",
-    },
-    {
-      id: "we-missed",
-      // Ours sits beside theirs. A panel that only counted the customer's
-      // failures would be a case for the defence, not a diagnosis.
-      label: FIELD_TEXT.evidenceWeMissed,
-      value: String(evidence.weMissed),
-      tone: evidence.weMissed > 0 ? "warning" : "neutral",
-    },
-    {
-      id: "kept-rate",
-      label: FIELD_TEXT.evidenceKeptRate,
-      // Null stays null. A relationship with no history is not a perfect one.
-      value:
-        evidence.theirKeptRate === null
-          ? FIELD_TEXT.evidenceNoHistory
-          : `${Math.round(evidence.theirKeptRate * 100)}%`,
-      tone:
-        evidence.theirKeptRate === null
-          ? "neutral"
-          : evidence.theirKeptRate >= 0.7
-            ? "success"
-            : "danger",
-    },
-  ];
-
-  return <MetricGrid items={items} columns={4} />;
 }
 
 export function HealthPanel({
@@ -133,9 +63,8 @@ export function HealthPanel({
   onRecompute,
   statusTag,
   judgement,
-  evidence,
 }: HealthPanelProps) {
-  const { CHAIN_TEXT, FIELD_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
+  const { CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
 
   // INSIDE the component, not at module scope. It was a module constant, which
   // reads as the cheaper thing to do - build the map once - and is wrong the
@@ -173,8 +102,7 @@ export function HealthPanel({
     // 商机/交付/回款三个因子不再带理由行 (owner, 2026-09-21: 梳理全景图中心
     // 区域 - 这三行的理由跟阵地清单的商机/交付项目/回款三个 tab 是同一批
     // 数据从两个粒度各说一次, 评分卡只留分数, 明细去阵地清单看). 互动时效
-    // 保留理由 - 关系证据的"最近接触"卡片撤掉了, 这一条现在是唯一还在讲
-    // 这件事的地方, 不能也删。
+    // 保留理由 - 这一条现在是唯一还在讲联系频率这件事的地方, 不能也删。
     trend: c.factor === "recency" ? healthReasonText(c.reason) : undefined,
     tone: c.points < 0 ? "danger" : "success",
   }));
@@ -235,13 +163,6 @@ export function HealthPanel({
               还有2个), 同一栏拿到的宽度变了, 实测见下方验证记录, 若变窄的场景
               下又被压扁, 需要重新回到 2 列并说明测量数据。 */}
           <MetricGrid items={items} columns={4} />
-
-          {evidence ? (
-            <div className="border-border mt-md flex flex-col gap-sm border-t pt-md">
-              <p className="text-muted-foreground text-label-md">{FIELD_TEXT.evidenceTitle}</p>
-              <RelationshipEvidenceDetail evidence={evidence} />
-            </div>
-          ) : null}
         </>
       ) : null}
     </Section>
