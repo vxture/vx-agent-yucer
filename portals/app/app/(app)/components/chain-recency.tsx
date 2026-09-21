@@ -2,6 +2,7 @@ import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import type { ChainRecency, ContactNode } from "../../domains/account/lib/health";
 import { Tag } from "./tag";
+import { CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // Who on the decision chain anyone has actually spoken to.
 //
@@ -34,7 +35,7 @@ export async function ChainRecencyPanel({
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释).
   return (
-    <Section tone="raised" title={RECENCY_TEXT.title} description={RECENCY_TEXT.description}>
+    <Section tone="raised" style={CARD_VEIL_STYLE} title={RECENCY_TEXT.title} description={RECENCY_TEXT.description}>
       {/* Null is a real answer here and gets its own rendering. Collapsing it
           into "no" would state a fact about the customer on the strength of a
           gap in our own record-keeping. */}

@@ -10,6 +10,7 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import { CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // What actually happened, newest first.
 //
@@ -64,6 +65,7 @@ export function InteractionTimeline({
     return (
       <Section
         tone="raised"
+        style={CARD_VEIL_STYLE}
         title={FIELD_TEXT.timelineTitle}
         description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
       >
@@ -78,6 +80,7 @@ export function InteractionTimeline({
   return (
     <Section
       tone="raised"
+      style={CARD_VEIL_STYLE}
       title={FIELD_TEXT.timelineTitle}
       description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
       action={

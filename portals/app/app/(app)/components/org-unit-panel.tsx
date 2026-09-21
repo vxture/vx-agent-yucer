@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { DetailList, DetailRow, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // 单位信息 (owner, 2026-09-18: 客户详情页重排; 2026-09-20: 行业/区域从
 // header 搬到这里 - 严格按照设计实施, mockup 原话: "行业、位置这些是固有属性，
@@ -52,6 +53,7 @@ export function OrgUnitPanel({
       tone="raised"
       icon="buildings"
       title={ACCOUNT_TEXT.orgUnitTitle}
+      style={CARD_VEIL_STYLE}
     >
       <div className="flex flex-col gap-sm">
         {industry || region || parentName ? (

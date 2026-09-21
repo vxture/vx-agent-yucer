@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Button, EmptyState, Icon, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认).
 //
@@ -78,7 +79,7 @@ export function ChainSummaryList({
 
   if (chains.length === 0) {
     return (
-      <Section tone="raised" title={CHAIN_TEXT.title}>
+      <Section tone="raised" style={CARD_VEIL_STYLE} title={CHAIN_TEXT.title}>
         <EmptyState title={emptyTitle} description={emptyDescription} />
       </Section>
     );
@@ -87,7 +88,7 @@ export function ChainSummaryList({
   const visible = expanded ? chains : chains.slice(0, CAP);
 
   return (
-    <Section tone="raised" title={CHAIN_TEXT.title}>
+    <Section tone="raised" style={CARD_VEIL_STYLE} title={CHAIN_TEXT.title}>
       <div className="flex flex-col">
         {visible.map((c) => {
           const reachSummary = c.reachable

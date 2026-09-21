@@ -2,6 +2,7 @@ import { MetricGrid, Section, type MetricGridItem } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import type { RelationshipEvidence as Evidence } from "../../domains/account/field-service";
 import { daysSinceLastContact } from "../../domains/account/lib/commitment";
+import { CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // What the evidence plane says about one relationship.
 //
@@ -95,6 +96,7 @@ export async function RelationshipEvidencePanel({
   return (
     <Section
       tone="raised"
+      style={CARD_VEIL_STYLE}
       title={FIELD_TEXT.evidenceTitle}
     >
       {/* columns={2}, and the third time this has come up is worth naming as a
