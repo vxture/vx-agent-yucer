@@ -15,6 +15,8 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { ok, type RuleResult } from "../shared/result";
 import { denied, listPipeline } from "../pipeline/service";
+import { toStageCatalog } from "../pipeline/store";
+import { DEFAULT_STAGE_DEFINITIONS } from "../pipeline/lib/stage";
 import { getAccountStore, getCopilotStore, getFieldStore, getPipelineStore } from "../shared/registry";
 import type { CopilotStore } from "../copilot/store";
 import {
@@ -138,14 +140,24 @@ export async function judgementFeed(
   const accountCtx = { ...base, store: getAccountStore() };
   const fieldStore = getFieldStore();
 
-  const [accountsResult, dealsResult, recencyPolicy] = await Promise.all([
+  const [accountsResult, dealsResult, recencyPolicy, stageRows] = await Promise.all([
     listAccounts(accountCtx),
     listPipeline({ ...base, store: getPipelineStore() }, { includeClosed: true }),
     // incr/0065. A plain store read, not the public contactRecencyPolicy()
     // verb - account.view already gated this whole call.
     fieldStore.getContactRecencyPolicy(ctx.workspaceId),
+    // Same reasoning: a plain store read, not the pipeline.stage.view-gated
+    // listStageDefinitions() verb - a member reading their own account
+    // judgements should not need stage-configuration permission just to see a
+    // stage's NAME. Feeds deriveJudgements' stageLabel below, so rule 1's
+    // claim says "商务谈判", the workspace's own name for the code, rather than
+    // the bare code itself.
+    getPipelineStore().listStageDefinitions(ctx.workspaceId),
   ]);
   if (!accountsResult.ok) return accountsResult as RuleResult<JudgementFeed>;
+
+  const stageCatalog = stageRows.length > 0 ? toStageCatalog(stageRows) : DEFAULT_STAGE_DEFINITIONS;
+  const stageLabel = (code: string) => stageCatalog.find((s) => s.code === code)?.name ?? code;
 
   const accounts = accountsResult.ok ? accountsResult.value : [];
   const deals = dealsResult.ok ? dealsResult.value : [];
@@ -299,6 +311,7 @@ export async function judgementFeed(
       now,
     },
     recencyPolicy,
+    stageLabel,
   );
 
   // Only accounts whose chain was actually readable count as the denominator -

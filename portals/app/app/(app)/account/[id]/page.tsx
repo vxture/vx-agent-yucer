@@ -29,6 +29,7 @@ import {
   listCustomerTypes,
   listIndustries,
   recomputeHealth,
+  resolveAccountOwner,
 } from "../../../domains/account/service";
 import { listSegments } from "../../../domains/strategy/service";
 import { getAuthzStore } from "../../../authz/store";
@@ -474,10 +475,16 @@ export default async function AccountDetailPage({
   const canLinkGraph = can(session.authz, session.entitlement, "account.graph.link", "ui").allowed;
   const canLinkContact = can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed;
   const canManageCollaborators = can(session.authz, session.entitlement, "account.collaborator.manage", "ui").allowed;
-  const collaboratorsRead = await listAccountCollaborators(
-    { ...base, store: session.stores.account(), authz: getAuthzStore() },
-    id,
-  );
+  const [collaboratorsRead, ownerRead] = await Promise.all([
+    listAccountCollaborators(
+      { ...base, store: session.stores.account(), authz: getAuthzStore() },
+      id,
+    ),
+    resolveAccountOwner(
+      { ...base, store: session.stores.account(), authz: getAuthzStore() },
+      account.ownerSub,
+    ),
+  ]);
 
   // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认):
   // 栏1 只要摘要, 详情内容在这里就地建好当作 ReactNode 传下去, 跟 linkForm
@@ -668,6 +675,7 @@ export default async function AccountDetailPage({
             children={childUnits}
             industry={account.industry}
             region={account.region}
+            ownerName={ownerRead.ok ? ownerRead.value : null}
             editForm={
               canWrite ? (
                 <AccountBasicsForm

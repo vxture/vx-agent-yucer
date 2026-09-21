@@ -1139,6 +1139,26 @@ export async function unlinkContact(
 }
 
 /**
+ * The account's one owner, by name - account.ownerSub has been readable and
+ * writable (via reassignAccount) since the baseline, but no page ever
+ * resolved it to a display name, so it never reached the screen. Same
+ * resolution, same gate as listAccountCollaborators below: account.view,
+ * not account.collaborator - naming who a fact ALREADY ON THE RECORD belongs
+ * to is not the same act as searching the whole directory for someone to add.
+ */
+export async function resolveAccountOwner(
+  ctx: AccountContext & { authz: AuthzStore },
+  ownerSub: string | null,
+): Promise<RuleResult<string | null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!ownerSub) return ok(null);
+
+  const members = await ctx.authz.listMembers(ctx.workspaceId);
+  return ok(members.find((m) => m.sub === ownerSub)?.displayName ?? null);
+}
+
+/**
  * 关联协作人 (incr/0074) - who else works this account, alongside its one
  * owner (account.ownerSub, unchanged). Reading the CURRENT roster rides
  * account.view, like every other dossier fact; searchColleagues/

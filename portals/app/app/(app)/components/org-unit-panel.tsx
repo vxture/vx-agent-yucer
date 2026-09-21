@@ -35,11 +35,16 @@ export function OrgUnitPanel({
   onSetParent,
   industry,
   region,
+  ownerName,
   editForm,
 }: AccountParentPanelProps & {
   readonly children: readonly { id: string; name: string }[];
   readonly industry: string | null;
   readonly region: string | null;
+  /** account.ownerSub resolved to a display name - null for unassigned OR for
+   *  a sub the member directory does not recognize; both render the same
+   *  "unassigned" copy, matching account-table.tsx's own ownerNone fallback. */
+  readonly ownerName: string | null;
   /** AccountBasicsForm, built server-side in page.tsx and mounted here as the
    *  card's own action - same "server builds it, client just mounts it"
    *  pattern linkForm has used all along (owner, 2026-09-20: 编辑单位信息 -
@@ -60,12 +65,11 @@ export function OrgUnitPanel({
       action={editForm}
     >
       <div className="flex flex-col gap-sm">
-        {industry || region ? (
-          <DetailList>
-            {industry ? <DetailRow label={ACCOUNT_TEXT.orgUnitIndustry}>{industry}</DetailRow> : null}
-            {region ? <DetailRow label={ACCOUNT_TEXT.orgUnitRegion}>{region}</DetailRow> : null}
-          </DetailList>
-        ) : null}
+        <DetailList>
+          <DetailRow label={ACCOUNT_TEXT.dossierOwner}>{ownerName ?? ACCOUNT_TEXT.ownerNone}</DetailRow>
+          {industry ? <DetailRow label={ACCOUNT_TEXT.orgUnitIndustry}>{industry}</DetailRow> : null}
+          {region ? <DetailRow label={ACCOUNT_TEXT.orgUnitRegion}>{region}</DetailRow> : null}
+        </DetailList>
         <AccountParentPanel
           accountId={accountId}
           parentId={parentId}
