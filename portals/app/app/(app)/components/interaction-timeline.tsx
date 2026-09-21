@@ -45,12 +45,18 @@ export interface InteractionTimelineProps {
   /** 默认 false, 不改 pipeline 详情页的样子 (owner, 2026-09-20: 去掉所有
    *  垃圾说明 - 账户详情页传 true, 见 org-unit-panel.tsx 同名注释). */
   readonly hideDescription?: boolean;
+  /** 默认 false, 不改 pipeline 详情页的样子 - 那边这张卡是独立一张, 标题
+   *  就是唯一的标题。账户详情页传 true (owner, 2026-09-21: 继续梳理阵地
+   *  清单) - 那边这张卡挂在"跟进记录 (N)"这个 tab 里面, tab 本身已经说过
+   *  一次"跟进记录", 卡自己的标题再说一遍是重复。 */
+  readonly hideTitle?: boolean;
 }
 
 export function InteractionTimeline({
   items,
   limit,
   hideDescription,
+  hideTitle,
 }: InteractionTimelineProps) {
   const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
@@ -66,7 +72,7 @@ export function InteractionTimeline({
       <Section
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
-        title={FIELD_TEXT.timelineTitle}
+        title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
         description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
       >
         <EmptyState
@@ -81,7 +87,7 @@ export function InteractionTimeline({
     <Section
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
-      title={FIELD_TEXT.timelineTitle}
+      title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
       description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
       action={
         limit !== undefined && items.length > limit ? (

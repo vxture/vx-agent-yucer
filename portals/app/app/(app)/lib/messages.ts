@@ -4144,13 +4144,8 @@ export const ACCOUNT_TEXT = {
   // two things it could not previously say: what is being fought here, and
   // what to do next.
   roster: "阵地清单",
-  rosterWhy: "这个客户身上正在打的仗。战区不知道自己有几个阵地，是荒谬的。",
-  rosterDeals: "在办商机",
-  rosterProjects: "交付项目",
   rosterNoDeals: "没有在办商机",
   rosterNoProjects: "没有交付项目",
-  rosterOpenDeal: "打开阵地",
-  rosterOpenProjects: "去项目交付",
   // header 第二行, 跟 ACC-0001 并列 (owner, 2026-09-20: 死死记住设计文件 -
   // mockup 原话: `<span>销售负责人 王涛</span>`, 纯文本, 不是按钮, 不在
   // 单位信息卡片里). 之前把这个字段错放进了单位信息的 DetailList, 用的还是

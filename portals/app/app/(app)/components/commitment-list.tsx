@@ -75,6 +75,11 @@ export interface CommitmentListProps {
   /** 默认 false, 不改 pipeline 详情页的样子 (owner, 2026-09-20: 去掉所有
    *  垃圾说明 - 账户详情页传 true, 见 org-unit-panel.tsx 同名注释). */
   readonly hideDescription?: boolean;
+  /** 默认 false, 不改 pipeline 详情页的样子 - 那边这张卡是独立一张, 标题
+   *  就是唯一的标题。账户详情页传 true (owner, 2026-09-21: 继续梳理阵地
+   *  清单) - 那边这张卡挂在"承诺 (N)"这个 tab 里面, tab 本身已经说过一次
+   *  "承诺", 卡自己的标题再说一遍是重复。 */
+  readonly hideTitle?: boolean;
 }
 
 const DAY = 86_400_000;
@@ -89,6 +94,7 @@ export function CommitmentList({
   captureHref,
   onSettle,
   hideDescription,
+  hideTitle,
 }: CommitmentListProps) {
   const { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } =
     useMessages();
@@ -117,7 +123,7 @@ export function CommitmentList({
     <Section
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
-      title={FIELD_TEXT.commitTitle}
+      title={hideTitle ? undefined : FIELD_TEXT.commitTitle}
       description={hideDescription ? undefined : FIELD_TEXT.commitDescription}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}

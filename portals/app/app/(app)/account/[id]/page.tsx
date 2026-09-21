@@ -930,6 +930,7 @@ export default async function AccountDetailPage({
                     captureHref={`/capture?account=${id}&back=/account/${id}`}
                     onSettle={settleCommitment}
                     hideDescription
+                    hideTitle
                   />
                 ) : null,
               },
@@ -937,7 +938,7 @@ export default async function AccountDetailPage({
                 key: "interactions",
                 label: `${ACCOUNT_TEXT.lifecycleInteractions} (${interactions.ok ? interactions.value.length : 0})`,
                 content: interactions.ok ? (
-                  <InteractionTimeline items={interactions.value} limit={20} hideDescription />
+                  <InteractionTimeline items={interactions.value} limit={20} hideDescription hideTitle />
                 ) : null,
               },
             ]}
