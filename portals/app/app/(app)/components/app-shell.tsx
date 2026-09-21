@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ShellBrand,
+  ShellIconButton,
   ShellPreferencePanel,
   ShellSearchBox,
   ShellUserMenu,
@@ -400,7 +401,29 @@ export function AppShell({
         <ShellHeader
           leading={
             <>
-              {/* (1) The functional domain: NINE DOTS, no label, no fill.
+              {/* (1) THE BOARD TOGGLE - restored (owner, 2026-09-21: 恢复侧边栏
+                  展开收起按钮 - 这是"整体页面 header"里的那一个, 不是账户详情页
+                  侧栏自己顶部的功能条那个, 两者管的是不同的开关). 一度在
+                  2026-09-14(#309) 被撤掉, 理由是"detail 页面根本没有 board,
+                  一个切换不存在东西的按钮是死按钮" - 那时 account detail 也在
+                  DETAIL_ROOTS 里, isDetail 对它是 true。2026-09-20 account 从
+                  DETAIL_ROOTS 移出后, 账户详情页恢复了跟其他一级页面一样的
+                  三栏布局(自己的 board), 撤掉这个按钮的前提已经不成立 - 这里
+                  是把它按原样放回来, 而不是发明一个新控件。
+                  跟 accountSidebarCollapsed 是两件不冲突的事: 这个按钮管的是
+                  showBoard(工作区级偏好, 写 cookie, 跨路由生效, 关掉整个
+                  <aside>), 账户详情页侧栏自己的收起/展开管的是"这次看这一个
+                  客户时要不要看它"(本地状态, 只把内容收窄成一条图标栏) - 一个
+                  是要不要这块地方, 一个是这块地方里显示多少。 */}
+              {isDetail ? null : (
+                <ShellIconButton
+                  icon="sidebar"
+                  label={showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen}
+                  onClick={toggleBoard}
+                />
+              )}
+
+              {/* (2) The functional domain: NINE DOTS, no label, no fill.
 
                 An app grid is a universal idiom and it does not need a word
                 beside it; the 110px of text it used to carry made the second
@@ -419,7 +442,7 @@ export function AppShell({
                 upgradeHref={upgradeHref}
               />
 
-              {/* (2)(3) Two logos, then the name: platform mark | product
+              {/* (3)(4) Two logos, then the name: platform mark | product
                   mark, 聿策 销售智能体. ShellBrandProps only has one `logoSrc`
                   slot, so the platform mark rides that slot as before and the
                   product mark moves into `label` alongside the name - `label`
@@ -463,7 +486,7 @@ export function AppShell({
                 }
               />
 
-              {/* (4) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
+              {/* (5) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
                   tier from the entitlement, one of five, in English, on every
                   screen - production included. The brand tone keeps the DS's
                   star. Unsubscribed says so in the neutral tone. */}
@@ -473,13 +496,13 @@ export function AppShell({
                   : HEADER_TEXT.subscriptionNone}
               </Tag>
 
-              {/* (5) The rule. It separates identity from scope: everything to
+              {/* (6) The rule. It separates identity from scope: everything to
                 its left is which PRODUCT this is, everything to its right is
                 which DATA you are in. Those are different questions and they
                 used to run together as two badges. */}
               <Separator orientation="vertical" className="h-control-sm" />
 
-              {/* (6) Workspace and tenant. The isolation key every row and every
+              {/* (7) Workspace and tenant. The isolation key every row and every
                 gate decision is scoped by - a member with access to more than
                 one has to know which they are reading before they read a single
                 number, so it rides the header rather than a panel that can be
