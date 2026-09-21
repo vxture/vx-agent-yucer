@@ -11,6 +11,7 @@ import {
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { JudgementNote, type Judgement } from "./judgement-note";
 
 // Account health, with its reasons.
 //
@@ -34,6 +35,13 @@ export interface HealthPanelProps {
    *  header - 这里已经是内容区第一张卡, 也是"评估类"信息的自然落点). 单位
    *  信息卡(org-unit-panel.tsx)现在头部只剩 icon+title, 不再带这个标签。 */
   readonly statusTag: ReactNode;
+  /** 定向自动分析 - the single highest-urgency rule judgement about this
+   *  account, if the rules engine fired one (owner, 2026-09-21: 判定信息
+   *  移到客户评估板块 - 之前挂在单位信息卡最下方, 跟评估类信息本来就该在
+   *  一起, 也是这张卡重新规整时腾出的空间). Collapsible, collapsed to one
+   *  line (owner: 提供展开收起功能，收起只有一行) - see judgement-note.tsx
+   *  for the shared implementation (this panel is not its only consumer). */
+  readonly judgement?: Judgement | null;
 }
 
 export function HealthPanel({
@@ -42,6 +50,7 @@ export function HealthPanel({
   canRecompute,
   onRecompute,
   statusTag,
+  judgement,
 }: HealthPanelProps) {
   const { CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
 
@@ -107,6 +116,8 @@ export function HealthPanel({
         ) : null
       }
     >
+      {judgement ? <JudgementNote judgement={judgement} /> : null}
+
       {/* 卡片正文不再重复分数/首要问题 (owner, 2026-09-20: 设计图严格对齐 -
           mockup 自己删过一次同样的重复, 注释原话"首要问题：1 笔回款逾期"
           删掉了) - header 的健康评估维度(RingGauge)现在就是分数本身, 有首要

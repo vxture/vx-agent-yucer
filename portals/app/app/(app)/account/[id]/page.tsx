@@ -44,6 +44,7 @@ import { ChainViewProvider, ChainDetailSlot, ChainSummaryList, type ChainSummary
 // is the same fact from a plain (non-"use client") domain lib instead.
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
+import { JudgementNote } from "../../components/judgement-note";
 import { LinkContacts } from "../../components/link-contacts";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
@@ -595,15 +596,13 @@ export default async function AccountDetailPage({
   // 只是从 header 的横排搬进侧栏卡片, 不再需要 flex-wrap/max-w-40 那套
   // 抢空间的手段 - 这张卡本来就是侧栏宽度, 纵向堆叠即可)。
   const dimensions = (
-    <div className="flex flex-col gap-sm">
+    <div className="flex items-center gap-md">
       <DimensionStat
-        last
         figure={<CircleBadge tone="brand">{openDealsCount}</CircleBadge>}
         label={POSITION_TEXT.planDeals}
         value={ACCOUNT_TEXT.openDealsCount(openDealsCount)}
       />
       <DimensionStat
-        last
         figure={
           <img src={TIER_ICON_SRC[account.tier]} alt="" className="h-[2.875rem] w-10 flex-none" />
         }
@@ -612,7 +611,6 @@ export default async function AccountDetailPage({
       />
       {health && health.ok ? (
         <DimensionStat
-          last
           figure={
             <ScoreRing
               score={health.value.score}
@@ -675,7 +673,6 @@ export default async function AccountDetailPage({
           customerNatureName={customerNatureName}
           customerTypeName={customerTypeName}
           province={account.province}
-          judgement={judgement}
         />
 
         <ContactRoster
@@ -819,11 +816,18 @@ export default async function AccountDetailPage({
               canRecompute={canWrite}
               onRecompute={recomputeAccountHealth}
               statusTag={statusTag}
+              judgement={judgement}
             />
           ) : (
-            // 只读成员没有 health(见上面 persist:false 的说明), 状态标签
-            // 仍然要显示 - 退化成不挂卡片的纯文本, 而不是整个消失。
-            <div className="flex items-center gap-xs">{statusTag}</div>
+            // 只读成员没有 health(见上面 persist:false 的说明), 状态标签和
+            // 判定信息仍然要显示 - 退化成不挂卡片的纯文本/独立一行, 而不是
+            // 整个消失 (owner: 判定信息应该移到客户评估板块 - health 不可用
+            // 时也不能跟着 HealthPanel 一起消失, judgement-note.tsx 抽成
+            // 共享组件正是为了这里)。
+            <div className="flex flex-col gap-sm">
+              <div className="flex items-center gap-xs">{statusTag}</div>
+              {judgement ? <JudgementNote judgement={judgement} /> : null}
+            </div>
           )}
 
           {evidence.ok ? (

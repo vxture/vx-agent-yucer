@@ -28,11 +28,16 @@ import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 //     一起被 owner 叫停 - "你是否还没理解展示/编辑拆解的意图?" - 三个分散
 //     的编辑入口合并成一个"客户总编辑", 挪到侧栏顶部的功能条(返回、收起/
 //     展开、客户总编辑), 这张卡因此彻底没有任何编辑触发器, 纯展示。
-//   - "定向自动分析"判断题横幅原样搬进这张卡的最下方, ACC-0001+销售负责人
-//     的纯文本事实(不带编辑按钮了)搬进卡身。
+//   - ACC-0001+销售负责人的纯文本事实(不带编辑按钮了)搬进卡身。
 // 这几块都还是 page.tsx 建好的 ReactNode 原样传进来 - 跟 editForm/linkForm
 // 一直以来的"服务端建好, 客户端只管挂载"是同一个模式, 数据和动词完全没变,
 // 只是把它们在 DOM 里的落点换成了这张卡(或者侧栏顶部的功能条)。
+//
+// 第四轮 - "定向自动分析"判断题横幅搬走了 (owner, 2026-09-21: 判定信息应该
+// 移到客户评估板块，并提供展开收起功能，收起只有一行) - 曾经短暂挂在这张
+// 卡的最下方(第三轮), 但判定本身是"动态评估"的一种, 跟状态标签同一个道理,
+// 真正的家在 health-panel.tsx(客户评估), 也顺手把这张已经很满的卡腾出一块
+// 空间。见 health-panel.tsx 同名注释。
 //
 // 卡片标题现在是"客户简称", 不是"单位信息"这个通用词 (owner: 把客户简称
 // 直接作为卡片标题). account 表目前没有 shortName 这一列 - 早先
@@ -51,10 +56,13 @@ export interface OrgUnitPanelProps {
    *  展示/编辑拆解 - 三个分散的编辑入口合并进侧栏顶部的"客户总编辑", 这张
    *  卡不再有任何编辑触发器). Relocated content, unchanged data. */
   readonly ownerRow: ReactNode;
-  /** 开放商机 / 客户级别 / 健康评估, stacked - unchanged content, relocated
-   *  from ViewHeader's action slot. No more flex-wrap/max-width juggling
-   *  needed here: this card is always sidebar-narrow now, never sharing a
-   *  row with a title fighting it for space. */
+  /** 开放商机 / 客户级别 / 健康评估, a row of THREE ICONS ONLY now (owner,
+   *  2026-09-21: 都只提供一个图形化，文字作为tooltip - dimension-stat.tsx's
+   *  own DimensionStat dropped the always-visible label/value text; hover
+   *  is where the detail lives). Used to be a vertical stack of graphic +
+   *  two lines of text each, which is what made this card read as cluttered
+   *  in the first place - three bare icons side by side is the compact
+   *  version of the same three facts. */
   readonly dimensions: ReactNode;
   readonly parentId: string | null;
   readonly parentName: string | null;
@@ -73,10 +81,6 @@ export interface OrgUnitPanelProps {
    *  actually has. Absent when unset, same "no empty-state fact" rule as
    *  industry/region. */
   readonly province: string | null;
-  /** 定向自动分析 - the single highest-urgency rule judgement about this
-   *  account, if the rules engine fired one. Relocated here from its own
-   *  banner between the old header and content (owner: 判断题放sidebar). */
-  readonly judgement?: { readonly claim: string; readonly rule: string | null } | null;
 }
 
 export function OrgUnitPanel({
@@ -91,7 +95,6 @@ export function OrgUnitPanel({
   customerNatureName,
   customerTypeName,
   province,
-  judgement,
 }: OrgUnitPanelProps) {
   const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT } = useMessages();
   return (
@@ -133,16 +136,6 @@ export function OrgUnitPanel({
                 {c.name}
               </Link>
             ))}
-          </div>
-        ) : null}
-        {judgement ? (
-          <div className="border-primary/30 bg-primary/5 flex items-start gap-sm rounded-lg border p-md">
-            <div className="min-w-0 flex-1">
-              <p className="text-body-sm font-medium">{judgement.claim}</p>
-              {judgement.rule ? (
-                <p className="text-muted-foreground mt-2xs text-body-sm">{judgement.rule}</p>
-              ) : null}
-            </div>
           </div>
         ) : null}
       </div>

@@ -1,31 +1,33 @@
 import type { ReactNode } from "react";
-import type { Tone } from "@vxture/design-ui";
+import { Tooltip, TooltipContent, TooltipTrigger, type Tone } from "@vxture/design-ui";
 
-// header 的三个动态维度 (owner, 2026-09-20: 严格按照设计实施 - 三维度的
-// 视觉是"图形 + 两行文字"，不是一个彩色胶囊). 三块共用同一个骨架:
-// 图形/环 + { 小字 label 在上、正文 value 在下 }，边界隔开每一块 - 跟
-// mockup 的 `.health-mini` 一模一样的构图, 只是内容分别读 商机数量/
-// 客户级别/健康评估 三份真实数据。
+// 三个动态维度 - GRAPHIC ONLY, label/value 挪进 tooltip (owner, 2026-09-21:
+// 考虑三个板块，商机数量，客户级别，健康评估，都只提供一个图形化，文字作为
+// tooltip，这个很清楚). 之前的骨架是"图形 + 两行文字"横向排开(2026-09-20 的
+// 版本, 跟 mockup 的 `.health-mini` 一模一样), 但这三块后来从 header 的横排
+// 挪进了侧栏卡片, 纵向堆叠时那两行文字撑出比图形本身还多的高度, 是这张卡
+// "很错乱"的主要原因之一 - 三个图形(圆环/勋章/圆环)紧挨着才是真正紧凑的
+// 读法, 细节留给 hover。tag.tsx 的 NameOverflowTag 已经是同一个"图形 +
+// Tooltip"的组合, 这里复用同一个模式而不是发明第二种。
 export function DimensionStat({
   figure,
   label,
   value,
-  last,
 }: {
   readonly figure: ReactNode;
   readonly label: ReactNode;
   readonly value: ReactNode;
-  /** mockup 的 `.health-mini` 只有最后一块不带右边框。 */
-  readonly last?: boolean;
 }) {
   return (
-    <div className={`flex items-center gap-sm ${last ? "" : "border-border pr-md border-r"}`}>
-      {figure}
-      <div className="min-w-0">
-        <div className="text-muted-foreground text-[0.65rem] font-bold tracking-wide uppercase">{label}</div>
-        <div className="text-body-sm text-foreground mt-[0.0625rem]">{value}</div>
-      </div>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="inline-flex">{figure}</div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="text-[0.65rem] font-bold tracking-wide uppercase opacity-70">{label}</div>
+        <div className="text-body-sm">{value}</div>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
