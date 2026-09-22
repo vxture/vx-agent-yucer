@@ -50,6 +50,13 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
  * it down - and it is why the confidence floor matters more here than anywhere
  * else, because an industry decides the segment, which decides the playbook.
  *
+ * `record_interaction` joined on 2026-09-22 - the copilot structuring a pasted
+ * meeting transcript into an interaction record (ADR-006). It qualifies on the
+ * same reversibility test: it writes to our own append-only evidence table, and
+ * a wrong record is corrected by a new row (correctsInteractionId), never
+ * overwritten. Nothing leaves the building. capture_mode is set to
+ * `agent_drafted` so the provenance is always visible.
+ *
  * `draft_outreach` is deliberately absent and is the reason the line is drawn
  * here rather than at confidence: a message sent to a customer cannot be
  * unsent, and no confidence score makes it retractable. It is also why this
@@ -72,7 +79,7 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
  * draft_email" and nothing validates what comes back - so the set of things
  * that can arrive here is open, and only an allowlist can bound it.
  */
-export const EXECUTABLE_ACTIONS: readonly string[] = ["advance_stage", "fill_account_field"];
+export const EXECUTABLE_ACTIONS: readonly string[] = ["advance_stage", "fill_account_field", "record_interaction"];
 
 /**
  * Can the product carry this action out itself?

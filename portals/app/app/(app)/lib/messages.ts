@@ -2844,6 +2844,20 @@ export const FIELD_TEXT = {
   evidenceWeMissed: "我方错过",
   evidenceKeptRate: "对方守约率",
   evidenceNoHistory: "尚无记录",
+
+  pasteNotesButton: "粘贴会议纪要",
+  pasteNotesTitle: "粘贴会议/通话纪要",
+  pasteNotesDescription:
+    "把会议记录或通话纪要粘贴进来，助手会提取结构化的跟进记录供你确认。",
+  pasteNotesPlaceholder:
+    "把会议纪要、通话记录或聊天内容粘贴到这里……",
+  pasteNotesSubmit: "交给助手",
+  pasteNotesSubmitting: "正在分析……",
+  pasteNotesCancel: "取消",
+  pasteNotesDone: (n: number) =>
+    `已生成 ${n} 条跟进建议，请到助手队列确认`,
+  pasteNotesEmpty: "请先粘贴内容",
+  pasteNotesFailed: "分析失败，请稍后重试",
 } as const;
 
 export const FIELD_ERROR: Record<string, string> = {

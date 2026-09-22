@@ -3599,6 +3599,19 @@ export const en: Dictionary = {
     commitOverdueTitle: "Overdue promises",
     commitOwner: (who: string) => `owner ${who}`,
     commitOwnerNone: "No owner assigned",
+    pasteNotesButton: "Paste meeting notes",
+    pasteNotesTitle: "Paste meeting / call notes",
+    pasteNotesDescription:
+      "Paste your meeting notes or call transcript and the assistant will extract structured interaction records for your review.",
+    pasteNotesPlaceholder:
+      "Paste meeting notes, call transcript, or chat log here...",
+    pasteNotesSubmit: "Send to assistant",
+    pasteNotesSubmitting: "Analyzing...",
+    pasteNotesCancel: "Cancel",
+    pasteNotesDone: (n: number) =>
+      `Generated ${n} interaction proposal${n === 1 ? "" : "s"} - review them in the assistant queue`,
+    pasteNotesEmpty: "Please paste content first",
+    pasteNotesFailed: "Analysis failed, please try again later",
   },
 
   DIRECTION_LABEL: {
