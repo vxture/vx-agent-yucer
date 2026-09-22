@@ -428,6 +428,7 @@ export default async function AccountDetailPage({
         BOARD_TEXT.capabilityLabels,
         BOARD_TEXT.capUnlabelled,
       ),
+      capabilityKey: a.capability,
       rationale: a.rationale,
       confidence: a.confidence,
     }));

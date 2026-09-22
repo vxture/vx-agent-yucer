@@ -2806,6 +2806,9 @@ export const FIELD_TEXT = {
   commitEmpty: "还没有承诺",
   commitEmptyDescription:
     "从一次跟进里记下双方答应的事,它到期时系统会替你盯着。",
+  commitComplianceRate: "守约率",
+  commitPartyTheirs: "对方",
+  commitPartyOurs: "我方",
   commitOverdueEmpty: "没有逾期承诺",
   commitOverdueEmptyDescription: "所有已记录的承诺都还在期限内。",
   commitDaysOverdue: (n: number) => `逾期 ${n} 天`,
@@ -4162,6 +4165,13 @@ export const ACCOUNT_TEXT = {
   planEmpty: "暂无待裁决的方案",
   planEmptyWhy:
     "没有提案时不是没有问题，是还没有人问。向参谋提问会产出建议动作。",
+  planCounselorOverview: "参谋能力概览",
+  planCounselorCount: (n: number) => `${n} 项参谋能力`,
+  planProposalSummary: (n: number) =>
+    `共 ${n} 条待裁决提案，已在右侧副驾面板展示`,
+  planMemo: "随手记",
+  planMemoPlaceholder:
+    "在这里记录对该客户的直觉、备忘、策略想法...",
 
   // 单位信息 (owner, 2026-09-18: 客户详情页重排): 上级 + 下级，同一张图的两半。
   // 上级/下级的编辑现在都在 org-relations-editor.tsx (挂在"编辑单位信息"

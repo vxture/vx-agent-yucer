@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { EmptyState, Section } from "@vxture/design-ui";
+import { EmptyState, Section, Textarea } from "@vxture/design-ui";
+import { CAPABILITIES } from "../../domains/copilot/lib/capability";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
 import { Tag } from "./tag";
@@ -28,6 +29,7 @@ export interface PlanProposal {
   readonly id: string;
   readonly title: string;
   readonly group: string;
+  readonly capabilityKey: string | null;
   readonly rationale: string | null;
   readonly confidence: number | null;
 }
@@ -44,7 +46,41 @@ export function TheatrePlan({
    */
   readonly accountId: string;
 }) {
-  const { ACCOUNT_TEXT, PROPOSAL_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, BOARD_TEXT, PROPOSAL_TEXT } = useMessages();
+
+  const capCounts = new Map<string, number>();
+  for (const p of proposals) {
+    if (p.capabilityKey) {
+      capCounts.set(p.capabilityKey, (capCounts.get(p.capabilityKey) ?? 0) + 1);
+    }
+  }
+
+  const counselorSummary = (
+    <div className="flex flex-col gap-sm">
+      <p className="text-muted-foreground text-label-sm font-bold">
+        {ACCOUNT_TEXT.planCounselorOverview}
+      </p>
+      <div className="flex flex-wrap gap-xs">
+        {CAPABILITIES.map((cap) => {
+          const count = capCounts.get(cap) ?? 0;
+          return (
+            <span
+              key={cap}
+              className="text-label-sm inline-flex items-center gap-3xs rounded-md border px-sm py-3xs font-bold"
+              style={{ opacity: count > 0 ? 1 : 0.45 }}
+            >
+              {BOARD_TEXT.capabilityLabels[cap] ?? cap}
+              {" "}
+              <span className="font-mono text-label-sm">{count}</span>
+            </span>
+          );
+        })}
+      </div>
+      <p className="text-muted-foreground text-body-sm">
+        {ACCOUNT_TEXT.planProposalSummary(proposals.length)}
+      </p>
+    </div>
+  );
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
@@ -57,10 +93,20 @@ export function TheatrePlan({
         icon="target"
         title={ACCOUNT_TEXT.plan}
       >
+        {counselorSummary}
         <EmptyState
           title={ACCOUNT_TEXT.planEmpty}
           description={ACCOUNT_TEXT.planEmptyWhy}
         />
+        <div className="border-border border-t pt-sm">
+          <p className="text-muted-foreground text-label-sm mb-xs font-bold">
+            {ACCOUNT_TEXT.planMemo}
+          </p>
+          <Textarea
+            placeholder={ACCOUNT_TEXT.planMemoPlaceholder}
+            rows={3}
+          />
+        </div>
       </Section>
     );
   }
@@ -77,6 +123,8 @@ export function TheatrePlan({
       icon="target"
       title={ACCOUNT_TEXT.plan}
     >
+      {counselorSummary}
+
       {groups.map((g) => (
         <div key={g} className="flex flex-col gap-sm">
           <p className="text-muted-foreground text-label-md">{g}</p>
@@ -126,6 +174,16 @@ export function TheatrePlan({
             ))}
         </div>
       ))}
+
+      <div className="border-border border-t pt-sm">
+        <p className="text-muted-foreground text-label-sm mb-xs font-bold">
+          {ACCOUNT_TEXT.planMemo}
+        </p>
+        <Textarea
+          placeholder={ACCOUNT_TEXT.planMemoPlaceholder}
+          rows={3}
+        />
+      </div>
     </Section>
   );
 }

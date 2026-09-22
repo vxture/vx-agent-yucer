@@ -143,9 +143,7 @@ export function CommitmentList({
         const chosen = picked[c.id] ?? "";
         return (
           <div key={c.id}>
-            <Tag tone={c.direction === "they_owe" ? "info" : "neutral"}>
-              {DIRECTION_LABEL[c.direction] ?? c.direction}
-            </Tag>
+            <PartyBadge direction={c.direction} text={FIELD_TEXT} />
             <span>{c.statement}</span>
             <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
               {overdue
@@ -256,6 +254,8 @@ export function CommitmentList({
         </div>
       ))}
 
+      <ComplianceStats items={items} text={FIELD_TEXT} />
+
       {canWrite ? (
         <div className="mt-sm">
           <Button asChild size="sm" variant="secondary">
@@ -264,5 +264,80 @@ export function CommitmentList({
         </div>
       ) : null}
     </Section>
+  );
+}
+
+function PartyBadge({
+  direction,
+  text,
+}: {
+  readonly direction: string;
+  readonly text: { commitPartyTheirs: string; commitPartyOurs: string };
+}) {
+  const isTheirs = direction === "they_owe";
+  return (
+    <span
+      className="text-label-sm inline-flex flex-none items-center whitespace-nowrap rounded px-sm py-3xs font-bold"
+      style={{
+        background: isTheirs ? "var(--muted)" : "var(--accent)",
+        color: isTheirs ? "var(--muted-foreground)" : "var(--primary)",
+      }}
+    >
+      {isTheirs ? text.commitPartyTheirs : text.commitPartyOurs}
+    </span>
+  );
+}
+
+function ComplianceStats({
+  items,
+  text,
+}: {
+  readonly items: readonly CommitmentItem[];
+  readonly text: {
+    commitComplianceRate: string;
+    commitPartyTheirs: string;
+    commitPartyOurs: string;
+  };
+}) {
+  if (items.length === 0) return null;
+
+  const theyMet = items.filter(
+    (c) => c.direction === "they_owe" && c.status === "met",
+  ).length;
+  const theyTotal = items.filter(
+    (c) => c.direction === "they_owe" && c.status !== "open",
+  ).length;
+  const weMet = items.filter(
+    (c) => c.direction === "we_owe" && c.status === "met",
+  ).length;
+  const weTotal = items.filter(
+    (c) => c.direction === "we_owe" && c.status !== "open",
+  ).length;
+
+  if (theyTotal === 0 && weTotal === 0) return null;
+
+  return (
+    <div className="border-border text-muted-foreground flex gap-lg border-t pt-sm text-body-sm">
+      {theyTotal > 0 ? (
+        <span>
+          {text.commitComplianceRate}
+          {": "}
+          <span className="text-foreground font-mono font-bold">
+            {theyMet}/{theyTotal}
+          </span>
+          {` (${text.commitPartyTheirs})`}
+        </span>
+      ) : null}
+      {weTotal > 0 ? (
+        <span>
+          {text.commitComplianceRate}
+          {": "}
+          <span className="text-foreground font-mono font-bold">
+            {weMet}/{weTotal}
+          </span>
+          {` (${text.commitPartyOurs})`}
+        </span>
+      ) : null}
+    </div>
   );
 }

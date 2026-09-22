@@ -3336,6 +3336,14 @@ export const en: Dictionary = {
     planEmpty: "Nothing awaiting a decision",
     planEmptyWhy:
       "No proposals is not the same as no problems - it means nobody has asked. Ask the copilot and it will propose.",
+    planCounselorOverview: "Counselor overview",
+    planCounselorCount: (n: number) =>
+      `${n} counselor capabilit${n === 1 ? "y" : "ies"}`,
+    planProposalSummary: (n: number) =>
+      `${n} pending proposal${n === 1 ? "" : "s"} shown in the copilot deck`,
+    planMemo: "Scratch notes",
+    planMemoPlaceholder:
+      "Jot down hunches, reminders, strategy ideas about this account...",
 
     orgUnitTitle: "Org unit",
     orgUnitWhy: "Where this customer sits in the group structure - who is above it, who reports under it.",
@@ -3748,6 +3756,9 @@ export const en: Dictionary = {
     captureWhy:
       "Dump what happened verbatim; add who promised what below - each promise remembers the conversation it came from.",
     commitCount: (n: number) => `${n}`,
+    commitComplianceRate: "Compliance",
+    commitPartyTheirs: "Theirs",
+    commitPartyOurs: "Ours",
     commitDaysOverdue: (n: number) => `${n} days overdue`,
     commitDueOn: (d: string) => `was due ${d}`,
     commitGoSettle: "Go settle",
