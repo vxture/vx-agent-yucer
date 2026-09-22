@@ -32,7 +32,9 @@ function InsightBox({ tone, claim }: { readonly tone: keyof typeof INSIGHT_TONE;
 export interface DealLifecycleRow {
   readonly id: string;
   readonly name: string;
+  readonly opportunityNo: string;
   readonly stageLabel: string;
+  readonly ownerName: string | null;
   readonly amount: number | null;
   readonly currency: string;
   readonly status: "open" | "won" | "lost";
@@ -115,13 +117,13 @@ export function DealLifecyclePanel({
               <Link href={`/pipeline/${d.id}`} className="text-foreground min-w-0 truncate text-body-sm font-medium hover:underline">
                 {d.name}
               </Link>
-              <div className="flex flex-wrap items-center gap-xs">
-                <span className="text-muted-foreground text-body-sm">{d.stageLabel}</span>
-                {d.stagePosition ? <StageTrack index={d.stagePosition.index} total={d.stagePosition.total} /> : null}
-                {d.daysInStage != null ? (
-                  <span className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}</span>
-                ) : null}
-              </div>
+              <span className="text-muted-foreground text-body-sm">
+                {[d.opportunityNo, d.stageLabel, d.ownerName ? ACCOUNT_TEXT.headerOwner(d.ownerName) : null].filter(Boolean).join(" · ")}
+              </span>
+              {d.stagePosition ? <StageTrack index={d.stagePosition.index} total={d.stagePosition.total} /> : null}
+              {d.daysInStage != null ? (
+                <span className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}</span>
+              ) : null}
               {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} /> : null}
               {d.hasChain ? (
                 <Button
