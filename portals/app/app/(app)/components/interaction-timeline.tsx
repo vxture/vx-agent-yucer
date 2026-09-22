@@ -12,6 +12,8 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
+const DAY_MS = 86_400_000;
+
 const CHANNEL_ICON: Record<string, IconName> = {
   call: "phone",
   meeting: "users",
@@ -122,7 +124,10 @@ export function InteractionTimeline({
                 <span>{i.actorName ?? i.actorSub}</span>
                 <span>{"·"}</span>
                 <time dateTime={i.occurredAt.toISOString()}>
-                  {i.occurredAt.toISOString().slice(0, 10)}
+                  {(() => {
+                    const d = Math.floor((Date.now() - i.occurredAt.getTime()) / DAY_MS);
+                    return d <= 0 ? FIELD_TEXT.timelineToday : FIELD_TEXT.timelineDaysAgo(d);
+                  })()}
                 </time>
                 <span>{"·"}</span>
                 <span>{CHANNEL_LABEL[i.channel] ?? i.channel}</span>

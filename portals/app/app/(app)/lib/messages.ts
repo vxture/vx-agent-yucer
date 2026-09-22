@@ -2775,6 +2775,8 @@ export const FIELD_TEXT = {
     "谁、什么时候、通过什么方式。原文逐字保留——后续所有分析都引用它。",
   timelineBy: "记录人",
   timelineCorrects: "更正了一条更早的记录",
+  timelineToday: "今天",
+  timelineDaysAgo: (n: number) => `${n} 天前`,
 
   commitTitle: "承诺",
   commitDescription:

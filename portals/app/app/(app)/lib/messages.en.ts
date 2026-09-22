@@ -3797,6 +3797,8 @@ export const en: Dictionary = {
       `latest ${shown} of ${total}`,
     timelineExpand: "Show all",
     timelineCollapse: "Show recent only",
+    timelineToday: "today",
+    timelineDaysAgo: (n: number) => `${n}d ago`,
     commitOverdueTitle: "Overdue promises",
     commitOwner: (who: string) => `owner ${who}`,
     commitOwnerNone: "No owner assigned",
