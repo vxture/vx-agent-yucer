@@ -235,6 +235,20 @@ export default async function AccountDetailPage({
     : null;
   const childUnits = accountRows.filter((a) => a.parentId === id);
 
+  const participantsByInteraction = new Map<string, readonly string[]>();
+  if (interactions.ok && interactions.value.length > 0) {
+    const allParticipants = await fieldCtx.store.listParticipantsBulk(
+      ctx.workspaceId,
+      interactions.value.map((i) => i.id),
+    );
+    for (const p of allParticipants) {
+      const name = p.contactId ? (contactNameById[p.contactId] ?? null) : p.externalName;
+      if (!name) continue;
+      const existing = participantsByInteraction.get(p.interactionId) ?? [];
+      participantsByInteraction.set(p.interactionId, [...existing, name]);
+    }
+  }
+
   const [health, relations, industriesRead, customerTypesRead, customerSizesRead, customerNaturesRead, segmentsRead] =
     await Promise.all([
       // persist:false - see the note above. It still needs the write gate, so a
@@ -988,7 +1002,7 @@ export default async function AccountDetailPage({
                 content: interactions.ok ? (
                   <>
                     <InteractionTimeline
-                      items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
+                      items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null, participantNames: participantsByInteraction.get(i.id) }))}
                       limit={20} hideDescription hideTitle
                     />
                     <CapFooter>

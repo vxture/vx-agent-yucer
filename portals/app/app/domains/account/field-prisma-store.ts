@@ -144,6 +144,23 @@ export class PrismaFieldStore implements FieldStore {
     }));
   }
 
+  async listParticipantsBulk(workspaceId: string, interactionIds: readonly string[]): Promise<ParticipantRecord[]> {
+    if (interactionIds.length === 0) return [];
+    const p = await getPrismaClient();
+    const rows = await p.interactionParticipant.findMany({
+      where: { workspaceId, interactionId: { in: [...interactionIds] } },
+    });
+    return rows.map((r: Record<string, unknown>) => ({
+      id: String(r.id),
+      workspaceId: String(r.workspaceId),
+      interactionId: String(r.interactionId),
+      contactId: r.contactId == null ? null : String(r.contactId),
+      memberSub: r.memberSub == null ? null : String(r.memberSub),
+      externalName: r.externalName == null ? null : String(r.externalName),
+      roleAtTime: r.roleAtTime == null ? null : String(r.roleAtTime),
+    }));
+  }
+
   async lastContactAt(workspaceId: string, accountId: string): Promise<Date | null> {
     const p = await getPrismaClient();
     // select the one column - this is read on every health recompute and must

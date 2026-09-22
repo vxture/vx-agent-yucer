@@ -40,6 +40,7 @@ export interface TimelineItem {
   readonly occurredAt: Date;
   readonly actorSub: string;
   readonly actorName?: string | null;
+  readonly participantNames?: readonly string[];
   readonly rawNote: string;
   readonly correctsInteractionId: string | null;
 }
@@ -121,7 +122,10 @@ export function InteractionTimeline({
             </span>
             <div className="min-w-0 flex-1">
               <div className="text-muted-foreground flex flex-wrap items-center gap-2xs text-[11px]">
-                <span>{i.actorName ?? i.actorSub}</span>
+                <span>
+                  {i.actorName ?? i.actorSub}
+                  {i.participantNames?.length ? ` → ${i.participantNames.join("、")}` : null}
+                </span>
                 <span>{"·"}</span>
                 <time dateTime={i.occurredAt.toISOString()}>
                   {(() => {
