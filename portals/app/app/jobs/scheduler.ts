@@ -1,5 +1,6 @@
 import { deployStage, isDeployedStage } from "../lib/deploy-stage";
 import { runCommitmentSweep } from "../domains/account/commitment-sweep";
+import { runStrategySnapshots } from "../domains/strategy/snapshot-job";
 import { flushUsage } from "../usage/lib/flush";
 import { listActiveWorkspaces } from "./workspaces";
 import { acquireJobLock, type LockOutcome } from "./lock";
@@ -103,6 +104,11 @@ export function defaultJobs(env: Record<string, string | undefined> = process.en
       name: "usage-flush",
       everyMs: intervalFrom(env, "JOBS_INTERVAL_FLUSH_MS", 5 * 60_000),
       run: () => flushUsage(),
+    },
+    {
+      name: "strategy-snapshots",
+      everyMs: intervalFrom(env, "JOBS_INTERVAL_SNAPSHOT_MS", 60 * 60_000),
+      run: async () => runStrategySnapshots({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
     },
   ];
 }

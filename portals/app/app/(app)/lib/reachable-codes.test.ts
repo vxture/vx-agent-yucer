@@ -186,7 +186,7 @@ const unrendered = new Set<string>();
 // Components with a complete in-file error mapping of their own (a function
 // with a guaranteed fallback), verified by reading them - not a dictionary the
 // regex can see.
-const SELF_MAPPED = new Set(["copilot-chat"]);
+const SELF_MAPPED = new Set(["copilot-chat", "paste-notes-button"]);
 for (const f of walk(UI).filter((p) => p.endsWith(".tsx") && !p.endsWith(".test.tsx"))) {
   const text = readFileSync(f, "utf8");
   const opens = [...text.matchAll(/<([A-Z]\w+)/g)];

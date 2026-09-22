@@ -220,6 +220,7 @@ export const en: Dictionary = {
     attainment: "Attainment",
     enablement: "Enablement Analysis",
     diagnostics: "System Verification",
+    strategyDiag: "Strategy Diagnostics",
     // 权限策略 (owner, 2026-09-11): a placeholder module reserved in
     // settlement - no page, permission point or schema yet.
     contract: "Contracts",
@@ -1891,6 +1892,10 @@ export const en: Dictionary = {
     subject_mismatch:
       "The action and its subject do not agree, so it was not carried out.",
     payload_invalid: "The proposal did not say what to change it to.",
+    note_required: "An interaction record must say what happened.",
+    occurred_in_future:
+      "An interaction cannot have happened in the future.",
+    unknown_channel: "Unknown interaction channel.",
     stage_unchanged:
       "The deal is already at that stage; a no-op is not journalled.",
     reason_required: "Moving a deal back or reopening it requires a reason.",
@@ -3598,6 +3603,19 @@ export const en: Dictionary = {
     commitOverdueTitle: "Overdue promises",
     commitOwner: (who: string) => `owner ${who}`,
     commitOwnerNone: "No owner assigned",
+    pasteNotesButton: "Paste meeting notes",
+    pasteNotesTitle: "Paste meeting / call notes",
+    pasteNotesDescription:
+      "Paste your meeting notes or call transcript and the assistant will extract structured interaction records for your review.",
+    pasteNotesPlaceholder:
+      "Paste meeting notes, call transcript, or chat log here...",
+    pasteNotesSubmit: "Send to assistant",
+    pasteNotesSubmitting: "Analyzing...",
+    pasteNotesCancel: "Cancel",
+    pasteNotesDone: (n: number) =>
+      `Generated ${n} interaction proposal${n === 1 ? "" : "s"} - review them in the assistant queue`,
+    pasteNotesEmpty: "Please paste content first",
+    pasteNotesFailed: "Analysis failed, please try again later",
   },
 
   DIRECTION_LABEL: {
@@ -4775,6 +4793,42 @@ export const en: Dictionary = {
     unit: (n: number) => `${n}`,
   },
 
+  STRATEGY_DIAG_TEXT: {
+    title: "Strategy Diagnostics",
+    subtitle: "Strategy Diagnostics",
+    home: "Home",
+    windowLabel: (days: number) => `Last ${days} days snapshots`,
+    deniedTitle: "Cannot show diagnostics",
+    deniedDescription: "Requires strategy view permission.",
+    panelSegmentCoverage: "Segment coverage trend",
+    panelSegmentCoverageWhy: "Which segments are gaining or losing account coverage",
+    panelAttainment: "Territory attainment",
+    panelAttainmentWhy: "How each territory tracks against its target",
+    panelFalseFat: "False-fat warning",
+    panelFalseFatWhy: "Segments where pipeline grows but account count does not",
+    heroSegments: "Active segments",
+    heroTerritories: "Territories with targets",
+    heroAvgCoverage: "Avg coverage",
+    heroAvgAttainment: "Avg attainment",
+    noSnapshots: "No snapshot data yet. The scheduler will generate it automatically.",
+    noSegments: "No segment snapshots yet",
+    noTerritories: "No territory snapshots yet",
+    noFalseFat: "No false-fat signals",
+    falseFatHint: (name: string, pipelinePct: string, countDelta: number) =>
+      `${name}: pipeline ${pipelinePct}, accounts ${countDelta >= 0 ? "+" : ""}${countDelta}`,
+    coverageUnit: (n: number) => `${n} accts`,
+    attainmentPct: (v: number) => `${v.toFixed(1)}%`,
+    deltaUp: (n: number) => `+${n}`,
+    deltaDown: (n: number) => `${n}`,
+    deltaFlat: "---",
+    pipelineLabel: "Pipeline",
+    countLabel: "Accounts",
+    targetLabel: "Target",
+    attainedLabel: "Attained",
+    moneyYi: (v: number) => `${(v / 1e9).toFixed(1)}B`,
+    moneyWan: (v: number) => `${(v / 1e6).toFixed(1)}M`,
+  },
+
   // --- the home screen and the two flanks ---------------------------------
 
   HOME_TEXT: {
@@ -4907,6 +4961,8 @@ export const en: Dictionary = {
       "pricing.discount_approval": "Discount approval",
       "delivery.payment_risk": "Payment risk",
       "campaign.return": "Campaign return",
+      "strategy.segment_coverage": "Segment coverage trend",
+      "strategy.territory_attainment": "Territory attainment trend",
     } as Record<string, string>,
     dealsOpen: "open",
     dealsWorth: "worth",

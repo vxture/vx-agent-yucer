@@ -30,6 +30,7 @@ import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
 import { ContactRoster } from "../../components/contact-roster";
 import { InteractionTimeline } from "../../components/interaction-timeline";
+import { PasteNotesButton } from "../../components/paste-notes-button";
 import { CommitmentList } from "../../components/commitment-list";
 import { RelationshipEvidencePanel } from "../../components/relationship-evidence";
 import {
@@ -49,6 +50,7 @@ import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { AccountCompleteness } from "../../components/account-completeness";
 import { fillField } from "./completeness-action";
 import { askToComplete } from "./ask-complete-action";
+import { structureMeetingNotes } from "./paste-notes-action";
 import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";
@@ -129,6 +131,13 @@ export default async function AccountDetailPage({
     session.authz,
     session.entitlement,
     "account.upsert",
+    "ui",
+  ).allowed;
+
+  const canRecord = can(
+    session.authz,
+    session.entitlement,
+    "account.interaction.record",
     "ui",
   ).allowed;
 
@@ -482,7 +491,20 @@ export default async function AccountDetailPage({
 
 
           {interactions.ok ? (
-            <InteractionTimeline items={interactions.value} limit={5} />
+            <>
+              <InteractionTimeline
+                items={interactions.value}
+                limit={5}
+                action={
+                  canRecord ? (
+                    <PasteNotesButton
+                      accountId={id}
+                      onPaste={structureMeetingNotes}
+                    />
+                  ) : null
+                }
+              />
+            </>
           ) : null}
 
           {/* 3. WHAT TO DO NEXT - last, because it is drawn from the two

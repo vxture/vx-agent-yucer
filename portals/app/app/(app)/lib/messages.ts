@@ -133,6 +133,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   // 系统验证 (owner, 2026-09-17): 是否与平台的连接本身是健康的 - 不是配置
   // 改没改（安全审计），也不是业务数据。
   diagnostics: "系统验证",
+  strategyDiag: "战略诊断",
 };
 
 /**
@@ -1136,6 +1137,9 @@ export const PROPOSAL_ERROR: Record<string, string> = {
   payload_invalid: "提案没有说清楚要改成什么，不予执行",
 
   // 商机阶段机的拒绝，原样转达而不改写——同一条规则在商机页说的是同一句话。
+  note_required: "跟进记录必须写清楚发生了什么",
+  occurred_in_future: "跟进不能发生在未来",
+  unknown_channel: "未知的跟进方式",
   stage_unchanged: "商机已经在这个阶段了，重复推进不会记入轨迹",
   reason_required: "回退或重开商机必须写明原因",
   terminal_probability_fixed: "已关闭的商机不再调整赢率",
@@ -2104,6 +2108,8 @@ export const BOARD_TEXT = {
     "pricing.discount_approval": "折扣审批",
     "delivery.payment_risk": "回款风险",
     "campaign.return": "战役回报",
+    "strategy.segment_coverage": "细分市场覆盖趋势",
+    "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
   dealsOpen: "在办",
   dealsWorth: "金额",
@@ -2581,6 +2587,42 @@ export const ENABLEMENT_TEXT = {
   unit: (n: number) => `${n} 次`,
 } as const;
 
+export const STRATEGY_DIAG_TEXT = {
+  title: "战略诊断",
+  subtitle: "Strategy Diagnostics",
+  home: "平台首页",
+  windowLabel: (days: number) => `近 ${days} 天快照`,
+  deniedTitle: "无法显示诊断屏",
+  deniedDescription: "需要战略查看权限。",
+  panelSegmentCoverage: "细分市场覆盖趋势",
+  panelSegmentCoverageWhy: "哪些细分市场的覆盖客户数在变化",
+  panelAttainment: "区域达成对比",
+  panelAttainmentWhy: "各区域当前达成率与目标对比",
+  panelFalseFat: "虚胖预警",
+  panelFalseFatWhy: "管道金额在涨但覆盖客户数不涨的细分市场",
+  heroSegments: "在用细分",
+  heroTerritories: "有指标区域",
+  heroAvgCoverage: "平均覆盖",
+  heroAvgAttainment: "平均达成",
+  noSnapshots: "还没有快照数据，调度任务运行后会自动生成",
+  noSegments: "还没有细分市场快照",
+  noTerritories: "还没有区域快照",
+  noFalseFat: "没有虚胖信号",
+  falseFatHint: (name: string, pipelinePct: string, countDelta: number) =>
+    `${name}：管道 ${pipelinePct}，客户数 ${countDelta >= 0 ? "+" : ""}${countDelta}`,
+  coverageUnit: (n: number) => `${n} 家`,
+  attainmentPct: (v: number) => `${v.toFixed(1)}%`,
+  deltaUp: (n: number) => `+${n}`,
+  deltaDown: (n: number) => `${n}`,
+  deltaFlat: "---",
+  pipelineLabel: "管道额",
+  countLabel: "客户数",
+  targetLabel: "目标",
+  attainedLabel: "达成",
+  moneyYi: (v: number) => `${(v / 1e8).toFixed(1)}亿`,
+  moneyWan: (v: number) => `${(v / 1e4).toFixed(1)}万`,
+} as const;
+
 
 export const PIPELINE_TEXT = {
   tagOpen: (n: number) => `${n} 个在推进`,
@@ -2805,6 +2847,20 @@ export const FIELD_TEXT = {
   evidenceWeMissed: "我方错过",
   evidenceKeptRate: "对方守约率",
   evidenceNoHistory: "尚无记录",
+
+  pasteNotesButton: "粘贴会议纪要",
+  pasteNotesTitle: "粘贴会议/通话纪要",
+  pasteNotesDescription:
+    "把会议记录或通话纪要粘贴进来，助手会提取结构化的跟进记录供你确认。",
+  pasteNotesPlaceholder:
+    "把会议纪要、通话记录或聊天内容粘贴到这里……",
+  pasteNotesSubmit: "交给助手",
+  pasteNotesSubmitting: "正在分析……",
+  pasteNotesCancel: "取消",
+  pasteNotesDone: (n: number) =>
+    `已生成 ${n} 条跟进建议，请到助手队列确认`,
+  pasteNotesEmpty: "请先粘贴内容",
+  pasteNotesFailed: "分析失败，请稍后重试",
 } as const;
 
 export const FIELD_ERROR: Record<string, string> = {

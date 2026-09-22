@@ -23,6 +23,8 @@ export const CAPABILITIES = [
   "pricing.discount_approval",
   "delivery.payment_risk",
   "campaign.return",
+  "strategy.segment_coverage",
+  "strategy.territory_attainment",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -43,7 +45,7 @@ export interface CapabilitySpec {
    * approval does not need the customer's meeting notes, and a capability that
    * retrieves more than it needs produces reasoning nobody can follow.
    */
-  readonly evidence: readonly ("interactions" | "commitments" | "chain" | "deals" | "lines" | "projects" | "signals")[];
+  readonly evidence: readonly ("interactions" | "commitments" | "chain" | "deals" | "lines" | "projects" | "signals" | "segments" | "targets")[];
 }
 
 /**
@@ -91,6 +93,14 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   "campaign.return": {
     task: "summarize",
     evidence: ["deals", "signals"],
+  },
+  "strategy.segment_coverage": {
+    task: "summarize",
+    evidence: ["segments", "deals"],
+  },
+  "strategy.territory_attainment": {
+    task: "propose",
+    evidence: ["targets", "deals"],
   },
 };
 

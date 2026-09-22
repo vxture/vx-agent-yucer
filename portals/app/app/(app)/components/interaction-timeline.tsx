@@ -41,11 +41,13 @@ export interface InteractionTimelineProps {
    * the map to gain a history they did not ask for yet.
    */
   readonly limit?: number;
+  readonly action?: React.ReactNode;
 }
 
 export function InteractionTimeline({
   items,
   limit,
+  action: externalAction,
 }: InteractionTimelineProps) {
   const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
@@ -54,11 +56,30 @@ export function InteractionTimeline({
   // the health score beside them is a worse version of this page.
   const bounded = limit !== undefined && !open && items.length > limit;
   const shown = bounded ? items.slice(0, limit) : items;
+  const expandButton =
+    limit !== undefined && items.length > limit ? (
+      <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
+        {open
+          ? FIELD_TEXT.timelineCollapse
+          : FIELD_TEXT.timelineShown(limit, items.length)}
+        <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+      </Button>
+    ) : null;
+
+  const sectionAction =
+    expandButton || externalAction ? (
+      <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        {externalAction}
+        {expandButton}
+      </span>
+    ) : null;
+
   if (items.length === 0) {
     return (
       <Section
         title={FIELD_TEXT.timelineTitle}
         description={FIELD_TEXT.timelineDescription}
+        action={externalAction}
       >
         <EmptyState
           title={FIELD_TEXT.recordEmpty}
@@ -72,16 +93,7 @@ export function InteractionTimeline({
     <Section
       title={FIELD_TEXT.timelineTitle}
       description={FIELD_TEXT.timelineDescription}
-      action={
-        limit !== undefined && items.length > limit ? (
-          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
-            {open
-              ? FIELD_TEXT.timelineCollapse
-              : FIELD_TEXT.timelineShown(limit, items.length)}
-            <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
-          </Button>
-        ) : null
-      }
+      action={sectionAction}
     >
       <ol>
         {shown.map((i) => (
