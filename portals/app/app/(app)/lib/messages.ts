@@ -2104,6 +2104,8 @@ export const BOARD_TEXT = {
     "pricing.discount_approval": "折扣审批",
     "delivery.payment_risk": "回款风险",
     "campaign.return": "战役回报",
+    "strategy.segment_coverage": "细分市场覆盖趋势",
+    "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
   dealsOpen: "在办",
   dealsWorth: "金额",

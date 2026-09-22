@@ -4907,6 +4907,8 @@ export const en: Dictionary = {
       "pricing.discount_approval": "Discount approval",
       "delivery.payment_risk": "Payment risk",
       "campaign.return": "Campaign return",
+      "strategy.segment_coverage": "Segment coverage trend",
+      "strategy.territory_attainment": "Territory attainment trend",
     } as Record<string, string>,
     dealsOpen: "open",
     dealsWorth: "worth",
