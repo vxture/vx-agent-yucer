@@ -220,6 +220,7 @@ export const en: Dictionary = {
     attainment: "Attainment",
     enablement: "Enablement Analysis",
     diagnostics: "System Verification",
+    strategyDiag: "Strategy Diagnostics",
     // 权限策略 (owner, 2026-09-11): a placeholder module reserved in
     // settlement - no page, permission point or schema yet.
     contract: "Contracts",
@@ -4773,6 +4774,40 @@ export const en: Dictionary = {
     rankEmpty: "No copilot executions in this window yet",
     noAdoption: "No suggestions decided in this window yet",
     unit: (n: number) => `${n}`,
+  },
+
+  STRATEGY_DIAG_TEXT: {
+    title: "Strategy Diagnostics",
+    subtitle: "Strategy Diagnostics",
+    home: "Home",
+    windowLabel: (days: number) => `Last ${days} days snapshots`,
+    deniedTitle: "Cannot show diagnostics",
+    deniedDescription: "Requires strategy view permission.",
+    panelSegmentCoverage: "Segment coverage trend",
+    panelSegmentCoverageWhy: "Which segments are gaining or losing account coverage",
+    panelAttainment: "Territory attainment",
+    panelAttainmentWhy: "How each territory tracks against its target",
+    panelFalseFat: "False-fat warning",
+    panelFalseFatWhy: "Segments where pipeline grows but account count does not",
+    heroSegments: "Active segments",
+    heroTerritories: "Territories with targets",
+    heroAvgCoverage: "Avg coverage",
+    heroAvgAttainment: "Avg attainment",
+    noSnapshots: "No snapshot data yet. The scheduler will generate it automatically.",
+    noSegments: "No segment snapshots yet",
+    noTerritories: "No territory snapshots yet",
+    noFalseFat: "No false-fat signals",
+    falseFatHint: (name: string, pipelinePct: string, countDelta: number) =>
+      `${name}: pipeline ${pipelinePct}, accounts ${countDelta >= 0 ? "+" : ""}${countDelta}`,
+    coverageUnit: (n: number) => `${n} accts`,
+    attainmentPct: (v: number) => `${v.toFixed(1)}%`,
+    deltaUp: (n: number) => `+${n}`,
+    deltaDown: (n: number) => `${n}`,
+    deltaFlat: "---",
+    pipelineLabel: "Pipeline",
+    countLabel: "Accounts",
+    targetLabel: "Target",
+    attainedLabel: "Attained",
   },
 
   // --- the home screen and the two flanks ---------------------------------

@@ -187,10 +187,10 @@ export function DomainLauncher({
         newTab
         trailingIcon="external-link"
       />
-    ) : m.key === "national" || m.key === "enablement" ? (
-      // 销售大屏 / 赋能分析 OPEN IN A NEW TAB (owner, 2026-09-13; extended to
-      // 赋能分析 2026-09-17 - same (screen) idiom, same reason). Both are
-      // meant to run on their own - a screen left up on a monitor - not to
+    ) : m.key === "national" || m.key === "enablement" || m.key === "strategyDiag" ? (
+      // 销售大屏 / 赋能分析 / 战略诊断 OPEN IN A NEW TAB (owner, 2026-09-13;
+      // extended to 赋能分析 2026-09-17, 战略诊断 batch 11c - same (screen)
+      // idiom, same reason). All three are meant to run on their own - not to
       // replace the tab you were working in, which `newTab` (the same DS flag
       // app-shell.tsx's account-centre link uses) is exactly for. trailingIcon
       // replaces the uniform `chevron={false}` other built rows get, the same

@@ -133,6 +133,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   // 系统验证 (owner, 2026-09-17): 是否与平台的连接本身是健康的 - 不是配置
   // 改没改（安全审计），也不是业务数据。
   diagnostics: "系统验证",
+  strategyDiag: "战略诊断",
 };
 
 /**
@@ -2581,6 +2582,40 @@ export const ENABLEMENT_TEXT = {
   rankEmpty: "窗口内还没有副驾执行记录",
   noAdoption: "窗口内还没有建议被裁决",
   unit: (n: number) => `${n} 次`,
+} as const;
+
+export const STRATEGY_DIAG_TEXT = {
+  title: "战略诊断",
+  subtitle: "Strategy Diagnostics",
+  home: "平台首页",
+  windowLabel: (days: number) => `近 ${days} 天快照`,
+  deniedTitle: "无法显示诊断屏",
+  deniedDescription: "需要战略查看权限。",
+  panelSegmentCoverage: "细分市场覆盖趋势",
+  panelSegmentCoverageWhy: "哪些细分市场的覆盖客户数在变化",
+  panelAttainment: "区域达成对比",
+  panelAttainmentWhy: "各区域当前达成率与目标对比",
+  panelFalseFat: "虚胖预警",
+  panelFalseFatWhy: "管道金额在涨但覆盖客户数不涨的细分市场",
+  heroSegments: "在用细分",
+  heroTerritories: "有指标区域",
+  heroAvgCoverage: "平均覆盖",
+  heroAvgAttainment: "平均达成",
+  noSnapshots: "还没有快照数据，调度任务运行后会自动生成",
+  noSegments: "还没有细分市场快照",
+  noTerritories: "还没有区域快照",
+  noFalseFat: "没有虚胖信号",
+  falseFatHint: (name: string, pipelinePct: string, countDelta: number) =>
+    `${name}：管道 ${pipelinePct}，客户数 ${countDelta >= 0 ? "+" : ""}${countDelta}`,
+  coverageUnit: (n: number) => `${n} 家`,
+  attainmentPct: (v: number) => `${v.toFixed(1)}%`,
+  deltaUp: (n: number) => `+${n}`,
+  deltaDown: (n: number) => `${n}`,
+  deltaFlat: "---",
+  pipelineLabel: "管道额",
+  countLabel: "客户数",
+  targetLabel: "目标",
+  attainedLabel: "达成",
 } as const;
 
 
