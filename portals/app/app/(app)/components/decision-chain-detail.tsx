@@ -23,6 +23,7 @@ import { DecisionChainGraph, ROLE_ORDER } from "./decision-chain-graph";
 import { LinkContacts, type LinkContactsProps } from "./link-contacts";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // 决策角色 -> 图标 (owner, 2026-09-21: 决策角色在名称后用 tag(icon+文字) 体现).
 // 全部走中性色(Tag 默认 tone="neutral") - 这一行已经有一个真正带颜色语义的
@@ -116,6 +117,7 @@ export function DecisionChainDetail({
   linkForm,
 }: DecisionChainDetailProps) {
   const {
+    ACCOUNT_TEXT,
     CHAIN_TEXT,
     RECENCY_TEXT,
     RELATION_TEXT,
@@ -187,6 +189,8 @@ export function DecisionChainDetail({
         title={
           <span className="gap-xs flex flex-wrap items-center">
             <span className="whitespace-nowrap">{title}</span>
+            <LayerLabel layer="L2" />
+            <CapBadge tier="pro">Pro</CapBadge>
             {coverage.economicBuyerUnreachable ? (
               <StatusBadge tone="danger" dot>
                 {rows.some((p) => p.decisionRole === "economic")
@@ -334,6 +338,11 @@ export function DecisionChainDetail({
             <DecisionChainGraph coverage={coverage} people={people} contacts={contacts} relations={relations} />
           )}
         </div>
+        <CapFooter>
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capChainBasic}
+          <br />
+          <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capChainPro}
+        </CapFooter>
       </Section>
 
       {linkForm ? (

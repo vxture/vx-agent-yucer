@@ -13,6 +13,7 @@ import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { JudgementNote, type Judgement } from "./judgement-note";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // Account health, with its reasons.
 //
@@ -64,7 +65,7 @@ export function HealthPanel({
   statusTag,
   judgement,
 }: HealthPanelProps) {
-  const { CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
+  const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
 
   // INSIDE the component, not at module scope. It was a module constant, which
   // reads as the cheaper thing to do - build the map once - and is wrong the
@@ -117,6 +118,8 @@ export function HealthPanel({
       title={
         <span className="gap-xs flex flex-wrap items-center">
           <span>{CHAIN_TEXT.healthTitle}</span>
+          <LayerLabel layer="L5" />
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
           {statusTag}
         </span>
       }
@@ -163,6 +166,13 @@ export function HealthPanel({
               还有2个), 同一栏拿到的宽度变了, 实测见下方验证记录, 若变窄的场景
               下又被压扁, 需要重新回到 2 列并说明测量数据。 */}
           <MetricGrid items={items} columns={4} />
+          <CapFooter>
+            <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capHealthBasic}
+            <br />
+            <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capHealthPro}
+            <br />
+            <CapBadge tier="pending">{ACCOUNT_TEXT.capPending}</CapBadge> {ACCOUNT_TEXT.capHealthPending}
+          </CapFooter>
         </>
       ) : null}
     </Section>

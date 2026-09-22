@@ -4187,6 +4187,21 @@ export const ACCOUNT_TEXT = {
   orgUnitScale: "规模",
   orgUnitNature: "性质",
   orgUnitType: "类型",
+  capBasic: "基础",
+  capPending: "待建",
+  capOrgUnitBasic: "CRUD + 分级 + 协作人",
+  capOrgUnitPro: "关系图谱",
+  capContactBasic: "CRUD + 排序 + 跟进时效",
+  capContactPro: "决策链四角色 + 立场 + 影响力",
+  capChainBasic: "覆盖统计",
+  capChainPro: "可达性分析 + 四角色映射",
+  capHealthBasic: "四因子 + 状态标签 + 首要问题",
+  capHealthPro: "缺数据 reason + 整体退化趋势",
+  capHealthPending: "第五因子 renewal",
+  capDealBasic: "商机列表 + 阶段 + 金额 (只读引用 D6)",
+  capDealPro: "停滞检测 + 竞争分析 (参谋能力)",
+  capProjectBasic: "项目 + 里程碑 + 健康度 (只读引用 D7)",
+  capProjectPro: "回款风险分析 (参谋能力)",
 
   // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
   // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。

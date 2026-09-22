@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // 单位信息 (owner, 2026-09-18: 客户详情页重排; 2026-09-20 三轮调整):
 //
@@ -144,7 +145,7 @@ export function OrgUnitPanel({
       icon="buildings"
       title={
         <span className="flex flex-col">
-          <span>{title}</span>
+          <span className="flex items-center gap-xs">{title} <LayerLabel layer="L1" /></span>
           <span className="text-muted-foreground text-body-sm font-normal">{accountNo}</span>
         </span>
       }
@@ -189,6 +190,11 @@ export function OrgUnitPanel({
             ))}
           </div>
         ) : null}
+        <CapFooter>
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capOrgUnitBasic}
+          <br />
+          <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capOrgUnitPro}
+        </CapFooter>
       </div>
 
       {/* FOOTER (owner, 2026-09-21: 销售负责人迁移到 card 最底部，card 分

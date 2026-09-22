@@ -13,6 +13,7 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The people inside a customer.
 //
@@ -249,6 +250,8 @@ export function ContactRoster({
           <span title={ACCOUNT_TEXT.contactCount(contacts.length)}>
             <Tag>{contacts.length}</Tag>
           </span>
+          <LayerLabel layer="L2" />
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
         </span>
       }
       action={
@@ -297,6 +300,11 @@ export function ContactRoster({
       {!canEdit ? (
         <p className="text-muted-foreground mt-sm text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
       ) : null}
+      <CapFooter>
+        <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capContactBasic}
+        <br />
+        <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
+      </CapFooter>
     </Section>
   );
 }

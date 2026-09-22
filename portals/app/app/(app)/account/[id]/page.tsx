@@ -102,6 +102,7 @@ import {
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag, TIER_ICON_SRC } from "../../components/tag";
+import { CapBadge, CapFooter } from "../../components/panorama-annotations";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
@@ -887,13 +888,20 @@ export default async function AccountDetailPage({
               {
                 key: "deals",
                 label: `${ACCOUNT_TEXT.lifecycleDeals} (${dealRows.length})`,
-                content: <DealLifecyclePanel deals={dealRows} defaultCurrency={defaultCurrency} />,
+                content: <>
+                  <DealLifecyclePanel deals={dealRows} defaultCurrency={defaultCurrency} />
+                  <CapFooter>
+                    <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capDealBasic}
+                    <br />
+                    <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capDealPro}
+                  </CapFooter>
+                </>,
               },
               {
                 key: "projects",
                 label: `${ACCOUNT_TEXT.lifecycleProjects} (${rosterProjects.length})`,
-                content:
-                  rosterProjects.length === 0 ? (
+                content: <>
+                  {rosterProjects.length === 0 ? (
                     <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.rosterNoProjects}</p>
                   ) : (
                     <div className="flex flex-col gap-md">
@@ -907,7 +915,13 @@ export default async function AccountDetailPage({
                         />
                       ))}
                     </div>
-                  ),
+                  )}
+                  <CapFooter>
+                    <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capProjectBasic}
+                    <br />
+                    <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capProjectPro}
+                  </CapFooter>
+                </>,
               },
               {
                 key: "revenue",
