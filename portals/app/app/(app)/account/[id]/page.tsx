@@ -102,7 +102,7 @@ import {
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag, TIER_ICON_SRC } from "../../components/tag";
-import { CapBadge, CapFooter, PanoramaLegend } from "../../components/panorama-annotations";
+import { CapBadge, CapFooter, LayerLabel, PanoramaLegend } from "../../components/panorama-annotations";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
@@ -874,7 +874,12 @@ export default async function AccountDetailPage({
           <AnalysisTabs
             id="account-lifecycle"
             icon="map-pin"
-            title={ACCOUNT_TEXT.roster}
+            title={
+              <span className="inline-flex items-center gap-xs whitespace-nowrap">
+                <span>{ACCOUNT_TEXT.roster}</span>
+                <LayerLabel layer="L3" />
+              </span>
+            }
             // 默认展开第一个有内容的 tab, 而不是死板地永远停在"商机"
             // (owner, 2026-09-21: 梳理全景图中心区域 - 阵地清单默认展开的
             // tab) - 商机是这张清单最想展示的对象, 但一个没有开放商机的
@@ -932,7 +937,14 @@ export default async function AccountDetailPage({
               {
                 key: "revenue",
                 label: `${ACCOUNT_TEXT.lifecycleRevenue} (${revenueRows.length})`,
-                content: <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />,
+                content: <>
+                  <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />
+                  <CapFooter>
+                    <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capRevenueBasic}
+                    <br />
+                    <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capRevenuePro}
+                  </CapFooter>
+                </>,
               },
               {
                 // 承诺和跟进记录拆成两个 tab (owner, 2026-09-20: 先做跟进
@@ -942,28 +954,42 @@ export default async function AccountDetailPage({
                 key: "commitments",
                 label: `${FIELD_TEXT.commitTitle} (${commitments.ok ? commitments.value.length : 0})`,
                 content: commitments.ok ? (
-                  <CommitmentList
-                    accountId={id}
-                    items={commitments.value}
-                    evidence={(interactions.ok ? interactions.value : []).map(
-                      (i) => ({
-                        id: i.id,
-                        label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
-                      }),
-                    )}
-                    canWrite={canWrite}
-                    captureHref={`/capture?account=${id}&back=/account/${id}`}
-                    onSettle={settleCommitment}
-                    hideDescription
-                    hideTitle
-                  />
+                  <>
+                    <CommitmentList
+                      accountId={id}
+                      items={commitments.value}
+                      evidence={(interactions.ok ? interactions.value : []).map(
+                        (i) => ({
+                          id: i.id,
+                          label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+                        }),
+                      )}
+                      canWrite={canWrite}
+                      captureHref={`/capture?account=${id}&back=/account/${id}`}
+                      onSettle={settleCommitment}
+                      hideDescription
+                      hideTitle
+                    />
+                    <CapFooter>
+                      <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capCommitBasic}
+                      <br />
+                      <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capCommitPro}
+                    </CapFooter>
+                  </>
                 ) : null,
               },
               {
                 key: "interactions",
                 label: `${ACCOUNT_TEXT.lifecycleInteractions} (${interactions.ok ? interactions.value.length : 0})`,
                 content: interactions.ok ? (
-                  <InteractionTimeline items={interactions.value} limit={20} hideDescription hideTitle />
+                  <>
+                    <InteractionTimeline items={interactions.value} limit={20} hideDescription hideTitle />
+                    <CapFooter>
+                      <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capTimelineBasic}
+                      <br />
+                      <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capTimelinePro}
+                    </CapFooter>
+                  </>
                 ) : null,
               },
             ]}

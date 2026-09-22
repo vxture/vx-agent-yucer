@@ -4205,6 +4205,12 @@ export const ACCOUNT_TEXT = {
   capCompletenessDesc: "智能补全 + 基于模型的缺口识别",
   capPlanBasic: "随手记 + 待裁决提案展示",
   capPlanPro: "参谋能力全部 8 项",
+  capRevenueBasic: "回款状态流转 (只读引用 D7)",
+  capRevenuePro: "回款 vs 计划对比",
+  capCommitBasic: "CRUD + 双向标记 + 挂证据跟进",
+  capCommitPro: "守约率 + 对称展示",
+  capTimelineBasic: "时间线 + 渠道 + 参与人 + 原始笔记",
+  capTimelinePro: "人级时效分析 + 互动频率趋势 + 沉默预警",
 
   // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
   // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。

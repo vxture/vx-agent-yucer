@@ -43,7 +43,7 @@ export function AnalysisTabs({
    *  are not charts (account/[id]/page.tsx's 阵地清单 is a roster, not a
    *  graph) can pass its own. */
   readonly icon?: IconName;
-  readonly title: string;
+  readonly title: ReactNode;
   /** Optional (owner, 2026-09-20: 去掉所有垃圾说明 - 账户详情页不传这个了,
    *  见 account/[id]/page.tsx 的调用). 其他调用方仍可以传。 */
   readonly description?: string;

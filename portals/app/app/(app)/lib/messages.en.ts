@@ -3371,6 +3371,12 @@ export const en: Dictionary = {
     capCompletenessDesc: "Smart fill + model-based gap detection",
     capPlanBasic: "Memo + pending proposal display",
     capPlanPro: "All 8 counselor capabilities",
+    capRevenueBasic: "Collection status flow (read-only ref D7)",
+    capRevenuePro: "Collections vs plan comparison",
+    capCommitBasic: "CRUD + bidirectional marking + evidence linkage",
+    capCommitPro: "Compliance rate + symmetric display",
+    capTimelineBasic: "Timeline + channel + participants + raw notes",
+    capTimelinePro: "Per-person recency analysis + interaction trend + silence alert",
 
     graphTitle: "Decision chain map",
     graphWhy: (dealName: string) => `The decision chain for "${dealName}" - the customer's default when the deal has none of its own`,
