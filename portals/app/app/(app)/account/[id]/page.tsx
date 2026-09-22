@@ -857,6 +857,18 @@ export default async function AccountDetailPage({
             basicLabel={ACCOUNT_TEXT.capBasic}
             proLabel="Pro"
             pendingLabel={ACCOUNT_TEXT.capPending}
+            layerLabels={{
+              L1: ACCOUNT_TEXT.panoramaLayerL1,
+              L2: ACCOUNT_TEXT.panoramaLayerL2,
+              L3: ACCOUNT_TEXT.panoramaLayerL3,
+              L4: ACCOUNT_TEXT.panoramaLayerL4,
+              L5: ACCOUNT_TEXT.panoramaLayerL5,
+              L6: ACCOUNT_TEXT.panoramaLayerL6,
+              EV: ACCOUNT_TEXT.panoramaLayerEV,
+            }}
+            coreLabel={ACCOUNT_TEXT.panoramaCapCore}
+            highLabel={ACCOUNT_TEXT.panoramaCapHigh}
+            designedLabel={ACCOUNT_TEXT.panoramaCapDesigned}
           />
 
           {/* lifecycle 视图和某条决策链的详情视图二选一 (owner: 决策链展示时

@@ -57,6 +57,9 @@ import { DEMO_SUCCESSOR_SUBS } from "./demo-members";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
 import { DEFAULT_WIN_LOSS_REASONS } from "../pipeline/lib/win-loss-vocab";
+import { DEFAULT_CUSTOMER_NATURES } from "../account/lib/customer-nature";
+import { DEFAULT_CUSTOMER_SIZES } from "../account/lib/customer-size";
+import { DEFAULT_CUSTOMER_TYPES } from "../account/lib/customer-type";
 import { DEFAULT_INDUSTRIES } from "../account/lib/industry-vocab";
 import { DEFAULT_UNIT_VOCABULARY } from "../catalog/lib/unit-vocab";
 import type { InMemoryAccountStore } from "../account/store";
@@ -415,9 +418,9 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         creditCode: "91310000MA1FL2XY3T",
         website: "https://hdretail.example.cn",
         employeeCount: 4200,
-        customerNature: "民营企业",
-        customerType: "直销客户",
-        customerSize: "中型企业",
+        customerNature: DEFAULT_CUSTOMER_NATURES.find((n) => n.customerNatureCode === "private")!.name,
+        customerType: DEFAULT_CUSTOMER_TYPES.find((t) => t.customerTypeCode === "direct")!.name,
+        customerSize: DEFAULT_CUSTOMER_SIZES.find((s) => s.customerSizeCode === "medium")!.name,
       }),
       account("acc_demo_2", workspaceId, 2, DEMO_ACCOUNTS[1], "ENTERPRISE", REP2, 78, "active"),
       // Strategic, and deliberately a PROSPECT with no open opportunity: this is

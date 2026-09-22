@@ -124,7 +124,7 @@ export function InteractionTimeline({
               <div className="text-muted-foreground flex flex-wrap items-center gap-2xs text-[11px]">
                 <span>
                   {i.actorName ?? i.actorSub}
-                  {i.participantNames?.length ? ` → ${i.participantNames.join("、")}` : null}
+                  {i.participantNames?.length ? ` → ${i.participantNames.join(FIELD_TEXT.timelineParticipantSep)}` : null}
                 </span>
                 <span>{"·"}</span>
                 <time dateTime={i.occurredAt.toISOString()}>
