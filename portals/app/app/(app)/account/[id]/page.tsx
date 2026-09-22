@@ -416,6 +416,9 @@ export default async function AccountDetailPage({
         )
       : null;
 
+  const memberList = await getAuthzStore().listMembers(base.workspaceId);
+  const memberNameOf = new Map(memberList.map((m) => [m.sub, m.displayName]));
+
   const chainedDealIds = new Set((chain.ok ? chain.value : []).map((c) => c.opportunityId));
   const dealRows: DealLifecycleRow[] = (deals.ok ? deals.value : []).map((d) => {
     const j = relevantJudgements.find((x) => x.subjectType === "opportunity" && x.subjectId === d.id);
@@ -523,7 +526,7 @@ export default async function AccountDetailPage({
   const canLinkGraph = can(session.authz, session.entitlement, "account.graph.link", "ui").allowed;
   const canLinkContact = can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed;
   const canManageCollaborators = can(session.authz, session.entitlement, "account.collaborator.manage", "ui").allowed;
-  const [collaboratorsRead, ownerRead, memberList] = await Promise.all([
+  const [collaboratorsRead, ownerRead] = await Promise.all([
     listAccountCollaborators(
       { ...base, store: session.stores.account(), authz: getAuthzStore() },
       id,
@@ -532,9 +535,7 @@ export default async function AccountDetailPage({
       { ...base, store: session.stores.account(), authz: getAuthzStore() },
       account.ownerSub,
     ),
-    getAuthzStore().listMembers(base.workspaceId),
   ]);
-  const memberNameOf = new Map(memberList.map((m) => [m.sub, m.displayName]));
 
   // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认):
   // 栏1 只要摘要, 详情内容在这里就地建好当作 ReactNode 传下去, 跟 linkForm
