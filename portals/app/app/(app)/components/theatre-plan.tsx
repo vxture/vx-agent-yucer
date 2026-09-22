@@ -7,6 +7,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The theatre's next move.
 //
@@ -66,7 +67,7 @@ export function TheatrePlan({
           return (
             <span
               key={cap}
-              className="text-label-sm inline-flex items-center gap-3xs rounded-md border px-sm py-3xs font-bold"
+              className="text-label-sm inline-flex items-center gap-3xs rounded-[4px] border border-[#7c3aed20] bg-[linear-gradient(135deg,#7c3aed10,#6d28d910)] px-sm py-3xs font-extrabold tracking-wider text-[#7c3aed] dark:border-[#7c3aed30] dark:bg-[linear-gradient(135deg,#7c3aed18,#6d28d918)] dark:text-[#a78bfa]"
               style={{ opacity: count > 0 ? 1 : 0.45 }}
             >
               {BOARD_TEXT.capabilityLabels[cap] ?? cap}
@@ -91,7 +92,12 @@ export function TheatrePlan({
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         icon="target"
-        title={ACCOUNT_TEXT.plan}
+        title={
+          <span className="inline-flex items-center gap-xs whitespace-nowrap">
+            <span>{ACCOUNT_TEXT.plan}</span>
+            <LayerLabel layer="L6" />
+          </span>
+        }
       >
         {counselorSummary}
         <EmptyState
@@ -107,6 +113,11 @@ export function TheatrePlan({
             rows={3}
           />
         </div>
+        <CapFooter>
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capPlanBasic}
+          <br />
+          <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capPlanPro}
+        </CapFooter>
       </Section>
     );
   }
@@ -121,7 +132,12 @@ export function TheatrePlan({
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       icon="target"
-      title={ACCOUNT_TEXT.plan}
+      title={
+        <span className="inline-flex items-center gap-xs whitespace-nowrap">
+          <span>{ACCOUNT_TEXT.plan}</span>
+          <LayerLabel layer="L6" />
+        </span>
+      }
     >
       {counselorSummary}
 
@@ -184,6 +200,11 @@ export function TheatrePlan({
           rows={3}
         />
       </div>
+      <CapFooter>
+        <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capPlanBasic}
+        <br />
+        <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capPlanPro}
+      </CapFooter>
     </Section>
   );
 }

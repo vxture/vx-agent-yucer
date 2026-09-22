@@ -3368,6 +3368,9 @@ export const en: Dictionary = {
     capDealPro: "Stall detection + competitive analysis (counselor)",
     capProjectBasic: "Project + milestones + health (read-only ref D7)",
     capProjectPro: "Revenue risk analysis (counselor)",
+    capCompletenessDesc: "Smart fill + model-based gap detection",
+    capPlanBasic: "Memo + pending proposal display",
+    capPlanPro: "All 8 counselor capabilities",
 
     graphTitle: "Decision chain map",
     graphWhy: (dealName: string) => `The decision chain for "${dealName}" - the customer's default when the deal has none of its own`,

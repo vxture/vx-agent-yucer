@@ -102,7 +102,7 @@ import {
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag, TIER_ICON_SRC } from "../../components/tag";
-import { CapBadge, CapFooter } from "../../components/panorama-annotations";
+import { CapBadge, CapFooter, PanoramaLegend } from "../../components/panorama-annotations";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
@@ -834,6 +834,12 @@ export default async function AccountDetailPage({
               }}
             />
           </div>
+
+          <PanoramaLegend
+            basicLabel={ACCOUNT_TEXT.capBasic}
+            proLabel="Pro"
+            pendingLabel={ACCOUNT_TEXT.capPending}
+          />
 
           {/* lifecycle 视图和某条决策链的详情视图二选一 (owner: 决策链展示时
               健康拆解也去除) - ChainDetailSlot 从 Context 里的 activeId 决定

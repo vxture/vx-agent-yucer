@@ -54,3 +54,46 @@ export function CapFooter({ children }: { readonly children: ReactNode }) {
     </div>
   );
 }
+
+const LAYER_NAMES: readonly { layer: string; label: string }[] = [
+  { layer: "L1", label: "客户档案" },
+  { layer: "L2", label: "关系资产" },
+  { layer: "L3", label: "增量阵地" },
+  { layer: "L4", label: "存量资产" },
+  { layer: "L5", label: "客户评估" },
+  { layer: "L6", label: "作战方案" },
+  { layer: "EV", label: "证据底座" },
+];
+
+export function PanoramaLegend({
+  basicLabel,
+  proLabel,
+  pendingLabel,
+}: {
+  readonly basicLabel: string;
+  readonly proLabel: string;
+  readonly pendingLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-[10px] rounded-[10px] border border-border bg-card px-[14px] py-[10px] text-[11px] text-muted-foreground">
+      {LAYER_NAMES.map((l) => (
+        <span key={l.layer} className="inline-flex items-center gap-[4px]">
+          <LayerLabel layer={l.layer} />
+          {l.label}
+        </span>
+      ))}
+      <span className="ml-auto inline-flex items-center gap-[4px]">
+        <CapBadge tier="basic">{basicLabel}</CapBadge>
+        {"核心能力"}
+      </span>
+      <span className="inline-flex items-center gap-[4px]">
+        <CapBadge tier="pro">{proLabel}</CapBadge>
+        {"高档位"}
+      </span>
+      <span className="inline-flex items-center gap-[4px]">
+        <CapBadge tier="pending">{pendingLabel}</CapBadge>
+        {"已设计"}
+      </span>
+    </div>
+  );
+}

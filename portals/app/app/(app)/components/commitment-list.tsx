@@ -18,6 +18,7 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge } from "./panorama-annotations";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -317,7 +318,7 @@ function ComplianceStats({
   if (theyTotal === 0 && weTotal === 0) return null;
 
   return (
-    <div className="border-border text-muted-foreground flex gap-lg border-t pt-sm text-body-sm">
+    <div className="border-border text-muted-foreground flex flex-wrap items-center gap-lg border-t pt-sm text-body-sm">
       {theyTotal > 0 ? (
         <span>
           {text.commitComplianceRate}
@@ -338,6 +339,7 @@ function ComplianceStats({
           {` (${text.commitPartyOurs})`}
         </span>
       ) : null}
+      <CapBadge tier="pro">Pro</CapBadge>
     </div>
   );
 }

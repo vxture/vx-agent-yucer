@@ -4202,6 +4202,9 @@ export const ACCOUNT_TEXT = {
   capDealPro: "停滞检测 + 竞争分析 (参谋能力)",
   capProjectBasic: "项目 + 里程碑 + 健康度 (只读引用 D7)",
   capProjectPro: "回款风险分析 (参谋能力)",
+  capCompletenessDesc: "智能补全 + 基于模型的缺口识别",
+  capPlanBasic: "随手记 + 待裁决提案展示",
+  capPlanPro: "参谋能力全部 8 项",
 
   // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
   // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。
