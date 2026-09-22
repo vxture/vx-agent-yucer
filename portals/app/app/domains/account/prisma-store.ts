@@ -432,7 +432,7 @@ export class PrismaAccountStore implements AccountStore {
     // ties, this is only what the list looks like before that ever happens.
     const links = await p.personAffiliation.findMany({
       where: { workspaceId, accountId, endedAt: null },
-      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     });
     if (links.length === 0) return [];
     const people = await p.person.findMany({
