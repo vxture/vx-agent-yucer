@@ -987,7 +987,10 @@ export default async function AccountDetailPage({
                 label: `${ACCOUNT_TEXT.lifecycleInteractions} (${interactions.ok ? interactions.value.length : 0})`,
                 content: interactions.ok ? (
                   <>
-                    <InteractionTimeline items={interactions.value} limit={20} hideDescription hideTitle />
+                    <InteractionTimeline
+                      items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
+                      limit={20} hideDescription hideTitle
+                    />
                     <CapFooter>
                       <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capTimelineBasic}
                       <br />
