@@ -39,7 +39,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
 | TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
-| TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | open（净数需要逐条核对 incr/0001-0064，未猜测填入） |
+| TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | **closed 2026-09-22**（26 项权限、31 个预置角色、420 条授权，逐条核对 catalog.ts 镜像） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1854,6 +1854,11 @@ DML（含 `0064` 的退役）才能确认净数,一次带过容易把一个同�
 
 **收回条件**：下一次改动本文件的权限表格时，顺手数一遍 `perm_code` 的行数，
 把标题换成真实值,并把这条 TD 关掉。
+
+**已关闭（2026-09-22）**：逐条核对 `authz/catalog.ts` 的 `PERM_CODES`（26 项）、
+`ROLE_CODES`/`PRESET_ROLE_ORDER`（31 个预置角色）、`ROLE_PERMISSIONS`（420 条授权），
+重建了权限表（补齐 6 条缺失项）和角色表（从 7 → 31）。历史变更日志中的计数
+（如 incr/0046 时的"25 条"）保留为当时快照，不回改。
 
 ### TD-031 - DS `ShellUserMenu` 的姓名槽位固定窄宽，中文姓名会被截断
 

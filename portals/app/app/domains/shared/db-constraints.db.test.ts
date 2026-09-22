@@ -133,6 +133,8 @@ test("append-only tables have no UPDATE at any level", { skip }, async () => {
       ["yucer_pipeline", "opportunity_stage_event"],
       ["yucer_pipeline", "forecast_snapshot"],
       ["yucer_agent", "agent_message"],
+      ["yucer_gtm", "segment_coverage_snapshot"],
+      ["yucer_gtm", "territory_attainment_snapshot"],
     ]) {
       const { rows } = await c.query<{ column_name: string }>(
         `SELECT column_name FROM information_schema.column_privileges

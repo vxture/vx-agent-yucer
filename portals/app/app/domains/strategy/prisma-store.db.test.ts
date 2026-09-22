@@ -24,6 +24,8 @@ const WS = "eeeeeeee-0000-0000-0000-00000000000a";
 const ACC = "eeeeeeee-0000-0000-0000-00000000ab01";
 const CAMPAIGN = "eeeeeeee-0000-0000-0000-00000000ab02";
 const OTHER_CAMPAIGN = "eeeeeeee-0000-0000-0000-00000000ab03";
+const SEG = "eeeeeeee-0000-0000-0000-00000000ab04";
+const TERR = "eeeeeeee-0000-0000-0000-00000000ab05";
 
 async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
   const c = new Client({ connectionString: DATABASE_URL });
@@ -73,9 +75,12 @@ async function cleanup() {
   await withPg(async (c) => {
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_gtm.segment_coverage_snapshot WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_gtm.territory_attainment_snapshot WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign_execution WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.market_segment WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_gtm.territory WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.strategy_plan WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
   });
@@ -520,6 +525,204 @@ test("attributedOpportunities returns nothing for a campaign that produced nothi
     await withPg(seedCampaigns);
     const s = await store();
     assert.deepEqual(await s.attributedOpportunities(WS, OTHER_CAMPAIGN), []);
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- segment coverage snapshots (incr/0073) ----------------------------------------
+
+async function seedSegment(c: Client): Promise<void> {
+  await c.query(
+    `INSERT INTO yucer_gtm.market_segment (id, workspace_id, segment_code, name, priority, status)
+     VALUES ($1, $2, 'SEG-SNAP', 'Snapshot test', 0, 'active') ON CONFLICT DO NOTHING`,
+    [SEG, WS],
+  );
+}
+
+async function seedTerritory(c: Client): Promise<void> {
+  await c.query(
+    `INSERT INTO yucer_gtm.territory (id, workspace_id, territory_code, name, status)
+     VALUES ($1, $2, 'TERR-SNAP', 'Snapshot territory', 'active') ON CONFLICT DO NOTHING`,
+    [TERR, WS],
+  );
+}
+
+test("a negative coverage amount is refused by the real CHECK", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seedSegment(c);
+      await c.query("BEGIN");
+      await c.query("SAVEPOINT probe");
+      await assert.rejects(
+        () =>
+          c.query(
+            `INSERT INTO yucer_gtm.segment_coverage_snapshot
+               (workspace_id, segment_id, matched_account_count, open_pipeline_amount)
+             VALUES ($1, $2, -1, 0)`,
+            [WS, SEG],
+          ),
+        /chk_seg_snap_account_count/,
+      );
+      await c.query("ROLLBACK TO SAVEPOINT probe");
+
+      await c.query("SAVEPOINT probe2");
+      await assert.rejects(
+        () =>
+          c.query(
+            `INSERT INTO yucer_gtm.segment_coverage_snapshot
+               (workspace_id, segment_id, matched_account_count, open_pipeline_amount)
+             VALUES ($1, $2, 5, -100)`,
+            [WS, SEG],
+          ),
+        /chk_seg_snap_pipeline/,
+      );
+      await c.query("ROLLBACK TO SAVEPOINT probe2");
+      await c.query("ROLLBACK");
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the same segment+instant can only appear once per workspace", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seedSegment(c);
+      const at = "2026-09-22T12:00:00Z";
+      await c.query(
+        `INSERT INTO yucer_gtm.segment_coverage_snapshot
+           (workspace_id, segment_id, snapshotted_at, matched_account_count)
+         VALUES ($1, $2, $3, 10)`,
+        [WS, SEG, at],
+      );
+      await assert.rejects(
+        () =>
+          c.query(
+            `INSERT INTO yucer_gtm.segment_coverage_snapshot
+               (workspace_id, segment_id, snapshotted_at, matched_account_count)
+             VALUES ($1, $2, $3, 20)`,
+            [WS, SEG, at],
+          ),
+        /uidx_seg_snap_ws_seg_at/,
+      );
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("segment_coverage_snapshot cascades on segment delete", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seedSegment(c);
+      await c.query(
+        `INSERT INTO yucer_gtm.segment_coverage_snapshot
+           (workspace_id, segment_id, matched_account_count)
+         VALUES ($1, $2, 5)`,
+        [WS, SEG],
+      );
+      await c.query(`DELETE FROM yucer_gtm.market_segment WHERE id = $1`, [SEG]);
+      const { rows } = await c.query(
+        `SELECT count(*)::int AS n FROM yucer_gtm.segment_coverage_snapshot WHERE segment_id = $1`,
+        [SEG],
+      );
+      assert.equal(rows[0].n, 0, "the snapshot must cascade with the segment");
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- territory attainment snapshots (incr/0074) ------------------------------------
+
+test("a negative attainment amount is refused by the real CHECK", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seedTerritory(c);
+      await c.query("BEGIN");
+      await c.query("SAVEPOINT probe");
+      await assert.rejects(
+        () =>
+          c.query(
+            `INSERT INTO yucer_gtm.territory_attainment_snapshot
+               (workspace_id, territory_id, period, target_amount, attained_amount)
+             VALUES ($1, $2, '2026H1', -1, 0)`,
+            [WS, TERR],
+          ),
+        /chk_terr_snap_target/,
+      );
+      await c.query("ROLLBACK TO SAVEPOINT probe");
+
+      await c.query("SAVEPOINT probe2");
+      await assert.rejects(
+        () =>
+          c.query(
+            `INSERT INTO yucer_gtm.territory_attainment_snapshot
+               (workspace_id, territory_id, period, target_amount, attained_amount)
+             VALUES ($1, $2, '2026H1', 100, -50)`,
+            [WS, TERR],
+          ),
+        /chk_terr_snap_attained/,
+      );
+      await c.query("ROLLBACK TO SAVEPOINT probe2");
+      await c.query("ROLLBACK");
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the same territory+period+instant can only appear once per workspace", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seedTerritory(c);
+      const at = "2026-09-22T12:00:00Z";
+      await c.query(
+        `INSERT INTO yucer_gtm.territory_attainment_snapshot
+           (workspace_id, territory_id, period, snapshotted_at, target_amount, attained_amount)
+         VALUES ($1, $2, '2026H1', $3, 100, 40)`,
+        [WS, TERR, at],
+      );
+      await assert.rejects(
+        () =>
+          c.query(
+            `INSERT INTO yucer_gtm.territory_attainment_snapshot
+               (workspace_id, territory_id, period, snapshotted_at, target_amount, attained_amount)
+             VALUES ($1, $2, '2026H1', $3, 200, 80)`,
+            [WS, TERR, at],
+          ),
+        /uidx_terr_snap_ws_terr_period_at/,
+      );
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("territory_attainment_snapshot cascades on territory delete", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seedTerritory(c);
+      await c.query(
+        `INSERT INTO yucer_gtm.territory_attainment_snapshot
+           (workspace_id, territory_id, period, target_amount, attained_amount)
+         VALUES ($1, $2, '2026H1', 100, 40)`,
+        [WS, TERR],
+      );
+      await c.query(`DELETE FROM yucer_gtm.territory WHERE id = $1`, [TERR]);
+      const { rows } = await c.query(
+        `SELECT count(*)::int AS n FROM yucer_gtm.territory_attainment_snapshot WHERE territory_id = $1`,
+        [TERR],
+      );
+      assert.equal(rows[0].n, 0, "the snapshot must cascade with the territory");
+    });
   } finally {
     await cleanup();
   }

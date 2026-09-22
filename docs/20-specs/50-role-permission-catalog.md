@@ -19,7 +19,7 @@
 
 这不是产品自己定的规矩，是平台契约：令牌里的 `workspace:owner` 就是「首登超级管理员」，
 平台用它回答「产品的第一个管理员是谁」这个引导问题（`auth/lib/claims.ts`）。产品这边
-`authz/context.ts` 据此授予 `OWNER_BOOTSTRAP_ROLE = sales_leader`（25/25 权限），所以
+`authz/context.ts` 据此授予 `OWNER_BOOTSTRAP_ROLE = sales_leader`（26/26 权限），所以
 开通订阅的人进来就能做系统配置并给别人分配角色，不需要任何人先给他开门。
 
 **引导的触发条件是「一个角色都没有」，不是「第一次见到这个人」**（2026-09-15 修）。
@@ -39,15 +39,10 @@
 接受，因为平台契约里 `workspace:owner` 就是该工作区下每个产品的超级管理员基线；而
 「所有者无角色、又无人持有 `admin.manage`」的工作区是永久锁死的，没有任何出口。
 
-## 权限目录（19 项）
+## 权限目录（26 项）
 
 权限码格式 `<域>.<动作>`，域前缀与九个能力分区一致（含 D9 产品目录的
 `catalog.*`——D9 是唯一一个不带功能键、门控完全落在权限层的分区，见 ADR-017）。
-
-**这张表下方的行数本身已经落后于种子。** 表头写的「19 项」是 D9 加入前的数字；
-`incr/0010` 起陆续追加了 `catalog.*` 三条、`account.interaction`/`account.commitment`、
-折扣签字、阶段/商机类型相关权限，且 `incr/0064` 退役过其中两条——净数没有随每次增量
-回填到这里，逐条核对留给专门一批，不在本次一并猜一个数字。
 
 | perm_code | 名称 | 说明 |
 |-----------|------|------|
@@ -71,20 +66,55 @@
 | `copilot.decide` | 裁决助手建议 | D8 accept / reject 建议动作 |
 | `copilot.autopilot` | 开启自动执行 | D8 授权跳过人工确认（还需权益档位） |
 | `admin.manage` | 产品管理 | 角色分配、口径与目录维护 |
+| `catalog.read` | 查看目录 | D9 读目录、方案、价目（`incr/0010`，ADR-017） |
+| `catalog.write` | 编辑目录 | D9 维护产品与方案 |
+| `catalog.price` | 管理底价 | D9 定标价与底价——能移动底价等于批准每一笔折扣 |
+| `account.record` | 记录互动 | D4 记录互动与承诺——发生了什么，不是客户是谁（`incr/0011`，ADR-018） |
+| `pipeline.discount` | 签批折扣 | D6 批准低于底价的报价（`incr/0012`，ADR-019） |
+| `pipeline.opportunityConfig` | 商机配置 | D6 商机类型/阶段/赢丢原因/预测阈值/账龄分档/计价货币的增删改（`incr/0063`） |
 
 注：`admin.manage` 是产品内管理，不含平台治理动作（成员邀请、订阅变更仍在平台侧）。
 
-## 角色目录（7 个）
+## 角色目录（31 个预置角色）
+
+清单按 `PRESET_ROLE_ORDER` 排列（业务线第一维度，线内层级从高到低），名称取自
+`PRESET_ROLE_NAMES`。工作区在首次使用时物化全部 31 个预置，之后可改名、调权限、
+增删自定义角色；重置预置恢复这里列出的集合。权限列按 `PERM_CODES` 顺序。
+共 420 条授权，任意两个预置的权限集合都不相同。
 
 | role_code | 名称 | 权限 |
 |-----------|------|------|
-| `sales_leader` | 销售负责人 | 全部 20 项 |
-| `marketing_manager` | 市场负责人 | `strategy.read` `strategy.write` `campaign.read` `campaign.write` `signal.read` `signal.triage` `account.read` `pipeline.read` `copilot.use` `copilot.decide` |
-| `sales_rep` | 一线销售 | `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `delivery.read` `campaign.read` `copilot.use` `copilot.decide` |
-| `presales` | 售前/方案 | `account.read` `account.write` `pipeline.read` `delivery.read` `copilot.use` |
-| `delivery_manager` | 交付经理 | `delivery.read` `delivery.write` `account.read` `pipeline.read` `copilot.use` `copilot.decide` |
-| `sales_ops` | 销售运营 | `planning.read` `planning.write` `pipeline.read` `pipeline.forecast` `account.read` `campaign.read` `strategy.read` `admin.manage` `copilot.use` |
-| `viewer` | 只读 | 全部 `*.read` + `copilot.use` |
+| `executive` | 高管 | `strategy.read` `strategy.approve` `planning.read` `campaign.read` `account.read` `signal.read` `pipeline.read` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` |
+| `sales_leader` | 销售负责人 | 全部 26 项 |
+| `finance` | 财务管理员 | `strategy.read` `planning.read` `campaign.read` `account.read` `signal.read` `pipeline.read` `delivery.read` `copilot.use` `catalog.read` `catalog.price` `pipeline.discount` `pipeline.opportunityConfig` |
+| `workspace_admin` | 系统管理员 | `strategy.read` `planning.read` `campaign.read` `account.read` `signal.read` `pipeline.read` `delivery.read` `copilot.use` `admin.manage` `catalog.read` |
+| `viewer` | 只读成员 | 全部 `*.read` + `copilot.use`（9 项） |
+| `regional_general_manager` | 大区总经理 | `strategy.read` `strategy.write` `strategy.approve` `planning.read` `planning.write` `campaign.read` `campaign.write` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `delivery.write` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.discount` `pipeline.opportunityConfig` |
+| `regional_director` | 大区销售总监 | `strategy.read` `strategy.write` `planning.read` `planning.write` `campaign.read` `campaign.write` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.discount` `pipeline.opportunityConfig` |
+| `branch_general_manager` | 分公司总经理 | `strategy.read` `planning.read` `planning.write` `campaign.read` `campaign.write` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `delivery.write` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.discount` `pipeline.opportunityConfig` |
+| `sales_director` | 销售总监 | `strategy.read` `planning.read` `planning.write` `campaign.read` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.discount` `pipeline.opportunityConfig` |
+| `senior_sales_manager` | 高级销售经理 | `strategy.read` `planning.read` `campaign.read` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.discount` `pipeline.opportunityConfig` |
+| `sales_manager` | 销售经理 | `planning.read` `campaign.read` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `sales_rep` | 销售代表 | `campaign.read` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `channel_head` | 渠道负责人 | `strategy.read` `planning.read` `planning.write` `campaign.read` `campaign.write` `account.read` `account.write` `signal.read` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.discount` `pipeline.opportunityConfig` |
+| `senior_channel_manager` | 高级渠道经理 | `planning.read` `campaign.read` `campaign.write` `account.read` `account.write` `signal.read` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.discount` `pipeline.opportunityConfig` |
+| `channel_manager` | 渠道经理 | `campaign.read` `account.read` `account.write` `signal.read` `pipeline.read` `pipeline.write` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `delivery_head` | 交付负责人 | `strategy.read` `planning.read` `planning.write` `account.read` `account.write` `signal.read` `pipeline.read` `delivery.read` `delivery.write` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `senior_delivery_manager` | 高级交付经理 | `strategy.read` `planning.read` `account.read` `account.write` `pipeline.read` `delivery.read` `delivery.write` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `delivery_manager` | 交付经理 | `account.read` `pipeline.read` `delivery.read` `delivery.write` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `presales_head` | 售前负责人 | `strategy.read` `planning.read` `account.read` `account.write` `pipeline.read` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `catalog.write` `catalog.price` `account.record` `pipeline.opportunityConfig` |
+| `senior_presales` | 高级售前顾问 | `strategy.read` `account.read` `account.write` `pipeline.read` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `catalog.write` `account.record` |
+| `presales` | 售前顾问 | `account.read` `account.write` `pipeline.read` `delivery.read` `copilot.use` `catalog.read` `account.record` |
+| `marketing_head` | 市场负责人 | `strategy.read` `strategy.write` `planning.read` `campaign.read` `campaign.write` `account.read` `signal.read` `signal.triage` `pipeline.read` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `marketing_manager` | 高级市场经理 | `strategy.read` `strategy.write` `campaign.read` `campaign.write` `account.read` `signal.read` `signal.triage` `pipeline.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` |
+| `marketing_specialist` | 市场专员 | `campaign.read` `campaign.write` `account.read` `signal.read` `catalog.read` `copilot.use` |
+| `ops_head` | 运营负责人 | `strategy.read` `strategy.write` `planning.read` `planning.write` `campaign.read` `account.read` `pipeline.read` `pipeline.forecast` `copilot.use` `copilot.decide` `admin.manage` `catalog.read` `catalog.write` `catalog.price` `pipeline.discount` `pipeline.opportunityConfig` |
+| `sales_ops` | 高级运营经理 | `strategy.read` `planning.read` `planning.write` `campaign.read` `account.read` `pipeline.read` `pipeline.forecast` `copilot.use` `admin.manage` `catalog.read` `catalog.write` `catalog.price` `pipeline.discount` `pipeline.opportunityConfig` |
+| `sales_ops_specialist` | 运营专员 | `strategy.read` `planning.read` `campaign.read` `account.read` `pipeline.read` `pipeline.forecast` `catalog.read` `copilot.use` `pipeline.opportunityConfig` |
+| `key_account_manager` | 大客户经理 | `strategy.read` `planning.read` `campaign.read` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `pipeline.forecast` `delivery.read` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `customer_success` | 客户成功经理 | `account.read` `account.write` `signal.read` `pipeline.read` `delivery.read` `delivery.write` `copilot.use` `copilot.decide` `catalog.read` `account.record` `pipeline.opportunityConfig` |
+| `sdr` | 商机开发代表 | `campaign.read` `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `catalog.read` `copilot.use` `account.record` |
+| `deal_desk` | 商务专员 | `account.read` `pipeline.read` `copilot.use` `catalog.read` `catalog.price` `pipeline.discount` `pipeline.opportunityConfig` |
 
 ### 分配逻辑说明
 
@@ -92,13 +122,14 @@
   的人开启，且还要档位为 enterprise 才真正生效（两道门）。
 - **`pipeline.forecast` 给运营和负责人，不给一线销售**。预测是管理动作：一线销售可
   推进商机（`pipeline.write`），但提交对上承诺的预测快照是另一件事。
-- **`strategy.approve` 只给 `sales_leader`**。与上一条同形，只是上移了一层：
+- **`strategy.approve` 给 `sales_leader`、`executive`、`regional_general_manager`**。
   `marketing_manager` 持有 `strategy.write`，可以起草和修改计划，但把销售组织**承诺**
   到这个数字上不是它的职权。`strategy_plan.approved_at` 是下游所有报表的基准，签字
   和编辑是两个动作。（`incr/0002`；在此之前 `strategy.plan.approve` 这个 action id
   解析到 `strategy.write`，分离仅是名义上的。）
-- **`sales_ops` 有 `admin.manage` 但没有 `pipeline.write`**。运营定口径、管配额、管
-  角色，但不替销售改单子——避免口径制定者同时是数据修改者。
+- **`admin.manage` 给 `sales_leader` / `sales_ops` / `workspace_admin` / `ops_head`**。
+  除 `sales_leader`（全权）外，其余三个都没有 `pipeline.write`——运营定口径、管配额、
+  管角色，但不替销售改单子，避免口径制定者同时是数据修改者。
 - **`marketing_manager` 有 `signal.triage` 但没有 `pipeline.write`**。市场负责信号到
   线索这一段，商机推进交给销售，交接点清晰。
 - **`viewer` 保留 `copilot.use`**。只读用户仍可以向智能体提问，因为提问不产生写入。

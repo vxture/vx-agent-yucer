@@ -222,6 +222,9 @@ export const CROSSCUTTING_MODULES: readonly DomainModule[] = [
      accepted or rejected its suggestions), not a capability domain of its
      own. */
   built("enablement"),
+  /* 战略诊断 (batch 11c). Reads segment coverage and territory attainment
+     snapshots - same "owns no object" reasoning as the other two screens. */
+  built("strategyDiag"),
 ];
 
 /** A module resolved against one member's gates, ready to render. */

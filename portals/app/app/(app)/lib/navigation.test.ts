@@ -130,10 +130,11 @@ test("the work entries are not domains either, and the copilot stays a domain", 
      looking at what the domains already hold, which is exactly why it belongs
      on this list and not on that one. `enablement` joined 2026-09-17 for the
      identical reason - a big-screen reading of the copilot domain's own data,
-     not a capability of its own. */
+     not a capability of its own. `strategyDiag` joined batch 11c - a reading
+     of strategy snapshot data (segment coverage, territory attainment). */
   assert.deepEqual(
     WORK_NAV_ENTRIES.map((e) => e.key),
-    ["home", "national", "enablement"],
+    ["home", "national", "enablement", "strategyDiag"],
   );
   assert.ok(DOMAIN_NAV_ENTRIES.some((e) => e.key === "copilot"));
 });
@@ -402,10 +403,9 @@ test("every nav entry points at a real action and a distinct route", () => {
     NAV_ENTRIES.length,
   );
   assert.equal(new Set(NAV_ENTRIES.map((e) => e.key)).size, NAV_ENTRIES.length);
-  // Lowercase path segments; more than one is allowed (/admin/members).
-  // Lowercase segments, or the root itself - home is "/" and that is a real
-  // destination rather than a missing path.
-  for (const e of NAV_ENTRIES) assert.match(e.href, /^\/$|^(\/[a-z]+)+$/);
+  // Lowercase path segments with optional hyphens; more than one segment is
+  // allowed (/admin/members). The root itself - home is "/" - is also valid.
+  for (const e of NAV_ENTRIES) assert.match(e.href, /^\/$|^(\/[a-z]+(-[a-z]+)*)+$/);
 });
 
 test("a locked entry carries the tier that would unlock it, so the CTA can be specific", () => {

@@ -74,6 +74,24 @@ export interface ExecutionRecord {
   status: ExecutionStatus;
 }
 
+export interface SegmentCoverageSnapshotInput {
+  segmentId: string;
+  snapshotedAt: Date;
+  matchedAccountCount: number;
+  openPipelineAmount: number;
+  wonAmount: number;
+  currency: string;
+}
+
+export interface TerritoryAttainmentSnapshotInput {
+  territoryId: string;
+  period: string;
+  snapshotedAt: Date;
+  targetAmount: number;
+  attainedAmount: number;
+  currency: string;
+}
+
 export interface StrategyStore {
   listPlans(workspaceId: string, filter?: { period?: string; status?: PlanStatus }): Promise<PlanRecord[]>;
   getPlan(workspaceId: string, id: string): Promise<PlanRecord | null>;
@@ -161,6 +179,18 @@ export interface StrategyStore {
     workspaceId: string,
     campaignId: string,
   ): Promise<Array<{ id: string; amount: Money | null; status: string }>>;
+
+  /** Append a segment coverage snapshot row. Never updates an existing one. */
+  appendSegmentCoverageSnapshot(
+    workspaceId: string,
+    row: SegmentCoverageSnapshotInput,
+  ): Promise<void>;
+
+  /** Append a territory attainment snapshot row. Never updates an existing one. */
+  appendTerritoryAttainmentSnapshot(
+    workspaceId: string,
+    row: TerritoryAttainmentSnapshotInput,
+  ): Promise<void>;
 }
 
 export class InMemoryStrategyStore implements StrategyStore {
@@ -332,4 +362,14 @@ export class InMemoryStrategyStore implements StrategyStore {
   ): Promise<Array<{ id: string; amount: Money | null; status: string }>> {
     return this.attributed.get(`${workspaceId}|${campaignId}`) ?? [];
   }
+
+  async appendSegmentCoverageSnapshot(
+    _workspaceId: string,
+    _row: SegmentCoverageSnapshotInput,
+  ): Promise<void> {}
+
+  async appendTerritoryAttainmentSnapshot(
+    _workspaceId: string,
+    _row: TerritoryAttainmentSnapshotInput,
+  ): Promise<void> {}
 }

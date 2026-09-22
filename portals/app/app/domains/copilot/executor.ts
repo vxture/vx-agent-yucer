@@ -1,9 +1,11 @@
 import type { Entitlement } from "../../entitlement/types";
 import type { PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
-import { getAccountStore, getPipelineStore } from "../shared/registry";
+import { getAccountStore, getFieldStore, getPipelineStore } from "../shared/registry";
 import { advanceStage } from "../pipeline/service";
 import { fillAccountField } from "../account/service";
+import { recordInteraction } from "../account/field-service";
+import { isChannel } from "../account/lib/commitment";
 import { isStage } from "../pipeline/lib/stage";
 import type { AgentAction } from "./lib/action";
 import { EXECUTABLE_ACTIONS } from "./lib/autonomy";
@@ -58,6 +60,7 @@ type Handler = (
 const HANDLERS: Readonly<Record<string, Handler>> = {
   advance_stage: advanceStageAction,
   fill_account_field: fillAccountFieldAction,
+  record_interaction: recordInteractionAction,
 };
 
 /** The dispatch table's keys, for the guard test. */
@@ -174,5 +177,75 @@ async function advanceStageAction(
     ...(action.rationale ? { reason: action.rationale } : {}),
   });
   if (!moved.ok) return moved as RuleResult<{ actionType: string }>;
+  return ok({ actionType: action.actionType });
+}
+
+async function recordInteractionAction(
+  ctx: ExecutionContext,
+  action: AgentAction,
+): Promise<RuleResult<{ actionType: string }>> {
+  if (action.subjectType !== "account") {
+    return fail(
+      violation(
+        "subject_mismatch",
+        `record_interaction on a ${action.subjectType} - interactions belong to an account`,
+        "subjectType",
+      ),
+    );
+  }
+  const p = action.payload as {
+    channel?: unknown;
+    occurredAt?: unknown;
+    rawNote?: unknown;
+    summary?: unknown;
+    subject?: unknown;
+    opportunityId?: unknown;
+    projectId?: unknown;
+    participants?: unknown;
+  };
+  if (typeof p.channel !== "string" || !isChannel(p.channel)) {
+    return fail(
+      violation("payload_invalid", "record_interaction needs a valid channel", "payload"),
+    );
+  }
+  if (typeof p.occurredAt !== "string" || Number.isNaN(Date.parse(p.occurredAt))) {
+    return fail(
+      violation("payload_invalid", "record_interaction needs an occurredAt ISO date", "payload"),
+    );
+  }
+  if (typeof p.rawNote !== "string" || !p.rawNote.trim()) {
+    return fail(
+      violation("payload_invalid", "record_interaction needs a non-empty rawNote", "payload"),
+    );
+  }
+
+  const participants =
+    Array.isArray(p.participants)
+      ? p.participants
+          .filter((x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null)
+          .map((x) => ({
+            ...(typeof x.contactId === "string" ? { contactId: x.contactId } : {}),
+            ...(typeof x.memberSub === "string" ? { memberSub: x.memberSub } : {}),
+            ...(typeof x.externalName === "string" ? { externalName: x.externalName } : {}),
+            ...(typeof x.roleAtTime === "string" ? { roleAtTime: x.roleAtTime } : {}),
+          }))
+      : undefined;
+
+  const recorded = await recordInteraction(
+    { ...ctx, store: getFieldStore() },
+    {
+      accountId: action.subjectId,
+      channel: p.channel,
+      occurredAt: new Date(p.occurredAt),
+      rawNote: p.rawNote,
+      summary: typeof p.summary === "string" ? p.summary : undefined,
+      subject: typeof p.subject === "string" ? p.subject : undefined,
+      opportunityId: typeof p.opportunityId === "string" ? p.opportunityId : undefined,
+      projectId: typeof p.projectId === "string" ? p.projectId : undefined,
+      captureMode: "agent_drafted",
+      participants,
+    },
+  );
+  if (!recorded.ok) return recorded as RuleResult<{ actionType: string }>;
   return ok({ actionType: action.actionType });
 }

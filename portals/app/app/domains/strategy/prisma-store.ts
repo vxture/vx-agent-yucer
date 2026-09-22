@@ -16,8 +16,10 @@ import type {
   CampaignRecord,
   ExecutionRecord,
   PlanRecord,
+  SegmentCoverageSnapshotInput,
   StrategyStore,
   SegmentRecord,
+  TerritoryAttainmentSnapshotInput,
 } from "./store";
 
 // Prisma-backed StrategyStore over yucer_gtm (D1 plans, D3 campaigns).
@@ -284,6 +286,42 @@ export class PrismaStrategyStore implements StrategyStore {
       amount: r.amount == null ? null : money(Number(String(r.amount)), r.currency),
       status: r.status,
     }));
+  }
+
+  async appendSegmentCoverageSnapshot(
+    workspaceId: string,
+    row: SegmentCoverageSnapshotInput,
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    await p.segmentCoverageSnapshot.create({
+      data: {
+        workspaceId,
+        segmentId: row.segmentId,
+        snapshotedAt: row.snapshotedAt,
+        matchedAccountCount: row.matchedAccountCount,
+        openPipelineAmount: row.openPipelineAmount,
+        wonAmount: row.wonAmount,
+        currency: row.currency,
+      },
+    });
+  }
+
+  async appendTerritoryAttainmentSnapshot(
+    workspaceId: string,
+    row: TerritoryAttainmentSnapshotInput,
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    await p.territoryAttainmentSnapshot.create({
+      data: {
+        workspaceId,
+        territoryId: row.territoryId,
+        period: row.period,
+        snapshotedAt: row.snapshotedAt,
+        targetAmount: row.targetAmount,
+        attainedAmount: row.attainedAmount,
+        currency: row.currency,
+      },
+    });
   }
 }
 

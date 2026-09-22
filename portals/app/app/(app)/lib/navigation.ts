@@ -49,6 +49,10 @@ export type NavIcon =
   // line reads as a trend read over time, which is what per-user AI-usage
   // analysis actually is.
   | "chart-line"
+  // 战略诊断 (batch 11c). A gauge reads as a health check / measurement
+  // instrument, which is what diagnosing segment coverage and territory
+  // attainment is. Not "graph" (strategy domain) or "chart-bar" (national).
+  | "gauge"
   // Pricing. Was "currency-cny", which pinned a glyph to one currency while
   // the product ships an English dictionary; a balance is also what a floor
   // price IS - the point below which a discount needs a signature.
@@ -201,6 +205,13 @@ export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
      copilot's proposal queue - no new permission point for a page that only
      reads what that one already allows reading. */
   { key: "enablement", href: "/enablement", icon: "chart-line", action: "copilot.action.view" },
+  /* 战略诊断 (batch 11c). Same crosscutting rationale: it reads strategy
+     snapshot data (segment coverage trend, territory attainment, false-fat
+     warnings) and OWNS NO OBJECT. Gated on strategy.plan.view - the same
+     action that gates the strategy domain page. Key is "strategyDiag" and
+     not "diagnostics" because that key is already the admin system-health
+     page (系统验证). */
+  { key: "strategyDiag", href: "/strategy-diag", icon: "gauge", action: "strategy.plan.view" },
 ];
 
 /**

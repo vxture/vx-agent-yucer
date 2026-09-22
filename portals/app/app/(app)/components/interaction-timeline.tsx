@@ -64,6 +64,7 @@ export interface InteractionTimelineProps {
    *  清单) - 那边这张卡挂在"跟进记录 (N)"这个 tab 里面, tab 本身已经说过
    *  一次"跟进记录", 卡自己的标题再说一遍是重复。 */
   readonly hideTitle?: boolean;
+  readonly action?: React.ReactNode;
 }
 
 export function InteractionTimeline({
@@ -71,6 +72,7 @@ export function InteractionTimeline({
   limit,
   hideDescription,
   hideTitle,
+  action: externalAction,
 }: InteractionTimelineProps) {
   const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
@@ -79,6 +81,25 @@ export function InteractionTimeline({
   // the health score beside them is a worse version of this page.
   const bounded = limit !== undefined && !open && items.length > limit;
   const shown = bounded ? items.slice(0, limit) : items;
+
+  const expandButton =
+    limit !== undefined && items.length > limit ? (
+      <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
+        {open
+          ? FIELD_TEXT.timelineCollapse
+          : FIELD_TEXT.timelineShown(limit, items.length)}
+        <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+      </Button>
+    ) : null;
+
+  const sectionAction =
+    expandButton || externalAction ? (
+      <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        {externalAction}
+        {expandButton}
+      </span>
+    ) : null;
+
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释).
   if (items.length === 0) {
@@ -88,6 +109,7 @@ export function InteractionTimeline({
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
         description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
+        action={externalAction}
       >
         <EmptyState
           title={FIELD_TEXT.recordEmpty}
@@ -103,16 +125,7 @@ export function InteractionTimeline({
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
       description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
-      action={
-        limit !== undefined && items.length > limit ? (
-          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
-            {open
-              ? FIELD_TEXT.timelineCollapse
-              : FIELD_TEXT.timelineShown(limit, items.length)}
-            <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
-          </Button>
-        ) : null
-      }
+      action={sectionAction}
     >
       <div className="flex flex-col gap-sm">
         {shown.map((i) => (

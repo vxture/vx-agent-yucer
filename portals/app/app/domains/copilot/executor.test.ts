@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { InMemoryPipelineStore, type OpportunityRecord } from "../pipeline/store";
-import { setAccountStore, setPipelineStore } from "../shared/registry";
+import { setAccountStore, setFieldStore, setPipelineStore } from "../shared/registry";
 import { InMemoryAccountStore } from "../account/store";
+import { InMemoryFieldStore } from "../account/field-store";
 import { EXECUTABLE_ACTIONS } from "./lib/autonomy";
 import { carryOut, handledActions, type ExecutionContext } from "./executor";
 import type { AgentAction } from "./lib/action";
@@ -12,7 +13,10 @@ import type { AgentAction } from "./lib/action";
 const WS = "ws_1";
 const CREATED = new Date("2026-08-14T00:00:00Z");
 
-test.afterEach(() => setPipelineStore(null));
+test.afterEach(() => {
+  setPipelineStore(null);
+  setFieldStore(null);
+});
 
 function deals(over: Partial<OpportunityRecord> = {}): InMemoryPipelineStore {
   const store = new InMemoryPipelineStore();
@@ -261,6 +265,139 @@ test("advance_stage against a non-opportunity is refused", async () => {
   const r = await carryOut(ctx(), action({ subjectType: "lead", subjectId: "lead_1" }));
   assert.equal(r.ok === false && r.violations[0].code, "subject_mismatch");
 });
+
+// --- Recording an interaction from a pasted transcript ----------------------
+
+function fieldStore(): InMemoryFieldStore {
+  const store = new InMemoryFieldStore();
+  setFieldStore(store);
+  return store;
+}
+
+test("record_interaction writes through the domain service with agent_drafted capture mode", async () => {
+  const store = fieldStore();
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "record_interaction",
+      subjectType: "account",
+      subjectId: "acc_1",
+      payload: {
+        channel: "meeting",
+        occurredAt: "2026-09-20T14:00:00Z",
+        rawNote: "Discussed Q4 targets with procurement team",
+        summary: "Key takeaway: budget approved for Phase 2",
+        subject: "Q4 planning review",
+        participants: [
+          { externalName: "Zhang Wei", roleAtTime: "procurement_lead" },
+          { memberSub: "usr_me" },
+        ],
+      },
+    }),
+  );
+  assert.equal(r.ok, true);
+  const rows = await store.listInteractions(WS, { accountId: "acc_1" });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.captureMode, "agent_drafted");
+  assert.equal(rows[0]!.channel, "meeting");
+  assert.equal(rows[0]!.summary, "Key takeaway: budget approved for Phase 2");
+  assert.equal(rows[0]!.subject, "Q4 planning review");
+  assert.equal(rows[0]!.actorSub, "usr_me");
+  const parts = await store.listParticipants(WS, rows[0]!.id);
+  assert.equal(parts.length, 2);
+});
+
+test("record_interaction against a non-account is refused", async () => {
+  fieldStore();
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "record_interaction",
+      subjectType: "opportunity",
+      subjectId: "opp_1",
+      payload: {
+        channel: "call",
+        occurredAt: "2026-09-20T10:00:00Z",
+        rawNote: "Follow-up call",
+      },
+    }),
+  );
+  assert.equal(r.ok === false && r.violations[0].code, "subject_mismatch");
+});
+
+test("record_interaction refuses invalid channel", async () => {
+  fieldStore();
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "record_interaction",
+      subjectType: "account",
+      subjectId: "acc_1",
+      payload: {
+        channel: "telepathy",
+        occurredAt: "2026-09-20T10:00:00Z",
+        rawNote: "Notes",
+      },
+    }),
+  );
+  assert.equal(r.ok === false && r.violations[0].code, "payload_invalid");
+});
+
+test("record_interaction refuses missing rawNote", async () => {
+  fieldStore();
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "record_interaction",
+      subjectType: "account",
+      subjectId: "acc_1",
+      payload: {
+        channel: "meeting",
+        occurredAt: "2026-09-20T10:00:00Z",
+        rawNote: "",
+      },
+    }),
+  );
+  assert.equal(r.ok === false && r.violations[0].code, "payload_invalid");
+});
+
+test("record_interaction refuses missing occurredAt", async () => {
+  fieldStore();
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "record_interaction",
+      subjectType: "account",
+      subjectId: "acc_1",
+      payload: {
+        channel: "meeting",
+        rawNote: "Some notes",
+      },
+    }),
+  );
+  assert.equal(r.ok === false && r.violations[0].code, "payload_invalid");
+});
+
+test("the accepter's own gate decides for record_interaction", async () => {
+  fieldStore();
+  // viewer has account.read but no account.record
+  const r = await carryOut(
+    ctx("viewer"),
+    action({
+      actionType: "record_interaction",
+      subjectType: "account",
+      subjectId: "acc_1",
+      payload: {
+        channel: "meeting",
+        occurredAt: "2026-09-20T10:00:00Z",
+        rawNote: "Meeting notes",
+      },
+    }),
+  );
+  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+});
+
+// --- Refusing what it should not guess at ------------------------------------
 
 test("an action type nothing handles is refused by name", async () => {
   // action_type is FREE TEXT from the model - the tool schema only gives

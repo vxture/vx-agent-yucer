@@ -94,6 +94,7 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   // 赋能分析 (owner, 2026-09-17) - same one-module placeholder shape as
   // home/national, and for the same reason: it owns no object.
   enablement: ["enablement"],
+  strategyDiag: ["strategyDiag"],
 };
 
 /** Modules with no permission point of their own yet: new nav routes that
@@ -103,7 +104,7 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
  *  anything of its own; they render here as an honest, permanently-empty
  *  pair rather than as something still being built toward). */
 export const PLACEHOLDER_MODULES: ReadonlySet<string> = new Set([
-  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "contract", "home", "national", "enablement",
+  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "contract", "home", "national", "enablement", "strategyDiag",
 ]);
 
 /** `(domain, page)` -> the 业务/模块/页面 it now renders under. Page "" is

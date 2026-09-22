@@ -47,6 +47,7 @@ import { JudgementNote } from "../../components/judgement-note";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
 import { InteractionTimeline } from "../../components/interaction-timeline";
+import { PasteNotesButton } from "../../components/paste-notes-button";
 import { CommitmentList } from "../../components/commitment-list";
 import {
   listCommitments,
@@ -66,6 +67,7 @@ import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { AccountCompleteness } from "../../components/account-completeness";
 import { fillField } from "./completeness-action";
 import { askToComplete } from "./ask-complete-action";
+import { structureMeetingNotes } from "./paste-notes-action";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
 import { AccountSidebarPortal } from "../../components/account-sidebar-portal";
@@ -210,6 +212,13 @@ export default async function AccountDetailPage({
     session.authz,
     session.entitlement,
     "account.upsert",
+    "ui",
+  ).allowed;
+
+  const canRecord = can(
+    session.authz,
+    session.entitlement,
+    "account.interaction.record",
     "ui",
   ).allowed;
 
@@ -1016,6 +1025,14 @@ export default async function AccountDetailPage({
                     <InteractionTimeline
                       items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null, participantNames: participantsByInteraction.get(i.id) }))}
                       limit={20} hideDescription hideTitle
+                      action={
+                        canRecord ? (
+                          <PasteNotesButton
+                            accountId={id}
+                            onPaste={structureMeetingNotes}
+                          />
+                        ) : null
+                      }
                     />
                     <CapFooter>
                       <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capTimelineBasic}
