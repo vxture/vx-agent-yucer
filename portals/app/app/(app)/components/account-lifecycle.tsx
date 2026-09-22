@@ -136,7 +136,9 @@ export function DealLifecyclePanel({
             </div>
             {d.stagePosition ? <StageTrack index={d.stagePosition.index} total={d.stagePosition.total} /> : null}
             {d.daysInStage != null ? (
-              <span className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}</span>
+              <span className={`text-body-sm ${d.insight?.tone === "danger" ? "font-bold text-destructive" : "text-muted-foreground"}`}>
+                {ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}
+              </span>
             ) : null}
             {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} /> : null}
             {d.hasChain ? (
