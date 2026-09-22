@@ -13,6 +13,22 @@ import { useChainView } from "./decision-chain-switch";
 // 在页面上被取了却从未渲染 (grep 一遍就能看到), 这里是把已经付过的读用起来,
 // 不是新开一次计算.
 
+const INSIGHT_TONE = {
+  danger:  "border-destructive-border bg-destructive-muted text-destructive-text",
+  warning: "border-warning-border bg-warning-muted text-warning-text",
+  success: "border-success-border bg-success-muted text-success-text",
+  neutral: "border-border bg-muted text-muted-foreground",
+} as const;
+
+function InsightBox({ tone, claim }: { readonly tone: keyof typeof INSIGHT_TONE; readonly claim: string }) {
+  return (
+    <div className={`mt-2xs flex items-start gap-xs rounded-lg border p-xs text-body-sm ${INSIGHT_TONE[tone]}`}>
+      <Icon name="warning" size="xs" className="mt-3xs shrink-0" />
+      <span>{claim}</span>
+    </div>
+  );
+}
+
 export interface DealLifecycleRow {
   readonly id: string;
   readonly name: string;
@@ -37,21 +53,23 @@ export interface DealLifecycleRow {
   readonly hasChain: boolean;
 }
 
-// 阶段进度点 (owner, 2026-09-20: mockup 每张商机卡带一条阶段进度条 - 先做，
-// 别再等我确认). TD-023 的同一类缺口 (DS 没有步骤条/时间轴件) 的第二处垫片:
-// 跟 delivery-plan-flow.tsx 一样只用 Icon 之外的 DS 意图色 token 拼小圆点，不
-// 改 DS、不新建一个通用组件 - 这里比那条注册的"有序步骤条"轻得多（无连接线、
-// 无节点文案，只是一排点), 复用同一条 TD 而不是另开一条。DS 出了步骤条以后，
-// 这几行跟 delivery-plan-flow.tsx 一起换成对它的封装。
+// 阶段进度条 (owner, 2026-09-20 -> 2026-09-21 按设计调整): mockup 是等分
+// bar segment, 不是圆点 - 已完成的段 bg-primary, 当前段 bg-primary/45,
+// 未来段 bg-border. TD-023 的同一类缺口 (DS 没有步骤条/时间轴件); DS 出了
+// 步骤条以后这几行跟 delivery-plan-flow.tsx 一起换成对它的封装。
 function StageTrack({ index, total }: { readonly index: number; readonly total: number }) {
   return (
-    <span className="inline-flex items-center gap-2xs" aria-hidden="true">
+    <span className="mt-2xs flex w-full gap-[3px]" aria-hidden="true">
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
           className={
-            "h-[0.375rem] w-[0.375rem] rounded-full " +
-            (i <= index ? "bg-primary" : "bg-border")
+            "h-[4px] flex-1 rounded-[3px] " +
+            (i < index
+              ? "bg-primary"
+              : i === index
+                ? "bg-primary/45"
+                : "bg-border")
           }
         />
       ))}
@@ -104,20 +122,7 @@ export function DealLifecyclePanel({
                   <span className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}</span>
                 ) : null}
               </div>
-              {d.insight ? (
-                <p
-                  className={
-                    "text-body-sm mt-2xs " +
-                    (d.insight.tone === "danger"
-                      ? "text-destructive"
-                      : d.insight.tone === "warning"
-                        ? "text-warning"
-                        : "text-muted-foreground")
-                  }
-                >
-                  {d.insight.claim}
-                </p>
-              ) : null}
+              {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} /> : null}
               {d.hasChain ? (
                 <Button
                   variant="link"
