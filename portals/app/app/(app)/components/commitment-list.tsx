@@ -143,14 +143,16 @@ export function CommitmentList({
         );
         const chosen = picked[c.id] ?? "";
         return (
-          <div key={c.id}>
-            <PartyBadge direction={c.direction} text={FIELD_TEXT} />
-            <span>{c.statement}</span>
-            <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
-              {overdue
-                ? FIELD_TEXT.commitDaysOverdue(days)
-                : FIELD_TEXT.commitDueIn(days)}
-            </Tag>
+          <div key={c.id} className="flex flex-col gap-2xs">
+            <div className="flex items-center gap-xs">
+              <PartyBadge direction={c.direction} text={FIELD_TEXT} />
+              <span className="text-foreground min-w-0 flex-1 truncate text-body-sm">{c.statement}</span>
+              <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
+                {overdue
+                  ? FIELD_TEXT.commitDaysOverdue(days)
+                  : FIELD_TEXT.commitDueIn(days)}
+              </Tag>
+            </div>
 
             {canWrite ? (
               <>
@@ -239,7 +241,9 @@ export function CommitmentList({
       })}
 
       {settled.map((c) => (
-        <div key={c.id}>
+        <div key={c.id} className="flex items-center gap-xs">
+          <PartyBadge direction={c.direction} text={FIELD_TEXT} />
+          <span className="text-foreground min-w-0 flex-1 truncate text-body-sm">{c.statement}</span>
           <Tag
             tone={
               c.status === "met"
@@ -251,7 +255,6 @@ export function CommitmentList({
           >
             {COMMIT_STATUS_LABEL[c.status] ?? c.status}
           </Tag>
-          <span>{c.statement}</span>
         </div>
       ))}
 
