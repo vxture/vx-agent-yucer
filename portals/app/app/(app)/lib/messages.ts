@@ -1137,6 +1137,9 @@ export const PROPOSAL_ERROR: Record<string, string> = {
   payload_invalid: "提案没有说清楚要改成什么，不予执行",
 
   // 商机阶段机的拒绝，原样转达而不改写——同一条规则在商机页说的是同一句话。
+  note_required: "跟进记录必须写清楚发生了什么",
+  occurred_in_future: "跟进不能发生在未来",
+  unknown_channel: "未知的跟进方式",
   stage_unchanged: "商机已经在这个阶段了，重复推进不会记入轨迹",
   reason_required: "回退或重开商机必须写明原因",
   terminal_probability_fixed: "已关闭的商机不再调整赢率",

@@ -1892,6 +1892,10 @@ export const en: Dictionary = {
     subject_mismatch:
       "The action and its subject do not agree, so it was not carried out.",
     payload_invalid: "The proposal did not say what to change it to.",
+    note_required: "An interaction record must say what happened.",
+    occurred_in_future:
+      "An interaction cannot have happened in the future.",
+    unknown_channel: "Unknown interaction channel.",
     stage_unchanged:
       "The deal is already at that stage; a no-op is not journalled.",
     reason_required: "Moving a deal back or reopening it requires a reason.",
