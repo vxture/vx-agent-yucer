@@ -2616,6 +2616,8 @@ export const STRATEGY_DIAG_TEXT = {
   countLabel: "客户数",
   targetLabel: "目标",
   attainedLabel: "达成",
+  moneyYi: (v: number) => `${(v / 1e8).toFixed(1)}亿`,
+  moneyWan: (v: number) => `${(v / 1e4).toFixed(1)}万`,
 } as const;
 
 

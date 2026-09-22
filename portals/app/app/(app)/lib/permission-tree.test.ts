@@ -85,7 +85,7 @@ test("GROUP_MODULES agrees with FUNCTIONAL_DOMAINS - every nav module sits under
   }
   const UNBUILT = new Set(["contract"]);
   for (const [group, modules] of Object.entries(GROUP_MODULES)) {
-    if (["copilot", "admin", "home", "national", "enablement"].includes(group)) continue; // no FUNCTIONAL_DOMAINS list to check against - see below and the file header
+    if (["copilot", "admin", "home", "national", "enablement", "strategyDiag"].includes(group)) continue; // no FUNCTIONAL_DOMAINS list to check against - see below and the file header
     for (const key of modules) {
       if (UNBUILT.has(key)) continue;
       assert.ok(navKeysByGroup.get(group)?.has(key), `${group}/${key} is not a nav module FUNCTIONAL_DOMAINS lists there`);
@@ -100,7 +100,7 @@ test("GROUP_MODULES.home / .national / .enablement agree with CROSSCUTTING_MODUL
      their own. Each gets a one-module group here, same shape as those two
      (owner, 2026-09-11: 缺少今日裁决和销售大屏; 赋能分析 added 2026-09-17). */
   const crosscuttingKeys = new Set(CROSSCUTTING_MODULES.filter((m) => m.kind === "built").map((m) => m.navKey));
-  assert.deepEqual(crosscuttingKeys, new Set(["home", "national", "enablement"]));
+  assert.deepEqual(crosscuttingKeys, new Set(["home", "national", "enablement", "strategyDiag"]));
   for (const key of crosscuttingKeys) {
     assert.deepEqual(GROUP_MODULES[key], [key], `GROUP_MODULES.${key} should be a single self-named module`);
     assert.ok(PLACEHOLDER_MODULES.has(key), `${key} owns no object and should never gate on an action of its own`);

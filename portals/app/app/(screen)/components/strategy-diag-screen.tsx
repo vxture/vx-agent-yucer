@@ -59,12 +59,6 @@ export interface StrategyDiagScreenProps {
 
 const num = (v: number) => Math.round(v).toLocaleString("en-US");
 
-const money = (v: number) => {
-  if (Math.abs(v) >= 1e8) return `${(v / 1e8).toFixed(1)}亿`;
-  if (Math.abs(v) >= 1e4) return `${(v / 1e4).toFixed(1)}万`;
-  return `${Math.round(v)}`;
-};
-
 function Mod({
   step,
   title,
@@ -124,6 +118,12 @@ export function StrategyDiagScreen({
   totals,
 }: StrategyDiagScreenProps) {
   const { STRATEGY_DIAG_TEXT: T } = useMessages();
+
+  const money = (v: number) => {
+    if (Math.abs(v) >= 1e8) return T.moneyYi(v);
+    if (Math.abs(v) >= 1e4) return T.moneyWan(v);
+    return `${Math.round(v)}`;
+  };
 
   const falseFatSegments = segments.filter((s) => s.isFalseFat);
 

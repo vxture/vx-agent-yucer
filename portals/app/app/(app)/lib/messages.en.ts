@@ -4808,6 +4808,8 @@ export const en: Dictionary = {
     countLabel: "Accounts",
     targetLabel: "Target",
     attainedLabel: "Attained",
+    moneyYi: (v: number) => `${(v / 1e9).toFixed(1)}B`,
+    moneyWan: (v: number) => `${(v / 1e6).toFixed(1)}M`,
   },
 
   // --- the home screen and the two flanks ---------------------------------
