@@ -95,11 +95,10 @@ export interface OrgUnitPanelProps {
   /** Same story as customerNatureName, for account.customerTypeId (owner:
    *  补充 - 类型). */
   readonly customerTypeName: string | null;
-  /** account.province only (owner: 补充 - 地址需要显示到省级-市级) - there is
-   *  no city column on this table yet, so this shows only what the schema
-   *  actually has. Absent when unset, same "no empty-state fact" rule as
-   *  industry/region. */
-  readonly province: string | null;
+  /** customer_size vocab resolved to a name - the raw headcount lives on
+   *  the account row but the display is the bucket label from the vocab
+   *  (e.g. "1000-5000 人"), same id->name pattern as nature/type. */
+  readonly scaleName: string | null;
 }
 
 // label 淡化变小、content 保持单行并靠右, 留足空间显示"内蒙古-呼和浩特"这类
@@ -113,13 +112,13 @@ export interface OrgUnitPanelProps {
 // DetailRow 内部写死的结构, 没有 className 缝隙能覆盖这两点。这是 DS 组件
 // 一个真实的缺口(CLAUDE.md: 缺失的组件是向 DS 提需求，不是本地私自建组件
 // 库), 这里是权宜之计: 完全复用 DS 自己的字号/颜色令牌(text-body-sm +
-// text-muted-foreground 给 label, text-body-md + text-foreground 给
+// text-muted-foreground 给 label, text-body-sm + text-foreground 给
 // content), 不引入新的视觉语言, 只是换一种不依赖断点的排布方式。
 function InfoRow({ label, children }: { readonly label: ReactNode; readonly children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-md py-2xs">
       <dt className="text-muted-foreground shrink-0 text-body-sm">{label}</dt>
-      <dd className="text-foreground min-w-0 flex-1 text-right text-body-md whitespace-nowrap">{children}</dd>
+      <dd className="text-foreground min-w-0 flex-1 text-right text-body-sm whitespace-nowrap">{children}</dd>
     </div>
   );
 }
@@ -136,7 +135,7 @@ export function OrgUnitPanel({
   region,
   customerNatureName,
   customerTypeName,
-  province,
+  scaleName,
 }: OrgUnitPanelProps) {
   const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT } = useMessages();
   return (
@@ -160,13 +159,13 @@ export function OrgUnitPanel({
             (border-primary/10, dark 下 /20), 不是另起一套颜色。 */}
         <div className="border-primary/10 dark:border-primary/20 border-t" />
 
-        {industry || region || customerNatureName || customerTypeName || province || parentName ? (
+        {industry || region || scaleName || customerNatureName || customerTypeName || parentName ? (
           <div className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
-            {customerNatureName ? <InfoRow label={ACCOUNT_TEXT.orgUnitNature}>{customerNatureName}</InfoRow> : null}
-            {region ? <InfoRow label={ACCOUNT_TEXT.orgUnitRegion}>{region}</InfoRow> : null}
-            {customerTypeName ? <InfoRow label={ACCOUNT_TEXT.orgUnitType}>{customerTypeName}</InfoRow> : null}
             {industry ? <InfoRow label={ACCOUNT_TEXT.orgUnitIndustry}>{industry}</InfoRow> : null}
-            {province ? <InfoRow label={ACCOUNT_TEXT.orgUnitAddress}>{province}</InfoRow> : null}
+            {region ? <InfoRow label={ACCOUNT_TEXT.orgUnitRegion}>{region}</InfoRow> : null}
+            {scaleName ? <InfoRow label={ACCOUNT_TEXT.orgUnitScale}>{scaleName}</InfoRow> : null}
+            {customerNatureName ? <InfoRow label={ACCOUNT_TEXT.orgUnitNature}>{customerNatureName}</InfoRow> : null}
+            {customerTypeName ? <InfoRow label={ACCOUNT_TEXT.orgUnitType}>{customerTypeName}</InfoRow> : null}
             {parentName ? (
               <InfoRow label={ACCOUNT_PARENT_TEXT.label}>
                 <Link href={`/account/${parentId}`} className="hover:underline">{parentName}</Link>

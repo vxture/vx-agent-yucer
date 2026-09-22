@@ -415,6 +415,9 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         creditCode: "91310000MA1FL2XY3T",
         website: "https://hdretail.example.cn",
         employeeCount: 4200,
+        customerNature: "民营企业",
+        customerType: "直销客户",
+        customerSize: "中型企业",
       }),
       account("acc_demo_2", workspaceId, 2, DEMO_ACCOUNTS[1], "ENTERPRISE", REP2, 78, "active"),
       // Strategic, and deliberately a PROSPECT with no open opportunity: this is
@@ -1325,6 +1328,9 @@ function account(
     website?: string | null;
     employeeCount?: number | null;
     parentId?: string | null;
+    customerType?: string | null;
+    customerSize?: string | null;
+    customerNature?: string | null;
   } = {},
 ) {
   return {
@@ -1341,14 +1347,11 @@ function account(
        nowhere, so the fixture refuses it rather than writing a dangling id -
        the same refusal fillAccountField makes at runtime. */
     industryId: info.industry ? INDUSTRY_ID_BY_NAME.get(info.industry) ?? null : null,
-    // incr/0071. The demo never assigns either - every fixture account is
-    // honestly unclassified on these two, the same ordinary state as most
-    // real customers on first contact.
-    customerType: null,
+    customerType: identity.customerType ?? null,
     customerTypeId: null,
-    customerSize: null,
+    customerSize: identity.customerSize ?? null,
     customerSizeId: null,
-    customerNature: null,
+    customerNature: identity.customerNature ?? null,
     customerNatureId: null,
     // Same reasoning as industry, and needed for the same reason: 港澳零售集团
     // writes "" for the region-derivable case, and the column and every rule

@@ -3350,9 +3350,9 @@ export const en: Dictionary = {
     orgUnitChildren: (n: number) => `${n} sub-unit${n === 1 ? "" : "s"}`,
     orgUnitIndustry: "Industry",
     orgUnitRegion: "Region",
+    orgUnitScale: "Scale",
     orgUnitNature: "Ownership",
     orgUnitType: "Type",
-    orgUnitAddress: "Address",
 
     graphTitle: "Decision chain map",
     graphWhy: (dealName: string) => `The decision chain for "${dealName}" - the customer's default when the deal has none of its own`,

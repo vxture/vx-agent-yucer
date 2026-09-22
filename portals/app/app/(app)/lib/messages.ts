@@ -4184,16 +4184,9 @@ export const ACCOUNT_TEXT = {
   // 客户固有属性，属于栏1的档案，不是 header 该扛的身份识别信息。
   orgUnitIndustry: "行业",
   orgUnitRegion: "区域",
-  // 补充字段 (owner, 2026-09-20: 补充 - 性质/类型/地址). 性质/类型的数据
-  // 早就在(customerNatureId/customerTypeId + 各自的词表读), 只是从没作为
-  // 只读事实显示过，只喂给了编辑表单的下拉框。
+  orgUnitScale: "规模",
   orgUnitNature: "性质",
   orgUnitType: "类型",
-  // 只到省级 (owner, 2026-09-20: 地址需要显示到省级-市级, 但 account 表
-  // 目前只有 province 列, 没有市级字段 - 不是这次布局调整的范围, 先显示
-  // 已有的省级数据, 市级另开一条数据库增量再说). 没有省份时不显示这一行,
-  // 跟行业/区域同一条"没有就不打印空事实"的规则。
-  orgUnitAddress: "地址",
 
   // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
   // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。

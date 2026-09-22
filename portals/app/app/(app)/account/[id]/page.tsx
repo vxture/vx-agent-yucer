@@ -255,7 +255,7 @@ export default async function AccountDetailPage({
       // a new permission surface, just the same read no longer withheld from
       // someone who cannot also write.
       listCustomerTypes(ctx),
-      canWrite ? listCustomerSizes(ctx) : Promise.resolve(null),
+      listCustomerSizes(ctx),
       listCustomerNatures(ctx),
       canWrite
         ? listSegments({ ...ctx, store: getStrategyStore() })
@@ -591,11 +591,15 @@ export default async function AccountDetailPage({
   const customerNatureName =
     account.customerNatureId && customerNaturesRead.ok
       ? (customerNaturesRead.value.find((n) => n.id === account.customerNatureId)?.name ?? null)
-      : null;
+      : account.customerNature;
   const customerTypeName =
     account.customerTypeId && customerTypesRead.ok
       ? (customerTypesRead.value.find((t) => t.id === account.customerTypeId)?.name ?? null)
-      : null;
+      : account.customerType;
+  const customerSizeName =
+    account.customerSizeId && customerSizesRead.ok
+      ? (customerSizesRead.value.find((s) => s.id === account.customerSizeId)?.name ?? null)
+      : account.customerSize;
 
   // 状态标签是"动态评估" (owner: 补充 - status tag 不能在 sidebar, 应该在
   // content) - 搬进 health-panel.tsx 的卡头, 跟客户评估同一张卡; health 不可用
@@ -698,7 +702,7 @@ export default async function AccountDetailPage({
           region={account.region}
           customerNatureName={customerNatureName}
           customerTypeName={customerTypeName}
-          province={account.province}
+          scaleName={customerSizeName}
         />
 
         <ContactRoster
