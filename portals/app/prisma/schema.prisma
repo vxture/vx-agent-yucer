@@ -607,6 +607,40 @@ model Territory {
   @@schema("yucer_gtm")
 }
 
+/// incr/0073. Append-only: a correction is a new row.
+model SegmentCoverageSnapshot {
+  id                  String   @id @default(uuid()) @db.Uuid
+  workspaceId         String   @map("workspace_id") @db.Uuid
+  segmentId           String   @map("segment_id") @db.Uuid
+  snapshotedAt        DateTime @default(now()) @map("snapshotted_at") @db.Timestamptz()
+  matchedAccountCount Int      @map("matched_account_count")
+  openPipelineAmount  Decimal  @default(0) @map("open_pipeline_amount") @db.Decimal(18, 2)
+  wonAmount           Decimal  @default(0) @map("won_amount") @db.Decimal(18, 2)
+  currency            String   @default("CNY") @db.VarChar(8)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([workspaceId, segmentId, snapshotedAt], map: "uidx_seg_snap_ws_seg_at")
+  @@map("segment_coverage_snapshot")
+  @@schema("yucer_gtm")
+}
+
+/// incr/0074. Append-only: a correction is a new row.
+model TerritoryAttainmentSnapshot {
+  id             String   @id @default(uuid()) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  territoryId    String   @map("territory_id") @db.Uuid
+  period         String   @db.VarChar(32)
+  snapshotedAt   DateTime @default(now()) @map("snapshotted_at") @db.Timestamptz()
+  targetAmount   Decimal  @default(0) @map("target_amount") @db.Decimal(18, 2)
+  attainedAmount Decimal  @default(0) @map("attained_amount") @db.Decimal(18, 2)
+  currency       String   @default("CNY") @db.VarChar(8)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([workspaceId, territoryId, period, snapshotedAt], map: "uidx_terr_snap_ws_terr_period_at")
+  @@map("territory_attainment_snapshot")
+  @@schema("yucer_gtm")
+}
+
 /// 组织结构 templates (incr/0051): the three shipped trees, read-only.
 model OrgTemplate {
   id          String  @id @default(uuid()) @db.Uuid

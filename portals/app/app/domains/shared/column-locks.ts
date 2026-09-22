@@ -402,6 +402,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // it for exactly one case - a hard-deleted lead takes its exit rows with it -
   // and that is a deletion, not an update.
   "yucer_pipeline.funnel_exit",
+  // incr/0073. A coverage snapshot is a point-in-time aggregate, not a state.
+  "yucer_gtm.segment_coverage_snapshot",
+  // incr/0074. Same discipline for territory attainment.
+  "yucer_gtm.territory_attainment_snapshot",
 ];
 
 /**
