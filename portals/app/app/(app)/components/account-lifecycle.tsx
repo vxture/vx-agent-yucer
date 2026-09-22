@@ -79,6 +79,20 @@ function StageTrack({ index, total }: { readonly index: number; readonly total: 
   );
 }
 
+const RAIL_DOT = {
+  won:    "border-success bg-success/15",
+  danger: "border-destructive bg-destructive/15",
+  active: "border-primary bg-primary/15",
+  neutral: "border-border-strong bg-card",
+} as const;
+
+function railDotClass(d: DealLifecycleRow): string {
+  if (d.status === "won") return RAIL_DOT.won;
+  if (d.insight?.tone === "danger") return RAIL_DOT.danger;
+  if (d.status === "open") return RAIL_DOT.active;
+  return RAIL_DOT.neutral;
+}
+
 export function DealLifecyclePanel({
   deals,
   defaultCurrency,
@@ -95,56 +109,50 @@ export function DealLifecyclePanel({
   }
 
   return (
-    <PanelList>
+    <div className="relative flex flex-col gap-md pl-[20px]">
+      <span
+        className="bg-border absolute bottom-[5px] left-[7px] top-[5px] w-[2px]"
+        aria-hidden="true"
+      />
       {deals.map((d) => (
-        <PanelItem
-          key={d.id}
-          lead={
-            <Icon
-              name={d.status === "won" ? "check" : d.status === "lost" ? "x" : "minus"}
-              size="sm"
-              className={
-                d.status === "won"
-                  ? "text-success"
-                  : d.insight?.tone === "danger"
-                    ? "text-destructive"
-                    : "text-muted-foreground"
-              }
-            />
-          }
-          main={
-            <div className="flex min-w-0 flex-col gap-2xs">
-              <Link href={`/pipeline/${d.id}`} className="text-foreground min-w-0 truncate text-body-sm font-medium hover:underline">
-                {d.name}
-              </Link>
-              <span className="text-muted-foreground text-body-sm">
-                {[d.opportunityNo, d.stageLabel, d.ownerName ? ACCOUNT_TEXT.headerOwner(d.ownerName) : null].filter(Boolean).join(" · ")}
+        <div key={d.id} className="relative">
+          <span
+            className={`absolute -left-[20px] top-[2px] grid h-[15px] w-[15px] place-items-center rounded-full border-2 ${railDotClass(d)}`}
+            aria-hidden="true"
+          />
+          <div className="flex flex-col gap-2xs rounded-[10px] border border-border bg-card p-xs">
+            <div className="flex items-start justify-between gap-sm">
+              <div className="flex min-w-0 flex-col gap-2xs">
+                <Link href={`/pipeline/${d.id}`} className="text-foreground min-w-0 truncate text-body-sm font-bold hover:text-primary">
+                  {d.name}
+                </Link>
+                <span className="text-muted-foreground text-[11px]">
+                  {[d.opportunityNo, d.stageLabel, d.ownerName ? ACCOUNT_TEXT.headerOwner(d.ownerName) : null].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+              <span className="text-foreground shrink-0 text-body-sm font-extrabold tabular-nums whitespace-nowrap">
+                {d.amount != null ? formatMoney(d.amount, d.currency, locale) : "-"}
               </span>
-              {d.stagePosition ? <StageTrack index={d.stagePosition.index} total={d.stagePosition.total} /> : null}
-              {d.daysInStage != null ? (
-                <span className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}</span>
-              ) : null}
-              {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} /> : null}
-              {d.hasChain ? (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto self-start p-0"
-                  onClick={() => setActiveId(d.id)}
-                >
-                  {ACCOUNT_TEXT.lifecycleViewChain}
-                </Button>
-              ) : null}
             </div>
-          }
-          trail={
-            <span className="text-foreground text-body-sm tabular-nums whitespace-nowrap">
-              {d.amount != null ? formatMoney(d.amount, d.currency, locale) : "-"}
-            </span>
-          }
-        />
+            {d.stagePosition ? <StageTrack index={d.stagePosition.index} total={d.stagePosition.total} /> : null}
+            {d.daysInStage != null ? (
+              <span className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}</span>
+            ) : null}
+            {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} /> : null}
+            {d.hasChain ? (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto self-start p-0"
+                onClick={() => setActiveId(d.id)}
+              >
+                {ACCOUNT_TEXT.lifecycleViewChain}
+              </Button>
+            ) : null}
+          </div>
+        </div>
       ))}
-    </PanelList>
+    </div>
   );
 }
 
