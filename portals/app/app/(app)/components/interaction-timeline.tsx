@@ -7,10 +7,20 @@ import {
   Icon,
   Section,
   StatusBadge,
+  type IconName,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+
+const CHANNEL_ICON: Record<string, IconName> = {
+  call: "phone",
+  meeting: "users",
+  visit: "map-pin",
+  email: "mail",
+  im: "chat-circle",
+  event: "calendar",
+  other: "file-text",
+};
 
 // What actually happened, newest first.
 //
@@ -100,30 +110,32 @@ export function InteractionTimeline({
         ) : null
       }
     >
-      <ol>
+      <div className="flex flex-col gap-sm">
         {shown.map((i) => (
-          <li key={i.id}>
-            <Tag>
-              {CHANNEL_LABEL[i.channel] ?? i.channel}
-            </Tag>
-            <time dateTime={i.occurredAt.toISOString()}>
-              {i.occurredAt.toISOString().slice(0, 16).replace("T", " ")}
-            </time>
-            <span>
-              {FIELD_TEXT.timelineBy}: {i.actorSub}
+          <div key={i.id} className="flex items-start gap-xs">
+            <span className="text-muted-foreground mt-3xs shrink-0">
+              <Icon name={CHANNEL_ICON[i.channel] ?? "file-text"} size="sm" />
             </span>
-            {/* A correction is a new row pointing at the old one, and both stay.
-                Saying so is the difference between "the record changed" and
-                "somebody corrected the record". */}
-            {i.correctsInteractionId ? (
-              <StatusBadge tone="warning">
-                {FIELD_TEXT.timelineCorrects}
-              </StatusBadge>
-            ) : null}
-            <p>{i.rawNote}</p>
-          </li>
+            <div className="min-w-0 flex-1">
+              <div className="text-muted-foreground flex flex-wrap items-center gap-2xs text-[11px]">
+                <span>{i.actorSub}</span>
+                <span>{"·"}</span>
+                <time dateTime={i.occurredAt.toISOString()}>
+                  {i.occurredAt.toISOString().slice(0, 10)}
+                </time>
+                <span>{"·"}</span>
+                <span>{CHANNEL_LABEL[i.channel] ?? i.channel}</span>
+                {i.correctsInteractionId ? (
+                  <StatusBadge tone="warning">
+                    {FIELD_TEXT.timelineCorrects}
+                  </StatusBadge>
+                ) : null}
+              </div>
+              <p className="text-foreground mt-2xs text-body-sm leading-relaxed">{i.rawNote}</p>
+            </div>
+          </div>
         ))}
-      </ol>
+      </div>
     </Section>
   );
 }
