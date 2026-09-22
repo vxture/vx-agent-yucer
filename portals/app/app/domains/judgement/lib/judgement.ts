@@ -40,6 +40,7 @@ import {
   type ContactNode,
   type DecisionRole,
   type RelationEdge,
+  type Stance,
 } from "../../account/lib/health";
 import { chainForOpportunity, type ChainPerson } from "../../account/lib/buying-role";
 import type { CaptureWeek } from "../../account/lib/capture-metric";
@@ -181,6 +182,7 @@ export interface AccountInput {
     readonly personId: string;
     readonly buyingRole: DecisionRole;
     readonly influence: number | null;
+    readonly stance: Stance | null;
   }[];
   lastContactAt: Date | null;
   /**
@@ -264,10 +266,19 @@ function note(n: AccountInput["notes"][number], now: Date): Citation {
  * `policy` defaults to the shipped numbers - incr/0065 makes it a workspace
  * setting, and callers that already resolved one pass it in; callers that
  * have not (tests, mostly) get the same 21/30 this file hardcoded before.
+ *
+ * `stageLabel` resolves a stage CODE to its display name for rule 1's claim -
+ * defaulting to the identity function rather than importing a dictionary here,
+ * because this module stays pure and has no business knowing where stage
+ * names come from (a workspace's own renamed catalog - incr/0057 - is not
+ * this file's concern any more than a citation's channel label was). A caller
+ * with a real catalog in hand passes a real resolver; one that has not (tests,
+ * mostly) gets the bare code back, same as before this parameter existed.
  */
 export function deriveJudgements(
   input: JudgementInput,
   policy: ContactRecencyPolicy = DEFAULT_CONTACT_RECENCY_POLICY,
+  stageLabel: (code: string) => string = (code) => code,
 ): Judgement[] {
   const now = input.now ?? new Date();
   const { quietDays, staleDays } = policy;
@@ -318,7 +329,7 @@ export function deriveJudgements(
         id: `stalled:${a.accountId}`,
         source: "rule",
         urgency: "today",
-        claim: `${a.accountName}在${biggest ? biggest.stage : "推进"}阶段停了 ${quiet} 天，对方答应的${theirOverdue.length > 1 ? `${theirOverdue.length} 件事都` : "事"}没兑现。`,
+        claim: `${a.accountName}在${biggest ? stageLabel(biggest.stage) : "推进"}阶段停了 ${quiet} 天，对方答应的${theirOverdue.length > 1 ? `${theirOverdue.length} 件事都` : "事"}没兑现。`,
         subjectType: "account",
         subjectId: a.accountId,
         subjectName: a.accountName,
@@ -355,12 +366,12 @@ export function deriveJudgements(
             ? [
                 {
                   label: "停留阶段",
-                  value: `${biggest.stage} ${biggest.stageDays} 天`,
+                  value: `${stageLabel(biggest.stage)} ${biggest.stageDays} 天`,
                 },
               ]
             : []),
         ],
-        rule: `开放商机 且 最近接触 > ${staleDays} 天 且 对方逾期承诺 >= 1`,
+        rule: `开放商机 且 最近接触 > ${staleDays} 天 且 对方逾期承诺 ≥ 1`,
         analyses: ANALYSES_STALLED,
       });
     }

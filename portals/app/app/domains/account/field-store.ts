@@ -135,6 +135,7 @@ export interface FieldStore {
   recordInteraction(workspaceId: string, input: NewInteraction): Promise<InteractionRecord>;
   listInteractions(workspaceId: string, filter?: InteractionFilter): Promise<InteractionRecord[]>;
   listParticipants(workspaceId: string, interactionId: string): Promise<ParticipantRecord[]>;
+  listParticipantsBulk(workspaceId: string, interactionIds: readonly string[]): Promise<ParticipantRecord[]>;
 
   /**
    * Most recent recorded interaction per CONTACT on one account.
@@ -237,6 +238,11 @@ export class InMemoryFieldStore implements FieldStore {
 
   async listParticipants(workspaceId: string, interactionId: string): Promise<ParticipantRecord[]> {
     return this.participants.filter((p) => p.workspaceId === workspaceId && p.interactionId === interactionId);
+  }
+
+  async listParticipantsBulk(workspaceId: string, interactionIds: readonly string[]): Promise<ParticipantRecord[]> {
+    const ids = new Set(interactionIds);
+    return this.participants.filter((p) => p.workspaceId === workspaceId && ids.has(p.interactionId));
   }
 
   async lastContactAt(workspaceId: string, accountId: string): Promise<Date | null> {

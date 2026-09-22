@@ -1,20 +1,19 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import {
   Button,
-  DataTable,
   EmptyState,
-  Field,
-  FieldLabel,
-  FilterBar,
-  Input,
-  NativeSelect,
+  Icon,
   Section,
-  TableTitleCell,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The people inside a customer.
 //
@@ -47,6 +46,60 @@ function ContactStatus({
   return <Tag>{labels[status] ?? status}</Tag>;
 }
 
+/** 手机/邮箱/微信 presence, ICON ONLY, 不显示明码 (owner, 2026-09-21: 这里
+ *  不显示电话明码，只显示有没有配置各种联系方式。icon即可) - 覆盖了这张卡
+ *  更早一版"手机号明码留着, 因为销售要拿它打电话"的取舍(2026-09-20): 那个
+ *  取舍是这张常驻卡自己的历史遗留, 这次 owner 直接推翻 - 三个渠道统一收成
+ *  图标, hover 只说"这是哪个渠道"(labels.mobile/email/wechat), 不透出号码
+ *  本身。真要看号码/加好友, 去"编辑单位信息"或联系人详情页。 */
+function ContactChannels({
+  mobile,
+  email,
+  wechat,
+  labels,
+}: {
+  readonly mobile: string | null;
+  readonly email: string | null;
+  readonly wechat: string | null;
+  readonly labels: { readonly mobile: string; readonly email: string; readonly wechat: string };
+}) {
+  if (!mobile && !email && !wechat) return null;
+  return (
+    <span className="gap-2xs inline-flex items-center">
+      {mobile ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground inline-flex">
+              <Icon name="phone" size="sm" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{labels.mobile}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {email ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground inline-flex">
+              <Icon name="mail" size="sm" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{labels.email}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {wechat ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground inline-flex">
+              <Icon name="wechat" size="sm" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{labels.wechat}</TooltipContent>
+        </Tooltip>
+      ) : null}
+    </span>
+  );
+}
+
 export interface ContactRow {
   readonly id: string;
   readonly name: string;
@@ -60,29 +113,157 @@ export interface ContactRow {
 }
 
 export interface ContactRosterProps {
-  readonly accountId: string;
   readonly contacts: readonly ContactRow[];
   readonly canEdit: boolean;
   /** The person form's page, carrying this account - the create/edit form left
    *  the roster on 2026-09-05 (the consolidation ruling). */
   readonly editHref: string;
+  /** 联系人和最近跟进合并 (owner, 2026-09-20: mockup - 一个最近跟进天数, 不是
+   *  分开的两个事实) - contactId -> {text, warm, tooltip}, from chainRecency()
+   *  run over the FULL roster (account/[id]/page.tsx), not just decision-chain
+   *  participants. `warm` is carried separately from the already-formatted
+   *  text so this component styles the badge without re-parsing the wording.
+   *  `text` is now the SHORT form only ("12 天", owner 2026-09-21: tag 显示
+   *  只有（nn天），不要啰嗦) - the full sentence ("某某在12天前联系") is
+   *  `tooltip`, shown on hover instead of crowding the row. A plain Record,
+   *  not a Map: a Map passed as a Server->Client prop is the same class of
+   *  bundler risk this page already hit twice with re-exported constants
+   *  (dimension-stat.tsx's toneSurfaceClasses note). Absent key = chainRecency
+   *  has nothing for that contact yet (gate denied, or the read failed) - row
+   *  shows no badge rather than a guessed one. */
+  readonly recencyText: Readonly<Record<string, { text: string; warm: boolean; tooltip: string }>>;
+  /** LinkContactDrawer, built server-side in page.tsx and mounted here as
+   *  the card's second header action, next to "+新增" - the mockup's own
+   *  两个按钮 (owner, 2026-09-20: 应该有 新增｜关联 两个按钮). Optional: a
+   *  read-only member gets neither. */
+  readonly linkForm?: ReactNode;
 }
 
-/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
-   renders - a money cell sorts on the raw amount, not its formatted string. */
-const SORT_ON = {
-  name: (r: ContactRow) => r.name,
-};
+/* 截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem 宽, 一张
+   全量表格比"还有几位, 点开看"更占地方。CAP 3 与 mockup 一致。 */
+const CAP = 3;
 
-export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProps) {
-  const { DATA_TABLE_LABELS, ACCOUNT_TEXT } = useMessages();
-  const sorted = useTableSort<ContactRow>([], SORT_ON);
+/** 卡片行, 不是表格行 (owner, 2026-09-20: 设计图严格对齐 - mockup 的联系人是
+ *  avatar+两行卡片, 不是六列表格; decision-chain-switch.tsx 的摘要行本来就
+ *  是照着这张卡的样子画的, 现在补回来是同一套样子, 不是新发明一种). 栏1只有
+ *  18rem宽, 六列表格挤不下, 卡片行也是 mockup 明确写的理由。
+ *
+ *  第二轮重新规整 (owner, 2026-09-21: 各联系信息有些拥堵，重新设计一下布局，
+ *  行高可以适当调整) - 手机号从第二行的明码文本挪进 ContactChannels 的图标
+ *  组(见那个函数自己的注释, 这是对 2026-09-20 那个"手机留明码"决定的推翻,
+ *  不是延续), 第二行因此只剩职务, 让给右边的图标组和状态标签足够宽度；
+ *  行内边距从 py-sm 提到 py-md, 头像也放大一号 - 少了一整段手机号文本之后
+ *  原来的紧凑间距显得局促, 不是拥堵的另一个来源。 */
+/** Exported (owner, 2026-09-20: 死死记住设计文件 - mockup 的行菜单只该出现
+ *  在"编辑单位信息"里的只读联系人卡片上, 栏1这张常驻卡一个按钮都不该有) -
+ *  contact-management-list.tsx 复用同一套行外观, 只是那边带 actions, 这里
+ *  不带。`actions` 因此是可选的, 不是每个消费者都要给。 */
+export function ContactCard({
+  contact,
+  recency,
+  statusLabels,
+  channelLabels,
+  actions,
+}: {
+  readonly contact: ContactRow;
+  /** tooltip 可选 (owner: 补充 - tag 显示只有（nn天）...toolip=某某在12天前
+   *  联系) - contact-management-list.tsx 复用这张卡时还传的是旧形状
+   *  ({text, warm}), 那边没有要求这个改动, 缺了 tooltip 时这张卡就不挂
+   *  Tooltip, 纯文本 Tag 照旧。 */
+  readonly recency: { text: string; warm: boolean; tooltip?: string } | undefined;
+  readonly statusLabels: Record<string, string>;
+  readonly channelLabels: { readonly mobile: string; readonly email: string; readonly wechat: string };
+  readonly actions?: ReactNode;
+}) {
+  const recencyTag = recency ? <Tag tone={recency.warm ? "success" : "neutral"}>{recency.text}</Tag> : null;
+  return (
+    <div className="gap-sm border-border flex items-center border-b py-md last:border-b-0">
+      <span className="bg-accent text-muted-foreground flex h-xl w-xl flex-none items-center justify-center rounded-full text-label-md font-bold">
+        {contact.name.charAt(0)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-sm">
+          <span className="text-body-sm truncate font-bold">{contact.name}</span>
+          {recency?.tooltip ? (
+            <Tooltip>
+              {/* asChild 需要一个能转发 ref 的子节点 - Tag 不是 forwardRef
+                  组件(跟 tag.tsx 里 NameOverflowTag 已经踩过的坑一样), 用
+                  span 包一层, 不是直接把 Tag 塞进 TooltipTrigger。 */}
+              <TooltipTrigger asChild>
+                <span className="inline-flex">{recencyTag}</span>
+              </TooltipTrigger>
+              <TooltipContent>{recency.tooltip}</TooltipContent>
+            </Tooltip>
+          ) : (
+            recencyTag
+          )}
+        </div>
+        <div className="mt-2xs flex items-center justify-between gap-sm">
+          <span className="text-muted-foreground text-body-sm truncate">{contact.title}</span>
+          <span className="flex flex-none items-center gap-xs">
+            <ContactChannels mobile={contact.mobile} email={contact.email} wechat={contact.wechat} labels={channelLabels} />
+            <ContactStatus status={contact.status} labels={statusLabels} />
+            {actions}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ContactRoster({
+  contacts,
+  canEdit,
+  editHref,
+  recencyText,
+  linkForm,
+}: ContactRosterProps) {
+  const { ACCOUNT_TEXT } = useMessages();
+  const [expanded, setExpanded] = useState(false);
+
+  const visible = expanded ? contacts : contacts.slice(0, CAP);
+
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
+  // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
+  //
+  // 联系人数量简化成一个数字, 挂在标题后面 (owner, 2026-09-21: 把联系人数量
+  // （4位联系人），简化为一个数字，tag 放到标题后面) - 撤掉了原来 FilterBar
+  // 那一整行"N 位联系人", 完整的那句话退到 title 属性(无障碍朗读/hover)。
+  //
+  // "新增｜关联" 两个按钮 (owner: 应该有两个按钮), 这次紧凑+靠右, 颜色也
+  // 分主次 (owner: 新增，关联，两个操作按钮间距太大了，紧凑一点点-居右。
+  // 颜色关联保持，新建淡化。表面这里事关联为主) - "关联"(LinkContactDrawer
+  // 自己的触发按钮)维持原样不动; "新增"从一个跟它同等重量的 Button 降级成
+  // 纯文字链接, 视觉上让位给"关联"这个这张卡真正想引导的动作, 两者之间的
+  // 间距也从按钮的内边距+gap 变成两段文字自己的 gap, 观感上更紧。
   return (
     <Section
+      tone="raised"
+      style={CARD_VEIL_STYLE}
+      className={CARD_VEIL_CLASS}
       id="contacts"
       icon="users"
-      title={ACCOUNT_TEXT.contactsTitle}
-      description={ACCOUNT_TEXT.contactsWhy}
+      title={
+        <span className="inline-flex items-center gap-xs whitespace-nowrap">
+          <span>{ACCOUNT_TEXT.contactsTitle}</span>
+          <span title={ACCOUNT_TEXT.contactCount(contacts.length)}>
+            <Tag>{contacts.length}</Tag>
+          </span>
+          <LayerLabel layer="L2" />
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
+        </span>
+      }
+      action={
+        canEdit ? (
+          <span className="flex items-center justify-end gap-xs">
+            <a href={editHref} className="text-muted-foreground hover:text-foreground text-body-sm">
+              {ACCOUNT_TEXT.contactAddButton}
+            </a>
+            {linkForm}
+          </span>
+        ) : undefined
+      }
     >
       {contacts.length === 0 ? (
         <EmptyState
@@ -91,73 +272,39 @@ export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProp
         />
       ) : (
         <>
-        {/* 按需 - COUNT ONLY (owner's 按需添加, 2026-09-07). This is the roster
-            of ONE customer's people, not a directory: the whole list is on
-            screen, and a keyword box for finding something already visible is
-            a control that does nothing. The count answers a question the
-            heading cannot - how many people we actually know inside this
-            account, which is the coverage question this section exists for. */}
-        <FilterBar count={ACCOUNT_TEXT.contactCount(contacts.length)} />
-
-        <DataTable
-          labels={DATA_TABLE_LABELS}
-          rowKey={(r: ContactRow) => r.id}
-          rows={[...sorted.sortRows(contacts)]}
-          sort={sorted.sort}
-          onSortChange={sorted.onSortChange}
-          columns={[
-            {
-              id: "name",
-  sortable: true,
-              header: ACCOUNT_TEXT.contactName,
-              // 只有一行值也走 TableTitleCell (owner, 2026-09-07): the point of
-              // the fitting is that the first column has ONE shape across the
-              // product, and a bare string in one table breaks the row rhythm
-              // the pinned line heights exist to hold.
-              cell: (r: ContactRow) => <TableTitleCell title={r.name} tooltip={r.name} />,
-            },
-            {
-              id: "title",
-              header: ACCOUNT_TEXT.contactTitle,
-              cell: (r: ContactRow) => r.title ?? "",
-            },
-            // THE ROLE AND INFLUENCE COLUMNS ARE GONE - incr/0027. This table
-            // is the customer's roster: who works here and how to reach them.
-            // What each of them is to a purchase is on the deal, and showing
-            // one answer here would be showing the same wrong answer for every
-            // deal at once, which is what the column used to do.
-            {
-              id: "mobile",
-              header: ACCOUNT_TEXT.contactMobile,
-              cell: (r: ContactRow) => r.mobile ?? "",
-            },
-            {
-              id: "status",
-              header: ACCOUNT_TEXT.contactStatus,
-              // A component at module scope rather than an inline arrow that
-              // returns JSX. The DS makes `cell` a render callback so either
-              // works, but a function defined in a component body and returning
-              // an element is indistinguishable from a nested component to a
-              // reader and to a linter - and the fix the linter asks for
-              // (module scope, data as props) is the clearer shape anyway.
-              cell: (r: ContactRow) => (
-                <ContactStatus status={r.status} labels={ACCOUNT_TEXT.contactStatusLabel} />
-              ),
-            },
-          ]}
-        />
+        <div className="flex flex-col">
+          {/* NO ROW MENU HERE (owner, 2026-09-20: 死死记住设计文件 - mockup
+              原话: 栏1的联系人卡片"职责是列出谁是联系人、多久前联系过", 查看
+              详情/排序/取消关联的行菜单只出现在"编辑单位信息"里的只读联系人
+              卡片上 - "READ-ONLY here...这里能做的只是管理'这个人跟这个客户
+              的关系'"). 之前把这个菜单直接建在这张常驻卡上是错的; 同一套外观
+              和动词现在原样搬进 contact-management-list.tsx。 */}
+          {visible.map((c) => (
+            <ContactCard
+              key={c.id}
+              contact={c}
+              recency={recencyText[c.id]}
+              statusLabels={ACCOUNT_TEXT.contactStatusLabel}
+              channelLabels={{ mobile: ACCOUNT_TEXT.contactMobile, email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
+            />
+          ))}
+        </div>
+        {contacts.length > CAP ? (
+          <Button variant="ghost" size="sm" className="mt-xs w-full justify-center" onClick={() => setExpanded((v) => !v)}>
+            {expanded ? ACCOUNT_TEXT.contactsCollapse : ACCOUNT_TEXT.contactsShowAll(contacts.length)}
+          </Button>
+        ) : null}
         </>
       )}
 
       {!canEdit ? (
         <p className="text-muted-foreground mt-sm text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
-      ) : (
-        <div className="mt-md">
-          <Button asChild variant="secondary">
-            <a href={editHref}>{ACCOUNT_TEXT.contactSave}</a>
-          </Button>
-        </div>
-      )}
+      ) : null}
+      <CapFooter>
+        <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capContactBasic}
+        <br />
+        <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
+      </CapFooter>
     </Section>
   );
 }

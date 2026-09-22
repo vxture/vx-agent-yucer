@@ -19,7 +19,7 @@ import {
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
-import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
+import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge, Stance } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
@@ -138,6 +138,9 @@ export interface ContactRecord {
   email: string | null;
   mobile: string | null;
   wechat: string | null;
+  /** incr/0073 - this account's manual roster order, dense-renumbered by
+   *  planMove. A fact about the employment edge, not the person. */
+  sortOrder: number;
 }
 
 /**
@@ -159,6 +162,8 @@ export interface OpportunityContactRecord {
   buyingRole: DecisionRole;
   influence: number | null;
   isPrimary: boolean;
+  /** incr/0075 - see health.ts's own note. Null = nobody has stated it. */
+  stance: Stance | null;
 }
 
 export interface AccountFilter {
@@ -317,7 +322,7 @@ export interface AccountStore {
     workspaceId: string,
     opportunityId: string,
     personId: string,
-    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean; stance?: Stance | null },
   ): Promise<OpportunityContactRecord | null>;
   /** The live plan for one account, or null when it has none. */
   getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null>;
@@ -376,6 +381,67 @@ export interface AccountStore {
     accountId: string,
     input: ContactDraft,
   ): Promise<ContactRecord | null>;
+  /** Reorder one account's roster - incr/0073. Scoped to `accountId`, unlike
+   *  `setIndustryOrder`: a person's place in this list is per-account. */
+  setContactOrder(
+    workspaceId: string,
+    accountId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  /**
+   * People already in this workspace, not yet affiliated with `excludeAccountId`
+   * - 关联联系人 (owner, 2026-09-20: mockup - "把系统里已有的人接到这个客户名下，
+   * 不会新建一条联系人记录"). Matches on name/mobile/email, case-insensitive
+   * substring. `affiliations` states every account this person is CURRENTLY
+   * (endedAt null) linked to, for context in the picker - the same person can
+   * legitimately work more than one account (incr/0073's own note on
+   * person_affiliation), so this is a real fact, not a guessed "the" employer.
+   */
+  searchPersons(
+    workspaceId: string,
+    query: string,
+    excludeAccountId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      name: string;
+      mobile: string | null;
+      email: string | null;
+      affiliations: Array<{ accountId: string; accountName: string; title: string | null }>;
+    }>
+  >;
+  /**
+   * Affiliate an EXISTING person (from searchPersons) with this account - a
+   * new person_affiliation row, no new person row. Null when the person is
+   * unknown or already affiliated here (uidx_person_affiliation_current would
+   * otherwise refuse the insert).
+   */
+  linkExistingPerson(
+    workspaceId: string,
+    accountId: string,
+    personId: string,
+  ): Promise<ContactRecord | null>;
+  /**
+   * 取消关联 - end this person's CURRENT affiliation with this account (sets
+   * ended_at), never a delete. The person and their evidence (interactions,
+   * relations, buying roles) survive; they simply stop being a contact HERE.
+   * False when there was no current affiliation to end.
+   */
+  endContactAffiliation(
+    workspaceId: string,
+    accountId: string,
+    personId: string,
+  ): Promise<boolean>;
+
+  /** 关联协作人 (incr/0074) - who else works this account, alongside its one
+   *  owner. A plain roster: add, remove, list; no update. */
+  listCollaborators(
+    workspaceId: string,
+    accountId: string,
+  ): Promise<Array<{ memberSub: string; addedAt: Date }>>;
+  addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void>;
+  removeCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void>;
+
   /** Append-only edge. There is deliberately no updateRelation. */
   addRelation(workspaceId: string, edge: RelationEdge): Promise<void>;
   removeRelation(workspaceId: string, edge: RelationEdge): Promise<void>;
@@ -659,7 +725,7 @@ export class InMemoryAccountStore implements AccountStore {
     workspaceId: string,
     opportunityId: string,
     personId: string,
-    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean; stance?: Stance | null },
   ): Promise<OpportunityContactRecord | null> {
     // The pair is the identity - uidx_opportunity_contact_pair says so - so a
     // second statement about the same person on the same deal REPLACES the
@@ -671,6 +737,7 @@ export class InMemoryAccountStore implements AccountStore {
       held.buyingRole = patch.buyingRole;
       held.influence = patch.influence;
       if (patch.isPrimary !== undefined) held.isPrimary = patch.isPrimary;
+      if (patch.stance !== undefined) held.stance = patch.stance;
       return held;
     }
     const made: OpportunityContactRecord = {
@@ -681,6 +748,7 @@ export class InMemoryAccountStore implements AccountStore {
       buyingRole: patch.buyingRole,
       influence: patch.influence,
       isPrimary: patch.isPrimary ?? false,
+      stance: patch.stance ?? null,
     };
     this.oppContacts.push(made);
     return made;
@@ -946,12 +1014,12 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {
-    // BY NAME since incr/0027. Sorting a customer's roster by influence was
-    // ranking people by a per-deal number stored on the person; the roster is
-    // not a ranking, and the number no longer exists here.
+    // BY sortOrder since incr/0073 - a manual roster order, not the influence
+    // ranking incr/0027 already retired. The "按姓名" the table also offers
+    // is a click-to-sort on the rendered rows, not a second server order.
     return this.contacts
       .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
-      .sort(by(asc((c: ContactRecord) => c.name)));
+      .sort(by(asc((c: ContactRecord) => c.sortOrder)));
   }
 
   async upsertContact(
@@ -977,6 +1045,12 @@ export class InMemoryAccountStore implements AccountStore {
       held.status = input.status;
       return held;
     }
+    const tail = Math.max(
+      0,
+      ...this.contacts
+        .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
+        .map((c) => c.sortOrder),
+    );
     const created: ContactRecord = {
       id: `con_${++this.seq}`,
       workspaceId,
@@ -988,9 +1062,147 @@ export class InMemoryAccountStore implements AccountStore {
       mobile: input.mobile,
       wechat: input.wechat,
       status: input.status,
+      sortOrder: tail + 1,
     };
     this.contacts.push(created);
     return created;
+  }
+
+  async setContactOrder(
+    workspaceId: string,
+    accountId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.contacts = this.contacts.map((c) =>
+      c.workspaceId === workspaceId && c.accountId === accountId && want.has(c.id)
+        ? { ...c, sortOrder: want.get(c.id)! }
+        : c,
+    );
+  }
+
+  // 关联联系人 (owner, 2026-09-20). THE IN-MEMORY MODEL HAS NO SEPARATE PERSON
+  // ENTITY - `contacts` is one flat row per (person, account), the shape this
+  // double has always used. Faking a cross-account "same person" identity on
+  // top of that would invent a concept this store never modeled; instead a
+  // link here is what it observably is - a NEW roster row that copies the
+  // found row's reachable-person facts (name/mobile/email/wechat), never its
+  // title/department/status, which are the NEW employment's own facts, not
+  // carried over from wherever the person was found. `affiliations` is
+  // therefore always empty in-memory (there is no second row to report) -
+  // the Prisma store is where this fact is real, off the actual
+  // person_affiliation table.
+  async searchPersons(
+    workspaceId: string,
+    query: string,
+    excludeAccountId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      name: string;
+      mobile: string | null;
+      email: string | null;
+      affiliations: Array<{ accountId: string; accountName: string; title: string | null }>;
+    }>
+  > {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return this.contacts
+      .filter(
+        (c) =>
+          c.workspaceId === workspaceId &&
+          c.accountId !== excludeAccountId &&
+          (c.name.toLowerCase().includes(q) ||
+            (c.mobile ?? "").includes(q) ||
+            (c.email ?? "").toLowerCase().includes(q)),
+      )
+      .slice(0, 20)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        mobile: c.mobile,
+        email: c.email,
+        affiliations: [],
+      }));
+  }
+
+  async linkExistingPerson(
+    workspaceId: string,
+    accountId: string,
+    personId: string,
+  ): Promise<ContactRecord | null> {
+    const found = this.contacts.find((c) => c.id === personId && c.workspaceId === workspaceId);
+    if (!found) return null;
+    // A real duplicate needs at least one shared, non-null identifier -
+    // two contacts with mobile=null AND email=null are not thereby "the same
+    // person" (most of this seed's contacts have neither), so a null/null
+    // pair is never treated as a match. The Prisma store does not have this
+    // problem at all: it checks the real person_affiliation row directly.
+    const already = this.contacts.some(
+      (c) =>
+        c.workspaceId === workspaceId &&
+        c.accountId === accountId &&
+        ((found.mobile != null && c.mobile === found.mobile) ||
+          (found.email != null && c.email === found.email)),
+    );
+    if (already) return null;
+    const tail = Math.max(
+      0,
+      ...this.contacts
+        .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
+        .map((c) => c.sortOrder),
+    );
+    const created: ContactRecord = {
+      id: `con_${++this.seq}`,
+      workspaceId,
+      accountId,
+      name: found.name,
+      title: null,
+      department: null,
+      email: found.email,
+      mobile: found.mobile,
+      wechat: found.wechat,
+      status: "active",
+      sortOrder: tail + 1,
+    };
+    this.contacts.push(created);
+    return created;
+  }
+
+  async endContactAffiliation(
+    workspaceId: string,
+    accountId: string,
+    personId: string,
+  ): Promise<boolean> {
+    const before = this.contacts.length;
+    this.contacts = this.contacts.filter(
+      (c) => !(c.id === personId && c.workspaceId === workspaceId && c.accountId === accountId),
+    );
+    return this.contacts.length < before;
+  }
+
+  private collaborators: Array<{ workspaceId: string; accountId: string; memberSub: string; addedAt: Date }> = [];
+
+  async listCollaborators(
+    workspaceId: string,
+    accountId: string,
+  ): Promise<Array<{ memberSub: string; addedAt: Date }>> {
+    return this.collaborators
+      .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
+      .map((c) => ({ memberSub: c.memberSub, addedAt: c.addedAt }));
+  }
+
+  async addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void> {
+    const exists = this.collaborators.some(
+      (c) => c.workspaceId === workspaceId && c.accountId === accountId && c.memberSub === memberSub,
+    );
+    if (!exists) this.collaborators.push({ workspaceId, accountId, memberSub, addedAt: new Date() });
+  }
+
+  async removeCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void> {
+    this.collaborators = this.collaborators.filter(
+      (c) => !(c.workspaceId === workspaceId && c.accountId === accountId && c.memberSub === memberSub),
+    );
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {

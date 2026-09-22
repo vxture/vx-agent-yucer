@@ -25,7 +25,7 @@ import type { SignalType } from "../../domains/signal/lib/scoring";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import type { ActionStatus } from "../../domains/copilot/lib/action";
-import type { RevenueStatus } from "../../domains/delivery/lib/revenue";
+import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/revenue";
 
 export const STAGE_LABEL: Record<Stage, string> = {
   qualify: "合格判定",
@@ -59,6 +59,13 @@ export const REVENUE_STATUS_LABEL: Record<RevenueStatus, string> = {
   settled: "已回款",
   overdue: "逾期",
   written_off: "坏账",
+};
+
+export const MILESTONE_STATUS_LABEL: Record<MilestoneStatus, string> = {
+  pending: "待开始",
+  in_progress: "进行中",
+  done: "已完成",
+  missed: "已错过",
 };
 
 /** Domain navigation labels, keyed by the nav entry key. */
@@ -1031,18 +1038,49 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   parent_self: "上级公司不能是它自己",
   parent_not_found: "选的上级公司不存在，或不属于当前工作区",
   parent_cycle: "这样设置会形成循环归属——比如两家公司互为对方的上级",
+  // 联系人排序四元组 (incr/0073) - 跟其他可排序词表共用同一对措辞。
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  // 基础信息表单 (owner, 2026-09-20)。
+  name_required: "客户名称不能为空",
+  province_unknown: "不是有效的省级行政区划",
+  employee_count_invalid: "员工数必须是不小于 0 的整数",
+  // 关联联系人 / 关联协作人 (owner, 2026-09-20)。
+  already_linked: "这个人不存在，或已经是这个客户的联系人",
+  member_required: "请先选一位同事",
 };
 
 export const ACCOUNT_PARENT_TEXT = {
   label: "上级公司",
   none: "无上级公司",
-  change: "更改上级公司",
+  change: "应用",
+  // 只读的单位信息卡片上不再有"+关联上级公司"这个空态 CTA (owner, 2026-09-20:
+  // 死死记住设计文件 - mockup 原话在 scratchpad/account-detail-v2-wrapped.html
+  // 里说得很清楚: "the whole row (and its own change-button) is absent...a
+  // dossier card states facts, it does not carry an empty-state CTA for every
+  // fact that could exist"). 之前留了一个"轻量的关联入口"是没查 mockup 文件
+  // 凭印象判断的结果 - 真实的编辑入口一直都在, 就是"编辑单位信息"抽屉
+  // (account-basics-form.tsx), 这里的 sectionTitle/field/change 现在是
+  // org-relations-editor.tsx 里那张内嵌"上下级关联"卡的文案。
+  sectionTitle: "上下级关联",
   dialogWhy: "选一个上级公司；不能选它自己或它的下级。",
   field: "上级公司",
   submit: "确定",
   cancel: "取消",
   done: (name: string) => `已设置上级公司为「${name}」`,
   doneNone: "已清除上级公司",
+  // 下级单位增删 (owner, 2026-09-20: mockup 编辑单位信息 - "+关联下级单位").
+  // 同一条 setAccountParent 动词, 只是这次改的是"另一家公司自己的上级公司"
+  // 这一格, 不是这家公司自己的 - 从"编辑单位信息"抽屉发起, 落到那一行。
+  // 计数文案复用 ACCOUNT_TEXT.orgUnitChildren, 不在这里重复一份。
+  addChild: "+ 关联下级单位",
+  addChildTitle: "关联下级单位",
+  addChildWhy: "选一家公司，把它的上级公司设为这家客户；不能选它自己或它的上级。",
+  addChildField: "下级单位",
+  addChildPick: "选择一家公司",
+  removeChild: "移除",
+  removeChildVerb: "移除",
+  removeChildConsequence: "只是解除这条上下级关系，两家客户各自的记录都不会被删除。",
 };
 
 /**
@@ -2176,7 +2214,6 @@ export const BOARD_TEXT = {
   attach: "添加附件",
   notWired: "该能力尚未接通",
   pendingEmpty: "此刻没有等你裁决的事。",
-  recentEmpty: "最近还没有记过什么。",
   reconTitle: "敌情",
   reconEmpty: "尚未侦察。竞争对手目前只出现在跟进原文里，还没有成型情报。",
   reconCta: "发起竞争态势分析",
@@ -2190,11 +2227,8 @@ export const BOARD_TEXT = {
   capturePlaceholder: "刚跟王总通完电话……",
   captureHelp: "三句话、一段微信、一封转发的邮件都算，原文会原样保留。",
   pendingTitle: "今天要定的",
-  recentTitle: "最近记的",
   sourceRule: "规则",
   sourceModel: "模型",
-  whenToday: "今天",
-  whenDaysAgo: (n: number) => `${n} 天前`,
   truncate: (t: string) => `${t}……`,
 } as const;
 
@@ -2783,6 +2817,9 @@ export const FIELD_TEXT = {
     "谁、什么时候、通过什么方式。原文逐字保留——后续所有分析都引用它。",
   timelineBy: "记录人",
   timelineCorrects: "更正了一条更早的记录",
+  timelineToday: "今天",
+  timelineDaysAgo: (n: number) => `${n} 天前`,
+  timelineParticipantSep: "、",
 
   commitTitle: "承诺",
   commitDescription:
@@ -2814,6 +2851,9 @@ export const FIELD_TEXT = {
   commitEmpty: "还没有承诺",
   commitEmptyDescription:
     "从一次跟进里记下双方答应的事,它到期时系统会替你盯着。",
+  commitComplianceRate: "守约率",
+  commitPartyTheirs: "对方",
+  commitPartyOurs: "我方",
   commitOverdueEmpty: "没有逾期承诺",
   commitOverdueEmptyDescription: "所有已记录的承诺都还在期限内。",
   commitDaysOverdue: (n: number) => `逾期 ${n} 天`,
@@ -2918,7 +2958,10 @@ export const RELATION_TYPE_LABEL: Record<string, string> = {
 };
 
 export const RELATION_TEXT = {
-  title: "补录关系",
+  // owner, 2026-09-20: 设计图严格对齐 - mockup 原词"记录一次关系"; 这个标题
+  // 之前定义了但从没真的用上 (LinkContacts 自己不带 Section, 一直是裸的
+  // <div>), 这次挪进决策链详情视图, 变成自己独立的一张卡, 才第一次用到它。
+  title: "记录一次关系",
   description:
     "关系图是追加写的：关系变了就补一条新的边，不会改写旧的——「上季度谁向谁汇报」是决策链分析要读的事实。",
   from: "发起方",
@@ -2927,10 +2970,59 @@ export const RELATION_TEXT = {
   submit: "记录",
   saved: "已记录",
   pick: "选择联系人",
-  readOnly: "你没有编辑关系图的权限。",
-  needTwo: "至少需要两位联系人才能建立关系。",
   hintUnreachable:
     "记录一条通往决策人的路径，可以让上面的判断从「不可达」变成「可达」。",
+} as const;
+
+// 关联联系人 (owner, 2026-09-20: mockup - 把系统里已有的人接到这个客户名下,
+// 不会新建一条联系人记录). "+新增" 之外的第二条路 - 新建是造一个新人,
+// 这个是把已有的人接上来。
+export const LINK_CONTACT_TEXT = {
+  linkButton: "关联",
+  title: "关联联系人",
+  why: "把系统里已有的人接到这个客户名下，不会新建一条联系人记录。",
+  searchLabel: "搜索姓名 / 手机 / 邮箱",
+  searchPlaceholder: "输入关键字搜索已有联系人",
+  empty: "没有找到匹配的联系人",
+  hint: "至少输入两个字符开始搜索",
+  // 已经是别的客户的联系人 - 真实事实，不是拒绝理由：一个人本来就可以同时
+  // 是好几家客户的联系人（比如集团内的共用职能）。
+  alsoAt: (accountName: string, title: string | null) =>
+    title ? `${accountName} 的联系人 · ${title}` : `${accountName} 的联系人`,
+  unaffiliated: "目前不是任何客户的联系人",
+  confirm: "确认关联",
+  cancel: "取消",
+  linked: "已关联",
+  // 取消关联 - 行菜单项，及其确认框（DS ConfirmDestructive 的三段式）。
+  unlink: "取消关联",
+  unlinkVerb: "取消关联",
+  unlinkConsequence: "这个人和TA的所有跟进记录、决策链角色都会保留，只是不再是这个客户名下的联系人。",
+} as const;
+
+// 关联协作人 (incr/0074, owner 2026-09-20: mockup - "内部同事可以有多个协作
+// 人，但主负责人始终只有一个，这里关联的都是协作人，不是替换主负责人").
+// 销售负责人 (owner, 2026-09-20: 死死记住设计文件 - mockup 把这张卡叫
+// "销售负责人", 不是"协作人") - 名单里主负责人和协作人同框, title 现在是
+// 卡片/抽屉的标题, editButton 是 header 里那个小触发器的文案, primary/tag
+// 是名单里两种角色各自的标签。
+export const COLLABORATOR_TEXT = {
+  title: "销售负责人",
+  editButton: "编辑销售负责人",
+  primary: "主负责人",
+  tag: "协作人",
+  linkButton: "+ 关联",
+  drawerTitle: "关联协作人",
+  why: "加一位内部同事参与跟进，不会替换主负责人身份。",
+  searchLabel: "搜索同事姓名",
+  searchPlaceholder: "输入关键字搜索内部同事",
+  empty: "没有找到匹配的同事",
+  hint: "至少输入两个字符开始搜索",
+  confirm: "确认关联",
+  cancel: "取消",
+  none: "还没有协作人",
+  remove: "移除",
+  removeVerb: "移除",
+  removeConsequence: "移除后可以随时重新关联。",
 } as const;
 
 export const RELATION_ERROR: Record<string, string> = {
@@ -3666,6 +3758,13 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
 
 export const PROPOSAL_TEXT = {
   why: "参谋提出的动作，由人裁决。机器只提议，采纳与否你定（ADR-003）。",
+  // 客户详情页 (owner, 2026-09-18): 采纳/忽略不在本页内联执行——按 ADR-003，
+  // 真正的裁决只在队列页发生，这里的按钮只是把人带过去。分析仅在有理由文本
+  // 时出现：没有 rationale 就没有值得深挖的东西。
+  viewInQueue: "去队列裁决",
+  analyze: "分析",
+  analyzeQuestion: (title: string, rationale: string) =>
+    `再深入分析一下这条建议：「${title}」。理由是：${rationale}`,
   tagAwaiting: (n: number) => (n === 0 ? "没有待裁决的" : `${n} 条待裁决`),
   tagLowConfidence: (n: number) => `${n} 条把握不高`,
   title: "智能助手提案",
@@ -4115,13 +4214,14 @@ export const ACCOUNT_TEXT = {
   // two things it could not previously say: what is being fought here, and
   // what to do next.
   roster: "阵地清单",
-  rosterWhy: "这个客户身上正在打的仗。战区不知道自己有几个阵地，是荒谬的。",
-  rosterDeals: "在办商机",
-  rosterProjects: "交付项目",
   rosterNoDeals: "没有在办商机",
   rosterNoProjects: "没有交付项目",
-  rosterOpenDeal: "打开阵地",
-  rosterOpenProjects: "去项目交付",
+  // header 第二行, 跟 ACC-0001 并列 (owner, 2026-09-20: 死死记住设计文件 -
+  // mockup 原话: `<span>销售负责人 王涛</span>`, 纯文本, 不是按钮, 不在
+  // 单位信息卡片里). 之前把这个字段错放进了单位信息的 DetailList, 用的还是
+  // "负责人"这个通用词 - mockup 自己解释了为什么要叫"销售负责人": 客户联系人
+  // 里也有真人姓名, 光说"负责人"分不清是对方的人还是我方的人。
+  headerOwner: (name: string) => `销售负责人 ${name}`,
   dossier: "战区档案",
   dossierOwner: "负责人",
   dossierIndustry: "行业",
@@ -4136,6 +4236,94 @@ export const ACCOUNT_TEXT = {
   planEmpty: "暂无待裁决的方案",
   planEmptyWhy:
     "没有提案时不是没有问题，是还没有人问。向参谋提问会产出建议动作。",
+  planCounselorOverview: "参谋能力概览",
+  planCounselorCount: (n: number) => `${n} 项参谋能力`,
+  planProposalSummary: (n: number) =>
+    `共 ${n} 条待裁决提案，已在右侧副驾面板展示`,
+  planMemo: "随手记",
+  planMemoPlaceholder:
+    "在这里记录对该客户的直觉、备忘、策略想法...",
+
+  // 单位信息 (owner, 2026-09-18: 客户详情页重排): 上级 + 下级，同一张图的两半。
+  // 上级/下级的编辑现在都在 org-relations-editor.tsx (挂在"编辑单位信息"
+  // 抽屉里) - 这张只读卡片只用 orgUnitChildren 显示计数。从 accountRows 按
+  // parentId 过滤即可，不需要新的读接口。
+  orgUnitTitle: "单位信息",
+  orgUnitWhy: "这家客户在集团结构里的位置——谁在它上面，谁挂在它下面。",
+  orgUnitChildren: (n: number) => `下级单位（${n}）`,
+  // 行业/区域从 header 搬过来 (owner, 2026-09-20: 严格按照设计实施) - 这些是
+  // 客户固有属性，属于栏1的档案，不是 header 该扛的身份识别信息。
+  orgUnitIndustry: "行业",
+  orgUnitRegion: "区域",
+  orgUnitScale: "规模",
+  orgUnitNature: "性质",
+  orgUnitType: "类型",
+  capBasic: "基础",
+  capPending: "待建",
+  panoramaLayerL1: "客户档案",
+  panoramaLayerL2: "关系资产",
+  panoramaLayerL3: "增量阵地",
+  panoramaLayerL4: "存量资产",
+  panoramaLayerL5: "客户评估",
+  panoramaLayerL6: "作战方案",
+  panoramaLayerEV: "证据底座",
+  panoramaCapCore: "核心能力",
+  panoramaCapHigh: "高档位",
+  panoramaCapDesigned: "已设计",
+  capOrgUnitBasic: "CRUD + 分级 + 协作人",
+  capOrgUnitPro: "关系图谱",
+  capContactBasic: "CRUD + 排序 + 跟进时效",
+  capContactPro: "决策链四角色 + 立场 + 影响力",
+  capChainBasic: "覆盖统计",
+  capChainPro: "可达性分析 + 四角色映射",
+  capHealthBasic: "四因子 + 状态标签 + 首要问题",
+  capHealthPro: "缺数据 reason + 整体退化趋势",
+  capHealthPending: "第五因子 renewal",
+  capDealBasic: "商机列表 + 阶段 + 金额 (只读引用 D6)",
+  capDealPro: "停滞检测 + 竞争分析 (参谋能力)",
+  capProjectBasic: "项目 + 里程碑 + 健康度 (只读引用 D7)",
+  capProjectPro: "回款风险分析 (参谋能力)",
+  capCompletenessDesc: "智能补全 + 基于模型的缺口识别",
+  capPlanBasic: "随手记 + 待裁决提案展示",
+  capPlanPro: "参谋能力全部 8 项",
+  capRevenueBasic: "回款状态流转 (只读引用 D7)",
+  capRevenuePro: "回款 vs 计划对比",
+  capCommitBasic: "CRUD + 双向标记 + 挂证据跟进",
+  capCommitPro: "守约率 + 对称展示",
+  capTimelineBasic: "时间线 + 渠道 + 参与人 + 原始笔记",
+  capTimelinePro: "人级时效分析 + 互动频率趋势 + 沉默预警",
+
+  // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
+  // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。
+  graphTitle: "决策链图谱",
+  graphWhy: (dealName: string) => `「${dealName}」的决策链——若商机未单独定义，展示客户级默认决策链`,
+  graphMissingRole: "缺失，未识别到人",
+  graphUnreachable: "经济决策人未触达",
+  graphOpen: "查看决策链图谱",
+  // 关系图例的两条 (owner, 2026-09-21: 人际及利益博弈关系) - 线的图例, 跟
+  // 上面角色(点)的图例分开列。
+  graphRelationConnected: "有关系记录",
+  graphRelationOpposed: "对立关系",
+
+  // 全链条内容的四个分区（商机/交付项目/回款/跟进记录），复用 AnalysisTabs。
+  lifecycleDeals: "商机",
+  lifecycleProjects: "交付项目",
+  lifecycleRevenue: "回款",
+  lifecycleInteractions: "跟进记录",
+  lifecycleNoMilestones: "还没有里程碑",
+  lifecycleNoInstalments: "还没有回款计划",
+  // 应收总览: summarizeCollections() 早就在算 planned/collected (projectView()
+  // 已经把它读出来给了页面, 只是没接到这张卡上) - 待回款 = planned - collected,
+  // 两个真实 Money 相减, 不是新造的数。多个项目、货币不同时不硬加总, 宁可不
+  // 显示这行, 也不把不同币种的数字加在一起充当一个总数。
+  lifecycleRevenueOverview: "应收总览",
+  // 商机卡跳到自己那条决策链 (owner, 2026-09-20: mockup 每张商机卡都有一个
+  // "本商机的决策链"链接) - 真实数据里每个开放商机本来就有自己的一条链
+  // (decisionChainsByOpportunity), 不是 mockup demo 里"没单独定义就读企业
+  // 默认"那种回退, 所以措辞直接是"查看", 不用"未单独定义"这类免责声明。
+  lifecycleViewChain: "查看本商机的决策链",
+  lifecycleStalledDays: (n: number) => `停留 ${n} 天`,
+
   backToList: "客户管理",
   openAccount: "打开客户",
   recompute: "重算健康度",
@@ -4167,6 +4355,8 @@ export const ACCOUNT_TEXT = {
   contactMobile: "手机",
   contactEmail: "邮箱",
   contactWechat: "微信",
+  // 邮箱/微信 presence 列的表头 (owner, 2026-09-20: 设计图严格对齐).
+  contactChannels: "联系方式",
   contactStatus: "状态",
   contactStatusLabel: {
     active: "在职",
@@ -4175,14 +4365,36 @@ export const ACCOUNT_TEXT = {
   } as Record<string, string>,
   contactEditing: "编辑谁",
   contactNew: "新建联系人",
+  // 卡头按钮, 比 contactNew 短 (owner, 2026-09-20: mockup 原话 "+ 新增").
+  contactAddButton: "+ 新增",
   contactSave: "保存联系人",
+  contactViewDetail: "查看详情",
   contactSaved: "已保存",
   contactsDenied: "你没有维护联系人的权限",
   // The owner is a raw subject id and is rendered as one. There is no display
   // name on the record to resolve it against; dressing a machine string as a
   // person is how a UUID ends up in front of someone who then does not chase it.
   ownerNone: "未指派",
+  // 只做 aria-label/tooltip 用 (owner, 2026-09-21: 联系人数量简化为一个数字，
+  // tag 放到标题后面) - 卡头的数字标签本身只显示 contacts.length 这一个
+  // 数, 这句完整的话挪到无障碍朗读/hover 上, 不在屏幕上常驻。
   contactCount: (n: number) => `${n} 位联系人`,
+  // 联系人截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem
+  // 宽, 一张全量表格在这里比一句"还有几位"更占地方。
+  contactsShowAll: (n: number) => `查看全部（${n}）位联系人`,
+  contactsCollapse: "收起",
+  // 精准显示最近联系天数 (owner, 2026-09-21: "90天内有跟进"表达很差，应该
+  // 精准显示（nn天）前联系，非常简短显示; 补充: tag 显示只有（nn天），不要
+  // 啰嗦，全是同样的字很难看) - tag 本身只放数字+"天", 不带"前"/"联系"这类
+  // 每一行都重复的字; 完整的那句话("某某在12天前联系")挪进 tooltip, 见
+  // contactRecencyTooltip。
+  contactRecencyDays: (days: number) => `${days} 天`,
+  contactRecencyTooltip: (name: string, days: number) => `${name} 在 ${days} 天前联系`,
+  contactRecencyUnrecorded: "未联系",
+  contactRecencyTooltipUnrecorded: (name: string) => `${name} 还没有联系记录`,
+  // header 的商机数量维度 (owner, 2026-09-20: 严格按照设计实施) - 圆圈里的
+  // 数字之外，还要有一句"N 个进行中"。
+  openDealsCount: (n: number) => `${n} 个进行中`,
 } as const;
 
 export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
@@ -5262,6 +5474,10 @@ export const BUYING_ROLE_TEXT = {
   person: "联系人",
   pickPerson: "选择联系人",
   role: "在本单的角色",
+  // 立场是独立于角色的第二个维度 (owner, 2026-09-21: 对我方的立场态度), 跟
+  // "role" 分开两个 Field, 不是同一个下拉的另一组选项。
+  stance: "对我方的立场",
+  stanceNotStated: "还没表过态",
   influence: "在本单的影响力 0-100",
   save: "保存角色",
   saved: "已保存",
@@ -5367,21 +5583,57 @@ export const CHAIN_TEXT = {
   influence: "影响力",
   emptyTitle: "还没有联系人",
   emptyDescription: "录入联系人并标注决策角色后，这里会给出决策链分析。",
-  healthTitle: "客户健康度",
+  // 从"健康拆解"改名"客户评估" (owner, 2026-09-20: 补充 - 中部区域从这张卡
+  // 开始, 原健康拆解). mockup 本来一直叫这张卡"健康拆解"(健康评估是header
+  // 的环, 是不同的 key/healthShort) - 这次是内容区重排时 owner 直接给的新
+  // 名字, 不是照抄设计图, 记录在案。
+  healthTitle: "客户评估",
   healthDescription:
     "派生值，随源数据重算。用于排序和预警，不作为任何业务判断的唯一依据。",
+  // header 上放不下"客户健康度"这五个字的读数卡，短标题给 header 用
+  // (owner, 2026-09-18: header 三维度顺序 - 健康评估改名四个字)。
+  healthShort: "健康评估",
   primaryConcern: "首要问题",
-  recompute: "重新计算",
+  // owner, 2026-09-20: 设计图严格对齐 - mockup 用词是"重新评估"，"重新计算"
+  // 这个措辞这次才发现一直没跟上（早前只在 mockup 里改过）。
+  recompute: "重新评估",
+  // 客户评估整卡可收起 (owner, 2026-09-21: 梳理全景图中心区域 - 客户评估
+  // 收起来应该收到一行).
+  collapse: "收起",
+  expand: "展开",
   factorPipeline: "商机",
   factorRecency: "互动时效",
   factorDelivery: "交付",
   factorCollections: "回款",
+  // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认) -
+  // 栏1 只放摘要行, 点开在栏2 展开详情, 这些是详情视图自己的措辞。
+  coverageCount: (n: number, total: number) => `已覆盖 ${n}/${total} 角色`,
+  viewTable: "表格",
+  viewGraph: "图谱",
+  reachFlagYes: "可达",
+  reachFlagNo: "未触达",
+  detailBack: "返回全链条内容",
+  // 摘要行的一句话小结 - 可达性 + (有阻碍者且未触达时) 未触达人数。人数来自
+  // 真实的 recency 数据(该阻碍者是否在 warm 名单里), 不是编出来的。
+  blockersUnreached: (n: number) => `${n} 位阻碍者未触达`,
+  showAllChains: (n: number) => `查看全部（${n}）`,
+  collapseChains: "收起",
+  // 决策链表格的六列 (owner, 2026-09-21: 决策链非常重要，重点完善 - 组织内
+  // 角色分类、立场、影响力权重、人际关系四个维度都要有, 应该表格化，不要
+  // 信息堆积)。
+  colPerson: "联系人",
+  colRole: "角色",
+  colStance: "立场",
+  colInfluence: "影响力",
+  colRelationship: "关系",
+  colReachable: "可达",
 } as const;
 
 export const CONTACT_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   name_required: "联系人需要一个姓名",
   unknown_decision_role: "未知的决策角色",
+  unknown_stance: "未知的立场",
   unknown_status: "未知的联系人状态",
   influence_range: "影响力是 0 到 100 之间的整数",
   not_found: "这个联系人不在该客户名下",
@@ -5458,6 +5710,35 @@ export const DECISION_ROLE_LABEL: Record<string, string> = {
   coach: "内线",
   blocker: "阻碍者",
   unknown: "未知",
+};
+
+// EB/UB/TB/Coach (owner, 2026-09-21: 组织内角色分类) - buying_role 早就是这
+// 四个值(economic/user/technical/coach, 只是这四个都还留着 blocker/unknown 做
+// 向后兼容), 这里只补上英文缩写, 不是重新发明一套角色。分开成自己的字典而不是
+// 改写 DECISION_ROLE_LABEL 本身, 因为后者已经有好几处消费者(标签、tooltip、
+// 表单下拉), 有的地方要缩写、有的地方要全名, 两个字典各自专心一件事。
+export const DECISION_ROLE_ABBR: Partial<Record<string, string>> = {
+  economic: "EB",
+  user: "UB",
+  technical: "TB",
+};
+
+// 拥护者/支持者/中立者/反对者 (owner, 2026-09-21: 对我方的立场态度) - 独立于
+// buying_role 的第二个维度, incr/0075。null 表示没有人表过态, 不在字典里
+// (调用方自己判断 null 走哪条分支, 不该有一个"未表态"的假标签)。
+export const STANCE_LABEL: Record<string, string> = {
+  champion: "拥护者",
+  supporter: "支持者",
+  neutral: "中立者",
+  antagonist: "反对者",
+};
+
+// 核心圈/关键圈/边缘圈 (owner, 2026-09-21: 实际影响力权重) - domains/account/
+// lib/health.ts 的 influenceTier() 算出属于哪一档, 这里只管怎么念。
+export const INFLUENCE_TIER_LABEL: Record<string, string> = {
+  high: "核心圈",
+  medium: "关键圈",
+  low: "边缘圈",
 };
 
 export const PREVIEW_TEXT = {
@@ -5570,9 +5851,27 @@ export const POSITION_TEXT = {
   tierStrategic: "战略级",
   tierKey: "关键级",
   tierStandard: "普通级",
+  // 定级抽屉的三张奖牌卡各自一句 (owner, 2026-09-20: mockup 三档各带一句
+  // tc-desc) - 跟下面 designateWhy/planRequired 说的是同一件事, 只是拆成
+  // 每档一句, 不用打开抽屉细读大段说明就知道选哪档意味着什么。
+  tierStandardDesc: "默认档位，不改变任何规则",
+  tierKeyDesc: "重点关注，暂不需要经营计划",
+  tierStrategicDesc: "需要一份经营计划，节奏规则据此判断",
+  // header 商机数量/客户级别/健康评估三维度里, "客户级别"这个维度自己的标签
+  // (owner, 2026-09-20: 严格按照设计实施) - tierStrategic/tierKey/tierStandard
+  // 是三档的VALUE，这个是维度自己的NAME，两者不是一回事。
+  tierDimensionLabel: "客户级别",
   planOf: (period: string) => `${period} 经营计划`,
   planTarget: "计划目标",
-  planDeals: "在办商机",
+  // header 三维度里"商机数量"这个维度自己的标签 (owner, 2026-09-20: 逐个
+  // 板块对照设计图核实 - mockup 原话: 标签明确写"开放商机"而不是笼统的
+  // "商机数量", 圆圈里的数字是"状态为 open 的商机数"). 中文之前写成"在办
+  // 商机", 跟这个 key 自己的英文翻译("Open deals")对不上, 也跟设计图对不上。
+  planDeals: "开放商机",
+  // 徽章区第一块补充的第二行 (owner, 2026-09-21: 补充一些信息， 商机数 /
+  // 累计合同额). 只统计 status=open 的商机, 跟商机数本身同一个口径 - 不是
+  // 这个客户全部历史成交额。
+  openDealsAmountLabel: "累计合同额",
 
   triangle: "负责团队",
   /** The three owners, joined. The separator is text, so it lives here. */
@@ -5645,6 +5944,10 @@ export const POSITION_TEXT = {
 
   // --- designating a strategic account (batch 6c) ---------------------------
   designate: "定级",
+  // header 里的 medal 徽标本身不再可点 (owner, 2026-09-20: 死死记住设计文件 -
+  // mockup 原话: "定级: a BADGE...not a button - modifying it moved to the
+  // ··· menu"), 这是那个共享菜单里的一项文案，不是徽标自己的标签。
+  designateMenu: "定级 / 计划",
   designateWhy:
     "战略客户走的是另一套判断：其余规则都由事件触发、都需要一条开放商机，而战略客户最该报的恰恰是「没有开放商机却安静下来」——没有任何事件会为此触发。节奏规则是那时唯一会响的东西，而它读的是计划。",
   planRequired: "战略客户必须配计划，否则定级只是一个标签",
@@ -5654,6 +5957,36 @@ export const POSITION_TEXT = {
   designateSubmit: "确认定级",
   designated: (tier: string) => `已定为${tier}`,
   designateDenied: "你没有修改客户的权限",
+} as const;
+
+// 基础信息表单 (owner, 2026-09-20: 设计图严格对齐 - 先做基础信息表单，智能
+// 采集先跳过). 字段全部对应 updateAccountBasics() 已经能写的真实列 - 没有
+// 一个是这张表单发明的新事实。
+export const ACCOUNT_BASICS_TEXT = {
+  editButton: "编辑单位信息",
+  title: "编辑单位信息",
+  why: "客户的固有属性 - 名称、分类、联系入口。谁负责跟进、决策链这些另有自己的卡片。",
+  name: "客户名称",
+  accountNo: "客户编号",
+  region: "销售大区",
+  province: "省份",
+  provincePick: "未标注",
+  industry: "行业",
+  industryPick: "未标注",
+  segment: "细分市场",
+  segmentPick: "未标注",
+  customerType: "客户类型",
+  customerTypePick: "未标注",
+  customerSize: "客户规模",
+  customerSizePick: "未标注",
+  customerNature: "客户性质",
+  customerNaturePick: "未标注",
+  creditCode: "统一社会信用代码",
+  website: "官网",
+  employeeCount: "员工规模",
+  save: "保存",
+  cancel: "取消",
+  saved: "已保存",
 } as const;
 
 /* 权限管理 - the tree's own copy (owner, 2026-09-09: 业务域-模块-页面-操作 四级).
@@ -5749,6 +6082,7 @@ export const PERMISSION_TREE_TEXT = {
     "account.interaction": "互动记录",
     "account.commitment": "客户承诺",
     "account.graph": "客户关系图",
+    "account.collaborator": "协作人",
     "signal.base": "商机智探",
     "signal.feed": "信号源",
     "signal.lead": "线索",
@@ -5804,6 +6138,7 @@ export const PERMISSION_TREE_TEXT = {
     "account.commitment.settle": "结清客户承诺",
     "account.graph.view": "查看客户关系图",
     "account.graph.link": "建立客户关联",
+    "account.collaborator.manage": "管理协作人",
     "signal.view": "查看信号",
     "signal.triage": "处理信号",
     "signal.rescore": "重新评分",

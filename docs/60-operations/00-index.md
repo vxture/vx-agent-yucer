@@ -228,7 +228,12 @@ translateX 填充）。donut / circular / radial / ring 一件都没有，
 `@vxture/design-system` 同样没有。无从组合。
 
 **权宜位置**：`portals/app/app/(app)/components/score-ring.tsx`，
-由 `signal-queue.tsx` 的行首消费。
+由 `signal-queue.tsx` 的行首消费; 2026-09-20 起客户详情页 header 的健康评估
+维度也在用（`account/[id]/page.tsx`）—— 一度在 `dimension-stat.tsx` 里另建
+了一个几乎一样的 `RingGauge` 外加一条重复的 TD 记录，核对现有 TD 列表时
+发现同一个缺口已经报过，删掉了那份重复，改为给本组件加一个可选的 `size`
+prop（46px，配合 mockup 的 header 徽标尺寸），默认仍是 32px，不影响
+`signal-queue.tsx` 这个原调用方。
 
 **为什么不算违规的自建组件**：它**不替换任何 DS 元素** ——
 不覆写任何 DS 类名，不遮蔽任何 DS 导出。颜色全部经 `currentColor`
@@ -243,9 +248,9 @@ translateX 填充）。donut / circular / radial / ring 一件都没有，
 于是 info 档穿透到 success 的绿色 —— 65 分和 85 分画成同一个绿。
 现在色弧与"推荐程度"徽标同出 `confidenceTone`，两者不可能不一致。
 
-**已知限制**：前导轨宽 32px 是 DS 写死的，环心两位数字只能到 `text-label-sm`。
-若判定过小，正确的解法是向 DS 提（加宽前导轨或直接出评分环），
-不是在本地覆盖那个类名。
+**已知限制**：环心数字固定 `text-label-sm`，不随 `size` 放大 —— 46px 那档字
+看着偏小，但两位数字撑满一个更大字号需要量出新的行高，还没做；`size` 只
+把环本身放大到调用方要的尺寸。
 
 **恢复条件**：DS 提供环形进度（带语义色档与环心插槽）。提供后**删除**本文件，
 而不是改造它。
@@ -1666,6 +1671,11 @@ DS 内部，调用方没有任何入口能改到它，本仓不 fork DS。**回�
 的域语义),连接线的着色规则要保留——那条线是"项目实际走到哪"的读法,不是装饰。
 已作为 DS 请求上报(元素缺失,非本仓自建)。
 
+**2026-09-20 追加第二处垫片**:客户详情页阵地清单的商机行按 mockup 补一条阶段
+进度点(`account-lifecycle.tsx` 的 `StageTrack`),比原垫片轻得多——无连接线、无
+节点文案,只是按 `openStageOrder(catalog)` 位置着色的一排小圆点,同样只用 DS 意图
+色 token,不新开一条 TD。DS 出了步骤条以后跟 `delivery-plan-flow.tsx` 一起回收。
+
 ### TD-022 - DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现
 
 2026-09-05，产品配置页两张同构表按 owner 要求逐列对齐时量出：DS `DataTable` 的
@@ -1899,3 +1909,12 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 用那个确切环境复测一次；或者干脆是本侧遗漏了某条会影响渲染但不会体现在
 `getComputedStyle` 里的属性（如 `font-feature-settings`、`text-rendering`、
 子像素级别的 `-webkit-font-smoothing`），需要更细的取证才能定位。
+
+~~### TD-033~~ - 撤销，与 TD-009 是同一条
+
+2026-09-20 报了这一条（DS 没有环形进度件，客户详情页 header 另建一个
+`RingGauge`），核对 TD 列表时发现 **TD-009 已经把同一个缺口记过了**
+（2026-08-25，`score-ring.tsx` 的 `ScoreRing`）—— 两条 TD 记的是同一件事，
+是本侧核对不够仔细，不是 DS 真的有两个不同的缺口。已经删掉 `RingGauge`，
+改为给 `ScoreRing` 加一个可选 `size` prop 直接复用；这一条不留独立记录，
+后续同类缺口先并入 TD-009，见那条的更新。

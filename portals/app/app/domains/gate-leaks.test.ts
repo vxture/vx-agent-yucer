@@ -80,6 +80,7 @@ function seededAccounts(): InMemoryAccountStore {
         mobile: null,
         wechat: null,
         status: "active",
+        sortOrder: 0,
       },
     ],
   });

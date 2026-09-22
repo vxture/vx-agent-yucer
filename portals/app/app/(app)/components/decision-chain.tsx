@@ -51,6 +51,12 @@ export function DecisionChain({
   title,
 }: DecisionChainProps) {
   const { CHAIN_TEXT, DECISION_ROLE_LABEL } = useMessages();
+  // NOT tone="raised" here (reverted, owner 2026-09-20) - this component is
+  // SHARED with the pipeline detail page (pipeline/[id]/page.tsx), which
+  // keeps every other Section on the default tone; account-detail's own
+  // decision-chain card was rebuilt as decision-chain-detail.tsx instead of
+  // reusing this one, specifically so this file's look-and-feel for the
+  // pipeline page would not change as a side effect of that page's redesign.
   if (contacts.length === 0) {
     return (
       <Section title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>

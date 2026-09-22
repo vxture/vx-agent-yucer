@@ -7,9 +7,22 @@ import {
   Icon,
   Section,
   StatusBadge,
+  type IconName,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { Tag } from "./tag";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+
+const DAY_MS = 86_400_000;
+
+const CHANNEL_ICON: Record<string, IconName> = {
+  call: "phone",
+  meeting: "users",
+  visit: "map-pin",
+  email: "mail",
+  im: "chat-circle",
+  event: "calendar",
+  other: "file-text",
+};
 
 // What actually happened, newest first.
 //
@@ -26,6 +39,8 @@ export interface TimelineItem {
   readonly channel: string;
   readonly occurredAt: Date;
   readonly actorSub: string;
+  readonly actorName?: string | null;
+  readonly participantNames?: readonly string[];
   readonly rawNote: string;
   readonly correctsInteractionId: string | null;
 }
@@ -41,12 +56,22 @@ export interface InteractionTimelineProps {
    * the map to gain a history they did not ask for yet.
    */
   readonly limit?: number;
+  /** 默认 false, 不改 pipeline 详情页的样子 (owner, 2026-09-20: 去掉所有
+   *  垃圾说明 - 账户详情页传 true, 见 org-unit-panel.tsx 同名注释). */
+  readonly hideDescription?: boolean;
+  /** 默认 false, 不改 pipeline 详情页的样子 - 那边这张卡是独立一张, 标题
+   *  就是唯一的标题。账户详情页传 true (owner, 2026-09-21: 继续梳理阵地
+   *  清单) - 那边这张卡挂在"跟进记录 (N)"这个 tab 里面, tab 本身已经说过
+   *  一次"跟进记录", 卡自己的标题再说一遍是重复。 */
+  readonly hideTitle?: boolean;
   readonly action?: React.ReactNode;
 }
 
 export function InteractionTimeline({
   items,
   limit,
+  hideDescription,
+  hideTitle,
   action: externalAction,
 }: InteractionTimelineProps) {
   const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
@@ -56,6 +81,7 @@ export function InteractionTimeline({
   // the health score beside them is a worse version of this page.
   const bounded = limit !== undefined && !open && items.length > limit;
   const shown = bounded ? items.slice(0, limit) : items;
+
   const expandButton =
     limit !== undefined && items.length > limit ? (
       <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
@@ -74,11 +100,15 @@ export function InteractionTimeline({
       </span>
     ) : null;
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   if (items.length === 0) {
     return (
       <Section
-        title={FIELD_TEXT.timelineTitle}
-        description={FIELD_TEXT.timelineDescription}
+        tone="raised"
+        style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
+        title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
+        description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
         action={externalAction}
       >
         <EmptyState
@@ -91,34 +121,44 @@ export function InteractionTimeline({
 
   return (
     <Section
-      title={FIELD_TEXT.timelineTitle}
-      description={FIELD_TEXT.timelineDescription}
+      tone="raised"
+      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
+      title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
+      description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
       action={sectionAction}
     >
-      <ol>
+      <div className="flex flex-col gap-sm">
         {shown.map((i) => (
-          <li key={i.id}>
-            <Tag>
-              {CHANNEL_LABEL[i.channel] ?? i.channel}
-            </Tag>
-            <time dateTime={i.occurredAt.toISOString()}>
-              {i.occurredAt.toISOString().slice(0, 16).replace("T", " ")}
-            </time>
-            <span>
-              {FIELD_TEXT.timelineBy}: {i.actorSub}
+          <div key={i.id} className="flex items-start gap-xs">
+            <span className="text-muted-foreground mt-3xs shrink-0">
+              <Icon name={CHANNEL_ICON[i.channel] ?? "file-text"} size="sm" />
             </span>
-            {/* A correction is a new row pointing at the old one, and both stay.
-                Saying so is the difference between "the record changed" and
-                "somebody corrected the record". */}
-            {i.correctsInteractionId ? (
-              <StatusBadge tone="warning">
-                {FIELD_TEXT.timelineCorrects}
-              </StatusBadge>
-            ) : null}
-            <p>{i.rawNote}</p>
-          </li>
+            <div className="min-w-0 flex-1">
+              <div className="text-muted-foreground flex flex-wrap items-center gap-2xs text-[11px]">
+                <span>
+                  {i.actorName ?? i.actorSub}
+                  {i.participantNames?.length ? ` → ${i.participantNames.join(FIELD_TEXT.timelineParticipantSep)}` : null}
+                </span>
+                <span>{"·"}</span>
+                <time dateTime={i.occurredAt.toISOString()}>
+                  {(() => {
+                    const d = Math.floor((Date.now() - i.occurredAt.getTime()) / DAY_MS);
+                    return d <= 0 ? FIELD_TEXT.timelineToday : FIELD_TEXT.timelineDaysAgo(d);
+                  })()}
+                </time>
+                <span>{"·"}</span>
+                <span>{CHANNEL_LABEL[i.channel] ?? i.channel}</span>
+                {i.correctsInteractionId ? (
+                  <StatusBadge tone="warning">
+                    {FIELD_TEXT.timelineCorrects}
+                  </StatusBadge>
+                ) : null}
+              </div>
+              <p className="text-foreground mt-2xs text-body-sm leading-relaxed">{i.rawNote}</p>
+            </div>
+          </div>
         ))}
-      </ol>
+      </div>
     </Section>
   );
 }

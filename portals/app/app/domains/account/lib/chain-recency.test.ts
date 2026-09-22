@@ -23,6 +23,7 @@ const c = (id: string, decisionRole: ContactNode["decisionRole"], status = "acti
   decisionRole,
   influence: 50,
   status,
+  stance: null,
 });
 
 const CONTACTS = [c("coach", "coach"), c("econ", "economic"), c("tech", "technical")];

@@ -17,6 +17,8 @@ import {
 } from "../../domains/account/lib/commitment";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge } from "./panorama-annotations";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -71,6 +73,14 @@ export interface CommitmentListProps {
       opportunityId?: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
+  /** 默认 false, 不改 pipeline 详情页的样子 (owner, 2026-09-20: 去掉所有
+   *  垃圾说明 - 账户详情页传 true, 见 org-unit-panel.tsx 同名注释). */
+  readonly hideDescription?: boolean;
+  /** 默认 false, 不改 pipeline 详情页的样子 - 那边这张卡是独立一张, 标题
+   *  就是唯一的标题。账户详情页传 true (owner, 2026-09-21: 继续梳理阵地
+   *  清单) - 那边这张卡挂在"承诺 (N)"这个 tab 里面, tab 本身已经说过一次
+   *  "承诺", 卡自己的标题再说一遍是重复。 */
+  readonly hideTitle?: boolean;
 }
 
 const DAY = 86_400_000;
@@ -84,6 +94,8 @@ export function CommitmentList({
   now,
   captureHref,
   onSettle,
+  hideDescription,
+  hideTitle,
 }: CommitmentListProps) {
   const { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } =
     useMessages();
@@ -106,10 +118,14 @@ export function CommitmentList({
   const open = items.filter((c) => c.status === "open");
   const settled = items.filter((c) => c.status !== "open");
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   return (
     <Section
-      title={FIELD_TEXT.commitTitle}
-      description={FIELD_TEXT.commitDescription}
+      tone="raised"
+      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
+      title={hideTitle ? undefined : FIELD_TEXT.commitTitle}
+      description={hideDescription ? undefined : FIELD_TEXT.commitDescription}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
@@ -127,16 +143,16 @@ export function CommitmentList({
         );
         const chosen = picked[c.id] ?? "";
         return (
-          <div key={c.id}>
-            <Tag tone={c.direction === "they_owe" ? "info" : "neutral"}>
-              {DIRECTION_LABEL[c.direction] ?? c.direction}
-            </Tag>
-            <span>{c.statement}</span>
-            <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
-              {overdue
-                ? FIELD_TEXT.commitDaysOverdue(days)
-                : FIELD_TEXT.commitDueIn(days)}
-            </Tag>
+          <div key={c.id} className="flex flex-col gap-2xs">
+            <div className="flex items-center gap-xs">
+              <PartyBadge direction={c.direction} text={FIELD_TEXT} />
+              <span className="text-foreground min-w-0 flex-1 truncate text-body-sm">{c.statement}</span>
+              <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
+                {overdue
+                  ? FIELD_TEXT.commitDaysOverdue(days)
+                  : FIELD_TEXT.commitDueIn(days)}
+              </Tag>
+            </div>
 
             {canWrite ? (
               <>
@@ -225,7 +241,9 @@ export function CommitmentList({
       })}
 
       {settled.map((c) => (
-        <div key={c.id}>
+        <div key={c.id} className="flex items-center gap-xs">
+          <PartyBadge direction={c.direction} text={FIELD_TEXT} />
+          <span className="text-foreground min-w-0 flex-1 truncate text-body-sm">{c.statement}</span>
           <Tag
             tone={
               c.status === "met"
@@ -237,9 +255,10 @@ export function CommitmentList({
           >
             {COMMIT_STATUS_LABEL[c.status] ?? c.status}
           </Tag>
-          <span>{c.statement}</span>
         </div>
       ))}
+
+      <ComplianceStats items={items} text={FIELD_TEXT} />
 
       {canWrite ? (
         <div className="mt-sm">
@@ -249,5 +268,81 @@ export function CommitmentList({
         </div>
       ) : null}
     </Section>
+  );
+}
+
+function PartyBadge({
+  direction,
+  text,
+}: {
+  readonly direction: string;
+  readonly text: { commitPartyTheirs: string; commitPartyOurs: string };
+}) {
+  const isTheirs = direction === "they_owe";
+  return (
+    <span
+      className="text-label-sm inline-flex flex-none items-center whitespace-nowrap rounded px-sm py-3xs font-bold"
+      style={{
+        background: isTheirs ? "var(--muted)" : "var(--accent)",
+        color: isTheirs ? "var(--muted-foreground)" : "var(--primary)",
+      }}
+    >
+      {isTheirs ? text.commitPartyTheirs : text.commitPartyOurs}
+    </span>
+  );
+}
+
+function ComplianceStats({
+  items,
+  text,
+}: {
+  readonly items: readonly CommitmentItem[];
+  readonly text: {
+    commitComplianceRate: string;
+    commitPartyTheirs: string;
+    commitPartyOurs: string;
+  };
+}) {
+  if (items.length === 0) return null;
+
+  const theyMet = items.filter(
+    (c) => c.direction === "they_owe" && c.status === "met",
+  ).length;
+  const theyTotal = items.filter(
+    (c) => c.direction === "they_owe" && c.status !== "open",
+  ).length;
+  const weMet = items.filter(
+    (c) => c.direction === "we_owe" && c.status === "met",
+  ).length;
+  const weTotal = items.filter(
+    (c) => c.direction === "we_owe" && c.status !== "open",
+  ).length;
+
+  if (theyTotal === 0 && weTotal === 0) return null;
+
+  return (
+    <div className="border-border text-muted-foreground flex flex-wrap items-center gap-lg border-t pt-sm text-body-sm">
+      {theyTotal > 0 ? (
+        <span>
+          {text.commitComplianceRate}
+          {": "}
+          <span className="text-foreground font-mono font-bold">
+            {theyMet}/{theyTotal}
+          </span>
+          {` (${text.commitPartyTheirs})`}
+        </span>
+      ) : null}
+      {weTotal > 0 ? (
+        <span>
+          {text.commitComplianceRate}
+          {": "}
+          <span className="text-foreground font-mono font-bold">
+            {weMet}/{weTotal}
+          </span>
+          {` (${text.commitPartyOurs})`}
+        </span>
+      ) : null}
+      <CapBadge tier="pro">Pro</CapBadge>
+    </div>
   );
 }

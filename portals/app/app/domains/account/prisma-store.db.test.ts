@@ -127,7 +127,7 @@ test("listContacts orders by name - a roster is not a ranking", { skip }, async 
 
     assert.deepEqual(
       rows.map((r) => r.name),
-      ["High Influence", "Low Influence", "Unscored"].sort((a, b) => a.localeCompare(b)),
+      ["High Influence", "Low Influence", "Unscored"],
     );
   } finally {
     await cleanup();

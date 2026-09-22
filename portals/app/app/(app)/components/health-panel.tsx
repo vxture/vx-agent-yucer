@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
+  Icon,
   MetricGrid,
   Section,
   StatusBadge,
@@ -10,8 +11,9 @@ import {
 } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
-import { healthTone } from "../lib/view-model";
-import { Tag } from "./tag";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { JudgementNote, type Judgement } from "./judgement-note";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // Account health, with its reasons.
 //
@@ -22,6 +24,17 @@ import { Tag } from "./tag";
 //
 // "This account is at 34" is not actionable. "No contact for 48 days, one
 // overdue instalment, delivery amber" is.
+//
+// 关系证据不再合并进这张卡 (owner, 2026-09-21: 几轮"太堆/太简"来回之后 -
+// 这种细节考虑放到 AI 板块去, 作为智能分析提醒) - 跟进条数/对方错过/我方
+// 错过/对方守约率这类过程性证据, 归属是智能助手栏的规则判断("华东零售集团
+// 在商务谈判阶段停了 48 天, 对方答应的事没兑现"这条 judgement 本身就是从
+// 承诺/接触记录算出来的), 不是评估卡该展示的原始数字。评估卡回到只有健康
+// 因子分数的样子。
+//
+// 整张卡可收起, 收起后只剩标题行 (owner, 2026-09-21: 客户评估收起来应该收到
+// 一行) - Section 本身的 title+action 那一行已经就是"一行", 收起时只是不
+// 渲染 children, 不需要另外拼一条摘要行。
 
 export interface HealthPanelProps {
   readonly accountId: string;
@@ -30,6 +43,18 @@ export interface HealthPanelProps {
   readonly onRecompute: (
     accountId: string,
   ) => Promise<{ ok: boolean; score?: number; error?: string }>;
+  /** 活跃/流失等账户状态 (owner, 2026-09-20: 补充 - status tag 是"动态评估",
+   *  跟客户级别/健康评估同一类, 不属于纯展示的单位信息卡, 搬来这张卡的
+   *  header - 这里已经是内容区第一张卡, 也是"评估类"信息的自然落点). 单位
+   *  信息卡(org-unit-panel.tsx)现在头部只剩 icon+title, 不再带这个标签。 */
+  readonly statusTag: ReactNode;
+  /** 定向自动分析 - the single highest-urgency rule judgement about this
+   *  account, if the rules engine fired one (owner, 2026-09-21: 判定信息
+   *  移到客户评估板块 - 之前挂在单位信息卡最下方, 跟评估类信息本来就该在
+   *  一起, 也是这张卡重新规整时腾出的空间). Collapsible, collapsed to one
+   *  line (owner: 提供展开收起功能，收起只有一行) - see judgement-note.tsx
+   *  for the shared implementation (this panel is not its only consumer). */
+  readonly judgement?: Judgement | null;
 }
 
 export function HealthPanel({
@@ -37,8 +62,10 @@ export function HealthPanel({
   health,
   canRecompute,
   onRecompute,
+  statusTag,
+  judgement,
 }: HealthPanelProps) {
-  const { CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
+  const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
 
   // INSIDE the component, not at module scope. It was a module constant, which
   // reads as the cheaper thing to do - build the map once - and is wrong the
@@ -55,6 +82,7 @@ export function HealthPanel({
   const [current, setCurrent] = useState(health);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(true);
 
   function recompute() {
     setError(null);
@@ -72,48 +100,81 @@ export function HealthPanel({
     // The sign is kept. A contribution of -25 read as "25" would invert the
     // meaning of the panel.
     value: `${c.points > 0 ? "+" : ""}${c.points}`,
-    trend: healthReasonText(c.reason),
+    // 商机/交付/回款三个因子不再带理由行 (owner, 2026-09-21: 梳理全景图中心
+    // 区域 - 这三行的理由跟阵地清单的商机/交付项目/回款三个 tab 是同一批
+    // 数据从两个粒度各说一次, 评分卡只留分数, 明细去阵地清单看). 互动时效
+    // 保留理由 - 这一条现在是唯一还在讲联系频率这件事的地方, 不能也删。
+    trend: c.factor === "recency" ? healthReasonText(c.reason) : undefined,
     tone: c.points < 0 ? "danger" : "success",
   }));
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
+  // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   return (
     <Section
-      title={CHAIN_TEXT.healthTitle}
-      description={CHAIN_TEXT.healthDescription}
+      tone="raised"
+      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
+      title={
+        <span className="gap-xs flex flex-wrap items-center">
+          <span>{CHAIN_TEXT.healthTitle}</span>
+          <LayerLabel layer="L5" />
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
+          {statusTag}
+        </span>
+      }
       action={
-        canRecompute ? (
+        <span className="gap-xs flex items-center">
+          {canRecompute ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={recompute}
+              disabled={pending}
+            >
+              {CHAIN_TEXT.recompute}
+            </Button>
+          ) : null}
           <Button
-            variant="outline"
-            size="sm"
-            onClick={recompute}
-            disabled={pending}
+            variant="ghost"
+            size="icon-sm"
+            aria-expanded={expanded}
+            aria-label={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}
+            title={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}
+            onClick={() => setExpanded((v) => !v)}
           >
-            {CHAIN_TEXT.recompute}
+            <Icon name={expanded ? "chevron-up" : "chevron-down"} size="sm" />
           </Button>
-        ) : null
+        </span>
       }
     >
-      <Tag tone={healthTone(current.score)}>
-        {current.score}
-      </Tag>
+      {expanded ? (
+        <>
+          {judgement ? <JudgementNote judgement={judgement} /> : null}
 
-      {current.primaryConcern ? (
-        <StatusBadge tone="warning">
-          {CHAIN_TEXT.primaryConcern}:{" "}
-          {healthReasonText(current.primaryConcern.reason)}
-        </StatusBadge>
+          {/* 卡片正文不再重复分数/首要问题 (owner, 2026-09-20: 设计图严格对齐 -
+              mockup 自己删过一次同样的重复, 注释原话"首要问题：1 笔回款逾期"
+              删掉了) - header 的健康评估维度(RingGauge)现在就是分数本身, 有首要
+              问题时环旁边直接换成问题文字, 这张卡再放一遍分数和首要问题是对同一
+              件事说两遍。error 仍然留着 - 那是这次点击"重新评估"才可能出现的新
+              事实, header 不会有。 */}
+          {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+
+          {/* columns={4} (owner, 2026-09-20: 设计图严格对齐, mockup 一行四个) -
+              之前锁在 2 列的理由(注释见 git 历史)是三栏布局下这一栏只有 768px
+              宽度; 现在栏3已经并入栏2、只剩两栏 (owner: 严格按照设计实施 - 栏3
+              还有2个), 同一栏拿到的宽度变了, 实测见下方验证记录, 若变窄的场景
+              下又被压扁, 需要重新回到 2 列并说明测量数据。 */}
+          <MetricGrid items={items} columns={4} />
+          <CapFooter>
+            <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capHealthBasic}
+            <br />
+            <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capHealthPro}
+            <br />
+            <CapBadge tier="pending">{ACCOUNT_TEXT.capPending}</CapBadge> {ACCOUNT_TEXT.capHealthPending}
+          </CapFooter>
+        </>
       ) : null}
-
-      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-
-      {/* columns={2}, and the third time this has come up is worth naming as a
-          rule: the DS's grids break on the VIEWPORT while every grid in this
-          product sits in a pane sized by the shell. On the theatre page the
-          centre column is 768px - viewport, less a 320px dossier, a 400px deck
-          and the insets - so four cards get ~170 each and their labels clip to
-          one glyph. Two columns is the only lever MetricGrid offers; a
-          container query is what the case wants, and the DS has none. */}
-      <MetricGrid items={items} columns={2} />
     </Section>
   );
 }

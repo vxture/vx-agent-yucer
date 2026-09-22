@@ -33,6 +33,7 @@ import {
 import type { PipelineStore } from "../pipeline/store";
 import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
+import type { AuthzStore } from "../../authz/store";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { planAccountParent } from "./lib/parent";
 import { chainForOpportunity } from "./lib/buying-role";
@@ -43,7 +44,9 @@ import {
   type DecisionRole,
   type HealthResult,
   type RelationEdge,
+  type Stance,
   DECISION_ROLES,
+  STANCES,
   analyzeChain,
   deriveHealth,
 } from "./lib/health";
@@ -967,7 +970,11 @@ export async function setBuyingRole(
   personId: string,
   buyingRole: DecisionRole,
   influence: number | null,
-): Promise<RuleResult<{ opportunityId: string; personId: string; buyingRole: DecisionRole }>> {
+  // incr/0075. Optional and defaulting to "leave it alone": a caller that has
+  // never heard of stance (the pipeline form predates it in older clients)
+  // must not accidentally null out a stance someone already stated.
+  stance?: Stance | null,
+): Promise<RuleResult<{ opportunityId: string; personId: string; buyingRole: DecisionRole; stance: Stance | null }>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
@@ -977,13 +984,17 @@ export async function setBuyingRole(
   if (influence !== null && (!Number.isInteger(influence) || influence < 0 || influence > 100)) {
     return fail(violation("influence_range", "influence is a whole number from 0 to 100", "influence"));
   }
+  if (stance != null && !(STANCES as readonly string[]).includes(stance)) {
+    return fail(violation("unknown_stance", `${String(stance)} is not a stance`, "stance"));
+  }
 
   const written = await ctx.store.setOpportunityContact(ctx.workspaceId, opportunityId, personId, {
     buyingRole,
     influence,
+    stance,
   });
   if (!written) return fail(violation("not_found", "that deal or person was not found", "opportunityId"));
-  return ok({ opportunityId, personId, buyingRole });
+  return ok({ opportunityId, personId, buyingRole, stance: written.stance });
 }
 
 /**
@@ -1040,6 +1051,210 @@ export async function upsertContact(
     return fail(violation("not_found", `contact ${input.id} was not found on this account`, "id"));
   }
   return ok(written);
+}
+
+/** Reorder one account's roster - incr/0073, 排序四元组. Same gate as
+ *  upsertContact: deciding where a person sits in the list is the same
+ *  authority as editing their row. */
+export async function moveContact(
+  ctx: AccountContext,
+  input: { accountId: string; contactId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listContacts(ctx.workspaceId, input.accountId);
+  const plan = planMove(
+    rows.map((r) => ({ id: r.id, movable: true })),
+    input.contactId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setContactOrder(ctx.workspaceId, input.accountId, plan.value);
+  return ok(true);
+}
+
+/**
+ * 关联联系人 (owner, 2026-09-20: mockup - "把系统里已有的人接到这个客户名下，
+ * 不会新建一条联系人记录"). Same gate as upsertContact/moveContact: finding
+ * a candidate to add to the roster is the same authority as editing it.
+ *
+ * A BLANK QUERY RETURNS NOTHING, not everyone. This is a picker for one
+ * specific person, not a directory browse - and the store layer already
+ * refuses to run an empty-string LIKE for the same reason.
+ */
+export async function searchExistingContacts(
+  ctx: AccountContext,
+  accountId: string,
+  query: string,
+): Promise<
+  RuleResult<
+    Array<{
+      id: string;
+      name: string;
+      mobile: string | null;
+      email: string | null;
+      affiliations: Array<{ accountId: string; accountName: string; title: string | null }>;
+    }>
+  >
+> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.searchPersons(ctx.workspaceId, query, accountId));
+}
+
+/** The write half of 关联联系人 - affiliates an EXISTING person (found by
+ *  searchExistingContacts) with this account. Never creates a person row;
+ *  upsertContact still owns that path. */
+export async function linkExistingContact(
+  ctx: AccountContext,
+  accountId: string,
+  personId: string,
+): Promise<RuleResult<ContactRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const written = await ctx.store.linkExistingPerson(ctx.workspaceId, accountId, personId);
+  if (!written) {
+    return fail(violation(
+      "already_linked",
+      "this person is unknown, or already a contact on this account",
+      "personId",
+    ));
+  }
+  return ok(written);
+}
+
+/**
+ * 取消关联 (owner, 2026-09-20: mockup's contact row menu - 取消关联). Ends
+ * the CURRENT affiliation; the person and every piece of evidence naming
+ * them (interactions, relations, buying roles) survive untouched. Same gate
+ * as upsertContact: removing a row from the roster is the same authority as
+ * editing it.
+ */
+export async function unlinkContact(
+  ctx: AccountContext,
+  accountId: string,
+  contactId: string,
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const ended = await ctx.store.endContactAffiliation(ctx.workspaceId, accountId, contactId);
+  if (!ended) {
+    return fail(violation("not_found", `contact ${contactId} was not found on this account`, "contactId"));
+  }
+  return ok(true);
+}
+
+/**
+ * The account's one owner, by name - account.ownerSub has been readable and
+ * writable (via reassignAccount) since the baseline, but no page ever
+ * resolved it to a display name, so it never reached the screen. Same
+ * resolution, same gate as listAccountCollaborators below: account.view,
+ * not account.collaborator - naming who a fact ALREADY ON THE RECORD belongs
+ * to is not the same act as searching the whole directory for someone to add.
+ */
+export async function resolveAccountOwner(
+  ctx: AccountContext & { authz: AuthzStore },
+  ownerSub: string | null,
+): Promise<RuleResult<string | null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!ownerSub) return ok(null);
+
+  const members = await ctx.authz.listMembers(ctx.workspaceId);
+  return ok(members.find((m) => m.sub === ownerSub)?.displayName ?? null);
+}
+
+/**
+ * 关联协作人 (incr/0074) - who else works this account, alongside its one
+ * owner (account.ownerSub, unchanged). Reading the CURRENT roster rides
+ * account.view, like every other dossier fact; searchColleagues/
+ * addAccountCollaborator/removeAccountCollaborator below are what the new
+ * account.collaborator permission actually gates.
+ */
+/**
+ * Names resolve here too, off the same member list searchColleagues reads -
+ * gated on the broader account.view rather than account.collaborator on
+ * purpose. Turning a handful of subs THIS RECORD ALREADY NAMES into display
+ * names reveals nothing beyond what the roster already shows; it is a
+ * different act from browsing/searching the whole directory, which is what
+ * account.collaborator actually restricts.
+ */
+export async function listAccountCollaborators(
+  ctx: AccountContext & { authz: AuthzStore },
+  accountId: string,
+): Promise<RuleResult<Array<{ memberSub: string; displayName: string | null; addedAt: Date }>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCollaborators(ctx.workspaceId, accountId);
+  if (rows.length === 0) return ok([]);
+  const members = await ctx.authz.listMembers(ctx.workspaceId);
+  const nameOf = new Map(members.map((m) => [m.sub, m.displayName]));
+  return ok(rows.map((r) => ({ ...r, displayName: nameOf.get(r.memberSub) ?? null })));
+}
+
+/**
+ * Search this workspace's OWN member directory for a colleague to add -
+ * NOT listWorkspaceMembers (authz/admin.ts), which is deliberately
+ * admin-only (it backs /admin's paid-seat accounting). This is the narrower,
+ * account.collaborator-gated read the DDL increment's own comment describes:
+ * searching candidates is a step inside managing the roster, not a use case
+ * of its own, so it carries the same permission as the write below rather
+ * than a separate `.view` action - see actions.ts's own note on why (a
+ * `writes: false` action here would force every read-only viewer to hold it
+ * too, and no viewer-facing member search was ever asked for).
+ *
+ * A BLANK QUERY RETURNS NOTHING, matching searchExistingContacts.
+ */
+export async function searchColleagues(
+  ctx: AccountContext & { authz: AuthzStore },
+  query: string,
+): Promise<RuleResult<Array<{ sub: string; displayName: string | null }>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.collaborator.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const q = query.trim().toLowerCase();
+  if (!q) return ok([]);
+  const members = await ctx.authz.listMembers(ctx.workspaceId);
+  return ok(
+    members
+      .filter(
+        (m) =>
+          m.status === "active" &&
+          ((m.displayName ?? "").toLowerCase().includes(q) || m.sub.toLowerCase().includes(q)),
+      )
+      .slice(0, 20)
+      .map((m) => ({ sub: m.sub, displayName: m.displayName })),
+  );
+}
+
+export async function addAccountCollaborator(
+  ctx: AccountContext,
+  accountId: string,
+  memberSub: string,
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.collaborator.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!memberSub.trim()) {
+    return fail(violation("member_required", "a collaborator needs somebody to add", "memberSub"));
+  }
+  await ctx.store.addCollaborator(ctx.workspaceId, accountId, memberSub);
+  return ok(true);
+}
+
+export async function removeAccountCollaborator(
+  ctx: AccountContext,
+  accountId: string,
+  memberSub: string,
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.collaborator.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  await ctx.store.removeCollaborator(ctx.workspaceId, accountId, memberSub);
+  return ok(true);
 }
 
 export async function linkContacts(
@@ -1110,6 +1325,103 @@ export async function reassignAccount(
 
   await ctx.store.updateAccount(ctx.workspaceId, accountId, { ownerSub });
   return ok({ accountId, ownerSub });
+}
+
+/**
+ * The multi-field 基础信息 form (owner, 2026-09-20: 设计图严格对齐 - 先做
+ * 基础信息表单，智能采集先跳过).
+ *
+ * THE STORE PATCH TYPE ALREADY COVERED EVERY ONE OF THESE FIELDS - name,
+ * industryId/customerTypeId/customerSizeId/customerNatureId, region,
+ * province, segmentCode, creditCode, website, employeeCount have all been
+ * writable via `updateAccount()` since their own increments (0024/0035/0040/
+ * 0071/0072), and every one of those increments said so in its own grant
+ * comment. What did not exist was a SERVICE VERB taking more than one of them
+ * at once - `fillAccountField` only ever writes the single completeness-gap
+ * field a "补充" link points at, `reassignAccount`/`designateAccount` each own
+ * one fact. A form with eleven fields calling fillAccountField eleven times
+ * would gate, read and write the account eleven separate times for one save.
+ *
+ * UNDEFINED MEANS "LEAVE IT", null MEANS "CLEAR IT" - the same convention
+ * `updateAccount`'s own patch already uses (a Partial<Pick<...>>): a caller
+ * only sends the keys the form actually changed, and a nullable column can
+ * still be blanked out on purpose.
+ *
+ * NO 智能采集 HERE. That is an AI-driven external enrichment action, a
+ * different capability from "write the value a person typed" - conflating
+ * the two would make this verb's gate answer a question ("may an AI fetch
+ * external data about this company") that account.upsert was never meant to
+ * answer. Building it out is the owner's explicit next step, not this one's.
+ */
+export interface AccountBasicsPatch {
+  name?: string;
+  region?: string | null;
+  province?: string | null;
+  industryId?: string | null;
+  segmentCode?: string | null;
+  customerTypeId?: string | null;
+  customerSizeId?: string | null;
+  customerNatureId?: string | null;
+  creditCode?: string | null;
+  website?: string | null;
+  employeeCount?: number | null;
+}
+
+export async function updateAccountBasics(
+  ctx: AccountContext,
+  accountId: string,
+  patch: AccountBasicsPatch,
+): Promise<RuleResult<AccountRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  if (patch.name !== undefined && !patch.name.trim()) {
+    return fail(violation("name_required", "an account needs a name", "name"));
+  }
+  // Same CHECK the database enforces (incr/0035) - refused here, in the
+  // product's own terms, rather than as a raw constraint violation.
+  if (patch.province != null && !isProvince(patch.province)) {
+    return fail(violation(
+      "province_unknown",
+      `${patch.province} is not one of the 34 provincial-level divisions`,
+      "province",
+    ));
+  }
+  if (
+    patch.employeeCount != null &&
+    (!Number.isInteger(patch.employeeCount) || patch.employeeCount < 0)
+  ) {
+    return fail(violation(
+      "employee_count_invalid",
+      "employee count must be a non-negative whole number",
+      "employeeCount",
+    ));
+  }
+
+  const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!current) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+
+  const write: Partial<AccountRecord> = {};
+  if (patch.name !== undefined) write.name = patch.name.trim();
+  if (patch.region !== undefined) write.region = patch.region;
+  if (patch.province !== undefined) write.province = patch.province;
+  if (patch.industryId !== undefined) write.industryId = patch.industryId;
+  if (patch.segmentCode !== undefined) write.segmentCode = patch.segmentCode;
+  if (patch.customerTypeId !== undefined) write.customerTypeId = patch.customerTypeId;
+  if (patch.customerSizeId !== undefined) write.customerSizeId = patch.customerSizeId;
+  if (patch.customerNatureId !== undefined) write.customerNatureId = patch.customerNatureId;
+  if (patch.creditCode !== undefined) write.creditCode = patch.creditCode;
+  if (patch.website !== undefined) write.website = patch.website;
+  if (patch.employeeCount !== undefined) write.employeeCount = patch.employeeCount;
+
+  const written = await ctx.store.updateAccount(ctx.workspaceId, accountId, write);
+  if (!written) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  const updated = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  return ok(updated as AccountRecord);
 }
 
 /**

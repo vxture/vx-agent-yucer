@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ShellBrand,
+  ShellIconButton,
   ShellPreferencePanel,
   ShellSearchBox,
   ShellUserMenu,
@@ -37,6 +38,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
+import { ACCOUNT_SIDEBAR_SLOT_ID } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -221,9 +223,20 @@ export function AppShell({
    * happen to live under a prefix. A rule keyed on segment count would have
    * stripped the board from them and been wrong in a way nobody would notice
    * until they went looking for it.
+   *
+   * "account" REMOVED (owner, 2026-09-20: 客户详情页恢复三栏独立布局，跟
+   * /account 列表页一致) - the account detail page now keeps the board
+   * beside it like every first-level page does; only "pipeline" detail pages
+   * still free the width this way.
    */
-  const DETAIL_ROOTS = ["account", "pipeline"];
+  const DETAIL_ROOTS = ["pipeline"];
   const isDetail = segments.length >= 2 && DETAIL_ROOTS.includes(segments[0]!);
+  /** 栏1 取代通用模块导航, 不是并排加一个 (owner, 2026-09-20: 死死记住这次的
+   *  要求 - "整体页面是三栏，不是内容区还是两栏"). 客户详情路由下, 这一侧的
+   *  <aside> 还是同一个(宽度/独立滚动都不变, 见下面 boardVisible 的渲染),
+   *  只是内容从 NavBoard 换成这个客户自己的档案 - account-sidebar-portal.tsx
+   *  把 page.tsx 已经建好的栏1内容传送到这里, 不重新发起一次数据读。 */
+  const isAccountDetail = segments.length >= 2 && segments[0] === "account";
 
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
@@ -376,7 +389,30 @@ export function AppShell({
         <ShellHeader
           leading={
             <>
-              {/* (1) The functional domain: NINE DOTS, no label, no fill.
+              {/* (1) THE BOARD TOGGLE - restored (owner, 2026-09-21: 恢复侧边栏
+                  展开收起按钮 - 这是"整体页面 header"里的那一个, 不是账户详情页
+                  侧栏自己顶部的功能条那个, 两者管的是不同的开关). 一度在
+                  2026-09-14(#309) 被撤掉, 理由是"detail 页面根本没有 board,
+                  一个切换不存在东西的按钮是死按钮" - 那时 account detail 也在
+                  DETAIL_ROOTS 里, isDetail 对它是 true。2026-09-20 account 从
+                  DETAIL_ROOTS 移出后, 账户详情页恢复了跟其他一级页面一样的
+                  三栏布局(自己的 board), 撤掉这个按钮的前提已经不成立 - 这里
+                  是把它按原样放回来, 而不是发明一个新控件。
+                  账户详情页曾经在这个 aside 顶部另开过一条本地收起/展开
+                  (accountSidebarCollapsed) - 这个全局开关一恢复, "要不要看
+                  这块地方"就只需要一个开关了, 那条本地状态在 2026-09-21
+                  跟着它自己的功能条一起撤掉(owner: 聚焦客户全景图页面 -
+                  这样更好一些, 现在可以去掉 sidebar 顶部的区域), 不是被
+                  这次改动顺带清理的意外产物。 */}
+              {isDetail ? null : (
+                <ShellIconButton
+                  icon="sidebar"
+                  label={showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen}
+                  onClick={toggleBoard}
+                />
+              )}
+
+              {/* (2) The functional domain: NINE DOTS, no label, no fill.
 
                 An app grid is a universal idiom and it does not need a word
                 beside it; the 110px of text it used to carry made the second
@@ -395,7 +431,7 @@ export function AppShell({
                 upgradeHref={upgradeHref}
               />
 
-              {/* (2)(3) Two logos, then the name: platform mark | product
+              {/* (3)(4) Two logos, then the name: platform mark | product
                   mark, 聿策 销售智能体. ShellBrandProps only has one `logoSrc`
                   slot, so the platform mark rides that slot as before and the
                   product mark moves into `label` alongside the name - `label`
@@ -439,7 +475,7 @@ export function AppShell({
                 }
               />
 
-              {/* (4) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
+              {/* (5) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
                   tier from the entitlement, one of five, in English, on every
                   screen - production included. The brand tone keeps the DS's
                   star. Unsubscribed says so in the neutral tone. */}
@@ -449,13 +485,13 @@ export function AppShell({
                   : HEADER_TEXT.subscriptionNone}
               </Tag>
 
-              {/* (5) The rule. It separates identity from scope: everything to
+              {/* (6) The rule. It separates identity from scope: everything to
                 its left is which PRODUCT this is, everything to its right is
                 which DATA you are in. Those are different questions and they
                 used to run together as two badges. */}
               <Separator orientation="vertical" className="h-control-sm" />
 
-              {/* (6) Workspace and tenant. The isolation key every row and every
+              {/* (7) Workspace and tenant. The isolation key every row and every
                 gate decision is scoped by - a member with access to more than
                 one has to know which they are reading before they read a single
                 number, so it rides the header rather than a panel that can be
@@ -724,15 +760,29 @@ export function AppShell({
             on a wrapper around it, so it scrolls INTO view as trailing space
             rather than shrinking how far the pane can scroll. */}
         {boardVisible ? (
-          <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
-            <NavBoard
-              sections={board}
-              modules={boardModules}
-              activeKey={activeKey}
-              pathname={pathname}
-              nav={nav}
-            />
-          </aside>
+          isAccountDetail ? (
+            /* 客户详情页侧栏顶部的功能条撤掉了 (owner, 2026-09-21: 聚焦客户
+               全景图页面 - 这样更好一些, 现在可以去掉 sidebar 顶部的区域).
+               返回/收起展开这两个按钮变得多余的原因是全局 header 的战况板
+               开关已经恢复(见上面第一条 leading 按钮的说明) - 同一件"要不要
+               看这块地方"的事现在只有一个开关, 不需要账户详情页自己再长一个
+               本地的收起/展开。客户总编辑(操作按钮)没有跟着一起删 - 它挪进了
+               内容区的面包屑行, 见 page.tsx。这个 aside 现在跟 NavBoard 的
+               一样朴素: 只有一个供 portal 落点的空 div。 */
+            <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
+              <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
+            </aside>
+          ) : (
+            <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
+              <NavBoard
+                sections={board}
+                modules={boardModules}
+                activeKey={activeKey}
+                pathname={pathname}
+                nav={nav}
+              />
+            </aside>
+          )
         ) : null}
 
         {/* CENTRE - the engagement. Its 16px is the only horizontal padding

@@ -155,6 +155,24 @@ export async function listPipeline(
 }
 
 /**
+ * When each open deal last moved stage, from the journal - the same map
+ * `previewCategories` rolls up, gated on plain `pipeline.view` instead of the
+ * forecast feature. "How long has this sat here" is a fact about the deal
+ * list, not a forecast-tier capability - a rep without forecasting still owns
+ * the deal and still needs to see it stalling. Callers combine this with
+ * `daysAtStage()` (lib/forecast-rule.ts) per opportunity; there is no stored
+ * `stage_entered_at` column on purpose (00_baseline.sql's own comment on the
+ * table: stage transitions are journalled, never inferred from updated_at).
+ */
+export async function stageChangeTimestamps(
+  ctx: PipelineContext,
+): Promise<RuleResult<Map<string, Date>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.latestStageChangeAt(ctx.workspaceId));
+}
+
+/**
  * Advance (or regress) an opportunity's stage.
  *
  * The actor is taken from the context, never from the request body: a caller

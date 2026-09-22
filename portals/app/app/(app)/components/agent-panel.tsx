@@ -16,9 +16,15 @@ import { useMessages } from "../lib/i18n/provider";
 // looking at. On the right it is what it actually is, an always-available way
 // to put something into the system.
 //
-// The two lists under it are not a feed. They answer the only two questions
-// that make the panel worth glancing at: what has the agent put in front of me,
-// and did the last thing I wrote actually land.
+// The lists under it are not a feed - each one answers a question worth
+// glancing at, not a scroll of everything that happened.
+//
+// "最近记的" (recent notes) is GONE (owner, 2026-09-21: 继续梳理智能助手板块
+// - 最近记的和跟进记录 tab 重复, 去掉, 只保留详细 tab 那一份) - it queried
+// the same listInteractions() the account page's own 跟进记录 tab already
+// shows in full; this panel's copy was the same three rows, truncated to 40
+// characters, with no way to see more. One place to read what was recorded,
+// not two disagreeing on how much of it to show.
 
 export interface AgentPanelProps {
   readonly data: AgentPanelData;
@@ -77,19 +83,6 @@ export function AgentPanel({
           <span className="text-muted-foreground text-body-sm">{BOARD_TEXT.analysisNote}</span>
         </span>
       ),
-    },
-    {
-      id: "recent",
-      title: BOARD_TEXT.recentTitle,
-      empty: BOARD_TEXT.recentEmpty,
-      // A record of what happened is not a suggestion: nothing to accept, and
-      // nothing to dismiss.
-      items: data.recent.map((r) => ({
-        id: r.id,
-        text: r.text,
-        trail: r.when,
-        ignorable: false,
-      })),
     },
   ];
 

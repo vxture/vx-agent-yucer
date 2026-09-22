@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type IconName, type StatusBadgeTone } from "@vxture/design-ui";
+import type { AccountTier } from "../../domains/account/store";
 
 // 标签 - a badge that may be neutral, which is every badge in this product
 // except the ones that are always coloured.
@@ -94,3 +95,16 @@ export function NameOverflowTag({
     </Tooltip>
   );
 }
+
+/** 客户级别的金/银/铜牌图 (owner, 2026-09-20: 我在项目根目录放了三个icon，
+ *  对应各户级别的图片) - a photographic medal, not the DS's generic flat
+ *  "medal" glyph. Assets normalized to 128x128 transparent PNG under
+ *  public/assets/icons/tier-*.png. Exported (not wrapped in a Tag/StatusBadge
+ *  here) because the header's 客户级别 dimension is a two-line stat block
+ *  (dimension-stat.tsx's `DimensionStat`), not a pill - see that file's own
+ *  note on 严格按照设计实施. */
+export const TIER_ICON_SRC: Record<AccountTier, string> = {
+  strategic: "/assets/icons/tier-gold.png",
+  key: "/assets/icons/tier-silver.png",
+  standard: "/assets/icons/tier-bronze.png",
+};

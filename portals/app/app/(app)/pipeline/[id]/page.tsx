@@ -602,6 +602,7 @@ export default async function OpportunityDetailPage({
             name: c.name,
             buyingRole: stated?.buyingRole ?? "unknown",
             influence: stated?.influence ?? null,
+            stance: stated?.stance ?? null,
           };
         })}
         canEdit={

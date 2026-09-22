@@ -92,15 +92,18 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "started_at",
     "ended_at",
     "updated_at",
+    // incr/0073 - manual roster order, per account (see the file's own note).
+    "sort_order",
   ],
 
-  // incr/0027. opportunity_id and person_id are ABSENT: the pair is the edge,
-  // and re-pointing it at another deal or another person is a different fact
-  // rather than an edit of this one.
+  // incr/0027, stance added incr/0075. opportunity_id and person_id are
+  // ABSENT: the pair is the edge, and re-pointing it at another deal or
+  // another person is a different fact rather than an edit of this one.
   "yucer_pipeline.opportunity_contact": [
     "buying_role",
     "influence",
     "is_primary",
+    "stance",
     "updated_at",
   ],
 
@@ -218,8 +221,31 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "health",
     "starts_at",
     "ends_at", "engagement_type",
+    // incr/0077 - which contract this delivery runs under. Writable, unlike
+    // the frozen links on contract itself: attaching the two is clerical, not
+    // a reallocation of who earned the revenue.
+    "contract_id",
     "status",
     "updated_at",
+  ],
+  // incr/0076 - 合同. contract_no is the anchor; account_id, opportunity_id and
+  // renewed_from_contract_id are all records of how this contract came to
+  // exist and are frozen for the attribution-key reason.
+  "yucer_delivery.contract": [
+    "name",
+    "total_amount",
+    "currency",
+    "term_start",
+    "term_end",
+    "notice_days",
+    "status",
+    "signed_at",
+    "updated_at",
+  ],
+  // incr/0076 - contract_id and product_id are the line's identity, the same
+  // rule opportunity_line carries.
+  "yucer_delivery.contract_line": [
+    "quantity", "unit_price", "amount", "currency", "term_end", "updated_at",
   ],
   // incr/0032 - a milestone became a commercial gate. The acceptance trio is
   // writable because it is RECORDED after the fact (the customer does not use
@@ -381,6 +407,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // incr/0053. A placement is a pair too - one person in several units - so
   // the 0051 grant on unit_id is withdrawn: a move is a delete and an insert.
   "yucer_gtm.org_unit_member",
+  // incr/0074. Being on an account's collaborator roster or not is a single
+  // fact, same pair shape as territory_unit/org_unit_member above it.
+  "yucer_core.account_collaborator",
   "yucer_core.account_relation",
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",

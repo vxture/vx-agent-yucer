@@ -12,7 +12,6 @@ import {
   getCatalogStore,
   getCopilotStore,
   getDeliveryStore,
-  getFieldStore,
   getPipelineStore,
   getPlanningStore,
   getSignalStore,
@@ -742,10 +741,16 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
 // ---------------------------------------------------------------------------
 // The right panel.
 //
-// Capture, and the two short lists that prove capture is working: what the
-// agent has put in front of a person, and what that person last wrote down.
-// It lives in the SHELL rather than on the home page because it belongs to no
-// single screen - a note is worth keeping whatever you were looking at.
+// Capture, and the short list that proves capture is working: what the agent
+// has put in front of a person. It lives in the SHELL rather than on the home
+// page because it belongs to no single screen - a note is worth keeping
+// whatever you were looking at.
+//
+// "最近记的" (recent notes) used to live here too - dropped (owner,
+// 2026-09-21: 继续梳理智能助手板块) because it re-queried the exact same
+// listInteractions() the account page's own 跟进记录 tab already shows in
+// full, just truncated to three rows of 40 characters with no way to see
+// more. One place reads what was recorded, not two.
 
 export interface AgentPanelData {
   /** Present when the deck is scoped to one object; names it. */
@@ -757,7 +762,6 @@ export interface AgentPanelData {
     why: string;
     source: string;
   }[];
-  readonly recent: readonly { id: string; text: string; when: string }[];
 }
 
 /**
@@ -791,7 +795,6 @@ export interface AgentScope {
 
 export async function agentPanel(
   ctx: BoardContext,
-  now: Date,
   scope?: AgentScope,
 ): Promise<AgentPanelData> {
   const { BOARD_TEXT, FORECAST_LABEL } = await getMessages();
@@ -802,21 +805,7 @@ export async function agentPanel(
     entitlement: ctx.entitlement,
   };
 
-  const [feed, notes] = await Promise.all([
-    cachedFeed(base),
-    getFieldStore().listInteractions(ctx.workspaceId, {
-      limit: 3,
-      // Scoped to the object when there is one. The filter is the store's, so
-      // this is a narrower query rather than a wider one filtered afterwards.
-      ...(scope?.type === "account" ? { accountId: scope.id } : {}),
-      ...(scope?.type === "opportunity" ? { opportunityId: scope.id } : {}),
-    }),
-  ]);
-
-  const day = (d: Date) => {
-    const n = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
-    return n <= 0 ? BOARD_TEXT.whenToday : BOARD_TEXT.whenDaysAgo(n);
-  };
+  const feed = await cachedFeed(base);
 
   return {
     scanned: feed.ok ? feed.value.scanned : 0,
@@ -858,13 +847,5 @@ export async function agentPanel(
                 : BOARD_TEXT.sourceModel,
           }))
       : [],
-    recent: notes.map((n) => ({
-      id: n.id,
-      text:
-        n.rawNote.length > 40
-          ? BOARD_TEXT.truncate(n.rawNote.slice(0, 40))
-          : n.rawNote,
-      when: day(n.occurredAt),
-    })),
   };
 }

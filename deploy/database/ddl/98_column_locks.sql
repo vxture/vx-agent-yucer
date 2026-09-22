@@ -205,6 +205,15 @@ GRANT UPDATE (name, manager_sub, contract_amount, currency, health, starts_at, e
 -- not exist" and takes the whole apply down with it. Increment 0018 carries
 -- its own grant, which is the rule incr/README states and the reason every
 -- column-adding increment re-states the full GRANT for its table.
+-- contract_id is absent for the same reason: incr/0077 adds it and restates
+-- this whole list, so on any database that has applied it the version above is
+-- superseded.
+
+-- yucer_delivery.contract and yucer_delivery.contract_line are created by
+-- incr/0076 and carry their own grants there - 97 cannot grant on a table that
+-- did not exist when it ran, and this file's REVOKE would kill db-init against
+-- one. Frozen on contract: contract_no, account_id, opportunity_id,
+-- renewed_from_contract_id. Frozen on contract_line: contract_id, product_id.
 
 -- project_milestone.sequence is part of uidx_project_milestone_seq -> immutable.
 -- WIDENED AND NARROWED AGAIN by incr/0032: the acceptance trio became writable,

@@ -140,6 +140,7 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "account/interaction": { group: "position", module: "account", page: "account.interaction" },
   "account/commitment": { group: "position", module: "account", page: "account.commitment" },
   "account/graph": { group: "position", module: "account", page: "account.graph" },
+  "account/collaborator": { group: "position", module: "account", page: "account.collaborator" },
   "pipeline/": { group: "position", module: "pipeline", page: "pipeline.base" },
   "pipeline/opportunity": { group: "position", module: "pipeline", page: "pipeline.opportunity" },
   "pipeline/discount": { group: "position", module: "pipeline", page: "pipeline.discount" },

@@ -57,6 +57,9 @@ import { DEMO_SUCCESSOR_SUBS } from "./demo-members";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
 import { DEFAULT_WIN_LOSS_REASONS } from "../pipeline/lib/win-loss-vocab";
+import { DEFAULT_CUSTOMER_NATURES } from "../account/lib/customer-nature";
+import { DEFAULT_CUSTOMER_SIZES } from "../account/lib/customer-size";
+import { DEFAULT_CUSTOMER_TYPES } from "../account/lib/customer-type";
 import { DEFAULT_INDUSTRIES } from "../account/lib/industry-vocab";
 import { DEFAULT_UNIT_VOCABULARY } from "../catalog/lib/unit-vocab";
 import type { InMemoryAccountStore } from "../account/store";
@@ -415,6 +418,9 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         creditCode: "91310000MA1FL2XY3T",
         website: "https://hdretail.example.cn",
         employeeCount: 4200,
+        customerNature: DEFAULT_CUSTOMER_NATURES.find((n) => n.customerNatureCode === "private")!.name,
+        customerType: DEFAULT_CUSTOMER_TYPES.find((t) => t.customerTypeCode === "direct")!.name,
+        customerSize: DEFAULT_CUSTOMER_SIZES.find((s) => s.customerSizeCode === "medium")!.name,
       }),
       account("acc_demo_2", workspaceId, 2, DEMO_ACCOUNTS[1], "ENTERPRISE", REP2, 78, "active"),
       // Strategic, and deliberately a PROSPECT with no open opportunity: this is
@@ -510,10 +516,15 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       // person, moved to the only place it can be true - and the demo needs
       // them, because with person.decision_role gone a deal with no rows here
       // has no chain at all.
-      oc("oc_5", workspaceId, "opp_demo_1", "ct_1", "economic", 90),
-      oc("oc_6", workspaceId, "opp_demo_1", "ct_2", "technical", 70),
-      oc("oc_7", workspaceId, "opp_demo_1", "ct_3", "coach", 55),
-      oc("oc_8", workspaceId, "opp_demo_1", "ct_4", "blocker", 60),
+      // 立场(stance, incr/0075) 跟角色是两件事: ct_4 原来用 "blocker" 这个
+      // 角色值同时表达"设置障碍的功能角色"和"反对我方"两件事 - 现在拆开,
+      // 他的真实职务(采购负责人)对应 UB(业务侧的采购影响力), "反对"这件事
+      // 交给 stance='antagonist' 单独表达 - 跟下面 ct_4 对 ct_1 的
+      // opposed_to 关系边是同一个事实的两个角度, 不是编的。
+      oc("oc_5", workspaceId, "opp_demo_1", "ct_1", "economic", 90, "champion"),
+      oc("oc_6", workspaceId, "opp_demo_1", "ct_2", "technical", 70, "supporter"),
+      oc("oc_7", workspaceId, "opp_demo_1", "ct_3", "coach", 55, "champion"),
+      oc("oc_8", workspaceId, "opp_demo_1", "ct_4", "user", 60, "antagonist"),
       // acc_demo_4: a buyer and a coach with NO edge between them, so the chain
       // reports "on file but unreachable" - the distinction the view leads with.
       oc("oc_9", workspaceId, "opp_demo_6", "ct_7", "economic", 80),
@@ -1320,6 +1331,9 @@ function account(
     website?: string | null;
     employeeCount?: number | null;
     parentId?: string | null;
+    customerType?: string | null;
+    customerSize?: string | null;
+    customerNature?: string | null;
   } = {},
 ) {
   return {
@@ -1336,14 +1350,11 @@ function account(
        nowhere, so the fixture refuses it rather than writing a dangling id -
        the same refusal fillAccountField makes at runtime. */
     industryId: info.industry ? INDUSTRY_ID_BY_NAME.get(info.industry) ?? null : null,
-    // incr/0071. The demo never assigns either - every fixture account is
-    // honestly unclassified on these two, the same ordinary state as most
-    // real customers on first contact.
-    customerType: null,
+    customerType: identity.customerType ?? null,
     customerTypeId: null,
-    customerSize: null,
+    customerSize: identity.customerSize ?? null,
     customerSizeId: null,
-    customerNature: null,
+    customerNature: identity.customerNature ?? null,
     customerNatureId: null,
     // Same reasoning as industry, and needed for the same reason: 港澳零售集团
     // writes "" for the region-derivable case, and the column and every rule
@@ -1383,6 +1394,11 @@ function contact(
     mobile: reach.mobile ?? null,
     wechat: reach.wechat ?? null,
     status: "active",
+    // incr/0073 - every demo contact starts at the DDL default. The sort is
+    // stable, so this array's own order (ct_1, ct_2, ...) is the order they
+    // render in until somebody actually moves one - the self-heal the real
+    // column is designed for (domains/shared/ordering.ts's own comment).
+    sortOrder: 0,
   };
 }
 
@@ -1393,6 +1409,10 @@ function oc(
   personId: string,
   buyingRole: string,
   influence: number,
+  // incr/0075 - optional, defaulting to null (nobody has stated it), same
+  // "no backfill" reasoning as buyingRole itself once had before the seed
+  // started stating one.
+  stance: string | null = null,
 ) {
   return {
     id,
@@ -1402,6 +1422,7 @@ function oc(
     buyingRole: buyingRole as never,
     influence,
     isPrimary: false,
+    stance: stance as never,
   };
 }
 

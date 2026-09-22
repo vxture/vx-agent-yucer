@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { Button, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // What is missing from this customer, and who can answer it.
 //
@@ -58,7 +60,7 @@ export function AccountCompleteness({
   onAsk,
   canAsk = false,
 }: AccountCompletenessProps) {
-  const { COMPLETENESS_TEXT, COMPLETENESS_ERROR, COPILOT_TEXT } = useMessages();
+  const { COMPLETENESS_TEXT, COMPLETENESS_ERROR, COPILOT_TEXT, ACCOUNT_TEXT } = useMessages();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,8 +93,22 @@ export function AccountCompleteness({
     (g) => g.suggestion === null && !g.forModel && COMPLETENESS_TEXT.structural[g.field],
   );
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
+  // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   return (
-    <Section title={COMPLETENESS_TEXT.title} description={COMPLETENESS_TEXT.description}>
+    <Section
+      tone="raised"
+      style={CARD_VEIL_STYLE}
+      className={CARD_VEIL_CLASS}
+      title={
+        <span className="inline-flex items-center gap-xs whitespace-nowrap">
+          <span>{COMPLETENESS_TEXT.title}</span>
+          <LayerLabel layer="L1" />
+          <CapBadge tier="pro">Pro</CapBadge>
+        </span>
+      }
+    >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {derivable.map((g) => (
@@ -173,6 +189,9 @@ export function AccountCompleteness({
           {COMPLETENESS_TEXT.structural[g.field] ?? g.basis ?? g.field}
         </StatusBadge>
       ))}
+      <CapFooter>
+        <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capCompletenessDesc}
+      </CapFooter>
     </Section>
   );
 }

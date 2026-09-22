@@ -137,7 +137,7 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 27 permissions, 31 roles, 423 grants", () => {
+test("the catalog is the documented size: 27 permissions, 31 roles, 442 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
   //
@@ -194,10 +194,15 @@ test("the catalog is the documented size: 27 permissions, 31 roles, 423 grants",
   // actions.test.ts's own hard rule refuses that state outright, so incr/0064
   // deletes both rows (12 pipeline.dealType grants + 14 pipeline.stage
   // grants = 26 fewer).
-  assert.equal(PERM_CODES.length, 26);
+  //
+  // 26 -> 27 and 420 -> 442 by incr/0074: account.collaborator (关联协作人).
+  // Granted to the same 22 roles that hold account.record - working a
+  // relationship as a team is the same population as recording what
+  // happened in it.
+  assert.equal(PERM_CODES.length, 27);
   assert.equal(ROLE_CODES.length, 31);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 420);
+  assert.equal(total, 442);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {
