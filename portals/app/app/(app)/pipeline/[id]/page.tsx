@@ -75,6 +75,7 @@ import { StageJourney } from "../../components/stage-journey";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import {
+  chainRecency,
   listCommitments,
   listInteractions,
 } from "../../../domains/account/field-service";
@@ -306,6 +307,13 @@ export default async function OpportunityDetailPage({
     ? (history.value.map((e) => e.occurredAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null)
     : null;
   const briefNow = new Date();
+  // For 卡在谁身上: names for the people a commitment or the chain points at,
+  // and when anyone last spoke with this deal's buyers.
+  const contactName = new Map((account.ok ? account.value.contacts : []).map((c) => [c.id, c.name]));
+  const buyerRecency =
+    opportunity.accountId && dealChain
+      ? await chainRecency(fieldCtx, opportunity.accountId, dealChain.people, [], { now: briefNow })
+      : ({ ok: false } as const);
   const brief = dealBrief({
     deal: {
       id,
@@ -324,7 +332,14 @@ export default async function OpportunityDetailPage({
       status: c.status,
       dueAt: c.dueAt,
       statement: c.statement,
+      counterpartName: c.counterpartContactId ? (contactName.get(c.counterpartContactId) ?? null) : null,
     })),
+    economicBuyers: (dealChain?.people ?? [])
+      .filter((p) => p.decisionRole === "economic" && p.status === "active")
+      .map((p) => ({
+        name: contactName.get(p.id) ?? CHAIN_TEXT.unnamedPerson,
+        lastContactAt: buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(p.id) ?? null) : null,
+      })),
     lines: (lineRows.ok ? lineRows.value : [])
       .filter((l) => l.opportunityId === id)
       .map((l) => ({ needsApproval: l.needsApproval, approved: l.approved })),
@@ -338,6 +353,10 @@ export default async function OpportunityDetailPage({
       stageMoving: WAR_ROOM_TEXT.stageMoving,
       stageStalled: WAR_ROOM_TEXT.stageStalled,
       stageTerminal: WAR_ROOM_TEXT.stageTerminal,
+      stallOnUs: WAR_ROOM_TEXT.stallOnUs,
+      stallOnThem: WAR_ROOM_TEXT.stallOnThem,
+      stallOnBuyer: WAR_ROOM_TEXT.stallOnBuyer,
+      stallUnknown: WAR_ROOM_TEXT.stallUnknown,
       forecastAgrees: WAR_ROOM_TEXT.forecastAgrees,
       forecastDisagrees: WAR_ROOM_TEXT.forecastDisagrees,
       forecastSettled: WAR_ROOM_TEXT.forecastSettled,
