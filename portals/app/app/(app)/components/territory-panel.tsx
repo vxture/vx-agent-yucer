@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemberName } from "../lib/member-names";
 import {
   DataTable,
   EmptyState,
@@ -55,6 +56,7 @@ export function TerritoryPanel({
   readonly action?: ReactNode;
 }) {
   const { DATA_TABLE_LABELS, DOMAIN_LABEL, PLANNING_TEXT } = useMessages();
+  const memberName = useMemberName();
   const sorted = useTableSort<TerritoryRow>([], SORT_ON);
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   return (
@@ -117,7 +119,7 @@ export function TerritoryPanel({
               id: "owner",
               header: PLANNING_TEXT.territoryOwner,
               cell: (r: TerritoryRow) =>
-                r.ownerSub ?? PLANNING_TEXT.territoryNoOwner,
+                memberName(r.ownerSub) ?? PLANNING_TEXT.territoryNoOwner,
             },
             {
               id: "status",

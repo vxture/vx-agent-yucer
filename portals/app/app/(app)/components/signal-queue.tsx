@@ -94,6 +94,8 @@ export interface SignalQueueProps {
   }[];
   readonly canTriage: boolean;
   readonly canRescore: boolean;
+  /** campaign id -> name, for a signal whose source is one of our campaigns. */
+  readonly campaignNames?: Readonly<Record<string, string>>;
   readonly onAct: (
     signalId: string,
     action: SignalAction,
@@ -190,6 +192,7 @@ export function SignalQueue({
   canRescore,
   onAct,
   onDismiss,
+  campaignNames = {},
 }: SignalQueueProps) {
   const { DS_LABELS, EXIT_REASON_LABEL, SIGNAL_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
   const [pending, start] = useTransition();
@@ -311,6 +314,7 @@ export function SignalQueue({
                   {g.items.map((s) => (
                     <Row
                       key={s.record.id}
+                      campaignNames={campaignNames}
                       signal={s}
                       open={openId === s.record.id}
                       busy={pending && busyId === s.record.id}
@@ -337,6 +341,7 @@ export function SignalQueue({
 }
 
 function Row({
+  campaignNames,
   signal: s,
   open,
   busy,
@@ -346,6 +351,7 @@ function Row({
   onAct,
   onAskDismiss,
 }: {
+  campaignNames: Readonly<Record<string, string>>;
   signal: QueueSignal;
   open: boolean;
   busy: boolean;
@@ -356,7 +362,7 @@ function Row({
   /** 忽略 opens a dialog owned by the queue - this row only asks for it. */
   onAskDismiss: (id: string) => void;
 }) {
-  const { SIGNAL_TEXT, SIGNAL_STATUS_LABEL, SIGNAL_TYPE_LABEL } = useMessages();
+  const { SIGNAL_TEXT, SIGNAL_STATUS_LABEL, SIGNAL_TYPE_LABEL, SIGNAL_PANEL_TEXT } = useMessages();
   const locale = useLocale();
   const r = s.record;
   const tone = confidenceTone(r.score);
@@ -466,7 +472,14 @@ function Row({
           <p className="text-muted-foreground min-w-0 truncate text-body-sm">
             {SIGNAL_TEXT.detectedOn(
               r.detectedAt.toISOString().slice(0, 10),
-              r.sourceRef ?? r.source,
+              // Where it came from, READABLE (polish, 2026-09-24): the raw ref
+              // printed "camp_demo_3". A campaign reads as its name, a web
+              // address as its host, anything else as the feed's label.
+              r.source === "campaign" && r.sourceRef && campaignNames[r.sourceRef]
+                ? campaignNames[r.sourceRef]!
+                : r.sourceRef && /^https?:\/\//.test(r.sourceRef)
+                  ? new URL(r.sourceRef).host
+                  : (SIGNAL_PANEL_TEXT.sourceLabel[r.source] ?? r.source),
             )}
           </p>
           <span className="flex shrink-0 items-center gap-xs">

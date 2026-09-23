@@ -5356,6 +5356,7 @@ export const STRATEGY_TEXT = {
   colSegmentName: "细分名称",
   colSegmentPlan: "所属计划",
   colSegmentCriteria: "定义",
+  colSegmentCriteriaPlan: "定义 · 所属计划",
   colSegmentCounts: "在册 / 命中",
   segmentNoCriteriaYet: "未定义",
   segmentPause: "暂停",
@@ -6697,6 +6698,7 @@ export const SIGNAL_PANEL_TEXT = {
     partner: "合作伙伴",
     manual: "手工录入",
     arda: "Arda",
+    cohort: "相似客户",
   } as Record<string, string>,
   cap: "已匹配到本客户的外部信号 + 来源链接",
 };

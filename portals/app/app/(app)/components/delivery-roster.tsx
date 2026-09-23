@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberName, useMemberName } from "../lib/member-names";
 import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
 import {
@@ -233,7 +234,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
       // is how a UUID ends up in front of someone who then does not chase it.
       cell: (r: DeliveryRow) =>
         r.managerSub ? (
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.managerSub}</span>
+          <span className="text-muted-foreground truncate text-body-sm"><MemberName sub={r.managerSub} /></span>
         ) : (
           <span className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.managerNone}</span>
         ),

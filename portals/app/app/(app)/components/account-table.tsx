@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -234,7 +235,7 @@ export function AccountTable({
       cell: (row) =>
         row.ownerSub ? (
           <span className="text-muted-foreground font-mono text-body-sm">
-            {row.ownerSub}
+            <MemberName sub={row.ownerSub} />
           </span>
         ) : (
           <span className="text-muted-foreground text-body-sm">

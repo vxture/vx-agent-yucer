@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -108,7 +109,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
       // A raw subject, marked as one - the same call every other list here makes.
       cell: (r: PlanRow) =>
         r.ownerSub ? (
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.ownerSub}</span>
+          <span className="text-muted-foreground truncate text-body-sm"><MemberName sub={r.ownerSub} /></span>
         ) : (
           <span className="text-muted-foreground text-body-sm">{STRATEGY_TEXT.ownerNone}</span>
         ),

@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { NativeSelect } from "@vxture/design-ui";
@@ -43,6 +44,7 @@ export function ForecastScopePicker({
   owners,
 }: ForecastScopePickerProps) {
   const { PIPELINE_TEXT } = useMessages();
+  const nameOf = useMemberName();
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
@@ -75,7 +77,7 @@ export function ForecastScopePicker({
       ))}
       {owners.map((o) => (
         <option key={o} value={`owner:${o}`}>
-          {PIPELINE_TEXT.scopeOwner(o)}
+          {PIPELINE_TEXT.scopeOwner(nameOf(o) ?? o)}
         </option>
       ))}
     </NativeSelect>

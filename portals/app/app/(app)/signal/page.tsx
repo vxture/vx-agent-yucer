@@ -1,10 +1,11 @@
 import { Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { listCampaigns } from "../../domains/strategy/service";
 import { resolveAppSession } from "../lib/session";
 // A SERVER component, so the dictionary is awaited rather than hooked. The
 // locale comes from the request; next/headers caches it, so several server
 // components asking cost one resolution.
 import { getMessages } from "../lib/i18n/server";
-import { getSignalStore } from "../../domains/shared/registry";
+import { getSignalStore, getStrategyStore } from "../../domains/shared/registry";
 import { listSignals } from "../../domains/signal/service";
 import { can } from "../../authz/decide";
 import { SignalQueue, type QueueSignal } from "../components/signal-queue";
@@ -123,6 +124,10 @@ export default async function SignalPage() {
       Math.abs(s.recomputed - s.record.score) >= 5,
   ).length;
 
+  // Campaign names for "发现于 … · <campaign>" - a refused read keeps the label.
+  const campaignsRead = await listCampaigns({ ...ctx, store: getStrategyStore() }).catch(() => null);
+  const campaignNames = Object.fromEntries((campaignsRead?.ok ? campaignsRead.value : []).map((c) => [c.id, c.name]));
+
   return (
     <ViewLayout>
       {/* THE MODULE HEADER, no fold (owner, 2026-09-06). Card and icon like
@@ -160,6 +165,7 @@ export default async function SignalPage() {
 
       <SignalQueue
         groups={groups}
+        campaignNames={campaignNames}
         // Both flags come from the SAME gate the server action re-runs. Naming
         // tiers here would be the product re-deriving a commercial conclusion,
         // and it would drift from the matrix the moment packaging changed.
