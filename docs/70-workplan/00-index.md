@@ -3789,3 +3789,24 @@ Explore 审计核实 `/account/[id]` 现状是否已经聚合跨域信息（商�
 就没有智能体产出，没有界面就没人看得到——三者拆开做没有意义，必须按顺序交付
 到能看见结果为止。11d 独立于前三项，是并行轨道。11e 是一次核实动作，成本极低，
 先做。11f 明确不动，留痕不留期限。
+
+## 批次 12 - 客户全景图 L4 批一：合同与已购明细（2026-09-22）
+
+全景图六层里唯一「基础功能全缺」的一层是 L4 存量资产。设计包的演进批次（D2）把它
+拆成七批，批一零依赖、回滚代价最小：撤掉它，合同 tab 消失，其余无感。
+
+| 项 | 交付 | 位置 |
+|----|------|------|
+| 12a DDL | `incr/0076_contract.sql`（contract + contract_line，授权与冻结列同文件自带）、`incr/0077_project_contract.sql`（project.contract_id，整张写白名单重述）| 随 #357 已落地，本批只补应用层 |
+| 12b 规则 | `planContract` / `planContractLine` / `contractPhase` / `ownedProducts`（已购态 §9.2）；到期不落表，由期限每次推导 | `domains/delivery/lib/contract.ts` |
+| 12c 端口与适配器 | 新建与编辑分开（编号是锚点，按编号 upsert 会让重复编号悄悄改到别人的合同）；明细随合同一次取回，任意多份合同两次查询 | `store.ts` / `prisma-store.ts` |
+| 12d 门控 | `delivery.contract.view` / `.upsert`，挂既有 `delivery.project` + `delivery.read/write`：零新功能键、零新权限；权限树里 合同管理 模块从占位变成有叶子 | `authz/actions.ts`、`permission-tree.ts` |
+| 12e 界面 | 阵地清单第四个 tab「合同」（回款之后）：已购态 + 每份合同的明细，编辑一律走抽屉；读被拒 / 读失败 / 确实没有 三句话分开 | `components/contract-roster.tsx`、`account/contract-actions.ts` |
+
+**不在本批**：续约世系写入与期限权威迁移（批二，0078）、健康分第五因子（批三）、
+白地（批六）。`renewed_from_contract_id` 本批只读不写。
+
+**验收**：新增单测 18 条、真库契约 5 条（唯一性 / 检查约束 / 授权 / 空值共存 +
+适配器），全量单测与 `test:db` 全绿；两条守卫各故意打坏一次确认会红
+（删一条 `CONTRACT_ERROR` 词条 → reachable-codes 红；给 yucer_svc 授 contract_no
+的 UPDATE → 授权用例红）。

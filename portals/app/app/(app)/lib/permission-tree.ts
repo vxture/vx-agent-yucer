@@ -98,13 +98,12 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
 };
 
 /** Modules with no permission point of their own yet: new nav routes that
- *  currently read through another module's `.view` gate, 合同管理 (not built
- *  at all), or 今日判断 / 销售大屏 (owner, 2026-09-11: 缺少今日裁决和销售
+ *  currently read through another module's `.view` gate, or 今日判断 / 销售大屏 (owner, 2026-09-11: 缺少今日裁决和销售
  *  大屏 - both own no object, so neither one is ever going to gate on
  *  anything of its own; they render here as an honest, permanently-empty
  *  pair rather than as something still being built toward). */
 export const PLACEHOLDER_MODULES: ReadonlySet<string> = new Set([
-  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "contract", "home", "national", "enablement", "strategyDiag",
+  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "home", "national", "enablement", "strategyDiag",
 ]);
 
 /** `(domain, page)` -> the 业务/模块/页面 it now renders under. Page "" is
@@ -162,6 +161,9 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "delivery/project": { group: "settlement", module: "delivery", page: "delivery.project" },
   "delivery/milestone": { group: "settlement", module: "delivery", page: "delivery.milestone" },
   "delivery/revenue": { group: "settlement", module: "collection", page: "delivery.revenue" },
+  // incr/0076 (L4 batch one) - the first real leaves under 合同管理, which sat
+  // here as a reserved placeholder until the contract object existed.
+  "delivery/contract": { group: "settlement", module: "contract", page: "delivery.contract" },
 
   "copilot/session": { group: "copilot", module: "copilot", page: "copilot.session" },
   "copilot/": { group: "copilot", module: "copilot", page: "copilot.base" },

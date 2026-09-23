@@ -191,6 +191,14 @@ export const DEMO_OPPORTUNITIES = [
   "港澳仓配网络升级",
 ] as const;
 
+/** Contract names (incr/0076), in ct_demo_1..4 order - see demo-seed.ts. */
+export const DEMO_CONTRACTS = [
+  "零售中台年度订阅",
+  "经营分析模块采购",
+  "智能仓储扩容",
+  "智能仓储年度订阅",
+] as const;
+
 export const DEMO_PROJECTS = [
   "POS 上线 - 一期",
   "智能仓储实施",

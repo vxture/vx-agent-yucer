@@ -61,7 +61,15 @@ import { daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
 import { listPipeline, listStageDefinitions, stageChangeTimestamps } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
-import { listProjects, projectView } from "../../../domains/delivery/service";
+import { listContracts, listProjects, projectView } from "../../../domains/delivery/service";
+import {
+  contractPhase,
+  daysToTermEnd,
+  noticeDeadline,
+  ownedProducts,
+} from "../../../domains/delivery/lib/contract";
+import { ContractRoster, type ContractReadState, type ContractRow } from "../../components/contract-roster";
+import { deleteContractLine, saveContract, saveContractLine } from "../contract-actions";
 import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { AccountCompleteness } from "../../components/account-completeness";
@@ -105,7 +113,7 @@ import {
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag, TIER_ICON_SRC } from "../../components/tag";
 import { CapBadge, CapFooter, LayerLabel, PanoramaLegend } from "../../components/panorama-annotations";
-import { pricingPolicy } from "../../../domains/catalog/service";
+import { listProducts, pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
 // D4 account detail (owner, 2026-09-20: 严格按照设计实施 - 栏1/栏2排版,
@@ -173,6 +181,8 @@ export default async function AccountDetailPage({
     ACCOUNT_TEXT,
     healthReasonText,
     POSITION_TEXT,
+    CONTRACT_TEXT,
+    CONTRACT_ERROR,
   } = await getMessages();
   const { id } = await params;
   // 累计合同额需要 Intl.NumberFormat 的 locale (owner, 2026-09-21: 补充 -
@@ -299,7 +309,7 @@ export default async function AccountDetailPage({
     ? policyRead.value.defaultCurrency
     : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [deals, projects, feed, proposals, stageRows, stageChanges] = await Promise.all([
+  const [deals, projects, feed, proposals, stageRows, stageChanges, contractsRead, productsRead] = await Promise.all([
     listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
     cachedFeed(base),
@@ -309,6 +319,13 @@ export default async function AccountDetailPage({
     ),
     listStageDefinitions({ ...base, store: session.stores.pipeline() }),
     stageChangeTimestamps({ ...base, store: session.stores.pipeline() }),
+    // 合同 (incr/0076). A THROWN read is caught to null here rather than
+    // failing the page: the tab has to be able to say "could not read" as its
+    // own sentence, distinct from "refused" and from "none" (design Q2.3).
+    listContracts({ ...base, store: getDeliveryStore() }, { accountId: id }).catch(() => null),
+    // Product names for the lines and 已购态, and the options the line
+    // drawer offers - the page composes D7 with D9, D7 never reads D9.
+    listProducts({ ...base, store: getCatalogStore() }),
   ]);
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
   const openStages = openStageOrder(stageDefinitions);
@@ -415,6 +432,63 @@ export default async function AccountDetailPage({
           [...collectionTotals.entries()][0],
         )
       : null;
+
+  // 合同 tab view model. Dates cross to the client as yyyy-mm-dd strings.
+  const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+  const productNameOf = new Map((productsRead.ok ? productsRead.value : []).map((p) => [p.id, p.name]));
+  const contractRead: ContractReadState =
+    contractsRead === null
+      ? { kind: "failed" }
+      : contractsRead.ok
+        ? { kind: "ok" }
+        : { kind: "refused", text: loadFailureText(contractsRead.violations, CONTRACT_ERROR) };
+  const contractRecords = contractsRead?.ok ? contractsRead.value : [];
+  const contractRows: ContractRow[] = contractRecords.map((c) => {
+    const lineCurrencies = new Set(c.lines.map((l) => l.currency));
+    return {
+      id: c.id,
+      contractNo: c.contractNo,
+      name: c.name,
+      status: c.status,
+      phase: contractPhase(c, now),
+      opportunityId: c.opportunityId,
+      totalAmount: c.totalAmount,
+      currency: c.currency,
+      termStart: ymd(c.termStart),
+      termEnd: ymd(c.termEnd),
+      daysLeft: daysToTermEnd(c, now),
+      noticeBy: ymd(noticeDeadline(c)),
+      noticeDays: c.noticeDays,
+      signedAt: ymd(c.signedAt),
+      lines: c.lines.map((l) => ({
+        id: l.id,
+        productId: l.productId,
+        productName: productNameOf.get(l.productId) ?? null,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        amount: l.amount,
+        currency: l.currency,
+        termEnd: ymd(l.termEnd),
+      })),
+      // Summed in minor units, and only when the lines share one currency.
+      lineTotal:
+        lineCurrencies.size <= 1
+          ? c.lines.reduce((sum, l) => sum + Math.round(l.amount * 100), 0) / 100
+          : null,
+    };
+  });
+  const ownedRows = ownedProducts(contractRecords, now).map((o) => ({
+    productId: o.productId,
+    productName: productNameOf.get(o.productId) ?? null,
+    quantity: o.quantity,
+    runsUntil: ymd(o.runsUntil),
+  }));
+  const canWriteContract = can(
+    session.authz,
+    session.entitlement,
+    "delivery.contract.upsert",
+    "ui",
+  ).allowed;
 
   const memberList = await getAuthzStore().listMembers(base.workspaceId);
   const memberNameOf = new Map(memberList.map((m) => [m.sub, m.displayName]));
@@ -931,6 +1005,8 @@ export default async function AccountDetailPage({
                   ? "projects"
                   : revenueRows.length > 0
                     ? "revenue"
+                    : contractRows.length > 0
+                      ? "contracts"
                     : (commitments.ok ? commitments.value.length : 0) > 0
                       ? "commitments"
                       : "interactions"
@@ -985,6 +1061,28 @@ export default async function AccountDetailPage({
                     <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capRevenuePro}
                   </CapFooter>
                 </>,
+              },
+              {
+                // 合同 - 排在回款之后, 钱相关的挨着 (L4 批一, owner
+                // 2026-09-22: 存量资产合成一张卡, 是阵地清单里的一个 tab,
+                // 不是第四张卡)。
+                key: "contracts",
+                label: `${CONTRACT_TEXT.tab} (${contractRows.length})`,
+                content: (
+                  <ContractRoster
+                    accountId={id}
+                    read={contractRead}
+                    contracts={contractRows}
+                    owned={ownedRows}
+                    products={(productsRead.ok ? productsRead.value : []).map((p) => ({ id: p.id, name: p.name }))}
+                    deals={dealRows.filter((d) => d.status !== "lost").map((d) => ({ id: d.id, name: d.name }))}
+                    defaultCurrency={defaultCurrency}
+                    canWrite={canWriteContract}
+                    onSaveContract={saveContract}
+                    onSaveLine={saveContractLine}
+                    onRemoveLine={deleteContractLine}
+                  />
+                ),
               },
               {
                 // 承诺和跟进记录拆成两个 tab (owner, 2026-09-20: 先做跟进

@@ -25,6 +25,7 @@ import type {
   RevenueStatus,
 } from "./lib/revenue";
 import { DEFAULT_AGEING_CUTOFFS } from "./lib/collection-stats";
+import type { ContractDraft, ContractFacts, PlannedContractLine } from "./lib/contract";
 
 export interface ProjectRecord {
   id: string;
@@ -82,6 +83,39 @@ export interface MilestoneChangeRecord extends MilestoneChangeDraft {
   milestoneId: string;
   changedAt: Date;
 }
+
+/**
+ * incr/0076. 合同 - metadata only, never contract text.
+ *
+ * THE LINES TRAVEL WITH THE CONTRACT. Every reader of a contract wants its
+ * lines (the tab renders them, 已购态 folds them), so the port returns them
+ * together and the adapter reads them in ONE query for all contracts on the
+ * page - not one query per contract, the N+1 the panorama read budget names.
+ */
+export interface ContractRecord extends ContractFacts {
+  workspaceId: string;
+  name: string;
+  totalAmount: number | null;
+  noticeDays: number;
+  /** incr/0076 lineage. Frozen, and written by batch two's renewal, not here. */
+  renewedFromContractId: string | null;
+  signedAt: Date | null;
+  lines: ContractLineRecord[];
+}
+
+export interface ContractLineRecord extends PlannedContractLine {
+  id: string;
+  contractId: string;
+}
+
+/** The writable columns (incr/0076 grant), and nothing the grant leaves out. */
+export type ContractPatch = Partial<
+  Pick<ContractDraft, "name" | "totalAmount" | "currency" | "termStart" | "termEnd" | "noticeDays" | "status" | "signedAt">
+>;
+
+export type ContractLinePatch = Partial<
+  Pick<PlannedContractLine, "quantity" | "unitPrice" | "amount" | "currency" | "termEnd">
+>;
 
 export interface ProjectFilter {
   status?: string;
@@ -157,6 +191,18 @@ export interface DeliveryStore {
      Same one-row-per-workspace shape as ageing_policy above. */
   getRenewalPolicy(workspaceId: string): Promise<RenewalPolicy>;
   setRenewalPolicy(workspaceId: string, policy: RenewalPolicy): Promise<void>;
+
+  /* --- 合同 (incr/0076) ------------------------------------------------------
+     Create and edit are separate verbs: contract_no is the anchor, and an
+     upsert by it would let a number typed twice edit the wrong contract. */
+  listContracts(workspaceId: string, filter?: { accountId?: string }): Promise<ContractRecord[]>;
+  getContract(workspaceId: string, id: string): Promise<ContractRecord | null>;
+  contractNoTaken(workspaceId: string, contractNo: string): Promise<boolean>;
+  createContract(workspaceId: string, draft: ContractDraft): Promise<ContractRecord>;
+  updateContract(workspaceId: string, id: string, patch: ContractPatch): Promise<boolean>;
+  addContractLine(workspaceId: string, contractId: string, line: PlannedContractLine): Promise<ContractLineRecord>;
+  updateContractLine(workspaceId: string, lineId: string, patch: ContractLinePatch): Promise<boolean>;
+  removeContractLine(workspaceId: string, lineId: string): Promise<boolean>;
 }
 
 export class InMemoryDeliveryStore implements DeliveryStore {
@@ -170,6 +216,8 @@ export class InMemoryDeliveryStore implements DeliveryStore {
   private cutoffs = new Map<string, number[]>();
   /* incr/0066. The workspace's renewal policy, yucer_delivery.renewal_policy. */
   private renewalPolicies = new Map<string, RenewalPolicy>();
+  private contracts = new Map<string, Omit<ContractRecord, "lines">>();
+  private contractLines: Array<ContractLineRecord & { workspaceId: string }> = [];
 
   async getAgeingCutoffs(workspaceId: string): Promise<number[]> {
     return this.cutoffs.get(workspaceId) ?? [...DEFAULT_AGEING_CUTOFFS];
@@ -191,7 +239,13 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     projects?: ProjectRecord[];
     milestones?: Array<MilestoneRecord & { workspaceId: string }>;
     instalments?: Array<InstalmentRecord & { workspaceId: string }>;
+    contracts?: ContractRecord[];
   }): void {
+    for (const c of input.contracts ?? []) {
+      const { lines, ...head } = c;
+      this.contracts.set(c.id, { ...head });
+      this.contractLines.push(...lines.map((l) => ({ ...l, workspaceId: c.workspaceId })));
+    }
     for (const p of input.projects ?? []) this.projects.set(p.id, { ...p });
     this.milestones.push(...(input.milestones ?? []));
     this.instalments.push(...(input.instalments ?? []));
@@ -302,6 +356,75 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     if (patch.status !== undefined) row.status = patch.status;
     if (patch.actualAmount !== undefined) row.actualAmount = patch.actualAmount;
     if (patch.settledAt !== undefined) row.settledAt = patch.settledAt;
+    return true;
+  }
+  private withLines(head: Omit<ContractRecord, "lines">): ContractRecord {
+    const lines = this.contractLines
+      .filter((l) => l.workspaceId === head.workspaceId && l.contractId === head.id)
+      .map(({ workspaceId: _ws, ...l }) => ({ ...l }));
+    return { ...head, lines };
+  }
+
+  async listContracts(workspaceId: string, filter: { accountId?: string } = {}): Promise<ContractRecord[]> {
+    return [...this.contracts.values()]
+      .filter((c) => c.workspaceId === workspaceId)
+      .filter((c) => !filter.accountId || c.accountId === filter.accountId)
+      // Newest term first, undated drafts last - the same order the adapter uses.
+      .sort((a, b) => (b.termEnd?.getTime() ?? -Infinity) - (a.termEnd?.getTime() ?? -Infinity))
+      .map((c) => this.withLines(c));
+  }
+
+  async getContract(workspaceId: string, id: string): Promise<ContractRecord | null> {
+    const c = this.contracts.get(id);
+    return c && c.workspaceId === workspaceId ? this.withLines(c) : null;
+  }
+
+  async contractNoTaken(workspaceId: string, contractNo: string): Promise<boolean> {
+    return [...this.contracts.values()].some(
+      (c) => c.workspaceId === workspaceId && c.contractNo === contractNo,
+    );
+  }
+
+  async createContract(workspaceId: string, draft: ContractDraft): Promise<ContractRecord> {
+    const head = {
+      ...draft,
+      id: `ct_${++this.seq}`,
+      workspaceId,
+      renewedFromContractId: null,
+    };
+    this.contracts.set(head.id, head);
+    return this.withLines(head);
+  }
+
+  async updateContract(workspaceId: string, id: string, patch: ContractPatch): Promise<boolean> {
+    const c = this.contracts.get(id);
+    if (!c || c.workspaceId !== workspaceId) return false;
+    Object.assign(c, patch);
+    return true;
+  }
+
+  async addContractLine(
+    workspaceId: string,
+    contractId: string,
+    line: PlannedContractLine,
+  ): Promise<ContractLineRecord> {
+    const row = { ...line, id: `cl_${++this.seq}`, contractId, workspaceId };
+    this.contractLines.push(row);
+    const { workspaceId: _ws, ...out } = row;
+    return out;
+  }
+
+  async updateContractLine(workspaceId: string, lineId: string, patch: ContractLinePatch): Promise<boolean> {
+    const row = this.contractLines.find((l) => l.id === lineId && l.workspaceId === workspaceId);
+    if (!row) return false;
+    Object.assign(row, patch);
+    return true;
+  }
+
+  async removeContractLine(workspaceId: string, lineId: string): Promise<boolean> {
+    const at = this.contractLines.findIndex((l) => l.id === lineId && l.workspaceId === workspaceId);
+    if (at < 0) return false;
+    this.contractLines.splice(at, 1);
     return true;
   }
 }

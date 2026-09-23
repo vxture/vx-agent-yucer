@@ -9,6 +9,12 @@
 import { changeMilestone, planMilestone, type MilestoneDraft } from "./lib/milestone";
 import { planAgeingCutoffs } from "./lib/collection-stats";
 import {
+  planContract,
+  planContractLine,
+  type ContractDraft,
+  type ContractLineDraft,
+} from "./lib/contract";
+import {
   assessRenewal,
   daysUntilEnd,
   planRenewal,
@@ -34,6 +40,8 @@ import {
 } from "./lib/revenue";
 import type { Money } from "../shared/money";
 import type {
+  ContractLineRecord,
+  ContractRecord,
   DeliveryStore,
   InstalmentRecord,
   MilestoneChangeRecord,
@@ -527,4 +535,111 @@ async function derivedHealthOf(
 /** Due before not-due; within due, soonest (and already-lapsed) first. */
 function rank(v: RenewalVerdict): number {
   return v.kind === "due" ? v.daysToEnd : Number.MAX_SAFE_INTEGER;
+}
+
+/* ---------------------------------------------------------------------------
+ * 合同与已购明细 (incr/0076, L4 batch one).
+ *
+ * D7 owns the contract; the account page only renders it. Every write below
+ * goes through `delivery.contract.upsert`, whatever page it was clicked on -
+ * the panorama never gets a gate of its own (R2).
+ *
+ * Lineage (`renewedFromContractId`) is NOT writable from here. It is set once,
+ * by batch two's renewal, and is frozen after - a create verb that accepted it
+ * would let anyone declare any contract the renewal of any other.
+ * ------------------------------------------------------------------------ */
+
+export async function listContracts(
+  ctx: DeliveryContext,
+  filter: { accountId?: string } = {},
+): Promise<RuleResult<ContractRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.contract.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listContracts(ctx.workspaceId, filter));
+}
+
+/** Create a contract, or edit one when `contractId` is given. */
+export async function upsertContract(
+  ctx: DeliveryContext,
+  input: ContractDraft,
+  contractId?: string,
+): Promise<RuleResult<ContractRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.contract.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const held = contractId ? await ctx.store.getContract(ctx.workspaceId, contractId) : null;
+  if (contractId && !held) {
+    return fail(violation("not_found", `contract ${contractId} was not found`, "contractId"));
+  }
+
+  const plan = planContract(input, held);
+  if (!plan.ok) return plan as RuleResult<ContractRecord>;
+
+  if (!held) {
+    // The unique index is the backstop; this is the sentence. Without it a
+    // duplicate number surfaces as a constraint name.
+    if (await ctx.store.contractNoTaken(ctx.workspaceId, plan.value.contractNo)) {
+      return fail(violation("contract_no_taken", "that contract number is already on file", "contractNo"));
+    }
+    return ok(await ctx.store.createContract(ctx.workspaceId, plan.value));
+  }
+
+  const { name, totalAmount, currency, termStart, termEnd, noticeDays, status, signedAt } = plan.value;
+  // Currency moves with the lines: a contract whose lines are in CNY cannot
+  // become a USD contract underneath them.
+  if (currency !== held.currency && held.lines.length > 0) {
+    return fail(violation("currency_mismatch", "change the currency before adding lines", "currency"));
+  }
+  await ctx.store.updateContract(ctx.workspaceId, held.id, {
+    name, totalAmount, currency, termStart, termEnd, noticeDays, status, signedAt,
+  });
+  return ok({ ...held, name, totalAmount, currency, termStart, termEnd, noticeDays, status, signedAt });
+}
+
+/** Add a line, or edit one when `lineId` is given. */
+export async function upsertContractLine(
+  ctx: DeliveryContext,
+  contractId: string,
+  input: ContractLineDraft,
+  lineId?: string,
+): Promise<RuleResult<ContractLineRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.contract.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const contract = await ctx.store.getContract(ctx.workspaceId, contractId);
+  if (!contract) return fail(violation("not_found", `contract ${contractId} was not found`, "contractId"));
+  const held = lineId ? (contract.lines.find((l) => l.id === lineId) ?? null) : null;
+  if (lineId && !held) return fail(violation("not_found", `line ${lineId} was not found`, "lineId"));
+
+  const plan = planContractLine(input, contract, held);
+  if (!plan.ok) return plan as RuleResult<ContractLineRecord>;
+
+  if (!held) return ok(await ctx.store.addContractLine(ctx.workspaceId, contractId, plan.value));
+  const { quantity, unitPrice, amount, currency, termEnd } = plan.value;
+  await ctx.store.updateContractLine(ctx.workspaceId, held.id, { quantity, unitPrice, amount, currency, termEnd });
+  return ok({ ...held, quantity, unitPrice, amount, currency, termEnd });
+}
+
+/**
+ * Remove a line. Refused on a terminated contract: what an ended agreement
+ * covered is history, and deleting a line from it would rewrite what the
+ * customer once bought.
+ */
+export async function removeContractLine(
+  ctx: DeliveryContext,
+  contractId: string,
+  lineId: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.contract.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const contract = await ctx.store.getContract(ctx.workspaceId, contractId);
+  if (!contract || !contract.lines.some((l) => l.id === lineId)) {
+    return fail(violation("not_found", `line ${lineId} was not found`, "lineId"));
+  }
+  if (contract.status === "terminated") {
+    return fail(violation("contract_closed", "a terminated contract takes no more changes", "contractId"));
+  }
+  await ctx.store.removeContractLine(ctx.workspaceId, lineId);
+  return ok({ removed: true });
 }
