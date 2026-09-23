@@ -429,6 +429,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // incr/0078. A renewal outcome is what somebody decided at the time; a
   // correction is a new row.
   "yucer_delivery.renewal_event",
+  // incr/0079. A health snapshot is what the rules said at that moment - the
+  // only honest record of a past score, since its inputs are overwritten.
+  "yucer_core.account_health_snapshot",
   // incr/0033. Why something left the funnel is a record of somebody's
   // account at the time, not a field to be tidied later. DELETE is granted on
   // it for exactly one case - a hard-deleted lead takes its exit rows with it -

@@ -570,6 +570,24 @@ model AccountCollaborator {
   @@schema("yucer_core")
 }
 
+/// incr/0079. 健康分快照 - append-only (SELECT, INSERT). The score and its factor
+/// breakdown as deriveHealth returned them, written by a recompute or the sweep
+/// only when either changed since the last row.
+model AccountHealthSnapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  accountId     String   @map("account_id") @db.Uuid
+  score         Int      @db.SmallInt
+  contributions Json     @db.JsonB
+  source        String   @db.VarChar(16)
+  computedAt    DateTime @default(now()) @map("computed_at") @db.Timestamptz()
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([workspaceId, accountId, computedAt(sort: Desc)], map: "idx_account_health_snapshot_ws_account")
+  @@map("account_health_snapshot")
+  @@schema("yucer_core")
+}
+
 // ===== yucer_gtm (D1 strategy, D2 planning, D3 campaign) =====
 
 model StrategyPlan {

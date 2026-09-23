@@ -52,6 +52,8 @@ export interface PlanReview {
   /** A source could not be read - "could not read" is not "nothing happened". */
   readonly readFailed: boolean;
   readonly nothingFollowed: boolean;
+  /** Recorded health at the decision and at the window's end (incr/0079). */
+  readonly health: { readonly before: number | null; readonly after: number | null } | null;
   readonly stageMoves: ReadonlyArray<{
     id: string;
     opportunityId: string;
@@ -90,6 +92,9 @@ function OutcomeReviews({ reviews }: { readonly reviews: readonly PlanReview[] }
             </span>
           </summary>
           <div className="mt-xs flex flex-col gap-2xs text-body-sm">
+            {/* The recorded score either side of the decision - read from the
+                snapshots, never re-derived (see outcome-review.ts). */}
+            {r.health ? <p className="text-muted-foreground">{OUTCOME_TEXT.health(r.health.before, r.health.after)}</p> : null}
             {r.readFailed ? (
               <p className="text-destructive-text">{OUTCOME_TEXT.readFailed}</p>
             ) : r.nothingFollowed ? (

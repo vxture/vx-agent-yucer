@@ -539,6 +539,25 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_4", toContactId: "ct_1", relationType: "opposed_to" },
       { workspaceId, accountId: "acc_demo_2", fromContactId: "ct_6", toContactId: "ct_5", relationType: "reports_to" },
     ],
+    // incr/0079: one earlier reading, so 变化归因 has something to explain.
+    // A month ago the last contact was 18 days old, nothing was overdue and
+    // the renewal was not yet due: 50 + 24 + 15 - 12 + 0 = 77. Today's inputs
+    // below derive 27, and the panel says which factors moved.
+    healthSnapshots: [
+      {
+        workspaceId,
+        accountId: "acc_demo_1",
+        score: 77,
+        contributions: [
+          { factor: "pipeline", points: 24, reason: { code: "open_deals", count: 1, furthestStage: "negotiate" } },
+          { factor: "recency", points: 15, reason: { code: "contacted_days", days: 18 } },
+          { factor: "delivery", points: -12, reason: { code: "projects_amber", count: 1 } },
+          { factor: "renewal", points: 0, reason: { code: "renewal_not_due" } },
+        ],
+        source: "sweep",
+        computedAt: daysAgo(30),
+      },
+    ],
     healthInputs: {
       [`${workspaceId}|acc_demo_1`]: {
         openOpportunities: [{ stage: "negotiate" }],

@@ -19,6 +19,7 @@ import {
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
+import type { HealthSnapshot } from "./lib/health-history";
 import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge, RenewalHealthInput, Stance } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
@@ -488,6 +489,12 @@ export interface AccountStore {
   /** The inputs a health recompute needs, gathered across domains. */
   healthInputs(workspaceId: string, accountId: string): Promise<HealthInputs>;
 
+  /* --- 健康分快照 (incr/0079) - append-only, SELECT + INSERT. There is
+     deliberately no update or delete: a snapshot is what the rules said then. */
+  appendHealthSnapshot(workspaceId: string, accountId: string, snapshot: HealthSnapshot): Promise<void>;
+  /** Newest first. */
+  listHealthSnapshots(workspaceId: string, accountId: string, opts?: { limit?: number }): Promise<HealthSnapshot[]>;
+
   /* --- 行业 (incr/0040) -----------------------------------------------------
      The same five the catalogue vocabularies have. `countAccountsByIndustry`
      is what makes the delete refusal predictable: fk_account_industry RESTRICTs
@@ -730,7 +737,9 @@ export class InMemoryAccountStore implements AccountStore {
     relations?: Array<RelationEdge & { workspaceId: string; accountId: string }>;
     healthInputs?: Record<string, HealthInputs>;
     opportunityContacts?: OpportunityContactRecord[];
+    healthSnapshots?: Array<HealthSnapshot & { workspaceId: string; accountId: string }>;
   }): void {
+    this.snapshots.push(...(input.healthSnapshots ?? []));
     for (const pl of input.plans ?? []) this.plans.set(`${pl.workspaceId}|${pl.accountId}`, pl);
     this.industries.push(...(input.industries ?? []));
     for (const a of input.accounts ?? []) this.accounts.set(a.id, { ...a });
@@ -1250,6 +1259,23 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   private collaborators: Array<{ workspaceId: string; accountId: string; memberSub: string; addedAt: Date }> = [];
+  private snapshots: Array<HealthSnapshot & { workspaceId: string; accountId: string }> = [];
+
+  async appendHealthSnapshot(workspaceId: string, accountId: string, snapshot: HealthSnapshot): Promise<void> {
+    this.snapshots.push({ ...snapshot, workspaceId, accountId });
+  }
+
+  async listHealthSnapshots(
+    workspaceId: string,
+    accountId: string,
+    opts: { limit?: number } = {},
+  ): Promise<HealthSnapshot[]> {
+    return this.snapshots
+      .filter((s) => s.workspaceId === workspaceId && s.accountId === accountId)
+      .sort((a, b) => b.computedAt.getTime() - a.computedAt.getTime())
+      .slice(0, opts.limit ?? 50)
+      .map(({ score, contributions, source, computedAt }) => ({ score, contributions, source, computedAt }));
+  }
 
   async listCollaborators(
     workspaceId: string,
