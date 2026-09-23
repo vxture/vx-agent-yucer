@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { EmptyState, Textarea } from "@vxture/design-ui";
+import { EmptyState, Icon, Textarea } from "@vxture/design-ui";
 import { CAPABILITIES } from "../../domains/copilot/lib/capability";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
@@ -81,8 +81,9 @@ function OutcomeReviews({ reviews }: { readonly reviews: readonly PlanReview[] }
       <p className="text-muted-foreground text-label-sm font-bold">{OUTCOME_TEXT.title}</p>
       <p className="text-muted-foreground text-body-sm">{OUTCOME_TEXT.notCausation}</p>
       {reviews.map((r) => (
-        <details key={r.id} className="border-border rounded-md border p-xs">
-          <summary className="cursor-pointer text-body-sm">
+        <details key={r.id} className="group/d border-border rounded-md border p-xs">
+          <summary className="cursor-pointer flex list-none items-center gap-2xs [&::-webkit-details-marker]:hidden text-body-sm">
+            <Icon name="chevron-right" size="xs" className="text-muted-foreground shrink-0 transition-transform group-open/d:rotate-90" />
             <span className="text-foreground font-bold">{r.title}</span>
             {r.subjectName ? <span className="text-muted-foreground"> · {r.subjectName}</span> : null}
             <span className="text-muted-foreground">
@@ -123,8 +124,9 @@ function OutcomeReviews({ reviews }: { readonly reviews: readonly PlanReview[] }
                   </p>
                 ))}
                 {r.interactions.map((i) => (
-                  <details key={i.id}>
-                    <summary className="cursor-pointer">
+                  <details key={i.id} className="group/d">
+                    <summary className="cursor-pointer flex list-none items-center gap-2xs [&::-webkit-details-marker]:hidden">
+                      <Icon name="chevron-right" size="xs" className="text-muted-foreground shrink-0 transition-transform group-open/d:rotate-90" />
                       <span className="text-muted-foreground tabular-nums">{i.date}</span> {i.channel}
                     </summary>
                     <p className="text-muted-foreground whitespace-pre-wrap">{i.text}</p>

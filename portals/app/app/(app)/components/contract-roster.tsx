@@ -9,6 +9,7 @@ import {
   Field,
   FieldDescription,
   FieldLabel,
+  Icon,
   Input,
   NativeSelect,
   PanelCard,
@@ -375,8 +376,9 @@ export function ContractRoster(props: ContractRosterProps) {
               {/* 续约风险 (YC-021 L4): the level, and every point it rests on one
                   click away - a native <details>, closed by default. */}
               {c.renewalRisk ? (
-                <details className="mt-xs text-body-sm">
-                  <summary className="cursor-pointer">
+                <details className="group/d mt-xs text-body-sm">
+                  <summary className="cursor-pointer flex list-none items-center gap-2xs [&::-webkit-details-marker]:hidden">
+                    <Icon name="chevron-right" size="xs" className="text-muted-foreground shrink-0 transition-transform group-open/d:rotate-90" />
                     <Tag tone={RISK_TONE[c.renewalRisk.level]}>{CONTRACT_TEXT.renewalRisk(c.renewalRisk.level)}</Tag>
                   </summary>
                   <ul className="text-muted-foreground mt-2xs flex flex-col gap-3xs">

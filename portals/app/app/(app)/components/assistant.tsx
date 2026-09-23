@@ -130,6 +130,10 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
 
   return (
     <Card className="p-sm">
+      {/* ONE child (polish, 2026-09-24): the DS Card spaces its direct
+          children with its own gap, and title / body / footer each already
+          carry mt-sm - together a ~50px blank band under every title. */}
+      <div>
       <div className="flex items-center gap-xs">
         <span className="text-label-md text-foreground">{section.title}</span>
         {section.scope ? (
@@ -201,6 +205,7 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
           ) : null}
         </div>
       ) : null}
+      </div>
     </Card>
   );
 }

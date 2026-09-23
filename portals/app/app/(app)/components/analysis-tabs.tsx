@@ -98,8 +98,13 @@ export function AnalysisTabs({
         ))}
       </TabsList>
     ) : undefined;
+  // THE STRIP IS THE BODY'S FIRST ROW, not the header's action slot (polish,
+  // 2026-09-24). Six tabs need ~700px; beside the title, its layer labels,
+  // the ⋮ and the fold toggle in a ~600px card they ran over the title and
+  // pushed the ⋮ out of the card. Folded, the body goes and the strip with it.
   const body = (
     <div className="flex flex-col gap-md">
+      {triggers ? <div className="overflow-x-auto">{triggers}</div> : null}
       {summary}
       {tabs.map((t) => (
         <TabsContent key={t.key} value={t.key}>
@@ -121,7 +126,6 @@ export function AnalysisTabs({
           icon={icon}
           title={title}
           description={description}
-          openAction={triggers}
           summary={collapsible.summary}
           menu={menu}
         >
@@ -135,7 +139,6 @@ export function AnalysisTabs({
           icon={icon}
           title={title}
           description={description}
-          action={triggers}
         >
           {body}
         </Section>

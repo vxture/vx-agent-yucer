@@ -258,7 +258,7 @@ export function ContactRoster({
       id="contacts"
       icon="users"
       title={
-        <span className="inline-flex items-center gap-xs whitespace-nowrap">
+        <span className="flex flex-wrap items-center gap-xs">
           <span>{ACCOUNT_TEXT.contactsTitle}</span>
           <span title={ACCOUNT_TEXT.contactCount(contacts.length)}>
             <Tag>{contacts.length}</Tag>
