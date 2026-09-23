@@ -2,7 +2,7 @@
 
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ActionMenu, Button, Icon, Section } from "@vxture/design-ui";
+import { ActionMenu, Button, Icon, Section, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
 // 可收起的板块 (owner, 2026-09-23: 给所有板块增加展开收起, 收起后彻底收起 +
@@ -21,11 +21,12 @@ import { useMessages } from "../lib/i18n/provider";
 // body it still draws the header's divider (level 2 always has one, and
 // Section does not forward `divider`) and an empty body wrapper spaced by
 // gap-md, which left the line and blank band the owner reported under L5.
-// The three data-[collapsed] classes below remove exactly those while
-// collapsed - they target the DS's internal header/body order and must go
-// when Section gains a collapsed/divider option.
+// While collapsed the body holds ONLY the folded line (below), so what is
+// removed is the header divider (level-2 callers) and the gap between the
+// header and that line is tightened. They target the DS's internal header
+// order and must go when Section gains a collapsed/divider option.
 const COLLAPSED_CLASS =
-  "data-[collapsed=true]:[&>div:first-child]:border-b-0 data-[collapsed=true]:[&>div:first-child]:pb-0 data-[collapsed=true]:[&>div:last-child]:hidden";
+  "data-[collapsed=true]:[&>div:first-child]:border-b-0 data-[collapsed=true]:[&>div:first-child]:pb-0 data-[collapsed=true]:gap-2xs";
 
 // TD-034, second half (owner, 2026-09-23: 按钮上下跳动, 应该靠上对齐): the DS
 // header pins its action slot to the BOTTOM (`self-end`), so the "⋮" and the
@@ -122,24 +123,10 @@ export function CollapsibleSection({
       level={level}
       data-collapsed={expanded ? undefined : "true"}
       className={[className, COLLAPSED_CLASS, ACTION_TOP_CLASS].filter(Boolean).join(" ")}
-      description={
-        expanded ? (
-          description
-        ) : (
-          // AI mark on every folded line (owner, 2026-09-23: 无论规则还是推理,
-          // 都标 AI; 用 header 的 AI 图标, 不写文字) - the same `sparkles` icon
-          // as the header's 智能助手 button. The actual source stays one hover
-          // away, so the product's own rule (B4: 规则算出 vs 模型推断 are
-          // marked apart) is not lost - today every folded line is
-          // rule-computed.
-          <span className="inline-flex items-start gap-3xs">
-            <span className="text-primary-text mt-[0.1875rem] shrink-0" title={COLLAPSE_TEXT.aiHint}>
-              <Icon name="sparkles" size="xs" />
-            </span>
-            <span>{summary}</span>
-          </span>
-        )
-      }
+      // Only the open card uses the DS description slot. Folded, the line
+      // does NOT go there: squeezed beside the buttons under the title it
+      // wrapped (owner, 2026-09-23: 按钮和标题拉通一行, 小字单独一行, 太长截断).
+      description={expanded ? description : undefined}
       action={
         <span className="flex items-center justify-end gap-xs">
           {expanded ? openAction : null}
@@ -149,7 +136,28 @@ export function CollapsibleSection({
         </span>
       }
     >
-      {expanded ? children : null}
+      {expanded ? (
+        children
+      ) : (
+        // THE FOLDED LINE, on its own row under the title row, full width,
+        // ONE line - truncated with an ellipsis, the full text on hover.
+        // Prefixed with the header's AI icon (`sparkles`, same as the
+        // 智能助手 button - owner 2026-09-23: 无论规则还是推理都标 AI, 用图标
+        // 不写文字); the icon's own hover names the actual source, so B4's
+        // 规则算出 / 模型推断 distinction is kept - today every line is
+        // rule-computed.
+        <div className="text-muted-foreground text-body-sm flex min-w-0 items-center gap-3xs">
+          <span className="text-primary-text shrink-0" title={COLLAPSE_TEXT.aiHint}>
+            <Icon name="sparkles" size="xs" />
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="min-w-0 truncate">{summary}</span>
+            </TooltipTrigger>
+            <TooltipContent>{summary}</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </Section>
   );
 }
