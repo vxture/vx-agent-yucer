@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  Badge,
   Button,
   Card,
   Collapsible,
@@ -20,6 +19,7 @@ import {
 } from "@vxture/design-ui";
 import { dismissJudgement } from "../judgement-actions";
 import { StaleMark } from "./stale-mark";
+import { SourceMark } from "./source-mark";
 import type {
   AnalysisKind,
   Judgement,
@@ -473,18 +473,5 @@ function Engagement({
         </CollapsibleContent>
       </PanelCard>
     </Collapsible>
-  );
-}
-
-function SourceMark({ source }: { source: Judgement["source"] }) {
-  const { HOME_TEXT } = useMessages();
-  const rule = source === "rule";
-  return (
-    <Badge
-      variant="outline"
-      title={rule ? HOME_TEXT.sourceRuleHint : HOME_TEXT.sourceModelHint}
-    >
-      {rule ? HOME_TEXT.sourceRule : HOME_TEXT.sourceModel}
-    </Badge>
   );
 }

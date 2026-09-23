@@ -5,6 +5,7 @@ import { Button, Icon, PanelCard, PanelItem, PanelList, StatusBadge } from "@vxt
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 import { Tag } from "./tag";
+import { SourceMark } from "./source-mark";
 import { useChainView } from "./decision-chain-switch";
 
 // 全链条内容 (owner, 2026-09-18: 客户详情页重排) - 商机 / 交付项目 / 回款，
@@ -20,11 +21,20 @@ const INSIGHT_TONE = {
   neutral: "border-border bg-muted text-muted-foreground",
 } as const;
 
-function InsightBox({ tone, claim }: { readonly tone: keyof typeof INSIGHT_TONE; readonly claim: string }) {
+function InsightBox({
+  tone,
+  claim,
+  source,
+}: {
+  readonly tone: keyof typeof INSIGHT_TONE;
+  readonly claim: string;
+  readonly source: "rule" | "model";
+}) {
   return (
     <div className={`mt-2xs flex items-start gap-xs rounded-lg border p-xs text-body-sm ${INSIGHT_TONE[tone]}`}>
       <Icon name="warning" size="xs" className="mt-3xs shrink-0" />
-      <span>{claim}</span>
+      <span className="min-w-0 flex-1">{claim}</span>
+      <SourceMark source={source} />
     </div>
   );
 }
@@ -39,7 +49,12 @@ export interface DealLifecycleRow {
   readonly currency: string;
   readonly status: "open" | "won" | "lost";
   /** The account's own real-time judgement for this one deal, if any fired. */
-  readonly insight: { claim: string; rule: string | null; tone: "danger" | "warning" | "success" | "neutral" } | null;
+  readonly insight: {
+    claim: string;
+    rule: string | null;
+    tone: "danger" | "warning" | "success" | "neutral";
+    source: "rule" | "model";
+  } | null;
   /** Open-stage position for the progress dots (workspace's own catalog order,
    *  see openStageOrder()); null for a closed deal - a track "position" stops
    *  meaning anything once the deal has left the open funnel. */
@@ -140,7 +155,7 @@ export function DealLifecyclePanel({
                 {ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}
               </span>
             ) : null}
-            {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} /> : null}
+            {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} source={d.insight.source} /> : null}
             {d.hasChain ? (
               <Button
                 variant="link"
