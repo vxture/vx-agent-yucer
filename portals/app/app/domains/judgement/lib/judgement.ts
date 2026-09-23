@@ -696,6 +696,9 @@ export function deriveJudgements(
             },
             ...a.notes.slice(0, 2).map((n) => note(n, now)),
           ],
+          // facts[0] IS the person, by contract: 风险分型 (risk-types.ts via
+          // the customer page) names them from here rather than re-running
+          // this rule under a policy it would have to guess.
           facts: [
             { label: "唯一联系人", value: who, tone: "warning" },
             { label: "在职联系人", value: String(inPost.length) },

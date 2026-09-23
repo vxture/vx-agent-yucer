@@ -13,6 +13,8 @@ import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import type { ChangeAttribution } from "../../domains/account/lib/health-history";
+import { RiskTypes } from "./risk-types";
+import type { RiskTypeResult } from "../../domains/account/lib/risk-types";
 import { JudgementNote, type Judgement } from "./judgement-note";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import { CollapsibleSection } from "./collapsible-section";
@@ -61,6 +63,8 @@ export interface HealthPanelProps {
   readonly benchmark?: PeerBenchmark | null;
   /** 变化归因 (YC-021 L5) - what moved since the last different recorded score. */
   readonly change?: ChangeAttribution | null;
+  /** 风险分型 (YC-021 L5) - five types, what each rests on, who to go to. */
+  readonly risks?: readonly RiskTypeResult[] | null;
 }
 
 export function HealthPanel({
@@ -72,6 +76,7 @@ export function HealthPanel({
   judgement,
   benchmark,
   change,
+  risks,
 }: HealthPanelProps) {
   const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR, COLLAPSE_TEXT, PANEL_MENU_TEXT } = useMessages();
 
@@ -204,6 +209,7 @@ export function HealthPanel({
           {benchmark ? (
             <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.benchmark(benchmark)}</p>
           ) : null}
+          {risks && risks.length > 0 ? <RiskTypes risks={risks} /> : null}
           <CapFooter>
             <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capHealthBasic}
             <br />

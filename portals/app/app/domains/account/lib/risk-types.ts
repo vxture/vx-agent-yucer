@@ -1,0 +1,151 @@
+import type { HealthReason } from "./health";
+
+// 风险分型 (YC-021 L5, owner 2026-09-24): "五类风险分开呈现, 能据此判断该找谁".
+//
+// FIVE TYPES, EACH WITH A PERSON. The health score folds everything into one
+// number; this unfolds it into the five questions a manager actually asks, and
+// answers the second one - who do I talk to - with a name wherever the data
+// has one:
+//
+//   relationship  the decision chain (reachability, missing roles, blockers,
+//                 single thread)                          -> the account owner
+//   advance       open deals sitting past the stall line  -> that deal's owner
+//   delivery      project health, overdue milestones      -> that project's manager
+//   collections   overdue instalments                     -> that project's manager
+//   renewal       the renewal factor                      -> the account owner
+//
+// Everything is read from facts the page already derives - no new data. A type
+// whose source could not be read is `unknown`, never `clear`.
+
+export const RISK_TYPES = ["relationship", "advance", "delivery", "collections", "renewal"] as const;
+export type RiskType = (typeof RISK_TYPES)[number];
+export type RiskLevel = "risk" | "watch" | "clear" | "unknown";
+
+export type RiskFinding =
+  | { readonly code: "buyer_unreachable"; readonly deal: string }
+  | { readonly code: "no_buyer"; readonly deal: string }
+  | { readonly code: "roles_missing"; readonly deal: string; readonly count: number }
+  | { readonly code: "blockers"; readonly deal: string; readonly count: number }
+  | { readonly code: "single_thread"; readonly who: string }
+  | { readonly code: "deal_stalled"; readonly deal: string; readonly days: number }
+  | { readonly code: "project_red"; readonly project: string }
+  | { readonly code: "project_amber"; readonly project: string }
+  | { readonly code: "milestones_overdue"; readonly project: string; readonly count: number }
+  | { readonly code: "revenue_overdue"; readonly project: string; readonly count: number }
+  | { readonly code: "renewal"; readonly reason: HealthReason };
+
+export type RiskOwnerRole = "account_owner" | "deal_owner" | "project_manager";
+
+export interface RiskTypeResult {
+  readonly type: RiskType;
+  readonly level: RiskLevel;
+  readonly findings: readonly RiskFinding[];
+  /** Who to go to. `name` null = the role is known, the person is not. */
+  readonly who: { readonly role: RiskOwnerRole; readonly name: string | null };
+}
+
+export interface RiskInput {
+  readonly accountOwner: string | null;
+  /** Per open deal; null when the chains could not be read (tier or failure). */
+  readonly chains:
+    | readonly {
+        readonly deal: string;
+        readonly unreachable: boolean;
+        readonly hasEconomicBuyer: boolean;
+        readonly missing: number;
+        readonly blockers: number;
+      }[]
+    | null;
+  /** The one person every open deal runs through, when the single-thread rule fired. */
+  readonly singleThread: string | null;
+  readonly openDeals: readonly { readonly name: string; readonly owner: string | null; readonly daysInStage: number | null }[];
+  readonly stallDays: number;
+  /** Null when the projects could not be read. */
+  readonly projects:
+    | readonly {
+        readonly name: string;
+        readonly manager: string | null;
+        readonly health: string;
+        readonly overdueMilestones: number;
+        readonly overdueRevenue: number;
+      }[]
+    | null;
+  /** The health score's renewal contribution; null when health is unavailable. */
+  readonly renewal: { readonly points: number; readonly reason: HealthReason } | null;
+}
+
+export function classifyRisks(input: RiskInput): RiskTypeResult[] {
+  return [relationship(input), advance(input), delivery(input), collections(input), renewal(input)];
+}
+
+function relationship(i: RiskInput): RiskTypeResult {
+  const who = { role: "account_owner" as const, name: i.accountOwner };
+  if (i.chains === null) return { type: "relationship", level: "unknown", findings: [], who };
+  const risk: RiskFinding[] = [];
+  const watch: RiskFinding[] = [];
+  for (const c of i.chains) {
+    if (!c.hasEconomicBuyer) risk.push({ code: "no_buyer", deal: c.deal });
+    else if (c.unreachable) risk.push({ code: "buyer_unreachable", deal: c.deal });
+    if (c.missing > 0) watch.push({ code: "roles_missing", deal: c.deal, count: c.missing });
+    if (c.blockers > 0) watch.push({ code: "blockers", deal: c.deal, count: c.blockers });
+  }
+  if (i.singleThread) risk.push({ code: "single_thread", who: i.singleThread });
+  return { type: "relationship", level: risk.length > 0 ? "risk" : watch.length > 0 ? "watch" : "clear", findings: [...risk, ...watch], who };
+}
+
+function advance(i: RiskInput): RiskTypeResult {
+  const stalled = i.openDeals
+    .filter((d) => d.daysInStage !== null && d.daysInStage > i.stallDays)
+    .sort((a, b) => (b.daysInStage ?? 0) - (a.daysInStage ?? 0));
+  return {
+    type: "advance",
+    level: stalled.length > 0 ? "risk" : "clear",
+    findings: stalled.map((d) => ({ code: "deal_stalled", deal: d.name, days: d.daysInStage! })),
+    // The longest-stalled deal's owner; the account owner when nothing is stuck.
+    who: stalled[0] ? { role: "deal_owner", name: stalled[0].owner } : { role: "account_owner", name: i.accountOwner },
+  };
+}
+
+function delivery(i: RiskInput): RiskTypeResult {
+  if (i.projects === null) return { type: "delivery", level: "unknown", findings: [], who: { role: "project_manager", name: null } };
+  const findings: RiskFinding[] = [];
+  let worst: (typeof i.projects)[number] | null = null;
+  let level: RiskLevel = "clear";
+  for (const p of i.projects) {
+    const red = p.health === "red" || p.overdueMilestones > 0;
+    if (p.health === "red") findings.push({ code: "project_red", project: p.name });
+    else if (p.health === "amber") findings.push({ code: "project_amber", project: p.name });
+    if (p.overdueMilestones > 0) findings.push({ code: "milestones_overdue", project: p.name, count: p.overdueMilestones });
+    if (red && level !== "risk") {
+      level = "risk";
+      worst = p;
+    } else if (p.health === "amber" && level === "clear") {
+      level = "watch";
+      worst = p;
+    }
+  }
+  return { type: "delivery", level, findings, who: { role: "project_manager", name: worst?.manager ?? null } };
+}
+
+function collections(i: RiskInput): RiskTypeResult {
+  if (i.projects === null) return { type: "collections", level: "unknown", findings: [], who: { role: "project_manager", name: null } };
+  const late = i.projects.filter((p) => p.overdueRevenue > 0).sort((a, b) => b.overdueRevenue - a.overdueRevenue);
+  return {
+    type: "collections",
+    level: late.length > 0 ? "risk" : "clear",
+    findings: late.map((p) => ({ code: "revenue_overdue", project: p.name, count: p.overdueRevenue })),
+    who: { role: "project_manager", name: late[0]?.manager ?? null },
+  };
+}
+
+function renewal(i: RiskInput): RiskTypeResult {
+  const who = { role: "account_owner" as const, name: i.accountOwner };
+  if (i.renewal === null) return { type: "renewal", level: "unknown", findings: [], who };
+  const { points, reason } = i.renewal;
+  return {
+    type: "renewal",
+    level: points <= -10 ? "risk" : points < 0 ? "watch" : "clear",
+    findings: points < 0 ? [{ code: "renewal", reason }] : [],
+    who,
+  };
+}

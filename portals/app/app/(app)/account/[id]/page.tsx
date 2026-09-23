@@ -66,8 +66,9 @@ import {
 import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
-import { daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
-import { listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory } from "../../../domains/pipeline/service";
+import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
+import { forecastThresholds, listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory } from "../../../domains/pipeline/service";
+import { classifyRisks } from "../../../domains/account/lib/risk-types";
 import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcome-review";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
@@ -1079,6 +1080,51 @@ export default async function AccountDetailPage({
 
   // 徽章区: 开放商机(累计合同额) / 客户级别 / 健康评估 (owner, 2026-09-21:
   // 三个图形区域起个名字，叫徽章区；三个徽章整体居中显示 - 之前默认靠左)。
+  // 风险分型 (YC-021 L5): the facts above regrouped into five types, each with
+  // who to go to. The stall line is the workspace's own (falls back to the
+  // shipped 45 days for a member who cannot read pipeline configuration).
+  const thresholdsRead = await forecastThresholds({ ...base, store: session.stores.pipeline() }).catch(() => null);
+  const stallDays = thresholdsRead?.ok ? thresholdsRead.value.stallDays : DEFAULT_FORECAST_THRESHOLDS.stallDays;
+  const singleThreadJudgement = relevantJudgements.find((j) => j.id === `singlethread:${id}`);
+  const risks = classifyRisks({
+    accountOwner: ownerName,
+    chains: chain.ok
+      ? chain.value.map((c) => ({
+          deal: c.opportunityName,
+          unreachable: c.coverage.economicBuyerUnreachable,
+          hasEconomicBuyer: c.people.some((p) => p.decisionRole === "economic" && p.status === "active"),
+          missing: c.coverage.missing.length,
+          blockers: c.coverage.blockers.length,
+        }))
+      : null,
+    // facts[0] of the single-thread judgement is the person (judgement.ts).
+    singleThread: singleThreadJudgement ? (singleThreadJudgement.facts[0]?.value ?? null) : null,
+    openDeals: dealRows
+      .filter((d) => d.status === "open")
+      .map((d) => ({ name: d.name, owner: d.ownerName, daysInStage: d.daysInStage })),
+    stallDays,
+    projects: projects.ok
+      ? projects.value.map((pr, i) => {
+          const pv = projectViews[i];
+          return {
+            name: pr.name,
+            manager: pr.managerSub ? (memberNameOf.get(pr.managerSub) ?? null) : null,
+            health: pv?.ok ? pv.value.derivedHealth : pr.health,
+            overdueMilestones: (milestonesByProject.get(pr.id) ?? []).filter((m) => m.overdue).length,
+            overdueRevenue: pv?.ok
+              ? pv.value.instalments.filter((inst) => inst.status === "overdue" || isOverdue(inst, now)).length
+              : 0,
+          };
+        })
+      : null,
+    renewal:
+      health && health.ok
+        ? ((c) => (c ? { points: c.points, reason: c.reason } : null))(
+            health.value.contributions.find((c) => c.factor === "renewal"),
+          )
+        : null,
+  });
+
   const badgesSingle = (
     <div className="flex items-center justify-center gap-md">
       <DealsSummaryBadge
@@ -1405,6 +1451,7 @@ export default async function AccountDetailPage({
               onRecompute={recomputeAccountHealth}
               statusTag={statusTag}
               judgement={judgement}
+              risks={risks}
               benchmark={peerBenchmark(
                 { id, industryId: account.industryId, customerSizeId: account.customerSizeId },
                 health.value.score,

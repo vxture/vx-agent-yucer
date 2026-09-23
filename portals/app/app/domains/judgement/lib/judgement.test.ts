@@ -392,6 +392,7 @@ test("one engaged person carrying every open deal is a finding, with who it is",
   const j = deriveJudgements({ accounts: [a], now: NOW }).find((x) => x.id === "singlethread:acc_1");
   assert.ok(j, "one live thread fires");
   assert.match(j.claim, /刘敏/, "the claim names the one person");
+  assert.equal(j.facts[0]!.value, "刘敏", "facts[0] is the person - 风险分型 reads it");
   assert.ok(j.citations.some((c) => /在职联系人 3 人，近 30 天有接触记录的 1 人/.test(c.text)), "the count is evidence");
 });
 
