@@ -225,7 +225,12 @@ export function ContactRoster({
   const [linkSignal, setLinkSignal] = useState(0);
   // Folded: how many people here nobody has reached recently (not warm).
   const coldCount = contacts.filter((c) => recencyText[c.id] && !recencyText[c.id].warm).length;
-  const coldSummary = coldCount > 0 ? COLLAPSE_TEXT.contactsCold(coldCount) : null;
+  const coldSummary =
+    coldCount > 0
+      ? COLLAPSE_TEXT.contactsCold(coldCount)
+      : contacts.length > 0
+        ? COLLAPSE_TEXT.contactsAllWarm(contacts.length)
+        : COLLAPSE_TEXT.contactsNone;
   const [expanded, setExpanded] = useState(false);
 
   const visible = expanded ? contacts : contacts.slice(0, CAP);

@@ -3342,8 +3342,17 @@ export const en: Dictionary = {
     contractDue: (days: number) => `contract ends in ${days} days`,
     contractLapsed: "a contract lapsed without renewal",
     planPending: (n: number) => `${n} proposal(s) awaiting a decision`,
+    planNone: "No proposals awaiting a decision",
+    contactsAllWarm: (n: number) => `${n} contact(s), all reached recently`,
+    contactsNone: "No contacts yet",
+    chainsAllReachable: (n: number) => `${n} decision chain(s), economic buyer reachable on all`,
+    chainsNone: "No open deal, so no decision chain yet",
+    chainDetail: (covered: number, total: number, reachable: boolean) =>
+      `${covered}/${total} roles covered · economic buyer ${reachable ? "reachable" : "unreached"}`,
+    rosterQuiet: "No open deals, overdue instalments or contracts coming up",
     conflictsPending: (n: number) => `${n} conflicting statement(s) to confirm`,
     separator: " · ",
+    aiHint: "Summarised by the assistant from current data; this line is rule-computed",
   },
 
   CONSISTENCY_TEXT: {

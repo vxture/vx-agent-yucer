@@ -128,6 +128,7 @@ export function DecisionChainDetail({
     STANCE_LABEL,
     INFLUENCE_TIER_LABEL,
     PANEL_MENU_TEXT,
+    COLLAPSE_TEXT,
   } = useMessages();
   const [view, setView] = useState<"table" | "graph">("table");
   const [linkOpen, setLinkOpen] = useState(false);
@@ -189,7 +190,9 @@ export function DecisionChainDetail({
 
   return (
     <div className="flex flex-col gap-lg">
-      <CollapsibleSection menu={detailMenu} summary={null}
+      <CollapsibleSection
+        menu={detailMenu}
+        summary={COLLAPSE_TEXT.chainDetail(coverage.covered.length, ROLE_ORDER.length, !coverage.economicBuyerUnreachable)}
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         // 标题行整合 (owner, 2026-09-21: 决策链展开页面信息应该整合一下 -

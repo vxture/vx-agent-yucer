@@ -113,7 +113,7 @@ export function ChainSummaryList({
   } as const;
   if (chains.length === 0) {
     return (
-      <CollapsibleSection summary={null} menu={chainMenu} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
+      <CollapsibleSection summary={COLLAPSE_TEXT.chainsNone} menu={chainMenu} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
         <EmptyState title={emptyTitle} description={emptyDescription} />
       </CollapsibleSection>
     );
@@ -122,7 +122,10 @@ export function ChainSummaryList({
   const visible = expanded ? chains : chains.slice(0, CAP);
   // Folded: deals whose economic buyer is not reachable through anyone.
   const unreachedCount = chains.filter((c) => !c.reachable).length;
-  const unreachedSummary = unreachedCount > 0 ? COLLAPSE_TEXT.chainsUnreached(unreachedCount) : null;
+  const unreachedSummary =
+    unreachedCount > 0
+      ? COLLAPSE_TEXT.chainsUnreached(unreachedCount)
+      : COLLAPSE_TEXT.chainsAllReachable(chains.length);
 
   return (
     <CollapsibleSection summary={unreachedSummary} menu={chainMenu} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
