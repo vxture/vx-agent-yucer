@@ -27,6 +27,13 @@ import { useMessages } from "../lib/i18n/provider";
 const COLLAPSED_CLASS =
   "data-[collapsed=true]:[&>div:first-child]:border-b-0 data-[collapsed=true]:[&>div:first-child]:pb-0 data-[collapsed=true]:[&>div:last-child]:hidden";
 
+// TD-034, second half (owner, 2026-09-23: 按钮上下跳动, 应该靠上对齐): the DS
+// header pins its action slot to the BOTTOM (`self-end`), so the "⋮" and the
+// fold toggle moved every time the header's height changed - when the folded
+// summary line appeared, or under a two-line title. Pinned to the top here,
+// always, so neither state moves them. Same recovery condition as above.
+const ACTION_TOP_CLASS = "[&>div:first-child>div:last-child]:self-start";
+
 /**
  * One entry of a panel's own "⋮" menu (owner, 2026-09-23: 每个板块按需一个
  * 按钮集, 在展开按钮左侧; 至少有查看、编辑两项). Exactly one of:
@@ -65,6 +72,7 @@ export function CollapsibleSection({
   description,
   className,
   children,
+  level = 3,
   ...rest
 }: CollapsibleSectionProps) {
   const { CHAIN_TEXT, PANEL_MENU_TEXT, DS_LABELS } = useMessages();
@@ -99,10 +107,15 @@ export function CollapsibleSection({
   );
 
   return (
+    // LEVEL 3 BY DEFAULT (owner, 2026-09-23: 板块标题文字可以适当缩小一些):
+    // the DS's own next step down, title-sm (~14px) from title-md (~16px),
+    // with its matching icon size - no restyling. Level 3 headers carry no
+    // divider in the DS, so the expanded card loses that line too.
     <Section
       {...rest}
+      level={level}
       data-collapsed={expanded ? undefined : "true"}
-      className={[className, COLLAPSED_CLASS].filter(Boolean).join(" ")}
+      className={[className, COLLAPSED_CLASS, ACTION_TOP_CLASS].filter(Boolean).join(" ")}
       description={expanded ? description : (summary ?? undefined)}
       action={
         <span className="flex items-center justify-end gap-xs">

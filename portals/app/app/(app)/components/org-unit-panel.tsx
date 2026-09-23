@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import { CollapsibleSection } from "./collapsible-section";
 import { useAccountEdit } from "./account-edit-context";
 
@@ -160,7 +161,20 @@ export function OrgUnitPanel({
       icon="buildings"
       title={
         <span className="flex flex-col">
-          <span className="flex items-center gap-xs">{title} <LayerLabel layer="L1" /></span>
+          {/* ONE LINE (owner, 2026-09-23: 单位名称不能换行, 尽量显示, 用
+              tooltip) - a long name truncates with an ellipsis and the full
+              name is on hover; the L1 mark never gets pushed to a new line. */}
+          <span className="flex min-w-0 items-center gap-xs">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="min-w-0 truncate">{title}</span>
+              </TooltipTrigger>
+              <TooltipContent>{title}</TooltipContent>
+            </Tooltip>
+            <span className="shrink-0">
+              <LayerLabel layer="L1" />
+            </span>
+          </span>
           <span className="text-muted-foreground text-body-sm font-normal">{accountNo}</span>
         </span>
       }
