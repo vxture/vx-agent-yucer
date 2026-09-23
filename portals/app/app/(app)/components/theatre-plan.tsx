@@ -192,7 +192,10 @@ export function TheatrePlan({
   // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   if (proposals.length === 0) {
     return (
-      <CollapsibleSection summary={null}
+      <CollapsibleSection
+      // This panel's own "⋮" (owner, 2026-09-23): proposals are decided in the
+      // queue (ADR-003), so view and edit both go there.
+      menu={{ view: { href: "/copilot" }, edit: { href: "/copilot" } }} summary={null}
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         icon="target"
@@ -233,7 +236,10 @@ export function TheatrePlan({
   const groups = [...new Set(proposals.map((p) => p.group))];
 
   return (
-    <CollapsibleSection summary={pendingSummary}
+    <CollapsibleSection
+      // This panel's own "⋮" (owner, 2026-09-23): proposals are decided in the
+      // queue (ADR-003), so view and edit both go there.
+      menu={{ view: { href: "/copilot" }, edit: { href: "/copilot" } }} summary={pendingSummary}
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       icon="target"

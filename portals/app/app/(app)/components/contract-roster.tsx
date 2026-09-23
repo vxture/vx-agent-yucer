@@ -20,6 +20,7 @@ import {
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 import { Tag } from "./tag";
+import { useAccountEdit } from "./account-edit-context";
 
 // 阵地清单「合同」tab (incr/0076, L4 batch one).
 //
@@ -173,6 +174,14 @@ export function ContractRoster(props: ContractRosterProps) {
   const { toast } = useToast();
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<DrawerTarget | null>(null);
+  // The roster's "⋮ 编辑" on the 合同 tab asks for 录入合同 (owner,
+  // 2026-09-23) - the same drawer as the button inside this card.
+  const accountEdit = useAccountEdit();
+  const createSeq = accountEdit?.contractCreateSeq ?? 0;
+  useEffect(() => {
+    if (createSeq > 0 && props.canWrite) setEditing({ mode: "new" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createSeq]);
   const [outcomeFor, setOutcomeFor] = useState<ContractRow | null>(null);
   const [lineFor, setLineFor] = useState<{ contract: ContractRow; line: ContractLineRow | null } | null>(null);
   const [removing, setRemoving] = useState<{ contract: ContractRow; line: ContractLineRow } | null>(null);

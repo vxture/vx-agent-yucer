@@ -100,7 +100,11 @@ export function AccountCompleteness({
   // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
   // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   return (
-    <CollapsibleSection summary={gapSummary}
+    <CollapsibleSection
+      summary={gapSummary}
+      // This panel's own "⋮" (owner, 2026-09-23): both go to the batch
+      // completion page, where every account's gaps are filled in one place.
+      menu={{ view: { href: "/account/complete" }, edit: { href: "/account/complete" } }}
       tone="raised"
       style={CARD_VEIL_STYLE}
       className={CARD_VEIL_CLASS}

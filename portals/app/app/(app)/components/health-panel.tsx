@@ -64,7 +64,7 @@ export function HealthPanel({
   statusTag,
   judgement,
 }: HealthPanelProps) {
-  const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR, COLLAPSE_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR, COLLAPSE_TEXT, PANEL_MENU_TEXT } = useMessages();
 
   // INSIDE the component, not at module scope. It was a module constant, which
   // reads as the cheaper thing to do - build the map once - and is wrong the
@@ -137,20 +137,20 @@ export function HealthPanel({
           {statusTag}
         </span>
       }
-      action={
-        <span className="gap-xs flex items-center">
-          {canRecompute ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={recompute}
-              disabled={pending}
-            >
-              {CHAIN_TEXT.recompute}
-            </Button>
-          ) : null}
-        </span>
-      }
+      // This panel's own "⋮" (owner, 2026-09-23): the score is derived, so
+      // 编辑 is greyed with the reason, and 重新评估 moved here from the
+      // title row.
+      menu={{
+        view: "expand",
+        edit: { hint: PANEL_MENU_TEXT.derived },
+        extra: canRecompute
+          ? [
+              pending
+                ? { id: "recompute", label: CHAIN_TEXT.recompute, hint: CHAIN_TEXT.recompute }
+                : { id: "recompute", label: CHAIN_TEXT.recompute, onSelect: recompute },
+            ]
+          : undefined,
+      }}
     >
         <>
           {judgement ? <JudgementNote judgement={judgement} /> : null}

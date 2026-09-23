@@ -6,6 +6,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import { CollapsibleSection } from "./collapsible-section";
+import { useAccountEdit } from "./account-edit-context";
 
 // 单位信息 (owner, 2026-09-18: 客户详情页重排; 2026-09-20 三轮调整):
 //
@@ -138,9 +139,23 @@ export function OrgUnitPanel({
   customerTypeName,
   scaleName,
 }: OrgUnitPanelProps) {
-  const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT } = useMessages();
+  const edit = useAccountEdit();
   return (
     <CollapsibleSection
+      // This panel's own "⋮" (owner, 2026-09-23): 编辑 is 客户总编辑's
+      // 基础信息 drawer, and 定级 / 协作人 sit beside it - the same three
+      // drawers the breadcrumb row's menu opens (account-edit-context.tsx).
+      menu={{
+        view: "expand",
+        edit: edit?.canWrite ? { onSelect: () => edit.open("basics") } : { hint: PANEL_MENU_TEXT.noEditRight },
+        extra: edit?.canWrite
+          ? [
+              { id: "tier", label: POSITION_TEXT.designateMenu, onSelect: () => edit.open("tier") },
+              { id: "owner", label: COLLABORATOR_TEXT.editButton, onSelect: () => edit.open("owner") },
+            ]
+          : undefined,
+      }}
       tone="raised"
       icon="buildings"
       title={

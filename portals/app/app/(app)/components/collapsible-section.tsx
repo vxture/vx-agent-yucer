@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type ComponentProps, type ReactNode } from "react";
-import { Button, Icon, Section } from "@vxture/design-ui";
+import { useRouter } from "next/navigation";
+import { ActionMenu, Button, Icon, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
 // 可收起的板块 (owner, 2026-09-23: 给所有板块增加展开收起, 收起后彻底收起 +
@@ -26,7 +27,30 @@ import { useMessages } from "../lib/i18n/provider";
 const COLLAPSED_CLASS =
   "data-[collapsed=true]:[&>div:first-child]:border-b-0 data-[collapsed=true]:[&>div:first-child]:pb-0 data-[collapsed=true]:[&>div:last-child]:hidden";
 
+/**
+ * One entry of a panel's own "⋮" menu (owner, 2026-09-23: 每个板块按需一个
+ * 按钮集, 在展开按钮左侧; 至少有查看、编辑两项). Exactly one of:
+ *   onSelect  - do something here (open a drawer, recompute);
+ *   href      - go to the page that owns it;
+ *   "expand"  - (view only) open this card if it is folded;
+ *   hint      - nowhere to go yet: shown GREYED with the reason, never hidden,
+ *               so every panel's menu answers "view/edit" the same way.
+ */
+export type PanelAction =
+  | { readonly onSelect: () => void; readonly href?: never; readonly hint?: never }
+  | { readonly href: string; readonly onSelect?: never; readonly hint?: never }
+  | { readonly hint: string; readonly onSelect?: never; readonly href?: never };
+
+export interface PanelMenu {
+  readonly view: PanelAction | "expand";
+  readonly edit: PanelAction;
+  /** This panel's own extra actions, after a separator. */
+  readonly extra?: ReadonlyArray<{ readonly id: string; readonly label: string } & PanelAction>;
+}
+
 export type CollapsibleSectionProps = ComponentProps<typeof Section> & {
+  /** This panel's own "⋮" menu, left of the fold toggle. Absent: no menu. */
+  readonly menu?: PanelMenu;
   /** One line of what still needs attention while folded. Null/absent: none. */
   readonly summary?: ReactNode;
   /** Actions that only make sense while open (a tab strip, say) - hidden when folded. */
@@ -36,14 +60,30 @@ export type CollapsibleSectionProps = ComponentProps<typeof Section> & {
 export function CollapsibleSection({
   summary,
   openAction,
+  menu,
   action,
   description,
   className,
   children,
   ...rest
 }: CollapsibleSectionProps) {
-  const { CHAIN_TEXT } = useMessages();
+  const { CHAIN_TEXT, PANEL_MENU_TEXT, DS_LABELS } = useMessages();
+  const router = useRouter();
   const [expanded, setExpanded] = useState(true);
+
+  const item = (id: string, label: string, a: PanelAction, separatorBefore?: boolean) =>
+    a.hint !== undefined
+      ? { id, label, disabled: true, hint: a.hint, separatorBefore }
+      : { id, label, separatorBefore, onSelect: a.href !== undefined ? () => router.push(a.href) : a.onSelect };
+  const menuItems = menu
+    ? [
+        menu.view === "expand"
+          ? { id: "view", label: PANEL_MENU_TEXT.view, onSelect: () => setExpanded(true) }
+          : item("view", PANEL_MENU_TEXT.view, menu.view),
+        item("edit", PANEL_MENU_TEXT.edit, menu.edit),
+        ...(menu.extra ?? []).map((x, i) => item(x.id, x.label, x, i === 0)),
+      ]
+    : null;
 
   const toggle = (
     <Button
@@ -68,6 +108,7 @@ export function CollapsibleSection({
         <span className="flex items-center justify-end gap-xs">
           {expanded ? openAction : null}
           {action}
+          {menuItems ? <ActionMenu label={DS_LABELS.actionMenu} items={menuItems} /> : null}
           {toggle}
         </span>
       }

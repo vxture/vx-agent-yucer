@@ -3,7 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { Section, Tabs, TabsContent, TabsList, TabsTrigger, type IconName } from "@vxture/design-ui";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
-import { CollapsibleSection } from "./collapsible-section";
+import { CollapsibleSection, type PanelAction } from "./collapsible-section";
+import { useAccountEdit } from "./account-edit-context";
 
 // 分析板块的图表切换 - owner ruling, 2026-09-06 (多张图改为 tab 切换，位置放在
 // 标题栏右侧).
@@ -27,6 +28,12 @@ export interface AnalysisTab {
   readonly key: string;
   readonly label: string;
   readonly content: ReactNode;
+  /** L3·L4 roster (owner, 2026-09-23): this tab's 查看 / 编辑 in the card's
+   *  own "⋮", which follows the tab that is open. "contract-create" asks the
+   *  contract card to open its 录入合同 drawer (account-edit-context.tsx) -
+   *  a string because a server page cannot hand the client a function. */
+  readonly view?: PanelAction;
+  readonly edit?: PanelAction | "contract-create";
 }
 
 export function AnalysisTabs({
@@ -68,6 +75,21 @@ export function AnalysisTabs({
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // components/org-unit-panel.tsx 同名注释).
+  const accountEdit = useAccountEdit();
+  const activeTab = tabs.find((t) => t.key === active);
+  const menu =
+    collapsible && activeTab && (activeTab.view || activeTab.edit)
+      ? {
+          view: activeTab.view ?? ("expand" as const),
+          edit:
+            activeTab.edit === "contract-create"
+              ? accountEdit
+                ? { onSelect: () => accountEdit.requestContractCreate() }
+                : { hint: "" }
+              : (activeTab.edit ?? ({ hint: "" } as PanelAction)),
+        }
+      : undefined;
+
   const triggers =
     tabs.length > 1 ? (
       <TabsList>
@@ -103,6 +125,7 @@ export function AnalysisTabs({
           description={description}
           openAction={triggers}
           summary={collapsedSummary}
+          menu={menu}
         >
           {body}
         </CollapsibleSection>

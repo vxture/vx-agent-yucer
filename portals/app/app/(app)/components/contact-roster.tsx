@@ -13,6 +13,8 @@ import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
+import { useAccountEdit } from "./account-edit-context";
+import { LinkContactDrawer, type LinkContactDrawerProps } from "./link-contact-drawer";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The people inside a customer.
@@ -132,11 +134,11 @@ export interface ContactRosterProps {
    *  has nothing for that contact yet (gate denied, or the read failed) - row
    *  shows no badge rather than a guessed one. */
   readonly recencyText: Readonly<Record<string, { text: string; warm: boolean; tooltip: string }>>;
-  /** LinkContactDrawer, built server-side in page.tsx and mounted here as
-   *  the card's second header action, next to "+新增" - the mockup's own
-   *  两个按钮 (owner, 2026-09-20: 应该有 新增｜关联 两个按钮). Optional: a
-   *  read-only member gets neither. */
-  readonly linkForm?: ReactNode;
+  /** The 关联 drawer's data and action. 新增｜关联 (owner, 2026-09-20) now
+   *  live in this panel's own "⋮" (owner, 2026-09-23), so the panel mounts
+   *  the drawer itself and opens it from the menu. Optional: a read-only
+   *  member gets neither. */
+  readonly link?: Omit<LinkContactDrawerProps, "openSignal">;
 }
 
 /* 截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem 宽, 一张
@@ -216,9 +218,11 @@ export function ContactRoster({
   canEdit,
   editHref,
   recencyText,
-  linkForm,
+  link,
 }: ContactRosterProps) {
-  const { ACCOUNT_TEXT, COLLAPSE_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, COLLAPSE_TEXT, PANEL_MENU_TEXT, LINK_CONTACT_TEXT } = useMessages();
+  const edit = useAccountEdit();
+  const [linkSignal, setLinkSignal] = useState(0);
   // Folded: how many people here nobody has reached recently (not warm).
   const coldCount = contacts.filter((c) => recencyText[c.id] && !recencyText[c.id].warm).length;
   const coldSummary = coldCount > 0 ? COLLAPSE_TEXT.contactsCold(coldCount) : null;
@@ -241,6 +245,7 @@ export function ContactRoster({
   // 纯文字链接, 视觉上让位给"关联"这个这张卡真正想引导的动作, 两者之间的
   // 间距也从按钮的内边距+gap 变成两段文字自己的 gap, 观感上更紧。
   return (
+    <>
     <CollapsibleSection summary={coldSummary}
       tone="raised"
       style={CARD_VEIL_STYLE}
@@ -257,16 +262,21 @@ export function ContactRoster({
           <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
         </span>
       }
-      action={
-        canEdit ? (
-          <span className="flex items-center justify-end gap-xs">
-            <a href={editHref} className="text-muted-foreground hover:text-foreground text-body-sm">
-              {ACCOUNT_TEXT.contactAddButton}
-            </a>
-            {linkForm}
-          </span>
-        ) : undefined
-      }
+      // 新增 / 关联 moved from the title row into this panel's own "⋮"
+      // (owner, 2026-09-23). 编辑 opens 客户总编辑 at 联系人管理 - the one
+      // place a contact's order and link are managed.
+      menu={{
+        view: "expand",
+        edit: edit?.canWrite
+          ? { onSelect: () => edit.open("basics", "contacts") }
+          : { hint: PANEL_MENU_TEXT.noEditRight },
+        extra: canEdit
+          ? [
+              { id: "add", label: ACCOUNT_TEXT.contactAddButton, href: editHref },
+              ...(link ? [{ id: "link", label: LINK_CONTACT_TEXT.linkButton, onSelect: () => setLinkSignal((n) => n + 1) }] : []),
+            ]
+          : undefined,
+      }}
     >
       {contacts.length === 0 ? (
         <EmptyState
@@ -309,5 +319,9 @@ export function ContactRoster({
         <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
       </CapFooter>
     </CollapsibleSection>
+    {/* Outside the card: a folded card unmounts its body, and 关联 must
+        still open from the menu. The drawer draws no trigger of its own. */}
+    {link ? <LinkContactDrawer {...link} openSignal={linkSignal} /> : null}
+    </>
   );
 }

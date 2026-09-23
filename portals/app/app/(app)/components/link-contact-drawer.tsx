@@ -25,9 +25,15 @@ export interface LinkContactDrawerProps {
   readonly accountId: string;
   readonly onSearch: (accountId: string, query: string) => Promise<{ ok: boolean; error?: string; results?: ContactSearchHit[] }>;
   readonly onLink: (accountId: string, personId: string) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Opened from outside (the contacts panel's "⋮" 关联, owner 2026-09-23):
+   * a bumped number opens it, and the drawer's own trigger button is not
+   * drawn. Absent: the drawer brings its own button, as before.
+   */
+  readonly openSignal?: number;
 }
 
-export function LinkContactDrawer({ accountId, onSearch, onLink }: LinkContactDrawerProps) {
+export function LinkContactDrawer({ accountId, onSearch, onLink, openSignal }: LinkContactDrawerProps) {
   const { LINK_CONTACT_TEXT, ACCOUNT_ERROR } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
@@ -45,6 +51,11 @@ export function LinkContactDrawer({ accountId, onSearch, onLink }: LinkContactDr
     setPicked(null);
     setOpen(true);
   };
+
+  useEffect(() => {
+    if (openSignal) openDrawer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSignal]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -80,9 +91,11 @@ export function LinkContactDrawer({ accountId, onSearch, onLink }: LinkContactDr
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={openDrawer}>
-        {LINK_CONTACT_TEXT.linkButton}
-      </Button>
+      {openSignal === undefined ? (
+        <Button variant="ghost" size="sm" onClick={openDrawer}>
+          {LINK_CONTACT_TEXT.linkButton}
+        </Button>
+      ) : null}
       <Drawer
         open={open}
         onClose={() => setOpen(false)}

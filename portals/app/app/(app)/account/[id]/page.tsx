@@ -100,6 +100,7 @@ import {
 } from "../../components/account-lifecycle";
 import { TheatrePlan, type PlanReview } from "../../components/theatre-plan";
 import { AccountHeaderMenu } from "../../components/account-header-menu";
+import { AccountEditDrawers, AccountEditProvider } from "../../components/account-edit-context";
 import { DEFAULT_PERIOD } from "../../lib/periods";
 import {
   designateAccountTier,
@@ -192,6 +193,7 @@ export default async function AccountDetailPage({
     healthReasonText,
     POSITION_TEXT,
     COLLAPSE_TEXT,
+    PANEL_MENU_TEXT,
     CONTRACT_TEXT,
     CONTRACT_ERROR,
   } = await getMessages();
@@ -966,6 +968,7 @@ export default async function AccountDetailPage({
     // TWO PANES, BOTH SERVER-RENDERED (fix, 2026-09-23 - lib/sidebar-slot.ts).
     // ChainViewProvider renders no DOM, so the aside and the centre stay
     // direct children of the shell's body row while sharing one context.
+    <AccountEditProvider canWrite={canWrite}>
     <ChainViewProvider chains={chainSummaryItems}>
       {/* HEADER 没了 (owner, 2026-09-20: 补充 - 把中部第一块-客户信息卡整合
           进 sidebar-单位信息). ViewHeader 原来管的三件事 - 标题/状态、
@@ -1005,14 +1008,10 @@ export default async function AccountDetailPage({
           canEdit={canLinkContact}
           editHref={`/contact/new?account=${id}&back=/account/${id}`}
           recencyText={contactRecencyText}
-          linkForm={
-            canLinkContact ? (
-              <LinkContactDrawer
-                accountId={id}
-                onSearch={searchContactsAction}
-                onLink={linkExistingContactAction}
-              />
-            ) : undefined
+          link={
+            canLinkContact
+              ? { accountId: id, onSearch: searchContactsAction, onLink: linkExistingContactAction }
+              : undefined
           }
         />
 
@@ -1062,8 +1061,11 @@ export default async function AccountDetailPage({
         <div className="flex min-w-0 flex-col gap-lg">
           <div className="flex items-center justify-between gap-sm">
             <ChainCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
-            <AccountHeaderMenu
-              canWrite={canWrite}
+            <AccountHeaderMenu />
+            {/* The three editors, shared with the panels' own menus
+                (account-edit-context.tsx) - rendered here, inside the
+                centre pane, so they add no child to the shell's row. */}
+            <AccountEditDrawers
               tier={{
                 accountId: id,
                 tier: detail.value.account.tier,
@@ -1223,6 +1225,8 @@ export default async function AccountDetailPage({
             tabs={[
               {
                 key: "deals",
+                // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
+                view: { href: "/pipeline" }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
                 label: `${ACCOUNT_TEXT.lifecycleDeals} (${dealRows.length})`,
                 content: <>
                   <DealLifecyclePanel deals={dealRows} defaultCurrency={defaultCurrency} />
@@ -1235,6 +1239,8 @@ export default async function AccountDetailPage({
               },
               {
                 key: "projects",
+                // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
+                view: { href: "/delivery" }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
                 label: `${ACCOUNT_TEXT.lifecycleProjects} (${rosterProjects.length})`,
                 content: <>
                   {rosterProjects.length === 0 ? (
@@ -1261,6 +1267,8 @@ export default async function AccountDetailPage({
               },
               {
                 key: "revenue",
+                // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
+                view: { href: "/collection" }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
                 label: `${ACCOUNT_TEXT.lifecycleRevenue} (${revenueRows.length})`,
                 content: <>
                   <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />
@@ -1276,6 +1284,8 @@ export default async function AccountDetailPage({
                 // 2026-09-22: 存量资产合成一张卡, 是阵地清单里的一个 tab,
                 // 不是第四张卡)。
                 key: "contracts",
+                // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
+                view: { hint: PANEL_MENU_TEXT.noListPage }, edit: canWriteContract ? ("contract-create" as const) : { hint: PANEL_MENU_TEXT.noEditRight },
                 label: `${CONTRACT_TEXT.tab} (${contractRows.length})`,
                 content: (
                   <ContractRoster
@@ -1303,6 +1313,8 @@ export default async function AccountDetailPage({
                 // 承诺(commitment)是 mockup 完全没有的概念, 之前挤进同一个
                 // tab 是这页自己的历史遗留, 不是设计要求。
                 key: "commitments",
+                // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
+                view: { hint: PANEL_MENU_TEXT.noListPage }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
                 label: `${FIELD_TEXT.commitTitle} (${commitments.ok ? commitments.value.length : 0})`,
                 content: commitments.ok ? (
                   <>
@@ -1331,6 +1343,8 @@ export default async function AccountDetailPage({
               },
               {
                 key: "interactions",
+                // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
+                view: { hint: PANEL_MENU_TEXT.noListPage }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
                 label: `${ACCOUNT_TEXT.lifecycleInteractions} (${interactions.ok ? interactions.value.length : 0})`,
                 content: interactions.ok ? (
                   <>
@@ -1376,5 +1390,6 @@ export default async function AccountDetailPage({
       </ViewLayout>
       </div>
     </ChainViewProvider>
+    </AccountEditProvider>
   );
 }

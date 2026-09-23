@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useChainView } from "./decision-chain-switch";
 import {
   Button,
   SegmentedControl,
@@ -126,13 +127,27 @@ export function DecisionChainDetail({
     DECISION_ROLE_ABBR,
     STANCE_LABEL,
     INFLUENCE_TIER_LABEL,
+    PANEL_MENU_TEXT,
   } = useMessages();
   const [view, setView] = useState<"table" | "graph">("table");
   const [linkOpen, setLinkOpen] = useState(false);
+  const { relationSeq } = useChainView();
   // 入口按钮只在真的能用时出现 (owner: 决策链标题行最右) - 跟
   // contact-roster.tsx 的 "+新增" 同一惯例: 不能用就不露出触发点, 而不是
   // 露出触发点再在弹层里说"你不能用"。
   const canOpenLinkForm = linkForm != null && linkForm.canLink && linkForm.contacts.length >= 2;
+
+  // 记录一次关系 moved from the title row into this panel's "⋮" (owner,
+  // 2026-09-23), and the summary panel's 编辑 can ask for it too.
+  useEffect(() => {
+    if (relationSeq > 0 && canOpenLinkForm) setLinkOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relationSeq]);
+  const detailMenu = {
+    view: { hint: PANEL_MENU_TEXT.useViewSwitch },
+    edit: canOpenLinkForm ? { onSelect: () => setLinkOpen(true) } : { hint: PANEL_MENU_TEXT.noEditRight },
+    extra: canOpenLinkForm ? [{ id: "relation", label: RELATION_TEXT.title, onSelect: () => setLinkOpen(true) }] : undefined,
+  } as const;
 
   const nameOf = (id: string) => contacts.find((c) => c.id === id)?.name ?? id;
   const titleOf = (id: string) => contacts.find((c) => c.id === id)?.title ?? null;
@@ -174,7 +189,7 @@ export function DecisionChainDetail({
 
   return (
     <div className="flex flex-col gap-lg">
-      <CollapsibleSection summary={null}
+      <CollapsibleSection menu={detailMenu} summary={null}
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         // 标题行整合 (owner, 2026-09-21: 决策链展开页面信息应该整合一下 -
@@ -224,11 +239,7 @@ export function DecisionChainDetail({
               value={view}
               onChange={setView}
             />
-            {canOpenLinkForm ? (
-              <Button variant="ghost" size="sm" onClick={() => setLinkOpen(true)}>
-                {RELATION_TEXT.title}
-              </Button>
-            ) : null}
+
           </span>
         }
       >
