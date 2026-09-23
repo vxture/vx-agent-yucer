@@ -420,3 +420,16 @@ test("listContacts finds nobody when nobody currently works there", async () => 
   const rows = await new PrismaAccountStore(client).listContacts(WS, "acc_1");
   assert.deepEqual(rows, []);
 });
+
+test("listCollaboratedAccountIds scopes to the workspace AND the member, and returns bare ids", async () => {
+  // The resolver widens a member's data scope with this answer, so the
+  // predicate is the thing that matters: a missing workspace filter would
+  // hand them another tenant's accounts. The real-DB half is in
+  // prisma-store.db.test.ts.
+  const calls: unknown[] = [];
+  const client = async () =>
+    ({ accountCollaborator: { findMany: delegate([{ accountId: "acc_1" }, { accountId: "acc_2" }], calls) } }) as never;
+  const ids = await new PrismaAccountStore(client).listCollaboratedAccountIds(WS, "usr_helper");
+  assert.deepEqual(ids, ["acc_1", "acc_2"]);
+  assert.deepEqual((calls[0] as { where: unknown }).where, { workspaceId: WS, memberSub: "usr_helper" });
+});

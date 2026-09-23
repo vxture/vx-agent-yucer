@@ -227,6 +227,8 @@ class ScopedAccountStore implements AccountStore {
   linkExistingPerson: AccountStore["linkExistingPerson"] = (...a) => this.inner.linkExistingPerson(...a);
   endContactAffiliation: AccountStore["endContactAffiliation"] = (...a) => this.inner.endContactAffiliation(...a);
   listCollaborators: AccountStore["listCollaborators"] = (...a) => this.inner.listCollaborators(...a);
+  listCollaboratedAccountIds: AccountStore["listCollaboratedAccountIds"] = (...a) =>
+    this.inner.listCollaboratedAccountIds(...a);
   addCollaborator: AccountStore["addCollaborator"] = (...a) => this.inner.addCollaborator(...a);
   removeCollaborator: AccountStore["removeCollaborator"] = (...a) => this.inner.removeCollaborator(...a);
   listRelations: AccountStore["listRelations"] = (...a) => this.inner.listRelations(...a);
