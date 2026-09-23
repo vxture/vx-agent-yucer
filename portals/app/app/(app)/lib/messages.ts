@@ -3015,6 +3015,13 @@ export const RELATION_TYPE_LABEL: Record<string, string> = {
   referred_by: "由其引荐",
 };
 
+// The same edge read from its OBJECT's row (placeRelations: the subject is not
+// in the table). Symmetric types read the same both ways and are not listed.
+export const RELATION_TYPE_LABEL_REVERSED: Record<string, string> = {
+  reports_to: "下属",
+  referred_by: "引荐了",
+};
+
 export const RELATION_TEXT = {
   // owner, 2026-09-20: 设计图严格对齐 - mockup 原词"记录一次关系"; 这个标题
   // 之前定义了但从没真的用上 (LinkContacts 自己不带 Section, 一直是裸的
@@ -5842,6 +5849,9 @@ export const WAR_ROOM_TEXT = {
 
 export const CHAIN_TEXT = {
   title: "决策链",
+  // A person the chain knows by id but the roster cannot name (not on this
+  // customer any more). Never the id itself.
+  unnamedPerson: "未知联系人",
   // incr/0027：一单一条链。标题必须带上是哪一单，否则同一客户下的两条
   // 委员会读起来像一条自相矛盾的答案。
   forDeal: (deal: string) => `决策链 · ${deal}`,

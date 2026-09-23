@@ -307,6 +307,58 @@ export interface RelationEdge {
   relationType: RelationType;
 }
 
+/** Relations that read the same from either end. `peer_of` A->B and B->A
+ *  are one fact recorded twice; the unique index is on (from, to, type), so
+ *  nothing below the display stops the second copy. */
+export const SYMMETRIC_RELATIONS: ReadonlySet<RelationType> = new Set<RelationType>([
+  "peer_of",
+  "allied_with",
+  "opposed_to",
+]);
+
+export interface PlacedRelation {
+  /** The table row the edge is drawn on. */
+  rowId: string;
+  /** The person at the other end. */
+  otherId: string;
+  relationType: RelationType;
+  /** Drawn on the OBJECT's row because the subject has no row of its own -
+   *  a directed edge then needs its reversed wording ("下属 X"). */
+  reversed: boolean;
+}
+
+/**
+ * Each relation drawn ONCE (YC-021 L2: 关系边只画一次不重复).
+ *
+ * A symmetric edge stored in both directions is one edge. An edge is drawn on
+ * its subject's row; when the subject is not in the table (a contact on the
+ * account but not on this deal) it goes on the object's row reversed, rather
+ * than silently vanishing as it did when only subject rows were searched.
+ * An edge touching nobody in the table is not drawn.
+ */
+export function placeRelations(
+  rowIds: readonly string[],
+  relations: readonly RelationEdge[],
+): PlacedRelation[] {
+  const rows = new Set(rowIds);
+  const seen = new Set<string>();
+  const placed: PlacedRelation[] = [];
+  for (const e of relations) {
+    const pair = SYMMETRIC_RELATIONS.has(e.relationType)
+      ? [e.fromContactId, e.toContactId].sort().join("|")
+      : `${e.fromContactId}>${e.toContactId}`;
+    const key = `${e.relationType}:${pair}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (rows.has(e.fromContactId)) {
+      placed.push({ rowId: e.fromContactId, otherId: e.toContactId, relationType: e.relationType, reversed: false });
+    } else if (rows.has(e.toContactId)) {
+      placed.push({ rowId: e.toContactId, otherId: e.fromContactId, relationType: e.relationType, reversed: true });
+    }
+  }
+  return placed;
+}
+
 export interface ChainCoverage {
   /** Roles with at least one active contact. */
   covered: DecisionRole[];

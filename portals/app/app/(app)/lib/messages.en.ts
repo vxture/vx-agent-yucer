@@ -1192,6 +1192,7 @@ export const en: Dictionary = {
       `Please review the deal "${deal}": the verdict strip shows ${findings} finding(s). Using this customer's interactions and commitments, suggest next steps and risks.`,
   },
   CHAIN_TEXT: {
+    unnamedPerson: "Unknown contact",
     forDeal: (deal: string) => `Decision chain · ${deal}`,
     noOpenDealTitle: "No open deal",
     noOpenDealDescription:
@@ -1276,6 +1277,11 @@ export const en: Dictionary = {
     allied_with: "Allied with",
     opposed_to: "Opposed to",
     referred_by: "Referred by",
+  },
+
+  RELATION_TYPE_LABEL_REVERSED: {
+    reports_to: "Manages",
+    referred_by: "Referred",
   },
 
   COMMIT_STATUS_LABEL: {

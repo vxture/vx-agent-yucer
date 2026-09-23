@@ -230,7 +230,17 @@ export default async function OpportunityDetailPage({
   // recorded evidence, not a hand-kept risk list that goes stale.
   const problems = (feed.ok ? feed.value.judgements : [])
     .filter((j) => j.subjectId === opportunity.accountId || j.subjectId === id)
-    .map((j) => ({ id: j.id, claim: j.claim, rule: j.rule ?? null }));
+    .map((j) => ({
+      id: j.id,
+      claim: j.claim,
+      rule: j.rule ?? null,
+      // 证据新鲜度 + 判断到证据跳转 (YC-021 底座): the same judgement reads the
+      // same here as on the home and customer pages - dropping these two made
+      // an old claim look current and an evidenced one look asserted.
+      freshness: j.freshness ?? null,
+      source: j.source,
+      citations: j.citations,
+    }));
 
   // THE DERIVED HEALTH, as on the customer page (#378): an overdue instalment
   // or a missed milestone pulls a reported green down, and the stored column
@@ -606,6 +616,9 @@ export default async function OpportunityDetailPage({
           title={CHAIN_TEXT.forDeal(opportunity.name)}
           coverage={dealChain.coverage}
           contacts={dealChain.people}
+          names={Object.fromEntries(
+            (account.ok ? account.value.contacts : []).map((c) => [c.id, c.name]),
+          )}
         />
       ) : null}
 
