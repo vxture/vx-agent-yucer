@@ -153,8 +153,12 @@ export function CollapsibleSection({
         // 不写文字); the icon's own hover names the actual source, so B4's
         // 规则算出 / 模型推断 distinction is kept - today every line is
         // rule-computed.
-        <div className="text-muted-foreground text-body-sm flex min-w-0 items-center gap-3xs">
-          <span className="text-primary-text shrink-0" title={COLLAPSE_TEXT.aiHint}>
+        // ICON AND TEXT ON ONE AXIS, WITH ROOM (owner, 2026-09-23: ai-star 与
+        // 信息没有对齐, 没有留白间距): the icon's holder is a flex box, not an
+        // inline span - inline, the svg sat on the text baseline and read low -
+        // and the gap is gap-xs, the step every other icon+text pair here uses.
+        <div className="text-muted-foreground text-body-sm flex min-w-0 items-center gap-xs">
+          <span className="text-primary-text flex shrink-0 items-center" title={COLLAPSE_TEXT.aiHint}>
             <Icon name="sparkles" size="xs" />
           </span>
           <Tooltip>
