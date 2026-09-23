@@ -37,7 +37,7 @@ import { deriveAccountStatus, RUNNING_PROJECT_STATUSES, type AccountStatusFacts 
 import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
 import type { AuthzStore } from "../../authz/store";
-import { fail, ok, violation, type RuleResult } from "../shared/result";
+import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
 import { planAccountParent } from "./lib/parent";
 import { chainForOpportunity } from "./lib/buying-role";
 import { denied } from "../pipeline/service";
@@ -67,6 +67,7 @@ import type {
   AccountTier,
   ContactRecord,
   OpportunityContactRecord,
+  NewAccount,
 } from "./store";
 import { planContact, type ContactDraft } from "./lib/contact";
 import {
@@ -1372,6 +1373,54 @@ export interface AccountBasicsPatch {
   employeeCount?: number | null;
 }
 
+/** The checks a customer record's basics must pass, on create and on edit alike. */
+function basicsViolation(patch: AccountBasicsPatch): Violation | null {
+  if (patch.name !== undefined && !patch.name.trim()) {
+    return violation("name_required", "an account needs a name", "name");
+  }
+  // Same CHECK the database enforces (incr/0035) - refused here, in the
+  // product's own terms, rather than as a raw constraint violation.
+  if (patch.province != null && !isProvince(patch.province)) {
+    return violation("province_unknown", `${patch.province} is not one of the 34 provincial-level divisions`, "province");
+  }
+  if (patch.employeeCount != null && (!Number.isInteger(patch.employeeCount) || patch.employeeCount < 0)) {
+    return violation("employee_count_invalid", "employee count must be a non-negative whole number", "employeeCount");
+  }
+  return null;
+}
+
+/**
+ * 新建客户 (owner, 2026-09-23: 独立页面全字段表单). Until this there was NO
+ * way to create a customer in the product - only the demo seed and test SQL
+ * wrote the table, so a real workspace could not add its first one.
+ *
+ * Same gate and the same checks as editing the basics. The number is the
+ * store's to allocate (ACC-NNNN, under a lock); the owner is the person
+ * creating it - it is theirs until somebody reassigns it; the tier is left to
+ * D1's designation (ADR-013) and the status is derived, never stored (§5.1).
+ */
+export async function createAccount(
+  ctx: AccountContext,
+  input: Omit<NewAccount, "ownerSub">,
+): Promise<RuleResult<AccountRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const name = input.name.trim();
+  const invalid = basicsViolation({ ...input, name });
+  if (invalid) return fail(invalid);
+  if (!name) return fail(violation("name_required", "an account needs a name", "name"));
+
+  try {
+    return ok(await ctx.store.createAccount(ctx.workspaceId, { ...input, name, ownerSub: ctx.sub }));
+  } catch (e) {
+    if (e instanceof Error && e.message === "credit_code_taken") {
+      return fail(violation("credit_code_taken", "another customer already has this credit code", "creditCode"));
+    }
+    throw e;
+  }
+}
+
 export async function updateAccountBasics(
   ctx: AccountContext,
   accountId: string,
@@ -1380,28 +1429,8 @@ export async function updateAccountBasics(
   const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  if (patch.name !== undefined && !patch.name.trim()) {
-    return fail(violation("name_required", "an account needs a name", "name"));
-  }
-  // Same CHECK the database enforces (incr/0035) - refused here, in the
-  // product's own terms, rather than as a raw constraint violation.
-  if (patch.province != null && !isProvince(patch.province)) {
-    return fail(violation(
-      "province_unknown",
-      `${patch.province} is not one of the 34 provincial-level divisions`,
-      "province",
-    ));
-  }
-  if (
-    patch.employeeCount != null &&
-    (!Number.isInteger(patch.employeeCount) || patch.employeeCount < 0)
-  ) {
-    return fail(violation(
-      "employee_count_invalid",
-      "employee count must be a non-negative whole number",
-      "employeeCount",
-    ));
-  }
+  const invalid = basicsViolation(patch);
+  if (invalid) return fail(invalid);
 
   const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
   if (!current) {

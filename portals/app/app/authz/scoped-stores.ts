@@ -227,6 +227,9 @@ class ScopedAccountStore implements AccountStore {
   linkExistingPerson: AccountStore["linkExistingPerson"] = (...a) => this.inner.linkExistingPerson(...a);
   endContactAffiliation: AccountStore["endContactAffiliation"] = (...a) => this.inner.endContactAffiliation(...a);
   listCollaborators: AccountStore["listCollaborators"] = (...a) => this.inner.listCollaborators(...a);
+  // A new customer is its creator's (ownerSub = the session), so it is inside
+  // every scope that could have created it; nothing to filter on the way in.
+  createAccount: AccountStore["createAccount"] = (...a) => this.inner.createAccount(...a);
   listCollaboratedAccountIds: AccountStore["listCollaboratedAccountIds"] = (...a) =>
     this.inner.listCollaboratedAccountIds(...a);
   addCollaborator: AccountStore["addCollaborator"] = (...a) => this.inner.addCollaborator(...a);

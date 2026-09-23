@@ -475,3 +475,31 @@ test("listCollaboratedAccountIds answers for one member in one workspace", { ski
     await cleanup();
   }
 });
+
+// 新建客户 (2026-09-23). The real index is what makes credit_code_taken
+// possible at all - this proves it exists and that the adapter names it.
+test("createAccount numbers after the workspace's highest ACC and refuses a credit code in use", { skip }, async () => {
+  await cleanup();
+  await withPg(seed);
+  const s = await store();
+  const base = {
+    region: null, province: null, industryId: null, segmentCode: null, customerTypeId: null,
+    customerSizeId: null, customerNatureId: null, website: null, employeeCount: null, ownerSub: "usr_me",
+  };
+  try {
+    await withPg((c) => c.query(`UPDATE yucer_core.account SET account_no = 'ACC-0041' WHERE id = $1`, [ACC]));
+    const made = await s.createAccount(WS, { ...base, name: "Created One", creditCode: "91DB0000CREATE" });
+    assert.equal(made.accountNo, "ACC-0042");
+    assert.equal(made.ownerSub, "usr_me");
+    assert.equal(made.tier, "standard");
+    await assert.rejects(
+      () => s.createAccount(WS, { ...base, name: "Created Twice", creditCode: "91DB0000CREATE" }),
+      /credit_code_taken/,
+    );
+    // Another workspace numbers on its own.
+    const elsewhere = await s.createAccount(WS_OTHER, { ...base, name: "Other WS", creditCode: null });
+    assert.notEqual(elsewhere.accountNo, "ACC-0043");
+  } finally {
+    await cleanup();
+  }
+});

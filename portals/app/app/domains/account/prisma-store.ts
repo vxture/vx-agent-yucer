@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
+import { isUniqueViolation, lockKey } from "../shared/allocate";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
 import type { CustomerTypeDraft } from "./lib/customer-type";
@@ -17,20 +18,22 @@ import {
   type MarketScope,
 } from "../shared/market-division";
 import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType, RenewalHealthInput, Stance } from "./lib/health";
-import type {
-  AccountFilter,
-  AccountPlanRecord,
-  AccountRecord,
-  AccountStore,
-  AccountTier,
-  MarketDivisionRecord,
-  ContactRecord,
-  HealthInputs,
-  IndustryRecord,
-  CustomerTypeRecord,
-  CustomerSizeRecord,
-  CustomerNatureRecord,
-  OpportunityContactRecord,
+import {
+  nextAccountNo,
+  type NewAccount,
+  type AccountFilter,
+  type AccountPlanRecord,
+  type AccountRecord,
+  type AccountStore,
+  type AccountTier,
+  type MarketDivisionRecord,
+  type ContactRecord,
+  type HealthInputs,
+  type IndustryRecord,
+  type CustomerTypeRecord,
+  type CustomerSizeRecord,
+  type CustomerNatureRecord,
+  type OpportunityContactRecord,
 } from "./store";
 
 // Prisma-backed AccountStore over yucer_core.
@@ -340,6 +343,35 @@ export class PrismaAccountStore implements AccountStore {
     return rows.map((r: Record<string, unknown>) =>
       toAccount(r, industryNames, customerTypeNames, customerSizeNames, customerNatureNames),
     );
+  }
+
+  async createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord> {
+    const p = await this.client();
+    let id: string;
+    try {
+      // account_no is human-facing and unique per workspace; the advisory lock
+      // serialises allocation (READ COMMITTED alone lets two creates read the
+      // same highest number), released at commit - the opportunity_no pattern.
+      id = await p.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("account_no")}::int, hashtext(${workspaceId})::int)`;
+        const taken = await tx.account.findMany({ where: { workspaceId }, select: { accountNo: true } });
+        const row = await tx.account.create({
+          data: {
+            workspaceId,
+            accountNo: nextAccountNo(taken.map((r: { accountNo: string }) => r.accountNo)),
+            ...input,
+          },
+          select: { id: true },
+        });
+        return row.id as string;
+      });
+    } catch (e) {
+      // The only other unique index on the table is the partial one on
+      // (workspace_id, credit_code): the number is allocated under the lock.
+      if (isUniqueViolation(e)) throw new Error("credit_code_taken");
+      throw e;
+    }
+    return (await this.getAccount(workspaceId, id)) as AccountRecord;
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {

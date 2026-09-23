@@ -94,6 +94,33 @@ export interface AccountRecord {
   parentId: string | null;
 }
 
+/** What a new customer is created with (owner, 2026-09-23: 新建客户). The number
+ *  is the store's to assign, the tier D1's (ADR-013), the status derived. */
+export interface NewAccount {
+  name: string;
+  region: string | null;
+  province: string | null;
+  industryId: string | null;
+  segmentCode: string | null;
+  customerTypeId: string | null;
+  customerSizeId: string | null;
+  customerNatureId: string | null;
+  creditCode: string | null;
+  website: string | null;
+  employeeCount: number | null;
+  ownerSub: string | null;
+}
+
+/** The next ACC-NNNN after the highest one in use - numbers that do not follow
+ *  the pattern (imported ones) are left alone, never reused. */
+export function nextAccountNo(existing: readonly string[]): string {
+  const top = existing.reduce((max, no) => {
+    const m = /^ACC-(\d+)$/.exec(no);
+    return m ? Math.max(max, Number(m[1])) : max;
+  }, 0);
+  return `ACC-${String(top + 1).padStart(4, "0")}`;
+}
+
 export const ACCOUNT_TIERS = ["strategic", "key", "standard"] as const;
 export type AccountTier = (typeof ACCOUNT_TIERS)[number];
 
@@ -442,6 +469,9 @@ export interface AccountStore {
     accountId: string,
   ): Promise<Array<{ memberSub: string; addedAt: Date }>>;
   addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void>;
+  /** 新建客户. Assigns the number (nextAccountNo) under the allocation lock.
+   *  Throws "credit_code_taken" when the credit code is another customer's. */
+  createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord>;
   /** The other direction: every account this member collaborates on. Read by
    *  the data-scope resolver - a collaborator sees the account (YC-021 L1). */
   listCollaboratedAccountIds(workspaceId: string, memberSub: string): Promise<string[]>;
@@ -802,6 +832,29 @@ export class InMemoryAccountStore implements AccountStore {
     rows.sort(by(asc((a: AccountRecord) => a.healthScore), asc((a: AccountRecord) => a.name)));
     return filter.limit ? rows.slice(0, filter.limit) : rows;
     // tier filter applied by callers that ask for it
+  }
+
+  async createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord> {
+    const mine = [...this.accounts.values()].filter((a) => a.workspaceId === workspaceId);
+    if (input.creditCode && mine.some((a) => a.creditCode === input.creditCode)) {
+      throw new Error("credit_code_taken");
+    }
+    const row: AccountRecord = {
+      id: crypto.randomUUID(),
+      workspaceId,
+      accountNo: nextAccountNo(mine.map((a) => a.accountNo)),
+      ...input,
+      industry: null,
+      customerType: null,
+      customerSize: null,
+      customerNature: null,
+      healthScore: null,
+      status: "prospect",
+      tier: "standard",
+      parentId: null,
+    };
+    this.accounts.set(row.id, row);
+    return this.hydrate(row);
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
