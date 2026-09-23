@@ -34,6 +34,15 @@ export async function resolveDataScope(
   const setting = await authz.getScope(workspaceId, sub);
   if (setting.kind === "workspace") return WHOLE_WORKSPACE;
 
+  // 协作人 SEE THE ACCOUNT, in every scope (YC-021 L1 负责人与协作人: adding
+  // a collaborator must change what that member can see - before this, the
+  // roster was written and read by nothing that decides visibility). Joined
+  // into `accountIds`, the parent path, so the account's deals and leads come
+  // with it: a collaborator who can see the customer but not its deals would
+  // be asked to work it blind. Removing them takes it away on the next request.
+  const collaborated = await getAccountStore().listCollaboratedAccountIds(workspaceId, sub);
+  const withCollaborated = (ids: readonly string[]) => [...new Set([...ids, ...collaborated])];
+
   if (setting.kind === "territory") {
     // EXPANDED DOWN THE HIERARCHY. Assigned a parent, you cover its children -
     // otherwise territory.parent_id is decorative and the configuration is
@@ -76,7 +85,13 @@ export async function resolveDataScope(
       .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
       .map((a) => a.id);
 
-    return { kind: "territory", territoryIds, accountIds, ownerSubs, unplacedAccountIds };
+    return {
+      kind: "territory",
+      territoryIds,
+      accountIds: withCollaborated(accountIds),
+      ownerSubs,
+      unplacedAccountIds,
+    };
   }
 
   if (setting.kind === "unit") {
@@ -111,7 +126,15 @@ export async function resolveDataScope(
     const unplacedAccountIds = accounts
       .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
       .map((a) => a.id);
-    return { kind: "unit", unitIds, memberSubs, territoryIds, accountIds, ownerSubs, unplacedAccountIds };
+    return {
+      kind: "unit",
+      unitIds,
+      memberSubs,
+      territoryIds,
+      accountIds: withCollaborated(accountIds),
+      ownerSubs,
+      unplacedAccountIds,
+    };
   }
 
   // `own` - what I hold, plus the customers my work sits on.
@@ -132,5 +155,5 @@ export async function resolveDataScope(
   // here - canSeeRow checks owner_sub first, so adding them would be a second
   // way to say the same thing and a second thing to keep in step.
 
-  return { kind: "own", sub, accountIds: [...accountIds] };
+  return { kind: "own", sub, accountIds: withCollaborated([...accountIds]) };
 }

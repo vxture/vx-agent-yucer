@@ -87,6 +87,9 @@ export default async function CapturePage({
         opportunityId={opportunityId}
         canRecord
         onRecord={captureFollowUp}
+        contacts={detail.value.contacts
+          .filter((c) => c.status === "active")
+          .map((c) => ({ id: c.id, name: c.name, title: c.title }))}
         doneHref={doneHref}
       />
     </ViewLayout>

@@ -100,6 +100,8 @@ export async function captureFollowUp(
     rawNote: string;
     opportunityId?: string;
     commitments?: readonly { direction: string; statement: string; dueAt: string }[];
+    /** Their people who were there - YC-021 L2 每人最近接触. */
+    contactIds?: readonly string[];
   },
 ): Promise<FieldResult & { failedCommitments?: number }> {
   const session = await resolveAppSession();
@@ -122,12 +124,30 @@ export async function captureFollowUp(
     if (Number.isNaN(c.dueAt.getTime())) return { ok: false, error: "date_invalid" };
   }
 
+  // WHO WAS THERE, on their side. A contact's last touch (R5 人级时效) is read
+  // from participant rows naming them; until this, no form ever wrote one, so
+  // every contact read "never contacted" however often they were met. Each id
+  // must be a contact OF THIS ACCOUNT, checked against the account's own list
+  // through the member's scoped store: the FK only proves the contact exists
+  // somewhere, and a stale or forged id would warm a stranger's recency.
+  const contactIds = [...new Set(input.contactIds ?? [])];
+  if (contactIds.length > 0) {
+    const onAccount = new Set(
+      (await session.stores.account().listContacts(session.workspaceId, accountId)).map((c) => c.id),
+    );
+    if (contactIds.some((id) => !onAccount.has(id))) return { ok: false, error: "contact_not_on_account" };
+  }
+
   const r = await recordInteraction(ctx(session), {
     accountId,
     channel: input.channel,
     occurredAt,
     rawNote: input.rawNote,
     opportunityId: input.opportunityId || null,
+    // The recorder stays a participant - the default this list replaces.
+    ...(contactIds.length > 0
+      ? { participants: [{ memberSub: session.user.sub }, ...contactIds.map((contactId) => ({ contactId }))] }
+      : {}),
   });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
 

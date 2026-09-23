@@ -53,6 +53,7 @@ async function store() {
 
 async function cleanup() {
   await withPg(async (c) => {
+    await c.query(`DELETE FROM yucer_core.account_collaborator WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.account_relation WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.account_plan WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.person WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
@@ -447,6 +448,29 @@ test("toAccount maps a real row, including the columns that may be null", { skip
     assert.equal(full.healthScore, 61);
     assert.equal(full.tier, "strategic");
     assert.equal(typeof full.healthScore, "number", "a smallint must not arrive as a string");
+  } finally {
+    await cleanup();
+  }
+});
+
+// 协作人 -> visibility (YC-021 L1). The resolver asks "which accounts does this
+// member collaborate on"; the answer must be this workspace's and this
+// member's, nothing wider - a leak here widens somebody's data scope.
+test("listCollaboratedAccountIds answers for one member in one workspace", { skip }, async () => {
+  await cleanup();
+  await withPg(seed);
+  const s = await store();
+  try {
+    await s.addCollaborator(WS, ACC, "usr_helper");
+    await s.addCollaborator(WS, ACC, "usr_someone_else");
+    await s.addCollaborator(WS_OTHER, ACC_OTHER_WS, "usr_helper");
+
+    assert.deepEqual(await s.listCollaboratedAccountIds(WS, "usr_helper"), [ACC]);
+    assert.deepEqual(await s.listCollaboratedAccountIds(WS_OTHER, "usr_helper"), [ACC_OTHER_WS]);
+    assert.deepEqual(await s.listCollaboratedAccountIds(WS, "usr_nobody"), []);
+
+    await s.removeCollaborator(WS, ACC, "usr_helper");
+    assert.deepEqual(await s.listCollaboratedAccountIds(WS, "usr_helper"), []);
   } finally {
     await cleanup();
   }

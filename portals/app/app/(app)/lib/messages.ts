@@ -2845,6 +2845,8 @@ export const FIELD_TEXT = {
   recordNotePlaceholder:
     "例:见了王总和陈总监。预算这条线要等 CFO 点头,王总说下周三给答复。",
   recordChannel: "方式",
+  recordWho: "对方谁在场（选填）",
+  recordWhoHint: "选上的人，最近接触时间会更新为这一次",
   recordWhen: "什么时候",
   recordSubmit: "记下",
   recordSaved: "已记下",
@@ -2954,6 +2956,7 @@ export const FIELD_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   // 统一录入的部分成功:笔记是证据、只追加,落了就不回滚;某条承诺被拒时如实说。
   commitment_partial: "跟进已记下,但有承诺没记上——到承诺列表补一条",
+  contact_not_on_account: "选的联系人不在这家客户名下——刷新页面再选",
   note_required: "写一句发生了什么——只记下它发生过,没有价值",
   occurred_in_future: "跟进不能发生在未来",
   unknown_channel: "未知的跟进方式",

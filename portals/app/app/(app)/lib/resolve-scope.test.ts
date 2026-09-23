@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveDataScope } from "./resolve-scope";
 import { InMemoryPlanningStore } from "../../domains/planning/store";
-import { setAccountStore, setPlanningStore } from "../../domains/shared/registry";
+import { setAccountStore, setPipelineStore, setPlanningStore, setSignalStore } from "../../domains/shared/registry";
+import type { PipelineStore } from "../../domains/pipeline/store";
+import type { SignalStore } from "../../domains/signal/store";
+import { canSeeRow } from "../../authz/visibility";
 import type { AccountStore } from "../../domains/account/store";
 import type { AuthzStore } from "../../authz/store";
 import type { ScopeSetting } from "../../authz/scope";
@@ -28,6 +31,7 @@ test("a unit-scoped member sees their subtree's people and ground; placed nowher
       { id: "acc_north", region: "华北" },
       { id: "acc_nowhere", region: null },
     ],
+    listCollaboratedAccountIds: async () => [],
   } as unknown as AccountStore);
   try {
     await planning.seedOrgDefaults(WS);
@@ -64,5 +68,49 @@ test("a unit-scoped member sees their subtree's people and ground; placed nowher
   } finally {
     setPlanningStore(null);
     setAccountStore(null);
+  }
+});
+
+test("协作人: a collaborator sees the account and its deals, in every scope; removed, they do not", async () => {
+  let roster: Array<{ accountId: string; memberSub: string }> = [{ accountId: "acc_shared", memberSub: "usr_helper" }];
+  setAccountStore({
+    listAccounts: async () => [{ id: "acc_shared", region: "华北" }, { id: "acc_other", region: "华北" }],
+    listCollaboratedAccountIds: async (_ws: string, sub: string) =>
+      roster.filter((r) => r.memberSub === sub).map((r) => r.accountId),
+  } as unknown as AccountStore);
+  setPipelineStore({ listOpportunities: async () => [] } as unknown as PipelineStore);
+  setSignalStore({ listLeads: async () => [] } as unknown as SignalStore);
+  // 华北 is filed under somebody else's territory, so acc_other is filed
+  // elsewhere - not 未分区, which every scope may see by design.
+  const planning = new InMemoryPlanningStore();
+  setPlanningStore(planning);
+  try {
+    await planning.upsertTerritory(WS, {
+      territoryCode: "NORTH_X", name: "North", parentId: null, ownerSub: "usr_owner", status: "active",
+      regions: ["华北"], divisionIds: [], unitIds: [],
+    });
+    const account = { ownerSub: "usr_owner", accountId: "acc_shared" };
+    const deal = { ownerSub: "usr_owner", accountId: "acc_shared", territoryId: null };
+    const other = { ownerSub: "usr_owner", accountId: "acc_other" };
+
+    for (const setting of [
+      { kind: "own" },
+      { kind: "territory", territoryIds: [] },
+      { kind: "unit", territoryIds: [] },
+    ] as ScopeSetting[]) {
+      const scope = await resolveDataScope(WS, "usr_helper", authzWith(setting));
+      assert.ok(canSeeRow(scope, account), `${setting.kind}: the account`);
+      assert.ok(canSeeRow(scope, deal), `${setting.kind}: a deal on it`);
+      assert.ok(!canSeeRow(scope, other), `${setting.kind}: not a customer they do not work`);
+    }
+
+    roster = [];
+    const after = await resolveDataScope(WS, "usr_helper", authzWith({ kind: "own" } as ScopeSetting));
+    assert.ok(!canSeeRow(after, account), "removed from the roster, the account goes");
+  } finally {
+    setAccountStore(null);
+    setPipelineStore(null);
+    setSignalStore(null);
+    setPlanningStore(null);
   }
 });

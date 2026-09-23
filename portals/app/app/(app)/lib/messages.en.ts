@@ -1487,6 +1487,7 @@ export const en: Dictionary = {
 
   FIELD_ERROR: {
     commitment_partial: "The follow-up is recorded, but a promise was refused - add it from the commitment list",
+    contact_not_on_account: "A picked contact is not on this customer - reload and pick again",
     ...GATE_ERROR,
     note_required:
       "Write a line about what happened - recording only that it happened is worth nothing",
@@ -4041,6 +4042,8 @@ export const en: Dictionary = {
   // these keys are pulled forward because the overdue block renders on /account.
   FIELD_TEXT: {
     ...zh.FIELD_TEXT,
+    recordWho: "Who from their side was there (optional)",
+    recordWhoHint: "Each one picked has their last contact moved to this one",
     captureTitle: (name: string) => `Record a touch · ${name}`,
     captureCrumb: "Record a touch",
     captureWhy:
