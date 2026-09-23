@@ -2659,6 +2659,7 @@ export const en: Dictionary = {
       draft_outreach: "Draft an outreach",
       promote_signal: "Promote the signal to a lead",
       adjust_forecast: "Adjust the forecast",
+      propose_upsell: "Recommend an upsell",
       draft_email: "Draft an email",
     } as Record<string, string>,
     approve: "Approve",
@@ -3470,6 +3471,12 @@ export const en: Dictionary = {
     ownedTitle: "Owned now",
     ownedHint: "Unexpired lines of in-force contracts",
     ownedEmpty: "Nothing in use right now",
+    whitespaceTitle: "White space",
+    whitespaceHint:
+      "On sale and not yet in use here; upsell recommendations come from the daily sweep by same-industry ownership, decided in the plan",
+    whitespaceUnknown:
+      "The catalogue could not be read or has nothing on sale - white space is unknown, which is not the same as everything",
+    whitespaceNone: "They already run everything on sale",
     qty: (n: string) => `x ${n}`,
     unknownProduct: "(no longer in the catalog)",
   },
@@ -4531,6 +4538,7 @@ export const en: Dictionary = {
     draft_email: "Draft an email",
     draft_outreach: "Draft outreach",
     promote_signal: "Promote the signal to a lead",
+    propose_upsell: "Recommend an upsell",
   },
 
   ACTION_STATUS_LABEL: {
@@ -5362,6 +5370,7 @@ export const en: Dictionary = {
       "pricing.discount_approval": "Discount approval",
       "delivery.payment_risk": "Payment risk",
       "campaign.return": "Campaign return",
+      "account.upsell": "Upsell opportunity",
       "strategy.segment_coverage": "Segment coverage trend",
       "strategy.territory_attainment": "Territory attainment trend",
     } as Record<string, string>,

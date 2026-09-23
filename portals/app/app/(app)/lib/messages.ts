@@ -2188,6 +2188,7 @@ export const BOARD_TEXT = {
     "pricing.discount_approval": "折扣审批",
     "delivery.payment_risk": "回款风险",
     "campaign.return": "战役回报",
+    "account.upsell": "增购机会",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3798,6 +3799,7 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
   advance_stage: "推进阶段",
   draft_email: "起草邮件",
   draft_outreach: "起草触达",
+  propose_upsell: "推荐增购",
   promote_signal: "信号升级为线索",
 };
 
@@ -4518,6 +4520,11 @@ export const CONTRACT_TEXT = {
   ownedTitle: "已购态",
   ownedHint: "生效合同上未到期的明细",
   ownedEmpty: "当下没有在用的产品",
+  // L4 批六: 白地 = 可售 − 已购态。目录读不到时说「未知」, 不说「全是白地」。
+  whitespaceTitle: "白地",
+  whitespaceHint: "在售、这家当下还没在用的产品；增购推荐由每日巡检按同行业已购率提出，进作战方案裁决",
+  whitespaceUnknown: "产品目录读取失败或没有在售产品，白地未知——这不代表这家什么都没买，也不代表都能卖",
+  whitespaceNone: "在售产品这家都在用了",
   qty: (n: string) => `× ${n}`,
   unknownProduct: "（目录中已不存在）",
 } as const;
@@ -6124,6 +6131,7 @@ export const POSITION_TEXT = {
     advance_stage: "推进到下一阶段",
     draft_outreach: "起草一封外联",
     promote_signal: "把信号升级为线索",
+    propose_upsell: "推荐增购",
     adjust_forecast: "调整预测口径",
     draft_email: "起草邮件",
   } as Record<string, string>,

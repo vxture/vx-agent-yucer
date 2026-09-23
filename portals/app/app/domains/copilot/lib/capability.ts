@@ -25,6 +25,9 @@ export const CAPABILITIES = [
   "campaign.return",
   "strategy.segment_coverage",
   "strategy.territory_attainment",
+  // L4 batch six (owner, 2026-09-22): 增购机会 - its own group, so growing the
+  // installed base never reads as pushing a deal already in flight.
+  "account.upsell",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -101,6 +104,12 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   "strategy.territory_attainment": {
     task: "propose",
     evidence: ["targets", "deals"],
+  },
+  // Filed by the rule-based upsell sweep today; if a model is ever asked for
+  // upsell reasoning it reads the deals and their lines, not meeting notes.
+  "account.upsell": {
+    task: "propose",
+    evidence: ["deals", "lines"],
   },
 };
 
