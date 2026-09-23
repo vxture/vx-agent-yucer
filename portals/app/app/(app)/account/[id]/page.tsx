@@ -6,6 +6,7 @@ import {
 import { CircleBadge, DealsSummaryBadge, DimensionStat } from "../../components/dimension-stat";
 import { descendantsOf, rollupGroup } from "../../../domains/account/lib/group";
 import { GroupScopeSwitch } from "../../components/group-scope-switch";
+import { peerBenchmark } from "../../../domains/account/lib/benchmark";
 import { ScoreRing } from "../../components/score-ring";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
@@ -1365,6 +1366,11 @@ export default async function AccountDetailPage({
               onRecompute={recomputeAccountHealth}
               statusTag={statusTag}
               judgement={judgement}
+              benchmark={peerBenchmark(
+                { id, industryId: account.industryId, customerSizeId: account.customerSizeId },
+                health.value.score,
+                accountsRead.ok ? accountsRead.value : [],
+              )}
             />
           ) : (
             // 只读成员没有 health(见上面 persist:false 的说明), 状态标签和
