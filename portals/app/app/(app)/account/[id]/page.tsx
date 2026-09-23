@@ -888,6 +888,11 @@ export default async function AccountDetailPage({
           reachable: !c.coverage.economicBuyerUnreachable,
           hasEconomicBuyer,
           unreachedBlockers,
+          facts: {
+            covered: c.coverage.covered,
+            missing: c.coverage.missing,
+            personIds: c.people.filter((p) => p.status === "active").map((p) => p.id),
+          },
           detail: (
             <DecisionChainDetail
               key={c.opportunityId}
@@ -897,6 +902,7 @@ export default async function AccountDetailPage({
               contacts={contacts}
               relations={relations.ok ? relations.value : []}
               recency={recencyRead}
+              editHref={`/pipeline/${c.opportunityId}`}
               linkForm={
                 i === 0
                   ? {

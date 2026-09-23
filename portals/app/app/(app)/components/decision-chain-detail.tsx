@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useChainView } from "./decision-chain-switch";
 import {
   Button,
@@ -94,6 +95,9 @@ export interface DecisionChainDetailProps {
    *  2026-09-21: 人际及利益博弈关系). 跟 recency/coverage 一样是 page.tsx
    *  已经读过的同一份数据, 不是新读一次。 */
   readonly relations: readonly RelationEdge[];
+  /** The deal page, where this chain's buying roles are edited (incr/0027:
+   *  a role is a fact about one purchase). The account view only reads. */
+  readonly editHref?: string;
   /** Null when the recency read failed - the table still renders, just
    *  without the per-row "上次联系" tooltip. */
   readonly recency: ChainRecency | null;
@@ -118,6 +122,7 @@ export function DecisionChainDetail({
   relations,
   recency,
   linkForm,
+  editHref,
 }: DecisionChainDetailProps) {
   const {
     ACCOUNT_TEXT,
@@ -268,7 +273,12 @@ export function DecisionChainDetail({
               value={view}
               onChange={setView}
             />
-
+            {/* 编辑入口跳回具体商机 (YC-021 L2): roles are written on the deal. */}
+            {editHref ? (
+              <Button asChild size="sm" variant="ghost">
+                <Link href={editHref}>{CHAIN_TEXT.editOnDeal}</Link>
+              </Button>
+            ) : null}
           </span>
         }
       >
