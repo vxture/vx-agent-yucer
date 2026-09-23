@@ -35,11 +35,112 @@ export interface PlanProposal {
   readonly confidence: number | null;
 }
 
+/**
+ * 采纳后成效回看 (L6 batch four) - one accepted decision and the facts that
+ * followed it. Facts only, no score (owner, 2026-09-22): see
+ * domains/copilot/lib/outcome-review.ts for why a replayed score would lie.
+ */
+export interface PlanReview {
+  readonly id: string;
+  readonly title: string;
+  /** The deal it was about, for a deal-level decision. */
+  readonly subjectName: string | null;
+  readonly decidedAt: string;
+  readonly windowEnd: string;
+  readonly windowClosed: boolean;
+  /** A source could not be read - "could not read" is not "nothing happened". */
+  readonly readFailed: boolean;
+  readonly nothingFollowed: boolean;
+  readonly stageMoves: ReadonlyArray<{
+    id: string;
+    opportunityId: string;
+    opportunityName: string | null;
+    from: string;
+    to: string;
+    date: string;
+  }>;
+  readonly interactions: ReadonlyArray<{ id: string; date: string; channel: string; text: string }>;
+  readonly commitmentsMet: ReadonlyArray<{ id: string; statement: string; date: string }>;
+  readonly commitmentsMissed: ReadonlyArray<{ id: string; statement: string; date: string }>;
+}
+
+/**
+ * The review list. INSIDE the plan card, not a card of its own: it is the
+ * same proposals after the decision (design T4 - no new card), and the
+ * reader who just read what is proposed now can check what came of the last
+ * ones. Each entry is a native <details>, closed by default.
+ */
+function OutcomeReviews({ reviews }: { readonly reviews: readonly PlanReview[] }) {
+  const { OUTCOME_TEXT } = useMessages();
+  if (reviews.length === 0) return null;
+  return (
+    <div className="border-border flex flex-col gap-xs border-t pt-sm">
+      <p className="text-muted-foreground text-label-sm font-bold">{OUTCOME_TEXT.title}</p>
+      <p className="text-muted-foreground text-body-sm">{OUTCOME_TEXT.notCausation}</p>
+      {reviews.map((r) => (
+        <details key={r.id} className="border-border rounded-md border p-xs">
+          <summary className="cursor-pointer text-body-sm">
+            <span className="text-foreground font-bold">{r.title}</span>
+            {r.subjectName ? <span className="text-muted-foreground"> · {r.subjectName}</span> : null}
+            <span className="text-muted-foreground">
+              {" "}
+              · {OUTCOME_TEXT.acceptedOn(r.decidedAt)}
+              {r.windowClosed ? "" : ` · ${OUTCOME_TEXT.windowOpen(r.windowEnd)}`}
+            </span>
+          </summary>
+          <div className="mt-xs flex flex-col gap-2xs text-body-sm">
+            {r.readFailed ? (
+              <p className="text-destructive-text">{OUTCOME_TEXT.readFailed}</p>
+            ) : r.nothingFollowed ? (
+              <p className="text-muted-foreground">{OUTCOME_TEXT.nothingFollowed}</p>
+            ) : (
+              <>
+                {r.stageMoves.map((m) => (
+                  <p key={m.id}>
+                    <span className="text-muted-foreground tabular-nums">{m.date}</span>{" "}
+                    <Link href={`/pipeline/${m.opportunityId}`} className="underline">
+                      {m.opportunityName ?? OUTCOME_TEXT.deal}
+                    </Link>{" "}
+                    {OUTCOME_TEXT.stageMove(m.from, m.to)}
+                  </p>
+                ))}
+                {r.commitmentsMet.map((c) => (
+                  <p key={c.id}>
+                    <span className="text-muted-foreground tabular-nums">{c.date}</span>{" "}
+                    <Tag tone="success">{OUTCOME_TEXT.met}</Tag> {c.statement}
+                  </p>
+                ))}
+                {r.commitmentsMissed.map((c) => (
+                  <p key={c.id}>
+                    <span className="text-muted-foreground tabular-nums">{c.date}</span>{" "}
+                    <Tag tone="danger">{OUTCOME_TEXT.missed}</Tag> {c.statement}
+                  </p>
+                ))}
+                {r.interactions.map((i) => (
+                  <details key={i.id}>
+                    <summary className="cursor-pointer">
+                      <span className="text-muted-foreground tabular-nums">{i.date}</span> {i.channel}
+                    </summary>
+                    <p className="text-muted-foreground whitespace-pre-wrap">{i.text}</p>
+                  </details>
+                ))}
+              </>
+            )}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 export function TheatrePlan({
   proposals,
   accountId,
+  reviews = [],
 }: {
   readonly proposals: readonly PlanProposal[];
+  /** 采纳后成效回看 - accepted decisions and what followed (L6 batch four). */
+  readonly reviews?: readonly PlanReview[];
   /**
    * Where "分析" sends a reader for a deeper conversation - never an inline
    * accept/reject (ADR-003: that only ever happens on the queue page). Both
@@ -113,6 +214,7 @@ export function TheatrePlan({
             rows={3}
           />
         </div>
+        <OutcomeReviews reviews={reviews} />
         <CapFooter>
           <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capPlanBasic}
           <br />
@@ -200,6 +302,7 @@ export function TheatrePlan({
           rows={3}
         />
       </div>
+      <OutcomeReviews reviews={reviews} />
       <CapFooter>
         <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capPlanBasic}
         <br />

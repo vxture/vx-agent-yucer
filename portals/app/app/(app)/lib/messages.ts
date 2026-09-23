@@ -4519,6 +4519,21 @@ export const CONTRACT_TEXT = {
   unknownProduct: "（目录中已不存在）",
 } as const;
 
+/** 采纳后成效回看 (L6 批四, owner 2026-09-22: 只列事实不显示分数)。 */
+export const OUTCOME_TEXT = {
+  title: "采纳后回看",
+  // 列的是"之后发生了什么", 不是"因此发生了什么"。
+  notCausation: "采纳之后 14 天内这家客户发生的事实。是时间上的先后，不代表因果。",
+  acceptedOn: (d: string) => `${d} 采纳`,
+  windowOpen: (end: string) => `观察中，至 ${end}`,
+  nothingFollowed: "14 天内暂无后续动作：没有阶段推进、没有跟进记录、没有承诺到期。",
+  readFailed: "后续记录读取失败，稍后刷新重试——这不代表没有后续。",
+  deal: "商机",
+  stageMove: (from: string, to: string) => (from ? `${from} → ${to}` : `进入 ${to}`),
+  met: "承诺兑现",
+  missed: "承诺错过",
+} as const;
+
 export const DELIVERY_TEXT = {
   title: "项目交付",
   description: "链路终点不是赢单，是钱到账。逾期回款的项目不允许显示为健康。",

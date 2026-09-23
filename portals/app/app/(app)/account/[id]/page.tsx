@@ -58,7 +58,8 @@ import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
 import { daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
-import { listPipeline, listStageDefinitions, stageChangeTimestamps } from "../../../domains/pipeline/service";
+import { listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory } from "../../../domains/pipeline/service";
+import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcome-review";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
 import { listContracts, listProjects, projectView } from "../../../domains/delivery/service";
@@ -95,7 +96,7 @@ import {
   type ProjectMilestoneRow,
   type RevenueRow,
 } from "../../components/account-lifecycle";
-import { TheatrePlan } from "../../components/theatre-plan";
+import { TheatrePlan, type PlanReview } from "../../components/theatre-plan";
 import { AccountHeaderMenu } from "../../components/account-header-menu";
 import { DEFAULT_PERIOD } from "../../lib/periods";
 import {
@@ -564,6 +565,98 @@ export default async function AccountDetailPage({
       rationale: a.rationale,
       confidence: a.confidence,
     }));
+
+  // 采纳后成效回看 (L6 batch four). Accepted decisions on this account or one
+  // of its deals, newest first, the last 90 days, at most five - a review is
+  // for recent decisions a person still remembers making.
+  const REVIEW_LOOKBACK_DAYS = 90;
+  const decidedReads = await Promise.all([
+    listProposals({ ...base, store: getCopilotStore() }, { status: "accepted" }),
+    listProposals({ ...base, store: getCopilotStore() }, { status: "executed" }),
+  ]);
+  const reviewable = decidedReads
+    .flatMap((r) => (r.ok ? r.value : []))
+    .filter((a) => a.subjectId === id || dealIds.has(a.subjectId))
+    .filter(isReviewable)
+    .filter((a) => now.getTime() - a.decidedAt.getTime() <= REVIEW_LOOKBACK_DAYS * 86_400_000)
+    .sort((a, b) => b.decidedAt.getTime() - a.decidedAt.getTime())
+    .slice(0, 5);
+  // Only when there is something to review: the full interaction history
+  // (the page's own read stops at the newest 50, which could cut a window
+  // off) and each deal's stage log. One stageHistory per deal - the same
+  // small-N the page already accepts for projectView.
+  const [reviewInteractions, reviewStages] =
+    reviewable.length === 0
+      ? [null, []]
+      : await Promise.all([
+          listInteractions(fieldCtx, { accountId: id }),
+          Promise.all(
+            (deals.ok ? deals.value : []).map((d) =>
+              stageHistory({ ...base, store: session.stores.pipeline() }, d.id),
+            ),
+          ),
+        ]);
+  const dealNameOf = new Map((deals.ok ? deals.value : []).map((d) => [d.id, d.name]));
+  const stageMovesAll = reviewStages.flatMap((r) => (r.ok ? r.value : []));
+  const reviewSourcesFailed =
+    reviewable.length > 0 &&
+    (!reviewInteractions?.ok || !commitments.ok || reviewStages.some((r) => !r.ok));
+  const stageName = (s: string | null) => (s ? stageLabelFor(s, stageDefinitions, STAGE_LABEL) : "");
+  const planReviews: PlanReview[] = reviewable.map((a) => {
+    // A deal-level decision is judged on that deal's own rows; an
+    // account-level one on everything at the account.
+    const oppOnly = a.subjectType === "opportunity" ? a.subjectId : null;
+    const mine = <T extends { opportunityId: string | null }>(rows: readonly T[]) =>
+      oppOnly ? rows.filter((r) => r.opportunityId === oppOnly) : rows;
+    const interactionRows = reviewInteractions?.ok ? reviewInteractions.value : [];
+    const commitmentRows = commitments.ok ? commitments.value : [];
+    const review = reviewOutcome(a, {
+      stageMoves: mine(stageMovesAll),
+      interactions: mine(interactionRows),
+      commitments: mine(commitmentRows),
+    }, now);
+    const ymdOf = (d: Date) => d.toISOString().slice(0, 10);
+    const interactionById = new Map(interactionRows.map((i) => [i.id, i]));
+    const commitmentById = new Map(commitmentRows.map((c) => [c.id, c]));
+    return {
+      id: a.id,
+      title: AGENT_ACTION_LABEL[a.actionType] ?? a.actionType,
+      subjectName: oppOnly ? (dealNameOf.get(oppOnly) ?? null) : null,
+      decidedAt: ymdOf(a.decidedAt),
+      windowEnd: ymdOf(review.windowEnd),
+      windowClosed: review.windowClosed,
+      readFailed: reviewSourcesFailed,
+      nothingFollowed: review.nothingFollowed,
+      stageMoves: review.stageMoves.map((s) => ({
+        id: s.id,
+        opportunityId: s.opportunityId,
+        opportunityName: dealNameOf.get(s.opportunityId) ?? null,
+        from: stageName(s.fromStage),
+        to: stageName(s.toStage),
+        date: ymdOf(s.occurredAt),
+      })),
+      interactions: review.interactions.map((i) => {
+        const row = interactionById.get(i.id)!;
+        return {
+          id: i.id,
+          date: ymdOf(i.occurredAt),
+          channel: CHANNEL_LABEL[row.channel] ?? row.channel,
+          // The original, verbatim - the review's evidence is the record itself.
+          text: row.summary ?? row.subject ?? row.rawNote,
+        };
+      }),
+      commitmentsMet: review.commitmentsMet.map((c) => ({
+        id: c.id,
+        statement: commitmentById.get(c.id)?.statement ?? "",
+        date: ymdOf(c.metAt!),
+      })),
+      commitmentsMissed: review.commitmentsMissed.map((c) => ({
+        id: c.id,
+        statement: commitmentById.get(c.id)?.statement ?? "",
+        date: ymdOf(c.dueAt),
+      })),
+    };
+  });
 
   const completeness = await accountCompleteness(
     {
@@ -1176,7 +1269,7 @@ export default async function AccountDetailPage({
             ]}
           />
 
-          <TheatrePlan proposals={planProposals} accountId={id} />
+          <TheatrePlan proposals={planProposals} accountId={id} reviews={planReviews} />
           </>
           } />
         </div>
