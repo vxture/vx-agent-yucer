@@ -3318,6 +3318,39 @@ export const en: Dictionary = {
     closed: "Closed",
   },
 
+  MEETING_TEXT: {
+    open: "Meeting prep",
+    title: "Meeting prep",
+    pickHint: "Tick who will be in the room. This does not read your calendar - you choose the attendees.",
+    pickedNote: "The attendees are the ones you ticked, not ones the system detected.",
+    build: "Build the brief",
+    repick: "Pick again",
+    noContacts: "This customer has no contacts yet - add them on the contacts card first.",
+    attendees: "Who is coming",
+    noRole: "on no open deal's decision chain",
+    commitments: "Promised and not done",
+    commitmentsNone: "No commitment overdue, missed, or due within 14 days.",
+    missed: "Missed",
+    overdue: (n: number) => `${n} days overdue`,
+    dueIn: (n: number) => `due in ${n} days`,
+    money: "Money in the air",
+    moneyNone: "No instalment overdue or due within 30 days.",
+    moneyOverdue: "Overdue",
+    conclusion: "What to walk out with",
+    health: (score: number) => `Health ${score}`,
+    healthUnavailable: "The health score is not available right now.",
+    proposalsNone: "No proposals awaiting a decision.",
+    partRefused: "You may not see this part, or your tier does not include it.",
+    partFailed: "This part could not be read - try again shortly. It does not mean there is nothing.",
+  },
+
+  MEETING_ERROR: {
+    ...GATE_ERROR,
+    attendees_required: "Tick at least one attendee",
+    currency_mismatch: "The currency does not match the plan",
+    not_found: "No such customer, or it belongs to another workspace",
+  },
+
   OUTCOME_TEXT: {
     title: "After acceptance",
     notCausation: "What happened at this customer in the 14 days after acceptance. Order in time, not cause.",
@@ -5372,6 +5405,8 @@ export const en: Dictionary = {
     attach: "Attach a file",
     notWired: "That capability is not connected yet",
     pendingEmpty: "Nothing is waiting on you right now.",
+    meetingTitle: "Meeting prep",
+    meetingHint: "One click before you meet them: who is coming, what is promised and not done, money in the air, what to walk out with.",
     reconTitle: "Competition",
     reconEmpty:
       "Nothing scouted yet. Rivals appear only inside note text so far; there is no formed intelligence.",

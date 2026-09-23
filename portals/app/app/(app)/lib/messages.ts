@@ -2256,6 +2256,9 @@ export const BOARD_TEXT = {
   attach: "添加附件",
   notWired: "该能力尚未接通",
   pendingEmpty: "此刻没有等你裁决的事。",
+  // 会前准备 (L6 批五) 快捷指令。
+  meetingTitle: "会前准备",
+  meetingHint: "见客户前一键汇总：谁到场、答应了还没做的、悬着的钱、这次该拿什么结论。",
   reconTitle: "敌情",
   reconEmpty: "尚未侦察。竞争对手目前只出现在跟进原文里，还没有成型情报。",
   reconCta: "发起竞争态势分析",
@@ -4518,6 +4521,40 @@ export const CONTRACT_TEXT = {
   qty: (n: string) => `× ${n}`,
   unknownProduct: "（目录中已不存在）",
 } as const;
+
+/** 会前准备 (L6 批五): 与会人由人勾选, 不读日历。 */
+export const MEETING_TEXT = {
+  open: "会前准备",
+  title: "会前准备",
+  pickHint: "勾选这次会到场的人。系统不读你的日历，与会人由你选。",
+  pickedNote: "与会人是你刚才勾选的，不是系统识别的。",
+  build: "生成准备包",
+  repick: "重新选人",
+  noContacts: "这家客户还没有联系人，先去联系人卡片里加。",
+  attendees: "谁会到场",
+  noRole: "未在任何开放商机的决策链里",
+  commitments: "答应了还没做的",
+  commitmentsNone: "没有逾期、错过或 14 天内到期的承诺。",
+  missed: "已错过",
+  overdue: (n: number) => `逾期 ${n} 天`,
+  dueIn: (n: number) => `${n} 天后到期`,
+  money: "悬着的钱",
+  moneyNone: "没有逾期或 30 天内到期的回款。",
+  moneyOverdue: "逾期",
+  conclusion: "这次该拿什么结论",
+  health: (score: number) => `健康分 ${score}`,
+  healthUnavailable: "健康分当前不可用。",
+  proposalsNone: "没有待裁决的提案。",
+  partRefused: "你没有查看这部分的权限，或当前档位不含。",
+  partFailed: "这部分读取失败，稍后重试——这不代表没有内容。",
+} as const;
+
+export const MEETING_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  attendees_required: "至少勾选一位与会人",
+  currency_mismatch: "回款币种与计划不一致",
+  not_found: "客户不存在，或不属于当前工作区",
+};
 
 /** 采纳后成效回看 (L6 批四, owner 2026-09-22: 只列事实不显示分数)。 */
 export const OUTCOME_TEXT = {

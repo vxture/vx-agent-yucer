@@ -6,6 +6,7 @@ import { Button } from "@vxture/design-ui";
 import { AgentCapture } from "./agent-capture";
 import { AssistantDeck } from "./assistant";
 import type { AgentPanelData } from "../lib/board";
+import { MeetingBriefButton, type MeetingBriefButtonProps } from "./meeting-brief";
 
 import { useMessages } from "../lib/i18n/provider";
 // The right-hand operation panel.
@@ -36,6 +37,12 @@ export interface AgentPanelProps {
   readonly onAsk?: (text: string) => void;
   /** Absent until attachment intake exists; same treatment. */
   readonly onAttach?: () => void;
+  /**
+   * 会前准备 (L6 batch five) - only on an account's deck, and only when the
+   * reader holds copilot.suggest. Absent means the section is not shown.
+   */
+  readonly briefFor?: { accountId: string; contacts: MeetingBriefButtonProps["contacts"] };
+  readonly onBuildBrief?: MeetingBriefButtonProps["onBuild"];
 }
 
 export function AgentPanel({
@@ -44,6 +51,8 @@ export function AgentPanel({
   onRecord,
   onAsk,
   onAttach,
+  briefFor,
+  onBuildBrief,
 }: AgentPanelProps) {
   const { BOARD_TEXT } = useMessages();
 
@@ -52,6 +61,21 @@ export function AgentPanel({
   // grammar for free and, more to the point, stop drifting from the pages
   // that answer their own questions in the same place.
   const sections = [
+    // A quick command, first because it is the one you open the deck for
+    // half an hour before a meeting.
+    ...(briefFor && onBuildBrief
+      ? [
+          {
+            id: "meeting",
+            title: BOARD_TEXT.meetingTitle,
+            empty: BOARD_TEXT.meetingHint,
+            items: [],
+            footer: (
+              <MeetingBriefButton accountId={briefFor.accountId} contacts={briefFor.contacts} onBuild={onBuildBrief} />
+            ),
+          },
+        ]
+      : []),
     {
       id: "pending",
       title: BOARD_TEXT.pendingTitle,
