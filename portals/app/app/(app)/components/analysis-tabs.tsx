@@ -27,6 +27,9 @@ import { useAccountEdit } from "./account-edit-context";
 export interface AnalysisTab {
   readonly key: string;
   readonly label: string;
+  /** Shown as a pill after the label (the prototype's tab bar, YC-026) rather
+   *  than "(n)" in the text. */
+  readonly count?: number;
   readonly content: ReactNode;
   /** L3·L4 roster (owner, 2026-09-23): this tab's 查看 / 编辑 in the card's
    *  own "⋮", which follows the tab that is open. "contract-create" asks the
@@ -92,8 +95,13 @@ export function AnalysisTabs({
     tabs.length > 1 ? (
       <TabsList>
         {tabs.map((t) => (
-          <TabsTrigger key={t.key} value={t.key}>
+          <TabsTrigger key={t.key} value={t.key} className="group/tab gap-2xs">
             {t.label}
+            {t.count !== undefined ? (
+              <span className="bg-muted text-muted-foreground group-data-[state=active]/tab:bg-primary group-data-[state=active]/tab:text-primary-foreground rounded-full px-2xs text-label-sm leading-snug tabular-nums">
+                {t.count}
+              </span>
+            ) : null}
           </TabsTrigger>
         ))}
       </TabsList>

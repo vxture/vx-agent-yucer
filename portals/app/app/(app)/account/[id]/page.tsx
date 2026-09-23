@@ -1612,7 +1612,8 @@ export default async function AccountDetailPage({
                 key: "deals",
                 // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
                 view: { href: "/pipeline" }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
-                label: `${ACCOUNT_TEXT.lifecycleDeals} (${dealRows.length})`,
+                label: ACCOUNT_TEXT.lifecycleDeals,
+                count: dealRows.length,
                 content: <>
                   <DealLifecyclePanel deals={dealRows} defaultCurrency={defaultCurrency} />
                   <CapFooter>
@@ -1626,7 +1627,8 @@ export default async function AccountDetailPage({
                 key: "projects",
                 // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
                 view: { href: "/delivery" }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
-                label: `${ACCOUNT_TEXT.lifecycleProjects} (${rosterProjects.length})`,
+                label: ACCOUNT_TEXT.lifecycleProjects,
+                count: rosterProjects.length,
                 content: <>
                   {rosterProjects.length === 0 ? (
                     <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.rosterNoProjects}</p>
@@ -1657,7 +1659,8 @@ export default async function AccountDetailPage({
                 // 查看 opens THIS customer's schedule on /collection, where the
                 // status moves (YC-021 回款: 回款状态流转) - not the workspace's.
                 view: { href: `/collection?account=${id}` }, edit: { href: `/collection?account=${id}` },
-                label: `${ACCOUNT_TEXT.lifecycleRevenue} (${revenueRows.length})`,
+                label: ACCOUNT_TEXT.lifecycleRevenue,
+                count: revenueRows.length,
                 content: <>
                   <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />
                   <CapFooter>
@@ -1674,7 +1677,8 @@ export default async function AccountDetailPage({
                 key: "contracts",
                 // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
                 view: { hint: PANEL_MENU_TEXT.noListPage }, edit: canWriteContract ? ("contract-create" as const) : { hint: PANEL_MENU_TEXT.noEditRight },
-                label: `${CONTRACT_TEXT.tab} (${contractRows.length})`,
+                label: CONTRACT_TEXT.tab,
+                count: contractRows.length,
                 content: (
                   <ContractRoster
                     accountId={id}
@@ -1704,7 +1708,8 @@ export default async function AccountDetailPage({
                 key: "commitments",
                 // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
                 view: { hint: PANEL_MENU_TEXT.noListPage }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
-                label: `${FIELD_TEXT.commitTitle} (${commitments.ok ? commitments.value.length : 0})`,
+                label: FIELD_TEXT.commitTitle,
+                count: commitments.ok ? commitments.value.length : 0,
                 content: commitments.ok ? (
                   <>
                     <CommitmentList
@@ -1734,7 +1739,8 @@ export default async function AccountDetailPage({
                 key: "interactions",
                 // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
                 view: { hint: PANEL_MENU_TEXT.noListPage }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
-                label: `${ACCOUNT_TEXT.lifecycleInteractions} (${interactions.ok ? interactions.value.length : 0})`,
+                label: ACCOUNT_TEXT.lifecycleInteractions,
+                count: interactions.ok ? interactions.value.length : 0,
                 content: interactions.ok ? (
                   <>
                     <InteractionTimeline
