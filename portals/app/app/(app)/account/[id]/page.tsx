@@ -18,6 +18,7 @@ import {
 import {
   accountCompleteness,
   accountRelations,
+  accountStatuses,
   decisionChainsByOpportunity,
   getAccountDetail,
   listAccounts,
@@ -329,7 +330,7 @@ export default async function AccountDetailPage({
     ? policyRead.value.defaultCurrency
     : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [deals, projects, feed, proposals, stageRows, stageChanges, contractsRead, productsRead, statusesRead] = await Promise.all([
+  const [deals, projects, feed, proposals, stageRows, stageChanges, contractsRead, productsRead, statusesRead, statusRead] = await Promise.all([
     listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
     cachedFeed(base),
@@ -349,7 +350,15 @@ export default async function AccountDetailPage({
     // 白地 (L4 batch six) needs to know which products are SELLABLE - the
     // `active` status - not merely which exist.
     listProductStatuses({ ...base, store: getCatalogStore() }),
+    // 状态标签, derived from the facts (YC-021 L5) - the stored column was never
+    // written after creation. A failed read shows no tag, never the stale one.
+    accountStatuses(
+      { ...base, store: session.stores.account(), pipeline: session.stores.pipeline(), delivery: getDeliveryStore() },
+      [id],
+      now,
+    ).catch(() => null),
   ]);
+  const derivedStatus = statusRead?.ok ? (statusRead.value.get(id) ?? null) : null;
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
   const openStages = openStageOrder(stageDefinitions);
 
@@ -900,11 +909,11 @@ export default async function AccountDetailPage({
   // content) - 搬进 health-panel.tsx 的卡头, 跟客户评估同一张卡; health 不可用
   // (只读成员, 见上面 persist:false 的说明)时退化成不挂卡片的纯文本, 而不是
   // 整个消失。
-  const statusTag = (
-    <Tag tone={account.status === "churned" ? "danger" : "neutral"} dot>
-      {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
+  const statusTag = derivedStatus ? (
+    <Tag tone={derivedStatus === "churned" ? "danger" : "neutral"} dot>
+      {ACCOUNT_STATUS_LABEL[derivedStatus] ?? derivedStatus}
     </Tag>
-  );
+  ) : null;
 
   // 销售负责人, 纯文本, footer 专用 (owner, 2026-09-21: 销售负责人迁移到
   // card 最底部 - ACC-0001 不再跟它同一行, 见下面 title 那一侧). 没有负责人
