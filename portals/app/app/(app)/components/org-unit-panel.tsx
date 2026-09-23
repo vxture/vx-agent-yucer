@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
+import { CollapsibleSection } from "./collapsible-section";
 
 // 单位信息 (owner, 2026-09-18: 客户详情页重排; 2026-09-20 三轮调整):
 //
@@ -140,7 +140,7 @@ export function OrgUnitPanel({
 }: OrgUnitPanelProps) {
   const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT } = useMessages();
   return (
-    <Section
+    <CollapsibleSection
       tone="raised"
       icon="buildings"
       title={
@@ -208,6 +208,6 @@ export function OrgUnitPanel({
           {ownerRow}
         </div>
       ) : null}
-    </Section>
+    </CollapsibleSection>
   );
 }

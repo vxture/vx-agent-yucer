@@ -3320,6 +3320,21 @@ export const en: Dictionary = {
     closed: "Closed",
   },
 
+  COLLAPSE_TEXT: {
+    contactsCold: (n: number) => `${n} contact(s) not reached in a while`,
+    chainsUnreached: (n: number) => `economic buyer unreached on ${n} deal(s)`,
+    gaps: (n: number) => `${n} profile gap(s) to fill`,
+    health: (score: number) => `Health ${score}`,
+    concern: (text: string) => `main concern: ${text}`,
+    dealsOpen: (n: number) => `${n} open deal(s)`,
+    revenueOverdue: (n: number) => `${n} instalment(s) overdue`,
+    contractDue: (days: number) => `contract ends in ${days} days`,
+    contractLapsed: "a contract lapsed without renewal",
+    planPending: (n: number) => `${n} proposal(s) awaiting a decision`,
+    conflictsPending: (n: number) => `${n} conflicting statement(s) to confirm`,
+    separator: " · ",
+  },
+
   CONSISTENCY_TEXT: {
     button: "Check consistency",
     checking: "Checking...",
