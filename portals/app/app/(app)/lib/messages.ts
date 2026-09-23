@@ -1027,6 +1027,34 @@ export const REVENUE_ERROR: Record<string, string> = {
   denied: "操作被拒绝",
 };
 
+/**
+ * 合同 (incr/0076, L4 批一) 的违规码。planContract / planContractLine /
+ * service.ts 合同段能发出的每一个码都在这里 (reachable-codes.test.ts 静态核对)。
+ */
+export const CONTRACT_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  contract_no_required: "合同必须有编号",
+  contract_no_too_long: "合同编号过长（最多 64 个字符）",
+  contract_no_taken: "这个合同编号已经登记过了",
+  name_required: "合同必须有名称",
+  name_too_long: "合同名称过长",
+  unknown_status: "未知的合同状态",
+  notice_out_of_range: "通知期必须是 0 到 365 之间的整天数",
+  amount_negative: "金额不能为负",
+  term_inverted: "到期日早于起始日",
+  term_required: "生效中的合同必须写明起止日期——没有到期日，续约窗口永远扫不到它",
+  frozen_field: "合同编号、客户、来源商机和明细的产品在登记后不能改",
+  illegal_transition: "已终止的合同不能重新打开，生效中的合同不能退回草稿",
+  currency_mismatch: "合同已有明细，不能再改币种",
+  contract_closed: "已终止的合同不再接受修改",
+  product_required: "明细必须选择产品",
+  quantity_not_positive: "数量必须大于零",
+  line_outside_term: "明细的到期日必须落在合同期限之内",
+  invalid_date: "日期格式不对",
+  not_found: "记录不存在，或不属于当前工作区",
+  unknown: "合同读取失败，请稍后重试",
+};
+
 export const ACCOUNT_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   plan_required:
@@ -4404,6 +4432,62 @@ export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
   churned: "流失",
 };
 
+/** 阵地清单「合同」tab (incr/0076, L4 批一, owner 2026-09-22: 单卡)。 */
+export const CONTRACT_TEXT = {
+  tab: "合同",
+  empty: "还没有登记合同",
+  // 三分法 (设计 Q2.3): 权限不足 / 读失败 / 确实没有, 各是各的话。
+  readFailed: "合同读取失败，稍后刷新重试——这不代表这家没有合同",
+  add: "录入合同",
+  edit: "编辑",
+  addLine: "添加明细",
+  removeLine: "移除",
+  removeConsequence: "这条明细会从合同里删掉，已购态随之更新。",
+  drawerCreate: "录入合同",
+  drawerEdit: "编辑合同",
+  drawerLine: "合同明细",
+  save: "保存",
+  saved: "已保存",
+  removed: "已移除",
+  fieldNo: "合同编号",
+  fieldNoFrozen: "编号登记后不能改",
+  fieldName: "合同名称",
+  fieldStatus: "状态",
+  fieldAmount: "合同金额",
+  fieldCurrency: "币种",
+  fieldTermStart: "起始日",
+  fieldTermEnd: "到期日",
+  fieldNotice: "通知期（天）",
+  fieldSigned: "签署日",
+  fieldDeal: "来源商机",
+  fieldDealNone: "不关联",
+  fieldDealFrozen: "来源商机登记后不能改",
+  fieldProduct: "产品",
+  fieldQty: "数量",
+  fieldUnitPrice: "单价",
+  fieldLineEnd: "明细到期日（留空＝随合同）",
+  statusDraft: "草稿",
+  statusActive: "生效",
+  statusTerminated: "已终止",
+  phaseDraft: "草稿",
+  phasePending: "未开始",
+  phaseInForce: "生效中",
+  phaseLapsed: "已到期未续",
+  phaseTerminated: "已终止",
+  term: (start: string, end: string) => `${start} 至 ${end}`,
+  termOpen: "期限未定",
+  daysLeft: (n: number) => `${n} 天后到期`,
+  noticeBy: (d: string) => `${d} 前须通知`,
+  lineTotal: "明细合计",
+  noLines: "还没有明细",
+  lineUntil: (d: string) => `至 ${d}`,
+  ownedTitle: "已购态",
+  ownedHint: "生效合同上未到期的明细",
+  ownedEmpty: "当下没有在用的产品",
+  qty: (n: string) => `× ${n}`,
+  unknownProduct: "（目录中已不存在）",
+} as const;
+
 export const DELIVERY_TEXT = {
   title: "项目交付",
   description: "链路终点不是赢单，是钱到账。逾期回款的项目不允许显示为健康。",
@@ -6098,6 +6182,7 @@ export const PERMISSION_TREE_TEXT = {
     "delivery.project": "交付项目",
     "delivery.milestone": "里程碑",
     "delivery.revenue": "回款",
+    "delivery.contract": "合同",
     "copilot.session": "会话",
     "copilot.base": "销售助手",
     "copilot.action": "副驾建议",
@@ -6163,6 +6248,8 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.opportunityconfig.view": "查看业务配置",
     "pipeline.opportunityconfig.manage": "维护业务配置",
     "delivery.project.view": "查看交付项目",
+    "delivery.contract.view": "查看合同",
+    "delivery.contract.upsert": "录入与编辑合同",
     "delivery.project.upsert": "维护交付项目",
     "delivery.milestone.upsert": "维护里程碑",
     "delivery.revenue.view": "查看回款",

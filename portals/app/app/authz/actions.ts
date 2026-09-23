@@ -480,6 +480,24 @@ export const ACTIONS = {
     permission: "delivery.write",
     writes: true,
   },
+  // incr/0076 - 合同与已购明细 (L4 batch one). ON delivery.project, not
+  // delivery.revenue: project.contract_amount already sits under
+  // delivery.project, and splitting the two would produce a starter tier that
+  // sees a project's contract amount but not the contract. No new permission
+  // either - recording what was signed is the same authority as recording what
+  // is delivered against it (incr/0076's own note).
+  "delivery.contract.view": {
+    domain: "delivery",
+    feature: "delivery.project",
+    permission: "delivery.read",
+    writes: false,
+  },
+  "delivery.contract.upsert": {
+    domain: "delivery",
+    feature: "delivery.project",
+    permission: "delivery.write",
+    writes: true,
+  },
   "delivery.revenue.view": {
     domain: "delivery",
     feature: "delivery.revenue",

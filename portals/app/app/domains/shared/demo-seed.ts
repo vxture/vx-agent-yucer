@@ -37,6 +37,7 @@ import {
   DEMO_LONG_HISTORY,
   DEMO_NOTES,
   DEMO_PRODUCTS,
+  DEMO_CONTRACTS,
   DEMO_QUIET_NOTES,
   DEMO_SOLUTIONS,
   DEMO_TENDER_SIGNALS,
@@ -72,7 +73,8 @@ import type {
 import type { CommitmentDirection, CommitmentStatus, InteractionChannel } from "../account/lib/commitment";
 import type { InMemoryCatalogStore } from "../catalog/store";
 import type { InMemoryCopilotStore, PlaybookScope } from "../copilot/store";
-import type { InMemoryDeliveryStore } from "../delivery/store";
+import type { ContractRecord, InMemoryDeliveryStore } from "../delivery/store";
+import type { ContractStatus } from "../delivery/lib/contract";
 import type { InMemoryPipelineStore, StageEventRecord } from "../pipeline/store";
 import type { InMemoryPlanningStore } from "../planning/store";
 import type { InMemorySignalStore } from "../signal/store";
@@ -1174,6 +1176,38 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       ),
     ],
   });
+  // 合同 (incr/0076, L4 batch one). Four shapes, each one a different answer
+  // on the account page's 合同 tab and to 已购态:
+  //   ct_demo_1 - in force, the contract behind prj_demo_1's subscription:
+  //               its two lines ARE acc_demo_1's 已购态.
+  //   ct_demo_2 - terminated early. Its analytics line must NOT show as
+  //               owned; a customer who stopped paying for a module is 白地
+  //               for it again.
+  //   ct_demo_3 - a draft still being negotiated, no term yet. Also not owned.
+  //   ct_demo_4 - active but its term ran out twelve days ago, un-renewed:
+  //               the `lapsed` phase, derived and never stored.
+  stores.delivery.seed({
+    contracts: [
+      contract(workspaceId, "ct_demo_1", "HT-2025-0001", DEMO_CONTRACTS[0], "acc_demo_1", "opp_demo_4",
+        "active", daysAgo(327), daysAhead(38), 60, 760_000, daysAgo(330), [
+          ["cln_demo_1", "prd_demo_1", 1, 600_000],
+          ["cln_demo_2", "prd_demo_5", 1, 160_000],
+        ]),
+      contract(workspaceId, "ct_demo_2", "HT-2024-0007", DEMO_CONTRACTS[1], "acc_demo_1", null,
+        "terminated", daysAgo(700), daysAgo(335), 30, 300_000, daysAgo(705), [
+          ["cln_demo_3", "prd_demo_2", 1, 300_000],
+        ]),
+      contract(workspaceId, "ct_demo_3", "HT-2026-0102", DEMO_CONTRACTS[2], "acc_demo_1", null,
+        "draft", null, null, 0, null, null, [
+          ["cln_demo_4", "prd_demo_3", 1, 600_000],
+        ]),
+      contract(workspaceId, "ct_demo_4", "HT-2025-0019", DEMO_CONTRACTS[3], "acc_demo_2", "opp_demo_8",
+        "active", daysAgo(377), daysAgo(12), 30, 1_400_000, daysAgo(380), [
+          ["cln_demo_5", "prd_demo_3", 2, 600_000],
+          ["cln_demo_6", "prd_demo_4", 4, 50_000],
+        ]),
+    ],
+  });
 }
 
 function seedCopilot(workspaceId: string, stores: DemoStores): void {
@@ -1575,6 +1609,40 @@ function opp(
     // classification axis is this increment's whole job, not populating it.
     contractTypeId: null,
     businessFormId: null,
+  };
+}
+
+function contract(
+  workspaceId: string,
+  id: string,
+  contractNo: string,
+  name: string,
+  accountId: string,
+  opportunityId: string | null,
+  status: ContractStatus,
+  termStart: Date | null,
+  termEnd: Date | null,
+  noticeDays: number,
+  totalAmount: number | null,
+  signedAt: Date | null,
+  lines: Array<[id: string, productId: string, quantity: number, unitPrice: number]>,
+): ContractRecord {
+  return {
+    id, workspaceId, contractNo, name, accountId, opportunityId, status,
+    termStart, termEnd, noticeDays, totalAmount, signedAt,
+    currency: CNY,
+    renewedFromContractId: null,
+    lines: lines.map(([lineId, productId, quantity, unitPrice]) => ({
+      id: lineId,
+      contractId: id,
+      productId,
+      quantity,
+      unitPrice,
+      // Computed, never hand-set - the same rule planContractLine applies.
+      amount: Math.round(quantity * unitPrice * 100) / 100,
+      currency: CNY,
+      termEnd: null,
+    })),
   };
 }
 

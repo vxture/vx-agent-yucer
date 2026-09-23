@@ -4,7 +4,12 @@ import { money, type Money } from "../shared/money";
 import type { MilestoneStatus, ProjectHealth, RevenueStatus } from "./lib/revenue";
 import type { MilestoneChangeDraft, MilestoneDraft } from "./lib/milestone";
 import { DEFAULT_RENEWAL_POLICY, type EngagementType, type RenewalPolicy } from "./lib/renewal";
+import type { ContractDraft, ContractStatus, PlannedContractLine } from "./lib/contract";
 import type {
+  ContractLinePatch,
+  ContractLineRecord,
+  ContractPatch,
+  ContractRecord,
   DeliveryStore,
   InstalmentRecord,
   MilestoneChangeRecord,
@@ -29,6 +34,9 @@ const REVENUE_TABLE = "yucer_delivery.revenue_schedule";
 // incr/0042. 账龄分档, one row per workspace.
 const AGEING_POLICY_TABLE = "yucer_delivery.ageing_policy";
 const RENEWAL_POLICY_TABLE = "yucer_delivery.renewal_policy";
+// incr/0076.
+const CONTRACT_TABLE = "yucer_delivery.contract";
+const CONTRACT_LINE_TABLE = "yucer_delivery.contract_line";
 // yucer_delivery.milestone_change has no constant here on purpose: assertWritable
 // guards an UPDATE's column list, and this table has no UPDATE to guard. Its
 // entry in APPEND_ONLY_TABLES is what the mirror checks.
@@ -292,6 +300,130 @@ export class PrismaDeliveryStore implements DeliveryStore {
     const res = await p.revenueSchedule.updateMany({ where: { id, workspaceId }, data });
     return res.count > 0;
   }
+  /* --- 合同 (incr/0076) ------------------------------------------------------
+     TWO QUERIES FOR ANY NUMBER OF CONTRACTS: the heads, then every line of
+     every head in one `IN`. No Prisma relation is declared between the two
+     models (the schema mirrors the DDL table-for-table and nothing more), so
+     the join is done here, once. */
+
+  async listContracts(workspaceId: string, filter: { accountId?: string } = {}): Promise<ContractRecord[]> {
+    const p = await getPrismaClient();
+    const heads = await p.contract.findMany({
+      where: { workspaceId, ...(filter.accountId ? { accountId: filter.accountId } : {}) },
+      orderBy: [{ termEnd: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+    });
+    return this.attachLines(workspaceId, heads as Record<string, unknown>[]);
+  }
+
+  async getContract(workspaceId: string, id: string): Promise<ContractRecord | null> {
+    const p = await getPrismaClient();
+    const head = await p.contract.findFirst({ where: { id, workspaceId } });
+    if (!head) return null;
+    return (await this.attachLines(workspaceId, [head as Record<string, unknown>]))[0] ?? null;
+  }
+
+  async contractNoTaken(workspaceId: string, contractNo: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const row = await p.contract.findUnique({
+      where: { workspaceId_contractNo: { workspaceId, contractNo } },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
+  async createContract(workspaceId: string, draft: ContractDraft): Promise<ContractRecord> {
+    const p = await getPrismaClient();
+    // The frozen keys are written HERE and only here - an INSERT is the one
+    // statement the grant lets set them.
+    const row = await p.contract.create({
+      data: {
+        workspaceId,
+        contractNo: draft.contractNo,
+        accountId: draft.accountId,
+        opportunityId: draft.opportunityId,
+        name: draft.name,
+        totalAmount: draft.totalAmount,
+        currency: draft.currency,
+        termStart: draft.termStart,
+        termEnd: draft.termEnd,
+        noticeDays: draft.noticeDays,
+        status: draft.status,
+        signedAt: draft.signedAt,
+      },
+    });
+    return { ...toContract(row as Record<string, unknown>), lines: [] };
+  }
+
+  async updateContract(workspaceId: string, id: string, patch: ContractPatch): Promise<boolean> {
+    const p = await getPrismaClient();
+    const data: Record<string, unknown> = { ...stripUndefined(patch), updatedAt: new Date() };
+    const guard = assertWritable(CONTRACT_TABLE, data);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked contract column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const res = await p.contract.updateMany({ where: { id, workspaceId }, data });
+    return res.count > 0;
+  }
+
+  async addContractLine(
+    workspaceId: string,
+    contractId: string,
+    line: PlannedContractLine,
+  ): Promise<ContractLineRecord> {
+    const p = await getPrismaClient();
+    const row = await p.contractLine.create({
+      data: {
+        workspaceId,
+        contractId,
+        productId: line.productId,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        amount: line.amount,
+        currency: line.currency,
+        termEnd: line.termEnd,
+      },
+    });
+    return toContractLine(row as Record<string, unknown>);
+  }
+
+  async updateContractLine(workspaceId: string, lineId: string, patch: ContractLinePatch): Promise<boolean> {
+    const p = await getPrismaClient();
+    const data: Record<string, unknown> = { ...stripUndefined(patch), updatedAt: new Date() };
+    const guard = assertWritable(CONTRACT_LINE_TABLE, data);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked contract_line column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const res = await p.contractLine.updateMany({ where: { id: lineId, workspaceId }, data });
+    return res.count > 0;
+  }
+
+  async removeContractLine(workspaceId: string, lineId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const res = await p.contractLine.deleteMany({ where: { id: lineId, workspaceId } });
+    return res.count > 0;
+  }
+
+  private async attachLines(
+    workspaceId: string,
+    heads: Record<string, unknown>[],
+  ): Promise<ContractRecord[]> {
+    if (heads.length === 0) return [];
+    const p = await getPrismaClient();
+    const lines = await p.contractLine.findMany({
+      where: { workspaceId, contractId: { in: heads.map((h) => String(h.id)) } },
+      orderBy: [{ createdAt: "asc" }],
+    });
+    const byContract = new Map<string, ContractLineRecord[]>();
+    for (const l of lines as Record<string, unknown>[]) {
+      const line = toContractLine(l);
+      byContract.set(line.contractId, [...(byContract.get(line.contractId) ?? []), line]);
+    }
+    return heads.map((h) => ({ ...toContract(h), lines: byContract.get(String(h.id)) ?? [] }));
+  }
 }
 
 function toProject(r: Record<string, unknown>): ProjectRecord {
@@ -336,5 +468,46 @@ function toMilestone(r: Record<string, unknown>): MilestoneRecord {
             by: String(r.acceptedBy),
             recordedBySub: String(r.acceptanceRecordedBySub),
           },
+  };
+}
+
+function stripUndefined<T extends object>(o: T): Partial<T> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+}
+
+/** NUMERIC arrives as a Decimal; the string form keeps precision. */
+function num(value: unknown): number {
+  return Number(String(value));
+}
+
+function toContract(r: Record<string, unknown>): Omit<ContractRecord, "lines"> {
+  return {
+    id: String(r.id),
+    workspaceId: String(r.workspaceId),
+    contractNo: String(r.contractNo),
+    name: String(r.name),
+    accountId: String(r.accountId),
+    opportunityId: (r.opportunityId as string | null) ?? null,
+    totalAmount: r.totalAmount == null ? null : num(r.totalAmount),
+    currency: String(r.currency),
+    termStart: (r.termStart as Date | null) ?? null,
+    termEnd: (r.termEnd as Date | null) ?? null,
+    noticeDays: Number(r.noticeDays),
+    status: r.status as ContractStatus,
+    renewedFromContractId: (r.renewedFromContractId as string | null) ?? null,
+    signedAt: (r.signedAt as Date | null) ?? null,
+  };
+}
+
+function toContractLine(r: Record<string, unknown>): ContractLineRecord {
+  return {
+    id: String(r.id),
+    contractId: String(r.contractId),
+    productId: String(r.productId),
+    quantity: num(r.quantity),
+    unitPrice: num(r.unitPrice),
+    amount: num(r.amount),
+    currency: String(r.currency),
+    termEnd: (r.termEnd as Date | null) ?? null,
   };
 }
