@@ -2,6 +2,8 @@
 
 import { can, type PermissionHolder } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
+import { getMessages } from "../lib/i18n/server";
+import { displayRationale } from "../lib/proposal-rationale";
 import {
   getCopilotStore,
   getDeliveryStore,
@@ -173,6 +175,7 @@ async function conclusionOf(
   ]);
   if (!proposals.ok) return proposals as RuleResult<ConclusionInput>;
   const concern = health.ok ? health.value.primaryConcern : null;
+  const { RATIONALE_TEXT } = await getMessages();
   return {
     ok: true,
     value: {
@@ -187,7 +190,7 @@ async function conclusionOf(
       proposals: proposals.value.map((p) => ({
         id: p.id,
         title: p.actionType,
-        rationale: p.rationale,
+        rationale: displayRationale(p, RATIONALE_TEXT),
         confidence: p.confidence,
       })),
     },

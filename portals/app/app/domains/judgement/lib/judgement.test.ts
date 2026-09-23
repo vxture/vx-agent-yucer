@@ -374,3 +374,97 @@ test("every derived judgement carries freshness, from the newest note it cites (
   assert.ok(cited.length > 0);
   for (const j of cited) assert.deepEqual(j.freshness, { stale: true, daysAgo: 70, kind: "interaction" });
 });
+
+// --- 7. single-threaded (YC-021 L2 单线程风险预警) ---------------------------
+
+const person = (id: string, name: string, status = "active") => ({ id, name, status });
+
+test("one engaged person carrying every open deal is a finding, with who it is", () => {
+  const a = account({
+    contacts: [person("c1", "刘敏"), person("c2", "王磊"), person("c3", "赵强")],
+    // Three in post, but only 刘敏 has been in a recorded room inside 30 days.
+    contactActivity: [
+      { contactId: "c1", lastContactAt: daysAgo(5) },
+      { contactId: "c2", lastContactAt: daysAgo(90) },
+      { contactId: "c3", lastContactAt: null },
+    ],
+  });
+  const j = deriveJudgements({ accounts: [a], now: NOW }).find((x) => x.id === "singlethread:acc_1");
+  assert.ok(j, "one live thread fires");
+  assert.match(j.claim, /刘敏/, "the claim names the one person");
+  assert.ok(j.citations.some((c) => /在职联系人 3 人，近 30 天有接触记录的 1 人/.test(c.text)), "the count is evidence");
+});
+
+test("a roster with a single in-post person is single-threaded even with no recent contact", () => {
+  const a = account({
+    contacts: [person("c1", "刘敏"), person("c2", "王磊", "left")],
+    contactActivity: [{ contactId: "c1", lastContactAt: daysAgo(60) }],
+  });
+  const j = deriveJudgements({ accounts: [a], now: NOW }).find((x) => x.id === "singlethread:acc_1");
+  assert.ok(j);
+  assert.match(j.claim, /只有刘敏一个在职联系人/);
+});
+
+test("two engaged people is two threads - no finding", () => {
+  const a = account({
+    contacts: [person("c1", "刘敏"), person("c2", "王磊")],
+    contactActivity: [
+      { contactId: "c1", lastContactAt: daysAgo(5) },
+      { contactId: "c2", lastContactAt: daysAgo(10) },
+    ],
+  });
+  assert.equal(
+    deriveJudgements({ accounts: [a], now: NOW }).some((x) => x.id === "singlethread:acc_1"),
+    false,
+  );
+});
+
+test("a person who LEFT is not a thread, even with recent contact", () => {
+  const a = account({
+    contacts: [person("c1", "刘敏"), person("c2", "王磊", "left"), person("c3", "赵强")],
+    contactActivity: [
+      { contactId: "c1", lastContactAt: daysAgo(5) },
+      { contactId: "c2", lastContactAt: daysAgo(3) },
+    ],
+  });
+  assert.ok(deriveJudgements({ accounts: [a], now: NOW }).some((x) => x.id === "singlethread:acc_1"));
+});
+
+// --- 8. one person, two deals (YC-021 L3 多单相互影响) ------------------------
+
+test("a key person on two open deals ties them together, and says which", () => {
+  const a = account({
+    openDeals: [
+      { id: "opp_1", name: "仓储", stage: "谈判", amount: 1, stageDays: 1 },
+      { id: "opp_2", name: "排班", stage: "方案", amount: 1, stageDays: 1 },
+    ],
+    contacts: [person("c1", "刘敏"), person("c2", "王磊")],
+    buyingRoles: [
+      { opportunityId: "opp_1", personId: "c1", buyingRole: "economic", influence: null, stance: null },
+      { opportunityId: "opp_2", personId: "c1", buyingRole: "coach", influence: null, stance: null },
+      // A user role on two deals is not a key person.
+      { opportunityId: "opp_1", personId: "c2", buyingRole: "user", influence: null, stance: null },
+      { opportunityId: "opp_2", personId: "c2", buyingRole: "user", influence: null, stance: null },
+    ],
+  });
+  const j = deriveJudgements({ accounts: [a], now: NOW }).find((x) => x.id === "shared:acc_1");
+  assert.ok(j);
+  assert.match(j.claim, /刘敏/);
+  assert.equal(j.citations.length, 1, "王磊 is only a user - not listed");
+  assert.equal(j.citations[0]!.text, "刘敏：「仓储」经济决策人；「排班」内线");
+});
+
+test("a key person on a CLOSED deal does not tie it to an open one", () => {
+  const a = account({
+    openDeals: [
+      { id: "opp_1", name: "仓储", stage: "谈判", amount: 1, stageDays: 1 },
+      { id: "opp_2", name: "排班", stage: "方案", amount: 1, stageDays: 1 },
+    ],
+    contacts: [person("c1", "刘敏")],
+    buyingRoles: [
+      { opportunityId: "opp_1", personId: "c1", buyingRole: "economic", influence: null, stance: null },
+      { opportunityId: "opp_closed", personId: "c1", buyingRole: "economic", influence: null, stance: null },
+    ],
+  });
+  assert.equal(deriveJudgements({ accounts: [a], now: NOW }).some((x) => x.id === "shared:acc_1"), false);
+});

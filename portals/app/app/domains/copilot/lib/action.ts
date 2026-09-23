@@ -40,6 +40,13 @@ export const ACTION_STATUSES = [
 
 export type ActionStatus = (typeof ACTION_STATUSES)[number];
 
+/** The two RULE sweeps' action types. Here, in the pure module, because the
+ *  interface needs them too (proposal-rationale.ts rebuilds their rationale
+ *  for the reader) and the sweeps themselves import the store registry -
+ *  which must never reach a client bundle. */
+export const UPSELL_ACTION_TYPE = "propose_upsell";
+export const CHASE_COMMITMENT_ACTION_TYPE = "chase_overdue_commitment";
+
 export const SUBJECT_TYPES = [
   "account",
   "lead",

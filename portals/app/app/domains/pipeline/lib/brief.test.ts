@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dealBrief, type BriefText, type DealBriefInput } from "./brief";
+import { dealBrief, stallHolder, type BriefText, type DealBriefInput } from "./brief";
 
 // The convergence point. Each underlying rule has its own tests; what is
 // tested HERE is the convergence itself - that a finding becomes the right
@@ -17,6 +17,10 @@ const TEXT: BriefText = {
   stageMoving: (s, d) => `moving:${s}:${d}`,
   stageStalled: (s, d) => `stalled:${s}:${d}`,
   stageTerminal: (s) => `terminal:${s}`,
+  stallOnUs: (st, d) => `on-us:${st}:${d}`,
+  stallOnThem: (w, st, d) => `on-them:${w}:${st}:${d}`,
+  stallOnBuyer: (w, d) => `on-buyer:${w}:${d}`,
+  stallUnknown: "on-unknown",
   forecastAgrees: (c) => `agrees:${c}`,
   forecastDisagrees: (f, s) => `disagrees:${f}->${s}`,
   forecastSettled: "settled",
@@ -198,4 +202,53 @@ test("a terminal deal keeps its history quiet - no chain nag, no stall", () => {
   assert.equal(b.cells.find((c) => c.key === "stage")!.headline, "terminal:won");
   assert.ok(!b.cells.some((c) => c.key === "chain"), "a closed deal owes no committee");
   assert.ok(!b.actions.some((a) => a.kind === "state_roles"));
+});
+
+// --- 卡在谁身上 (YC-021 L3 阶段停滞诊断) --------------------------------------
+
+const stuck = (over: Partial<DealBriefInput> = {}) =>
+  input({ deal: { ...input().deal, lastStageChangeAt: daysAgo(60) }, ...over });
+const stageDetailOf = (i: DealBriefInput) => dealBrief(i).cells.find((c) => c.key === "stage")!.detail;
+
+test("a moving deal names no holder - the diagnosis is for stalls only", () => {
+  assert.doesNotMatch(stageDetailOf(input()), /on-/);
+});
+
+test("our broken promise is the holder before theirs", () => {
+  const i = stuck({
+    commitments: [
+      { id: "t", direction: "they_owe", status: "open", dueAt: daysAgo(20), statement: "budget", counterpartName: "刘敏" },
+      { id: "w", direction: "we_owe", status: "open", dueAt: daysAgo(5), statement: "demo" },
+    ],
+  });
+  assert.match(stageDetailOf(i), /^on-us:demo:5/);
+});
+
+test("their broken promise names their person when the commitment did", () => {
+  const i = stuck({
+    commitments: [
+      { id: "t2", direction: "they_owe", status: "open", dueAt: daysAgo(3), statement: "later", counterpartName: null },
+      { id: "t1", direction: "they_owe", status: "open", dueAt: daysAgo(20), statement: "budget", counterpartName: "刘敏" },
+    ],
+  });
+  assert.match(stageDetailOf(i), /^on-them:刘敏:budget:20/, "the OLDEST overdue promise");
+});
+
+test("a buyer unmet since the stage began is the holder; one met during it is not", () => {
+  const silent = stuck({ economicBuyers: [{ name: "王磊", lastContactAt: daysAgo(70) }] });
+  assert.match(stageDetailOf(silent), /^on-buyer:王磊:70/);
+  const never = stuck({ economicBuyers: [{ name: "王磊", lastContactAt: null }] });
+  assert.match(stageDetailOf(never), /^on-buyer:王磊:null/);
+  const met = stuck({ economicBuyers: [{ name: "王磊", lastContactAt: daysAgo(10) }] });
+  assert.match(stageDetailOf(met), /^on-unknown/, "no holder is said out loud, not guessed");
+});
+
+test("a met or waived promise holds nothing up", () => {
+  const h = stallHolder(
+    stuck({
+      commitments: [{ id: "m", direction: "we_owe", status: "met", dueAt: daysAgo(30), statement: "x" }],
+    }),
+    60,
+  );
+  assert.equal(h.kind, "unknown");
 });

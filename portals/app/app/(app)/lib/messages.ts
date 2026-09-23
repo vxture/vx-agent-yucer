@@ -4545,6 +4545,9 @@ export const CONTRACT_TEXT = {
   renewHint: (no: string) => `新合同记为 ${no} 的续约。一份合同只能续约一次，登记后不能改指。`,
   renewedFrom: (no: string) => `续自 ${no}`,
   renewedTo: (no: string) => `已续为 ${no}`,
+  // 续约世系 (YC-021 L4): the whole chain, so a third-year contract reads as one.
+  lineage: (position: number, total: number, chain: readonly string[]) =>
+    `续约链 第 ${position}/${total} 份 · ${chain.join(" → ")}`,
   recordOutcome: "记录结果",
   drawerOutcome: "记录续约结果",
   fieldOutcome: "结果",
@@ -5806,6 +5809,13 @@ export const WAR_ROOM_TEXT = {
     days === null ? "在推进" : `本阶段第 ${days} 天`,
   stageStalled: (stage: string, days: number) => `已停 ${days} 天,超过 45 天停滞线`,
   stageTerminal: (stage: string): string => (stage === "won" ? "已成交" : "已关闭"),
+  // 阶段停滞诊断 - who a stalled deal is waiting on (brief.ts stallHolder).
+  stallOnUs: (statement: string, days: number) => `卡在我方：答应的「${statement}」已逾期 ${days} 天`,
+  stallOnThem: (who: string | null, statement: string, days: number) =>
+    `卡在对方${who ?? ""}：答应的「${statement}」已逾期 ${days} 天`,
+  stallOnBuyer: (who: string, days: number | null) =>
+    days === null ? `卡在决策人${who}：从未有过接触记录` : `卡在决策人${who}：${days} 天没有接触，比停在本阶段还久`,
+  stallUnknown: "看不出卡在谁身上：双方没有逾期承诺，决策人在本阶段内也有接触",
   forecastAgrees: (c: string) => "与规则判断一致",
   forecastDisagrees: (filed: string, suggested: string) => `人填与规则不一致`,
   forecastSettled: "档位由阶段定死",
@@ -6591,3 +6601,12 @@ export const PERMISSION_TREE_TEXT = {
     ops_head: "运负",
   } as Record<string, string>,
 } as const;
+
+// A rule sweep's proposal rationale, rebuilt from its payload for the reader
+// (proposal-rationale.ts). The stored English sentence is the audit record.
+export const RATIONALE_TEXT = {
+  upsell: (product: string, owners: number, peers: number) =>
+    `尚未使用${product}。同行业有在约合同的 ${peers} 家客户里，${owners} 家在用。`,
+  chase: (direction: "they_owe" | "we_owe", statement: string, due: string, days: number) =>
+    `${direction === "they_owe" ? "对方答应" : "我方答应"}：${statement}。${due} 到期，已过 ${days} 天，没有任何记录关闭它。`,
+};

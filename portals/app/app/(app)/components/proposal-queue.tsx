@@ -33,6 +33,7 @@ import {
 } from "./table-fittings";
 
 import { useMessages } from "../lib/i18n/provider";
+import { displayRationale } from "../lib/proposal-rationale";
 import { Tag } from "./tag";
 // The copilot proposal queue - where a human decides what the agent may do.
 //
@@ -123,7 +124,11 @@ export function ProposalQueue({
     PROPOSAL_TEXT,
     PROPOSAL_ERROR,
     TABLE_TOOLBAR_TEXT,
+    RATIONALE_TEXT,
   } = useMessages();
+  // What the reader sees - and searches. A rule sweep's stored rationale is
+  // an English audit sentence; this rebuilds it from the payload (TD-010).
+  const why = (a: AgentAction) => displayRationale(a, RATIONALE_TEXT);
   const sorted = useTableSort<AgentAction>([], SORT_ON);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   // The DS owns the disclosure, the same way it owns the selection above.
@@ -149,11 +154,11 @@ export function ProposalQueue({
     return actions.filter(
       (a) =>
         (q === "" ||
-          (a.rationale ?? "").toLowerCase().includes(q) ||
+          (displayRationale(a, RATIONALE_TEXT) ?? "").toLowerCase().includes(q) ||
           (subjects[`${a.subjectType}:${a.subjectId}`]?.name ?? "").toLowerCase().includes(q)) &&
         (statusFilter === "" || a.status === statusFilter),
     );
-  }, [actions, query, statusFilter, subjects]);
+  }, [actions, query, statusFilter, subjects, RATIONALE_TEXT]);
 
   // Only pending proposals are selectable. A decided one is history.
   const pending = useMemo(
@@ -306,7 +311,7 @@ export function ProposalQueue({
       // wrapped one word per line. "Visible on the row" was true and useless.
       header: PROPOSAL_TEXT.columnRationale,
       width: "lg",
-      cell: (row) => row.rationale ?? "-",
+      cell: (row) => why(row) ?? "-",
     },
     {
       id: "confidence",
@@ -501,7 +506,7 @@ export function ProposalQueue({
             expandedContent={(row) => (
               <DetailList columns={1}>
                 <DetailRow label={PROPOSAL_TEXT.detailRationale}>
-                  {row.rationale ?? "-"}
+                  {why(row) ?? "-"}
                 </DetailRow>
                 <DetailRow label={PROPOSAL_TEXT.detailPayload}>
                   {Object.keys(row.payload).length === 0 ? (

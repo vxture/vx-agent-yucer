@@ -1134,6 +1134,14 @@ export const en: Dictionary = {
       days === null ? "Moving" : `Day ${days} at this stage`,
     stageStalled: (stage: string, days: number) => `Sitting ${days} days - past the 45-day stall line`,
     stageTerminal: (stage: string) => (stage === "won" ? "Won" : "Closed"),
+    stallOnUs: (statement: string, days: number) => `Waiting on us: "${statement}" is ${days} days overdue`,
+    stallOnThem: (who: string | null, statement: string, days: number) =>
+      `Waiting on ${who ?? "them"}: "${statement}" is ${days} days overdue`,
+    stallOnBuyer: (who: string, days: number | null) =>
+      days === null
+        ? `Waiting on the buyer ${who}: never met on record`
+        : `Waiting on the buyer ${who}: no contact for ${days} days, longer than the deal has sat here`,
+    stallUnknown: "No single holder: nothing overdue either way, and the buyer was met during this stage",
     forecastAgrees: (c: string) => "Agrees with the rule",
     forecastDisagrees: (filed: string, suggested: string) => "Filed category disagrees with the rule",
     forecastSettled: "Settled by the stage",
@@ -3558,6 +3566,8 @@ export const en: Dictionary = {
       `The new contract is recorded as the renewal of ${no}. A contract renews once, and the link cannot be moved.`,
     renewedFrom: (no: string) => `renews ${no}`,
     renewedTo: (no: string) => `renewed as ${no}`,
+    lineage: (position: number, total: number, chain: readonly string[]) =>
+      `Renewal chain ${position}/${total} · ${chain.join(" → ")}`,
     recordOutcome: "Record outcome",
     drawerOutcome: "Record a renewal outcome",
     fieldOutcome: "Outcome",
@@ -5576,5 +5586,11 @@ export const en: Dictionary = {
     sourceRule: "Rule",
     sourceModel: "Model",
     truncate: (t: string) => `${t}...`,
+  },
+  RATIONALE_TEXT: {
+    upsell: (product: string, owners: number, peers: number) =>
+      `Not yet running ${product}. ${owners} of ${peers} same-industry customers with an in-force contract run it.`,
+    chase: (direction: "they_owe" | "we_owe", statement: string, due: string, days: number) =>
+      `${direction === "they_owe" ? "They promised" : "We promised"}: ${statement}. Due ${due}, ${days} days ago, and nothing recorded has closed it.`,
   },
 };
