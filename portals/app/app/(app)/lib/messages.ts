@@ -2189,6 +2189,7 @@ export const BOARD_TEXT = {
     "delivery.payment_risk": "回款风险",
     "campaign.return": "战役回报",
     "account.upsell": "增购机会",
+    "account.consistency": "说法核对",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3800,6 +3801,7 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
   draft_email: "起草邮件",
   draft_outreach: "起草触达",
   propose_upsell: "推荐增购",
+  flag_conflict: "疑似说法不一致",
   promote_signal: "信号升级为线索",
 };
 
@@ -4528,6 +4530,33 @@ export const CONTRACT_TEXT = {
   qty: (n: string) => `× ${n}`,
   unknownProduct: "（目录中已不存在）",
 } as const;
+
+/** 说法核对 (L2 批七 b, owner 2026-09-22: 手动按钮 / 复用提案 / 最近 20 条同一事实)。 */
+export const CONSISTENCY_TEXT = {
+  button: "核对说法",
+  checking: "核对中…",
+  never: "还没核对过这家的跟进说法是否一致",
+  checkedOn: (d: string) => `${d} 核对过最近的跟进，没有发现说法不一致`,
+  pending: (n: number) => `发现 ${n} 处疑似说法不一致，待你确认`,
+  found: (n: number) => `发现 ${n} 处疑似说法不一致，已进裁决队列`,
+  clean: (n: number) => `核对了最近 ${n} 条跟进，没有发现说法不一致`,
+  tooFew: "跟进记录少于两条，没有可比的说法",
+  modelMark: "模型推断 · 疑似冲突",
+  modelHint: "模型比较两条跟进原文得出，原文摘句已逐字核验；是否真的冲突由你确认。",
+  decide: "去裁决队列确认",
+  quote: (q: string) => `「${q}」`,
+} as const;
+
+export const CONSISTENCY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
+  not_found: "客户不存在，或不属于当前工作区",
+  quota_exceeded: "本工作区的副驾调用额度已用完",
+  empty_question: "核对请求为空",
+  tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
+  turn_failed: "这次核对没完成（模型暂不可用），稍后再试——这不代表没有冲突",
+  unknown: "这次核对没完成，稍后再试——这不代表没有冲突",
+};
 
 /** 证据新鲜度 (L2 批七, owner 2026-09-22: 所有判断都标)。 */
 export const EVIDENCE_TEXT = {
@@ -6132,6 +6161,7 @@ export const POSITION_TEXT = {
     draft_outreach: "起草一封外联",
     promote_signal: "把信号升级为线索",
     propose_upsell: "推荐增购",
+    flag_conflict: "确认两条记录说法不一致",
     adjust_forecast: "调整预测口径",
     draft_email: "起草邮件",
   } as Record<string, string>,

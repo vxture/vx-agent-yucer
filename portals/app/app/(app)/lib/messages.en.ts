@@ -2660,6 +2660,7 @@ export const en: Dictionary = {
       promote_signal: "Promote the signal to a lead",
       adjust_forecast: "Adjust the forecast",
       propose_upsell: "Recommend an upsell",
+      flag_conflict: "Confirm two records disagree",
       draft_email: "Draft an email",
     } as Record<string, string>,
     approve: "Approve",
@@ -3317,6 +3318,32 @@ export const en: Dictionary = {
     best_case: "Best case",
     commit: "Commit",
     closed: "Closed",
+  },
+
+  CONSISTENCY_TEXT: {
+    button: "Check consistency",
+    checking: "Checking...",
+    never: "Nobody here has checked whether these follow-ups agree",
+    checkedOn: (d: string) => `Checked the latest follow-ups on ${d} - no conflicting statements`,
+    pending: (n: number) => `${n} suspected conflicting statement(s) waiting for you`,
+    found: (n: number) => `Found ${n} suspected conflict(s) - sent to the decision queue`,
+    clean: (n: number) => `Checked the latest ${n} follow-ups - no conflicting statements`,
+    tooFew: "Fewer than two follow-ups - nothing to compare",
+    modelMark: "Model inference - suspected conflict",
+    modelHint: "A model compared the two notes; both quotes were verified word for word. Whether they truly conflict is yours to confirm.",
+    decide: "Confirm in the decision queue",
+    quote: (q: string) => `"${q}"`,
+  },
+
+  CONSISTENCY_ERROR: {
+    ...GATE_ERROR,
+    no_active_tenant: "This workspace has no platform tenant yet, so the model cannot be called",
+    not_found: "No such customer, or it belongs to another workspace",
+    quota_exceeded: "This workspace's copilot quota is used up",
+    empty_question: "The check request was empty",
+    tenant_required: "This workspace has no platform tenant yet, so the model cannot be called",
+    turn_failed: "The check did not finish (the model is unavailable) - try again. This does not mean there is no conflict.",
+    unknown: "The check did not finish - try again. This does not mean there is no conflict.",
   },
 
   EVIDENCE_TEXT: {
@@ -4539,6 +4566,7 @@ export const en: Dictionary = {
     draft_outreach: "Draft outreach",
     promote_signal: "Promote the signal to a lead",
     propose_upsell: "Recommend an upsell",
+    flag_conflict: "Suspected conflicting records",
   },
 
   ACTION_STATUS_LABEL: {
@@ -5371,6 +5399,7 @@ export const en: Dictionary = {
       "delivery.payment_risk": "Payment risk",
       "campaign.return": "Campaign return",
       "account.upsell": "Upsell opportunity",
+      "account.consistency": "Consistency check",
       "strategy.segment_coverage": "Segment coverage trend",
       "strategy.territory_attainment": "Territory attainment trend",
     } as Record<string, string>,

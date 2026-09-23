@@ -28,6 +28,8 @@ export const CAPABILITIES = [
   // L4 batch six (owner, 2026-09-22): 增购机会 - its own group, so growing the
   // installed base never reads as pushing a deal already in flight.
   "account.upsell",
+  // L2 batch 7b: 说法核对 - two follow-ups disagreeing on the same fact.
+  "account.consistency",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -110,6 +112,11 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   "account.upsell": {
     task: "propose",
     evidence: ["deals", "lines"],
+  },
+  // Reads the notes and nothing else: a conflict is between two records.
+  "account.consistency": {
+    task: "propose",
+    evidence: ["interactions"],
   },
 };
 
