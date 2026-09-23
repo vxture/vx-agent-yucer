@@ -13,6 +13,8 @@ import { CollectionOverview } from "../components/collection-overview";
 import { collectionStats } from "../../domains/delivery/lib/collection-stats";
 import { moveInstalment } from "../delivery/actions";
 import { loadFailureText } from "../lib/load-failure";
+import Link from "next/link";
+import { getAccountDetail } from "../../domains/account/service";
 
 // D7 collections - a module page since 2026-08-30.
 //
@@ -26,7 +28,12 @@ import { loadFailureText } from "../lib/load-failure";
 
 export const dynamic = "force-dynamic";
 
-export default async function CollectionPage() {
+export default async function CollectionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ account?: string }>;
+}) {
+  const { account: accountParam } = await searchParams;
   const { DELIVERY_TEXT, LOAD_ERROR, REVENUE_STATUS_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -42,7 +49,19 @@ export default async function CollectionPage() {
     store: getDeliveryStore(),
   };
 
-  const projects = await listProjects(ctx);
+  // ONE CUSTOMER'S SCHEDULE (YC-021 回款: 回款状态流转 from the customer page).
+  // The customer page's 回款 tab links here with ?account=; the account is
+  // resolved through the member's own gate, and an id they cannot read simply
+  // does not narrow anything - it never names a customer they cannot see.
+  const scopedTo = accountParam
+    ? await getAccountDetail(
+        { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
+          entitlement: session.entitlement, store: session.stores.account() },
+        accountParam,
+      )
+    : null;
+  const onlyAccount = scopedTo?.ok ? { id: accountParam as string, name: scopedTo.value.account.name } : null;
+  const projects = await listProjects(ctx, onlyAccount ? { accountId: onlyAccount.id } : {});
   // incr/0042. The workspace's own ageing policy - the chart below is cut by
   // these, not by two numbers in the build.
   const cutoffs = await ageingCutoffs(ctx);
@@ -161,6 +180,12 @@ export default async function CollectionPage() {
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - so the shape comes
           first and the schedule reads as its detail. Both are computed from
           the SAME rows, so the block and the list cannot disagree. */}
+      {onlyAccount ? (
+        <p className="text-muted-foreground text-body-sm">
+          {DELIVERY_TEXT.collectOnlyAccount(onlyAccount.name)}{" "}
+          <Link href="/collection" className="text-primary hover:underline">{DELIVERY_TEXT.collectShowAll}</Link>
+        </p>
+      ) : null}
       <CollectionOverview
         stats={collectionStats(rows, new Date(), cutoffs.ok ? cutoffs.value : undefined)}
       />

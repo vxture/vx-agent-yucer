@@ -106,6 +106,18 @@ test("recomputing health needs write permission, because it writes a column", as
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
 });
 
+test("DERIVING health without persisting is a read: a viewer sees the score and its factors, and nothing is written", async () => {
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account({ healthScore: null })] });
+  const r = await recomputeHealth(ctx("viewer", "pro", store), "acc_1", { persist: false });
+  assert.equal(r.ok, true);
+  if (!r.ok) return;
+  assert.equal(typeof r.value.score, "number");
+  assert.ok(Array.isArray(r.value.contributions), "the breakdown comes with the score");
+  assert.equal(r.value.persisted, false);
+  assert.equal((await store.getAccount(WS, "acc_1"))?.healthScore, null);
+});
+
 test("an account in another workspace is not found", async () => {
   const store = new InMemoryAccountStore();
   store.seed({ accounts: [account({ workspaceId: "ws_other" })] });

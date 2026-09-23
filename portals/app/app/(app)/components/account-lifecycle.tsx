@@ -295,7 +295,12 @@ export function RevenueLifecyclePanel({
           main={<span className="text-foreground text-body-sm">{r.milestoneName}</span>}
           trail={
             <span className="flex items-center gap-xs">
-              {r.overdue ? <StatusBadge tone="danger">{r.dueAt}</StatusBadge> : <Tag>{r.dueAt ?? r.statusLabel}</Tag>}
+              {/* The status always, the date beside it - a row with a due date
+                  used to hide whether it was planned, invoiced or settled. */}
+              <Tag>{r.statusLabel}</Tag>
+              {r.dueAt ? (
+                r.overdue ? <StatusBadge tone="danger">{r.dueAt}</StatusBadge> : <Tag>{r.dueAt}</Tag>
+              ) : null}
               <span className="text-foreground text-body-sm tabular-nums whitespace-nowrap">
                 {formatMoney(r.amount, r.currency, locale)}
               </span>

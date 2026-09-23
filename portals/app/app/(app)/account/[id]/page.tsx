@@ -275,6 +275,17 @@ export default async function AccountDetailPage({
     : null;
   const childUnits = accountRows.filter((a) => a.parentId === id);
 
+  const memberList = await getAuthzStore().listMembers(ctx.workspaceId);
+  const memberNameOf = new Map(memberList.map((m) => [m.sub, m.displayName]));
+
+  // WHO WAS THERE (YC-021 跟进: 时间线 + 渠道 + 参与人). Their people by name,
+  // and OUR colleagues too - capture writes the recorder and anyone else of
+  // ours as member rows, and only contacts and outside names were resolved,
+  // so a colleague who was in the meeting never appeared. The recorder is
+  // left out here: the row already names them as its author. A contact since
+  // unlinked from this customer has no name on this page's roster and is
+  // skipped (no by-id person read exists yet).
+  const actorOf = new Map((interactions.ok ? interactions.value : []).map((i) => [i.id, i.actorSub]));
   const participantsByInteraction = new Map<string, readonly string[]>();
   if (interactions.ok && interactions.value.length > 0) {
     const allParticipants = await fieldCtx.store.listParticipantsBulk(
@@ -282,7 +293,13 @@ export default async function AccountDetailPage({
       interactions.value.map((i) => i.id),
     );
     for (const p of allParticipants) {
-      const name = p.contactId ? (contactNameById[p.contactId] ?? null) : p.externalName;
+      const name = p.contactId
+        ? (contactNameById[p.contactId] ?? null)
+        : p.memberSub
+          ? p.memberSub === actorOf.get(p.interactionId)
+            ? null
+            : (memberNameOf.get(p.memberSub) ?? null)
+          : p.externalName;
       if (!name) continue;
       const existing = participantsByInteraction.get(p.interactionId) ?? [];
       participantsByInteraction.set(p.interactionId, [...existing, name]);
@@ -291,14 +308,13 @@ export default async function AccountDetailPage({
 
   const [health, relations, industriesRead, customerTypesRead, customerSizesRead, customerNaturesRead, segmentsRead] =
     await Promise.all([
-      // persist:false - see the note above. It still needs the write gate, so a
-      // read-only member gets no panel rather than a silently failing one.
-      // A THROWN source read means NO score (§5: 宁可没有, 不要给一个少算了
-      // 一项的分) - the card then falls back to status tag + judgement, the
-      // same shape a read-only member sees. It must not take the page down.
-      canWrite
-        ? recomputeHealth(ctx, id, { persist: false }).catch(() => null)
-        : Promise.resolve(null),
+      // persist:false - a READ, so every member who can see the customer sees
+      // the score WITH its factors (YC-021 L5: 分数始终与因子拆解同时出现);
+      // it used to need the write gate, which left read-only members a status
+      // tag and nothing else. A THROWN source read means NO score (§5: 宁可
+      // 没有, 不要给一个少算了一项的分) - the card then falls back to status tag
+      // + judgement. It must not take the page down.
+      recomputeHealth(ctx, id, { persist: false }).catch(() => null),
       accountRelations(ctx, id),
       // 基础信息表单的四个词表 (owner, 2026-09-20: 先做基础信息表单) - only a
       // writer ever sees the form, but the reads are cheap account.view-gated
@@ -484,8 +500,6 @@ export default async function AccountDetailPage({
         )
       : null;
 
-  const memberList = await getAuthzStore().listMembers(base.workspaceId);
-  const memberNameOf = new Map(memberList.map((m) => [m.sub, m.displayName]));
 
   // 合同 tab view model. Dates cross to the client as yyyy-mm-dd strings.
   const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
@@ -943,9 +957,21 @@ export default async function AccountDetailPage({
   // card 最底部 - ACC-0001 不再跟它同一行, 见下面 title 那一侧). 没有负责人
   // 时是 null, OrgUnitPanel 整段 footer 不渲染。OwnerEditor 自己的编辑
   // 触发器已经搬进侧栏顶部的"客户总编辑", 这一行不带任何按钮。
+  // 协作人 ON THE CARD, for everyone who can see the customer (YC-021 单位信息:
+  // 协作人). They were listed only inside the 编辑销售负责人 drawer, which a
+  // member without the manage right never opens - so who else works this
+  // customer was invisible to exactly the people who needed to ask them.
+  const collaboratorNames = (collaboratorsRead.ok ? collaboratorsRead.value : [])
+    .map((c) => c.displayName ?? c.memberSub);
+  const ownerName = ownerRead.ok ? ownerRead.value : null;
   const ownerRow =
-    ownerRead.ok && ownerRead.value ? (
-      <span className="text-body-sm">{ACCOUNT_TEXT.headerOwner(ownerRead.value)}</span>
+    ownerName || collaboratorNames.length > 0 ? (
+      <span className="flex flex-col gap-2xs text-body-sm">
+        {ownerName ? <span>{ACCOUNT_TEXT.headerOwner(ownerName)}</span> : null}
+        {collaboratorNames.length > 0 ? (
+          <span className="text-muted-foreground">{ACCOUNT_TEXT.collaboratorsLine(collaboratorNames)}</span>
+        ) : null}
+      </span>
     ) : null;
 
   // 徽章区: 开放商机(累计合同额) / 客户级别 / 健康评估 (owner, 2026-09-21:
@@ -1313,7 +1339,9 @@ export default async function AccountDetailPage({
               {
                 key: "revenue",
                 // This tab's 查看 / 编辑 in the roster's "⋮" (owner, 2026-09-23).
-                view: { href: "/collection" }, edit: { hint: PANEL_MENU_TEXT.noEntryHere },
+                // 查看 opens THIS customer's schedule on /collection, where the
+                // status moves (YC-021 回款: 回款状态流转) - not the workspace's.
+                view: { href: `/collection?account=${id}` }, edit: { href: `/collection?account=${id}` },
                 label: `${ACCOUNT_TEXT.lifecycleRevenue} (${revenueRows.length})`,
                 content: <>
                   <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />
