@@ -163,6 +163,14 @@ const ANALYSES_QUIET: readonly AnalysisKind[] = ["competition", "risk"];
 //             not "how risky is this deal", because there may be no deal.
 const ANALYSES_CADENCE: readonly AnalysisKind[] = ["chain", "competition"];
 
+/** Who counts as a KEY person for rule 8 - the roles whose answer moves a deal. */
+const KEY_ROLES: ReadonlySet<DecisionRole> = new Set<DecisionRole>(["economic", "coach", "blocker"]);
+const KEY_ROLE_LABEL: Partial<Record<DecisionRole, string>> = {
+  economic: "经济决策人",
+  coach: "内线",
+  blocker: "阻碍者",
+};
+
 // --- inputs -----------------------------------------------------------------
 
 export interface AccountInput {
@@ -220,7 +228,7 @@ export interface AccountInput {
    * let a rule ask a person a question only a deal can answer, which is the
    * defect this batch removes.
    */
-  contacts: readonly ChainPerson[];
+  contacts: readonly (ChainPerson & { readonly name?: string })[];
   relations: readonly RelationEdge[];
   /** contactId -> last recorded interaction they took part in. */
   contactActivity: readonly { contactId: string; lastContactAt: Date | null }[];
@@ -644,6 +652,111 @@ export function deriveJudgements(
           ],
           rule: "战略客户 且 (距上次接触 > 接触节奏 或 距决策人接触 > 决策人节奏) · 不要求存在开放商机",
           analyses: ANALYSES_CADENCE,
+        });
+      }
+    }
+    // 7. SINGLE-THREADED (YC-021 L2 单线程风险预警). Every live deal at this
+    //    customer runs through one person. Nothing is wrong YET - which is
+    //    exactly why no event-triggered rule above can see it: the day that
+    //    person leaves or goes quiet, every deal goes with them at once.
+    //
+    //    "Active" is evidence, not the roster: an in-post contact nobody has
+    //    spoken to inside the staleness window is not a second thread. A
+    //    roster holding only one in-post person is the same finding, stated
+    //    from the other side.
+    if (a.openDeals.length > 0 && a.contacts.length > 0) {
+      const inPost = a.contacts.filter((c) => c.status === "active");
+      const inPostIds = new Set(inPost.map((c) => c.id));
+      const engaged = a.contactActivity.filter(
+        (x) =>
+          inPostIds.has(x.contactId) &&
+          x.lastContactAt !== null &&
+          days(x.lastContactAt, now) <= staleDays,
+      );
+      const onlyOnRoster = inPost.length === 1;
+      const thread = onlyOnRoster ? inPost[0]!.id : engaged.length === 1 ? engaged[0]!.contactId : null;
+      if (thread !== null) {
+        const who = a.contacts.find((c) => c.id === thread)?.name ?? "同一个人";
+        const seen = a.contactActivity.find((x) => x.contactId === thread)?.lastContactAt ?? null;
+        out.push({
+          id: `singlethread:${a.accountId}`,
+          source: "rule",
+          urgency: "week",
+          claim: onlyOnRoster
+            ? `${a.accountName}的档案里只有${who}一个在职联系人，${a.openDeals.length} 个在办商机都压在这一条线上。`
+            : `${a.accountName}近 ${staleDays} 天只和${who}一个人有来往，${a.openDeals.length} 个在办商机都压在这一条线上。`,
+          subjectType: "account",
+          subjectId: a.accountId,
+          subjectName: a.accountName,
+          tags: [...baseTags, { label: "", value: "单线联系", tone: "warning" }],
+          citations: [
+            {
+              kind: "structure",
+              text: `在职联系人 ${inPost.length} 人，近 ${staleDays} 天有接触记录的 ${engaged.length} 人。`,
+            },
+            ...a.notes.slice(0, 2).map((n) => note(n, now)),
+          ],
+          facts: [
+            { label: "唯一联系人", value: who, tone: "warning" },
+            { label: "在职联系人", value: String(inPost.length) },
+            {
+              label: "最近接触",
+              value: seen === null ? "无记录" : `${days(seen, now)} 天前`,
+            },
+            { label: "在办商机", value: String(a.openDeals.length) },
+          ],
+          rule: `开放商机 且 (在职联系人 = 1 或 近 ${staleDays} 天有接触的在职联系人 = 1)`,
+          analyses: ANALYSES_UNREACHED,
+        });
+      }
+    }
+
+    // 8. ONE PERSON, TWO DEALS (YC-021 L3 多单相互影响). A key person - the
+    //    one who signs, the one who opens doors, the one who blocks - on two
+    //    open deals at once ties them together: a "no" on one is heard on the
+    //    other, and the same budget holder is being asked twice. Read from the
+    //    stated per-deal roles (incr/0027) only; a person with no stated role
+    //    on a deal is not claimed to matter to it.
+    if (a.openDeals.length > 1 && (a.buyingRoles ?? []).length > 0) {
+      const openIds = new Set(a.openDeals.map((d) => d.id));
+      const byPerson = new Map<string, { opportunityId: string; buyingRole: DecisionRole }[]>();
+      for (const r of a.buyingRoles ?? []) {
+        if (!openIds.has(r.opportunityId) || !KEY_ROLES.has(r.buyingRole)) continue;
+        const list = byPerson.get(r.personId) ?? [];
+        list.push({ opportunityId: r.opportunityId, buyingRole: r.buyingRole });
+        byPerson.set(r.personId, list);
+      }
+      const shared = [...byPerson.entries()].filter(([, links]) => links.length > 1);
+      if (shared.length > 0) {
+        const dealName = (id: string) => a.openDeals.find((d) => d.id === id)?.name ?? id;
+        const personName = (id: string) => a.contacts.find((c) => c.id === id)?.name ?? "未命名联系人";
+        const [firstId, firstLinks] = shared[0]!;
+        out.push({
+          id: `shared:${a.accountId}`,
+          source: "rule",
+          urgency: "watch",
+          claim:
+            shared.length === 1
+              ? `${personName(firstId)}同时是 ${firstLinks.length} 个在办商机的关键人，这几单的推进会互相牵动。`
+              : `${a.accountName}有 ${shared.length} 位关键人同时出现在多个在办商机上，这些单子的推进会互相牵动。`,
+          subjectType: "account",
+          subjectId: a.accountId,
+          subjectName: a.accountName,
+          tags: [...baseTags, { label: "共享关键人", value: String(shared.length), tone: "neutral" }],
+          // One line per shared person, naming every deal and the role on it -
+          // the whole finding is WHICH deals, so it is spelled out, not counted.
+          citations: shared.map(([personId, links]) => ({
+            kind: "structure" as const,
+            text: `${personName(personId)}：${links
+              .map((l) => `「${dealName(l.opportunityId)}」${KEY_ROLE_LABEL[l.buyingRole] ?? l.buyingRole}`)
+              .join("；")}`,
+          })),
+          facts: shared.slice(0, 3).map(([personId, links]) => ({
+            label: personName(personId),
+            value: `${links.length} 单`,
+          })),
+          rule: "同一联系人 在 ≥ 2 个在办商机上 被标为 经济决策人 / 内线 / 阻碍者",
+          analyses: ANALYSES_UNREACHED,
         });
       }
     }
