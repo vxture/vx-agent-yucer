@@ -1,6 +1,7 @@
 import type { Dictionary } from "./i18n/dictionary";
 import * as zh from "./messages";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
+import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
 
 // The en-US dictionary.
 //
@@ -5624,5 +5625,38 @@ export const en: Dictionary = {
       `${n} external signals · newest ${newestDaysAgo === 0 ? "today" : `${newestDaysAgo} days ago`}`,
     when: (days: number) => (days === 0 ? "today" : `${days} days ago`),
     source: (source: string) => `Source: ${source}`,
+  },
+  RISK_TEXT: {
+    title: "Risk types",
+    type: { relationship: "Relationship", advance: "Progress", delivery: "Delivery", collections: "Collections", renewal: "Renewal" },
+    level: { risk: "At risk", watch: "Watch", clear: "Clear", unknown: "Unknown" } as Record<RiskLevel, string>,
+    role: { account_owner: "account owner", deal_owner: "deal owner", project_manager: "project manager" },
+    noFinding: (level: RiskLevel) => (level === "unknown" ? "Could not read the data - no verdict" : "Nothing found"),
+    finding: (f: Exclude<RiskFinding, { code: "renewal" }>): string => {
+      switch (f.code) {
+        case "buyer_unreachable":
+          return `"${f.deal}": buyer unreachable`;
+        case "no_buyer":
+          return `"${f.deal}": no economic buyer`;
+        case "roles_missing":
+          return `"${f.deal}": ${f.count} roles missing`;
+        case "blockers":
+          return `"${f.deal}": ${f.count} blockers`;
+        case "single_thread":
+          return `only ${f.who} is in contact`;
+        case "deal_stalled":
+          return `"${f.deal}" stalled ${f.days} days`;
+        case "project_red":
+          return `"${f.project}" red`;
+        case "project_amber":
+          return `"${f.project}" amber`;
+        case "milestones_overdue":
+          return `"${f.project}": ${f.count} milestones overdue`;
+        case "revenue_overdue":
+          return `"${f.project}": ${f.count} instalments overdue`;
+      }
+    },
+    separator: "; ",
+    who: (role: string, name: string | null) => (name ? `Talk to ${name} (${role})` : `Talk to the ${role} (unassigned)`),
   },
 };

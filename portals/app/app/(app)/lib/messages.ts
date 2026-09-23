@@ -27,6 +27,7 @@ import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import type { ActionStatus } from "../../domains/copilot/lib/action";
 import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/revenue";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
+import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
 
 export const STAGE_LABEL: Record<Stage, string> = {
   qualify: "合格判定",
@@ -6647,4 +6648,39 @@ export const SIGNAL_PANEL_TEXT = {
     `${n} 条外部动态 · 最新一条${newestDaysAgo === 0 ? "今天" : `${newestDaysAgo} 天前`}`,
   when: (days: number) => (days === 0 ? "今天" : `${days} 天前`),
   source: (source: string) => `来源：${source}`,
+};
+
+// 风险分型 (YC-021 L5, owner 2026-09-24): five types, what each rests on, who to go to.
+export const RISK_TEXT = {
+  title: "风险分型",
+  type: { relationship: "关系", advance: "推进", delivery: "交付", collections: "回款", renewal: "续约" },
+  level: { risk: "有风险", watch: "关注", clear: "正常", unknown: "未知" } as Record<RiskLevel, string>,
+  role: { account_owner: "客户负责人", deal_owner: "商机负责人", project_manager: "项目经理" },
+  noFinding: (level: RiskLevel): string => (level === "unknown" ? "数据读取不到，不下结论" : "没有发现问题"),
+  finding: (f: Exclude<RiskFinding, { code: "renewal" }>): string => {
+    switch (f.code) {
+      case "buyer_unreachable":
+        return `「${f.deal}」决策人不可达`;
+      case "no_buyer":
+        return `「${f.deal}」没有经济决策人`;
+      case "roles_missing":
+        return `「${f.deal}」缺 ${f.count} 个角色`;
+      case "blockers":
+        return `「${f.deal}」有 ${f.count} 个阻碍者`;
+      case "single_thread":
+        return `只和${f.who}一个人有来往`;
+      case "deal_stalled":
+        return `「${f.deal}」停了 ${f.days} 天`;
+      case "project_red":
+        return `「${f.project}」红灯`;
+      case "project_amber":
+        return `「${f.project}」黄灯`;
+      case "milestones_overdue":
+        return `「${f.project}」${f.count} 个里程碑逾期`;
+      case "revenue_overdue":
+        return `「${f.project}」${f.count} 笔回款逾期`;
+    }
+  },
+  separator: "；",
+  who: (role: string, name: string | null): string => (name ? `找 ${name}（${role}）` : `找${role}（未指定）`),
 };
