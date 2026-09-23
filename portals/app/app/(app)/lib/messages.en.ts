@@ -2,6 +2,7 @@ import type { Dictionary } from "./i18n/dictionary";
 import * as zh from "./messages";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
+import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
 
 // The en-US dictionary.
 //
@@ -3584,6 +3585,28 @@ export const en: Dictionary = {
       `The new contract is recorded as the renewal of ${no}. A contract renews once, and the link cannot be moved.`,
     renewedFrom: (no: string) => `renews ${no}`,
     renewedTo: (no: string) => `renewed as ${no}`,
+    renewalRisk: (level: RenewalRiskLevel) => `Renewal risk ${level}`,
+    renewalRiskNone: "No risk signal hit",
+    renewalRiskBasis: (b: RenewalRiskBasis): string => {
+      switch (b.code) {
+        case "notice_passed":
+          return `Notice deadline passed ${b.days} days ago, no renewal deal open (+3)`;
+        case "in_window":
+          return `${b.days} days to the notice deadline, inside the window, no renewal deal open (+2)`;
+        case "delivery_red":
+          return `Delivery project "${b.project}" is red (+2)`;
+        case "delivery_amber":
+          return `Delivery project "${b.project}" is amber (+1)`;
+        case "revenue_overdue":
+          return `${b.count} instalments overdue (+1)`;
+        case "quiet":
+          return b.days < 0 ? "No contact ever recorded (+1)" : `No recorded contact for ${b.days} days (+1)`;
+        case "prior_downgrade":
+          return "The previous contract was renewed as a downgrade (+1)";
+        case "renewal_deal_open":
+          return "A renewal deal is open, so the notice period does not count";
+      }
+    },
     lineage: (position: number, total: number, chain: readonly string[]) =>
       `Renewal chain ${position}/${total} · ${chain.join(" → ")}`,
     recordOutcome: "Record outcome",
@@ -5654,6 +5677,8 @@ export const en: Dictionary = {
           return `"${f.project}": ${f.count} milestones overdue`;
         case "revenue_overdue":
           return `"${f.project}": ${f.count} instalments overdue`;
+        case "contract_risk":
+          return `contract ${f.contractNo}: renewal risk ${f.level}`;
       }
     },
     separator: "; ",
