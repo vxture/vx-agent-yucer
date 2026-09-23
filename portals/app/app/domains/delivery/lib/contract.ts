@@ -278,6 +278,75 @@ export function ownedProducts(
   return [...byProduct.values()];
 }
 
+/** One currency's row of 存量收入. */
+export interface InstalledRevenueRow {
+  currency: string;
+  /** Contracts in force today, each scaled to one year of its own term. */
+  annualized: number;
+  inForce: number;
+  /** Every signed (non-draft) contract's total, whatever its phase. */
+  lifetime: number;
+  signed: number;
+}
+
+export interface InstalledRevenue {
+  rows: InstalledRevenueRow[];
+  /** Signed contracts with no amount yet - counted, never guessed at. */
+  unpriced: number;
+}
+
+/**
+ * 存量收入 (owner, 2026-09-23): two figures, never one.
+ *
+ *   年化合同额 - the in-force contracts, each scaled to a year of its own term
+ *                (total x 365 / term days). NOT called ARR: the catalog does not
+ *                say which products are recurring, so a one-off contract in
+ *                force today is annualized too, and the label must not claim
+ *                more than the data knows.
+ *   历史合同总额 - every signed contract's total, in force or not.
+ *
+ * One row per currency, never summed across (the same rule as every money
+ * figure on the page). A signed contract without an amount is counted in
+ * `unpriced`, not treated as zero - a zero would read as "worth nothing".
+ * In force is judged exactly as `ownedProducts` judges it: status and term.
+ */
+export function installedRevenue(
+  contracts: ReadonlyArray<Pick<ContractFacts, "status" | "currency" | "termStart" | "termEnd"> & { totalAmount: number | null }>,
+  now: Date,
+): InstalledRevenue {
+  const rows = new Map<string, { annualized: number; inForce: number; lifetime: number; signed: number }>();
+  let unpriced = 0;
+  for (const c of contracts) {
+    if (c.status === "draft") continue;
+    if (c.totalAmount === null) {
+      unpriced += 1;
+      continue;
+    }
+    const row = rows.get(c.currency) ?? { annualized: 0, inForce: 0, lifetime: 0, signed: 0 };
+    row.lifetime += toMinor(c.totalAmount);
+    row.signed += 1;
+    const phase = contractPhase({ status: c.status, termStart: c.termStart, termEnd: c.termEnd }, now);
+    if (phase === "in_force" && c.termStart && c.termEnd) {
+      const termDays = Math.floor((c.termEnd.getTime() - c.termStart.getTime()) / DAY_MS) + 1;
+      row.annualized += Math.round((toMinor(c.totalAmount) * 365) / termDays);
+      row.inForce += 1;
+    }
+    rows.set(c.currency, row);
+  }
+  return {
+    rows: [...rows.entries()]
+      .map(([currency, r]) => ({
+        currency,
+        annualized: fromMinor(r.annualized),
+        inForce: r.inForce,
+        lifetime: fromMinor(r.lifetime),
+        signed: r.signed,
+      }))
+      .sort((a, b) => a.currency.localeCompare(b.currency)),
+    unpriced,
+  };
+}
+
 /** A term date is a calendar day: it is still in force for all of that day. */
 function endOfDay(d: Date): Date {
   return new Date(Math.floor(d.getTime() / DAY_MS) * DAY_MS + DAY_MS - 1);
