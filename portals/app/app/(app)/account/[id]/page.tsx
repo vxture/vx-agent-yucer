@@ -1012,6 +1012,12 @@ export default async function AccountDetailPage({
           customerNatureName={customerNatureName}
           customerTypeName={customerTypeName}
           scaleName={customerSizeName}
+          more={{
+            province: account.province,
+            creditCode: account.creditCode,
+            website: account.website,
+            employeeCount: account.employeeCount,
+          }}
         />
 
         <ContactRoster

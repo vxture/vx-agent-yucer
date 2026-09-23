@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Icon,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@vxture/design-ui";
 import { CollapsibleSection } from "./collapsible-section";
 import { useAccountEdit } from "./account-edit-context";
 
@@ -102,6 +110,18 @@ export interface OrgUnitPanelProps {
    *  the account row but the display is the bucket label from the vocab
    *  (e.g. "1000-5000 人"), same id->name pattern as nature/type. */
   readonly scaleName: string | null;
+  /**
+   * 更多资料 (YC-021 L1 工商与基础字段: 字段可读可改). The design card shows
+   * five facts; these were readable ONLY inside the edit drawer, so a member
+   * without account.upsert could not see them at all. Folded by default,
+   * opened the same way 下级单位 is in the design.
+   */
+  readonly more: {
+    readonly province: string | null;
+    readonly creditCode: string | null;
+    readonly website: string | null;
+    readonly employeeCount: number | null;
+  };
 }
 
 // label 淡化变小、content 保持单行并靠右, 留足空间显示"内蒙古-呼和浩特"这类
@@ -139,7 +159,9 @@ export function OrgUnitPanel({
   customerNatureName,
   customerTypeName,
   scaleName,
+  more,
 }: OrgUnitPanelProps) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT, COLLAPSE_TEXT } = useMessages();
   const edit = useAccountEdit();
   return (
@@ -206,6 +228,32 @@ export function OrgUnitPanel({
             ) : null}
           </div>
         ) : null}
+        <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
+          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-sm">
+            <Icon name={moreOpen ? "chevron-down" : "chevron-right"} size="xs" />
+            {ACCOUNT_TEXT.orgUnitMore}
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <dl className="divide-primary/10 dark:divide-primary/20 mt-2xs flex flex-col divide-y divide-dashed">
+              {(
+                [
+                  [ACCOUNT_TEXT.orgUnitProvince, more.province],
+                  [ACCOUNT_TEXT.orgUnitCreditCode, more.creditCode],
+                  [ACCOUNT_TEXT.orgUnitWebsite, more.website],
+                  [ACCOUNT_TEXT.orgUnitEmployees, more.employeeCount == null ? null : String(more.employeeCount)],
+                ] as const
+              ).map(([label, value]) => (
+                <InfoRow key={label} label={label}>
+                  {value ? (
+                    <span className="block truncate" title={value}>{value}</span>
+                  ) : (
+                    <span className="text-muted-foreground">{ACCOUNT_TEXT.orgUnitNotFilled}</span>
+                  )}
+                </InfoRow>
+              ))}
+            </dl>
+          </CollapsibleContent>
+        </Collapsible>
         {children.length > 0 ? (
           <div className="flex flex-col gap-2xs">
             <span className="text-muted-foreground text-body-sm">
