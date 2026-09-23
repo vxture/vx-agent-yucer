@@ -383,3 +383,31 @@ test("a gate refusal never consults the meter - nothing was asked for", async ()
   assert.equal(m.admits(), 0);
   assert.deepEqual(m.recorded, []);
 });
+
+test("admitProposal refuses BEFORE anything is written, and the refusal is counted (L2 batch 7b)", async () => {
+  const store = new InMemoryCopilotStore();
+  const h = deps({ replies: [proposeReply, { content: "done" }] });
+  const out = unwrap(
+    await runCopilotTurn(
+      ctx("sales_leader", "enterprise", store),
+      { question: "q", tenantId: TENANT, admitProposal: () => false },
+      h.d,
+    ),
+  );
+  assert.deepEqual(out.proposals, []);
+  assert.equal(out.droppedProposals, 1);
+  assert.equal((await store.listProposals(WS)).length, 0, "nothing reached the store");
+});
+
+test("capability, when given, is stamped on what the turn writes", async () => {
+  const store = new InMemoryCopilotStore();
+  const h = deps({ replies: [proposeReply, { content: "done" }] });
+  const out = unwrap(
+    await runCopilotTurn(
+      ctx("sales_leader", "enterprise", store),
+      { question: "q", tenantId: TENANT, capability: "account.consistency", admitProposal: () => true },
+      h.d,
+    ),
+  );
+  assert.equal(out.proposals[0].capability, "account.consistency");
+});

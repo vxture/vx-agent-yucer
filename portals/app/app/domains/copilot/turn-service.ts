@@ -56,6 +56,16 @@ export interface TurnInput {
    * the same data with its own opinion about who may see it.
    */
   evidence?: EvidenceGrounding;
+  /**
+   * L2 batch 7b. A caller that asked for one specific kind of proposal can
+   * refuse the rest BEFORE they are written - the consistency check drops a
+   * conflict whose quotes are not in the record, and anything that is not a
+   * conflict at all. Absent: every proposal is offered to recordProposals,
+   * as before.
+   */
+  admitProposal?: (p: { actionType: string; payload: Record<string, unknown> }) => boolean;
+  /** ADR-015 group stamped on the proposals this turn writes. Absent: none, as before. */
+  capability?: string;
 }
 
 export interface TurnOutput {
@@ -230,13 +240,17 @@ export async function runCopilotTurn(
   // 3. Proposals are gated again. A workspace on copilot.ask alone gets the
   // answer and none of the proposals, even if the model produced them.
   let written: AgentAction[] = [];
+  const admitted = input.admitProposal
+    ? turn.proposals.filter((p) => input.admitProposal!({ actionType: p.actionType, payload: p.payload }))
+    : turn.proposals;
   let dropped = turn.proposals.length;
-  if (turn.proposals.length > 0) {
+  if (admitted.length > 0) {
     const recorded = await recordProposals(
       ctx,
-      turn.proposals.map((p) => ({
+      admitted.map((p) => ({
         sessionId: session.id,
         actionType: p.actionType,
+        ...(input.capability ? { capability: input.capability } : {}),
         subjectType: p.subjectType as SubjectType,
         subjectId: p.subjectId,
         payload: p.payload,

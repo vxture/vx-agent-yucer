@@ -83,6 +83,9 @@ import { AccountCompleteness } from "../../components/account-completeness";
 import { fillField } from "./completeness-action";
 import { askToComplete } from "./ask-complete-action";
 import { structureMeetingNotes } from "./paste-notes-action";
+import { checkConsistency } from "./consistency-action";
+import { ConsistencyCheck, type PendingConflict } from "../../components/consistency-check";
+import { CONFLICT_ACTION_TYPE, lastConsistencyCheck } from "../../../domains/copilot/lib/conflict";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
 import { AccountSidebarPortal } from "../../components/account-sidebar-portal";
@@ -677,6 +680,31 @@ export default async function AccountDetailPage({
     };
   });
 
+  // 说法核对 (L2 batch 7b). The last check is read from this member's own
+  // copilot sessions - the store lists sessions per member - so the sentence
+  // says when YOU last checked. Pending conflicts are the flag_conflict
+  // proposals already in the page's proposal read.
+  const canCheckConsistency = can(session.authz, session.entitlement, "copilot.suggest", "ui").allowed;
+  const mySessions = canCheckConsistency
+    ? await getCopilotStore().listSessions(session.workspaceId, session.user.sub, 50).catch(() => [])
+    : [];
+  const lastCheckedAt = lastConsistencyCheck(mySessions, id);
+  const lastChecked = lastCheckedAt ? lastCheckedAt.toISOString().slice(0, 10) : null;
+  const interactionDate = new Map(
+    (interactions.ok ? interactions.value : []).map((i) => [i.id, i.occurredAt.toISOString().slice(0, 10)]),
+  );
+  const pendingConflicts: PendingConflict[] = (proposals.ok ? proposals.value : [])
+    .filter((a) => a.actionType === CONFLICT_ACTION_TYPE && a.subjectId === id)
+    .map((a) => {
+      const p = a.payload as { topic?: string; a?: { interactionId?: string; quote?: string }; b?: { interactionId?: string; quote?: string } };
+      return {
+        id: a.id,
+        topic: p.topic ?? "",
+        a: { date: interactionDate.get(p.a?.interactionId ?? "") ?? null, quote: p.a?.quote ?? "" },
+        b: { date: interactionDate.get(p.b?.interactionId ?? "") ?? null, quote: p.b?.quote ?? "" },
+      };
+    });
+
   const completeness = await accountCompleteness(
     {
       ...fieldCtx,
@@ -1270,11 +1298,23 @@ export default async function AccountDetailPage({
                       items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null, participantNames: participantsByInteraction.get(i.id) }))}
                       limit={20} hideDescription hideTitle
                       action={
-                        canRecord ? (
-                          <PasteNotesButton
-                            accountId={id}
-                            onPaste={structureMeetingNotes}
-                          />
+                        canRecord || canCheckConsistency ? (
+                          <span className="flex flex-col items-end gap-xs">
+                            {canRecord ? (
+                              <PasteNotesButton
+                                accountId={id}
+                                onPaste={structureMeetingNotes}
+                              />
+                            ) : null}
+                            {canCheckConsistency ? (
+                              <ConsistencyCheck
+                                accountId={id}
+                                lastChecked={lastChecked}
+                                pending={pendingConflicts}
+                                onCheck={checkConsistency}
+                              />
+                            ) : null}
+                          </span>
                         ) : null
                       }
                     />
