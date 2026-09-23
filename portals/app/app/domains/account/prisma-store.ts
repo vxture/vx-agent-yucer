@@ -690,6 +690,15 @@ export class PrismaAccountStore implements AccountStore {
     }));
   }
 
+  async listCollaboratedAccountIds(workspaceId: string, memberSub: string): Promise<string[]> {
+    const p = await this.client();
+    const rows = await p.accountCollaborator.findMany({
+      where: { workspaceId, memberSub },
+      select: { accountId: true },
+    });
+    return rows.map((r: Record<string, unknown>) => String(r.accountId));
+  }
+
   async addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void> {
     const p = await this.client();
     try {
