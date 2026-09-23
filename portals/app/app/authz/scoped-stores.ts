@@ -242,6 +242,10 @@ class ScopedAccountStore implements AccountStore {
   addRelation: AccountStore["addRelation"] = (...a) => this.inner.addRelation(...a);
   removeRelation: AccountStore["removeRelation"] = (...a) => this.inner.removeRelation(...a);
   healthInputs: AccountStore["healthInputs"] = (...a) => this.inner.healthInputs(...a);
+  // incr/0079. Keyed by an account the caller already resolved through this
+  // store's getAccount, the same reasoning as healthInputs.
+  appendHealthSnapshot: AccountStore["appendHealthSnapshot"] = (...a) => this.inner.appendHealthSnapshot(...a);
+  listHealthSnapshots: AccountStore["listHealthSnapshots"] = (...a) => this.inner.listHealthSnapshots(...a);
   updateAccount: AccountStore["updateAccount"] = (...a) => this.inner.updateAccount(...a);
   // incr/0027. Reached through an OPPORTUNITY rather than an account, and that
   // is still the same argument: a caller holds an opportunity id because a

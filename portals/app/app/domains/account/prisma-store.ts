@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import type { HealthSnapshot } from "./lib/health-history";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { isUniqueViolation, lockKey } from "../shared/allocate";
@@ -751,6 +752,40 @@ export class PrismaAccountStore implements AccountStore {
       // grant on this table for anything else to do - same shape as
       // addRelation's own try/catch.
     }
+  }
+
+  async appendHealthSnapshot(workspaceId: string, accountId: string, snapshot: HealthSnapshot): Promise<void> {
+    const p = await this.client();
+    await p.accountHealthSnapshot.create({
+      data: {
+        workspaceId,
+        accountId,
+        score: snapshot.score,
+        // JSON as deriveHealth returned it - attribution reads it back as-is.
+        contributions: snapshot.contributions as unknown as object,
+        source: snapshot.source,
+        computedAt: snapshot.computedAt,
+      },
+    });
+  }
+
+  async listHealthSnapshots(
+    workspaceId: string,
+    accountId: string,
+    opts: { limit?: number } = {},
+  ): Promise<HealthSnapshot[]> {
+    const p = await this.client();
+    const rows = await p.accountHealthSnapshot.findMany({
+      where: { workspaceId, accountId },
+      orderBy: { computedAt: "desc" },
+      take: opts.limit ?? 50,
+    });
+    return rows.map((r: Record<string, unknown>) => ({
+      score: Number(r.score),
+      contributions: (Array.isArray(r.contributions) ? r.contributions : []) as HealthSnapshot["contributions"],
+      source: r.source === "recompute" ? "recompute" : "sweep",
+      computedAt: r.computedAt as Date,
+    }));
   }
 
   async removeCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void> {

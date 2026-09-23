@@ -1,6 +1,7 @@
 import { deployStage, isDeployedStage } from "../lib/deploy-stage";
 import { runCommitmentSweep } from "../domains/account/commitment-sweep";
 import { runStrategySnapshots } from "../domains/strategy/snapshot-job";
+import { runHealthSweep } from "../domains/account/health-sweep";
 import { runUpsellSweep } from "../domains/delivery/upsell-sweep";
 import { flushUsage } from "../usage/lib/flush";
 import { listActiveWorkspaces } from "./workspaces";
@@ -118,6 +119,13 @@ export function defaultJobs(env: Record<string, string | undefined> = process.en
       name: "upsell-sweep",
       everyMs: intervalFrom(env, "JOBS_INTERVAL_UPSELL_MS", 24 * 60 * 60_000),
       run: async () => runUpsellSweep({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
+    },
+    // incr/0079 (owner, 2026-09-24). Daily: keeps account.health_score
+    // current and writes a snapshot when a score moved.
+    {
+      name: "health-sweep",
+      everyMs: intervalFrom(env, "JOBS_INTERVAL_HEALTH_MS", 24 * 60 * 60_000),
+      run: async () => runHealthSweep({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
     },
   ];
 }

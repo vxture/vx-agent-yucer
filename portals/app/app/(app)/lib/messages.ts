@@ -4714,6 +4714,15 @@ export const OUTCOME_TEXT = {
   stageMove: (from: string, to: string) => (from ? `${from} → ${to}` : `进入 ${to}`),
   met: "承诺兑现",
   missed: "承诺错过",
+  // incr/0079: the RECORDED score either side of the decision.
+  health: (before: number | null, after: number | null) =>
+    before === null
+      ? after === null
+        ? "健康分：这段时间还没有记录"
+        : `健康分：采纳时还没有记录，现在 ${after}`
+      : after === null || after === before
+        ? `健康分：${before}，没有变化`
+        : `健康分：采纳时 ${before} → ${after}（${after > before ? "+" : ""}${after - before}）`,
 } as const;
 
 export const DELIVERY_TEXT = {
@@ -5893,6 +5902,10 @@ export const CHAIN_TEXT = {
   rollupMissingOn: (role: string, deals: number) => `${deals} 单缺${role}`,
   rollupSeparator: "；",
   editOnDeal: "去商机编辑角色",
+  // 变化归因 (YC-021 L5, incr/0079).
+  changeSince: (from: number, to: number, date: string) => `较 ${date} 的 ${from} 分变为 ${to} 分：`,
+  changeFactor: (factor: string, delta: number) => `${factor} ${delta > 0 ? "+" : ""}${delta}`,
+  changeSeparator: "，",
   // incr/0027：一单一条链。标题必须带上是哪一单，否则同一客户下的两条
   // 委员会读起来像一条自相矛盾的答案。
   forDeal: (deal: string) => `决策链 · ${deal}`,

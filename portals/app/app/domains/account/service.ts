@@ -10,6 +10,8 @@
 //   - It returns the CONTRIBUTIONS alongside the number. A red account whose
 //     only explanation is "the model said so" is an account nobody acts on.
 
+import { recordHealthReading } from "./health-record";
+import type { HealthSnapshot, SnapshotSource } from "./lib/health-history";
 import { isProvince } from "../shared/provinces";
 import {
   MARKET_SCOPES,
@@ -843,7 +845,7 @@ export interface HealthOutcome extends HealthResult {
 export async function recomputeHealth(
   ctx: AccountContext,
   accountId: string,
-  opts: { now?: Date; persist?: boolean } = {},
+  opts: { now?: Date; persist?: boolean; source?: SnapshotSource } = {},
 ): Promise<RuleResult<HealthOutcome>> {
   // Writing the score is a write; DERIVING it without persisting is a read -
   // a read-only member is entitled to see the number and why (YC-021 L5).
@@ -872,9 +874,30 @@ export async function recomputeHealth(
     persisted = await ctx.store.updateAccount(ctx.workspaceId, accountId, {
       healthScore: derived.value.score,
     });
+    // The history (incr/0079): a persisted score is also a reading worth
+    // keeping, when it moved. A read (persist:false) writes nothing.
+    if (persisted) {
+      await recordHealthReading(ctx.store, ctx.workspaceId, accountId, derived.value, opts.source ?? "recompute", opts.now ?? new Date());
+    }
   }
 
   return ok({ ...derived.value, accountId, persisted });
+}
+
+/**
+ * The health score's recorded history, newest first (incr/0079) - what 变化归因
+ * and 采纳后成效回看 read. Behind the same gate as the account itself.
+ */
+export async function healthHistory(
+  ctx: AccountContext,
+  accountId: string,
+  opts: { limit?: number } = {},
+): Promise<RuleResult<HealthSnapshot[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const account = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!account) return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  return ok(await ctx.store.listHealthSnapshots(ctx.workspaceId, accountId, opts));
 }
 
 /** One open deal and what its buying committee looks like. */

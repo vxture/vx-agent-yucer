@@ -15,6 +15,7 @@ import {
   listAccounts,
   reassignAccount,
   recomputeHealth,
+  healthHistory,
   upsertContact,
   workspaceCompleteness,
   type AccountContext,
@@ -620,4 +621,44 @@ test("stating a role twice on one deal replaces rather than duplicates", async (
   assert.equal(rows.length, 1, "one person, one deal, one answer");
   assert.equal(rows[0]!.buyingRole, "economic");
   assert.equal(rows[0]!.influence, 90);
+});
+
+// --- 健康分快照 (incr/0079) ---------------------------------------------------
+
+test("a persisted recompute is a reading in the history - once per change, and a read writes none", async () => {
+  const store = new InMemoryAccountStore();
+  const inputs = (lastInteractionAt: Date) => ({
+    [`${WS}|acc_1`]: {
+      openOpportunities: [{ stage: "negotiate" }],
+      lastInteractionAt,
+      projectHealth: ["green" as const],
+      overdueRevenueCount: 0,
+      renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
+    },
+  });
+  store.seed({ accounts: [account()], healthInputs: inputs(daysAgo(2)) });
+  const rep = ctx("sales_rep", "pro", store);
+
+  await recomputeHealth(rep, "acc_1", { now: NOW, persist: false });
+  assert.equal(unwrap(await healthHistory(rep, "acc_1")).length, 0, "a read is not a reading");
+
+  await recomputeHealth(rep, "acc_1", { now: NOW });
+  await recomputeHealth(rep, "acc_1", { now: NOW });
+  const once = unwrap(await healthHistory(rep, "acc_1"));
+  assert.equal(once.length, 1, "the same score twice is one row");
+  assert.equal(once[0]!.source, "recompute");
+
+  store.seed({ healthInputs: inputs(daysAgo(200)) });
+  await recomputeHealth(rep, "acc_1", { now: new Date(NOW.getTime() + 86_400_000), source: "sweep" });
+  const twice = unwrap(await healthHistory(rep, "acc_1"));
+  assert.equal(twice.length, 2, "a moved score is a new row");
+  assert.equal(twice[0]!.source, "sweep", "newest first, with its writer");
+});
+
+test("the history is behind the same gate as the account, and a stranger's account is not found", async () => {
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account(), account({ id: "acc_2", workspaceId: "ws_other" })] });
+  assert.equal(unwrap(await healthHistory(ctx("viewer", "pro", store), "acc_1")).length, 0);
+  const r = await healthHistory(ctx("viewer", "pro", store), "acc_2");
+  assert.equal(r.ok === false && r.violations[0].code, "not_found");
 });

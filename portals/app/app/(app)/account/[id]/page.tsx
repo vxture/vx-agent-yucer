@@ -24,6 +24,7 @@ import {
   accountStatuses,
   decisionChainsByOpportunity,
   getAccountDetail,
+  healthHistory,
   listAccounts,
   listAccountCollaborators,
   listCustomerNatures,
@@ -50,6 +51,7 @@ import { HealthPanel } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
 import { AccountSignals, type AccountSignalRow } from "../../components/account-signals";
 import { listSignals } from "../../../domains/signal/service";
+import { attributeChange, lastDifferent } from "../../../domains/account/lib/health-history";
 import { displayRationale } from "../../lib/proposal-rationale";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
@@ -317,7 +319,7 @@ export default async function AccountDetailPage({
     }
   }
 
-  const [health, relations, industriesRead, customerTypesRead, customerSizesRead, customerNaturesRead, segmentsRead] =
+  const [health, relations, industriesRead, customerTypesRead, customerSizesRead, customerNaturesRead, segmentsRead, historyRead] =
     await Promise.all([
       // persist:false - a READ, so every member who can see the customer sees
       // the score WITH its factors (YC-021 L5: 分数始终与因子拆解同时出现);
@@ -345,6 +347,9 @@ export default async function AccountDetailPage({
       canWrite
         ? listSegments({ ...ctx, store: getStrategyStore() })
         : Promise.resolve(null),
+      // 健康分快照 (incr/0079): what 变化归因 and 采纳后回看 read. A failed read
+      // is no history - the panel then simply has no "why it changed" line.
+      healthHistory(ctx, id, { limit: 100 }).catch(() => null),
     ]);
 
   // THE POSITIONS ON THIS THEATRE, and the theatre-level plan over them.
@@ -708,6 +713,9 @@ export default async function AccountDetailPage({
       stageMoves: mine(stageMovesAll),
       interactions: mine(interactionRows),
       commitments: mine(commitmentRows),
+      // Health is the CUSTOMER's, so a deal-level decision is read against
+      // the account's history too.
+      healthSnapshots: historyRead?.ok ? historyRead.value : undefined,
     }, now);
     const ymdOf = (d: Date) => d.toISOString().slice(0, 10);
     const interactionById = new Map(interactionRows.map((i) => [i.id, i]));
@@ -721,6 +729,7 @@ export default async function AccountDetailPage({
       windowClosed: review.windowClosed,
       readFailed: reviewSourcesFailed,
       nothingFollowed: review.nothingFollowed,
+      health: review.health,
       stageMoves: review.stageMoves.map((s) => ({
         id: s.id,
         opportunityId: s.opportunityId,
@@ -1401,6 +1410,14 @@ export default async function AccountDetailPage({
                 health.value.score,
                 accountsRead.ok ? accountsRead.value : [],
               )}
+              change={
+                historyRead?.ok
+                  ? (() => {
+                      const prev = lastDifferent(historyRead.value, health.value.score);
+                      return prev ? attributeChange(prev, health.value) : null;
+                    })()
+                  : null
+              }
             />
           ) : (
             // 只读成员没有 health(见上面 persist:false 的说明), 状态标签和

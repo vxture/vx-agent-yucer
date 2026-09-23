@@ -6,11 +6,16 @@
 // commitments) and hands the rows in; this decides which of them fall inside
 // the window and what the review says.
 //
-// FACTS ONLY, NO SCORE (owner, 2026-09-22). "Health at the time of the
-// decision" cannot be replayed honestly: the delivery factor reads
-// project.health, which is overwritten in place with no history, so a
-// replayed score would quietly mix today's delivery state into a past number.
-// Every row here is a timestamped fact that can be opened to its original.
+// NO REPLAYED SCORE (owner, 2026-09-22). "Health at the time of the decision"
+// cannot be replayed honestly: the delivery factor reads project.health, which
+// is overwritten in place with no history, so a replayed score would quietly
+// mix today's delivery state into a past number.
+//
+// A RECORDED ONE, SINCE incr/0079 (owner, 2026-09-24). The score is now written
+// down when it is computed (account_health_snapshot), so "before" and "after"
+// are READ, not re-derived: the snapshot in force at the decision and the one
+// in force at the window's end (or now, while it runs). A decision older than
+// the history has no "before" and says so.
 //
 // NOT CAUSATION. The review lists what happened in the window after the
 // decision; it does not claim the proposal caused it. The page says "after",
@@ -29,6 +34,9 @@ export interface OutcomeFacts {
   stageMoves: ReadonlyArray<StageMove>;
   interactions: ReadonlyArray<{ id: string; occurredAt: Date }>;
   commitments: ReadonlyArray<CommitmentFact>;
+  /** The account's recorded health readings, NEWEST FIRST (incr/0079).
+   *  Absent = history not read; the review then carries no health line. */
+  healthSnapshots?: ReadonlyArray<{ score: number; computedAt: Date }>;
 }
 
 type StageMove = { id: string; opportunityId: string; fromStage: string | null; toStage: string; occurredAt: Date };
@@ -47,6 +55,10 @@ export interface OutcomeReview {
   commitmentsMissed: CommitmentFact[];
   /** Nothing at all followed - said explicitly, never an empty panel. */
   nothingFollowed: boolean;
+  /** The recorded score in force at the decision and at the window's end (or
+   *  now). Null inside means nothing had been recorded by then. Null overall
+   *  when the history was not supplied. */
+  health: { before: number | null; after: number | null } | null;
 }
 
 /** Only an accepted decision has an outcome to review; `executed` is accepted and carried out. */
@@ -76,7 +88,14 @@ export function reviewOutcome(
     .filter((c) => c.status === "missed" && inWindow(c.dueAt))
     .sort(byTime((c) => c.dueAt));
 
+  const scoreAt = (at: Date) =>
+    facts.healthSnapshots?.find((s) => s.computedAt.getTime() <= at.getTime())?.score ?? null;
+  const health = facts.healthSnapshots
+    ? { before: scoreAt(windowStart), after: scoreAt(now < windowEnd ? now : windowEnd) }
+    : null;
+
   return {
+    health,
     windowStart,
     windowEnd,
     windowClosed: now >= windowEnd,

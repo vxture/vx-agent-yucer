@@ -61,3 +61,25 @@ test("nothing following is said explicitly, and a running window is provisional"
   assert.equal(r.windowClosed, false);
   assert.deepEqual(r.windowEnd, at(REVIEW_WINDOW_DAYS));
 });
+
+// --- the recorded score (incr/0079) ----------------------------------------
+
+test("health before and after are the recorded readings in force, not a replay", () => {
+  const decision = { status: "accepted", decidedAt: DECIDED };
+  const healthSnapshots = [
+    { score: 71, computedAt: at(20) }, // after the window - not the "after"
+    { score: 64, computedAt: at(9) },
+    { score: 52, computedAt: at(-3) },
+  ];
+  const closed = reviewOutcome(decision, { ...NONE, healthSnapshots }, at(30));
+  assert.deepEqual(closed.health, { before: 52, after: 64 }, "the window's end, not today");
+  const running = reviewOutcome(decision, { ...NONE, healthSnapshots }, at(5));
+  assert.deepEqual(running.health, { before: 52, after: 52 }, "while it runs, the reading in force now");
+});
+
+test("a decision older than the history has no before, and no history read means no line", () => {
+  const decision = { status: "accepted", decidedAt: DECIDED };
+  const r = reviewOutcome(decision, { ...NONE, healthSnapshots: [{ score: 60, computedAt: at(2) }] }, at(30));
+  assert.deepEqual(r.health, { before: null, after: 60 });
+  assert.equal(reviewOutcome(decision, NONE, at(30)).health, null);
+});

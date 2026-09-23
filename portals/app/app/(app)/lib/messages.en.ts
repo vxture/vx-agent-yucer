@@ -1207,6 +1207,9 @@ export const en: Dictionary = {
     rollupMissingOn: (role: string, deals: number) => `${deals} missing ${role}`,
     rollupSeparator: "; ",
     editOnDeal: "Edit roles on the deal",
+    changeSince: (from: number, to: number, date: string) => `From ${from} on ${date} to ${to}: `,
+    changeFactor: (factor: string, delta: number) => `${factor} ${delta > 0 ? "+" : ""}${delta}`,
+    changeSeparator: ", ",
     forDeal: (deal: string) => `Decision chain · ${deal}`,
     noOpenDealTitle: "No open deal",
     noOpenDealDescription:
@@ -3490,6 +3493,14 @@ export const en: Dictionary = {
     stageMove: (from: string, to: string) => (from ? `${from} → ${to}` : `entered ${to}`),
     met: "Commitment kept",
     missed: "Commitment missed",
+    health: (before: number | null, after: number | null) =>
+      before === null
+        ? after === null
+          ? "Health: nothing recorded in this period yet"
+          : `Health: not recorded at acceptance, now ${after}`
+        : after === null || after === before
+          ? `Health: ${before}, unchanged`
+          : `Health: ${before} at acceptance -> ${after} (${after > before ? "+" : ""}${after - before})`,
   },
 
   // --- 合同 tab (incr/0076, L4 batch one) ---------------------------------
