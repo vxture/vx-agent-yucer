@@ -1253,6 +1253,13 @@ function seedCopilot(workspaceId: string, stores: DemoStores): void {
     // demo shows the outcome the spec asks for - a recommendation nobody
     // decided becomes visibly `expired` rather than quietly staying live.
     proposal("act_demo_6", "proposed", "draft_outreach", "account", "acc_demo_3", { channel: "call" }, DEMO_RATIONALES[1], 44, null, 9),
+    // 采纳后回看 (L6 batch four) needs accepted decisions to look back on, one
+    // of each outcome: act_demo_7 was accepted 20 days ago and int_demo_a2a
+    // (18 days ago) falls inside its 14-day window; act_demo_8 was accepted
+    // 30 days ago on an account nobody has touched in 48 - the honest
+    // "nothing followed", which the review must say rather than hide.
+    proposal("act_demo_7", "accepted", "draft_outreach", "account", "acc_demo_2", { channel: "meeting" }, DEMO_RATIONALES[1], 68, LEADER, 21),
+    proposal("act_demo_8", "accepted", "draft_outreach", "account", "acc_demo_1", { channel: "call" }, DEMO_RATIONALES[1], 58, LEADER, 31),
     // 全国样本. The curated six all sit in one province, so the screen's
     // adoption rate was a reading of one city presented as a national figure.
     ...NATIONAL.proposals.map((np) =>

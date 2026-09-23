@@ -3318,6 +3318,19 @@ export const en: Dictionary = {
     closed: "Closed",
   },
 
+  OUTCOME_TEXT: {
+    title: "After acceptance",
+    notCausation: "What happened at this customer in the 14 days after acceptance. Order in time, not cause.",
+    acceptedOn: (d: string) => `accepted ${d}`,
+    windowOpen: (end: string) => `still watching, until ${end}`,
+    nothingFollowed: "Nothing followed within 14 days: no stage move, no follow-up, no commitment fell due.",
+    readFailed: "The follow-up records could not be read - refresh shortly. This does not mean nothing happened.",
+    deal: "deal",
+    stageMove: (from: string, to: string) => (from ? `${from} → ${to}` : `entered ${to}`),
+    met: "Commitment kept",
+    missed: "Commitment missed",
+  },
+
   // --- 合同 tab (incr/0076, L4 batch one) ---------------------------------
 
   CONTRACT_ERROR: {
