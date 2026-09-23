@@ -8,6 +8,7 @@ import {
   ownedProducts,
   planContract,
   planContractLine,
+  renewalLineage,
   type ContractDraft,
   type ContractFacts,
 } from "./contract";
@@ -225,4 +226,26 @@ test("installedRevenue: a contract not yet started is signed but not in force", 
   assert.equal(r.rows[0].inForce, 0);
   assert.equal(r.rows[0].annualized, 0);
   assert.equal(r.rows[0].signed, 1);
+});
+
+// --- 续约世系 (YC-021 L4) ------------------------------------------------------
+
+test("a three-year chain reads as three from any of its contracts", () => {
+  const pred = new Map([["c2", "c1"], ["c3", "c2"]]);
+  const succ = new Map([["c1", "c2"], ["c2", "c3"]]);
+  for (const [id, pos] of [["c1", 1], ["c2", 2], ["c3", 3]] as const) {
+    const l = renewalLineage(id, pred, succ);
+    assert.deepEqual(l.chain, ["c1", "c2", "c3"]);
+    assert.equal(l.position, pos);
+  }
+});
+
+test("a contract never renewed is a chain of one", () => {
+  assert.deepEqual(renewalLineage("c1", new Map(), new Map()), { chain: ["c1"], position: 1 });
+});
+
+test("a corrupt loop cannot spin the walk", () => {
+  const loop = new Map([["a", "b"], ["b", "a"]]);
+  const l = renewalLineage("a", loop, loop);
+  assert.ok(l.chain.length <= 3);
 });
