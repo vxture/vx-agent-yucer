@@ -475,3 +475,29 @@ test("listCollaboratedAccountIds answers for one member in one workspace", { ski
     await cleanup();
   }
 });
+
+// 只删空壳客户 (2026-09-23): a SOFT delete. Reads stop seeing the row, and
+// the partial credit-code index (incr/0024, WHERE deleted_at IS NULL) lets
+// the same company be recorded again - proved against the real index.
+test("softDeleteAccount hides the row and frees its credit code", { skip }, async () => {
+  await cleanup();
+  await withPg(seed);
+  const s = await store();
+  try {
+    await withPg((c) => c.query(`UPDATE yucer_core.account SET credit_code = '91DB0000DEL' WHERE id = $1`, [ACC]));
+    assert.equal(await s.softDeleteAccount(WS_OTHER, ACC), false, "another workspace cannot delete it");
+    assert.equal(await s.softDeleteAccount(WS, ACC), true);
+    assert.equal(await s.getAccount(WS, ACC), null);
+    assert.ok(!(await s.listAccounts(WS)).some((a) => a.id === ACC));
+    assert.equal(await s.softDeleteAccount(WS, ACC), false, "already deleted");
+    await withPg((c) =>
+      c.query(
+        `INSERT INTO yucer_core.account (id, workspace_id, account_no, name, status, credit_code)
+         VALUES (gen_random_uuid(), $1, 'ACC-PAS-RE', 'Recreated', 'prospect', '91DB0000DEL')`,
+        [WS],
+      ),
+    );
+  } finally {
+    await cleanup();
+  }
+});

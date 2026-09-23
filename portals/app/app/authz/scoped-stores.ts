@@ -227,6 +227,10 @@ class ScopedAccountStore implements AccountStore {
   linkExistingPerson: AccountStore["linkExistingPerson"] = (...a) => this.inner.linkExistingPerson(...a);
   endContactAffiliation: AccountStore["endContactAffiliation"] = (...a) => this.inner.endContactAffiliation(...a);
   listCollaborators: AccountStore["listCollaborators"] = (...a) => this.inner.listCollaborators(...a);
+  // Visibility is enforced one step earlier: deleteEmptyAccount reads the
+  // customer through THIS store's getAccount and refuses not_found when the
+  // member cannot see it, so the write itself passes straight through.
+  softDeleteAccount: AccountStore["softDeleteAccount"] = (...a) => this.inner.softDeleteAccount(...a);
   listCollaboratedAccountIds: AccountStore["listCollaboratedAccountIds"] = (...a) =>
     this.inner.listCollaboratedAccountIds(...a);
   addCollaborator: AccountStore["addCollaborator"] = (...a) => this.inner.addCollaborator(...a);

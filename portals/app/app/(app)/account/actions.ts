@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getAccountStore } from "../../domains/shared/registry";
+import { getAccountStore, getDeliveryStore, getFieldStore } from "../../domains/shared/registry";
 import { getAuthzStore } from "../../authz/store";
 import {
   designateAccount,
@@ -19,7 +19,11 @@ import {
   addAccountCollaborator,
   removeAccountCollaborator,
   type AccountBasicsPatch,
+  accountFootprint,
+  deleteEmptyAccount,
+  type FootprintContext,
 } from "../../domains/account/service";
+import type { Footprint } from "../../domains/account/lib/footprint";
 import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
 import { isRelationType } from "../../domains/account/lib/health";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -481,5 +485,42 @@ export async function removeCollaboratorAction(
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath(`/account/${accountId}`);
+  return { ok: true };
+}
+
+/* 删除空壳客户 (owner, 2026-09-23: 只删空壳客户). ------------------------- */
+
+async function footprintContext(): Promise<FootprintContext | null> {
+  const session = await resolveAppSession();
+  if (!session) return null;
+  return {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: session.stores.account(),
+    pipeline: session.stores.pipeline(),
+    delivery: getDeliveryStore(),
+    field: getFieldStore(),
+    signal: session.stores.signal(),
+  };
+}
+
+/** What hangs on a customer - read when the delete confirmation opens. */
+export async function accountFootprintAction(
+  accountId: string,
+): Promise<{ ok: true; footprint: Footprint } | { ok: false; error: string }> {
+  const ctx = await footprintContext();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await accountFootprint(ctx, accountId);
+  return r.ok ? { ok: true, footprint: r.value } : { ok: false, error: r.violations[0]?.code ?? "denied" };
+}
+
+export async function deleteAccountAction(accountId: string): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await footprintContext();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await deleteEmptyAccount(ctx, accountId);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/account");
   return { ok: true };
 }

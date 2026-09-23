@@ -118,6 +118,8 @@ import {
   searchColleaguesAction,
   addCollaboratorAction,
   removeCollaboratorAction,
+  accountFootprintAction,
+  deleteAccountAction,
 } from "../actions";
 import {
   recordFollowUp,
@@ -1046,6 +1048,11 @@ export default async function AccountDetailPage({
             website: account.website,
             employeeCount: account.employeeCount,
           }}
+          remove={
+            canWrite
+              ? { accountId: id, onFootprint: accountFootprintAction, onDelete: deleteAccountAction }
+              : undefined
+          }
         />
 
         <ContactRoster
