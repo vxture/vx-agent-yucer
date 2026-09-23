@@ -295,12 +295,76 @@ test("healthInputs counts overdue revenue only when there are projects to count 
       project: { findMany: async () => [] },
       interaction: { findFirst: async () => null },
       revenueSchedule: { count: delegate(0, at("count")) },
+      contract: { findMany: async () => [] },
+      renewalPolicy: { findUnique: async () => null },
     }) as never;
   const out = await new PrismaAccountStore(client).healthInputs(WS, "acc_1");
 
   assert.equal(calls.count!.length, 0, "no projects means no query");
   assert.equal(out.overdueRevenueCount, 0);
   assert.equal(out.lastInteractionAt, null, "never contacted, not contacted at epoch");
+});
+
+test("healthInputs assembles the renewal factor's sources (L4 batch three)", async () => {
+  const end = new Date("2026-12-31T00:00:00Z");
+  const lostAt = new Date("2026-06-01T00:00:00Z");
+  let eventWhere: unknown = null;
+  const client = async () =>
+    ({
+      opportunity: {
+        findMany: async () => [
+          // An open deal opened off a project IS a renewal (incr/0019's marker).
+          { id: "o1", stage: "propose", amount: null, status: "open", sourceProjectId: "p9" },
+        ],
+      },
+      project: { findMany: async () => [] },
+      interaction: { findFirst: async () => null },
+      revenueSchedule: { count: async () => 0 },
+      contract: {
+        findMany: async (args: { where: Record<string, unknown> }) =>
+          "renewedFromContractId" in args.where
+            ? [{ renewedFromContractId: "c1" }]
+            : [
+                { id: "c1", status: "active", termEnd: end, noticeDays: 30 },
+                { id: "c2", status: "terminated", termEnd: null, noticeDays: 0 },
+              ],
+      },
+      renewalEvent: {
+        findMany: async (args: { where: unknown }) => {
+          eventWhere = args.where;
+          return [{ eventType: "lost", occurredAt: lostAt }];
+        },
+      },
+      renewalPolicy: { findUnique: async () => ({ windowDays: 45 }) },
+    }) as never;
+  const out = await new PrismaAccountStore(client).healthInputs(WS, "acc_1");
+
+  assert.equal(out.renewal.windowDays, 45);
+  assert.equal(out.renewal.hasOpenRenewalDeal, true);
+  assert.deepEqual(out.renewal.contracts, [
+    { status: "active", termEnd: end, noticeDays: 30, renewed: true },
+    { status: "terminated", termEnd: null, noticeDays: 0, renewed: false },
+  ]);
+  assert.deepEqual(out.renewal.events, [{ eventType: "lost", occurredAt: lostAt }]);
+  // Only the outcomes the factor reads - `renewed` rows are the lineage's job.
+  assert.deepEqual((eventWhere as { eventType: unknown }).eventType, { in: ["lost", "downgraded"] });
+});
+
+test("healthInputs REJECTS when a renewal source cannot be read - no score beats a short one (§5)", async () => {
+  const client = async () =>
+    ({
+      opportunity: { findMany: async () => [] },
+      project: { findMany: async () => [] },
+      interaction: { findFirst: async () => null },
+      revenueSchedule: { count: async () => 0 },
+      contract: {
+        findMany: async () => {
+          throw new Error("contract table unreachable");
+        },
+      },
+      renewalPolicy: { findUnique: async () => null },
+    }) as never;
+  await assert.rejects(new PrismaAccountStore(client).healthInputs(WS, "acc_1"), /contract table unreachable/);
 });
 
 test("healthInputs reads last contact from a real interaction, not a stage move", async () => {
@@ -318,6 +382,8 @@ test("healthInputs reads last contact from a real interaction, not a stage move"
       project: { findMany: async () => [{ id: "p1", health: "green" }] },
       interaction: { findFirst: async () => ({ occurredAt: when }) },
       revenueSchedule: { count: async () => 2 },
+      contract: { findMany: async () => [] },
+      renewalPolicy: { findUnique: async () => null },
     }) as never;
   const out = await new PrismaAccountStore(client).healthInputs(WS, "acc_1");
 

@@ -16,7 +16,7 @@ import {
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
-import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType, Stance } from "./lib/health";
+import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType, RenewalHealthInput, Stance } from "./lib/health";
 import type {
   AccountFilter,
   AccountPlanRecord,
@@ -1134,7 +1134,9 @@ export class PrismaAccountStore implements AccountStore {
       // pipeline factor, while the full set is what the recency proxy reads.
       p.opportunity.findMany({
         where: { workspaceId, accountId, deletedAt: null },
-        select: { id: true, stage: true, amount: true, status: true },
+        // sourceProjectId: incr/0019's renewal marker, read by the renewal
+        // factor (L4 batch three) - a deal opened off a project IS a renewal.
+        select: { id: true, stage: true, amount: true, status: true, sourceProjectId: true },
       }),
       p.project.findMany({
         where: { workspaceId, accountId, status: { in: ["planning", "active", "on_hold"] } },
@@ -1177,6 +1179,65 @@ export class PrismaAccountStore implements AccountStore {
       lastInteractionAt: (lastContact?.occurredAt as Date | undefined) ?? null,
       projectHealth: projects.map((x: { health: string }) => x.health as ProjectHealth),
       overdueRevenueCount,
+      renewal: await this.renewalHealthInput(
+        workspaceId,
+        accountId,
+        opportunities.some(
+          (o: { status: string; sourceProjectId: string | null }) => o.status === "open" && o.sourceProjectId != null,
+        ),
+      ),
+    };
+  }
+
+  /**
+   * The fifth factor's sources (L4 batch three): the account's contracts, who
+   * renewed which, their renewal outcomes, and the workspace's look-ahead.
+   *
+   * A THROW HERE IS DELIBERATE, not caught: §5 says a factor whose source
+   * cannot be read means NO score at all, never a score that quietly left one
+   * factor out. The page catches it and shows the card without a number.
+   */
+  private async renewalHealthInput(
+    workspaceId: string,
+    accountId: string,
+    hasOpenRenewalDeal: boolean,
+  ): Promise<RenewalHealthInput> {
+    const p = await this.client();
+    const [contracts, policy] = await Promise.all([
+      p.contract.findMany({
+        where: { workspaceId, accountId },
+        select: { id: true, status: true, termEnd: true, noticeDays: true },
+      }),
+      p.renewalPolicy.findUnique({ where: { workspaceId }, select: { windowDays: true } }),
+    ]);
+    const ids = contracts.map((c: { id: string }) => c.id);
+    const [successors, events] = ids.length === 0
+      ? [[], []]
+      : await Promise.all([
+          p.contract.findMany({
+            where: { workspaceId, renewedFromContractId: { in: ids } },
+            select: { renewedFromContractId: true },
+          }),
+          p.renewalEvent.findMany({
+            where: { workspaceId, contractId: { in: ids }, eventType: { in: ["lost", "downgraded"] } },
+            select: { eventType: true, occurredAt: true },
+          }),
+        ]);
+    const renewed = new Set((successors as Array<{ renewedFromContractId: string | null }>).map((s) => s.renewedFromContractId));
+    return {
+      // Same default the delivery store falls back to (incr/0066).
+      windowDays: policy?.windowDays ?? 90,
+      hasOpenRenewalDeal,
+      contracts: contracts.map((c: { id: string; status: string; termEnd: Date | null; noticeDays: number }) => ({
+        status: c.status,
+        termEnd: c.termEnd,
+        noticeDays: Number(c.noticeDays),
+        renewed: renewed.has(c.id),
+      })),
+      events: (events as Array<{ eventType: string; occurredAt: Date }>).map((e) => ({
+        eventType: e.eventType,
+        occurredAt: e.occurredAt,
+      })),
     };
   }
 

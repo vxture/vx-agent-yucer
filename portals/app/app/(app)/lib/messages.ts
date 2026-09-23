@@ -5720,6 +5720,8 @@ export const CHAIN_TEXT = {
   factorRecency: "互动时效",
   factorDelivery: "交付",
   factorCollections: "回款",
+  // 第五因子 (L4 批三, 业务规则 §5)。
+  factorRenewal: "续约",
   // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认) -
   // 栏1 只放摘要行, 点开在栏2 展开详情, 这些是详情视图自己的措辞。
   coverageCount: (n: number, total: number) => `已覆盖 ${n}/${total} 角色`,
@@ -5944,6 +5946,20 @@ export function healthReasonText(r: {
       return `${r.count} 笔回款逾期`;
     case "revenue_clean":
       return "回款无逾期";
+    case "renewal_lost":
+      return `${r.days} 天前记录了续约流失`;
+    case "renewal_downgraded":
+      return `${r.days} 天前降级续约`;
+    case "renewal_due_unopened":
+      return (r.days ?? 0) < 0
+        ? `通知期已过 ${-(r.days ?? 0)} 天，还没有续约商机`
+        : `距通知截止 ${r.days} 天，还没有续约商机`;
+    case "renewal_in_hand":
+      return "临期合同的续约已在推进";
+    case "renewal_not_due":
+      return "合同未进入续约窗口";
+    case "renewal_no_contract":
+      return "没有合同数据";
     default:
       return r.code;
   }
