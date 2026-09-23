@@ -427,7 +427,7 @@ test("a segment row with no criteria at all reads as no filters, not a crash", {
     );
     const s = await store();
     const [seg] = await s.listSegments(WS);
-    assert.deepEqual(seg.criteria, { industries: [], regions: [] });
+    assert.deepEqual(seg.criteria, { industries: [], regions: [], sizes: [] });
   } finally {
     await cleanup();
   }
@@ -725,5 +725,28 @@ test("territory_attainment_snapshot cascades on territory delete", { skip }, asy
     });
   } finally {
     await cleanup();
+  }
+});
+
+test("a size condition round-trips through the JSONB criteria (ICP, 2026-09-24 - no increment)", { skip }, async () => {
+  const { PrismaStrategyStore } = await import("./prisma-store");
+  const store = new PrismaStrategyStore();
+  const ws = "eeeeeeee-0000-0000-0000-00000000c1c1";
+  try {
+    const seg = await store.upsertSegment(ws, {
+      segmentCode: "ICP_SIZE",
+      name: "icp size",
+      planId: null,
+      priority: 1,
+      status: "active",
+      criteria: { industries: ["零售"], regions: [], sizes: ["大型企业"] },
+    });
+    assert.deepEqual(seg.criteria, { industries: ["零售"], regions: [], sizes: ["大型企业"] });
+  } finally {
+    const { Client } = await import("pg");
+    const c = new Client({ connectionString: process.env.DATABASE_URL });
+    await c.connect();
+    await c.query(`DELETE FROM yucer_gtm.market_segment WHERE workspace_id = $1`, [ws]);
+    await c.end();
   }
 });

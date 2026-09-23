@@ -78,8 +78,9 @@ test("upsertSegment lands on ONE row by its code, and the code never moves", { s
     assert.equal(rows.filter((r) => r.segmentCode === "DBT-ENT").length, 1);
     assert.equal(rows[0].name, "second name");
     // JSONB round trip: what was written is what comes back, typed.
-    assert.deepEqual(first.criteria, { industries: ["制造"], regions: ["华东"] });
-    assert.deepEqual(rows[0].criteria, { industries: [], regions: [] });
+    // sizes reads back as [] for a row written without it (ICP, 2026-09-24).
+    assert.deepEqual(first.criteria, { industries: ["制造"], regions: ["华东"], sizes: [] });
+    assert.deepEqual(rows[0].criteria, { industries: [], regions: [], sizes: [] });
   } finally {
     await cleanup();
   }
