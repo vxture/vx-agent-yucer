@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
   type IconName,
 } from "@vxture/design-ui";
-import { influenceTier, type ChainCoverage, type ChainRecency, type ContactNode, type RelationEdge } from "../../domains/account/lib/health";
+import { influenceTier, placeRelations, type ChainCoverage, type ChainRecency, type ContactNode, type RelationEdge } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { DecisionChainGraph, ROLE_ORDER } from "./decision-chain-graph";
 import { LinkContacts, type LinkContactsProps } from "./link-contacts";
@@ -81,6 +81,8 @@ const TIER_TONE: Record<string, "danger" | "info" | "success"> = {
 // 关系只画"我是主语"的那条边, 不重复画 (owner: 人际及利益博弈关系) - 一条
 // "刘敏 汇报给 王磊"的边, 只在刘敏那一行出现一次, 不在王磊的行上再画一遍
 // "刘敏 汇报给 ta" - 同一个事实两行都写就是这张表正要避免的堆积。
+// 对称的边(平级/同盟/对立)存了两个方向也只画一次; 主语不在表里时画在宾语
+// 那一行, 用反向措辞 - 见 health.ts placeRelations (YC-021 L2)。
 
 export interface DecisionChainDetailProps {
   readonly title: string;
@@ -123,6 +125,7 @@ export function DecisionChainDetail({
     RECENCY_TEXT,
     RELATION_TEXT,
     RELATION_TYPE_LABEL,
+    RELATION_TYPE_LABEL_REVERSED,
     DECISION_ROLE_LABEL,
     DECISION_ROLE_ABBR,
     STANCE_LABEL,
@@ -163,15 +166,38 @@ export function DecisionChainDetail({
     return null;
   };
 
-  // 只画这个人是"边的主语"(fromContactId)的那些边 - 见文件头注释, 同一条边
-  // 不在两个人的行上各画一遍。
-  const relationsFor = (id: string): { label: string; toName: string }[] =>
-    relations
-      .filter((r) => r.fromContactId === id)
-      .map((r) => ({ label: RELATION_TYPE_LABEL[r.relationType] ?? r.relationType, toName: nameOf(r.toContactId) }));
+  // EVERY PERSON GETS A ROW (YC-021 L2: 四维在同一张表里可横向比较). This
+  // used to be one row per ROLE - ROLE_ORDER.map(role => people.find(...)) -
+  // so a second technical buyer, and everyone not yet given a role, was not
+  // in the table at all and could not be compared. Ordered by role, then the
+  // people still there before the ones who have left.
+  const roleRank = (r: string) => {
+    const i = (ROLE_ORDER as readonly string[]).indexOf(r);
+    return i === -1 ? ROLE_ORDER.length : i;
+  };
+  const rows = [...people].sort(
+    (a, b) =>
+      roleRank(a.decisionRole) - roleRank(b.decisionRole) ||
+      Number(a.status !== "active") - Number(b.status !== "active"),
+  );
 
-  const rows = ROLE_ORDER.map((role) => people.find((p) => p.decisionRole === role))
-    .filter((p): p is ContactNode => p != null);
+  // Each edge ONCE (placeRelations): a symmetric edge stored both ways is one
+  // fact, and an edge whose subject is not on this deal is drawn on the
+  // object's row in reversed wording instead of disappearing.
+  const placed = placeRelations(
+    rows.map((p) => p.id),
+    relations,
+  );
+  const relationsFor = (id: string): { label: string; toName: string }[] =>
+    placed
+      .filter((r) => r.rowId === id)
+      .map((r) => ({
+        label:
+          (r.reversed ? RELATION_TYPE_LABEL_REVERSED[r.relationType] : undefined) ??
+          RELATION_TYPE_LABEL[r.relationType] ??
+          r.relationType,
+        toName: nameOf(r.otherId),
+      }));
 
   // 可达/未触达标记不止经济决策人有 (owner, 2026-09-20: 设计图严格对齐 -
   // 技术决策人、阻碍者也各自带一个). 内线(coach)不带 - 这个角色本来就是靠
@@ -211,7 +237,7 @@ export function DecisionChainDetail({
             <CapBadge tier="pro">Pro</CapBadge>
             {coverage.economicBuyerUnreachable ? (
               <StatusBadge tone="danger" dot>
-                {rows.some((p) => p.decisionRole === "economic")
+                {rows.some((p) => p.decisionRole === "economic" && p.status === "active")
                   ? CHAIN_TEXT.unreachable
                   : CHAIN_TEXT.noEconomicBuyer}
               </StatusBadge>
@@ -247,6 +273,19 @@ export function DecisionChainDetail({
         }
       >
         <div className="flex flex-col gap-md">
+          {/* 覆盖缺口 NAMED (YC-021 L2): "3/5" says a gap exists, not which
+              one - and which one is the whole question for whoever has to go
+              find that person. */}
+          {coverage.missing.length > 0 ? (
+            <div className="gap-xs flex flex-wrap items-center">
+              <span className="text-muted-foreground text-body-sm">{CHAIN_TEXT.missing}</span>
+              {coverage.missing.map((role) => (
+                <StatusBadge key={role} tone="warning">
+                  {DECISION_ROLE_LABEL[role] ?? role}
+                </StatusBadge>
+              ))}
+            </div>
+          ) : null}
           {view === "table" ? (
             <Table>
               <TableHeader>
@@ -276,7 +315,15 @@ export function DecisionChainDetail({
                             {nameOf(p.id).charAt(0)}
                           </span>
                           <div className="min-w-0">
-                            <div className="text-body-sm font-bold">{nameOf(p.id)}</div>
+                            <div className="gap-xs flex items-center">
+                              <span className="text-body-sm font-bold">{nameOf(p.id)}</span>
+                              {/* 关键人异动: someone who left stays visible - the
+                                  reachability verdict above has already stopped
+                                  counting them, and the row says why. */}
+                              {p.status !== "active" ? (
+                                <Tag>{ACCOUNT_TEXT.contactStatusLabel[p.status] ?? p.status}</Tag>
+                              ) : null}
+                            </div>
                             {titleOf(p.id) ? (
                               <div className="text-muted-foreground text-body-sm">{titleOf(p.id)}</div>
                             ) : null}

@@ -1028,6 +1028,7 @@ export default async function AccountDetailPage({
         rule: topJudgement.rule ?? null,
         freshness: topJudgement.freshness ?? null,
         source: topJudgement.source,
+        citations: topJudgement.citations,
       }
     : null;
 

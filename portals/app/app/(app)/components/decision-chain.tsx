@@ -42,6 +42,9 @@ export interface DecisionChainProps {
    * render under the same heading and read as one contradictory answer.
    */
   readonly title?: string;
+  /** Person id -> name. A coach or blocker badge used to print the raw id -
+   *  a UUID in front of someone who is meant to go and talk to that person. */
+  readonly names?: Readonly<Record<string, string>>;
 }
 
 export function DecisionChain({
@@ -49,6 +52,7 @@ export function DecisionChain({
   contacts,
   linkForm,
   title,
+  names = {},
 }: DecisionChainProps) {
   const { CHAIN_TEXT, DECISION_ROLE_LABEL } = useMessages();
   // NOT tone="raised" here (reverted, owner 2026-09-20) - this component is
@@ -122,7 +126,7 @@ export function DecisionChain({
               list name the same person. */}
           {coverage.coaches.map((c) => (
             <StatusBadge key={c.id} tone="info">
-              {c.id}
+              {names[c.id] ?? CHAIN_TEXT.unnamedPerson}
               {c.influence != null
                 ? ` (${CHAIN_TEXT.influence} ${c.influence})`
                 : ""}
@@ -136,7 +140,7 @@ export function DecisionChain({
           <span>{CHAIN_TEXT.blockers}</span>
           {coverage.blockers.map((c) => (
             <StatusBadge key={c.id} tone="danger">
-              {c.id}
+              {names[c.id] ?? CHAIN_TEXT.unnamedPerson}
             </StatusBadge>
           ))}
         </div>

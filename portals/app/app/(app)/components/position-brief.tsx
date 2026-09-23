@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge, Card, SectionHeader, StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { LEVEL_INK } from "../lib/view-model";
+import { JudgementNote, type Judgement } from "./judgement-note";
 
 // The position: an opportunity read as a pursuit rather than a record.
 //
@@ -44,11 +45,7 @@ export interface PositionBriefProps {
   }[];
   /** Verbatim note fragments that mention a rival. Never a name we inferred. */
   readonly rivalMentions: readonly { id: string; when: string; text: string }[];
-  readonly problems: readonly {
-    id: string;
-    claim: string;
-    rule: string | null;
-  }[];
+  readonly problems: readonly (Judgement & { readonly id: string })[];
   readonly proposals: readonly PositionProposal[];
   /** The customer's own (relationship) proposals: counted and linked, not listed here. */
   readonly accountLevel?: { readonly count: number; readonly href: string } | null;
@@ -156,21 +153,10 @@ export async function PositionBrief({
           ) : (
             <div className="mt-sm flex flex-col gap-sm">
               {problems.map((p) => (
-                <div
-                  key={p.id}
-                  className="bg-muted/40 border-border rounded-md border p-sm"
-                >
-                  <p className="text-foreground max-w-[62ch] text-body-sm">
-                    {p.claim}
-                  </p>
-                  {/* The trigger condition, so a reader can disagree with the
-                      arithmetic rather than with the conclusion. */}
-                  {p.rule ? (
-                    <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-body-sm">
-                      {p.rule}
-                    </code>
-                  ) : null}
-                </div>
+                // One rendering of a judgement everywhere: claim, source,
+                // staleness, and on open the trigger condition (so a reader
+                // can disagree with the arithmetic) and the rows it cites.
+                <JudgementNote key={p.id} judgement={p} />
               ))}
             </div>
           )}

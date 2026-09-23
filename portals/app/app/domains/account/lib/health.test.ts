@@ -6,6 +6,7 @@ import {
   REQUIRED_ROLES,
   analyzeChain,
   deriveHealth,
+  placeRelations,
   type ContactNode,
   type HealthInput,
   type RelationEdge,
@@ -309,4 +310,34 @@ test("renewal: the factor moves the total by exactly its points", () => {
     renewal: renewalOf({ contracts: [{ status: "active", termEnd: daysAhead(60), noticeDays: 30, renewed: false }] }),
   }).score;
   assert.equal(base - hit, 8);
+});
+
+// --- Each relation drawn once (YC-021 L2) -----------------------------------
+
+const rel = (from: string, to: string, relationType: RelationEdge["relationType"]): RelationEdge => ({
+  fromContactId: from,
+  toContactId: to,
+  relationType,
+});
+
+test("a symmetric relation stored both ways is drawn once", () => {
+  const placed = placeRelations(["a", "b"], [rel("a", "b", "peer_of"), rel("b", "a", "peer_of")]);
+  assert.equal(placed.length, 1);
+  assert.deepEqual(placed[0], { rowId: "a", otherId: "b", relationType: "peer_of", reversed: false });
+});
+
+test("a directed relation both ways is two facts, not one", () => {
+  // A reports to B and B reports to A is a data error, but it is TWO claims;
+  // collapsing them would hide the contradiction.
+  const placed = placeRelations(["a", "b"], [rel("a", "b", "reports_to"), rel("b", "a", "reports_to")]);
+  assert.equal(placed.length, 2);
+});
+
+test("an edge whose subject has no row lands on the object's row, reversed", () => {
+  const placed = placeRelations(["boss"], [rel("offdeal", "boss", "reports_to")]);
+  assert.deepEqual(placed, [{ rowId: "boss", otherId: "offdeal", relationType: "reports_to", reversed: true }]);
+});
+
+test("an edge touching nobody in the table is not drawn", () => {
+  assert.deepEqual(placeRelations(["a"], [rel("x", "y", "allied_with")]), []);
 });
