@@ -442,6 +442,9 @@ export interface AccountStore {
     accountId: string,
   ): Promise<Array<{ memberSub: string; addedAt: Date }>>;
   addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void>;
+  /** The other direction: every account this member collaborates on. Read by
+   *  the data-scope resolver - a collaborator sees the account (YC-021 L1). */
+  listCollaboratedAccountIds(workspaceId: string, memberSub: string): Promise<string[]>;
   removeCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void>;
 
   /** Append-only edge. There is deliberately no updateRelation. */
@@ -1192,6 +1195,12 @@ export class InMemoryAccountStore implements AccountStore {
     return this.collaborators
       .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
       .map((c) => ({ memberSub: c.memberSub, addedAt: c.addedAt }));
+  }
+
+  async listCollaboratedAccountIds(workspaceId: string, memberSub: string): Promise<string[]> {
+    return this.collaborators
+      .filter((c) => c.workspaceId === workspaceId && c.memberSub === memberSub)
+      .map((c) => c.accountId);
   }
 
   async addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void> {
