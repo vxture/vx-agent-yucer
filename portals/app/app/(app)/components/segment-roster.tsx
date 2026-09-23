@@ -41,7 +41,11 @@ export interface SegmentRow {
   readonly planName: string | null;
   readonly priority: number;
   readonly status: string;
-  readonly criteria: { readonly industries: readonly string[]; readonly regions: readonly string[] };
+  readonly criteria: {
+    readonly industries: readonly string[];
+    readonly regions: readonly string[];
+    readonly sizes?: readonly string[];
+  };
   readonly accountCount: number;
   readonly matchedCount: number;
 }
@@ -101,7 +105,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       id: "criteria",
       header: STRATEGY_TEXT.colSegmentCriteria,
       cell: (r: SegmentRow) => {
-        const parts = [...r.criteria.industries, ...r.criteria.regions];
+        const parts = [...r.criteria.industries, ...(r.criteria.sizes ?? []), ...r.criteria.regions];
         return parts.length === 0 ? (
           <span className="text-(color:--warning-text) text-body-sm">
             {STRATEGY_TEXT.segmentNoCriteriaYet}

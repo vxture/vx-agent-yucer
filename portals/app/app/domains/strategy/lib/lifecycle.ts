@@ -367,13 +367,18 @@ export const SEGMENT_STATUSES = ["active", "paused", "retired"] as const;
 export type SegmentStatus = (typeof SEGMENT_STATUSES)[number];
 
 /**
- * The industry/size/region filters the DDL always promised. Only the two
- * dimensions accounts actually carry are modelled - industry and region - so
- * a criterion is checkable against real rows rather than aspirational.
+ * The industry/size/region filters the DDL always promised. Industry and
+ * region were modelled first; SIZE joined once accounts carried it as a
+ * vocabulary (incr/0071) and ICP 拟合度 needed all three (owner, 2026-09-24).
+ * Each is a list of NAMES, matched against the account's resolved name. The
+ * column is JSONB, so a row written before `sizes` existed reads as "no size
+ * filter" - no increment.
  */
 export interface SegmentCriteria {
   industries: readonly string[];
   regions: readonly string[];
+  /** Optional: a criteria row written before sizes existed has none. */
+  sizes?: readonly string[];
 }
 
 export interface SegmentDraft {
@@ -387,17 +392,19 @@ export interface SegmentDraft {
 
 /** An account matches when every non-empty dimension names its value. */
 export function accountMatchesCriteria(
-  account: { industry: string | null; region: string | null },
+  account: { industry: string | null; region: string | null; customerSize?: string | null },
   criteria: SegmentCriteria,
 ): boolean {
-  if (criteria.industries.length === 0 && criteria.regions.length === 0) return false;
+  const sizes = criteria.sizes ?? [];
+  if (criteria.industries.length === 0 && criteria.regions.length === 0 && sizes.length === 0) return false;
   const industryOk =
     criteria.industries.length === 0 ||
     (account.industry !== null && criteria.industries.includes(account.industry));
   const regionOk =
     criteria.regions.length === 0 ||
     (account.region !== null && criteria.regions.includes(account.region));
-  return industryOk && regionOk;
+  const sizeOk = sizes.length === 0 || (account.customerSize != null && sizes.includes(account.customerSize));
+  return industryOk && regionOk && sizeOk;
 }
 
 export function planSegment(

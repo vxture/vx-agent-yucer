@@ -359,7 +359,7 @@ function toCampaign(r: Record<string, unknown>): CampaignRecord {
 }
 
 function toSegment(r: Record<string, unknown>): SegmentRecord {
-  const raw = (r.criteria ?? {}) as { industries?: unknown; regions?: unknown };
+  const raw = (r.criteria ?? {}) as { industries?: unknown; regions?: unknown; sizes?: unknown };
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
@@ -372,6 +372,7 @@ function toSegment(r: Record<string, unknown>): SegmentRecord {
     criteria: {
       industries: Array.isArray(raw.industries) ? raw.industries.map(String) : [],
       regions: Array.isArray(raw.regions) ? raw.regions.map(String) : [],
+      sizes: Array.isArray(raw.sizes) ? raw.sizes.map(String) : [],
     },
   };
 }

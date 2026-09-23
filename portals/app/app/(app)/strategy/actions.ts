@@ -149,7 +149,7 @@ export async function saveSegment(input: {
   planId: string | null;
   priority: number;
   status: string;
-  criteria: { industries: readonly string[]; regions: readonly string[] };
+  criteria: { industries: readonly string[]; regions: readonly string[]; sizes?: readonly string[] };
 }): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

@@ -1,6 +1,7 @@
 import type { Dictionary } from "./i18n/dictionary";
 import * as zh from "./messages";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
+import type { IcpDimension, IcpFeatureStatus } from "../../domains/strategy/lib/icp";
 import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
 import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
 
@@ -4559,6 +4560,7 @@ export const en: Dictionary = {
     segmentCriteriaHeader: "Criteria",
     segmentIndustries: "Industry filter",
     segmentRegions: "Region filter",
+    segmentSizes: "Size filter",
     segmentListHint: "Comma-separated; may be empty",
     segmentStatusHeader: "Status",
     segmentSave: "Save segment",
@@ -5683,5 +5685,18 @@ export const en: Dictionary = {
     },
     separator: "; ",
     who: (role: string, name: string | null) => (name ? `Talk to ${name} (${role})` : `Talk to the ${role} (unassigned)`),
+  },
+  ICP_TEXT: {
+    summary: (fit: number, segment: string) => `ICP fit ${fit}/3 · target "${segment}"`,
+    noSegment: "The workspace has no target segment with conditions yet - no ICP to fit against",
+    dimension: { industry: "Industry", size: "Size", region: "Region" } as Record<IcpDimension, string>,
+    feature: (status: IcpFeatureStatus, value: string | null, targets: readonly string[]): string =>
+      status === "open"
+        ? "Open - any value fits"
+        : status === "missing_value"
+          ? `Not filled in (target: ${targets.join(", ")})`
+          : status === "hit"
+            ? `${value} - in target (${targets.join(", ")})`
+            : `${value} - not in target (${targets.join(", ")})`,
   },
 };

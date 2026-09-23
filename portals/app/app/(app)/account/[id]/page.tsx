@@ -69,6 +69,7 @@ import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../
 import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
 import { forecastThresholds, listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory } from "../../../domains/pipeline/service";
 import { classifyRisks } from "../../../domains/account/lib/risk-types";
+import { icpFit } from "../../../domains/strategy/lib/icp";
 import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcome-review";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
@@ -1170,6 +1171,17 @@ export default async function AccountDetailPage({
     })(),
   });
 
+  // ICP 拟合度 (YC-021 L1): against the workspace's own target segments. The
+  // writer's form already read them; anyone else reads them here. A refused
+  // read is `undefined` - no line - rather than "no ICP defined".
+  const icpSegments = segmentsRead ?? (await listSegments({ ...ctx, store: getStrategyStore() }).catch(() => null));
+  const icp = icpSegments?.ok
+    ? icpFit(
+        { industry: account.industry, customerSize: customerSizeName, region: account.region },
+        icpSegments.value,
+      )
+    : undefined;
+
   const badgesSingle = (
     <div className="flex items-center justify-center gap-md">
       <DealsSummaryBadge
@@ -1318,6 +1330,7 @@ export default async function AccountDetailPage({
           customerNatureName={customerNatureName}
           customerTypeName={customerTypeName}
           scaleName={customerSizeName}
+          icp={icp}
           more={{
             province: account.province,
             creditCode: account.creditCode,
@@ -1498,9 +1511,22 @@ export default async function AccountDetailPage({
               judgement={judgement}
               risks={risks}
               benchmark={peerBenchmark(
-                { id, industryId: account.industryId, customerSizeId: account.customerSizeId },
+                // The vocabulary id when there is one, else the name the card
+                // shows - a legacy row with a size NAME and no id is not "规模
+                // 未设置", and saying so beside a card reading 中型企业 was a
+                // contradiction.
+                {
+                  id,
+                  industryId: account.industryId ?? account.industry,
+                  customerSizeId: account.customerSizeId ?? account.customerSize,
+                },
                 health.value.score,
-                accountsRead.ok ? accountsRead.value : [],
+                (accountsRead.ok ? accountsRead.value : []).map((a) => ({
+                  id: a.id,
+                  industryId: a.industryId ?? a.industry,
+                  customerSizeId: a.customerSizeId ?? a.customerSize,
+                  healthScore: a.healthScore,
+                })),
               )}
               change={
                 historyRead?.ok
