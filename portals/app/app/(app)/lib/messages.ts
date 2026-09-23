@@ -4364,6 +4364,8 @@ export const ACCOUNT_TEXT = {
   lifecycleInteractions: "跟进记录",
   lifecycleNoMilestones: "还没有里程碑",
   lifecycleNoInstalments: "还没有回款计划",
+  lifecycleMilestonesFailed: "这个项目的里程碑没读到——不是没有，刷新再看",
+  lifecycleOverdueTotal: (n: number, amount: string) => `逾期 ${n} 笔 · ${amount}`,
   // 应收总览: summarizeCollections() 早就在算 planned/collected (projectView()
   // 已经把它读出来给了页面, 只是没接到这张卡上) - 待回款 = planned - collected,
   // 两个真实 Money 相减, 不是新造的数。多个项目、货币不同时不硬加总, 宁可不

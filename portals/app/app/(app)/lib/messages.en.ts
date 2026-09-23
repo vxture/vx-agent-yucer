@@ -3659,6 +3659,8 @@ export const en: Dictionary = {
     lifecycleInteractions: "Interactions",
     lifecycleNoMilestones: "No milestones yet",
     lifecycleNoInstalments: "No revenue schedule yet",
+    lifecycleMilestonesFailed: "Could not read this project's milestones - not the same as none; reload",
+    lifecycleOverdueTotal: (n: number, amount: string) => `${n} overdue · ${amount}`,
     lifecycleRevenueOverview: "Receivables overview",
     lifecycleViewChain: "View this deal's decision chain",
     lifecycleStalledDays: (n: number) => `${n}d in stage`,
