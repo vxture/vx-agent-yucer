@@ -27,6 +27,7 @@ import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import type { ActionStatus } from "../../domains/copilot/lib/action";
 import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/revenue";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
+import type { IcpDimension, IcpFeatureStatus } from "../../domains/strategy/lib/icp";
 import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
 
 export const STAGE_LABEL: Record<Stage, string> = {
@@ -5365,6 +5366,8 @@ export const STRATEGY_TEXT = {
   segmentCriteriaHeader: "条件",
   segmentIndustries: "行业条件",
   segmentRegions: "地域条件",
+  // 规模 joined the criteria for ICP 拟合度 (owner, 2026-09-24).
+  segmentSizes: "规模条件",
   segmentListHint: "逗号分隔，可留空",
   segmentStatusHeader: "状态",
   segmentSave: "保存细分市场",
@@ -6683,4 +6686,19 @@ export const RISK_TEXT = {
   },
   separator: "；",
   who: (role: string, name: string | null): string => (name ? `找 ${name}（${role}）` : `找${role}（未指定）`),
+};
+
+// ICP 拟合度 (YC-021 L1, owner 2026-09-24) - against the workspace's own target segments.
+export const ICP_TEXT = {
+  summary: (fit: number, segment: string) => `ICP 拟合 ${fit}/3 · 目标市场「${segment}」`,
+  noSegment: "工作区还没有设了条件的目标细分市场，无从计算 ICP 拟合度",
+  dimension: { industry: "行业", size: "规模", region: "区域" } as Record<IcpDimension, string>,
+  feature: (status: IcpFeatureStatus, value: string | null, targets: readonly string[]): string =>
+    status === "open"
+      ? "不限，任何值都符合"
+      : status === "missing_value"
+        ? `未填写（目标：${targets.join("、")}）`
+        : status === "hit"
+          ? `${value} ✓ 在目标内（${targets.join("、")}）`
+          : `${value} ✗ 不在目标内（${targets.join("、")}）`,
 };

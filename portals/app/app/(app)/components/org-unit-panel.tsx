@@ -1,5 +1,6 @@
 "use client";
 
+import type { IcpFit } from "../../domains/strategy/lib/icp";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -126,6 +127,12 @@ export interface OrgUnitPanelProps {
     readonly website: string | null;
     readonly employeeCount: number | null;
   };
+  /**
+   * ICP 拟合度 (YC-021 L1): the best-fitting target segment and its three
+   * features. Undefined = the segments could not be read (no line at all);
+   * null = the workspace has no segment with a condition, which is said.
+   */
+  readonly icp?: IcpFit | null;
   /** 删除空壳客户 (owner, 2026-09-23). Absent for a member who may not write. */
   readonly remove?: {
     readonly accountId: string;
@@ -170,12 +177,14 @@ export function OrgUnitPanel({
   customerTypeName,
   scaleName,
   more,
+  icp,
   remove,
 }: OrgUnitPanelProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [icpOpen, setIcpOpen] = useState(false);
   const {
     ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT, COLLAPSE_TEXT,
-    ACCOUNT_DELETE_TEXT, ACCOUNT_ERROR,
+    ACCOUNT_DELETE_TEXT, ACCOUNT_ERROR, ICP_TEXT,
   } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
@@ -283,6 +292,28 @@ export function OrgUnitPanel({
             </dl>
           </CollapsibleContent>
         </Collapsible>
+        {/* ICP 拟合度: the score folded, its three features one click away. */}
+        {icp === null ? (
+          <span className="text-muted-foreground text-body-sm">{ICP_TEXT.noSegment}</span>
+        ) : icp ? (
+          <Collapsible open={icpOpen} onOpenChange={setIcpOpen}>
+            <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-sm">
+              <Icon name={icpOpen ? "chevron-down" : "chevron-right"} size="xs" />
+              {ICP_TEXT.summary(icp.fit, icp.segmentName)}
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <dl className="divide-primary/10 dark:divide-primary/20 mt-2xs flex flex-col divide-y divide-dashed">
+                {icp.features.map((f) => (
+                  <InfoRow key={f.dimension} label={ICP_TEXT.dimension[f.dimension]}>
+                    <span className="block" title={f.targets.join(" / ")}>
+                      {ICP_TEXT.feature(f.status, f.value, f.targets)}
+                    </span>
+                  </InfoRow>
+                ))}
+              </dl>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
         {children.length > 0 ? (
           <div className="flex flex-col gap-2xs">
             <span className="text-muted-foreground text-body-sm">

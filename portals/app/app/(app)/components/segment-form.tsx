@@ -34,7 +34,7 @@ export interface SegmentFormRow {
   readonly planId: string | null;
   readonly priority: number;
   readonly status: string;
-  readonly criteria: { industries: readonly string[]; regions: readonly string[] };
+  readonly criteria: { industries: readonly string[]; regions: readonly string[]; sizes?: readonly string[] };
 }
 
 type Saved = { ok: boolean; error?: string };
@@ -59,7 +59,7 @@ export function SegmentForm({
     planId: string | null;
     priority: number;
     status: string;
-    criteria: { industries: readonly string[]; regions: readonly string[] };
+    criteria: { industries: readonly string[]; regions: readonly string[]; sizes: readonly string[] };
   }) => Promise<Saved>;
 }) {
   const { STRATEGY_TEXT, SEGMENT_ERROR, ASSIST_TEXT } = useMessages();
@@ -71,6 +71,7 @@ export function SegmentForm({
     status: "active",
     industries: "",
     regions: "",
+    sizes: "",
   };
   const [form, setForm] = useState(BLANK);
   const submit = useFormSubmit("/segment");
@@ -92,6 +93,7 @@ export function SegmentForm({
       status: g.status,
       industries: g.criteria.industries.join(", "),
       regions: g.criteria.regions.join(", "),
+      sizes: (g.criteria.sizes ?? []).join(", "),
     });
   }
 
@@ -195,6 +197,14 @@ export function SegmentForm({
               />
             </Field>
             <Field>
+              <FieldLabel>{STRATEGY_TEXT.segmentSizes}</FieldLabel>
+              <Input
+                value={form.sizes}
+                placeholder={STRATEGY_TEXT.segmentListHint}
+                onChange={(e) => setForm({ ...form, sizes: e.target.value })}
+              />
+            </Field>
+            <Field>
               <FieldLabel>{STRATEGY_TEXT.segmentRegions}</FieldLabel>
               <Input
                 value={form.regions}
@@ -237,6 +247,7 @@ export function SegmentForm({
                         criteria: {
                           industries: splitListField(form.industries),
                           regions: splitListField(form.regions),
+                          sizes: splitListField(form.sizes),
                         },
                       }),
                     (c) => SEGMENT_ERROR[c] ?? SEGMENT_ERROR.denied,
