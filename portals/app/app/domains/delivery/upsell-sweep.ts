@@ -3,6 +3,7 @@ import { can } from "../../authz/decide";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getAccountStore, getCatalogStore, getCopilotStore, getDeliveryStore } from "../shared/registry";
 import { recordProposals } from "../copilot/service";
+import { UPSELL_ACTION_TYPE } from "../copilot/lib/action";
 import type { NewProposal } from "../copilot/store";
 import { ownedProducts } from "./lib/contract";
 import { upsellCandidates, whitespace, type PeerHolding, type UpsellCandidate } from "./lib/whitespace";
@@ -27,7 +28,7 @@ import { upsellCandidates, whitespace, type PeerHolding, type UpsellCandidate } 
 
 export const UPSELL_SUBJECT = "svc:upsell-sweep";
 export const UPSELL_PERMISSIONS: readonly PermCode[] = ["copilot.use"];
-export const UPSELL_ACTION_TYPE = "propose_upsell";
+export { UPSELL_ACTION_TYPE };
 export const UPSELL_CAPABILITY = "account.upsell";
 /** At most this many proposals per account per run - the best-supported. */
 export const UPSELL_PER_ACCOUNT = 2;

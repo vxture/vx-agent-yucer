@@ -6576,3 +6576,12 @@ export const PERMISSION_TREE_TEXT = {
     ops_head: "运负",
   } as Record<string, string>,
 } as const;
+
+// A rule sweep's proposal rationale, rebuilt from its payload for the reader
+// (proposal-rationale.ts). The stored English sentence is the audit record.
+export const RATIONALE_TEXT = {
+  upsell: (product: string, owners: number, peers: number) =>
+    `尚未使用${product}。同行业有在约合同的 ${peers} 家客户里，${owners} 家在用。`,
+  chase: (direction: "they_owe" | "we_owe", statement: string, due: string, days: number) =>
+    `${direction === "they_owe" ? "对方答应" : "我方答应"}：${statement}。${due} 到期，已过 ${days} 天，没有任何记录关闭它。`,
+};

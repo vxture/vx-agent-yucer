@@ -5563,4 +5563,10 @@ export const en: Dictionary = {
     sourceModel: "Model",
     truncate: (t: string) => `${t}...`,
   },
+  RATIONALE_TEXT: {
+    upsell: (product: string, owners: number, peers: number) =>
+      `Not yet running ${product}. ${owners} of ${peers} same-industry customers with an in-force contract run it.`,
+    chase: (direction: "they_owe" | "we_owe", statement: string, due: string, days: number) =>
+      `${direction === "they_owe" ? "They promised" : "We promised"}: ${statement}. Due ${due}, ${days} days ago, and nothing recorded has closed it.`,
+  },
 };

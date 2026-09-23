@@ -45,6 +45,7 @@ import { cachedFeed } from "../../lib/board";
 import { BuyingRoleForm } from "../../components/buying-role-form";
 import { saveBuyingRole } from "../buying-role-action";
 import { dealBrief } from "../../../domains/pipeline/lib/brief";
+import { displayRationale } from "../../lib/proposal-rationale";
 import { WarRoom } from "../../components/war-room";
 import { CategoryActionCard } from "../../components/category-action-card";
 import { CommitmentActionCard } from "../../components/commitment-action-card";
@@ -117,6 +118,7 @@ export default async function OpportunityDetailPage({
     CHANNEL_LABEL,
     LOAD_ERROR,
     DOMAIN_LABEL,
+    RATIONALE_TEXT,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -276,7 +278,7 @@ export default async function OpportunityDetailPage({
       id: a.id,
       title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,
       group: CAP_GROUP[a.capability ?? ""] ?? POSITION_TEXT.planCommercial,
-      rationale: a.rationale,
+      rationale: displayRationale(a, RATIONALE_TEXT),
       confidence: a.confidence,
     }));
 
