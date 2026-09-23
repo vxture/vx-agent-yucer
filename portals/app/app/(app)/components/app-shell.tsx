@@ -38,7 +38,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { ACCOUNT_SIDEBAR_SLOT_ID } from "../lib/sidebar-slot";
+import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isAccountDossierRoute } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -236,7 +236,7 @@ export function AppShell({
    *  <aside> 还是同一个(宽度/独立滚动都不变, 见下面 boardVisible 的渲染),
    *  只是内容从 NavBoard 换成这个客户自己的档案 - account-sidebar-portal.tsx
    *  把 page.tsx 已经建好的栏1内容传送到这里, 不重新发起一次数据读。 */
-  const isAccountDetail = segments.length >= 2 && segments[0] === "account";
+  const isAccountDetail = isAccountDossierRoute(segments);
 
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
@@ -750,7 +750,14 @@ export function AppShell({
               already removed three controls that did nothing. */}
         </div>
       ) : (
-      <div id={SHELL_BODY_ID} className="flex h-full min-h-0 gap-xl p-lg">
+      <div
+        id={SHELL_BODY_ID}
+        // group/body + data-board: the account page renders its own board
+        // pane (below) and hides it through this, since it cannot read the
+        // toggle's client state itself.
+        className="group/body flex h-full min-h-0 gap-xl p-lg"
+        data-board={boardVisible ? "shown" : "hidden"}
+      >
         {/* LEFT - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose.
             pb-2xl MIRRORS THE CENTRE'S OWN (owner, 2026-09-17 fix): this pane
@@ -759,30 +766,23 @@ export function AppShell({
             the list. The padding lives on this overflow-y-auto element, not
             on a wrapper around it, so it scrolls INTO view as trailing space
             rather than shrinking how far the pane can scroll. */}
+        {isAccountDetail ? (
+          /* 客户详情页: the page renders BOTH the board pane and the centre
+             pane itself (lib/sidebar-slot.ts says why - a portal cannot run on
+             the server, and the left pane went blank on every hard refresh). */
+          children
+        ) : (
+        <>
         {boardVisible ? (
-          isAccountDetail ? (
-            /* 客户详情页侧栏顶部的功能条撤掉了 (owner, 2026-09-21: 聚焦客户
-               全景图页面 - 这样更好一些, 现在可以去掉 sidebar 顶部的区域).
-               返回/收起展开这两个按钮变得多余的原因是全局 header 的战况板
-               开关已经恢复(见上面第一条 leading 按钮的说明) - 同一件"要不要
-               看这块地方"的事现在只有一个开关, 不需要账户详情页自己再长一个
-               本地的收起/展开。客户总编辑(操作按钮)没有跟着一起删 - 它挪进了
-               内容区的面包屑行, 见 page.tsx。这个 aside 现在跟 NavBoard 的
-               一样朴素: 只有一个供 portal 落点的空 div。 */
-            <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
-              <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
-            </aside>
-          ) : (
-            <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
-              <NavBoard
-                sections={board}
-                modules={boardModules}
-                activeKey={activeKey}
-                pathname={pathname}
-                nav={nav}
-              />
-            </aside>
-          )
+          <aside className={BOARD_PANE_CLASS}>
+            <NavBoard
+              sections={board}
+              modules={boardModules}
+              activeKey={activeKey}
+              pathname={pathname}
+              nav={nav}
+            />
+          </aside>
         ) : null}
 
         {/* CENTRE - the engagement. Its 16px is the only horizontal padding
@@ -792,9 +792,11 @@ export function AppShell({
             content that ends flush at the container's bottom edge reads as
             cut off, and the last table's rows sat on the fold with nothing
             below them. */}
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-md pb-2xl">
+        <div className={CENTRE_PANE_CLASS}>
           {children}
         </div>
+        </>
+        )}
 
         {/* RIGHT - the agent, and what it is looking at. Same pb-2xl fix as
             the left flank - this pane scrolls independently too, so it needs
