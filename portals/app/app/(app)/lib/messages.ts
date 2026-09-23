@@ -4531,6 +4531,19 @@ export const CONTRACT_TEXT = {
   unknownProduct: "（目录中已不存在）",
 } as const;
 
+/** 每个板块自己的「⋮」菜单 (owner, 2026-09-23: 按需各板块一个, 至少查看、编辑)。
+ *  没有去处的项灰显并说明原因, 不隐藏。 */
+export const PANEL_MENU_TEXT = {
+  view: "查看",
+  edit: "编辑",
+  noEditRight: "你没有编辑这块内容的权限",
+  derived: "分数由规则自动算出，不能直接编辑；可以用「重新评估」按当前数据重算",
+  noListPage: "这类记录还没有单独的列表页",
+  noEntryHere: "这个 tab 在这里没有录入入口",
+  useViewSwitch: "用标题行的「表格 / 图谱」切换查看",
+  noChain: "还没有开放商机，没有决策链可看",
+} as const;
+
 /** 板块收起后的一行重点 (owner, 2026-09-23: 彻底收起 + 一行重点)。
  *  只说收起后仍需关注的事; 没有要关注的就不显示这一行。 */
 export const COLLAPSE_TEXT = {

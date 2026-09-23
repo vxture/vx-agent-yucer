@@ -3320,6 +3320,17 @@ export const en: Dictionary = {
     closed: "Closed",
   },
 
+  PANEL_MENU_TEXT: {
+    view: "View",
+    edit: "Edit",
+    noEditRight: "You may not edit this",
+    derived: "The score is computed by rules and cannot be edited; use Recompute to rerun it on current data",
+    noListPage: "These records have no list page of their own yet",
+    noEntryHere: "This tab has no entry form here",
+    useViewSwitch: "Use the Table / Graph switch in the title row",
+    noChain: "No open deal yet, so no decision chain to view",
+  },
+
   COLLAPSE_TEXT: {
     contactsCold: (n: number) => `${n} contact(s) not reached in a while`,
     chainsUnreached: (n: number) => `economic buyer unreached on ${n} deal(s)`,

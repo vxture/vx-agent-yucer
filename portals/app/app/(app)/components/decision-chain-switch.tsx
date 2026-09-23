@@ -47,6 +47,10 @@ interface ChainViewState {
   readonly chains: readonly ChainSummaryItem[];
   readonly activeId: string | null;
   readonly setActiveId: (id: string | null) => void;
+  /** Bumped by the summary panel's "⋮ 编辑" to ask the open detail to show
+   *  its 记录一次关系 drawer (owner, 2026-09-23). */
+  readonly relationSeq: number;
+  readonly requestRelation: () => void;
 }
 
 const ChainViewContext = createContext<ChainViewState | null>(null);
@@ -59,8 +63,11 @@ export function ChainViewProvider({
   readonly children: ReactNode;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [relationSeq, setRelationSeq] = useState(0);
   return (
-    <ChainViewContext.Provider value={{ chains, activeId, setActiveId }}>
+    <ChainViewContext.Provider
+      value={{ chains, activeId, setActiveId, relationSeq, requestRelation: () => setRelationSeq((n) => n + 1) }}
+    >
       {children}
     </ChainViewContext.Provider>
   );
@@ -86,13 +93,27 @@ export function ChainSummaryList({
   readonly emptyTitle: string;
   readonly emptyDescription: string;
 }) {
-  const { CHAIN_TEXT, COLLAPSE_TEXT } = useMessages();
-  const { chains, setActiveId } = useChainView();
+  const { CHAIN_TEXT, COLLAPSE_TEXT, PANEL_MENU_TEXT } = useMessages();
+  const { chains, setActiveId, requestRelation } = useChainView();
   const [expanded, setExpanded] = useState(false);
 
+  // This panel's own "⋮" (owner, 2026-09-23): 查看 opens the first deal's
+  // chain in the centre; 编辑 opens it and asks for 记录一次关系 there.
+  const first = chains[0];
+  const chainMenu = {
+    view: first ? { onSelect: () => setActiveId(first.id) } : { hint: PANEL_MENU_TEXT.noChain },
+    edit: first
+      ? {
+          onSelect: () => {
+            setActiveId(first.id);
+            requestRelation();
+          },
+        }
+      : { hint: PANEL_MENU_TEXT.noChain },
+  } as const;
   if (chains.length === 0) {
     return (
-      <CollapsibleSection summary={null} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
+      <CollapsibleSection summary={null} menu={chainMenu} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
         <EmptyState title={emptyTitle} description={emptyDescription} />
       </CollapsibleSection>
     );
@@ -104,7 +125,7 @@ export function ChainSummaryList({
   const unreachedSummary = unreachedCount > 0 ? COLLAPSE_TEXT.chainsUnreached(unreachedCount) : null;
 
   return (
-    <CollapsibleSection summary={unreachedSummary} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
+    <CollapsibleSection summary={unreachedSummary} menu={chainMenu} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
       <div className="flex flex-col">
         {visible.map((c) => {
           const reachSummary = c.reachable

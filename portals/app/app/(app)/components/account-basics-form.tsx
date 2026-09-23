@@ -5,6 +5,8 @@ import { Button, Drawer, Field, FieldLabel, Input, NativeSelect, Separator, useT
 import { useMessages } from "../lib/i18n/provider";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
 
+const CONTACTS_ANCHOR = "account-basics-contacts";
+
 // 基础信息表单 (owner, 2026-09-20: 设计图严格对齐 - 先做基础信息表单，智能
 // 采集先跳过).
 //
@@ -61,6 +63,8 @@ export interface AccountBasicsFormProps {
   readonly canWrite: boolean;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** Scroll to a section on open - the contacts panel's 编辑 lands on 联系人管理. */
+  readonly focus?: "contacts" | null;
   readonly onSave: (
     accountId: string,
     patch: {
@@ -123,10 +127,19 @@ export function AccountBasicsForm({
   onSave,
   orgRelations,
   contactManagement,
+  focus,
 }: AccountBasicsFormProps) {
   const { ACCOUNT_BASICS_TEXT, ACCOUNT_ERROR, DS_LABELS } = useMessages();
   const { toast } = useToast();
   const [pending, start] = useTransition();
+
+  // Opened from the contacts panel's 编辑: bring 联系人管理 into view once the
+  // drawer has rendered it.
+  useEffect(() => {
+    if (!open || focus !== "contacts") return;
+    const t = setTimeout(() => document.getElementById(CONTACTS_ANCHOR)?.scrollIntoView({ block: "start" }), 50);
+    return () => clearTimeout(t);
+  }, [open, focus]);
 
   const [nameValue, setNameValue] = useState(name);
   const [regionValue, setRegionValue] = useState(blank(region));
@@ -316,10 +329,10 @@ export function AccountBasicsForm({
           ) : null}
 
           {contactManagement ? (
-            <>
+            <div id={CONTACTS_ANCHOR} className="contents">
               <Separator />
               {contactManagement}
-            </>
+            </div>
           ) : null}
         </div>
     </Drawer>
