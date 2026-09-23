@@ -5593,4 +5593,11 @@ export const en: Dictionary = {
     chase: (direction: "they_owe" | "we_owe", statement: string, due: string, days: number) =>
       `${direction === "they_owe" ? "They promised" : "We promised"}: ${statement}. Due ${due}, ${days} days ago, and nothing recorded has closed it.`,
   },
+  SIGNAL_PANEL_TEXT: {
+    title: "External signals",
+    summary: (n: number, newestDaysAgo: number) =>
+      `${n} external signals · newest ${newestDaysAgo === 0 ? "today" : `${newestDaysAgo} days ago`}`,
+    when: (days: number) => (days === 0 ? "today" : `${days} days ago`),
+    source: (source: string) => `Source: ${source}`,
+  },
 };

@@ -6610,3 +6610,12 @@ export const RATIONALE_TEXT = {
   chase: (direction: "they_owe" | "we_owe", statement: string, due: string, days: number) =>
     `${direction === "they_owe" ? "对方答应" : "我方答应"}：${statement}。${due} 到期，已过 ${days} 天，没有任何记录关闭它。`,
 };
+
+// 外部动态 (YC-021 L1 工商舆情异动) - the customer page's matched signals.
+export const SIGNAL_PANEL_TEXT = {
+  title: "外部动态",
+  summary: (n: number, newestDaysAgo: number) =>
+    `${n} 条外部动态 · 最新一条${newestDaysAgo === 0 ? "今天" : `${newestDaysAgo} 天前`}`,
+  when: (days: number) => (days === 0 ? "今天" : `${days} 天前`),
+  source: (source: string) => `来源：${source}`,
+};
