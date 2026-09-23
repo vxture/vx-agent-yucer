@@ -1,5 +1,6 @@
 "use client";
 
+import type { RenewalRisk, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
 import { useEffect, useState, useTransition } from "react";
 import {
   Button,
@@ -37,6 +38,12 @@ import { useAccountEdit } from "./account-edit-context";
 // and genuinely none each say their own sentence. "No data" for all three is
 // how a page lies.
 
+
+const RISK_TONE: Record<RenewalRiskLevel, "danger" | "warning" | "success"> = {
+  high: "danger",
+  medium: "warning",
+  low: "success",
+};
 export type ContractPhase = "draft" | "pending" | "in_force" | "lapsed" | "renewed" | "terminated";
 
 export interface ContractLineRow {
@@ -74,6 +81,8 @@ export interface ContractRow {
   /** The whole renewal chain (contract numbers, oldest first) and where this
    *  one sits in it. A chain of one is not shown. */
   readonly lineage: { readonly chainNos: readonly string[]; readonly position: number };
+  /** 续约风险评分 (YC-021 L4) - null for a contract not in force or already renewed. */
+  readonly renewalRisk: RenewalRisk | null;
   readonly events: readonly RenewalEventRow[];
 }
 
@@ -362,6 +371,23 @@ export function ContractRoster(props: ContractRosterProps) {
                   </>
                 )}
               </div>
+
+              {/* 续约风险 (YC-021 L4): the level, and every point it rests on one
+                  click away - a native <details>, closed by default. */}
+              {c.renewalRisk ? (
+                <details className="mt-xs text-body-sm">
+                  <summary className="cursor-pointer">
+                    <Tag tone={RISK_TONE[c.renewalRisk.level]}>{CONTRACT_TEXT.renewalRisk(c.renewalRisk.level)}</Tag>
+                  </summary>
+                  <ul className="text-muted-foreground mt-2xs flex flex-col gap-3xs">
+                    {c.renewalRisk.basis.length === 0 ? (
+                      <li>{CONTRACT_TEXT.renewalRiskNone}</li>
+                    ) : (
+                      c.renewalRisk.basis.map((b, i) => <li key={i}>{CONTRACT_TEXT.renewalRiskBasis(b)}</li>)
+                    )}
+                  </ul>
+                </details>
+              ) : null}
 
               {/* 续约记录 - append-only, so there is no edit or remove here. */}
               {c.events.length > 0 ? (

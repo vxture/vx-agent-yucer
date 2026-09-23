@@ -61,3 +61,10 @@ test("renewal follows the health factor: -10 or worse is risk, any cost is watch
   assert.equal(byType({ ...base, renewal: { points: -10, reason: {} as never } }).get("renewal")!.level, "risk");
   assert.equal(byType({ ...base, renewal: { points: -6, reason: {} as never } }).get("renewal")!.level, "watch");
 });
+
+test("a contract scored high by 续约风险评分 makes renewal a risk before the health factor speaks", () => {
+  const r = byType({ ...base, contractRisk: { contractNo: "HT-1", level: "high" } }).get("renewal")!;
+  assert.equal(r.level, "risk");
+  assert.deepEqual(r.findings, [{ code: "contract_risk", contractNo: "HT-1", level: "high" }]);
+  assert.equal(byType({ ...base, contractRisk: { contractNo: "HT-1", level: "medium" } }).get("renewal")!.level, "watch");
+});
