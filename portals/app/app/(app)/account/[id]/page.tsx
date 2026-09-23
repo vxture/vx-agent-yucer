@@ -1170,7 +1170,14 @@ export default async function AccountDetailPage({
             title={
               <span className="inline-flex items-center gap-xs whitespace-nowrap">
                 <span>{ACCOUNT_TEXT.roster}</span>
-                <LayerLabel layer="L3" />
+                {/* L3 · L4 (owner, 2026-09-23): 增量与存量是同一个板块 -
+                    商机/交付/回款是在打的(L3), 合同 tab 是已经占住的(L4,
+                    L4 批一 owner 裁定合一卡)。两个色标并排, 跟页面图例的
+                    分层配色一致, 不合成一个单色标。 */}
+                <span className="inline-flex items-center gap-3xs">
+                  <LayerLabel layer="L3" />
+                  <LayerLabel layer="L4" />
+                </span>
               </span>
             }
             // 默认展开第一个有内容的 tab, 而不是死板地永远停在"商机"
