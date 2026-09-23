@@ -25,6 +25,7 @@ import {
   getDeliveryStore,
   getFieldStore,
   getPipelineStore,
+  getStrategyStore,
 } from "../../../domains/shared/registry";
 import {
   getOpportunityDetail,
@@ -44,6 +45,8 @@ import { listProposals } from "../../../domains/copilot/service";
 import { cachedFeed } from "../../lib/board";
 import { BuyingRoleForm } from "../../components/buying-role-form";
 import { saveBuyingRole } from "../buying-role-action";
+import { getAuthzStore } from "../../../authz/store";
+import { listCampaigns } from "../../../domains/strategy/service";
 import { dealBrief } from "../../../domains/pipeline/lib/brief";
 import { displayRationale } from "../../lib/proposal-rationale";
 import { WarRoom } from "../../components/war-room";
@@ -151,6 +154,23 @@ export default async function OpportunityDetailPage({
   const opportunity = detail.value;
 
   const history = await stageHistory(ctx, id);
+
+  // NAMES, NOT IDS (polish, 2026-09-24): the owner card printed usr_demo_m010,
+  // the plan triangle three raw subs and 来源战役 camp_demo_1. The member
+  // directory and the campaign list are the same reads the customer page and
+  // /strategy already make; a refused campaign read keeps the id rather than
+  // inventing a name.
+  const memberNameOf = new Map(
+    (await getAuthzStore().listMembers(session.workspaceId)).map((m) => [m.sub, m.displayName]),
+  );
+  const nameOf = (sub: string | null) => (sub ? (memberNameOf.get(sub) ?? sub) : null);
+  const campaignsRead = opportunity.campaignId
+    ? await listCampaigns({ ...ctx, store: getStrategyStore() }).catch(() => null)
+    : null;
+  const campaignName = opportunity.campaignId
+    ? ((campaignsRead?.ok ? campaignsRead.value.find((c) => c.id === opportunity.campaignId)?.name : null) ??
+      opportunity.campaignId)
+    : null;
 
   // Everything the position brief needs. Each read goes through its domain's
   // own service, so this page cannot show what another page would refuse.
@@ -437,7 +457,7 @@ export default async function OpportunityDetailPage({
     {
       id: "owner",
       label: OPPORTUNITY_TEXT.owner,
-      value: opportunity.ownerSub ?? "-",
+      value: nameOf(opportunity.ownerSub) ?? "-",
       tone: "neutral",
     },
   ];
@@ -504,9 +524,9 @@ export default async function OpportunityDetailPage({
             </Tag>
             <span className="text-muted-foreground text-body-sm">
               {POSITION_TEXT.triangleOf(
-                plan.ownerSub ?? POSITION_TEXT.roleUnset,
-                plan.presalesSub ?? POSITION_TEXT.roleUnset,
-                plan.deliverySub ?? POSITION_TEXT.roleUnset,
+                nameOf(plan.ownerSub) ?? POSITION_TEXT.roleUnset,
+                nameOf(plan.presalesSub) ?? POSITION_TEXT.roleUnset,
+                nameOf(plan.deliverySub) ?? POSITION_TEXT.roleUnset,
               )}
             </span>
           </>
@@ -683,7 +703,7 @@ export default async function OpportunityDetailPage({
           <div>
             <span>{OPPORTUNITY_TEXT.campaign}: </span>
             {opportunity.campaignId ? (
-              <Tag>{opportunity.campaignId}</Tag>
+              <Tag>{campaignName}</Tag>
             ) : (
               // A blank cell would read as missing data. Not every deal starts as
               // a campaign response, and that is a fact rather than a gap.

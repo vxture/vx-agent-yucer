@@ -117,7 +117,10 @@ export function HealthPanel({
 
   const items: MetricGridItem[] = current.contributions.map((c) => ({
     id: c.factor,
-    label: FACTOR_LABEL[c.factor] ?? c.factor,
+    // The card's own short label: five cards share ~60px of text width, and
+    // 互动时效 truncated to 互动... - the other four are two characters too.
+    // The full name stays in 依据 / 变化 below.
+    label: c.factor === "recency" ? CHAIN_TEXT.factorRecencyShort : (FACTOR_LABEL[c.factor] ?? c.factor),
     // The sign is kept. A contribution of -25 read as "25" would invert the
     // meaning of the panel.
     value: `${c.points > 0 ? "+" : ""}${c.points}`,
@@ -128,9 +131,18 @@ export function HealthPanel({
     // 续约也带理由行 (L4 批三): 它的依据是合同通知期与续约结果, 阵地清单里
     // 没有哪一个 tab 替它把"为什么扣分"讲出来。0 分时也要有理由 - "没有合同"
     // 和"未进入窗口"是两句不同的话 (业务规则 §5: 不跳过)。
-    trend: c.factor === "recency" || c.factor === "renewal" ? healthReasonText(c.reason) : undefined,
+    // The reasons left the cards (polish, 2026-09-24): at five columns the
+    // trend pill cut "已 48 天没有接触" off mid-word and a description wrapped
+    // over five lines. They are the 依据 row under the grid now.
     tone: c.points < 0 ? "danger" : c.points === 0 ? "neutral" : "success",
   }));
+
+  // 依据: the two factors whose number needs its reason - how long the silence
+  // is, and what the renewal is waiting on (the other three have their own
+  // tabs in the roster).
+  const reasons = current.contributions
+    .filter((c) => c.factor === "recency" || c.factor === "renewal")
+    .map((c) => ({ label: FACTOR_LABEL[c.factor] ?? c.factor, text: healthReasonText(c.reason) }));
 
   // Folded: the score and, when there is one, the single worst factor.
   const concern = current.primaryConcern;
@@ -188,26 +200,47 @@ export function HealthPanel({
               事实, header 不会有。 */}
           {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
-          {/* columns={4} (owner, 2026-09-20: 设计图严格对齐, mockup 一行四个) -
-              之前锁在 2 列的理由(注释见 git 历史)是三栏布局下这一栏只有 768px
-              宽度; 现在栏3已经并入栏2、只剩两栏 (owner: 严格按照设计实施 - 栏3
-              还有2个), 同一栏拿到的宽度变了, 实测见下方验证记录, 若变窄的场景
-              下又被压扁, 需要重新回到 2 列并说明测量数据。 */}
-          <MetricGrid items={items} columns={4} />
-          {/* 变化归因: "为什么从 58 掉到 34" - the factors that moved since the
-              last recorded reading with a different score, biggest first. */}
-          {change && change.moved.length > 0 ? (
-            <p className="text-muted-foreground text-body-sm">
-              {CHAIN_TEXT.changeSince(change.fromScore, change.toScore, change.since.toISOString().slice(0, 10))}
-              {change.moved
-                .map((m) => CHAIN_TEXT.changeFactor(FACTOR_LABEL[m.factor] ?? m.factor, m.delta))
-                .join(CHAIN_TEXT.changeSeparator)}
-            </p>
-          ) : null}
-          {/* 同类对标: a number only when the peer group is big enough to mean
-              one; otherwise the sentence says why there is none. */}
-          {benchmark ? (
-            <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.benchmark(benchmark)}</p>
+          {/* ONE ROW OF FIVE (polish, 2026-09-24). The mockup's row of four
+              (owner, 2026-09-20) predates the fifth factor (renewal, L4 batch
+              three), which then sat alone on a second row. */}
+          <MetricGrid items={items} columns={5} />
+          {/* 变化 + 对标 as labelled rows, in the same label column as 风险分型
+              below - they were two unlabelled grey sentences floating under
+              the grid. */}
+          {(change && change.moved.length > 0) || benchmark || reasons.length > 0 ? (
+            <dl className="grid grid-cols-[4rem_1fr] gap-x-sm gap-y-xs text-body-sm">
+              {reasons.length > 0 ? (
+                <>
+                  <dt className="font-bold">{CHAIN_TEXT.reasonLabel}</dt>
+                  <dd className="text-muted-foreground">
+                    {reasons.map((r) => CHAIN_TEXT.reasonItem(r.label, r.text)).join(CHAIN_TEXT.changeSeparator)}
+                  </dd>
+                </>
+              ) : null}
+              {change && change.moved.length > 0 ? (
+                <>
+                  <dt className="font-bold">{CHAIN_TEXT.changeLabel}</dt>
+                  <dd className="flex flex-wrap items-baseline gap-x-sm gap-y-3xs">
+                    {/* 变化归因: "为什么从 58 掉到 34" - biggest move first. */}
+                    <span className="text-muted-foreground">
+                      {CHAIN_TEXT.changeSince(change.fromScore, change.toScore, change.since.toISOString().slice(0, 10))}
+                    </span>
+                    {change.moved.map((m) => (
+                      <span key={m.factor} className={m.delta < 0 ? "text-destructive-text" : "text-success-text"}>
+                        {CHAIN_TEXT.changeFactor(FACTOR_LABEL[m.factor] ?? m.factor, m.delta)}
+                      </span>
+                    ))}
+                  </dd>
+                </>
+              ) : null}
+              {benchmark ? (
+                <>
+                  <dt className="font-bold">{CHAIN_TEXT.benchmarkLabel}</dt>
+                  {/* 同类对标: a number only when the peer group is big enough. */}
+                  <dd className="text-muted-foreground">{ACCOUNT_TEXT.benchmark(benchmark)}</dd>
+                </>
+              ) : null}
+            </dl>
           ) : null}
           {risks && risks.length > 0 ? <RiskTypes risks={risks} /> : null}
           <CapFooter>

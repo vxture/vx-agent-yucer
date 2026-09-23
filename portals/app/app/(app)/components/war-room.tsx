@@ -44,11 +44,14 @@ export async function WarRoom({
     <Section
       icon="target"
       title={WAR_ROOM_TEXT.title}
-      description={findings === 0 ? WAR_ROOM_TEXT.allClear : WAR_ROOM_TEXT.findings(findings)}
+      // The count is the cells actually shown: a closed deal has no chain
+      // check, so "五项检查" over four cells contradicted itself.
+      description={findings === 0 ? WAR_ROOM_TEXT.allClear(cells.length) : WAR_ROOM_TEXT.findings(findings)}
     >
       {/* One cell per dimension. minmax(0,1fr) so a long headline wraps inside
           its cell instead of pushing the strip sideways. */}
-      <div className="grid gap-sm sm:grid-cols-2 xl:grid-cols-5">
+      {/* As many columns as cells - four on a closed deal, not four and a hole. */}
+      <div className={`grid gap-sm sm:grid-cols-2 ${cells.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
         {cells.map((c) => (
           <Card key={c.key} className={`border-s-2 p-md ${TONE_CLASS[c.tone]}`}>
             <p className="text-muted-foreground text-body-sm">{WAR_ROOM_TEXT.cell[c.key]}</p>
