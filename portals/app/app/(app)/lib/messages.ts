@@ -26,6 +26,7 @@ import type { Stage } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import type { ActionStatus } from "../../domains/copilot/lib/action";
 import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/revenue";
+import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 
 export const STAGE_LABEL: Record<Stage, string> = {
   qualify: "合格判定",
@@ -4450,6 +4451,15 @@ export const ACCOUNT_TEXT = {
     dormant: () => "沉睡",
   } as Record<"low_health" | "churned" | "dormant", (score: number | null) => string>,
   listSeparator: "、",
+  // 同类对标 (YC-021 L5): a percentile only with enough peers, else why not.
+  benchmark: (b: PeerBenchmark): string =>
+    b.kind === "ok"
+      ? `同行业同规模 ${b.peers} 家客户中，健康度高于 ${b.percentile}% 的客户（按各自最近一次评估）`
+      : b.kind === "thin"
+        ? `同行业同规模只有 ${b.peers} 家有健康分，不足 ${b.needed} 家，不给分位`
+        : b.kind === "unclassified"
+          ? `未设置${b.missing.map((m) => (m === "industry" ? "行业" : "规模")).join("和")}，没有可对标的同类客户`
+          : "还没有健康分，无法对标",
   contactStatusLabel: {
     active: "在职",
     left: "已离职",

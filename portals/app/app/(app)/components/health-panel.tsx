@@ -11,6 +11,7 @@ import {
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import { JudgementNote, type Judgement } from "./judgement-note";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import { CollapsibleSection } from "./collapsible-section";
@@ -55,6 +56,8 @@ export interface HealthPanelProps {
    *  line (owner: 提供展开收起功能，收起只有一行) - see judgement-note.tsx
    *  for the shared implementation (this panel is not its only consumer). */
   readonly judgement?: Judgement | null;
+  /** 同类对标 (YC-021 L5) - this score among same-industry same-size peers. */
+  readonly benchmark?: PeerBenchmark | null;
 }
 
 export function HealthPanel({
@@ -64,6 +67,7 @@ export function HealthPanel({
   onRecompute,
   statusTag,
   judgement,
+  benchmark,
 }: HealthPanelProps) {
   const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR, COLLAPSE_TEXT, PANEL_MENU_TEXT } = useMessages();
 
@@ -181,6 +185,11 @@ export function HealthPanel({
               还有2个), 同一栏拿到的宽度变了, 实测见下方验证记录, 若变窄的场景
               下又被压扁, 需要重新回到 2 列并说明测量数据。 */}
           <MetricGrid items={items} columns={4} />
+          {/* 同类对标: a number only when the peer group is big enough to mean
+              one; otherwise the sentence says why there is none. */}
+          {benchmark ? (
+            <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.benchmark(benchmark)}</p>
+          ) : null}
           <CapFooter>
             <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capHealthBasic}
             <br />
