@@ -17,6 +17,8 @@ import { useMessages } from "../lib/i18n/provider";
 import { PageCrumbs } from "./page-crumbs";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
+import { Tag } from "./tag";
+import { rollupChains, type DealChainFacts } from "../../domains/account/lib/chain-rollup";
 
 // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认).
 //
@@ -40,6 +42,8 @@ export interface ChainSummaryItem {
   /** 未触达阻碍者的真实人数 - 来自 recency 数据里"这个阻碍者是否在 warm
    *  名单里", 不是编的。0 时摘要行不提阻碍者。 */
   readonly unreachedBlockers: number;
+  /** For the account-level aggregate (YC-021 L2 账户级覆盖聚合). */
+  readonly facts: DealChainFacts;
   readonly detail: ReactNode;
 }
 
@@ -93,7 +97,7 @@ export function ChainSummaryList({
   readonly emptyTitle: string;
   readonly emptyDescription: string;
 }) {
-  const { CHAIN_TEXT, COLLAPSE_TEXT, PANEL_MENU_TEXT } = useMessages();
+  const { CHAIN_TEXT, COLLAPSE_TEXT, PANEL_MENU_TEXT, DECISION_ROLE_LABEL } = useMessages();
   const { chains, setActiveId, requestRelation } = useChainView();
   const [expanded, setExpanded] = useState(false);
 
@@ -127,8 +131,33 @@ export function ChainSummaryList({
       ? COLLAPSE_TEXT.chainsUnreached(unreachedCount)
       : COLLAPSE_TEXT.chainsAllReachable(chains.length);
 
+  // 账户级覆盖聚合 (YC-021 L2): once there are two deals, the customer-level
+  // question - which roles do we hold anywhere, where are we missing them -
+  // gets one READ-ONLY line. Not a button and no edit: a role belongs to one
+  // purchase, so the way to change it is that deal's row below, which opens
+  // its chain and from there its deal page.
+  const rollup = chains.length > 1 ? rollupChains(chains.map((c) => c.facts)) : null;
+
   return (
     <CollapsibleSection summary={unreachedSummary} menu={chainMenu} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
+      {rollup ? (
+        <div className="border-border bg-muted/40 mb-sm flex flex-col gap-2xs rounded-md border p-sm text-body-sm">
+          <span className="font-bold">{CHAIN_TEXT.rollupTitle(rollup.deals, rollup.people)}</span>
+          <span className="gap-xs flex flex-wrap items-center">
+            <span className="text-muted-foreground">{CHAIN_TEXT.rollupCovered}</span>
+            {rollup.coveredAnywhere.length === 0 ? (
+              <span className="text-muted-foreground">-</span>
+            ) : (
+              rollup.coveredAnywhere.map((r) => <Tag key={r}>{DECISION_ROLE_LABEL[r] ?? r}</Tag>)
+            )}
+          </span>
+          {rollup.missingOn.length > 0 ? (
+            <span className="text-muted-foreground">
+              {rollup.missingOn.map((m) => CHAIN_TEXT.rollupMissingOn(DECISION_ROLE_LABEL[m.role] ?? m.role, m.deals)).join(CHAIN_TEXT.rollupSeparator)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex flex-col">
         {visible.map((c) => {
           const reachSummary = c.reachable

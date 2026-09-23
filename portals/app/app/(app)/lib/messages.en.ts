@@ -1201,6 +1201,11 @@ export const en: Dictionary = {
   },
   CHAIN_TEXT: {
     unnamedPerson: "Unknown contact",
+    rollupTitle: (deals: number, people: number) => `${deals} open deals together · ${people} people`,
+    rollupCovered: "Covered on at least one",
+    rollupMissingOn: (role: string, deals: number) => `${deals} missing ${role}`,
+    rollupSeparator: "; ",
+    editOnDeal: "Edit roles on the deal",
     forDeal: (deal: string) => `Decision chain · ${deal}`,
     noOpenDealTitle: "No open deal",
     noOpenDealDescription:
