@@ -110,13 +110,14 @@ export const RENEWAL_OUTCOME_MEMORY_DAYS = 365;
  *
  * ONE CONTRIBUTION, THE WORST SIGNAL - not a sum. Every other factor says one
  * thing, and a renewal that was lost AND is due again is one bad relationship,
- * not two. Magnitudes sit on the scale the other four already use (-10..-30):
- *   lost within a year           -25  the relationship already failed once
+ * not two. HALF the weight of delivery and collections (owner, 2026-09-22:
+ * 整体减半) - renewal risk informs the score, it does not dominate it:
+ *   lost within a year           -12  the relationship already failed once
  *   notice deadline passed, no
- *     renewal deal open           -20  the window to act has closed
+ *     renewal deal open           -10  the window to act has closed
  *   in the window, no renewal
- *     deal open                   -15  due and nobody is on it
- *   downgraded within a year      -12  kept, but for less
+ *     deal open                    -8  due and nobody is on it
+ *   downgraded within a year       -6  kept, but for less
  * Nothing negative -> 0 points WITH a reason: no contract, not yet due, or
  * due with the renewal already in hand. Never skipped (§5).
  */
@@ -128,13 +129,13 @@ export function renewalContribution(input: RenewalHealthInput, now: Date): Healt
 
   const lost = input.events.filter((e) => e.eventType === "lost" && recent(e));
   if (lost.length > 0) {
-    candidates.push({ factor: "renewal", points: -25, reason: { code: "renewal_lost", days: Math.min(...lost.map(daysSince)) } });
+    candidates.push({ factor: "renewal", points: -12, reason: { code: "renewal_lost", days: Math.min(...lost.map(daysSince)) } });
   }
   const downgraded = input.events.filter((e) => e.eventType === "downgraded" && recent(e));
   if (downgraded.length > 0) {
     candidates.push({
       factor: "renewal",
-      points: -12,
+      points: -6,
       reason: { code: "renewal_downgraded", days: Math.min(...downgraded.map(daysSince)) },
     });
   }
@@ -149,7 +150,7 @@ export function renewalContribution(input: RenewalHealthInput, now: Date): Healt
   if (soonest !== null && !input.hasOpenRenewalDeal) {
     candidates.push({
       factor: "renewal",
-      points: soonest < 0 ? -20 : -15,
+      points: soonest < 0 ? -10 : -8,
       reason: { code: "renewal_due_unopened", days: soonest },
     });
   }

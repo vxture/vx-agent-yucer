@@ -252,14 +252,14 @@ test("renewal: a contract outside the window scores 0 and says so", () => {
   assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts }) }))?.reason, { code: "renewal_not_due" });
 });
 
-test("renewal: due with no renewal deal costs 15, 20 once the notice deadline passed", () => {
+test("renewal: due with no renewal deal costs 8, 10 once the notice deadline passed", () => {
   const due = [{ status: "active", termEnd: daysAhead(60), noticeDays: 30, renewed: false }];
   assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts: due }) })), {
-    factor: "renewal", points: -15, reason: { code: "renewal_due_unopened", days: 30 },
+    factor: "renewal", points: -8, reason: { code: "renewal_due_unopened", days: 30 },
   });
   const passed = [{ status: "active", termEnd: daysAhead(10), noticeDays: 30, renewed: false }];
   assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts: passed }) })), {
-    factor: "renewal", points: -20, reason: { code: "renewal_due_unopened", days: -20 },
+    factor: "renewal", points: -10, reason: { code: "renewal_due_unopened", days: -20 },
   });
 });
 
@@ -292,14 +292,14 @@ test("renewal: the WORST signal wins, the signals do not stack", () => {
       ],
     }),
   });
-  assert.deepEqual(renewalLine(h), { factor: "renewal", points: -25, reason: { code: "renewal_lost", days: 40 } });
+  assert.deepEqual(renewalLine(h), { factor: "renewal", points: -12, reason: { code: "renewal_lost", days: 40 } });
   assert.equal(h.contributions.filter((c) => c.factor === "renewal").length, 1);
 });
 
 test("renewal: an outcome older than a year no longer weighs", () => {
   const events = [{ eventType: "lost", occurredAt: daysAgo(400) }, { eventType: "downgraded", occurredAt: daysAgo(30) }];
   assert.deepEqual(renewalLine(health({ renewal: renewalOf({ events }) })), {
-    factor: "renewal", points: -12, reason: { code: "renewal_downgraded", days: 30 },
+    factor: "renewal", points: -6, reason: { code: "renewal_downgraded", days: 30 },
   });
 });
 
@@ -308,5 +308,5 @@ test("renewal: the factor moves the total by exactly its points", () => {
   const hit = health({
     renewal: renewalOf({ contracts: [{ status: "active", termEnd: daysAhead(60), noticeDays: 30, renewed: false }] }),
   }).score;
-  assert.equal(base - hit, 15);
+  assert.equal(base - hit, 8);
 });

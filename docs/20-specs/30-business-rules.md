@@ -94,14 +94,14 @@ overdue`）。
 **第五个因子 `renewal`**（2026-09-21 补，随存量资产层上线）：临期未开续约商机、
 已发生降级或流失事件扣分。它与前四个因子同构，产出分值与 reason code。
 
-口径（2026-09-22 落地，L4 批三；幅度与前四因子同一量纲，owner 可否决）：
+口径（2026-09-22 落地，L4 批三；幅度为交付/回款的一半，owner 2026-09-22 裁定「整体减半」）：
 
 | 信号 | 分值 | reason |
 |------|------|--------|
-| 一年内记录过流失（`renewal_event.lost`） | −25 | `renewal_lost` |
-| 生效且未续的合同已过通知截止日（`term_end − notice_days`），账户无在办续约商机 | −20 | `renewal_due_unopened` |
-| 同上但通知截止日仍在续约窗口内（`renewal_policy.window_days`） | −15 | `renewal_due_unopened` |
-| 一年内记录过降级续约 | −12 | `renewal_downgraded` |
+| 一年内记录过流失（`renewal_event.lost`） | −12 | `renewal_lost` |
+| 生效且未续的合同已过通知截止日（`term_end − notice_days`），账户无在办续约商机 | −10 | `renewal_due_unopened` |
+| 同上但通知截止日仍在续约窗口内（`renewal_policy.window_days`） | −8 | `renewal_due_unopened` |
+| 一年内记录过降级续约 | −6 | `renewal_downgraded` |
 | 以上都没有 | 0 | `renewal_no_contract` / `renewal_not_due` / `renewal_in_hand` |
 
 - **取最重的一条，不叠加**：其余四个因子每个只说一件事，续约也一样。
