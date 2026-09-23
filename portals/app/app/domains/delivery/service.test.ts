@@ -39,6 +39,7 @@ function project(over: Partial<ProjectRecord> = {}): ProjectRecord {
     currency: "CNY",
     endsAt: null,
     engagementType: "one_off",
+    contractId: null,
     ...over,
   };
 }

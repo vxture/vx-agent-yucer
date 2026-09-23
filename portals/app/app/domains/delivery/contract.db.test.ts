@@ -74,6 +74,8 @@ async function insertContract(c: Client, id: string, no: string, renewedFrom: st
 
 async function cleanup() {
   await withPg(async (c) => {
+    // incr/0078: superuser cleanup - yucer_svc could not delete these.
+    await c.query(`DELETE FROM yucer_delivery.renewal_event WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_delivery.contract_line WHERE workspace_id = $1`, [WS]);
     // Children before parents: renewed_from is ON DELETE RESTRICT.
     await c.query(
@@ -259,6 +261,89 @@ test("the adapter: create, lines attached in one read, NUMERIC back as numbers, 
     assert.equal((await s.getContract(WS, created.id))?.lines.length, 0);
     // Another workspace sees nothing.
     assert.equal(await s.getContract("eeeeeeee-0000-0000-0000-000000000999", created.id), null);
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- incr/0078 renewal_event (L4 batch two) ---------------------------------
+
+test("renewal_event: the type vocabulary and the successor rule are enforced", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seed(c);
+      await insertContract(c, CT1, "HT-1");
+      await insertContract(c, CT2, "HT-2", CT1);
+      const ins = (type: string, successor: string | null) =>
+        c.query(
+          `INSERT INTO yucer_delivery.renewal_event (workspace_id, contract_id, event_type, successor_contract_id)
+           VALUES ($1, $2, $3, $4)`,
+          [WS, CT1, type, successor],
+        );
+      // expired was dropped on purpose (owner, 2026-09-22).
+      await assert.rejects(ins("expired", null), /chk_renewal_event_type/);
+      await assert.rejects(ins("renewed", null), /chk_renewal_event_successor/);
+      await assert.rejects(ins("lost", CT2), /chk_renewal_event_successor/);
+      await ins("renewed", CT2);
+      await ins("lost", null);
+      // RESTRICT: a contract with a renewal history cannot be deleted.
+      await assert.rejects(c.query(`DELETE FROM yucer_delivery.contract WHERE id = $1`, [CT2]), /fk_renewal_event_successor|fk_contract_renewed_from/);
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("renewal_event: append-only for the service role - INSERT yes, UPDATE and DELETE no", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seed(c);
+      await insertContract(c, CT1, "HT-1");
+      await c.query(`SET ROLE yucer_svc`);
+      try {
+        await c.query(
+          `INSERT INTO yucer_delivery.renewal_event (workspace_id, contract_id, event_type, reason)
+           VALUES ($1, $2, 'lost', 'budget')`,
+          [WS, CT1],
+        );
+        await c.query(`SELECT count(*) FROM yucer_delivery.renewal_event WHERE contract_id = $1`, [CT1]);
+        await assert.rejects(c.query(`UPDATE yucer_delivery.renewal_event SET reason = 'rewritten' WHERE contract_id = $1`, [CT1]), /permission denied/);
+        await assert.rejects(c.query(`DELETE FROM yucer_delivery.renewal_event WHERE contract_id = $1`, [CT1]), /permission denied/);
+      } finally {
+        await c.query(`RESET ROLE`);
+      }
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the adapter: renew writes the lineage, events and renewedBy read back, a second renewal hits the index", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const draft = (no: string) => ({
+      contractNo: no, name: "adapter", accountId: ACC, opportunityId: null, totalAmount: 10, currency: "CNY",
+      termStart: new Date("2026-01-01T00:00:00Z"), termEnd: new Date("2026-12-31T00:00:00Z"),
+      noticeDays: 30, status: "active" as const, signedAt: null,
+    });
+    const first = await s.createContract(WS, draft("HT-R1"));
+    const second = await s.createContract(WS, draft("HT-R2"), first.id);
+    assert.equal(second.renewedFromContractId, first.id);
+    await s.appendRenewalEvent(WS, {
+      contractId: first.id, eventType: "renewed", successorContractId: second.id, reason: null, actorSub: "usr_x",
+    });
+    // By CODE: Prisma's P2002 message does not name the index, which is why
+    // the service matches the code and re-reads rather than parsing text.
+    await assert.rejects(s.createContract(WS, draft("HT-R3"), first.id), (e: unknown) => (e as { code?: string }).code === "P2002");
+
+    const held = await s.getContract(WS, first.id);
+    assert.equal(held?.renewedBy, second.id);
+    assert.deepEqual(held?.events.map((e) => [e.eventType, e.successorContractId, e.actorSub]), [["renewed", second.id, "usr_x"]]);
+    assert.equal((await s.getContract(WS, second.id))?.renewedBy, null);
   } finally {
     await cleanup();
   }

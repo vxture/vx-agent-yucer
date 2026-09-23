@@ -3810,3 +3810,27 @@ Explore 审计核实 `/account/[id]` 现状是否已经聚合跨域信息（商�
 适配器），全量单测与 `test:db` 全绿；两条守卫各故意打坏一次确认会红
 （删一条 `CONTRACT_ERROR` 词条 → reachable-codes 红；给 yucer_svc 授 contract_no
 的 UPDATE → 授权用例红）。
+
+## 批次 13 - 客户全景图 L4 批二：续约世系与期限迁移（2026-09-22）
+
+批一建了合同，批二让「这家连续续了几年」可查，并把续约窗口的锚点从项目迁到合同。
+这是七批里唯一一批**改动既有规则锚点**的，所以新旧两条路径分别验证。
+
+| 项 | 交付 | 位置 |
+|----|------|------|
+| 13a DDL | `incr/0078_renewal_event.sql`：追加写（仅 SELECT/INSERT），`renewed` 必带 `successor_contract_id`，其余类型必不带（CHECK）；两个外键 RESTRICT | Prisma `RenewalEvent`、`APPEND_ONLY_TABLES` 同步 |
+| 13b 规则 | `planContractRenewal`（只有生效合同能续、不能早于原合同开始）、`planRenewalOutcome`（原因必填）、`contractRenewalAnchor`（沿世系走到最新非草稿合同，终止则返回 null 走回退） | `lib/contract.ts` |
+| 13c 服务 | `renewContract`（唯一写 `renewed_from_contract_id` 的地方，同时追加 `renewed` 事件；并发二次续约靠唯一索引兜底，按 P2002 码识别再回读判定原因）、`recordRenewalOutcome`；`listRenewals` / `renewalDraft` 合同优先、项目回退，合同读失败整体回退 | `service.ts` |
+| 13d 门控 | `delivery.contract.renew`（`delivery.project` + `delivery.write`），零新键零新权限 | `authz/actions.ts` |
+| 13e 界面 | 合同卡：续约（抽屉预填下一期）、记录结果（流失/降级+原因）、续自/已续为、续约记录；/renewal 每行注明日期来自合同通知期还是项目结束日 | `contract-roster.tsx`、`renewal-roster.tsx` |
+
+**两处 owner 裁定（2026-09-22）**：续约队列仍按项目出行，只换日期锚点（不动 D6）；
+事件类型去掉 `expired`。
+
+**真库发现的一处真实缺陷**：Prisma 的 P2002 报错文本里**没有**索引名，按
+`uidx_contract_renewed_from` 字符串匹配的并发兜底在生产上永远不会命中——只有真库用例
+能看见。改为按错误码识别并回读。
+
+**验收**：新增单测 13 条（含合同路径 / 项目路径 / 终止回退 / 读失败回退 / 世系走链 /
+草稿续约 / 并发二次续约），真库 3 条（类型与 successor 约束、只追加授权、适配器世系）；
+全量单测与 `test:db` 全绿；「合同读失败回退」这条守卫故意去掉 try/catch 确认会红。

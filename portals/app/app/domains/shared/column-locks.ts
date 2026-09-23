@@ -426,6 +426,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // that can be edited is a note; this one has no UPDATE and no DELETE grant,
   // so a correction is a new row like everything else in this list.
   "yucer_delivery.milestone_change",
+  // incr/0078. A renewal outcome is what somebody decided at the time; a
+  // correction is a new row.
+  "yucer_delivery.renewal_event",
   // incr/0033. Why something left the funnel is a record of somebody's
   // account at the time, not a field to be tidied later. DELETE is granted on
   // it for exactly one case - a hard-deleted lead takes its exit rows with it -

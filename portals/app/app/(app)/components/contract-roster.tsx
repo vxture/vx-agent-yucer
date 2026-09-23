@@ -35,7 +35,7 @@ import { Tag } from "./tag";
 // and genuinely none each say their own sentence. "No data" for all three is
 // how a page lies.
 
-export type ContractPhase = "draft" | "pending" | "in_force" | "lapsed" | "terminated";
+export type ContractPhase = "draft" | "pending" | "in_force" | "lapsed" | "renewed" | "terminated";
 
 export interface ContractLineRow {
   readonly id: string;
@@ -66,6 +66,19 @@ export interface ContractRow {
   readonly lines: readonly ContractLineRow[];
   /** Null when the lines are not in one currency - never summed across. */
   readonly lineTotal: number | null;
+  /** Batch two lineage: the contract this one renewed, and the one that renewed it. */
+  readonly renewedFromNo: string | null;
+  readonly renewedByNo: string | null;
+  readonly events: readonly RenewalEventRow[];
+}
+
+export interface RenewalEventRow {
+  readonly id: string;
+  readonly eventType: "renewed" | "downgraded" | "lost";
+  readonly successorNo: string | null;
+  readonly reason: string | null;
+  readonly occurredAt: string;
+  readonly actorName: string | null;
 }
 
 export interface OwnedRow {
@@ -115,13 +128,38 @@ export interface ContractRosterProps {
     termEnd: string | null;
   }) => Result;
   readonly onRemoveLine: (input: { accountId: string; contractId: string; lineId: string }) => Result;
+  /** delivery.contract.renew - separate from canWrite, it is its own action. */
+  readonly canRenew: boolean;
+  readonly onRenew: (input: {
+    fromId: string;
+    accountId: string;
+    contractNo: string;
+    name: string;
+    opportunityId: string | null;
+    status: string;
+    totalAmount: number | null;
+    currency: string;
+    termStart: string | null;
+    termEnd: string | null;
+    noticeDays: number;
+    signedAt: string | null;
+  }) => Result;
+  readonly onRecordOutcome: (input: {
+    accountId: string;
+    contractId: string;
+    eventType: string;
+    reason: string;
+  }) => Result;
 }
+
+type DrawerTarget = { mode: "new" } | { mode: "edit" | "renew"; row: ContractRow };
 
 const PHASE_TONE: Record<ContractPhase, StatusBadgeTone> = {
   draft: "neutral",
   pending: "info",
   in_force: "success",
   lapsed: "warning",
+  renewed: "info",
   terminated: "neutral",
 };
 
@@ -130,7 +168,8 @@ export function ContractRoster(props: ContractRosterProps) {
   const locale = useLocale();
   const { toast } = useToast();
   const [pending, start] = useTransition();
-  const [editing, setEditing] = useState<ContractRow | "new" | null>(null);
+  const [editing, setEditing] = useState<DrawerTarget | null>(null);
+  const [outcomeFor, setOutcomeFor] = useState<ContractRow | null>(null);
   const [lineFor, setLineFor] = useState<{ contract: ContractRow; line: ContractLineRow | null } | null>(null);
   const [removing, setRemoving] = useState<{ contract: ContractRow; line: ContractLineRow } | null>(null);
 
@@ -139,8 +178,15 @@ export function ContractRoster(props: ContractRosterProps) {
     pending: CONTRACT_TEXT.phasePending,
     in_force: CONTRACT_TEXT.phaseInForce,
     lapsed: CONTRACT_TEXT.phaseLapsed,
+    renewed: CONTRACT_TEXT.phaseRenewed,
     terminated: CONTRACT_TEXT.phaseTerminated,
   };
+  const eventText = (e: RenewalEventRow) =>
+    e.eventType === "renewed"
+      ? CONTRACT_TEXT.eventRenewed(e.successorNo ?? "")
+      : e.eventType === "downgraded"
+        ? CONTRACT_TEXT.eventDowngraded
+        : CONTRACT_TEXT.eventLost;
   const productName = (name: string | null) => name ?? CONTRACT_TEXT.unknownProduct;
   const refuse = (error?: string) =>
     toast({ tone: "danger", title: CONTRACT_ERROR[error ?? "denied"] ?? CONTRACT_ERROR.denied });
@@ -171,7 +217,7 @@ export function ContractRoster(props: ContractRosterProps) {
     <div className="flex flex-col gap-md">
       {props.canWrite ? (
         <div className="flex justify-end">
-          <Button size="sm" variant="secondary" onClick={() => setEditing("new")}>
+          <Button size="sm" variant="secondary" onClick={() => setEditing({ mode: "new" })}>
             {CONTRACT_TEXT.add}
           </Button>
         </div>
@@ -215,8 +261,18 @@ export function ContractRoster(props: ContractRosterProps) {
               action={
                 <span className="flex items-center gap-xs">
                   <StatusBadge tone={PHASE_TONE[c.phase]}>{phaseLabel[c.phase]}</StatusBadge>
+                  {props.canRenew && c.status === "active" && !c.renewedByNo ? (
+                    <Button size="sm" variant="ghost" onClick={() => setEditing({ mode: "renew", row: c })}>
+                      {CONTRACT_TEXT.renew}
+                    </Button>
+                  ) : null}
+                  {props.canRenew && c.status !== "draft" ? (
+                    <Button size="sm" variant="ghost" onClick={() => setOutcomeFor(c)}>
+                      {CONTRACT_TEXT.recordOutcome}
+                    </Button>
+                  ) : null}
                   {props.canWrite ? (
-                    <Button size="sm" variant="ghost" onClick={() => setEditing(c)}>
+                    <Button size="sm" variant="ghost" onClick={() => setEditing({ mode: "edit", row: c })}>
                       {CONTRACT_TEXT.edit}
                     </Button>
                   ) : null}
@@ -236,7 +292,22 @@ export function ContractRoster(props: ContractRosterProps) {
                     {CONTRACT_TEXT.fieldAmount} {formatMoney(c.totalAmount, c.currency, locale)}
                   </span>
                 ) : null}
+                {c.renewedFromNo ? <Tag>{CONTRACT_TEXT.renewedFrom(c.renewedFromNo)}</Tag> : null}
+                {c.renewedByNo ? <Tag>{CONTRACT_TEXT.renewedTo(c.renewedByNo)}</Tag> : null}
               </div>
+
+              {/* 续约记录 - append-only, so there is no edit or remove here. */}
+              {c.events.length > 0 ? (
+                <ul className="mt-xs flex flex-col gap-3xs text-body-sm text-muted-foreground">
+                  {c.events.map((e) => (
+                    <li key={e.id}>
+                      <span className="tabular-nums">{e.occurredAt}</span> {eventText(e)}
+                      {e.reason ? ` · ${e.reason}` : ""}
+                      {e.actorName ? ` · ${e.actorName}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
 
               {c.lines.length === 0 ? (
                 <p className="mt-xs text-muted-foreground text-body-sm">{CONTRACT_TEXT.noLines}</p>
@@ -302,6 +373,13 @@ export function ContractRoster(props: ContractRosterProps) {
         defaultCurrency={props.defaultCurrency}
         onClose={() => setEditing(null)}
         onSave={props.onSaveContract}
+        onRenew={props.onRenew}
+      />
+      <OutcomeDrawer
+        target={outcomeFor}
+        accountId={props.accountId}
+        onClose={() => setOutcomeFor(null)}
+        onRecord={props.onRecordOutcome}
       />
       <LineDrawer
         target={lineFor}
@@ -333,24 +411,29 @@ function ContractDrawer({
   defaultCurrency,
   onClose,
   onSave,
+  onRenew,
 }: {
-  readonly target: ContractRow | "new" | null;
+  readonly target: DrawerTarget | null;
   readonly accountId: string;
   readonly deals: ReadonlyArray<{ id: string; name: string }>;
   readonly defaultCurrency: string;
   readonly onClose: () => void;
   readonly onSave: ContractRosterProps["onSaveContract"];
+  readonly onRenew: ContractRosterProps["onRenew"];
 }) {
   const { CONTRACT_TEXT, CONTRACT_ERROR, DS_LABELS } = useMessages();
   const { toast } = useToast();
   const [pending, start] = useTransition();
-  const held = target && target !== "new" ? target : null;
+  const held = target?.mode === "edit" ? target.row : null;
+  const renewFrom = target?.mode === "renew" ? target.row : null;
   const [form, setForm] = useState(() => blank(defaultCurrency));
 
   useEffect(() => {
     if (!target) return;
     setForm(
-      held
+      renewFrom
+        ? successorOf(renewFrom)
+        : held
         ? {
             contractNo: held.contractNo,
             name: held.name,
@@ -373,8 +456,7 @@ function ContractDrawer({
 
   const submit = () =>
     start(async () => {
-      const r = await onSave({
-        contractId: held?.id ?? null,
+      const fields = {
         accountId,
         contractNo: form.contractNo,
         name: form.name,
@@ -386,7 +468,10 @@ function ContractDrawer({
         termEnd: form.termEnd || null,
         noticeDays: Number(form.noticeDays),
         signedAt: form.signedAt || null,
-      });
+      };
+      const r = renewFrom
+        ? await onRenew({ ...fields, fromId: renewFrom.id })
+        : await onSave({ ...fields, contractId: held?.id ?? null });
       if (!r.ok) {
         toast({ tone: "danger", title: CONTRACT_ERROR[r.error ?? "denied"] ?? CONTRACT_ERROR.denied });
         return;
@@ -400,7 +485,8 @@ function ContractDrawer({
       open={target !== null}
       onClose={onClose}
       width="sm"
-      title={held ? CONTRACT_TEXT.drawerEdit : CONTRACT_TEXT.drawerCreate}
+      title={renewFrom ? CONTRACT_TEXT.drawerRenew : held ? CONTRACT_TEXT.drawerEdit : CONTRACT_TEXT.drawerCreate}
+      description={renewFrom ? CONTRACT_TEXT.renewHint(renewFrom.contractNo) : undefined}
       closeLabel={DS_LABELS.confirmCancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
@@ -466,6 +552,110 @@ function ContractDrawer({
         <Field>
           <FieldLabel>{CONTRACT_TEXT.fieldSigned}</FieldLabel>
           <Input type="date" value={form.signedAt} onChange={set("signedAt")} disabled={pending} />
+        </Field>
+      </div>
+    </Drawer>
+  );
+}
+
+/**
+ * The successor's starting point: same name, value, currency and notice; the
+ * term starts the day after the old one ends and runs as long. A proposal the
+ * person edits, not a guess the system commits - nothing is saved until Save.
+ */
+function successorOf(from: ContractRow) {
+  const DAY = 86_400_000;
+  const ymd = (t: number) => new Date(t).toISOString().slice(0, 10);
+  let termStart = "";
+  let termEnd = "";
+  if (from.termEnd) {
+    const end = Date.parse(`${from.termEnd}T00:00:00Z`);
+    termStart = ymd(end + DAY);
+    if (from.termStart) {
+      const length = end - Date.parse(`${from.termStart}T00:00:00Z`);
+      termEnd = ymd(end + DAY + length);
+    }
+  }
+  return {
+    contractNo: "",
+    name: from.name,
+    opportunityId: "",
+    status: "active",
+    totalAmount: from.totalAmount === null ? "" : String(from.totalAmount),
+    currency: from.currency,
+    termStart,
+    termEnd,
+    noticeDays: String(from.noticeDays),
+    signedAt: "",
+  };
+}
+
+function OutcomeDrawer({
+  target,
+  accountId,
+  onClose,
+  onRecord,
+}: {
+  readonly target: ContractRow | null;
+  readonly accountId: string;
+  readonly onClose: () => void;
+  readonly onRecord: ContractRosterProps["onRecordOutcome"];
+}) {
+  const { CONTRACT_TEXT, CONTRACT_ERROR, DS_LABELS } = useMessages();
+  const { toast } = useToast();
+  const [pending, start] = useTransition();
+  const [eventType, setEventType] = useState("lost");
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (!target) return;
+    setEventType("lost");
+    setReason("");
+  }, [target]);
+
+  const submit = () =>
+    start(async () => {
+      if (!target) return;
+      const r = await onRecord({ accountId, contractId: target.id, eventType, reason });
+      if (!r.ok) {
+        toast({ tone: "danger", title: CONTRACT_ERROR[r.error ?? "denied"] ?? CONTRACT_ERROR.denied });
+        return;
+      }
+      toast({ tone: "success", title: CONTRACT_TEXT.saved });
+      onClose();
+    });
+
+  return (
+    <Drawer
+      open={target !== null}
+      onClose={onClose}
+      width="sm"
+      title={CONTRACT_TEXT.drawerOutcome}
+      description={target ? `${target.name} · ${target.contractNo}` : undefined}
+      closeLabel={DS_LABELS.confirmCancel}
+      footer={
+        <div className="gap-sm flex items-center justify-end">
+          <Button variant="secondary" disabled={pending} onClick={onClose}>
+            {DS_LABELS.confirmCancel}
+          </Button>
+          <Button disabled={pending || reason.trim() === ""} onClick={submit}>
+            {CONTRACT_TEXT.save}
+          </Button>
+        </div>
+      }
+    >
+      <div className="gap-lg flex flex-col">
+        <Field>
+          <FieldLabel>{CONTRACT_TEXT.fieldOutcome}</FieldLabel>
+          <NativeSelect value={eventType} onChange={(e) => setEventType(e.target.value)} disabled={pending}>
+            <option value="lost">{CONTRACT_TEXT.outcomeLost}</option>
+            <option value="downgraded">{CONTRACT_TEXT.outcomeDowngraded}</option>
+          </NativeSelect>
+        </Field>
+        <Field>
+          <FieldLabel>{CONTRACT_TEXT.fieldReason}</FieldLabel>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} disabled={pending} maxLength={255} />
+          <FieldDescription>{CONTRACT_TEXT.outcomeAppendOnly}</FieldDescription>
         </Field>
       </div>
     </Drawer>

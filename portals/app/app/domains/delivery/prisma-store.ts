@@ -4,13 +4,15 @@ import { money, type Money } from "../shared/money";
 import type { MilestoneStatus, ProjectHealth, RevenueStatus } from "./lib/revenue";
 import type { MilestoneChangeDraft, MilestoneDraft } from "./lib/milestone";
 import { DEFAULT_RENEWAL_POLICY, type EngagementType, type RenewalPolicy } from "./lib/renewal";
-import type { ContractDraft, ContractStatus, PlannedContractLine } from "./lib/contract";
+import type { ContractDraft, ContractStatus, PlannedContractLine, RenewalEventType } from "./lib/contract";
 import type {
   ContractLinePatch,
   ContractLineRecord,
   ContractPatch,
   ContractRecord,
   DeliveryStore,
+  RenewalEventDraft,
+  RenewalEventRecord,
   InstalmentRecord,
   MilestoneChangeRecord,
   MilestoneRecord,
@@ -331,7 +333,11 @@ export class PrismaDeliveryStore implements DeliveryStore {
     return row !== null;
   }
 
-  async createContract(workspaceId: string, draft: ContractDraft): Promise<ContractRecord> {
+  async createContract(
+    workspaceId: string,
+    draft: ContractDraft,
+    renewedFrom: string | null = null,
+  ): Promise<ContractRecord> {
     const p = await getPrismaClient();
     // The frozen keys are written HERE and only here - an INSERT is the one
     // statement the grant lets set them.
@@ -349,9 +355,18 @@ export class PrismaDeliveryStore implements DeliveryStore {
         noticeDays: draft.noticeDays,
         status: draft.status,
         signedAt: draft.signedAt,
+        renewedFromContractId: renewedFrom,
       },
     });
-    return { ...toContract(row as Record<string, unknown>), lines: [] };
+    return { ...toContract(row as Record<string, unknown>), lines: [], events: [], renewedBy: null };
+  }
+
+  async appendRenewalEvent(workspaceId: string, event: RenewalEventDraft): Promise<RenewalEventRecord> {
+    const p = await getPrismaClient();
+    // create, and no update path anywhere: the table has SELECT and INSERT
+    // only (incr/0078).
+    const row = await p.renewalEvent.create({ data: { workspaceId, ...event } });
+    return toRenewalEvent(row as Record<string, unknown>);
   }
 
   async updateContract(workspaceId: string, id: string, patch: ContractPatch): Promise<boolean> {
@@ -413,16 +428,45 @@ export class PrismaDeliveryStore implements DeliveryStore {
   ): Promise<ContractRecord[]> {
     if (heads.length === 0) return [];
     const p = await getPrismaClient();
-    const lines = await p.contractLine.findMany({
-      where: { workspaceId, contractId: { in: heads.map((h) => String(h.id)) } },
-      orderBy: [{ createdAt: "asc" }],
-    });
+    const ids = heads.map((h) => String(h.id));
+    // Three more queries for ANY number of contracts: lines, events, and the
+    // successors that say which of these were renewed.
+    const [lines, events, successors] = await Promise.all([
+      p.contractLine.findMany({
+        where: { workspaceId, contractId: { in: ids } },
+        orderBy: [{ createdAt: "asc" }],
+      }),
+      p.renewalEvent.findMany({
+        where: { workspaceId, contractId: { in: ids } },
+        orderBy: [{ occurredAt: "asc" }],
+      }),
+      p.contract.findMany({
+        where: { workspaceId, renewedFromContractId: { in: ids } },
+        select: { id: true, renewedFromContractId: true },
+      }),
+    ]);
+    const eventsOf = new Map<string, RenewalEventRecord[]>();
+    for (const e of events as Record<string, unknown>[]) {
+      const ev = toRenewalEvent(e);
+      eventsOf.set(ev.contractId, [...(eventsOf.get(ev.contractId) ?? []), ev]);
+    }
+    const renewedBy = new Map(
+      (successors as Array<{ id: string; renewedFromContractId: string | null }>).map((s) => [
+        String(s.renewedFromContractId),
+        s.id,
+      ]),
+    );
     const byContract = new Map<string, ContractLineRecord[]>();
     for (const l of lines as Record<string, unknown>[]) {
       const line = toContractLine(l);
       byContract.set(line.contractId, [...(byContract.get(line.contractId) ?? []), line]);
     }
-    return heads.map((h) => ({ ...toContract(h), lines: byContract.get(String(h.id)) ?? [] }));
+    return heads.map((h) => ({
+      ...toContract(h),
+      lines: byContract.get(String(h.id)) ?? [],
+      events: eventsOf.get(String(h.id)) ?? [],
+      renewedBy: renewedBy.get(String(h.id)) ?? null,
+    }));
   }
 }
 
@@ -445,6 +489,7 @@ function toProject(r: Record<string, unknown>): ProjectRecord {
     // one_off here too rather than as undefined - which would make
     // assessRenewal's first branch depend on how old the row is.
     engagementType: (r.engagementType as EngagementType | undefined) ?? "one_off",
+    contractId: (r.contractId as string | null | undefined) ?? null,
   };
 }
 
@@ -480,7 +525,19 @@ function num(value: unknown): number {
   return Number(String(value));
 }
 
-function toContract(r: Record<string, unknown>): Omit<ContractRecord, "lines"> {
+function toRenewalEvent(r: Record<string, unknown>): RenewalEventRecord {
+  return {
+    id: String(r.id),
+    contractId: String(r.contractId),
+    eventType: r.eventType as RenewalEventType,
+    successorContractId: (r.successorContractId as string | null) ?? null,
+    reason: (r.reason as string | null) ?? null,
+    actorSub: (r.actorSub as string | null) ?? null,
+    occurredAt: r.occurredAt as Date,
+  };
+}
+
+function toContract(r: Record<string, unknown>): Omit<ContractRecord, "lines" | "events" | "renewedBy"> {
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),

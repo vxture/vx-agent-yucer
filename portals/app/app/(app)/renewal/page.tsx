@@ -88,10 +88,15 @@ export default async function RenewalPage() {
     currency: c.project.currency,
     risk: c.verdict.kind === "due" ? c.verdict.risk : null,
     notDueReason: c.verdict.kind === "not_due" ? c.verdict.reason : null,
+    anchorContractNo: c.anchor?.contractNo ?? null,
   }));
 
   const due = rows.filter((r) => r.notDueReason === null);
-  const lapsed = due.filter((r) => r.daysToEnd !== null && r.daysToEnd < 0);
+  // Past the date, split by what the date WAS (L4 batch two): a project's end
+  // date passed means the term lapsed; a contract's notice deadline passed
+  // means the term is still running but the window to tell them has closed.
+  const lapsed = due.filter((r) => r.daysToEnd !== null && r.daysToEnd < 0 && !r.anchorContractNo);
+  const noticeMissed = due.filter((r) => r.daysToEnd !== null && r.daysToEnd < 0 && r.anchorContractNo);
   const watch = due.filter((r) => r.risk === "watch");
   // One cell per project coming up, its term as the number: the breakdown
   // decomposes the headline the way every other module's does, and a negative
@@ -104,8 +109,12 @@ export default async function RenewalPage() {
       r.daysToEnd === null
         ? RENEWAL_TEXT.renewalStatNoDate
         : r.daysToEnd < 0
-          ? RENEWAL_TEXT.renewalStatLapsed(-r.daysToEnd)
-          : RENEWAL_TEXT.renewalStatDays(r.daysToEnd),
+          ? r.anchorContractNo
+            ? RENEWAL_TEXT.noticePassed(-r.daysToEnd)
+            : RENEWAL_TEXT.renewalStatLapsed(-r.daysToEnd)
+          : r.anchorContractNo
+            ? RENEWAL_TEXT.noticeIn(r.daysToEnd)
+            : RENEWAL_TEXT.renewalStatDays(r.daysToEnd),
   }));
 
   return (
@@ -119,6 +128,11 @@ export default async function RenewalPage() {
             {lapsed.length > 0 ? (
               <StatusBadge tone="danger">
                 {RENEWAL_TEXT.tagRenewalLapsed(lapsed.length)}
+              </StatusBadge>
+            ) : null}
+            {noticeMissed.length > 0 ? (
+              <StatusBadge tone="danger">
+                {RENEWAL_TEXT.tagNoticeMissed(noticeMissed.length)}
               </StatusBadge>
             ) : null}
             {watch.length > 0 ? (
