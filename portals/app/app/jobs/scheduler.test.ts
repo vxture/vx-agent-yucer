@@ -50,12 +50,14 @@ test("stage decides: deployed on by default, dev off by default, JOBS_SCHEDULER 
   assert.equal(schedulerEnabled().enabled, true);
 });
 
-test("the default jobs are the sweep, the flush, and strategy snapshots, with sane periods and a floor on overrides", () => {
+test("the default jobs are the sweep, the flush, strategy snapshots and the upsell sweep, with sane periods and a floor on overrides", () => {
   const jobs = defaultJobs({});
-  assert.deepEqual(jobs.map((j) => j.name), ["commitment-sweep", "usage-flush", "strategy-snapshots"]);
+  assert.deepEqual(jobs.map((j) => j.name), ["commitment-sweep", "usage-flush", "strategy-snapshots", "upsell-sweep"]);
   assert.equal(jobs[0].everyMs, 15 * 60_000);
   assert.equal(jobs[1].everyMs, 5 * 60_000);
   assert.equal(jobs[2].everyMs, 60 * 60_000);
+  // L4 batch six: daily - ownership moves at contract speed.
+  assert.equal(jobs[3].everyMs, 24 * 60 * 60_000);
   assert.equal(defaultJobs({ JOBS_INTERVAL_FLUSH_MS: "1000" })[1].everyMs, 5 * 60_000, "below the floor -> default");
   assert.equal(defaultJobs({ JOBS_INTERVAL_FLUSH_MS: "20000" })[1].everyMs, 20_000);
 });

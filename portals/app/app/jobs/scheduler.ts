@@ -1,6 +1,7 @@
 import { deployStage, isDeployedStage } from "../lib/deploy-stage";
 import { runCommitmentSweep } from "../domains/account/commitment-sweep";
 import { runStrategySnapshots } from "../domains/strategy/snapshot-job";
+import { runUpsellSweep } from "../domains/delivery/upsell-sweep";
 import { flushUsage } from "../usage/lib/flush";
 import { listActiveWorkspaces } from "./workspaces";
 import { acquireJobLock, type LockOutcome } from "./lock";
@@ -109,6 +110,14 @@ export function defaultJobs(env: Record<string, string | undefined> = process.en
       name: "strategy-snapshots",
       everyMs: intervalFrom(env, "JOBS_INTERVAL_SNAPSHOT_MS", 60 * 60_000),
       run: async () => runStrategySnapshots({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
+    },
+    // L4 batch six (owner, 2026-09-22: 定时任务). Daily: ownership moves
+    // at contract speed, and a proposal a person rejected stays quiet for 90
+    // days regardless of how often this runs.
+    {
+      name: "upsell-sweep",
+      everyMs: intervalFrom(env, "JOBS_INTERVAL_UPSELL_MS", 24 * 60 * 60_000),
+      run: async () => runUpsellSweep({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
     },
   ];
 }

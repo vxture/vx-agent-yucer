@@ -100,6 +100,10 @@ export interface ContractRosterProps {
   readonly read: ContractReadState;
   readonly contracts: readonly ContractRow[];
   readonly owned: readonly OwnedRow[];
+  /** L4 batch six - sellable minus owned; `unknown` when the catalogue is. */
+  readonly whitespace?:
+    | { readonly state: "known"; readonly items: ReadonlyArray<{ id: string; name: string }> }
+    | { readonly state: "unknown" };
   readonly products: ReadonlyArray<{ id: string; name: string }>;
   readonly deals: ReadonlyArray<{ id: string; name: string }>;
   readonly defaultCurrency: string;
@@ -247,6 +251,22 @@ export function ContractRoster(props: ContractRosterProps) {
               </PanelList>
             )}
           </PanelCard>
+
+          {props.whitespace ? (
+            <PanelCard title={CONTRACT_TEXT.whitespaceTitle} description={CONTRACT_TEXT.whitespaceHint}>
+              {props.whitespace.state === "unknown" ? (
+                <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.whitespaceUnknown}</p>
+              ) : props.whitespace.items.length === 0 ? (
+                <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.whitespaceNone}</p>
+              ) : (
+                <div className="flex flex-wrap gap-xs">
+                  {props.whitespace.items.map((p) => (
+                    <Tag key={p.id}>{p.name}</Tag>
+                  ))}
+                </div>
+              )}
+            </PanelCard>
+          ) : null}
 
           {props.contracts.map((c) => (
             <PanelCard

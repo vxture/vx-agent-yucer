@@ -3912,3 +3912,22 @@ deck 出现入口。
 
 **多源冲突提示拆为批七 b**（owner 同日裁定）：需要模型判断两段原文是否矛盾、异步预扫描与
 结果存储，先出设计再开工。
+
+## 批次 18 - 客户全景图 L4 批六：白地与增购提案（2026-09-22）
+
+零 DDL、零新键、零新权限。白地 = 可售（`active` 状态）− 已购态；增购推荐进作战方案裁决队列。
+
+| 项 | 交付 | 位置 |
+|----|------|------|
+| 18a 规则 | `whitespace`（目录为空或读失败 → unknown，不返回「全是白地」）；`upsellCandidates`（同行业、有生效合同的同行 ≥ 3 家，已购率 ≥ 40%，按比例排序） | `domains/delivery/lib/whitespace.ts` |
+| 18b 巡检 | `runUpsellSweep` 进应用内调度器，每日一次：权益门、每户最多 2 条、待裁决去重、驳回 90 天内不再提；账本分列 proposed / alreadyQueued / skipped / unknownCatalogue / failed | `domains/delivery/upsell-sweep.ts`、`jobs/scheduler.ts` |
+| 18c 分组与文案 | 新能力分组 `account.upsell`「增购机会」；动作 `propose_upsell`「推荐增购」 | `copilot/lib/capability.ts`、messages |
+| 18d 界面 | 合同 tab 已购态之后加「白地」小节（在售未用的产品）；增购提案走既有作战方案/裁决队列，不新增卡片 | `contract-roster.tsx` |
+
+**owner 裁定（2026-09-22）**：新增「增购机会」分组；规则算、按同行已购率（置信度即该比例——
+与承诺巡检对规则产出置信度留空的做法不同，这里是实测比例而非模型自评，已在代码注释说明）；
+定时任务触发。
+
+**验收**：新增单测 9 条（白地减法与 unknown、同行筛选与阈值、无行业/同行不足、巡检的提案
+形态、去重、退市产品、空目录、驳回记忆）；全量单测全绿；本机 acc_demo_1 的白地为 3 个在售未用
+产品。demo 里只有一家有生效合同，同行不足 3 家，所以 demo 巡检不产生提案——这是规则按设计在工作。

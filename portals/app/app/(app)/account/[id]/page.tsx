@@ -120,7 +120,8 @@ import {
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag, TIER_ICON_SRC } from "../../components/tag";
 import { CapBadge, CapFooter, LayerLabel, PanoramaLegend } from "../../components/panorama-annotations";
-import { listProducts, pricingPolicy } from "../../../domains/catalog/service";
+import { listProductStatuses, listProducts, pricingPolicy } from "../../../domains/catalog/service";
+import { whitespace } from "../../../domains/delivery/lib/whitespace";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
 // D4 account detail (owner, 2026-09-20: 严格按照设计实施 - 栏1/栏2排版,
@@ -319,7 +320,7 @@ export default async function AccountDetailPage({
     ? policyRead.value.defaultCurrency
     : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [deals, projects, feed, proposals, stageRows, stageChanges, contractsRead, productsRead] = await Promise.all([
+  const [deals, projects, feed, proposals, stageRows, stageChanges, contractsRead, productsRead, statusesRead] = await Promise.all([
     listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
     cachedFeed(base),
@@ -336,6 +337,9 @@ export default async function AccountDetailPage({
     // Product names for the lines and 已购态, and the options the line
     // drawer offers - the page composes D7 with D9, D7 never reads D9.
     listProducts({ ...base, store: getCatalogStore() }),
+    // 白地 (L4 batch six) needs to know which products are SELLABLE - the
+    // `active` status - not merely which exist.
+    listProductStatuses({ ...base, store: getCatalogStore() }),
   ]);
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
   const openStages = openStageOrder(stageDefinitions);
@@ -509,6 +513,21 @@ export default async function AccountDetailPage({
     quantity: o.quantity,
     runsUntil: ymd(o.runsUntil),
   }));
+  // 白地 (§9.3): sellable minus 已购态. An unreadable catalogue is `unknown`,
+  // never "everything" - see lib/whitespace.ts.
+  const activeStatus = new Set(
+    (statusesRead.ok ? statusesRead.value : []).filter((s) => s.statusCode === "active").map((s) => s.id),
+  );
+  const sellableIds =
+    productsRead.ok && statusesRead.ok
+      ? productsRead.value.filter((p) => activeStatus.has(p.statusId)).map((p) => p.id)
+      : null;
+  const space = whitespace(sellableIds, new Set(ownedRows.map((o) => o.productId)));
+  const whitespaceView =
+    space.state === "known"
+      ? { state: "known" as const, items: space.productIds.map((pid) => ({ id: pid, name: productNameOf.get(pid) ?? pid })) }
+      : { state: "unknown" as const };
+
   const canRenewContract = can(
     session.authz,
     session.entitlement,
@@ -1196,6 +1215,7 @@ export default async function AccountDetailPage({
                     read={contractRead}
                     contracts={contractRows}
                     owned={ownedRows}
+                    whitespace={whitespaceView}
                     products={(productsRead.ok ? productsRead.value : []).map((p) => ({ id: p.id, name: p.name }))}
                     deals={dealRows.filter((d) => d.status !== "lost").map((d) => ({ id: d.id, name: d.name }))}
                     defaultCurrency={defaultCurrency}
