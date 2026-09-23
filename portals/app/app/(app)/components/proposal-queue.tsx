@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Badge,
   BulkActionBar,
@@ -57,10 +58,26 @@ import { Tag } from "./tag";
 // Every element here is a DS component. The only thing this file adds is the
 // binding to yucer's domain semantics.
 
+/** A proposal's subject as the reader should meet it: its name, the page
+ *  where its full context lives, and (for a deal) whose it is. */
+export interface ProposalSubjectView {
+  readonly name: string;
+  readonly href: string;
+  readonly context?: string | null;
+}
+
 export interface ProposalQueueProps {
   readonly actions: readonly AgentAction[];
   /** False when the member lacks copilot.decide; the queue becomes read-only. */
   readonly canDecide: boolean;
+  /**
+   * `${subjectType}:${subjectId}` -> name and page, resolved by the page
+   * through the member's scoped stores. Absent key: the subject is not one
+   * this member can open (or has no page), and the row falls back to its id.
+   */
+  readonly subjects?: Readonly<Record<string, ProposalSubjectView>>;
+  /** sub -> display name, so the decider column names a person. */
+  readonly deciderNames?: Readonly<Record<string, string>>;
   /**
    * Sends the SELECTION and the verdict - never a computed patch.
    *
@@ -92,7 +109,10 @@ export function ProposalQueue({
   actions,
   canDecide,
   onDecide,
+  subjects = {},
+  deciderNames = {},
 }: ProposalQueueProps) {
+  const subjectOf = (a: AgentAction) => subjects[`${a.subjectType}:${a.subjectId}`];
   const {
     ACTION_STATUS_LABEL,
     AGENT_ACTION_LABEL,
@@ -117,9 +137,10 @@ export function ProposalQueue({
      working mode of this page, and scrolling past a hundred decided rows to
      find it is the thing the filter removes.
 
-     The box searches the RATIONALE, which is the only free text on the row.
-     Searching the action type would duplicate the filter; searching the
-     subject id would search a uuid. */
+     The box searches the RATIONALE and the SUBJECT'S NAME - "what did it
+     propose about 华东零售" is the question a reader brings. Searching the
+     action type would duplicate the filter; a subject with no resolved name
+     is not searched, because its id is a uuid. */
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const narrowed = query.trim() !== "" || statusFilter !== "";
@@ -127,10 +148,12 @@ export function ProposalQueue({
     const q = query.trim().toLowerCase();
     return actions.filter(
       (a) =>
-        (q === "" || (a.rationale ?? "").toLowerCase().includes(q)) &&
+        (q === "" ||
+          (a.rationale ?? "").toLowerCase().includes(q) ||
+          (subjects[`${a.subjectType}:${a.subjectId}`]?.name ?? "").toLowerCase().includes(q)) &&
         (statusFilter === "" || a.status === statusFilter),
     );
-  }, [actions, query, statusFilter]);
+  }, [actions, query, statusFilter, subjects]);
 
   // Only pending proposals are selectable. A decided one is history.
   const pending = useMemo(
@@ -236,16 +259,37 @@ export function ProposalQueue({
       // CHECK behind it, so it gets a label; the id stays because it is how a
       // reader tells two proposals on the same kind of thing apart, and it is
       // marked as machine text rather than dressed as a name.
-      cell: (row) => (
-        <span className="flex flex-col gap-3xs">
-          <Badge variant="secondary">
-            {AGENT_SUBJECT_LABEL[row.subjectType] ?? row.subjectType}
-          </Badge>
-          <span className="text-muted-foreground font-mono text-body-sm">
-            {row.subjectId}
+      //
+      // BY NAME, AND ONE CLICK FROM ITS CONTEXT (YC-021 L6: decide in full
+      // context, not on a summary row). The name links to the page where the
+      // proposal sits among everything else known about that customer or deal
+      // - its health, its chain, its follow-ups - which is the context this
+      // row can never hold. A deal also names its customer. The id remains
+      // only where no name could be resolved.
+      cell: (row) => {
+        const subject = subjectOf(row);
+        return (
+          <span className="flex flex-col gap-3xs">
+            <Badge variant="secondary">
+              {AGENT_SUBJECT_LABEL[row.subjectType] ?? row.subjectType}
+            </Badge>
+            {subject ? (
+              <>
+                <Link href={subject.href} className="text-body-sm hover:underline">
+                  {subject.name}
+                </Link>
+                {subject.context ? (
+                  <span className="text-muted-foreground text-body-sm">{subject.context}</span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-muted-foreground font-mono text-body-sm">
+                {row.subjectId}
+              </span>
+            )}
           </span>
-        </span>
-      ),
+        );
+      },
     },
     {
       id: "rationale",
@@ -295,9 +339,13 @@ export function ProposalQueue({
             {PROPOSAL_TEXT.autopilotMarker}
           </StatusBadge>
         ) : row.decidedBySub ? (
-          <span className="text-muted-foreground font-mono text-body-sm">
-            {row.decidedBySub}
-          </span>
+          deciderNames[row.decidedBySub] ? (
+            <span className="text-body-sm">{deciderNames[row.decidedBySub]}</span>
+          ) : (
+            <span className="text-muted-foreground font-mono text-body-sm">
+              {row.decidedBySub}
+            </span>
+          )
         ) : (
           <span className="text-muted-foreground">-</span>
         ),

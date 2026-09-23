@@ -5,7 +5,9 @@ import {
   getAccountStore,
   getCopilotStore,
 } from "../../domains/shared/registry";
-import { getAccountDetail } from "../../domains/account/service";
+import { getAccountDetail, listAccounts } from "../../domains/account/service";
+import { listPipeline } from "../../domains/pipeline/service";
+import { getAuthzStore } from "../../authz/store";
 import {
   expireStaleProposals,
   getAutonomy,
@@ -16,7 +18,7 @@ import { MAX_PLAYBOOKS } from "../../domains/copilot/turn-service";
 import { can } from "../../authz/decide";
 import { CopilotChat, type ChatMessageView } from "../components/copilot-chat";
 import { PlaybookCatalog } from "../components/playbook-catalog";
-import { ProposalQueue } from "../components/proposal-queue";
+import { ProposalQueue, type ProposalSubjectView } from "../components/proposal-queue";
 import { AutonomyPanel } from "../components/autonomy-panel";
 import { adjudicateProposals, changeAutonomy } from "./actions";
 import { askCopilot } from "./ask-action";
@@ -95,6 +97,36 @@ export default async function CopilotPage({
     );
   }
 
+  // WHAT EACH PROPOSAL IS ABOUT, BY NAME, AND WHERE ITS CONTEXT LIVES (YC-021
+  // L6 进裁决队列: decide in full context, not on a summary row). The queue
+  // printed a type badge and a raw uuid - nothing a reader could decide on and
+  // no way to reach the customer or deal the proposal would act on. Resolved
+  // here through the member's SCOPED stores, so a subject they may not see
+  // stays an id: the queue must not become a way to read names past the scope.
+  // Only accounts and deals have a page to open; other kinds keep their id.
+  const needs = (t: string) => proposals.value.some((a) => a.subjectType === t);
+  const [subjectAccounts, subjectDeals, members] = await Promise.all([
+    needs("account") || needs("opportunity")
+      ? listAccounts({ ...ctx, store: session.stores.account() })
+      : null,
+    needs("opportunity")
+      ? listPipeline({ ...ctx, store: session.stores.pipeline() }, { includeClosed: true })
+      : null,
+    getAuthzStore().listMembers(session.workspaceId),
+  ]);
+  const accountName = new Map((subjectAccounts?.ok ? subjectAccounts.value : []).map((a) => [a.id, a.name]));
+  const subjects: Record<string, ProposalSubjectView> = {};
+  for (const [id, name] of accountName) subjects[`account:${id}`] = { name, href: `/account/${id}` };
+  for (const d of subjectDeals?.ok ? subjectDeals.value : []) {
+    subjects[`opportunity:${d.id}`] = {
+      name: d.name,
+      href: `/pipeline/${d.id}`,
+      context: d.accountId ? (accountName.get(d.accountId) ?? null) : null,
+    };
+  }
+  const deciderNames: Record<string, string> = {};
+  for (const m of members) if (m.displayName) deciderNames[m.sub] = m.displayName;
+
   // Resume the most recent session rather than opening a new one on every page
   // load: a copilot that forgets the last exchange every time you navigate is
   // not a copilot.
@@ -163,6 +195,8 @@ export default async function CopilotPage({
             .allowed
         }
         onDecide={adjudicateProposals}
+        subjects={subjects}
+        deciderNames={deciderNames}
       />
       {/* BELOW THE QUEUE, ABOVE THE PLAYS. A reader arrives to work the queue,
           so the queue comes first; but "how much did it do without asking me"
