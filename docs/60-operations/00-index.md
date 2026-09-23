@@ -1936,6 +1936,10 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 并隐藏最后一个子 `div`（空正文区）。它依赖 DS `Section` 内部「标题容器在前、正文
 容器在后」的结构；DS 改了这个结构，垫片会静默失效（收起后重新出现线和空白），不会报错。
 
+**同一处的第二个垫片（2026-09-23）**：DS 标题行把操作区钉在底部（`self-end`），标题一变高
+（收起后多出摘要行、或两行标题），「⋮」和收起按钮就上下跳动。`ACTION_TOP_CLASS` 把可收起卡片的
+操作区固定靠上，同样依赖 DS 内部结构。
+
 **收回条件**：DS 的 `Section` 提供收起态（或至少转发 `divider` 且在无子元素时不渲染
-正文容器）之后，删掉 `COLLAPSED_CLASS`，改用 DS 自己的能力；`CollapsibleSection`
+正文容器）之后，删掉 `COLLAPSED_CLASS`（DS 若同时提供操作区对齐选项，一并删掉 `ACTION_TOP_CLASS`），改用 DS 自己的能力；`CollapsibleSection`
 其余部分（切换按钮、收起时的摘要行、默认展开）不受影响。

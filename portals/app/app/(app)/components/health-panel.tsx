@@ -127,6 +127,9 @@ export function HealthPanel({
     // own toggle used to leave the header divider and an empty band behind.
     <CollapsibleSection
       summary={collapsedSummary}
+      // Every panel title carries its icon (owner, 2026-09-23: 客户评估标题
+      // 没有 icon) - gauge, because this card IS a score.
+      icon="gauge"
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={
