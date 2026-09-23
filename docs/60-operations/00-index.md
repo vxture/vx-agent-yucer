@@ -40,6 +40,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
 | TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | **closed 2026-09-22**（26 项权限、31 个预置角色、420 条授权，逐条核对 catalog.ts 镜像） |
+| TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（`collapsible-section.tsx` 垫着；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1918,3 +1919,23 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 是本侧核对不够仔细，不是 DS 真的有两个不同的缺口。已经删掉 `RingGauge`，
 改为给 `ScoreRing` 加一个可选 `size` prop 直接复用；这一条不留独立记录，
 后续同类缺口先并入 TD-009，见那条的更新。
+
+### TD-034 - DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区
+
+**发现于**：owner 2026-09-23 报告客户评估（L5）卡收起后「有一条线，下面有些空白」。
+随后要求客户详情页左栏与中间区所有板块都能展开收起，收起后彻底收起、标题下一行
+小字写仍需关注的重点。
+
+**缺什么**：`Section` 不接受收起态，也不把 `divider` 转给 `SectionHeader`——level 2
+标题总带底部分隔线（`border-b pb-md`），正文容器（`flex flex-col gap-md`）无论有没有
+子元素都渲染，并与标题之间隔一个 `gap-md`。只清空正文时，分隔线、间距和卡片内边距
+都还在。
+
+**垫片位置**：`portals/app/app/(app)/components/collapsible-section.tsx` 的
+`COLLAPSED_CLASS`——仅在 `data-collapsed="true"` 时去掉标题容器的 `border-b`/`pb`，
+并隐藏最后一个子 `div`（空正文区）。它依赖 DS `Section` 内部「标题容器在前、正文
+容器在后」的结构；DS 改了这个结构，垫片会静默失效（收起后重新出现线和空白），不会报错。
+
+**收回条件**：DS 的 `Section` 提供收起态（或至少转发 `divider` 且在无子元素时不渲染
+正文容器）之后，删掉 `COLLAPSED_CLASS`，改用 DS 自己的能力；`CollapsibleSection`
+其余部分（切换按钮、收起时的摘要行、默认展开）不受影响。

@@ -12,11 +12,11 @@ import {
   Button,
   EmptyState,
   Icon,
-  Section,
-} from "@vxture/design-ui";
+  } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { PageCrumbs } from "./page-crumbs";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CollapsibleSection } from "./collapsible-section";
 
 // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认).
 //
@@ -86,22 +86,25 @@ export function ChainSummaryList({
   readonly emptyTitle: string;
   readonly emptyDescription: string;
 }) {
-  const { CHAIN_TEXT } = useMessages();
+  const { CHAIN_TEXT, COLLAPSE_TEXT } = useMessages();
   const { chains, setActiveId } = useChainView();
   const [expanded, setExpanded] = useState(false);
 
   if (chains.length === 0) {
     return (
-      <Section tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
+      <CollapsibleSection summary={null} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
         <EmptyState title={emptyTitle} description={emptyDescription} />
-      </Section>
+      </CollapsibleSection>
     );
   }
 
   const visible = expanded ? chains : chains.slice(0, CAP);
+  // Folded: deals whose economic buyer is not reachable through anyone.
+  const unreachedCount = chains.filter((c) => !c.reachable).length;
+  const unreachedSummary = unreachedCount > 0 ? COLLAPSE_TEXT.chainsUnreached(unreachedCount) : null;
 
   return (
-    <Section tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
+    <CollapsibleSection summary={unreachedSummary} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
       <div className="flex flex-col">
         {visible.map((c) => {
           const reachSummary = c.reachable
@@ -141,7 +144,7 @@ export function ChainSummaryList({
           {expanded ? CHAIN_TEXT.collapseChains : CHAIN_TEXT.showAllChains(chains.length)}
         </Button>
       ) : null}
-    </Section>
+    </CollapsibleSection>
   );
 }
 

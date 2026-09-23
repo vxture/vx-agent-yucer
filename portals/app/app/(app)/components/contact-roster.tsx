@@ -5,7 +5,6 @@ import {
   Button,
   EmptyState,
   Icon,
-  Section,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -13,6 +12,7 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CollapsibleSection } from "./collapsible-section";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The people inside a customer.
@@ -218,7 +218,10 @@ export function ContactRoster({
   recencyText,
   linkForm,
 }: ContactRosterProps) {
-  const { ACCOUNT_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, COLLAPSE_TEXT } = useMessages();
+  // Folded: how many people here nobody has reached recently (not warm).
+  const coldCount = contacts.filter((c) => recencyText[c.id] && !recencyText[c.id].warm).length;
+  const coldSummary = coldCount > 0 ? COLLAPSE_TEXT.contactsCold(coldCount) : null;
   const [expanded, setExpanded] = useState(false);
 
   const visible = expanded ? contacts : contacts.slice(0, CAP);
@@ -238,7 +241,7 @@ export function ContactRoster({
   // 纯文字链接, 视觉上让位给"关联"这个这张卡真正想引导的动作, 两者之间的
   // 间距也从按钮的内边距+gap 变成两段文字自己的 gap, 观感上更紧。
   return (
-    <Section
+    <CollapsibleSection summary={coldSummary}
       tone="raised"
       style={CARD_VEIL_STYLE}
       className={CARD_VEIL_CLASS}
@@ -305,6 +308,6 @@ export function ContactRoster({
         <br />
         <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
       </CapFooter>
-    </Section>
+    </CollapsibleSection>
   );
 }

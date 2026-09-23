@@ -4531,6 +4531,23 @@ export const CONTRACT_TEXT = {
   unknownProduct: "（目录中已不存在）",
 } as const;
 
+/** 板块收起后的一行重点 (owner, 2026-09-23: 彻底收起 + 一行重点)。
+ *  只说收起后仍需关注的事; 没有要关注的就不显示这一行。 */
+export const COLLAPSE_TEXT = {
+  contactsCold: (n: number) => `${n} 位联系人久未接触`,
+  chainsUnreached: (n: number) => `${n} 个商机的经济决策人未触达`,
+  gaps: (n: number) => `${n} 项档案待补`,
+  health: (score: number) => `健康 ${score}`,
+  concern: (text: string) => `首要问题：${text}`,
+  dealsOpen: (n: number) => `${n} 个开放商机`,
+  revenueOverdue: (n: number) => `${n} 笔回款逾期`,
+  contractDue: (days: number) => `合同 ${days} 天后到期`,
+  contractLapsed: "有合同已到期未续",
+  planPending: (n: number) => `${n} 条待裁决提案`,
+  conflictsPending: (n: number) => `${n} 处说法待确认`,
+  separator: " · ",
+} as const;
+
 /** 说法核对 (L2 批七 b, owner 2026-09-22: 手动按钮 / 复用提案 / 最近 20 条同一事实)。 */
 export const CONSISTENCY_TEXT = {
   button: "核对说法",

@@ -3,9 +3,7 @@
 import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
-  Icon,
   MetricGrid,
-  Section,
   StatusBadge,
   type MetricGridItem,
 } from "@vxture/design-ui";
@@ -14,6 +12,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { JudgementNote, type Judgement } from "./judgement-note";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
+import { CollapsibleSection } from "./collapsible-section";
 
 // Account health, with its reasons.
 //
@@ -65,7 +64,7 @@ export function HealthPanel({
   statusTag,
   judgement,
 }: HealthPanelProps) {
-  const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
+  const { ACCOUNT_TEXT, CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR, COLLAPSE_TEXT } = useMessages();
 
   // INSIDE the component, not at module scope. It was a module constant, which
   // reads as the cheaper thing to do - build the map once - and is wrong the
@@ -83,7 +82,6 @@ export function HealthPanel({
   const [current, setCurrent] = useState(health);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(true);
 
   function recompute() {
     setError(null);
@@ -112,11 +110,23 @@ export function HealthPanel({
     tone: c.points < 0 ? "danger" : c.points === 0 ? "neutral" : "success",
   }));
 
+  // Folded: the score and, when there is one, the single worst factor.
+  const concern = current.primaryConcern;
+  const collapsedSummary = [
+    COLLAPSE_TEXT.health(current.score),
+    concern && concern.points < 0 ? COLLAPSE_TEXT.concern(healthReasonText(concern.reason)) : null,
+  ]
+    .filter(Boolean)
+    .join(COLLAPSE_TEXT.separator);
+
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
   // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   return (
-    <Section
+    // Folding is the shared CollapsibleSection now (owner, 2026-09-23) - its
+    // own toggle used to leave the header divider and an empty band behind.
+    <CollapsibleSection
+      summary={collapsedSummary}
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={
@@ -139,20 +149,9 @@ export function HealthPanel({
               {CHAIN_TEXT.recompute}
             </Button>
           ) : null}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-expanded={expanded}
-            aria-label={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}
-            title={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}
-            onClick={() => setExpanded((v) => !v)}
-          >
-            <Icon name={expanded ? "chevron-up" : "chevron-down"} size="sm" />
-          </Button>
         </span>
       }
     >
-      {expanded ? (
         <>
           {judgement ? <JudgementNote judgement={judgement} /> : null}
 
@@ -178,7 +177,6 @@ export function HealthPanel({
             <CapBadge tier="pending">{ACCOUNT_TEXT.capPending}</CapBadge> {ACCOUNT_TEXT.capHealthPending}
           </CapFooter>
         </>
-      ) : null}
-    </Section>
+    </CollapsibleSection>
   );
 }

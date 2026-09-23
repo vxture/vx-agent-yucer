@@ -191,6 +191,7 @@ export default async function AccountDetailPage({
     ACCOUNT_TEXT,
     healthReasonText,
     POSITION_TEXT,
+    COLLAPSE_TEXT,
     CONTRACT_TEXT,
     CONTRACT_ERROR,
   } = await getMessages();
@@ -708,6 +709,22 @@ export default async function AccountDetailPage({
       };
     });
 
+  const rosterSummary = (() => {
+    const parts: string[] = [];
+    const openDeals = (deals.ok ? deals.value : []).filter((d) => d.status === "open").length;
+    if (openDeals > 0) parts.push(COLLAPSE_TEXT.dealsOpen(openDeals));
+    const overdue = revenueRows.filter((r) => r.overdue).length;
+    if (overdue > 0) parts.push(COLLAPSE_TEXT.revenueOverdue(overdue));
+    if (contractRows.some((c) => c.phase === "lapsed")) parts.push(COLLAPSE_TEXT.contractLapsed);
+    const soonest = contractRows
+      .filter((c) => c.phase === "in_force" && c.daysLeft !== null && c.daysLeft <= 90)
+      .map((c) => c.daysLeft as number)
+      .sort((a, b) => a - b)[0];
+    if (soonest !== undefined) parts.push(COLLAPSE_TEXT.contractDue(soonest));
+    if (pendingConflicts.length > 0) parts.push(COLLAPSE_TEXT.conflictsPending(pendingConflicts.length));
+    return parts.length > 0 ? parts.join(COLLAPSE_TEXT.separator) : null;
+  })();
+
   const completeness = await accountCompleteness(
     {
       ...fieldCtx,
@@ -1167,6 +1184,12 @@ export default async function AccountDetailPage({
           <AnalysisTabs
             id="account-lifecycle"
             icon="map-pin"
+            // 收起后的一行重点 (owner, 2026-09-23): what is still in the air
+            // across both layers - open deals and overdue money (L3), a
+            // contract lapsed or coming up within 90 days (L4), and any
+            // conflicting statements waiting to be confirmed.
+            collapsible
+            collapsedSummary={rosterSummary}
             title={
               <span className="inline-flex items-center gap-xs whitespace-nowrap">
                 <span>{ACCOUNT_TEXT.roster}</span>

@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Button,
   SegmentedControl,
-  Section,
   StatusBadge,
   Table,
   TableBody,
@@ -23,6 +22,7 @@ import { DecisionChainGraph, ROLE_ORDER } from "./decision-chain-graph";
 import { LinkContacts, type LinkContactsProps } from "./link-contacts";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CollapsibleSection } from "./collapsible-section";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // 决策角色 -> 图标 (owner, 2026-09-21: 决策角色在名称后用 tag(icon+文字) 体现).
@@ -174,7 +174,7 @@ export function DecisionChainDetail({
 
   return (
     <div className="flex flex-col gap-lg">
-      <Section
+      <CollapsibleSection summary={null}
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         // 标题行整合 (owner, 2026-09-21: 决策链展开页面信息应该整合一下 -
@@ -343,7 +343,7 @@ export function DecisionChainDetail({
           <br />
           <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capChainPro}
         </CapFooter>
-      </Section>
+      </CollapsibleSection>
 
       {linkForm ? (
         <LinkContacts {...linkForm} open={linkOpen} onOpenChange={setLinkOpen} />

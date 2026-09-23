@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { EmptyState, Section, Textarea } from "@vxture/design-ui";
+import { EmptyState, Textarea } from "@vxture/design-ui";
 import { CAPABILITIES } from "../../domains/copilot/lib/capability";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CollapsibleSection } from "./collapsible-section";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The theatre's next move.
@@ -148,7 +149,9 @@ export function TheatrePlan({
    */
   readonly accountId: string;
 }) {
-  const { ACCOUNT_TEXT, BOARD_TEXT, PROPOSAL_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, BOARD_TEXT, PROPOSAL_TEXT, COLLAPSE_TEXT } = useMessages();
+  // Folded: proposals still waiting for a person.
+  const pendingSummary = proposals.length > 0 ? COLLAPSE_TEXT.planPending(proposals.length) : null;
 
   const capCounts = new Map<string, number>();
   for (const p of proposals) {
@@ -189,7 +192,7 @@ export function TheatrePlan({
   // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   if (proposals.length === 0) {
     return (
-      <Section
+      <CollapsibleSection summary={null}
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         icon="target"
@@ -220,7 +223,7 @@ export function TheatrePlan({
           <br />
           <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capPlanPro}
         </CapFooter>
-      </Section>
+      </CollapsibleSection>
     );
   }
 
@@ -230,7 +233,7 @@ export function TheatrePlan({
   const groups = [...new Set(proposals.map((p) => p.group))];
 
   return (
-    <Section
+    <CollapsibleSection summary={pendingSummary}
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       icon="target"
@@ -308,6 +311,6 @@ export function TheatrePlan({
         <br />
         <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capPlanPro}
       </CapFooter>
-    </Section>
+    </CollapsibleSection>
   );
 }
