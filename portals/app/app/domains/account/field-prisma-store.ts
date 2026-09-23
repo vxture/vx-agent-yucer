@@ -92,6 +92,12 @@ export class PrismaFieldStore implements FieldStore {
     return rows.map((r: Record<string, unknown>) => toInteraction(r));
   }
 
+  async getInteraction(workspaceId: string, id: string): Promise<InteractionRecord | null> {
+    const p = await getPrismaClient();
+    const row = await p.interaction.findFirst({ where: { workspaceId, id } });
+    return row ? toInteraction(row as Record<string, unknown>) : null;
+  }
+
   async lastContactByContact(workspaceId: string, accountId: string): Promise<Map<string, Date>> {
     const p = await getPrismaClient();
 
