@@ -699,6 +699,7 @@ export const en: Dictionary = {
     confirmTitleTemplate: "{verb} {target}?",
     confirmCancel: "Cancel",
     confirmPending: "Working...",
+    dialogSave: "Save",
     actionMenu: "More actions",
     filterReset: "Reset filters",
     filterViewMode: "View mode",
@@ -1263,6 +1264,7 @@ export const en: Dictionary = {
     colPerson: "Person",
     colRole: "Role",
     colStance: "Stance",
+    colStanceInfluence: "Stance · influence",
     colInfluence: "Influence",
     colRelationship: "Relationship",
     colReachable: "Reachable",
@@ -2278,6 +2280,7 @@ export const en: Dictionary = {
     termsExpectedClose: "Expected close",
     termsForecast: "Forecast category",
     termsSubmit: "Save",
+    selectNone: "Not selected",
     termsSaved: "Saved",
     termsUnchanged: "Nothing changed",
     termsTerminalLocked:
@@ -3593,6 +3596,7 @@ export const en: Dictionary = {
     renewedTo: (no: string) => `renewed as ${no}`,
     renewalRisk: (level: RenewalRiskLevel) => `Renewal risk ${level}`,
     renewalRiskNone: "No risk signal hit",
+    linesHeading: "Contract lines",
     renewalRiskBasis: (b: RenewalRiskBasis): string => {
       switch (b.code) {
         case "notice_passed":

@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import {
   Button,
-  DialogForm,
   Field,
   FieldDescription,
   FieldGroup,
@@ -13,6 +12,7 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import {
   FORECAST_CATEGORIES,
   type ForecastCategory,
@@ -310,7 +310,7 @@ export function DealTerms({
                 }
                 disabled={pending}
               >
-                <option value="">-</option>
+                <option value="">{OPPORTUNITY_TEXT.selectNone}</option>
                 {contractTypes.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -333,7 +333,7 @@ export function DealTerms({
                 }
                 disabled={pending}
               >
-                <option value="">-</option>
+                <option value="">{OPPORTUNITY_TEXT.selectNone}</option>
                 {businessForms.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}

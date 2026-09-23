@@ -12,13 +12,13 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  ConfirmDestructive,
   useToast,
   Icon,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@vxture/design-ui";
+import { ConfirmDestructive } from "./confirm-destructive";
 import { CollapsibleSection } from "./collapsible-section";
 import { useAccountEdit } from "./account-edit-context";
 

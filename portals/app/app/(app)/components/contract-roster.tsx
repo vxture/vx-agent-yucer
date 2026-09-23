@@ -4,7 +4,6 @@ import type { RenewalRisk, RenewalRiskLevel } from "../../domains/delivery/lib/r
 import { useEffect, useState, useTransition } from "react";
 import {
   Button,
-  ConfirmDestructive,
   Drawer,
   Field,
   FieldDescription,
@@ -19,6 +18,7 @@ import {
   useToast,
   type StatusBadgeTone,
 } from "@vxture/design-ui";
+import { ConfirmDestructive } from "./confirm-destructive";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 import type { InstalledRevenue } from "../../domains/delivery/lib/contract";
@@ -381,7 +381,9 @@ export function ContractRoster(props: ContractRosterProps) {
                     <Icon name="chevron-right" size="xs" className="text-muted-foreground shrink-0 transition-transform group-open/d:rotate-90" />
                     <Tag tone={RISK_TONE[c.renewalRisk.level]}>{CONTRACT_TEXT.renewalRisk(c.renewalRisk.level)}</Tag>
                   </summary>
-                  <ul className="text-muted-foreground mt-2xs flex flex-col gap-3xs">
+                  {/* Framed (polish, 2026-09-24): opened, the basis ran straight
+                      into the line items below with nothing between them. */}
+                  <ul className="bg-muted/40 border-border text-muted-foreground mt-2xs flex flex-col gap-3xs rounded-md border px-sm py-xs">
                     {c.renewalRisk.basis.length === 0 ? (
                       <li>{CONTRACT_TEXT.renewalRiskNone}</li>
                     ) : (
@@ -404,6 +406,8 @@ export function ContractRoster(props: ContractRosterProps) {
                 </ul>
               ) : null}
 
+              {/* 明细 heading: the lines were the only unlabelled block on the card. */}
+              <p className="text-muted-foreground mt-sm text-label-sm font-bold">{CONTRACT_TEXT.linesHeading}</p>
               {c.lines.length === 0 ? (
                 <p className="mt-xs text-muted-foreground text-body-sm">{CONTRACT_TEXT.noLines}</p>
               ) : (

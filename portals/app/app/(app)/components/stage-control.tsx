@@ -163,7 +163,7 @@ export function StageControl({
             onChange={(e) => setTo(e.target.value as Stage)}
             disabled={pending}
           >
-            <option value="">-</option>
+            <option value="">{OPPORTUNITY_TEXT.selectNone}</option>
             {choices.map((s) => (
               <option key={s} value={s}>
                 {stageLabelFor(s, stageDefinitions, STAGE_LABEL)} ({defaultProbabilityFor(s, stageDefinitions)}%)

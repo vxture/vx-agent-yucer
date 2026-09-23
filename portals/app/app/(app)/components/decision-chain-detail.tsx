@@ -297,13 +297,16 @@ export function DecisionChainDetail({
             </div>
           ) : null}
           {view === "table" ? (
+            <div className="-mx-2xs overflow-x-auto px-2xs [&_td]:px-xs [&_th]:px-xs">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{CHAIN_TEXT.colPerson}</TableHead>
                   <TableHead>{CHAIN_TEXT.colRole}</TableHead>
-                  <TableHead>{CHAIN_TEXT.colStance}</TableHead>
-                  <TableHead>{CHAIN_TEXT.colInfluence}</TableHead>
+                  {/* 立场 and 影响力 share a column (polish, 2026-09-24): six
+                      columns did not fit the ~580px centre - 关系 was cut and
+                      可达 fell off the card. Both stay visible, stacked. */}
+                  <TableHead>{CHAIN_TEXT.colStanceInfluence}</TableHead>
                   <TableHead>{CHAIN_TEXT.colRelationship}</TableHead>
                   <TableHead>{CHAIN_TEXT.colReachable}</TableHead>
                 </TableRow>
@@ -319,14 +322,18 @@ export function DecisionChainDetail({
                       {/* 徽标表示人，不是角色 (owner, 2026-09-21) - 跟 sidebar
                           联系人卡片(contact-roster.tsx 的 ContactCard)同一个
                           "姓氏圆圈"惯例, 不是角色首字。 */}
-                      <TableCell>
+                      {/* min width + no wrap (polish, 2026-09-24): in the ~580px
+                          centre the auto layout squeezed this column until a name
+                          and its title stacked one character per line, and the
+                          可达 column fell off the card. */}
+                      <TableCell className="min-w-[9rem]">
                         <div className="gap-sm flex items-center">
                           <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
                             {nameOf(p.id).charAt(0)}
                           </span>
                           <div className="min-w-0">
                             <div className="gap-xs flex items-center">
-                              <span className="text-body-sm font-bold">{nameOf(p.id)}</span>
+                              <span className="text-body-sm font-bold whitespace-nowrap">{nameOf(p.id)}</span>
                               {/* 关键人异动: someone who left stays visible - the
                                   reachability verdict above has already stopped
                                   counting them, and the row says why. */}
@@ -335,35 +342,39 @@ export function DecisionChainDetail({
                               ) : null}
                             </div>
                             {titleOf(p.id) ? (
-                              <div className="text-muted-foreground text-body-sm">{titleOf(p.id)}</div>
+                              <div className="text-muted-foreground text-body-sm whitespace-nowrap">{titleOf(p.id)}</div>
                             ) : null}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Tag icon={ROLE_ICON[p.decisionRole]}>
-                          {DECISION_ROLE_ABBR[p.decisionRole]
-                            ? `${DECISION_ROLE_ABBR[p.decisionRole]} · ${DECISION_ROLE_LABEL[p.decisionRole]}`
-                            : (DECISION_ROLE_LABEL[p.decisionRole] ?? p.decisionRole)}
-                        </Tag>
+                        {/* The role's name only; the EB/TB/UB code moved to the
+                            hover title - "EB · 经济决策人" was the widest tag in a
+                            table that had run out of width. */}
+                        <span
+                          className="inline-flex whitespace-nowrap"
+                          title={DECISION_ROLE_ABBR[p.decisionRole] ?? undefined}
+                        >
+                          <Tag icon={ROLE_ICON[p.decisionRole]}>
+                            {DECISION_ROLE_LABEL[p.decisionRole] ?? p.decisionRole}
+                          </Tag>
+                        </span>
                       </TableCell>
                       <TableCell>
-                        {p.stance ? (
-                          <Tag tone={STANCE_TONE[p.stance]} icon={STANCE_ICON[p.stance]}>
-                            {STANCE_LABEL[p.stance] ?? p.stance}
-                          </Tag>
-                        ) : (
-                          <span className="text-muted-foreground text-body-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {tier ? (
-                          <Tag tone={TIER_TONE[tier]}>
-                            {INFLUENCE_TIER_LABEL[tier]} · {p.influence}
-                          </Tag>
-                        ) : (
-                          <span className="text-muted-foreground text-body-sm">—</span>
-                        )}
+                        <div className="flex flex-col items-start gap-2xs">
+                          {p.stance ? (
+                            <Tag tone={STANCE_TONE[p.stance]} icon={STANCE_ICON[p.stance]}>
+                              {STANCE_LABEL[p.stance] ?? p.stance}
+                            </Tag>
+                          ) : (
+                            <span className="text-muted-foreground text-body-sm">—</span>
+                          )}
+                          {tier ? (
+                            <Tag tone={TIER_TONE[tier]}>
+                              {INFLUENCE_TIER_LABEL[tier]} · {p.influence}
+                            </Tag>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {theirRelations.length > 0 ? (
@@ -405,6 +416,7 @@ export function DecisionChainDetail({
                 })}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <DecisionChainGraph coverage={coverage} people={people} contacts={contacts} relations={relations} />
           )}

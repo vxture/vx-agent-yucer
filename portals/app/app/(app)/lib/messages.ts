@@ -643,6 +643,8 @@ export const DS_LABELS = {
   confirmTitleTemplate: "{verb}{target}？",
   confirmCancel: "取消",
   confirmPending: "处理中…",
+  /** DialogForm's submit fallback (its default is "Save"). */
+  dialogSave: "保存",
 
   /** The row-level action trigger. Its default accessible name is English. */
   actionMenu: "更多操作",
@@ -2906,6 +2908,8 @@ export const FIELD_TEXT = {
   commitCloseNeedsEvidence: "选一条证明它完成了的跟进",
   commitWaive: "放弃",
   commitWaiveReason: "为什么放弃",
+  commitHandle: "处理",
+  commitHandleClose: "收起",
   commitMissed: "标记错过",
   commitEmpty: "还没有承诺",
   commitEmptyDescription:
@@ -3160,6 +3164,8 @@ export const OPPORTUNITY_TEXT = {
   termsExpectedClose: "预计成交",
   termsForecast: "预测类别",
   termsSubmit: "保存",
+  // A select's empty choice (polish, 2026-09-24): a bare "-" read as broken.
+  selectNone: "未选择",
   termsSaved: "已保存",
   termsUnchanged: "没有改动",
   termsTerminalLocked: "商机已关闭，赢率固定，不能再改",
@@ -4562,6 +4568,7 @@ export const CONTRACT_TEXT = {
   // 续约风险评分 (YC-021 L4, owner 2026-09-24: 规则分级 高/中/低).
   renewalRisk: (level: RenewalRiskLevel) => `续约风险 ${level === "high" ? "高" : level === "medium" ? "中" : "低"}`,
   renewalRiskNone: "没有命中任何风险信号",
+  linesHeading: "合同明细",
   renewalRiskBasis: (b: RenewalRiskBasis): string => {
     switch (b.code) {
       case "notice_passed":
@@ -6003,6 +6010,7 @@ export const CHAIN_TEXT = {
   colPerson: "联系人",
   colRole: "角色",
   colStance: "立场",
+  colStanceInfluence: "立场 · 影响力",
   colInfluence: "影响力",
   colRelationship: "关系",
   colReachable: "可达",

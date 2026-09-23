@@ -5,7 +5,6 @@ import {
   ActionMenu,
   Button,
   DataTable,
-  DialogForm,
   EmptyState,
   Field,
   FieldLabel,
@@ -17,6 +16,7 @@ import {
   TableTitleCell,
   type DataTableColumn,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,

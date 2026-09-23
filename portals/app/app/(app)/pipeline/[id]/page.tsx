@@ -48,6 +48,7 @@ import { saveBuyingRole } from "../buying-role-action";
 import { getAuthzStore } from "../../../authz/store";
 import { listCampaigns } from "../../../domains/strategy/service";
 import { RaisedCard } from "../../components/raised-card";
+import { nameCitations } from "../../lib/name-citations";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../../lib/card-veil";
 import { dealBrief } from "../../../domains/pipeline/lib/brief";
 import { displayRationale } from "../../lib/proposal-rationale";
@@ -264,7 +265,7 @@ export default async function OpportunityDetailPage({
       // an old claim look current and an evidenced one look asserted.
       freshness: j.freshness ?? null,
       source: j.source,
-      citations: j.citations,
+      citations: nameCitations(j.citations, (s) => memberNameOf.get(s)),
     }));
 
   // THE DERIVED HEALTH, as on the customer page (#378): an overdue instalment

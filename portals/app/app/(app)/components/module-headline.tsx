@@ -209,7 +209,11 @@ export function ModuleHeadline({
                   /* Hairline between neighbours only - survives wrapping, no
                      stray rule at a wrapped row's left edge (headline-card's
                      divider argument, verbatim). */
-                  className="border-border min-w-0 flex-1 basis-0 px-md py-sm not-first:border-l"
+                  // A FLOOR, so the row WRAPS instead of crushing (polish,
+                  // 2026-09-24): five cells in a ~565px card shrank until money
+                  // read "14,4..." and the 已交付 label stacked one character
+                  // per line on /delivery.
+                  className="border-border min-w-[9.5rem] flex-1 basis-0 px-md py-sm not-first:border-l"
                 >
                   {/* THOUSANDS SEPARATORS, ALWAYS. This cell was written for
                       counts - 5 products, 2 segments - and reads fine raw. The
@@ -226,7 +230,7 @@ export function ModuleHeadline({
                       it reads as small print beside its number, which is the
                       voice the note beneath already uses. */}
                   <div className="flex items-baseline gap-2xs">
-                    <span className="text-foreground truncate text-heading-4 tabular-nums">
+                    <span className="text-foreground truncate text-heading-4 tabular-nums" title={s.value.toLocaleString()}>
                       {s.value.toLocaleString()}
                     </span>
                     {share && total > 0 ? (
@@ -245,7 +249,7 @@ export function ModuleHeadline({
                         className={`size-xs shrink-0 rounded-full ${fill(s)}`}
                       />
                     ) : null}
-                    <span className="text-foreground">{s.name}</span>
+                    <span className="text-foreground whitespace-nowrap">{s.name}</span>
                     <span className="whitespace-nowrap">{s.note}</span>
                   </div>
                 </li>

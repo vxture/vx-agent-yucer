@@ -78,6 +78,9 @@ export interface Citation {
   daysAgo?: number;
   channel?: string;
   actorSub?: string;
+  /** Filled by the PAGE from the member directory, never by the rule - the
+   *  rule layer has no directory. Absent: the id is shown, marked as one. */
+  actorName?: string;
   text: string;
 }
 

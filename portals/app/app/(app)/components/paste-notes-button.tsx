@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import {
   Button,
-  DialogForm,
   Icon,
   Textarea,
   useToast,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
 import type { PasteNotesResult } from "../account/[id]/paste-notes-action";
 
