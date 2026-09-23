@@ -219,7 +219,7 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
           ) : settledRow ? (
             <span className="text-muted-foreground tabular-nums text-body-sm">{r.dueAt}</span>
           ) : (late ?? 0) > 0 ? (
-            <span className="text-(color:--danger-text) font-semibold tabular-nums text-body-sm">
+            <span className="text-destructive-text font-semibold tabular-nums text-body-sm">
               {DELIVERY_TEXT.overdueBy(late ?? 0)}
             </span>
           ) : (

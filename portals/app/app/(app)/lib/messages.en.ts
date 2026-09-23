@@ -5704,6 +5704,7 @@ export const en: Dictionary = {
       }
     },
     separator: "; ",
+    whoUnassigned: "Unassigned",
     who: (role: string, name: string | null) => (name ? `Talk to ${name} (${role})` : `Talk to the ${role} (unassigned)`),
   },
   ICP_TEXT: {

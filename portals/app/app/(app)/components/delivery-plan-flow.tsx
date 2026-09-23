@@ -92,7 +92,7 @@ const NODE = {
   },
   missed: {
     marker: "border-transparent bg-destructive text-white",
-    text: "text-(color:--danger-text)",
+    text: "text-destructive-text",
     edge: "border-l-destructive",
     icon: "x" as const,
   },
