@@ -106,6 +106,10 @@ export const en: Dictionary = {
     askedNote:
       "Asked. Its answer arrives as a proposal to accept - nothing is written to this record until somebody does.",
     joinFields: (fields: readonly string[]) => fields.join(", "),
+    notFilled: (field: string) => `${field} is not filled in`,
+    goFill: "Fill in",
+    structuralFix: "Go to territory planning →",
+    structuralFixHref: { regionUnplaced: "/planning" } as Record<string, string>,
     structural: {
       regionUnplaced:
         "No territory covers this region. The record itself is complete, but because nobody claims that ground this customer is visible to every territory member - the fix is the territory map, not this record.",
@@ -3613,6 +3617,12 @@ export const en: Dictionary = {
     orgUnitScale: "Scale",
     orgUnitNature: "Ownership",
     orgUnitType: "Type",
+    orgUnitMore: "More details",
+    orgUnitProvince: "Province",
+    orgUnitCreditCode: "Credit code",
+    orgUnitWebsite: "Website",
+    orgUnitEmployees: "Employees",
+    orgUnitNotFilled: "Not filled in",
     capBasic: "Basic",
     capPending: "Planned",
     panoramaLayerL1: "Account Profile",

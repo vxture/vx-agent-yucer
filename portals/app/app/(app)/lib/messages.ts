@@ -1934,6 +1934,10 @@ export const COMPLETENESS_TEXT = {
     "已经问了助手。它的答案会作为提案进入待裁决队列——采纳之后才写进这条记录。",
   /** 字段名的连接符。标点也是文案，中英文不同，所以不留在组件里（TD-002）。 */
   joinFields: (fields: readonly string[]) => fields.join("、"),
+  notFilled: (field: string) => `${field} 未填写`,
+  goFill: "去填写",
+  structuralFix: "去区域规划 →",
+  structuralFixHref: { regionUnplaced: "/planning" } as Record<string, string>,
   structural: {
     regionUnplaced:
       "这个区域没有被任何销售区域覆盖（未分区）。资料本身是填好的，但因为没人认领这块地，这家客户对所有区域成员都可见——修的是区域划分，不是这条记录。",
@@ -4312,6 +4316,14 @@ export const ACCOUNT_TEXT = {
   orgUnitScale: "规模",
   orgUnitNature: "性质",
   orgUnitType: "类型",
+  // 更多资料 (YC-021 L1: 字段可读可改) - 设计图卡面只放五项, 其余收在这里,
+  // 跟"下级单位"同一种展开方式。
+  orgUnitMore: "更多资料",
+  orgUnitProvince: "省份",
+  orgUnitCreditCode: "信用代码",
+  orgUnitWebsite: "官网",
+  orgUnitEmployees: "员工数",
+  orgUnitNotFilled: "未填写",
   capBasic: "基础",
   capPending: "待建",
   panoramaLayerL1: "客户档案",
