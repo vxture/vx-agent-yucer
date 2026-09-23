@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { EmptyState, Icon, Textarea } from "@vxture/design-ui";
 import { CAPABILITIES } from "../../domains/copilot/lib/capability";
@@ -157,6 +158,7 @@ export function TheatrePlan({
   readonly accountId: string;
 }) {
   const { ACCOUNT_TEXT, BOARD_TEXT, PROPOSAL_TEXT, COLLAPSE_TEXT } = useMessages();
+  const [showSilent, setShowSilent] = useState(false);
   // Folded: proposals still waiting for a person.
   const pendingSummary = proposals.length > 0 ? COLLAPSE_TEXT.planPending(proposals.length) : COLLAPSE_TEXT.planNone;
 
@@ -167,27 +169,47 @@ export function TheatrePlan({
     }
   }
 
+  // ONLY WHAT SPOKE (polish, owner 2026-09-24: 全部优化修改). All thirteen
+  // capabilities used to render, twelve of them as faded "0" chips - a wall of
+  // purple that said nothing. The ones with proposals show; the silent ones
+  // fold into one line that opens on demand.
+  const CHIP =
+    "text-label-sm inline-flex items-center gap-3xs rounded-[4px] border border-[#7c3aed20] bg-[linear-gradient(135deg,#7c3aed10,#6d28d910)] px-sm py-3xs font-extrabold tracking-wider text-[#7c3aed] dark:border-[#7c3aed30] dark:bg-[linear-gradient(135deg,#7c3aed18,#6d28d918)] dark:text-[#a78bfa]";
+  const active = CAPABILITIES.filter((cap) => (capCounts.get(cap) ?? 0) > 0);
+  const silent = CAPABILITIES.filter((cap) => (capCounts.get(cap) ?? 0) === 0);
   const counselorSummary = (
-    <div className="flex flex-col gap-sm">
+    <div className="flex flex-col gap-xs">
       <p className="text-muted-foreground text-label-sm font-bold">
         {ACCOUNT_TEXT.planCounselorOverview}
       </p>
-      <div className="flex flex-wrap gap-xs">
-        {CAPABILITIES.map((cap) => {
-          const count = capCounts.get(cap) ?? 0;
-          return (
-            <span
-              key={cap}
-              className="text-label-sm inline-flex items-center gap-3xs rounded-[4px] border border-[#7c3aed20] bg-[linear-gradient(135deg,#7c3aed10,#6d28d910)] px-sm py-3xs font-extrabold tracking-wider text-[#7c3aed] dark:border-[#7c3aed30] dark:bg-[linear-gradient(135deg,#7c3aed18,#6d28d918)] dark:text-[#a78bfa]"
-              style={{ opacity: count > 0 ? 1 : 0.45 }}
-            >
-              {BOARD_TEXT.capabilityLabels[cap] ?? cap}
-              {" "}
-              <span className="font-mono text-label-sm">{count}</span>
-            </span>
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-xs">
+        {active.map((cap) => (
+          <span key={cap} className={CHIP}>
+            {BOARD_TEXT.capabilityLabels[cap] ?? cap}{" "}
+            <span className="font-mono text-label-sm">{capCounts.get(cap)}</span>
+          </span>
+        ))}
+        {silent.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowSilent((v) => !v)}
+            aria-expanded={showSilent}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2xs text-body-sm"
+          >
+            <Icon name={showSilent ? "chevron-down" : "chevron-right"} size="xs" />
+            {ACCOUNT_TEXT.planSilentCaps(silent.length)}
+          </button>
+        ) : null}
       </div>
+      {showSilent && silent.length > 0 ? (
+        <div className="flex flex-wrap gap-xs">
+          {silent.map((cap) => (
+            <span key={cap} className={`${CHIP} opacity-45`}>
+              {BOARD_TEXT.capabilityLabels[cap] ?? cap}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <p className="text-muted-foreground text-body-sm">
         {ACCOUNT_TEXT.planProposalSummary(proposals.length)}
       </p>

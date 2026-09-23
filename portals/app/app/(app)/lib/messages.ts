@@ -4309,6 +4309,7 @@ export const ACCOUNT_TEXT = {
   planEmptyWhy:
     "没有提案时不是没有问题，是还没有人问。向参谋提问会产出建议动作。",
   planCounselorOverview: "参谋能力概览",
+  planSilentCaps: (n: number) => `其余 ${n} 项暂无提案`,
   planCounselorCount: (n: number) => `${n} 项参谋能力`,
   planProposalSummary: (n: number) =>
     `共 ${n} 条待裁决提案，已在右侧副驾面板展示`,

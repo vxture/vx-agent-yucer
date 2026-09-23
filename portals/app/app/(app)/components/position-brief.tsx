@@ -63,6 +63,9 @@ export async function PositionBrief({
     <div className="flex flex-col gap-md">
       {/* ---- The other side ------------------------------------------------ */}
       <Card className="p-md">
+        {/* One child: the DS Card gaps its direct children, which with the
+            mt-md below left a blank band under every title (polish 2026-09-24). */}
+        <div>
         <SectionHeader
           level={3}
           title={POSITION_TEXT.external}
@@ -130,10 +133,14 @@ export async function PositionBrief({
             </blockquote>
           ))}
         </div>
+        </div>
       </Card>
 
       {/* ---- Our side ------------------------------------------------------ */}
       <Card className="p-md">
+        {/* One child: the DS Card gaps its direct children, which with the
+            mt-md below left a blank band under every title (polish 2026-09-24). */}
+        <div>
         <SectionHeader
           level={3}
           title={POSITION_TEXT.internal}
@@ -161,10 +168,14 @@ export async function PositionBrief({
             </div>
           )}
         </div>
+        </div>
       </Card>
 
       {/* ---- The plan ------------------------------------------------------ */}
       <Card className="p-md">
+        {/* One child: the DS Card gaps its direct children, which with the
+            mt-md below left a blank band under every title (polish 2026-09-24). */}
+        <div>
         <SectionHeader
           level={3}
           title={POSITION_TEXT.plan}
@@ -204,6 +215,7 @@ export async function PositionBrief({
             {POSITION_TEXT.planAccountLevel(accountLevel.count)}
           </Link>
         ) : null}
+        </div>
       </Card>
     </div>
   );
