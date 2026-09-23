@@ -4,11 +4,13 @@ import { can } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
 import {
   getAccountStore,
+  getDeliveryStore,
   getFieldStore,
   getPlanningStore,
   getStrategyStore,
 } from "../../domains/shared/registry";
 import {
+  accountStatuses,
   listAccounts,
   workspaceCompleteness,
 } from "../../domains/account/service";
@@ -82,6 +84,14 @@ export default async function AccountPage() {
       />
     );
   }
+
+  // 状态标签, derived from the facts (YC-021 L5): three workspace reads for
+  // the whole roster. A failed read leaves the tags off, never the stale column.
+  const statusRead = await accountStatuses(
+    { ...ctx, store: session.stores.account(), pipeline: session.stores.pipeline(), delivery: getDeliveryStore() },
+    result.value.map((a) => a.id),
+    now,
+  ).catch(() => null);
 
   // Names live on the account row, not on the commitment - an overdue promise
   // that shows a UUID is one nobody chases.
@@ -165,6 +175,7 @@ export default async function AccountPage() {
             reason. */}
         <AccountTable
           rows={result.value}
+          statusOf={statusRead?.ok ? statusRead.value : null}
           buyerUnreachable={
             new Set(feed.ok ? feed.value.unreachableAccountIds : [])
           }

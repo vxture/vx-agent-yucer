@@ -18,7 +18,7 @@ import { attainment, listTerritories } from "../../../domains/planning/service";
 import { listProjects, projectView } from "../../../domains/delivery/service";
 import { DEFAULT_PERIOD } from "../../lib/periods";
 import { listCommitments } from "../../../domains/account/field-service";
-import { listAccounts } from "../../../domains/account/service";
+import { accountStatuses, listAccounts } from "../../../domains/account/service";
 import { accountMatchesCriteria } from "../../../domains/strategy/lib/lifecycle";
 import { fact, visibleFacts, type DomainFact } from "../../lib/domain-facts";
 import type { AppSession } from "../../lib/session";
@@ -133,9 +133,18 @@ async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
   ]);
 
   const openDeals = deals.ok ? deals.value.filter((d) => d.status === "open").length : null;
+  // Active by the DERIVED status (YC-021 L5), not the stored column nothing
+  // writes after creation. Unreadable: no number, not a stale one.
+  const statuses = accounts.ok
+    ? await accountStatuses(
+        { ...ctx, store: ctx.stores.account(), pipeline: ctx.stores.pipeline(), delivery: getDeliveryStore() },
+        accounts.value.map((a) => a.id),
+      ).catch(() => null)
+    : null;
+  const activeAccounts = statuses?.ok ? [...statuses.value.values()].filter((s) => s === "active").length : null;
 
   return visibleFacts([
-    fact("activeAccounts", accounts.ok ? accounts.value.filter((a) => a.status === "active").length : null, "/account"),
+    fact("activeAccounts", activeAccounts, "/account"),
     fact("openDeals", openDeals, "/pipeline"),
     fact("overdueCommitments", len(overdue), "/account", true),
     fact("pendingReviews", len(reviews), "/pipeline#winloss", true),

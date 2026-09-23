@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
-import { getPlanningStore } from "../../../domains/shared/registry";
+import { getDeliveryStore, getPlanningStore } from "../../../domains/shared/registry";
 import { listPipeline } from "../../../domains/pipeline/service";
-import { listAccounts } from "../../../domains/account/service";
+import { accountStatuses, listAccounts } from "../../../domains/account/service";
 import { listTerritories } from "../../../domains/planning/service";
 import { OpportunityForm } from "../../components/opportunity-form";
 import { createDeal } from "../stage-action";
@@ -44,6 +44,16 @@ export default async function NewOpportunityPage() {
     listTerritories({ ...ctx, store: getPlanningStore() }),
   ]);
 
+  // The suggestion leaves churned customers out - by the DERIVED status
+  // (YC-021 L5). Unreadable: nobody is left out on a guess.
+  const statusRead = accounts.ok
+    ? await accountStatuses(
+        { ...ctx, store: session.stores.account(), pipeline: session.stores.pipeline(), delivery: getDeliveryStore() },
+        accounts.value.map((a) => a.id),
+      ).catch(() => null)
+    : null;
+  const statusOf = statusRead?.ok ? statusRead.value : null;
+
   return (
     <ViewLayout>
       <PageCrumbs
@@ -54,7 +64,7 @@ export default async function NewOpportunityPage() {
       <OpportunityForm
         accounts={
           accounts.ok
-            ? accounts.value.map((a) => ({ id: a.id, name: a.name, region: a.region, status: a.status }))
+            ? accounts.value.map((a) => ({ id: a.id, name: a.name, region: a.region, status: statusOf?.get(a.id) ?? "unknown" }))
             : []
         }
         territories={
