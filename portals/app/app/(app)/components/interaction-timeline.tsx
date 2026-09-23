@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useState } from "react";
 import {
   Button,
@@ -75,6 +76,7 @@ export function InteractionTimeline({
   action: externalAction,
 }: InteractionTimelineProps) {
   const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
+  const nameOf = useMemberName();
   const [open, setOpen] = useState(false);
   // Expands IN PLACE rather than opening a page. A note is read in the context
   // of the account it belongs to, and a route that shows the same notes without
@@ -136,7 +138,7 @@ export function InteractionTimeline({
             <div className="min-w-0 flex-1">
               <div className="text-muted-foreground flex flex-wrap items-center gap-2xs text-[11px]">
                 <span>
-                  {i.actorName ?? i.actorSub}
+                  {i.actorName ?? nameOf(i.actorSub)}
                   {i.participantNames?.length ? ` → ${i.participantNames.join(FIELD_TEXT.timelineParticipantSep)}` : null}
                 </span>
                 <span>{"·"}</span>

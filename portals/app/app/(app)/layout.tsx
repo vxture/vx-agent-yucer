@@ -4,6 +4,8 @@ import { pricingUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
 import { buildMetadata } from "../metadata";
+import { MemberNamesProvider } from "./lib/member-names";
+import { getAuthzStore } from "../authz/store";
 import { MessagesProvider } from "./lib/i18n/provider";
 import { getMessages } from "./lib/i18n/server";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
@@ -249,6 +251,14 @@ export default async function AppLayout({
   // instead would paint both flanks open and then jump - and here the jump is
   // the entire page layout, not a detail. Default is open: a first-time visitor
   // should see what the product is, and shutting a flank is one click.
+  // The member directory, once per request, for every "who" on every page
+  // (lib/member-names.tsx). A failed read degrades to subs, never an error.
+  const memberNames = Object.fromEntries(
+    (await getAuthzStore().listMembers(session.workspaceId).catch(() => []))
+      .filter((m) => m.displayName)
+      .map((m) => [m.sub, m.displayName as string]),
+  );
+
   const jar = await cookies();
   const cookieString = jar
     .getAll()
@@ -257,6 +267,9 @@ export default async function AppLayout({
 
   return (
     <MessagesProvider locale={locale}>
+      {/* Around the WHOLE shell: the right deck (routing, proposals) is passed
+          to AppShell as a prop and renders outside `children`. */}
+      <MemberNamesProvider names={memberNames}>
       <AppShell
         boardOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
@@ -298,6 +311,7 @@ export default async function AppLayout({
       >
         {children}
       </AppShell>
+      </MemberNamesProvider>
     </MessagesProvider>
   );
 }

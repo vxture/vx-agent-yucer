@@ -102,31 +102,32 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       ),
     },
     {
+      // 定义 and 所属计划 STACKED in one column (polish, 2026-09-24): as two
+      // columns in the ~616px centre each got ~45px and read "制..." / "20...".
       id: "criteria",
-      header: STRATEGY_TEXT.colSegmentCriteria,
+      header: STRATEGY_TEXT.colSegmentCriteriaPlan,
+      align: "left" as const,
       cell: (r: SegmentRow) => {
         const parts = [...r.criteria.industries, ...(r.criteria.sizes ?? []), ...r.criteria.regions];
-        return parts.length === 0 ? (
-          <span className="text-(color:--warning-text) text-body-sm">
-            {STRATEGY_TEXT.segmentNoCriteriaYet}
+        return (
+          <span className="flex min-w-0 flex-col gap-3xs text-body-sm">
+            {parts.length === 0 ? (
+              <span className="text-(color:--warning-text)">{STRATEGY_TEXT.segmentNoCriteriaYet}</span>
+            ) : (
+              <span className="text-foreground block truncate" title={parts.join(" · ")}>
+                {parts.join(" · ")}
+              </span>
+            )}
+            {r.planName ? (
+              <span className="text-muted-foreground block truncate" title={r.planName}>
+                {r.planName}
+              </span>
+            ) : (
+              <span className="text-(color:--warning-text)">{STRATEGY_TEXT.segmentNoPlan}</span>
+            )}
           </span>
-        ) : (
-          <span className="text-muted-foreground truncate text-body-sm">{parts.join(" · ")}</span>
         );
       },
-    },
-    {
-      id: "plan",
-      header: STRATEGY_TEXT.colSegmentPlan,
-      width: "sm" as const,
-      cell: (r: SegmentRow) =>
-        r.planName ? (
-          <span className="text-muted-foreground truncate text-body-sm">{r.planName}</span>
-        ) : (
-          <span className="text-(color:--warning-text) text-body-sm">
-            {STRATEGY_TEXT.segmentNoPlan}
-          </span>
-        ),
     },
     {
       id: "counts",
@@ -139,7 +140,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       
       cell: (r: SegmentRow) => (
         <span
-          className={`tabular-nums text-body-sm ${
+          className={`tabular-nums whitespace-nowrap text-body-sm ${
             r.accountCount === r.matchedCount ? "" : "text-(color:--warning-text)"
           }`}
         >
@@ -229,7 +230,10 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
        a table too wide for its container.
      Order: 选择 | # | name | criteria | plan | counts | status | 操作 */
   const table = (list: readonly SegmentRow[]) => (
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] ${ACTION_COLUMN}`}>
+    // Status and the count pair pinned (polish, 2026-09-24): under
+    // table-fixed the min-width tiers are inert - 进行中 was cut at the edge
+    // and "31 / 21" wrapped.
+    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] [&_thead_th:nth-child(5)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem] ${ACTION_COLUMN}`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MemberName, useMemberName } from "../lib/member-names";
 import {
   Button,
   Collapsible,
@@ -165,7 +166,7 @@ async function Row({ row: r, days }: { row: OverdueRow; days: number }) {
         <div className="flex min-w-0 items-start justify-between gap-md">
           <p className="text-muted-foreground min-w-0 truncate text-body-sm">
             {r.ownerSub
-              ? FIELD_TEXT.commitOwner(r.ownerSub)
+              ? <>{FIELD_TEXT.commitOwner("")}<MemberName sub={r.ownerSub} /></>
               : FIELD_TEXT.commitOwnerNone}
           </p>
           <Button size="sm" asChild>

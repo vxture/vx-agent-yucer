@@ -1,4 +1,5 @@
 import { Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { listLeads } from "../../domains/signal/service";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import {
@@ -105,7 +106,7 @@ export default async function CopilotPage({
   // stays an id: the queue must not become a way to read names past the scope.
   // Only accounts and deals have a page to open; other kinds keep their id.
   const needs = (t: string) => proposals.value.some((a) => a.subjectType === t);
-  const [subjectAccounts, subjectDeals, members] = await Promise.all([
+  const [subjectAccounts, subjectDeals, members, subjectLeads] = await Promise.all([
     needs("account") || needs("opportunity")
       ? listAccounts({ ...ctx, store: session.stores.account() })
       : null,
@@ -113,6 +114,9 @@ export default async function CopilotPage({
       ? listPipeline({ ...ctx, store: session.stores.pipeline() }, { includeClosed: true })
       : null,
     getAuthzStore().listMembers(session.workspaceId),
+    // A lead subject by its company name (polish, 2026-09-24: the queue read
+    // "线索 lead_demo_2"), through the member's own scoped read.
+    needs("lead") ? listLeads({ ...ctx, store: session.stores.signal() }).catch(() => null) : null,
   ]);
   const accountName = new Map((subjectAccounts?.ok ? subjectAccounts.value : []).map((a) => [a.id, a.name]));
   const subjects: Record<string, ProposalSubjectView> = {};
@@ -123,6 +127,9 @@ export default async function CopilotPage({
       href: `/pipeline/${d.id}`,
       context: d.accountId ? (accountName.get(d.accountId) ?? null) : null,
     };
+  }
+  for (const l of subjectLeads?.ok ? subjectLeads.value : []) {
+    subjects[`lead:${l.id}`] = { name: l.companyName, href: "/lead" };
   }
   const deciderNames: Record<string, string> = {};
   for (const m of members) if (m.displayName) deciderNames[m.sub] = m.displayName;

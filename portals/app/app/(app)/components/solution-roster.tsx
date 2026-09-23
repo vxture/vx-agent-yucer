@@ -153,9 +153,15 @@ export function SolutionRoster({
       // customer), and centred prose has a ragged left edge the eye has to
       // re-find on every row.
       align: "left" as const,
+      // A width floor and two lines at most (polish, 2026-09-24): with no
+      // width this column lost the auto-layout fight to the name and wrapped
+      // a sentence down seven lines. The whole sentence is the hover title.
+      width: "lg" as const,
       cell: (r: SolutionView) =>
         r.solution.scenario ? (
-          <span className="text-muted-foreground text-body-sm">{r.solution.scenario}</span>
+          <span className="text-muted-foreground line-clamp-2 text-body-sm" title={r.solution.scenario}>
+            {r.solution.scenario}
+          </span>
         ) : (
           <span className="text-(color:--warning-text) text-body-sm">
             {CATALOG_TEXT.noScenario}
@@ -240,7 +246,9 @@ export function SolutionRoster({
        so past this width the table scrolls - which is the honest failure for
        a table too wide for its container.
      Order: 选择 | # | name | composition | scenario | status | 操作. */
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[30%] ${ACTION_COLUMN}`}>
+    // Status pinned (polish, 2026-09-24): under table-fixed the min-width
+    // tiers are inert and the 生效中 badge was cut at the column edge.
+    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] [&_thead_th:nth-child(4)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem] ${ACTION_COLUMN}`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

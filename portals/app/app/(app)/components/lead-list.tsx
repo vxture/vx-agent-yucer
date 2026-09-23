@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useState, useTransition } from "react";
 import {
   ActionMenu,
@@ -125,6 +126,7 @@ export function LeadList({
     PIPELINE_TEXT,
     SIGNAL_ACTION_ERROR,
   } = useMessages();
+  const nameOf = useMemberName();
   const sorted = useTableSort<LeadRecord>([], SORT_ON);
 
   // Built here rather than at module scope: it is made OF copy, and copy now
@@ -229,7 +231,7 @@ export function LeadList({
     if (ownerFilter === "__none__" && l.ownerSub !== null) return false;
     if (ownerFilter && ownerFilter !== "__none__" && l.ownerSub !== ownerFilter) return false;
     if (!needle) return true;
-    return [l.companyName, l.leadNo, l.contactName ?? "", l.ownerSub ?? ""].some((f) =>
+    return [l.companyName, l.leadNo, l.contactName ?? "", nameOf(l.ownerSub) ?? ""].some((f) =>
       f.toLowerCase().includes(needle),
     );
   });
@@ -318,7 +320,7 @@ export function LeadList({
     {
       id: "owner",
       header: LEAD_TEXT.columnOwner,
-      cell: (row) => row.ownerSub ?? "-",
+      cell: (row) => nameOf(row.ownerSub) ?? "-",
     },
     {
       id: "status",
@@ -841,7 +843,7 @@ export function LeadList({
               <option value="__none__">{LEAD_TEXT.filterUnowned}</option>
               {owners.map((o) => (
                 <option key={o} value={o}>
-                  {o}
+                  {nameOf(o)}
                 </option>
               ))}
             </NativeSelect>

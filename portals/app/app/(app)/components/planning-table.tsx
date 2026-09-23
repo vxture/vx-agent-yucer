@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState } from "react";
 import {
   ActionMenu,
@@ -44,6 +45,7 @@ import { Tag } from "./tag";
 function scopeLabel(
   row: AttainmentRow,
   names: ReadonlyMap<string, string>,
+  nameOf: (sub: string | null | undefined) => string | null,
   PLANNING_TEXT: Dictionary["PLANNING_TEXT"],
 ): string {
   const t = row.target;
@@ -52,7 +54,7 @@ function scopeLabel(
     if (!t.territoryId) return PLANNING_TEXT.scopeUnnamed;
     return names.get(t.territoryId) ?? t.territoryId;
   }
-  return t.ownerSub ?? PLANNING_TEXT.scopeUnnamed;
+  return (t.ownerSub ? nameOf(t.ownerSub) : null) ?? PLANNING_TEXT.scopeUnnamed;
 }
 
 export interface PlanningTableProps {
@@ -81,6 +83,7 @@ export function PlanningTable({
     TARGET_STATUS_LABEL,
     TARGET_ERROR,
   } = useMessages();
+  const nameOf = useMemberName();
   // The DS confirm outlets, passed together. Word order and full-width
   // punctuation are the caller's job since design-ui 5.0 made the fallback
   // neutral.
@@ -113,7 +116,7 @@ export function PlanningTable({
      scope. Memoised because the hook keys its comparator on this object. */
   const SORT_ON = useMemo(
     () => ({
-      scope: (r: AttainmentRow) => scopeLabel(r, names, PLANNING_TEXT),
+      scope: (r: AttainmentRow) => scopeLabel(r, names, nameOf, PLANNING_TEXT),
       target: (r: AttainmentRow) => r.target.targetValue.amount,
       closed: (r: AttainmentRow) =>
         r.measurement.kind === "measured" ? r.measurement.achieved.amount : null,
@@ -136,7 +139,7 @@ export function PlanningTable({
       id: "scope",
   sortable: true,
       header: PLANNING_TEXT.columnScope,
-      cell: (row) => <TableTitleCell title={scopeLabel(row, names, PLANNING_TEXT)} />,
+      cell: (row) => <TableTitleCell title={scopeLabel(row, names, nameOf, PLANNING_TEXT)} />,
     },
     {
       id: "metric",
@@ -188,7 +191,7 @@ export function PlanningTable({
     // frozen by rule - planTargetUpdate refuses every patch on it - so every
     // item would be a click that can only fail.
     if (!onUpdate || row.target.status === "closed") return null;
-    const label = scopeLabel(row, names, PLANNING_TEXT);
+    const label = scopeLabel(row, names, nameOf, PLANNING_TEXT);
     return (
       <ActionMenu
         label={DS_LABELS.actionMenu}
@@ -291,7 +294,7 @@ export function PlanningTable({
             {rows.map((row) => (
               <ListCard
                 key={row.target.id}
-                title={scopeLabel(row, names, PLANNING_TEXT)}
+                title={scopeLabel(row, names, nameOf, PLANNING_TEXT)}
                 description={
                   TARGET_METRIC_LABEL[row.target.metric] ?? row.target.metric
                 }
@@ -344,6 +347,7 @@ function formatValue(
  */
 function Attainment({ row }: { row: AttainmentRow }) {
   const { PLANNING_TEXT } = useMessages();
+  const nameOf = useMemberName();
   const m = row.measurement;
   if (m.kind === "not_measurable") {
     // Each gap says WHY in its own words. "-" for all three would tell the

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemberName } from "../lib/member-names";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button, Card, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -64,6 +65,7 @@ export function RoutingAssignPanel({
   }) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { ROUTING_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
+  const nameOf = useMemberName();
   const [state, setState] = useState<State>(
     initial.ok
       ? { kind: "done", proposals: initial.proposals ?? [], findings: initial.findings ?? [] }
@@ -134,7 +136,7 @@ export function RoutingAssignPanel({
         <div key={p.leadId} className="border-border flex flex-col gap-2xs rounded-md border p-sm">
           <span className="text-foreground truncate text-body-sm">{p.companyName}</span>
           <span className="text-muted-foreground truncate text-body-sm">
-            {ROUTING_TEXT.assignMove(p.currentOwner ?? ROUTING_TEXT.unowned, p.suggestedOwner)}
+            {ROUTING_TEXT.assignMove(nameOf(p.currentOwner) ?? ROUTING_TEXT.unowned, nameOf(p.suggestedOwner) ?? p.suggestedOwner)}
           </span>
           {/* THE REASON TRAVELS WITH THE PROPOSAL. "Why them" is the question a
               router is actually asked, and a suggestion that cannot answer it
