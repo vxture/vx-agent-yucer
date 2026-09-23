@@ -3,8 +3,8 @@ import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { getAccountStore } from "../../domains/shared/registry";
-import { listAccounts } from "../../domains/account/service";
+import { getAccountStore, getDeliveryStore } from "../../domains/shared/registry";
+import { accountStatuses, listAccounts } from "../../domains/account/service";
 import { AccountTable } from "../components/account-table";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -71,6 +71,20 @@ export default async function NamedAccountPage() {
     );
   }
 
+  // 状态标签, derived (YC-021 L5) - see account/page.tsx.
+  const statusRead = await accountStatuses(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+      pipeline: session.stores.pipeline(),
+      delivery: getDeliveryStore(),
+    },
+    named.map((a) => a.id),
+  ).catch(() => null);
+
   return (
     <ViewLayout>
       {/* NO FOLD: this list IS a filter of the customer roster - one bucket
@@ -82,6 +96,7 @@ export default async function NamedAccountPage() {
       />
       <AccountTable
         rows={named}
+        statusOf={statusRead?.ok ? statusRead.value : null}
         canRecompute={
           can(session.authz, session.entitlement, "account.upsert", "ui")
             .allowed

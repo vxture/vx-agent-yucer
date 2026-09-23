@@ -54,6 +54,13 @@ export interface AccountTableProps {
    * why an absent id means "not established", never "reached".
    */
   readonly buyerUnreachable?: ReadonlySet<string>;
+  /**
+   * 状态标签, DERIVED from the facts (YC-021 L5) - never the stored
+   * `account.status`, which nothing writes after creation. Null when the
+   * derivation could not be read: the tag is left out rather than showing a
+   * label that may be years stale.
+   */
+  readonly statusOf: ReadonlyMap<string, string> | null;
   /** False when the member may read accounts but not recompute them. */
   readonly canRecompute?: boolean;
   /**
@@ -78,9 +85,22 @@ export function AccountTable({
   canRecompute = true,
   segmentNames,
   buyerUnreachable,
+  statusOf,
 }: AccountTableProps) {
   const { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS } =
     useMessages();
+  const statusLabel = (id: string) => {
+    const s = statusOf?.get(id);
+    return s ? (ACCOUNT_STATUS_LABEL[s] ?? s) : null;
+  };
+  const statusTag = (id: string) => {
+    const label = statusLabel(id);
+    return label ? (
+      <Tag tone={statusOf?.get(id) === "churned" ? "danger" : "neutral"} dot>
+        {label}
+      </Tag>
+    ) : null;
+  };
   const router = useRouter();
   const { toast } = useToast();
   const [view, setView] = useState<FilterBarView>("list");
@@ -238,12 +258,7 @@ export function AccountTable({
               {row.healthScore}
             </Tag>
           )}
-          <Tag
-            tone={row.status === "churned" ? "danger" : "neutral"}
-            dot
-          >
-            {ACCOUNT_STATUS_LABEL[row.status] ?? row.status}
-          </Tag>
+          {statusTag(row.id)}
         </Stack>
       ),
     },
@@ -299,9 +314,7 @@ export function AccountTable({
                 meta={
                   <>
                     <span>{row.industry ?? "-"}</span>
-                    <span>
-                      {ACCOUNT_STATUS_LABEL[row.status] ?? row.status}
-                    </span>
+                    {statusLabel(row.id) ? <span>{statusLabel(row.id)}</span> : null}
                   </>
                 }
               />

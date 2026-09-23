@@ -31,6 +31,9 @@ import {
   type AccountGap,
 } from "./lib/completeness";
 import type { PipelineStore } from "../pipeline/store";
+import type { DeliveryStore } from "../delivery/store";
+import { contractPhase } from "../delivery/lib/contract";
+import { deriveAccountStatus, RUNNING_PROJECT_STATUSES, type AccountStatusFacts } from "./lib/status";
 import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
 import type { AuthzStore } from "../../authz/store";
@@ -41,6 +44,7 @@ import { denied } from "../pipeline/service";
 import {
   type ChainCoverage,
   type ContactNode,
+  type AccountStatus,
   type DecisionRole,
   type HealthResult,
   type RelationEdge,
@@ -1596,6 +1600,73 @@ export interface BatchCompletenessRow {
   gap: AccountGap;
 }
 
+
+/**
+ * 状态标签, derived (YC-021 L5; owner 2026-09-23: 按事实四分，读时推导).
+ *
+ * One status per requested account, from the facts their owning domains hold:
+ * contracts and projects (D7), deals (D6). READ ONCE for the whole set - one
+ * account narrows each read by accountId, a roster reads the workspace. An
+ * account with no facts at all is a prospect, which is exactly what the rule
+ * says about it. See lib/status.ts for the four-way rule.
+ */
+export async function accountStatuses(
+  ctx: AccountContext & { pipeline: PipelineStore; delivery: DeliveryStore },
+  accountIds: readonly string[],
+  now: Date = new Date(),
+): Promise<RuleResult<Map<string, AccountStatus>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const one = accountIds.length === 1 ? accountIds[0] : undefined;
+  const [deals, contracts, projects] = await Promise.all([
+    ctx.pipeline.listOpportunities(ctx.workspaceId, { includeClosed: true, ...(one ? { accountId: one } : {}) }),
+    ctx.delivery.listContracts(ctx.workspaceId, one ? { accountId: one } : {}),
+    ctx.delivery.listProjects(ctx.workspaceId, one ? { accountId: one } : {}),
+  ]);
+
+  const facts = new Map<string, AccountStatusFacts & { latestAt: number }>();
+  const of = (id: string) => {
+    let f = facts.get(id);
+    if (!f) {
+      f = {
+        signedContracts: 0, inForceContracts: 0, openDeals: 0, wonDealsClosedAt: [],
+        runningProjects: 0, latestRenewalOutcome: null, latestAt: -Infinity,
+      };
+      facts.set(id, f);
+    }
+    return f;
+  };
+  for (const d of deals) {
+    if (!d.accountId) continue;
+    const f = of(d.accountId);
+    if (d.status === "open") f.openDeals += 1;
+    else if (d.status === "won") f.wonDealsClosedAt = [...f.wonDealsClosedAt, d.closedAt];
+  }
+  for (const c of contracts) {
+    if (c.status === "draft") continue;
+    const f = of(c.accountId);
+    f.signedContracts += 1;
+    if (contractPhase({ status: c.status, termStart: c.termStart, termEnd: c.termEnd }, now) === "in_force") {
+      f.inForceContracts += 1;
+    }
+    for (const e of c.events) {
+      if (e.occurredAt.getTime() > f.latestAt) {
+        f.latestAt = e.occurredAt.getTime();
+        f.latestRenewalOutcome = e.eventType;
+      }
+    }
+  }
+  for (const p of projects) {
+    if (RUNNING_PROJECT_STATUSES.has(p.status)) of(p.accountId).runningProjects += 1;
+  }
+
+  const empty: AccountStatusFacts = {
+    signedContracts: 0, inForceContracts: 0, openDeals: 0, wonDealsClosedAt: [],
+    runningProjects: 0, latestRenewalOutcome: null,
+  };
+  return ok(new Map(accountIds.map((id) => [id, deriveAccountStatus(facts.get(id) ?? empty, now)])));
+}
 /**
  * Every derivable gap across every customer this member can see, in one pass.
  *
