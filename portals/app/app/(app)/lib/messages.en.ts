@@ -1,5 +1,6 @@
 import type { Dictionary } from "./i18n/dictionary";
 import * as zh from "./messages";
+import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 
 // The en-US dictionary.
 //
@@ -3778,6 +3779,14 @@ export const en: Dictionary = {
       dormant: () => "dormant",
     },
     listSeparator: ", ",
+    benchmark: (b: PeerBenchmark): string =>
+      b.kind === "ok"
+        ? `Healthier than ${b.percentile}% of ${b.peers} same-industry, same-size customers (each at its latest assessment)`
+        : b.kind === "thin"
+          ? `Only ${b.peers} same-industry, same-size customers have a score - fewer than ${b.needed}, so no percentile`
+          : b.kind === "unclassified"
+            ? `No ${b.missing.join(" or ")} set - no peer group to compare with`
+            : "No health score yet - nothing to compare",
     contactStatusLabel: {
       active: "Active",
       left: "Left",
