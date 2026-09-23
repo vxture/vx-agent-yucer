@@ -48,6 +48,8 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
+import { AccountSignals, type AccountSignalRow } from "../../components/account-signals";
+import { listSignals } from "../../../domains/signal/service";
 import { displayRationale } from "../../lib/proposal-rationale";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
@@ -208,6 +210,7 @@ export default async function AccountDetailPage({
     CONTRACT_TEXT,
     CONTRACT_ERROR,
     RATIONALE_TEXT,
+    SIGNAL_TYPE_LABEL,
   } = await getMessages();
   const { id } = await params;
   // 累计合同额需要 Intl.NumberFormat 的 locale (owner, 2026-09-21: 补充 -
@@ -870,6 +873,25 @@ export default async function AccountDetailPage({
   // 栏1 只要摘要, 详情内容在这里就地建好当作 ReactNode 传下去, 跟 linkForm
   // 一直以来的做法一样 - decision-chain-switch.tsx 的 Context 只决定"现在
   // 显示哪一个", 不重新拿数据。
+  // 外部动态 (YC-021 L1): signals matched to this customer, with their source.
+  // A tier without the signal inbox is refused here and shows no panel; a
+  // thrown read shows none either - this is a side panel, not the page.
+  const signalsRead = await listSignals(
+    { ...base, store: session.stores.signal() },
+    { accountId: id, limit: 10 },
+  ).catch(() => null);
+  const signalRows: AccountSignalRow[] = (signalsRead?.ok ? signalsRead.value : [])
+    .slice()
+    .sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime())
+    .map((sg) => ({
+      id: sg.id,
+      typeLabel: SIGNAL_TYPE_LABEL[sg.signalType] ?? sg.signalType,
+      subject: sg.subject,
+      source: sg.source,
+      href: sg.sourceRef && /^https?:\/\//.test(sg.sourceRef) ? sg.sourceRef : null,
+      daysAgo: Math.max(0, Math.floor((now.getTime() - sg.detectedAt.getTime()) / 86_400_000)),
+    }));
+
   const chainSummaryItems: ChainSummaryItem[] = chain.ok
     ? chain.value.map((c, i) => {
         const hasEconomicBuyer = c.people.some(
@@ -1239,6 +1261,8 @@ export default async function AccountDetailPage({
             description={loadFailureText(chain.violations, LOAD_ERROR)}
           />
         )}
+
+        <AccountSignals rows={signalRows} />
 
         {completeness.ok ? (
           <AccountCompleteness
