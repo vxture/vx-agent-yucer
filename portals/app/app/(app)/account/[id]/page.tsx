@@ -71,6 +71,7 @@ import {
   noticeDeadline,
   installedRevenue,
   ownedProducts,
+  renewalLineage,
 } from "../../../domains/delivery/lib/contract";
 import { ContractRoster, type ContractReadState, type ContractRow } from "../../components/contract-roster";
 import {
@@ -516,6 +517,10 @@ export default async function AccountDetailPage({
   // Lineage numbers come from the same read: the predecessor and successor of
   // an account's contract are that account's contracts too.
   const contractNoOf = new Map(contractRecords.map((c) => [c.id, c.contractNo]));
+  const predecessorOf = new Map(
+    contractRecords.flatMap((c) => (c.renewedFromContractId ? [[c.id, c.renewedFromContractId] as const] : [])),
+  );
+  const successorOf = new Map(contractRecords.flatMap((c) => (c.renewedBy ? [[c.id, c.renewedBy] as const] : [])));
   const contractRows: ContractRow[] = contractRecords.map((c) => {
     const lineCurrencies = new Set(c.lines.map((l) => l.currency));
     return {
@@ -526,6 +531,10 @@ export default async function AccountDetailPage({
       phase: contractPhase(c, now),
       renewedFromNo: c.renewedFromContractId ? (contractNoOf.get(c.renewedFromContractId) ?? null) : null,
       renewedByNo: c.renewedBy ? (contractNoOf.get(c.renewedBy) ?? null) : null,
+      lineage: (({ chain, position }) => ({
+        chainNos: chain.map((x) => contractNoOf.get(x) ?? x),
+        position,
+      }))(renewalLineage(c.id, predecessorOf, successorOf)),
       events: c.events.map((e) => ({
         id: e.id,
         eventType: e.eventType,

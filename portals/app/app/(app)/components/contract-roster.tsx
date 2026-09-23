@@ -71,6 +71,9 @@ export interface ContractRow {
   /** Batch two lineage: the contract this one renewed, and the one that renewed it. */
   readonly renewedFromNo: string | null;
   readonly renewedByNo: string | null;
+  /** The whole renewal chain (contract numbers, oldest first) and where this
+   *  one sits in it. A chain of one is not shown. */
+  readonly lineage: { readonly chainNos: readonly string[]; readonly position: number };
   readonly events: readonly RenewalEventRow[];
 }
 
@@ -348,8 +351,16 @@ export function ContractRoster(props: ContractRosterProps) {
                     {CONTRACT_TEXT.fieldAmount} {formatMoney(c.totalAmount, c.currency, locale)}
                   </span>
                 ) : null}
-                {c.renewedFromNo ? <Tag>{CONTRACT_TEXT.renewedFrom(c.renewedFromNo)}</Tag> : null}
-                {c.renewedByNo ? <Tag>{CONTRACT_TEXT.renewedTo(c.renewedByNo)}</Tag> : null}
+                {/* 续约世系: the whole chain once it has one, not one hop each
+                    way - "续自 HT-2" alone cannot say this is the third year. */}
+                {c.lineage.chainNos.length > 1 ? (
+                  <Tag>{CONTRACT_TEXT.lineage(c.lineage.position, c.lineage.chainNos.length, c.lineage.chainNos)}</Tag>
+                ) : (
+                  <>
+                    {c.renewedFromNo ? <Tag>{CONTRACT_TEXT.renewedFrom(c.renewedFromNo)}</Tag> : null}
+                    {c.renewedByNo ? <Tag>{CONTRACT_TEXT.renewedTo(c.renewedByNo)}</Tag> : null}
+                  </>
+                )}
               </div>
 
               {/* 续约记录 - append-only, so there is no edit or remove here. */}
