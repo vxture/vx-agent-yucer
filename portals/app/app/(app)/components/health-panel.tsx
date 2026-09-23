@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   MetricGrid,
@@ -79,7 +80,12 @@ export function HealthPanel({
     renewal: CHAIN_TEXT.factorRenewal,
   };
 
+  const router = useRouter();
   const [current, setCurrent] = useState(health);
+  // The server re-derives on refresh; follow it, so the factors and the top
+  // issue move with the score (YC-021 L5 - a recomputed number beside the old
+  // breakdown contradicted its own factors).
+  useEffect(() => setCurrent(health), [health]);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -88,7 +94,10 @@ export function HealthPanel({
     startTransition(() => {
       void onRecompute(accountId).then((r) => {
         if (!r.ok) setError(ACCOUNT_ERROR[r.error ?? "denied"] ?? ACCOUNT_ERROR.denied);
-        else if (r.score != null) setCurrent({ ...current, score: r.score });
+        else {
+          if (r.score != null) setCurrent({ ...current, score: r.score });
+          router.refresh();
+        }
       });
     });
   }
@@ -176,8 +185,6 @@ export function HealthPanel({
             <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capHealthBasic}
             <br />
             <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capHealthPro}
-            <br />
-            <CapBadge tier="pending">{ACCOUNT_TEXT.capPending}</CapBadge> {ACCOUNT_TEXT.capHealthPending}
           </CapFooter>
         </>
     </CollapsibleSection>

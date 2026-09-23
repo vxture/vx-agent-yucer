@@ -837,15 +837,17 @@ export interface HealthOutcome extends HealthResult {
 /**
  * Recompute and store an account's health.
  *
- * Gated on account.write rather than account.read: it writes a column. The read
- * side gets the same number for free by reading the row.
+ * Gated on account.write when it persists: it writes a column. With
+ * persist:false it only derives, and is gated on account.view like any read.
  */
 export async function recomputeHealth(
   ctx: AccountContext,
   accountId: string,
   opts: { now?: Date; persist?: boolean } = {},
 ): Promise<RuleResult<HealthOutcome>> {
-  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  // Writing the score is a write; DERIVING it without persisting is a read -
+  // a read-only member is entitled to see the number and why (YC-021 L5).
+  const gate = can(ctx.holder, ctx.entitlement, opts.persist === false ? "account.view" : "account.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
   const account = await ctx.store.getAccount(ctx.workspaceId, accountId);
