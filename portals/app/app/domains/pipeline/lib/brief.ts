@@ -108,7 +108,15 @@ export interface DealBriefInput {
     readonly status: CommitmentStatus;
     readonly dueAt: Date;
     readonly statement: string;
+    /** The customer's person on a they_owe promise, when one was named. */
+    readonly counterpartName?: string | null;
   }[];
+  /**
+   * The economic buyers on THIS deal and when anyone last spoke with them -
+   * for 阶段停滞诊断. Optional: a caller without the evidence plane gets a
+   * stall verdict that simply cannot name the buyer as the holder.
+   */
+  readonly economicBuyers?: readonly { readonly name: string; readonly lastContactAt: Date | null }[];
   readonly lines: readonly { readonly needsApproval: boolean; readonly approved: boolean }[];
   /** Queued copilot proposals whose subject is this deal. */
   readonly proposals: readonly { readonly id: string; readonly title: string }[];
@@ -138,6 +146,10 @@ export interface BriefText {
   stageMoving(stage: string, days: number | null): string;
   stageStalled(stage: string, days: number): string;
   stageTerminal(stage: string): string;
+  stallOnUs(statement: string, days: number): string;
+  stallOnThem(who: string | null, statement: string, days: number): string;
+  stallOnBuyer(who: string, days: number | null): string;
+  stallUnknown: string;
   forecastAgrees(category: string): string;
   forecastDisagrees(filed: string, suggested: string): string;
   forecastSettled: string;
@@ -165,6 +177,62 @@ export interface DealBrief {
 
 const DAY = 86_400_000;
 
+/** Who a stalled deal is waiting on, and the fact that says so. */
+export type StallHolder =
+  | { readonly kind: "us"; readonly statement: string; readonly lateDays: number }
+  | { readonly kind: "them"; readonly who: string | null; readonly statement: string; readonly lateDays: number }
+  | { readonly kind: "buyer"; readonly who: string; readonly silentDays: number | null }
+  | { readonly kind: "unknown" };
+
+/**
+ * 卡在谁身上 - in order of what a rep can act on soonest:
+ *
+ *   1. a promise WE broke (the oldest): nothing moves until we deliver, and
+ *      it needs nobody else's cooperation;
+ *   2. a promise THEY broke (the oldest), naming their person when the
+ *      commitment named one;
+ *   3. an economic buyer nobody has spoken with since the deal entered this
+ *      stage - the stage cannot have been progressed with them;
+ *   4. otherwise "unknown", said out loud. Guessing a holder would be the
+ *      one wrong answer here: it sends someone to the wrong person.
+ */
+export function stallHolder(input: DealBriefInput, stageDays: number): StallHolder {
+  const lateOf = (c: { dueAt: Date }) => Math.floor((input.now.getTime() - c.dueAt.getTime()) / DAY);
+  const overdue = input.commitments
+    .filter((c) => c.status === "open" && isOverdue(c, input.now))
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  const ours = overdue.find((c) => c.direction === "we_owe");
+  if (ours) return { kind: "us", statement: ours.statement, lateDays: lateOf(ours) };
+  const theirs = overdue.find((c) => c.direction === "they_owe");
+  if (theirs) {
+    return { kind: "them", who: theirs.counterpartName ?? null, statement: theirs.statement, lateDays: lateOf(theirs) };
+  }
+  // The buyer silent for longer than the deal has sat here - the never-met
+  // one first, then the longest silence.
+  const silent = (input.economicBuyers ?? [])
+    .map((b) => ({
+      who: b.name,
+      silentDays: b.lastContactAt === null ? null : Math.floor((input.now.getTime() - b.lastContactAt.getTime()) / DAY),
+    }))
+    .filter((b) => b.silentDays === null || b.silentDays > stageDays)
+    .sort((a, b) => (b.silentDays ?? Infinity) - (a.silentDays ?? Infinity));
+  if (silent[0]) return { kind: "buyer", ...silent[0] };
+  return { kind: "unknown" };
+}
+
+function stallSentence(h: StallHolder, text: BriefText): string {
+  switch (h.kind) {
+    case "us":
+      return text.stallOnUs(h.statement, h.lateDays);
+    case "them":
+      return text.stallOnThem(h.who, h.statement, h.lateDays);
+    case "buyer":
+      return text.stallOnBuyer(h.who, h.silentDays);
+    case "unknown":
+      return text.stallUnknown;
+  }
+}
+
 export function dealBrief(input: DealBriefInput): DealBrief {
   const { deal, chain, commitments, lines, proposals, text, now } = input;
   const thresholds = input.thresholds ?? DEFAULT_FORECAST_THRESHOLDS;
@@ -184,7 +252,14 @@ export function dealBrief(input: DealBriefInput): DealBrief {
       : stalled
         ? text.stageStalled(deal.stage, days)
         : text.stageMoving(deal.stage, days),
-    detail: stageDetail(deal.stage, stageCatalog),
+    // WHO IT IS STUCK ON (YC-021 L3 阶段停滞诊断), only when it is stuck. A
+    // day count says something is wrong; the holder says who to call.
+    detail: [
+      stalled ? stallSentence(stallHolder(input, days), text) : "",
+      stageDetail(deal.stage, stageCatalog),
+    ]
+      .filter((x) => x.length > 0)
+      .join(" · "),
   });
 
   // --- forecast ------------------------------------------------------------

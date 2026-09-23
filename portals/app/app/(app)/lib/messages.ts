@@ -5791,6 +5791,13 @@ export const WAR_ROOM_TEXT = {
     days === null ? "在推进" : `本阶段第 ${days} 天`,
   stageStalled: (stage: string, days: number) => `已停 ${days} 天,超过 45 天停滞线`,
   stageTerminal: (stage: string): string => (stage === "won" ? "已成交" : "已关闭"),
+  // 阶段停滞诊断 - who a stalled deal is waiting on (brief.ts stallHolder).
+  stallOnUs: (statement: string, days: number) => `卡在我方：答应的「${statement}」已逾期 ${days} 天`,
+  stallOnThem: (who: string | null, statement: string, days: number) =>
+    `卡在对方${who ?? ""}：答应的「${statement}」已逾期 ${days} 天`,
+  stallOnBuyer: (who: string, days: number | null) =>
+    days === null ? `卡在决策人${who}：从未有过接触记录` : `卡在决策人${who}：${days} 天没有接触，比停在本阶段还久`,
+  stallUnknown: "看不出卡在谁身上：双方没有逾期承诺，决策人在本阶段内也有接触",
   forecastAgrees: (c: string) => "与规则判断一致",
   forecastDisagrees: (filed: string, suggested: string) => `人填与规则不一致`,
   forecastSettled: "档位由阶段定死",
