@@ -1488,6 +1488,8 @@ export const en: Dictionary = {
   FIELD_ERROR: {
     commitment_partial: "The follow-up is recorded, but a promise was refused - add it from the commitment list",
     contact_not_on_account: "A picked contact is not on this customer - reload and pick again",
+    evidence_not_found: "The follow-up given as evidence no longer exists - reload and pick one again",
+    evidence_other_account: "The follow-up given as evidence belongs to another customer - only this customer's dealings can prove the promise",
     ...GATE_ERROR,
     note_required:
       "Write a line about what happened - recording only that it happened is worth nothing",
@@ -3660,6 +3662,8 @@ export const en: Dictionary = {
     lifecycleInteractions: "Interactions",
     lifecycleNoMilestones: "No milestones yet",
     lifecycleNoInstalments: "No revenue schedule yet",
+    lifecycleMilestonesFailed: "Could not read this project's milestones - not the same as none; reload",
+    lifecycleOverdueTotal: (n: number, amount: string) => `${n} overdue · ${amount}`,
     lifecycleRevenueOverview: "Receivables overview",
     lifecycleViewChain: "View this deal's decision chain",
     lifecycleStalledDays: (n: number) => `${n}d in stage`,

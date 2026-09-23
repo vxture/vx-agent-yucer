@@ -457,3 +457,28 @@ test("applyClosure writes only the lifecycle columns the patch names, and return
     await cleanup();
   }
 });
+
+// --- getInteraction (YC-021 L3: a commitment's evidence must be real) --------
+
+test("getInteraction returns the row in its workspace and null anywhere else", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seedAccounts);
+    const s = await store();
+    const made = await s.recordInteraction(WS, {
+      accountId: ACC,
+      actorSub: "usr_rep",
+      channel: "meeting",
+      occurredAt: new Date("2026-08-05T00:00:00Z"),
+      rawNote: "the evidence",
+    });
+    const got = await s.getInteraction(WS, made.id);
+    assert.equal(got?.id, made.id);
+    assert.equal(got?.accountId, ACC);
+    assert.equal(got?.rawNote, "the evidence");
+    assert.equal(await s.getInteraction(WS_OTHER, made.id), null, "another workspace cannot read it");
+    assert.equal(await s.getInteraction(WS, "ffffffff-0000-0000-0000-00000000dead"), null);
+  } finally {
+    await cleanup();
+  }
+});

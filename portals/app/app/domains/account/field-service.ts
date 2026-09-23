@@ -157,6 +157,28 @@ export async function closeCommitment(
     return fail(violation("not_found", `commitment ${id} was not found`, "id"));
   }
 
+  // THE EVIDENCE MUST BE REAL, AND THIS CUSTOMER'S (YC-021 L3 承诺台账).
+  // The rule and chk_commitment_met_needs_evidence only prove an id was
+  // given; closure_evidence_id carries no foreign key (it names one of two
+  // tables), so any uuid - mistyped, stale, or another customer's follow-up -
+  // closed the promise as kept. A promise to 华东零售 is not kept by a
+  // conversation with somebody else.
+  //
+  // `stage_event` evidence has no producer: no interface builds it, and there
+  // is no pipeline port here to check it against. When one is added, it gets
+  // the same two checks.
+  if (input.to === "met" && input.evidence?.kind === "interaction") {
+    const proof = await ctx.store.getInteraction(ctx.workspaceId, input.evidence.id);
+    if (!proof) {
+      return fail(violation("evidence_not_found", "the follow-up given as evidence does not exist", "evidence"));
+    }
+    if (proof.accountId !== current.accountId) {
+      return fail(
+        violation("evidence_other_account", "the follow-up given as evidence is another customer's", "evidence"),
+      );
+    }
+  }
+
   const plan = planCommitmentClosure(
     { status: current.status, direction: current.direction, dueAt: current.dueAt },
     { ...input, waivedBySub: input.to === "waived" ? ctx.sub : undefined },
