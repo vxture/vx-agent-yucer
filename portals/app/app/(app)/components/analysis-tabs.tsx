@@ -93,9 +93,13 @@ export function AnalysisTabs({
 
   const triggers =
     tabs.length > 1 ? (
-      <TabsList>
+      // ACROSS THE CARD (owner, 2026-09-24: 整体清单考虑横向拉通 - 现在只占半边,
+      // 样式很重但右侧很空). Full width, every tab an equal share (the
+      // prototype's tab bar, YC-026), on a lighter ground than the DS's
+      // default block so the strip reads as navigation, not as a slab.
+      <TabsList className="bg-muted/50 w-full">
         {tabs.map((t) => (
-          <TabsTrigger key={t.key} value={t.key} className="group/tab gap-2xs">
+          <TabsTrigger key={t.key} value={t.key} className="group/tab flex-1 gap-2xs">
             {t.label}
             {t.count !== undefined ? (
               <span className="bg-muted text-muted-foreground group-data-[state=active]/tab:bg-primary group-data-[state=active]/tab:text-primary-foreground rounded-full px-2xs text-label-sm leading-snug tabular-nums">
@@ -112,7 +116,7 @@ export function AnalysisTabs({
   // pushed the ⋮ out of the card. Folded, the body goes and the strip with it.
   const body = (
     <div className="flex flex-col gap-md">
-      {triggers ? <div className="overflow-x-auto">{triggers}</div> : null}
+      {triggers ? <div className="w-full overflow-x-auto">{triggers}</div> : null}
       {summary}
       {tabs.map((t) => (
         <TabsContent key={t.key} value={t.key}>

@@ -13,9 +13,9 @@ import type { BriefTone } from "../../domains/pipeline/lib/brief";
 // reason a full line rather than a tooltip nobody opens.
 
 const STRIPE: Record<BriefTone, string> = {
-  bad: "border-s-(color:--danger-border)",
-  warn: "border-s-(color:--warning-border)",
-  good: "border-s-(color:--success-border)",
+  bad: "border-s-destructive-border",
+  warn: "border-s-warning-border",
+  good: "border-s-success-border",
 };
 
 export function ActionCard({

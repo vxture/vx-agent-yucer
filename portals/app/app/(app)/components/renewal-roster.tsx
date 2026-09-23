@@ -134,7 +134,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       // content box and spilled into the amount beside it; what carries
       // the urgency is the wording and the red, not the chrome around
       // them, so the chrome is what goes (measured 2026-09-06).
-      <span className="text-(color:--danger-text) text-body-sm font-semibold tabular-nums">
+      <span className="text-destructive-text text-body-sm font-semibold tabular-nums">
         {/* A contract's date is its NOTICE deadline: past it, the term is
           still running - "lapsed" would say the contract ended. */}
         {r.anchorContractNo ? RENEWAL_TEXT.noticePassed(-r.daysToEnd) : RENEWAL_TEXT.lapsed(-r.daysToEnd)}

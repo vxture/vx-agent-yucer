@@ -6735,6 +6735,7 @@ export const RISK_TEXT = {
     }
   },
   separator: "；",
+  whoUnassigned: "未指定",
   who: (role: string, name: string | null): string => (name ? `找 ${name}（${role}）` : `找${role}（未指定）`),
 };
 

@@ -90,7 +90,7 @@ export interface AssistantSection {
 const TONE_TEXT = {
   info: "text-foreground",
   warn: "text-(color:--warning-text)",
-  danger: "text-(color:--danger-text)",
+  danger: "text-destructive-text",
 } as const;
 
 export function AssistantSection({ section }: { readonly section: AssistantSection }) {

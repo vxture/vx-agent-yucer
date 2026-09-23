@@ -19,15 +19,15 @@ import { getMessages } from "../lib/i18n/server";
 // offer what to DO.
 
 const TONE_CLASS: Record<BriefCell["tone"], string> = {
-  good: "border-s-(color:--success-border)",
-  warn: "border-s-(color:--warning-border)",
-  bad: "border-s-(color:--danger-border)",
+  good: "border-s-success-border",
+  warn: "border-s-warning-border",
+  bad: "border-s-destructive-border",
 };
 
 const TONE_TEXT: Record<BriefCell["tone"], string> = {
   good: "text-(color:--success-text)",
   warn: "text-(color:--warning-text)",
-  bad: "text-(color:--danger-text)",
+  bad: "text-destructive-text",
 };
 
 export async function WarRoom({
