@@ -3,6 +3,8 @@ import { getAccountDetail } from "../../../../domains/account/service";
 import { resolveAppSession } from "../../../lib/session";
 import { AgentPanel } from "../../../components/agent-panel";
 import { deckBundle, recordAction } from "../../deck-data";
+import { can } from "../../../../authz/decide";
+import { buildMeetingBriefAction } from "../../../account/meeting-brief-action";
 
 // The deck beside one account.
 //
@@ -55,6 +57,17 @@ export default async function AccountDeck({
       // making the reader re-state that is asking them to type what the screen
       // already knows.
       onRecord={recordAction(detail.ok ? id : "")}
+      // 会前准备 (L6 batch five): the account's contacts to pick attendees
+      // from - the same gated read that named the deck, not a second one.
+      briefFor={
+        detail.ok && can(session.authz, session.entitlement, "copilot.suggest", "ui").allowed
+          ? {
+              accountId: id,
+              contacts: detail.value.contacts.map((c) => ({ id: c.id, name: c.name, title: c.title })),
+            }
+          : undefined
+      }
+      onBuildBrief={buildMeetingBriefAction}
     />
   );
 }
