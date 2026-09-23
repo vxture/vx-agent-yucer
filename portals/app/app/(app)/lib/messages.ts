@@ -2961,6 +2961,8 @@ export const FIELD_ERROR: Record<string, string> = {
   // 统一录入的部分成功:笔记是证据、只追加,落了就不回滚;某条承诺被拒时如实说。
   commitment_partial: "跟进已记下,但有承诺没记上——到承诺列表补一条",
   contact_not_on_account: "选的联系人不在这家客户名下——刷新页面再选",
+  evidence_not_found: "作证据的那条跟进找不到了——刷新后重新选一条",
+  evidence_other_account: "作证据的跟进不是这家客户的——承诺只能由跟这家客户的往来来证明",
   note_required: "写一句发生了什么——只记下它发生过,没有价值",
   occurred_in_future: "跟进不能发生在未来",
   unknown_channel: "未知的跟进方式",
@@ -4376,6 +4378,8 @@ export const ACCOUNT_TEXT = {
   lifecycleInteractions: "跟进记录",
   lifecycleNoMilestones: "还没有里程碑",
   lifecycleNoInstalments: "还没有回款计划",
+  lifecycleMilestonesFailed: "这个项目的里程碑没读到——不是没有，刷新再看",
+  lifecycleOverdueTotal: (n: number, amount: string) => `逾期 ${n} 笔 · ${amount}`,
   // 应收总览: summarizeCollections() 早就在算 planned/collected (projectView()
   // 已经把它读出来给了页面, 只是没接到这张卡上) - 待回款 = planned - collected,
   // 两个真实 Money 相减, 不是新造的数。多个项目、货币不同时不硬加总, 宁可不
@@ -6207,6 +6211,7 @@ export const POSITION_TEXT = {
   plan: "下一步作战计划",
   planWhy: "助手提议，人来签字。没有人落章就不会执行。",
   planEmpty: "助手目前没有针对这个阵地的提案。",
+  planAccountLevel: (n: number) => `另有 ${n} 条客户级（关系类）提案，在客户页 →`,
   planCommercial: "商务",
   planTechnical: "产品技术",
   planRelation: "关系",

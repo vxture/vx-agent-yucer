@@ -87,6 +87,29 @@ test("a commitment closes when something actually happened", async () => {
   assert.deepEqual(closed.metAt, NOW);
 });
 
+test("the evidence must exist and be this customer's (YC-021 L3)", async () => {
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_rep", "free", store);
+  const cmt = await openCommitment(c);
+
+  // Any uuid used to close it - closure_evidence_id has no foreign key.
+  const forged = await closeCommitment(c, cmt.id, {
+    to: "met",
+    evidence: { kind: "interaction", id: "00000000-0000-0000-0000-000000000000" },
+    at: NOW,
+  });
+  assert.equal(forged.ok === false && forged.violations[0].code, "evidence_not_found");
+
+  const elsewhere = unwrap(
+    await recordInteraction(c, { accountId: "acc_other", channel: "call", occurredAt: days(-1), rawNote: "a different customer" }),
+  );
+  const foreign = await closeCommitment(c, cmt.id, { to: "met", evidence: { kind: "interaction", id: elsewhere.id }, at: NOW });
+  assert.equal(foreign.ok === false && foreign.violations[0].code, "evidence_other_account");
+
+  // Neither refusal wrote anything.
+  assert.equal((await store.getCommitment(WS, cmt.id))?.status, "open");
+});
+
 test("missing needs nothing - failure is what happens when nothing does", async () => {
   // Deliberately asymmetric with `met`. If a miss also needed evidence, the
   // most predictive signal in the table would require someone to volunteer bad

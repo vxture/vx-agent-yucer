@@ -64,6 +64,7 @@ import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcom
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
 import { listContracts, listProjects, projectView } from "../../../domains/delivery/service";
+import { isOverdue } from "../../../domains/delivery/lib/revenue";
 import {
   contractPhase,
   daysToTermEnd,
@@ -193,6 +194,7 @@ export default async function AccountDetailPage({
     DOMAIN_LABEL,
     ACCOUNT_TEXT,
     healthReasonText,
+    healthOverrideText,
     POSITION_TEXT,
     COLLAPSE_TEXT,
     PANEL_MENU_TEXT,
@@ -391,17 +393,6 @@ export default async function AccountDetailPage({
     (a, b) => (URGENCY_RANK[a.urgency] ?? 9) - (URGENCY_RANK[b.urgency] ?? 9),
   )[0] ?? null;
 
-  const rosterProjects = (projects.ok ? projects.value : []).map((pr) => ({
-    id: pr.id,
-    name: pr.name,
-    healthLabel: PROJECT_HEALTH_LABEL[pr.health] ?? pr.health,
-    healthTone: (pr.health === "green"
-      ? "success"
-      : pr.health === "amber"
-        ? "warning"
-        : "danger") as "success" | "warning" | "danger",
-  }));
-
   // 交付/回款 tabs' real data. One projectView() per project - the same N+1
   // the layout already accepts for the same reason (small N at this
   // catalogue's size; see layout.tsx's downgradedProjects read).
@@ -452,13 +443,40 @@ export default async function AccountDetailPage({
         id: `${pr.id}:${inst.sequence}`,
         milestoneName: milestone?.name ?? pr.name,
         statusLabel: REVENUE_STATUS_LABEL[inst.status] ?? inst.status,
-        overdue: inst.status === "overdue",
+        // The domain's own rule (summarizeCollections): marked overdue OR past
+        // due and unsettled. Checking the status alone missed every instalment
+        // nobody had got round to marking.
+        overdue: inst.status === "overdue" || isOverdue(inst, now),
         dueAt: inst.dueAt ? inst.dueAt.toISOString().slice(0, 10) : null,
         amount: inst.plannedAmount.amount,
         currency: inst.plannedAmount.currency,
       });
     });
   });
+  // THE DERIVED HEALTH, not the reported one (YC-021 L3 交付项目与里程碑).
+  // projectView() already computes it - an overdue instalment or a missed
+  // milestone pulls a manager's "green" down - and this page printed the
+  // stored column anyway, so a project with money overdue read healthy here
+  // while /delivery said otherwise. When the view could not be read, the
+  // reported value is shown and the milestones say they could not be read,
+  // rather than rendering as "no milestones".
+  const rosterProjects = (projects.ok ? projects.value : []).map((pr, i) => {
+    const pv = projectViews[i];
+    const health = pv?.ok ? pv.value.derivedHealth : pr.health;
+    return {
+      id: pr.id,
+      name: pr.name,
+      healthLabel: PROJECT_HEALTH_LABEL[health] ?? health,
+      healthTone: (health === "green"
+        ? "success"
+        : health === "amber"
+          ? "warning"
+          : "danger") as "success" | "warning" | "danger",
+      healthNote: pv?.ok ? healthOverrideText(pv.value.healthOverriddenBecause) || null : null,
+      milestonesReadable: pv?.ok === true,
+    };
+  });
+
   const revenueOutstanding =
     collectionTotals.size === 1
       ? (([currency, t]) => ({ amount: t.planned - t.collected, currency }))(
@@ -575,7 +593,12 @@ export default async function AccountDetailPage({
       currency: d.currency,
       status: d.status as "open" | "won" | "lost",
       insight: j
-        ? { claim: j.claim, rule: j.rule ?? null, tone: j.urgency === "today" ? "danger" : j.urgency === "week" ? "warning" : "neutral" }
+        ? {
+            claim: j.claim,
+            rule: j.rule ?? null,
+            tone: j.urgency === "today" ? "danger" : j.urgency === "week" ? "warning" : "neutral",
+            source: j.source,
+          }
         : null,
       stagePosition: d.status === "open" && stageIndex >= 0 ? { index: stageIndex, total: openStages.length } : null,
       daysInStage: daysAtStage(
@@ -972,7 +995,12 @@ export default async function AccountDetailPage({
   // 定向自动分析 (owner, 2026-09-18): 判断题放 sidebar - 单位信息卡的最下方,
   // 不再是独立的横幅。
   const judgement = topJudgement
-    ? { claim: topJudgement.claim, rule: topJudgement.rule ?? null, freshness: topJudgement.freshness ?? null }
+    ? {
+        claim: topJudgement.claim,
+        rule: topJudgement.rule ?? null,
+        freshness: topJudgement.freshness ?? null,
+        source: topJudgement.source,
+      }
     : null;
 
   return (
@@ -1269,7 +1297,8 @@ export default async function AccountDetailPage({
                           projectName={pr.name}
                           healthLabel={pr.healthLabel}
                           healthTone={pr.healthTone}
-                          milestones={milestonesByProject.get(pr.id) ?? []}
+                          healthNote={pr.healthNote}
+                          milestones={pr.milestonesReadable ? (milestonesByProject.get(pr.id) ?? []) : null}
                         />
                       ))}
                     </div>

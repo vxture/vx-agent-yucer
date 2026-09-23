@@ -50,6 +50,8 @@ export interface PositionBriefProps {
     rule: string | null;
   }[];
   readonly proposals: readonly PositionProposal[];
+  /** The customer's own (relationship) proposals: counted and linked, not listed here. */
+  readonly accountLevel?: { readonly count: number; readonly href: string } | null;
 }
 
 export async function PositionBrief({
@@ -57,6 +59,7 @@ export async function PositionBrief({
   rivalMentions,
   problems,
   proposals,
+  accountLevel,
 }: PositionBriefProps) {
   const { POSITION_TEXT } = await getMessages();
   return (
@@ -210,6 +213,11 @@ export async function PositionBrief({
             ))}
           </div>
         )}
+        {accountLevel ? (
+          <Link href={accountLevel.href} className="text-primary mt-sm inline-block text-body-sm hover:underline">
+            {POSITION_TEXT.planAccountLevel(accountLevel.count)}
+          </Link>
+        ) : null}
       </Card>
     </div>
   );

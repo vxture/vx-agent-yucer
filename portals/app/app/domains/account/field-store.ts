@@ -134,6 +134,8 @@ export interface FieldStore {
   /** Append-only. Returns the row, including the id later evidence cites. */
   recordInteraction(workspaceId: string, input: NewInteraction): Promise<InteractionRecord>;
   listInteractions(workspaceId: string, filter?: InteractionFilter): Promise<InteractionRecord[]>;
+  /** One interaction by id, or null - what a commitment's evidence must point at. */
+  getInteraction(workspaceId: string, id: string): Promise<InteractionRecord | null>;
   listParticipants(workspaceId: string, interactionId: string): Promise<ParticipantRecord[]>;
   listParticipantsBulk(workspaceId: string, interactionIds: readonly string[]): Promise<ParticipantRecord[]>;
 
@@ -217,6 +219,10 @@ export class InMemoryFieldStore implements FieldStore {
     // Newest first, matching the adapter's ORDER BY.
     rows = [...rows].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
     return filter.limit ? rows.slice(0, filter.limit) : rows;
+  }
+
+  async getInteraction(workspaceId: string, id: string): Promise<InteractionRecord | null> {
+    return this.interactions.find((i) => i.workspaceId === workspaceId && i.id === id) ?? null;
   }
 
   async lastContactByContact(workspaceId: string, accountId: string): Promise<Map<string, Date>> {

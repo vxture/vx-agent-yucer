@@ -5,6 +5,7 @@ import { Button, Icon, PanelCard, PanelItem, PanelList, StatusBadge } from "@vxt
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 import { Tag } from "./tag";
+import { SourceMark } from "./source-mark";
 import { useChainView } from "./decision-chain-switch";
 
 // 全链条内容 (owner, 2026-09-18: 客户详情页重排) - 商机 / 交付项目 / 回款，
@@ -20,11 +21,20 @@ const INSIGHT_TONE = {
   neutral: "border-border bg-muted text-muted-foreground",
 } as const;
 
-function InsightBox({ tone, claim }: { readonly tone: keyof typeof INSIGHT_TONE; readonly claim: string }) {
+function InsightBox({
+  tone,
+  claim,
+  source,
+}: {
+  readonly tone: keyof typeof INSIGHT_TONE;
+  readonly claim: string;
+  readonly source: "rule" | "model";
+}) {
   return (
     <div className={`mt-2xs flex items-start gap-xs rounded-lg border p-xs text-body-sm ${INSIGHT_TONE[tone]}`}>
       <Icon name="warning" size="xs" className="mt-3xs shrink-0" />
-      <span>{claim}</span>
+      <span className="min-w-0 flex-1">{claim}</span>
+      <SourceMark source={source} />
     </div>
   );
 }
@@ -39,7 +49,12 @@ export interface DealLifecycleRow {
   readonly currency: string;
   readonly status: "open" | "won" | "lost";
   /** The account's own real-time judgement for this one deal, if any fired. */
-  readonly insight: { claim: string; rule: string | null; tone: "danger" | "warning" | "success" | "neutral" } | null;
+  readonly insight: {
+    claim: string;
+    rule: string | null;
+    tone: "danger" | "warning" | "success" | "neutral";
+    source: "rule" | "model";
+  } | null;
   /** Open-stage position for the progress dots (workspace's own catalog order,
    *  see openStageOrder()); null for a closed deal - a track "position" stops
    *  meaning anything once the deal has left the open funnel. */
@@ -140,7 +155,7 @@ export function DealLifecyclePanel({
                 {ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}
               </span>
             ) : null}
-            {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} /> : null}
+            {d.insight ? <InsightBox tone={d.insight.tone} claim={d.insight.claim} source={d.insight.source} /> : null}
             {d.hasChain ? (
               <Button
                 variant="link"
@@ -172,18 +187,28 @@ export function ProjectLifecyclePanel({
   projectName,
   healthLabel,
   healthTone,
+  healthNote,
   milestones,
 }: {
   readonly projectName: string;
   readonly healthLabel: string;
   readonly healthTone: "success" | "warning" | "danger";
-  readonly milestones: readonly ProjectMilestoneRow[];
+  /** Why the derived health is lower than the reported one; null when it is not. */
+  readonly healthNote?: string | null;
+  /** Null: the project's view could not be read - said, not shown as empty. */
+  readonly milestones: readonly ProjectMilestoneRow[] | null;
 }) {
   const { ACCOUNT_TEXT } = useMessages();
   const locale = useLocale();
   return (
-    <PanelCard title={projectName} action={<Tag tone={healthTone}>{healthLabel}</Tag>}>
-      {milestones.length === 0 ? (
+    <PanelCard
+      title={projectName}
+      description={healthNote ?? undefined}
+      action={<Tag tone={healthTone}>{healthLabel}</Tag>}
+    >
+      {milestones === null ? (
+        <p className="text-destructive-text text-body-sm">{ACCOUNT_TEXT.lifecycleMilestonesFailed}</p>
+      ) : milestones.length === 0 ? (
         <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleNoMilestones}</p>
       ) : (
         <PanelList>
@@ -241,6 +266,27 @@ export function RevenueLifecyclePanel({
   if (rows.length === 0) {
     return <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleNoInstalments}</p>;
   }
+  // 逾期笔数与金额 (YC-021 L3: 逾期笔数与金额一致，币种不混加). Summed per
+  // currency in minor units, from the same rows the list marks red - so the
+  // count and the amount cannot disagree with what is shown beneath them.
+  const overdueByCurrency = new Map<string, { count: number; minor: number }>();
+  for (const r of rows) {
+    if (!r.overdue) continue;
+    const t = overdueByCurrency.get(r.currency) ?? { count: 0, minor: 0 };
+    t.count += 1;
+    t.minor += Math.round(r.amount * 100);
+    overdueByCurrency.set(r.currency, t);
+  }
+  const overdueLine =
+    overdueByCurrency.size > 0 ? (
+      <div className="flex flex-wrap items-center gap-xs">
+        {[...overdueByCurrency].map(([currency, t]) => (
+          <StatusBadge key={currency} tone="danger">
+            {ACCOUNT_TEXT.lifecycleOverdueTotal(t.count, formatMoney(t.minor / 100, currency, locale))}
+          </StatusBadge>
+        ))}
+      </div>
+    ) : null;
   const list = (
     <PanelList>
       {rows.map((r) => (
@@ -259,7 +305,14 @@ export function RevenueLifecyclePanel({
       ))}
     </PanelList>
   );
-  if (!outstanding) return list;
+  if (!outstanding) {
+    return (
+      <div className="flex flex-col gap-sm">
+        {overdueLine}
+        {list}
+      </div>
+    );
+  }
   return (
     <PanelCard
       title={ACCOUNT_TEXT.lifecycleRevenueOverview}
@@ -272,7 +325,10 @@ export function RevenueLifecyclePanel({
         </span>
       }
     >
-      {list}
+      <div className="flex flex-col gap-sm">
+        {overdueLine}
+        {list}
+      </div>
     </PanelCard>
   );
 }
