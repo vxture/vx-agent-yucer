@@ -29,6 +29,7 @@ import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import type { IcpDimension, IcpFeatureStatus } from "../../domains/strategy/lib/icp";
 import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
+import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
 
 export const STAGE_LABEL: Record<Stage, string> = {
   qualify: "合格判定",
@@ -4557,6 +4558,29 @@ export const CONTRACT_TEXT = {
   renewHint: (no: string) => `新合同记为 ${no} 的续约。一份合同只能续约一次，登记后不能改指。`,
   renewedFrom: (no: string) => `续自 ${no}`,
   renewedTo: (no: string) => `已续为 ${no}`,
+  // 续约风险评分 (YC-021 L4, owner 2026-09-24: 规则分级 高/中/低).
+  renewalRisk: (level: RenewalRiskLevel) => `续约风险 ${level === "high" ? "高" : level === "medium" ? "中" : "低"}`,
+  renewalRiskNone: "没有命中任何风险信号",
+  renewalRiskBasis: (b: RenewalRiskBasis): string => {
+    switch (b.code) {
+      case "notice_passed":
+        return `通知截止已过 ${b.days} 天，没有在办的续约商机（+3）`;
+      case "in_window":
+        return `距通知截止还有 ${b.days} 天，已进续约窗口，没有在办的续约商机（+2）`;
+      case "delivery_red":
+        return `交付项目「${b.project}」红灯（+2）`;
+      case "delivery_amber":
+        return `交付项目「${b.project}」黄灯（+1）`;
+      case "revenue_overdue":
+        return `${b.count} 笔回款逾期（+1）`;
+      case "quiet":
+        return b.days < 0 ? "从没有接触记录（+1）" : `${b.days} 天没有接触记录（+1）`;
+      case "prior_downgrade":
+        return "上一份合同续约时降级（+1）";
+      case "renewal_deal_open":
+        return "已有在办的续约商机，通知期不计分";
+    }
+  },
   // 续约世系 (YC-021 L4): the whole chain, so a third-year contract reads as one.
   lineage: (position: number, total: number, chain: readonly string[]) =>
     `续约链 第 ${position}/${total} 份 · ${chain.join(" → ")}`,
@@ -6682,6 +6706,8 @@ export const RISK_TEXT = {
         return `「${f.project}」${f.count} 个里程碑逾期`;
       case "revenue_overdue":
         return `「${f.project}」${f.count} 笔回款逾期`;
+      case "contract_risk":
+        return `合同 ${f.contractNo} 续约风险${f.level === "high" ? "高" : "中"}`;
     }
   },
   separator: "；",

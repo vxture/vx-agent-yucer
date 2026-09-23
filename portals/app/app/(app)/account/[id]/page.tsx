@@ -73,7 +73,9 @@ import { icpFit } from "../../../domains/strategy/lib/icp";
 import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcome-review";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
-import { listContracts, listProjects, projectView } from "../../../domains/delivery/service";
+import { listContracts, listProjects, projectView, renewalPolicy } from "../../../domains/delivery/service";
+import { DEFAULT_RENEWAL_POLICY } from "../../../domains/delivery/lib/renewal";
+import { renewalRisk } from "../../../domains/delivery/lib/renewal-risk";
 import { isOverdue } from "../../../domains/delivery/lib/revenue";
 import {
   contractPhase,
@@ -536,9 +538,45 @@ export default async function AccountDetailPage({
     contractRecords.flatMap((c) => (c.renewedFromContractId ? [[c.id, c.renewedFromContractId] as const] : [])),
   );
   const successorOf = new Map(contractRecords.flatMap((c) => (c.renewedBy ? [[c.id, c.renewedBy] as const] : [])));
+  // 续约风险评分 (YC-021 L4): per active, not-yet-renewed contract, from its
+  // own projects wherever the contract has any (incr/0077 project.contract_id).
+  const renewalWindowRead = await renewalPolicy({ ...base, store: getDeliveryStore() }).catch(() => null);
+  const renewalWindowDays = renewalWindowRead?.ok ? renewalWindowRead.value.windowDays : DEFAULT_RENEWAL_POLICY.windowDays;
+  const lastContactAt = (interactions.ok ? interactions.value : []).reduce<Date | null>(
+    (m, i) => (m === null || i.occurredAt > m ? i.occurredAt : m),
+    null,
+  );
+  const openDealSources = (deals.ok ? deals.value : [])
+    .filter((d) => d.status === "open" && d.sourceProjectId)
+    .map((d) => d.sourceProjectId as string);
+  const riskOf = (c: (typeof contractRecords)[number]) => {
+    const deadline = noticeDeadline(c);
+    if (c.status !== "active" || c.renewedBy || !deadline) return null;
+    const mine = (projects.ok ? projects.value : [])
+      .map((pr, i) => ({ pr, pv: projectViews[i] }))
+      .filter(({ pr }) => pr.contractId === c.id);
+    const predecessor = c.renewedFromContractId ? contractRecords.find((x) => x.id === c.renewedFromContractId) : null;
+    return renewalRisk({
+      noticeInDays: Math.floor((deadline.getTime() - now.getTime()) / 86_400_000),
+      windowDays: renewalWindowDays,
+      renewalDealOpen:
+        mine.length > 0
+          ? openDealSources.some((src) => mine.some(({ pr }) => pr.id === src))
+          : openDealSources.length > 0,
+      projects: mine.map(({ pr, pv }) => ({ name: pr.name, health: pv?.ok ? pv.value.derivedHealth : pr.health })),
+      overdueInstalments: mine.reduce(
+        (n, { pv }) =>
+          n + (pv?.ok ? pv.value.instalments.filter((inst) => inst.status === "overdue" || isOverdue(inst, now)).length : 0),
+        0,
+      ),
+      quietDays: lastContactAt ? Math.floor((now.getTime() - lastContactAt.getTime()) / 86_400_000) : null,
+      priorDowngrade: predecessor?.events.some((e) => e.eventType === "downgraded") ?? false,
+    });
+  };
   const contractRows: ContractRow[] = contractRecords.map((c) => {
     const lineCurrencies = new Set(c.lines.map((l) => l.currency));
     return {
+      renewalRisk: riskOf(c),
       id: c.id,
       contractNo: c.contractNo,
       name: c.name,
@@ -1124,6 +1162,13 @@ export default async function AccountDetailPage({
             health.value.contributions.find((c) => c.factor === "renewal"),
           )
         : null,
+    contractRisk: ((): { contractNo: string; level: "high" | "medium" } | null => {
+      const scored = contractRows
+        .filter((c) => c.renewalRisk && c.renewalRisk.level !== "low")
+        .sort((a, b) => (b.renewalRisk?.points ?? 0) - (a.renewalRisk?.points ?? 0));
+      const top = scored[0];
+      return top?.renewalRisk ? { contractNo: top.contractNo, level: top.renewalRisk.level as "high" | "medium" } : null;
+    })(),
   });
 
   // ICP 拟合度 (YC-021 L1): against the workspace's own target segments. The

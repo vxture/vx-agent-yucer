@@ -32,7 +32,8 @@ export type RiskFinding =
   | { readonly code: "project_amber"; readonly project: string }
   | { readonly code: "milestones_overdue"; readonly project: string; readonly count: number }
   | { readonly code: "revenue_overdue"; readonly project: string; readonly count: number }
-  | { readonly code: "renewal"; readonly reason: HealthReason };
+  | { readonly code: "renewal"; readonly reason: HealthReason }
+  | { readonly code: "contract_risk"; readonly contractNo: string; readonly level: "high" | "medium" };
 
 export type RiskOwnerRole = "account_owner" | "deal_owner" | "project_manager";
 
@@ -72,6 +73,10 @@ export interface RiskInput {
     | null;
   /** The health score's renewal contribution; null when health is unavailable. */
   readonly renewal: { readonly points: number; readonly reason: HealthReason } | null;
+  /** The worst per-contract 续约风险评分 (delivery/lib/renewal-risk.ts), when
+   *  any in-force contract scored medium or high. It reaches further ahead
+   *  than the health factor, which only speaks inside the window. */
+  readonly contractRisk?: { readonly contractNo: string; readonly level: "high" | "medium" } | null;
 }
 
 export function classifyRisks(input: RiskInput): RiskTypeResult[] {
@@ -142,10 +147,11 @@ function renewal(i: RiskInput): RiskTypeResult {
   const who = { role: "account_owner" as const, name: i.accountOwner };
   if (i.renewal === null) return { type: "renewal", level: "unknown", findings: [], who };
   const { points, reason } = i.renewal;
-  return {
-    type: "renewal",
-    level: points <= -10 ? "risk" : points < 0 ? "watch" : "clear",
-    findings: points < 0 ? [{ code: "renewal", reason }] : [],
-    who,
-  };
+  const fromFactor: RiskLevel = points <= -10 ? "risk" : points < 0 ? "watch" : "clear";
+  const fromContract: RiskLevel = i.contractRisk?.level === "high" ? "risk" : i.contractRisk ? "watch" : "clear";
+  const rank: Record<RiskLevel, number> = { unknown: 0, clear: 1, watch: 2, risk: 3 };
+  const findings: RiskFinding[] = [];
+  if (points < 0) findings.push({ code: "renewal", reason });
+  if (i.contractRisk) findings.push({ code: "contract_risk", ...i.contractRisk });
+  return { type: "renewal", level: rank[fromContract] > rank[fromFactor] ? fromContract : fromFactor, findings, who };
 }
