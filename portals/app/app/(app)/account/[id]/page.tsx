@@ -575,7 +575,12 @@ export default async function AccountDetailPage({
       currency: d.currency,
       status: d.status as "open" | "won" | "lost",
       insight: j
-        ? { claim: j.claim, rule: j.rule ?? null, tone: j.urgency === "today" ? "danger" : j.urgency === "week" ? "warning" : "neutral" }
+        ? {
+            claim: j.claim,
+            rule: j.rule ?? null,
+            tone: j.urgency === "today" ? "danger" : j.urgency === "week" ? "warning" : "neutral",
+            source: j.source,
+          }
         : null,
       stagePosition: d.status === "open" && stageIndex >= 0 ? { index: stageIndex, total: openStages.length } : null,
       daysInStage: daysAtStage(
@@ -972,7 +977,12 @@ export default async function AccountDetailPage({
   // 定向自动分析 (owner, 2026-09-18): 判断题放 sidebar - 单位信息卡的最下方,
   // 不再是独立的横幅。
   const judgement = topJudgement
-    ? { claim: topJudgement.claim, rule: topJudgement.rule ?? null, freshness: topJudgement.freshness ?? null }
+    ? {
+        claim: topJudgement.claim,
+        rule: topJudgement.rule ?? null,
+        freshness: topJudgement.freshness ?? null,
+        source: topJudgement.source,
+      }
     : null;
 
   return (
