@@ -50,6 +50,34 @@ export const SUBJECT_TYPES = [
 ] as const;
 export type SubjectType = (typeof SUBJECT_TYPES)[number];
 
+/**
+ * 客户级与商机级分层 (YC-021 L6): which subject an action type may be about.
+ * Relationship work belongs to the customer, advancing work to the deal - the
+ * same split the customer page's theatre plan states ("关系层面的下一步，不是
+ * 某一单怎么推"). Until this, the layer was whatever the model emitted, and
+ * only the three executable types were checked, at execution - long after a
+ * misfiled proposal had sat on the wrong page.
+ *
+ * ONLY THE TYPES WHOSE LAYER IS NOT IN DOUBT. action_type is an open
+ * vocabulary (free text from the model); an unlisted type is allowed on any
+ * subject rather than refused on a guess. chase_overdue_commitment follows its
+ * commitment, which may hang on either.
+ */
+export const ACTION_SUBJECTS: Readonly<Record<string, readonly SubjectType[]>> = {
+  advance_stage: ["opportunity"],
+  fill_account_field: ["account"],
+  record_interaction: ["account"],
+  propose_upsell: ["account"],
+  flag_conflict: ["account"],
+  chase_overdue_commitment: ["account", "opportunity"],
+};
+
+/** Does this action type belong on this kind of subject? Unlisted types: yes. */
+export function subjectFits(actionType: string, subjectType: string): boolean {
+  const allowed = ACTION_SUBJECTS[actionType];
+  return !allowed || (allowed as readonly string[]).includes(subjectType);
+}
+
 // TERMINAL_ACTION_STATUSES and isTerminalStatus were deleted on 2026-09-01.
 //
 // The allowlist entry that held them said "the constant is used directly by

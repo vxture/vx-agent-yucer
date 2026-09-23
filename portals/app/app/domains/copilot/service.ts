@@ -21,6 +21,7 @@ import {
   planExecution,
   planExpiry,
   planFailure,
+  subjectFits,
   type ActionPatch,
   type ActionStatus,
   type AgentAction,
@@ -263,8 +264,14 @@ export async function recordProposals(
 ): Promise<RuleResult<AgentAction[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "copilot.suggest", "data");
   if (!gate.allowed) return denied(gate);
-  if (proposals.length === 0) return ok([]);
-  return ok(await ctx.store.createProposals(ctx.workspaceId, proposals));
+  // MISFILED PROPOSALS ARE NOT WRITTEN (YC-021 L6 客户级与商机级分层). A stage
+  // advance "on" a customer, or an upsell "on" a deal, would sit on the wrong
+  // page and fail only when somebody accepted it. The caller learns by count:
+  // the copilot turn reports proposals it produced but could not write as
+  // dropped. The rules' own sweeps build correct subjects and lose nothing.
+  const fitting = proposals.filter((p) => subjectFits(p.actionType, p.subjectType));
+  if (fitting.length === 0) return ok([]);
+  return ok(await ctx.store.createProposals(ctx.workspaceId, fitting));
 }
 
 /**

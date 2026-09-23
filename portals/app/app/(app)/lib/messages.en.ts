@@ -2654,6 +2654,7 @@ export const en: Dictionary = {
     planWhy:
       "The copilot proposes, a person signs. Nothing runs until somebody accepts it.",
     planEmpty: "The copilot has nothing proposed for this account.",
+    planAccountLevel: (n: number) => `${n} more customer-level (relationship) proposal${n === 1 ? "" : "s"} on the customer page →`,
     planCommercial: "Commercial",
     planTechnical: "Product and technical",
     planRelation: "Relationship",

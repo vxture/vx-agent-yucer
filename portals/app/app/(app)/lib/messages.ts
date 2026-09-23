@@ -6199,6 +6199,7 @@ export const POSITION_TEXT = {
   plan: "下一步作战计划",
   planWhy: "助手提议，人来签字。没有人落章就不会执行。",
   planEmpty: "助手目前没有针对这个阵地的提案。",
+  planAccountLevel: (n: number) => `另有 ${n} 条客户级（关系类）提案，在客户页 →`,
   planCommercial: "商务",
   planTechnical: "产品技术",
   planRelation: "关系",
