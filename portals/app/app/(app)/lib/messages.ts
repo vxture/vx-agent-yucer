@@ -5887,6 +5887,12 @@ export const CHAIN_TEXT = {
   // A person the chain knows by id but the roster cannot name (not on this
   // customer any more). Never the id itself.
   unnamedPerson: "未知联系人",
+  // 账户级覆盖聚合 (YC-021 L2) - read only; roles are edited on each deal.
+  rollupTitle: (deals: number, people: number) => `${deals} 个在办商机合计 · 涉及 ${people} 人`,
+  rollupCovered: "至少一单已覆盖",
+  rollupMissingOn: (role: string, deals: number) => `${deals} 单缺${role}`,
+  rollupSeparator: "；",
+  editOnDeal: "去商机编辑角色",
   // incr/0027：一单一条链。标题必须带上是哪一单，否则同一客户下的两条
   // 委员会读起来像一条自相矛盾的答案。
   forDeal: (deal: string) => `决策链 · ${deal}`,
