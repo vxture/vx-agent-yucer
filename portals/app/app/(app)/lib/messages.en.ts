@@ -3558,6 +3558,8 @@ export const en: Dictionary = {
       `The new contract is recorded as the renewal of ${no}. A contract renews once, and the link cannot be moved.`,
     renewedFrom: (no: string) => `renews ${no}`,
     renewedTo: (no: string) => `renewed as ${no}`,
+    lineage: (position: number, total: number, chain: readonly string[]) =>
+      `Renewal chain ${position}/${total} · ${chain.join(" → ")}`,
     recordOutcome: "Record outcome",
     drawerOutcome: "Record a renewal outcome",
     fieldOutcome: "Outcome",

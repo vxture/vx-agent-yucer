@@ -4530,6 +4530,9 @@ export const CONTRACT_TEXT = {
   renewHint: (no: string) => `新合同记为 ${no} 的续约。一份合同只能续约一次，登记后不能改指。`,
   renewedFrom: (no: string) => `续自 ${no}`,
   renewedTo: (no: string) => `已续为 ${no}`,
+  // 续约世系 (YC-021 L4): the whole chain, so a third-year contract reads as one.
+  lineage: (position: number, total: number, chain: readonly string[]) =>
+    `续约链 第 ${position}/${total} 份 · ${chain.join(" → ")}`,
   recordOutcome: "记录结果",
   drawerOutcome: "记录续约结果",
   fieldOutcome: "结果",
