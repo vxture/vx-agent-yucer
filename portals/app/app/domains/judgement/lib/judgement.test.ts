@@ -349,3 +349,28 @@ test("a workspace that lowers staleDays turns silence-plus-a-broken-promise into
   assert.equal(raisedPastIt.some((j) => j.id === "stalled:acc_1"), false);
   assert.equal(raisedPastIt.some((j) => j.id === "quiet:acc_1"), false, "they owe us, so quiet must not fire either");
 });
+
+test("every derived judgement carries freshness, from the newest note it cites (L2 batch seven)", () => {
+  // Newest cited note is 48 days old - under the 60-day follow-up threshold.
+  const fresh = deriveJudgements({ accounts: [account()], now: NOW });
+  assert.ok(fresh.length > 0);
+  for (const j of fresh) {
+    if (j.citations.some((c) => c.when)) assert.deepEqual(j.freshness, { stale: false, daysAgo: 48 });
+  }
+  // Every note older than 60 days: the same claims now say they rest on old facts.
+  const stale = deriveJudgements({
+    accounts: [
+      account({
+        lastContactAt: daysAgo(70),
+        notes: [
+          { id: "int_1", occurredAt: daysAgo(70), channel: "电话", who: "刘敏", text: "旧" },
+          { id: "int_2", occurredAt: daysAgo(90), channel: "微信", who: "王磊", text: "更旧" },
+        ],
+      }),
+    ],
+    now: NOW,
+  });
+  const cited = stale.filter((j) => j.citations.some((c) => c.kind === "interaction"));
+  assert.ok(cited.length > 0);
+  for (const j of cited) assert.deepEqual(j.freshness, { stale: true, daysAgo: 70, kind: "interaction" });
+});

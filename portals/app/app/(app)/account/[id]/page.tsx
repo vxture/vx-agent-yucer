@@ -892,7 +892,7 @@ export default async function AccountDetailPage({
   // 定向自动分析 (owner, 2026-09-18): 判断题放 sidebar - 单位信息卡的最下方,
   // 不再是独立的横幅。
   const judgement = topJudgement
-    ? { claim: topJudgement.claim, rule: topJudgement.rule ?? null }
+    ? { claim: topJudgement.claim, rule: topJudgement.rule ?? null, freshness: topJudgement.freshness ?? null }
     : null;
 
   return (

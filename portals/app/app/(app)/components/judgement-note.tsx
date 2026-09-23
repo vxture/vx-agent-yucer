@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Icon } from "@vxture/design-ui";
+import { StaleMark } from "./stale-mark";
+import type { Freshness } from "../../domains/account/lib/evidence-quality";
 
 // 定向自动分析, 可展开收起 (owner, 2026-09-21: 判定信息应该移到客户评估板块，
 // 并提供展开收起功能，收起只有一行). 抽成独立文件而不是留在 health-panel.tsx
@@ -11,6 +13,8 @@ import { Icon } from "@vxture/design-ui";
 export interface Judgement {
   readonly claim: string;
   readonly rule: string | null;
+  /** L2 batch seven - shown beside the claim when its evidence is old. */
+  readonly freshness?: Freshness | null;
 }
 
 export function JudgementNote({ judgement }: { readonly judgement: Judgement }) {
@@ -29,6 +33,11 @@ export function JudgementNote({ judgement }: { readonly judgement: Judgement }) 
       />
       <div className="min-w-0 flex-1">
         <p className={`text-body-sm font-medium ${open ? "" : "truncate"}`}>{judgement.claim}</p>
+        {judgement.freshness?.stale ? (
+          <span className="mt-2xs inline-block">
+            <StaleMark freshness={judgement.freshness} />
+          </span>
+        ) : null}
         {open && judgement.rule ? (
           <p className="text-muted-foreground mt-2xs text-body-sm">{judgement.rule}</p>
         ) : null}
