@@ -58,8 +58,14 @@ export interface PanelMenu {
 export type CollapsibleSectionProps = ComponentProps<typeof Section> & {
   /** This panel's own "⋮" menu, left of the fold toggle. Absent: no menu. */
   readonly menu?: PanelMenu;
-  /** One line of what still needs attention while folded. Null/absent: none. */
-  readonly summary?: ReactNode;
+  /**
+   * THE FOLDED LINE - REQUIRED, ALWAYS (norm, owner 2026-09-23: 收起后统一
+   * 一行小字, 警示性, 关键信息提示). Warning first; when nothing warns, the
+   * card's single most important fact - never empty, so every folded card
+   * reads alike. A string, not a node: null cannot be passed, and a panel
+   * that forgets the line does not compile.
+   */
+  readonly summary: string;
   /** Actions that only make sense while open (a tab strip, say) - hidden when folded. */
   readonly openAction?: ReactNode;
 };
@@ -75,7 +81,7 @@ export function CollapsibleSection({
   level = 3,
   ...rest
 }: CollapsibleSectionProps) {
-  const { CHAIN_TEXT, PANEL_MENU_TEXT, DS_LABELS } = useMessages();
+  const { CHAIN_TEXT, PANEL_MENU_TEXT, DS_LABELS, COLLAPSE_TEXT } = useMessages();
   const router = useRouter();
   const [expanded, setExpanded] = useState(true);
 
@@ -116,7 +122,24 @@ export function CollapsibleSection({
       level={level}
       data-collapsed={expanded ? undefined : "true"}
       className={[className, COLLAPSED_CLASS, ACTION_TOP_CLASS].filter(Boolean).join(" ")}
-      description={expanded ? description : (summary ?? undefined)}
+      description={
+        expanded ? (
+          description
+        ) : (
+          // AI mark on every folded line (owner, 2026-09-23: 无论规则还是推理,
+          // 都标 AI; 用 header 的 AI 图标, 不写文字) - the same `sparkles` icon
+          // as the header's 智能助手 button. The actual source stays one hover
+          // away, so the product's own rule (B4: 规则算出 vs 模型推断 are
+          // marked apart) is not lost - today every folded line is
+          // rule-computed.
+          <span className="inline-flex items-start gap-3xs">
+            <span className="text-primary-text mt-[0.1875rem] shrink-0" title={COLLAPSE_TEXT.aiHint}>
+              <Icon name="sparkles" size="xs" />
+            </span>
+            <span>{summary}</span>
+          </span>
+        )
+      }
       action={
         <span className="flex items-center justify-end gap-xs">
           {expanded ? openAction : null}

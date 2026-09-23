@@ -151,7 +151,7 @@ export function TheatrePlan({
 }) {
   const { ACCOUNT_TEXT, BOARD_TEXT, PROPOSAL_TEXT, COLLAPSE_TEXT } = useMessages();
   // Folded: proposals still waiting for a person.
-  const pendingSummary = proposals.length > 0 ? COLLAPSE_TEXT.planPending(proposals.length) : null;
+  const pendingSummary = proposals.length > 0 ? COLLAPSE_TEXT.planPending(proposals.length) : COLLAPSE_TEXT.planNone;
 
   const capCounts = new Map<string, number>();
   for (const p of proposals) {
@@ -195,7 +195,7 @@ export function TheatrePlan({
       <CollapsibleSection
       // This panel's own "⋮" (owner, 2026-09-23): proposals are decided in the
       // queue (ADR-003), so view and edit both go there.
-      menu={{ view: { href: "/copilot" }, edit: { href: "/copilot" } }} summary={null}
+      menu={{ view: { href: "/copilot" }, edit: { href: "/copilot" } }} summary={pendingSummary}
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         icon="target"

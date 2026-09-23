@@ -4557,8 +4557,19 @@ export const COLLAPSE_TEXT = {
   contractDue: (days: number) => `合同 ${days} 天后到期`,
   contractLapsed: "有合同已到期未续",
   planPending: (n: number) => `${n} 条待裁决提案`,
+  // 规范: 没有警示时也要有一行关键信息, 不留空 (owner, 2026-09-23)。
+  planNone: "暂无待裁决提案",
+  contactsAllWarm: (n: number) => `${n} 位联系人，近期都有接触`,
+  contactsNone: "还没有联系人",
+  chainsAllReachable: (n: number) => `${n} 条决策链，经济决策人均可触达`,
+  chainsNone: "没有开放商机，暂无决策链",
+  chainDetail: (covered: number, total: number, reachable: boolean) =>
+    `覆盖 ${covered}/${total} 个角色 · ${reachable ? "经济决策人可触达" : "经济决策人未触达"}`,
+  rosterQuiet: "暂无开放商机、逾期回款或临期合同",
   conflictsPending: (n: number) => `${n} 处说法待确认`,
   separator: " · ",
+  // 收起摘要行前统一挂 AI 图标 (owner, 2026-09-23), 悬停注明实际来源。
+  aiHint: "智能助手按当前数据归纳；本行由规则按当前数据算出",
 } as const;
 
 /** 说法核对 (L2 批七 b, owner 2026-09-22: 手动按钮 / 复用提案 / 最近 20 条同一事实)。 */

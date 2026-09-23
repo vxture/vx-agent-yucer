@@ -44,8 +44,7 @@ export function AnalysisTabs({
   summary,
   tabs,
   defaultKey,
-  collapsible = false,
-  collapsedSummary,
+  collapsible,
 }: {
   readonly id: string;
   /** Defaults to the original "chart-bar" (owner, 2026-09-06 ruling was
@@ -66,10 +65,9 @@ export function AnalysisTabs({
    *  that actually has something on it instead. */
   readonly defaultKey?: string;
   /** The customer page's cards fold (owner, 2026-09-23); the analysis pages
-   *  that also use this component do not, so it is opt-in. */
-  readonly collapsible?: boolean;
-  /** One line of what still needs attention while folded. */
-  readonly collapsedSummary?: ReactNode;
+   *  that also use this component do not, so it is opt-in - and opting in
+   *  REQUIRES the folded line (the norm: never empty). */
+  readonly collapsible?: { readonly summary: string };
 }) {
   const [active, setActive] = useState(defaultKey ?? tabs[0]?.key ?? "");
 
@@ -124,7 +122,7 @@ export function AnalysisTabs({
           title={title}
           description={description}
           openAction={triggers}
-          summary={collapsedSummary}
+          summary={collapsible.summary}
           menu={menu}
         >
           {body}

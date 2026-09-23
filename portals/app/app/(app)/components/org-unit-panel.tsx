@@ -140,10 +140,13 @@ export function OrgUnitPanel({
   customerTypeName,
   scaleName,
 }: OrgUnitPanelProps) {
-  const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT, COLLAPSE_TEXT } = useMessages();
   const edit = useAccountEdit();
   return (
     <CollapsibleSection
+      // Folded (norm: never empty): no warning lives here, so the key facts -
+      // account number, industry, region.
+      summary={[accountNo, industry, region].filter(Boolean).join(COLLAPSE_TEXT.separator)}
       // This panel's own "⋮" (owner, 2026-09-23): 编辑 is 客户总编辑's
       // 基础信息 drawer, and 定级 / 协作人 sit beside it - the same three
       // drawers the breadcrumb row's menu opens (account-edit-context.tsx).

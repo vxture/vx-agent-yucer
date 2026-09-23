@@ -724,7 +724,8 @@ export default async function AccountDetailPage({
       .sort((a, b) => a - b)[0];
     if (soonest !== undefined) parts.push(COLLAPSE_TEXT.contractDue(soonest));
     if (pendingConflicts.length > 0) parts.push(COLLAPSE_TEXT.conflictsPending(pendingConflicts.length));
-    return parts.length > 0 ? parts.join(COLLAPSE_TEXT.separator) : null;
+    // Norm: never empty - a quiet roster says it is quiet.
+    return parts.length > 0 ? parts.join(COLLAPSE_TEXT.separator) : COLLAPSE_TEXT.rosterQuiet;
   })();
 
   const completeness = await accountCompleteness(
@@ -1190,8 +1191,7 @@ export default async function AccountDetailPage({
             // across both layers - open deals and overdue money (L3), a
             // contract lapsed or coming up within 90 days (L4), and any
             // conflicting statements waiting to be confirmed.
-            collapsible
-            collapsedSummary={rosterSummary}
+            collapsible={{ summary: rosterSummary }}
             title={
               <span className="inline-flex items-center gap-xs whitespace-nowrap">
                 <span>{ACCOUNT_TEXT.roster}</span>
