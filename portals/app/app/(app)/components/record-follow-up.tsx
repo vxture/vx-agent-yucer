@@ -10,6 +10,8 @@ import {
   Section,
   StatusBadge,
   Textarea,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@vxture/design-ui";
 import { INTERACTION_CHANNELS } from "../../domains/account/lib/commitment";
 import { useMessages } from "../lib/i18n/provider";
@@ -46,8 +48,11 @@ export interface RecordFollowUpProps {
       rawNote: string;
       opportunityId?: string;
       commitments?: readonly { direction: string; statement: string; dueAt: string }[];
+      contactIds?: readonly string[];
     },
   ) => Promise<{ ok: boolean; error?: string; failedCommitments?: number }>;
+  /** This account's contacts, to say who was there. Absent: no picker. */
+  readonly contacts?: ReadonlyArray<{ id: string; name: string; title: string | null }>;
 }
 
 /** Local datetime for the input's value - a UTC ISO string would show the
@@ -63,6 +68,7 @@ export function RecordFollowUp({
   opportunityId,
   canRecord,
   onRecord,
+  contacts,
   doneHref,
 }: RecordFollowUpProps & { readonly doneHref?: string }) {
   const router = useRouter();
@@ -79,6 +85,9 @@ export function RecordFollowUp({
   // incr/0004 for exactly this) was never once set by the interface. Optional
   // rows here keep the dump zero-friction - the note alone still submits -
   // while "who promised what" is one gesture away instead of a second form.
+  // Their people who were there (YC-021 L2 每人最近接触). Optional, like
+  // everything but the note: the dump still submits with nobody picked.
+  const [present, setPresent] = useState<string[]>([]);
   const [promises, setPromises] = useState<
     readonly { direction: string; statement: string; dueAt: string }[]
   >([]);
@@ -95,6 +104,7 @@ export function RecordFollowUp({
         rawNote: note,
         opportunityId,
         commitments: promises.filter((p) => p.statement.trim() !== ""),
+        contactIds: present,
       }).then((r) => {
         if (!r.ok)
           setError(FIELD_ERROR[r.error ?? "denied"] ?? FIELD_ERROR.denied);
@@ -106,6 +116,7 @@ export function RecordFollowUp({
           setSaved(true);
           setNote("");
           setPromises([]);
+          setPresent([]);
         } else if (doneHref) {
           // A capture page is an errand: back to where the person came from.
           router.push(doneHref);
@@ -114,6 +125,7 @@ export function RecordFollowUp({
           setSaved(true);
           setNote("");
           setPromises([]);
+          setPresent([]);
           setOccurredAt(localNow());
         }
       });
@@ -134,6 +146,29 @@ export function RecordFollowUp({
         placeholder={FIELD_TEXT.recordNotePlaceholder}
         disabled={pending}
       />
+
+      {contacts && contacts.length > 0 ? (
+        <>
+          <Label htmlFor="fu-who">{FIELD_TEXT.recordWho}</Label>
+          <ToggleGroup
+            id="fu-who"
+            type="multiple"
+            variant="outline"
+            size="sm"
+            className="flex-wrap justify-start"
+            value={present}
+            onValueChange={setPresent}
+            disabled={pending}
+          >
+            {contacts.map((c) => (
+              <ToggleGroupItem key={c.id} value={c.id} aria-label={c.name}>
+                {c.title ? `${c.name} · ${c.title}` : c.name}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <p className="text-muted-foreground text-body-sm">{FIELD_TEXT.recordWhoHint}</p>
+        </>
+      ) : null}
 
       <Label htmlFor="fu-channel">{FIELD_TEXT.recordChannel}</Label>
       <NativeSelect
