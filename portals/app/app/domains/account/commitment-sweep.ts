@@ -3,6 +3,7 @@ import { can } from "../../authz/decide";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getCopilotStore, getFieldStore } from "../shared/registry";
 import { recordProposals } from "../copilot/service";
+import { CHASE_COMMITMENT_ACTION_TYPE } from "../copilot/lib/action";
 import type { NewProposal } from "../copilot/store";
 import type { CommitmentRecord } from "./field-store";
 
@@ -46,7 +47,7 @@ export const SWEEP_PERMISSIONS: readonly PermCode[] = ["copilot.use"];
 
 /** The action type. One value, so the queue can be filtered on it and so the
  * dedup below has something exact to match. */
-export const SWEEP_ACTION_TYPE = "chase_overdue_commitment";
+export const SWEEP_ACTION_TYPE = CHASE_COMMITMENT_ACTION_TYPE;
 
 export interface SweepLedger {
   /** Open commitments past their due date. */

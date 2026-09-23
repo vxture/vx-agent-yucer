@@ -45,6 +45,7 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
+import { displayRationale } from "../../lib/proposal-rationale";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
 import { InteractionTimeline } from "../../components/interaction-timeline";
@@ -203,6 +204,7 @@ export default async function AccountDetailPage({
     PANEL_MENU_TEXT,
     CONTRACT_TEXT,
     CONTRACT_ERROR,
+    RATIONALE_TEXT,
   } = await getMessages();
   const { id } = await params;
   // 累计合同额需要 Intl.NumberFormat 的 locale (owner, 2026-09-21: 补充 -
@@ -648,7 +650,7 @@ export default async function AccountDetailPage({
         BOARD_TEXT.capUnlabelled,
       ),
       capabilityKey: a.capability,
-      rationale: a.rationale,
+      rationale: displayRationale(a, RATIONALE_TEXT),
       confidence: a.confidence,
     }));
 
