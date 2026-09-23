@@ -359,6 +359,24 @@ test("recorded proposals always start as proposed", async () => {
   assert.equal(created[0].decidedBySub, null);
 });
 
+test("a proposal filed on the wrong layer is not written (YC-021 L6)", async () => {
+  const store = new InMemoryCopilotStore();
+  const base = { sessionId: null, payload: {}, rationale: null, confidence: 60 } as const;
+  const written = unwrap(
+    await recordProposals(ctx("sales_leader", "enterprise", store), [
+      { ...base, actionType: "advance_stage", subjectType: "account", subjectId: "acc_1" },
+      { ...base, actionType: "propose_upsell", subjectType: "opportunity", subjectId: "opp_1" },
+      { ...base, actionType: "advance_stage", subjectType: "opportunity", subjectId: "opp_1" },
+      { ...base, actionType: "draft_email", subjectType: "lead", subjectId: "lead_1" },
+    ]),
+  );
+  // The stage advance on a deal, and the unlisted type anywhere - nothing else.
+  assert.deepEqual(
+    written.map((a) => `${a.actionType}@${a.subjectType}`).sort(),
+    ["advance_stage@opportunity", "draft_email@lead"],
+  );
+});
+
 test("recording proposals needs the suggest tier", async () => {
   const r = await recordProposals(ctx("sales_leader", "starter"), [
     { sessionId: null, actionType: "a", subjectType: "account", subjectId: "x", payload: {}, rationale: null, confidence: null },

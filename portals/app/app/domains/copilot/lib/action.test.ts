@@ -10,6 +10,7 @@ import {
   planDecision,
   planExecution,
   planExpiry,
+  subjectFits,
   planFailure,
   type ActionStatus,
   type AgentAction,
@@ -241,4 +242,13 @@ test("batch risk of an empty batch is empty, not a crash", () => {
   const r = batchRisk([]);
   assert.equal(r.count, 0);
   assert.equal(r.meanConfidence, null);
+});
+
+test("subjectFits: relationship work on the customer, advancing work on the deal, unlisted anywhere", () => {
+  assert.equal(subjectFits("advance_stage", "opportunity"), true);
+  assert.equal(subjectFits("advance_stage", "account"), false);
+  assert.equal(subjectFits("propose_upsell", "account"), true);
+  assert.equal(subjectFits("propose_upsell", "opportunity"), false);
+  assert.equal(subjectFits("chase_overdue_commitment", "opportunity"), true);
+  assert.equal(subjectFits("something_the_model_made_up", "campaign"), true);
 });

@@ -243,8 +243,15 @@ export default async function OpportunityDetailPage({
     "account.cadence": POSITION_TEXT.planRelation,
     "delivery.payment_risk": POSITION_TEXT.planTechnical,
   };
+  // THIS DEAL'S OWN, not the customer's (YC-021 L6 客户级与商机级分层). The
+  // customer's relationship proposals used to be mixed in here as if they
+  // were moves on this deal; they belong on the customer page, and this page
+  // says how many are waiting there and links to them.
+  const accountLevelCount = opportunity.accountId
+    ? (proposals.ok ? proposals.value : []).filter((a) => a.subjectId === opportunity.accountId).length
+    : 0;
   const positionProposals = (proposals.ok ? proposals.value : [])
-    .filter((a) => a.subjectId === id || a.subjectId === opportunity.accountId)
+    .filter((a) => a.subjectId === id)
     .map((a) => ({
       id: a.id,
       title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,
@@ -573,6 +580,11 @@ export default async function OpportunityDetailPage({
         rivalMentions={rivalMentions}
         problems={problems}
         proposals={positionProposals}
+        accountLevel={
+          accountLevelCount > 0 && opportunity.accountId
+            ? { count: accountLevelCount, href: `/account/${opportunity.accountId}` }
+            : null
+        }
       />
 
       {/* THE FULL CHAIN, once (2026-09-05 convergence): who is who ON THIS
