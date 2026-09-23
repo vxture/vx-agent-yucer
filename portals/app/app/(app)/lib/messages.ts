@@ -2957,6 +2957,8 @@ export const FIELD_ERROR: Record<string, string> = {
   // 统一录入的部分成功:笔记是证据、只追加,落了就不回滚;某条承诺被拒时如实说。
   commitment_partial: "跟进已记下,但有承诺没记上——到承诺列表补一条",
   contact_not_on_account: "选的联系人不在这家客户名下——刷新页面再选",
+  evidence_not_found: "作证据的那条跟进找不到了——刷新后重新选一条",
+  evidence_other_account: "作证据的跟进不是这家客户的——承诺只能由跟这家客户的往来来证明",
   note_required: "写一句发生了什么——只记下它发生过,没有价值",
   occurred_in_future: "跟进不能发生在未来",
   unknown_channel: "未知的跟进方式",
