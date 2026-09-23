@@ -14,7 +14,7 @@ import type { Freshness } from "../../domains/account/lib/evidence-quality";
 
 export function StaleMark({ freshness }: { readonly freshness: Freshness | null | undefined }) {
   const { EVIDENCE_TEXT } = useMessages();
-  if (!freshness || !freshness.stale) return null;
+  if (!freshness?.stale) return null;
   return (
     <span title={EVIDENCE_TEXT.staleHint}>
       <Tag tone="warning">{EVIDENCE_TEXT.stale(freshness.daysAgo)}</Tag>

@@ -40,8 +40,9 @@ export function annotateFreshness(
     (c): c is Citation & { kind: "interaction" | "commitment"; when: Date } =>
       (c.kind === "interaction" || c.kind === "commitment") && c.when instanceof Date,
   );
-  if (dated.length === 0) return null;
-  const newest = dated.reduce((a, b) => (b.when > a.when ? b : a));
+  const [first, ...rest] = dated;
+  if (!first) return null;
+  const newest = rest.reduce((a, b) => (b.when > a.when ? b : a), first);
   // A commitment dated in the future is simply current: age floors at zero.
   const daysAgo = Math.max(0, Math.floor((now.getTime() - newest.when.getTime()) / DAY));
   // Strictly older than the threshold - exactly N days is still fresh.
