@@ -32,7 +32,26 @@ export interface HealthInput {
   projectHealth: ProjectHealth[];
   /** Count of revenue instalments in `overdue`. */
   overdueRevenueCount: number;
+  /** L4 batch three - the fifth factor's source data (business rules §5). */
+  renewal: RenewalHealthInput;
   now?: Date;
+}
+
+/**
+ * What the renewal factor reads. REQUIRED, not optional: "no contracts" has to
+ * be said (and score 0 with a reason), never inferred from a missing field -
+ * skipping it would make an account with no data look healthier than one
+ * with a problem.
+ */
+export interface RenewalHealthInput {
+  /** The workspace's renewal look-ahead (incr/0066). */
+  windowDays: number;
+  /** An open deal on this account that was opened as a renewal (incr/0019's
+   *  source_project_id is set) - the existing marker, no new field. */
+  hasOpenRenewalDeal: boolean;
+  contracts: Array<{ status: string; termEnd: Date | null; noticeDays: number; renewed: boolean }>;
+  /** incr/0078 outcomes. `renewed` rows are ignored here - lineage says that. */
+  events: Array<{ eventType: string; occurredAt: Date }>;
 }
 
 /**
@@ -53,10 +72,17 @@ export type HealthReason =
   | { code: "projects_amber"; count: number }
   | { code: "projects_green"; count: number }
   | { code: "overdue_revenue"; count: number }
-  | { code: "revenue_clean" };
+  | { code: "revenue_clean" }
+  // The fifth factor (L4 batch three).
+  | { code: "renewal_lost"; days: number }
+  | { code: "renewal_downgraded"; days: number }
+  | { code: "renewal_due_unopened"; days: number }
+  | { code: "renewal_in_hand" }
+  | { code: "renewal_not_due" }
+  | { code: "renewal_no_contract" };
 
 export interface HealthContribution {
-  factor: "pipeline" | "recency" | "delivery" | "collections";
+  factor: "pipeline" | "recency" | "delivery" | "collections" | "renewal";
   /** Signed points this factor moved the score by. */
   points: number;
   reason: HealthReason;
@@ -75,6 +101,65 @@ export const BASE_SCORE = 50;
 /** Days without contact before recency starts costing points. */
 export const STALE_AFTER_DAYS = 30;
 export const VERY_STALE_AFTER_DAYS = 90;
+
+/** How far back a lost or downgraded renewal still weighs on the score. */
+export const RENEWAL_OUTCOME_MEMORY_DAYS = 365;
+
+/**
+ * The fifth factor (business rules §5, L4 batch three).
+ *
+ * ONE CONTRIBUTION, THE WORST SIGNAL - not a sum. Every other factor says one
+ * thing, and a renewal that was lost AND is due again is one bad relationship,
+ * not two. Magnitudes sit on the scale the other four already use (-10..-30):
+ *   lost within a year           -25  the relationship already failed once
+ *   notice deadline passed, no
+ *     renewal deal open           -20  the window to act has closed
+ *   in the window, no renewal
+ *     deal open                   -15  due and nobody is on it
+ *   downgraded within a year      -12  kept, but for less
+ * Nothing negative -> 0 points WITH a reason: no contract, not yet due, or
+ * due with the renewal already in hand. Never skipped (§5).
+ */
+export function renewalContribution(input: RenewalHealthInput, now: Date): HealthContribution {
+  const DAY = 86_400_000;
+  const candidates: HealthContribution[] = [];
+  const recent = (e: { occurredAt: Date }) => (now.getTime() - e.occurredAt.getTime()) / DAY <= RENEWAL_OUTCOME_MEMORY_DAYS;
+  const daysSince = (e: { occurredAt: Date }) => Math.max(0, Math.round((now.getTime() - e.occurredAt.getTime()) / DAY));
+
+  const lost = input.events.filter((e) => e.eventType === "lost" && recent(e));
+  if (lost.length > 0) {
+    candidates.push({ factor: "renewal", points: -25, reason: { code: "renewal_lost", days: Math.min(...lost.map(daysSince)) } });
+  }
+  const downgraded = input.events.filter((e) => e.eventType === "downgraded" && recent(e));
+  if (downgraded.length > 0) {
+    candidates.push({
+      factor: "renewal",
+      points: -12,
+      reason: { code: "renewal_downgraded", days: Math.min(...downgraded.map(daysSince)) },
+    });
+  }
+
+  // Due = an in-force, un-renewed contract whose NOTICE deadline (term_end
+  // minus notice_days, §9.1) is inside the window or already behind us.
+  const due = input.contracts
+    .filter((c) => c.status === "active" && !c.renewed && c.termEnd)
+    .map((c) => Math.floor((c.termEnd!.getTime() - c.noticeDays * DAY - now.getTime()) / DAY))
+    .filter((d) => d <= input.windowDays);
+  const soonest = due.length > 0 ? Math.min(...due) : null;
+  if (soonest !== null && !input.hasOpenRenewalDeal) {
+    candidates.push({
+      factor: "renewal",
+      points: soonest < 0 ? -20 : -15,
+      reason: { code: "renewal_due_unopened", days: soonest },
+    });
+  }
+
+  const worst = candidates.sort((a, b) => a.points - b.points)[0];
+  if (worst) return worst;
+  if (input.contracts.length === 0) return { factor: "renewal", points: 0, reason: { code: "renewal_no_contract" } };
+  if (soonest !== null) return { factor: "renewal", points: 0, reason: { code: "renewal_in_hand" } };
+  return { factor: "renewal", points: 0, reason: { code: "renewal_not_due" } };
+}
 
 export function deriveHealth(
   input: HealthInput,
@@ -152,6 +237,10 @@ export function deriveHealth(
       reason: { code: "overdue_revenue", count: input.overdueRevenueCount },
     });
   }
+
+  // Renewal (L4 batch three). Changes every account's score on the deploy that
+  // lands it - an explicit consequence, shipped as its own slice (§5).
+  contributions.push(renewalContribution(input.renewal, now));
 
   const raw = contributions.reduce((n, c) => n + c.points, BASE_SCORE);
   const negatives = contributions.filter((c) => c.points < 0).sort((a, b) => a.points - b.points);

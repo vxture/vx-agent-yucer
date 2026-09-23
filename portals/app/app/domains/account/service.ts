@@ -852,6 +852,7 @@ export async function recomputeHealth(
     lastInteractionAt: inputs.lastInteractionAt,
     projectHealth: inputs.projectHealth,
     overdueRevenueCount: inputs.overdueRevenueCount,
+    renewal: inputs.renewal,
     now: opts.now,
   });
   if (!derived.ok) return derived as RuleResult<HealthOutcome>;

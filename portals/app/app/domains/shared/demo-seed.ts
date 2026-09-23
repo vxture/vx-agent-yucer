@@ -545,24 +545,46 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         lastInteractionAt: daysAgo(48),
         projectHealth: ["amber"],
         overdueRevenueCount: 1,
+        renewal: {
+          // Mirrors seedDelivery's ct_demo_0..3 (L4 batch three): ct_demo_1 is
+          // in force, un-renewed, and its 60-day notice deadline has passed.
+          windowDays: 90,
+          hasOpenRenewalDeal: false,
+          contracts: [
+            { status: "active", termEnd: daysAgo(328), noticeDays: 60, renewed: true },
+            { status: "active", termEnd: daysAhead(38), noticeDays: 60, renewed: false },
+            { status: "terminated", termEnd: daysAgo(335), noticeDays: 30, renewed: false },
+            { status: "draft", termEnd: null, noticeDays: 0, renewed: false },
+          ],
+          events: [],
+        },
       },
       [`${workspaceId}|acc_demo_2`]: {
         openOpportunities: [{ stage: "validate" }],
         lastInteractionAt: daysAgo(3),
         projectHealth: ["green"],
         overdueRevenueCount: 0,
+        renewal: {
+          // ct_demo_4: term ran out twelve days ago, un-renewed.
+          windowDays: 90,
+          hasOpenRenewalDeal: false,
+          contracts: [{ status: "active", termEnd: daysAgo(12), noticeDays: 30, renewed: false }],
+          events: [],
+        },
       },
       [`${workspaceId}|acc_demo_4`]: {
         openOpportunities: [{ stage: "propose" }, { stage: "negotiate" }],
         lastInteractionAt: daysAgo(10),
         projectHealth: ["green"],
         overdueRevenueCount: 0,
+        renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
       },
       [`${workspaceId}|acc_demo_5`]: {
         openOpportunities: [{ stage: "discover" }],
         lastInteractionAt: daysAgo(2),
         projectHealth: ["amber"],
         overdueRevenueCount: 0,
+        renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
       },
     },
   });

@@ -19,7 +19,7 @@ import {
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
-import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge, Stance } from "./lib/health";
+import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge, RenewalHealthInput, Stance } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
@@ -181,6 +181,8 @@ export interface HealthInputs {
   lastInteractionAt: Date | null;
   projectHealth: ProjectHealth[];
   overdueRevenueCount: number;
+  /** L4 batch three. Read from D6 and D7, never written from here. */
+  renewal: RenewalHealthInput;
 }
 
 /** One 大区, as this workspace has it (incr/0036, members by frame since 0045). */
@@ -1245,6 +1247,7 @@ export class InMemoryAccountStore implements AccountStore {
         lastInteractionAt: null,
         projectHealth: [],
         overdueRevenueCount: 0,
+        renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
       }
     );
   }

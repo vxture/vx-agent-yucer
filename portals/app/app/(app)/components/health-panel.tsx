@@ -77,6 +77,7 @@ export function HealthPanel({
     recency: CHAIN_TEXT.factorRecency,
     delivery: CHAIN_TEXT.factorDelivery,
     collections: CHAIN_TEXT.factorCollections,
+    renewal: CHAIN_TEXT.factorRenewal,
   };
 
   const [current, setCurrent] = useState(health);
@@ -104,8 +105,11 @@ export function HealthPanel({
     // 区域 - 这三行的理由跟阵地清单的商机/交付项目/回款三个 tab 是同一批
     // 数据从两个粒度各说一次, 评分卡只留分数, 明细去阵地清单看). 互动时效
     // 保留理由 - 这一条现在是唯一还在讲联系频率这件事的地方, 不能也删。
-    trend: c.factor === "recency" ? healthReasonText(c.reason) : undefined,
-    tone: c.points < 0 ? "danger" : "success",
+    // 续约也带理由行 (L4 批三): 它的依据是合同通知期与续约结果, 阵地清单里
+    // 没有哪一个 tab 替它把"为什么扣分"讲出来。0 分时也要有理由 - "没有合同"
+    // 和"未进入窗口"是两句不同的话 (业务规则 §5: 不跳过)。
+    trend: c.factor === "recency" || c.factor === "renewal" ? healthReasonText(c.reason) : undefined,
+    tone: c.points < 0 ? "danger" : c.points === 0 ? "neutral" : "success",
   }));
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见

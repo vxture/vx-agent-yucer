@@ -76,6 +76,7 @@ async function cleanup() {
   await withPg(async (c) => {
     // incr/0078: superuser cleanup - yucer_svc could not delete these.
     await c.query(`DELETE FROM yucer_delivery.renewal_event WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_delivery.renewal_policy WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_delivery.contract_line WHERE workspace_id = $1`, [WS]);
     // Children before parents: renewed_from is ON DELETE RESTRICT.
     await c.query(
@@ -344,6 +345,46 @@ test("the adapter: renew writes the lineage, events and renewedBy read back, a s
     assert.equal(held?.renewedBy, second.id);
     assert.deepEqual(held?.events.map((e) => [e.eventType, e.successorContractId, e.actorSub]), [["renewed", second.id, "usr_x"]]);
     assert.equal((await s.getContract(WS, second.id))?.renewedBy, null);
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- L4 batch three: the health score's renewal sources, read for real -------
+
+test("account healthInputs reads contracts, lineage, outcomes and the window from the real schema", { skip }, async () => {
+  // The fake-client test proves the assembly; this proves the QUERIES - field
+  // names, the `in` filter on event_type, the renewal_policy lookup - are ones
+  // Postgres and the generated client actually accept.
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seed(c);
+      await insertContract(c, CT1, "HT-1");
+      await insertContract(c, CT2, "HT-2", CT1);
+      await c.query(
+        `INSERT INTO yucer_delivery.renewal_event (workspace_id, contract_id, event_type, successor_contract_id)
+         VALUES ($1, $2, 'renewed', $3)`,
+        [WS, CT1, CT2],
+      );
+      await c.query(
+        `INSERT INTO yucer_delivery.renewal_event (workspace_id, contract_id, event_type, reason)
+         VALUES ($1, $2, 'downgraded', 'fewer seats')`,
+        [WS, CT2],
+      );
+      await c.query(
+        `INSERT INTO yucer_delivery.renewal_policy (workspace_id, window_days) VALUES ($1, 45)
+         ON CONFLICT (workspace_id) DO UPDATE SET window_days = 45`,
+        [WS],
+      );
+    });
+    const { PrismaAccountStore } = await import("../account/prisma-store");
+    const out = await new PrismaAccountStore().healthInputs(WS, ACC);
+    assert.equal(out.renewal.windowDays, 45);
+    assert.equal(out.renewal.hasOpenRenewalDeal, false);
+    const byRenewed = out.renewal.contracts.map((x) => x.renewed).sort();
+    assert.deepEqual(byRenewed, [false, true]);
+    assert.deepEqual(out.renewal.events.map((e) => e.eventType), ["downgraded"]);
   } finally {
     await cleanup();
   }

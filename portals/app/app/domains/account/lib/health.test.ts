@@ -21,6 +21,7 @@ function health(over: Partial<HealthInput> = {}) {
       lastInteractionAt: daysAgo(5),
       projectHealth: [],
       overdueRevenueCount: 0,
+      renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
       now: NOW,
       ...over,
     }),
@@ -97,7 +98,9 @@ test("the score explains itself - a red account can be argued with", () => {
     overdueRevenueCount: 1,
   });
   const factors = r.contributions.map((c) => c.factor).sort();
-  assert.deepEqual(factors, ["collections", "delivery", "pipeline", "recency"]);
+  // The fifth factor (L4 batch three) is always present: 0 points with a reason
+  // when there is nothing to say, never skipped (§5).
+  assert.deepEqual(factors, ["collections", "delivery", "pipeline", "recency", "renewal"]);
   for (const c of r.contributions) assert.ok(c.reason.code.length > 0, `${c.factor} has no detail`);
 });
 
@@ -225,4 +228,85 @@ test("an empty account analyses cleanly rather than crashing", () => {
   assert.deepEqual(r.covered, []);
   assert.deepEqual(r.missing, [...REQUIRED_ROLES]);
   assert.equal(r.economicBuyerUnreachable, true);
+});
+
+// --- The fifth factor: renewal (L4 batch three, business rules §5) -----------
+
+const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
+const renewalOf = (over: Partial<HealthInput["renewal"]> = {}): HealthInput["renewal"] => ({
+  windowDays: 90,
+  hasOpenRenewalDeal: false,
+  contracts: [],
+  events: [],
+  ...over,
+});
+const renewalLine = (h: ReturnType<typeof health>) => h.contributions.find((c) => c.factor === "renewal");
+
+test("renewal: no contract scores 0 WITH a reason - never skipped", () => {
+  const h = health({ renewal: renewalOf() });
+  assert.deepEqual(renewalLine(h), { factor: "renewal", points: 0, reason: { code: "renewal_no_contract" } });
+});
+
+test("renewal: a contract outside the window scores 0 and says so", () => {
+  const contracts = [{ status: "active", termEnd: daysAhead(400), noticeDays: 30, renewed: false }];
+  assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts }) }))?.reason, { code: "renewal_not_due" });
+});
+
+test("renewal: due with no renewal deal costs 15, 20 once the notice deadline passed", () => {
+  const due = [{ status: "active", termEnd: daysAhead(60), noticeDays: 30, renewed: false }];
+  assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts: due }) })), {
+    factor: "renewal", points: -15, reason: { code: "renewal_due_unopened", days: 30 },
+  });
+  const passed = [{ status: "active", termEnd: daysAhead(10), noticeDays: 30, renewed: false }];
+  assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts: passed }) })), {
+    factor: "renewal", points: -20, reason: { code: "renewal_due_unopened", days: -20 },
+  });
+});
+
+test("renewal: an open renewal deal, or a successor contract, means it is in hand", () => {
+  const due = [{ status: "active", termEnd: daysAhead(60), noticeDays: 30, renewed: false }];
+  assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts: due, hasOpenRenewalDeal: true }) }))?.points, 0);
+  assert.deepEqual(
+    renewalLine(health({ renewal: renewalOf({ contracts: due, hasOpenRenewalDeal: true }) }))?.reason,
+    { code: "renewal_in_hand" },
+  );
+  const renewed = [{ status: "active", termEnd: daysAhead(60), noticeDays: 30, renewed: true }];
+  assert.deepEqual(renewalLine(health({ renewal: renewalOf({ contracts: renewed }) }))?.reason, { code: "renewal_not_due" });
+});
+
+test("renewal: draft and terminated contracts are never due", () => {
+  const contracts = [
+    { status: "draft", termEnd: daysAhead(5), noticeDays: 0, renewed: false },
+    { status: "terminated", termEnd: daysAhead(5), noticeDays: 0, renewed: false },
+  ];
+  assert.equal(renewalLine(health({ renewal: renewalOf({ contracts }) }))?.points, 0);
+});
+
+test("renewal: the WORST signal wins, the signals do not stack", () => {
+  const h = health({
+    renewal: renewalOf({
+      contracts: [{ status: "active", termEnd: daysAhead(10), noticeDays: 30, renewed: false }],
+      events: [
+        { eventType: "lost", occurredAt: daysAgo(40) },
+        { eventType: "downgraded", occurredAt: daysAgo(20) },
+      ],
+    }),
+  });
+  assert.deepEqual(renewalLine(h), { factor: "renewal", points: -25, reason: { code: "renewal_lost", days: 40 } });
+  assert.equal(h.contributions.filter((c) => c.factor === "renewal").length, 1);
+});
+
+test("renewal: an outcome older than a year no longer weighs", () => {
+  const events = [{ eventType: "lost", occurredAt: daysAgo(400) }, { eventType: "downgraded", occurredAt: daysAgo(30) }];
+  assert.deepEqual(renewalLine(health({ renewal: renewalOf({ events }) })), {
+    factor: "renewal", points: -12, reason: { code: "renewal_downgraded", days: 30 },
+  });
+});
+
+test("renewal: the factor moves the total by exactly its points", () => {
+  const base = health({ renewal: renewalOf() }).score;
+  const hit = health({
+    renewal: renewalOf({ contracts: [{ status: "active", termEnd: daysAhead(60), noticeDays: 30, renewed: false }] }),
+  }).score;
+  assert.equal(base - hit, 15);
 });

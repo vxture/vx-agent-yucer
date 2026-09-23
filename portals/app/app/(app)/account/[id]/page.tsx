@@ -278,8 +278,11 @@ export default async function AccountDetailPage({
     await Promise.all([
       // persist:false - see the note above. It still needs the write gate, so a
       // read-only member gets no panel rather than a silently failing one.
+      // A THROWN source read means NO score (§5: 宁可没有, 不要给一个少算了
+      // 一项的分) - the card then falls back to status tag + judgement, the
+      // same shape a read-only member sees. It must not take the page down.
       canWrite
-        ? recomputeHealth(ctx, id, { persist: false })
+        ? recomputeHealth(ctx, id, { persist: false }).catch(() => null)
         : Promise.resolve(null),
       accountRelations(ctx, id),
       // 基础信息表单的四个词表 (owner, 2026-09-20: 先做基础信息表单) - only a

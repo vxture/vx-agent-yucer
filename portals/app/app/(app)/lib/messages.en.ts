@@ -1217,6 +1217,7 @@ export const en: Dictionary = {
     factorRecency: "Contact recency",
     factorDelivery: "Delivery",
     factorCollections: "Collections",
+    factorRenewal: "Renewal",
     coverageCount: (n: number, total: number) => `${n}/${total} roles covered`,
     viewTable: "Table",
     viewGraph: "Graph",
@@ -2732,6 +2733,20 @@ export const en: Dictionary = {
         return `${n(r.count, "instalment", "instalments")} overdue`;
       case "revenue_clean":
         return "No overdue collections";
+      case "renewal_lost":
+        return `Renewal lost ${n(r.days, "day", "days")} ago`;
+      case "renewal_downgraded":
+        return `Renewed for less ${n(r.days, "day", "days")} ago`;
+      case "renewal_due_unopened":
+        return (r.days ?? 0) < 0
+          ? `Notice passed ${n(-(r.days ?? 0), "day", "days")} ago, no renewal deal open`
+          : `${n(r.days, "day", "days")} to notice, no renewal deal open`;
+      case "renewal_in_hand":
+        return "Renewal of the due contract is under way";
+      case "renewal_not_due":
+        return "No contract inside the renewal window";
+      case "renewal_no_contract":
+        return "No contract on file";
       default:
         return r.code;
     }

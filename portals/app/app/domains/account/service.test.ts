@@ -125,6 +125,7 @@ test("health is recomputed from source and written back", async () => {
         lastInteractionAt: daysAgo(2),
         projectHealth: ["green"],
         overdueRevenueCount: 0,
+        renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
       },
     },
   });
@@ -145,6 +146,7 @@ test("the recompute never reads the stored score, so a wrong value cannot compou
       lastInteractionAt: daysAgo(1),
       projectHealth: [] as never[],
       overdueRevenueCount: 0,
+      renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
     },
   };
   store.seed({ accounts: [account({ healthScore: 0 })], healthInputs: inputs });
@@ -167,6 +169,7 @@ test("the outcome explains itself, so a red account can be argued with", async (
         lastInteractionAt: daysAgo(200),
         projectHealth: ["red"],
         overdueRevenueCount: 2,
+        renewal: { windowDays: 90, hasOpenRenewalDeal: false, contracts: [], events: [] },
       },
     },
   });
