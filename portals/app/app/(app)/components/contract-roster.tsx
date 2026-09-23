@@ -19,6 +19,7 @@ import {
 } from "@vxture/design-ui";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
+import type { InstalledRevenue } from "../../domains/delivery/lib/contract";
 import { Tag } from "./tag";
 import { useAccountEdit } from "./account-edit-context";
 
@@ -101,6 +102,8 @@ export interface ContractRosterProps {
   readonly read: ContractReadState;
   readonly contracts: readonly ContractRow[];
   readonly owned: readonly OwnedRow[];
+  /** 存量收入 - see domains/delivery/lib/contract.ts installedRevenue. */
+  readonly revenue: InstalledRevenue;
   /** L4 batch six - sellable minus owned; `unknown` when the catalogue is. */
   readonly whitespace?:
     | { readonly state: "known"; readonly items: ReadonlyArray<{ id: string; name: string }> }
@@ -240,6 +243,30 @@ export function ContractRoster(props: ContractRosterProps) {
         <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.empty}</p>
       ) : (
         <>
+          <PanelCard title={CONTRACT_TEXT.revenueTitle} description={CONTRACT_TEXT.revenueHint}>
+            {props.revenue.rows.length === 0 ? (
+              <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.revenueNone}</p>
+            ) : (
+              <PanelList>
+                {props.revenue.rows.flatMap((r) => [
+                  <PanelItem
+                    key={`${r.currency}-annualized`}
+                    main={<span className="text-foreground text-body-sm">{CONTRACT_TEXT.revenueAnnualized(r.inForce)}</span>}
+                    trail={<span className="text-body-sm tabular-nums">{formatMoney(r.annualized, r.currency, locale)}</span>}
+                  />,
+                  <PanelItem
+                    key={`${r.currency}-lifetime`}
+                    main={<span className="text-foreground text-body-sm">{CONTRACT_TEXT.revenueLifetime(r.signed)}</span>}
+                    trail={<span className="text-body-sm tabular-nums">{formatMoney(r.lifetime, r.currency, locale)}</span>}
+                  />,
+                ])}
+              </PanelList>
+            )}
+            {props.revenue.unpriced > 0 ? (
+              <p className="mt-xs text-muted-foreground text-body-sm">{CONTRACT_TEXT.revenueUnpriced(props.revenue.unpriced)}</p>
+            ) : null}
+          </PanelCard>
+
           <PanelCard title={CONTRACT_TEXT.ownedTitle} description={CONTRACT_TEXT.ownedHint}>
             {props.owned.length === 0 ? (
               <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.ownedEmpty}</p>
