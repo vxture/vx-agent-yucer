@@ -85,6 +85,9 @@ export function BuyingRoleForm({
 
   return (
     <Section id="buying-roles" title={BUYING_ROLE_TEXT.title} description={BUYING_ROLE_TEXT.description}>
+      {/* Two by two (polish, 2026-09-24): four full-width fields stacked were
+          a tall form for four short answers. */}
+      <div className="grid gap-md sm:grid-cols-2">
       <Field>
         <FieldLabel>{BUYING_ROLE_TEXT.person}</FieldLabel>
         <NativeSelect value={personId} onChange={(e) => pick(e.target.value)}>
@@ -135,6 +138,7 @@ export function BuyingRoleForm({
           onChange={(e) => setInfluence(e.target.value)}
         />
       </Field>
+      </div>
       <SaveRow
         action={save}
         label={BUYING_ROLE_TEXT.save}

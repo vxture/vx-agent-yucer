@@ -3696,6 +3696,7 @@ export const en: Dictionary = {
     planEmptyWhy:
       "No proposals is not the same as no problems - it means nobody has asked. Ask the copilot and it will propose.",
     planCounselorOverview: "Counselor overview",
+    planSilentCaps: (n: number) => `${n} more with no proposal`,
     planCounselorCount: (n: number) =>
       `${n} counselor capabilit${n === 1 ? "y" : "ies"}`,
     planProposalSummary: (n: number) =>

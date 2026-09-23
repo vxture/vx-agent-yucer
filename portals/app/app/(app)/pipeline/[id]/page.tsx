@@ -47,6 +47,8 @@ import { BuyingRoleForm } from "../../components/buying-role-form";
 import { saveBuyingRole } from "../buying-role-action";
 import { getAuthzStore } from "../../../authz/store";
 import { listCampaigns } from "../../../domains/strategy/service";
+import { RaisedCard } from "../../components/raised-card";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../../lib/card-veil";
 import { dealBrief } from "../../../domains/pipeline/lib/brief";
 import { displayRationale } from "../../lib/proposal-rationale";
 import { WarRoom } from "../../components/war-room";
@@ -484,6 +486,23 @@ export default async function OpportunityDetailPage({
         description={accountName}
         action={
           <>
+            {/* The customer's tier beside the deal's own badges (polish,
+                2026-09-24) - it sat alone on a row of its own above the figures. */}
+            <Tag
+              tone={
+                tier === "strategic"
+                  ? "brand"
+                  : tier === "key"
+                    ? "warning"
+                    : "neutral"
+              }
+            >
+              {tier === "strategic"
+                ? POSITION_TEXT.tierStrategic
+                : tier === "key"
+                  ? POSITION_TEXT.tierKey
+                  : POSITION_TEXT.tierStandard}
+            </Tag>
             <Tag tone={STAGE_TONE[opportunity.stage as Stage]} dot>
               {stageLabelFor(opportunity.stage, stageDefinitions, STAGE_LABEL)}
             </Tag>
@@ -501,23 +520,8 @@ export default async function OpportunityDetailPage({
       {/* Whose position this is. A strategic account is a different kind of
           pursuit from a one-off deal, and the page should say which before it
           says anything else. */}
-      <div className="flex flex-wrap items-center gap-xs">
-        <Tag
-          tone={
-            tier === "strategic"
-              ? "brand"
-              : tier === "key"
-                ? "warning"
-                : "neutral"
-          }
-        >
-          {tier === "strategic"
-            ? POSITION_TEXT.tierStrategic
-            : tier === "key"
-              ? POSITION_TEXT.tierKey
-              : POSITION_TEXT.tierStandard}
-        </Tag>
-        {plan ? (
+      {plan ? (
+        <div className="flex flex-wrap items-center gap-xs">
           <>
             <Tag>
               {POSITION_TEXT.planOf(plan.period)}
@@ -530,8 +534,8 @@ export default async function OpportunityDetailPage({
               )}
             </span>
           </>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {/* columns={2}: the DS's breakpoints watch the viewport while this grid
           sits in a pane of viewport minus a fixed 400px deck. Four money
@@ -652,6 +656,8 @@ export default async function OpportunityDetailPage({
           DEAL, by name, with reachability - replacing the four bare counts the
           brief used to carry. The relationship EDITOR stays on the account
           page: the graph is the customer's, not any one deal's. */}
+      {/* The chain and the one control that writes it, one card. */}
+      <RaisedCard>
       {dealChain ? (
         <DecisionChain
           title={CHAIN_TEXT.forDeal(opportunity.name)}
@@ -686,6 +692,7 @@ export default async function OpportunityDetailPage({
         }
         onSave={saveBuyingRole}
       />
+      </RaisedCard>
 
       {/* A SMALL FACT BESIDE A SHORT LIST. Both are read, neither is a grid
           and neither is a form, which is what makes them safe to pair - the
@@ -694,6 +701,9 @@ export default async function OpportunityDetailPage({
           that reason. */}
       <div className="grid gap-lg xl:grid-cols-2">
         <Section
+          tone="raised"
+          style={CARD_VEIL_STYLE}
+          className={CARD_VEIL_CLASS}
           title={OPPORTUNITY_TEXT.account}
           description={OPPORTUNITY_TEXT.attributionFrozen}
         >
@@ -745,6 +755,7 @@ export default async function OpportunityDetailPage({
           so a <NewEntryLink> nested inside LineEditor's props made the guard
           read `onApprove`/`onSave` as bound to form-page - which renders no
           error dictionary. The guard was right about what it saw. */}
+      <RaisedCard>
       <LineEditor
         action={linesAction}
         opportunityId={id}
@@ -782,6 +793,8 @@ export default async function OpportunityDetailPage({
         onSave={saveOpportunityLines}
         onApprove={approveDiscount}
       />
+      </RaisedCard>
+      <RaisedCard>
       <DealTerms
         opportunityId={id}
         stage={opportunity.stage}
@@ -833,7 +846,9 @@ export default async function OpportunityDetailPage({
         }
         onSave={repriceOpportunity}
       />
+      </RaisedCard>
 
+      <RaisedCard>
       <StageControl
         opportunityId={id}
         stage={opportunity.stage}
@@ -849,6 +864,7 @@ export default async function OpportunityDetailPage({
         }
         onAdvance={advanceOpportunityStage}
       />
+      </RaisedCard>
 
       {/* Deliberately adjacent to the stage journey. One says what we recorded
           about the deal's state, the other says what actually happened - and a
@@ -859,7 +875,13 @@ export default async function OpportunityDetailPage({
       ) : null}
 
       {history.ok ? (
-        <StageJourney events={history.value} stageDefinitions={stageDefinitions} />
+        <RaisedCard>
+          <StageJourney
+            events={history.value}
+            stageDefinitions={stageDefinitions}
+            actorNames={Object.fromEntries([...memberNameOf].filter((e): e is [string, string] => e[1] != null))}
+          />
+        </RaisedCard>
       ) : (
         <EmptyState
           title={SHELL_TEXT.loadFailed}

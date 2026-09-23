@@ -258,13 +258,20 @@ export function ContactRoster({
       id="contacts"
       icon="users"
       title={
-        <span className="flex flex-wrap items-center gap-xs">
+        // Compact (polish, 2026-09-24): the count is a plain muted number, not
+        // a pill - the sidebar title has ~90px.
+        <span className="flex flex-wrap items-center gap-2xs">
           <span>{ACCOUNT_TEXT.contactsTitle}</span>
-          <span title={ACCOUNT_TEXT.contactCount(contacts.length)}>
-            <Tag>{contacts.length}</Tag>
+          <span
+            title={ACCOUNT_TEXT.contactCount(contacts.length)}
+            className="text-muted-foreground text-body-sm me-2xs tabular-nums font-normal"
+          >
+            {contacts.length}
           </span>
           <LayerLabel layer="L2" />
-          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
+          {/* No 基础 badge in the header: the sidebar leaves the title ~90px
+              and it wrapped under the ⋮. The footer below states 基础 / Pro,
+              and 单位信息 / 决策链 beside it carry none in their headers. */}
         </span>
       }
       // 新增 / 关联 moved from the title row into this panel's own "⋮"
