@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   contractPhase,
   daysToTermEnd,
+  installedRevenue,
   noticeDeadline,
   ownedProducts,
   planContract,
@@ -172,4 +173,56 @@ test("batch two: renewed early, its products are still owned until its own term 
   const renewedEarly = { ...facts(), renewedBy: "ct_2", lines: [{ id: "1", productId: "core", quantity: 1, termEnd: null }] };
   const owned = ownedProducts([renewedEarly], NOW);
   assert.equal(owned.length, 1);
+});
+
+/* 存量收入 (owner, 2026-09-23) --------------------------------------------- */
+
+const rev = (over: Partial<Parameters<typeof installedRevenue>[0][number]> = {}) => ({
+  status: "active" as const,
+  currency: "CNY",
+  termStart: day("2026-01-01"),
+  termEnd: day("2026-12-31"),
+  totalAmount: 365_000,
+  ...over,
+});
+
+test("installedRevenue: a one-year contract in force annualizes to its own total", () => {
+  const r = installedRevenue([rev()], NOW);
+  assert.deepEqual(r.rows, [{ currency: "CNY", annualized: 365_000, inForce: 1, lifetime: 365_000, signed: 1 }]);
+  assert.equal(r.unpriced, 0);
+});
+
+test("installedRevenue: a two-year contract counts half its total per year", () => {
+  const r = installedRevenue([rev({ termStart: day("2026-01-01"), termEnd: day("2027-12-31"), totalAmount: 730_000 })], NOW);
+  assert.equal(r.rows[0].annualized, 365_000);
+  assert.equal(r.rows[0].lifetime, 730_000);
+});
+
+test("installedRevenue: lapsed and terminated contracts stay in the lifetime total only", () => {
+  const r = installedRevenue(
+    [rev(), rev({ termStart: day("2024-01-01"), termEnd: day("2024-12-31") }), rev({ status: "terminated" })],
+    NOW,
+  );
+  assert.equal(r.rows[0].inForce, 1);
+  assert.equal(r.rows[0].annualized, 365_000);
+  assert.equal(r.rows[0].signed, 3);
+  assert.equal(r.rows[0].lifetime, 1_095_000);
+});
+
+test("installedRevenue: currencies are separate rows, never summed", () => {
+  const r = installedRevenue([rev(), rev({ currency: "USD", totalAmount: 1_000 })], NOW);
+  assert.deepEqual(r.rows.map((x) => [x.currency, x.lifetime]), [["CNY", 365_000], ["USD", 1_000]]);
+});
+
+test("installedRevenue: drafts are ignored; a signed contract without an amount is counted, not zeroed", () => {
+  const r = installedRevenue([rev({ status: "draft" }), rev({ totalAmount: null })], NOW);
+  assert.deepEqual(r.rows, []);
+  assert.equal(r.unpriced, 1);
+});
+
+test("installedRevenue: a contract not yet started is signed but not in force", () => {
+  const r = installedRevenue([rev({ termStart: day("2027-01-01"), termEnd: day("2027-12-31") })], NOW);
+  assert.equal(r.rows[0].inForce, 0);
+  assert.equal(r.rows[0].annualized, 0);
+  assert.equal(r.rows[0].signed, 1);
 });

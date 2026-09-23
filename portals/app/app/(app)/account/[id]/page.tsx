@@ -67,6 +67,7 @@ import {
   contractPhase,
   daysToTermEnd,
   noticeDeadline,
+  installedRevenue,
   ownedProducts,
 } from "../../../domains/delivery/lib/contract";
 import { ContractRoster, type ContractReadState, type ContractRow } from "../../components/contract-roster";
@@ -1293,6 +1294,7 @@ export default async function AccountDetailPage({
                     read={contractRead}
                     contracts={contractRows}
                     owned={ownedRows}
+                    revenue={installedRevenue(contractRecords, now)}
                     whitespace={whitespaceView}
                     products={(productsRead.ok ? productsRead.value : []).map((p) => ({ id: p.id, name: p.name }))}
                     deals={dealRows.filter((d) => d.status !== "lost").map((d) => ({ id: d.id, name: d.name }))}
