@@ -231,6 +231,9 @@ class ScopedAccountStore implements AccountStore {
   // customer through THIS store's getAccount and refuses not_found when the
   // member cannot see it, so the write itself passes straight through.
   softDeleteAccount: AccountStore["softDeleteAccount"] = (...a) => this.inner.softDeleteAccount(...a);
+  // A new customer is its creator's (ownerSub = the session), so it is inside
+  // every scope that could have created it; nothing to filter on the way in.
+  createAccount: AccountStore["createAccount"] = (...a) => this.inner.createAccount(...a);
   listCollaboratedAccountIds: AccountStore["listCollaboratedAccountIds"] = (...a) =>
     this.inner.listCollaboratedAccountIds(...a);
   addCollaborator: AccountStore["addCollaborator"] = (...a) => this.inner.addCollaborator(...a);

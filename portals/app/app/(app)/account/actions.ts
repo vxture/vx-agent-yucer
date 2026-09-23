@@ -11,6 +11,7 @@ import {
   moveContact,
   recomputeHealth,
   setAccountParent,
+  createAccount,
   updateAccountBasics,
   searchExistingContacts,
   linkExistingContact,
@@ -333,6 +334,28 @@ export async function updateAccountBasicsAction(
   revalidatePath(`/account/${accountId}`);
   revalidatePath("/account");
   return { ok: true };
+}
+
+/** 新建客户 (owner, 2026-09-23). Returns the new id so the page can land on it. */
+export async function createAccountAction(
+  input: Required<AccountBasicsPatch> & { name: string },
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await createAccount(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    input,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/account");
+  return { ok: true, id: result.value.id };
 }
 
 // 关联联系人 (owner, 2026-09-20: mockup - 把系统里已有的人接到这个客户名下).

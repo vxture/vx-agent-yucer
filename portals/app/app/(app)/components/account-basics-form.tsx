@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { Button, Drawer, Field, FieldLabel, Input, NativeSelect, Separator, useToast } from "@vxture/design-ui";
+import { Button, Drawer, Separator, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { ALL_PROVINCES } from "../../domains/shared/provinces";
+import {
+  AccountFields,
+  toAccountFieldValues,
+  toAccountPatch,
+  type AccountFieldValues,
+  type VocabOption,
+} from "./account-fields";
 
 const CONTACTS_ANCHOR = "account-basics-contacts";
 
@@ -34,10 +40,7 @@ const CONTACTS_ANCHOR = "account-basics-contacts";
 // speculatively for a field nobody asked to write manually would be scope
 // this instruction did not cover.
 
-export interface VocabOption {
-  readonly id: string;
-  readonly name: string;
-}
+export type { VocabOption };
 
 export interface AccountBasicsFormProps {
   readonly accountId: string;
@@ -97,11 +100,6 @@ export interface AccountBasicsFormProps {
   readonly contactManagement?: ReactNode;
 }
 
-/** "" in a <select>/<input> means "unset" throughout this form - converted
- *  back to null on submit, never sent as an empty string to a nullable
- *  column. */
-const blank = (v: string | null) => v ?? "";
-
 export function AccountBasicsForm({
   accountId,
   accountNo,
@@ -141,19 +139,12 @@ export function AccountBasicsForm({
     return () => clearTimeout(t);
   }, [open, focus]);
 
-  const [nameValue, setNameValue] = useState(name);
-  const [regionValue, setRegionValue] = useState(blank(region));
-  const [provinceValue, setProvinceValue] = useState(blank(province));
-  const [industryValue, setIndustryValue] = useState(blank(industryId));
-  const [segmentValue, setSegmentValue] = useState(blank(segmentCode));
-  const [customerTypeValue, setCustomerTypeValue] = useState(blank(customerTypeId));
-  const [customerSizeValue, setCustomerSizeValue] = useState(blank(customerSizeId));
-  const [customerNatureValue, setCustomerNatureValue] = useState(blank(customerNatureId));
-  const [creditCodeValue, setCreditCodeValue] = useState(blank(creditCode));
-  const [websiteValue, setWebsiteValue] = useState(blank(website));
-  const [employeeCountValue, setEmployeeCountValue] = useState(
-    employeeCount != null ? String(employeeCount) : "",
-  );
+  const current = () =>
+    toAccountFieldValues({
+      name, region, province, industryId, segmentCode, customerTypeId,
+      customerSizeId, customerNatureId, creditCode, website, employeeCount,
+    });
+  const [values, setValues] = useState<AccountFieldValues>(current);
 
   // Reset to the current record every time the drawer opens, same as the old
   // openDrawer() did on click - just triggered by the controlling prop now
@@ -161,17 +152,7 @@ export function AccountBasicsForm({
   // account-header-menu.tsx's shared "···" menu).
   useEffect(() => {
     if (!open) return;
-    setNameValue(name);
-    setRegionValue(blank(region));
-    setProvinceValue(blank(province));
-    setIndustryValue(blank(industryId));
-    setSegmentValue(blank(segmentCode));
-    setCustomerTypeValue(blank(customerTypeId));
-    setCustomerSizeValue(blank(customerSizeId));
-    setCustomerNatureValue(blank(customerNatureId));
-    setCreditCodeValue(blank(creditCode));
-    setWebsiteValue(blank(website));
-    setEmployeeCountValue(employeeCount != null ? String(employeeCount) : "");
+    setValues(current());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -179,19 +160,7 @@ export function AccountBasicsForm({
 
   const submit = () =>
     start(async () => {
-      const r = await onSave(accountId, {
-        name: nameValue,
-        region: regionValue === "" ? null : regionValue,
-        province: provinceValue === "" ? null : provinceValue,
-        industryId: industryValue === "" ? null : industryValue,
-        segmentCode: segmentValue === "" ? null : segmentValue,
-        customerTypeId: customerTypeValue === "" ? null : customerTypeValue,
-        customerSizeId: customerSizeValue === "" ? null : customerSizeValue,
-        customerNatureId: customerNatureValue === "" ? null : customerNatureValue,
-        creditCode: creditCodeValue === "" ? null : creditCodeValue,
-        website: websiteValue === "" ? null : websiteValue,
-        employeeCount: employeeCountValue.trim() === "" ? null : Number(employeeCountValue),
-      });
+      const r = await onSave(accountId, toAccountPatch(values));
       if (!r.ok) {
         toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error ?? "" });
         return;
@@ -213,113 +182,20 @@ export function AccountBasicsForm({
           <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
             {ACCOUNT_BASICS_TEXT.cancel}
           </Button>
-          <Button disabled={pending || nameValue.trim() === ""} onClick={submit}>
+          <Button disabled={pending || values.name.trim() === ""} onClick={submit}>
             {ACCOUNT_BASICS_TEXT.save}
           </Button>
         </div>
       }
     >
         <div className="gap-lg flex flex-col">
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.name}</FieldLabel>
-            <Input value={nameValue} onChange={(ev) => setNameValue(ev.target.value)} disabled={pending} />
-          </Field>
-
-          {/* 只读派生标识 - 系统生成, 不能改 (与 designate-account.tsx 的
-              定级抽屉不共用同一套字段, 但都遵守栏1"这里的事实不可点改"的
-              惯例). */}
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.accountNo}</FieldLabel>
-            <Input value={accountNo} disabled />
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.region}</FieldLabel>
-            <Input value={regionValue} onChange={(ev) => setRegionValue(ev.target.value)} disabled={pending} />
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.province}</FieldLabel>
-            <NativeSelect value={provinceValue} onChange={(ev) => setProvinceValue(ev.target.value)} disabled={pending}>
-              <option value="">{ACCOUNT_BASICS_TEXT.provincePick}</option>
-              {ALL_PROVINCES.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.industry}</FieldLabel>
-            <NativeSelect value={industryValue} onChange={(ev) => setIndustryValue(ev.target.value)} disabled={pending}>
-              <option value="">{ACCOUNT_BASICS_TEXT.industryPick}</option>
-              {industries.map((i) => (
-                <option key={i.id} value={i.id}>{i.name}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-
-          {segments.length > 0 ? (
-            <Field>
-              <FieldLabel>{ACCOUNT_BASICS_TEXT.segment}</FieldLabel>
-              <NativeSelect value={segmentValue} onChange={(ev) => setSegmentValue(ev.target.value)} disabled={pending}>
-                <option value="">{ACCOUNT_BASICS_TEXT.segmentPick}</option>
-                {segments.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </NativeSelect>
-            </Field>
-          ) : null}
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.customerType}</FieldLabel>
-            <NativeSelect value={customerTypeValue} onChange={(ev) => setCustomerTypeValue(ev.target.value)} disabled={pending}>
-              <option value="">{ACCOUNT_BASICS_TEXT.customerTypePick}</option>
-              {customerTypes.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.customerSize}</FieldLabel>
-            <NativeSelect value={customerSizeValue} onChange={(ev) => setCustomerSizeValue(ev.target.value)} disabled={pending}>
-              <option value="">{ACCOUNT_BASICS_TEXT.customerSizePick}</option>
-              {customerSizes.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.customerNature}</FieldLabel>
-            <NativeSelect value={customerNatureValue} onChange={(ev) => setCustomerNatureValue(ev.target.value)} disabled={pending}>
-              <option value="">{ACCOUNT_BASICS_TEXT.customerNaturePick}</option>
-              {customerNatures.map((n) => (
-                <option key={n.id} value={n.id}>{n.name}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.creditCode}</FieldLabel>
-            <Input value={creditCodeValue} onChange={(ev) => setCreditCodeValue(ev.target.value)} disabled={pending} />
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.website}</FieldLabel>
-            <Input value={websiteValue} onChange={(ev) => setWebsiteValue(ev.target.value)} disabled={pending} />
-          </Field>
-
-          <Field>
-            <FieldLabel>{ACCOUNT_BASICS_TEXT.employeeCount}</FieldLabel>
-            <Input
-              type="number"
-              min="0"
-              value={employeeCountValue}
-              onChange={(ev) => setEmployeeCountValue(ev.target.value)}
-              disabled={pending}
-            />
-          </Field>
+          <AccountFields
+            values={values}
+            onChange={setValues}
+            vocab={{ industries, segments, customerTypes, customerSizes, customerNatures }}
+            pending={pending}
+            accountNo={accountNo}
+          />
 
           {orgRelations ? (
             <>

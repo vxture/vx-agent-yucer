@@ -725,6 +725,8 @@ export const en: Dictionary = {
   ACCOUNT_ERROR: {
     ...GATE_ERROR,
     account_not_empty: "This customer already has records on it - only an unused customer created by mistake can be deleted",
+    credit_code_taken:
+      "This credit code already belongs to another customer - one company, one record; search the customer list first",
     plan_required:
       "A strategic account needs a plan - the cadence rule reads it, and without one this designation changes nothing",
     period_required: "The plan must name its period",
@@ -2702,6 +2704,14 @@ export const en: Dictionary = {
     title: "Edit account details",
     why: "The account's own attributes - name, classification, contact points. Who owns it and the decision chain each have their own card.",
     name: "Account name",
+    accountNoOnSave: "Assigned when saved",
+    createCrumb: "New customer",
+    createTitle: "New customer",
+    createWhy:
+      "Only the name is required. Fill in what you know and leave the rest - the customer page's completeness card will list what is missing. You own the customer until you hand it over.",
+    createSubmit: "Create",
+    createCancel: "Cancel",
+    createButton: "New customer",
     accountNo: "Account number",
     region: "Sales region",
     province: "Province",
