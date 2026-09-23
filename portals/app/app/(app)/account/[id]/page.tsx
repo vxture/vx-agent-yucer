@@ -45,6 +45,7 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
+import { displayRationale } from "../../lib/proposal-rationale";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
 import { InteractionTimeline } from "../../components/interaction-timeline";
@@ -71,6 +72,7 @@ import {
   noticeDeadline,
   installedRevenue,
   ownedProducts,
+  renewalLineage,
 } from "../../../domains/delivery/lib/contract";
 import { ContractRoster, type ContractReadState, type ContractRow } from "../../components/contract-roster";
 import {
@@ -202,6 +204,7 @@ export default async function AccountDetailPage({
     PANEL_MENU_TEXT,
     CONTRACT_TEXT,
     CONTRACT_ERROR,
+    RATIONALE_TEXT,
   } = await getMessages();
   const { id } = await params;
   // 累计合同额需要 Intl.NumberFormat 的 locale (owner, 2026-09-21: 补充 -
@@ -516,6 +519,10 @@ export default async function AccountDetailPage({
   // Lineage numbers come from the same read: the predecessor and successor of
   // an account's contract are that account's contracts too.
   const contractNoOf = new Map(contractRecords.map((c) => [c.id, c.contractNo]));
+  const predecessorOf = new Map(
+    contractRecords.flatMap((c) => (c.renewedFromContractId ? [[c.id, c.renewedFromContractId] as const] : [])),
+  );
+  const successorOf = new Map(contractRecords.flatMap((c) => (c.renewedBy ? [[c.id, c.renewedBy] as const] : [])));
   const contractRows: ContractRow[] = contractRecords.map((c) => {
     const lineCurrencies = new Set(c.lines.map((l) => l.currency));
     return {
@@ -526,6 +533,10 @@ export default async function AccountDetailPage({
       phase: contractPhase(c, now),
       renewedFromNo: c.renewedFromContractId ? (contractNoOf.get(c.renewedFromContractId) ?? null) : null,
       renewedByNo: c.renewedBy ? (contractNoOf.get(c.renewedBy) ?? null) : null,
+      lineage: (({ chain, position }) => ({
+        chainNos: chain.map((x) => contractNoOf.get(x) ?? x),
+        position,
+      }))(renewalLineage(c.id, predecessorOf, successorOf)),
       events: c.events.map((e) => ({
         id: e.id,
         eventType: e.eventType,
@@ -639,7 +650,7 @@ export default async function AccountDetailPage({
         BOARD_TEXT.capUnlabelled,
       ),
       capabilityKey: a.capability,
-      rationale: a.rationale,
+      rationale: displayRationale(a, RATIONALE_TEXT),
       confidence: a.confidence,
     }));
 

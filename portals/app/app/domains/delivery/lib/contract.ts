@@ -456,3 +456,44 @@ export function contractRenewalAnchor(
     inProgress: successorOf.has(current.id),
   };
 }
+
+export interface RenewalLineage {
+  /** Contract ids, oldest first. Length 1 = never renewed and not a renewal. */
+  readonly chain: readonly string[];
+  /** 1-based position of the asked-for contract in `chain`. */
+  readonly position: number;
+}
+
+/**
+ * The whole renewal chain a contract sits in (YC-021 L4 续约世系) - what makes
+ * "连续续了三年" readable. The card used to show one hop each way ("续自 X",
+ * "已续为 Y"), so a third-year contract looked the same as a second-year one.
+ *
+ * Walks both ways from `id`. The database makes this a chain (UNIQUE on
+ * renewed_from_contract_id, no self-renewal - incr/0076); the bound is for the
+ * same reason contractRenewalAnchor has one. A predecessor the caller did not
+ * read (another account's contract) simply ends the walk.
+ */
+export function renewalLineage(
+  id: string,
+  predecessorOf: ReadonlyMap<string, string>,
+  successorOf: ReadonlyMap<string, string>,
+): RenewalLineage {
+  const back: string[] = [];
+  let cur = id;
+  for (let hops = 0; hops < 100; hops++) {
+    const prev = predecessorOf.get(cur);
+    if (!prev || prev === id || back.includes(prev)) break;
+    back.unshift(prev);
+    cur = prev;
+  }
+  const forward: string[] = [];
+  cur = id;
+  for (let hops = 0; hops < 100; hops++) {
+    const next = successorOf.get(cur);
+    if (!next || next === id || forward.includes(next) || back.includes(next)) break;
+    forward.push(next);
+    cur = next;
+  }
+  return { chain: [...back, id, ...forward], position: back.length + 1 };
+}
