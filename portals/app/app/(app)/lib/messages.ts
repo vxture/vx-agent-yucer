@@ -4435,6 +4435,21 @@ export const ACCOUNT_TEXT = {
   // 邮箱/微信 presence 列的表头 (owner, 2026-09-20: 设计图严格对齐).
   contactChannels: "联系方式",
   contactStatus: "状态",
+  // 集团合并视图 (YC-021 L1) - the badge row's group scope.
+  groupScopeAria: "统计口径",
+  groupScopeSingle: "本单位",
+  groupScopeGroup: (below: number) => `含下级 ${below} 家`,
+  groupDealsLabel: "集团在办商机",
+  groupUnitsLabel: "集团单位",
+  groupUnitsValue: (n: number) => `本单位及下级共 ${n} 家（仅含你可见的单位）`,
+  groupRiskLabel: "风险单位",
+  groupRiskNone: "没有健康分低于 40 或已流失 / 沉睡的单位",
+  groupRiskReason: {
+    low_health: (score: number | null) => `健康 ${score ?? "-"}`,
+    churned: () => "已流失",
+    dormant: () => "沉睡",
+  } as Record<"low_health" | "churned" | "dormant", (score: number | null) => string>,
+  listSeparator: "、",
   contactStatusLabel: {
     active: "在职",
     left: "已离职",

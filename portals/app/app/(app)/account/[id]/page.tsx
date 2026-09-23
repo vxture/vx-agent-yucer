@@ -3,7 +3,9 @@ import {
   Icon,
   ViewLayout,
 } from "@vxture/design-ui";
-import { DealsSummaryBadge, DimensionStat } from "../../components/dimension-stat";
+import { CircleBadge, DealsSummaryBadge, DimensionStat } from "../../components/dimension-stat";
+import { descendantsOf, rollupGroup } from "../../../domains/account/lib/group";
+import { GroupScopeSwitch } from "../../components/group-scope-switch";
 import { ScoreRing } from "../../components/score-ring";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
@@ -938,6 +940,56 @@ export default async function AccountDetailPage({
     openDealAmountTotals.size === 1
       ? (([currency, amount]) => ({ amount, currency }))([...openDealAmountTotals.entries()][0])
       : null;
+
+  // 集团合并视图: this unit plus every unit below it. Only units this member
+  // can see are in `accountsRead`, so the group is the VISIBLE group.
+  const groupIds = descendantsOf(id, accountRows);
+  const groupRollup =
+    groupIds.length === 0
+      ? null
+      : await (async () => {
+          const [groupDeals, groupStatuses] = await Promise.all([
+            Promise.all(
+              groupIds.map((g) =>
+                listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: g }).catch(() => null),
+              ),
+            ),
+            accountStatuses(
+              { ...base, store: session.stores.account(), pipeline: session.stores.pipeline(), delivery: getDeliveryStore() },
+              [id, ...groupIds],
+              now,
+            ).catch(() => null),
+          ]);
+          const records = new Map((accountsRead.ok ? accountsRead.value : []).map((a) => [a.id, a]));
+          const statusOf = (u: string) => (groupStatuses?.ok ? (groupStatuses.value.get(u) ?? null) : null);
+          return rollupGroup([
+            {
+              id,
+              name: account.name,
+              healthScore: health && health.ok ? health.value.score : account.healthScore,
+              status: statusOf(id),
+              openDeals: dealRows
+                .filter((d) => d.status === "open")
+                .map((d) => ({ amount: d.amount, currency: d.currency })),
+            },
+            ...groupIds.map((g, i) => {
+              const read = groupDeals[i];
+              return {
+                id: g,
+                name: records.get(g)?.name ?? g,
+                healthScore: records.get(g)?.healthScore ?? null,
+                status: statusOf(g),
+                openDeals: (read?.ok ? read.value : [])
+                  .filter((d) => d.status === "open")
+                  .map((d) => ({ amount: d.amount?.amount ?? null, currency: d.currency })),
+              };
+            }),
+          ]);
+        })();
+  const groupAmount =
+    groupRollup && groupRollup.amountByCurrency.size === 1
+      ? (([currency, amount]) => ({ amount, currency }))([...groupRollup.amountByCurrency.entries()][0]!)
+      : null;
   const tierLabel =
     account.tier === "strategic"
       ? POSITION_TEXT.tierStrategic
@@ -995,7 +1047,7 @@ export default async function AccountDetailPage({
 
   // 徽章区: 开放商机(累计合同额) / 客户级别 / 健康评估 (owner, 2026-09-21:
   // 三个图形区域起个名字，叫徽章区；三个徽章整体居中显示 - 之前默认靠左)。
-  const badges = (
+  const badgesSingle = (
     <div className="flex items-center justify-center gap-md">
       <DealsSummaryBadge
         count={openDealsCount}
@@ -1035,6 +1087,63 @@ export default async function AccountDetailPage({
         />
       ) : null}
     </div>
+  );
+
+  // 集团合并视图 (YC-021 L1): the same badge row for the group - this unit and
+  // every unit below it - behind a switch that defaults to this unit alone.
+  // Absent for a customer with no units below it: there is no group to show.
+  const badges = groupRollup ? (
+    <GroupScopeSwitch
+      labels={{
+        aria: ACCOUNT_TEXT.groupScopeAria,
+        single: ACCOUNT_TEXT.groupScopeSingle,
+        group: ACCOUNT_TEXT.groupScopeGroup(groupRollup.unitCount - 1),
+      }}
+      single={badgesSingle}
+      group={
+        <div className="flex items-center justify-center gap-md">
+          <DealsSummaryBadge
+            count={groupRollup.openDealCount}
+            countLabel={ACCOUNT_TEXT.groupDealsLabel}
+            amountText={groupAmount ? formatMoneyCompact(groupAmount.amount, groupAmount.currency, locale) : null}
+            amountLabel={POSITION_TEXT.openDealsAmountLabel}
+            amountFullText={
+              groupRollup.amountByCurrency.size > 0
+                ? [...groupRollup.amountByCurrency].map(([c, a]) => formatMoney(a, c, locale)).join(" + ")
+                : null
+            }
+          />
+          <DimensionStat
+            figure={<CircleBadge tone="neutral">{groupRollup.unitCount}</CircleBadge>}
+            label={ACCOUNT_TEXT.groupUnitsLabel}
+            value={ACCOUNT_TEXT.groupUnitsValue(groupRollup.unitCount)}
+          />
+          <DimensionStat
+            figure={
+              <CircleBadge tone={groupRollup.atRisk.length > 0 ? "danger" : "success"}>
+                {groupRollup.atRisk.length}
+              </CircleBadge>
+            }
+            label={ACCOUNT_TEXT.groupRiskLabel}
+            value={
+              groupRollup.atRisk.length === 0 ? (
+                ACCOUNT_TEXT.groupRiskNone
+              ) : (
+                <span className="flex flex-col gap-2xs">
+                  {groupRollup.atRisk.map((u) => (
+                    <span key={u.id}>
+                      {u.name} · {u.reasons.map((r) => ACCOUNT_TEXT.groupRiskReason[r](u.healthScore)).join(ACCOUNT_TEXT.listSeparator)}
+                    </span>
+                  ))}
+                </span>
+              )
+            }
+          />
+        </div>
+      }
+    />
+  ) : (
+    badgesSingle
   );
 
   // 定向自动分析 (owner, 2026-09-18): 判断题放 sidebar - 单位信息卡的最下方,
