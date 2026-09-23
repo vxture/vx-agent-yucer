@@ -5,7 +5,6 @@ import {
   Button,
   ButtonGroup,
   DataTable,
-  DialogForm,
   Drawer,
   EmptyState,
   Field,
@@ -26,6 +25,7 @@ import {
   useToast,
   type FilterBarView,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";

@@ -13,7 +13,6 @@ import {
   type ActionMenuItem,
   type FilterBarView,
   type IconName,
-  DialogForm,
   Field,
   FieldDescription,
   FieldGroup,
@@ -24,6 +23,7 @@ import {
   useListPagination,
   useToast,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
 import type { NavIcon } from "../lib/navigation";
 import {

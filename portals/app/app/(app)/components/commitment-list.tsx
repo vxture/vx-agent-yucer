@@ -104,6 +104,11 @@ export function CommitmentList({
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [reason, setReason] = useState<Record<string, string>>({});
+  // ONE ROW'S CLOSING FORM AT A TIME (polish, 2026-09-24, from clicking
+  // through the tab): every open commitment used to show its evidence picker,
+  // three buttons and a reason box at once - three commitments were a wall of
+  // form. A row is its statement and its due date until someone asks to 处理.
+  const [handling, setHandling] = useState<string | null>(null);
 
   function run(op: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -143,105 +148,121 @@ export function CommitmentList({
         );
         const chosen = picked[c.id] ?? "";
         return (
-          <div key={c.id} className="flex flex-col gap-2xs">
+          <div key={c.id} className="border-border flex flex-col gap-xs border-b py-xs last:border-b-0">
             <div className="flex items-center gap-xs">
               <PartyBadge direction={c.direction} text={FIELD_TEXT} />
-              <span className="text-foreground min-w-0 flex-1 truncate text-body-sm">{c.statement}</span>
+              <span className="text-foreground min-w-0 flex-1 truncate text-body-sm" title={c.statement}>{c.statement}</span>
               <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
                 {overdue
                   ? FIELD_TEXT.commitDaysOverdue(days)
                   : FIELD_TEXT.commitDueIn(days)}
               </Tag>
-            </div>
-
-            {canWrite ? (
-              <>
-                {/* Closing needs proof. The picker IS the requirement. */}
-                <NativeSelect
-                  aria-label={FIELD_TEXT.commitCloseNeedsEvidence}
-                  value={chosen}
-                  onChange={(e) =>
-                    setPicked({ ...picked, [c.id]: e.target.value })
-                  }
-                  disabled={pending || evidence.length === 0}
-                >
-                  <option value="">
-                    {FIELD_TEXT.commitCloseNeedsEvidence}
-                  </option>
-                  {evidence.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.label}
-                    </option>
-                  ))}
-                </NativeSelect>
+              {canWrite ? (
                 <Button
                   size="sm"
-                  disabled={pending || chosen === ""}
-                  onClick={() =>
-                    run(() =>
-                      onSettle(accountId, c.id, {
-                        to: "met",
-                        evidenceInteractionId: chosen,
-                        opportunityId,
-                      }),
-                    )
-                  }
+                  variant="ghost"
+                  aria-expanded={handling === c.id}
+                  onClick={() => setHandling(handling === c.id ? null : c.id)}
                 >
-                  {FIELD_TEXT.commitClose}
+                  {handling === c.id ? FIELD_TEXT.commitHandleClose : FIELD_TEXT.commitHandle}
                 </Button>
+              ) : null}
+            </div>
 
-                {/* Needs nothing, and is only offered once it is actually late. */}
-                {overdue ? (
+            {canWrite && handling === c.id ? (
+              <div className="bg-muted/40 border-border flex flex-col gap-xs rounded-md border p-sm">
+                {/* Closing needs proof. The picker IS the requirement. */}
+                <div className="flex flex-wrap items-center gap-xs">
+                  <span className="min-w-[12rem] flex-1">
+                    <NativeSelect
+                      aria-label={FIELD_TEXT.commitCloseNeedsEvidence}
+                      value={chosen}
+                      onChange={(e) =>
+                        setPicked({ ...picked, [c.id]: e.target.value })
+                      }
+                      disabled={pending || evidence.length === 0}
+                    >
+                      <option value="">
+                        {FIELD_TEXT.commitCloseNeedsEvidence}
+                      </option>
+                      {evidence.map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </span>
                   <Button
-                    variant="outline"
                     size="sm"
-                    disabled={pending}
+                    disabled={pending || chosen === ""}
                     onClick={() =>
                       run(() =>
                         onSettle(accountId, c.id, {
-                          to: "missed",
+                          to: "met",
+                          evidenceInteractionId: chosen,
                           opportunityId,
                         }),
                       )
                     }
                   >
-                    {FIELD_TEXT.commitMissed}
+                    {FIELD_TEXT.commitClose}
                   </Button>
-                ) : null}
-
-                <Input
-                  aria-label={FIELD_TEXT.commitWaiveReason}
-                  placeholder={FIELD_TEXT.commitWaiveReason}
-                  value={reason[c.id] ?? ""}
-                  onChange={(e) =>
-                    setReason({ ...reason, [c.id]: e.target.value })
-                  }
-                  disabled={pending}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={pending || !(reason[c.id] ?? "").trim()}
-                  onClick={() =>
-                    run(() =>
-                      onSettle(accountId, c.id, {
-                        to: "waived",
-                        waiveReason: reason[c.id],
-                        opportunityId,
-                      }),
-                    )
-                  }
-                >
-                  {FIELD_TEXT.commitWaive}
-                </Button>
-              </>
+                  {/* Needs nothing, and is only offered once it is actually late. */}
+                  {overdue ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() =>
+                        run(() =>
+                          onSettle(accountId, c.id, {
+                            to: "missed",
+                            opportunityId,
+                          }),
+                        )
+                      }
+                    >
+                      {FIELD_TEXT.commitMissed}
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-xs">
+                  <span className="min-w-[12rem] flex-1">
+                    <Input
+                      aria-label={FIELD_TEXT.commitWaiveReason}
+                      placeholder={FIELD_TEXT.commitWaiveReason}
+                      value={reason[c.id] ?? ""}
+                      onChange={(e) =>
+                        setReason({ ...reason, [c.id]: e.target.value })
+                      }
+                      disabled={pending}
+                    />
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pending || !(reason[c.id] ?? "").trim()}
+                    onClick={() =>
+                      run(() =>
+                        onSettle(accountId, c.id, {
+                          to: "waived",
+                          waiveReason: reason[c.id],
+                          opportunityId,
+                        }),
+                      )
+                    }
+                  >
+                    {FIELD_TEXT.commitWaive}
+                  </Button>
+                </div>
+              </div>
             ) : null}
           </div>
         );
       })}
 
       {settled.map((c) => (
-        <div key={c.id} className="flex items-center gap-xs">
+        <div key={c.id} className="border-border flex items-center gap-xs border-b py-xs last:border-b-0">
           <PartyBadge direction={c.direction} text={FIELD_TEXT} />
           <span className="text-foreground min-w-0 flex-1 truncate text-body-sm">{c.statement}</span>
           <Tag

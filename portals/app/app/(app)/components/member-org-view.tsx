@@ -9,7 +9,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   DataTable,
-  DialogForm,
   Field,
   FieldLabel,
   Icon,
@@ -24,6 +23,7 @@ import {
   useListPagination,
   useToast,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions } from "./table-fittings";

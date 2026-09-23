@@ -7,7 +7,6 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  DialogForm,
   Field,
   FieldLabel,
   Input,
@@ -19,6 +18,7 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import type { SignalRecord } from "../../domains/signal/store";
 import { SIGNAL_DISMISS_REASONS, type ExitReason } from "../../domains/shared/funnel-exit";
 import { useLocale, useMessages } from "../lib/i18n/provider";

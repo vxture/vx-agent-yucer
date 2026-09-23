@@ -1,5 +1,6 @@
 "use client";
 
+import { FormFields } from "./form-page";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, useToast } from "@vxture/design-ui";
@@ -40,8 +41,14 @@ export function AccountCreateForm({
     });
 
   return (
-    <Card className="flex max-w-2xl flex-col gap-lg p-lg">
-      <AccountFields values={values} onChange={setValues} vocab={vocab} pending={pending} accountNo={null} />
+    // max-w-2xl was the trap in memory: the DS container tokens shadow
+    // Tailwind's, so it clamped this card to ~48px and every label stacked one
+    // character per line (found 2026-09-24 by opening /account/new). The
+    // form uses the app's own two-column FormFields like every other page.
+    <Card className="flex w-full flex-col gap-lg p-lg">
+      <FormFields>
+        <AccountFields values={values} onChange={setValues} vocab={vocab} pending={pending} accountNo={null} />
+      </FormFields>
       <div className="flex justify-end gap-sm">
         <Button variant="secondary" disabled={pending} onClick={() => router.push("/account")}>
           {ACCOUNT_BASICS_TEXT.createCancel}

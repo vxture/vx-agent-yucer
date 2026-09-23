@@ -1,4 +1,6 @@
 import { EmptyState } from "@vxture/design-ui";
+import { getAuthzStore } from "../authz/store";
+import { nameCitations } from "./lib/name-citations";
 import { resolveAppSession } from "./lib/session";
 import { getFieldStore } from "../domains/shared/registry";
 import { cachedFeed } from "./lib/board";
@@ -64,9 +66,17 @@ export default async function HomePage({
     limit: 1,
   });
 
+  // Evidence actors by name, not by member sub (polish, 2026-09-24).
+  const members = await getAuthzStore().listMembers(session.workspaceId).catch(() => []);
+  const memberName = new Map(members.map((m) => [m.sub, m.displayName]));
+  const judgements = feed.value.judgements.map((j) => ({
+    ...j,
+    citations: nameCitations(j.citations, (s) => memberName.get(s)),
+  }));
+
   return (
     <JudgementWorkspace
-      judgements={feed.value.judgements}
+      judgements={judgements}
       counts={feed.value.counts}
       scanned={feed.value.scanned}
       scope={feed.value.scope}

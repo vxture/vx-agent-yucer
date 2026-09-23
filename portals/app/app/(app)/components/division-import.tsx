@@ -4,12 +4,12 @@ import { useState } from "react";
 import {
   Banner,
   Button,
-  ConfirmDestructive,
-  DialogForm,
   RadioGroup,
   RadioGroupItem,
   useToast,
 } from "@vxture/design-ui";
+import { ConfirmDestructive } from "./confirm-destructive";
+import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
 import { importTemplate } from "../admin/division/actions";
 

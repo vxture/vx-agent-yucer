@@ -30,10 +30,10 @@ export function CitationList({
               straight to the screen - "58 天前 · call · usr_demo_rep" - with
               no layer left that could label them.
 
-              The actor stays an id and is marked as one: there is no directory
-              to resolve it against, and a machine string dressed as a person
-              is how a UUID ends up in front of someone who then does not
-              chase it. */}
+              The actor is a NAME when the page resolved one (nameCitations -
+              the member directory); an actor it could not resolve stays an id
+              and is marked as one, because a machine string dressed as a
+              person is how a UUID ends up in front of someone. */}
             {c.daysAgo !== undefined ? (
               <cite className="text-muted-foreground flex flex-wrap items-center gap-xs text-body-sm not-italic tabular-nums">
                 <span>
@@ -42,7 +42,11 @@ export function CitationList({
                     c.channel ? (CHANNEL_LABEL[c.channel] ?? c.channel) : "",
                   )}
                 </span>
-                {c.actorSub ? <span className="font-mono">{c.actorSub}</span> : null}
+                {c.actorName ? (
+                  <span>{c.actorName}</span>
+                ) : c.actorSub ? (
+                  <span className="font-mono">{c.actorSub}</span>
+                ) : null}
               </cite>
             ) : null}
             <p className="text-muted-foreground text-body-sm leading-relaxed">{c.text}</p>

@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Banner, Button, Checkbox, ConfirmDestructive, DialogForm, RadioGroup, RadioGroupItem, SectionHeader, useToast } from "@vxture/design-ui";
+import {
+  Banner,
+  Button,
+  Checkbox,
+  RadioGroup,
+  RadioGroupItem,
+  SectionHeader,
+  useToast,
+} from "@vxture/design-ui";
+import { ConfirmDestructive } from "./confirm-destructive";
+import { DialogForm } from "./dialog-form";
 import { useRouter } from "next/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { applyStartupTemplateAction } from "../admin/org/actions";

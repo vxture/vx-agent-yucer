@@ -49,6 +49,7 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
+import { nameCitations } from "../../lib/name-citations";
 import { AccountSignals, type AccountSignalRow } from "../../components/account-signals";
 import { listSignals } from "../../../domains/signal/service";
 import { attributeChange, lastDifferent } from "../../../domains/account/lib/health-history";
@@ -1182,6 +1183,9 @@ export default async function AccountDetailPage({
       )
     : undefined;
 
+  const idByName = (rows: readonly { id: string; name: string }[], name: string | null) =>
+    name ? (rows.find((r) => r.name === name)?.id ?? null) : null;
+
   const badgesSingle = (
     <div className="flex items-center justify-center gap-md">
       <DealsSummaryBadge
@@ -1289,7 +1293,7 @@ export default async function AccountDetailPage({
         rule: topJudgement.rule ?? null,
         freshness: topJudgement.freshness ?? null,
         source: topJudgement.source,
-        citations: topJudgement.citations,
+        citations: nameCitations(topJudgement.citations, (s) => memberNameOf.get(s)),
       }
     : null;
 
@@ -1421,11 +1425,23 @@ export default async function AccountDetailPage({
                 name: account.name,
                 region: account.region,
                 province: account.province,
-                industryId: account.industryId,
+                // A legacy row carries the NAME with no vocabulary id; the card
+                // shows the name (中型企业) and the drawer showed 未标注 beside
+                // it (polish, 2026-09-24, from opening the drawer). Pre-select
+                // the vocabulary entry of the same name when there is one.
+                industryId:
+                  account.industryId ??
+                  idByName(industriesRead && industriesRead.ok ? industriesRead.value : [], account.industry),
                 segmentCode: account.segmentCode,
-                customerTypeId: account.customerTypeId,
-                customerSizeId: account.customerSizeId,
-                customerNatureId: account.customerNatureId,
+                customerTypeId:
+                  account.customerTypeId ??
+                  idByName(customerTypesRead.ok ? customerTypesRead.value : [], account.customerType),
+                customerSizeId:
+                  account.customerSizeId ??
+                  idByName(customerSizesRead && customerSizesRead.ok ? customerSizesRead.value : [], account.customerSize),
+                customerNatureId:
+                  account.customerNatureId ??
+                  idByName(customerNaturesRead.ok ? customerNaturesRead.value : [], account.customerNature),
                 creditCode: account.creditCode,
                 website: account.website,
                 employeeCount: account.employeeCount,

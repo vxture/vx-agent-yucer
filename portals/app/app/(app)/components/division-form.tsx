@@ -8,7 +8,6 @@ import {
   ButtonGroup,
   Checkbox,
   DestructiveButton,
-  DialogForm,
   Drawer,
   EmptyState,
   Field,
@@ -28,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import {
   divisionCode,
   localCode,

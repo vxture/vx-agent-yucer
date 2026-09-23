@@ -5,7 +5,6 @@ import { useState, useTransition } from "react";
 import {
   Button,
   DataTable,
-  DialogForm,
   EmptyState,
   Field,
   FieldDescription,
@@ -19,6 +18,7 @@ import {
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {

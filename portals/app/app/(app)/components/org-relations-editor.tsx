@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react";
 import {
   Button,
-  ConfirmDestructive,
-  DialogForm,
   Field,
   FieldLabel,
   Icon,
   NativeSelect,
   useToast,
 } from "@vxture/design-ui";
+import { ConfirmDestructive } from "./confirm-destructive";
+import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
 
 // 上下级关联 (owner, 2026-09-20: 死死记住设计文件 - mockup 原话在

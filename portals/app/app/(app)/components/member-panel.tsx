@@ -3,7 +3,6 @@
 import {
   Button,
   DataTable,
-  DialogForm,
   Drawer,
   EmptyState,
   NativeSelect,
@@ -13,6 +12,7 @@ import {
   useListPagination,
   useToast,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions, useTableSort } from "./table-fittings";

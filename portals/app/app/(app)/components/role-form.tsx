@@ -7,7 +7,6 @@ import {
   ButtonGroup,
   Checkbox,
   DestructiveButton,
-  DialogForm,
   Drawer,
   EmptyState,
   Field,
@@ -26,6 +25,7 @@ import {
   TableRow,
   Textarea,
 } from "@vxture/design-ui";
+import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
 import { removeRoleAction, saveRoleAction } from "../admin/roles/actions";
 import { FormActions } from "./form-page";
