@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { FOOTPRINT_KINDS, type Footprint } from "../../domains/account/lib/footprint";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
@@ -9,6 +11,8 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  ConfirmDestructive,
+  useToast,
   Icon,
   Tooltip,
   TooltipContent,
@@ -122,6 +126,12 @@ export interface OrgUnitPanelProps {
     readonly website: string | null;
     readonly employeeCount: number | null;
   };
+  /** 删除空壳客户 (owner, 2026-09-23). Absent for a member who may not write. */
+  readonly remove?: {
+    readonly accountId: string;
+    readonly onFootprint: (id: string) => Promise<{ ok: true; footprint: Footprint } | { ok: false; error: string }>;
+    readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  };
 }
 
 // label 淡化变小、content 保持单行并靠右, 留足空间显示"内蒙古-呼和浩特"这类
@@ -160,9 +170,27 @@ export function OrgUnitPanel({
   customerTypeName,
   scaleName,
   more,
+  remove,
 }: OrgUnitPanelProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const { ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT, COLLAPSE_TEXT } = useMessages();
+  const {
+    ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT, COLLAPSE_TEXT,
+    ACCOUNT_DELETE_TEXT, ACCOUNT_ERROR,
+  } = useMessages();
+  const router = useRouter();
+  const { toast } = useToast();
+  // The footprint is read when the confirmation opens, not on every render of
+  // the page: null while it loads (every condition "unknown"), then counts.
+  const [deleting, setDeleting] = useState(false);
+  const [footprint, setFootprint] = useState<Footprint | null>(null);
+  const openDelete = () => {
+    if (!remove) return;
+    setFootprint(null);
+    setDeleting(true);
+    void remove.onFootprint(remove.accountId).then((r) => {
+      if (r.ok) setFootprint(r.footprint);
+    });
+  };
   const edit = useAccountEdit();
   return (
     <CollapsibleSection
@@ -179,6 +207,7 @@ export function OrgUnitPanel({
           ? [
               { id: "tier", label: POSITION_TEXT.designateMenu, onSelect: () => edit.open("tier") },
               { id: "owner", label: COLLABORATOR_TEXT.editButton, onSelect: () => edit.open("owner") },
+              ...(remove ? [{ id: "delete", label: ACCOUNT_DELETE_TEXT.menu, onSelect: openDelete }] : []),
             ]
           : undefined,
       }}
@@ -287,6 +316,36 @@ export function OrgUnitPanel({
         <div className="border-primary/10 dark:border-primary/20 border-t pt-md">
           {ownerRow}
         </div>
+      ) : null}
+      {remove && deleting ? (
+        <ConfirmDestructive
+          open={deleting}
+          onOpenChange={setDeleting}
+          verb={ACCOUNT_DELETE_TEXT.verb}
+          titleTemplate={ACCOUNT_DELETE_TEXT.titleTemplate}
+          target={title}
+          consequence={ACCOUNT_DELETE_TEXT.consequence}
+          preconditions={FOOTPRINT_KINDS.map((k) => ({
+            label: ACCOUNT_DELETE_TEXT.condition[k],
+            met: footprint !== null && footprint[k] === 0,
+            unknown: footprint === null,
+            note:
+              footprint === null
+                ? ACCOUNT_DELETE_TEXT.checking
+                : footprint[k] > 0
+                  ? ACCOUNT_DELETE_TEXT.present(footprint[k])
+                  : undefined,
+          }))}
+          onConfirm={async () => {
+            const r = await remove.onDelete(remove.accountId);
+            if (!r.ok) {
+              toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? ACCOUNT_ERROR.denied ?? "" });
+              return;
+            }
+            toast({ tone: "success", title: ACCOUNT_DELETE_TEXT.done });
+            router.push("/account");
+          }}
+        />
       ) : null}
     </CollapsibleSection>
   );

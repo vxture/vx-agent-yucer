@@ -724,6 +724,7 @@ export const en: Dictionary = {
 
   ACCOUNT_ERROR: {
     ...GATE_ERROR,
+    account_not_empty: "This customer already has records on it - only an unused customer created by mistake can be deleted",
     credit_code_taken:
       "This credit code already belongs to another customer - one company, one record; search the customer list first",
     plan_required:
@@ -2678,6 +2679,26 @@ export const en: Dictionary = {
     confidence: (n: number) => `Confidence ${n}`,
   },
 
+  ACCOUNT_DELETE_TEXT: {
+    menu: "Delete customer",
+    verb: "Delete",
+    consequence:
+      "Only a customer with no records on it yet can be deleted - one created by mistake. It then disappears from every list, and the same company can be created again later.",
+    condition: {
+      deals: "No deals",
+      contracts: "No contracts",
+      projects: "No delivery projects",
+      interactions: "No follow-ups",
+      commitments: "No commitments",
+      contacts: "No contacts",
+      leads: "No leads",
+      children: "No sub-units",
+    } as Record<string, string>,
+    checking: "Checking...",
+    present: (n: number) => `${n} on record`,
+    done: "Deleted",
+    titleTemplate: "{verb} {target}?",
+  },
   ACCOUNT_BASICS_TEXT: {
     editButton: "Edit account details",
     title: "Edit account details",

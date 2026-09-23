@@ -345,6 +345,17 @@ export class PrismaAccountStore implements AccountStore {
     );
   }
 
+  async softDeleteAccount(workspaceId: string, id: string): Promise<boolean> {
+    const patch = { deletedAt: new Date(), updatedAt: new Date() };
+    const guard = assertWritable(ACCOUNT_TABLE, patch);
+    if (!guard.ok) {
+      throw new Error(`refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`);
+    }
+    const p = await this.client();
+    const r = await p.account.updateMany({ where: { id, workspaceId, deletedAt: null }, data: patch });
+    return r.count > 0;
+  }
+
   async createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord> {
     const p = await this.client();
     let id: string;

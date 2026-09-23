@@ -469,6 +469,9 @@ export interface AccountStore {
     accountId: string,
   ): Promise<Array<{ memberSub: string; addedAt: Date }>>;
   addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void>;
+  /** 删除空壳客户: deleted_at, never a row DELETE - the credit-code index
+   *  ignores deleted rows (incr/0024), so the company can be created again. */
+  softDeleteAccount(workspaceId: string, id: string): Promise<boolean>;
   /** 新建客户. Assigns the number (nextAccountNo) under the allocation lock.
    *  Throws "credit_code_taken" when the credit code is another customer's. */
   createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord>;
@@ -832,6 +835,13 @@ export class InMemoryAccountStore implements AccountStore {
     rows.sort(by(asc((a: AccountRecord) => a.healthScore), asc((a: AccountRecord) => a.name)));
     return filter.limit ? rows.slice(0, filter.limit) : rows;
     // tier filter applied by callers that ask for it
+  }
+
+  async softDeleteAccount(workspaceId: string, id: string): Promise<boolean> {
+    const a = this.accounts.get(id);
+    if (!a || a.workspaceId !== workspaceId) return false;
+    // Reads filter deleted rows out; in memory that is the same as not being there.
+    return this.accounts.delete(id);
   }
 
   async createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord> {

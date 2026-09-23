@@ -32,6 +32,9 @@ import {
 } from "./lib/completeness";
 import type { PipelineStore } from "../pipeline/store";
 import type { DeliveryStore } from "../delivery/store";
+import type { SignalStore } from "../signal/store";
+import type { FieldStore } from "./field-store";
+import { isEmptyShell, type Footprint } from "./lib/footprint";
 import { contractPhase } from "../delivery/lib/contract";
 import { deriveAccountStatus, RUNNING_PROJECT_STATUSES, type AccountStatusFacts } from "./lib/status";
 import type { PlanningStore } from "../planning/store";
@@ -1863,4 +1866,70 @@ export async function setAccountParent(
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
   return ok({ accountId, parentId });
+}
+
+/* ---------------------------------------------------------------------------
+ * 删除客户 - empty shells only (owner, 2026-09-23: 只删空壳客户).
+ * ------------------------------------------------------------------------ */
+
+export type FootprintContext = AccountContext & {
+  pipeline: PipelineStore;
+  delivery: DeliveryStore;
+  field: FieldStore;
+  signal: SignalStore;
+};
+
+/**
+ * Everything that hangs on a customer, counted - lib/footprint.ts's list,
+ * each kind asked of the domain that owns it. The confirmation reads this to
+ * say WHY a customer cannot be deleted; deleteEmptyAccount reads it to refuse.
+ */
+export async function accountFootprint(ctx: FootprintContext, accountId: string): Promise<RuleResult<Footprint>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const ws = ctx.workspaceId;
+  const [deals, contracts, projects, interactions, commitments, contacts, leads, accounts] = await Promise.all([
+    ctx.pipeline.listOpportunities(ws, { accountId, includeClosed: true }),
+    ctx.delivery.listContracts(ws, { accountId }),
+    ctx.delivery.listProjects(ws, { accountId }),
+    ctx.field.listInteractions(ws, { accountId }),
+    ctx.field.listCommitments(ws, { accountId }),
+    ctx.store.listContacts(ws, accountId),
+    ctx.signal.listLeads(ws),
+    ctx.store.listAccounts(ws),
+  ]);
+  return ok({
+    deals: deals.length,
+    contracts: contracts.length,
+    projects: projects.length,
+    interactions: interactions.length,
+    commitments: commitments.length,
+    contacts: contacts.length,
+    leads: leads.filter((l) => l.accountId === accountId).length,
+    children: accounts.filter((a) => a.parentId === accountId).length,
+  });
+}
+
+/**
+ * Delete a customer that has no life in the product yet - created by
+ * mistake, or never worked. Anything on it (a deal, a contract, a follow-up,
+ * a contact, a child unit...) makes it history, and history is not deleted:
+ * refused as account_not_empty. A SOFT delete (deleted_at): every read skips
+ * it, and the credit-code index ignores it, so the company can be recreated.
+ */
+export async function deleteEmptyAccount(ctx: FootprintContext, accountId: string): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!(await ctx.store.getAccount(ctx.workspaceId, accountId))) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  const footprint = await accountFootprint(ctx, accountId);
+  if (!footprint.ok) return footprint as RuleResult<{ id: string }>;
+  if (!isEmptyShell(footprint.value)) {
+    return fail(violation("account_not_empty", "a customer with records on it is history, not deleted", "accountId"));
+  }
+  if (!(await ctx.store.softDeleteAccount(ctx.workspaceId, accountId))) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  return ok({ id: accountId });
 }

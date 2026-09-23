@@ -434,6 +434,17 @@ test("listCollaboratedAccountIds scopes to the workspace AND the member, and ret
   assert.deepEqual((calls[0] as { where: unknown }).where, { workspaceId: WS, memberSub: "usr_helper" });
 });
 
+test("softDeleteAccount stamps deleted_at on a live row in this workspace, and reports a miss", async () => {
+  const calls: unknown[] = [];
+  const hit = async () => ({ account: { updateMany: delegate({ count: 1 }, calls) } }) as never;
+  assert.equal(await new PrismaAccountStore(hit).softDeleteAccount(WS, "acc_1"), true);
+  const args = calls[0] as { where: Record<string, unknown>; data: Record<string, unknown> };
+  assert.deepEqual(args.where, { id: "acc_1", workspaceId: WS, deletedAt: null });
+  assert.ok(args.data.deletedAt instanceof Date);
+  const miss = async () => ({ account: { updateMany: async () => ({ count: 0 }) } }) as never;
+  assert.equal(await new PrismaAccountStore(miss).softDeleteAccount(WS, "acc_1"), false);
+});
+
 // --- createAccount (新建客户, 2026-09-23) -------------------------------------
 
 function createFake(opts: { taken: string[]; fail?: unknown }) {
