@@ -4522,6 +4522,12 @@ export const CONTRACT_TEXT = {
   unknownProduct: "（目录中已不存在）",
 } as const;
 
+/** 证据新鲜度 (L2 批七, owner 2026-09-22: 所有判断都标)。 */
+export const EVIDENCE_TEXT = {
+  stale: (days: number) => `这条判断依据的是 ${days} 天前的事实`,
+  staleHint: "规则算出：这条判断引用的最新证据已超过时效阈值（跟进 60 天、承诺 90 天）。",
+} as const;
+
 /** 会前准备 (L6 批五): 与会人由人勾选, 不读日历。 */
 export const MEETING_TEXT = {
   open: "会前准备",

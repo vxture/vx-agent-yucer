@@ -19,6 +19,7 @@ import {
   ViewHeader,
 } from "@vxture/design-ui";
 import { dismissJudgement } from "../judgement-actions";
+import { StaleMark } from "./stale-mark";
 import type {
   AnalysisKind,
   Judgement,
@@ -262,6 +263,7 @@ function Engagement({
               {tierLabels(HOME_TEXT)[j.urgency]}
             </StatusBadge>
             <SourceMark source={j.source} />
+            <StaleMark freshness={j.freshness} />
           </span>
         }
         // The conclusion, in the slot a panel gives its own subtitle. It is the

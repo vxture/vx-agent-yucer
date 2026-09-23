@@ -43,6 +43,7 @@ import {
   type Stance,
 } from "../../account/lib/health";
 import { chainForOpportunity, type ChainPerson } from "../../account/lib/buying-role";
+import { annotateFreshness, type Freshness } from "../../account/lib/evidence-quality";
 import type { CaptureWeek } from "../../account/lib/capture-metric";
 import {
   DEFAULT_CONTACT_RECENCY_POLICY,
@@ -119,6 +120,13 @@ export interface Judgement {
    * side-by-side metrics and neither reading worked.
    */
   series?: readonly { readonly label: string; readonly percent: number }[];
+  /**
+   * L2 batch seven: how old the newest dated evidence under this claim is,
+   * and whether that is past its kind's threshold. Null when the claim rests
+   * only on structure or metrics, which carry no date. Attached as the LAST
+   * step of deriveJudgements - the rules themselves do not know about it.
+   */
+  freshness?: Freshness | null;
 }
 
 /** The on-demand model analyses. Each costs an Atlas call, so each is a click. */
@@ -713,7 +721,9 @@ export function deriveJudgements(
   }
 
   const rank: Record<Urgency, number> = { today: 0, week: 1, watch: 2 };
-  return out.sort((a, b) => rank[a.urgency] - rank[b.urgency]);
+  return out
+    .map((j) => ({ ...j, freshness: annotateFreshness(j.citations, now) }))
+    .sort((a, b) => rank[a.urgency] - rank[b.urgency]);
 }
 
 /** Counts per tier, for the filter's badges. */

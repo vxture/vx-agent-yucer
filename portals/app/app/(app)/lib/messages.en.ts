@@ -3318,6 +3318,12 @@ export const en: Dictionary = {
     closed: "Closed",
   },
 
+  EVIDENCE_TEXT: {
+    stale: (days: number) => `this judgement rests on facts from ${days} days ago`,
+    staleHint:
+      "Rule-computed: the newest evidence this judgement cites is past its freshness threshold (follow-ups 60 days, commitments 90).",
+  },
+
   MEETING_TEXT: {
     open: "Meeting prep",
     title: "Meeting prep",
