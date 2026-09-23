@@ -88,8 +88,7 @@ import { ConsistencyCheck, type PendingConflict } from "../../components/consist
 import { CONFLICT_ACTION_TYPE, lastConsistencyCheck } from "../../../domains/copilot/lib/conflict";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
-import { AccountSidebarPortal } from "../../components/account-sidebar-portal";
-import { ACCOUNT_SIDEBAR_SLOT_ID } from "../../lib/sidebar-slot";
+import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS } from "../../lib/sidebar-slot";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import {
   DealLifecyclePanel,
@@ -219,11 +218,15 @@ export default async function AccountDetailPage({
   // only appeared to enforce.
   const detail = await getAccountDetail(ctx, id);
   if (!detail.ok) {
+    // The shell hands this route its whole body row (lib/sidebar-slot.ts),
+    // so even the refusal sits in the centre pane rather than bare in the row.
     return (
-      <EmptyState
-        title={SHELL_TEXT.loadFailed}
-        description={loadFailureText(detail.violations, LOAD_ERROR)}
-      />
+      <div className={CENTRE_PANE_CLASS}>
+        <EmptyState
+          title={SHELL_TEXT.loadFailed}
+          description={loadFailureText(detail.violations, LOAD_ERROR)}
+        />
+      </div>
     );
   }
   const { account, contacts } = detail.value;
@@ -943,7 +946,10 @@ export default async function AccountDetailPage({
     : null;
 
   return (
-    <ViewLayout>
+    // TWO PANES, BOTH SERVER-RENDERED (fix, 2026-09-23 - lib/sidebar-slot.ts).
+    // ChainViewProvider renders no DOM, so the aside and the centre stay
+    // direct children of the shell's body row while sharing one context.
+    <ChainViewProvider chains={chainSummaryItems}>
       {/* HEADER 没了 (owner, 2026-09-20: 补充 - 把中部第一块-客户信息卡整合
           进 sidebar-单位信息). ViewHeader 原来管的三件事 - 标题/状态、
           ACC-0001+销售负责人、三个动态维度+"···"菜单 - 现在分别落到:
@@ -957,8 +963,8 @@ export default async function AccountDetailPage({
           (owner: 聚焦客户全景图页面 - 全局 header 的战况板开关恢复后, 返回/
           收起展开都变得多余), 只有"客户总编辑"跟着搬到这里, 见下面面包屑行
           自己的说明。 */}
-      <ChainViewProvider chains={chainSummaryItems}>
-      <AccountSidebarPortal slotId={ACCOUNT_SIDEBAR_SLOT_ID}>
+      <aside className={BOARD_PANE_CLASS}>
+      <div className="flex flex-col gap-lg">
         {/* ======== 单位信息 + 联系人 + 决策链摘要 + 档案缺口, portaled into
             the shell's left sidebar. 目标 div 自己已经是 flex flex-col
             gap-lg(app-shell.tsx), 这里不再重复包一层。 ======== */}
@@ -1022,7 +1028,11 @@ export default async function AccountDetailPage({
             canAsk={canAsk}
           />
         ) : null}
-      </AccountSidebarPortal>
+      </div>
+      </aside>
+
+      <div className={CENTRE_PANE_CLASS}>
+      <ViewLayout>
 
         {/* ======== content: 面包屑行, then 栏2 - the lifecycle spine, then
             this account's own decision items. 面包屑放这里(owner: 判断题
@@ -1333,7 +1343,8 @@ export default async function AccountDetailPage({
           </>
           } />
         </div>
-      </ChainViewProvider>
-    </ViewLayout>
+      </ViewLayout>
+      </div>
+    </ChainViewProvider>
   );
 }
