@@ -3,7 +3,7 @@
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
-import { CapBadge, LayerLabel } from "./panorama-annotations";
+import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import { Tag } from "./tag";
 
 // 外部动态 (YC-021 L1 工商舆情异动): external events that have been matched to
@@ -26,6 +26,9 @@ export interface AccountSignalRow {
 
 export function AccountSignals({ rows }: { readonly rows: readonly AccountSignalRow[] }) {
   const { SIGNAL_PANEL_TEXT } = useMessages();
+  // The feed's name is free text (web / news / campaign / ...); the known ones
+  // read as words, an unknown one stays as given rather than disappearing.
+  const sourceName = (s: string) => SIGNAL_PANEL_TEXT.sourceLabel[s] ?? s;
   if (rows.length === 0) return null;
   const newest = rows[0]!;
   return (
@@ -45,24 +48,30 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
         </span>
       }
     >
-      <ul className="flex flex-col gap-sm">
+      <ul className="divide-border flex flex-col divide-y">
         {rows.map((r) => (
-          <li key={r.id} className="flex flex-col gap-3xs">
+          <li key={r.id} className="flex flex-col gap-2xs py-sm first:pt-0 last:pb-0">
             <span className="text-body-sm">{r.subject}</span>
             <span className="text-muted-foreground flex flex-wrap items-center gap-xs text-body-sm">
               <Tag>{r.typeLabel}</Tag>
-              <span>{SIGNAL_PANEL_TEXT.when(r.daysAgo)}</span>
+              <span className="tabular-nums">{SIGNAL_PANEL_TEXT.when(r.daysAgo)}</span>
+              <span>·</span>
+              {/* The source reads the same either way; a web address is a link,
+                  marked by the arrow - no second colour in a grey row. */}
               {r.href ? (
-                <a href={r.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  {SIGNAL_PANEL_TEXT.source(r.source)}
+                <a href={r.href} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+                  {SIGNAL_PANEL_TEXT.source(sourceName(r.source))} ↗
                 </a>
               ) : (
-                <span>{SIGNAL_PANEL_TEXT.source(r.source)}</span>
+                <span>{SIGNAL_PANEL_TEXT.source(sourceName(r.source))}</span>
               )}
             </span>
           </li>
         ))}
       </ul>
+      <CapFooter>
+        <CapBadge tier="pro">Pro</CapBadge> {SIGNAL_PANEL_TEXT.cap}
+      </CapFooter>
     </CollapsibleSection>
   );
 }

@@ -4357,7 +4357,7 @@ export const ACCOUNT_TEXT = {
   capChainBasic: "覆盖统计",
   capChainPro: "可达性分析 + 四角色映射",
   capHealthBasic: "五因子（含续约）+ 状态标签 + 首要问题",
-  capHealthPro: "缺数据 reason + 整体退化趋势",
+  capHealthPro: "变化归因 + 同类对标 + 风险分型",
   capDealBasic: "商机列表 + 阶段 + 金额 (只读引用 D6)",
   capDealPro: "停滞检测 + 竞争分析 (参谋能力)",
   capProjectBasic: "项目 + 里程碑 + 健康度 (只读引用 D7)",
@@ -5842,7 +5842,7 @@ export const BUYING_ROLE_TEXT = {
  */
 export const WAR_ROOM_TEXT = {
   title: "态势判决",
-  allClear: "五项检查全部通过。没有需要处理的发现。",
+  allClear: (n: number) => `${n} 项检查全部通过。没有需要处理的发现。`,
   findings: (n: number) => `${n} 项需要注意,可执行的动作按轻重排在下面。`,
   cell: {
     stage: "阶段",
@@ -5931,7 +5931,11 @@ export const CHAIN_TEXT = {
   rollupSeparator: "；",
   editOnDeal: "去商机编辑角色",
   // 变化归因 (YC-021 L5, incr/0079).
-  changeSince: (from: number, to: number, date: string) => `较 ${date} 的 ${from} 分变为 ${to} 分：`,
+  reasonLabel: "依据",
+  reasonItem: (factor: string, text: string) => `${factor}：${text}`,
+  changeLabel: "变化",
+  benchmarkLabel: "对标",
+  changeSince: (from: number, to: number, date: string) => `较 ${date} 的 ${from} 分变为 ${to} 分`,
   changeFactor: (factor: string, delta: number) => `${factor} ${delta > 0 ? "+" : ""}${delta}`,
   changeSeparator: "，",
   // incr/0027：一单一条链。标题必须带上是哪一单，否则同一客户下的两条
@@ -5974,6 +5978,7 @@ export const CHAIN_TEXT = {
   expand: "展开",
   factorPipeline: "商机",
   factorRecency: "互动时效",
+  factorRecencyShort: "时效",
   factorDelivery: "交付",
   factorCollections: "回款",
   // 第五因子 (L4 批三, 业务规则 §5)。
@@ -6675,6 +6680,16 @@ export const SIGNAL_PANEL_TEXT = {
     `${n} 条外部动态 · 最新一条${newestDaysAgo === 0 ? "今天" : `${newestDaysAgo} 天前`}`,
   when: (days: number) => (days === 0 ? "今天" : `${days} 天前`),
   source: (source: string) => `来源：${source}`,
+  sourceLabel: {
+    web: "网页",
+    news: "新闻",
+    campaign: "营销活动",
+    crm: "CRM",
+    partner: "合作伙伴",
+    manual: "手工录入",
+    arda: "Arda",
+  } as Record<string, string>,
+  cap: "已匹配到本客户的外部信号 + 来源链接",
 };
 
 // 风险分型 (YC-021 L5, owner 2026-09-24): five types, what each rests on, who to go to.

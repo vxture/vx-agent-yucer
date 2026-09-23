@@ -99,17 +99,21 @@ export function DecisionChain({
         </StatusBadge>
       )}
 
-      <div>
-        <span>{CHAIN_TEXT.covered}</span>
-        {coverage.covered.map((role) => (
-          <Tag key={role}>
-            {DECISION_ROLE_LABEL[role] ?? role}
-          </Tag>
-        ))}
-      </div>
+      {/* Only when something is covered - a bare "已覆盖" label with nothing
+          after it read as a rendering fault. */}
+      {coverage.covered.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-xs">
+          <span>{CHAIN_TEXT.covered}</span>
+          {coverage.covered.map((role) => (
+            <Tag key={role}>
+              {DECISION_ROLE_LABEL[role] ?? role}
+            </Tag>
+          ))}
+        </div>
+      ) : null}
 
       {coverage.missing.length > 0 ? (
-        <div>
+        <div className="flex flex-wrap items-center gap-xs">
           <span>{CHAIN_TEXT.missing}</span>
           {coverage.missing.map((role) => (
             <StatusBadge key={role} tone="warning">
@@ -120,7 +124,7 @@ export function DecisionChain({
       ) : null}
 
       {coverage.coaches.length > 0 ? (
-        <div>
+        <div className="flex flex-wrap items-center gap-xs">
           <span>{CHAIN_TEXT.coaches}</span>
           {/* Ordered by influence, so the copilot's "talk to X next" and this
               list name the same person. */}
@@ -136,7 +140,7 @@ export function DecisionChain({
       ) : null}
 
       {coverage.blockers.length > 0 ? (
-        <div>
+        <div className="flex flex-wrap items-center gap-xs">
           <span>{CHAIN_TEXT.blockers}</span>
           {coverage.blockers.map((c) => (
             <StatusBadge key={c.id} tone="danger">

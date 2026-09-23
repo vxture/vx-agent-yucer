@@ -18,12 +18,20 @@ const LEVEL_TONE: Record<RiskLevel, "danger" | "warning" | "success" | "neutral"
 export function RiskTypes({ risks }: { readonly risks: readonly RiskTypeResult[] }) {
   const { RISK_TEXT, healthReasonText } = useMessages();
   return (
-    <div className="flex flex-col gap-2xs">
-      <span className="text-muted-foreground text-label-sm font-bold">{RISK_TEXT.title}</span>
+    <div className="flex flex-col">
+      <span className="text-muted-foreground text-label-sm mb-2xs font-bold">{RISK_TEXT.title}</span>
+      {/* FIXED columns (polish, 2026-09-24): with `auto` each row sized the
+          tag column to its own tag, so 有风险 pushed its text further right
+          than 关注 and the five rows did not line up. */}
       {risks.map((r) => (
-        <div key={r.type} className="border-border grid grid-cols-[4rem_auto_1fr] items-start gap-sm border-b py-2xs text-body-sm last:border-b-0">
+        <div
+          key={r.type}
+          className="border-border grid grid-cols-[4rem_5rem_1fr] items-start gap-x-sm border-b py-xs text-body-sm last:border-b-0"
+        >
           <span className="font-bold">{RISK_TEXT.type[r.type]}</span>
-          <Tag tone={LEVEL_TONE[r.level]}>{RISK_TEXT.level[r.level]}</Tag>
+          <span className="justify-self-start">
+            <Tag tone={LEVEL_TONE[r.level]}>{RISK_TEXT.level[r.level]}</Tag>
+          </span>
           <span className="flex flex-col gap-3xs">
             <span className="text-muted-foreground">
               {r.findings.length === 0
