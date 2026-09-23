@@ -433,3 +433,64 @@ test("listCollaboratedAccountIds scopes to the workspace AND the member, and ret
   assert.deepEqual(ids, ["acc_1", "acc_2"]);
   assert.deepEqual((calls[0] as { where: unknown }).where, { workspaceId: WS, memberSub: "usr_helper" });
 });
+
+test("softDeleteAccount stamps deleted_at on a live row in this workspace, and reports a miss", async () => {
+  const calls: unknown[] = [];
+  const hit = async () => ({ account: { updateMany: delegate({ count: 1 }, calls) } }) as never;
+  assert.equal(await new PrismaAccountStore(hit).softDeleteAccount(WS, "acc_1"), true);
+  const args = calls[0] as { where: Record<string, unknown>; data: Record<string, unknown> };
+  assert.deepEqual(args.where, { id: "acc_1", workspaceId: WS, deletedAt: null });
+  assert.ok(args.data.deletedAt instanceof Date);
+  const miss = async () => ({ account: { updateMany: async () => ({ count: 0 }) } }) as never;
+  assert.equal(await new PrismaAccountStore(miss).softDeleteAccount(WS, "acc_1"), false);
+});
+
+// --- createAccount (新建客户, 2026-09-23) -------------------------------------
+
+function createFake(opts: { taken: string[]; fail?: unknown }) {
+  const calls = { raw: 0, created: [] as unknown[] };
+  const account = {
+    findMany: async () => opts.taken.map((accountNo) => ({ accountNo })),
+    create: async (args: { data: Record<string, unknown> }) => {
+      if (opts.fail) throw opts.fail;
+      calls.created.push(args.data);
+      return { id: "acc_new" };
+    },
+    findFirst: async () => ({
+      id: "acc_new", workspaceId: WS, accountNo: (calls.created[0] as { accountNo: string } | undefined)?.accountNo,
+      name: "新客户", status: "prospect", tier: "standard", deletedAt: null,
+    }),
+  };
+  const empty = { findMany: async () => [] };
+  const tx = { $executeRaw: async () => { calls.raw += 1; return 1; }, account };
+  const client = {
+    $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+    account,
+    industry: empty,
+    customerType: empty,
+    customerSize: empty,
+    customerNature: empty,
+  };
+  return { calls, client: async () => client as never };
+}
+
+const NEW = {
+  name: "新客户", region: null, province: null, industryId: null, segmentCode: null, customerTypeId: null,
+  customerSizeId: null, customerNatureId: null, creditCode: null, website: null, employeeCount: null, ownerSub: "usr_me",
+};
+
+test("createAccount takes the allocation lock, then numbers after the highest ACC in use", async () => {
+  const f = createFake({ taken: ["ACC-0004", "ACC-0012"] });
+  const made = await new PrismaAccountStore(f.client).createAccount(WS, NEW);
+  assert.equal(f.calls.raw, 1, "the advisory lock is taken inside the transaction");
+  assert.equal((f.calls.created[0] as { accountNo: string }).accountNo, "ACC-0013");
+  assert.equal((f.calls.created[0] as { ownerSub: string }).ownerSub, "usr_me");
+  assert.equal(made.id, "acc_new");
+});
+
+test("createAccount turns the credit-code unique violation into its named error, and rethrows anything else", async () => {
+  const dup = createFake({ taken: [], fail: { code: "P2002" } });
+  await assert.rejects(() => new PrismaAccountStore(dup.client).createAccount(WS, NEW), /credit_code_taken/);
+  const other = createFake({ taken: [], fail: new Error("connection reset") });
+  await assert.rejects(() => new PrismaAccountStore(other.client).createAccount(WS, NEW), /connection reset/);
+});

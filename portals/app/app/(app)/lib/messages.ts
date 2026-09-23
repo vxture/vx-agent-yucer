@@ -1087,6 +1087,8 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   name_required: "客户名称不能为空",
   province_unknown: "不是有效的省级行政区划",
   employee_count_invalid: "员工数必须是不小于 0 的整数",
+  account_not_empty: "这家客户已经有业务记录了，只能删除建错、还没用过的空壳客户",
+  credit_code_taken: "这个统一社会信用代码已经是另一家客户的——同一家企业不建两份档案，先在客户列表里搜一下",
   // 关联联系人 / 关联协作人 (owner, 2026-09-20)。
   already_linked: "这个人不存在，或已经是这个客户的联系人",
   member_required: "请先选一位同事",
@@ -6258,12 +6260,40 @@ export const POSITION_TEXT = {
 // 基础信息表单 (owner, 2026-09-20: 设计图严格对齐 - 先做基础信息表单，智能
 // 采集先跳过). 字段全部对应 updateAccountBasics() 已经能写的真实列 - 没有
 // 一个是这张表单发明的新事实。
+/** 删除空壳客户 (owner, 2026-09-23: 只删空壳客户). */
+export const ACCOUNT_DELETE_TEXT = {
+  menu: "删除客户",
+  verb: "删除",
+  consequence: "只有还没有任何业务记录的客户能删（建错了的那种）。删除后不再出现在任何列表里，同一家企业以后可以重新建档。",
+  condition: {
+    deals: "没有商机",
+    contracts: "没有合同",
+    projects: "没有交付项目",
+    interactions: "没有跟进记录",
+    commitments: "没有承诺",
+    contacts: "没有联系人",
+    leads: "没有线索",
+    children: "没有下级单位",
+  } as Record<string, string>,
+  checking: "正在核对…",
+  present: (n: number) => `现有 ${n} 条`,
+  done: "已删除",
+  titleTemplate: "{verb}{target}？",
+};
+
 export const ACCOUNT_BASICS_TEXT = {
   editButton: "编辑单位信息",
   title: "编辑单位信息",
   why: "客户的固有属性 - 名称、分类、联系入口。谁负责跟进、决策链这些另有自己的卡片。",
   name: "客户名称",
   accountNo: "客户编号",
+  accountNoOnSave: "保存后自动生成",
+  createCrumb: "新建客户",
+  createTitle: "新建客户",
+  createWhy: "只有名称必填。其余能填就填，不知道的留空——建好后客户页的「档案完整度」会列出还缺什么，随时补。你是这家客户的负责人，之后可以转给别人。",
+  createSubmit: "创建",
+  createCancel: "取消",
+  createButton: "新建客户",
   region: "销售大区",
   province: "省份",
   provincePick: "未标注",

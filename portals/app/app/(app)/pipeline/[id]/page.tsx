@@ -39,7 +39,7 @@ import {
   decisionChainsByOpportunity,
   buyingRolesFor,
 } from "../../../domains/account/service";
-import { listProjects } from "../../../domains/delivery/service";
+import { listProjects, projectView } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import { cachedFeed } from "../../lib/board";
 import { BuyingRoleForm } from "../../components/buying-role-form";
@@ -231,6 +231,16 @@ export default async function OpportunityDetailPage({
   const problems = (feed.ok ? feed.value.judgements : [])
     .filter((j) => j.subjectId === opportunity.accountId || j.subjectId === id)
     .map((j) => ({ id: j.id, claim: j.claim, rule: j.rule ?? null }));
+
+  // THE DERIVED HEALTH, as on the customer page (#378): an overdue instalment
+  // or a missed milestone pulls a reported green down, and the stored column
+  // does not know that. An unreadable view falls back to what was reported.
+  const projectHealth = await Promise.all(
+    (projects.ok ? projects.value : []).map(async (pr) => {
+      const pv = await projectView({ ...ctx, store: getDeliveryStore() }, pr.id);
+      return pv.ok ? pv.value.derivedHealth : pr.health;
+    }),
+  );
 
   // Proposals for this position, labelled by the capability that produced them
   // (ADR-015) so a reader can see whether they are signing a commercial move or
@@ -571,10 +581,10 @@ export default async function OpportunityDetailPage({
       </WarRoom>
 
       <PositionBrief
-        projects={(projects.ok ? projects.value : []).map((pr) => ({
+        projects={(projects.ok ? projects.value : []).map((pr, i) => ({
           id: pr.id,
           name: pr.name,
-          health: pr.health,
+          health: projectHealth[i] ?? pr.health,
           href: `/delivery`,
         }))}
         rivalMentions={rivalMentions}

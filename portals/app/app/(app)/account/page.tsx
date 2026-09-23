@@ -16,6 +16,7 @@ import {
 } from "../../domains/account/service";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
+import { NewEntryLink } from "../components/form-page";
 import { listSegments } from "../../domains/strategy/service";
 import { OverdueCommitments } from "../components/overdue-commitments";
 
@@ -32,7 +33,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
-  const { ACCOUNT_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { ACCOUNT_TEXT, ACCOUNT_BASICS_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -124,6 +125,13 @@ export default async function AccountPage() {
           going wrong, and that is what the badges and the panel beneath say. */}
       <ModuleHeadline
         moduleKey="account"
+        // 新建客户 (owner, 2026-09-23) - the list's own create entry, the same
+        // NewEntryLink every other module headline carries.
+        action={
+          can(session.authz, session.entitlement, "account.upsert", "ui").allowed ? (
+            <NewEntryLink href="/account/new" label={ACCOUNT_BASICS_TEXT.createButton} />
+          ) : null
+        }
         description={ACCOUNT_TEXT.leadOrder}
         tags={
           <>

@@ -32,12 +32,15 @@ import {
 } from "./lib/completeness";
 import type { PipelineStore } from "../pipeline/store";
 import type { DeliveryStore } from "../delivery/store";
+import type { SignalStore } from "../signal/store";
+import type { FieldStore } from "./field-store";
+import { isEmptyShell, type Footprint } from "./lib/footprint";
 import { contractPhase } from "../delivery/lib/contract";
 import { deriveAccountStatus, RUNNING_PROJECT_STATUSES, type AccountStatusFacts } from "./lib/status";
 import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
 import type { AuthzStore } from "../../authz/store";
-import { fail, ok, violation, type RuleResult } from "../shared/result";
+import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
 import { planAccountParent } from "./lib/parent";
 import { chainForOpportunity } from "./lib/buying-role";
 import { denied } from "../pipeline/service";
@@ -67,6 +70,7 @@ import type {
   AccountTier,
   ContactRecord,
   OpportunityContactRecord,
+  NewAccount,
 } from "./store";
 import { planContact, type ContactDraft } from "./lib/contact";
 import {
@@ -1374,6 +1378,54 @@ export interface AccountBasicsPatch {
   employeeCount?: number | null;
 }
 
+/** The checks a customer record's basics must pass, on create and on edit alike. */
+function basicsViolation(patch: AccountBasicsPatch): Violation | null {
+  if (patch.name !== undefined && !patch.name.trim()) {
+    return violation("name_required", "an account needs a name", "name");
+  }
+  // Same CHECK the database enforces (incr/0035) - refused here, in the
+  // product's own terms, rather than as a raw constraint violation.
+  if (patch.province != null && !isProvince(patch.province)) {
+    return violation("province_unknown", `${patch.province} is not one of the 34 provincial-level divisions`, "province");
+  }
+  if (patch.employeeCount != null && (!Number.isInteger(patch.employeeCount) || patch.employeeCount < 0)) {
+    return violation("employee_count_invalid", "employee count must be a non-negative whole number", "employeeCount");
+  }
+  return null;
+}
+
+/**
+ * 新建客户 (owner, 2026-09-23: 独立页面全字段表单). Until this there was NO
+ * way to create a customer in the product - only the demo seed and test SQL
+ * wrote the table, so a real workspace could not add its first one.
+ *
+ * Same gate and the same checks as editing the basics. The number is the
+ * store's to allocate (ACC-NNNN, under a lock); the owner is the person
+ * creating it - it is theirs until somebody reassigns it; the tier is left to
+ * D1's designation (ADR-013) and the status is derived, never stored (§5.1).
+ */
+export async function createAccount(
+  ctx: AccountContext,
+  input: Omit<NewAccount, "ownerSub">,
+): Promise<RuleResult<AccountRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const name = input.name.trim();
+  const invalid = basicsViolation({ ...input, name });
+  if (invalid) return fail(invalid);
+  if (!name) return fail(violation("name_required", "an account needs a name", "name"));
+
+  try {
+    return ok(await ctx.store.createAccount(ctx.workspaceId, { ...input, name, ownerSub: ctx.sub }));
+  } catch (e) {
+    if (e instanceof Error && e.message === "credit_code_taken") {
+      return fail(violation("credit_code_taken", "another customer already has this credit code", "creditCode"));
+    }
+    throw e;
+  }
+}
+
 export async function updateAccountBasics(
   ctx: AccountContext,
   accountId: string,
@@ -1382,28 +1434,8 @@ export async function updateAccountBasics(
   const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  if (patch.name !== undefined && !patch.name.trim()) {
-    return fail(violation("name_required", "an account needs a name", "name"));
-  }
-  // Same CHECK the database enforces (incr/0035) - refused here, in the
-  // product's own terms, rather than as a raw constraint violation.
-  if (patch.province != null && !isProvince(patch.province)) {
-    return fail(violation(
-      "province_unknown",
-      `${patch.province} is not one of the 34 provincial-level divisions`,
-      "province",
-    ));
-  }
-  if (
-    patch.employeeCount != null &&
-    (!Number.isInteger(patch.employeeCount) || patch.employeeCount < 0)
-  ) {
-    return fail(violation(
-      "employee_count_invalid",
-      "employee count must be a non-negative whole number",
-      "employeeCount",
-    ));
-  }
+  const invalid = basicsViolation(patch);
+  if (invalid) return fail(invalid);
 
   const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
   if (!current) {
@@ -1836,4 +1868,70 @@ export async function setAccountParent(
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
   return ok({ accountId, parentId });
+}
+
+/* ---------------------------------------------------------------------------
+ * 删除客户 - empty shells only (owner, 2026-09-23: 只删空壳客户).
+ * ------------------------------------------------------------------------ */
+
+export type FootprintContext = AccountContext & {
+  pipeline: PipelineStore;
+  delivery: DeliveryStore;
+  field: FieldStore;
+  signal: SignalStore;
+};
+
+/**
+ * Everything that hangs on a customer, counted - lib/footprint.ts's list,
+ * each kind asked of the domain that owns it. The confirmation reads this to
+ * say WHY a customer cannot be deleted; deleteEmptyAccount reads it to refuse.
+ */
+export async function accountFootprint(ctx: FootprintContext, accountId: string): Promise<RuleResult<Footprint>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const ws = ctx.workspaceId;
+  const [deals, contracts, projects, interactions, commitments, contacts, leads, accounts] = await Promise.all([
+    ctx.pipeline.listOpportunities(ws, { accountId, includeClosed: true }),
+    ctx.delivery.listContracts(ws, { accountId }),
+    ctx.delivery.listProjects(ws, { accountId }),
+    ctx.field.listInteractions(ws, { accountId }),
+    ctx.field.listCommitments(ws, { accountId }),
+    ctx.store.listContacts(ws, accountId),
+    ctx.signal.listLeads(ws),
+    ctx.store.listAccounts(ws),
+  ]);
+  return ok({
+    deals: deals.length,
+    contracts: contracts.length,
+    projects: projects.length,
+    interactions: interactions.length,
+    commitments: commitments.length,
+    contacts: contacts.length,
+    leads: leads.filter((l) => l.accountId === accountId).length,
+    children: accounts.filter((a) => a.parentId === accountId).length,
+  });
+}
+
+/**
+ * Delete a customer that has no life in the product yet - created by
+ * mistake, or never worked. Anything on it (a deal, a contract, a follow-up,
+ * a contact, a child unit...) makes it history, and history is not deleted:
+ * refused as account_not_empty. A SOFT delete (deleted_at): every read skips
+ * it, and the credit-code index ignores it, so the company can be recreated.
+ */
+export async function deleteEmptyAccount(ctx: FootprintContext, accountId: string): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!(await ctx.store.getAccount(ctx.workspaceId, accountId))) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  const footprint = await accountFootprint(ctx, accountId);
+  if (!footprint.ok) return footprint as RuleResult<{ id: string }>;
+  if (!isEmptyShell(footprint.value)) {
+    return fail(violation("account_not_empty", "a customer with records on it is history, not deleted", "accountId"));
+  }
+  if (!(await ctx.store.softDeleteAccount(ctx.workspaceId, accountId))) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  return ok({ id: accountId });
 }
