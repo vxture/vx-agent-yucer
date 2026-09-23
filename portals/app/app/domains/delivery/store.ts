@@ -25,7 +25,7 @@ import type {
   RevenueStatus,
 } from "./lib/revenue";
 import { DEFAULT_AGEING_CUTOFFS } from "./lib/collection-stats";
-import type { ContractDraft, ContractFacts, PlannedContractLine } from "./lib/contract";
+import type { ContractDraft, ContractFacts, PlannedContractLine, RenewalEventType } from "./lib/contract";
 
 export interface ProjectRecord {
   id: string;
@@ -52,6 +52,12 @@ export interface ProjectRecord {
    * form of a deal from a date invents renewals nobody owes.
    */
   engagementType: EngagementType;
+  /**
+   * incr/0077. The contract this delivery runs under, when anyone has said.
+   * Read by the renewal window (L4 batch two): a project WITH a contract takes
+   * its renewal date from the contract; one without keeps its own end date.
+   */
+  contractId: string | null;
 }
 
 export interface MilestoneRecord {
@@ -99,9 +105,26 @@ export interface ContractRecord extends ContractFacts {
   noticeDays: number;
   /** incr/0076 lineage. Frozen, and written by batch two's renewal, not here. */
   renewedFromContractId: string | null;
+  /** incr/0078 batch two. The contract that renewed this one, if any -
+   *  derived from the successor's renewed_from_contract_id, never stored. */
+  renewedBy: string | null;
   signedAt: Date | null;
   lines: ContractLineRecord[];
+  /** incr/0078. Oldest first - it is a history. */
+  events: RenewalEventRecord[];
 }
+
+export interface RenewalEventRecord {
+  id: string;
+  contractId: string;
+  eventType: RenewalEventType;
+  successorContractId: string | null;
+  reason: string | null;
+  actorSub: string | null;
+  occurredAt: Date;
+}
+
+export type RenewalEventDraft = Omit<RenewalEventRecord, "id" | "occurredAt">;
 
 export interface ContractLineRecord extends PlannedContractLine {
   id: string;
@@ -198,7 +221,10 @@ export interface DeliveryStore {
   listContracts(workspaceId: string, filter?: { accountId?: string }): Promise<ContractRecord[]>;
   getContract(workspaceId: string, id: string): Promise<ContractRecord | null>;
   contractNoTaken(workspaceId: string, contractNo: string): Promise<boolean>;
-  createContract(workspaceId: string, draft: ContractDraft): Promise<ContractRecord>;
+  /** `renewedFrom` is set here and only here: the column is frozen after INSERT. */
+  createContract(workspaceId: string, draft: ContractDraft, renewedFrom?: string | null): Promise<ContractRecord>;
+  /** incr/0078. Append-only: there is no update or delete verb for events. */
+  appendRenewalEvent(workspaceId: string, event: RenewalEventDraft): Promise<RenewalEventRecord>;
   updateContract(workspaceId: string, id: string, patch: ContractPatch): Promise<boolean>;
   addContractLine(workspaceId: string, contractId: string, line: PlannedContractLine): Promise<ContractLineRecord>;
   updateContractLine(workspaceId: string, lineId: string, patch: ContractLinePatch): Promise<boolean>;
@@ -216,7 +242,8 @@ export class InMemoryDeliveryStore implements DeliveryStore {
   private cutoffs = new Map<string, number[]>();
   /* incr/0066. The workspace's renewal policy, yucer_delivery.renewal_policy. */
   private renewalPolicies = new Map<string, RenewalPolicy>();
-  private contracts = new Map<string, Omit<ContractRecord, "lines">>();
+  private contracts = new Map<string, Omit<ContractRecord, "lines" | "events" | "renewedBy">>();
+  private renewalEvents: Array<RenewalEventRecord & { workspaceId: string }> = [];
   private contractLines: Array<ContractLineRecord & { workspaceId: string }> = [];
 
   async getAgeingCutoffs(workspaceId: string): Promise<number[]> {
@@ -240,9 +267,11 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     milestones?: Array<MilestoneRecord & { workspaceId: string }>;
     instalments?: Array<InstalmentRecord & { workspaceId: string }>;
     contracts?: ContractRecord[];
+    renewalEvents?: Array<RenewalEventRecord & { workspaceId: string }>;
   }): void {
+    this.renewalEvents.push(...(input.renewalEvents ?? []));
     for (const c of input.contracts ?? []) {
-      const { lines, ...head } = c;
+      const { lines, events: _events, renewedBy: _renewedBy, ...head } = c;
       this.contracts.set(c.id, { ...head });
       this.contractLines.push(...lines.map((l) => ({ ...l, workspaceId: c.workspaceId })));
     }
@@ -358,11 +387,24 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     if (patch.settledAt !== undefined) row.settledAt = patch.settledAt;
     return true;
   }
-  private withLines(head: Omit<ContractRecord, "lines">): ContractRecord {
+  private withLines(head: Omit<ContractRecord, "lines" | "events" | "renewedBy">): ContractRecord {
     const lines = this.contractLines
       .filter((l) => l.workspaceId === head.workspaceId && l.contractId === head.id)
       .map(({ workspaceId: _ws, ...l }) => ({ ...l }));
-    return { ...head, lines };
+    const events = this.renewalEvents
+      .filter((e) => e.workspaceId === head.workspaceId && e.contractId === head.id)
+      .map(({ workspaceId: _ws, ...e }) => ({ ...e }));
+    const successor = [...this.contracts.values()].find(
+      (c) => c.workspaceId === head.workspaceId && c.renewedFromContractId === head.id,
+    );
+    return { ...head, lines, events, renewedBy: successor?.id ?? null };
+  }
+
+  async appendRenewalEvent(workspaceId: string, event: RenewalEventDraft): Promise<RenewalEventRecord> {
+    const row = { ...event, id: `re_${++this.seq}`, workspaceId, occurredAt: new Date() };
+    this.renewalEvents.push(row);
+    const { workspaceId: _ws, ...out } = row;
+    return out;
   }
 
   async listContracts(workspaceId: string, filter: { accountId?: string } = {}): Promise<ContractRecord[]> {
@@ -385,12 +427,26 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     );
   }
 
-  async createContract(workspaceId: string, draft: ContractDraft): Promise<ContractRecord> {
+  async createContract(
+    workspaceId: string,
+    draft: ContractDraft,
+    renewedFrom: string | null = null,
+  ): Promise<ContractRecord> {
+    // The unique index, as the in-memory store's own refusal - so a test
+    // against this store cannot pass a double renewal the database rejects.
+    if (
+      renewedFrom &&
+      [...this.contracts.values()].some((c) => c.workspaceId === workspaceId && c.renewedFromContractId === renewedFrom)
+    ) {
+      // Shaped like Prisma's P2002, so the service's handling is exercised
+      // against this store exactly as it is against the database.
+      throw Object.assign(new Error("unique violation: uidx_contract_renewed_from"), { code: "P2002" });
+    }
     const head = {
       ...draft,
       id: `ct_${++this.seq}`,
       workspaceId,
-      renewedFromContractId: null,
+      renewedFromContractId: renewedFrom,
     };
     this.contracts.set(head.id, head);
     return this.withLines(head);

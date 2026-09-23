@@ -163,3 +163,13 @@ test("已购态 is the unexpired lines of in-force contracts, one row per produc
     { productId: "core", quantity: 3, runsUntil: day("2027-03-31"), contractIds: ["a", "b"] },
   ]);
 });
+
+test("batch two: a contract with a successor reads as renewed, not lapsed", () => {
+  assert.equal(contractPhase({ ...facts({ termEnd: day("2026-09-01") }), renewedBy: "ct_2" }, NOW), "renewed");
+});
+
+test("batch two: renewed early, its products are still owned until its own term ends", () => {
+  const renewedEarly = { ...facts(), renewedBy: "ct_2", lines: [{ id: "1", productId: "core", quantity: 1, termEnd: null }] };
+  const owned = ownedProducts([renewedEarly], NOW);
+  assert.equal(owned.length, 1);
+});

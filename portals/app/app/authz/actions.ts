@@ -498,6 +498,15 @@ export const ACTIONS = {
     permission: "delivery.write",
     writes: true,
   },
+  // incr/0078 (L4 batch two). Renewing a contract into its successor, and
+  // recording a downgrade or a loss. Same key and permission as upsert: the
+  // people who record what was signed record what happened to it.
+  "delivery.contract.renew": {
+    domain: "delivery",
+    feature: "delivery.project",
+    permission: "delivery.write",
+    writes: true,
+  },
   "delivery.revenue.view": {
     domain: "delivery",
     feature: "delivery.revenue",

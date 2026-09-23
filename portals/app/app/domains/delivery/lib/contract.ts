@@ -193,7 +193,7 @@ export function planContractLine(
   return allOf({ ...input, amount, currency: contract.currency }, checks);
 }
 
-export type ContractPhase = "draft" | "pending" | "in_force" | "lapsed" | "terminated";
+export type ContractPhase = "draft" | "pending" | "in_force" | "lapsed" | "renewed" | "terminated";
 
 /**
  * Where a contract stands on `now`, derived from status and term.
@@ -203,11 +203,14 @@ export type ContractPhase = "draft" | "pending" | "in_force" | "lapsed" | "termi
  * which is why it is surfaced rather than folded into `terminated`.
  */
 export function contractPhase(
-  c: Pick<ContractFacts, "status" | "termStart" | "termEnd">,
+  c: Pick<ContractFacts, "status" | "termStart" | "termEnd"> & { renewedBy?: string | null },
   now: Date,
 ): ContractPhase {
   if (c.status === "draft") return "draft";
   if (c.status === "terminated") return "terminated";
+  // Batch two: a contract that has a successor is answered for, whatever its
+  // own term says - it must not read as an un-renewed lapse.
+  if (c.renewedBy) return "renewed";
   if (c.termEnd && endOfDay(c.termEnd) < now) return "lapsed";
   if (c.termStart && c.termStart > now) return "pending";
   return "in_force";
@@ -251,7 +254,9 @@ export function ownedProducts(
 ): OwnedProduct[] {
   const byProduct = new Map<string, OwnedProduct>();
   for (const c of contracts) {
-    if (contractPhase(c, now) !== "in_force") continue;
+    // Judged on status and term alone: a contract renewed EARLY is still in
+    // force until its own term ends, and its products are still running.
+    if (contractPhase({ status: c.status, termStart: c.termStart, termEnd: c.termEnd }, now) !== "in_force") continue;
     for (const line of c.lines) {
       const end = line.termEnd ?? c.termEnd;
       if (line.termEnd && endOfDay(line.termEnd) < now) continue;
@@ -276,4 +281,109 @@ export function ownedProducts(
 /** A term date is a calendar day: it is still in force for all of that day. */
 function endOfDay(d: Date): Date {
   return new Date(Math.floor(d.getTime() / DAY_MS) * DAY_MS + DAY_MS - 1);
+}
+
+/* ---------------------------------------------------------------------------
+ * 续约 (L4 batch two, incr/0078, business rules §9.1).
+ * ------------------------------------------------------------------------ */
+
+/** The event vocabulary (owner, 2026-09-22): expiry is derived, not an event. */
+export const RENEWAL_EVENT_TYPES = ["renewed", "downgraded", "lost"] as const;
+export type RenewalEventType = (typeof RENEWAL_EVENT_TYPES)[number];
+
+/** An outcome a person records without a successor contract. */
+export type RenewalOutcome = Exclude<RenewalEventType, "renewed">;
+
+/**
+ * Validate renewing `from` into `successor`.
+ *
+ * Only an ACTIVE contract renews: a draft has not been signed, a terminated one
+ * ended by decision. One renewal per contract (§9.1) - the unique index is the
+ * backstop, this is the sentence. The successor is on the same customer by
+ * construction, so the account is taken from `from`, never from the form.
+ */
+export function planContractRenewal(
+  from: ContractFacts & { renewedBy: string | null },
+  successor: ContractDraft,
+): RuleResult<ContractDraft> {
+  if (from.renewedBy) {
+    return fail(violation("already_renewed", "this contract has already been renewed", "contractId"));
+  }
+  if (from.status !== "active") {
+    return fail(violation("contract_not_renewable", "only an active contract can be renewed", "contractId"));
+  }
+  const plan = planContract({ ...successor, accountId: from.accountId }, null);
+  if (!plan.ok) return plan;
+  // A successor that starts before its predecessor did is not a renewal of
+  // it; overlap at the seam is allowed (early renewals are normal).
+  if (plan.value.termStart && from.termStart && plan.value.termStart < from.termStart) {
+    return fail(violation("renewal_before_original", "a renewal cannot start before the contract it renews", "termStart"));
+  }
+  return plan;
+}
+
+/** Validate recording `downgraded` or `lost`: the reason is the record. */
+export function planRenewalOutcome(
+  eventType: string,
+  reason: string,
+): RuleResult<{ eventType: RenewalOutcome; reason: string }> {
+  const trimmed = reason.trim();
+  return allOf({ eventType: eventType as RenewalOutcome, reason: trimmed }, [
+    eventType === "downgraded" || eventType === "lost"
+      ? null
+      : violation("unknown_event_type", `unknown renewal outcome ${eventType}`, "eventType"),
+    trimmed === ""
+      ? violation("reason_required", "say why - an outcome with no reason audits nothing", "reason")
+      : trimmed.length > 255
+        ? violation("reason_too_long", "reason exceeds 255 characters", "reason")
+        : null,
+  ]);
+}
+
+export interface RenewalAnchor {
+  contractId: string;
+  contractNo: string;
+  /** term_end minus notice_days: the last day the customer can still be told. */
+  endsAt: Date;
+  /** A draft successor exists: the renewal is already being negotiated. */
+  inProgress: boolean;
+}
+
+/**
+ * The date a project's renewal is judged against, taken from its contract
+ * (§9.1: 合同优先). Null means "no contract answer" and the caller falls back
+ * to the project's own end date - the fallback path the design requires to
+ * stay alive.
+ *
+ * FOLLOWS THE LINEAGE. project.contract_id names the contract the delivery
+ * started under; once that was renewed, the term that matters is the newest
+ * one. A draft successor is still being negotiated, so the walk stops before
+ * it and the renewal is judged by the contract actually in force.
+ *
+ * A TERMINATED TIP FALLS BACK, it does not dismiss the row: the contract no
+ * longer speaks for the relationship, so the project's own date does - which
+ * is also what the batch-two acceptance names.
+ */
+export function contractRenewalAnchor(
+  startId: string,
+  byId: ReadonlyMap<string, ContractFacts & { noticeDays: number }>,
+  successorOf: ReadonlyMap<string, string>,
+): RenewalAnchor | null {
+  let current = byId.get(startId);
+  if (!current) return null;
+  // Bounded: the unique index makes the lineage a chain, and the self-renewal
+  // CHECK removes the one-row cycle, but a bound costs nothing.
+  for (let hops = 0; hops < 100; hops++) {
+    const nextId = successorOf.get(current.id);
+    const next = nextId ? byId.get(nextId) : undefined;
+    if (!next || next.status === "draft") break;
+    current = next;
+  }
+  if (current.status !== "active" || !current.termEnd) return null;
+  return {
+    contractId: current.id,
+    contractNo: current.contractNo,
+    endsAt: noticeDeadline({ termEnd: current.termEnd, noticeDays: current.noticeDays })!,
+    inProgress: successorOf.has(current.id),
+  };
 }

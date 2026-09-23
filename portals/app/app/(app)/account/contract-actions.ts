@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getDeliveryStore } from "../../domains/shared/registry";
 import {
+  recordRenewalOutcome,
   removeContractLine,
+  renewContract,
   upsertContract,
   upsertContractLine,
 } from "../../domains/delivery/service";
@@ -124,6 +126,72 @@ export async function deleteContractLine(input: {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const result = await removeContractLine(ctx, input.contractId, input.lineId);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${input.accountId}`);
+  return { ok: true };
+}
+
+/**
+ * Renew a contract into a successor (incr/0078). The successor's account is
+ * the original's - the rule layer takes it from there, not from this input.
+ */
+export async function renewContractAction(input: {
+  fromId: string;
+  accountId: string;
+  contractNo: string;
+  name: string;
+  opportunityId: string | null;
+  status: string;
+  totalAmount: number | null;
+  currency: string;
+  termStart: string | null;
+  termEnd: string | null;
+  noticeDays: number;
+  signedAt: string | null;
+}): Promise<ContractActionResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  if (!(CONTRACT_STATUSES as readonly string[]).includes(input.status)) {
+    return { ok: false, error: "unknown_status" };
+  }
+  const termStart = day(input.termStart);
+  const termEnd = day(input.termEnd);
+  const signedAt = day(input.signedAt);
+  if (termStart === "bad" || termEnd === "bad" || signedAt === "bad") {
+    return { ok: false, error: "invalid_date" };
+  }
+  const result = await renewContract(ctx, input.fromId, {
+    contractNo: input.contractNo,
+    name: input.name,
+    accountId: input.accountId,
+    opportunityId: input.opportunityId,
+    status: input.status as ContractStatus,
+    totalAmount: input.totalAmount,
+    currency: input.currency,
+    termStart,
+    termEnd,
+    noticeDays: input.noticeDays,
+    signedAt,
+  });
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${input.accountId}`);
+  revalidatePath("/renewal");
+  return { ok: true };
+}
+
+/** Record `downgraded` or `lost` - append-only, the reason is required. */
+export async function recordRenewalOutcomeAction(input: {
+  accountId: string;
+  contractId: string;
+  eventType: string;
+  reason: string;
+}): Promise<ContractActionResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const result = await recordRenewalOutcome(ctx, input.contractId, {
+    eventType: input.eventType,
+    reason: input.reason,
+  });
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath(`/account/${input.accountId}`);
   return { ok: true };

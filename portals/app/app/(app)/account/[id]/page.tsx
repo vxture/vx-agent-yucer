@@ -69,7 +69,13 @@ import {
   ownedProducts,
 } from "../../../domains/delivery/lib/contract";
 import { ContractRoster, type ContractReadState, type ContractRow } from "../../components/contract-roster";
-import { deleteContractLine, saveContract, saveContractLine } from "../contract-actions";
+import {
+  deleteContractLine,
+  recordRenewalOutcomeAction,
+  renewContractAction,
+  saveContract,
+  saveContractLine,
+} from "../contract-actions";
 import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { AccountCompleteness } from "../../components/account-completeness";
@@ -433,6 +439,9 @@ export default async function AccountDetailPage({
         )
       : null;
 
+  const memberList = await getAuthzStore().listMembers(base.workspaceId);
+  const memberNameOf = new Map(memberList.map((m) => [m.sub, m.displayName]));
+
   // 合同 tab view model. Dates cross to the client as yyyy-mm-dd strings.
   const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
   const productNameOf = new Map((productsRead.ok ? productsRead.value : []).map((p) => [p.id, p.name]));
@@ -443,6 +452,9 @@ export default async function AccountDetailPage({
         ? { kind: "ok" }
         : { kind: "refused", text: loadFailureText(contractsRead.violations, CONTRACT_ERROR) };
   const contractRecords = contractsRead?.ok ? contractsRead.value : [];
+  // Lineage numbers come from the same read: the predecessor and successor of
+  // an account's contract are that account's contracts too.
+  const contractNoOf = new Map(contractRecords.map((c) => [c.id, c.contractNo]));
   const contractRows: ContractRow[] = contractRecords.map((c) => {
     const lineCurrencies = new Set(c.lines.map((l) => l.currency));
     return {
@@ -451,6 +463,16 @@ export default async function AccountDetailPage({
       name: c.name,
       status: c.status,
       phase: contractPhase(c, now),
+      renewedFromNo: c.renewedFromContractId ? (contractNoOf.get(c.renewedFromContractId) ?? null) : null,
+      renewedByNo: c.renewedBy ? (contractNoOf.get(c.renewedBy) ?? null) : null,
+      events: c.events.map((e) => ({
+        id: e.id,
+        eventType: e.eventType,
+        successorNo: e.successorContractId ? (contractNoOf.get(e.successorContractId) ?? null) : null,
+        reason: e.reason,
+        occurredAt: e.occurredAt.toISOString().slice(0, 10),
+        actorName: e.actorSub ? (memberNameOf.get(e.actorSub) ?? null) : null,
+      })),
       opportunityId: c.opportunityId,
       totalAmount: c.totalAmount,
       currency: c.currency,
@@ -483,6 +505,12 @@ export default async function AccountDetailPage({
     quantity: o.quantity,
     runsUntil: ymd(o.runsUntil),
   }));
+  const canRenewContract = can(
+    session.authz,
+    session.entitlement,
+    "delivery.contract.renew",
+    "ui",
+  ).allowed;
   const canWriteContract = can(
     session.authz,
     session.entitlement,
@@ -490,8 +518,6 @@ export default async function AccountDetailPage({
     "ui",
   ).allowed;
 
-  const memberList = await getAuthzStore().listMembers(base.workspaceId);
-  const memberNameOf = new Map(memberList.map((m) => [m.sub, m.displayName]));
 
   const chainedDealIds = new Set((chain.ok ? chain.value : []).map((c) => c.opportunityId));
   const dealRows: DealLifecycleRow[] = (deals.ok ? deals.value : []).map((d) => {
@@ -1081,6 +1107,9 @@ export default async function AccountDetailPage({
                     onSaveContract={saveContract}
                     onSaveLine={saveContractLine}
                     onRemoveLine={deleteContractLine}
+                    canRenew={canRenewContract}
+                    onRenew={renewContractAction}
+                    onRecordOutcome={recordRenewalOutcomeAction}
                   />
                 ),
               },

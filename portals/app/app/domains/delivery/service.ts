@@ -9,10 +9,14 @@
 import { changeMilestone, planMilestone, type MilestoneDraft } from "./lib/milestone";
 import { planAgeingCutoffs } from "./lib/collection-stats";
 import {
+  contractRenewalAnchor,
   planContract,
   planContractLine,
+  planContractRenewal,
+  planRenewalOutcome,
   type ContractDraft,
   type ContractLineDraft,
+  type RenewalAnchor,
 } from "./lib/contract";
 import {
   assessRenewal,
@@ -28,6 +32,7 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
+import { isUniqueViolation } from "../shared/allocate";
 import {
   deriveProjectHealth,
   milestoneProgress,
@@ -43,6 +48,7 @@ import type {
   ContractLineRecord,
   ContractRecord,
   DeliveryStore,
+  RenewalEventRecord,
   InstalmentRecord,
   MilestoneChangeRecord,
   MilestoneRecord,
@@ -364,6 +370,13 @@ export interface RenewalCandidate {
   daysToEnd: number | null;
   /** Present only when the verdict is `due`. */
   draft: RenewalDraft | null;
+  /**
+   * L4 batch two (§9.1, 合同优先). The contract whose term this row was judged
+   * by, or null when the project's own end date was used - no contract
+   * attached, the contract no longer in force, or the contract read failed.
+   * The page says which, so a date is never shown without its source.
+   */
+  anchor: RenewalAnchor | null;
 }
 
 /**
@@ -400,13 +413,16 @@ export async function listRenewals(
   // enters - a plain store read, not the public renewalPolicy() verb below,
   // because delivery.project.view already gated this call.
   const windowDays = opts.windowDays ?? (await ctx.store.getRenewalPolicy(ctx.workspaceId)).windowDays;
-  const projects = await ctx.store.listProjects(ctx.workspaceId, {
-    engagementType: "subscription",
-  });
+  const [raw, anchorOf] = await Promise.all([
+    ctx.store.listProjects(ctx.workspaceId, { engagementType: "subscription" }),
+    renewalAnchors(ctx),
+  ]);
 
   const out: RenewalCandidate[] = [];
-  for (const project of projects) {
-    const alreadyRenewed = renewedProjectIds.has(project.id);
+  for (const { project, anchor } of raw.map((p) => anchored(p, anchorOf))) {
+    // Renewed on EITHER side: a deal already opened off the project (D6), or
+    // a successor contract already being drafted (D7).
+    const alreadyRenewed = renewedProjectIds.has(project.id) || (anchor?.inProgress ?? false);
     // Pass 1 with the REPORTED health. It cannot change the answer - health
     // only colours a due verdict's risk - and it keeps the reads off the rows
     // that are about to be dismissed.
@@ -415,7 +431,7 @@ export async function listRenewals(
       windowDays,
     });
     if (first.kind !== "due") {
-      out.push({ project, verdict: first, daysToEnd: daysUntilEnd(project, now), draft: null });
+      out.push({ project, verdict: first, daysToEnd: daysUntilEnd(project, now), draft: null, anchor });
       continue;
     }
 
@@ -426,7 +442,7 @@ export async function listRenewals(
     const verdict = assessRenewal(renewable, now, { alreadyRenewed, windowDays });
     const draft = planRenewal(renewable, verdict);
     if (!draft.ok) return draft as RuleResult<RenewalCandidate[]>;
-    out.push({ project, verdict, daysToEnd: daysUntilEnd(project, now), draft: draft.value });
+    out.push({ project, verdict, daysToEnd: daysUntilEnd(project, now), draft: draft.value, anchor });
   }
 
   // The most urgent first, and a lapsed term is more urgent than any future
@@ -454,8 +470,11 @@ export async function renewalDraft(
   const gate = can(ctx.holder, ctx.entitlement, "delivery.project.view", "data");
   if (!gate.allowed) return denied(gate);
 
-  const project = await ctx.store.getProject(ctx.workspaceId, projectId);
-  if (!project) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
+  const held = await ctx.store.getProject(ctx.workspaceId, projectId);
+  if (!held) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
+  // Re-derived against the contract too, for the reason the rest of this verb
+  // re-derives: the page's copy of the anchor can be stale.
+  const { project, anchor } = anchored(held, await renewalAnchors(ctx));
 
   const now = opts.now ?? new Date();
   const windowDays = opts.windowDays ?? (await ctx.store.getRenewalPolicy(ctx.workspaceId)).windowDays;
@@ -466,7 +485,7 @@ export async function renewalDraft(
   return planRenewal(
     renewable,
     assessRenewal(renewable, now, {
-      alreadyRenewed: opts.alreadyRenewed,
+      alreadyRenewed: opts.alreadyRenewed || (anchor?.inProgress ?? false),
       windowDays,
     }),
   );
@@ -496,6 +515,39 @@ export async function setRenewalPolicy(
   if (!plan.ok) return plan;
   await ctx.store.setRenewalPolicy(ctx.workspaceId, plan.value);
   return ok(plan.value);
+}
+
+/**
+ * Every contract's renewal anchor, keyed by the contract a project names.
+ *
+ * NULL ON A FAILED READ, and the caller treats null as "no contract answer"
+ * for every project - the whole queue falls back to project dates rather than
+ * failing (§9.1: 回退路径必须一直活着). A throw here would take the renewal
+ * queue down with the contract table; the queue worked before contracts
+ * existed and must keep working when they cannot be read.
+ */
+async function renewalAnchors(ctx: DeliveryContext): Promise<((contractId: string) => RenewalAnchor | null) | null> {
+  let contracts: ContractRecord[];
+  try {
+    contracts = await ctx.store.listContracts(ctx.workspaceId);
+  } catch {
+    return null;
+  }
+  const byId = new Map(contracts.map((c) => [c.id, c]));
+  const successorOf = new Map<string, string>();
+  for (const c of contracts) {
+    if (c.renewedFromContractId) successorOf.set(c.renewedFromContractId, c.id);
+  }
+  return (contractId) => contractRenewalAnchor(contractId, byId, successorOf);
+}
+
+/** The project with its end date taken from the contract when one answers. */
+function anchored(
+  project: ProjectRecord,
+  anchorOf: ((contractId: string) => RenewalAnchor | null) | null,
+): { project: ProjectRecord; anchor: RenewalAnchor | null } {
+  const anchor = project.contractId && anchorOf ? anchorOf(project.contractId) : null;
+  return { project: anchor ? { ...project, endsAt: anchor.endsAt } : project, anchor };
 }
 
 function asRenewable(project: ProjectRecord, health: ProjectHealth): RenewableProject {
@@ -642,4 +694,90 @@ export async function removeContractLine(
   }
   await ctx.store.removeContractLine(ctx.workspaceId, lineId);
   return ok({ removed: true });
+}
+
+/* ---------------------------------------------------------------------------
+ * 续约世系与续约事件 (incr/0078, L4 batch two).
+ *
+ * Both verbs append a renewal_event row and neither ever edits one - the
+ * table grants no UPDATE. Both are gated on `delivery.contract.renew`, one
+ * authority for "what happened when this contract came up".
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Renew a contract into a successor.
+ *
+ * THE ONLY WRITER OF renewed_from_contract_id: the column is frozen after
+ * INSERT, so the successor is created with it and it can never be pointed
+ * elsewhere. The `renewed` event is written beside it. A second renewal of the
+ * same contract is refused here and, if two clicks race, by the unique index.
+ */
+export async function renewContract(
+  ctx: DeliveryContext,
+  contractId: string,
+  successor: ContractDraft,
+): Promise<RuleResult<ContractRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.contract.renew", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const from = await ctx.store.getContract(ctx.workspaceId, contractId);
+  if (!from) return fail(violation("not_found", `contract ${contractId} was not found`, "contractId"));
+
+  const plan = planContractRenewal(from, successor);
+  if (!plan.ok) return plan as RuleResult<ContractRecord>;
+  if (await ctx.store.contractNoTaken(ctx.workspaceId, plan.value.contractNo)) {
+    return fail(violation("contract_no_taken", "that contract number is already on file", "contractNo"));
+  }
+
+  let created: ContractRecord;
+  try {
+    created = await ctx.store.createContract(ctx.workspaceId, plan.value, from.id);
+  } catch (e) {
+    // The race the reads above cannot close: two submissions together. BY
+    // CODE, not message - Prisma's P2002 does not name the index (found by
+    // contract.db.test.ts, 2026-09-22). Two unique indexes can fire here, so
+    // re-read to say which: a successor now exists, or the number was taken.
+    if (!isUniqueViolation(e)) throw e;
+    const now = await ctx.store.getContract(ctx.workspaceId, from.id);
+    return now?.renewedBy
+      ? fail(violation("already_renewed", "this contract has already been renewed", "contractId"))
+      : fail(violation("contract_no_taken", "that contract number is already on file", "contractNo"));
+  }
+  await ctx.store.appendRenewalEvent(ctx.workspaceId, {
+    contractId: from.id,
+    eventType: "renewed",
+    successorContractId: created.id,
+    reason: null,
+    actorSub: ctx.sub,
+  });
+  return ok(created);
+}
+
+/** Record `downgraded` or `lost` against a contract. The reason is required. */
+export async function recordRenewalOutcome(
+  ctx: DeliveryContext,
+  contractId: string,
+  input: { eventType: string; reason: string },
+): Promise<RuleResult<RenewalEventRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.contract.renew", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const contract = await ctx.store.getContract(ctx.workspaceId, contractId);
+  if (!contract) return fail(violation("not_found", `contract ${contractId} was not found`, "contractId"));
+  // A draft was never in force, so nothing about it could renew or be lost.
+  if (contract.status === "draft") {
+    return fail(violation("contract_not_renewable", "a draft contract has no renewal to record", "contractId"));
+  }
+
+  const plan = planRenewalOutcome(input.eventType, input.reason);
+  if (!plan.ok) return plan as RuleResult<RenewalEventRecord>;
+  return ok(
+    await ctx.store.appendRenewalEvent(ctx.workspaceId, {
+      contractId,
+      eventType: plan.value.eventType,
+      successorContractId: null,
+      reason: plan.value.reason,
+      actorSub: ctx.sub,
+    }),
+  );
 }

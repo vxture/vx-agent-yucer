@@ -1090,10 +1090,10 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       // `low` - which is the one thing about a renewal knowable in advance,
       // and it comes from the health the facts derive rather than the one the
       // delivery team reported.
-      project("prj_demo_1", workspaceId, 1, DEMO_PROJECTS[0], "opp_demo_4", "acc_demo_1", 760_000, "green", "active", "subscription", daysAhead(38)),
+      project("prj_demo_1", workspaceId, 1, DEMO_PROJECTS[0], "opp_demo_4", "acc_demo_1", 760_000, "green", "active", "subscription", daysAhead(38), "ct_demo_1"),
       // LAPSED TWELVE DAYS AGO. The most urgent renewal there is, and the one
       // a window that filtered out the past would hide.
-      project("prj_demo_2", workspaceId, 2, DEMO_PROJECTS[1], "opp_demo_8", "acc_demo_2", 1_400_000, "green", "active", "subscription", daysAgo(12)),
+      project("prj_demo_2", workspaceId, 2, DEMO_PROJECTS[1], "opp_demo_8", "acc_demo_2", 1_400_000, "green", "active", "subscription", daysAgo(12), "ct_demo_4"),
       project("prj_demo_3", workspaceId, 3, DEMO_PROJECTS[2], "opp_demo_10", "acc_demo_5", 540_000, "amber", "planning"),
       // Delivered and finished. A one-off has nothing to renew, and its
       // absence from the renewal list is the 0018 ruling working.
@@ -1186,13 +1186,19 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
   //   ct_demo_3 - a draft still being negotiated, no term yet. Also not owned.
   //   ct_demo_4 - active but its term ran out twelve days ago, un-renewed:
   //               the `lapsed` phase, derived and never stored.
+  //   ct_demo_0 - last year's term of ct_demo_1 (batch two): the lineage the
+  //               tab reads as 续自, with the `renewed` event beside it.
   stores.delivery.seed({
     contracts: [
+      contract(workspaceId, "ct_demo_0", "HT-2024-0003", DEMO_CONTRACTS[0], "acc_demo_1", null,
+        "active", daysAgo(692), daysAgo(328), 60, 700_000, daysAgo(695), [
+          ["cln_demo_0", "prd_demo_1", 1, 700_000],
+        ]),
       contract(workspaceId, "ct_demo_1", "HT-2025-0001", DEMO_CONTRACTS[0], "acc_demo_1", "opp_demo_4",
         "active", daysAgo(327), daysAhead(38), 60, 760_000, daysAgo(330), [
           ["cln_demo_1", "prd_demo_1", 1, 600_000],
           ["cln_demo_2", "prd_demo_5", 1, 160_000],
-        ]),
+        ], "ct_demo_0"),
       contract(workspaceId, "ct_demo_2", "HT-2024-0007", DEMO_CONTRACTS[1], "acc_demo_1", null,
         "terminated", daysAgo(700), daysAgo(335), 30, 300_000, daysAgo(705), [
           ["cln_demo_3", "prd_demo_2", 1, 300_000],
@@ -1206,6 +1212,10 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
           ["cln_demo_5", "prd_demo_3", 2, 600_000],
           ["cln_demo_6", "prd_demo_4", 4, 50_000],
         ]),
+    ],
+    renewalEvents: [
+      { id: "re_demo_1", workspaceId, contractId: "ct_demo_0", eventType: "renewed",
+        successorContractId: "ct_demo_1", reason: null, actorSub: REP1, occurredAt: daysAgo(330) },
     ],
   });
 }
@@ -1626,12 +1636,15 @@ function contract(
   totalAmount: number | null,
   signedAt: Date | null,
   lines: Array<[id: string, productId: string, quantity: number, unitPrice: number]>,
+  renewedFrom: string | null = null,
 ): ContractRecord {
   return {
     id, workspaceId, contractNo, name, accountId, opportunityId, status,
     termStart, termEnd, noticeDays, totalAmount, signedAt,
     currency: CNY,
-    renewedFromContractId: null,
+    renewedFromContractId: renewedFrom,
+    renewedBy: null,
+    events: [],
     lines: lines.map(([lineId, productId, quantity, unitPrice]) => ({
       id: lineId,
       contractId: id,
@@ -1658,10 +1671,12 @@ function project(
   status: string,
   engagementType: "one_off" | "subscription" = "one_off",
   endsAt: Date | null = null,
+  contractId: string | null = null,
 ) {
   return {
     id,
     workspaceId,
+    contractId,
     projectNo: `PRJ-${String(n).padStart(4, "0")}`,
     name,
     opportunityId,

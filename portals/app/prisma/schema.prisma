@@ -1172,6 +1172,24 @@ model ContractLine {
   @@schema("yucer_delivery")
 }
 
+/// incr/0078. 续约事件 - append-only (SELECT, INSERT). The lineage lives on
+/// Contract.renewedFromContractId; this is what happened and who recorded it.
+model RenewalEvent {
+  id                  String   @id @default(uuid()) @db.Uuid
+  workspaceId         String   @map("workspace_id") @db.Uuid
+  contractId          String   @map("contract_id") @db.Uuid
+  eventType           String   @map("event_type") @db.VarChar(16)
+  successorContractId String?  @map("successor_contract_id") @db.Uuid
+  reason              String?  @db.VarChar(255)
+  actorSub            String?  @map("actor_sub") @db.VarChar(128)
+  occurredAt          DateTime @default(now()) @map("occurred_at") @db.Timestamptz()
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([workspaceId, contractId, occurredAt], map: "idx_renewal_event_ws_contract")
+  @@map("renewal_event")
+  @@schema("yucer_delivery")
+}
+
 model ProjectMilestone {
   id                      String    @id @default(uuid()) @db.Uuid
   workspaceId             String    @map("workspace_id") @db.Uuid

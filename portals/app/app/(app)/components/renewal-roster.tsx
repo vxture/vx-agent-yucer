@@ -54,6 +54,8 @@ export interface RenewalRow {
   readonly risk: "low" | "watch" | null;
   /** Why it is not due, when it is not. */
   readonly notDueReason: string | null;
+  /** L4 batch two: the contract the date came from, null = the project's own. */
+  readonly anchorContractNo: string | null;
 }
 
 export interface RenewalRosterProps {
@@ -120,6 +122,29 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       });
     });
 
+  const endsCell = (r: RenewalRow) =>
+    r.daysToEnd === null ? (
+      <span className="text-muted-foreground text-body-sm">{RENEWAL_TEXT.noEndDate}</span>
+    ) : r.daysToEnd < 0 ? (
+      // A LAPSED TERM IS NOT "-12 days left". Saying it the other way round
+      // is what makes it read as the most urgent row rather than the
+      // furthest-away one.
+      //
+      // COLOUR, NOT A BADGE. The badge measured 105px against a 64px
+      // content box and spilled into the amount beside it; what carries
+      // the urgency is the wording and the red, not the chrome around
+      // them, so the chrome is what goes (measured 2026-09-06).
+      <span className="text-(color:--danger-text) text-body-sm font-semibold tabular-nums">
+        {/* A contract's date is its NOTICE deadline: past it, the term is
+          still running - "lapsed" would say the contract ended. */}
+        {r.anchorContractNo ? RENEWAL_TEXT.noticePassed(-r.daysToEnd) : RENEWAL_TEXT.lapsed(-r.daysToEnd)}
+      </span>
+    ) : (
+      <span className="text-foreground text-body-sm tabular-nums">
+        {r.anchorContractNo ? RENEWAL_TEXT.noticeIn(r.daysToEnd) : RENEWAL_TEXT.dueIn(r.daysToEnd)}
+      </span>
+    );
+
   const columns = [
     {
       id: "project",
@@ -137,26 +162,17 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       id: "ends",
       header: RENEWAL_TEXT.colEnds,
       width: "sm" as const,
-      cell: (r: RenewalRow) =>
-        r.daysToEnd === null ? (
-          <span className="text-muted-foreground text-body-sm">{RENEWAL_TEXT.noEndDate}</span>
-        ) : r.daysToEnd < 0 ? (
-          // A LAPSED TERM IS NOT "-12 days left". Saying it the other way round
-          // is what makes it read as the most urgent row rather than the
-          // furthest-away one.
-          //
-          // COLOUR, NOT A BADGE. The badge measured 105px against a 64px
-          // content box and spilled into the amount beside it; what carries
-          // the urgency is the wording and the red, not the chrome around
-          // them, so the chrome is what goes (measured 2026-09-06).
-          <span className="text-(color:--danger-text) text-body-sm font-semibold tabular-nums">
-            {RENEWAL_TEXT.lapsed(-r.daysToEnd)}
+      cell: (r: RenewalRow) => (
+        <span className="flex flex-col">
+          {endsCell(r)}
+          {/* WHERE THE DATE CAME FROM (§9.1). A contract's date is its notice
+              deadline, a project's is its end - the same number means two
+              different things, so it never appears without its source. */}
+          <span className="text-muted-foreground text-body-sm whitespace-nowrap">
+            {r.anchorContractNo ? RENEWAL_TEXT.anchorContract(r.anchorContractNo) : RENEWAL_TEXT.anchorProject}
           </span>
-        ) : (
-          <span className="text-foreground text-body-sm tabular-nums">
-            {RENEWAL_TEXT.dueIn(r.daysToEnd)}
-          </span>
-        ),
+        </span>
+      ),
     },
     {
       id: "amount",
