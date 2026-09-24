@@ -177,9 +177,20 @@ export function ContactCard({
   readonly channelLabels: { readonly mobile: string; readonly email: string; readonly wechat: string };
   readonly actions?: ReactNode;
 }) {
-  const recencyTag = recency ? <Tag tone={recency.warm ? "success" : "neutral"}>{recency.text}</Tag> : null;
+  // Icon + text, not a badge (owner, 2026-09-24: badge太重) - the colour
+  // still says warm or not, without the chrome.
+  const recencyTag = recency ? (
+    <span
+      className={`inline-flex flex-none items-center gap-3xs text-body-sm tabular-nums ${
+        recency.warm ? "text-success-text" : "text-muted-foreground"
+      }`}
+    >
+      <Icon name="clock" size="xs" />
+      {recency.text}
+    </span>
+  ) : null;
   return (
-    <div className="gap-sm border-border flex items-center border-b py-md last:border-b-0">
+    <div className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
       <span className="bg-accent text-muted-foreground flex h-xl w-xl flex-none items-center justify-center rounded-full text-label-md font-bold">
         {contact.name.charAt(0)}
       </span>
@@ -258,16 +269,10 @@ export function ContactRoster({
       id="contacts"
       icon="users"
       title={
-        // Compact (polish, 2026-09-24): the count is a plain muted number, not
-        // a pill - the sidebar title has ~90px.
+        // No count in the title (owner, 2026-09-24): the list below and its
+        // 查看全部（N） already say how many - it was said twice.
         <span className="flex flex-wrap items-center gap-2xs">
           <span>{ACCOUNT_TEXT.contactsTitle}</span>
-          <span
-            title={ACCOUNT_TEXT.contactCount(contacts.length)}
-            className="text-muted-foreground text-body-sm me-2xs tabular-nums font-normal"
-          >
-            {contacts.length}
-          </span>
           <LayerLabel layer="L2" />
           {/* No 基础 badge in the header: the sidebar leaves the title ~90px
               and it wrapped under the ⋮. The footer below states 基础 / Pro,
@@ -291,12 +296,25 @@ export function ContactRoster({
       }}
     >
       {contacts.length === 0 ? (
-        <EmptyState
-          title={ACCOUNT_TEXT.contactsNone}
-          description={ACCOUNT_TEXT.contactsNoneWhy}
-        />
+        <div className="flex flex-col">
+          <EmptyState
+            title={ACCOUNT_TEXT.contactsNone}
+            description={ACCOUNT_TEXT.contactsNoneWhy}
+          />
+          {!canEdit ? (
+            <p className="text-muted-foreground mt-xs text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
+          ) : null}
+          <CapFooter>
+            <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capContactBasic}
+            <br />
+            <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
+          </CapFooter>
+        </div>
       ) : (
-        <>
+        // List and 查看全部 are ONE block (owner, 2026-09-24: 上下留白太多):
+        // as siblings in the section body each took the body's gap on top of
+        // the row padding and the button's own margin.
+        <div className="flex flex-col">
         <div className="flex flex-col">
           {/* NO ROW MENU HERE (owner, 2026-09-20: 死死记住设计文件 - mockup
               原话: 栏1的联系人卡片"职责是列出谁是联系人、多久前联系过", 查看
@@ -315,21 +333,22 @@ export function ContactRoster({
           ))}
         </div>
         {contacts.length > CAP ? (
-          <Button variant="ghost" size="sm" className="mt-xs w-full justify-center" onClick={() => setExpanded((v) => !v)}>
+          <Button variant="ghost" size="sm" className="h-auto w-full justify-center py-2xs" onClick={() => setExpanded((v) => !v)}>
             {expanded ? ACCOUNT_TEXT.contactsCollapse : ACCOUNT_TEXT.contactsShowAll(contacts.length)}
           </Button>
         ) : null}
-        </>
+        {!canEdit ? (
+          <p className="text-muted-foreground mt-xs text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
+        ) : null}
+        {/* Inside the same block: the footer's own rule and margin separate
+            it; the section's gap on top of that was the empty band. */}
+        <CapFooter>
+          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capContactBasic}
+          <br />
+          <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
+        </CapFooter>
+        </div>
       )}
-
-      {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
-      ) : null}
-      <CapFooter>
-        <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capContactBasic}
-        <br />
-        <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
-      </CapFooter>
     </CollapsibleSection>
     {/* Outside the card: a folded card unmounts its body, and 关联 must
         still open from the menu. The drawer draws no trigger of its own. */}
