@@ -5943,6 +5943,8 @@ export const CHAIN_TEXT = {
   reasonLabel: "依据",
   reasonItem: (factor: string, text: string) => `${factor}：${text}`,
   changeLabel: "变化",
+  changeTag: (since: string, delta: number) => `较 ${since} ${delta < 0 ? "↓" : "↑"}${Math.abs(delta)}`,
+  benchmarkTag: (percentile: number) => `高于同类 ${percentile}%`,
   benchmarkLabel: "对标",
   changeSince: (from: number, to: number, date: string) => `较 ${date} 的 ${from} 分变为 ${to} 分`,
   changeFactor: (factor: string, delta: number) => `${factor} ${delta > 0 ? "+" : ""}${delta}`,
