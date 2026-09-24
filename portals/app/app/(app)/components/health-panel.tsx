@@ -1,5 +1,6 @@
 "use client";
 
+import { TruncatedText } from "./truncated-text";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -130,7 +131,12 @@ export function HealthPanel({
     // The card's own short label: five cards share ~60px of text width, and
     // 互动时效 truncated to 互动... - the other four are two characters too.
     // The full name stays in 依据 / 变化 below.
-    label: c.factor === "recency" ? CHAIN_TEXT.factorRecencyShort : (FACTOR_LABEL[c.factor] ?? c.factor),
+    // The full name again: the card is number | (name, note) now, and the
+    // name has the card's width minus the figure.
+    label: FACTOR_LABEL[c.factor] ?? c.factor,
+    // The one-line note under the name (owner, 2026-09-24: 极简描述, 最小
+    // 字体, 超过长度截断, 不得换行) - every factor's own reason.
+    note: healthReasonText(c.reason),
     // The sign is kept. A contribution of -25 read as "25" would invert the
     // meaning of the panel.
     value: `${c.points > 0 ? "+" : ""}${c.points}`,
@@ -141,18 +147,8 @@ export function HealthPanel({
     // 续约也带理由行 (L4 批三): 它的依据是合同通知期与续约结果, 阵地清单里
     // 没有哪一个 tab 替它把"为什么扣分"讲出来。0 分时也要有理由 - "没有合同"
     // 和"未进入窗口"是两句不同的话 (业务规则 §5: 不跳过)。
-    // The reasons left the cards (polish, 2026-09-24): at five columns the
-    // trend pill cut "已 48 天没有接触" off mid-word and a description wrapped
-    // over five lines. They are the 依据 row under the grid now.
     tone: (c.points < 0 ? "danger" : c.points === 0 ? "neutral" : "success") as FactorTone,
   }));
-
-  // 依据: the two factors whose number needs its reason - how long the silence
-  // is, and what the renewal is waiting on (the other three have their own
-  // tabs in the roster).
-  const reasons = current.contributions
-    .filter((c) => c.factor === "recency" || c.factor === "renewal")
-    .map((c) => ({ label: FACTOR_LABEL[c.factor] ?? c.factor, text: healthReasonText(c.reason) }));
 
   // Folded: the score and, when there is one, the single worst factor.
   const concern = current.primaryConcern;
@@ -213,33 +209,31 @@ export function HealthPanel({
           {/* ONE ROW OF FIVE LIGHT CARDS (owner, 2026-09-24: 太重太浪费空间, 继续
               使用card, 尽量单行略高的card). The DS MetricGrid cards carry a
               title-xl figure, a watermark chart and generous padding - ~90px
-              tall for a two-character label and a signed number. Each card
-              is now one line: label left, score right, the tone on its top
-              edge and in the figure. */}
+              tall for a two-character label and a signed number. Light cards
+              instead, the tone on the top edge and in the figure. */}
           <div className="grid grid-cols-5 gap-sm">
             {items.map((it) => (
+              // number | (name / note) - owner, 2026-09-24. The note is the
+              // smallest type and ONE line, cut with an ellipsis; the whole
+              // reason is its hover title.
               <div
                 key={it.id}
-                className={`flex items-center justify-between gap-xs rounded-md border border-t-2 border-border bg-card/60 px-sm py-sm ${FACTOR_EDGE[it.tone]}`}
+                className={`flex min-w-0 items-center gap-sm rounded-md border border-t-2 border-border bg-card/60 px-sm py-xs ${FACTOR_EDGE[it.tone]}`}
               >
-                <span className="text-muted-foreground truncate text-body-sm">{it.label}</span>
-                <span className={`text-heading-4 ${FACTOR_INK[it.tone]}`}>{it.value}</span>
+                <span className={`text-heading-4 shrink-0 ${FACTOR_INK[it.tone]}`}>{it.value}</span>
+                <span className="flex min-w-0 flex-col">
+                  <TruncatedText text={it.label} className="text-foreground truncate text-body-sm font-medium" />
+                  <TruncatedText text={it.note} className="text-muted-foreground truncate text-[0.6875rem] leading-tight" />
+                </span>
               </div>
             ))}
           </div>
           {/* 变化 + 对标 as labelled rows, in the same label column as 风险分型
               below - they were two unlabelled grey sentences floating under
               the grid. */}
-          {(change && change.moved.length > 0) || benchmark || reasons.length > 0 ? (
+          {(change && change.moved.length > 0) || benchmark ? (
             <dl className="grid grid-cols-[4rem_1fr] gap-x-sm gap-y-xs text-body-sm">
-              {reasons.length > 0 ? (
-                <>
-                  <dt className="font-bold">{CHAIN_TEXT.reasonLabel}</dt>
-                  <dd className="text-muted-foreground">
-                    {reasons.map((r) => CHAIN_TEXT.reasonItem(r.label, r.text)).join(CHAIN_TEXT.changeSeparator)}
-                  </dd>
-                </>
-              ) : null}
+              {/* No 依据 row: each factor card carries its own reason now. */}
               {change && change.moved.length > 0 ? (
                 <>
                   <dt className="font-bold">{CHAIN_TEXT.changeLabel}</dt>
