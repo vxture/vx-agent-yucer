@@ -333,7 +333,14 @@ export function ContactRoster({
           ))}
         </div>
         {contacts.length > CAP ? (
-          <Button variant="ghost" size="sm" className="h-auto w-full justify-center py-2xs" onClick={() => setExpanded((v) => !v)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            // Quiet (owner, 2026-09-24): regular weight, muted colour - a way
+            // to see more, not an action competing with the names above.
+            className="text-muted-foreground hover:text-foreground h-auto w-full justify-center py-2xs font-normal"
+            onClick={() => setExpanded((v) => !v)}
+          >
             {expanded ? ACCOUNT_TEXT.contactsCollapse : ACCOUNT_TEXT.contactsShowAll(contacts.length)}
           </Button>
         ) : null}
