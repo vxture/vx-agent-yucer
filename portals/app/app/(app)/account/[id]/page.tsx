@@ -48,7 +48,7 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 // is the same fact from a plain (non-"use client") domain lib instead.
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
-import { JudgementNote } from "../../components/judgement-note";
+import { RiskTypes } from "../../components/risk-types";
 import { nameCitations } from "../../lib/name-citations";
 import { AccountSignals, type AccountSignalRow } from "../../components/account-signals";
 import { listSignals } from "../../../domains/signal/service";
@@ -69,7 +69,7 @@ import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
 import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
 import { forecastThresholds, listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory } from "../../../domains/pipeline/service";
-import { classifyRisks } from "../../../domains/account/lib/risk-types";
+import { classifyRisks, mergeJudgements } from "../../../domains/account/lib/risk-types";
 import { icpFit } from "../../../domains/strategy/lib/icp";
 import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcome-review";
 import { toStageCatalog } from "../../../domains/pipeline/store";
@@ -425,10 +425,6 @@ export default async function AccountDetailPage({
           (j.subjectType === "opportunity" && dealIds.has(j.subjectId)),
       )
     : [];
-  const URGENCY_RANK: Record<string, number> = { today: 0, week: 1, watch: 2 };
-  const topJudgement = [...relevantJudgements].sort(
-    (a, b) => (URGENCY_RANK[a.urgency] ?? 9) - (URGENCY_RANK[b.urgency] ?? 9),
-  )[0] ?? null;
 
   // 交付/回款 tabs' real data. One projectView() per project - the same N+1
   // the layout already accepts for the same reason (small N at this
@@ -1126,7 +1122,9 @@ export default async function AccountDetailPage({
   const thresholdsRead = await forecastThresholds({ ...base, store: session.stores.pipeline() }).catch(() => null);
   const stallDays = thresholdsRead?.ok ? thresholdsRead.value.stallDays : DEFAULT_FORECAST_THRESHOLDS.stallDays;
   const singleThreadJudgement = relevantJudgements.find((j) => j.id === `singlethread:${id}`);
-  const risks = classifyRisks({
+  // 合并进风险分型 (owner, 2026-09-24): every judgement about this account or
+  // one of its open deals joins the lane it is about - see mergeJudgements.
+  const risks = mergeJudgements(classifyRisks({
     accountOwner: ownerName,
     chains: chain.ok
       ? chain.value.map((c) => ({
@@ -1150,6 +1148,7 @@ export default async function AccountDetailPage({
             name: pr.name,
             manager: pr.managerSub ? (memberNameOf.get(pr.managerSub) ?? null) : null,
             health: pv?.ok ? pv.value.derivedHealth : pr.health,
+            healthManual: !pv?.ok || pv.value.derivedHealth === pr.health,
             overdueMilestones: (milestonesByProject.get(pr.id) ?? []).filter((m) => m.overdue).length,
             overdueRevenue: pv?.ok
               ? pv.value.instalments.filter((inst) => inst.status === "overdue" || isOverdue(inst, now)).length
@@ -1170,7 +1169,16 @@ export default async function AccountDetailPage({
       const top = scored[0];
       return top?.renewalRisk ? { contractNo: top.contractNo, level: top.renewalRisk.level as "high" | "medium" } : null;
     })(),
-  });
+  }), relevantJudgements.map((j) => ({
+    id: j.id,
+    subjectType: j.subjectType,
+    urgency: j.urgency,
+    claim: j.claim,
+    rule: j.rule ?? null,
+    freshness: j.freshness ?? null,
+    source: j.source,
+    citations: nameCitations(j.citations, (s) => memberNameOf.get(s)),
+  })));
 
   // ICP 拟合度 (YC-021 L1): against the workspace's own target segments. The
   // writer's form already read them; anyone else reads them here. A refused
@@ -1285,17 +1293,6 @@ export default async function AccountDetailPage({
     badgesSingle
   );
 
-  // 定向自动分析 (owner, 2026-09-18): 判断题放 sidebar - 单位信息卡的最下方,
-  // 不再是独立的横幅。
-  const judgement = topJudgement
-    ? {
-        claim: topJudgement.claim,
-        rule: topJudgement.rule ?? null,
-        freshness: topJudgement.freshness ?? null,
-        source: topJudgement.source,
-        citations: nameCitations(topJudgement.citations, (s) => memberNameOf.get(s)),
-      }
-    : null;
 
   return (
     // TWO PANES, BOTH SERVER-RENDERED (fix, 2026-09-23 - lib/sidebar-slot.ts).
@@ -1522,7 +1519,6 @@ export default async function AccountDetailPage({
               canRecompute={canWrite}
               onRecompute={recomputeAccountHealth}
               statusTag={statusTag}
-              judgement={judgement}
               risks={risks}
               benchmark={peerBenchmark(
                 // The vocabulary id when there is one, else the name the card
@@ -1553,13 +1549,11 @@ export default async function AccountDetailPage({
             />
           ) : (
             // 只读成员没有 health(见上面 persist:false 的说明), 状态标签和
-            // 判定信息仍然要显示 - 退化成不挂卡片的纯文本/独立一行, 而不是
-            // 整个消失 (owner: 判定信息应该移到客户评估板块 - health 不可用
-            // 时也不能跟着 HealthPanel 一起消失, judgement-note.tsx 抽成
-            // 共享组件正是为了这里)。
+            // 风险分型(判定已并入其中)仍然要显示 - 不挂卡片, 而不是整个消失。
+            // 续约一行在这里是"未知", 因为它读的正是 health 的续约因子。
             <div className="flex flex-col gap-sm">
               <div className="flex items-center gap-xs">{statusTag}</div>
-              {judgement ? <JudgementNote judgement={judgement} /> : null}
+              <RiskTypes risks={risks} />
             </div>
           )}
 

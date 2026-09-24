@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyRisks, type RiskInput } from "./risk-types";
+import { classifyRisks, findingSource, judgementLane, mergeJudgements, type RiskInput } from "./risk-types";
 
 const base: RiskInput = {
   accountOwner: "王磊",
@@ -67,4 +67,37 @@ test("a contract scored high by 续约风险评分 makes renewal a risk before t
   assert.equal(r.level, "risk");
   assert.deepEqual(r.findings, [{ code: "contract_risk", contractNo: "HT-1", level: "high" }]);
   assert.equal(byType({ ...base, contractRisk: { contractNo: "HT-1", level: "medium" } }).get("renewal")!.level, "watch");
+});
+
+test("a judgement joins its lane, and the lane takes the worse level - no more 停了 48 天 over 推进 正常", () => {
+  const merged = new Map(
+    mergeJudgements(classifyRisks(base), [
+      { id: "stalled:a1", subjectType: "account", urgency: "today" as const },
+      { id: "cadence:a1", subjectType: "account", urgency: "watch" as const },
+    ]).map((r) => [r.type, r]),
+  );
+  assert.equal(merged.get("advance")!.level, "risk", "a today judgement raises a clear lane");
+  assert.equal(merged.get("advance")!.judgements.length, 1);
+  assert.equal(merged.get("relationship")!.level, "watch");
+  assert.equal(merged.get("delivery")!.judgements.length, 0);
+});
+
+test("a judgement never lowers a lane, and the single-thread finding is said once", () => {
+  const risks = classifyRisks({ ...base, singleThread: "张三", chains: [] });
+  const rel = mergeJudgements(risks, [{ id: "singlethread:a1", subjectType: "account", urgency: "watch" as const }])[0]!;
+  assert.equal(rel.level, "risk", "the finding said risk; a watch judgement does not soften it");
+  assert.ok(!rel.findings.some((f) => f.code === "single_thread"), "the judgement carries it, with evidence");
+});
+
+test("lane by rule id; an unlisted deal judgement is 推进", () => {
+  assert.equal(judgementLane("weowe:a1", "account"), "relationship");
+  assert.equal(judgementLane("quiet:a1", "account"), "advance");
+  assert.equal(judgementLane("new-rule:o1", "opportunity"), "advance");
+});
+
+test("every finding names its source - a blocker is a person's, a colour is the manager's only when theirs", () => {
+  assert.equal(findingSource({ code: "blockers", deal: "x", count: 1 }), "manual");
+  assert.equal(findingSource({ code: "project_red", project: "x", manual: true }), "manual");
+  assert.equal(findingSource({ code: "project_red", project: "x", manual: false }), "rule");
+  assert.equal(findingSource({ code: "deal_stalled", deal: "x", days: 60 }), "rule");
 });

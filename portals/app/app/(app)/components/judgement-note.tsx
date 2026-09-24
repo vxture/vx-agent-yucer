@@ -8,11 +8,10 @@ import { CitationList } from "./citation-list";
 import type { Citation } from "../../domains/judgement/lib/judgement";
 import type { Freshness } from "../../domains/account/lib/evidence-quality";
 
-// 定向自动分析, 可展开收起 (owner, 2026-09-21: 判定信息应该移到客户评估板块，
-// 并提供展开收起功能，收起只有一行). 抽成独立文件而不是留在 health-panel.tsx
-// 内部, 是因为它有两个消费者: HealthPanel 自己(有 health 时), 以及 page.tsx
-// 里"只读成员没有 health"的退化路径(状态标签仍要显示, 判定同理) - 两处需要
-// 完全一样的展开/收起行为, 抽出来才不会长成两份互相漂移的实现。
+// 定向自动分析, 可展开收起 (owner, 2026-09-21: 收起只有一行). The customer
+// page no longer uses it - its judgements joined the 风险分型 lanes
+// (owner, 2026-09-24; see risk-types.tsx). position-brief.tsx still does, and
+// `Judgement` is the shape both carry.
 export interface Judgement {
   readonly claim: string;
   readonly rule: string | null;
