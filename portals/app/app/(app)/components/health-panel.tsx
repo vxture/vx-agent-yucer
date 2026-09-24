@@ -4,9 +4,7 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
-  MetricGrid,
   StatusBadge,
-  type MetricGridItem,
 } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
@@ -67,6 +65,18 @@ export interface HealthPanelProps {
   readonly risks?: readonly RiskTypeResult[] | null;
 }
 
+type FactorTone = "danger" | "neutral" | "success";
+const FACTOR_EDGE: Record<FactorTone, string> = {
+  danger: "border-t-destructive",
+  neutral: "border-t-border",
+  success: "border-t-(color:--success-text)",
+};
+const FACTOR_INK: Record<FactorTone, string> = {
+  danger: "text-destructive-text",
+  neutral: "text-foreground",
+  success: "text-success-text",
+};
+
 export function HealthPanel({
   accountId,
   health,
@@ -115,7 +125,7 @@ export function HealthPanel({
     });
   }
 
-  const items: MetricGridItem[] = current.contributions.map((c) => ({
+  const items = current.contributions.map((c) => ({
     id: c.factor,
     // The card's own short label: five cards share ~60px of text width, and
     // 互动时效 truncated to 互动... - the other four are two characters too.
@@ -134,7 +144,7 @@ export function HealthPanel({
     // The reasons left the cards (polish, 2026-09-24): at five columns the
     // trend pill cut "已 48 天没有接触" off mid-word and a description wrapped
     // over five lines. They are the 依据 row under the grid now.
-    tone: c.points < 0 ? "danger" : c.points === 0 ? "neutral" : "success",
+    tone: (c.points < 0 ? "danger" : c.points === 0 ? "neutral" : "success") as FactorTone,
   }));
 
   // 依据: the two factors whose number needs its reason - how long the silence
@@ -200,10 +210,23 @@ export function HealthPanel({
               事实, header 不会有。 */}
           {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
-          {/* ONE ROW OF FIVE (polish, 2026-09-24). The mockup's row of four
-              (owner, 2026-09-20) predates the fifth factor (renewal, L4 batch
-              three), which then sat alone on a second row. */}
-          <MetricGrid items={items} columns={5} />
+          {/* ONE ROW OF FIVE LIGHT CARDS (owner, 2026-09-24: 太重太浪费空间, 继续
+              使用card, 尽量单行略高的card). The DS MetricGrid cards carry a
+              title-xl figure, a watermark chart and generous padding - ~90px
+              tall for a two-character label and a signed number. Each card
+              is now one line: label left, score right, the tone on its top
+              edge and in the figure. */}
+          <div className="grid grid-cols-5 gap-sm">
+            {items.map((it) => (
+              <div
+                key={it.id}
+                className={`flex items-center justify-between gap-xs rounded-md border border-t-2 border-border bg-card/60 px-sm py-sm ${FACTOR_EDGE[it.tone]}`}
+              >
+                <span className="text-muted-foreground truncate text-body-sm">{it.label}</span>
+                <span className={`text-heading-4 ${FACTOR_INK[it.tone]}`}>{it.value}</span>
+              </div>
+            ))}
+          </div>
           {/* 变化 + 对标 as labelled rows, in the same label column as 风险分型
               below - they were two unlabelled grey sentences floating under
               the grid. */}
