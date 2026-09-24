@@ -282,6 +282,27 @@ test("updateCommercialTerms leaves an omitted field untouched, unlike an explici
   }
 });
 
+test("the customer budget and its author write through the incr/0080 grant, and clear together", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = await s.createOpportunity(WS, newOpp());
+    const at = new Date("2026-09-24T08:00:00Z");
+    await s.updateCommercialTerms(WS, created.id, { customerBudget: { amount: 8_000_000.5, bySub: "usr_a", at } });
+    let after = await s.getOpportunity(WS, created.id);
+    assert.equal(after?.customerBudget, 8_000_000.5);
+    assert.equal(after?.customerBudgetBySub, "usr_a");
+    assert.equal(after?.customerBudgetAt?.toISOString(), at.toISOString());
+    await s.updateCommercialTerms(WS, created.id, { customerBudget: { amount: null, bySub: null, at: null } });
+    after = await s.getOpportunity(WS, created.id);
+    assert.equal(after?.customerBudget, null);
+    assert.equal(after?.customerBudgetAt, null);
+  } finally {
+    await cleanup();
+  }
+});
+
 // --- latestStageChangeAt / listRenewalSourceProjectIds ------------------------------
 
 test("latestStageChangeAt groups by opportunity and takes the max, in one query for the workspace", { skip }, async () => {

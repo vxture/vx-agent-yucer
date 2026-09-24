@@ -953,6 +953,12 @@ model Opportunity {
   /// Account.industryId already makes.
   contractTypeId   String?   @map("contract_type_id") @db.Uuid
   businessFormId   String?   @map("business_form_id") @db.Uuid
+  /// incr/0080 - 客户在这个项目上的总投入 (人工填报), in the deal's currency;
+  /// the denominator of 钱包份额. Who said it and when are stamped by the
+  /// service on every write, never supplied by the caller.
+  customerBudget      Decimal?  @map("customer_budget") @db.Decimal(18, 2)
+  customerBudgetBySub String?   @map("customer_budget_by_sub") @db.VarChar(128)
+  customerBudgetAt    DateTime? @map("customer_budget_at") @db.Timestamptz()
   expectedCloseAt  DateTime? @map("expected_close_at") @db.Timestamptz()
   closedAt         DateTime? @map("closed_at") @db.Timestamptz()
   status           String    @default("open") @db.VarChar(32)

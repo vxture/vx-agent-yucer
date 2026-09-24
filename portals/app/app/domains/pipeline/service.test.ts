@@ -1028,3 +1028,28 @@ test("applying still needs the categorize permission underneath", async () => {
   const r = await applyCategorySuggestion(ctx("sales_rep", "pro", store), "opp_1");
   assert.equal(r.ok, false);
 });
+
+// --- 钱包份额's denominator (incr/0080, §9.6) ---------------------------------
+
+test("the customer budget is stamped with who entered it and when; clearing it clears both", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const rep = ctx("sales_rep", "pro", store);
+  const at = new Date("2026-09-24T08:00:00Z");
+  const r = unwrap(await updateCommercialTerms(rep, "opp_1", { customerBudget: 8_000_000 }, at));
+  assert.equal(r.customerBudget, 8_000_000);
+  assert.equal(r.customerBudgetBySub, "usr_me", "the session's, never the caller's");
+  assert.equal(r.customerBudgetAt?.toISOString(), at.toISOString());
+  const cleared = unwrap(await updateCommercialTerms(rep, "opp_1", { customerBudget: null }));
+  assert.equal(cleared.customerBudget, null);
+  assert.equal(cleared.customerBudgetBySub, null, "no author left on a value that is gone");
+});
+
+test("a negative budget is refused, and so is a member who may not price the deal", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const bad = await updateCommercialTerms(ctx("sales_rep", "pro", store), "opp_1", { customerBudget: -1 });
+  assert.equal(bad.ok === false && bad.violations[0].code, "customer_budget_negative");
+  const ops = await updateCommercialTerms(ctx("sales_ops", "enterprise", store), "opp_1", { customerBudget: 100 });
+  assert.equal(ops.ok === false && ops.violations[0].code, "permission_denied");
+});

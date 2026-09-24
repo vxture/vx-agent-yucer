@@ -1,6 +1,8 @@
 "use client";
 
 import type { IcpFit } from "../../domains/strategy/lib/icp";
+import type { WalletRollup } from "../../domains/pipeline/lib/wallet-share";
+import { WalletOrgValue } from "./wallet-share";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -133,6 +135,9 @@ export interface OrgUnitPanelProps {
    * null = the workspace has no segment with a condition, which is said.
    */
   readonly icp?: IcpFit | null;
+  /** 钱包份额 (§9.6) - the rollup of this customer's deals; the card shows the
+   *  won share only, the 存量收入 card the split. Absent = no deals to sum. */
+  readonly wallet?: WalletRollup | null;
   /** 删除空壳客户 (owner, 2026-09-23). Absent for a member who may not write. */
   readonly remove?: {
     readonly accountId: string;
@@ -178,13 +183,14 @@ export function OrgUnitPanel({
   scaleName,
   more,
   icp,
+  wallet,
   remove,
 }: OrgUnitPanelProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [icpOpen, setIcpOpen] = useState(false);
   const {
     ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT, COLLAPSE_TEXT,
-    ACCOUNT_DELETE_TEXT, ACCOUNT_ERROR, ICP_TEXT,
+    ACCOUNT_DELETE_TEXT, ACCOUNT_ERROR, ICP_TEXT, WALLET_TEXT,
   } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
@@ -252,13 +258,18 @@ export function OrgUnitPanel({
             (border-primary/10, dark 下 /20), 不是另起一套颜色。 */}
         <div className="border-primary/10 dark:border-primary/20 border-t" />
 
-        {industry || region || scaleName || customerNatureName || customerTypeName || parentName ? (
+        {industry || region || scaleName || customerNatureName || customerTypeName || parentName || (wallet && wallet.eligible > 0) ? (
           <div className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
             {industry ? <InfoRow label={ACCOUNT_TEXT.orgUnitIndustry}>{industry}</InfoRow> : null}
             {region ? <InfoRow label={ACCOUNT_TEXT.orgUnitRegion}>{region}</InfoRow> : null}
             {scaleName ? <InfoRow label={ACCOUNT_TEXT.orgUnitScale}>{scaleName}</InfoRow> : null}
             {customerNatureName ? <InfoRow label={ACCOUNT_TEXT.orgUnitNature}>{customerNatureName}</InfoRow> : null}
             {customerTypeName ? <InfoRow label={ACCOUNT_TEXT.orgUnitType}>{customerTypeName}</InfoRow> : null}
+            {wallet && wallet.eligible > 0 ? (
+              <InfoRow label={WALLET_TEXT.title}>
+                <WalletOrgValue rollup={wallet} />
+              </InfoRow>
+            ) : null}
             {parentName ? (
               <InfoRow label={ACCOUNT_PARENT_TEXT.label}>
                 <Link href={`/account/${parentId}`} className="hover:underline">{parentName}</Link>

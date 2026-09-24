@@ -1154,6 +1154,9 @@ export const RENEWAL_ERROR: Record<string, string> = {
 
 export const FORECAST_RULE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  // Shares updateCommercialTerms with the deal page, so its codes are
+  // reachable in principle; this surface never sends a budget.
+  customer_budget_negative: "客户项目总投入不能为负",
   category_settled: "已成交或已判负的生意，档位由阶段定死，改不了",
   category_already_agrees: "这单已经就在规则建议的档位上",
   closed_requires_terminal_stage: "生意还没结束，不能归到已成交",
@@ -3779,6 +3782,9 @@ export const FORECAST_ERROR: Record<string, string> = {
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  // incr/0080 - 钱包份额's denominator.
+  customer_budget_negative: "客户项目总投入不能为负",
+  customer_budget_invalid: "客户项目总投入要填数字",
   // incr/0034 - the deal entry gate. Both are refused by planNewOpportunity
   // and by the database, so both can reach a person.
   owner_required: "商机必须有负责人",
@@ -6757,6 +6763,30 @@ export const RISK_TEXT = {
 };
 
 // ICP 拟合度 (YC-021 L1, owner 2026-09-24) - against the workspace's own target segments.
+// 钱包份额 (YC-021 L4, owner 2026-09-24) - 业务规则 §9.6: 按商机算, 客户项目总投入
+// 由销售在商机上填 (人工填报); 单位卡和存量收入卡只做加总, 已承接与在谈分开说。
+export const WALLET_TEXT = {
+  title: "钱包份额",
+  hint: "我方承接额 ÷ 客户在这个项目上的总投入；总投入由销售在商机上填写",
+  fieldLabel: "客户项目总投入",
+  fieldHint: (currency: string) => `客户在这个项目上一共投入多少（${currency}），人工填报，用于算钱包份额；清空即未填`,
+  committed: (n: number) => `已承接（${n} 个项目）`,
+  quoted: (n: number) => `在谈（${n} 个项目）`,
+  ratio: (pct: string, ours: string, budget: string) => `${pct} · ${ours} / ${budget}`,
+  coverage: (withBudget: number, eligible: number) => `${eligible} 个在谈或已赢的商机中 ${withBudget} 个填了客户项目总投入`,
+  noneFilled: "商机上还没有填客户项目总投入，算不出份额",
+  exceeds: "我方金额超过了客户总投入，总投入可能填低了",
+  basis: { committed: "承接占比", quoted: "报价占比" },
+  dealNoBudget: "未填客户项目总投入",
+  dealNotOurs: "商机没有赢下，不计份额",
+  dealUnpriced: "商机还没有金额，算不出份额",
+  ours: (v: string) => `我方 ${v}`,
+  budget: (v: string) => `客户总投入 ${v}`,
+  by: (name: string, date: string) => `${name} 填于 ${date}`,
+  orgValue: (pct: string) => `已承接 ${pct}`,
+  orgNone: "未填",
+};
+
 export const ICP_TEXT = {
   summary: (fit: number, segment: string) => `ICP 拟合 ${fit}/3 · 目标市场「${segment}」`,
   noSegment: "工作区还没有设了条件的目标细分市场，无从计算 ICP 拟合度",

@@ -40,7 +40,9 @@ import {
   decisionChainsByOpportunity,
   buyingRolesFor,
 } from "../../../domains/account/service";
-import { listProjects, projectView } from "../../../domains/delivery/service";
+import { listContracts, listProjects, projectView } from "../../../domains/delivery/service";
+import { dealShare } from "../../../domains/pipeline/lib/wallet-share";
+import { DealWalletLine } from "../../components/wallet-share";
 import { listProposals } from "../../../domains/copilot/service";
 import { cachedFeed } from "../../lib/board";
 import { BuyingRoleForm } from "../../components/buying-role-form";
@@ -174,6 +176,36 @@ export default async function OpportunityDetailPage({
     ? ((campaignsRead?.ok ? campaignsRead.value.find((c) => c.id === opportunity.campaignId)?.name : null) ??
       opportunity.campaignId)
     : null;
+
+  // 钱包份额 (§9.6): a won deal counts its signed contracts, so they are read
+  // for it - through the delivery service's own gate; a refused or failed read
+  // falls back to the deal amount, which is what dealOurs does with none.
+  const walletContracts =
+    opportunity.status === "won"
+      ? await listContracts({ ...ctx, store: getDeliveryStore() }, { accountId: opportunity.accountId }).catch(() => null)
+      : null;
+  const walletShareOfDeal = dealShare(
+    {
+      id: opportunity.id,
+      status: opportunity.status,
+      currency: opportunity.currency,
+      amount: opportunity.amount?.amount ?? null,
+      budget: opportunity.customerBudget ?? null,
+    },
+    walletContracts?.ok ? walletContracts.value : [],
+  );
+
+  // Built here rather than inline in DealTerms' props: reachable-codes.test
+  // binds an action to the nearest JSX tag above it, and an inline element
+  // there would claim DealTerms' onSave.
+  const walletLine = (
+    <DealWalletLine
+      share={walletShareOfDeal}
+      currency={opportunity.currency}
+      byName={nameOf(opportunity.customerBudgetBySub ?? null)}
+      at={opportunity.customerBudgetAt ? opportunity.customerBudgetAt.toISOString().slice(0, 10) : null}
+    />
+  );
 
   // Everything the position brief needs. Each read goes through its domain's
   // own service, so this page cannot show what another page would refuse.
@@ -845,6 +877,8 @@ export default async function OpportunityDetailPage({
             "ui",
           ).allowed
         }
+        customerBudget={opportunity.customerBudget ?? null}
+        summary={walletLine}
         onSave={repriceOpportunity}
       />
       </RaisedCard>

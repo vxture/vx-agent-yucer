@@ -70,6 +70,7 @@ import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../
 import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
 import { forecastThresholds, listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory } from "../../../domains/pipeline/service";
 import { classifyRisks, mergeJudgements } from "../../../domains/account/lib/risk-types";
+import { walletShare } from "../../../domains/pipeline/lib/wallet-share";
 import { icpFit } from "../../../domains/strategy/lib/icp";
 import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcome-review";
 import { toStageCatalog } from "../../../domains/pipeline/store";
@@ -653,6 +654,27 @@ export default async function AccountDetailPage({
     "ui",
   ).allowed;
 
+
+  // 钱包份额 (§9.6): summed from the deals, with won deals counting their
+  // signed contracts. Its own read, because `deals` above is open deals only
+  // and 已承接 is exactly the won ones. Null when the deals could not be read -
+  // absent, never 0.
+  const walletDeals = await listPipeline(
+    { ...base, store: session.stores.pipeline() },
+    { accountId: id, includeClosed: true },
+  ).catch(() => null);
+  const wallet = walletDeals?.ok
+    ? walletShare(
+        walletDeals.value.map((d) => ({
+          id: d.id,
+          status: d.status,
+          currency: d.currency,
+          amount: d.amount?.amount ?? null,
+          budget: d.customerBudget ?? null,
+        })),
+        contractRecords,
+      )
+    : null;
 
   const chainedDealIds = new Set((chain.ok ? chain.value : []).map((c) => c.opportunityId));
   const dealRows: DealLifecycleRow[] = (deals.ok ? deals.value : []).map((d) => {
@@ -1333,6 +1355,7 @@ export default async function AccountDetailPage({
           customerTypeName={customerTypeName}
           scaleName={customerSizeName}
           icp={icp}
+          wallet={wallet}
           more={{
             province: account.province,
             creditCode: account.creditCode,
@@ -1679,6 +1702,7 @@ export default async function AccountDetailPage({
                     contracts={contractRows}
                     owned={ownedRows}
                     revenue={installedRevenue(contractRecords, now)}
+                    wallet={wallet}
                     whitespace={whitespaceView}
                     products={(productsRead.ok ? productsRead.value : []).map((p) => ({ id: p.id, name: p.name }))}
                     deals={dealRows.filter((d) => d.status !== "lost").map((d) => ({ id: d.id, name: d.name }))}

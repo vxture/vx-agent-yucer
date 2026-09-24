@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
   Field,
@@ -70,6 +70,11 @@ export interface DealTermsProps {
    *  enforces for these two fields, so the selects are offered only when the
    *  member actually holds it. */
   readonly canSetDealType?: boolean;
+  /** incr/0080 - 客户项目总投入, in `currency`; null = not entered. Rides on
+   *  the editing gate: the rep who owns the deal is the one who asked (§9.6). */
+  readonly customerBudget?: number | null;
+  /** What the section shows beside its button - the deal's 钱包份额 line. */
+  readonly summary?: ReactNode;
   readonly onSave: (
     opportunityId: string,
     input: {
@@ -80,6 +85,7 @@ export interface DealTermsProps {
       forecastCategory?: string;
       contractTypeId?: string;
       businessFormId?: string;
+      customerBudget?: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -102,9 +108,11 @@ export function DealTerms({
   contractTypes = [],
   businessForms = [],
   canSetDealType = false,
+  customerBudget = null,
+  summary,
   onSave,
 }: DealTermsProps) {
-  const { BUSINESS_FORM_TEXT, CONTRACT_TYPE_TEXT, FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
+  const { BUSINESS_FORM_TEXT, CONTRACT_TYPE_TEXT, FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, WALLET_TEXT } =
     useMessages();
   const closed = isTerminal(stage, stageDefinitions);
   const initial = {
@@ -114,6 +122,7 @@ export function DealTerms({
     forecastCategory,
     contractTypeId: contractTypeId ?? "",
     businessFormId: businessFormId ?? "",
+    customerBudget: customerBudget == null ? "" : String(customerBudget),
   };
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
@@ -128,9 +137,12 @@ export function DealTerms({
   if (!canEdit) {
     return (
       <Section title={OPPORTUNITY_TEXT.termsTitle}>
-        <Tag>
-          {OPPORTUNITY_TEXT.termsReadOnly}
-        </Tag>
+        <div className="flex flex-col gap-sm">
+          <Tag>
+            {OPPORTUNITY_TEXT.termsReadOnly}
+          </Tag>
+          {summary}
+        </div>
       </Section>
     );
   }
@@ -157,6 +169,7 @@ export function DealTerms({
         forecastCategory: canCategorize ? dirty("forecastCategory") : undefined,
         contractTypeId: canSetDealType ? dirty("contractTypeId") : undefined,
         businessFormId: canSetDealType ? dirty("businessFormId") : undefined,
+        customerBudget: dirty("customerBudget"),
       }).then((r) => {
         if (!r.ok) {
           setError(
@@ -195,6 +208,7 @@ export function DealTerms({
           </StatusBadge>
         ) : null}
       </div>
+      {summary ? <div className="mt-sm">{summary}</div> : null}
 
       <DialogForm
         open={open}
@@ -225,6 +239,20 @@ export function DealTerms({
               disabled={pending}
             />
             <FieldDescription>{currency}</FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="terms-customer-budget">
+              {WALLET_TEXT.fieldLabel}
+            </FieldLabel>
+            <Input
+              id="terms-customer-budget"
+              inputMode="decimal"
+              value={form.customerBudget}
+              onChange={(e) => setForm({ ...form, customerBudget: e.target.value })}
+              disabled={pending}
+            />
+            <FieldDescription>{WALLET_TEXT.fieldHint(currency)}</FieldDescription>
           </Field>
 
           <Field>

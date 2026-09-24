@@ -74,6 +74,9 @@ interface OpportunityRow {
   createdAt: Date;
   contractTypeId: string | null;
   businessFormId: string | null;
+  customerBudget?: { toString(): string } | null;
+  customerBudgetBySub?: string | null;
+  customerBudgetAt?: Date | null;
 }
 
 function toRecord(row: OpportunityRow): OpportunityRecord {
@@ -102,6 +105,9 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     createdAt: row.createdAt,
     contractTypeId: row.contractTypeId,
     businessFormId: row.businessFormId,
+    customerBudget: row.customerBudget == null ? null : Number(row.customerBudget.toString()),
+    customerBudgetBySub: row.customerBudgetBySub ?? null,
+    customerBudgetAt: row.customerBudgetAt ?? null,
   };
 }
 
@@ -322,6 +328,11 @@ export class PrismaPipelineStore implements PipelineStore {
     if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
     if (input.contractTypeId !== undefined) patch.contractTypeId = input.contractTypeId;
     if (input.businessFormId !== undefined) patch.businessFormId = input.businessFormId;
+    if (input.customerBudget !== undefined) {
+      patch.customerBudget = input.customerBudget.amount;
+      patch.customerBudgetBySub = input.customerBudget.bySub;
+      patch.customerBudgetAt = input.customerBudget.at;
+    }
 
     // The same backstop the stage path uses. It should never fire - the patch
     // keys are fixed by CommercialTermsPatch - but it is what turns a future
