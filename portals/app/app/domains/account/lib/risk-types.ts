@@ -28,8 +28,8 @@ export type RiskFinding =
   | { readonly code: "blockers"; readonly deal: string; readonly count: number }
   | { readonly code: "single_thread"; readonly who: string }
   | { readonly code: "deal_stalled"; readonly deal: string; readonly days: number }
-  | { readonly code: "project_red"; readonly project: string }
-  | { readonly code: "project_amber"; readonly project: string }
+  | { readonly code: "project_red"; readonly project: string; readonly manual?: boolean }
+  | { readonly code: "project_amber"; readonly project: string; readonly manual?: boolean }
   | { readonly code: "milestones_overdue"; readonly project: string; readonly count: number }
   | { readonly code: "revenue_overdue"; readonly project: string; readonly count: number }
   | { readonly code: "renewal"; readonly reason: HealthReason }
@@ -67,6 +67,9 @@ export interface RiskInput {
         readonly name: string;
         readonly manager: string | null;
         readonly health: string;
+        /** True when the manager's own recorded health already says this -
+         *  the verdict is a person's, not the rule's escalation. */
+        readonly healthManual?: boolean;
         readonly overdueMilestones: number;
         readonly overdueRevenue: number;
       }[]
@@ -118,8 +121,9 @@ function delivery(i: RiskInput): RiskTypeResult {
   let level: RiskLevel = "clear";
   for (const p of i.projects) {
     const red = p.health === "red" || p.overdueMilestones > 0;
-    if (p.health === "red") findings.push({ code: "project_red", project: p.name });
-    else if (p.health === "amber") findings.push({ code: "project_amber", project: p.name });
+    const manual = p.healthManual === true;
+    if (p.health === "red") findings.push({ code: "project_red", project: p.name, manual });
+    else if (p.health === "amber") findings.push({ code: "project_amber", project: p.name, manual });
     if (p.overdueMilestones > 0) findings.push({ code: "milestones_overdue", project: p.name, count: p.overdueMilestones });
     if (red && level !== "risk") {
       level = "risk";
@@ -154,4 +158,70 @@ function renewal(i: RiskInput): RiskTypeResult {
   if (points < 0) findings.push({ code: "renewal", reason });
   if (i.contractRisk) findings.push({ code: "contract_risk", ...i.contractRisk });
   return { type: "renewal", level: rank[fromContract] > rank[fromFactor] ? fromContract : fromFactor, findings, who };
+}
+
+// WHERE A FINDING CAME FROM (owner, 2026-09-24: 可以把来源加上, 规则判断 |
+// 智能分析 | 人工填报, 作为开头tag标签). Every line in a lane says who is
+// speaking. A blocker is a stance a rep entered on the chain; a project's
+// colour is the manager's when their own recorded health already says it.
+// Everything else here is computed by a rule.
+export type FindingSource = "rule" | "model" | "manual";
+
+export function findingSource(f: RiskFinding): FindingSource {
+  if (f.code === "blockers") return "manual";
+  if ((f.code === "project_red" || f.code === "project_amber") && f.manual) return "manual";
+  return "rule";
+}
+
+// ONE PLACE FOR A JUDGEMENT (owner, 2026-09-24: 合并进风险分型). The rules
+// engine's judgements about this account used to sit above the lanes as a
+// separate note - and could contradict them ("停了 48 天" over 推进 正常,
+// because one counts quiet days and the other days in stage). Now each one
+// joins the lane it is about, and the lane's level is the worse of the two.
+//
+// Lane by rule id (judgement.ts): a stalled or silent account is 推进; who we
+// reach, how often, through how many people, and the promises we owe are 关系.
+// A judgement about one deal whose rule is not listed is 推进.
+const LANE_BY_RULE: Record<string, RiskType> = {
+  stalled: "advance",
+  quiet: "advance",
+  unreached: "relationship",
+  cadence: "relationship",
+  singlethread: "relationship",
+  shared: "relationship",
+  weowe: "relationship",
+};
+
+export function judgementLane(id: string, subjectType: string): RiskType {
+  const rule = id.split(":")[0] ?? "";
+  return LANE_BY_RULE[rule] ?? (subjectType === "opportunity" ? "advance" : "relationship");
+}
+
+export interface LaneJudgement {
+  readonly id: string;
+  readonly subjectType: string;
+  readonly urgency: "today" | "week" | "watch";
+}
+
+const LEVEL_RANK: Record<RiskLevel, number> = { unknown: 0, clear: 1, watch: 2, risk: 3 };
+
+export function mergeJudgements<J extends LaneJudgement>(
+  risks: readonly RiskTypeResult[],
+  judgements: readonly J[],
+): (RiskTypeResult & { readonly judgements: readonly J[] })[] {
+  const URGENCY: Record<LaneJudgement["urgency"], number> = { today: 0, week: 1, watch: 2 };
+  return risks.map((r) => {
+    const mine = judgements
+      .filter((j) => judgementLane(j.id, j.subjectType) === r.type)
+      .sort((a, b) => URGENCY[a.urgency] - URGENCY[b.urgency]);
+    const worst = mine[0];
+    const fromJudgement: RiskLevel = !worst ? "unknown" : worst.urgency === "watch" ? "watch" : "risk";
+    const level = LEVEL_RANK[fromJudgement] > LEVEL_RANK[r.level] ? fromJudgement : r.level;
+    // The single-thread judgement IS the single_thread finding, with its
+    // evidence attached - say it once.
+    const findings = mine.some((j) => j.id.startsWith("singlethread:"))
+      ? r.findings.filter((f) => f.code !== "single_thread")
+      : r.findings;
+    return { ...r, level, findings, judgements: mine };
+  });
 }

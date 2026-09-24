@@ -2,7 +2,7 @@ import type { Dictionary } from "./i18n/dictionary";
 import * as zh from "./messages";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import type { IcpDimension, IcpFeatureStatus } from "../../domains/strategy/lib/icp";
-import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
+import type { FindingSource, RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
 import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
 
 // The en-US dictionary.
@@ -5713,6 +5713,15 @@ export const en: Dictionary = {
     separator: "; ",
     whoUnassigned: "Unassigned",
     who: (role: string, name: string | null) => (name ? `Talk to ${name} (${role})` : `Talk to the ${role} (unassigned)`),
+    source: { rule: "Rule", model: "AI analysis", manual: "Entered" } as Record<FindingSource, string>,
+    sourceHint: {
+      rule: "Computed from the records by a fixed rule - you can check it yourself",
+      model: "Read from the source text by a model - check the quoted text",
+      manual: "Entered by a team member",
+    } as Record<FindingSource, string>,
+    today: (lanes: string) => `Today: ${lanes}`,
+    lanesJoin: ", ",
+    showEvidence: "Show the trigger and the evidence",
   },
   ICP_TEXT: {
     summary: (fit: number, segment: string) => `ICP fit ${fit}/3 · target "${segment}"`,

@@ -28,7 +28,7 @@ import type { ActionStatus } from "../../domains/copilot/lib/action";
 import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/revenue";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import type { IcpDimension, IcpFeatureStatus } from "../../domains/strategy/lib/icp";
-import type { RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
+import type { FindingSource, RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
 import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
 
 export const STAGE_LABEL: Record<Stage, string> = {
@@ -6744,6 +6744,16 @@ export const RISK_TEXT = {
   separator: "；",
   whoUnassigned: "未指定",
   who: (role: string, name: string | null): string => (name ? `找 ${name}（${role}）` : `找${role}（未指定）`),
+  // 每条的开头标签: 谁在说话 (owner, 2026-09-24)。
+  source: { rule: "规则判断", model: "智能分析", manual: "人工填报" } as Record<FindingSource, string>,
+  sourceHint: {
+    rule: "按固定规则从记录算出来的，可以自己复核",
+    model: "模型从原文看出来的，只能核对它引用的原文",
+    manual: "团队成员自己填写的判断",
+  } as Record<FindingSource, string>,
+  today: (lanes: string): string => `今天要处理：${lanes}`,
+  lanesJoin: "、",
+  showEvidence: "展开触发条件和证据",
 };
 
 // ICP 拟合度 (YC-021 L1, owner 2026-09-24) - against the workspace's own target segments.

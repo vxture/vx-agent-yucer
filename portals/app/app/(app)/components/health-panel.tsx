@@ -16,9 +16,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import type { ChangeAttribution } from "../../domains/account/lib/health-history";
-import { RiskTypes } from "./risk-types";
-import type { RiskTypeResult } from "../../domains/account/lib/risk-types";
-import { JudgementNote, type Judgement } from "./judgement-note";
+import { RiskTypes, type LaneRisk } from "./risk-types";
 import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import { CollapsibleSection } from "./collapsible-section";
 
@@ -55,19 +53,14 @@ export interface HealthPanelProps {
    *  header - 这里已经是内容区第一张卡, 也是"评估类"信息的自然落点). 单位
    *  信息卡(org-unit-panel.tsx)现在头部只剩 icon+title, 不再带这个标签。 */
   readonly statusTag: ReactNode;
-  /** 定向自动分析 - the single highest-urgency rule judgement about this
-   *  account, if the rules engine fired one (owner, 2026-09-21: 判定信息
-   *  移到客户评估板块 - 之前挂在单位信息卡最下方, 跟评估类信息本来就该在
-   *  一起, 也是这张卡重新规整时腾出的空间). Collapsible, collapsed to one
-   *  line (owner: 提供展开收起功能，收起只有一行) - see judgement-note.tsx
-   *  for the shared implementation (this panel is not its only consumer). */
-  readonly judgement?: Judgement | null;
   /** 同类对标 (YC-021 L5) - this score among same-industry same-size peers. */
   readonly benchmark?: PeerBenchmark | null;
   /** 变化归因 (YC-021 L5) - what moved since the last different recorded score. */
   readonly change?: ChangeAttribution | null;
-  /** 风险分型 (YC-021 L5) - five types, what each rests on, who to go to. */
-  readonly risks?: readonly RiskTypeResult[] | null;
+  /** 风险分型 (YC-021 L5) - five types, what each rests on, who to go to.
+   *  The rules engine's judgements about this account ride in their lanes
+   *  (owner, 2026-09-24: 合并进风险分型) - there is no separate note above. */
+  readonly risks?: readonly LaneRisk[] | null;
 }
 
 type FactorTone = "danger" | "neutral" | "success";
@@ -88,7 +81,6 @@ export function HealthPanel({
   canRecompute,
   onRecompute,
   statusTag,
-  judgement,
   benchmark,
   change,
   risks,
@@ -236,8 +228,6 @@ export function HealthPanel({
       }}
     >
         <>
-          {judgement ? <JudgementNote judgement={judgement} /> : null}
-
           {/* 卡片正文不再重复分数/首要问题 (owner, 2026-09-20: 设计图严格对齐 -
               mockup 自己删过一次同样的重复, 注释原话"首要问题：1 笔回款逾期"
               删掉了) - header 的健康评估维度(RingGauge)现在就是分数本身, 有首要
