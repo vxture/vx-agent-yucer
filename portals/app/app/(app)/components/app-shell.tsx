@@ -209,28 +209,11 @@ export function AppShell({
   const segments = pathname.split("/").filter(Boolean);
   const activeKey = segments[0] ?? "home";
 
-  /**
-   * THE SHELL HAS TWO MODES, and this is the switch.
-   *
-   * A first-level page answers "how are things across the board", so the board
-   * belongs beside it. A DETAIL page answers "how is THIS one thing" - and
-   * those two questions compete for the same attention. On a detail page the
-   * second one wins by definition: you are here because you chose this object.
-   * The width it frees is a consequence, not the reason.
-   *
-   * Named routes rather than a pattern: /admin/members and /admin/audit are
-   * two segments deep and are NOT detail pages, they are first-level pages that
-   * happen to live under a prefix. A rule keyed on segment count would have
-   * stripped the board from them and been wrong in a way nobody would notice
-   * until they went looking for it.
-   *
-   * "account" REMOVED (owner, 2026-09-20: 客户详情页恢复三栏独立布局，跟
-   * /account 列表页一致) - the account detail page now keeps the board
-   * beside it like every first-level page does; only "pipeline" detail pages
-   * still free the width this way.
-   */
-  const DETAIL_ROOTS = ["pipeline"];
-  const isDetail = segments.length >= 2 && DETAIL_ROOTS.includes(segments[0]!);
+  // THE SHELL HAS ONE MODE (owner, 2026-09-24: 整个产品中, 不能存在横跨2栏,
+  // 3栏的板块, 除了header). There used to be a "detail" mode that dropped the
+  // board on /pipeline/<id> so the deal page could take 栏1's width - the same
+  // defect the account detail page had until 2026-09-20. A page may put its own
+  // content into 栏1 (the account dossier does), but no page removes a column.
   /** 栏1 取代通用模块导航, 不是并排加一个 (owner, 2026-09-20: 死死记住这次的
    *  要求 - "整体页面是三栏，不是内容区还是两栏"). 客户详情路由下, 这一侧的
    *  <aside> 还是同一个(宽度/独立滚动都不变, 见下面 boardVisible 的渲染),
@@ -263,7 +246,7 @@ export function AppShell({
      The two flags below are therefore about the BUSINESS body only - the admin
      branch renders neither flank, so neither flag needs to name it. */
   const isAdmin = segments[0] === "admin";
-  const boardVisible = showBoard && !isDetail && !isHome;
+  const boardVisible = showBoard && !isHome;
   const deckVisible = showDock;
 
   const toggleBoard = () =>
@@ -404,13 +387,11 @@ export function AppShell({
                   跟着它自己的功能条一起撤掉(owner: 聚焦客户全景图页面 -
                   这样更好一些, 现在可以去掉 sidebar 顶部的区域), 不是被
                   这次改动顺带清理的意外产物。 */}
-              {isDetail ? null : (
-                <ShellIconButton
-                  icon="sidebar"
-                  label={showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen}
-                  onClick={toggleBoard}
-                />
-              )}
+              <ShellIconButton
+                icon="sidebar"
+                label={showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen}
+                onClick={toggleBoard}
+              />
 
               {/* (2) The functional domain: NINE DOTS, no label, no fill.
 
