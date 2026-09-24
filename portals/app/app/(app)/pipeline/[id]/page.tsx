@@ -33,6 +33,7 @@ import {
   listContractTypes,
   listStageDefinitions,
   stageHistory,
+  stallRules,
 } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import {
@@ -158,7 +159,7 @@ export default async function OpportunityDetailPage({
   }
   const opportunity = detail.value;
 
-  const history = await stageHistory(ctx, id);
+  const [history, stall] = await Promise.all([stageHistory(ctx, id), stallRules(ctx)]);
 
   // NAMES, NOT IDS (polish, 2026-09-24): the owner card printed usr_demo_m010,
   // the plan triangle three raw subs and 来源战役 camp_demo_1. The member
@@ -380,7 +381,13 @@ export default async function OpportunityDetailPage({
       expectedCloseAt: opportunity.expectedCloseAt,
       lastStageChangeAt,
       status: opportunity.status,
+      // The workspace's own stall line for this deal's business form (R3) -
+      // the same resolution the forecast review uses, so the two screens
+      // cannot disagree about whether this deal is stalled.
+      stallDaysOverride: stall.ok ? stall.value.overrideFor(opportunity.businessFormId) : null,
     },
+    thresholds: stall.ok ? stall.value.thresholds : undefined,
+    stageCatalog: stall.ok ? stall.value.stageCatalog : undefined,
     chain: cov,
     rolesStated: roles.ok && roles.value.length > 0,
     commitments: (commitments.ok ? commitments.value : []).map((c) => ({

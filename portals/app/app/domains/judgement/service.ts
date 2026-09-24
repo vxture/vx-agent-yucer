@@ -140,7 +140,7 @@ export async function judgementFeed(
   const accountCtx = { ...base, store: getAccountStore() };
   const fieldStore = getFieldStore();
 
-  const [accountsResult, dealsResult, recencyPolicy, stageRows] = await Promise.all([
+  const [accountsResult, dealsResult, recencyPolicy, stageRows, lastMoved] = await Promise.all([
     listAccounts(accountCtx),
     listPipeline({ ...base, store: getPipelineStore() }, { includeClosed: true }),
     // incr/0065. A plain store read, not the public contactRecencyPolicy()
@@ -153,6 +153,10 @@ export async function judgementFeed(
     // claim says "商务谈判", the workspace's own name for the code, rather than
     // the bare code itself.
     getPipelineStore().listStageDefinitions(ctx.workspaceId),
+    // Days at stage come from the stage journal (YC-065 R3), the same source
+    // the deal page and the forecast review use - not from createdAt, which
+    // counted a deal that moved last week as having sat since it was opened.
+    getPipelineStore().latestStageChangeAt(ctx.workspaceId),
   ]);
   if (!accountsResult.ok) return accountsResult as RuleResult<JudgementFeed>;
 
@@ -252,7 +256,9 @@ export async function judgementFeed(
           name: d.name,
           stage: d.stage,
           amount: d.amount?.amount ?? null,
-          stageDays: Math.floor((now.getTime() - d.createdAt.getTime()) / DAY),
+          // A deal with no journal row has not moved since it was opened, so
+          // its creation IS when it entered its current stage.
+          stageDays: Math.floor((now.getTime() - (lastMoved.get(d.id) ?? d.createdAt).getTime()) / DAY),
         })),
         lastContactAt,
         commitments: commitments.map((c) => ({

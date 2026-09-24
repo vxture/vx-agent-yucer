@@ -59,7 +59,15 @@ export interface RiskInput {
     | null;
   /** The one person every open deal runs through, when the single-thread rule fired. */
   readonly singleThread: string | null;
-  readonly openDeals: readonly { readonly name: string; readonly owner: string | null; readonly daysInStage: number | null }[];
+  readonly openDeals: readonly {
+    readonly name: string;
+    readonly owner: string | null;
+    readonly daysInStage: number | null;
+    /** This deal's own stall line (its business form's override resolved by the
+     *  caller through stallLineFor, YC-065 R3). Absent = the workspace line. */
+    readonly stallDays?: number | null;
+  }[];
+  /** The workspace's stall line, for deals that carry none of their own. */
   readonly stallDays: number;
   /** Null when the projects could not be read. */
   readonly projects:
@@ -103,7 +111,7 @@ function relationship(i: RiskInput): RiskTypeResult {
 
 function advance(i: RiskInput): RiskTypeResult {
   const stalled = i.openDeals
-    .filter((d) => d.daysInStage !== null && d.daysInStage > i.stallDays)
+    .filter((d) => d.daysInStage !== null && d.daysInStage > (d.stallDays ?? i.stallDays))
     .sort((a, b) => (b.daysInStage ?? 0) - (a.daysInStage ?? 0));
   return {
     type: "advance",

@@ -15,7 +15,7 @@ const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 // Sentences as keys, so assertions read the CONTRACT and not Chinese copy.
 const TEXT: BriefText = {
   stageMoving: (s, d) => `moving:${s}:${d}`,
-  stageStalled: (s, d) => `stalled:${s}:${d}`,
+  stageStalled: (s, d, l) => `stalled:${s}:${d}:${l}`,
   stageTerminal: (s) => `terminal:${s}`,
   stallOnUs: (st, d) => `on-us:${st}:${d}`,
   stallOnThem: (w, st, d) => `on-them:${w}:${st}:${d}`,
@@ -87,7 +87,7 @@ test("a stall turns the stage cell bad, and the FORECAST reacts - not the stage"
   // honest forecast IS different.
   const b = dealBrief(input({ deal: { ...input().deal, lastStageChangeAt: daysAgo(60) } }));
   assert.equal(b.cells.find((c) => c.key === "stage")!.tone, "bad");
-  assert.equal(b.cells.find((c) => c.key === "stage")!.headline, "stalled:validate:60");
+  assert.equal(b.cells.find((c) => c.key === "stage")!.headline, "stalled:validate:60:45");
   assert.equal(b.actions.length, 1);
   const act = b.actions[0]!;
   assert.equal(act.kind, "apply_category");
@@ -190,6 +190,26 @@ test("ranking is worst-first across kinds", () => {
   );
   assert.equal(b.actions[0]!.severity, "bad");
   assert.ok(b.actions.slice(1).every((a) => a.severity === "warn"));
+});
+
+test("the stall line is the workspace's, then the business form's - not a constant (R3)", () => {
+  // The deal page used to stall at a hard-coded 45 while the forecast review
+  // honoured the workspace. Both now resolve through stallLineFor.
+  const at = (days: number, over: Partial<DealBriefInput>) =>
+    dealBrief(input({ ...over, deal: { ...input().deal, ...(over.deal ?? {}), lastStageChangeAt: daysAgo(days) } }))
+      .cells.find((c) => c.key === "stage")!;
+  const workspace30 = { thresholds: { commitAt: 80, bestCaseAt: 50, stallDays: 30 } };
+  assert.equal(at(40, workspace30).tone, "bad", "past the workspace's 30");
+  assert.equal(at(40, workspace30).headline, "stalled:validate:40:30");
+  // A business form that sells slowly overrides the workspace: 50 days is not a stall at 90.
+  const slowForm = { ...workspace30, deal: { ...input().deal, stallDaysOverride: 90 } };
+  assert.equal(at(50, slowForm).tone, "good");
+  assert.equal(at(95, slowForm).headline, "stalled:validate:95:90");
+});
+
+test("a terminal headline is keyed by status, so an abandoned deal is not called won or lost", () => {
+  const b = dealBrief(input({ deal: { ...input().deal, stage: "negotiate", status: "abandoned" } }));
+  assert.equal(b.cells.find((c) => c.key === "stage")!.headline, "terminal:abandoned");
 });
 
 test("a terminal deal keeps its history quiet - no chain nag, no stall", () => {

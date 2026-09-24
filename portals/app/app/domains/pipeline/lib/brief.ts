@@ -38,6 +38,7 @@ import type { ChainCoverage } from "../../account/lib/health";
 import {
   DEFAULT_FORECAST_THRESHOLDS,
   daysAtStage,
+  stallLineFor,
   suggestCategory,
   type CategorizableDeal,
   type ForecastThresholds,
@@ -144,8 +145,10 @@ export interface DealBriefInput {
  */
 export interface BriefText {
   stageMoving(stage: string, days: number | null): string;
-  stageStalled(stage: string, days: number): string;
-  stageTerminal(stage: string): string;
+  /** `line` is the stall line that was crossed - the workspace's, not a constant. */
+  stageStalled(stage: string, days: number, line: number): string;
+  /** Keyed by STATUS, not stage code: a workspace may name its won stage anything. */
+  stageTerminal(status: string): string;
   stallOnUs(statement: string, days: number): string;
   stallOnThem(who: string | null, statement: string, days: number): string;
   stallOnBuyer(who: string, days: number | null): string;
@@ -243,14 +246,15 @@ export function dealBrief(input: DealBriefInput): DealBrief {
 
   // --- stage ---------------------------------------------------------------
   const days = daysAtStage(deal, now);
-  const stalled = !terminal && days !== null && days > thresholds.stallDays;
+  const line = stallLineFor(deal, thresholds);
+  const stalled = !terminal && days !== null && days > line;
   cells.push({
     key: "stage",
     tone: terminal ? "good" : stalled ? "bad" : "good",
     headline: terminal
-      ? text.stageTerminal(deal.stage)
+      ? text.stageTerminal(deal.status)
       : stalled
-        ? text.stageStalled(deal.stage, days)
+        ? text.stageStalled(deal.stage, days, line)
         : text.stageMoving(deal.stage, days),
     // WHO IT IS STUCK ON (YC-021 L3 阶段停滞诊断), only when it is stuck. A
     // day count says something is wrong; the holder says who to call.
@@ -266,7 +270,7 @@ export function dealBrief(input: DealBriefInput): DealBrief {
   // The rule that can catch a person contradicting THEMSELVES - a human 35%
   // on a deal filed as commit. It ran only on the forecast review page until
   // now; the deal page is where the category is actually chosen.
-  const verdict = suggestCategory(deal, now, thresholds);
+  const verdict = suggestCategory(deal, now, thresholds, stageCatalog);
   if (verdict.kind === "settled") {
     cells.push({ key: "forecast", tone: "good", headline: text.forecastSettled, detail: "" });
   } else {
