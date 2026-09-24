@@ -100,7 +100,8 @@ import { askToComplete } from "./ask-complete-action";
 import { structureMeetingNotes } from "./paste-notes-action";
 import { checkConsistency } from "./consistency-action";
 import { ConsistencyCheck, type PendingConflict } from "../../components/consistency-check";
-import { CONFLICT_ACTION_TYPE, lastConsistencyCheck } from "../../../domains/copilot/lib/conflict";
+import { CONFLICT_ACTION_TYPE, CONFLICT_CAPABILITY, lastConsistencyCheck } from "../../../domains/copilot/lib/conflict";
+import { canRunAdvisor } from "../../../domains/copilot/lib/advisor-gate";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
 import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS } from "../../lib/sidebar-slot";
@@ -820,7 +821,7 @@ export default async function AccountDetailPage({
   // copilot sessions - the store lists sessions per member - so the sentence
   // says when YOU last checked. Pending conflicts are the flag_conflict
   // proposals already in the page's proposal read.
-  const canCheckConsistency = can(session.authz, session.entitlement, "copilot.suggest", "ui").allowed;
+  const canCheckConsistency = canRunAdvisor(session.authz, session.entitlement, CONFLICT_CAPABILITY, "ui").allowed;
   const mySessions = canCheckConsistency
     ? await getCopilotStore().listSessions(session.workspaceId, session.user.sub, 50).catch(() => [])
     : [];

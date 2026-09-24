@@ -1,5 +1,5 @@
 import type { PermCode } from "../../authz/catalog";
-import { can } from "../../authz/decide";
+import { canRunAdvisor } from "../copilot/lib/advisor-gate";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getCopilotStore, getFieldStore } from "../shared/registry";
 import { recordProposals } from "../copilot/service";
@@ -49,6 +49,17 @@ export const SWEEP_PERMISSIONS: readonly PermCode[] = ["copilot.use"];
  * dedup below has something exact to match. */
 export const SWEEP_ACTION_TYPE = CHASE_COMMITMENT_ACTION_TYPE;
 
+/**
+ * Which ADR-015 capability files a chase (YC-042: every advisor output names
+ * its capability, and the capability names the feature it is gated on). A
+ * promise on a deal is stall-risk evidence - that capability already reads
+ * commitments; a promise on the customer alone is the account's rhythm.
+ * Stamped by subject, so the queue can be filtered by the same two groups the
+ * rest of the product files under.
+ */
+export const SWEEP_DEAL_CAPABILITY = "deal.stall_risk";
+export const SWEEP_ACCOUNT_CAPABILITY = "account.cadence";
+
 export interface SweepLedger {
   /** Open commitments past their due date. */
   overdue: number;
@@ -90,7 +101,10 @@ export async function runCommitmentSweep(options: SweepOptions): Promise<SweepLe
       // A quiet workspace and an unentitled one read identically, which is what
       // ADR-010 rule 5 forbids.
       const entitlement = await resolver.resolve(ws.workspaceId);
-      const gate = can(holder, entitlement, "copilot.suggest", "data");
+      // The advisor follows its host feature (YC-042): chasing a promise is
+      // customer management, so a free workspace is swept too. Rows are gated
+      // again by recordProposals on the capability each one carries.
+      const gate = canRunAdvisor(holder, entitlement, SWEEP_ACCOUNT_CAPABILITY);
       if (!gate.allowed) {
         ledger.skipped += 1;
         continue;
@@ -168,6 +182,7 @@ function proposalFor(c: CommitmentRecord, now: Date): NewProposal {
   return {
     sessionId: null,
     actionType: SWEEP_ACTION_TYPE,
+    capability: c.opportunityId ? SWEEP_DEAL_CAPABILITY : SWEEP_ACCOUNT_CAPABILITY,
     // The deal when there is one, otherwise the customer. Both are values the
     // subject CHECK allows.
     subjectType: c.opportunityId ? "opportunity" : "account",

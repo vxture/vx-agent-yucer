@@ -1,4 +1,5 @@
 import type { CopilotTask } from "../../../agent/atlas/endpoints";
+import type { FeatureKey } from "../../../entitlement/capability";
 
 // What the agent can do, as a stable set of keys - see ADR-015.
 //
@@ -36,6 +37,15 @@ export type Capability = (typeof CAPABILITIES)[number];
 
 export interface CapabilitySpec {
   /**
+   * The feature key this capability lives under (YC-042 section 03, owner
+   * 2026-09-24: "功能有, 对应的参谋就有"). A workspace that can use the host
+   * feature can use its advisor - running it, receiving its proposals and
+   * deciding them. There is no separate advisor tier gate any more:
+   * `copilot.suggest` now covers only the session tool loop, where the member
+   * asks the model to reach into the domain.
+   */
+  readonly feature: FeatureKey;
+  /**
    * The shape of the work, which is what routes to a model.
    *
    * The product names the task; the OPERATOR decides which model serves it
@@ -62,29 +72,35 @@ export interface CapabilitySpec {
  */
 export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   "deal.stall_risk": {
+    feature: "pipeline.manage",
     task: "propose",
     evidence: ["interactions", "commitments", "deals"],
   },
   "deal.competition": {
+    feature: "pipeline.manage",
     task: "propose",
     evidence: ["interactions", "deals", "signals"],
   },
   "account.chain_map": {
+    feature: "account.manage",
     task: "propose",
     evidence: ["interactions", "chain"],
   },
   "account.cadence": {
+    feature: "account.manage",
     task: "propose",
     // No interactions on purpose: this capability exists BECAUSE there are
     // none. Its evidence is the chain and the deals that are not moving.
     evidence: ["chain", "deals"],
   },
   "signal.triage": {
+    feature: "signal.inbox",
     // Runs in bulk over a feed, so cost per call dominates quality per call.
     task: "score",
     evidence: ["signals"],
   },
   "pricing.discount_approval": {
+    feature: "pipeline.manage",
     task: "propose",
     // Lines and the price book only. A discount decision does not need the
     // customer's meeting notes, and pulling them in would bury the one number
@@ -92,29 +108,35 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     evidence: ["lines", "deals"],
   },
   "delivery.payment_risk": {
+    feature: "delivery.project",
     task: "propose",
     evidence: ["projects", "deals"],
   },
   "campaign.return": {
+    feature: "campaign.manage",
     task: "summarize",
     evidence: ["deals", "signals"],
   },
   "strategy.segment_coverage": {
+    feature: "strategy.segment",
     task: "summarize",
     evidence: ["segments", "deals"],
   },
   "strategy.territory_attainment": {
+    feature: "planning.territory",
     task: "propose",
     evidence: ["targets", "deals"],
   },
   // Filed by the rule-based upsell sweep today; if a model is ever asked for
   // upsell reasoning it reads the deals and their lines, not meeting notes.
   "account.upsell": {
+    feature: "account.manage",
     task: "propose",
     evidence: ["deals", "lines"],
   },
   // Reads the notes and nothing else: a conflict is between two records.
   "account.consistency": {
+    feature: "account.manage",
     task: "propose",
     evidence: ["interactions"],
   },

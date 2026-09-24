@@ -22,6 +22,7 @@ import { PlaybookCatalog } from "../components/playbook-catalog";
 import { ProposalQueue, type ProposalSubjectView } from "../components/proposal-queue";
 import { AutonomyPanel } from "../components/autonomy-panel";
 import { adjudicateProposals, changeAutonomy } from "./actions";
+import { canDecideProposal } from "../../domains/copilot/lib/advisor-gate";
 import { askCopilot } from "./ask-action";
 
 import { getMessages } from "../lib/i18n/server";
@@ -201,6 +202,9 @@ export default async function CopilotPage({
           can(session.authz, session.entitlement, "copilot.action.decide", "ui")
             .allowed
         }
+        undecidable={proposals.value
+          .filter((a) => !canDecideProposal(session.authz, session.entitlement, a.capability, "ui").allowed)
+          .map((a) => a.id)}
         onDecide={adjudicateProposals}
         subjects={subjects}
         deciderNames={deciderNames}

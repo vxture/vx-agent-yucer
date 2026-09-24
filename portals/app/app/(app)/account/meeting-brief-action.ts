@@ -1,6 +1,7 @@
 "use server";
 
-import { can, type PermissionHolder } from "../../authz/decide";
+import type { PermissionHolder } from "../../authz/decide";
+import { canAdviseOn } from "../../domains/copilot/lib/advisor-gate";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { displayRationale } from "../lib/proposal-rationale";
@@ -33,8 +34,9 @@ type Base = { workspaceId: string; sub: string; holder: PermissionHolder; entitl
 
 // 会前准备 (L6 batch five). Read-only - it writes nothing.
 //
-// Gated on copilot.suggest (能力与门控: the brief is a synthesis capability
-// and rides the key that already guards the proposal pipeline). Every read
+// Gated as an advisor of customer management (account.manage, YC-042: the
+// advisor follows its host feature, so every tier that has customers has the
+// brief). Every read
 // below is ALSO gated by its owning domain, so a reader who may run the brief
 // but not see money gets the brief with the money part `refused`, not the
 // money.
@@ -68,7 +70,7 @@ export async function buildMeetingBriefAction(input: {
 }): Promise<MeetingBriefResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
-  const gate = can(session.authz, session.entitlement, "copilot.suggest", "data");
+  const gate = canAdviseOn(session.authz, session.entitlement, "account.manage");
   if (!gate.allowed) return { ok: false, error: gate.reason ?? "denied" };
   // The attendees are chosen, never inferred - so a brief with none is a
   // brief about nobody, and the form cannot submit one.

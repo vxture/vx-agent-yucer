@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { AtlasClient } from "../../../agent/atlas/client";
 import { RunosClient } from "../../../agent/runos/client";
-import { can } from "../../../authz/decide";
 import { evidenceForPrompt } from "../../../domains/account/field-service";
 import { runCopilotTurn } from "../../../domains/copilot/turn-service";
 import {
@@ -13,6 +12,7 @@ import {
   consistencyQuestion,
   verifyConflict,
 } from "../../../domains/copilot/lib/conflict";
+import { canRunAdvisor } from "../../../domains/copilot/lib/advisor-gate";
 import { getCopilotStore, getFieldStore } from "../../../domains/shared/registry";
 import { resolveAppSession, tenantIdOf } from "../../lib/session";
 
@@ -22,9 +22,9 @@ import { resolveAppSession, tenantIdOf } from "../../lib/session";
 // BEFORE anything is written, so a conflict the record does not show is
 // never filed.
 //
-// Gated on copilot.suggest before the model is called: the check exists to
-// produce proposals, and a workspace that cannot receive them must not pay
-// for the call.
+// Gated before the model is called, on the capability's host feature
+// (account.manage, YC-042): the check exists to produce proposals, and a
+// workspace that cannot receive them must not pay for the call.
 
 export type ConsistencyResult =
   | { ok: true; checkedNotes: number; conflicts: number; discarded: number }
@@ -33,7 +33,7 @@ export type ConsistencyResult =
 export async function checkConsistency(accountId: string): Promise<ConsistencyResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
-  const gate = can(session.authz, session.entitlement, "copilot.suggest", "data");
+  const gate = canRunAdvisor(session.authz, session.entitlement, CONFLICT_CAPABILITY);
   if (!gate.allowed) return { ok: false, error: gate.reason ?? "denied" };
   const tenantId = tenantIdOf(session);
   if (!tenantId) return { ok: false, error: "no_active_tenant" };

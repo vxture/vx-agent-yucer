@@ -72,6 +72,14 @@ export interface ProposalQueueProps {
   /** False when the member lacks copilot.decide; the queue becomes read-only. */
   readonly canDecide: boolean;
   /**
+   * Proposals this member may NOT decide although they may decide others: the
+   * per-row half of the gate (YC-042). An advisor's proposal follows its host
+   * feature; a session tool-loop one still needs copilot.suggest, so a free
+   * workspace that downgraded sees those rows and cannot select them. The
+   * server re-checks either way.
+   */
+  readonly undecidable?: readonly string[];
+  /**
    * `${subjectType}:${subjectId}` -> name and page, resolved by the page
    * through the member's scoped stores. Absent key: the subject is not one
    * this member can open (or has no page), and the row falls back to its id.
@@ -109,6 +117,7 @@ const SORT_ON = {
 export function ProposalQueue({
   actions,
   canDecide,
+  undecidable = [],
   onDecide,
   subjects = {},
   deciderNames = {},
@@ -486,7 +495,7 @@ export function ProposalQueue({
                how a reader learns to distrust the boxes. */
             selectedKeys={[...selected]}
             onSelectionChange={(keys) => setSelected(new Set(keys))}
-            isRowSelectable={(row) => canDecide && row.status === "proposed"}
+            isRowSelectable={(row) => canDecide && row.status === "proposed" && !undecidable.includes(row.id)}
             /* THE DRAWER IS THE DS'S TOO. `expandedContent` is why this queue
                stays a table: a proposal needs a full-width read AND the batch
                selection above, and DataTable gives both. Rebuilding it as one
