@@ -877,7 +877,7 @@ export default async function AccountDetailPage({
   // 很差，应该精准显示（nn天）前联系) - lastContactAt 是 analyzeChainRecency
   // 已经算过的同一张 Map(见 health.ts 同名字段的注释), 这里只是多读一次
   // 已经在手上的数据算天数差, 不是新读一次。
-  const contactRecencyText: Record<string, { text: string; warm: boolean; tooltip: string }> = {};
+  const contactRecencyText: Record<string, { text: string; warm: boolean; tooltip: string; date?: string }> = {};
   if (rosterRecency && rosterRecency.ok) {
     const lastByContact = rosterRecency.value.lastContactAt;
     const warmIds = new Set(rosterRecency.value.warm.map((c) => c.id));
@@ -889,6 +889,7 @@ export default async function AccountDetailPage({
           text: ACCOUNT_TEXT.contactRecencyDays(days),
           warm: warmIds.has(c.id),
           tooltip: ACCOUNT_TEXT.contactRecencyTooltip(c.name, days),
+          date: last.toISOString().slice(0, 10),
         };
       } else {
         contactRecencyText[c.id] = {
