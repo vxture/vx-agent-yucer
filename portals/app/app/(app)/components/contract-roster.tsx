@@ -22,6 +22,8 @@ import { ConfirmDestructive } from "./confirm-destructive";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 import type { InstalledRevenue } from "../../domains/delivery/lib/contract";
+import type { WalletRollup } from "../../domains/pipeline/lib/wallet-share";
+import { WalletRollupBlock } from "./wallet-share";
 import { Tag } from "./tag";
 import { useAccountEdit } from "./account-edit-context";
 
@@ -117,6 +119,9 @@ export interface ContractRosterProps {
   readonly owned: readonly OwnedRow[];
   /** 存量收入 - see domains/delivery/lib/contract.ts installedRevenue. */
   readonly revenue: InstalledRevenue;
+  /** 钱包份额 (§9.6) - summed from this customer's deals; shown with 存量收入
+   *  because its numerator is the same money. */
+  readonly wallet?: WalletRollup | null;
   /** L4 batch six - sellable minus owned; `unknown` when the catalogue is. */
   readonly whitespace?:
     | { readonly state: "known"; readonly items: ReadonlyArray<{ id: string; name: string }> }
@@ -253,7 +258,12 @@ export function ContractRoster(props: ContractRosterProps) {
       ) : null}
 
       {props.contracts.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.empty}</p>
+        <div className="flex flex-col gap-md">
+          <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.empty}</p>
+          {/* No contract yet, but deals in play may carry a budget - the 在谈
+              half of 钱包份额 does not wait for a signature. */}
+          {props.wallet && props.wallet.withBudget > 0 ? <WalletRollupBlock rollup={props.wallet} /> : null}
+        </div>
       ) : (
         <>
           <PanelCard title={CONTRACT_TEXT.revenueTitle} description={CONTRACT_TEXT.revenueHint}>
@@ -277,6 +287,11 @@ export function ContractRoster(props: ContractRosterProps) {
             )}
             {props.revenue.unpriced > 0 ? (
               <p className="mt-xs text-muted-foreground text-body-sm">{CONTRACT_TEXT.revenueUnpriced(props.revenue.unpriced)}</p>
+            ) : null}
+            {props.wallet ? (
+              <div className="mt-md">
+                <WalletRollupBlock rollup={props.wallet} />
+              </div>
             ) : null}
           </PanelCard>
 

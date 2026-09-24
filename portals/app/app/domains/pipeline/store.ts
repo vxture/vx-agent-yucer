@@ -66,6 +66,13 @@ export interface OpportunityRecord {
    *  and not the other, which is what the old single column could not say. */
   contractTypeId: string | null;
   businessFormId: string | null;
+  /** incr/0080 - 客户在这个项目上的总投入 (人工填报), in `currency`; the
+   *  denominator of 钱包份额 (§9.6). Optional on the record so fixtures that
+   *  predate it read as "not entered", which is what absent means. */
+  customerBudget?: number | null;
+  /** Who entered it and when - stamped by the service, never by the caller. */
+  customerBudgetBySub?: string | null;
+  customerBudgetAt?: Date | null;
 }
 
 /** One row of the 赢丢原因 vocabulary - incr/0039, per workspace. */
@@ -236,6 +243,9 @@ export interface CommercialTermsPatch {
    *  change after creation, unlike the stage triple this patch excludes. */
   contractTypeId?: string | null;
   businessFormId?: string | null;
+  /** incr/0080 - the three travel together: the service stamps who and when
+   *  on every write of the amount (null clears all three). */
+  customerBudget?: { amount: number | null; bySub: string | null; at: Date | null };
 }
 
 export interface PipelineStore {
@@ -570,6 +580,11 @@ export class InMemoryPipelineStore implements PipelineStore {
     if (patch.ownerSub) row.ownerSub = patch.ownerSub;
     if (patch.contractTypeId !== undefined) row.contractTypeId = patch.contractTypeId;
     if (patch.businessFormId !== undefined) row.businessFormId = patch.businessFormId;
+    if (patch.customerBudget !== undefined) {
+      row.customerBudget = patch.customerBudget.amount;
+      row.customerBudgetBySub = patch.customerBudget.bySub;
+      row.customerBudgetAt = patch.customerBudget.at;
+    }
     return true;
   }
 

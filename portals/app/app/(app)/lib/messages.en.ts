@@ -502,6 +502,7 @@ export const en: Dictionary = {
   },
   FORECAST_RULE_ERROR: {
     ...GATE_ERROR,
+    customer_budget_negative: "The customer project budget cannot be negative",
     category_settled: "A won or lost deal has its category bound to the stage",
     category_already_agrees:
       "This deal is already filed where the rule would put it",
@@ -2161,6 +2162,8 @@ export const en: Dictionary = {
   },
 
   OPPORTUNITY_ERROR: {
+    customer_budget_negative: "The customer project budget cannot be negative.",
+    customer_budget_invalid: "The customer project budget has to be a number.",
     // incr/0034 - the deal entry gate.
     owner_required: "A deal needs somebody to own it.",
     requirement_required: "A deal has to say what the customer wants.",
@@ -5722,6 +5725,27 @@ export const en: Dictionary = {
     today: (lanes: string) => `Today: ${lanes}`,
     lanesJoin: ", ",
     showEvidence: "Show the trigger and the evidence",
+  },
+  WALLET_TEXT: {
+    title: "Share of wallet",
+    hint: "What we undertake / what the customer spends on the project in total; the total is entered on the deal",
+    fieldLabel: "Customer project budget",
+    fieldHint: (currency: string) => `What the customer spends on this project in total (${currency}), entered by hand, used for share of wallet; clear it to unset`,
+    committed: (n: number) => `Won (${n} projects)`,
+    quoted: (n: number) => `In play (${n} projects)`,
+    ratio: (pct: string, ours: string, budget: string) => `${pct} · ${ours} / ${budget}`,
+    coverage: (withBudget: number, eligible: number) => `${withBudget} of ${eligible} open or won deals carry a project budget`,
+    noneFilled: "No deal carries a customer project budget yet - no share to compute",
+    exceeds: "Ours is above the customer's total - the budget was probably entered low",
+    basis: { committed: "Share won", quoted: "Share quoted" },
+    dealNoBudget: "No customer project budget",
+    dealNotOurs: "Deal not won - no share",
+    dealUnpriced: "Deal has no amount - no share",
+    ours: (v: string) => `ours ${v}`,
+    budget: (v: string) => `customer total ${v}`,
+    by: (name: string, date: string) => `${name}, ${date}`,
+    orgValue: (pct: string) => `won ${pct}`,
+    orgNone: "Not entered",
   },
   ICP_TEXT: {
     summary: (fit: number, segment: string) => `ICP fit ${fit}/3 · target "${segment}"`,

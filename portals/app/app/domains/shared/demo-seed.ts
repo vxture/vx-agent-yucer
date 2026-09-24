@@ -909,7 +909,11 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
 function seedPipeline(workspaceId: string, stores: DemoStores): void {
   stores.pipeline.seed(
     [
-      opp("opp_demo_1", workspaceId, 1, DEMO_OPPORTUNITIES[0], "acc_demo_1", "camp_demo_1", "terr_east", REP1, "negotiate", "commit", 2_400_000, 90, daysAhead(46), null, "open"),
+      // 钱包份额 (incr/0080, §9.6): both of acc_demo_1's deals carry the
+      // customer's project budget as the rep entered it, so the deal page and
+      // the 存量收入 card have a share to show - one won, one in play.
+      { ...opp("opp_demo_1", workspaceId, 1, DEMO_OPPORTUNITIES[0], "acc_demo_1", "camp_demo_1", "terr_east", REP1, "negotiate", "commit", 2_400_000, 90, daysAhead(46), null, "open"),
+        customerBudget: 8_000_000, customerBudgetBySub: REP1, customerBudgetAt: daysAgo(20) },
       // Overridden win rate: the stage default at validate is 50, so the page
       // shows a human judgement surviving the machine's suggestion.
       opp("opp_demo_2", workspaceId, 2, DEMO_OPPORTUNITIES[1], "acc_demo_2", null, "terr_east", REP2, "validate", "best_case", 1_150_000, 35, daysAhead(61), null, "open"),
@@ -924,7 +928,8 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // for the customer was always a fiction.
       opp("opp_demo_21", workspaceId, 21, DEMO_OPPORTUNITIES[4], "acc_demo_2", null, "terr_east", REP2, "discover", "pipeline", 880_000, 20, daysAhead(95), null, "open"),
       opp("opp_demo_3", workspaceId, 3, DEMO_OPPORTUNITIES[2], "acc_demo_3", null, "terr_north", REP1, "qualify", "pipeline", 480_000, 10, daysAhead(108), null, "open"),
-      opp("opp_demo_4", workspaceId, 4, DEMO_OPPORTUNITIES[3], "acc_demo_1", "camp_demo_1", "terr_east", REP1, "won", "closed", 760_000, 100, daysAgo(15), daysAgo(15), "won"),
+      { ...opp("opp_demo_4", workspaceId, 4, DEMO_OPPORTUNITIES[3], "acc_demo_1", "camp_demo_1", "terr_east", REP1, "won", "closed", 760_000, 100, daysAgo(15), daysAgo(15), "won"),
+        customerBudget: 3_000_000, customerBudgetBySub: REP1, customerBudgetAt: daysAgo(40) },
       // Terminal stages carry the `closed` category in both directions - a lost
       // deal forecast as pipeline is a state planCategoryChange rejects, and a
       // fixture that violates its own domain rule is worse than no fixture.

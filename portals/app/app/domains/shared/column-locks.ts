@@ -195,6 +195,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     // nullable: an unclassified deal is honestly absent, not defaulted.
     "contract_type_id",
     "business_form_id",
+    // incr/0080 - 钱包份额's denominator, with who said it and when.
+    "customer_budget",
+    "customer_budget_by_sub",
+    "customer_budget_at",
     "expected_close_at",
     "closed_at",
     "status",

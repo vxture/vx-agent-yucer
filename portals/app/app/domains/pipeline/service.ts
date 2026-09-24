@@ -370,10 +370,18 @@ export async function advanceStage(
  * An empty patch is refused rather than silently succeeding: a no-op write that
  * reports success reads to the caller as "saved" and to the database as nothing.
  */
+/** What a caller may send. The customer budget is a bare amount: who entered
+ *  it and when are the session's and the clock's, stamped below (incr/0080). */
+export type CommercialTermsInput = Omit<CommercialTermsPatch, "customerBudget"> & {
+  /** 客户项目总投入 in the deal's currency; null clears it (§9.6). */
+  customerBudget?: number | null;
+};
+
 export async function updateCommercialTerms(
   ctx: PipelineContext,
   opportunityId: string,
-  input: CommercialTermsPatch,
+  input: CommercialTermsInput,
+  now: Date = new Date(),
 ): Promise<RuleResult<OpportunityRecord>> {
   // TWO gates, because this patch spans two capabilities that the product sells
   // and staffs separately.
@@ -399,7 +407,10 @@ export async function updateCommercialTerms(
     input.expectedCloseAt !== undefined ||
     input.ownerSub !== undefined ||
     input.contractTypeId !== undefined ||
-    input.businessFormId !== undefined;
+    input.businessFormId !== undefined ||
+    // 钱包份额's denominator is part of pricing the deal - the rep who owns
+    // it is the one who asked the customer (§9.6).
+    input.customerBudget !== undefined;
   const wantsCategory = input.forecastCategory !== undefined;
 
   if (wantsEdit && !editGate.allowed) return denied(editGate);
@@ -443,6 +454,17 @@ export async function updateCommercialTerms(
   if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
   if (input.contractTypeId !== undefined) patch.contractTypeId = input.contractTypeId;
   if (input.businessFormId !== undefined) patch.businessFormId = input.businessFormId;
+  if (input.customerBudget !== undefined) {
+    const amount = input.customerBudget;
+    if (amount != null && !(Number.isFinite(amount) && amount >= 0)) {
+      problems.push(violation("customer_budget_negative", "a project budget cannot be negative", "customerBudget"));
+    } else {
+      // Cleared means cleared: no author stays behind on a value that is gone.
+      patch.customerBudget = amount == null
+        ? { amount: null, bySub: null, at: null }
+        : { amount: Math.round(amount * 100) / 100, bySub: ctx.sub, at: now };
+    }
+  }
 
   if (problems.length > 0) return { ok: false, violations: problems };
   if (Object.keys(patch).length === 0) {

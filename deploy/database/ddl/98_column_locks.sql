@@ -161,7 +161,8 @@ GRANT UPDATE (company_name, contact_name, account_id, score, owner_sub, status,
 -- from); planning keys and the whole commercial state are writable.
 -- WIDENED by incr/0034, which adds `requirement` and restates this grant in
 -- full; the version here is the pre-0034 shape and is superseded on any
--- database that has applied it.
+-- database that has applied it. Later restatements: incr/0067 (the two deal
+-- type axes) and incr/0080 (customer_budget + who/when, 钱包份额).
 REVOKE UPDATE ON yucer_pipeline.opportunity FROM yucer_svc;
 GRANT UPDATE (name, plan_id, territory_id, owner_sub, stage, forecast_category,
               amount, currency, probability, expected_close_at, closed_at, status,

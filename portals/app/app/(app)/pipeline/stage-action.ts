@@ -96,6 +96,7 @@ export async function repriceOpportunity(
     forecastCategory?: string;
     contractTypeId?: string;
     businessFormId?: string;
+    customerBudget?: string;
   },
 ): Promise<RepriceResult> {
   const session = await resolveAppSession();
@@ -160,6 +161,18 @@ export async function repriceOpportunity(
   }
   if (input.businessFormId !== undefined) {
     patch.businessFormId = input.businessFormId.trim() === "" ? null : input.businessFormId.trim();
+  }
+  // 钱包份额's denominator (incr/0080). Blank = not entered, a real state, as
+  // with the amount above; who and when are stamped by the service.
+  if (input.customerBudget !== undefined) {
+    const trimmed = input.customerBudget.trim();
+    if (trimmed === "") {
+      patch.customerBudget = null;
+    } else {
+      const parsed = Number(trimmed);
+      if (!Number.isFinite(parsed)) return { ok: false, error: "customer_budget_invalid" };
+      patch.customerBudget = parsed;
+    }
   }
 
   const result = await updateCommercialTerms(
