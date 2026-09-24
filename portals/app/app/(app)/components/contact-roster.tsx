@@ -72,7 +72,7 @@ function ContactChannels({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="text-muted-foreground inline-flex">
-              <Icon name="phone" size="sm" />
+              <Icon name="phone" size="xs" />
             </span>
           </TooltipTrigger>
           <TooltipContent>{labels.mobile}</TooltipContent>
@@ -82,7 +82,7 @@ function ContactChannels({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="text-muted-foreground inline-flex">
-              <Icon name="mail" size="sm" />
+              <Icon name="mail" size="xs" />
             </span>
           </TooltipTrigger>
           <TooltipContent>{labels.email}</TooltipContent>
@@ -92,7 +92,7 @@ function ContactChannels({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="text-muted-foreground inline-flex">
-              <Icon name="wechat" size="sm" />
+              <Icon name="wechat" size="xs" />
             </span>
           </TooltipTrigger>
           <TooltipContent>{labels.wechat}</TooltipContent>
@@ -133,7 +133,7 @@ export interface ContactRosterProps {
    *  (dimension-stat.tsx's toneSurfaceClasses note). Absent key = chainRecency
    *  has nothing for that contact yet (gate denied, or the read failed) - row
    *  shows no badge rather than a guessed one. */
-  readonly recencyText: Readonly<Record<string, { text: string; warm: boolean; tooltip: string }>>;
+  readonly recencyText: Readonly<Record<string, { text: string; warm: boolean; tooltip: string; date?: string }>>;
   /** The 关联 drawer's data and action. 新增｜关联 (owner, 2026-09-20) now
    *  live in this panel's own "⋮" (owner, 2026-09-23), so the panel mounts
    *  the drawer itself and opens it from the menu. Optional: a read-only
@@ -172,16 +172,19 @@ export function ContactCard({
    *  联系) - contact-management-list.tsx 复用这张卡时还传的是旧形状
    *  ({text, warm}), 那边没有要求这个改动, 缺了 tooltip 时这张卡就不挂
    *  Tooltip, 纯文本 Tag 照旧。 */
-  readonly recency: { text: string; warm: boolean; tooltip?: string } | undefined;
+  readonly recency: { text: string; warm: boolean; tooltip?: string; date?: string } | undefined;
   readonly statusLabels: Record<string, string>;
   readonly channelLabels: { readonly mobile: string; readonly email: string; readonly wechat: string };
   readonly actions?: ReactNode;
 }) {
   // Icon + text, not a badge (owner, 2026-09-24: badge太重) - the colour
-  // still says warm or not, without the chrome.
+  // still says warm or not, without the chrome. 11px, one step under the
+  // name (owner, 2026-09-24: 字号缩小一号): the DS scale stops at 12px
+  // (text-body-sm) and text-label-* are 12-14px MEDIUM, so the size is set
+  // explicitly - a named custom override, not a token.
   const recencyTag = recency ? (
     <span
-      className={`inline-flex flex-none items-center gap-3xs text-body-sm tabular-nums ${
+      className={`inline-flex flex-none items-center gap-3xs text-[11px] leading-none tabular-nums ${
         recency.warm ? "text-success-text" : "text-muted-foreground"
       }`}
     >
@@ -195,29 +198,32 @@ export function ContactCard({
         {contact.name.charAt(0)}
       </span>
       <div className="min-w-0 flex-1">
+        {/* 第三轮 (owner, 2026-09-24): 联系方式图标和天数缩小一号, 跟姓名同一行
+            靠右; 第二行整个留给两件事 - 职务在左, 最后联系日期靠右小字。 */}
         <div className="flex items-center justify-between gap-sm">
           <span className="text-body-sm truncate font-bold">{contact.name}</span>
-          {recency?.tooltip ? (
-            <Tooltip>
-              {/* asChild 需要一个能转发 ref 的子节点 - Tag 不是 forwardRef
-                  组件(跟 tag.tsx 里 NameOverflowTag 已经踩过的坑一样), 用
-                  span 包一层, 不是直接把 Tag 塞进 TooltipTrigger。 */}
-              <TooltipTrigger asChild>
-                <span className="inline-flex">{recencyTag}</span>
-              </TooltipTrigger>
-              <TooltipContent>{recency.tooltip}</TooltipContent>
-            </Tooltip>
-          ) : (
-            recencyTag
-          )}
-        </div>
-        <div className="mt-2xs flex items-center justify-between gap-sm">
-          <span className="text-muted-foreground text-body-sm truncate">{contact.title}</span>
-          <span className="flex flex-none items-center gap-xs">
+          <span className="flex flex-none items-center gap-sm">
             <ContactChannels mobile={contact.mobile} email={contact.email} wechat={contact.wechat} labels={channelLabels} />
+            {recency?.tooltip ? (
+              <Tooltip>
+                {/* asChild 需要一个能转发 ref 的子节点 - 用 span 包一层。 */}
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">{recencyTag}</span>
+                </TooltipTrigger>
+                <TooltipContent>{recency.tooltip}</TooltipContent>
+              </Tooltip>
+            ) : (
+              recencyTag
+            )}
             <ContactStatus status={contact.status} labels={statusLabels} />
             {actions}
           </span>
+        </div>
+        <div className="mt-2xs flex items-center justify-between gap-sm">
+          <span className="text-muted-foreground text-body-sm truncate">{contact.title}</span>
+          {recency?.date ? (
+            <span className="text-muted-foreground flex-none text-[11px] tabular-nums">{recency.date}</span>
+          ) : null}
         </div>
       </div>
     </div>
