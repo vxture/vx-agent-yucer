@@ -29,36 +29,34 @@ export function JudgementNote({ judgement }: { readonly judgement: Judgement }) 
   const citations = judgement.citations ?? [];
   // The header is the button; the evidence is NOT inside it. A <button> may
   // hold phrasing content only, and a list of quoted notes is not that.
+  // ONE SLIM LINE (owner, 2026-09-24: 【规则】独占一行, 排版很差劲). Chevron,
+  // source mark, the claim and the stale mark share one row, on a left-edged
+  // strip like the risk rows below - not a bordered block. Opened, the rule's
+  // trigger condition and the cited rows follow underneath.
   return (
-    <div className="border-primary/30 bg-primary/5 rounded-lg border p-md">
+    <div className="border-s-primary bg-primary/5 rounded-e-md border-s-[3px] px-md py-sm">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-start gap-sm text-left"
+        className="flex w-full items-center gap-sm text-left"
       >
-        <Icon
-          name={open ? "chevron-down" : "chevron-right"}
-          size="sm"
-          className="text-muted-foreground mt-[0.1875rem] shrink-0"
-        />
-        <span className="min-w-0 flex-1">
-          <span className={`block text-body-sm font-medium ${open ? "" : "truncate"}`}>
-            {judgement.claim}
-          </span>
-          <span className="mt-2xs flex flex-wrap items-center gap-xs">
-            <SourceMark source={judgement.source} />
-            {judgement.freshness?.stale ? <StaleMark freshness={judgement.freshness} /> : null}
-          </span>
-          {open && judgement.rule ? (
-            <span className="text-muted-foreground mt-2xs block text-body-sm">
-              {judgement.rule}
-            </span>
-          ) : null}
+        <Icon name={open ? "chevron-down" : "chevron-right"} size="sm" className="text-muted-foreground shrink-0" />
+        <span className="shrink-0">
+          <SourceMark source={judgement.source} />
         </span>
+        <span className={`min-w-0 flex-1 text-body-sm font-medium ${open ? "" : "truncate"}`}>{judgement.claim}</span>
+        {judgement.freshness?.stale ? (
+          <span className="shrink-0">
+            <StaleMark freshness={judgement.freshness} />
+          </span>
+        ) : null}
       </button>
+      {open && judgement.rule ? (
+        <p className="text-muted-foreground mt-xs ps-lg text-body-sm">{judgement.rule}</p>
+      ) : null}
       {open && citations.length > 0 ? (
-        <div className="mt-sm">
+        <div className="mt-sm ps-lg">
           <CitationList citations={citations} />
         </div>
       ) : null}
