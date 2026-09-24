@@ -41,7 +41,9 @@ export default async function WinLossPage() {
 
   const [pending, all, reasons] = await Promise.all([
     listPendingReviews(ctx),
-    listPipeline(ctx),
+    // Closed deals INCLUDED - without it the store returns open rows only and
+    // the "all reviewed" tab was always empty.
+    listPipeline(ctx, { includeClosed: true }),
     // 赢丢原因, the workspace's own (0039). A refused read leaves the picker
     // empty rather than the page broken: the roster above still answers its
     // own question.
@@ -58,7 +60,7 @@ export default async function WinLossPage() {
   }
 
   const closed = (all.ok ? all.value : []).filter(
-    (o) => o.status === "won" || o.status === "lost",
+    (o) => o.status === "won" || o.status === "lost" || o.status === "abandoned",
   );
 
   return (

@@ -1122,6 +1122,20 @@ export async function removeBusinessForm(
 }
 
 /**
+ * The review of one closed deal, or null when none is on file - so the deal
+ * page can show it in place (YC-065 R7: 入口在作战页关单后首屏). Gated like
+ * the review queue it complements.
+ */
+export async function winLossReviewOf(
+  ctx: PipelineContext,
+  opportunityId: string,
+): Promise<RuleResult<WinLossReviewRecord | null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getWinLossReview(ctx.workspaceId, opportunityId));
+}
+
+/**
  * Set (or clear) one business form's own stall-days override.
  *
  * THE OVERRIDE LIVES ON THIS AXIS (incr/0067, moved off deal_type where
@@ -1161,7 +1175,9 @@ export async function recordWinLossReview(
   if (!opportunity) {
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
-  if (opportunity.status !== "won" && opportunity.status !== "lost") {
+  // Abandoned deals are reviewed too (YC-065 R7): giving up is an outcome
+  // worth learning from, and its reasons are the "not won" ones.
+  if (opportunity.status !== "won" && opportunity.status !== "lost" && opportunity.status !== "abandoned") {
     return fail(
       violation("not_closed", "only a closed opportunity has a win/loss outcome to review", "status"),
     );

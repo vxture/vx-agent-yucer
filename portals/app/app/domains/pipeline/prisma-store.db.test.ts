@@ -499,3 +499,24 @@ test("abandon keeps the stage, writes one exit, and a second abandon is a no-op"
     await cleanup();
   }
 });
+
+test("an abandoned deal is owed a review and takes one with outcome abandoned (YC-065 R7)", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = await s.createOpportunity(WS, newOpp({ name: "Given up" }));
+    const at = new Date();
+    await s.abandonOpportunity(WS, created.id, {
+      patch: { status: "abandoned", closedAt: at, forecastCategory: "closed" },
+      exit: { outcome: "abandoned", reasonCode: "no_budget", note: null },
+      decidedBySub: "usr_rep",
+    });
+    assert.deepEqual((await s.listUnreviewedClosed(WS)).map((o) => o.id), [created.id]);
+    const saved = await s.saveWinLossReview(WS, created.id, { outcome: "abandoned", primaryReasonId: null, reviewerSub: "usr_rep" });
+    assert.equal(saved.outcome, "abandoned");
+    assert.deepEqual(await s.listUnreviewedClosed(WS), []);
+  } finally {
+    await cleanup();
+  }
+});

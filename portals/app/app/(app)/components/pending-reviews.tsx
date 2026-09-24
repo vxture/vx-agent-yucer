@@ -21,6 +21,7 @@ import {
   type DataTableColumn,
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
+import { Tag } from "./tag";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
@@ -93,6 +94,18 @@ export function PendingReviews({
     WINLOSS_TEXT,
     REVIEW_ERROR,
   } = useMessages();
+  // Three outcomes since YC-065 R6: an abandoned deal is neither won nor lost
+  // to a buyer, and labelling it "lost" would put our own decision into the
+  // loss analysis.
+  // An abandoned outcome is a Tag: a neutral StatusBadge draws a dash icon.
+  const outcomeBadge = (status: string, dot: boolean) =>
+    status === "abandoned" ? (
+      <Tag>{WINLOSS_TEXT.outcomeAbandoned}</Tag>
+    ) : (
+      <StatusBadge tone={status === "won" ? "success" : "danger"} dot={dot}>
+        {status === "won" ? WINLOSS_TEXT.outcomeWon : WINLOSS_TEXT.outcomeLost}
+      </StatusBadge>
+    );
   const sorted = useTableSort<OpportunityRecord>([], SORT_ON);
   const [scope, setScope] = useState<"pending" | "all">("pending");
   const [view, setView] = useState<"list" | "cards">("list");
@@ -137,11 +150,7 @@ export function PendingReviews({
       id: "outcome",
       header: WINLOSS_TEXT.columnOutcome,
       cell: (row) => (
-        <StatusBadge tone={row.status === "won" ? "success" : "danger"} dot>
-          {row.status === "won"
-            ? WINLOSS_TEXT.outcomeWon
-            : WINLOSS_TEXT.outcomeLost}
-        </StatusBadge>
+        outcomeBadge(row.status, true)
       ),
     },
     {
@@ -277,13 +286,7 @@ export function PendingReviews({
                   title={row.name}
                   description={row.opportunityNo}
                   status={
-                    <StatusBadge
-                      tone={row.status === "won" ? "success" : "danger"}
-                    >
-                      {row.status === "won"
-                        ? WINLOSS_TEXT.outcomeWon
-                        : WINLOSS_TEXT.outcomeLost}
-                    </StatusBadge>
+                    outcomeBadge(row.status, false)
                   }
                   meta={
                     !pendingIds.has(row.id) ? (
