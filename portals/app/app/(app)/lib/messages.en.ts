@@ -1214,6 +1214,8 @@ export const en: Dictionary = {
     reasonLabel: "Basis",
     reasonItem: (factor: string, text: string) => `${factor}: ${text}`,
     changeLabel: "Change",
+    changeTag: (since: string, delta: number) => `vs ${since} ${delta < 0 ? "↓" : "↑"}${Math.abs(delta)}`,
+    benchmarkTag: (percentile: number) => `Above ${percentile}% of peers`,
     benchmarkLabel: "Peers",
     changeSince: (from: number, to: number, date: string) => `From ${from} on ${date} to ${to}`,
     changeFactor: (factor: string, delta: number) => `${factor} ${delta > 0 ? "+" : ""}${delta}`,

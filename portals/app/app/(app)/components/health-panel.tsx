@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   Button,
   StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from "@vxture/design-ui";
+import { Tag } from "./tag";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
@@ -178,6 +182,42 @@ export function HealthPanel({
           <LayerLabel layer="L5" />
           <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
           {statusTag}
+          {/* 变化 AS A TITLE TAG (owner, 2026-09-24: 简化放在标题后面): the
+              direction and size of the move since the last different reading;
+              which factors moved, by how much, is the tooltip. */}
+          {change && change.moved.length > 0 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Tag tone={change.toScore < change.fromScore ? "danger" : "success"}>
+                    {CHAIN_TEXT.changeTag(change.since.toISOString().slice(5, 10), change.toScore - change.fromScore)}
+                  </Tag>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <span className="flex flex-col gap-3xs">
+                  <span>{CHAIN_TEXT.changeSince(change.fromScore, change.toScore, change.since.toISOString().slice(0, 10))}</span>
+                  {change.moved.map((m) => (
+                    <span key={m.factor}>{CHAIN_TEXT.changeFactor(FACTOR_LABEL[m.factor] ?? m.factor, m.delta)}</span>
+                  ))}
+                </span>
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+          {/* 同类对标 ONLY WITH A NUMBER (owner, 2026-09-24: 跟本单位的价值没看
+              出来). "Fewer than 5 peers, no percentile" told the reader nothing
+              about this customer; the tag appears when there is a percentile,
+              and its tooltip says against how many. */}
+          {benchmark && benchmark.kind === "ok" ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Tag>{CHAIN_TEXT.benchmarkTag(benchmark.percentile)}</Tag>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{ACCOUNT_TEXT.benchmark(benchmark)}</TooltipContent>
+            </Tooltip>
+          ) : null}
         </span>
       }
       // This panel's own "⋮" (owner, 2026-09-23): the score is derived, so
@@ -228,37 +268,6 @@ export function HealthPanel({
               </div>
             ))}
           </div>
-          {/* 变化 + 对标 as labelled rows, in the same label column as 风险分型
-              below - they were two unlabelled grey sentences floating under
-              the grid. */}
-          {(change && change.moved.length > 0) || benchmark ? (
-            <dl className="grid grid-cols-[4rem_1fr] gap-x-sm gap-y-xs text-body-sm">
-              {/* No 依据 row: each factor card carries its own reason now. */}
-              {change && change.moved.length > 0 ? (
-                <>
-                  <dt className="font-bold">{CHAIN_TEXT.changeLabel}</dt>
-                  <dd className="flex flex-wrap items-baseline gap-x-sm gap-y-3xs">
-                    {/* 变化归因: "为什么从 58 掉到 34" - biggest move first. */}
-                    <span className="text-muted-foreground">
-                      {CHAIN_TEXT.changeSince(change.fromScore, change.toScore, change.since.toISOString().slice(0, 10))}
-                    </span>
-                    {change.moved.map((m) => (
-                      <span key={m.factor} className={m.delta < 0 ? "text-destructive-text" : "text-success-text"}>
-                        {CHAIN_TEXT.changeFactor(FACTOR_LABEL[m.factor] ?? m.factor, m.delta)}
-                      </span>
-                    ))}
-                  </dd>
-                </>
-              ) : null}
-              {benchmark ? (
-                <>
-                  <dt className="font-bold">{CHAIN_TEXT.benchmarkLabel}</dt>
-                  {/* 同类对标: a number only when the peer group is big enough. */}
-                  <dd className="text-muted-foreground">{ACCOUNT_TEXT.benchmark(benchmark)}</dd>
-                </>
-              ) : null}
-            </dl>
-          ) : null}
           {risks && risks.length > 0 ? <RiskTypes risks={risks} /> : null}
           <CapFooter>
             <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capHealthBasic}
