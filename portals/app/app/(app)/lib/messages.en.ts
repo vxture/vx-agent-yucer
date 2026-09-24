@@ -3816,20 +3816,6 @@ export const en: Dictionary = {
     contactWechat: "WeChat",
     contactChannels: "Contact",
     contactStatus: "Status",
-    groupScopeAria: "Scope",
-    groupScopeSingle: "This unit",
-    groupScopeGroup: (below: number) => `With ${below} below`,
-    groupDealsLabel: "Group open deals",
-    groupUnitsLabel: "Group units",
-    groupUnitsValue: (n: number) => `${n} units including this one (only those you can see)`,
-    groupRiskLabel: "Units at risk",
-    groupRiskNone: "No unit below 40 health, churned or dormant",
-    groupRiskReason: {
-      low_health: (score: number | null) => `health ${score ?? "-"}`,
-      churned: () => "churned",
-      dormant: () => "dormant",
-    },
-    listSeparator: ", ",
     benchmark: (b: PeerBenchmark): string =>
       b.kind === "ok"
         ? `Healthier than ${b.percentile}% of ${b.peers} same-industry, same-size customers (each at its latest assessment)`
@@ -5748,6 +5734,10 @@ export const en: Dictionary = {
     orgNone: "Not entered",
   },
   ICP_TEXT: {
+    label: "ICP fit",
+    fitValue: (fit: number, segment: string) => `${fit}/3 · ${segment}`,
+    noSegmentShort: "No target segment",
+    dimensionRow: (d: string) => `· ${d}`,
     summary: (fit: number, segment: string) => `ICP fit ${fit}/3 · target "${segment}"`,
     noSegment: "The workspace has no target segment with conditions yet - no ICP to fit against",
     dimension: { industry: "Industry", size: "Size", region: "Region" } as Record<IcpDimension, string>,

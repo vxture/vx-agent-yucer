@@ -187,7 +187,6 @@ export function OrgUnitPanel({
   remove,
 }: OrgUnitPanelProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const [icpOpen, setIcpOpen] = useState(false);
   const {
     ACCOUNT_TEXT, ACCOUNT_PARENT_TEXT, PANEL_MENU_TEXT, POSITION_TEXT, COLLABORATOR_TEXT, COLLAPSE_TEXT,
     ACCOUNT_DELETE_TEXT, ACCOUNT_ERROR, ICP_TEXT, WALLET_TEXT,
@@ -258,18 +257,15 @@ export function OrgUnitPanel({
             (border-primary/10, dark 下 /20), 不是另起一套颜色。 */}
         <div className="border-primary/10 dark:border-primary/20 border-t" />
 
-        {industry || region || scaleName || customerNatureName || customerTypeName || parentName || (wallet && wallet.eligible > 0) ? (
+        {/* 外放五项 (owner, 2026-09-24: 除了行业，区域，性质，类型，上级单位，五个
+            外放，其他全部收紧更多) - everything else, the ICP fit included,
+            is one click away under 更多资料. */}
+        {industry || region || customerNatureName || customerTypeName || parentName ? (
           <div className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
             {industry ? <InfoRow label={ACCOUNT_TEXT.orgUnitIndustry}>{industry}</InfoRow> : null}
             {region ? <InfoRow label={ACCOUNT_TEXT.orgUnitRegion}>{region}</InfoRow> : null}
-            {scaleName ? <InfoRow label={ACCOUNT_TEXT.orgUnitScale}>{scaleName}</InfoRow> : null}
             {customerNatureName ? <InfoRow label={ACCOUNT_TEXT.orgUnitNature}>{customerNatureName}</InfoRow> : null}
             {customerTypeName ? <InfoRow label={ACCOUNT_TEXT.orgUnitType}>{customerTypeName}</InfoRow> : null}
-            {wallet && wallet.eligible > 0 ? (
-              <InfoRow label={WALLET_TEXT.title}>
-                <WalletOrgValue rollup={wallet} />
-              </InfoRow>
-            ) : null}
             {parentName ? (
               <InfoRow label={ACCOUNT_PARENT_TEXT.label}>
                 <Link href={`/account/${parentId}`} className="hover:underline">{parentName}</Link>
@@ -286,6 +282,7 @@ export function OrgUnitPanel({
             <dl className="divide-primary/10 dark:divide-primary/20 mt-2xs flex flex-col divide-y divide-dashed">
               {(
                 [
+                  [ACCOUNT_TEXT.orgUnitScale, scaleName],
                   [ACCOUNT_TEXT.orgUnitProvince, more.province],
                   [ACCOUNT_TEXT.orgUnitCreditCode, more.creditCode],
                   [ACCOUNT_TEXT.orgUnitWebsite, more.website],
@@ -300,47 +297,53 @@ export function OrgUnitPanel({
                   )}
                 </InfoRow>
               ))}
-            </dl>
-          </CollapsibleContent>
-        </Collapsible>
-        {/* ICP 拟合度: the score folded, its three features one click away. */}
-        {icp === null ? (
-          <span className="text-muted-foreground text-body-sm">{ICP_TEXT.noSegment}</span>
-        ) : icp ? (
-          <Collapsible open={icpOpen} onOpenChange={setIcpOpen}>
-            <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-sm">
-              <Icon name={icpOpen ? "chevron-down" : "chevron-right"} size="xs" />
-              {ICP_TEXT.summary(icp.fit, icp.segmentName)}
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <dl className="divide-primary/10 dark:divide-primary/20 mt-2xs flex flex-col divide-y divide-dashed">
-                {icp.features.map((f) => (
-                  <InfoRow key={f.dimension} label={ICP_TEXT.dimension[f.dimension]}>
-                    <span className="block" title={f.targets.join(" / ")}>
-                      {ICP_TEXT.feature(f.status, f.value, f.targets)}
+              {wallet && wallet.eligible > 0 ? (
+                <InfoRow label={WALLET_TEXT.title}>
+                  <WalletOrgValue rollup={wallet} />
+                </InfoRow>
+              ) : null}
+              {/* ICP 拟合度: the fit and its three features, spelled out - the
+                  disclosure it used to have is 更多资料 itself now. */}
+              {icp === null ? (
+                <InfoRow label={ICP_TEXT.label}>
+                  <span className="text-muted-foreground block" title={ICP_TEXT.noSegment}>{ICP_TEXT.noSegmentShort}</span>
+                </InfoRow>
+              ) : icp ? (
+                <>
+                  <InfoRow label={ICP_TEXT.label}>
+                    <span className="block truncate" title={ICP_TEXT.summary(icp.fit, icp.segmentName)}>
+                      {ICP_TEXT.fitValue(icp.fit, icp.segmentName)}
                     </span>
                   </InfoRow>
+                  {icp.features.map((f) => (
+                    <InfoRow key={f.dimension} label={ICP_TEXT.dimensionRow(ICP_TEXT.dimension[f.dimension])}>
+                      <span className="block truncate" title={ICP_TEXT.feature(f.status, f.value, f.targets)}>
+                        {ICP_TEXT.feature(f.status, f.value, f.targets)}
+                      </span>
+                    </InfoRow>
+                  ))}
+                </>
+              ) : null}
+            </dl>
+            {/* 下级单位 too - only 上级单位 of the hierarchy stays outside. */}
+            {children.length > 0 ? (
+              <div className="mt-sm flex flex-col gap-2xs">
+                <span className="text-muted-foreground text-body-sm">
+                  {ACCOUNT_TEXT.orgUnitChildren(children.length)}
+                </span>
+                {children.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/account/${c.id}`}
+                    className="text-body-sm hover:underline"
+                  >
+                    {c.name}
+                  </Link>
                 ))}
-              </dl>
-            </CollapsibleContent>
-          </Collapsible>
-        ) : null}
-        {children.length > 0 ? (
-          <div className="flex flex-col gap-2xs">
-            <span className="text-muted-foreground text-body-sm">
-              {ACCOUNT_TEXT.orgUnitChildren(children.length)}
-            </span>
-            {children.map((c) => (
-              <Link
-                key={c.id}
-                href={`/account/${c.id}`}
-                className="text-body-sm hover:underline"
-              >
-                {c.name}
-              </Link>
-            ))}
-          </div>
-        ) : null}
+              </div>
+            ) : null}
+          </CollapsibleContent>
+        </Collapsible>
         <CapFooter>
           <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capOrgUnitBasic}
           <br />
