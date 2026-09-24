@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@vxture/design-ui";
 import { Tag } from "./tag";
-import type { HealthResult } from "../../domains/account/lib/health";
+import { contributionSeverity, type ContributionSeverity, type HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
@@ -63,16 +63,21 @@ export interface HealthPanelProps {
   readonly risks?: readonly LaneRisk[] | null;
 }
 
-type FactorTone = "danger" | "neutral" | "success";
+// Two alarm colours, not one (owner, 2026-09-24: 所有告警层级一个颜色了) -
+// the factor's own tier (contributionSeverity) picks red or orange, the same
+// pair the 风险分型 rows below use for 有风险 / 关注.
+type FactorTone = ContributionSeverity;
 const FACTOR_EDGE: Record<FactorTone, string> = {
-  danger: "border-t-destructive",
-  neutral: "border-t-border",
-  success: "border-t-(color:--success-text)",
+  severe: "border-t-destructive",
+  mild: "border-t-warning-border",
+  none: "border-t-border",
+  good: "border-t-(color:--success-text)",
 };
 const FACTOR_INK: Record<FactorTone, string> = {
-  danger: "text-destructive-text",
-  neutral: "text-foreground",
-  success: "text-success-text",
+  severe: "text-destructive-text",
+  mild: "text-(color:--warning-text)",
+  none: "text-foreground",
+  good: "text-success-text",
 };
 
 export function HealthPanel({
@@ -143,7 +148,7 @@ export function HealthPanel({
     // 续约也带理由行 (L4 批三): 它的依据是合同通知期与续约结果, 阵地清单里
     // 没有哪一个 tab 替它把"为什么扣分"讲出来。0 分时也要有理由 - "没有合同"
     // 和"未进入窗口"是两句不同的话 (业务规则 §5: 不跳过)。
-    tone: (c.points < 0 ? "danger" : c.points === 0 ? "neutral" : "success") as FactorTone,
+    tone: contributionSeverity(c),
   }));
 
   // Folded: the score and, when there is one, the single worst factor.

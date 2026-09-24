@@ -5,9 +5,11 @@ import {
   BASE_SCORE,
   REQUIRED_ROLES,
   analyzeChain,
+  contributionSeverity,
   deriveHealth,
   placeRelations,
   type ContactNode,
+  type HealthContribution,
   type HealthInput,
   type RelationEdge,
 } from "./health";
@@ -340,4 +342,17 @@ test("an edge whose subject has no row lands on the object's row, reversed", () 
 
 test("an edge touching nobody in the table is not drawn", () => {
   assert.deepEqual(placeRelations(["a"], [rel("x", "y", "allied_with")]), []);
+});
+
+test("a factor's colour follows its tier - amber and early silence are mild, red and a missed notice are severe", () => {
+  const c = (factor: HealthContribution["factor"], points: number, reason: HealthContribution["reason"]) =>
+    contributionSeverity({ factor, points, reason });
+  assert.equal(c("delivery", -12, { code: "projects_amber", count: 1 }), "mild");
+  assert.equal(c("delivery", -30, { code: "projects_red", count: 1 }), "severe");
+  assert.equal(c("recency", -10, { code: "quiet_days", days: 48 }), "mild");
+  assert.equal(c("recency", -25, { code: "quiet_days", days: 120 }), "severe");
+  assert.equal(c("renewal", -8, { code: "renewal_due_unopened", days: 20 }), "mild");
+  assert.equal(c("renewal", -10, { code: "renewal_due_unopened", days: -23 }), "severe");
+  assert.equal(c("collections", -15, { code: "overdue_revenue", count: 1 }), "severe", "late money is never mild");
+  assert.equal(c("pipeline", 12, { code: "open_deals", count: 1, furthestStage: "negotiate" }), "good");
 });
