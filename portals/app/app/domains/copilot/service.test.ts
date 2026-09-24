@@ -102,10 +102,12 @@ test("adjudicating needs the tier AND the permission", async () => {
   const store = new InMemoryCopilotStore();
   store.seedProposals(WS, [proposal("a")]);
 
-  // Right permission, tier too low: copilot.suggest starts at pro.
-  const cheap = await adjudicate(ctx("sales_rep", "starter", store), ["a"], "accept");
-  assert.equal(cheap.ok, false);
-  assert.equal(cheap.ok === false && cheap.violations[0].code, "feature_not_in_tier");
+  // Right permission, tier too low: a session tool-loop proposal (no
+  // capability) still needs copilot.suggest, which starts at pro. The row is
+  // skipped with the tier reason, not decided.
+  const cheap = unwrap(await adjudicate(ctx("sales_rep", "starter", store), ["a"], "accept"));
+  assert.deepEqual(cheap.decided, []);
+  assert.deepEqual(cheap.skipped, [{ id: "a", reason: "feature_not_in_tier" }]);
 
   // Right tier, wrong role: presales has copilot.use but not copilot.decide.
   const unpermitted = await adjudicate(ctx("presales", "enterprise", store), ["a"], "accept");
@@ -120,8 +122,46 @@ test("adjudicating needs the tier AND the permission", async () => {
 test("a tier gap is reported before a permission gap, never the other way", async () => {
   const store = new InMemoryCopilotStore();
   store.seedProposals(WS, [proposal("a")]);
-  const r = await adjudicate(ctx("presales", "free", store), ["a"], "accept");
+  // No product at all AND no copilot.decide: the member hears about the tier.
+  const r = await adjudicate(ctx("presales", null, store), ["a"], "accept");
+  assert.equal(r.ok === false && r.violations[0].code, "no_data_access");
+});
+
+// --- The advisor follows its host feature (YC-042) -------------------------
+
+test("a free workspace decides what its deal and customer advisors filed", async () => {
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [
+    proposal("deal", { capability: "deal.stall_risk", actionType: "flag_risk" }),
+    proposal("acct", { capability: "account.consistency", actionType: "flag_conflict", subjectType: "account", subjectId: "acc_1" }),
+    proposal("loop", { actionType: "flag_risk" }),
+    proposal("sig", { capability: "signal.triage", actionType: "flag_risk" }),
+  ]);
+  const r = unwrap(await adjudicate(ctx("sales_rep", "free", store), ["deal", "acct", "loop", "sig"], "reject"));
+  assert.deepEqual([...r.decided].sort(), ["acct", "deal"]);
+  // The tool loop is pro, signal triage lives under signal.inbox (starter).
+  assert.deepEqual(
+    [...r.skipped].sort((a, b) => a.id.localeCompare(b.id)),
+    [
+      { id: "loop", reason: "feature_not_in_tier" },
+      { id: "sig", reason: "feature_not_in_tier" },
+    ],
+  );
+});
+
+test("executing checks the proposal's own host feature, not just the decide action", async () => {
+  pipelineWith();
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("loop", { status: "accepted", decidedBySub: "usr_me", decidedAt: CREATED })]);
+  const r = await execute(ctx("sales_leader", "free", store), "loop");
   assert.equal(r.ok === false && r.violations[0].code, "feature_not_in_tier");
+});
+
+test("an unknown capability fails closed to the tool-loop gate", async () => {
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("x", { capability: "deal.renamed_later" })]);
+  const r = unwrap(await adjudicate(ctx("sales_rep", "free", store), ["x"], "reject"));
+  assert.deepEqual(r.skipped, [{ id: "x", reason: "feature_not_in_tier" }]);
 });
 
 // --- The decider is the session, not the request ---------------------------
@@ -377,11 +417,30 @@ test("a proposal filed on the wrong layer is not written (YC-021 L6)", async () 
   );
 });
 
-test("recording proposals needs the suggest tier", async () => {
+test("recording a tool-loop proposal needs the suggest tier", async () => {
   const r = await recordProposals(ctx("sales_leader", "starter"), [
     { sessionId: null, actionType: "a", subjectType: "account", subjectId: "x", payload: {}, rationale: null, confidence: null },
   ]);
   assert.equal(r.ok === false && r.violations[0].code, "feature_not_in_tier");
+});
+
+test("recording keeps the advisor's proposals and drops the tool loop's at free tier", async () => {
+  const base = { sessionId: null, subjectType: "account" as const, subjectId: "acc_1", payload: {}, rationale: null, confidence: null };
+  const written = unwrap(
+    await recordProposals(ctx("sales_leader", "free"), [
+      { ...base, actionType: "flag_conflict", capability: "account.consistency" },
+      { ...base, actionType: "draft_outreach" },
+    ]),
+  );
+  assert.deepEqual(written.map((a) => a.capability), ["account.consistency"]);
+});
+
+test("recording an advisor's proposal still needs copilot.use", async () => {
+  // Every seeded role holds copilot.use, so the holder is built bare.
+  const r = await recordProposals({ ...ctx("viewer", "enterprise"), holder: { permissions: new Set() } }, [
+    { sessionId: null, actionType: "flag_conflict", capability: "account.consistency", subjectType: "account", subjectId: "acc_1", payload: {}, rationale: null, confidence: null },
+  ]);
+  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
 });
 
 test("listing proposals is gated on reading the copilot surface", async () => {

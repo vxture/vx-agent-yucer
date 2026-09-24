@@ -40,12 +40,39 @@
 - **free - 手工跑通核心闭环**：客户、商机、问答。够一个人用，验证价值。
 - **starter - 全链路骨架打通**：加上信号收件箱、战役、交付项目。链路从需求到交付
   完整了，但每一跳仍靠人推。
-- **pro - 管理层出现**：目标与区域、预测、信号自动评分、智能体主动建议。这一档是
+- **pro - 管理层出现**：目标与区域、预测、信号自动评分、会话里让参谋动手（工具循环）。这一档是
   「从记录工具变成管理工具」的分水岭，也是主力档位。
 - **business - 战略闭环与学习闭环**：战略与细分市场、战役执行、外部信号源、赢丢
   复盘、回款管理。链路首尾相接，经验开始回流。
 - **enterprise - 授权智能体自动执行**：`copilot.autopilot`。这是唯一一个改变
   **人机边界**的能力，因此单独占据最高档——见 `30-business-rules.md` 第 7 节。
+
+## 参谋随功能开放（2026-09-24 owner 裁定，YC-042 第 03 节）
+
+「功能有，对应的参谋就有。」参谋不再单独设档位门：每项参谋能力挂在它所在功能的
+feature key 上，工作区能用这个功能，就能运行这项参谋、收到它的提案、裁决它的提案。
+权威实现是 `CAPABILITY_SPEC[*].feature`（`domains/copilot/lib/capability.ts`）与
+`domains/copilot/lib/advisor-gate.ts`；`advisor-gate.test.ts` 逐项钉住下表。
+
+| 参谋能力（ADR-015 能力键） | 所在 feature key | 最低档 |
+|----------------------------|------------------|:------:|
+| `deal.stall_risk` · `deal.competition` · `pricing.discount_approval` | `pipeline.manage` | free |
+| `account.chain_map` · `account.cadence` · `account.upsell` · `account.consistency` | `account.manage` | free |
+| `signal.triage` | `signal.inbox` | starter |
+| `campaign.return` | `campaign.manage` | starter |
+| `delivery.payment_risk` | `delivery.project` | starter |
+| `strategy.territory_attainment` | `planning.territory` | pro |
+| `strategy.segment_coverage` | `strategy.segment` | business |
+
+- `copilot.suggest` 的含义收窄为**会话工具循环**：成员在对话里让模型伸手进业务域。没有
+  能力键的提案（工具循环产出、或早于 ADR-015 的历史行）仍按它门控，未知能力键同样按它——
+  取严不取宽。
+- 裁决分两半：动作 `copilot.action.decide` 只问「这个成员能不能裁决」（`copilot.ask` +
+  `copilot.decide`）；服务层再逐行按提案的能力键查所在 feature。
+- 不产出提案的参谋输出（会前准备）由调用方指明所属 feature（`canAdviseOn`）。
+- 权限轴不变：运行参谋需 `copilot.use`，裁决需 `copilot.decide`。`copilot.autopilot`
+  不变，仍只在 enterprise。
+- 19 个 feature key 一个未增。
 
 ## 与权限门的关系
 

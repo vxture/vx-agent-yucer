@@ -543,23 +543,30 @@ export const ACTIONS = {
     permission: "copilot.use",
     writes: true,
   },
-  // Asking for proposals is a higher tier than asking a question: a proposal is
-  // the copilot reaching into the domain, an answer is not.
+  // The SESSION TOOL LOOP only (YC-042, owner 2026-09-24): a member asking the
+  // model to reach into the domain is a higher tier than asking a question.
+  // Advisor capabilities no longer pass through here - each follows its host
+  // feature key (domains/copilot/lib/advisor-gate.ts).
   "copilot.suggest": {
     domain: "copilot",
     feature: "copilot.suggest",
     permission: "copilot.use",
     writes: true,
   },
+  // Deciding is gated in TWO halves. This action says the member may decide
+  // proposals at all (copilot.decide, any tier with the copilot); the service
+  // then gates each row on what proposed it - an advisor's proposal on its
+  // host feature, a tool-loop one on copilot.suggest. A free workspace decides
+  // what its deal and customer advisors file (YC-042).
   "copilot.action.decide": {
     domain: "copilot",
-    feature: "copilot.suggest",
+    feature: "copilot.ask",
     permission: "copilot.decide",
     writes: true,
   },
   "copilot.action.decide_batch": {
     domain: "copilot",
-    feature: "copilot.suggest",
+    feature: "copilot.ask",
     permission: "copilot.decide",
     writes: true,
   },
@@ -576,12 +583,11 @@ export const ACTIONS = {
     writes: false,
   },
   // Reading the proposal QUEUE, which is not the same thing as reading the
-  // playbooks it used to borrow its gate from. Deliberately free-tier: nothing
-  // can CREATE a proposal below pro (recordProposals needs copilot.suggest) and
-  // nothing can decide one, so the queue is empty at free tier unless the
-  // workspace DOWNGRADED - and letting a downgraded workspace still see what
-  // the agent proposed while they were paying is the retention surface, not a
-  // giveaway. Costs nothing to serve: the rows already exist.
+  // playbooks it used to borrow its gate from. Deliberately free-tier: the
+  // advisors of free features file proposals there (YC-042), and a workspace
+  // that DOWNGRADED still sees what the agent proposed while they were paying -
+  // the retention surface, not a giveaway. Costs nothing to serve: the rows
+  // already exist.
   "copilot.action.view": {
     domain: "copilot",
     feature: "copilot.ask",

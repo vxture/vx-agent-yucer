@@ -1,5 +1,5 @@
 import type { PermCode } from "../../authz/catalog";
-import { can } from "../../authz/decide";
+import { canRunAdvisor } from "../copilot/lib/advisor-gate";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getAccountStore, getCatalogStore, getCopilotStore, getDeliveryStore } from "../shared/registry";
 import { recordProposals } from "../copilot/service";
@@ -65,7 +65,9 @@ export async function runUpsellSweep(options: {
   for (const ws of options.workspaces) {
     try {
       const entitlement = await resolver.resolve(ws.workspaceId);
-      if (!can(holder, entitlement, "copilot.suggest", "data").allowed) {
+      // Gated on the capability's host feature (YC-042), not on a tier of its
+      // own: customer management has its upsell advisor at every tier.
+      if (!canRunAdvisor(holder, entitlement, UPSELL_CAPABILITY).allowed) {
         ledger.skipped += 1;
         continue;
       }

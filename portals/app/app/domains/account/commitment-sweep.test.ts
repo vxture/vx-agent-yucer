@@ -4,7 +4,9 @@ import { InMemoryCopilotStore } from "../copilot/store";
 import { type CommitmentRecord, InMemoryFieldStore } from "./field-store";
 import { setCopilotStore, setFieldStore } from "../shared/registry";
 import {
+  SWEEP_ACCOUNT_CAPABILITY,
   SWEEP_ACTION_TYPE,
+  SWEEP_DEAL_CAPABILITY,
   SWEEP_PERMISSIONS,
   runCommitmentSweep,
 } from "./commitment-sweep";
@@ -176,13 +178,13 @@ test("the sweep subject holds exactly one permission", async () => {
   assert.deepEqual([...SWEEP_PERMISSIONS], ["copilot.use"]);
 });
 
-test("a workspace whose tier refuses proposals is skipped before any work", async () => {
+test("a workspace without the product is skipped before any work", async () => {
   // ADR-010 rule 5. Not an error, not a silent success - and now also not
   // after the fact: the early return on "nothing overdue" used to sit ahead of
   // the gate, so an unentitled workspace with tidy commitments was counted as
   // neither skipped nor swept.
   const { copilot } = setup([commitment()]);
-  process.env.MOCK_TIER = "free";
+  delete process.env.MOCK_TIER;
   const led = await runCommitmentSweep({ workspaces: WS, now: NOW });
   assert.equal(led.skipped, 1);
   assert.equal(led.proposed, 0);
@@ -190,6 +192,26 @@ test("a workspace whose tier refuses proposals is skipped before any work", asyn
   // unentitled workspace does not have its commitment table read at all.
   assert.equal(led.overdue, 0);
   assert.equal((await copilot.listProposals("ws_1", {})).length, 0);
+  teardown();
+});
+
+test("the advisor follows its host feature: a free workspace is swept, each chase names its capability", async () => {
+  // YC-042 (owner 2026-09-24): chasing a promise is customer management, so it
+  // is not a pro-only proposal any more. The capability is stamped by subject -
+  // a deal's promise is stall-risk evidence, a customer's is its rhythm.
+  const { copilot } = setup([
+    commitment({ opportunityId: "opp_1" }),
+    commitment({ id: "cm_2", statement: "send the org chart" }),
+  ]);
+  process.env.MOCK_TIER = "free";
+  const led = await runCommitmentSweep({ workspaces: WS, now: NOW });
+  assert.equal(led.skipped, 0);
+  assert.equal(led.proposed, 2);
+  const filed = await copilot.listProposals("ws_1", {});
+  assert.deepEqual(
+    filed.map((p) => `${p.subjectType}:${p.capability}`).sort(),
+    [`account:${SWEEP_ACCOUNT_CAPABILITY}`, `opportunity:${SWEEP_DEAL_CAPABILITY}`],
+  );
   teardown();
 });
 

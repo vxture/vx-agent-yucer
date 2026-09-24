@@ -12,7 +12,8 @@
 
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
-import { autopilotAuthorized } from "../../authz/gate";
+import { autopilotAuthorized, type Decision as GateDecision } from "../../authz/gate";
+import { canDecideProposal, canRunAdvisor } from "./lib/advisor-gate";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import { decideAutonomy, isAutonomyMode, type AutonomyMode } from "./lib/autonomy";
@@ -94,7 +95,16 @@ export async function adjudicate(
   const skipped: AdjudicationResult["skipped"] = [];
   for (const id of ids) {
     const a = await ctx.store.getProposal(ctx.workspaceId, id);
-    if (!a) skipped.push({ id, reason: "not_found" });
+    if (!a) {
+      skipped.push({ id, reason: "not_found" });
+      continue;
+    }
+    // THE SECOND HALF OF THE GATE, per row (YC-042). The action gate above
+    // only says this member may decide proposals at all; which ones depends on
+    // what proposed them - a deal advisor's proposal is decidable wherever the
+    // pipeline is, a session tool-loop one still needs copilot.suggest.
+    const own = canDecideProposal(ctx.holder, ctx.entitlement, a.capability);
+    if (!own.allowed) skipped.push({ id, reason: own.reason ?? "permission_denied" });
     else actions.push(a);
   }
 
@@ -149,6 +159,10 @@ export async function execute(
 
   const action = await ctx.store.getProposal(ctx.workspaceId, id);
   if (!action) return fail(violation("not_found", `proposal ${id} was not found`, "id"));
+  // Which proposals this member may decide depends on what proposed them -
+  // the same per-row half of the gate adjudicate() applies.
+  const own = canDecideProposal(ctx.holder, ctx.entitlement, action.capability);
+  if (!own.allowed) return denied(own);
 
   // WHETHER THIS MAY RUN UNASKED IS READ, NOT PASSED. `opts.autopilot` and
   // `opts.workspaceOptIn` were both caller-supplied booleans - a caller that
@@ -262,14 +276,26 @@ export async function recordProposals(
   ctx: CopilotContext,
   proposals: readonly NewProposal[],
 ): Promise<RuleResult<AgentAction[]>> {
-  const gate = can(ctx.holder, ctx.entitlement, "copilot.suggest", "data");
-  if (!gate.allowed) return denied(gate);
+  // PER PROPOSAL, by what proposed it (YC-042): an advisor's proposal is
+  // gated on its host feature, a session tool-loop one (no capability) on
+  // copilot.suggest. A turn at free tier therefore still files what the deal
+  // advisor found and drops what the tool loop did, and the caller learns by
+  // count exactly as for a misfiled one below. Only when NOTHING passes is the
+  // call itself refused, with the first reason - an empty success would hide
+  // that the gate, not the model, is why the queue stayed empty.
+  let firstDenial: GateDecision | null = null;
+  const permitted = proposals.filter((p) => {
+    const gate = canRunAdvisor(ctx.holder, ctx.entitlement, p.capability ?? null);
+    if (!gate.allowed) firstDenial ??= gate;
+    return gate.allowed;
+  });
+  if (permitted.length === 0 && firstDenial) return denied(firstDenial);
   // MISFILED PROPOSALS ARE NOT WRITTEN (YC-021 L6 客户级与商机级分层). A stage
   // advance "on" a customer, or an upsell "on" a deal, would sit on the wrong
   // page and fail only when somebody accepted it. The caller learns by count:
   // the copilot turn reports proposals it produced but could not write as
   // dropped. The rules' own sweeps build correct subjects and lose nothing.
-  const fitting = proposals.filter((p) => subjectFits(p.actionType, p.subjectType));
+  const fitting = permitted.filter((p) => subjectFits(p.actionType, p.subjectType));
   if (fitting.length === 0) return ok([]);
   return ok(await ctx.store.createProposals(ctx.workspaceId, fitting));
 }
