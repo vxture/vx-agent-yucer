@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 import { FOOTPRINT_KINDS, type Footprint } from "../../domains/account/lib/footprint";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
-import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import {
   Collapsible,
   CollapsibleContent,
@@ -239,9 +238,6 @@ export function OrgUnitPanel({
               </TooltipTrigger>
               <TooltipContent>{title}</TooltipContent>
             </Tooltip>
-            <span className="shrink-0">
-              <LayerLabel layer="L1" />
-            </span>
           </span>
           <span className="text-muted-foreground text-body-sm font-normal">{accountNo}</span>
         </span>
@@ -344,11 +340,6 @@ export function OrgUnitPanel({
             ) : null}
           </CollapsibleContent>
         </Collapsible>
-        <CapFooter>
-          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capOrgUnitBasic}
-          <br />
-          <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capOrgUnitPro}
-        </CapFooter>
       </div>
 
       {/* FOOTER (owner, 2026-09-21: 销售负责人迁移到 card 最底部，card 分

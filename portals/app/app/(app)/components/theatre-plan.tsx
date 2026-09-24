@@ -9,7 +9,6 @@ import { confidenceTone } from "../lib/view-model";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
-import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The theatre's next move.
 //
@@ -231,7 +230,6 @@ export function TheatrePlan({
         title={
           <span className="inline-flex items-center gap-xs whitespace-nowrap">
             <span>{ACCOUNT_TEXT.plan}</span>
-            <LayerLabel layer="L6" />
           </span>
         }
       >
@@ -250,11 +248,6 @@ export function TheatrePlan({
           />
         </div>
         <OutcomeReviews reviews={reviews} />
-        <CapFooter>
-          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capPlanBasic}
-          <br />
-          <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capPlanPro}
-        </CapFooter>
       </CollapsibleSection>
     );
   }
@@ -275,7 +268,6 @@ export function TheatrePlan({
       title={
         <span className="inline-flex items-center gap-xs whitespace-nowrap">
           <span>{ACCOUNT_TEXT.plan}</span>
-          <LayerLabel layer="L6" />
         </span>
       }
     >
@@ -341,11 +333,6 @@ export function TheatrePlan({
         />
       </div>
       <OutcomeReviews reviews={reviews} />
-      <CapFooter>
-        <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capPlanBasic}
-        <br />
-        <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capPlanPro}
-      </CapFooter>
     </CollapsibleSection>
   );
 }

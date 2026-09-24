@@ -8,7 +8,6 @@ import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
 import { useAccountEdit } from "./account-edit-context";
 import Link from "next/link";
-import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // What is missing from this customer, and who can answer it.
 //
@@ -116,8 +115,6 @@ export function AccountCompleteness({
       title={
         <span className="inline-flex items-center gap-xs whitespace-nowrap">
           <span>{COMPLETENESS_TEXT.title}</span>
-          <LayerLabel layer="L1" />
-          <CapBadge tier="pro">Pro</CapBadge>
         </span>
       }
     >
@@ -229,9 +226,6 @@ export function AccountCompleteness({
           ) : null}
         </div>
       ))}
-      <CapFooter>
-        <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capCompletenessDesc}
-      </CapFooter>
     </CollapsibleSection>
   );
 }

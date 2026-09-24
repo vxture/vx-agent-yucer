@@ -5,7 +5,6 @@ import { Icon } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
-import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import { Tag } from "./tag";
 
 // 外部动态 (YC-021 L1 工商舆情异动): external events matched to this customer,
@@ -52,8 +51,6 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
       title={
         <span className="inline-flex items-center gap-xs whitespace-nowrap">
           <span>{SIGNAL_PANEL_TEXT.title}</span>
-          <LayerLabel layer="L1" />
-          <CapBadge tier="pro">Pro</CapBadge>
         </span>
       }
     >
@@ -95,9 +92,6 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
         {SIGNAL_PANEL_TEXT.viewAll(rows.length)}
         <Icon name="external-link" size="xs" />
       </a>
-      <CapFooter>
-        <CapBadge tier="pro">Pro</CapBadge> {SIGNAL_PANEL_TEXT.cap}
-      </CapFooter>
     </CollapsibleSection>
   );
 }
