@@ -569,3 +569,30 @@ export function analyzeChainRecency(
     lastContactAt: lastByContact,
   };
 }
+
+// HOW BAD, NOT JUST WHICH WAY (owner, 2026-09-24: 所有告警层级一个颜色了,
+// 没有区分). Every factor above already has a milder and a worse tier - quiet
+// past the stale line vs past the very-stale one, amber vs red, a renewal in
+// its window vs its notice already gone. The card shows which tier fired:
+// `severe` is the factor's worst tier, `mild` the one before it. Money that
+// has not arrived is never mild - the same call the collections risk lane
+// makes (risk-types.ts). A lost or downgraded renewal already happened; the
+// downgrade is the mild one because the customer stayed.
+export type ContributionSeverity = "severe" | "mild" | "none" | "good";
+
+export function contributionSeverity(c: HealthContribution): ContributionSeverity {
+  if (c.points > 0) return "good";
+  if (c.points === 0) return "none";
+  switch (c.reason.code) {
+    case "projects_amber":
+    case "no_open_deals":
+    case "renewal_downgraded":
+      return "mild";
+    case "quiet_days":
+      return c.points > -25 ? "mild" : "severe";
+    case "renewal_due_unopened":
+      return c.reason.days >= 0 ? "mild" : "severe";
+    default:
+      return "severe";
+  }
+}
