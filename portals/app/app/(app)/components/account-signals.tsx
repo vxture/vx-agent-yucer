@@ -1,7 +1,7 @@
 "use client";
 
 import { TruncatedText } from "./truncated-text";
-import { Icon } from "@vxture/design-ui";
+import { Button, Icon } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
@@ -53,6 +53,19 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
           <span>{SIGNAL_PANEL_TEXT.title}</span>
         </span>
       }
+      // 查看全部 IN THE HEADER, beside the ⋮ (owner, 2026-09-24: 精简, 放到标题
+      // 按钮旁边, 作为按钮集的外放按钮, 去掉底部). Short on the button; the full
+      // "opens in 商机智探" sentence is its hover. New tab, like every link
+      // leaving this page.
+      action={
+        // Quiet, like 联系人's 查看全部 (owner, 2026-09-24: 不要加粗, 颜色淡一些).
+        <Button asChild size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground font-normal">
+          <a href="/signal" {...external} title={SIGNAL_PANEL_TEXT.viewAll(rows.length)}>
+            {SIGNAL_PANEL_TEXT.viewAllShort(rows.length)}
+            <Icon name="external-link" size="xs" />
+          </a>
+        </Button>
+      }
     >
       <div className="grid gap-sm sm:grid-cols-2">
         {rows.slice(0, SHOWN).map((r) => (
@@ -84,14 +97,6 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
           </div>
         ))}
       </div>
-      <a
-        href="/signal"
-        {...external}
-        className="text-muted-foreground hover:text-foreground inline-flex items-center justify-center gap-3xs self-center text-body-sm"
-      >
-        {SIGNAL_PANEL_TEXT.viewAll(rows.length)}
-        <Icon name="external-link" size="xs" />
-      </a>
     </CollapsibleSection>
   );
 }

@@ -6664,6 +6664,7 @@ export const SIGNAL_PANEL_TEXT = {
   openSource: "来源原文",
   handleInInbox: "去商机智探处理",
   viewAll: (n: number) => `在商机智探查看全部 ${n} 条`,
+  viewAllShort: (n: number) => `全部 ${n} 条`,
 };
 
 // 风险分型 (YC-021 L5, owner 2026-09-24): five types, what each rests on, who to go to.
