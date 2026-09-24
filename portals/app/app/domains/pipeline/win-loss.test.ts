@@ -6,7 +6,9 @@ import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import {
+  abandonOpportunity,
   advanceStage,
+  dealExit,
   listPendingReviews,
   listWinLossReasons,
   recordWinLossReview,
@@ -96,7 +98,10 @@ test("closing does not BLOCK on the review", async () => {
   // post-mortem.
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
-  const out = await advanceStage(ctx("sales_rep", "business", store), "opp_1", { to: "lost" });
+  const out = await advanceStage(ctx("sales_rep", "business", store), "opp_1", {
+    to: "lost",
+    exitReason: { code: "no_decision" },
+  });
   assert.equal(out.ok, true);
   assert.equal((await store.getOpportunity(WS, "opp_1"))?.status, "lost");
 });
@@ -207,4 +212,43 @@ test("a review never crosses a workspace boundary", async () => {
     primaryReasonId: await reasonId(c, "fit"),
   });
   assert.equal(r.ok === false && r.violations[0].code, "not_found");
+});
+
+// --- 丢单与放弃写退出原因 (YC-065 R6) ------------------------------------------
+
+test("losing writes the exit reason with the stage change", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "business", store);
+  const refused = await advanceStage(c, "opp_1", { to: "lost" });
+  assert.equal(refused.ok === false && refused.violations[0]!.code, "exit_reason_required");
+  assert.equal((await store.getOpportunity(WS, "opp_1"))?.status, "open", "nothing written without a reason");
+  unwrap(await advanceStage(c, "opp_1", { to: "lost", exitReason: { code: "lost_to_competitor", note: "友商价格低 15%" } }));
+  const exit = unwrap(await dealExit(c, "opp_1"));
+  assert.equal(exit?.outcome, "lost");
+  assert.equal(exit?.reasonCode, "lost_to_competitor");
+  assert.equal(exit?.decidedBySub, "usr_me", "the session is the decider");
+});
+
+test("abandoning keeps the stage, closes the deal and records why; a second attempt is refused", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "business", store);
+  unwrap(await abandonOpportunity(c, "opp_1", { reasonCode: "timing" }));
+  const after = await store.getOpportunity(WS, "opp_1");
+  assert.equal(after?.status, "abandoned");
+  assert.equal(after?.stage, "negotiate", "where we gave up is kept");
+  assert.equal(after?.forecastCategory, "closed");
+  assert.ok(after?.closedAt instanceof Date);
+  assert.equal(unwrap(await dealExit(c, "opp_1"))?.outcome, "abandoned");
+  const again = await abandonOpportunity(c, "opp_1", { reasonCode: "timing" });
+  assert.equal(again.ok === false && again.violations[0]!.code, "not_open");
+});
+
+test("abandoning needs pipeline write - a read-only member is refused", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const r = await abandonOpportunity(ctx("executive", "business", store), "opp_1", { reasonCode: "timing" });
+  assert.equal(r.ok, false);
+  assert.equal((await store.getOpportunity(WS, "opp_1"))?.status, "open");
 });

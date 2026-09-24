@@ -17,9 +17,11 @@ import {
   isRegression,
   isTerminal,
   isProbabilityOverridden,
+  statusFor,
   type Stage,
   type StageDefinition,
 } from "../../domains/pipeline/lib/stage";
+import { OPPORTUNITY_ABANDON_REASONS, OPPORTUNITY_LOSE_REASONS } from "../../domains/shared/funnel-exit";
 import { useMessages } from "../lib/i18n/provider";
 import { stageLabelFor } from "../lib/view-model";
 import { Tag } from "./tag";
@@ -40,33 +42,52 @@ import { Tag } from "./tag";
 export interface StageControlProps {
   readonly opportunityId: string;
   readonly stage: Stage;
+  /** The deal's status. An abandoned deal is closed at whatever stage it sits
+   *  (YC-065 R6), so the stage alone cannot say whether it is closed. */
+  readonly status?: string;
   readonly probability: number | null;
   readonly canAdvance: boolean;
+  /** May this member give the deal up (pipeline.opportunity.abandon). */
+  readonly canAbandon?: boolean;
+  /** Why it ended, when it ended lost or abandoned - shown on a closed deal. */
+  readonly exitReason?: string | null;
   /** The workspace's own stage catalog (incr/0057). Optional and defaulted
    *  to the shipped seven so every caller keeps compiling unchanged until it
    *  threads the real thing through - see stage.ts's own header. */
   readonly stageDefinitions?: readonly StageDefinition[];
   readonly onAdvance: (
     opportunityId: string,
-    input: { to: string; reason?: string; reopen?: boolean },
+    input: { to: string; reason?: string; reopen?: boolean; exitReason?: { code: string; note?: string } },
   ) => Promise<{
     ok: boolean;
     stage?: string;
     reviewRequired?: boolean;
     error?: string;
   }>;
+  readonly onAbandon?: (
+    opportunityId: string,
+    input: { reasonCode: string; note?: string },
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function StageControl({
   opportunityId,
   stage,
+  status = "open",
   probability,
   canAdvance,
+  canAbandon = false,
+  exitReason = null,
   stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
   onAdvance,
+  onAbandon,
 }: StageControlProps) {
-  const { OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, STAGE_LABEL } = useMessages();
-  const closed = isTerminal(stage, stageDefinitions);
+  const { OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, STAGE_LABEL, EXIT_REASON_LABEL } = useMessages();
+  const abandonedDeal = status === "abandoned";
+  const closed = isTerminal(stage, stageDefinitions) || abandonedDeal;
+  const [exitCode, setExitCode] = useState("");
+  const [exitNote, setExitNote] = useState("");
+  const [abandoning, setAbandoning] = useState(false);
   const [reopen, setReopen] = useState(false);
   const [to, setTo] = useState<Stage | "">("");
   const [reason, setReason] = useState("");
@@ -98,6 +119,11 @@ export function StageControl({
   const regression = to !== "" && !closed && isRegression(stage, to, stageDefinitions);
   const reasonRequired = regression || (closed && reopen);
   const terminalTarget = to !== "" && isTerminal(to, stageDefinitions);
+  // A LOSS SAYS WHY (R6): the reason is asked for here, before the click,
+  // and the server refuses the move without it.
+  const lostTarget = to !== "" && statusFor(to, stageDefinitions) === "lost";
+  const exitNoteRequired = exitCode === "other" && !exitNote.trim();
+  const exitIncomplete = lostTarget && (exitCode === "" || exitNoteRequired);
   const overridden = isProbabilityOverridden({ stage, probability }, stageDefinitions);
 
   function submit() {
@@ -109,6 +135,7 @@ export function StageControl({
         to,
         reason: reason.trim() || undefined,
         reopen: closed && reopen,
+        ...(lostTarget ? { exitReason: { code: exitCode, note: exitNote.trim() || undefined } } : {}),
       }).then((r) => {
         if (!r.ok) {
           // The server's own violation code, mapped to a sentence. A generic
@@ -125,9 +152,50 @@ export function StageControl({
         });
         setReason("");
         setTo("");
+        setExitCode("");
+        setExitNote("");
       });
     });
   }
+
+  function submitAbandon() {
+    if (!onAbandon || exitCode === "" || exitNoteRequired) return;
+    setError(null);
+    startTransition(() => {
+      void onAbandon(opportunityId, { reasonCode: exitCode, note: exitNote.trim() || undefined }).then((r) => {
+        if (!r.ok) {
+          setError(OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+          return;
+        }
+        setAbandoning(false);
+        setExitCode("");
+        setExitNote("");
+      });
+    });
+  }
+
+  // The reason picker, shared by a loss and an abandonment - two menus over
+  // one vocabulary (shared/funnel-exit.ts), never the same list twice.
+  const exitFields = (menu: readonly string[], label: string) => (
+    <>
+      <Label htmlFor="exit-reason">{label}</Label>
+      <NativeSelect id="exit-reason" value={exitCode} onChange={(e) => setExitCode(e.target.value)} disabled={pending}>
+        <option value="">{OPPORTUNITY_TEXT.selectNone}</option>
+        {menu.map((c) => (
+          <option key={c} value={c}>
+            {EXIT_REASON_LABEL[c] ?? c}
+          </option>
+        ))}
+      </NativeSelect>
+      {exitCode !== "" ? (
+        <>
+          <Label htmlFor="exit-note">{OPPORTUNITY_TEXT.advanceExitNote}</Label>
+          <Textarea id="exit-note" value={exitNote} onChange={(e) => setExitNote(e.target.value)} disabled={pending} />
+          {exitNoteRequired ? <StatusBadge tone="warning">{OPPORTUNITY_TEXT.advanceExitNoteRequired}</StatusBadge> : null}
+        </>
+      ) : null}
+    </>
+  );
 
   return (
     <Section
@@ -137,9 +205,10 @@ export function StageControl({
       {closed ? (
         <>
           <StatusBadge tone="warning" dot>
-            {OPPORTUNITY_TEXT.advanceClosedTitle}
+            {abandonedDeal ? OPPORTUNITY_TEXT.abandonedTitle : OPPORTUNITY_TEXT.advanceClosedTitle}
           </StatusBadge>
-          <p>{OPPORTUNITY_TEXT.advanceClosedDescription}</p>
+          {exitReason ? <Tag>{OPPORTUNITY_TEXT.exitRecorded(EXIT_REASON_LABEL[exitReason] ?? exitReason)}</Tag> : null}
+          <p>{abandonedDeal ? OPPORTUNITY_TEXT.abandonedDescription : OPPORTUNITY_TEXT.advanceClosedDescription}</p>
           <Label>
             <Checkbox
               checked={reopen}
@@ -196,6 +265,8 @@ export function StageControl({
             </StatusBadge>
           ) : null}
 
+          {lostTarget ? exitFields(OPPORTUNITY_LOSE_REASONS, OPPORTUNITY_TEXT.advanceExitReason) : null}
+
           {reasonRequired || reason ? (
             <>
               <Label htmlFor="stage-reason">
@@ -224,12 +295,44 @@ export function StageControl({
             // Everything else is left enabled: a button disabled for a reason
             // the user cannot see is worse than a refusal that explains itself.
             disabled={
-              pending || to === "" || (reasonRequired && !reason.trim())
+              pending || to === "" || (reasonRequired && !reason.trim()) || exitIncomplete
             }
           >
             {OPPORTUNITY_TEXT.advanceSubmit}
           </Button>
         </>
+      ) : null}
+
+      {/* 放弃 (R6): only on an open deal, and a separate act from moving it -
+          giving up is not a stage, and the reason menu is our decision's,
+          not the customer's. */}
+      {!closed && canAbandon && onAbandon ? (
+        abandoning ? (
+          <>
+            <StatusBadge tone="warning">{OPPORTUNITY_TEXT.abandonHint}</StatusBadge>
+            {exitFields(OPPORTUNITY_ABANDON_REASONS, OPPORTUNITY_TEXT.abandonReason)}
+            <div className="flex gap-sm">
+              <Button variant="outline" onClick={() => { setAbandoning(false); setExitCode(""); setExitNote(""); }} disabled={pending}>
+                {OPPORTUNITY_TEXT.abandonCancel}
+              </Button>
+              {/* The confirm step IS the reason form above: nobody reaches
+                  this button without choosing why - the DS asks for that to
+                  be said rather than silently skipped. */}
+              <Button
+                variant="destructive"
+                confirmExempt={OPPORTUNITY_TEXT.abandonExempt}
+                onClick={submitAbandon}
+                disabled={pending || exitCode === "" || exitNoteRequired}
+              >
+                {OPPORTUNITY_TEXT.abandonSubmit}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <Button variant="ghost" onClick={() => { setAbandoning(true); setTo(""); setExitCode(""); }} disabled={pending}>
+            {OPPORTUNITY_TEXT.abandonOpen}
+          </Button>
+        )
       ) : null}
 
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}

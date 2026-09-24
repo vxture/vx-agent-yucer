@@ -91,6 +91,35 @@ export const LEAD_TERMINATE_REASONS: readonly ExitReason[] = [
   "other",
 ];
 
+/**
+ * Why a deal was LOST (YC-065 R6). Somebody else won it, or the customer did
+ * not buy at all - the reasons that describe the customer's decision.
+ */
+export const OPPORTUNITY_LOSE_REASONS: readonly ExitReason[] = [
+  "lost_to_competitor",
+  "no_decision",
+  "no_budget",
+  "timing",
+  "customer_withdrew",
+  "other",
+];
+
+/**
+ * Why WE stopped pursuing a deal (YC-065 R6: 放弃 = 我方主动不再追). The
+ * reasons that describe our decision: it was never a fit, the money or the
+ * timing is not there, nobody answers, or the customer walked away first.
+ * "Lost to a competitor" is deliberately absent - that is a loss, not a
+ * choice, and filing it here would hide a competitive loss from the win rate.
+ */
+export const OPPORTUNITY_ABANDON_REASONS: readonly ExitReason[] = [
+  "not_a_fit",
+  "no_budget",
+  "timing",
+  "unreachable",
+  "customer_withdrew",
+  "other",
+];
+
 export interface FunnelExitDraft {
   readonly stage: FunnelStage;
   readonly subjectId: string;

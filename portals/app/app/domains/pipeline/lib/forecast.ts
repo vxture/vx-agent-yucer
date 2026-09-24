@@ -111,7 +111,9 @@ export function rollUp(
     // category has no other terminal value, and counting it as won reported
     // money that was never won - which is the one direction a forecast must
     // never be wrong in. Business rules section 2: closed means WON.
-    if (o.status === "lost") continue;
+    // An ABANDONED deal is the same (YC-065 R6): we gave it up, so it counts
+    // toward nothing - it also carries `closed`, and would otherwise be won.
+    if (o.status === "lost" || o.status === "abandoned") continue;
     if (o.amount) buckets[o.forecastCategory].push(o.amount);
   }
 
@@ -218,7 +220,7 @@ export function inPeriod(
   const kept: ForecastableOpportunity[] = [];
   let undated = 0;
   for (const o of opportunities) {
-    if (o.status === "lost") continue;
+    if (o.status === "lost" || o.status === "abandoned") continue;
     const closed = o.forecastCategory === "closed";
     const at = closed ? (o.closedAt ?? null) : (o.expectedCloseAt ?? null);
     if (!at) {

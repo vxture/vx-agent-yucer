@@ -684,7 +684,7 @@ export default async function AccountDetailPage({
       ownerName: memberNameOf.get(d.ownerSub) ?? null,
       amount: d.amount?.amount ?? null,
       currency: d.currency,
-      status: d.status as "open" | "won" | "lost",
+      status: d.status as "open" | "won" | "lost" | "abandoned",
       insight: j
         ? {
             claim: j.claim,

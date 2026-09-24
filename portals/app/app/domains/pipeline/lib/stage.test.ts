@@ -8,6 +8,7 @@ import {
   isRegression,
   isTerminal,
   openStageOrder,
+  planAbandon,
   planProbabilityOverride,
   planStageChange,
   statusFor,
@@ -138,7 +139,7 @@ test("a move between open stages leaves the bucket alone", () => {
 test("entering a terminal stage requires a win/loss review", () => {
   const won = plan(opp({ stage: "negotiate", probability: 90 }), "won");
   assert.equal(won.ok && won.value.requiresWinLossReview, true);
-  const lost = plan(opp({ stage: "qualify" }), "lost");
+  const lost = plan(opp({ stage: "qualify" }), "lost", { exitReason: { code: "lost_to_competitor" } });
   assert.equal(lost.ok && lost.value.requiresWinLossReview, true);
 });
 
@@ -149,7 +150,7 @@ test("a re-close does not demand a second review - there is only ever one", () =
 
 test("a deal can be lost from any open stage", () => {
   for (const from of OPEN_STAGE_ORDER) {
-    const r = plan(opp({ stage: from, probability: defaultProbabilityFor(from) }), "lost");
+    const r = plan(opp({ stage: from, probability: defaultProbabilityFor(from) }), "lost", { exitReason: { code: "lost_to_competitor" } });
     assert.ok(r.ok, `lost from ${from}`);
     assert.equal(r.value.patch.probability, 0);
   }
@@ -265,4 +266,53 @@ test("every failure reports all violations it found, not just the first", () => 
   const r = plan(opp({ stage: "won", status: "won", probability: 100, closedAt: AT }), "won");
   assert.equal(r.ok, false);
   assert.ok(r.ok === false && r.violations.length >= 2, "expected the no-op and terminal violations together");
+});
+
+// --- 丢单与放弃 (YC-065 R6) ----------------------------------------------------
+
+test("a loss says why: no reason, a reason from the wrong menu, or 'other' without a sentence are refused", () => {
+  const codes = (r: ReturnType<typeof plan>) => (r.ok ? [] : r.violations.map((v) => v.code));
+  assert.ok(codes(plan(opp({ stage: "negotiate" }), "lost")).includes("exit_reason_required"));
+  // not_a_fit is a reason to ABANDON, not one a customer's decision gives.
+  assert.ok(codes(plan(opp({ stage: "negotiate" }), "lost", { exitReason: { code: "not_a_fit" } })).includes("exit_reason_invalid"));
+  assert.ok(codes(plan(opp({ stage: "negotiate" }), "lost", { exitReason: { code: "other" } })).includes("exit_note_required"));
+  const ok = plan(opp({ stage: "negotiate" }), "lost", { exitReason: { code: "other", note: "  集团统一采购  " } });
+  assert.ok(ok.ok);
+  assert.deepEqual(ok.value.exit, { outcome: "lost", reasonCode: "other", note: "集团统一采购" });
+});
+
+test("winning asks for no exit reason and writes none", () => {
+  const r = plan(opp({ stage: "negotiate", probability: 90 }), "won");
+  assert.ok(r.ok);
+  assert.equal(r.value.exit, undefined);
+});
+
+test("abandoning keeps the stage, closes the deal out of every roll-up and records why", () => {
+  const r = planAbandon(opp({ stage: "negotiate" }), { reasonCode: "timing", occurredAt: AT });
+  assert.ok(r.ok);
+  assert.deepEqual(r.value.patch, { status: "abandoned", closedAt: AT, forecastCategory: "closed" });
+  assert.deepEqual(r.value.exit, { outcome: "abandoned", reasonCode: "timing", note: null });
+  assert.equal("stage" in r.value.patch, false, "where we gave up is kept");
+});
+
+test("abandoning refuses a closed deal, a missing reason and a loss reason", () => {
+  const code = (r: ReturnType<typeof planAbandon>) => (r.ok ? null : r.violations[0]!.code);
+  assert.equal(code(planAbandon(opp({ status: "won" }), { reasonCode: "timing" })), "not_open");
+  assert.equal(code(planAbandon(opp(), { reasonCode: "" })), "exit_reason_required");
+  // Losing to a competitor is a loss, not a choice - it must not hide here.
+  assert.equal(code(planAbandon(opp(), { reasonCode: "lost_to_competitor" })), "exit_reason_invalid");
+  assert.equal(code(planAbandon(opp(), { reasonCode: "other", note: "  " })), "exit_note_required");
+});
+
+test("an abandoned deal cannot be moved until it is reopened with a reason", () => {
+  const given = opp({ stage: "negotiate", status: "abandoned", closedAt: AT });
+  const moved = plan(given, "won");
+  assert.ok(!moved.ok && moved.violations.some((v) => v.code === "abandoned_closed"));
+  const noReason = plan(given, "validate", { reopen: true });
+  assert.ok(!noReason.ok && noReason.violations.some((v) => v.code === "reason_required"));
+  const reopened = plan(given, "validate", { reopen: true, reason: "客户重新立项" });
+  assert.ok(reopened.ok);
+  assert.equal(reopened.value.patch.status, "open");
+  assert.equal(reopened.value.patch.closedAt, null);
+  assert.equal(reopened.value.patch.forecastCategory, "pipeline");
 });

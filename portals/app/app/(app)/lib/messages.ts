@@ -1202,6 +1202,11 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
 
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
 export const PROPOSAL_ERROR: Record<string, string> = {
+  // A proposal that moves a deal runs the stage machine (YC-065 R6).
+  abandoned_closed: "这一单已放弃,提案不能推进它;请先重开",
+  exit_reason_required: "把商机改成丢单需要原因,提案里没有,请在商机页操作",
+  exit_reason_invalid: "提案给出的丢单原因不适用",
+  exit_note_required: "选「其他」时请写一句具体原因",
   ...GATE_ERROR,
   /* incr/0035 CHECK-constrains this column, so an unknown province fails at
      the database with an error nobody can act on. Said in the product's own
@@ -3153,6 +3158,20 @@ export const OPPORTUNITY_TEXT = {
     "已关闭的商机不能直接改阶段。若确需修正，请勾选「重开」并说明理由。",
   advanceReadOnly: "你没有推进商机的权限。",
   advanceReviewRequired: "该商机已进入终态，请补一份复盘。",
+  // 丢单与放弃 (YC-065 R6): both write their reason to funnel_exit.
+  advanceExitReason: "丢单原因",
+  advanceExitNote: "补充说明",
+  advanceExitNoteRequired: "选「其他」时请写一句具体原因",
+  abandonOpen: "放弃这一单",
+  abandonTitle: "放弃这一单",
+  abandonHint: "放弃是我方不再追。阶段保留在当前位置,这一单不再计入任何预测与汇总;之后可以重开。",
+  abandonReason: "放弃原因",
+  abandonSubmit: "确认放弃",
+  abandonCancel: "取消",
+  abandonExempt: "放弃前必须先选原因,这一步就是确认",
+  abandonedTitle: "已放弃",
+  abandonedDescription: "这一单已放弃。若要继续跟进,请勾选「重开」并说明理由。",
+  exitRecorded: (reason: string) => `退出原因:${reason}`,
   advanceRegressionHint: (from: string) => `这是从「${from}」回退`,
   advanceTerminalHint: "进入终态会同时写入成交时间，并要求一份复盘",
   advanceOverrideKept: "已有人工赢率，本次变更不会覆盖它",
@@ -3791,6 +3810,11 @@ export const OPPORTUNITY_ERROR: Record<string, string> = {
   requirement_required: "商机必须写清客户要什么",
   ...GATE_ERROR,
   stage_unchanged: "已经在这个阶段了，不会记录空变更",
+  abandoned_closed: "这一单已放弃;要继续推进,请先勾选「重开」并说明理由",
+  exit_reason_required: "请选择原因",
+  exit_reason_invalid: "这个原因不适用于此处",
+  exit_note_required: "选「其他」时请写一句具体原因",
+  not_open: "只有进行中的商机才能放弃",
   terminal_stage: "商机已关闭；重开需要显式确认",
   reason_required: "这次变更必须写明理由",
   unknown_stage: "未知阶段",
@@ -6548,6 +6572,7 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.opportunity.update": "修改商机",
     "pipeline.discount.approve": "审批折扣",
     "pipeline.opportunity.advance": "推进商机阶段",
+    "pipeline.opportunity.abandon": "放弃商机",
     "pipeline.forecast.view": "查看销售预测",
     "pipeline.forecast.snapshot": "提交预测快照",
     "pipeline.forecast.categorize": "归类预测",

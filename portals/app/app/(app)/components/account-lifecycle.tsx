@@ -47,7 +47,7 @@ export interface DealLifecycleRow {
   readonly ownerName: string | null;
   readonly amount: number | null;
   readonly currency: string;
-  readonly status: "open" | "won" | "lost";
+  readonly status: "open" | "won" | "lost" | "abandoned";
   /** The account's own real-time judgement for this one deal, if any fired. */
   readonly insight: {
     claim: string;

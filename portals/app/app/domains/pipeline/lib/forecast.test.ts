@@ -461,3 +461,19 @@ test("the whole-year tab is a period the snapshot accepts", () => {
   );
   assert.equal(row.commitAmount.amount, 1000);
 });
+
+test("an abandoned deal counts toward nothing and is not undated (YC-065 R6)", () => {
+  const r = unwrap(
+    rollUp(
+      [
+        { id: "won", stage: "won", forecastCategory: "closed", amount: money(200_000), territoryId: null, ownerSub: null, status: "won" },
+        { id: "gave_up", stage: "negotiate", forecastCategory: "closed", amount: money(300_000), territoryId: null, ownerSub: null, status: "abandoned" },
+      ],
+      "CNY",
+    ),
+  );
+  assert.equal(r.closedAmount.amount, 200_000, "an abandoned deal is never counted as won");
+  const p = inPeriod([o({ status: "abandoned", expectedCloseAt: null })], "2026Q3")!;
+  assert.equal(p.kept.length, 0);
+  assert.equal(p.undated, 0);
+});

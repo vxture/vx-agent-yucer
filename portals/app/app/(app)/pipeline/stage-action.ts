@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getPipelineStore } from "../../domains/shared/registry";
 import {
+  abandonOpportunity,
   advanceStage,
   approveLineDiscount,
   createOpportunity,
@@ -37,7 +38,7 @@ export interface AdvanceStageResult {
 
 export async function advanceOpportunityStage(
   opportunityId: string,
-  input: { to: string; reason?: string; reopen?: boolean },
+  input: { to: string; reason?: string; reopen?: boolean; exitReason?: { code: string; note?: string } },
 ): Promise<AdvanceStageResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -60,6 +61,7 @@ export async function advanceOpportunityStage(
       to: input.to,
       reason: input.reason?.trim() || undefined,
       reopen: input.reopen === true,
+      ...(input.exitReason ? { exitReason: input.exitReason } : {}),
     },
   );
 
@@ -71,6 +73,36 @@ export async function advanceOpportunityStage(
   revalidatePath("/pipeline");
   revalidatePath(`/pipeline/${opportunityId}`);
   return { ok: true, stage: result.value.stage, reviewRequired: result.value.reviewRequired };
+}
+
+/**
+ * Give a deal up (YC-065 R6). The actor is the session, as for a stage move;
+ * the reason goes to funnel_exit with the status change.
+ */
+export async function abandonDeal(
+  opportunityId: string,
+  input: { reasonCode: string; note?: string },
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await abandonOpportunity(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.pipeline(),
+    },
+    opportunityId,
+    { reasonCode: input.reasonCode, note: input.note ?? null },
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  // Every surface that counts the deal: the board's roll-up, the forecast, the
+  // detail page.
+  revalidatePath("/pipeline");
+  revalidatePath("/forecast");
+  revalidatePath(`/pipeline/${opportunityId}`);
+  return { ok: true };
 }
 
 export interface RepriceResult {

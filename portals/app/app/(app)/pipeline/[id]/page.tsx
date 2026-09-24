@@ -33,6 +33,7 @@ import {
   listContractTypes,
   listStageDefinitions,
   stageHistory,
+  dealExit,
   stallRules,
 } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
@@ -70,6 +71,7 @@ import { DealTerms } from "../../components/deal-terms";
 import { NewEntryLink } from "../../components/form-page";
 import { LineEditor } from "../../components/line-editor";
 import {
+  abandonDeal,
   advanceOpportunityStage,
   approveDiscount,
   repriceOpportunity,
@@ -159,7 +161,12 @@ export default async function OpportunityDetailPage({
   }
   const opportunity = detail.value;
 
-  const [history, stall] = await Promise.all([stageHistory(ctx, id), stallRules(ctx)]);
+  const [history, stall, exit] = await Promise.all([
+    stageHistory(ctx, id),
+    stallRules(ctx),
+    // Why it ended, for a lost or abandoned deal (YC-065 R6).
+    opportunity.status === "lost" || opportunity.status === "abandoned" ? dealExit(ctx, id) : Promise.resolve(null),
+  ]);
 
   // NAMES, NOT IDS (polish, 2026-09-24): the owner card printed usr_demo_m010,
   // the plan triangle three raw subs and 来源战役 camp_demo_1. The member
@@ -894,8 +901,12 @@ export default async function OpportunityDetailPage({
       <StageControl
         opportunityId={id}
         stage={opportunity.stage}
+        status={opportunity.status}
         probability={opportunity.probability}
         stageDefinitions={stageDefinitions}
+        exitReason={exit?.ok ? (exit.value?.reasonCode ?? null) : null}
+        canAbandon={can(session.authz, session.entitlement, "pipeline.opportunity.abandon", "ui").allowed}
+        onAbandon={abandonDeal}
         canAdvance={
           can(
             session.authz,

@@ -349,6 +349,16 @@ export const ACTIONS = {
     permission: "pipeline.write",
     writes: true,
   },
+  // 放弃 (YC-065 R6): the same authority as moving a stage, but its own code -
+  // the log, the reason menu and the roll-up treatment differ, and a separate
+  // code keeps "may advance" from silently meaning "may give up" the day the
+  // two need to differ.
+  "pipeline.opportunity.abandon": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
   "pipeline.forecast.view": {
     domain: "pipeline",
     feature: "pipeline.forecast",

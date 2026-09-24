@@ -46,6 +46,7 @@ async function seedProject(c: Client, id: string): Promise<void> {
 
 async function cleanup() {
   await withPg(async (c) => {
+    await c.query(`DELETE FROM yucer_pipeline.funnel_exit WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.win_loss_review WHERE workspace_id = $1`, [WS]);
     // After the reviews that cite them - fk_win_loss_review_reason RESTRICTs.
     await c.query(`DELETE FROM yucer_pipeline.win_loss_reason WHERE workspace_id = $1`, [WS]);
@@ -435,6 +436,65 @@ test("listUnreviewedClosed excludes a closed deal once it has a review", { skip 
     await s.saveWinLossReview(WS, won.id, { outcome: "won", primaryReasonId: null, reviewerSub: "usr_mgr" });
     unreviewed = await s.listUnreviewedClosed(WS);
     assert.deepEqual(unreviewed.map((o) => o.id), [lost.id]);
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- 丢单与放弃 (YC-065 R6) ------------------------------------------------------
+
+test("a loss writes its funnel_exit row in the same transaction as the stage change", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = await s.createOpportunity(WS, newOpp());
+    const at = new Date();
+    const ok = await s.applyStageChange(WS, created.id, {
+      event: { fromStage: "qualify", toStage: "lost", reason: null, actorSub: "usr_rep", occurredAt: at },
+      patch: { stage: "lost", status: "lost", closedAt: at, probability: 0, forecastCategory: "closed" },
+      requiresWinLossReview: true,
+      exit: { outcome: "lost", reasonCode: "lost_to_competitor", note: "友商价格低 15%" },
+    });
+    assert.equal(ok, true);
+    const rows = await withPg(async (c) =>
+      (await c.query(
+        `SELECT stage, outcome, reason_code, note, decided_by_sub FROM yucer_pipeline.funnel_exit WHERE subject_id = $1`,
+        [created.id],
+      )).rows,
+    );
+    assert.deepEqual(rows, [
+      { stage: "opportunity", outcome: "lost", reason_code: "lost_to_competitor", note: "友商价格低 15%", decided_by_sub: "usr_rep" },
+    ]);
+    const exit = await s.latestDealExit(WS, created.id);
+    assert.equal(exit?.reasonCode, "lost_to_competitor");
+  } finally {
+    await cleanup();
+  }
+});
+
+test("abandon keeps the stage, writes one exit, and a second abandon is a no-op", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = await s.createOpportunity(WS, newOpp());
+    const at = new Date();
+    const plan = {
+      patch: { status: "abandoned" as const, closedAt: at, forecastCategory: "closed" as const },
+      exit: { outcome: "abandoned" as const, reasonCode: "timing", note: null },
+      decidedBySub: "usr_rep",
+    };
+    assert.equal(await s.abandonOpportunity(WS, created.id, plan), true);
+    assert.equal(await s.abandonOpportunity(WS, created.id, plan), false, "guarded on status = open");
+    const row = await withPg(async (c) =>
+      (await c.query(`SELECT stage, status, forecast_category, closed_at IS NOT NULL AS closed FROM yucer_pipeline.opportunity WHERE id = $1`, [created.id])).rows[0],
+    );
+    assert.deepEqual(row, { stage: "qualify", status: "abandoned", forecast_category: "closed", closed: true });
+    const exits = await withPg(async (c) =>
+      (await c.query(`SELECT outcome, reason_code FROM yucer_pipeline.funnel_exit WHERE subject_id = $1`, [created.id])).rows,
+    );
+    assert.deepEqual(exits, [{ outcome: "abandoned", reason_code: "timing" }]);
   } finally {
     await cleanup();
   }
