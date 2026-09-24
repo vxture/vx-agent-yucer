@@ -6267,6 +6267,7 @@ export const POSITION_TEXT = {
   // 累计合同额). 只统计 status=open 的商机, 跟商机数本身同一个口径 - 不是
   // 这个客户全部历史成交额。
   openDealsAmountLabel: "累计合同额",
+  amountUnit: (unit: string, currency: string) => (unit ? `单位：${unit} · 币种：${currency}` : `币种：${currency}`),
 
   triangle: "负责团队",
   /** The three owners, joined. The separator is text, so it lives here. */

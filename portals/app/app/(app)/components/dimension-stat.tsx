@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Tooltip, TooltipContent, TooltipTrigger, type Tone } from "@vxture/design-ui";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 
 // 三个动态维度 - GRAPHIC ONLY, label/value 挪进 tooltip (owner, 2026-09-21:
 // 考虑三个板块，商机数量，客户级别，健康评估，都只提供一个图形化，文字作为
@@ -54,25 +54,32 @@ function Coin({ src, children }: { readonly src: string; readonly children: Reac
   );
 }
 
-const HEALTH_COIN: Record<Tone, string> = {
-  success: "/assets/icons/coin-good.png",
-  warning: "/assets/icons/coin-warn.png",
-  danger: "/assets/icons/coin-bad.png",
-  neutral: "/assets/icons/coin-deals.png",
-  brand: "/assets/icons/coin-deals.png",
-  info: "/assets/icons/coin-deals.png",
-};
+/** 级别: the medal on a pale disc tinted like it (owner, 2026-09-24: 奖牌徽章
+ *  也放进一个圆形中，与其他2个形状一致，背景色可以淡一些). */
+export function TierCoin({ tier, medalSrc, label }: { readonly tier: "strategic" | "key" | "standard"; readonly medalSrc: string; readonly label: string }) {
+  const bg = { strategic: "gold", key: "silver", standard: "bronze" }[tier];
+  return (
+    <div role="img" aria-label={label} className="inline-flex">
+      <Coin src={`/assets/icons/coin-tier-${bg}.png`}>
+        <img src={medalSrc} alt="" className="h-[1.875rem] w-auto drop-shadow-sm" />
+      </Coin>
+    </div>
+  );
+}
 
-/** 健康度: the score on a disc whose colour is the band (healthTone), with a
- *  thin white arc inside the rim for how full the 0-100 scale is - the ring
- *  the old ScoreRing drew, kept as a gauge on the coin. */
-export function HealthCoin({ score, tone, label }: { readonly score: number; readonly tone: Tone; readonly label: string }) {
+/** 健康度: the score on a disc whose colour follows it in 10-point steps -
+ *  red, amber, green, deepening within each band, split on healthTone's own
+ *  40 / 70 lines (owner, 2026-09-24: 根据健康分数，背景颜色进行改变). A thin
+ *  white arc inside the rim is the gauge the old ScoreRing drew. */
+export function HealthCoin({ score, label }: { readonly score: number; readonly label: string }) {
   const r = 18.5;
   const c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, score)) / 100;
+  const clamped = Math.max(0, Math.min(100, score));
+  const pct = clamped / 100;
+  const step = String(Math.floor(clamped / 10)).padStart(2, "0");
   return (
     <div role="img" aria-label={label} className="relative inline-flex">
-      <Coin src={HEALTH_COIN[tone]}>
+      <Coin src={`/assets/icons/coin-health-${step}.png`}>
         <span className="font-display text-base leading-none font-extrabold">{score}</span>
       </Coin>
       <svg
@@ -110,6 +117,7 @@ export function DealsSummaryBadge({
   amountText,
   amountLabel,
   amountFullText,
+  amountUnitText = null,
 }: {
   readonly count: number;
   readonly countLabel: string;
@@ -120,6 +128,9 @@ export function DealsSummaryBadge({
   readonly amountLabel: string;
   /** formatMoney 的完整结果 - compact 之外的精确数字放 tooltip 里。 */
   readonly amountFullText: string | null;
+  /** 单位与币种 (owner, 2026-09-24: 金额只显示数字) - the coin shows the bare
+   *  figure, so what it counts in is said here. */
+  readonly amountUnitText?: string | null;
 }) {
   return (
     <Tooltip>
@@ -130,7 +141,7 @@ export function DealsSummaryBadge({
             {amountText ? (
               <>
                 <span className="my-[0.1875rem] h-px w-6 bg-white/50" />
-                <span className="text-[0.55rem] leading-none opacity-90">{amountText}</span>
+                <span className="text-[0.6rem] leading-none font-bold opacity-90 tabular-nums">{amountText}</span>
               </>
             ) : null}
           </Coin>
@@ -143,6 +154,7 @@ export function DealsSummaryBadge({
           <>
             <div className="text-[0.65rem] font-bold tracking-wide uppercase opacity-70 mt-2xs">{amountLabel}</div>
             <div className="text-body-sm">{amountFullText}</div>
+            {amountUnitText ? <div className="text-body-sm opacity-80">{amountUnitText}</div> : null}
           </>
         ) : null}
       </TooltipContent>

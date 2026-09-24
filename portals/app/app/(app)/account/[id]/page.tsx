@@ -3,7 +3,7 @@ import {
   Icon,
   ViewLayout,
 } from "@vxture/design-ui";
-import { DealsSummaryBadge, DimensionStat, HealthCoin } from "../../components/dimension-stat";
+import { DealsSummaryBadge, DimensionStat, HealthCoin, TierCoin } from "../../components/dimension-stat";
 import { peerBenchmark } from "../../../domains/account/lib/benchmark";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
@@ -71,7 +71,7 @@ import { walletShare } from "../../../domains/pipeline/lib/wallet-share";
 import { icpFit } from "../../../domains/strategy/lib/icp";
 import { isReviewable, reviewOutcome } from "../../../domains/copilot/lib/outcome-review";
 import { toStageCatalog } from "../../../domains/pipeline/store";
-import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
+import { compactParts, formatMoney, stageLabelFor } from "../../lib/view-model";
 import { listContracts, listProjects, projectView, renewalPolicy } from "../../../domains/delivery/service";
 import { DEFAULT_RENEWAL_POLICY } from "../../../domains/delivery/lib/renewal";
 import { renewalRisk } from "../../../domains/delivery/lib/renewal-risk";
@@ -1169,11 +1169,15 @@ export default async function AccountDetailPage({
   // three round. The medal is its own PNG; the other two sit on gradient
   // coin PNGs drawn to match it (scripts/assets/gen-badge-coins.py). Only
   // this unit - the 本单位 / 含下级 switch is gone by the same ruling.
+  // The coin carries the bare figure; unit and currency go to its tooltip.
+  const openDealsParts = openDealsAmount
+    ? compactParts(openDealsAmount.amount, openDealsAmount.currency, locale)
+    : null;
   const badges = (
     <div className="flex items-center justify-center gap-md">
       <DimensionStat
         figure={
-          <img src={TIER_ICON_SRC[account.tier]} alt="" className="h-[2.875rem] w-10 flex-none" />
+          <TierCoin tier={account.tier} medalSrc={TIER_ICON_SRC[account.tier]} label={tierLabel} />
         }
         label={POSITION_TEXT.tierDimensionLabel}
         value={tierLabel}
@@ -1181,7 +1185,8 @@ export default async function AccountDetailPage({
       <DealsSummaryBadge
         count={openDealsCount}
         countLabel={POSITION_TEXT.planDeals}
-        amountText={openDealsAmount ? formatMoneyCompact(openDealsAmount.amount, openDealsAmount.currency, locale) : null}
+        amountText={openDealsParts ? openDealsParts.figure : null}
+        amountUnitText={openDealsParts ? POSITION_TEXT.amountUnit(openDealsParts.unit, openDealsParts.currency) : null}
         amountLabel={POSITION_TEXT.openDealsAmountLabel}
         amountFullText={openDealsAmount ? formatMoney(openDealsAmount.amount, openDealsAmount.currency, locale) : null}
       />
@@ -1190,7 +1195,6 @@ export default async function AccountDetailPage({
           figure={
             <HealthCoin
               score={health.value.score}
-              tone={healthTone(health.value.score)}
               label={`${CHAIN_TEXT.healthShort} ${health.value.score}`}
             />
           }

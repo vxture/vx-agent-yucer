@@ -5,7 +5,9 @@ backgrounds, all three badges read as round, with gradients - matching the
 glossy tier medals in public/assets/icons/tier-*.png).
 
 Pure PIL, no numpy. Drawn at 4x and downsampled for clean edges. Output:
-public/assets/icons/coin-{deals,good,warn,bad}.png, 184x184 (46px @4x).
+public/assets/icons/coin-deals.png, coin-tier-{gold,silver,bronze}.png (pale,
+the medal sits on them) and coin-health-{00..10}.png (one per 10 points of the
+health score, red through amber to green), all 184x184 (46px @4x).
 
     python3 scripts/assets/gen-badge-coins.py
 """
@@ -20,10 +22,43 @@ SS = 4  # supersample
 # (face top, face bottom, rim light, rim dark)
 PALETTES = {
     "deals": ((110, 160, 255), (29, 78, 216), (191, 212, 255), (22, 52, 150)),
-    "good": ((110, 231, 160), (21, 128, 61), (190, 245, 210), (15, 90, 45)),
-    "warn": ((253, 214, 100), (217, 119, 6), (255, 236, 170), (150, 70, 5)),
-    "bad": ((252, 140, 140), (185, 28, 28), (255, 200, 200), (120, 20, 20)),
+    # Pale, so the medal on top stays the thing you see (owner, 2026-09-24:
+    # 背景色可以淡一些).
+    "tier-gold": ((255, 250, 232), (248, 226, 164), (255, 253, 244), (212, 172, 84)),
+    "tier-silver": ((250, 251, 253), (216, 222, 232), (255, 255, 255), (150, 160, 176)),
+    "tier-bronze": ((254, 244, 236), (240, 204, 176), (255, 250, 245), (182, 114, 72)),
 }
+
+# Health: the colour follows the score, not three fixed bands (owner,
+# 2026-09-24: 根据健康分数，背景颜色进行改变). Anchors sit on healthTone's own
+# lines (40 and 70) so the coin never contradicts the band elsewhere.
+# Each band keeps its own hue family - red, amber, green - and only deepens
+# within it; mixing straight across bands went through olive.
+HEALTH_ANCHORS = [
+    (0, (153, 27, 27)), (39, (220, 60, 30)),
+    (40, (217, 119, 6)), (69, (234, 170, 8)),
+    (70, (74, 170, 60)), (100, (21, 128, 61)),
+]
+
+
+def mix(a, b, t):
+    return tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def health_base(score):
+    for (s0, c0), (s1, c1) in zip(HEALTH_ANCHORS, HEALTH_ANCHORS[1:]):
+        if score <= s1:
+            return mix(c0, c1, (score - s0) / (s1 - s0))
+    return HEALTH_ANCHORS[-1][1]
+
+
+def palette_from(base):
+    white, black = (255, 255, 255), (0, 0, 0)
+    return (mix(base, white, 0.45), base, mix(base, white, 0.7), mix(base, black, 0.35))
+
+
+for step in range(11):
+    PALETTES[f"health-{step:02d}"] = palette_from(health_base(step * 10))
 
 
 def lerp(a, b, t):
