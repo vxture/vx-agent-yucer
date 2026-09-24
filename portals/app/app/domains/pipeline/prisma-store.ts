@@ -560,7 +560,7 @@ export class PrismaPipelineStore implements PipelineStore {
     const rows = await p.opportunity.findMany({
       where: {
         workspaceId,
-        status: { in: ["won", "lost"] },
+        status: { in: ["won", "lost", "abandoned"] },
         deletedAt: null,
         ...(reviewedIds.length > 0 ? { id: { notIn: reviewedIds } } : {}),
       },
@@ -1030,7 +1030,7 @@ function toReview(r: Record<string, unknown>): WinLossReviewRecord {
   return {
     id: String(r.id),
     opportunityId: String(r.opportunityId),
-    outcome: r.outcome as "won" | "lost",
+    outcome: r.outcome as "won" | "lost" | "abandoned",
     primaryReasonId: (r.primaryReasonId as string | null) ?? null,
     competitor: (r.competitor as string | null) ?? null,
     lessons: (r.lessons as string | null) ?? null,

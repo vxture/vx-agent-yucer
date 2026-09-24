@@ -9,6 +9,7 @@ import {
   abandonOpportunity,
   advanceStage,
   dealExit,
+  winLossReviewOf,
   listPendingReviews,
   listWinLossReasons,
   recordWinLossReview,
@@ -251,4 +252,45 @@ test("abandoning needs pipeline write - a read-only member is refused", async ()
   const r = await abandonOpportunity(ctx("executive", "business", store), "opp_1", { reasonCode: "timing" });
   assert.equal(r.ok, false);
   assert.equal((await store.getOpportunity(WS, "opp_1"))?.status, "open");
+});
+
+// --- 复盘覆盖放弃 (YC-065 R7) ---------------------------------------------------
+
+test("an abandoned deal can be reviewed with a 'not won' reason, and it is listed as owed until then", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "business", store);
+  unwrap(await abandonOpportunity(c, "opp_1", { reasonCode: "no_budget" }));
+  assert.deepEqual(unwrap(await listPendingReviews(c)).map((o) => o.id), ["opp_1"], "owed like a loss");
+  const reasons = unwrap(await listWinLossReasons(c));
+  const lossReason = reasons.find((r) => r.forLost && !r.forWon)!;
+  const winOnly = reasons.find((r) => r.forWon && !r.forLost);
+  if (winOnly) {
+    const wrong = await recordWinLossReview(c, "opp_1", { primaryReasonId: winOnly.id, competitor: null, lessons: null });
+    assert.equal(wrong.ok === false && wrong.violations[0]!.code, "reason_wrong_outcome");
+  }
+  const saved = unwrap(await recordWinLossReview(c, "opp_1", { primaryReasonId: lossReason.id, competitor: null, lessons: "预算冻结前没锁定" }));
+  assert.equal(saved.outcome, "abandoned");
+  assert.equal(unwrap(await winLossReviewOf(c, "opp_1"))?.lessons, "预算冻结前没锁定");
+  assert.deepEqual(unwrap(await listPendingReviews(c)), []);
+});
+
+test("an open deal still has nothing to review", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const r = await recordWinLossReview(ctx("sales_rep", "business", store), "opp_1", { primaryReasonId: null, competitor: null, lessons: null });
+  assert.equal(r.ok === false && r.violations[0]!.code, "not_closed");
+});
+
+test("the new reads and the abandon are gated, and a missing deal is named", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  // Below business: the review read is a paid step.
+  assert.equal((await winLossReviewOf(ctx("sales_rep", "pro", store), "opp_1")).ok, false);
+  // No product access at all: even the exit reason is refused.
+  assert.equal((await dealExit(ctx("sales_rep", null, store), "opp_1")).ok, false);
+  const missing = await abandonOpportunity(ctx("sales_rep", "business", store), "nope", { reasonCode: "timing" });
+  assert.equal(missing.ok === false && missing.violations[0]!.code, "not_found");
+  const bad = await abandonOpportunity(ctx("sales_rep", "business", store), "opp_1", { reasonCode: "lost_to_competitor" });
+  assert.equal(bad.ok === false && bad.violations[0]!.code, "exit_reason_invalid");
 });

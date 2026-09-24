@@ -34,13 +34,16 @@ import {
   listStageDefinitions,
   stageHistory,
   dealExit,
+  listWinLossReasons,
   stallRules,
+  winLossReviewOf,
 } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import {
   getAccountDetail,
   decisionChainsByOpportunity,
   buyingRolesFor,
+  recomputeHealth,
 } from "../../../domains/account/service";
 import { listContracts, listProjects, projectView } from "../../../domains/delivery/service";
 import { dealShare } from "../../../domains/pipeline/lib/wallet-share";
@@ -57,6 +60,8 @@ import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../../lib/card-veil";
 import { dealBrief } from "../../../domains/pipeline/lib/brief";
 import { displayRationale } from "../../lib/proposal-rationale";
 import { WarRoom } from "../../components/war-room";
+import { DealReview } from "../../components/deal-review";
+import { recordReview } from "../winloss-action";
 import { CategoryActionCard } from "../../components/category-action-card";
 import { CommitmentActionCard } from "../../components/commitment-action-card";
 import { ProposalActionCard } from "../../components/proposal-action-card";
@@ -127,6 +132,7 @@ export default async function OpportunityDetailPage({
     POSITION_TEXT,
     CHAIN_TEXT,
     WAR_ROOM_TEXT,
+    EXIT_REASON_LABEL,
     CHANNEL_LABEL,
     LOAD_ERROR,
     DOMAIN_LABEL,
@@ -283,6 +289,24 @@ export default async function OpportunityDetailPage({
     ? account.value.account.name
     : opportunity.accountId;
   const tier = account.ok ? account.value.account.tier : "standard";
+  // 客户上下文 (YC-070 S1): the customer's health and whether it hangs on one
+  // person, read-only, linking to the customer page - nothing about the
+  // customer is edited from a deal.
+  // Derived exactly as the customer page derives it (persist: false - a read
+  // must not write), so the two pages cannot show different numbers; the
+  // stored column is not kept current.
+  const healthRead = opportunity.accountId
+    ? await recomputeHealth(accountCtx, opportunity.accountId, { persist: false }).catch(() => null)
+    : null;
+  const accountHealth = healthRead?.ok ? healthRead.value.score : null;
+  const accountSingleThread = (feed.ok ? feed.value.judgements : []).some(
+    (j) => j.id === `singlethread:${opportunity.accountId}`,
+  );
+  // 结局与复盘, in place on a closed deal (YC-065 R7).
+  const closedDeal = opportunity.status !== "open";
+  const [review, reviewReasons] = closedDeal
+    ? await Promise.all([winLossReviewOf(ctx, id), listWinLossReasons(ctx)])
+    : [null, null];
 
   // THE ONE CHAIN (2026-09-05 convergence). This page used to render it twice
   // in two vocabularies - a verdict cell and four bare counts - which read as
@@ -550,6 +574,18 @@ export default async function OpportunityDetailPage({
                   ? POSITION_TEXT.tierKey
                   : POSITION_TEXT.tierStandard}
             </Tag>
+            {accountHealth !== null && opportunity.accountId ? (
+              <Link href={`/account/${opportunity.accountId}`}>
+                <Tag tone={accountHealth < 40 ? "danger" : accountHealth < 70 ? "warning" : "success"}>
+                  {WAR_ROOM_TEXT.accountHealth(accountHealth)}
+                </Tag>
+              </Link>
+            ) : null}
+            {accountSingleThread && opportunity.accountId ? (
+              <Link href={`/account/${opportunity.accountId}`}>
+                <Tag tone="warning">{WAR_ROOM_TEXT.accountSingleThread}</Tag>
+              </Link>
+            ) : null}
             <Tag tone={STAGE_TONE[opportunity.stage as Stage]} dot>
               {stageLabelFor(opportunity.stage, stageDefinitions, STAGE_LABEL)}
             </Tag>
@@ -681,6 +717,24 @@ export default async function OpportunityDetailPage({
           cta={WAR_ROOM_TEXT.analyseCta}
         />
       </WarRoom>
+
+      {closedDeal ? (
+        <DealReview
+          opportunityId={id}
+          status={opportunity.status}
+          entitled={can(session.authz, session.entitlement, "pipeline.winloss.view", "ui").allowed}
+          canRecord={can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed}
+          exitReason={exit?.ok && exit.value ? (EXIT_REASON_LABEL[exit.value.reasonCode] ?? exit.value.reasonCode) : null}
+          review={review?.ok && review.value ? review.value : null}
+          reasons={(reviewReasons?.ok ? reviewReasons.value : []).map((r) => ({
+            id: r.id,
+            name: r.name,
+            forWon: r.forWon,
+            forLost: r.forLost,
+          }))}
+          onRecord={recordReview}
+        />
+      ) : null}
 
       <PositionBrief
         projects={(projects.ok ? projects.value : []).map((pr, i) => ({
@@ -904,7 +958,6 @@ export default async function OpportunityDetailPage({
         status={opportunity.status}
         probability={opportunity.probability}
         stageDefinitions={stageDefinitions}
-        exitReason={exit?.ok ? (exit.value?.reasonCode ?? null) : null}
         canAbandon={can(session.authz, session.entitlement, "pipeline.opportunity.abandon", "ui").allowed}
         onAbandon={abandonDeal}
         canAdvance={

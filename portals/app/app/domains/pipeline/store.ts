@@ -155,7 +155,8 @@ export function toStageCatalog(rows: readonly StageDefinitionRecord[]): readonly
 export interface WinLossReviewRecord {
   id: string;
   opportunityId: string;
-  outcome: "won" | "lost";
+  /** abandoned since YC-065 R6: giving a deal up is reviewed like a loss. */
+  outcome: "won" | "lost" | "abandoned";
   /** The vocabulary row's uuid (incr/0039). Null = closed, reason not yet
    *  given, which is the state the review roster exists to surface. */
   primaryReasonId: string | null;
@@ -166,7 +167,8 @@ export interface WinLossReviewRecord {
 }
 
 export interface NewWinLossReview {
-  outcome: "won" | "lost";
+  /** abandoned since YC-065 R6: giving a deal up is reviewed like a loss. */
+  outcome: "won" | "lost" | "abandoned";
   /** The vocabulary row's uuid (incr/0039). Null = closed, reason not yet
    *  given, which is the state the review roster exists to surface. */
   primaryReasonId: string | null;
@@ -956,7 +958,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       .filter(
         (o) =>
           o.workspaceId === workspaceId &&
-          (o.status === "won" || o.status === "lost") &&
+          (o.status === "won" || o.status === "lost" || o.status === "abandoned") &&
           !this.reviews.has(o.id),
       )
       .sort((a, b) => (b.closedAt?.getTime() ?? 0) - (a.closedAt?.getTime() ?? 0))

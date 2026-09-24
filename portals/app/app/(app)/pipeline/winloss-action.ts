@@ -44,6 +44,10 @@ export async function recordReview(
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  // The deal page carries the review in place now (YC-065 R7), and /winloss
+  // lists what is still owed - both change when one is written.
   revalidatePath("/pipeline");
+  revalidatePath(`/pipeline/${opportunityId}`);
+  revalidatePath("/winloss");
   return { ok: true };
 }

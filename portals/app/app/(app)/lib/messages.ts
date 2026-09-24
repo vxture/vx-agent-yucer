@@ -5727,6 +5727,13 @@ export const WINLOSS_TEXT = {
   columnClosed: "关闭时间",
   outcomeWon: "赢单",
   outcomeLost: "丢单",
+  outcomeAbandoned: "放弃",
+  // 作战页上的结局与复盘 (YC-065 R7).
+  dealReviewTitle: "结局与复盘",
+  dealReviewOwed: "待复盘",
+  dealReviewLocked: "复盘需要商务版",
+  dealReviewEdit: "修改复盘",
+  dealReviewExit: (reason: string) => `退出原因:${reason}`,
   record: "写复盘",
   reasonLabel: "主要原因",
   reasonNone: "未选择",
@@ -5832,6 +5839,9 @@ export const BUYING_ROLE_TEXT = {
  * 每张卡带依据 —— 没有依据的推荐是命令。
  */
 export const WAR_ROOM_TEXT = {
+  // 客户上下文, read-only (YC-070 S1): links to the customer page.
+  accountHealth: (n: number) => `客户健康 ${n}`,
+  accountSingleThread: "客户单线程",
   title: "态势判决",
   allClear: (n: number) => `${n} 项检查全部通过。没有需要处理的发现。`,
   findings: (n: number) => `${n} 项需要注意,可执行的动作按轻重排在下面。`,
