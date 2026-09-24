@@ -54,14 +54,14 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
         </span>
       }
       // 查看全部 IN THE HEADER, beside the ⋮ (owner, 2026-09-24: 精简, 放到标题
-      // 按钮旁边, 作为按钮集的外放按钮, 去掉底部). Short on the button; the full
-      // "opens in 商机智探" sentence is its hover. New tab, like every link
+      // 按钮旁边, 作为按钮集的外放按钮, 去掉底部). The button names where it goes
+      // (商机智探); "view all N there" is its hover. New tab, like every link
       // leaving this page.
       action={
         // Quiet, like 联系人's 查看全部 (owner, 2026-09-24: 不要加粗, 颜色淡一些).
         <Button asChild size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground font-normal">
           <a href="/signal" {...external} title={SIGNAL_PANEL_TEXT.viewAll(rows.length)}>
-            {SIGNAL_PANEL_TEXT.viewAllShort(rows.length)}
+            {SIGNAL_PANEL_TEXT.inboxButton}
             <Icon name="external-link" size="xs" />
           </a>
         </Button>

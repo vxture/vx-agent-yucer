@@ -5633,7 +5633,7 @@ export const en: Dictionary = {
     openSource: "Source",
     handleInInbox: "Handle in the signal inbox",
     viewAll: (n: number) => `View all ${n} in the signal inbox`,
-    viewAllShort: (n: number) => `All ${n}`,
+    inboxButton: "Opportunity signals",
   },
   RISK_TEXT: {
     title: "Risk types",
