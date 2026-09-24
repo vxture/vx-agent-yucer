@@ -2650,6 +2650,7 @@ export const en: Dictionary = {
     planTarget: "Plan target",
     planDeals: "Open deals",
     openDealsAmountLabel: "Total contract value",
+    amountUnit: (unit: string, currency: string) => (unit ? `Unit: ${unit} · Currency: ${currency}` : `Currency: ${currency}`),
     triangle: "The team on it",
     triangleOf: (sales: string, presales: string, delivery: string) =>
       `Sales ${sales} - Presales ${presales} - Delivery ${delivery}`,

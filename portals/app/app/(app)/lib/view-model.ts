@@ -243,6 +243,26 @@ export function formatMoneyCompact(
   }).format(amount);
 }
 
+/**
+ * Money split for a badge: the bare figure, its compact unit and currency
+ * (owner, 2026-09-24: 金额只显示数字，tooltip 显示币种和单位). 2,400,000 CNY
+ * in zh-CN is { figure: "240", unit: "万", currency: "CNY" }; in en-US
+ * { figure: "2.4", unit: "M" }. `unit` is "" below the first compact step.
+ */
+export function compactParts(
+  amount: number,
+  currency: string,
+  locale: string,
+): { figure: string; unit: string; currency: string } {
+  const parts = new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).formatToParts(amount);
+  const figure = parts
+    .filter((p) => p.type === "integer" || p.type === "group" || p.type === "decimal" || p.type === "fraction" || p.type === "minusSign")
+    .map((p) => p.value)
+    .join("");
+  const unit = parts.filter((p) => p.type === "compact").map((p) => p.value).join("");
+  return { figure, unit, currency };
+}
+
 export function formatPercent(ratio: number | null, locale = "zh-CN"): string {
   if (ratio == null) return "-";
   return new Intl.NumberFormat(locale, {
