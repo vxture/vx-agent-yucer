@@ -11,12 +11,14 @@ import {
   DEFAULT_STAGE_DEFINITIONS,
   type OpportunityStatus,
   type Stage,
+  type AbandonPlan,
   type StageChangePlan,
 } from "./lib/stage";
 import type {
   BusinessFormRecord,
   CommercialTermsPatch,
   ContractTypeRecord,
+  DealExitRecord,
   NewOpportunity,
   NewWinLossReview,
   WinLossReviewRecord,
@@ -303,8 +305,80 @@ export class PrismaPipelineStore implements PipelineStore {
           occurredAt: plan.event.occurredAt,
         },
       });
+      // A LOSS WRITES ITS REASON IN THE SAME UNIT (YC-065 R6). funnel_exit is
+      // insert-only; the row names who closed it and why.
+      if (plan.exit) {
+        await tx.funnelExit.create({
+          data: {
+            workspaceId,
+            stage: "opportunity",
+            subjectId: opportunityId,
+            outcome: plan.exit.outcome,
+            reasonCode: plan.exit.reasonCode,
+            note: plan.exit.note,
+            decidedBySub: plan.event.actorSub ?? "system",
+            decidedAt: plan.event.occurredAt,
+          },
+        });
+      }
       return true;
     });
+  }
+
+  async abandonOpportunity(
+    workspaceId: string,
+    opportunityId: string,
+    plan: AbandonPlan & { decidedBySub: string },
+  ): Promise<boolean> {
+    const p = await getPrismaClient();
+    const patch: Record<string, unknown> = {
+      status: plan.patch.status,
+      closedAt: plan.patch.closedAt,
+      forecastCategory: plan.patch.forecastCategory,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(OPPORTUNITY_TABLE, patch);
+    if (!guard.ok) {
+      throw new Error(`refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`);
+    }
+    // One transaction, guarded on status = open: two people abandoning the
+    // same deal at once write one exit, not two.
+    return p.$transaction(async (tx) => {
+      const updated = await tx.opportunity.updateMany({
+        where: { id: opportunityId, workspaceId, status: "open" },
+        data: patch,
+      });
+      if (updated.count === 0) return false;
+      await tx.funnelExit.create({
+        data: {
+          workspaceId,
+          stage: "opportunity",
+          subjectId: opportunityId,
+          outcome: plan.exit.outcome,
+          reasonCode: plan.exit.reasonCode,
+          note: plan.exit.note,
+          decidedBySub: plan.decidedBySub,
+          decidedAt: plan.patch.closedAt,
+        },
+      });
+      return true;
+    });
+  }
+
+  async latestDealExit(workspaceId: string, opportunityId: string): Promise<DealExitRecord | null> {
+    const p = await getPrismaClient();
+    const r = await p.funnelExit.findFirst({
+      where: { workspaceId, stage: "opportunity", subjectId: opportunityId },
+      orderBy: { decidedAt: "desc" },
+    });
+    if (!r) return null;
+    return {
+      outcome: r.outcome as DealExitRecord["outcome"],
+      reasonCode: r.reasonCode,
+      note: r.note,
+      decidedBySub: r.decidedBySub,
+      decidedAt: r.decidedAt,
+    };
   }
 
   async updateCommercialTerms(

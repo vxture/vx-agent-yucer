@@ -32,6 +32,7 @@
 // (win-loss reason, industry) already made once its codes became tenant data.
 
 import { allOf, fail, ok, violation, type RuleResult, type Violation } from "../../shared/result";
+import { OPPORTUNITY_ABANDON_REASONS, OPPORTUNITY_LOSE_REASONS } from "../../shared/funnel-exit";
 import type { ForecastCategory } from "./forecast";
 import { DEFAULT_STAGE_DEFINITIONS, type StageDefinition } from "./stage-vocab";
 
@@ -106,6 +107,19 @@ export interface StageChangeInput {
    * stage picker.
    */
   reopen?: boolean;
+  /**
+   * Why the deal was lost - required when `to` is a lost stage (YC-065 R6).
+   * Written to funnel_exit in the same transaction as the stage change, so a
+   * lost deal can no longer close without saying why.
+   */
+  exitReason?: { code: string; note?: string | null };
+}
+
+/** The funnel_exit row a close writes alongside its stage change. */
+export interface DealExit {
+  outcome: "lost" | "abandoned";
+  reasonCode: string;
+  note: string | null;
 }
 
 /** The append-only journal row. */
@@ -145,6 +159,8 @@ export interface StageChangePlan {
   /** True when the caller must also create the win/loss review in the same unit
    * of work. Entering a terminal stage requires exactly one. */
   requiresWinLossReview: boolean;
+  /** Present when the move closes the deal as lost: its exit reason. */
+  exit?: DealExit;
 }
 
 /**
@@ -171,6 +187,34 @@ export function planStageChange(
     checks.push(
       violation("stage_unchanged", `already in ${input.to}; a no-op must not be journalled`, "stage"),
     );
+  }
+
+  // AN ABANDONED DEAL IS CLOSED WHATEVER STAGE IT SITS AT (R6: the stage keeps
+  // where it was given up). Without this, any stage move silently resets the
+  // status through statusFor and resurrects a deal nobody decided to reopen.
+  const abandoned = current.status === "abandoned";
+  if (abandoned && !input.reopen) {
+    checks.push(
+      violation("abandoned_closed", "an abandoned deal must be reopened, with a reason, before it moves", "stage"),
+    );
+  }
+
+  // A LOSS SAYS WHY (R6). Checked here so the surface can ask for it before
+  // anything is written; the reason goes to funnel_exit with the move.
+  const losing = statusFor(input.to, catalog) === "lost";
+  let exit: DealExit | undefined;
+  if (losing) {
+    const code = input.exitReason?.code;
+    const note = input.exitReason?.note?.trim() ? input.exitReason.note.trim() : null;
+    if (!code) {
+      checks.push(violation("exit_reason_required", "a lost deal needs a reason", "exitReason"));
+    } else if (!(OPPORTUNITY_LOSE_REASONS as readonly string[]).includes(code)) {
+      checks.push(violation("exit_reason_invalid", `${code} is not a reason a deal is lost for`, "exitReason"));
+    } else if (code === "other" && !note) {
+      checks.push(violation("exit_note_required", "'other' needs a sentence saying what it was", "exitReason"));
+    } else {
+      exit = { outcome: "lost", reasonCode: code, note };
+    }
   }
 
   if (isTerminal(current.stage, catalog) && !input.reopen) {
@@ -215,7 +259,7 @@ export function planStageChange(
   // silently would let a closed-then-reopened deal keep a commitment nobody
   // re-made.
   if (isTerminal(input.to, catalog)) patch.forecastCategory = "closed";
-  else if (isTerminal(current.stage, catalog)) patch.forecastCategory = "pipeline";
+  else if (isTerminal(current.stage, catalog) || abandoned) patch.forecastCategory = "pipeline";
 
   return allOf(
     {
@@ -230,9 +274,47 @@ export function planStageChange(
       // One review per opportunity (unique on opportunity_id). Reopening and
       // re-closing therefore updates the existing review rather than adding one.
       requiresWinLossReview: isTerminal(input.to, catalog) && !current.hasWinLossReview,
+      ...(exit ? { exit } : {}),
     },
     [],
   );
+}
+
+export interface AbandonInput {
+  reasonCode: string;
+  note?: string | null;
+  occurredAt?: Date;
+}
+
+export interface AbandonPlan {
+  patch: { status: "abandoned"; closedAt: Date; forecastCategory: "closed" };
+  exit: DealExit;
+}
+
+/**
+ * Give a deal up (YC-065 R6). 放弃 is OUR decision to stop pursuing it, not a
+ * loss: status becomes abandoned, closed_at is stamped, the stage STAYS where
+ * it was - where we gave up is exactly what the review wants to know - and the
+ * category becomes closed so no roll-up counts it (rollUp excludes the status).
+ * The reason is required and goes to funnel_exit in the same transaction.
+ */
+export function planAbandon(current: Pick<OpportunitySnapshot, "status">, input: AbandonInput): RuleResult<AbandonPlan> {
+  if (current.status !== "open") {
+    return fail(violation("not_open", `only an open deal can be abandoned; this one is ${current.status}`, "status"));
+  }
+  const note = input.note?.trim() ? input.note.trim() : null;
+  if (!input.reasonCode) return fail(violation("exit_reason_required", "abandoning needs a reason", "reasonCode"));
+  if (!(OPPORTUNITY_ABANDON_REASONS as readonly string[]).includes(input.reasonCode)) {
+    return fail(violation("exit_reason_invalid", `${input.reasonCode} is not a reason to abandon`, "reasonCode"));
+  }
+  if (input.reasonCode === "other" && !note) {
+    return fail(violation("exit_note_required", "'other' needs a sentence saying what it was", "note"));
+  }
+  const at = input.occurredAt ?? new Date();
+  return ok({
+    patch: { status: "abandoned", closedAt: at, forecastCategory: "closed" },
+    exit: { outcome: "abandoned", reasonCode: input.reasonCode, note },
+  });
 }
 
 /** Status implied by a stage. abandoned is a human decision, never inferred. */

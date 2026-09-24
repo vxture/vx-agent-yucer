@@ -23,6 +23,8 @@ import {
   DEFAULT_STAGE_DEFINITIONS,
   type OpportunityStatus,
   type Stage,
+  type AbandonPlan,
+  type DealExit,
   type StageChangePlan,
   type StageDefinition,
 } from "./lib/stage";
@@ -280,6 +282,21 @@ export interface PipelineStore {
   applyStageChange(workspaceId: string, opportunityId: string, plan: StageChangePlan): Promise<boolean>;
 
   /**
+   * Give a deal up (YC-065 R6): the status/closed/category patch AND its
+   * funnel_exit row, atomically - a deal abandoned without its reason is the
+   * gap this exists to close. Only an OPEN deal moves; returns false otherwise
+   * (or when the id is not in this workspace).
+   */
+  abandonOpportunity(
+    workspaceId: string,
+    opportunityId: string,
+    plan: AbandonPlan & { decidedBySub: string },
+  ): Promise<boolean>;
+
+  /** The latest exit recorded for a deal (lost or abandoned), or null. */
+  latestDealExit(workspaceId: string, opportunityId: string): Promise<DealExitRecord | null>;
+
+  /**
    * The COMMERCIAL terms only: what the deal is worth, when it lands, how likely
    * it is, and which forecast bucket it sits in.
    *
@@ -415,9 +432,16 @@ export interface PipelineStore {
 }
 
 /** In-memory implementation for the offline path and for tests. */
+/** A deal's exit as funnel_exit records it (stage = opportunity). */
+export interface DealExitRecord extends DealExit {
+  decidedBySub: string;
+  decidedAt: Date;
+}
+
 export class InMemoryPipelineStore implements PipelineStore {
   private opportunities = new Map<string, OpportunityRecord>();
   private events: StageEventRecord[] = [];
+  private exits: (DealExitRecord & { workspaceId: string; opportunityId: string })[] = [];
   private snapshots: Array<SnapshotRow & { workspaceId: string }> = [];
   private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
   private reasons: WinLossReasonRecord[] = [];
@@ -554,7 +578,38 @@ export class InMemoryPipelineStore implements PipelineStore {
 
     this.seq += 1;
     this.events.push({ id: `evt_${this.seq}`, opportunityId, ...plan.event });
+    if (plan.exit) {
+      this.exits.push({
+        workspaceId,
+        opportunityId,
+        ...plan.exit,
+        decidedBySub: plan.event.actorSub ?? "system",
+        decidedAt: plan.event.occurredAt,
+      });
+    }
     return true;
+  }
+
+  async abandonOpportunity(
+    workspaceId: string,
+    opportunityId: string,
+    plan: AbandonPlan & { decidedBySub: string },
+  ): Promise<boolean> {
+    const row = this.opportunities.get(opportunityId);
+    if (!row || row.workspaceId !== workspaceId || row.status !== "open") return false;
+    row.status = plan.patch.status;
+    row.closedAt = plan.patch.closedAt;
+    row.forecastCategory = plan.patch.forecastCategory;
+    this.exits.push({ workspaceId, opportunityId, ...plan.exit, decidedBySub: plan.decidedBySub, decidedAt: plan.patch.closedAt });
+    return true;
+  }
+
+  async latestDealExit(workspaceId: string, opportunityId: string): Promise<DealExitRecord | null> {
+    const mine = this.exits
+      .filter((e) => e.workspaceId === workspaceId && e.opportunityId === opportunityId)
+      .sort((a, b) => b.decidedAt.getTime() - a.decidedAt.getTime());
+    const e = mine[0];
+    return e ? { outcome: e.outcome, reasonCode: e.reasonCode, note: e.note, decidedBySub: e.decidedBySub, decidedAt: e.decidedAt } : null;
   }
 
   async updateCommercialTerms(

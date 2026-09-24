@@ -64,6 +64,7 @@ import {
 import {
   DEFAULT_STAGE_DEFINITIONS,
   planProbabilityOverride,
+  planAbandon,
   planStageChange,
   planStageDefinition,
   planStageRemoval,
@@ -74,6 +75,7 @@ import {
 import {
   toStageCatalog,
   type BusinessFormRecord,
+  type DealExitRecord,
   type CommercialTermsPatch,
   type ContractTypeRecord,
   type NewWinLossReview,
@@ -382,6 +384,50 @@ export async function advanceStage(
     journalled: true,
     reviewRequired: plan.value.requiresWinLossReview,
   });
+}
+
+/**
+ * Give a deal up (YC-065 R6) - our decision to stop pursuing it. Status
+ * becomes abandoned, the stage stays where it was given up, the category
+ * becomes closed so no roll-up counts it, and the reason is written to
+ * funnel_exit in the same transaction. Reopening goes through advanceStage
+ * with `reopen` and a reason.
+ */
+export async function abandonOpportunity(
+  ctx: PipelineContext,
+  opportunityId: string,
+  input: { reasonCode: string; note?: string | null },
+): Promise<RuleResult<{ status: "abandoned" }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.abandon", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+
+  const plan = planAbandon(current, input);
+  if (!plan.ok) return plan as RuleResult<{ status: "abandoned" }>;
+
+  const applied = await ctx.store.abandonOpportunity(ctx.workspaceId, opportunityId, {
+    ...plan.value,
+    decidedBySub: ctx.sub,
+  });
+  // The store guards on status = open: losing that race means somebody else
+  // closed it first, which reads the same as trying to abandon a closed deal.
+  if (!applied) return fail(violation("not_open", `opportunity ${opportunityId} is no longer open`, "status"));
+  return ok({ status: "abandoned" });
+}
+
+/**
+ * Why a closed deal ended, as recorded (lost or abandoned). Gated on
+ * `pipeline.view`: the reason is part of reading the deal.
+ */
+export async function dealExit(
+  ctx: PipelineContext,
+  opportunityId: string,
+): Promise<RuleResult<DealExitRecord | null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.latestDealExit(ctx.workspaceId, opportunityId));
 }
 
 /**

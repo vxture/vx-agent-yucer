@@ -72,6 +72,8 @@ class ScopedPipelineStore implements PipelineStore {
   // write path reads the row first, through the scoped read above.
   createOpportunity: PipelineStore["createOpportunity"] = (...a) => this.inner.createOpportunity(...a);
   applyStageChange: PipelineStore["applyStageChange"] = (...a) => this.inner.applyStageChange(...a);
+  abandonOpportunity: PipelineStore["abandonOpportunity"] = (...a) => this.inner.abandonOpportunity(...a);
+  latestDealExit: PipelineStore["latestDealExit"] = (...a) => this.inner.latestDealExit(...a);
   updateCommercialTerms: PipelineStore["updateCommercialTerms"] = (...a) =>
     this.inner.updateCommercialTerms(...a);
   appendForecastSnapshot: PipelineStore["appendForecastSnapshot"] = (...a) =>

@@ -287,6 +287,10 @@ function foldDeals(
       if (b >= 0) cell.signSeries[b]! += value;
     } else if (d.status === "lost") {
       cell.lostValue += value;
+    } else if (d.status === "abandoned") {
+      // Given up (YC-065 R6): neither pipeline nor a loss to a buyer - it
+      // counts toward nothing on the screen, as in every roll-up.
+      continue;
     } else {
       cell.openDeals += 1;
       cell.pipelineValue += value;
