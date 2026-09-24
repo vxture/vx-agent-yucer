@@ -155,6 +155,37 @@ export async function listPipeline(
 }
 
 /**
+ * Everything a reader needs to say "is this deal stalled" the way every other
+ * screen says it (YC-065 R3): the workspace's thresholds, its stage catalog
+ * and each business form's own override. Gated on plain `pipeline.view` - the
+ * same arrangement as `stageChangeTimestamps` below: a rep who owns a deal
+ * reads its stall line without holding the config permission, and reading a
+ * rule's parameters is not configuring it. Callers resolve per deal with
+ * `stallLineFor` (lib/forecast-rule.ts) and `overrideFor` here.
+ */
+export interface StallRules {
+  readonly thresholds: ForecastThresholds;
+  readonly stageCatalog: readonly StageDefinition[];
+  /** The deal's own override via its business form, or null. */
+  overrideFor(businessFormId: string | null | undefined): number | null;
+}
+
+export async function stallRules(ctx: PipelineContext): Promise<RuleResult<StallRules>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const [thresholds, stageCatalog, overrides] = await Promise.all([
+    ctx.store.getForecastThresholds(ctx.workspaceId),
+    loadStageCatalog(ctx),
+    loadBusinessFormStallOverrides(ctx),
+  ]);
+  return ok({
+    thresholds,
+    stageCatalog,
+    overrideFor: (id) => (id ? (overrides.get(id) ?? null) : null),
+  });
+}
+
+/**
  * When each open deal last moved stage, from the journal - the same map
  * `previewCategories` rolls up, gated on plain `pipeline.view` instead of the
  * forecast feature. "How long has this sat here" is a fact about the deal

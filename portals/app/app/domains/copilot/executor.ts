@@ -7,6 +7,8 @@ import { fillAccountField } from "../account/service";
 import { recordInteraction } from "../account/field-service";
 import { isChannel } from "../account/lib/commitment";
 import { isStage } from "../pipeline/lib/stage";
+import { DEFAULT_STAGE_DEFINITIONS } from "../pipeline/lib/stage-vocab";
+import { toStageCatalog } from "../pipeline/store";
 import type { AgentAction } from "./lib/action";
 import { EXECUTABLE_ACTIONS } from "./lib/autonomy";
 
@@ -158,7 +160,11 @@ async function advanceStageAction(
     );
   }
   const to = (action.payload as { to?: unknown }).to;
-  if (typeof to !== "string" || !isStage(to)) {
+  // Against the WORKSPACE's catalog (YC-065 R3), not the shipped seven: a
+  // proposal to move into a stage the workspace configured is valid.
+  const stageRows = await getPipelineStore().listStageDefinitions(ctx.workspaceId);
+  const stageCatalog = stageRows.length > 0 ? toStageCatalog(stageRows) : DEFAULT_STAGE_DEFINITIONS;
+  if (typeof to !== "string" || !isStage(to, stageCatalog)) {
     return fail(
       violation(
         "payload_invalid",

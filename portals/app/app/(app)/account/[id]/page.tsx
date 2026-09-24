@@ -64,8 +64,8 @@ import {
 import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
-import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
-import { forecastThresholds, listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory } from "../../../domains/pipeline/service";
+import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage, stallLineFor } from "../../../domains/pipeline/lib/forecast-rule";
+import { listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory, stallRules } from "../../../domains/pipeline/service";
 import { classifyRisks, mergeJudgements } from "../../../domains/account/lib/risk-types";
 import { walletShare } from "../../../domains/pipeline/lib/wallet-share";
 import { icpFit } from "../../../domains/strategy/lib/icp";
@@ -1087,10 +1087,19 @@ export default async function AccountDetailPage({
   // 徽章区: 开放商机(累计合同额) / 客户级别 / 健康评估 (owner, 2026-09-21:
   // 三个图形区域起个名字，叫徽章区；三个徽章整体居中显示 - 之前默认靠左)。
   // 风险分型 (YC-021 L5): the facts above regrouped into five types, each with
-  // who to go to. The stall line is the workspace's own (falls back to the
-  // shipped 45 days for a member who cannot read pipeline configuration).
-  const thresholdsRead = await forecastThresholds({ ...base, store: session.stores.pipeline() }).catch(() => null);
-  const stallDays = thresholdsRead?.ok ? thresholdsRead.value.stallDays : DEFAULT_FORECAST_THRESHOLDS.stallDays;
+  // who to go to. The stall line is resolved per deal exactly as the deal
+  // page and the forecast review resolve it (YC-065 R3): business form
+  // override, then the workspace's line, then the shipped 45. stallRules is
+  // gated on pipeline.view, so a rep who can read the deals reads their line.
+  const stallRead = await stallRules({ ...base, store: session.stores.pipeline() }).catch(() => null);
+  const stallThresholds = stallRead?.ok ? stallRead.value.thresholds : DEFAULT_FORECAST_THRESHOLDS;
+  const stallDays = stallThresholds.stallDays;
+  const stallLineOf = new Map(
+    (deals.ok ? deals.value : []).map((d) => [
+      d.id,
+      stallLineFor({ stallDaysOverride: stallRead?.ok ? stallRead.value.overrideFor(d.businessFormId) : null }, stallThresholds),
+    ]),
+  );
   const singleThreadJudgement = relevantJudgements.find((j) => j.id === `singlethread:${id}`);
   // 合并进风险分型 (owner, 2026-09-24): every judgement about this account or
   // one of its open deals joins the lane it is about - see mergeJudgements.
@@ -1109,7 +1118,7 @@ export default async function AccountDetailPage({
     singleThread: singleThreadJudgement ? (singleThreadJudgement.facts[0]?.value ?? null) : null,
     openDeals: dealRows
       .filter((d) => d.status === "open")
-      .map((d) => ({ name: d.name, owner: d.ownerName, daysInStage: d.daysInStage })),
+      .map((d) => ({ name: d.name, owner: d.ownerName, daysInStage: d.daysInStage, stallDays: stallLineOf.get(d.id) ?? null })),
     stallDays,
     projects: projects.ok
       ? projects.value.map((pr, i) => {

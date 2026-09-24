@@ -200,7 +200,7 @@ export function suggestCategory(
     band = "pipeline";
   }
 
-  const stallDays = deal.stallDaysOverride ?? thresholds.stallDays;
+  const stallDays = stallLineFor(deal, thresholds);
   if (
     deal.lastStageChangeAt &&
     Math.floor((now.getTime() - deal.lastStageChangeAt.getTime()) / DAY) >
@@ -219,6 +219,22 @@ export function suggestCategory(
     agrees: deal.forecastCategory === band,
     basis: { band: fromProbability, probability, probabilityIsHuman, caps },
   };
+}
+
+/**
+ * THE stall line for one deal - the only place the chain is resolved (YC-065
+ * R3): its business form's override, else the workspace's threshold, else the
+ * shipped 45 (which is what `thresholds` already falls back to). The deal
+ * page, the forecast review, the account page's risk and the judgement feed
+ * all ask this function; before it existed the deal page stalled at a
+ * hard-coded 45 while the review page honoured the workspace, which is two
+ * answers to one question.
+ */
+export function stallLineFor(
+  deal: Pick<CategorizableDeal, "stallDaysOverride">,
+  thresholds: ForecastThresholds = DEFAULT_FORECAST_THRESHOLDS,
+): number {
+  return deal.stallDaysOverride ?? thresholds.stallDays;
 }
 
 /** Days at the current stage, or null when the journal has nothing. */

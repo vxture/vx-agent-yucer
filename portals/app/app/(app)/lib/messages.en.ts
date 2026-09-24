@@ -1138,8 +1138,9 @@ export const en: Dictionary = {
     } as Record<string, string>,
     stageMoving: (stage: string, days: number | null) =>
       days === null ? "Moving" : `Day ${days} at this stage`,
-    stageStalled: (stage: string, days: number) => `Sitting ${days} days - past the 45-day stall line`,
-    stageTerminal: (stage: string) => (stage === "won" ? "Won" : "Closed"),
+    stageStalled: (stage: string, days: number, line: number) => `Sitting ${days} days - past the ${line}-day stall line`,
+    stageTerminal: (status: string) =>
+      status === "won" ? "Won" : status === "abandoned" ? "Abandoned" : status === "lost" ? "Lost" : "Closed",
     stallOnUs: (statement: string, days: number) => `Waiting on us: "${statement}" is ${days} days overdue`,
     stallOnThem: (who: string | null, statement: string, days: number) =>
       `Waiting on ${who ?? "them"}: "${statement}" is ${days} days overdue`,

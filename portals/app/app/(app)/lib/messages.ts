@@ -5821,8 +5821,9 @@ export const WAR_ROOM_TEXT = {
   // 判决条各格的句子
   stageMoving: (stage: string, days: number | null) =>
     days === null ? "在推进" : `本阶段第 ${days} 天`,
-  stageStalled: (stage: string, days: number) => `已停 ${days} 天,超过 45 天停滞线`,
-  stageTerminal: (stage: string): string => (stage === "won" ? "已成交" : "已关闭"),
+  stageStalled: (stage: string, days: number, line: number) => `已停 ${days} 天,超过 ${line} 天停滞线`,
+  stageTerminal: (status: string): string =>
+    status === "won" ? "已成交" : status === "abandoned" ? "已放弃" : status === "lost" ? "已丢单" : "已关闭",
   // 阶段停滞诊断 - who a stalled deal is waiting on (brief.ts stallHolder).
   stallOnUs: (statement: string, days: number) => `卡在我方：答应的「${statement}」已逾期 ${days} 天`,
   stallOnThem: (who: string | null, statement: string, days: number) =>

@@ -10,7 +10,7 @@ import {
   replaceOpportunityLines,
   updateCommercialTerms,
 } from "../../domains/pipeline/service";
-import { isStage, type Stage } from "../../domains/pipeline/lib/stage";
+import type { Stage } from "../../domains/pipeline/lib/stage";
 import { isForecastCategory } from "../../domains/pipeline/lib/forecast";
 import { money } from "../../domains/shared/money";
 import { pricingPolicy } from "../../domains/catalog/service";
@@ -42,9 +42,10 @@ export async function advanceOpportunityStage(
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
-  // Checked before the service so an unknown string is a clean refusal rather
-  // than a cast that lands in the journal.
-  if (!isStage(input.to)) return { ok: false, error: "unknown_stage" };
+  // NOT pre-checked here against the shipped seven (YC-065 R3): the service
+  // validates the target against the WORKSPACE's catalog and refuses an
+  // unknown code with the same `unknown_stage`. Checking the factory list
+  // first refused every custom stage a workspace had configured.
 
   const result = await advanceStage(
     {
