@@ -1,5 +1,6 @@
 "use client";
 
+import { TruncatedText } from "./truncated-text";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -151,7 +152,7 @@ export function CommitmentList({
           <div key={c.id} className="border-border flex flex-col gap-xs border-b py-xs last:border-b-0">
             <div className="flex items-center gap-xs">
               <PartyBadge direction={c.direction} text={FIELD_TEXT} />
-              <span className="text-foreground min-w-0 flex-1 truncate text-body-sm" title={c.statement}>{c.statement}</span>
+              <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-sm" />
               <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
                 {overdue
                   ? FIELD_TEXT.commitDaysOverdue(days)
@@ -264,7 +265,7 @@ export function CommitmentList({
       {settled.map((c) => (
         <div key={c.id} className="border-border flex items-center gap-xs border-b py-xs last:border-b-0">
           <PartyBadge direction={c.direction} text={FIELD_TEXT} />
-          <span className="text-foreground min-w-0 flex-1 truncate text-body-sm">{c.statement}</span>
+          <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-sm" />
           <Tag
             tone={
               c.status === "met"

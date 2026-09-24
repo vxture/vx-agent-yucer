@@ -1379,8 +1379,6 @@ export default async function AccountDetailPage({
           />
         )}
 
-        <AccountSignals rows={signalRows} />
-
         {completeness.ok ? (
           <AccountCompleteness
             accountId={id}
@@ -1777,6 +1775,10 @@ export default async function AccountDetailPage({
               },
             ]}
           />
+
+          {/* 外部动态 in the centre (owner, 2026-09-24), after the roster: what
+              the outside world says about this customer, before the plan. */}
+          <AccountSignals rows={signalRows} />
 
           <TheatrePlan proposals={planProposals} accountId={id} reviews={planReviews} />
           </>

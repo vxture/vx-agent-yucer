@@ -1,5 +1,6 @@
 "use client";
 
+import { TruncatedText } from "./truncated-text";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -159,9 +160,7 @@ export function SolutionRoster({
       width: "lg" as const,
       cell: (r: SolutionView) =>
         r.solution.scenario ? (
-          <span className="text-muted-foreground line-clamp-2 text-body-sm" title={r.solution.scenario}>
-            {r.solution.scenario}
-          </span>
+          <TruncatedText text={r.solution.scenario} className="text-muted-foreground line-clamp-2 text-body-sm" />
         ) : (
           <span className="text-(color:--warning-text) text-body-sm">
             {CATALOG_TEXT.noScenario}

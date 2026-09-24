@@ -27,7 +27,12 @@ import { ModuleHeadline } from "../components/module-headline";
 
 export const dynamic = "force-dynamic";
 
-export default async function SignalPage() {
+export default async function SignalPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ focus?: string }>;
+}) {
+  const { focus } = await searchParams;
   const { SIGNAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -166,6 +171,7 @@ export default async function SignalPage() {
       <SignalQueue
         groups={groups}
         campaignNames={campaignNames}
+        focusId={typeof focus === "string" ? focus : undefined}
         // Both flags come from the SAME gate the server action re-runs. Naming
         // tiers here would be the product re-deriving a commercial conclusion,
         // and it would drift from the matrix the moment packaging changed.

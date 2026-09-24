@@ -1,5 +1,6 @@
 "use client";
 
+import { TruncatedText } from "./truncated-text";
 import { useState, type ReactNode } from "react";
 import {
   Card,
@@ -230,9 +231,7 @@ export function ModuleHeadline({
                       it reads as small print beside its number, which is the
                       voice the note beneath already uses. */}
                   <div className="flex items-baseline gap-2xs">
-                    <span className="text-foreground truncate text-heading-4 tabular-nums" title={s.value.toLocaleString()}>
-                      {s.value.toLocaleString()}
-                    </span>
+                    <TruncatedText text={s.value.toLocaleString()} className="text-foreground truncate text-heading-4 tabular-nums" />
                     {share && total > 0 ? (
                       <span className="text-muted-foreground shrink-0 tabular-nums text-body-sm">
                         {Math.round((Math.max(s.value, 0) / total) * 100)}%

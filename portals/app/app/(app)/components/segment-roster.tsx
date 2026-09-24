@@ -1,5 +1,6 @@
 "use client";
 
+import { TruncatedText } from "./truncated-text";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -114,14 +115,10 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
             {parts.length === 0 ? (
               <span className="text-(color:--warning-text)">{STRATEGY_TEXT.segmentNoCriteriaYet}</span>
             ) : (
-              <span className="text-foreground block truncate" title={parts.join(" · ")}>
-                {parts.join(" · ")}
-              </span>
+              <TruncatedText text={parts.join(" · ")} className="text-foreground block truncate" />
             )}
             {r.planName ? (
-              <span className="text-muted-foreground block truncate" title={r.planName}>
-                {r.planName}
-              </span>
+              <TruncatedText text={r.planName} className="text-muted-foreground block truncate" />
             ) : (
               <span className="text-(color:--warning-text)">{STRATEGY_TEXT.segmentNoPlan}</span>
             )}

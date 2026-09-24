@@ -5672,6 +5672,9 @@ export const en: Dictionary = {
       cohort: "Lookalike",
     },
     cap: "External signals matched to this customer + source links",
+    openSource: "Source",
+    handleInInbox: "Handle in the signal inbox",
+    viewAll: (n: number) => `View all ${n} in the signal inbox`,
   },
   RISK_TEXT: {
     title: "Risk types",

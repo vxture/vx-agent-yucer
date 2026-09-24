@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   ActionMenu,
   Button,
@@ -94,6 +94,9 @@ export interface SignalQueueProps {
   }[];
   readonly canTriage: boolean;
   readonly canRescore: boolean;
+  /** ?focus=<id> - the signal a link elsewhere (the customer page's 外部动态)
+   *  sent the reader to: its row opens and scrolls into view. */
+  readonly focusId?: string;
   /** campaign id -> name, for a signal whose source is one of our campaigns. */
   readonly campaignNames?: Readonly<Record<string, string>>;
   readonly onAct: (
@@ -193,11 +196,16 @@ export function SignalQueue({
   onAct,
   onDismiss,
   campaignNames = {},
+  focusId,
 }: SignalQueueProps) {
   const { DS_LABELS, EXIT_REASON_LABEL, SIGNAL_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string>("");
+  const [openId, setOpenId] = useState<string>(focusId ?? "");
+  useEffect(() => {
+    if (!focusId) return;
+    document.getElementById(`signal-${focusId}`)?.scrollIntoView({ block: "center" });
+  }, [focusId]);
   const [error, setError] = useState<string | null>(null);
   // 忽略 asks for a reason, so it is a dialog rather than a straight click.
   const [dismissing, setDismissing] = useState<string | null>(null);
@@ -391,7 +399,7 @@ function Row({
   ];
 
   return (
-    <div className="flex min-w-0 items-start gap-md py-sm">
+    <div id={`signal-${r.id}`} className="flex min-w-0 items-start gap-md py-sm">
       {/* The lead rail. items-start rather than centre: the ring lines up with
           the subject it scores, not with the middle of three lines. */}
       <ScoreRing
