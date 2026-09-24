@@ -15,7 +15,6 @@ import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
 import { useAccountEdit } from "./account-edit-context";
 import { LinkContactDrawer, type LinkContactDrawerProps } from "./link-contact-drawer";
-import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 
 // The people inside a customer.
 //
@@ -279,10 +278,6 @@ export function ContactRoster({
         // 查看全部（N） already say how many - it was said twice.
         <span className="flex flex-wrap items-center gap-2xs">
           <span>{ACCOUNT_TEXT.contactsTitle}</span>
-          <LayerLabel layer="L2" />
-          {/* No 基础 badge in the header: the sidebar leaves the title ~90px
-              and it wrapped under the ⋮. The footer below states 基础 / Pro,
-              and 单位信息 / 决策链 beside it carry none in their headers. */}
         </span>
       }
       // 新增 / 关联 moved from the title row into this panel's own "⋮"
@@ -310,11 +305,6 @@ export function ContactRoster({
           {!canEdit ? (
             <p className="text-muted-foreground mt-xs text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
           ) : null}
-          <CapFooter>
-            <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capContactBasic}
-            <br />
-            <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
-          </CapFooter>
         </div>
       ) : (
         // List and 查看全部 are ONE block (owner, 2026-09-24: 上下留白太多):
@@ -355,11 +345,6 @@ export function ContactRoster({
         ) : null}
         {/* Inside the same block: the footer's own rule and margin separate
             it; the section's gap on top of that was the empty band. */}
-        <CapFooter>
-          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capContactBasic}
-          <br />
-          <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capContactPro}
-        </CapFooter>
         </div>
       )}
     </CollapsibleSection>

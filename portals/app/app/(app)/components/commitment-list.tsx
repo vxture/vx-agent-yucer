@@ -19,7 +19,6 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
-import { CapBadge } from "./panorama-annotations";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -364,7 +363,6 @@ function ComplianceStats({
           {` (${text.commitPartyOurs})`}
         </span>
       ) : null}
-      <CapBadge tier="pro">Pro</CapBadge>
     </div>
   );
 }

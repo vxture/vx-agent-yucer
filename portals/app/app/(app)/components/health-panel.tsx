@@ -17,7 +17,6 @@ import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
 import type { ChangeAttribution } from "../../domains/account/lib/health-history";
 import { RiskTypes, type LaneRisk } from "./risk-types";
-import { CapBadge, CapFooter, LayerLabel } from "./panorama-annotations";
 import { CollapsibleSection } from "./collapsible-section";
 
 // Account health, with its reasons.
@@ -176,8 +175,6 @@ export function HealthPanel({
       title={
         <span className="gap-xs flex flex-wrap items-center">
           <span>{CHAIN_TEXT.healthTitle}</span>
-          <LayerLabel layer="L5" />
-          <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge>
           {statusTag}
           {/* 变化 AS A TITLE TAG (owner, 2026-09-24: 简化放在标题后面): the
               direction and size of the move since the last different reading;
@@ -264,11 +261,6 @@ export function HealthPanel({
             ))}
           </div>
           {risks && risks.length > 0 ? <RiskTypes risks={risks} /> : null}
-          <CapFooter>
-            <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capHealthBasic}
-            <br />
-            <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capHealthPro}
-          </CapFooter>
         </>
     </CollapsibleSection>
   );

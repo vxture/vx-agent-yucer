@@ -139,7 +139,6 @@ import {
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag, TIER_ICON_SRC } from "../../components/tag";
-import { CapBadge, CapFooter, LayerLabel, PanoramaLegend } from "../../components/panorama-annotations";
 import { listProductStatuses, listProducts, pricingPolicy } from "../../../domains/catalog/service";
 import { whitespace } from "../../../domains/delivery/lib/whitespace";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
@@ -1411,23 +1410,6 @@ export default async function AccountDetailPage({
             />
           </div>
 
-          <PanoramaLegend
-            basicLabel={ACCOUNT_TEXT.capBasic}
-            proLabel="Pro"
-            pendingLabel={ACCOUNT_TEXT.capPending}
-            layerLabels={{
-              L1: ACCOUNT_TEXT.panoramaLayerL1,
-              L2: ACCOUNT_TEXT.panoramaLayerL2,
-              L3: ACCOUNT_TEXT.panoramaLayerL3,
-              L4: ACCOUNT_TEXT.panoramaLayerL4,
-              L5: ACCOUNT_TEXT.panoramaLayerL5,
-              L6: ACCOUNT_TEXT.panoramaLayerL6,
-              EV: ACCOUNT_TEXT.panoramaLayerEV,
-            }}
-            coreLabel={ACCOUNT_TEXT.panoramaCapCore}
-            highLabel={ACCOUNT_TEXT.panoramaCapHigh}
-            designedLabel={ACCOUNT_TEXT.panoramaCapDesigned}
-          />
 
           {/* lifecycle 视图和某条决策链的详情视图二选一 (owner: 决策链展示时
               健康拆解也去除) - ChainDetailSlot 从 Context 里的 activeId 决定
@@ -1494,14 +1476,6 @@ export default async function AccountDetailPage({
             title={
               <span className="inline-flex items-center gap-xs whitespace-nowrap">
                 <span>{ACCOUNT_TEXT.roster}</span>
-                {/* L3 · L4 (owner, 2026-09-23): 增量与存量是同一个板块 -
-                    商机/交付/回款是在打的(L3), 合同 tab 是已经占住的(L4,
-                    L4 批一 owner 裁定合一卡)。两个色标并排, 跟页面图例的
-                    分层配色一致, 不合成一个单色标。 */}
-                <span className="inline-flex items-center gap-3xs">
-                  <LayerLabel layer="L3" />
-                  <LayerLabel layer="L4" />
-                </span>
               </span>
             }
             // 默认展开第一个有内容的 tab, 而不是死板地永远停在"商机"
@@ -1530,11 +1504,6 @@ export default async function AccountDetailPage({
                 count: dealRows.length,
                 content: <>
                   <DealLifecyclePanel deals={dealRows} defaultCurrency={defaultCurrency} />
-                  <CapFooter>
-                    <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capDealBasic}
-                    <br />
-                    <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capDealPro}
-                  </CapFooter>
                 </>,
               },
               {
@@ -1560,11 +1529,6 @@ export default async function AccountDetailPage({
                       ))}
                     </div>
                   )}
-                  <CapFooter>
-                    <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capProjectBasic}
-                    <br />
-                    <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capProjectPro}
-                  </CapFooter>
                 </>,
               },
               {
@@ -1577,11 +1541,6 @@ export default async function AccountDetailPage({
                 count: revenueRows.length,
                 content: <>
                   <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />
-                  <CapFooter>
-                    <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capRevenueBasic}
-                    <br />
-                    <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capRevenuePro}
-                  </CapFooter>
                 </>,
               },
               {
@@ -1642,11 +1601,6 @@ export default async function AccountDetailPage({
                       hideDescription
                       hideTitle
                     />
-                    <CapFooter>
-                      <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capCommitBasic}
-                      <br />
-                      <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capCommitPro}
-                    </CapFooter>
                   </>
                 ) : null,
               },
@@ -1682,11 +1636,6 @@ export default async function AccountDetailPage({
                         ) : null
                       }
                     />
-                    <CapFooter>
-                      <CapBadge tier="basic">{ACCOUNT_TEXT.capBasic}</CapBadge> {ACCOUNT_TEXT.capTimelineBasic}
-                      <br />
-                      <CapBadge tier="pro">Pro</CapBadge> {ACCOUNT_TEXT.capTimelinePro}
-                    </CapFooter>
                   </>
                 ) : null,
               },
