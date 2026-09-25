@@ -58,6 +58,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "segment_code",
     "owner_sub",
     "health_score", "tier",
+    // incr/0090 - the tier as a level row; written together with `tier`
+    // until every read has moved to it.
+    "tier_level_id",
     // incr/0024 - what identifies a legal entity, which name and industry do
     // not. incr/0025 - the group/subsidiary link.
     "credit_code", "website", "employee_count",
@@ -199,6 +202,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "customer_budget",
     "customer_budget_by_sub",
     "customer_budget_at",
+    // incr/0090 - 重要度, who set it and when.
+    "importance_level_id",
+    "importance_by_sub",
+    "importance_at",
     "expected_close_at",
     "closed_at",
     "status",
@@ -378,6 +385,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   ],
   // incr/0087. kind is locked: changing how a criterion is judged is a new row.
   "yucer_pipeline.stage_exit_criterion": ["name", "param", "sort_order", "updated_at"],
+  // incr/0090 - code, subject and rank are anchors; the matrix edits its P.
+  "yucer_core.importance_level": ["name", "description", "sort_order", "updated_at"],
+  "yucer_core.priority_rule": ["priority"],
   "yucer_core.account_plan": [
     "target_amount", "currency",
     "contact_cadence_days", "exec_cadence_days",

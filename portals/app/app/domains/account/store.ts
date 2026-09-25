@@ -1,3 +1,4 @@
+import type { ImportanceLevel, PriorityRule } from "./lib/importance";
 import { randomUUID } from "node:crypto";
 // D4 account persistence port.
 //
@@ -79,6 +80,8 @@ export interface AccountRecord {
   status: AccountStatus;
   /** strategic | key | standard - set by D1, not by the owner. See ADR-013. */
   tier: AccountTier;
+  /** incr/0090 - the tier as a level row; absent/null reads the level by `tier`. */
+  tierLevelId?: string | null;
   /**
    * What identifies the legal entity, which `name` does not - incr/0024.
    *
@@ -272,6 +275,12 @@ export interface CustomerNatureRecord {
 
 export interface AccountStore {
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
+  /** 重要度档位, both axes (incr/0090). */
+  listImportanceLevels(workspaceId: string): Promise<ImportanceLevel[]>;
+  createImportanceLevel(workspaceId: string, row: Omit<ImportanceLevel, "id">): Promise<ImportanceLevel>;
+  /** The tier x importance matrix (incr/0090). */
+  listPriorityRules(workspaceId: string): Promise<PriorityRule[]>;
+  createPriorityRule(workspaceId: string, row: PriorityRule): Promise<void>;
   /**
    * How this workspace divides its market.
    *
@@ -544,6 +553,31 @@ export interface AccountStore {
 
 export class InMemoryAccountStore implements AccountStore {
   private plans = new Map<string, AccountPlanRecord>();
+  private importanceLevels: (ImportanceLevel & { workspaceId: string })[] = [];
+  private priorityRules: (PriorityRule & { workspaceId: string })[] = [];
+
+  async listImportanceLevels(workspaceId: string): Promise<ImportanceLevel[]> {
+    return this.importanceLevels.filter((l) => l.workspaceId === workspaceId).map(({ workspaceId: _w, ...l }) => l);
+  }
+
+  async createImportanceLevel(workspaceId: string, row: Omit<ImportanceLevel, "id">): Promise<ImportanceLevel> {
+    // The unique keys of incr/0090: code and rank per axis, one default per axis.
+    const mine = this.importanceLevels.filter((l) => l.workspaceId === workspaceId && l.subject === row.subject);
+    if (mine.some((l) => l.levelCode === row.levelCode || l.rank === row.rank || (row.isDefault && l.isDefault))) {
+      throw new Error("uidx_importance_level: duplicate code, rank or default");
+    }
+    const made = { ...row, id: `lvl_${++this.seq}` };
+    this.importanceLevels.push({ ...made, workspaceId });
+    return made;
+  }
+
+  async listPriorityRules(workspaceId: string): Promise<PriorityRule[]> {
+    return this.priorityRules.filter((r) => r.workspaceId === workspaceId).map(({ workspaceId: _w, ...r }) => r);
+  }
+
+  async createPriorityRule(workspaceId: string, row: PriorityRule): Promise<void> {
+    this.priorityRules.push({ ...row, workspaceId });
+  }
   private seq = 0;
 
   /* The demo has no database, so it carries the same preset incr/0036 seeds.

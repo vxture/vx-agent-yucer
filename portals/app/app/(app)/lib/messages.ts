@@ -6625,6 +6625,7 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.claims.view": "查看声明变更与推迟",
     "pipeline.evidence.record": "记录购买证据",
     "pipeline.exitcheck.view": "查看阶段退出核验",
+    "pipeline.opportunity.importance": "设定商机重要度",
     "pipeline.forecast.view": "查看销售预测",
     "pipeline.forecast.snapshot": "提交预测快照",
     "pipeline.forecast.categorize": "归类预测",
@@ -6975,6 +6976,16 @@ export const DEAL_PAGE_TEXT = {
   findingRole: (name: string, role: string, stance: string | null) =>
     stance ? `${name}：本单角色 ${role} · 立场 ${stance}` : `${name}：本单角色 ${role}`,
   findingCommitment: (direction: string, due: string, statement: string) => `${direction} · ${due} 前：${statement}`,
+  // 重要度与优先级 (deal batch 6, incr/0090)
+  importanceLabel: "重要度",
+  importanceEdit: "设定重要度",
+  importanceDescription: "这个商机对我们有多重要。和客户级别交叉得出优先级，只影响列表的先后，不改任何规则。",
+  importanceConfirm: "确定",
+  importanceSaved: "重要度已更新",
+  importancePriority: (p: number | null) => (p === null ? "未定级" : `优先级 P${p}`),
+  importanceSetBy: (who: string, at: string) => `${who} 于 ${at} 设定`,
+  importanceDefault: "默认档位，还没有人设定",
+  importanceCross: (tier: string, level: string) => `客户 ${tier} × 商机 ${level}`,
   // 推进计划生成 (deal batch 5c)
   planGenerate: "生成计划草案",
   planGenerating: "生成中…",
@@ -7083,4 +7094,12 @@ export const PLAN_DRAFT_ERROR: Record<string, string> = {
   quota_exceeded: "本工作区的参谋调用额度已用完",
   turn_failed: "这次起草没完成（模型暂不可用），稍后再试",
   unknown: "这次起草没完成，稍后再试",
+};
+
+/** 设定重要度的失败回执 (incr/0090)。 */
+export const IMPORTANCE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在，或不属于当前工作区",
+  importance_level_unknown: "这个档位不在本工作区的重要度里，刷新后重选",
+  unknown: "没有保存成功，稍后再试",
 };

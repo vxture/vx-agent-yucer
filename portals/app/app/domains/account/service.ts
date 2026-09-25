@@ -10,6 +10,8 @@
 //   - It returns the CONTRIBUTIONS alongside the number. A red account whose
 //     only explanation is "the model said so" is an account nobody acts on.
 
+import type { ImportanceLevel, ImportanceScheme } from "./lib/importance";
+import { DEFAULT_IMPORTANCE_LEVELS, DEFAULT_PRIORITY_MATRIX } from "./lib/importance-vocab";
 import { recordHealthReading } from "./health-record";
 import type { HealthSnapshot, SnapshotSource } from "./lib/health-history";
 import { isProvince } from "../shared/provinces";
@@ -1957,4 +1959,37 @@ export async function deleteEmptyAccount(ctx: FootprintContext, accountId: strin
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
   return ok({ id: accountId });
+}
+
+// --- 重要度档位与优先级 (incr/0090, YC-065 R11) ----------------------------------------
+
+/**
+ * Both axes' levels and the priority matrix. FIRST-CONTACT SEEDING on an
+ * empty workspace - the same rows incr/0090 inserts for workspaces that
+ * already had customers or deals, so the two paths cannot disagree.
+ */
+export async function importanceScheme(ctx: AccountContext): Promise<RuleResult<ImportanceScheme>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  let levels = await ctx.store.listImportanceLevels(ctx.workspaceId);
+  if (levels.length === 0) {
+    for (const l of DEFAULT_IMPORTANCE_LEVELS) {
+      await ctx.store.createImportanceLevel(ctx.workspaceId, { ...l, sortOrder: l.rank });
+    }
+    levels = await ctx.store.listImportanceLevels(ctx.workspaceId);
+    const id = (subject: string, code: string) => levels.find((l) => l.subject === subject && l.levelCode === code)?.id;
+    for (const [a, o, priority] of DEFAULT_PRIORITY_MATRIX) {
+      const accountLevelId = id("account", a);
+      const opportunityLevelId = id("opportunity", o);
+      if (accountLevelId && opportunityLevelId) {
+        await ctx.store.createPriorityRule(ctx.workspaceId, { accountLevelId, opportunityLevelId, priority });
+      }
+    }
+  }
+  const byRank = (a: ImportanceLevel, b: ImportanceLevel) => a.rank - b.rank;
+  return ok({
+    account: levels.filter((l) => l.subject === "account").sort(byRank),
+    opportunity: levels.filter((l) => l.subject === "opportunity").sort(byRank),
+    rules: await ctx.store.listPriorityRules(ctx.workspaceId),
+  });
 }
