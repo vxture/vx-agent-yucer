@@ -105,7 +105,7 @@ import {
 import { settleCommitment } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
-import { AmountCoin, DimensionStat, ImportanceCoin } from "../../components/dimension-stat";
+import { AmountCoin, AssessmentCoin, DimensionStat, ImportanceCoin } from "../../components/dimension-stat";
 import { DealEditProvider } from "../../components/deal-edit-context";
 import { DealRolesDrawer } from "../../components/deal-roles-drawer";
 import { DealStageDrawer } from "../../components/deal-stage-drawer";
@@ -540,6 +540,15 @@ export default async function OpportunityDetailPage({
   const businessFormName = nameOfType(businessForms, opportunity.businessFormId);
   const notSet = <span className="text-muted-foreground">{DEAL_PAGE_TEXT.notSet}</span>;
 
+  // 态势研判 (YC-069 徽章区 third coin): steady dimensions over all, the
+  // worst one's colour. Read off 态势判决's cells - the same verdicts, so the
+  // coin and the panel cannot disagree.
+  const assessSteady = brief.cells.filter((c) => c.tone === "good").length;
+  const assessWorst: "good" | "warn" | "bad" = brief.cells.some((c) => c.tone === "bad")
+    ? "bad"
+    : brief.cells.some((c) => c.tone === "warn")
+      ? "warn"
+      : "good";
   const dossierBadges = (
     <div className="flex items-center justify-center gap-md">
       {dealLevel ? (
@@ -585,6 +594,29 @@ export default async function OpportunityDetailPage({
             : `${formatMoney(amountValue, opportunity.currency)}${amountParts ? ` · ${POSITION_TEXT.amountUnit(amountParts.unit, amountParts.currency)}` : ""}`
         }
       />
+      {brief.cells.length > 0 ? (
+        <DimensionStat
+          figure={
+            <AssessmentCoin
+              steady={assessSteady}
+              total={brief.cells.length}
+              worst={assessWorst}
+              label={DEAL_PAGE_TEXT.assessLabel(assessSteady, brief.cells.length)}
+            />
+          }
+          label={DEAL_PAGE_TEXT.assessTitle}
+          value={
+            <>
+              <div>{DEAL_PAGE_TEXT.assessGrade[assessWorst]} · {DEAL_PAGE_TEXT.assessLabel(assessSteady, brief.cells.length)}</div>
+              {brief.cells.map((c) => (
+                <div key={c.key} className="opacity-80">
+                  {WAR_ROOM_TEXT.cell[c.key]} {DEAL_PAGE_TEXT.assessGrade[c.tone]} · {c.headline}
+                </div>
+              ))}
+            </>
+          }
+        />
+      ) : null}
     </div>
   );
   const dossierFacts = [
@@ -637,6 +669,7 @@ export default async function OpportunityDetailPage({
     opportunity.opportunityNo,
     accountName,
     amountValue === null ? DEAL_PAGE_TEXT.amountNone : formatMoney(amountValue, opportunity.currency),
+    ...(brief.cells.length > 0 ? [`${DEAL_PAGE_TEXT.assessTitle} ${assessSteady}/${brief.cells.length}`] : []),
   ].join(COLLAPSE_TEXT.separator);
 
   // 产品方案 (YC-069 §04b): the combination and this deal's customisation,

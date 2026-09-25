@@ -187,3 +187,32 @@ export function ImportanceCoin({ medal, label }: { readonly medal: "gold" | "sil
     </div>
   );
 }
+
+/** 态势研判 on the deal's 徽章区 (YC-069, YC-071 batch 6; prototype's third
+ *  coin): how many dimensions stand steady, over how many there are - a
+ *  GRADE, not a score (ADR-038: not the customer's health, not the rep's win
+ *  rate). The disc takes the worst dimension's colour, reusing the health
+ *  discs' red / amber / green steps. The rule cells feed it until batch 8's
+ *  five dimensions replace them. */
+export function AssessmentCoin({
+  steady,
+  total,
+  worst,
+  label,
+}: {
+  readonly steady: number;
+  readonly total: number;
+  readonly worst: "good" | "warn" | "bad";
+  readonly label: string;
+}) {
+  const step = { bad: "02", warn: "05", good: "08" }[worst];
+  return (
+    <div role="img" aria-label={label} className="inline-flex">
+      <Coin src={`/assets/icons/coin-health-${step}.png`}>
+        <span className="font-display text-base leading-none font-extrabold tabular-nums">{steady}</span>
+        <span className="my-[0.1875rem] h-px w-5 bg-white/55" />
+        <span className="text-[0.5625rem] leading-none font-bold opacity-90">/{total}</span>
+      </Coin>
+    </div>
+  );
+}
