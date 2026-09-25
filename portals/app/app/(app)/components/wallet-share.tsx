@@ -1,11 +1,12 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoneyCompact, formatPercent } from "../lib/view-model";
 import { Tag } from "./tag";
 import type { DealShare, WalletRollup, WalletRollupLine } from "../../domains/pipeline/lib/wallet-share";
 
-// 钱包份额 (YC-021 L4, business rules §9.6) - three renderings of one rule:
+// 商机占比 (renamed from 钱包份额, owner 2026-09-25; YC-021 L4, business rules §9.6) - three renderings of one rule:
 // the deal's own line, the 存量收入 card's rollup, and the 单位信息卡's row.
 // The customer's total is always a person's estimate, so the 人工填报 tag
 // travels with every number that rests on it.
@@ -21,7 +22,11 @@ function ManualTag() {
 
 const pct = (share: number, locale: string) => (Number.isFinite(share) ? formatPercent(share, locale) : "∞");
 
-/** The deal page: the share, what it rests on, and who said the budget. */
+/** The deal page's 商机占比 row value: ONE number (owner 2026-09-25: 页面显示
+ *  太啰嗦). The row's own label names it and the 客户项目总投入 row above
+ *  carries the budget, so the value is the percentage alone; what it rests on
+ *  - basis, both amounts, that the total is 人工填报, who entered it - is the
+ *  hover. A state with no number says why in two or three words. */
 export function DealWalletLine({
   share,
   currency,
@@ -34,38 +39,41 @@ export function DealWalletLine({
   /** YYYY-MM-DD, or null. */
   readonly at: string | null;
 }) {
-  const { WALLET_TEXT } = useMessages();
+  const { WALLET_TEXT, RISK_TEXT } = useMessages();
   const locale = useLocale();
   if (share.state !== "known") {
-    const text =
-      share.state === "no_budget"
-        ? WALLET_TEXT.dealNoBudget
-        : share.state === "not_ours"
-          ? WALLET_TEXT.dealNotOurs
-          : WALLET_TEXT.dealUnpriced;
     return (
-      <p className="text-muted-foreground text-body-sm">
-        {WALLET_TEXT.title} · {text}
-      </p>
+      <span className="text-muted-foreground">
+        {share.state === "no_budget"
+          ? WALLET_TEXT.dealNoBudget
+          : share.state === "not_ours"
+            ? WALLET_TEXT.dealNotOurs
+            : WALLET_TEXT.dealUnpriced}
+      </span>
     );
   }
   return (
-    <div className="flex flex-col gap-2xs">
-      <p className="flex flex-wrap items-center gap-x-sm gap-y-2xs text-body-sm">
-        <span className="text-muted-foreground">{WALLET_TEXT.title}</span>
-        <span className={`font-bold tabular-nums ${share.exceeds ? "text-(color:--warning-text)" : ""}`}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={`cursor-default font-bold tabular-nums ${share.exceeds ? "text-(color:--warning-text)" : ""}`}>
           {pct(share.share, locale)}
         </span>
-        <span className="text-muted-foreground">{WALLET_TEXT.basis[share.basis]}</span>
-        <ManualTag />
-        <span className="text-muted-foreground tabular-nums">
-          {WALLET_TEXT.ours(formatMoneyCompact(share.ours, currency, locale))} ·{" "}
-          {WALLET_TEXT.budget(formatMoneyCompact(share.budget, currency, locale))}
-        </span>
-        {byName && at ? <span className="text-muted-foreground text-[11px]">{WALLET_TEXT.by(byName, at)}</span> : null}
-      </p>
-      {share.exceeds ? <p className="text-(color:--warning-text) text-body-sm">{WALLET_TEXT.exceeds}</p> : null}
-    </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="text-body-sm">
+          {WALLET_TEXT.dealDetail(
+            WALLET_TEXT.basis[share.basis],
+            formatMoneyCompact(share.ours, currency, locale),
+            formatMoneyCompact(share.budget, currency, locale),
+          )}
+        </div>
+        <div className="text-body-sm opacity-80">
+          {RISK_TEXT.source.manual}
+          {byName && at ? ` · ${WALLET_TEXT.by(byName, at)}` : ""}
+        </div>
+        {share.exceeds ? <div className="text-body-sm">{WALLET_TEXT.exceeds}</div> : null}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

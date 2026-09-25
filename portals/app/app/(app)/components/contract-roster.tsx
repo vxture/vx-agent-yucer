@@ -261,7 +261,7 @@ export function ContractRoster(props: ContractRosterProps) {
         <div className="flex flex-col gap-md">
           <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.empty}</p>
           {/* No contract yet, but deals in play may carry a budget - the 在谈
-              half of 钱包份额 does not wait for a signature. */}
+              half of 商机占比 does not wait for a signature. */}
           {props.wallet && props.wallet.withBudget > 0 ? <WalletRollupBlock rollup={props.wallet} /> : null}
         </div>
       ) : (
