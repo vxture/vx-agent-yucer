@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles } from "../../authz/catalog";
-import { ok, fail, violation, unwrap } from "../shared/result";
+import { ok, fail, violation, unwrap, type RuleResult } from "../shared/result";
 import { InMemoryCopilotStore } from "./store";
 import { runAdvisor } from "./advisor";
 import type { AdvisorMeter } from "../../usage/lib/advisor-runs";
@@ -32,7 +32,6 @@ function meter(admit = true) {
 }
 
 import type { AdvisorAtlasTags } from "./advisor";
-import type { RuleResult } from "../shared/result";
 
 type Gen = (run: { runId: string; atlas: AdvisorAtlasTags }) => Promise<RuleResult<unknown>>;
 
