@@ -9,6 +9,7 @@ import { ageingCutoffsForConfig } from "../../../domains/delivery/service";
 import {
   businessFormUsage,
   contractTypeUsage,
+  dealScoreWeights,
   forecastThresholds,
   listBusinessForms,
   listContractTypes,
@@ -25,6 +26,8 @@ import { StageDefinitionConfig } from "../../components/stage-definition-config"
 import { ExitCriterionConfig } from "../../components/exit-criterion-config";
 import { removeExitCriterionAction, saveExitCriterionAction } from "../../pipeline/exit-criterion-actions";
 import { OpportunityConfigPanel } from "../../components/opportunity-config-panel";
+import { DealScoreConfig } from "../../components/deal-score-config";
+import { saveDealScoreWeights } from "../../pipeline/deal-score-actions";
 import {
   moveWinLossReasonAction,
   removeWinLossReasonAction,
@@ -175,6 +178,7 @@ export default async function OpportunityConfigPage() {
   }
   // After the catalog read: that read seeds a new workspace's criteria.
   const criteria = await listExitCriteria(ctx);
+  const scoreWeights = await dealScoreWeights(ctx);
 
   return (
     <ViewLayout>
@@ -229,6 +233,11 @@ export default async function OpportunityConfigPage() {
           onSave={saveExitCriterionAction}
           onDelete={removeExitCriterionAction}
         />
+      ) : null}
+
+      {/* 商机评估分 (incr/0091) - after the exit criteria, one of its factors. */}
+      {scoreWeights.ok ? (
+        <DealScoreConfig weights={scoreWeights.value} editable={canManage} onSave={saveDealScoreWeights} />
       ) : null}
 
       <WinLossReasonConfig

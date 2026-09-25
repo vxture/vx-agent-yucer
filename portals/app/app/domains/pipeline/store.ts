@@ -13,6 +13,7 @@
 //      exposed `updateOpportunity` and `appendStageEvent` separately, the first
 //      caller in a hurry would use only the first.
 
+import { DEFAULT_DEAL_SCORE_WEIGHTS, type DealScoreWeights } from "./lib/deal-score";
 import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
@@ -488,6 +489,9 @@ export interface PipelineStore {
      the row whether or not it was there. */
   getForecastThresholds(workspaceId: string): Promise<ForecastThresholds>;
   setForecastThresholds(workspaceId: string, input: ForecastThresholds): Promise<void>;
+  /** 商机评估分's weights (incr/0091); the defaults when the row is absent. */
+  getDealScoreWeights(workspaceId: string): Promise<DealScoreWeights>;
+  setDealScoreWeights(workspaceId: string, input: DealScoreWeights): Promise<void>;
 }
 
 /** In-memory implementation for the offline path and for tests. */
@@ -1072,6 +1076,16 @@ export class InMemoryPipelineStore implements PipelineStore {
 
   async setForecastThresholds(workspaceId: string, input: ForecastThresholds): Promise<void> {
     this.thresholds.set(workspaceId, { ...input });
+  }
+
+  private scoreWeights = new Map<string, DealScoreWeights>();
+
+  async getDealScoreWeights(workspaceId: string): Promise<DealScoreWeights> {
+    return this.scoreWeights.get(workspaceId) ?? DEFAULT_DEAL_SCORE_WEIGHTS;
+  }
+
+  async setDealScoreWeights(workspaceId: string, input: DealScoreWeights): Promise<void> {
+    this.scoreWeights.set(workspaceId, { ...input, weights: { ...input.weights } });
   }
 
   async getWinLossReview(

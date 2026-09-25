@@ -350,6 +350,26 @@ model ForecastThreshold {
   @@schema("yucer_pipeline")
 }
 
+/// incr/0091. 商机评估分 - the seven weights (sum 100) and three knobs.
+model DealScoreWeight {
+  workspaceId  String   @id @map("workspace_id") @db.Uuid
+  wExit        Int      @default(20) @map("w_exit") @db.SmallInt
+  wChain       Int      @default(20) @map("w_chain") @db.SmallInt
+  wStage       Int      @default(15) @map("w_stage") @db.SmallInt
+  wRecency     Int      @default(15) @map("w_recency") @db.SmallInt
+  wCommitment  Int      @default(10) @map("w_commitment") @db.SmallInt
+  wForecast    Int      @default(10) @map("w_forecast") @db.SmallInt
+  wPrice       Int      @default(10) @map("w_price") @db.SmallInt
+  watchScore   Int      @default(50) @map("watch_score") @db.SmallInt
+  recentDays   Int      @default(14) @map("recent_days") @db.SmallInt
+  quietDays    Int      @default(45) @map("quiet_days") @db.SmallInt
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("deal_score_weight")
+  @@schema("yucer_pipeline")
+}
+
 /// incr/0042. 账龄分档 - where each late band ends, in days overdue. An array
 /// rather than rows because it is read whole every time and nothing joins to
 /// it (ADR-026); one row per workspace, like the thresholds above.

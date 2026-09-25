@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { DEFAULT_DEAL_SCORE_WEIGHTS, type DealScoreWeights } from "./lib/deal-score";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
@@ -57,6 +58,7 @@ const CONTRACT_TYPE_TABLE = "yucer_pipeline.contract_type";
 const BUSINESS_FORM_TABLE = "yucer_pipeline.business_form";
 // incr/0041. 预测阈值, one row per workspace.
 const FORECAST_THRESHOLD_TABLE = "yucer_pipeline.forecast_threshold";
+const DEAL_SCORE_WEIGHT_TABLE = "yucer_pipeline.deal_score_weight";
 
 interface OpportunityRow {
   id: string;
@@ -1118,6 +1120,49 @@ export class PrismaPipelineStore implements PipelineStore {
       bestCaseAt: row.bestCaseProbability,
       stallDays: row.stallDays,
     };
+  }
+
+  async getDealScoreWeights(workspaceId: string): Promise<DealScoreWeights> {
+    const p = await getPrismaClient();
+    const row = await p.dealScoreWeight.findUnique({ where: { workspaceId } });
+    if (!row) return DEFAULT_DEAL_SCORE_WEIGHTS;
+    return {
+      weights: {
+        exit: row.wExit,
+        chain: row.wChain,
+        stage: row.wStage,
+        recency: row.wRecency,
+        commitment: row.wCommitment,
+        forecast: row.wForecast,
+        price: row.wPrice,
+      },
+      watchScore: row.watchScore,
+      recentDays: row.recentDays,
+      quietDays: row.quietDays,
+    };
+  }
+
+  async setDealScoreWeights(workspaceId: string, input: DealScoreWeights): Promise<void> {
+    const p = await getPrismaClient();
+    const w = input.weights;
+    const update = {
+      wExit: w.exit,
+      wChain: w.chain,
+      wStage: w.stage,
+      wRecency: w.recency,
+      wCommitment: w.commitment,
+      wForecast: w.forecast,
+      wPrice: w.price,
+      watchScore: input.watchScore,
+      recentDays: input.recentDays,
+      quietDays: input.quietDays,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(DEAL_SCORE_WEIGHT_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(`refusing to write a locked deal_score_weight column: ${guard.violations.map((v) => v.message).join("; ")}`);
+    }
+    await p.dealScoreWeight.upsert({ where: { workspaceId }, update, create: { workspaceId, ...update } });
   }
 
   async setForecastThresholds(workspaceId: string, input: ForecastThresholds): Promise<void> {
