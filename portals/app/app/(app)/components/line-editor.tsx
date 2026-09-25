@@ -55,6 +55,8 @@ export interface EditorLine {
   readonly needsApproval: boolean;
   /** Whether the signature `needsApproval` demands has been given (ADR-019). */
   readonly approved: boolean;
+  /** 本单定制说明 (incr/0082), edited here; shown in 栏1 产品方案, not in the price table. */
+  readonly customNote?: string | null;
 }
 
 export interface LineEditorProps {
@@ -88,6 +90,7 @@ export interface LineEditorProps {
       productId: string;
       quantity: number;
       unitPrice: number;
+      customNote: string;
     }[],
   ) => Promise<{
     ok: boolean;
@@ -101,6 +104,7 @@ interface Draft {
   productId: string;
   quantity: string;
   unitPrice: string;
+  customNote: string;
 }
 
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
@@ -133,6 +137,7 @@ export function LineEditor({
       productId: l.productId,
       quantity: String(l.quantity),
       unitPrice: String(l.unitPrice),
+      customNote: l.customNote ?? "",
     })),
   );
   const sorted = useTableSort<EditorLine>([], SORT_ON);
@@ -150,6 +155,9 @@ export function LineEditor({
     productId: d.productId,
     quantity: Number(d.quantity),
     unitPrice: Number(d.unitPrice),
+    // Sent every time, "" included: this editor restates the note, so an
+    // emptied field clears it (the service keeps a note only when unstated).
+    customNote: d.customNote,
   }));
   const total = parsed.reduce(
     (n, l) =>
@@ -334,6 +342,20 @@ export function LineEditor({
                   )
                 }
               />
+              <Input
+                className="min-w-48 flex-1"
+                maxLength={255}
+                value={d.customNote}
+                aria-label={OPPORTUNITY_TEXT.lineNote}
+                placeholder={OPPORTUNITY_TEXT.lineNotePlaceholder}
+                onChange={(e) =>
+                  setDrafts((prev) =>
+                    prev.map((x, j) =>
+                      j === i ? { ...x, customNote: e.target.value } : x,
+                    ),
+                  )
+                }
+              />
               <Button
                 variant="ghost"
                 size="sm"
@@ -354,7 +376,7 @@ export function LineEditor({
               onClick={() =>
                 setDrafts((prev) => [
                   ...prev,
-                  { productId: "", quantity: "1", unitPrice: "0" },
+                  { productId: "", quantity: "1", unitPrice: "0", customNote: "" },
                 ])
               }
             >

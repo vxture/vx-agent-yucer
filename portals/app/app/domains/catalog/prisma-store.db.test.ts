@@ -324,13 +324,13 @@ test("replaceLines deletes and recreates transactionally, and allLines spans opp
     const p2 = await s.upsertProduct(WS, { productCode: "P-L2", name: "L2", typeId: null, unitId: unit, statusId: ids.active! });
 
     await s.replaceLines(WS, OPP, [
-      { productId: p1.id, solutionId: null, quantity: 1, unitPrice: 100, amount: 100, currency: "CNY", needsApproval: false },
+      { productId: p1.id, solutionId: null, quantity: 1, unitPrice: 100, amount: 100, currency: "CNY", needsApproval: false, customNote: null },
     ]);
     let lines = await s.listLines(WS, OPP);
     assert.equal(lines.length, 1);
 
     await s.replaceLines(WS, OPP, [
-      { productId: p2.id, solutionId: null, quantity: 2, unitPrice: 50, amount: 100, currency: "CNY", needsApproval: true },
+      { productId: p2.id, solutionId: null, quantity: 2, unitPrice: 50, amount: 100, currency: "CNY", needsApproval: true, customNote: null },
     ]);
     lines = await s.listLines(WS, OPP);
     assert.equal(lines.length, 1, "the old line must be gone, not appended to");
@@ -339,6 +339,41 @@ test("replaceLines deletes and recreates transactionally, and allLines spans opp
 
     const all = await s.allLines(WS);
     assert.deepEqual(all.map((l) => l.id), lines.map((l) => l.id));
+  } finally {
+    await cleanup();
+  }
+});
+
+test("custom_note round-trips, and the service role may rewrite it but not a line's identity (incr/0082)", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const ids = await seedStatuses(s);
+    const unit = await seedUnit(s);
+    const p = await s.upsertProduct(WS, { productCode: "P-NOTE", name: "Note", typeId: null, unitId: unit, statusId: ids.active! });
+    await s.replaceLines(WS, OPP, [
+      { productId: p.id, solutionId: null, quantity: 1, unitPrice: 100, amount: 100, currency: "CNY", needsApproval: false, customNote: "含 ERP 接口开发约 6 周" },
+    ]);
+    assert.equal((await s.listLines(WS, OPP))[0].customNote, "含 ERP 接口开发约 6 周");
+
+    await withPg(async (c) => {
+      await c.query(`SET ROLE yucer_svc`);
+      try {
+        await c.query(`UPDATE yucer_pipeline.opportunity_line SET custom_note = 'rewritten' WHERE opportunity_id = $1`, [OPP]);
+        await assert.rejects(
+          c.query(`UPDATE yucer_pipeline.opportunity_line SET product_id = product_id WHERE opportunity_id = $1`, [OPP]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          c.query(`UPDATE yucer_pipeline.opportunity_line SET custom_note = repeat('x', 256) WHERE opportunity_id = $1`, [OPP]),
+          /value too long/,
+        );
+      } finally {
+        await c.query(`RESET ROLE`);
+      }
+    });
+    assert.equal((await s.listLines(WS, OPP))[0].customNote, "rewritten");
   } finally {
     await cleanup();
   }
@@ -353,7 +388,7 @@ test("a negative or zero-quantity line is refused by the real CHECK", { skip }, 
     const unit = await seedUnit(s);
     const p = await s.upsertProduct(WS, { productCode: "P-NEG", name: "Neg", typeId: null, unitId: unit, statusId: ids.active! });
     await assert.rejects(
-      () => s.replaceLines(WS, OPP, [{ productId: p.id, solutionId: null, quantity: -1, unitPrice: 10, amount: 10, currency: "CNY", needsApproval: false }]),
+      () => s.replaceLines(WS, OPP, [{ productId: p.id, solutionId: null, quantity: -1, unitPrice: 10, amount: 10, currency: "CNY", needsApproval: false, customNote: null }]),
       /chk_line_qty/,
     );
   } finally {
@@ -465,7 +500,7 @@ test("removeProduct cascades prices but the line FK restricts underneath", { ski
     await withPg(seed);
     const q = await s.upsertProduct(WS, { productCode: "P-REF", name: "Referenced", typeId: null, unitId: unit, statusId: ids.active! });
     await s.replaceLines(WS, OPP, [
-      { productId: q.id, solutionId: null, quantity: 1, unitPrice: 5, amount: 5, currency: "CNY", needsApproval: false },
+      { productId: q.id, solutionId: null, quantity: 1, unitPrice: 5, amount: 5, currency: "CNY", needsApproval: false, customNote: null },
     ]);
     const refs = await s.countProductRefs(WS, q.id);
     assert.deepEqual(refs, { lines: 1, solutionItems: 0 });

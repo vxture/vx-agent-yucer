@@ -1667,6 +1667,8 @@ model OpportunityLine {
   amount        Decimal  @db.Decimal(18, 2)
   currency      String   @default("CNY") @db.VarChar(8)
   needsApproval Boolean  @default(false) @map("needs_approval")
+  /// incr/0082 - what THIS deal tailored on this line (本单定制说明).
+  customNote    String?  @map("custom_note") @db.VarChar(255)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 

@@ -32,6 +32,7 @@ import {
   DEMO_RETIRED_PRODUCTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
+  DEMO_LINE_CUSTOM_NOTE,
   DEMO_ACCEPTORS,
   DEMO_MILESTONES,
   DEMO_LONG_HISTORY,
@@ -1968,13 +1969,14 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
   const composition: Array<{
     opp: string;
     sol: string | null;
-    lines: Array<{ code: (typeof DEMO_PRODUCTS)[number]["code"]; qty: number; unit: number }>;
+    lines: Array<{ code: (typeof DEMO_PRODUCTS)[number]["code"]; qty: number; unit: number; note?: string }>;
   }> = [
     // The explicit numbers below; the seed test proves they add up.
     { opp: "opp_demo_1", sol: "sol_demo_1", lines: [
       { code: "PRD-CORE", qty: 1, unit: 800_000 },
       { code: "PRD-ANALYTICS", qty: 1, unit: 400_000 },
-      { code: "PRD-INTEGRATION", qty: 16, unit: 62_500 },
+      // 本单定制 (incr/0082): what this deal tailored, on the line that carries the effort.
+      { code: "PRD-INTEGRATION", qty: 16, unit: 62_500, note: DEMO_LINE_CUSTOM_NOTE },
       { code: "PRD-SUPPORT", qty: 1, unit: 200_000 },
     ] },
     { opp: "opp_demo_2", sol: "sol_demo_2", lines: [
@@ -2020,6 +2022,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
         currency: CNY,
         // Computed from the book, never hand-set - same rule as the service.
         needsApproval: l.unit < price.floor,
+        customNote: l.note ?? null,
       };
     }),
   );

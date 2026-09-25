@@ -119,6 +119,9 @@ export interface OpportunityLineRecord {
   amount: number;
   currency: string;
   needsApproval: boolean;
+  /** What THIS deal tailored on this line (incr/0082) - the catalogue's usual
+   *  tailoring is solution_item.note; this is the deal's own. */
+  customNote: string | null;
 }
 
 /**

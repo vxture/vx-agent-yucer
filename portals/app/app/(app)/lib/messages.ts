@@ -3222,6 +3222,8 @@ export const OPPORTUNITY_TEXT = {
     `${product} 的单价低于底价。签字记录的是这个价格，改价后签字自动失效。`,
   lineApproveReason: "为什么值得破这个底价",
   lineApproveCancel: "取消",
+  lineNote: "本单定制说明",
+  lineNotePlaceholder: "本单定制(可选),如:含 ERP 接口开发约 6 周",
 } as const;
 
 /**
@@ -3801,6 +3803,8 @@ export const FORECAST_ERROR: Record<string, string> = {
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  // incr/0082 - 本单定制说明 on a line.
+  custom_note_too_long: "定制说明最多 255 个字",
   // incr/0080 - 钱包份额's denominator.
   customer_budget_negative: "客户项目总投入不能为负",
   customer_budget_invalid: "客户项目总投入要填数字",
@@ -6816,6 +6820,20 @@ export const DEAL_PAGE_TEXT = {
   amountLabel: "金额",
   amountNone: "未定价",
   editTerms: "编辑交易档案",
+  // 栏1 · 产品方案 (YC-069 §04b): 组合 + 定制, no prices.
+  solutionTitle: "产品方案",
+  solutionFrom: (name: string) => `来自方案「${name}」`,
+  solutionCustom: "自定义组合",
+  solutionScenario: (s: string) => `适用：${s}`,
+  solutionStandard: "标准",
+  solutionOptional: "选配",
+  solutionCustomisations: "定制",
+  customOn: (product: string) => `挂在「${product}」`,
+  solutionItems: (n: number) => `${n} 项`,
+  solutionOptionalCount: (n: number) => `${n} 项选配`,
+  solutionCustomCount: (n: number) => `${n} 项定制`,
+  solutionNone: "还没有产品明细",
+  solutionPriceElsewhere: "价格与审批在「报价与审批」",
   // 栏1 · 决策流程
   decisionTitle: "决策流程",
   decisionEmpty: "本单还没有写明任何人的角色",
