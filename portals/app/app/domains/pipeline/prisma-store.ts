@@ -33,6 +33,7 @@ import {
 } from "./store";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
 import type { EvidenceVersion } from "./lib/evidence";
+import type { ExitCriterion, ExitCriterionKind } from "./lib/exit-criteria";
 import { lockKey } from "../shared/allocate";
 
 // Prisma-backed PipelineStore over yucer_pipeline.
@@ -440,6 +441,49 @@ export class PrismaPipelineStore implements PipelineStore {
       await logClaims(tx, workspaceId, opportunityId, before, claim);
       return true;
     });
+  }
+
+  async listExitCriteria(workspaceId: string): Promise<ExitCriterion[]> {
+    const p = await getPrismaClient();
+    const rows = await p.stageExitCriterion.findMany({ where: { workspaceId } });
+    return rows.map(toCriterion);
+  }
+
+  async createExitCriterion(workspaceId: string, row: Omit<ExitCriterion, "id">): Promise<ExitCriterion> {
+    const p = await getPrismaClient();
+    const r = await p.stageExitCriterion.create({
+      data: {
+        workspaceId,
+        stageCode: row.stageCode,
+        kind: row.kind,
+        param: row.param as object,
+        name: row.name,
+        sortOrder: row.sortOrder,
+      },
+    });
+    return toCriterion(r);
+  }
+
+  async updateExitCriterion(
+    workspaceId: string,
+    id: string,
+    patch: { name?: string; param?: Record<string, unknown>; sortOrder?: number },
+  ): Promise<boolean> {
+    const p = await getPrismaClient();
+    const data: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.name !== undefined) data.name = patch.name;
+    if (patch.param !== undefined) data.param = patch.param;
+    if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
+    const guard = assertWritable("yucer_pipeline.stage_exit_criterion", data);
+    if (!guard.ok) throw new Error(`refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`);
+    const r = await p.stageExitCriterion.updateMany({ where: { workspaceId, id }, data });
+    return r.count > 0;
+  }
+
+  async removeExitCriterion(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const r = await p.stageExitCriterion.deleteMany({ where: { workspaceId, id } });
+    return r.count > 0;
   }
 
   async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {
@@ -1164,5 +1208,23 @@ function toEvidence(r: {
     source: r.source as EvidenceVersion["source"],
     proposalId: r.proposalId,
     recordedAt: r.recordedAt,
+  };
+}
+
+function toCriterion(r: {
+  id: string;
+  stageCode: string;
+  kind: string;
+  param: unknown;
+  name: string;
+  sortOrder: number;
+}): ExitCriterion {
+  return {
+    id: r.id,
+    stageCode: r.stageCode,
+    kind: r.kind as ExitCriterionKind,
+    param: (r.param && typeof r.param === "object" ? r.param : {}) as Record<string, unknown>,
+    name: r.name,
+    sortOrder: r.sortOrder,
   };
 }

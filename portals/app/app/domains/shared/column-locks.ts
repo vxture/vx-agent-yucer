@@ -376,6 +376,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_pipeline.opportunity_line": [
     "quantity", "unit_price", "amount", "currency", "needs_approval", "custom_note", "updated_at",
   ],
+  // incr/0087. kind is locked: changing how a criterion is judged is a new row.
+  "yucer_pipeline.stage_exit_criterion": ["name", "param", "sort_order", "updated_at"],
   "yucer_core.account_plan": [
     "target_amount", "currency",
     "contact_cadence_days", "exec_cadence_days",

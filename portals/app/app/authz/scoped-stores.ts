@@ -86,6 +86,10 @@ class ScopedPipelineStore implements PipelineStore {
   listStageEvents: PipelineStore["listStageEvents"] = (...a) => this.inner.listStageEvents(...a);
   listClaimEvents: PipelineStore["listClaimEvents"] = (...a) => this.inner.listClaimEvents(...a);
   listEvidence: PipelineStore["listEvidence"] = (...a) => this.inner.listEvidence(...a);
+  listExitCriteria: PipelineStore["listExitCriteria"] = (...a) => this.inner.listExitCriteria(...a);
+  createExitCriterion: PipelineStore["createExitCriterion"] = (...a) => this.inner.createExitCriterion(...a);
+  updateExitCriterion: PipelineStore["updateExitCriterion"] = (...a) => this.inner.updateExitCriterion(...a);
+  removeExitCriterion: PipelineStore["removeExitCriterion"] = (...a) => this.inner.removeExitCriterion(...a);
   appendEvidence: PipelineStore["appendEvidence"] = (...a) => this.inner.appendEvidence(...a);
   latestStageChangeAt: PipelineStore["latestStageChangeAt"] = (...a) =>
     this.inner.latestStageChangeAt(...a);

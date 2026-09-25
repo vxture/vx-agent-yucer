@@ -624,3 +624,41 @@ test("evidence versions append and read back; the table is append-only and a mod
     await cleanup();
   }
 });
+
+// --- 阶段退出条件 (incr/0087) ------------------------------------------------------
+
+test("exit criteria hang off the stage catalog: FK, locked kind, cascade with the stage", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    await s.upsertStageDefinition(WS, { stageCode: "qualify", name: "合格判定", defaultProbability: 10, isWon: false, isTerminal: false });
+    const c = await s.createExitCriterion(WS, { stageCode: "qualify", kind: "slot_filled", param: { slot: "pain" }, name: "痛点已写明", sortOrder: 1 });
+    assert.equal(await s.updateExitCriterion(WS, c.id, { name: "痛点写明", param: { slot: "metrics" } }), true);
+    const [back] = await s.listExitCriteria(WS);
+    assert.deepEqual([back.name, back.param], ["痛点写明", { slot: "metrics" }]);
+    await assert.rejects(
+      s.createExitCriterion(WS, { stageCode: "nope", kind: "lines_priced", param: {}, name: "x", sortOrder: 1 }),
+      /fk_exit_criterion_stage|Foreign key/i,
+    );
+    await withPg(async (pg) => {
+      await pg.query(`SET ROLE yucer_svc`);
+      try {
+        await assert.rejects(
+          pg.query(`UPDATE yucer_pipeline.stage_exit_criterion SET kind = 'lines_priced' WHERE id = $1`, [c.id]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          pg.query(`UPDATE yucer_pipeline.stage_exit_criterion SET param = '[]'::jsonb WHERE id = $1`, [c.id]),
+          /chk_exit_criterion_param/,
+        );
+      } finally {
+        await pg.query(`RESET ROLE`);
+      }
+      await pg.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1 AND stage_code = 'qualify'`, [WS]);
+    });
+    assert.equal((await s.listExitCriteria(WS)).length, 0, "cascaded with its stage");
+  } finally {
+    await cleanup();
+  }
+});

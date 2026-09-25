@@ -20,6 +20,10 @@ import {
   claimHistory,
   evidenceOf,
   recordEvidence,
+  listExitCriteria,
+  saveExitCriterion,
+  removeExitCriterion,
+  listStageDefinitions,
   forecastHistory,
   forecastScorecard,
   submitForecast,
@@ -1185,4 +1189,37 @@ test("evidence can only cite this deal's follow-ups, and needs pipeline write", 
   assert.equal(viewer.ok === false && viewer.violations[0].code, "permission_denied");
   const missing = await evidenceOf(ctx("sales_rep", "free", store), "opp_nope");
   assert.equal(missing.ok === false && missing.violations[0].code, "not_found");
+});
+
+// --- 阶段退出条件 (incr/0087) ------------------------------------------------------
+
+test("a new workspace's first catalog read seeds the R1 criteria once; clearing them is not undone", async () => {
+  const store = new InMemoryPipelineStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  unwrap(await listStageDefinitions(c));
+  const seeded = unwrap(await listExitCriteria(c));
+  assert.equal(seeded.length, 13);
+  assert.deepEqual(
+    seeded.filter((x) => x.stageCode === "validate").map((x) => x.kind).sort(),
+    ["role_present", "role_reached", "slot_filled"],
+  );
+  for (const x of seeded) unwrap(await removeExitCriterion(c, x.id));
+  unwrap(await listStageDefinitions(c));
+  assert.equal(unwrap(await listExitCriteria(c)).length, 0, "empty is a decision, not a gap to refill");
+});
+
+test("criteria are configured behind opportunity config; kind is locked; closed stages take none", async () => {
+  const store = new InMemoryPipelineStore();
+  const lead = ctx("sales_leader", "enterprise", store);
+  unwrap(await listStageDefinitions(lead));
+  const { id } = unwrap(await saveExitCriterion(lead, { stageCode: "qualify", kind: "role_reached", param: { roles: ["economic"], days: 14 }, name: "经济决策人两周内触达" }));
+  unwrap(await saveExitCriterion(lead, { id, stageCode: "qualify", kind: "role_reached", param: { roles: ["economic"], days: 21 }, name: "三周内" }));
+  const edited = unwrap(await listExitCriteria(lead)).find((x) => x.id === id)!;
+  assert.deepEqual([edited.name, edited.param], ["三周内", { roles: ["economic"], days: 21 }]);
+  const locked = await saveExitCriterion(lead, { id, stageCode: "qualify", kind: "lines_priced", param: {}, name: "x" });
+  assert.equal(locked.ok === false && locked.violations[0].code, "criterion_kind_locked");
+  const terminal = await saveExitCriterion(lead, { stageCode: "won", kind: "lines_priced", param: {}, name: "x" });
+  assert.equal(terminal.ok === false && terminal.violations[0].code, "criterion_on_terminal");
+  const rep = await saveExitCriterion(ctx("viewer", "enterprise", store), { stageCode: "qualify", kind: "lines_priced", param: {}, name: "x" });
+  assert.equal(rep.ok === false && rep.violations[0].code, "permission_denied");
 });

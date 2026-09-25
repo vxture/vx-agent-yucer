@@ -1974,3 +1974,21 @@ model OpportunityEvidence {
   @@map("opportunity_evidence")
   @@schema("yucer_pipeline")
 }
+
+/// incr/0087. 阶段退出条件 - predicates per stage of the workspace catalog.
+/// kind is locked (delete + insert to change it); name / param / sort_order edit.
+model StageExitCriterion {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  stageCode   String   @map("stage_code") @db.VarChar(32)
+  kind        String   @db.VarChar(24)
+  param       Json     @default("{}")
+  name        String   @db.VarChar(255)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@index([workspaceId, stageCode, sortOrder], map: "idx_exit_criterion_stage")
+  @@map("stage_exit_criterion")
+  @@schema("yucer_pipeline")
+}
