@@ -54,13 +54,16 @@ export async function deckBundle(
  * account, the note it captures obviously belongs to it, and making the reader
  * re-state that would be asking them to type what the screen already knows.
  */
-export function recordAction(accountId: string) {
+export function recordAction(accountId: string, opportunityId?: string) {
   return async (text: string) => {
     "use server";
     return recordFollowUp(accountId, {
       channel: "other",
       occurredAt: new Date().toISOString(),
       rawNote: text,
+      // Beside a deal, the note is about that deal (YC-072: 自动挂到本单) -
+      // which is also what lets 证据抽取 read it for that deal's evidence.
+      ...(opportunityId ? { opportunityId } : {}),
     });
   };
 }

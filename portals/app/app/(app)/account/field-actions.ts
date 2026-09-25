@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { extractEvidence } from "../pipeline/evidence-extract";
 import { resolveAppSession } from "../lib/session";
 import { getFieldStore } from "../../domains/shared/registry";
 import {
@@ -67,6 +69,12 @@ export async function recordFollowUp(
     captureMode: "manual",
   });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  // 证据抽取 (deal batch 4b): a note on a deal is read for buying evidence
+  // once the response is out - the save never waits on a model.
+  if (input.opportunityId) {
+    const opportunityId = input.opportunityId;
+    after(() => extractEvidence(session, opportunityId, { id: r.value.id, text: input.rawNote }));
+  }
 
   // Health reads lastInteractionAt, so the account list moves too - not only
   // the page the form is on. And when the follow-up was recorded from a deal,
@@ -150,6 +158,11 @@ export async function captureFollowUp(
       : {}),
   });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+
+  if (input.opportunityId) {
+    const opportunityId = input.opportunityId;
+    after(() => extractEvidence(session, opportunityId, { id: r.value.id, text: input.rawNote }));
+  }
 
   let failed = 0;
   for (const c of promises) {

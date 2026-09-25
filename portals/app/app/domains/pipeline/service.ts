@@ -1937,6 +1937,12 @@ export async function recordEvidence(
   opportunityId: string,
   input: { slot: string; statement: string; interactionId?: string | null },
   citable: ReadonlySet<string>,
+  /**
+   * Set when a person accepted a 证据抽取 proposal (deal batch 4b): the
+   * version is recorded as the model's, confirmed by the accepter - the
+   * page shows 智能分析 · 已确认 - and names the proposal.
+   */
+  accepted?: { readonly proposalId: string },
 ): Promise<RuleResult<{ recorded: boolean }>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.evidence.record", "data");
   if (!gate.allowed) return denied(gate);
@@ -1955,8 +1961,8 @@ export async function recordEvidence(
   await ctx.store.appendEvidence(ctx.workspaceId, opportunityId, {
     ...plan.value,
     authorSub: ctx.sub,
-    source: "manual",
-    proposalId: null,
+    source: accepted ? "model_accepted" : "manual",
+    proposalId: accepted?.proposalId ?? null,
   });
   return ok({ recorded: true });
 }

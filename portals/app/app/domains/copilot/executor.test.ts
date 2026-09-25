@@ -409,3 +409,61 @@ test("an action type nothing handles is refused by name", async () => {
     assert.equal(r.ok === false && r.violations[0].code, "not_executable_type", t);
   }
 });
+
+// --- 证据抽取: accepting writes a version (deal batch 4b) -----------------------
+
+function noteOnDeal(id: string, opportunityId: string | null) {
+  return {
+    id,
+    workspaceId: WS,
+    accountId: "acc_1",
+    opportunityId,
+    projectId: null,
+    channel: "call" as const,
+    direction: "outbound" as const,
+    occurredAt: CREATED,
+    actorSub: "usr_rep",
+    subject: null,
+    rawNote: "王总说采购委员会三个人投票",
+    summary: null,
+    captureMode: "manual",
+    correctsInteractionId: null,
+  };
+}
+
+test("an accepted record_evidence appends a model_accepted version, signed by the accepter and naming the proposal", async () => {
+  const pipeline = deals();
+  const field = fieldStore();
+  field.seed({ interactions: [noteOnDeal("int_1", "opp_1")] });
+  const r = await carryOut(
+    ctx("sales_rep", "free"),
+    action({
+      id: "act_ev",
+      actionType: "record_evidence",
+      capability: "deal.evidence",
+      payload: { slot: "decision_process", statement: "采购委员会三人投票", quote: "采购委员会三个人投票", interactionId: "int_1" },
+    }),
+  );
+  assert.equal(r.ok, true);
+  const [v] = await pipeline.listEvidence(WS, "opp_1");
+  assert.deepEqual(
+    [v.slot, v.statement, v.interactionId, v.source, v.proposalId, v.authorSub],
+    ["decision_process", "采购委员会三人投票", "int_1", "model_accepted", "act_ev", "usr_me"],
+  );
+});
+
+test("record_evidence may not cite another deal's note, nor land on a customer", async () => {
+  deals();
+  const field = fieldStore();
+  field.seed({ interactions: [noteOnDeal("int_other", "opp_2")] });
+  const foreign = await carryOut(
+    ctx(),
+    action({ actionType: "record_evidence", payload: { slot: "pain", statement: "x", interactionId: "int_other" } }),
+  );
+  assert.equal(foreign.ok === false && foreign.violations[0].code, "evidence_citation_foreign");
+  const onAccount = await carryOut(
+    ctx(),
+    action({ actionType: "record_evidence", subjectType: "account", subjectId: "acc_1", payload: { slot: "pain", statement: "x" } }),
+  );
+  assert.equal(onAccount.ok === false && onAccount.violations[0].code, "subject_mismatch");
+});

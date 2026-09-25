@@ -2,9 +2,9 @@ import type { Entitlement } from "../../entitlement/types";
 import type { PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { getAccountStore, getFieldStore, getPipelineStore } from "../shared/registry";
-import { advanceStage } from "../pipeline/service";
+import { advanceStage, recordEvidence } from "../pipeline/service";
 import { fillAccountField } from "../account/service";
-import { recordInteraction } from "../account/field-service";
+import { listInteractions, recordInteraction } from "../account/field-service";
 import { isChannel } from "../account/lib/commitment";
 import { isStage } from "../pipeline/lib/stage";
 import { DEFAULT_STAGE_DEFINITIONS } from "../pipeline/lib/stage-vocab";
@@ -63,7 +63,44 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   advance_stage: advanceStageAction,
   fill_account_field: fillAccountFieldAction,
   record_interaction: recordInteractionAction,
+  record_evidence: recordEvidenceAction,
 };
+
+/**
+ * A person accepted what 证据抽取 read in a follow-up (deal batch 4b).
+ *
+ * THROUGH recordEvidence, with the accepter's permissions: the version is
+ * appended (never an overwrite), marked model_accepted with this proposal's
+ * id, and its citation must still be one of THIS deal's follow-ups - read
+ * through the field domain's gated verb, the same check a typed version gets.
+ */
+async function recordEvidenceAction(
+  ctx: ExecutionContext,
+  action: AgentAction,
+): Promise<RuleResult<{ actionType: string }>> {
+  if (action.subjectType !== "opportunity") {
+    return fail(
+      violation("subject_mismatch", `record_evidence on a ${action.subjectType} - evidence belongs to a deal`, "subjectType"),
+    );
+  }
+  const p = action.payload as { slot?: unknown; statement?: unknown; interactionId?: unknown };
+  if (typeof p.slot !== "string" || typeof p.statement !== "string" || !p.statement.trim()) {
+    return fail(violation("payload_invalid", "record_evidence needs a slot and a statement", "payload"));
+  }
+  const interactionId = typeof p.interactionId === "string" ? p.interactionId : null;
+  const notes = interactionId
+    ? await listInteractions({ ...ctx, store: getFieldStore() }, { opportunityId: action.subjectId, limit: 200 })
+    : null;
+  const recorded = await recordEvidence(
+    { ...ctx, store: getPipelineStore() },
+    action.subjectId,
+    { slot: p.slot, statement: p.statement, interactionId },
+    new Set(notes?.ok ? notes.value.map((n) => n.id) : []),
+    { proposalId: action.id },
+  );
+  if (!recorded.ok) return recorded as RuleResult<{ actionType: string }>;
+  return ok({ actionType: action.actionType });
+}
 
 /** The dispatch table's keys, for the guard test. */
 export function handledActions(): readonly string[] {

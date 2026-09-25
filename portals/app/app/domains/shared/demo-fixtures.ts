@@ -547,3 +547,13 @@ export const DEMO_WUXIA_MEMBER_NAMES: readonly string[] = [
 /** 本单定制 on a demo line (incr/0082) - what one deal tailored, on the line
  *  that carries the effort. */
 export const DEMO_LINE_CUSTOM_NOTE = "含与现有 ERP 双向对接的接口开发，约 6 周";
+
+/** 证据抽取 (deal batch 4b): one proposal read out of a demo deal note, its
+ *  quote verbatim from DEMO_DEAL_NOTES.d6_c - so the in-place row and the
+ *  accept path can be seen without a model. */
+export const DEMO_EVIDENCE_PROPOSAL = {
+  slot: "paper_process",
+  statement: "方案确认后还要走客户内部会签流程",
+  quote: "还在走内部会签",
+  rationale: "跟进原文提到方案反馈卡在内部会签，这是签约流程的一步，本单尚未写明。",
+} as const;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
   Collapsible,
@@ -39,6 +39,8 @@ export interface EvidenceRow {
   readonly accepted: boolean;
   /** Earlier versions, newest first, already labelled. */
   readonly history: readonly { readonly id: string; readonly statement: string; readonly meta: string }[];
+  /** 证据抽取's pending proposals for this slot, decided in place (batch 4b). */
+  readonly pending?: ReactNode;
 }
 
 export function EvidenceSlots({
@@ -110,6 +112,7 @@ export function EvidenceSlots({
               <SlotMarks row={row} />
             </div>
           ) : null}
+          {row.pending ? <div className={compact ? "" : "pl-[4.5rem]"}>{row.pending}</div> : null}
           {row.history.length > 0 ? (
             <Collapsible>
               <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs pl-[4.5rem] text-body-sm">

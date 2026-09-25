@@ -56,7 +56,7 @@ feature key 上，工作区能用这个功能，就能运行这项参谋、收�
 
 | 参谋能力（ADR-015 能力键） | 所在 feature key | 最低档 |
 |----------------------------|------------------|:------:|
-| `deal.stall_risk` · `deal.competition` · `pricing.discount_approval` | `pipeline.manage` | free |
+| `deal.stall_risk` · `deal.competition` · `pricing.discount_approval` · `deal.evidence`（证据抽取，deal batch 4b） | `pipeline.manage` | free |
 | `account.chain_map` · `account.cadence` · `account.upsell` · `account.consistency` | `account.manage` | free |
 | `signal.triage` | `signal.inbox` | starter |
 | `campaign.return` | `campaign.manage` | starter |

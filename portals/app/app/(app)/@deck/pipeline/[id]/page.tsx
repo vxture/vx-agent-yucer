@@ -2,6 +2,7 @@ import { getCopilotStore } from "../../../../domains/shared/registry";
 import { getOpportunityDetail } from "../../../../domains/pipeline/service";
 import { listProposals } from "../../../../domains/copilot/service";
 import { canDecideProposal } from "../../../../domains/copilot/lib/advisor-gate";
+import { EVIDENCE_ACTION_TYPE } from "../../../../domains/copilot/lib/action";
 import { adjudicateProposals } from "../../../copilot/actions";
 import { getMessages } from "../../../lib/i18n/server";
 import { displayRationale } from "../../../lib/proposal-rationale";
@@ -27,10 +28,9 @@ import { deckBundle, recordAction } from "../../deck-data";
 //   nothing forever and imply nothing is wrong with a deal that has been
 //   stalled for two months.
 //
-// The note it CAPTURES anchors to the account: an interaction hangs off an
-// account and optionally off an opportunity, and the deck's box takes text
-// only. The deal page's own controls remain the place to record against the
-// deal specifically.
+// The note it CAPTURES anchors to the account AND this deal (deal batch 4b,
+// YC-072 "自动挂到本单"): beside a deal, a note is about that deal - and a
+// note on a deal is what 证据抽取 reads for its buying evidence.
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +59,8 @@ export default async function DealDeck({
     ? await listProposals({ ...base, store: getCopilotStore() }, { status: "proposed" }).catch(() => null)
     : null;
   const proposals = (proposalsRead?.ok ? proposalsRead.value : [])
-    .filter((a) => a.subjectType === "opportunity" && a.subjectId === id)
+    // Evidence proposals are decided in place, under their slot (batch 4b).
+    .filter((a) => a.subjectType === "opportunity" && a.subjectId === id && a.actionType !== EVIDENCE_ACTION_TYPE)
     .map((a) => ({
       id: a.id,
       title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,
@@ -91,7 +92,7 @@ export default async function DealDeck({
     <AgentPanel
       data={bundle.agent}
       canRecord={bundle.canRecord}
-      onRecord={recordAction(detail.ok ? detail.value.accountId : "")}
+      onRecord={recordAction(detail.ok ? detail.value.accountId : "", detail.ok ? id : undefined)}
       advisor={advisor}
     />
   );
