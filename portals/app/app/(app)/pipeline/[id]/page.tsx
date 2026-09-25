@@ -1056,6 +1056,9 @@ export default async function OpportunityDetailPage({
             people={[...decisionPeople, ...unroledPeople]}
             warning={decisionWarning}
             findings={roleFindings}
+            // The same two rows as 栏2's 决策流程 panel (owner 2026-09-25:
+            // 两处都要) - one element, each placement its own open state.
+            process={processSlots}
           />
           {opportunity.accountId ? (
             <DealCustomerPanel
