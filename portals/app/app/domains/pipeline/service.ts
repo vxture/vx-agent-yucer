@@ -13,6 +13,7 @@
 // BEFORE the rule: a member who may not touch the pipeline should be told that,
 // not told their stage transition was invalid.
 
+import { planDealScoreWeights, type DealScoreWeights } from "./lib/deal-score";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
@@ -2055,4 +2056,30 @@ export async function setOpportunityImportance(
   const set = await ctx.store.setImportance(ctx.workspaceId, opportunityId, { levelId, bySub: ctx.sub, at: now });
   if (!set) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   return ok({ levelId });
+}
+
+// --- 商机评估分 (incr/0091) ------------------------------------------------------
+
+/**
+ * The weights a deal's score is computed with. Read on plain `pipeline.view`,
+ * the stallRules arrangement: reading a rule's parameters to show a deal is
+ * not configuring the rule.
+ */
+export async function dealScoreWeights(ctx: PipelineContext): Promise<RuleResult<DealScoreWeights>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getDealScoreWeights(ctx.workspaceId));
+}
+
+/** Set them - the /admin/opportunity permission, like every rule parameter there. */
+export async function setDealScoreWeights(
+  ctx: PipelineContext,
+  input: DealScoreWeights,
+): Promise<RuleResult<DealScoreWeights>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  const plan = planDealScoreWeights(input);
+  if (!plan.ok) return plan;
+  await ctx.store.setDealScoreWeights(ctx.workspaceId, plan.value);
+  return ok(plan.value);
 }

@@ -35,6 +35,7 @@ import {
   dealExit,
   listWinLossReasons,
   stallRules,
+  dealScoreWeights,
   winLossReviewOf,
 } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
@@ -105,7 +106,8 @@ import {
 import { settleCommitment } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
-import { AmountCoin, AssessmentCoin, DimensionStat, ImportanceCoin } from "../../components/dimension-stat";
+import { AmountCoin, DimensionStat, HealthCoin, ImportanceCoin } from "../../components/dimension-stat";
+import { DEFAULT_DEAL_SCORE_WEIGHTS, dealScore, dealScoreBand } from "../../../domains/pipeline/lib/deal-score";
 import { DealEditProvider } from "../../components/deal-edit-context";
 import { DealRolesDrawer } from "../../components/deal-roles-drawer";
 import { DealStageDrawer } from "../../components/deal-stage-drawer";
@@ -151,6 +153,7 @@ export default async function OpportunityDetailPage({
     POSITION_TEXT,
     CHAIN_TEXT,
     WAR_ROOM_TEXT,
+    DEAL_SCORE_TEXT,
     EXIT_REASON_LABEL,
     CHANNEL_LABEL,
     DIRECTION_LABEL,
@@ -196,13 +199,15 @@ export default async function OpportunityDetailPage({
   }
   const opportunity = detail.value;
 
-  const [history, stall, exit, claims] = await Promise.all([
+  const [history, stall, exit, claims, scoreWeights] = await Promise.all([
     stageHistory(ctx, id),
     stallRules(ctx),
     // Why it ended, for a lost or abandoned deal (YC-065 R6).
     opportunity.status === "lost" || opportunity.status === "abandoned" ? dealExit(ctx, id) : Promise.resolve(null),
     // 声明变更日志 and slippage (incr/0084, YC-065 R2).
     claimHistory(ctx, id),
+    // 商机评估分's weights (incr/0091).
+    dealScoreWeights(ctx),
   ]);
   // 购买证据槽 (incr/0085) and the exit criteria (incr/0087).
   const [evidence, exitCriteria] = await Promise.all([evidenceOf(ctx, id), listExitCriteria(ctx)]);
@@ -540,142 +545,6 @@ export default async function OpportunityDetailPage({
   const businessFormName = nameOfType(businessForms, opportunity.businessFormId);
   const notSet = <span className="text-muted-foreground">{DEAL_PAGE_TEXT.notSet}</span>;
 
-  // 态势研判 (YC-069 徽章区 third coin): steady dimensions over all, the
-  // worst one's colour. Read off 态势判决's cells - the same verdicts, so the
-  // coin and the panel cannot disagree.
-  const assessSteady = brief.cells.filter((c) => c.tone === "good").length;
-  const assessWorst: "good" | "warn" | "bad" = brief.cells.some((c) => c.tone === "bad")
-    ? "bad"
-    : brief.cells.some((c) => c.tone === "warn")
-      ? "warn"
-      : "good";
-  const dossierBadges = (
-    <div className="flex items-center justify-center gap-md">
-      {dealLevel ? (
-        <DimensionStat
-          figure={
-            <ImportanceCoin
-              medal={medalOf(dealLevel.rank)}
-              label={`${DEAL_PAGE_TEXT.importanceLabel} ${dealLevel.name}`}
-            />
-          }
-          label={DEAL_PAGE_TEXT.importanceLabel}
-          value={
-            <>
-              <div>
-                {dealLevel.name} · {DEAL_PAGE_TEXT.importancePriority(dealPriority)}
-              </div>
-              {accountLevel ? (
-                <div className="opacity-80">{DEAL_PAGE_TEXT.importanceCross(accountLevel.name, dealLevel.name)}</div>
-              ) : null}
-              <div className="opacity-80">
-                {opportunity.importanceBySub && opportunity.importanceAt
-                  ? DEAL_PAGE_TEXT.importanceSetBy(
-                      nameOf(opportunity.importanceBySub) ?? opportunity.importanceBySub,
-                      opportunity.importanceAt.toISOString().slice(0, 10),
-                    )
-                  : DEAL_PAGE_TEXT.importanceDefault}
-              </div>
-            </>
-          }
-        />
-      ) : null}
-      <DimensionStat
-        figure={
-          <AmountCoin
-            figure={amountParts ? amountParts.figure : null}
-            label={`${DEAL_PAGE_TEXT.amountLabel} ${formatMoney(amountValue, opportunity.currency)}`}
-          />
-        }
-        label={DEAL_PAGE_TEXT.amountLabel}
-        value={
-          amountValue === null
-            ? DEAL_PAGE_TEXT.amountNone
-            : `${formatMoney(amountValue, opportunity.currency)}${amountParts ? ` · ${POSITION_TEXT.amountUnit(amountParts.unit, amountParts.currency)}` : ""}`
-        }
-      />
-      {brief.cells.length > 0 ? (
-        <DimensionStat
-          figure={
-            <AssessmentCoin
-              steady={assessSteady}
-              total={brief.cells.length}
-              worst={assessWorst}
-              label={DEAL_PAGE_TEXT.assessLabel(assessSteady, brief.cells.length)}
-            />
-          }
-          label={DEAL_PAGE_TEXT.assessTitle}
-          value={
-            <>
-              <div>{DEAL_PAGE_TEXT.assessGrade[assessWorst]} · {DEAL_PAGE_TEXT.assessLabel(assessSteady, brief.cells.length)}</div>
-              {brief.cells.map((c) => (
-                <div key={c.key} className="opacity-80">
-                  {WAR_ROOM_TEXT.cell[c.key]} {DEAL_PAGE_TEXT.assessGrade[c.tone]} · {c.headline}
-                </div>
-              ))}
-            </>
-          }
-        />
-      ) : null}
-    </div>
-  );
-  const dossierFacts = [
-    {
-      label: DEAL_PAGE_TEXT.factCustomer,
-      value: opportunity.accountId ? (
-        <span className="inline-flex items-center gap-xs" title={OPPORTUNITY_TEXT.attributionFrozen}>
-          <Link href={`/account/${opportunity.accountId}`} className="truncate hover:underline">
-            {accountName}
-          </Link>
-          <Tag tone={tier === "strategic" ? "brand" : tier === "key" ? "warning" : "neutral"}>{tierLabel}</Tag>
-        </span>
-      ) : (
-        notSet
-      ),
-    },
-    { label: DEAL_PAGE_TEXT.factOwner, value: nameOf(opportunity.ownerSub) ?? notSet },
-    { label: DEAL_PAGE_TEXT.factContractType, value: contractTypeName ?? notSet },
-    { label: DEAL_PAGE_TEXT.factBusinessForm, value: businessFormName ?? notSet },
-    {
-      label: DEAL_PAGE_TEXT.factSource,
-      // Attribution is frozen (no UPDATE grant); the tooltip says so rather
-      // than an edit that would fail at the database.
-      value: (
-        <span title={OPPORTUNITY_TEXT.attributionFrozen}>
-          {campaignName ? DEAL_PAGE_TEXT.sourceCampaign(campaignName) : DEAL_PAGE_TEXT.sourceDirect}
-        </span>
-      ),
-    },
-  ];
-  const dossierMore = [
-    ...(territoryName ? [{ label: DEAL_PAGE_TEXT.factTerritory, value: territoryName }] : []),
-    { label: DEAL_PAGE_TEXT.factCreated, value: opportunity.createdAt.toISOString().slice(0, 10) },
-    {
-      label: DEAL_PAGE_TEXT.factBudget,
-      value:
-        opportunity.customerBudget != null ? formatMoney(opportunity.customerBudget, opportunity.currency) : notSet,
-    },
-    { label: WALLET_TEXT.title, value: walletLine },
-    ...(plan
-      ? [
-          {
-            label: DEAL_PAGE_TEXT.factTeam,
-            value: `${nameOf(plan.presalesSub) ?? POSITION_TEXT.roleUnset} / ${nameOf(plan.deliverySub) ?? POSITION_TEXT.roleUnset}`,
-          },
-        ]
-      : []),
-  ];
-  const dossierSummary = [
-    opportunity.opportunityNo,
-    accountName,
-    amountValue === null ? DEAL_PAGE_TEXT.amountNone : formatMoney(amountValue, opportunity.currency),
-    ...(brief.cells.length > 0 ? [`${DEAL_PAGE_TEXT.assessTitle} ${assessSteady}/${brief.cells.length}`] : []),
-  ].join(COLLAPSE_TEXT.separator);
-
-  // 产品方案 (YC-069 §04b): the combination and this deal's customisation,
-  // no prices. The source is the solution the lines were expanded from
-  // (opportunity_line.solution_id, provenance only); a refused catalogue read
-  // shows the combination without naming its source rather than guessing.
   const solutionLines = (lineRows.ok ? lineRows.value : []).filter((l) => l.opportunityId === id);
   const sourceId = solutionLines.find((l) => l.solutionId)?.solutionId ?? null;
   const solutionsRead = sourceId ? await listSolutions(catalogCtx).catch(() => null) : null;
@@ -851,6 +720,140 @@ export default async function OpportunityDetailPage({
   );
   const recentTouches = interactionList.filter((n) => briefNow.getTime() - n.occurredAt.getTime() <= 30 * 86_400_000).length;
   const requirement = opportunity.requirement?.trim() || null;
+  // 商机评估分 (incr/0091): the weighted 0-100, from 态势判决's cells, this
+  // stage's exit check and the last touch - the workspace's own weights.
+  const score = dealScore(
+    {
+      cells: brief.cells,
+      exit: exitCheck,
+      lastTouchDays: lastTouch ? Math.max(0, Math.floor((briefNow.getTime() - lastTouch.getTime()) / 86_400_000)) : null,
+    },
+    scoreWeights.ok ? scoreWeights.value : DEFAULT_DEAL_SCORE_WEIGHTS,
+  );
+  const dossierBadges = (
+    <div className="flex items-center justify-center gap-md">
+      {dealLevel ? (
+        <DimensionStat
+          figure={
+            <ImportanceCoin
+              medal={medalOf(dealLevel.rank)}
+              label={`${DEAL_PAGE_TEXT.importanceLabel} ${dealLevel.name}`}
+            />
+          }
+          label={DEAL_PAGE_TEXT.importanceLabel}
+          value={
+            <>
+              <div>
+                {dealLevel.name} · {DEAL_PAGE_TEXT.importancePriority(dealPriority)}
+              </div>
+              {accountLevel ? (
+                <div className="opacity-80">{DEAL_PAGE_TEXT.importanceCross(accountLevel.name, dealLevel.name)}</div>
+              ) : null}
+              <div className="opacity-80">
+                {opportunity.importanceBySub && opportunity.importanceAt
+                  ? DEAL_PAGE_TEXT.importanceSetBy(
+                      nameOf(opportunity.importanceBySub) ?? opportunity.importanceBySub,
+                      opportunity.importanceAt.toISOString().slice(0, 10),
+                    )
+                  : DEAL_PAGE_TEXT.importanceDefault}
+              </div>
+            </>
+          }
+        />
+      ) : null}
+      <DimensionStat
+        figure={
+          <AmountCoin
+            figure={amountParts ? amountParts.figure : null}
+            label={`${DEAL_PAGE_TEXT.amountLabel} ${formatMoney(amountValue, opportunity.currency)}`}
+          />
+        }
+        label={DEAL_PAGE_TEXT.amountLabel}
+        value={
+          amountValue === null
+            ? DEAL_PAGE_TEXT.amountNone
+            : `${formatMoney(amountValue, opportunity.currency)}${amountParts ? ` · ${POSITION_TEXT.amountUnit(amountParts.unit, amountParts.currency)}` : ""}`
+        }
+      />
+      {/* 商机评估分 (incr/0091): the weighted 0-100 on the customer
+          health's disc; the hover says the band and the one biggest loss -
+          not the dimensions again, they are 态势判决's. */}
+      <DimensionStat
+        figure={<HealthCoin score={score.score} label={`${DEAL_SCORE_TEXT.coinLabel} ${score.score}`} />}
+        label={DEAL_SCORE_TEXT.coinLabel}
+        value={
+          <>
+            <div>
+              {score.score} · {DEAL_SCORE_TEXT.band[dealScoreBand(score.score)]}
+            </div>
+            <div className="opacity-80">
+              {score.primaryConcern
+                ? DEAL_SCORE_TEXT.concern(DEAL_SCORE_TEXT.factor[score.primaryConcern.factor] ?? score.primaryConcern.factor, score.primaryConcern.value)
+                : DEAL_SCORE_TEXT.noConcern}
+            </div>
+            <div className="opacity-60">{DEAL_SCORE_TEXT.howTo}</div>
+          </>
+        }
+      />
+    </div>
+  );
+  const dossierFacts = [
+    {
+      label: DEAL_PAGE_TEXT.factCustomer,
+      value: opportunity.accountId ? (
+        <span className="inline-flex items-center gap-xs" title={OPPORTUNITY_TEXT.attributionFrozen}>
+          <Link href={`/account/${opportunity.accountId}`} className="truncate hover:underline">
+            {accountName}
+          </Link>
+          <Tag tone={tier === "strategic" ? "brand" : tier === "key" ? "warning" : "neutral"}>{tierLabel}</Tag>
+        </span>
+      ) : (
+        notSet
+      ),
+    },
+    { label: DEAL_PAGE_TEXT.factOwner, value: nameOf(opportunity.ownerSub) ?? notSet },
+    { label: DEAL_PAGE_TEXT.factContractType, value: contractTypeName ?? notSet },
+    { label: DEAL_PAGE_TEXT.factBusinessForm, value: businessFormName ?? notSet },
+    {
+      label: DEAL_PAGE_TEXT.factSource,
+      // Attribution is frozen (no UPDATE grant); the tooltip says so rather
+      // than an edit that would fail at the database.
+      value: (
+        <span title={OPPORTUNITY_TEXT.attributionFrozen}>
+          {campaignName ? DEAL_PAGE_TEXT.sourceCampaign(campaignName) : DEAL_PAGE_TEXT.sourceDirect}
+        </span>
+      ),
+    },
+  ];
+  const dossierMore = [
+    ...(territoryName ? [{ label: DEAL_PAGE_TEXT.factTerritory, value: territoryName }] : []),
+    { label: DEAL_PAGE_TEXT.factCreated, value: opportunity.createdAt.toISOString().slice(0, 10) },
+    {
+      label: DEAL_PAGE_TEXT.factBudget,
+      value:
+        opportunity.customerBudget != null ? formatMoney(opportunity.customerBudget, opportunity.currency) : notSet,
+    },
+    { label: WALLET_TEXT.title, value: walletLine },
+    ...(plan
+      ? [
+          {
+            label: DEAL_PAGE_TEXT.factTeam,
+            value: `${nameOf(plan.presalesSub) ?? POSITION_TEXT.roleUnset} / ${nameOf(plan.deliverySub) ?? POSITION_TEXT.roleUnset}`,
+          },
+        ]
+      : []),
+  ];
+  const dossierSummary = [
+    opportunity.opportunityNo,
+    accountName,
+    amountValue === null ? DEAL_PAGE_TEXT.amountNone : formatMoney(amountValue, opportunity.currency),
+    `${DEAL_SCORE_TEXT.coinLabel} ${score.score}`,
+  ].join(COLLAPSE_TEXT.separator);
+
+  // 产品方案 (YC-069 §04b): the combination and this deal's customisation,
+  // no prices. The source is the solution the lines were expanded from
+  // (opportunity_line.solution_id, provenance only); a refused catalogue read
+  // shows the combination without naming its source rather than guessing.
 
   // 购买证据槽 rows (incr/0085): the latest version per slot, its history, and
   // what it may cite - this deal's follow-ups.

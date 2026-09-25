@@ -6978,10 +6978,6 @@ export const DEAL_PAGE_TEXT = {
   findingRole: (name: string, role: string, stance: string | null) =>
     stance ? `${name}：本单角色 ${role} · 立场 ${stance}` : `${name}：本单角色 ${role}`,
   findingCommitment: (direction: string, due: string, statement: string) => `${direction} · ${due} 前：${statement}`,
-  // 态势研判 coin (徽章区)
-  assessTitle: "态势研判",
-  assessLabel: (steady: number, total: number) => `${total} 维中 ${steady} 维稳`,
-  assessGrade: { good: "稳", warn: "关注", bad: "风险" } as Record<string, string>,
   // 重要度与优先级 (deal batch 6, incr/0090)
   importanceLabel: "重要度",
   importanceEdit: "设定重要度",
@@ -7114,5 +7110,60 @@ export const IMPORTANCE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   importance_level_unknown: "这个档位不在本工作区的重要度里，刷新后重选",
+  unknown: "没有保存成功，稍后再试",
+};
+
+
+/** 商机评估分 (incr/0091) - the admin section and the dossier coin. */
+export const DEAL_SCORE_TEXT = {
+  title: "商机评估分",
+  why: "交易档案上的 0-100 分：七个因子各自 0-100，按这里的权重加权平均。本阶段没设退出条件时，该因子不计，权重按比例分给其余因子。",
+  sum: (n: number) => `权重合计 ${n}/100`,
+  weightsLabel: "因子权重",
+  weightsHint: "七个权重合计必须是 100。某项设为 0 即不参与评分。",
+  factor: {
+    exit: "退出条件",
+    chain: "决策链",
+    stage: "推进节奏",
+    recency: "互动新鲜度",
+    commitment: "承诺履约",
+    forecast: "预测一致",
+    price: "价格纪律",
+  } as Record<string, string>,
+  factorHow: {
+    exit: "本阶段满足数 ÷ 总数",
+    chain: "稳 100 · 关注 · 风险 0",
+    stage: "稳 100 · 关注 · 风险 0",
+    recency: "按最近一次跟进的天数",
+    commitment: "稳 100 · 关注 · 风险 0",
+    forecast: "稳 100 · 关注 · 风险 0",
+    price: "稳 100 · 关注 · 风险 0",
+  } as Record<string, string>,
+  watchLabel: "「关注」得分",
+  watchHint: "态势判决为「关注」时该因子得几分（稳 100、风险 0）",
+  recentLabel: "新鲜天数",
+  recentHint: "最近一次跟进在这么多天内，互动新鲜度 100",
+  quietLabel: "沉寂天数",
+  quietHint: "超过这么多天没跟进为 0，两者之间线性递减",
+  save: "保存",
+  reset: "恢复默认",
+  formula: "评估分 = Σ(权重 × 因子分) ÷ Σ权重",
+  saved: "评估分权重已保存",
+  // 交易档案的评估分币
+  coinLabel: "商机评估分",
+  band: { good: "良好", warn: "关注", bad: "风险" } as Record<string, string>,
+  concern: (factor: string, value: number) => `主要失分：${factor}（${value} 分）`,
+  noConcern: "各因子均满分",
+  howTo: "权重在 管理 · 商机配置",
+};
+
+/** 商机评估分权重的写入回执 (incr/0091)。 */
+export const DEAL_SCORE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  weight_out_of_range: "每项权重在 0 到 100 之间",
+  weights_not_100: "七个权重合计必须正好是 100",
+  watch_out_of_range: "「关注」得分在 1 到 99 之间",
+  recent_out_of_range: "新鲜天数在 1 到 365 之间",
+  quiet_not_after_recent: "沉寂天数要大于新鲜天数，且不超过 365",
   unknown: "没有保存成功，稍后再试",
 };
