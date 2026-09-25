@@ -4,7 +4,7 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles } from "../../authz/catalog";
 import { ok, fail, violation, unwrap, type RuleResult } from "../shared/result";
 import { InMemoryCopilotStore } from "./store";
-import { runAdvisor } from "./advisor";
+import { runAdvisor, type AdvisorAtlasTags } from "./advisor";
 import type { AdvisorMeter } from "../../usage/lib/advisor-runs";
 
 const WS = "ws_1";
@@ -31,7 +31,6 @@ function meter(admit = true) {
   return { m, charged };
 }
 
-import type { AdvisorAtlasTags } from "./advisor";
 
 type Gen = (run: { runId: string; atlas: AdvisorAtlasTags }) => Promise<RuleResult<unknown>>;
 
