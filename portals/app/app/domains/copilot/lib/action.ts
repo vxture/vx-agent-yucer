@@ -46,6 +46,8 @@ export type ActionStatus = (typeof ACTION_STATUSES)[number];
  *  which must never reach a client bundle. */
 export const UPSELL_ACTION_TYPE = "propose_upsell";
 export const CHASE_COMMITMENT_ACTION_TYPE = "chase_overdue_commitment";
+/** 证据抽取 (deal batch 4b): write one buying-evidence slot, quoting the note. */
+export const EVIDENCE_ACTION_TYPE = "record_evidence";
 
 export const SUBJECT_TYPES = [
   "account",
@@ -77,6 +79,7 @@ export const ACTION_SUBJECTS: Readonly<Record<string, readonly SubjectType[]>> =
   propose_upsell: ["account"],
   flag_conflict: ["account"],
   chase_overdue_commitment: ["account", "opportunity"],
+  record_evidence: ["opportunity"],
 };
 
 /** Does this action type belong on this kind of subject? Unlisted types: yes. */

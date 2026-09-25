@@ -19,6 +19,8 @@ export const BRIEFING_KINDS = [
   "review_draft",
   "forecast_brief",
   "consistency_check",
+  // incr/0086 - 证据抽取: one new follow-up against the deal's slots.
+  "evidence_extract",
 ] as const;
 export type BriefingKind = (typeof BRIEFING_KINDS)[number];
 

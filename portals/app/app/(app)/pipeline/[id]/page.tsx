@@ -81,6 +81,10 @@ import {
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
 import { EvidenceSlots, type EvidenceRow } from "../../components/evidence-slots";
+import { AdvisorFinding } from "../../components/advisor-finding";
+import { adjudicateProposals } from "../../copilot/actions";
+import { EVIDENCE_ACTION_TYPE } from "../../../domains/copilot/lib/action";
+import { canDecideProposal } from "../../../domains/copilot/lib/advisor-gate";
 import { recordEvidenceAction } from "../evidence-action";
 import { PROCESS_SLOTS, REASON_SLOTS, type EvidenceSlot } from "../../../domains/pipeline/lib/evidence";
 import { suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
@@ -736,6 +740,22 @@ export default async function OpportunityDetailPage({
     interactionList.map((i) => [i.id, `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`]),
   );
   const shortDate = (d: Date) => d.toISOString().slice(5, 10);
+  // 证据抽取's pending proposals, per slot, decided in place (batch 4b).
+  const evidenceProposals = (proposals.ok ? proposals.value : []).filter(
+    (a) => a.actionType === EVIDENCE_ACTION_TYPE && a.subjectId === id,
+  );
+  const findingsFor = (slot: EvidenceSlot) => {
+    const items = evidenceProposals
+      .filter((a) => a.payload.slot === slot)
+      .map((a) => ({
+        id: a.id,
+        text: String(a.payload.statement ?? ""),
+        quote: typeof a.payload.quote === "string" ? a.payload.quote : null,
+        source: typeof a.payload.interactionId === "string" ? (noteLabel.get(a.payload.interactionId) ?? null) : null,
+        decidable: canDecideProposal(session.authz, session.entitlement, a.capability, "ui").allowed,
+      }));
+    return items.length === 0 ? undefined : <AdvisorFinding items={items} onAdjudicate={adjudicateProposals} />;
+  };
   const evidenceRows = (slots: readonly EvidenceSlot[]): EvidenceRow[] =>
     slots.map((slot) => {
       const state = evidence.ok ? evidence.value[slot] : null;
@@ -748,6 +768,7 @@ export default async function OpportunityDetailPage({
         cite: cur?.interactionId ? (noteLabel.get(cur.interactionId) ?? null) : null,
         citeId: cur?.interactionId ?? null,
         accepted: cur?.source === "model_accepted",
+        pending: findingsFor(slot),
         history: (state?.history ?? []).slice(1).map((h) => ({
           id: h.id,
           statement: h.statement,

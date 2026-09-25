@@ -32,6 +32,7 @@ import {
   DEMO_RETIRED_PRODUCTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
+  DEMO_EVIDENCE_PROPOSAL,
   DEMO_LINE_CUSTOM_NOTE,
   DEMO_ACCEPTORS,
   DEMO_MILESTONES,
@@ -1274,6 +1275,12 @@ function seedCopilot(workspaceId: string, stores: DemoStores): void {
     proposal("act_demo_3", "proposed", "promote_signal", "lead", "lead_demo_2", { score: 71 }, DEMO_RATIONALES[2], 64, null, 2),
     proposal("act_demo_4", "rejected", "advance_stage", "opportunity", "opp_demo_3", { to: "discover" }, DEMO_RATIONALES[3], 41, LEADER, 4),
     proposal("act_demo_5", "proposed", "advance_stage", "opportunity", "opp_demo_6", { to: "negotiate" }, DEMO_RATIONALES[4], 77, null, 1),
+    // 证据抽取 (deal batch 4b): decided in place under 签约流程.
+    proposal(
+      "act_demo_ev1", "proposed", "record_evidence", "opportunity", "opp_demo_6",
+      { slot: DEMO_EVIDENCE_PROPOSAL.slot, statement: DEMO_EVIDENCE_PROPOSAL.statement, quote: DEMO_EVIDENCE_PROPOSAL.quote, interactionId: "int_demo_d6c" },
+      DEMO_EVIDENCE_PROPOSAL.rationale, 72, null, 0,
+    ),
     // PAST THE DECISION WINDOW ON PURPOSE. Opening the queue sweeps it, so the
     // demo shows the outcome the spec asks for - a recommendation nobody
     // decided becomes visibly `expired` rather than quietly staying live.
@@ -1810,6 +1817,7 @@ const CAPABILITY_BY_ACTION: Record<string, string> = {
   draft_outreach: "account.chain_map",
   promote_signal: "signal.triage",
   adjust_forecast: "deal.stall_risk",
+  record_evidence: "deal.evidence",
 };
 
 function proposal(

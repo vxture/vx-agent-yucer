@@ -31,6 +31,9 @@ export const CAPABILITIES = [
   "account.upsell",
   // L2 batch 7b: 说法核对 - two follow-ups disagreeing on the same fact.
   "account.consistency",
+  // Deal batch 4b (YC-066 §04 证据抽取): reads each new follow-up on a deal
+  // and proposes what it says about the buying evidence slots.
+  "deal.evidence",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -133,6 +136,12 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     feature: "account.manage",
     task: "propose",
     evidence: ["deals", "lines"],
+  },
+  // One new follow-up against what the slots already say.
+  "deal.evidence": {
+    feature: "pipeline.manage",
+    task: "propose",
+    evidence: ["interactions", "deals"],
   },
   // Reads the notes and nothing else: a conflict is between two records.
   "account.consistency": {

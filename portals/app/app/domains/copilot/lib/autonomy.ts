@@ -79,7 +79,14 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
  * draft_email" and nothing validates what comes back - so the set of things
  * that can arrive here is open, and only an allowlist can bound it.
  */
-export const EXECUTABLE_ACTIONS: readonly string[] = ["advance_stage", "fill_account_field", "record_interaction"];
+export const EXECUTABLE_ACTIONS: readonly string[] = [
+  "advance_stage",
+  "fill_account_field",
+  "record_interaction",
+  // Deal batch 4b: a new VERSION of an evidence slot - append-only, the prior
+  // version stays in the history, so accepting is reversible by a later one.
+  "record_evidence",
+];
 
 /**
  * Can the product carry this action out itself?

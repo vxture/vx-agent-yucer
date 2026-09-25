@@ -1203,6 +1203,10 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
 
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
 export const PROPOSAL_ERROR: Record<string, string> = {
+  // Accepting a 证据抽取 proposal writes an evidence version (deal batch 4b).
+  evidence_citation_foreign: "这条提案引用的不是本单的跟进，不予写入",
+  evidence_slot_unknown: "提案给出的证据项不存在",
+  evidence_too_long: "提案内容超过 2000 字，不予写入",
   // A proposal that moves a deal runs the stage machine (YC-065 R6).
   abandoned_closed: "这一单已放弃,提案不能推进它;请先重开",
   exit_reason_required: "把商机改成丢单需要原因,提案里没有,请在商机页操作",
@@ -2211,6 +2215,7 @@ export const BOARD_TEXT = {
     "campaign.return": "战役回报",
     "account.upsell": "增购机会",
     "account.consistency": "说法核对",
+    "deal.evidence": "证据抽取",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3870,6 +3875,7 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
   draft_outreach: "起草触达",
   propose_upsell: "推荐增购",
   flag_conflict: "疑似说法不一致",
+  record_evidence: "写入购买证据",
   promote_signal: "信号升级为线索",
 };
 
@@ -6349,6 +6355,7 @@ export const POSITION_TEXT = {
     promote_signal: "把信号升级为线索",
     propose_upsell: "推荐增购",
     flag_conflict: "确认两条记录说法不一致",
+    record_evidence: "写入购买证据",
     adjust_forecast: "调整预测口径",
     draft_email: "起草邮件",
   } as Record<string, string>,
@@ -6915,6 +6922,11 @@ export const DEAL_PAGE_TEXT = {
   evidenceCite: "依据哪条跟进（可选）",
   evidenceCiteNone: "不引用（口述）",
   evidenceSave: "保存这一版",
+  // 发现行 (deal batch 4b)
+  findingSource: "智能分析",
+  findingAccept: "采纳",
+  findingIgnore: "忽略",
+  findingQuote: (source: string | null, quote: string) => `${source ? `${source}：` : ""}「${quote}」`,
   processTitle: "怎么决策、怎么签",
   reasonsFilled: (n: number, total: number) => `${n}/${total} 项已写明`,
   processUnwritten: "流程未写明",
