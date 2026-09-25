@@ -330,6 +330,14 @@ export const ACTIONS = {
     permission: "pipeline.read",
     writes: false,
   },
+  // 购买证据槽 (incr/0085, YC-068): recording what we know about a deal is
+  // working the deal - the free pipeline, write permission.
+  "pipeline.evidence.record": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
   "pipeline.opportunity.create": {
     domain: "pipeline",
     feature: "pipeline.manage",

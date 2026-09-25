@@ -575,3 +575,52 @@ test("a claim change writes its log row in the same transaction; the log is appe
     await cleanup();
   }
 });
+
+// --- 购买证据槽 (incr/0085) --------------------------------------------------------
+
+test("evidence versions append and read back; the table is append-only and a model version names its proposal", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = await s.createOpportunity(WS, newOpp());
+    await s.appendEvidence(WS, created.id, { slot: "pain", statement: "盘点停业半天", interactionId: null, authorSub: "usr_a", source: "manual", proposalId: null });
+    await s.appendEvidence(WS, created.id, { slot: "pain", statement: "", interactionId: null, authorSub: "usr_a", source: "manual", proposalId: null });
+    const all = await s.listEvidence(WS, created.id);
+    assert.deepEqual(all.map((e) => e.statement).sort(), ["", "盘点停业半天"]);
+
+    await withPg(async (c) => {
+      await c.query(`SET ROLE yucer_svc`);
+      try {
+        await assert.rejects(
+          c.query(`UPDATE yucer_pipeline.opportunity_evidence SET statement = 'rewritten' WHERE opportunity_id = $1`, [created.id]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          c.query(`DELETE FROM yucer_pipeline.opportunity_evidence WHERE opportunity_id = $1`, [created.id]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_pipeline.opportunity_evidence (workspace_id, opportunity_id, slot, statement, author_sub, source)
+             VALUES ($1, $2, 'pain', 'x', 'usr_a', 'model_accepted')`,
+            [WS, created.id],
+          ),
+          /chk_evidence_proposal/,
+        );
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_pipeline.opportunity_evidence (workspace_id, opportunity_id, slot, statement, author_sub)
+             VALUES ($1, $2, 'budget', 'x', 'usr_a')`,
+            [WS, created.id],
+          ),
+          /chk_evidence_slot/,
+        );
+      } finally {
+        await c.query(`RESET ROLE`);
+      }
+    });
+  } finally {
+    await cleanup();
+  }
+});

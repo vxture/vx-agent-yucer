@@ -144,6 +144,8 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "pipeline/opportunity": { group: "position", module: "pipeline", page: "pipeline.opportunity" },
   // 声明变更日志 (incr/0084) is part of reading a deal - its page.
   "pipeline/claims": { group: "position", module: "pipeline", page: "pipeline.opportunity" },
+  // 购买证据槽 (incr/0085) is recorded on the deal page.
+  "pipeline/evidence": { group: "position", module: "pipeline", page: "pipeline.opportunity" },
   "pipeline/discount": { group: "position", module: "pipeline", page: "pipeline.discount" },
   "pipeline/forecast": { group: "position", module: "pipeline", page: "pipeline.forecast" },
   "pipeline/winloss": { group: "position", module: "winLossReview", page: "pipeline.winloss" },

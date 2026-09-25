@@ -18,6 +18,8 @@ import {
   updateCommercialTerms,
   replaceOpportunityLines,
   claimHistory,
+  evidenceOf,
+  recordEvidence,
   forecastHistory,
   forecastScorecard,
   submitForecast,
@@ -1153,5 +1155,34 @@ test("claim history: gated like reading a deal, with the slippage it implies", a
   assert.deepEqual(h.slippage, { pushes: 2, pushedDays: 40, crossedQuarter: true, datesLost: 0 });
   assert.equal((await claimHistory(ctx("sales_rep", null, store), "opp_1")).ok, false);
   const missing = await claimHistory(c, "opp_nope");
+  assert.equal(missing.ok === false && missing.violations[0].code, "not_found");
+});
+
+// --- 购买证据槽 (incr/0085) --------------------------------------------------------
+
+test("evidence is versioned: each change a new version, an unchanged save none, the latest current", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "free", store);
+  const cites = new Set(["int_1"]);
+  assert.deepEqual(unwrap(await recordEvidence(c, "opp_1", { slot: "decision_process", statement: "采购委员会三人投票" }, cites)), { recorded: true });
+  assert.deepEqual(unwrap(await recordEvidence(c, "opp_1", { slot: "decision_process", statement: "采购委员会三人投票" }, cites)), { recorded: false });
+  unwrap(await recordEvidence(c, "opp_1", { slot: "decision_process", statement: "三人投票，CFO 一票否决", interactionId: "int_1" }, cites));
+  const states = unwrap(await evidenceOf(c, "opp_1"));
+  assert.equal(states.decision_process.current?.statement, "三人投票，CFO 一票否决");
+  assert.equal(states.decision_process.grounded, true);
+  assert.equal(states.decision_process.history.length, 2);
+  assert.equal(states.decision_process.current?.authorSub, "usr_me");
+  assert.equal(states.pain.filled, false);
+});
+
+test("evidence can only cite this deal's follow-ups, and needs pipeline write", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const foreign = await recordEvidence(ctx("sales_rep", "free", store), "opp_1", { slot: "pain", statement: "x", interactionId: "int_other" }, new Set(["int_1"]));
+  assert.equal(foreign.ok === false && foreign.violations[0].code, "evidence_citation_foreign");
+  const viewer = await recordEvidence(ctx("viewer", "free", store), "opp_1", { slot: "pain", statement: "x" }, new Set());
+  assert.equal(viewer.ok === false && viewer.violations[0].code, "permission_denied");
+  const missing = await evidenceOf(ctx("sales_rep", "free", store), "opp_nope");
   assert.equal(missing.ok === false && missing.violations[0].code, "not_found");
 });

@@ -16,6 +16,7 @@
 import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
+import type { EvidenceVersion } from "./lib/evidence";
 
 /** A deal's claimed values, as the claim log compares them (incr/0084). */
 export function claimStateOf(o: OpportunityRecord): ClaimState {
@@ -337,6 +338,15 @@ export interface PipelineStore {
   /** 声明变更日志 for one deal, oldest first (incr/0084). */
   listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]>;
 
+  /** 购买证据槽 (incr/0085): every version of a deal's evidence, any order. */
+  listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]>;
+  /** Append one version. Never an update - the history is the point. */
+  appendEvidence(
+    workspaceId: string,
+    opportunityId: string,
+    row: Omit<EvidenceVersion, "id" | "recordedAt">,
+  ): Promise<EvidenceVersion>;
+
   listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]>;
 
   /**
@@ -467,6 +477,26 @@ export class InMemoryPipelineStore implements PipelineStore {
   private events: StageEventRecord[] = [];
   private exits: (DealExitRecord & { workspaceId: string; opportunityId: string })[] = [];
   private claims: (ClaimEventRecord & { workspaceId: string })[] = [];
+  private evidence: (EvidenceVersion & { workspaceId: string; opportunityId: string })[] = [];
+
+  async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {
+    return this.evidence
+      .filter((e) => e.workspaceId === workspaceId && e.opportunityId === opportunityId)
+      .map(({ workspaceId: _w, opportunityId: _o, ...e }) => e);
+  }
+
+  async appendEvidence(
+    workspaceId: string,
+    opportunityId: string,
+    row: Omit<EvidenceVersion, "id" | "recordedAt">,
+  ): Promise<EvidenceVersion> {
+    this.seq += 1;
+    // Strictly increasing, so two saves in one millisecond still order.
+    const last = this.evidence.at(-1)?.recordedAt.getTime() ?? 0;
+    const saved = { ...row, id: `evd_${this.seq}`, recordedAt: new Date(Math.max(Date.now(), last + 1)) };
+    this.evidence.push({ ...saved, workspaceId, opportunityId });
+    return saved;
+  }
 
   /** Append the rows for what changed between two states - the store's half of incr/0084. */
   private logClaims(workspaceId: string, opportunityId: string, before: ClaimState, after: ClaimState, ctx: ClaimContext): void {

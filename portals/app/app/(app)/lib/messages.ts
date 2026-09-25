@@ -6597,6 +6597,7 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.opportunity.advance": "推进商机阶段",
     "pipeline.opportunity.abandon": "放弃商机",
     "pipeline.claims.view": "查看声明变更与推迟",
+    "pipeline.evidence.record": "记录购买证据",
     "pipeline.forecast.view": "查看销售预测",
     "pipeline.forecast.snapshot": "提交预测快照",
     "pipeline.forecast.categorize": "归类预测",
@@ -6892,6 +6893,32 @@ export const DEAL_PAGE_TEXT = {
   historySince: "声明变更（金额、成交日、类别、赢率）自本功能上线起记录，之前的变化不补录",
   slipped: (n: number, days: number) => `推迟 ${n} 次 · 累计 ${days} 天`,
   slippedQuarter: "推出本季",
+  // 购买证据槽 (incr/0085)
+  evidenceSlot: {
+    pain: "痛点",
+    metrics: "量化价值",
+    status_quo: "不作为",
+    decision_process: "决策流程",
+    paper_process: "签约流程",
+  } as Record<string, string>,
+  evidenceEmpty: "未写明",
+  evidenceGrounded: "有据",
+  evidenceSaid: "口述",
+  evidenceAccepted: "智能分析 · 已确认",
+  evidenceFill: "填写",
+  evidenceEdit: "修改",
+  evidenceHistory: (n: number) => `历史 ${n} 版`,
+  evidenceCleared: "（已清空）",
+  evidenceDialog: (slot: string) => `写明${slot}`,
+  evidenceDialogWhy: "每次保存都是新的一版，旧版留在历史里。清空内容再保存 = 清空这一项。",
+  evidenceStatement: "内容",
+  evidenceCite: "依据哪条跟进（可选）",
+  evidenceCiteNone: "不引用（口述）",
+  evidenceSave: "保存这一版",
+  processTitle: "怎么决策、怎么签",
+  reasonsFilled: (n: number, total: number) => `${n}/${total} 项已写明`,
+  processUnwritten: "流程未写明",
+  statusQuoSignal: "有不作为信号",
   // 栏2
   todo: "待动手的事",
   judgements: "判断",
@@ -6918,3 +6945,12 @@ export const DEAL_PAGE_TEXT = {
   reviewSummaryOwed: (outcome: string) => `${outcome} · 复盘未写`,
   reviewSummaryDone: (outcome: string) => `${outcome} · 已复盘`,
 } as const;
+
+/** 购买证据槽的写入回执 (incr/0085)。 */
+export const EVIDENCE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在，或不属于当前工作区",
+  evidence_slot_unknown: "没有这一项证据",
+  evidence_too_long: "内容最多 2000 字",
+  evidence_citation_foreign: "只能引用这一单自己的跟进",
+};
