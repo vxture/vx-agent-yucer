@@ -73,7 +73,7 @@ export async function recordFollowUp(
   // once the response is out - the save never waits on a model.
   if (input.opportunityId) {
     const opportunityId = input.opportunityId;
-    after(() => extractEvidence(session, opportunityId, { id: r.value.id, text: input.rawNote }));
+    after(() => extractEvidence(session, opportunityId, { id: r.value.id, text: input.rawNote, occurredAt }));
   }
 
   // Health reads lastInteractionAt, so the account list moves too - not only
@@ -161,7 +161,7 @@ export async function captureFollowUp(
 
   if (input.opportunityId) {
     const opportunityId = input.opportunityId;
-    after(() => extractEvidence(session, opportunityId, { id: r.value.id, text: input.rawNote }));
+    after(() => extractEvidence(session, opportunityId, { id: r.value.id, text: input.rawNote, occurredAt }));
   }
 
   let failed = 0;

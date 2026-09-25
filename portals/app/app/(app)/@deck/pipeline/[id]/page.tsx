@@ -2,7 +2,7 @@ import { getCopilotStore } from "../../../../domains/shared/registry";
 import { getOpportunityDetail } from "../../../../domains/pipeline/service";
 import { listProposals } from "../../../../domains/copilot/service";
 import { canDecideProposal } from "../../../../domains/copilot/lib/advisor-gate";
-import { EVIDENCE_ACTION_TYPE } from "../../../../domains/copilot/lib/action";
+import { EXTRACTION_ACTION_TYPES } from "../../../../domains/copilot/lib/action";
 import { adjudicateProposals } from "../../../copilot/actions";
 import { getMessages } from "../../../lib/i18n/server";
 import { displayRationale } from "../../../lib/proposal-rationale";
@@ -59,8 +59,8 @@ export default async function DealDeck({
     ? await listProposals({ ...base, store: getCopilotStore() }, { status: "proposed" }).catch(() => null)
     : null;
   const proposals = (proposalsRead?.ok ? proposalsRead.value : [])
-    // Evidence proposals are decided in place, under their slot (batch 4b).
-    .filter((a) => a.subjectType === "opportunity" && a.subjectId === id && a.actionType !== EVIDENCE_ACTION_TYPE)
+    // 证据抽取's proposals are decided in place, beside their fact (batch 4b/4c).
+    .filter((a) => a.subjectType === "opportunity" && a.subjectId === id && !EXTRACTION_ACTION_TYPES.includes(a.actionType))
     .map((a) => ({
       id: a.id,
       title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,

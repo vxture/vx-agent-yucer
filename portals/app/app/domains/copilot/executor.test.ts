@@ -16,6 +16,7 @@ const CREATED = new Date("2026-08-14T00:00:00Z");
 test.afterEach(() => {
   setPipelineStore(null);
   setFieldStore(null);
+  setAccountStore(null);
 });
 
 function deals(over: Partial<OpportunityRecord> = {}): InMemoryPipelineStore {
@@ -466,4 +467,68 @@ test("record_evidence may not cite another deal's note, nor land on a customer",
     action({ actionType: "record_evidence", subjectType: "account", subjectId: "acc_1", payload: { slot: "pain", statement: "x" } }),
   );
   assert.equal(onAccount.ok === false && onAccount.violations[0].code, "subject_mismatch");
+});
+
+// --- 4c: roles and promises -------------------------------------------------------
+
+function accountWith() {
+  const accounts = new InMemoryAccountStore();
+  accounts.seed({
+    accounts: [{ id: "acc_1", workspaceId: WS, accountNo: "ACC-1", name: "Acme", tier: "standard", ownerSub: "usr_rep" } as never],
+    contacts: [{ id: "ct_liu", workspaceId: WS, accountId: "acc_1", name: "刘敏", status: "active" } as never],
+  });
+  setAccountStore(accounts);
+  return accounts;
+}
+
+test("an accepted set_buying_role writes the stance and keeps the recorded influence", async () => {
+  deals();
+  const accounts = accountWith();
+  await accounts.setOpportunityContact(WS, "opp_1", "ct_liu", { buyingRole: "user", influence: 60, stance: "supporter" });
+  const r = await carryOut(
+    ctx(),
+    action({ actionType: "set_buying_role", payload: { personId: "ct_liu", buyingRole: "user", stance: "champion" } }),
+  );
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const [held] = await accounts.listOpportunityContacts(WS, "opp_1");
+  assert.deepEqual([held.buyingRole, held.stance, held.influence], ["user", "champion", 60]);
+});
+
+test("set_buying_role refuses someone who is not on the deal's customer", async () => {
+  deals();
+  accountWith();
+  const r = await carryOut(ctx(), action({ actionType: "set_buying_role", payload: { personId: "ct_nobody", buyingRole: "coach" } }));
+  assert.equal(r.ok === false && r.violations[0].code, "contact_not_on_account");
+});
+
+test("an accepted add_commitment becomes a promise on this deal, born in the note it came from", async () => {
+  deals();
+  const field = fieldStore();
+  field.seed({ interactions: [noteOnDeal("int_1", "opp_1")] });
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "add_commitment",
+      payload: { direction: "they_owe", statement: "发来试点门店名单", dueAt: "2026-09-26", interactionId: "int_1" },
+    }),
+  );
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const [c] = await field.listCommitments(WS, { opportunityId: "opp_1" });
+  assert.deepEqual(
+    [c.direction, c.statement, c.originInteractionId, c.accountId, c.dueAt.toISOString().slice(0, 10)],
+    ["they_owe", "发来试点门店名单", "int_1", "acc_1", "2026-09-26"],
+  );
+});
+
+test("add_commitment refuses a note from another deal and a missing date", async () => {
+  deals();
+  const field = fieldStore();
+  field.seed({ interactions: [noteOnDeal("int_x", "opp_2")] });
+  const foreign = await carryOut(
+    ctx(),
+    action({ actionType: "add_commitment", payload: { direction: "they_owe", statement: "x", dueAt: "2026-09-26", interactionId: "int_x" } }),
+  );
+  assert.equal(foreign.ok === false && foreign.violations[0].code, "evidence_citation_foreign");
+  const undated = await carryOut(ctx(), action({ actionType: "add_commitment", payload: { direction: "they_owe", statement: "x" } }));
+  assert.equal(undated.ok === false && undated.violations[0].code, "payload_invalid");
 });

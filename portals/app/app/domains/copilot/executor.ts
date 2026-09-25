@@ -3,8 +3,9 @@ import type { PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { getAccountStore, getFieldStore, getPipelineStore } from "../shared/registry";
 import { advanceStage, recordEvidence } from "../pipeline/service";
-import { fillAccountField } from "../account/service";
-import { listInteractions, recordInteraction } from "../account/field-service";
+import { fillAccountField, getAccountDetail, setBuyingRole } from "../account/service";
+import { DECISION_ROLES, STANCES, type DecisionRole, type Stance } from "../account/lib/health";
+import { createCommitment, listInteractions, recordInteraction } from "../account/field-service";
 import { isChannel } from "../account/lib/commitment";
 import { isStage } from "../pipeline/lib/stage";
 import { DEFAULT_STAGE_DEFINITIONS } from "../pipeline/lib/stage-vocab";
@@ -64,7 +65,80 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   fill_account_field: fillAccountFieldAction,
   record_interaction: recordInteractionAction,
   record_evidence: recordEvidenceAction,
+  set_buying_role: setBuyingRoleAction,
+  add_commitment: addCommitmentAction,
 };
+
+/** The deal a proposal is about, and its customer - read through the gated verb. */
+async function dealOf(ctx: ExecutionContext, action: AgentAction) {
+  if (action.subjectType !== "opportunity") return null;
+  return getPipelineStore().getOpportunity(ctx.workspaceId, action.subjectId);
+}
+
+/**
+ * A person accepted a role or stance 证据抽取 read in a note (deal batch 4c).
+ * The person must be on the deal's customer's roster, read through the
+ * account domain's gated verb. Influence is carried over from what is
+ * recorded - the proposal never states one, and writing null would erase it.
+ */
+async function setBuyingRoleAction(
+  ctx: ExecutionContext,
+  action: AgentAction,
+): Promise<RuleResult<{ actionType: string }>> {
+  const deal = await dealOf(ctx, action);
+  if (!deal) return fail(violation("subject_mismatch", "set_buying_role belongs to a deal", "subjectType"));
+  const p = action.payload as { personId?: unknown; buyingRole?: unknown; stance?: unknown };
+  if (typeof p.personId !== "string" || typeof p.buyingRole !== "string" || !(DECISION_ROLES as readonly string[]).includes(p.buyingRole)) {
+    return fail(violation("payload_invalid", "set_buying_role needs a person and a role", "payload"));
+  }
+  const stance = typeof p.stance === "string" && (STANCES as readonly string[]).includes(p.stance) ? (p.stance as Stance) : undefined;
+  const accountCtx = { ...ctx, store: getAccountStore() };
+  const account = await getAccountDetail(accountCtx, deal.accountId);
+  if (!account.ok) return account as RuleResult<{ actionType: string }>;
+  if (!account.value.contacts.some((c) => c.id === p.personId)) {
+    return fail(violation("contact_not_on_account", "that person is not on this deal's customer", "personId"));
+  }
+  const held = (await getAccountStore().listOpportunityContacts(ctx.workspaceId, deal.id)).find((r) => r.personId === p.personId);
+  const set = await setBuyingRole(accountCtx, deal.id, p.personId, p.buyingRole as DecisionRole, held?.influence ?? null, stance);
+  if (!set.ok) return set as RuleResult<{ actionType: string }>;
+  return ok({ actionType: action.actionType });
+}
+
+/**
+ * A person accepted a promise 证据抽取 read in a note (deal batch 4c): a
+ * commitment on this deal whose origin is that note - the link the schema
+ * has carried since incr/0004.
+ */
+async function addCommitmentAction(
+  ctx: ExecutionContext,
+  action: AgentAction,
+): Promise<RuleResult<{ actionType: string }>> {
+  const deal = await dealOf(ctx, action);
+  if (!deal) return fail(violation("subject_mismatch", "add_commitment belongs to a deal", "subjectType"));
+  const p = action.payload as { direction?: unknown; statement?: unknown; dueAt?: unknown; interactionId?: unknown };
+  const due = typeof p.dueAt === "string" ? new Date(`${p.dueAt}T00:00:00Z`) : null;
+  if (typeof p.direction !== "string" || typeof p.statement !== "string" || !due || Number.isNaN(due.getTime())) {
+    return fail(violation("payload_invalid", "add_commitment needs a direction, a statement and a due date", "payload"));
+  }
+  const fieldCtx = { ...ctx, store: getFieldStore() };
+  const interactionId = typeof p.interactionId === "string" ? p.interactionId : null;
+  if (interactionId) {
+    const notes = await listInteractions(fieldCtx, { opportunityId: deal.id, limit: 200 });
+    if (!notes.ok || !notes.value.some((n) => n.id === interactionId)) {
+      return fail(violation("evidence_citation_foreign", "a promise can only come from a note on this deal", "interactionId"));
+    }
+  }
+  const made = await createCommitment(fieldCtx, {
+    accountId: deal.accountId,
+    opportunityId: deal.id,
+    originInteractionId: interactionId,
+    direction: p.direction as "we_owe" | "they_owe",
+    statement: p.statement,
+    dueAt: due,
+  });
+  if (!made.ok) return made as RuleResult<{ actionType: string }>;
+  return ok({ actionType: action.actionType });
+}
 
 /**
  * A person accepted what 证据抽取 read in a follow-up (deal batch 4b).

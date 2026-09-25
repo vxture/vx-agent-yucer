@@ -48,6 +48,12 @@ export const UPSELL_ACTION_TYPE = "propose_upsell";
 export const CHASE_COMMITMENT_ACTION_TYPE = "chase_overdue_commitment";
 /** 证据抽取 (deal batch 4b): write one buying-evidence slot, quoting the note. */
 export const EVIDENCE_ACTION_TYPE = "record_evidence";
+/** 证据抽取 (deal batch 4c): a roster person's role or stance on this deal. */
+export const ROLE_ACTION_TYPE = "set_buying_role";
+/** 证据抽取 (deal batch 4c): a dated promise made in the note. */
+export const COMMITMENT_ACTION_TYPE = "add_commitment";
+/** Everything 证据抽取 files - decided in place on the deal page, not in the deck. */
+export const EXTRACTION_ACTION_TYPES: readonly string[] = [EVIDENCE_ACTION_TYPE, ROLE_ACTION_TYPE, COMMITMENT_ACTION_TYPE];
 
 export const SUBJECT_TYPES = [
   "account",
@@ -80,6 +86,8 @@ export const ACTION_SUBJECTS: Readonly<Record<string, readonly SubjectType[]>> =
   flag_conflict: ["account"],
   chase_overdue_commitment: ["account", "opportunity"],
   record_evidence: ["opportunity"],
+  set_buying_role: ["opportunity"],
+  add_commitment: ["opportunity"],
 };
 
 /** Does this action type belong on this kind of subject? Unlisted types: yes. */
