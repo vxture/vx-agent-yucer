@@ -446,6 +446,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_gtm.segment_coverage_snapshot",
   // incr/0074. Same discipline for territory attainment.
   "yucer_gtm.territory_attainment_snapshot",
+  // incr/0085. 购买证据槽 - versions, not overwrites: the review has to
+  // answer when we learned how they decide.
+  "yucer_pipeline.opportunity_evidence",
   // incr/0084. What a deal claimed and when it changed its mind - a
   // correction is a new row, never an edit (声明变更日志, YC-065 R2).
   "yucer_pipeline.opportunity_claim_event",

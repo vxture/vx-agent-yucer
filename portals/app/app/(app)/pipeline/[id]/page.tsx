@@ -30,6 +30,7 @@ import {
   listStageDefinitions,
   stageHistory,
   claimHistory,
+  evidenceOf,
   dealExit,
   listWinLossReasons,
   stallRules,
@@ -79,6 +80,9 @@ import {
   listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
+import { EvidenceSlots, type EvidenceRow } from "../../components/evidence-slots";
+import { recordEvidenceAction } from "../evidence-action";
+import { PROCESS_SLOTS, REASON_SLOTS, type EvidenceSlot } from "../../../domains/pipeline/lib/evidence";
 import { suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
@@ -185,6 +189,8 @@ export default async function OpportunityDetailPage({
     // 声明变更日志 and slippage (incr/0084, YC-065 R2).
     claimHistory(ctx, id),
   ]);
+  // 购买证据槽 (incr/0085).
+  const evidence = await evidenceOf(ctx, id);
 
   // NAMES, NOT IDS (polish, 2026-09-24): the owner card printed usr_demo_m010,
   // the plan triangle three raw subs and 来源战役 camp_demo_1. The member
@@ -723,6 +729,55 @@ export default async function OpportunityDetailPage({
   );
   const recentTouches = interactionList.filter((n) => briefNow.getTime() - n.occurredAt.getTime() <= 30 * 86_400_000).length;
   const requirement = opportunity.requirement?.trim() || null;
+
+  // 购买证据槽 rows (incr/0085): the latest version per slot, its history, and
+  // what it may cite - this deal's follow-ups.
+  const noteLabel = new Map(
+    interactionList.map((i) => [i.id, `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`]),
+  );
+  const shortDate = (d: Date) => d.toISOString().slice(5, 10);
+  const evidenceRows = (slots: readonly EvidenceSlot[]): EvidenceRow[] =>
+    slots.map((slot) => {
+      const state = evidence.ok ? evidence.value[slot] : null;
+      const cur = state?.current ?? null;
+      return {
+        slot,
+        statement: state?.filled ? cur!.statement : null,
+        grounded: state?.grounded ?? false,
+        meta: cur && state?.filled ? `${nameOf(cur.authorSub) ?? cur.authorSub} · ${shortDate(cur.recordedAt)}` : null,
+        cite: cur?.interactionId ? (noteLabel.get(cur.interactionId) ?? null) : null,
+        citeId: cur?.interactionId ?? null,
+        accepted: cur?.source === "model_accepted",
+        history: (state?.history ?? []).slice(1).map((h) => ({
+          id: h.id,
+          statement: h.statement,
+          meta: `${nameOf(h.authorSub) ?? h.authorSub} · ${shortDate(h.recordedAt)}`,
+        })),
+      };
+    });
+  const citable = interactionList.map((i) => ({
+    id: i.id,
+    label: `${noteLabel.get(i.id)} · ${i.rawNote.slice(0, 24)}`,
+  }));
+  const canRecordEvidence = can(session.authz, session.entitlement, "pipeline.evidence.record", "ui").allowed;
+  const reasonRows = evidenceRows(REASON_SLOTS);
+  const processRows = evidenceRows(PROCESS_SLOTS);
+  const reasonsSummary = [
+    DEAL_PAGE_TEXT.reasonsFilled(reasonRows.filter((r) => r.statement).length, reasonRows.length),
+    ...(reasonRows.find((r) => r.slot === "status_quo")?.statement ? [DEAL_PAGE_TEXT.statusQuoSignal] : []),
+  ].join(COLLAPSE_TEXT.separator);
+  // Built here, not inline in DealDecisionPanel's props: reachable-codes.test
+  // binds an action to the nearest tag opened before it.
+  const processSlots = (
+    <EvidenceSlots
+      opportunityId={id}
+      rows={processRows}
+      citable={citable}
+      canRecord={canRecordEvidence}
+      compact
+      onRecord={recordEvidenceAction}
+    />
+  );
   // The rule's category, for the terms dialog's reason field (YC-065 R9) -
   // the same resolution the brief above used.
   const ruleVerdict = suggestCategory(
@@ -773,7 +828,16 @@ export default async function OpportunityDetailPage({
             editHref={linesHref}
             editHint={opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : PANEL_MENU_TEXT.noEditRight}
           />
-          <DealDecisionPanel summary={decisionSummary} people={decisionPeople} warning={decisionWarning} />
+          <DealDecisionPanel
+            summary={
+              processRows.every((r) => !r.statement)
+                ? [decisionSummary, DEAL_PAGE_TEXT.processUnwritten].join(COLLAPSE_TEXT.separator)
+                : decisionSummary
+            }
+            people={decisionPeople}
+            warning={decisionWarning}
+            process={processSlots}
+          />
           {opportunity.accountId ? (
             <DealCustomerPanel
               name={accountName}
@@ -1030,20 +1094,27 @@ export default async function OpportunityDetailPage({
               )}
             </DealPanel>
 
-            {/* 购买理由 - what they want and why. The evidence slots (痛点 /
-                量化价值 / 不作为) arrive in batch 4; the requirement stated at
-                creation is what exists today. */}
+            {/* 购买理由 (YC-069 §07) - why they would buy, and the pull of doing
+                nothing: 痛点 / 量化价值 / 不作为 (购买证据槽, incr/0085), under
+                the requirement stated when the deal was opened. */}
             <DealPanel
               id="reasons"
               icon="lightbulb"
               title={DEAL_PAGE_TEXT.reasonsTitle}
-              summary={requirement ?? DEAL_PAGE_TEXT.requirementNone}
-              editor="terms"
+              summary={reasonsSummary}
+              editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
             >
-              <PanelSub>{DEAL_PAGE_TEXT.requirement}</PanelSub>
               <p className={`text-body-sm whitespace-pre-wrap ${requirement ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className="text-muted-foreground">{DEAL_PAGE_TEXT.requirement}：</span>
                 {requirement ?? DEAL_PAGE_TEXT.requirementNone}
               </p>
+              <EvidenceSlots
+                opportunityId={id}
+                rows={reasonRows}
+                citable={citable}
+                canRecord={canRecordEvidence}
+                onRecord={recordEvidenceAction}
+              />
             </DealPanel>
 
             {/* 竞争态势 - verbatim rival mentions until the competitor record

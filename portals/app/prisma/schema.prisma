@@ -1956,3 +1956,21 @@ model OpportunityClaimEvent {
   @@map("opportunity_claim_event")
   @@schema("yucer_pipeline")
 }
+
+/// incr/0085. 购买证据槽 - append-only versions per slot; the latest is current.
+model OpportunityEvidence {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  slot          String   @db.VarChar(24)
+  statement     String
+  interactionId String?  @map("interaction_id") @db.Uuid
+  authorSub     String   @map("author_sub") @db.VarChar(128)
+  source        String   @default("manual") @db.VarChar(16)
+  proposalId    String?  @map("proposal_id") @db.Uuid
+  recordedAt    DateTime @default(now()) @map("recorded_at") @db.Timestamptz()
+
+  @@index([workspaceId, opportunityId, slot, recordedAt(sort: Desc)], map: "idx_evidence_latest")
+  @@map("opportunity_evidence")
+  @@schema("yucer_pipeline")
+}

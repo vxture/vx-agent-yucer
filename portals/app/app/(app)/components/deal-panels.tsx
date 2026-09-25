@@ -299,13 +299,16 @@ export interface DealPerson {
 
 /** 栏1 · 决策流程 - who is who on THIS deal (决策链 promoted, YC-069). The
  *  customer page's contact card, one row per person, stance on the right.
- *  Display only: 编辑 opens the buying-role drawer. How they decide and sign
- *  (决策流程 / 签约流程 slots) arrives with the evidence slots, batch 4. */
+ *  编辑 opens the buying-role drawer. The lower half - how they decide and
+ *  sign (购买证据槽, incr/0085) - is the page's evidence rows, handed in. */
 export function DealDecisionPanel({
   summary,
   people,
   warning,
+  process,
 }: {
+  /** 怎么决策、怎么签: the 决策流程 / 签约流程 slots (YC-069 §04c). */
+  readonly process?: ReactNode;
   readonly summary: string;
   readonly people: readonly DealPerson[];
   /** Reachability, when it is the problem - said above the people. */
@@ -349,6 +352,12 @@ export function DealDecisionPanel({
             />
           ))
         )}
+        {process ? (
+          <>
+            <PanelSub>{DEAL_PAGE_TEXT.processTitle}</PanelSub>
+            {process}
+          </>
+        ) : null}
       </div>
     </CollapsibleSection>
   );

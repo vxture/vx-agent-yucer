@@ -32,6 +32,7 @@ import {
   type StageEventRecord,
 } from "./store";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
+import type { EvidenceVersion } from "./lib/evidence";
 import { lockKey } from "../shared/allocate";
 
 // Prisma-backed PipelineStore over yucer_pipeline.
@@ -439,6 +440,33 @@ export class PrismaPipelineStore implements PipelineStore {
       await logClaims(tx, workspaceId, opportunityId, before, claim);
       return true;
     });
+  }
+
+  async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityEvidence.findMany({ where: { workspaceId, opportunityId } });
+    return rows.map(toEvidence);
+  }
+
+  async appendEvidence(
+    workspaceId: string,
+    opportunityId: string,
+    row: Omit<EvidenceVersion, "id" | "recordedAt">,
+  ): Promise<EvidenceVersion> {
+    const p = await getPrismaClient();
+    const r = await p.opportunityEvidence.create({
+      data: {
+        workspaceId,
+        opportunityId,
+        slot: row.slot,
+        statement: row.statement,
+        interactionId: row.interactionId,
+        authorSub: row.authorSub,
+        source: row.source,
+        proposalId: row.proposalId,
+      },
+    });
+    return toEvidence(r);
   }
 
   async listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]> {
@@ -1115,4 +1143,26 @@ async function logClaims(tx: Tx, workspaceId: string, opportunityId: string, bef
   await tx.opportunityClaimEvent.createMany({
     data: events.map((e) => ({ workspaceId, opportunityId, ...e })),
   });
+}
+
+function toEvidence(r: {
+  id: string;
+  slot: string;
+  statement: string;
+  interactionId: string | null;
+  authorSub: string;
+  source: string;
+  proposalId: string | null;
+  recordedAt: Date;
+}): EvidenceVersion {
+  return {
+    id: r.id,
+    slot: r.slot as EvidenceVersion["slot"],
+    statement: r.statement,
+    interactionId: r.interactionId,
+    authorSub: r.authorSub,
+    source: r.source as EvidenceVersion["source"],
+    proposalId: r.proposalId,
+    recordedAt: r.recordedAt,
+  };
 }

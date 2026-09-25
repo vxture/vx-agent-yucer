@@ -23,6 +23,7 @@ import {
   type ClaimSource,
   type Slippage,
 } from "./lib/claims";
+import { isEvidenceSlot, planEvidence, slotStates, type EvidenceSlot, type SlotState } from "./lib/evidence";
 import {
   planNewOpportunity,
   suggestContractType,
@@ -1908,4 +1909,54 @@ export async function claimHistory(ctx: PipelineContext, opportunityId: string):
   if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   const events = await ctx.store.listClaimEvents(ctx.workspaceId, opportunityId);
   return ok({ events, slippage: slippageOf(events) });
+}
+
+// --- 购买证据槽 (incr/0085, YC-065 R1/R4) -------------------------------------------
+
+/** Every slot's current version and history for one deal. Gated like reading it. */
+export async function evidenceOf(
+  ctx: PipelineContext,
+  opportunityId: string,
+): Promise<RuleResult<Record<EvidenceSlot, SlotState>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  return ok(slotStates(await ctx.store.listEvidence(ctx.workspaceId, opportunityId)));
+}
+
+/**
+ * Write what we know about one slot - a new version, never an overwrite.
+ * `pipeline.evidence.record` (free pipeline, write - YC-068). The citation
+ * must be a follow-up ON THIS DEAL: the caller passes the ids it may cite,
+ * read through the field domain's own gated verb, so this domain does not
+ * reach into another's store.
+ */
+export async function recordEvidence(
+  ctx: PipelineContext,
+  opportunityId: string,
+  input: { slot: string; statement: string; interactionId?: string | null },
+  citable: ReadonlySet<string>,
+): Promise<RuleResult<{ recorded: boolean }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.evidence.record", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  if (input.interactionId && !citable.has(input.interactionId)) {
+    return fail(violation("evidence_citation_foreign", "a statement can only cite a follow-up on this deal", "interactionId"));
+  }
+
+  const states = slotStates(await ctx.store.listEvidence(ctx.workspaceId, opportunityId));
+  const latest = isEvidenceSlot(input.slot) ? states[input.slot].current : null;
+  const plan = planEvidence(input, latest);
+  if (!plan.ok) return plan as RuleResult<{ recorded: boolean }>;
+  if (plan.value === null) return ok({ recorded: false });
+
+  await ctx.store.appendEvidence(ctx.workspaceId, opportunityId, {
+    ...plan.value,
+    authorSub: ctx.sub,
+    source: "manual",
+    proposalId: null,
+  });
+  return ok({ recorded: true });
 }
