@@ -349,7 +349,9 @@ export function DealDecisionPanel({
         {people.length === 0 ? (
           <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.decisionEmpty}</p>
         ) : (
-          people.map((p) => (
+          // Two across in 栏2's width; one person is still one card.
+          <div className="grid gap-x-lg sm:grid-cols-2">
+          {people.map((p) => (
             <ContactCard
               key={p.id}
               contact={{ id: p.id, name: p.name, title: p.role, department: null, email: null, mobile: null, wechat: null, status: "active" }}
@@ -358,7 +360,8 @@ export function DealDecisionPanel({
               channelLabels={{ mobile: ACCOUNT_TEXT.contactMobile, email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
               actions={p.stance ? <Tag tone={p.stance.tone}>{p.stance.label}</Tag> : null}
             />
-          ))
+          ))}
+          </div>
         )}
         {findings ? <div className="mt-xs">{findings}</div> : null}
         {process ? (
@@ -372,22 +375,35 @@ export function DealDecisionPanel({
   );
 }
 
-/** 怎么决策、怎么签 - 决策流程 / 签约流程 as link-styled titles, not yet
- *  clickable (owner 2026-09-25: 后续补充具体展示方式). A slot's pending
- *  proposals stay under its title. */
+/** 怎么决策、怎么签 - 决策流程 / 签约流程, one row each with 展开详情 on the
+ *  right (owner 2026-09-25: 不是做成文字链子，各一行). The detail is the
+ *  host's, opened in place. */
 export function ProcessTitles({
   rows,
 }: {
-  readonly rows: readonly { readonly slot: string; readonly label: string; readonly pending?: ReactNode }[];
+  readonly rows: readonly { readonly slot: string; readonly label: string; readonly detail: ReactNode }[];
 }) {
+  const { DEAL_PAGE_TEXT } = useMessages();
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (slot: string) =>
+    setOpen((o) => {
+      const n = new Set(o);
+      if (n.has(slot)) n.delete(slot);
+      else n.add(slot);
+      return n;
+    });
   return (
-    <ul className="flex flex-col gap-2xs">
+    <ul className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
       {rows.map((r) => (
-        <li key={r.slot} className="flex flex-col gap-2xs py-2xs">
-          <span className="text-primary text-body-sm font-medium" aria-disabled="true">
-            {r.label}
-          </span>
-          {r.pending ? <div>{r.pending}</div> : null}
+        <li key={r.slot} className="flex flex-col gap-xs py-xs">
+          <div className="flex items-center justify-between gap-sm">
+            <span className="text-foreground text-body-sm font-bold">{r.label}</span>
+            <Button size="xs" variant="outline" aria-expanded={open.has(r.slot)} onClick={() => toggle(r.slot)}>
+              {open.has(r.slot) ? DEAL_PAGE_TEXT.processCollapse : DEAL_PAGE_TEXT.processExpand}
+              <Icon name={open.has(r.slot) ? "chevron-up" : "chevron-down"} size="xs" />
+            </Button>
+          </div>
+          {open.has(r.slot) ? <div>{r.detail}</div> : null}
         </li>
       ))}
     </ul>

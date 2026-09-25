@@ -976,9 +976,26 @@ export default async function OpportunityDetailPage({
   // 决策流程 / 签约流程 as titles only for now (owner 2026-09-25: 应该做链接，
   // 后续补充具体展示方式，本次先把标题列出). The model's pending proposals for
   // either slot stay under its title, so nothing already proposed is lost.
+  // 决策流程 / 签约流程: one row each, 展开详情 on the right (owner
+  // 2026-09-25). The detail is the slot as recorded - what it says, 填写,
+  // and its pending proposals - until the owner specifies more.
   const processSlots = (
     <ProcessTitles
-      rows={processRows.map((r) => ({ slot: r.slot, label: DEAL_PAGE_TEXT.evidenceSlot[r.slot] ?? r.slot, pending: r.pending }))}
+      rows={processRows.map((r) => ({
+        slot: r.slot,
+        label: DEAL_PAGE_TEXT.evidenceSlot[r.slot] ?? r.slot,
+        detail: (
+          <EvidenceSlots
+            opportunityId={id}
+            rows={[r]}
+            citable={citable}
+            canRecord={canRecordEvidence}
+            compact
+            hideLabel
+            onRecord={recordEvidenceAction}
+          />
+        ),
+      }))}
     />
   );
   // The rule's category, for the terms dialog's reason field (YC-065 R9) -
@@ -1032,17 +1049,6 @@ export default async function OpportunityDetailPage({
             summary={solutionSummary}
             editHref={linesHref}
             editHint={opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : PANEL_MENU_TEXT.noEditRight}
-          />
-          <DealDecisionPanel
-            summary={
-              processRows.every((r) => !r.statement)
-                ? [decisionSummary, DEAL_PAGE_TEXT.processUnwritten].join(COLLAPSE_TEXT.separator)
-                : decisionSummary
-            }
-            people={[...decisionPeople, ...unroledPeople]}
-            warning={decisionWarning}
-            process={processSlots}
-            findings={roleFindings}
           />
           {opportunity.accountId ? (
             <DealCustomerPanel
@@ -1222,6 +1228,20 @@ export default async function OpportunityDetailPage({
               <PanelSub>{DEAL_PAGE_TEXT.judgements}</PanelSub>
               <DealJudgements problems={problems} />
             </DealPanel>
+
+            {/* 决策链 - 栏2's second panel (owner 2026-09-25): the people who
+                decide, then 决策流程 / 签约流程 as rows that expand. */}
+              <DealDecisionPanel
+                summary={
+                  processRows.every((r) => !r.statement)
+                    ? [decisionSummary, DEAL_PAGE_TEXT.processUnwritten].join(COLLAPSE_TEXT.separator)
+                    : decisionSummary
+                }
+                people={[...decisionPeople, ...unroledPeople]}
+                warning={decisionWarning}
+                process={processSlots}
+                findings={roleFindings}
+              />
 
             {/* 结局与复盘, above the progress on a closed deal (YC-072). */}
             {closedDeal ? (

@@ -49,6 +49,7 @@ export function EvidenceSlots({
   citable,
   canRecord,
   compact = false,
+  hideLabel = false,
   onRecord,
 }: {
   readonly opportunityId: string;
@@ -58,6 +59,8 @@ export function EvidenceSlots({
   readonly canRecord: boolean;
   /** 栏1 width: the meta goes under the statement instead of beside it. */
   readonly compact?: boolean;
+  /** Under a host row that already names the slot (决策链's 展开详情). */
+  readonly hideLabel?: boolean;
   readonly onRecord: (
     opportunityId: string,
     input: { slot: string; statement: string; interactionId?: string | null },
@@ -89,6 +92,7 @@ export function EvidenceSlots({
     });
   };
 
+  const indent = hideLabel ? "" : "pl-[6rem]";
   const label = (slot: string) => DEAL_PAGE_TEXT.evidenceSlot[slot] ?? slot;
 
   return (
@@ -96,7 +100,7 @@ export function EvidenceSlots({
       {rows.map((row) => (
         <div key={row.slot} className="flex flex-col gap-2xs py-xs">
           <div className="flex items-start gap-sm text-body-sm">
-            <span className="text-foreground w-[5.5rem] flex-none font-bold">{label(row.slot)}</span>
+            {hideLabel ? null : <span className="text-foreground w-[5.5rem] flex-none font-bold">{label(row.slot)}</span>}
             <span className={`min-w-0 flex-1 whitespace-pre-wrap ${row.statement ? "text-foreground" : "text-muted-foreground"}`}>
               {row.statement ?? DEAL_PAGE_TEXT.evidenceEmpty}
             </span>
@@ -108,19 +112,19 @@ export function EvidenceSlots({
             ) : null}
           </div>
           {compact && row.statement ? (
-            <div className="pl-[6rem]">
+            <div className={indent}>
               <SlotMarks row={row} />
             </div>
           ) : null}
-          {row.pending ? <div className={compact ? "" : "pl-[6rem]"}>{row.pending}</div> : null}
+          {row.pending ? <div className={compact ? "" : indent}>{row.pending}</div> : null}
           {row.history.length > 0 ? (
             <Collapsible>
-              <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs pl-[6rem] text-body-sm">
+              <CollapsibleTrigger className={`text-muted-foreground hover:text-foreground flex items-center gap-2xs ${indent} text-body-sm`}>
                 <Icon name="chevron-right" size="xs" />
                 {DEAL_PAGE_TEXT.evidenceHistory(row.history.length)}
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <ol className="mt-2xs flex flex-col gap-2xs pl-[6rem]">
+                <ol className={`mt-2xs flex flex-col gap-2xs ${indent}`}>
                   {row.history.map((h) => (
                     <li key={h.id} className="text-muted-foreground text-body-sm">
                       <span className="line-through decoration-muted-foreground/40">{h.statement || DEAL_PAGE_TEXT.evidenceCleared}</span>
