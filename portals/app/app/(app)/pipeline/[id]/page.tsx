@@ -114,7 +114,7 @@ import { DealStageDrawer } from "../../components/deal-stage-drawer";
 import { DealImportanceDrawer } from "../../components/deal-importance-drawer";
 import { StageTrack } from "../../components/stage-track";
 import { setDealImportance } from "../importance-action";
-import {
+import { ProcessTitles,
   DealCustomerPanel,
   DealDecisionPanel,
   DealDossierPanel,
@@ -606,6 +606,33 @@ export default async function OpportunityDetailPage({
         : undefined,
     };
   });
+  // The customer's other contacts, after the people with a role on this deal
+  // (owner 2026-09-25: 本单没设角色时列客户联系人). Role reads 未设 - they are
+  // the pool a role is stated from, not members of the buying group, so the
+  // coverage warning above still counts only the roled ones.
+  const chainIds = new Set(chainPeople.map((p) => p.id));
+  const unroledPeople = (account.ok ? account.value.contacts : [])
+    .filter((c) => c.status === "active" && !chainIds.has(c.id))
+    .map((c) => {
+      const last = buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(c.id) ?? null) : null;
+      const days = last ? Math.max(0, Math.floor((briefNow.getTime() - last.getTime()) / 86_400_000)) : null;
+      return {
+        id: c.id,
+        name: c.name,
+        role: DEAL_PAGE_TEXT.decisionRole(c.title ?? null, DEAL_PAGE_TEXT.roleUnset),
+        stance: null,
+        recency: buyerRecency.ok
+          ? days !== null
+            ? {
+                text: ACCOUNT_TEXT.contactRecencyDays(days),
+                warm: warmIds.has(c.id),
+                tooltip: ACCOUNT_TEXT.contactRecencyTooltip(c.name, days),
+                date: last!.toISOString().slice(0, 10),
+              }
+            : { text: ACCOUNT_TEXT.contactRecencyUnrecorded, warm: false, tooltip: ACCOUNT_TEXT.contactRecencyTooltipUnrecorded(c.name) }
+          : undefined,
+      };
+    });
   const hasEconomic = chainPeople.some((p) => p.decisionRole === "economic");
   const decisionWarning = !cov || chainPeople.length === 0
     ? null
@@ -946,14 +973,12 @@ export default async function OpportunityDetailPage({
   ].join(COLLAPSE_TEXT.separator);
   // Built here, not inline in DealDecisionPanel's props: reachable-codes.test
   // binds an action to the nearest tag opened before it.
+  // 决策流程 / 签约流程 as titles only for now (owner 2026-09-25: 应该做链接，
+  // 后续补充具体展示方式，本次先把标题列出). The model's pending proposals for
+  // either slot stay under its title, so nothing already proposed is lost.
   const processSlots = (
-    <EvidenceSlots
-      opportunityId={id}
-      rows={processRows}
-      citable={citable}
-      canRecord={canRecordEvidence}
-      compact
-      onRecord={recordEvidenceAction}
+    <ProcessTitles
+      rows={processRows.map((r) => ({ slot: r.slot, label: DEAL_PAGE_TEXT.evidenceSlot[r.slot] ?? r.slot, pending: r.pending }))}
     />
   );
   // The rule's category, for the terms dialog's reason field (YC-065 R9) -
@@ -1014,7 +1039,7 @@ export default async function OpportunityDetailPage({
                 ? [decisionSummary, DEAL_PAGE_TEXT.processUnwritten].join(COLLAPSE_TEXT.separator)
                 : decisionSummary
             }
-            people={decisionPeople}
+            people={[...decisionPeople, ...unroledPeople]}
             warning={decisionWarning}
             process={processSlots}
             findings={roleFindings}
