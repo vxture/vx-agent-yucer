@@ -232,10 +232,12 @@ export default async function OpportunityDetailPage({
   // 钱包份额 (§9.6): a won deal counts its signed contracts, so they are read
   // for it - through the delivery service's own gate; a refused or failed read
   // falls back to the deal amount, which is what dealOurs does with none.
-  const walletContracts =
-    opportunity.status === "won"
-      ? await listContracts({ ...ctx, store: getDeliveryStore() }, { accountId: opportunity.accountId }).catch(() => null)
-      : null;
+  // The customer's contracts: 客户信息 counts them on every deal, and a won
+  // deal's wallet share reads the same list.
+  const accountContracts = opportunity.accountId
+    ? await listContracts({ ...ctx, store: getDeliveryStore() }, { accountId: opportunity.accountId }).catch(() => null)
+    : null;
+  const walletContracts = opportunity.status === "won" ? accountContracts : null;
   const walletShareOfDeal = dealShare(
     {
       id: opportunity.id,
@@ -660,26 +662,19 @@ export default async function OpportunityDetailPage({
   // the way to the full page, so the name leads the rows.
   const acct = account.ok ? account.value.account : null;
   const industryRegion = [acct?.industry, acct?.region].filter((v): v is string => !!v).join(" · ");
+  // 客户信息 - the customer in brief, COUNTS not names (owner 2026-09-25).
+  // Name and level are 交易档案's 客户 row; the title is the way to the rest.
+  const contractList = accountContracts?.ok ? accountContracts.value : null;
+  const projectTones = (projects.ok ? projects.value : []).map((pr, i) => projectHealth[i] ?? pr.health);
   const customerRows = [
-    {
-      label: DEAL_PAGE_TEXT.customerName,
-      value: (
-        <span className="block truncate" title={accountName}>
-          {accountName}
-        </span>
-      ),
-    },
     { label: DEAL_PAGE_TEXT.customerIndustryRegion, value: industryRegion || notSet },
-    { label: DEAL_PAGE_TEXT.customerTier, value: tierLabel },
     {
       label: DEAL_PAGE_TEXT.customerHealth,
       value:
         accountHealth === null ? (
           notSet
         ) : (
-          // YC-072: the score in its band's colour, as text - two pills in a
-          // 280px row read as two buttons.
-          <span className="inline-flex items-center gap-xs font-bold">
+          <span className="inline-flex items-center gap-xs">
             {accountSingleThread ? (
               <span className="text-(color:--warning-text)">{WAR_ROOM_TEXT.accountSingleThread} ·</span>
             ) : null}
@@ -688,12 +683,28 @@ export default async function OpportunityDetailPage({
                 accountHealth < 40 ? "text-destructive-text" : accountHealth < 70 ? "text-(color:--warning-text)" : "text-(color:--success-text)"
               }
             >
-              {accountHealth}
+              {DEAL_PAGE_TEXT.healthValue(accountHealth, DEAL_SCORE_TEXT.band[dealScoreBand(accountHealth)] ?? "")}
             </span>
           </span>
         ),
     },
-    ...(otherOpenDeals !== null ? [{ label: DEAL_PAGE_TEXT.customerOpenDeals, value: DEAL_PAGE_TEXT.dealsCount(otherOpenDeals) }] : []),
+    ...(otherOpenDeals !== null ? [{ label: DEAL_PAGE_TEXT.customerOtherDeals, value: DEAL_PAGE_TEXT.dealsCount(otherOpenDeals) }] : []),
+    ...(contractList
+      ? [
+          {
+            label: DEAL_PAGE_TEXT.customerContracts,
+            value: DEAL_PAGE_TEXT.contractsCount(contractList.length, contractList.filter((c) => c.status === "active").length),
+          },
+        ]
+      : []),
+    {
+      label: DEAL_PAGE_TEXT.customerProjects,
+      value: DEAL_PAGE_TEXT.projectsCount(
+        projectTones.length,
+        projectTones.filter((h) => h === "red").length,
+        projectTones.filter((h) => h === "amber").length,
+      ),
+    },
   ];
   const customerSummary = [
     tierLabel,
@@ -1079,10 +1090,6 @@ export default async function OpportunityDetailPage({
               href={`/account/${opportunity.accountId}`}
               summary={customerSummary}
               rows={customerRows}
-              projects={(projects.ok ? projects.value : []).map((pr, i) => {
-                const h = projectHealth[i] ?? pr.health;
-                return { id: pr.id, name: pr.name, tone: h === "red" ? "danger" : h === "amber" ? "warning" : "success" };
-              })}
               accountLevel={
                 accountLevelCount > 0
                   ? { label: POSITION_TEXT.planAccountLevel(accountLevelCount), href: `/account/${opportunity.accountId}` }

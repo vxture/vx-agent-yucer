@@ -416,14 +416,12 @@ export function DealCustomerPanel({
   href,
   summary,
   rows,
-  projects,
   accountLevel,
 }: {
   readonly name: string;
   readonly href: string;
   readonly summary: string;
   readonly rows: readonly Row[];
-  readonly projects: readonly { readonly id: string; readonly name: string; readonly tone: "success" | "warning" | "danger" }[];
   readonly accountLevel: { readonly label: string; readonly href: string } | null;
 }) {
   const { DEAL_PAGE_TEXT } = useMessages();
@@ -457,18 +455,6 @@ export function DealCustomerPanel({
             </InfoRow>
           ))}
         </dl>
-        {projects.length > 0 ? (
-          <div className="flex flex-col gap-2xs">
-            <span className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.customerProjects}</span>
-            <div className="flex flex-wrap gap-xs">
-              {projects.map((p) => (
-                <Link key={p.id} href="/delivery">
-                  <StatusBadge tone={p.tone}>{p.name}</StatusBadge>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ) : null}
         {accountLevel ? (
           <Link href={accountLevel.href} className="text-primary text-body-sm hover:underline">
             {accountLevel.label}
