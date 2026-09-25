@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import {
-  Button,
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
 } from "@vxture/design-ui";
 import { DialogForm } from "./dialog-form";
@@ -25,9 +23,15 @@ import {
   type StageDefinition,
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
-import { Tag } from "./tag";
+import { useDealEditor } from "./deal-edit-context";
 
 // What the deal is worth, and how sure we are - A DIALOG since 2026-09-05.
+//
+// CONTROLLED since deal batch 2 (2026-09-25): the dialog is one door opened
+// from several places - the crumbs row's "⋮" and 交易档案's own "⋮" - the
+// customer page's 客户总编辑 pattern (account-edit-context.tsx). The card that
+// used to host its button is gone: every fact it summarised now lives in
+// exactly one panel (交易档案, 推进进程, 报价与审批).
 //
 // The analysis behind the change: these are five independent single-field
 // facts, each a quick correction made WHILE LOOKING at the metrics the page
@@ -73,8 +77,6 @@ export interface DealTermsProps {
   /** incr/0080 - 客户项目总投入, in `currency`; null = not entered. Rides on
    *  the editing gate: the rep who owns the deal is the one who asked (§9.6). */
   readonly customerBudget?: number | null;
-  /** What the section shows beside its button - the deal's 钱包份额 line. */
-  readonly summary?: ReactNode;
   readonly onSave: (
     opportunityId: string,
     input: {
@@ -109,11 +111,11 @@ export function DealTerms({
   businessForms = [],
   canSetDealType = false,
   customerBudget = null,
-  summary,
   onSave,
 }: DealTermsProps) {
   const { BUSINESS_FORM_TEXT, CONTRACT_TYPE_TEXT, FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, WALLET_TEXT } =
     useMessages();
+  const { open, onOpenChange: setOpen } = useDealEditor("terms");
   const closed = isTerminal(stage, stageDefinitions);
   const initial = {
     amount: amount == null ? "" : String(amount),
@@ -124,28 +126,26 @@ export function DealTerms({
     businessFormId: businessFormId ?? "",
     customerBudget: customerBudget == null ? "" : String(customerBudget),
   };
-  const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  // Reopen from the CURRENT server values, not from a stale draft: a save (or
+  // someone else's) may have moved them since last time.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setForm(initial);
+      setError(null);
+    }
+  }
 
   /** The value if the user changed it, undefined if they did not. */
   const dirty = (k: keyof typeof initial): string | undefined =>
     form[k] === initial[k] ? undefined : form[k];
 
-  if (!canEdit) {
-    return (
-      <Section title={OPPORTUNITY_TEXT.termsTitle}>
-        <div className="flex flex-col gap-sm">
-          <Tag>
-            {OPPORTUNITY_TEXT.termsReadOnly}
-          </Tag>
-          {summary}
-        </div>
-      </Section>
-    );
-  }
+  // No door for a member who cannot edit: the menus grey the item out.
+  if (!canEdit) return null;
 
   function save() {
     setError(null);
@@ -176,7 +176,6 @@ export function DealTerms({
             OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
           );
         } else {
-          setSaved(true);
           setOpen(false);
         }
       });
@@ -184,32 +183,6 @@ export function DealTerms({
   }
 
   return (
-    <Section
-      title={OPPORTUNITY_TEXT.termsTitle}
-      description={OPPORTUNITY_TEXT.termsDescription}
-    >
-      <div className="flex flex-wrap items-center gap-sm">
-        <Button
-          variant="secondary"
-          onClick={() => {
-            // Reopen from the CURRENT server values, not from a stale draft: a
-            // save (or someone else's) may have moved them since last time.
-            setForm(initial);
-            setError(null);
-            setSaved(false);
-            setOpen(true);
-          }}
-        >
-          {OPPORTUNITY_TEXT.termsOpen}
-        </Button>
-        {saved ? (
-          <StatusBadge tone="success">
-            {OPPORTUNITY_TEXT.termsSaved}
-          </StatusBadge>
-        ) : null}
-      </div>
-      {summary ? <div className="mt-sm">{summary}</div> : null}
-
       <DialogForm
         open={open}
         onOpenChange={setOpen}
@@ -374,6 +347,5 @@ export function DealTerms({
 
         {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       </DialogForm>
-    </Section>
   );
 }

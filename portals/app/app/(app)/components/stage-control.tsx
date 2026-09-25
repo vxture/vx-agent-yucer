@@ -55,6 +55,9 @@ export interface StageControlProps {
    *  to the shipped seven so every caller keeps compiling unchanged until it
    *  threads the real thing through - see stage.ts's own header. */
   readonly stageDefinitions?: readonly StageDefinition[];
+  /** Inside a host that already titles it (a panel or drawer on the deal
+   *  page, deal batch 2): the body without its own heading. */
+  readonly hideTitle?: boolean;
   readonly onAdvance: (
     opportunityId: string,
     input: { to: string; reason?: string; reopen?: boolean; exitReason?: { code: string; note?: string } },
@@ -79,6 +82,7 @@ export function StageControl({
   canAbandon = false,
   exitReason = null,
   stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
+  hideTitle = false,
   onAdvance,
   onAbandon,
 }: StageControlProps) {
@@ -100,7 +104,7 @@ export function StageControl({
 
   if (!canAdvance) {
     return (
-      <Section title={OPPORTUNITY_TEXT.advanceTitle}>
+      <Section title={hideTitle ? undefined : OPPORTUNITY_TEXT.advanceTitle}>
         <Tag>
           {OPPORTUNITY_TEXT.advanceReadOnly}
         </Tag>
@@ -199,8 +203,8 @@ export function StageControl({
 
   return (
     <Section
-      title={OPPORTUNITY_TEXT.advanceTitle}
-      description={OPPORTUNITY_TEXT.advanceDescription}
+      title={hideTitle ? undefined : OPPORTUNITY_TEXT.advanceTitle}
+      description={hideTitle ? undefined : OPPORTUNITY_TEXT.advanceDescription}
     >
       {closed ? (
         <>

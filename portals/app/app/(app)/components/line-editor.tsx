@@ -64,6 +64,9 @@ export interface LineEditorProps {
   /** Set when the editor is a PAGE: on a successful save it returns there.
    *  Absent = inline legacy mode (kept for the read view on the deal page). */
   readonly doneHref?: string;
+  /** Inside a host that already titles it (a panel or drawer on the deal
+   *  page, deal batch 2): the body without its own heading. */
+  readonly hideTitle?: boolean;
   readonly opportunityId: string;
   readonly lines: readonly EditorLine[];
   readonly products: readonly {
@@ -120,6 +123,7 @@ export function LineEditor({
   onSave,
   onApprove,
   doneHref,
+  hideTitle = false,
 }: LineEditorProps) {
   const router = useRouter();
   const { DATA_TABLE_LABELS, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
@@ -167,9 +171,9 @@ export function LineEditor({
   return (
     <Section
       id="lines"
-      icon="stack"
-      title={OPPORTUNITY_TEXT.linesTitle}
-      description={OPPORTUNITY_TEXT.linesWhy}
+      icon={hideTitle ? undefined : "stack"}
+      title={hideTitle ? undefined : OPPORTUNITY_TEXT.linesTitle}
+      description={hideTitle ? undefined : OPPORTUNITY_TEXT.linesWhy}
       /* THE SECTION'S OWN ACTION SLOT holds both the warning and the way in
          to the editor. The page used to put that link in a row of its own
          below the table; the DS puts a panel's action in its header, and one
@@ -270,7 +274,10 @@ export function LineEditor({
         />
       )}
 
-      {!canEdit ? (
+      {/* Hosted read view (the deal page's 报价与审批): the way in is the
+          panel's own "⋮" 编辑, greyed with its reason there - this line read
+          "no permission" to every member, including those who have it. */}
+      {!canEdit && hideTitle ? null : !canEdit ? (
         <p className="text-muted-foreground mt-sm text-body-sm">
           {OPPORTUNITY_TEXT.lineDenied}
         </p>

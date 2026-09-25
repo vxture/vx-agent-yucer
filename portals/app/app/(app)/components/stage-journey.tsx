@@ -36,6 +36,9 @@ export interface StageJourneyProps {
   readonly stageDefinitions?: readonly StageDefinition[];
   /** Member sub -> display name, so an actor reads as a person. */
   readonly actorNames?: Readonly<Record<string, string>>;
+  /** Inside a host that already titles it (a panel or drawer on the deal
+   *  page, deal batch 2): the body without its own heading. */
+  readonly hideTitle?: boolean;
 }
 
 const DAY = 86_400_000;
@@ -49,13 +52,14 @@ export async function StageJourney({
   now,
   stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
   actorNames = {},
+  hideTitle = false,
 }: StageJourneyProps) {
   const { OPPORTUNITY_TEXT, STAGE_LABEL } = await getMessages();
   if (events.length === 0) {
     return (
       <Section
-        title={OPPORTUNITY_TEXT.journeyTitle}
-        description={OPPORTUNITY_TEXT.journeyDescription}
+        title={hideTitle ? undefined : OPPORTUNITY_TEXT.journeyTitle}
+        description={hideTitle ? undefined : OPPORTUNITY_TEXT.journeyDescription}
       >
         <EmptyState
           title={OPPORTUNITY_TEXT.journeyEmptyTitle}
@@ -70,8 +74,8 @@ export async function StageJourney({
 
   return (
     <Section
-      title={OPPORTUNITY_TEXT.journeyTitle}
-      description={OPPORTUNITY_TEXT.journeyDescription}
+      title={hideTitle ? undefined : OPPORTUNITY_TEXT.journeyTitle}
+      description={hideTitle ? undefined : OPPORTUNITY_TEXT.journeyDescription}
       action={
         <Tag>
           {OPPORTUNITY_TEXT.journeyTotal(daysBetween(first.occurredAt, asOf))}

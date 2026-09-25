@@ -1,32 +1,24 @@
-import Link from "next/link";
-import { Badge, Card, SectionHeader, StatusBadge } from "@vxture/design-ui";
+import { Badge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
-import { LEVEL_INK } from "../lib/view-model";
 import { JudgementNote, type Judgement } from "./judgement-note";
 
-// The position: an opportunity read as a pursuit rather than a record.
+// The position, read as a pursuit rather than a record - in PIECES since deal
+// batch 2 (2026-09-25). The four blocks of the old brief each went to the one
+// panel that owns their fact (YC-069, each fact in one place):
+//   - the problems (judgements) and this deal's proposals -> 态势判决;
+//   - the rival mentions -> 竞争态势;
+//   - the customer's delivery projects and its own proposals -> 客户引用 (栏1).
 //
-// Four blocks in the order a deal review actually runs - whose position this
-// is, what the other side looks like, what our own side looks like, and what we
-// intend to do. Presentation only; every number arrives already gated.
+// TWO THINGS IT STILL DELIBERATELY DOES NOT DO.
 //
-// TWO THINGS IT DELIBERATELY DOES NOT DO.
-//
-// It does not invent a competitor. There is no structured competitive data in
-// this product - rivals appear only inside raw follow-up notes - so the block
-// quotes those notes verbatim and offers the analysis that would change that.
-// A pursuit review that names an opponent nobody recorded is worse than one
-// that admits it cannot see them.
+// It does not invent a competitor. Rivals appear only inside raw follow-up
+// notes, so they are quoted verbatim; the structured competitor record is
+// batch 7 (0089). A pursuit review that names an opponent nobody recorded is
+// worse than one that admits it cannot see them.
 //
 // And the plan is NOT a text box. Under ADR-003 the agent proposes and a human
 // signs; a free-form "next steps" field would become a second TODO list nobody
 // maintains, and it would carry none of the evidence the proposals carry.
-
-export interface PositionFact {
-  readonly label: string;
-  readonly value: string;
-  readonly tone?: "bad" | "warn" | "good";
-}
 
 export interface PositionProposal {
   readonly id: string;
@@ -36,187 +28,69 @@ export interface PositionProposal {
   readonly confidence: number | null;
 }
 
-export interface PositionBriefProps {
-  readonly projects: readonly {
-    id: string;
-    name: string;
-    health: string;
-    href: string;
-  }[];
-  /** Verbatim note fragments that mention a rival. Never a name we inferred. */
-  readonly rivalMentions: readonly { id: string; when: string; text: string }[];
-  readonly problems: readonly (Judgement & { readonly id: string })[];
-  readonly proposals: readonly PositionProposal[];
-  /** The customer's own (relationship) proposals: counted and linked, not listed here. */
-  readonly accountLevel?: { readonly count: number; readonly href: string } | null;
+/** 判断: the rules' judgements that landed on this deal or its customer. */
+export async function DealJudgements({ problems }: { readonly problems: readonly (Judgement & { readonly id: string })[] }) {
+  const { POSITION_TEXT } = await getMessages();
+  if (problems.length === 0) {
+    return <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.noProblems}</p>;
+  }
+  return (
+    <div className="flex flex-col gap-sm">
+      {problems.map((p) => (
+        // One rendering of a judgement everywhere: claim, source, staleness,
+        // and on open the trigger condition and the rows it cites.
+        <JudgementNote key={p.id} judgement={p} />
+      ))}
+    </div>
+  );
 }
 
-export async function PositionBrief({
-  projects,
-  rivalMentions,
-  problems,
-  proposals,
-  accountLevel,
-}: PositionBriefProps) {
+/** 参谋提案: this deal's own proposals, grouped by the capability that made them. */
+export async function DealProposals({ proposals }: { readonly proposals: readonly PositionProposal[] }) {
+  const { POSITION_TEXT } = await getMessages();
+  if (proposals.length === 0) {
+    return <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planEmpty}</p>;
+  }
+  return (
+    <div className="flex flex-col">
+      {proposals.map((p) => (
+        <div key={p.id} className="border-border flex flex-wrap items-start gap-md border-b py-sm last:border-b-0">
+          <Badge variant="outline">{p.group}</Badge>
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground text-body-sm">{p.title}</p>
+            {p.rationale ? (
+              <p className="text-muted-foreground mt-2xs max-w-[62ch] text-body-sm">{p.rationale}</p>
+            ) : null}
+          </div>
+          {p.confidence !== null ? (
+            <span className="text-muted-foreground shrink-0 text-body-sm tabular-nums">
+              {POSITION_TEXT.confidence(p.confidence)}
+            </span>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Rival mentions, verbatim - the only competitive evidence that exists. */
+export async function RivalMentions({
+  mentions,
+}: {
+  readonly mentions: readonly { id: string; when: string; text: string }[];
+}) {
   const { POSITION_TEXT } = await getMessages();
   return (
-    <div className="flex flex-col gap-md">
-      {/* ---- The other side ------------------------------------------------ */}
-      <Card className="p-md">
-        {/* One child: the DS Card gaps its direct children, which with the
-            mt-md below left a blank band under every title (polish 2026-09-24). */}
-        <div>
-        <SectionHeader
-          level={3}
-          title={POSITION_TEXT.external}
-          description={POSITION_TEXT.externalWhy}
-        />
-
-        {/* THE CHAIN COUNTS BLOCK IS GONE (2026-09-05 convergence). Four bare
-            numbers were an information downgrade of the full DecisionChain -
-            "missing 1" without saying WHO - and this page rendered the chain
-            TWICE in two vocabularies (the war-room cell said unreachable while
-            the counts showed a coach; both true, unreadable side by side). The
-            chain now has ONE full rendering, mounted right below this brief. */}
-
-        <div className="border-border mt-md border-t pt-md">
-          <p className="text-muted-foreground text-body-sm">
-            {POSITION_TEXT.projects}
-          </p>
-          {projects.length === 0 ? (
-            <p className="text-muted-foreground mt-xs text-body-sm">
-              {POSITION_TEXT.noProjects}
-            </p>
-          ) : (
-            <div className="mt-xs flex flex-wrap gap-xs">
-              {projects.map((p) => (
-                <Link key={p.id} href={p.href}>
-                  <StatusBadge
-                    tone={
-                      p.health === "red"
-                        ? "danger"
-                        : p.health === "amber"
-                          ? "warning"
-                          : "success"
-                    }
-                  >
-                    {p.name}
-                  </StatusBadge>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="border-border mt-md border-t pt-md">
-          <p className="text-muted-foreground text-body-sm">
-            {POSITION_TEXT.competition}
-          </p>
-          <p className="text-muted-foreground mt-xs text-body-sm">
-            {rivalMentions.length > 0
-              ? POSITION_TEXT.competitionNone
-              : POSITION_TEXT.competitionNoMention}
-          </p>
-          {/* Verbatim. The only competitive evidence that exists is what someone
-              wrote down, so it is quoted rather than summarised into a claim. */}
-          {rivalMentions.map((m) => (
-            <blockquote
-              key={m.id}
-              className="border-warning/50 mt-sm max-w-[62ch] border-l-2 pl-sm"
-            >
-              <cite className="text-muted-foreground block text-body-sm not-italic tabular-nums">
-                {m.when}
-              </cite>
-              <p className="text-muted-foreground text-body-sm leading-relaxed">
-                {m.text}
-              </p>
-            </blockquote>
-          ))}
-        </div>
-        </div>
-      </Card>
-
-      {/* ---- Our side ------------------------------------------------------ */}
-      <Card className="p-md">
-        {/* One child: the DS Card gaps its direct children, which with the
-            mt-md below left a blank band under every title (polish 2026-09-24). */}
-        <div>
-        <SectionHeader
-          level={3}
-          title={POSITION_TEXT.internal}
-          description={POSITION_TEXT.internalWhy}
-        />
-        <div className="mt-md">
-          <p className="text-muted-foreground text-body-sm">
-            {POSITION_TEXT.problems}
-          </p>
-          <p className="text-muted-foreground mt-2xs text-body-sm">
-            {POSITION_TEXT.problemsWhy}
-          </p>
-          {problems.length === 0 ? (
-            <p className="text-muted-foreground mt-sm text-body-sm">
-              {POSITION_TEXT.noProblems}
-            </p>
-          ) : (
-            <div className="mt-sm flex flex-col gap-sm">
-              {problems.map((p) => (
-                // One rendering of a judgement everywhere: claim, source,
-                // staleness, and on open the trigger condition (so a reader
-                // can disagree with the arithmetic) and the rows it cites.
-                <JudgementNote key={p.id} judgement={p} />
-              ))}
-            </div>
-          )}
-        </div>
-        </div>
-      </Card>
-
-      {/* ---- The plan ------------------------------------------------------ */}
-      <Card className="p-md">
-        {/* One child: the DS Card gaps its direct children, which with the
-            mt-md below left a blank band under every title (polish 2026-09-24). */}
-        <div>
-        <SectionHeader
-          level={3}
-          title={POSITION_TEXT.plan}
-          description={POSITION_TEXT.planWhy}
-        />
-        {proposals.length === 0 ? (
-          <p className="text-muted-foreground mt-md text-body-sm">
-            {POSITION_TEXT.planEmpty}
-          </p>
-        ) : (
-          <div className="mt-md flex flex-col">
-            {proposals.map((p) => (
-              <div
-                key={p.id}
-                className="border-border flex flex-wrap items-start gap-md border-b py-sm last:border-b-0"
-              >
-                <Badge variant="outline">{p.group}</Badge>
-                <div className="min-w-0 flex-1">
-                  <p className="text-foreground text-body-sm">{p.title}</p>
-                  {p.rationale ? (
-                    <p className="text-muted-foreground mt-2xs max-w-[62ch] text-body-sm">
-                      {p.rationale}
-                    </p>
-                  ) : null}
-                </div>
-                {p.confidence !== null ? (
-                  <span className="text-muted-foreground shrink-0 text-body-sm tabular-nums">
-                    {POSITION_TEXT.confidence(p.confidence)}
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-        {accountLevel ? (
-          <Link href={accountLevel.href} className="text-primary mt-sm inline-block text-body-sm hover:underline">
-            {POSITION_TEXT.planAccountLevel(accountLevel.count)}
-          </Link>
-        ) : null}
-        </div>
-      </Card>
+    <div className="flex flex-col">
+      <p className="text-muted-foreground text-body-sm">
+        {mentions.length > 0 ? POSITION_TEXT.competitionNone : POSITION_TEXT.competitionNoMention}
+      </p>
+      {mentions.map((m) => (
+        <blockquote key={m.id} className="border-warning/50 mt-sm max-w-[62ch] border-l-2 pl-sm">
+          <cite className="text-muted-foreground block text-body-sm not-italic tabular-nums">{m.when}</cite>
+          <p className="text-muted-foreground text-body-sm leading-relaxed">{m.text}</p>
+        </blockquote>
+      ))}
     </div>
   );
 }

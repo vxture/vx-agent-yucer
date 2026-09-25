@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
-import { Card, Section } from "@vxture/design-ui";
+import { Card } from "@vxture/design-ui";
 import type { BriefCell } from "../../domains/pipeline/lib/brief";
 import { getMessages } from "../lib/i18n/server";
 
 // The war room's shell: the verdict strip, and the slot the action cards
 // render into - owner ruling 2026-09-05 (判决 → 建议 → 动作).
+//
+// NO FRAME OF ITS OWN since deal batch 2: it is the body of the 态势判决
+// panel, which carries the title, the fold and the findings line. The five
+// cells are replaced by the five-dimension cards in batch 8.
 //
 // A SERVER COMPONENT, deliberately. It binds no actions and holds no state;
 // every card below it is its own client island with its own server action and
@@ -32,22 +36,18 @@ const TONE_TEXT: Record<BriefCell["tone"], string> = {
 
 export async function WarRoom({
   cells,
+  actionsLabel,
   children,
 }: {
   readonly cells: readonly BriefCell[];
+  /** The heading over the action cards (待动手的事), from the host panel. */
+  readonly actionsLabel?: ReactNode;
   /** The action cards, worst-first - each its own client island. */
   readonly children?: ReactNode;
 }) {
   const { WAR_ROOM_TEXT } = await getMessages();
-  const findings = cells.filter((c) => c.tone !== "good").length;
   return (
-    <Section
-      icon="target"
-      title={WAR_ROOM_TEXT.title}
-      // The count is the cells actually shown: a closed deal has no chain
-      // check, so "五项检查" over four cells contradicted itself.
-      description={findings === 0 ? WAR_ROOM_TEXT.allClear(cells.length) : WAR_ROOM_TEXT.findings(findings)}
-    >
+    <div className="flex flex-col">
       {/* One cell per dimension. minmax(0,1fr) so a long headline wraps inside
           its cell instead of pushing the strip sideways. */}
       {/* As many columns as cells - four on a closed deal, not four and a hole. */}
@@ -64,7 +64,12 @@ export async function WarRoom({
           </Card>
         ))}
       </div>
-      {children ? <div className="mt-md flex flex-col gap-sm">{children}</div> : null}
-    </Section>
+      {children ? (
+        <div className="mt-md flex flex-col gap-sm">
+          {actionsLabel}
+          {children}
+        </div>
+      ) : null}
+    </div>
   );
 }

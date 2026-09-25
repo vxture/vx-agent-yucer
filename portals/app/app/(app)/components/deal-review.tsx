@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input, Label, NativeSelect, Section, StatusBadge, Textarea } from "@vxture/design-ui";
+import { Button, Input, Label, NativeSelect, StatusBadge, Textarea } from "@vxture/design-ui";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CollapsibleSection } from "./collapsible-section";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 
@@ -48,7 +50,7 @@ export function DealReview({
   reasons,
   onRecord,
 }: DealReviewProps) {
-  const { WINLOSS_TEXT, REVIEW_ERROR } = useMessages();
+  const { WINLOSS_TEXT, REVIEW_ERROR, DEAL_PAGE_TEXT, PANEL_MENU_TEXT } = useMessages();
   const won = status === "won";
   // The reasons that can explain THIS outcome - "not won" covers abandoned.
   const fitting = reasons.filter((r) => (won ? r.forWon : r.forLost));
@@ -79,11 +81,27 @@ export function DealReview({
     </>
   );
 
+  // A deal-page panel like every other (deal batch 2): folds, one line.
+  const frame = {
+    id: "deal-review",
+    tone: "raised" as const,
+    style: CARD_VEIL_STYLE,
+    className: CARD_VEIL_CLASS,
+    icon: "scales" as const,
+    title: WINLOSS_TEXT.dealReviewTitle,
+    action: tags,
+    summary: review ? DEAL_PAGE_TEXT.reviewSummaryDone(outcome) : DEAL_PAGE_TEXT.reviewSummaryOwed(outcome),
+    menu: {
+      view: { href: "/winloss" },
+      edit: review && canRecord && entitled ? { onSelect: () => setEditing(true) } : { hint: PANEL_MENU_TEXT.noEditRight },
+    },
+  };
+
   if (!entitled) {
     return (
-      <Section title={WINLOSS_TEXT.dealReviewTitle} action={tags}>
+      <CollapsibleSection {...frame}>
         <Tag>{WINLOSS_TEXT.dealReviewLocked}</Tag>
-      </Section>
+      </CollapsibleSection>
     );
   }
 
@@ -103,7 +121,7 @@ export function DealReview({
   const reasonName = reasons.find((r) => r.id === (review?.primaryReasonId ?? ""))?.name ?? WINLOSS_TEXT.reasonNone;
 
   return (
-    <Section title={WINLOSS_TEXT.dealReviewTitle} action={tags}>
+    <CollapsibleSection {...frame}>
       {exitReason ? <Tag>{WINLOSS_TEXT.dealReviewExit(exitReason)}</Tag> : null}
 
       {review && !editing ? (
@@ -153,6 +171,6 @@ export function DealReview({
 
       {!review && !canRecord ? <Tag>{WINLOSS_TEXT.recordHintDenied}</Tag> : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-    </Section>
+    </CollapsibleSection>
   );
 }
