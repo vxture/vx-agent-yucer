@@ -1,4 +1,4 @@
-import { Tag } from "./tag";
+import { ROW_EDGE, ROW_TEXT, SOURCE_CHIP, TONED_ROW } from "./deal-tone";
 import { getMessages } from "../lib/i18n/server";
 import type { CheckDetail, StageCheck } from "../../domains/pipeline/lib/exit-criteria";
 
@@ -16,7 +16,7 @@ export async function ExitChecks({
   /** Which slots are written - a met slot criterion says so, an unmet one points at its panel. */
   readonly filledSlots: ReadonlySet<string>;
 }) {
-  const { DEAL_PAGE_TEXT, DECISION_ROLE_LABEL } = await getMessages();
+  const { DEAL_PAGE_TEXT, DECISION_ROLE_LABEL, RISK_TEXT } = await getMessages();
   if (check.total === 0) return <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.exitNone}</p>;
   const roles = (r: readonly string[]) =>
     r.length === 0 ? DEAL_PAGE_TEXT.exitAnyone : r.map((x) => DECISION_ROLE_LABEL[x] ?? x).join(" / ");
@@ -56,25 +56,32 @@ export async function ExitChecks({
         return { text: DEAL_PAGE_TEXT.exitUnreadable };
     }
   };
+  // YC-072 .chk: the source chip, the criterion with its reason under it,
+  // and the result word on the right - the edge carries the tone.
   return (
-    <ol className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
+    <ol className="flex flex-col gap-2xs">
       {check.checks.map((c) => {
         const w = why(c.detail);
+        const tone = c.status === "met" ? "good" : c.status === "unmet" ? "bad" : "none";
         return (
-          <li key={c.criterion.id} className="flex items-start gap-sm py-2xs text-body-sm">
-            <span className="w-16 flex-none">
-              <Tag tone={c.status === "met" ? "success" : c.status === "unmet" ? "warning" : "neutral"}>
-                {c.status === "met" ? DEAL_PAGE_TEXT.exitMet : c.status === "unmet" ? DEAL_PAGE_TEXT.exitUnmet : DEAL_PAGE_TEXT.exitUnknown}
-              </Tag>
+          <li
+            key={c.criterion.id}
+            className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-sm text-body-sm ${TONED_ROW} ${ROW_EDGE[tone]}`}
+          >
+            <span className={SOURCE_CHIP}>{RISK_TEXT.source.rule}</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="text-foreground truncate">{c.criterion.name}</span>
+              {w.href ? (
+                <a href={w.href} className="text-primary truncate text-[11px] hover:underline">
+                  {w.text}
+                </a>
+              ) : (
+                <span className="text-muted-foreground truncate text-[11px]">{w.text}</span>
+              )}
             </span>
-            <span className="text-foreground min-w-0 flex-1">{c.criterion.name}</span>
-            {w.href ? (
-              <a href={w.href} className="text-muted-foreground hover:text-foreground flex-none hover:underline">
-                {w.text}
-              </a>
-            ) : (
-              <span className="text-muted-foreground flex-none">{w.text}</span>
-            )}
+            <span className={`text-[11.5px] font-bold whitespace-nowrap ${ROW_TEXT[tone]}`}>
+              {c.status === "met" ? DEAL_PAGE_TEXT.exitMet : c.status === "unmet" ? DEAL_PAGE_TEXT.exitUnmet : DEAL_PAGE_TEXT.exitUnknown}
+            </span>
           </li>
         );
       })}

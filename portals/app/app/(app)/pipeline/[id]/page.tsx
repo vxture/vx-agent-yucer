@@ -110,6 +110,7 @@ import { DealEditProvider } from "../../components/deal-edit-context";
 import { DealRolesDrawer } from "../../components/deal-roles-drawer";
 import { DealStageDrawer } from "../../components/deal-stage-drawer";
 import { DealImportanceDrawer } from "../../components/deal-importance-drawer";
+import { StageTrack } from "../../components/stage-track";
 import { setDealImportance } from "../importance-action";
 import {
   DealCustomerPanel,
@@ -734,9 +735,19 @@ export default async function OpportunityDetailPage({
         accountHealth === null ? (
           notSet
         ) : (
-          <span className="inline-flex items-center gap-xs">
-            {accountSingleThread ? <Tag tone="warning">{WAR_ROOM_TEXT.accountSingleThread}</Tag> : null}
-            <Tag tone={accountHealth < 40 ? "danger" : accountHealth < 70 ? "warning" : "success"}>{accountHealth}</Tag>
+          // YC-072: the score in its band's colour, as text - two pills in a
+          // 280px row read as two buttons.
+          <span className="inline-flex items-center gap-xs font-bold">
+            {accountSingleThread ? (
+              <span className="text-(color:--warning-text)">{WAR_ROOM_TEXT.accountSingleThread} ·</span>
+            ) : null}
+            <span
+              className={
+                accountHealth < 40 ? "text-destructive-text" : accountHealth < 70 ? "text-(color:--warning-text)" : "text-(color:--success-text)"
+              }
+            >
+              {accountHealth}
+            </span>
           </span>
         ),
     },
@@ -1139,6 +1150,7 @@ export default async function OpportunityDetailPage({
                     WAR_ROOM_TEXT.analyseQuestion(opportunity.name, findings),
                   )}`}
                   cta={WAR_ROOM_TEXT.analyseCta}
+                  source={null}
                 />
               </WarRoom>
               <PanelSub>{DEAL_PAGE_TEXT.judgements}</PanelSub>
@@ -1172,21 +1184,21 @@ export default async function OpportunityDetailPage({
               icon="flag"
               title={DEAL_PAGE_TEXT.progressTitle}
               summary={progressSummary}
-              tags={
-                <>
-                  <Tag tone={STAGE_TONE[opportunity.stage as Stage]} dot>
-                    {stageText}
-                  </Tag>
-                  <Tag tone={FORECAST_TONE[opportunity.forecastCategory as ForecastCategory]}>
-                    {FORECAST_LABEL[opportunity.forecastCategory as ForecastCategory]}
-                  </Tag>
-                </>
-              }
+              tags={<Tag tone="neutral">{DEAL_PAGE_TEXT.progressSummary(stageText, daysInStage)}</Tag>}
               editor="stage"
               primary={opportunity.status === "open" ? { label: OPPORTUNITY_TEXT.advanceTitle, editor: "stage" } : undefined}
             >
+              <StageTrack
+                stage={opportunity.stage}
+                open={opportunity.status === "open"}
+                stageDefinitions={stageDefinitions}
+                moves={history.ok ? history.value : []}
+                current={exitCheck}
+              />
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-md gap-y-2xs text-body-sm">
-                <span>{DEAL_PAGE_TEXT.progressSummary(stageText, daysInStage)}</span>
+                <Tag tone={FORECAST_TONE[opportunity.forecastCategory as ForecastCategory]}>
+                  {FORECAST_LABEL[opportunity.forecastCategory as ForecastCategory]}
+                </Tag>
                 <span title={probability.overridden ? PIPELINE_TEXT.probabilityHintOverridden(probability.stageDefault) : PIPELINE_TEXT.probabilityHintDefault}>
                   {probability.value === null ? "-" : DEAL_PAGE_TEXT.probability(probability.value)}
                 </span>
@@ -1205,9 +1217,7 @@ export default async function OpportunityDetailPage({
               </div>
               {exitCheck ? (
                 <>
-                  <PanelSub>
-                    {exitCheck.total > 0 ? DEAL_PAGE_TEXT.exitTitle(exitCheck.met, exitCheck.total) : DEAL_PAGE_TEXT.exitNone}
-                  </PanelSub>
+                  <PanelSub>{exitCheck.total > 0 ? DEAL_PAGE_TEXT.exitTitlePlain : DEAL_PAGE_TEXT.exitNone}</PanelSub>
                   {exitCheck.total > 0 ? <ExitChecks check={exitCheck} filledSlots={filledSlots ?? new Set()} /> : null}
                 </>
               ) : null}
@@ -1231,12 +1241,10 @@ export default async function OpportunityDetailPage({
                   canWrite={canRecord}
                   captureHref={`/capture?account=${opportunity.accountId}&opportunity=${id}&back=/pipeline/${id}`}
                   onSettle={settleCommitment}
-                  hideTitle
-                  hideDescription
+                  rows
                 />
               ) : null}
               <span id="change-history" />
-              <PanelSub>{DEAL_PAGE_TEXT.history}</PanelSub>
               {history.ok ? (
                 <ChangeHistory
                   claims={claims.ok ? claims.value.events : []}
@@ -1304,6 +1312,7 @@ export default async function OpportunityDetailPage({
             >
               <LineEditor
                 hideTitle
+                currency={opportunity.currency}
                 opportunityId={id}
                 lines={dealLines.map((l) => ({
                   productId: l.productId,
@@ -1346,8 +1355,7 @@ export default async function OpportunityDetailPage({
                 <InteractionTimeline
                   items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
                   limit={20}
-                  hideTitle
-                  hideDescription
+                  rows
                 />
               ) : (
                 <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />

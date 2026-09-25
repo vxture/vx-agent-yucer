@@ -17,10 +17,17 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   TableTitleCell,
   Textarea,
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
+import { formatMoney } from "../lib/view-model";
 import { useMessages } from "../lib/i18n/provider";
 
 // The deal's product lines.
@@ -69,6 +76,8 @@ export interface LineEditorProps {
   /** Inside a host that already titles it (a panel or drawer on the deal
    *  page, deal batch 2): the body without its own heading. */
   readonly hideTitle?: boolean;
+  /** The deal's currency, for the read view's money cells. */
+  readonly currency?: string;
   readonly opportunityId: string;
   readonly lines: readonly EditorLine[];
   readonly products: readonly {
@@ -128,6 +137,7 @@ export function LineEditor({
   onApprove,
   doneHref,
   hideTitle = false,
+  currency = "CNY",
 }: LineEditorProps) {
   const router = useRouter();
   const { DATA_TABLE_LABELS, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
@@ -202,6 +212,58 @@ export function LineEditor({
           title={OPPORTUNITY_TEXT.lineNone}
           description={OPPORTUNITY_TEXT.lineNoneWhy}
         />
+      ) : hideTitle && !canEdit ? (
+        // THE DEAL PAGE'S READ VIEW (YC-072 .tbl): a quote is read, not
+        // sorted - four lines need no sort arrows. Money in the deal's
+        // currency, a below-floor line marked on its left edge and in its
+        // own last cell.
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-muted-foreground h-auto py-xs text-[11px] font-semibold">{OPPORTUNITY_TEXT.lineProduct}</TableHead>
+              <TableHead className="text-muted-foreground h-auto py-xs text-right text-[11px] font-semibold">{OPPORTUNITY_TEXT.lineQty}</TableHead>
+              <TableHead className="text-muted-foreground h-auto py-xs text-right text-[11px] font-semibold">{OPPORTUNITY_TEXT.linePrice}</TableHead>
+              <TableHead className="text-muted-foreground h-auto py-xs text-right text-[11px] font-semibold">{OPPORTUNITY_TEXT.lineAmount}</TableHead>
+              <TableHead className="h-auto w-[5.5rem] py-xs" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lines.map((r, i) => {
+              const below = r.needsApproval && !r.approved;
+              return (
+                <TableRow key={`${r.productId}-${i}`}>
+                  <TableCell className={`py-xs text-body-sm ${below ? "shadow-[inset_3px_0_0_var(--warning-text)]" : ""}`}>
+                    {name.get(r.productId) ?? r.productId}
+                  </TableCell>
+                  <TableCell className="py-xs text-right font-mono text-body-sm tabular-nums">{r.quantity}</TableCell>
+                  <TableCell className={`py-xs text-right font-mono text-body-sm tabular-nums ${r.needsApproval ? "text-(color:--warning-text)" : ""}`}>
+                    {formatMoney(r.unitPrice, currency)}
+                  </TableCell>
+                  <TableCell className="py-xs text-right font-mono text-body-sm tabular-nums">{formatMoney(r.amount, currency)}</TableCell>
+                  <TableCell className="py-xs text-right">
+                    {!r.needsApproval ? null : r.approved ? (
+                      <StatusBadge tone="success">{OPPORTUNITY_TEXT.lineApproved}</StatusBadge>
+                    ) : canApprove && !closed ? (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => {
+                          setSigning(r.productId);
+                          setReason("");
+                          setErr(null);
+                        }}
+                      >
+                        {OPPORTUNITY_TEXT.lineApprove}
+                      </Button>
+                    ) : (
+                      <StatusBadge tone="warning">{OPPORTUNITY_TEXT.lineAwaiting}</StatusBadge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       ) : (
         <DataTable
           labels={DATA_TABLE_LABELS}

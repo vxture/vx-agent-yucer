@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "@vxture/design-ui";
+import { ROW_EDGE, ROW_TEXT, TONED_ROW, type RowTone } from "./deal-tone";
 import type { BriefCell } from "../../domains/pipeline/lib/brief";
 import { getMessages } from "../lib/i18n/server";
 
@@ -22,17 +22,7 @@ import { getMessages } from "../lib/i18n/server";
 // person can adjudicate them, because the strip states what IS and the cards
 // offer what to DO.
 
-const TONE_CLASS: Record<BriefCell["tone"], string> = {
-  good: "border-s-success-border",
-  warn: "border-s-warning-border",
-  bad: "border-s-destructive-border",
-};
-
-const TONE_TEXT: Record<BriefCell["tone"], string> = {
-  good: "text-(color:--success-text)",
-  warn: "text-(color:--warning-text)",
-  bad: "text-destructive-text",
-};
+const EDGE: Record<BriefCell["tone"], RowTone> = { good: "good", warn: "warn", bad: "bad" };
 
 export async function WarRoom({
   cells,
@@ -51,21 +41,21 @@ export async function WarRoom({
       {/* One cell per dimension. minmax(0,1fr) so a long headline wraps inside
           its cell instead of pushing the strip sideways. */}
       {/* As many columns as cells - four on a closed deal, not four and a hole. */}
-      <div className={`grid gap-sm sm:grid-cols-2 ${cells.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
+      <div className={`grid gap-xs sm:grid-cols-2 ${cells.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
         {cells.map((c) => (
-          <Card key={c.key} className={`border-s-2 p-md ${TONE_CLASS[c.tone]}`}>
-            <p className="text-muted-foreground text-body-sm">{WAR_ROOM_TEXT.cell[c.key]}</p>
-            <p className={`mt-xs text-body-sm font-medium ${c.tone === "good" ? "text-foreground" : TONE_TEXT[c.tone]}`}>
+          // YC-072 .cell: a flat, edge-toned cell - what it reads, then the
+          // verdict in the tone's colour. Its height is its text.
+          <div key={c.key} className={`min-w-0 ${TONED_ROW} border-border border ${ROW_EDGE[EDGE[c.tone]]}`}>
+            <p className="text-muted-foreground text-[11px]">{WAR_ROOM_TEXT.cell[c.key]}</p>
+            <p className={`mt-3xs text-[12.5px] font-bold ${c.tone === "good" ? "text-foreground" : ROW_TEXT[EDGE[c.tone]]}`}>
               {c.headline}
             </p>
-            {c.detail ? (
-              <p className="text-muted-foreground mt-xs text-body-sm">{c.detail}</p>
-            ) : null}
-          </Card>
+            {c.detail ? <p className="text-muted-foreground mt-3xs text-[11px]">{c.detail}</p> : null}
+          </div>
         ))}
       </div>
       {children ? (
-        <div className="mt-md flex flex-col gap-sm">
+        <div className="mt-md flex flex-col gap-xs">
           {actionsLabel}
           {children}
         </div>

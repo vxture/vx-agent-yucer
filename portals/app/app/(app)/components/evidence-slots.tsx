@@ -96,31 +96,31 @@ export function EvidenceSlots({
       {rows.map((row) => (
         <div key={row.slot} className="flex flex-col gap-2xs py-xs">
           <div className="flex items-start gap-sm text-body-sm">
-            <span className="text-muted-foreground w-16 flex-none">{label(row.slot)}</span>
+            <span className="text-foreground w-[5.5rem] flex-none font-bold">{label(row.slot)}</span>
             <span className={`min-w-0 flex-1 whitespace-pre-wrap ${row.statement ? "text-foreground" : "text-muted-foreground"}`}>
               {row.statement ?? DEAL_PAGE_TEXT.evidenceEmpty}
             </span>
             {!compact && row.statement ? <SlotMarks row={row} /> : null}
             {canRecord ? (
-              <Button variant="ghost" size="sm" className="h-auto flex-none py-0" onClick={() => open(row)}>
+              <Button variant="ghost" size="xs" className="text-muted-foreground h-auto flex-none py-0" onClick={() => open(row)}>
                 {row.statement ? DEAL_PAGE_TEXT.evidenceEdit : DEAL_PAGE_TEXT.evidenceFill}
               </Button>
             ) : null}
           </div>
           {compact && row.statement ? (
-            <div className="pl-[4.5rem]">
+            <div className="pl-[6rem]">
               <SlotMarks row={row} />
             </div>
           ) : null}
-          {row.pending ? <div className={compact ? "" : "pl-[4.5rem]"}>{row.pending}</div> : null}
+          {row.pending ? <div className={compact ? "" : "pl-[6rem]"}>{row.pending}</div> : null}
           {row.history.length > 0 ? (
             <Collapsible>
-              <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs pl-[4.5rem] text-body-sm">
+              <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs pl-[6rem] text-body-sm">
                 <Icon name="chevron-right" size="xs" />
                 {DEAL_PAGE_TEXT.evidenceHistory(row.history.length)}
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <ol className="mt-2xs flex flex-col gap-2xs pl-[4.5rem]">
+                <ol className="mt-2xs flex flex-col gap-2xs pl-[6rem]">
                   {row.history.map((h) => (
                     <li key={h.id} className="text-muted-foreground text-body-sm">
                       <span className="line-through decoration-muted-foreground/40">{h.statement || DEAL_PAGE_TEXT.evidenceCleared}</span>

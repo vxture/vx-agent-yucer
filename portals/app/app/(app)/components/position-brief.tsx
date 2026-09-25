@@ -49,12 +49,19 @@ export async function RivalMentions({
       <p className="text-muted-foreground text-body-sm">
         {mentions.length > 0 ? POSITION_TEXT.competitionNone : POSITION_TEXT.competitionNoMention}
       </p>
-      {mentions.map((m) => (
-        <blockquote key={m.id} className="border-warning/50 mt-sm max-w-[62ch] border-l-2 pl-sm">
-          <cite className="text-muted-foreground block text-body-sm not-italic tabular-nums">{m.when}</cite>
-          <p className="text-muted-foreground text-body-sm leading-relaxed">{m.text}</p>
-        </blockquote>
-      ))}
+      {/* Dated rows like 沟通记录 (YC-072 .lg): the words are a quote, so
+          they stay muted and verbatim. */}
+      <ol className="mt-2xs flex flex-col">
+        {mentions.map((m) => (
+          <li
+            key={m.id}
+            className="border-border grid grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-sm border-b border-dashed py-xs text-[12px] last:border-b-0"
+          >
+            <span className="text-muted-foreground font-mono tabular-nums">{m.when}</span>
+            <q className="text-muted-foreground">{m.text}</q>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
