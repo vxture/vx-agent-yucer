@@ -41,6 +41,9 @@ export interface BuyingRoleFormProps {
   readonly accountId: string;
   readonly people: readonly BuyingRolePerson[];
   readonly canEdit: boolean;
+  /** Inside a host that already titles it (a panel or drawer on the deal
+   *  page, deal batch 2): the body without its own heading. */
+  readonly hideTitle?: boolean;
   readonly onSave: (
     opportunityId: string,
     accountId: string,
@@ -56,6 +59,7 @@ export function BuyingRoleForm({
   accountId,
   people,
   canEdit,
+  hideTitle = false,
   onSave,
 }: BuyingRoleFormProps) {
   const { BUYING_ROLE_TEXT, DECISION_ROLE_LABEL, DECISION_ROLE_ABBR, STANCE_LABEL, CONTACT_ERROR } = useMessages();
@@ -84,7 +88,11 @@ export function BuyingRoleForm({
     (parsed === null || (Number.isInteger(parsed) && parsed >= 0 && parsed <= 100));
 
   return (
-    <Section id="buying-roles" title={BUYING_ROLE_TEXT.title} description={BUYING_ROLE_TEXT.description}>
+    <Section
+      id="buying-roles"
+      title={hideTitle ? undefined : BUYING_ROLE_TEXT.title}
+      description={hideTitle ? undefined : BUYING_ROLE_TEXT.description}
+    >
       {/* Two by two (polish, 2026-09-24): four full-width fields stacked were
           a tall form for four short answers. */}
       <div className="grid gap-md sm:grid-cols-2">

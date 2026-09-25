@@ -6796,3 +6796,68 @@ export const ICP_TEXT = {
           ? `${value} ✓ 在目标内（${targets.join("、")}）`
           : `${value} ✗ 不在目标内（${targets.join("、")}）`,
 };
+
+/** 商机详情页 (deal batch 2, 2026-09-25): 栏1 档案 / 栏2 六板块, the same
+ *  build as the customer page (owner: 这两个是同一级别的). */
+export const DEAL_PAGE_TEXT = {
+  // 栏1 · 交易档案
+  factCustomer: "客户",
+  factOwner: "负责人",
+  factContractType: "签约类型",
+  factBusinessForm: "业务形态",
+  factSource: "来源",
+  sourceCampaign: (name: string) => `战役 · ${name}`,
+  sourceDirect: "直接录入",
+  factTerritory: "区域",
+  factCreated: "创建",
+  factBudget: "客户项目总投入",
+  factTeam: "售前 / 交付",
+  notSet: "未设置",
+  amountLabel: "金额",
+  amountNone: "未定价",
+  editTerms: "编辑交易档案",
+  // 栏1 · 决策流程
+  decisionTitle: "决策流程",
+  decisionEmpty: "本单还没有写明任何人的角色",
+  decisionNone: "本单决策链还没有人",
+  decisionReachable: (n: number) => `${n} 人 · 经济决策人可触达`,
+  decisionUnreachable: (n: number) => `${n} 人 · 经济决策人未触达`,
+  decisionNoEconomic: (n: number) => `${n} 人 · 没有经济决策人`,
+  decisionBlockers: (n: number) => `${n} 位反对`,
+  decisionRole: (title: string | null, role: string) => (title ? `${title} · ${role}` : role),
+  editRoles: "编辑决策角色",
+  // 栏1 · 客户引用
+  customerTitle: (name: string) => `客户 · ${name}`,
+  customerTier: "客户级别",
+  customerHealth: "客户健康",
+  customerOpenDeals: "本客户其他在办",
+  dealsCount: (n: number) => `${n} 单`,
+  customerProjects: "交付项目",
+  customerReadOnly: "只读。客户的事在客户全景图上改。",
+  customerOpen: "客户全景图",
+  // 栏2
+  todo: "待动手的事",
+  judgements: "判断",
+  proposals: "参谋提案",
+  progressTitle: "推进进程",
+  progressSummary: (stage: string, days: number | null) =>
+    days === null ? stage : `${stage} · 停 ${days} 天`,
+  probability: (n: number) => `赢率 ${n}%`,
+  closeOn: (d: string) => `成交日 ${d}`,
+  plan: "推进计划",
+  history: "变更史",
+  reasonsTitle: "购买理由",
+  requirement: "需求",
+  requirementNone: "还没有写明需求",
+  competitionTitle: "竞争态势",
+  competitionMentions: (n: number) => `跟进里 ${n} 处提到对手`,
+  quoteTitle: "报价与审批",
+  quoteSummary: (lines: number, pending: number) =>
+    pending > 0 ? `${lines} 行明细 · ${pending} 行待批` : `${lines} 行明细`,
+  quoteNone: "还没有明细",
+  commsTitle: "沟通记录",
+  commsSummary: (days: number, recent: number) => `最近 ${days} 天前 · 近 30 天 ${recent} 次`,
+  commsNone: "还没有沟通记录",
+  reviewSummaryOwed: (outcome: string) => `${outcome} · 复盘未写`,
+  reviewSummaryDone: (outcome: string) => `${outcome} · 已复盘`,
+} as const;

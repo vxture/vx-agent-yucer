@@ -161,3 +161,16 @@ export function DealsSummaryBadge({
     </Tooltip>
   );
 }
+
+/** 金额 on the deal's 徽章区 (YC-069, deal batch 2): the bare compact figure on
+ *  the same disc as the customer page's deals coin, what it counts in on
+ *  hover - the unit coin of a deal, beside 重要度 and 态势研判 (batches 6, 8). */
+export function AmountCoin({ figure, label }: { readonly figure: string | null; readonly label: string }) {
+  return (
+    <div role="img" aria-label={label} className="inline-flex">
+      <Coin src="/assets/icons/coin-deals.png">
+        <span className="font-display text-base leading-none font-extrabold tabular-nums">{figure ?? "-"}</span>
+      </Coin>
+    </div>
+  );
+}

@@ -24,8 +24,19 @@ export const BOARD_PANE_CLASS =
 /** The centre pane. See app-shell.tsx for why its padding is a measure. */
 export const CENTRE_PANE_CLASS = "min-h-0 min-w-0 flex-1 overflow-y-auto px-md pb-2xl";
 
-/** /account/<id> - the one route whose page renders the board and centre
- *  panes itself. `complete` is a sibling route, not an account id. */
-export function isAccountDossierRoute(segments: readonly string[]): boolean {
-  return segments.length === 2 && segments[0] === "account" && segments[1] !== "complete";
+/** The routes whose page renders the board and centre panes itself: an
+ *  object's detail page, where 栏1 is that object's own dossier instead of
+ *  the module nav. /account/<id> (2026-09-20) and /pipeline/<id> (deal batch
+ *  2, 2026-09-25: 商机详情页与客户详情页同一级别). `complete` and `new` are
+ *  sibling routes, not ids; a deeper route (/pipeline/<id>/lines) keeps the
+ *  shell's own panes. */
+const DOSSIER_SIBLINGS: Readonly<Record<string, readonly string[]>> = {
+  account: ["complete"],
+  pipeline: ["new"],
+};
+
+export function isDossierRoute(segments: readonly string[]): boolean {
+  if (segments.length !== 2) return false;
+  const siblings = DOSSIER_SIBLINGS[segments[0]];
+  return siblings !== undefined && !siblings.includes(segments[1]);
 }

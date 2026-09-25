@@ -38,7 +38,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isAccountDossierRoute } from "../lib/sidebar-slot";
+import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -219,7 +219,7 @@ export function AppShell({
    *  <aside> 还是同一个(宽度/独立滚动都不变, 见下面 boardVisible 的渲染),
    *  只是内容从 NavBoard 换成这个客户自己的档案 - account-sidebar-portal.tsx
    *  把 page.tsx 已经建好的栏1内容传送到这里, 不重新发起一次数据读。 */
-  const isAccountDetail = isAccountDossierRoute(segments);
+  const isDossierPage = isDossierRoute(segments);
 
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
@@ -747,8 +747,8 @@ export function AppShell({
             the list. The padding lives on this overflow-y-auto element, not
             on a wrapper around it, so it scrolls INTO view as trailing space
             rather than shrinking how far the pane can scroll. */}
-        {isAccountDetail ? (
-          /* 客户详情页: the page renders BOTH the board pane and the centre
+        {isDossierPage ? (
+          /* 客户 / 商机详情页: the page renders BOTH the board pane and the centre
              pane itself (lib/sidebar-slot.ts says why - a portal cannot run on
              the server, and the left pane went blank on every hard refresh). */
           children
