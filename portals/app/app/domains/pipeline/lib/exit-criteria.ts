@@ -179,3 +179,53 @@ export function planCriterion(input: {
   }
   return ok({ kind, param: {}, name });
 }
+
+// --- Facts from raw reads, and the journal's snapshot (deal batch 5b) ---------------
+
+/**
+ * The facts a check reads, from the reads the caller already made - ONE
+ * function, so the deal page and the stage change (which snapshots the check
+ * into the journal) cannot build them differently. null in = null out: a
+ * refused read stays unknown.
+ */
+export function dealFactsFrom(input: {
+  /** The deal's chain people, or null when the chain could not be read. */
+  readonly people: readonly { readonly decisionRole: string; readonly lastContactAt: Date | null }[] | null;
+  readonly recencyKnown: boolean;
+  readonly filledSlots: ReadonlySet<EvidenceSlot> | null;
+  readonly lines: readonly { readonly needsApproval: boolean; readonly approved: boolean }[] | null;
+  readonly commitments: readonly { readonly direction: string; readonly status: string; readonly dueAt: Date }[] | null;
+  readonly expectedCloseAt: Date | null;
+  readonly now: Date;
+}): DealFacts {
+  return {
+    people: input.people ? input.people.map((p) => ({ role: p.decisionRole, lastContactAt: p.lastContactAt })) : null,
+    recencyKnown: input.recencyKnown,
+    filledSlots: input.filledSlots,
+    lines: input.lines
+      ? { count: input.lines.length, pending: input.lines.filter((l) => l.needsApproval && !l.approved).length }
+      : null,
+    theirOverdue: input.commitments
+      ? input.commitments.filter((c) => c.direction === "they_owe" && c.status === "open" && c.dueAt < input.now).length
+      : null,
+    expectedCloseAt: input.expectedCloseAt,
+    now: input.now,
+  };
+}
+
+/**
+ * What the stage LEFT looked like when the deal left it (incr/0088): the
+ * criteria by NAME at that moment, so renaming or deleting one later does not
+ * rewrite what the journal says was checked.
+ */
+export interface ExitSnapshot {
+  readonly stage: string;
+  readonly met: readonly string[];
+  readonly unmet: readonly string[];
+  readonly unknown: readonly string[];
+}
+
+export function snapshotOf(stage: string, check: StageCheck): ExitSnapshot {
+  const names = (s: CheckStatus) => check.checks.filter((c) => c.status === s).map((c) => c.criterion.name);
+  return { stage, met: names("met"), unmet: names("unmet"), unknown: names("unknown") };
+}

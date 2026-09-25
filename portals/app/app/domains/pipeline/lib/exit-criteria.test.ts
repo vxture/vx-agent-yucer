@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { checkStage, planCriterion, type DealFacts, type ExitCriterion } from "./exit-criteria";
+import { checkStage, dealFactsFrom, planCriterion, snapshotOf, type DealFacts, type ExitCriterion } from "./exit-criteria";
 import { DEFAULT_EXIT_CRITERIA } from "./exit-criteria-vocab";
 
 const NOW = new Date("2026-09-25T00:00:00Z");
@@ -72,4 +72,30 @@ test("the code seed and incr/0087's seed are the same rows", () => {
     rows,
     DEFAULT_EXIT_CRITERIA.map((d) => [d.stageCode, d.kind, JSON.stringify(d.param), d.name, d.sortOrder]),
   );
+});
+
+test("dealFactsFrom turns raw reads into facts; a refused read stays null", () => {
+  const f = dealFactsFrom({
+    people: [{ decisionRole: "economic", lastContactAt: days(3) }],
+    recencyKnown: true,
+    filledSlots: null,
+    lines: [{ needsApproval: true, approved: false }, { needsApproval: true, approved: true }, { needsApproval: false, approved: false }],
+    commitments: [
+      { direction: "they_owe", status: "open", dueAt: days(2) },
+      { direction: "they_owe", status: "met", dueAt: days(9) },
+      { direction: "we_owe", status: "open", dueAt: days(9) },
+      { direction: "they_owe", status: "open", dueAt: new Date(NOW.getTime() + 86_400_000) },
+    ],
+    expectedCloseAt: null,
+    now: NOW,
+  });
+  assert.deepEqual(f.people, [{ role: "economic", lastContactAt: days(3) }]);
+  assert.equal(f.filledSlots, null);
+  assert.deepEqual(f.lines, { count: 3, pending: 1 });
+  assert.equal(f.theirOverdue, 1);
+});
+
+test("the snapshot names each criterion by its name at that moment", () => {
+  const s = snapshotOf("validate", checkStage("validate", criteria, facts({ people: null })));
+  assert.deepEqual(s, { stage: "validate", met: ["决策流程已写明"], unmet: [], unknown: ["经济决策人 30 天内触达", "已有教练或技术评估人"] });
 });

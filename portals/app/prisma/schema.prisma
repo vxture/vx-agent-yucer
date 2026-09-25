@@ -983,6 +983,8 @@ model OpportunityStageEvent {
   actorSub      String?  @map("actor_sub") @db.VarChar(128)
   occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz()
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  /// incr/0088 - the stage left, as checked when it was left. Insert-only.
+  exitCheck     Json?    @map("exit_check")
 
   @@map("opportunity_stage_event")
   @@schema("yucer_pipeline")
