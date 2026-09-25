@@ -31,6 +31,7 @@ import {
   stageHistory,
   claimHistory,
   evidenceOf,
+  listExitCriteria,
   dealExit,
   listWinLossReasons,
   stallRules,
@@ -80,6 +81,8 @@ import {
   listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
+import { ExitChecks } from "../../components/exit-checks";
+import { checkStage } from "../../../domains/pipeline/lib/exit-criteria";
 import { EvidenceSlots, type EvidenceRow } from "../../components/evidence-slots";
 import { AdvisorFinding } from "../../components/advisor-finding";
 import { adjudicateProposals } from "../../copilot/actions";
@@ -194,8 +197,8 @@ export default async function OpportunityDetailPage({
     // 声明变更日志 and slippage (incr/0084, YC-065 R2).
     claimHistory(ctx, id),
   ]);
-  // 购买证据槽 (incr/0085).
-  const evidence = await evidenceOf(ctx, id);
+  // 购买证据槽 (incr/0085) and the exit criteria (incr/0087).
+  const [evidence, exitCriteria] = await Promise.all([evidenceOf(ctx, id), listExitCriteria(ctx)]);
 
   // NAMES, NOT IDS (polish, 2026-09-24): the owner card printed usr_demo_m010,
   // the plan triangle three raw subs and 来源战役 camp_demo_1. The member
@@ -718,15 +721,35 @@ export default async function OpportunityDetailPage({
       ? Math.max(0, Math.floor((briefNow.getTime() - (lastStageChangeAt ?? opportunity.createdAt).getTime()) / 86_400_000))
       : null;
   const closeDate = (opportunity.closedAt ?? opportunity.expectedCloseAt)?.toISOString().slice(0, 10) ?? null;
+  const dealLines = (lineRows.ok ? lineRows.value : []).filter((l) => l.opportunityId === id);
+  const pendingLines = dealLines.filter((l) => l.needsApproval && !l.approved).length;
   const slip = claims.ok ? claims.value.slippage : null;
+  // 本阶段退出核验 (incr/0087, R1): the current stage's criteria against what
+  // this page already read. A refused read is 无法判断, never met.
+  const filledSlots = evidence.ok
+    ? new Set(Object.values(evidence.value).filter((s) => s.filled).map((s) => s.slot))
+    : null;
+  const exitCheck =
+    exitCriteria.ok && opportunity.status === "open"
+      ? checkStage(opportunity.stage, exitCriteria.value, {
+          people: dealChain ? chainPeople.map((p) => ({ role: p.decisionRole, lastContactAt: buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(p.id) ?? null) : null })) : null,
+          recencyKnown: buyerRecency.ok,
+          filledSlots,
+          lines: lineRows.ok ? { count: dealLines.length, pending: pendingLines } : null,
+          theirOverdue: commitments.ok
+            ? commitments.value.filter((c) => c.direction === "they_owe" && c.status === "open" && c.dueAt < briefNow).length
+            : null,
+          expectedCloseAt: opportunity.expectedCloseAt,
+          now: briefNow,
+        })
+      : null;
   const progressSummary = [
     DEAL_PAGE_TEXT.progressSummary(stageText, daysInStage),
+    ...(exitCheck && exitCheck.total > 0 ? [DEAL_PAGE_TEXT.exitShort(exitCheck.met, exitCheck.total)] : []),
     ...(probability.value !== null ? [DEAL_PAGE_TEXT.probability(probability.value)] : []),
     ...(closeDate ? [DEAL_PAGE_TEXT.closeOn(closeDate)] : []),
     ...(slip && slip.pushes > 0 ? [DEAL_PAGE_TEXT.slipped(slip.pushes, slip.pushedDays)] : []),
   ].join(COLLAPSE_TEXT.separator);
-  const dealLines = (lineRows.ok ? lineRows.value : []).filter((l) => l.opportunityId === id);
-  const pendingLines = dealLines.filter((l) => l.needsApproval && !l.approved).length;
   const interactionList = interactions.ok ? interactions.value : [];
   const lastTouch = interactionList.reduce<Date | null>(
     (m, n) => (m === null || n.occurredAt > m ? n.occurredAt : m),
@@ -1107,6 +1130,14 @@ export default async function OpportunityDetailPage({
                   </a>
                 ) : null}
               </div>
+              {exitCheck ? (
+                <>
+                  <PanelSub>
+                    {exitCheck.total > 0 ? DEAL_PAGE_TEXT.exitTitle(exitCheck.met, exitCheck.total) : DEAL_PAGE_TEXT.exitNone}
+                  </PanelSub>
+                  {exitCheck.total > 0 ? <ExitChecks check={exitCheck} filledSlots={filledSlots ?? new Set()} /> : null}
+                </>
+              ) : null}
               <PanelSub>{DEAL_PAGE_TEXT.plan}</PanelSub>
               {commitmentItems.length > 0 ? (
                 <AdvisorFinding items={commitmentItems} onAdjudicate={adjudicateProposals} />

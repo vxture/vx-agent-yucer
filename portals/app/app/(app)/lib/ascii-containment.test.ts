@@ -59,6 +59,9 @@ const ALLOWED = new Set([
   // consume the catalog stay in stage.ts, only the seed data and the
   // vocabulary-editing rules (planStageDefinition/planStageRemoval) moved.
   "domains/pipeline/lib/stage-vocab.ts",
+  // incr/0087. The R1 factory exit criteria - seed data like the stage
+  // catalog beside it; exit-criteria.test.ts proves it equals the SQL seed.
+  "domains/pipeline/lib/exit-criteria-vocab.ts",
   // 签约类型 and 业务形态 (0067), the same shape again: shipped rows a
   // workspace renames and extends, seeded identically by the increment. Two
   // files because 商机类型 (0060) was one list answering two questions.

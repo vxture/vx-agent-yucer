@@ -13,6 +13,7 @@ import {
   listBusinessForms,
   listContractTypes,
   listStageDefinitions,
+  listExitCriteria,
   listWinLossReasonsForConfig,
   stageDefinitionUsage,
   winLossReasonUsage,
@@ -21,6 +22,8 @@ import { WinLossReasonConfig } from "../../components/win-loss-reason-config";
 import { ContractTypeConfig } from "../../components/contract-type-config";
 import { BusinessFormConfig } from "../../components/business-form-config";
 import { StageDefinitionConfig } from "../../components/stage-definition-config";
+import { ExitCriterionConfig } from "../../components/exit-criterion-config";
+import { removeExitCriterionAction, saveExitCriterionAction } from "../../pipeline/exit-criterion-actions";
 import { OpportunityConfigPanel } from "../../components/opportunity-config-panel";
 import {
   moveWinLossReasonAction,
@@ -170,6 +173,8 @@ export default async function OpportunityConfigPage() {
       />
     );
   }
+  // After the catalog read: that read seeds a new workspace's criteria.
+  const criteria = await listExitCriteria(ctx);
 
   return (
     <ViewLayout>
@@ -214,6 +219,17 @@ export default async function OpportunityConfigPage() {
         onMove={moveStageDefinitionAction}
         onDelete={removeStageDefinitionAction}
       />
+
+      {/* 阶段退出条件 (incr/0087) - right after the stages they belong to. */}
+      {criteria.ok ? (
+        <ExitCriterionConfig
+          stages={stages.value}
+          criteria={criteria.value}
+          editable={canManage}
+          onSave={saveExitCriterionAction}
+          onDelete={removeExitCriterionAction}
+        />
+      ) : null}
 
       <WinLossReasonConfig
         reasons={reasons.value}

@@ -24,6 +24,8 @@ import {
   type Slippage,
 } from "./lib/claims";
 import { isEvidenceSlot, planEvidence, slotStates, type EvidenceSlot, type SlotState } from "./lib/evidence";
+import { planCriterion, type ExitCriterion } from "./lib/exit-criteria";
+import { DEFAULT_EXIT_CRITERIA } from "./lib/exit-criteria-vocab";
 import {
   planNewOpportunity,
   suggestContractType,
@@ -847,6 +849,13 @@ export async function listStageDefinitions(
       });
     }
     stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+    // The R1 factory exit criteria ride the same first seeding (incr/0087):
+    // a new workspace starts with them, exactly as the increment gave every
+    // workspace that already had a catalog. Never re-seeded after this.
+    const codes = new Set(stages.map((s) => s.stageCode));
+    for (const c of DEFAULT_EXIT_CRITERIA) {
+      if (codes.has(c.stageCode)) await ctx.store.createExitCriterion(ctx.workspaceId, { ...c, param: { ...c.param } });
+    }
   }
   return ok(stages);
 }
@@ -1965,4 +1974,59 @@ export async function recordEvidence(
     proposalId: accepted?.proposalId ?? null,
   });
   return ok({ recorded: true });
+}
+
+// --- 阶段退出条件 (incr/0087, YC-065 R1) -------------------------------------------
+
+/** The workspace's exit criteria, every stage. Read with a deal (YC-068). */
+export async function listExitCriteria(ctx: PipelineContext): Promise<RuleResult<ExitCriterion[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.exitcheck.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listExitCriteria(ctx.workspaceId));
+}
+
+/**
+ * Add or edit one criterion - opportunity configuration (incr/0063's gate).
+ * KIND IS LOCKED on an existing criterion: changing how it is judged is a
+ * delete and an add, so its meaning in past checks cannot be swapped.
+ */
+export async function saveExitCriterion(
+  ctx: PipelineContext,
+  input: { id?: string; stageCode: string; kind: string; param: unknown; name: string },
+): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  const planned = planCriterion(input);
+  if (!planned.ok) return planned as RuleResult<{ id: string }>;
+  const all = await ctx.store.listExitCriteria(ctx.workspaceId);
+
+  if (input.id) {
+    const held = all.find((c) => c.id === input.id);
+    if (!held) return fail(violation("not_found", "no such criterion", "id"));
+    if (held.kind !== planned.value.kind) {
+      return fail(violation("criterion_kind_locked", "a criterion's kind cannot change - remove it and add another", "kind"));
+    }
+    await ctx.store.updateExitCriterion(ctx.workspaceId, held.id, { name: planned.value.name, param: planned.value.param });
+    return ok({ id: held.id });
+  }
+
+  const stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  const stage = stages.find((s) => s.stageCode === input.stageCode);
+  if (!stage) return fail(violation("unknown_stage", `no stage ${input.stageCode}`, "stageCode"));
+  if (stage.isTerminal) return fail(violation("criterion_on_terminal", "a closed stage is left by nothing", "stageCode"));
+  const order = Math.max(0, ...all.filter((c) => c.stageCode === input.stageCode).map((c) => c.sortOrder)) + 1;
+  const made = await ctx.store.createExitCriterion(ctx.workspaceId, {
+    stageCode: input.stageCode,
+    ...planned.value,
+    sortOrder: order,
+  });
+  return ok({ id: made.id });
+}
+
+export async function removeExitCriterion(ctx: PipelineContext, id: string): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  const removed = await ctx.store.removeExitCriterion(ctx.workspaceId, id);
+  if (!removed) return fail(violation("not_found", "no such criterion", "id"));
+  return ok({ id });
 }

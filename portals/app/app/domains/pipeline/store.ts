@@ -17,6 +17,7 @@ import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
 import type { EvidenceVersion } from "./lib/evidence";
+import type { ExitCriterion } from "./lib/exit-criteria";
 
 /** A deal's claimed values, as the claim log compares them (incr/0084). */
 export function claimStateOf(o: OpportunityRecord): ClaimState {
@@ -338,6 +339,17 @@ export interface PipelineStore {
   /** 声明变更日志 for one deal, oldest first (incr/0084). */
   listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]>;
 
+  /** 阶段退出条件 (incr/0087): every criterion of the workspace, any order. */
+  listExitCriteria(workspaceId: string): Promise<ExitCriterion[]>;
+  createExitCriterion(workspaceId: string, row: Omit<ExitCriterion, "id">): Promise<ExitCriterion>;
+  /** kind is locked - only name / param / sort order change. False when absent. */
+  updateExitCriterion(
+    workspaceId: string,
+    id: string,
+    patch: { name?: string; param?: Record<string, unknown>; sortOrder?: number },
+  ): Promise<boolean>;
+  removeExitCriterion(workspaceId: string, id: string): Promise<boolean>;
+
   /** 购买证据槽 (incr/0085): every version of a deal's evidence, any order. */
   listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]>;
   /** Append one version. Never an update - the history is the point. */
@@ -478,6 +490,43 @@ export class InMemoryPipelineStore implements PipelineStore {
   private exits: (DealExitRecord & { workspaceId: string; opportunityId: string })[] = [];
   private claims: (ClaimEventRecord & { workspaceId: string })[] = [];
   private evidence: (EvidenceVersion & { workspaceId: string; opportunityId: string })[] = [];
+  private criteria: (ExitCriterion & { workspaceId: string })[] = [];
+
+  async listExitCriteria(workspaceId: string): Promise<ExitCriterion[]> {
+    return this.criteria.filter((c) => c.workspaceId === workspaceId).map(({ workspaceId: _w, ...c }) => ({ ...c }));
+  }
+
+  async createExitCriterion(workspaceId: string, row: Omit<ExitCriterion, "id">): Promise<ExitCriterion> {
+    // The FK: a criterion belongs to a stage the workspace's catalog has.
+    if (!this.stageDefinitions.some((d) => d.workspaceId === workspaceId && d.stageCode === row.stageCode)) {
+      throw new Error(`fk_exit_criterion_stage: no stage ${row.stageCode}`);
+    }
+    this.seq += 1;
+    const made = { ...row, id: `exc_${this.seq}` };
+    this.criteria.push({ ...made, workspaceId });
+    return made;
+  }
+
+  async updateExitCriterion(
+    workspaceId: string,
+    id: string,
+    patch: { name?: string; param?: Record<string, unknown>; sortOrder?: number },
+  ): Promise<boolean> {
+    const c = this.criteria.find((x) => x.workspaceId === workspaceId && x.id === id);
+    if (!c) return false;
+    Object.assign(c, {
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.param !== undefined ? { param: patch.param } : {}),
+      ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder } : {}),
+    });
+    return true;
+  }
+
+  async removeExitCriterion(workspaceId: string, id: string): Promise<boolean> {
+    const before = this.criteria.length;
+    this.criteria = this.criteria.filter((x) => !(x.workspaceId === workspaceId && x.id === id));
+    return this.criteria.length < before;
+  }
 
   async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {
     return this.evidence

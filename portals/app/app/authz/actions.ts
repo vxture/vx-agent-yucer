@@ -338,6 +338,15 @@ export const ACTIONS = {
     permission: "pipeline.write",
     writes: true,
   },
+  // 阶段退出核验 (incr/0087, YC-068): reading what this stage should have got
+  // us is part of reading a deal - the free pipeline, read permission.
+  // Configuring the criteria rides pipeline.opportunityconfig.manage.
+  "pipeline.exitcheck.view": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.read",
+    writes: false,
+  },
   "pipeline.opportunity.create": {
     domain: "pipeline",
     feature: "pipeline.manage",
