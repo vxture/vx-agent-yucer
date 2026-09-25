@@ -502,6 +502,7 @@ export const en: Dictionary = {
   },
   FORECAST_RULE_ERROR: {
     ...GATE_ERROR,
+    category_reason_required: "A category above the rule's suggestion needs a reason",
     customer_budget_negative: "The customer project budget cannot be negative",
     category_settled: "A won or lost deal has its category bound to the stage",
     category_already_agrees:
@@ -2168,6 +2169,7 @@ export const en: Dictionary = {
   },
 
   OPPORTUNITY_ERROR: {
+    category_reason_required: "A category above the rule's suggestion needs a reason.",
     custom_note_too_long: "A customisation note is at most 255 characters.",
     customer_budget_negative: "The customer project budget cannot be negative.",
     customer_budget_invalid: "The customer project budget has to be a number.",
@@ -2237,6 +2239,9 @@ export const en: Dictionary = {
       `${product} is quoted below its floor. The signature records this price; changing it voids the signature.`,
     lineApproveReason: "Why this floor is worth breaking",
     lineApproveCancel: "Cancel",
+    termsReason: "Reason (optional)",
+    termsReasonRequired: "Reason (required)",
+    termsReasonWhy: (suggested: string) => `The rule suggests "${suggested}"; a more optimistic category needs a reason`,
     lineNote: "Customisation on this deal",
     lineNotePlaceholder: "What this deal tailors (optional), e.g. includes 6 weeks of ERP integration",
     notFound: "No such deal, or it belongs to another workspace",
@@ -4962,6 +4967,7 @@ export const en: Dictionary = {
       "pipeline.discount.approve": "Approve a discount",
       "pipeline.opportunity.advance": "Advance a stage",
       "pipeline.opportunity.abandon": "Abandon a deal",
+      "pipeline.claims.view": "View claim changes and slippage",
       "pipeline.forecast.view": "View the forecast",
       "pipeline.forecast.snapshot": "Submit a forecast snapshot",
       "pipeline.forecast.categorize": "Categorise the forecast",
@@ -5808,6 +5814,29 @@ export const en: Dictionary = {
     advisorEmpty: "No proposals waiting on this deal",
     advisorTrail: (group: string, confidence: number | null) =>
       confidence === null ? group : `${group} · confidence ${confidence}`,
+    claimField: {
+      amount: "Amount",
+      currency: "Currency",
+      expected_close_at: "Close date",
+      forecast_category: "Category",
+      probability: "Win rate",
+    } as Record<string, string>,
+    claimSource: {
+      manual: "manual",
+      stage_machine: "stage machine",
+      proposal: "accepted proposal",
+      lines: "line recompute",
+    } as Record<string, string>,
+    claimNone: "none",
+    claimChange: (field: string, from: string, to: string) => `${field} ${from} → ${to}`,
+    stageChange: (from: string | null, to: string) => (from ? `${from} → ${to}` : `Created in ${to}`),
+    historyReason: (r: string) => `Reason: "${r}"`,
+    historyBy: (who: string, source: string) => `${who} · ${source}`,
+    historySystem: "System",
+    historyEmpty: "No changes yet",
+    historySince: "Claim changes (amount, close date, category, win rate) are recorded from the day this shipped; earlier changes are not backfilled",
+    slipped: (n: number, days: number) => `Pushed ${n}× · ${days} days in total`,
+    slippedQuarter: "Out of this quarter",
     todo: "To do",
     judgements: "Judgements",
     proposals: "Advisor proposals",

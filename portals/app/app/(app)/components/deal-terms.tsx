@@ -9,6 +9,7 @@ import {
   Input,
   NativeSelect,
   StatusBadge,
+  Textarea,
 } from "@vxture/design-ui";
 import { DialogForm } from "./dialog-form";
 import {
@@ -24,6 +25,7 @@ import {
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
 import { useDealEditor } from "./deal-edit-context";
+import { moreOptimisticThanRule } from "../../domains/pipeline/lib/claims";
 
 // What the deal is worth, and how sure we are - A DIALOG since 2026-09-05.
 //
@@ -77,6 +79,12 @@ export interface DealTermsProps {
   /** incr/0080 - 客户项目总投入, in `currency`; null = not entered. Rides on
    *  the editing gate: the rep who owns the deal is the one who asked (§9.6). */
   readonly customerBudget?: number | null;
+  /**
+   * The forecast rule's category for this deal, or null when it has none. A
+   * category moved above it needs a reason (YC-065 R9) - the field says so
+   * before the save rather than after a refusal.
+   */
+  readonly suggestedCategory?: ForecastCategory | null;
   readonly onSave: (
     opportunityId: string,
     input: {
@@ -88,6 +96,7 @@ export interface DealTermsProps {
       contractTypeId?: string;
       businessFormId?: string;
       customerBudget?: string;
+      reason?: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -111,6 +120,7 @@ export function DealTerms({
   businessForms = [],
   canSetDealType = false,
   customerBudget = null,
+  suggestedCategory = null,
   onSave,
 }: DealTermsProps) {
   const { BUSINESS_FORM_TEXT, CONTRACT_TYPE_TEXT, FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, WALLET_TEXT } =
@@ -125,6 +135,7 @@ export function DealTerms({
     contractTypeId: contractTypeId ?? "",
     businessFormId: businessFormId ?? "",
     customerBudget: customerBudget == null ? "" : String(customerBudget),
+    reason: "",
   };
   const [form, setForm] = useState(initial);
   const [pending, startTransition] = useTransition();
@@ -143,6 +154,10 @@ export function DealTerms({
   /** The value if the user changed it, undefined if they did not. */
   const dirty = (k: keyof typeof initial): string | undefined =>
     form[k] === initial[k] ? undefined : form[k];
+  const reasonRequired =
+    canCategorize &&
+    form.forecastCategory !== initial.forecastCategory &&
+    moreOptimisticThanRule(form.forecastCategory, suggestedCategory);
 
   // No door for a member who cannot edit: the menus grey the item out.
   if (!canEdit) return null;
@@ -170,6 +185,7 @@ export function DealTerms({
         contractTypeId: canSetDealType ? dirty("contractTypeId") : undefined,
         businessFormId: canSetDealType ? dirty("businessFormId") : undefined,
         customerBudget: dirty("customerBudget"),
+        reason: form.reason.trim() || undefined,
       }).then((r) => {
         if (!r.ok) {
           setError(
@@ -190,6 +206,7 @@ export function DealTerms({
         description={OPPORTUNITY_TEXT.termsDescription}
         submitLabel={OPPORTUNITY_TEXT.termsSubmit}
         submitting={pending}
+        submitDisabled={reasonRequired && form.reason.trim() === ""}
         onSubmit={(e) => {
           e.preventDefault();
           save();
@@ -344,6 +361,24 @@ export function DealTerms({
             </Field>
           ) : null}
         </FieldGroup>
+
+        {/* WHY (incr/0084): the reason lands on every claim-log row this
+            save writes - "客户预算会推迟" beside the pushed date. Required only
+            when the category goes above the rule's (YC-065 R9). */}
+        <Field>
+          <FieldLabel htmlFor="terms-reason">
+            {reasonRequired ? OPPORTUNITY_TEXT.termsReasonRequired : OPPORTUNITY_TEXT.termsReason}
+          </FieldLabel>
+          <Textarea
+            id="terms-reason"
+            value={form.reason}
+            onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            disabled={pending}
+          />
+          {reasonRequired ? (
+            <FieldDescription>{OPPORTUNITY_TEXT.termsReasonWhy(FORECAST_LABEL[suggestedCategory!])}</FieldDescription>
+          ) : null}
+        </Field>
 
         {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       </DialogForm>

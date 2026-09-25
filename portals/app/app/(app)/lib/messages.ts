@@ -1154,6 +1154,7 @@ export const RENEWAL_ERROR: Record<string, string> = {
 
 export const FORECAST_RULE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  category_reason_required: "把类别调得比规则建议更乐观，需要写一句理由",
   // Shares updateCommercialTerms with the deal page, so its codes are
   // reachable in principle; this surface never sends a budget.
   customer_budget_negative: "客户项目总投入不能为负",
@@ -3222,6 +3223,9 @@ export const OPPORTUNITY_TEXT = {
     `${product} 的单价低于底价。签字记录的是这个价格，改价后签字自动失效。`,
   lineApproveReason: "为什么值得破这个底价",
   lineApproveCancel: "取消",
+  termsReason: "变更理由（可选）",
+  termsReasonRequired: "变更理由（必填）",
+  termsReasonWhy: (suggested: string) => `规则建议「${suggested}」，调得更乐观需要写一句理由`,
   lineNote: "本单定制说明",
   lineNotePlaceholder: "本单定制(可选),如:含 ERP 接口开发约 6 周",
 } as const;
@@ -3803,6 +3807,8 @@ export const FORECAST_ERROR: Record<string, string> = {
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  // YC-065 R9 偏离规则须理由.
+  category_reason_required: "把类别调得比规则建议更乐观，需要写一句理由",
   // incr/0082 - 本单定制说明 on a line.
   custom_note_too_long: "定制说明最多 255 个字",
   // incr/0080 - 钱包份额's denominator.
@@ -6590,6 +6596,7 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.discount.approve": "审批折扣",
     "pipeline.opportunity.advance": "推进商机阶段",
     "pipeline.opportunity.abandon": "放弃商机",
+    "pipeline.claims.view": "查看声明变更与推迟",
     "pipeline.forecast.view": "查看销售预测",
     "pipeline.forecast.snapshot": "提交预测快照",
     "pipeline.forecast.categorize": "归类预测",
@@ -6861,6 +6868,30 @@ export const DEAL_PAGE_TEXT = {
   advisorEmpty: "本单暂无待裁提案",
   advisorTrail: (group: string, confidence: number | null) =>
     confidence === null ? group : `${group} · 置信 ${confidence}`,
+  // 推进进程 · 变更史 (声明变更日志 incr/0084 + 阶段日志)
+  claimField: {
+    amount: "金额",
+    currency: "币种",
+    expected_close_at: "预计成交日",
+    forecast_category: "预测类别",
+    probability: "赢率",
+  } as Record<string, string>,
+  claimSource: {
+    manual: "人工",
+    stage_machine: "阶段机",
+    proposal: "采纳提案",
+    lines: "明细重算",
+  } as Record<string, string>,
+  claimNone: "空",
+  claimChange: (field: string, from: string, to: string) => `${field} ${from} → ${to}`,
+  stageChange: (from: string | null, to: string) => (from ? `${from} → ${to}` : `创建于 ${to}`),
+  historyReason: (r: string) => `理由：「${r}」`,
+  historyBy: (who: string, source: string) => `${who} · ${source}`,
+  historySystem: "系统",
+  historyEmpty: "还没有变更",
+  historySince: "声明变更（金额、成交日、类别、赢率）自本功能上线起记录，之前的变化不补录",
+  slipped: (n: number, days: number) => `推迟 ${n} 次 · 累计 ${days} 天`,
+  slippedQuarter: "推出本季",
   // 栏2
   todo: "待动手的事",
   judgements: "判断",

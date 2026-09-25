@@ -130,6 +130,8 @@ export async function repriceOpportunity(
     contractTypeId?: string;
     businessFormId?: string;
     customerBudget?: string;
+    /** Why - lands on every claim-log row of this save (incr/0084). */
+    reason?: string;
   },
 ): Promise<RepriceResult> {
   const session = await resolveAppSession();
@@ -207,6 +209,8 @@ export async function repriceOpportunity(
       patch.customerBudget = parsed;
     }
   }
+
+  if (input.reason !== undefined && input.reason.trim() !== "") patch.reason = input.reason.trim();
 
   const result = await updateCommercialTerms(
     {

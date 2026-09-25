@@ -15,6 +15,7 @@ import { Client } from "pg";
 const DATABASE_URL = process.env.DATABASE_URL;
 const skip = DATABASE_URL ? false : "no DATABASE_URL - see ci.yml job db-contract";
 
+const MANUAL = { source: "manual" as const, actorSub: "usr_test", occurredAt: new Date() };
 const WS = "eeeeeeee-0000-0000-0000-000000000006";
 const ACC = "eeeeeeee-0000-0000-0000-0000000000c1";
 
@@ -254,13 +255,13 @@ test("updateCommercialTerms writes amount and currency together, and null amount
     await withPg(seed);
     const s = await store();
     const created = await s.createOpportunity(WS, newOpp());
-    const ok = await s.updateCommercialTerms(WS, created.id, { amount: { amount: 250_000, currency: "USD" } });
+    const ok = await s.updateCommercialTerms(WS, created.id, { amount: { amount: 250_000, currency: "USD" } }, MANUAL);
     assert.equal(ok, true);
     let after = await s.getOpportunity(WS, created.id);
     assert.equal(after?.amount?.amount, 250_000);
     assert.equal(after?.amount?.currency, "USD");
 
-    await s.updateCommercialTerms(WS, created.id, { amount: null });
+    await s.updateCommercialTerms(WS, created.id, { amount: null }, MANUAL);
     after = await s.getOpportunity(WS, created.id);
     assert.equal(after?.amount, null);
   } finally {
@@ -274,7 +275,7 @@ test("updateCommercialTerms leaves an omitted field untouched, unlike an explici
     await withPg(seed);
     const s = await store();
     const created = await s.createOpportunity(WS, newOpp({ expectedCloseAt: new Date("2026-12-01T00:00:00Z") }));
-    await s.updateCommercialTerms(WS, created.id, { probability: 60 });
+    await s.updateCommercialTerms(WS, created.id, { probability: 60 }, MANUAL);
     const after = await s.getOpportunity(WS, created.id);
     assert.equal(after?.probability, 60);
     assert.equal(after?.expectedCloseAt?.toISOString(), new Date("2026-12-01T00:00:00Z").toISOString());
@@ -290,12 +291,12 @@ test("the customer budget and its author write through the incr/0080 grant, and 
     const s = await store();
     const created = await s.createOpportunity(WS, newOpp());
     const at = new Date("2026-09-24T08:00:00Z");
-    await s.updateCommercialTerms(WS, created.id, { customerBudget: { amount: 8_000_000.5, bySub: "usr_a", at } });
+    await s.updateCommercialTerms(WS, created.id, { customerBudget: { amount: 8_000_000.5, bySub: "usr_a", at } }, MANUAL);
     let after = await s.getOpportunity(WS, created.id);
     assert.equal(after?.customerBudget, 8_000_000.5);
     assert.equal(after?.customerBudgetBySub, "usr_a");
     assert.equal(after?.customerBudgetAt?.toISOString(), at.toISOString());
-    await s.updateCommercialTerms(WS, created.id, { customerBudget: { amount: null, bySub: null, at: null } });
+    await s.updateCommercialTerms(WS, created.id, { customerBudget: { amount: null, bySub: null, at: null } }, MANUAL);
     after = await s.getOpportunity(WS, created.id);
     assert.equal(after?.customerBudget, null);
     assert.equal(after?.customerBudgetAt, null);
@@ -516,6 +517,60 @@ test("an abandoned deal is owed a review and takes one with outcome abandoned (Y
     const saved = await s.saveWinLossReview(WS, created.id, { outcome: "abandoned", primaryReasonId: null, reviewerSub: "usr_rep" });
     assert.equal(saved.outcome, "abandoned");
     assert.deepEqual(await s.listUnreviewedClosed(WS), []);
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- 声明变更日志 (incr/0084) -------------------------------------------------------
+
+test("a claim change writes its log row in the same transaction; the log is append-only", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = await s.createOpportunity(WS, newOpp({ expectedCloseAt: new Date("2026-10-20T00:00:00Z") }));
+    const at = new Date("2026-09-25T08:00:00Z");
+    await s.updateCommercialTerms(
+      WS,
+      created.id,
+      { expectedCloseAt: new Date("2026-11-09T00:00:00Z"), probability: 40 },
+      { source: "manual", actorSub: "usr_a", reason: "客户预算会推迟", occurredAt: at },
+    );
+    // The same values again: nothing to log.
+    await s.updateCommercialTerms(WS, created.id, { probability: 40 }, MANUAL);
+    const events = await s.listClaimEvents(WS, created.id);
+    assert.deepEqual(
+      events.map((e) => [e.field, e.fromValue, e.toValue, e.source, e.actorSub, e.reason]).sort(),
+      [
+        ["expected_close_at", "2026-10-20", "2026-11-09", "manual", "usr_a", "客户预算会推迟"],
+        ["probability", events.find((e) => e.field === "probability")!.fromValue, "40", "manual", "usr_a", "客户预算会推迟"],
+      ].sort(),
+    );
+
+    await withPg(async (c) => {
+      await c.query(`SET ROLE yucer_svc`);
+      try {
+        await assert.rejects(
+          c.query(`UPDATE yucer_pipeline.opportunity_claim_event SET reason = 'rewritten' WHERE opportunity_id = $1`, [created.id]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          c.query(`DELETE FROM yucer_pipeline.opportunity_claim_event WHERE opportunity_id = $1`, [created.id]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_pipeline.opportunity_claim_event (workspace_id, opportunity_id, field, from_value, to_value, source)
+             VALUES ($1, $2, 'amount', '1.00', '1.00', 'manual')`,
+            [WS, created.id],
+          ),
+          /chk_claim_changed/,
+        );
+      } finally {
+        await c.query(`RESET ROLE`);
+      }
+    });
   } finally {
     await cleanup();
   }
