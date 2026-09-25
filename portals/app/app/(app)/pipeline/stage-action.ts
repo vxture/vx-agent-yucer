@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { exitSnapshotFor } from "./exit-snapshot";
+import { draftPlan } from "./plan-draft";
+import { after } from "next/server";
 import { getCatalogStore, getPipelineStore } from "../../domains/shared/registry";
 import {
   abandonOpportunity,
@@ -73,6 +75,10 @@ export async function advanceOpportunityStage(
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+
+  // 推进计划生成 (deal batch 5c): entering a new open stage drafts the next
+  // steps once the response is out - YC-066's second trigger.
+  if (!input.reopen) after(() => draftPlan(session, opportunityId).then(() => undefined));
 
   // Both surfaces move: the board's stage column and roll-up, and the detail
   // page's journal. Revalidating only the detail page would leave a member

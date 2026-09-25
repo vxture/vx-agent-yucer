@@ -21,6 +21,8 @@ export const BRIEFING_KINDS = [
   "consistency_check",
   // incr/0086 - 证据抽取: one new follow-up against the deal's slots.
   "evidence_extract",
+  // incr/0089 - 推进计划生成: the deal's unmet criteria and open promises.
+  "plan_draft",
 ] as const;
 export type BriefingKind = (typeof BRIEFING_KINDS)[number];
 

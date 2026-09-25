@@ -52,8 +52,15 @@ export const EVIDENCE_ACTION_TYPE = "record_evidence";
 export const ROLE_ACTION_TYPE = "set_buying_role";
 /** 证据抽取 (deal batch 4c): a dated promise made in the note. */
 export const COMMITMENT_ACTION_TYPE = "add_commitment";
-/** Everything 证据抽取 files - decided in place on the deal page, not in the deck. */
-export const EXTRACTION_ACTION_TYPES: readonly string[] = [EVIDENCE_ACTION_TYPE, ROLE_ACTION_TYPE, COMMITMENT_ACTION_TYPE];
+/** 推进计划生成 (deal batch 5c): one dated step of the plan, toward a named exit criterion. */
+export const PLAN_STEP_ACTION_TYPE = "plan_step";
+/** Everything decided in place on the deal page, not in the deck: 证据抽取 and 推进计划. */
+export const EXTRACTION_ACTION_TYPES: readonly string[] = [
+  EVIDENCE_ACTION_TYPE,
+  ROLE_ACTION_TYPE,
+  COMMITMENT_ACTION_TYPE,
+  PLAN_STEP_ACTION_TYPE,
+];
 
 export const SUBJECT_TYPES = [
   "account",
@@ -88,6 +95,7 @@ export const ACTION_SUBJECTS: Readonly<Record<string, readonly SubjectType[]>> =
   record_evidence: ["opportunity"],
   set_buying_role: ["opportunity"],
   add_commitment: ["opportunity"],
+  plan_step: ["opportunity"],
 };
 
 /** Does this action type belong on this kind of subject? Unlisted types: yes. */

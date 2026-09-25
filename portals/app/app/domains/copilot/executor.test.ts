@@ -532,3 +532,19 @@ test("add_commitment refuses a note from another deal and a missing date", async
   const undated = await carryOut(ctx(), action({ actionType: "add_commitment", payload: { direction: "they_owe", statement: "x" } }));
   assert.equal(undated.ok === false && undated.violations[0].code, "payload_invalid");
 });
+
+test("an accepted plan_step becomes a commitment on the deal, with no origin note (deal batch 5c)", async () => {
+  deals();
+  const field = fieldStore();
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "plan_step",
+      capability: "deal.plan",
+      payload: { direction: "we_owe", statement: "约王磊确认签约流程", dueAt: "2026-09-30", forCriterion: "签约流程已写明" },
+    }),
+  );
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const [c] = await field.listCommitments(WS, { opportunityId: "opp_1" });
+  assert.deepEqual([c.direction, c.statement, c.originInteractionId, c.ownerSub], ["we_owe", "约王磊确认签约流程", null, "usr_me"]);
+});

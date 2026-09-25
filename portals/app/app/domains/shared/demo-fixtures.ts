@@ -564,3 +564,10 @@ export const DEMO_COMMITMENT_PROPOSAL = {
   quote: "周总说本周内给反馈",
   rationale: "跟进原文里周总答应本周内反馈修改后的方案，本单还没有记下这条对方承诺。",
 } as const;
+
+/** 推进计划生成 (deal batch 5c): one drafted step toward a real unmet demo criterion. */
+export const DEMO_PLAN_STEP = {
+  statement: "约周涛确认客户内部的签约流程和会签环节",
+  forCriterion: "签约流程已写明",
+  rationale: "报价投标阶段的「签约流程已写明」尚未满足，先约经济决策人把签约流程问清。",
+} as const;

@@ -67,6 +67,9 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   record_evidence: recordEvidenceAction,
   set_buying_role: setBuyingRoleAction,
   add_commitment: addCommitmentAction,
+  // Deal batch 5c: an accepted plan step is a commitment on the deal - the
+  // same write, with no origin note (it came from the plan, not a meeting).
+  plan_step: addCommitmentAction,
 };
 
 /** The deal a proposal is about, and its customer - read through the gated verb. */

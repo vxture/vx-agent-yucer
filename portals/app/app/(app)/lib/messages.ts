@@ -2224,6 +2224,7 @@ export const BOARD_TEXT = {
     "account.upsell": "增购机会",
     "account.consistency": "说法核对",
     "deal.evidence": "证据抽取",
+    "deal.plan": "推进计划生成",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3890,6 +3891,7 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
   record_evidence: "写入购买证据",
   set_buying_role: "标注本单角色 / 立场",
   add_commitment: "记下一条承诺",
+  plan_step: "推进计划的一步",
   promote_signal: "信号升级为线索",
 };
 
@@ -6372,6 +6374,7 @@ export const POSITION_TEXT = {
     record_evidence: "写入购买证据",
     set_buying_role: "标注本单角色 / 立场",
     add_commitment: "记下一条承诺",
+    plan_step: "推进计划的一步",
     adjust_forecast: "调整预测口径",
     draft_email: "起草邮件",
   } as Record<string, string>,
@@ -6972,6 +6975,13 @@ export const DEAL_PAGE_TEXT = {
   findingRole: (name: string, role: string, stance: string | null) =>
     stance ? `${name}：本单角色 ${role} · 立场 ${stance}` : `${name}：本单角色 ${role}`,
   findingCommitment: (direction: string, due: string, statement: string) => `${direction} · ${due} 前：${statement}`,
+  // 推进计划生成 (deal batch 5c)
+  planGenerate: "生成计划草案",
+  planGenerating: "生成中…",
+  planDone: (n: number) => (n > 0 ? `起草了 ${n} 步，在推进计划下逐条采纳` : "这次没有起草出可用的步骤"),
+  planCached: (n: number) => `条件与承诺没有变化，沿用今天的草案（${n} 步）`,
+  findingPlanStep: (direction: string, due: string, statement: string, criterion: string) =>
+    `${direction} · ${due} 前：${statement} · 对应「${criterion}」`,
   findingQuote: (source: string | null, quote: string) => `${source ? `${source}：` : ""}「${quote}」`,
   processTitle: "怎么决策、怎么签",
   reasonsFilled: (n: number, total: number) => `${n}/${total} 项已写明`,
@@ -7058,4 +7068,19 @@ export const EXIT_CRITERION_ERROR: Record<string, string> = {
   criterion_kind_locked: "判定方式不能改，删掉这条再加一条",
   criterion_on_terminal: "已关闭的阶段没有退出条件",
   unknown_stage: "这个阶段不在本工作区的阶段目录里",
+};
+
+/** 生成计划草案的失败回执 (deal batch 5c)。 */
+export const PLAN_DRAFT_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在，或不属于当前工作区",
+  no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
+  tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用，这次没有起草",
+  plan_no_goals: "本阶段的退出条件都满足了，下一阶段也没有设条件——没有要推进的目标",
+  plan_deal_closed: "商机已关闭，不再起草推进计划",
+  empty_question: "起草请求为空",
+  quota_exceeded: "本工作区的参谋调用额度已用完",
+  turn_failed: "这次起草没完成（模型暂不可用），稍后再试",
+  unknown: "这次起草没完成，稍后再试",
 };
