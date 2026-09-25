@@ -6893,6 +6893,11 @@ export const DEAL_PAGE_TEXT = {
   editRoles: "编辑决策角色",
   // 栏1 · 客户引用
   customerTitle: (name: string) => `客户 · ${name}`,
+  // 客户信息 (owner 2026-09-25): 概要 + 标题链到客户详情页
+  customerInfoTitle: "客户信息",
+  customerTitleHint: (name: string) => `打开客户详情：${name}`,
+  customerName: "客户名称",
+  customerIndustryRegion: "行业 · 区域",
   customerTier: "客户级别",
   customerHealth: "客户健康",
   customerOpenDeals: "本客户其他在办",

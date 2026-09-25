@@ -434,12 +434,16 @@ export function DealCustomerPanel({
       style={CARD_VEIL_STYLE}
       className={CARD_VEIL_CLASS}
       icon="buildings"
+      // 客户信息 (owner 2026-09-25): the title IS the way to the customer
+      // page - underlined on hover, the tooltip says where it goes.
       title={
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="block min-w-0 truncate">{DEAL_PAGE_TEXT.customerTitle(name)}</span>
+            <Link href={href} className="block min-w-0 truncate hover:text-primary hover:underline">
+              {DEAL_PAGE_TEXT.customerInfoTitle}
+            </Link>
           </TooltipTrigger>
-          <TooltipContent>{name}</TooltipContent>
+          <TooltipContent>{DEAL_PAGE_TEXT.customerTitleHint(name)}</TooltipContent>
         </Tooltip>
       }
       summary={summary}
@@ -470,10 +474,6 @@ export function DealCustomerPanel({
             {accountLevel.label}
           </Link>
         ) : null}
-        {/* Read-only: the "⋮" 编辑 says so; the way out is one link. */}
-        <Link href={href} className="text-primary self-end text-body-sm hover:underline" title={DEAL_PAGE_TEXT.customerReadOnly}>
-          {DEAL_PAGE_TEXT.customerOpen}
-        </Link>
       </div>
     </CollapsibleSection>
   );
