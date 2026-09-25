@@ -73,6 +73,12 @@ Concrete values below are the ones derived at instantiation
       platform as a counter metric before consume accepts it - asked on #329.
       Until then the events stay buffered (the normal state) and the replay
       probe on /platform-check cannot pass.
+- [ ] C3 upstream metric `yucer.advisor.runs` (owner, 2026-09-24, YC-042 §04:
+      one advisor run that reached the model; cache hits are not charged) is
+      recorded at `runAdvisor()`, keyed `yucer.advisor.runs:<run id>`. Same shape
+      as the turns metric - counter, pool, monthly reset, unit 次 - and must be
+      REGISTERED (product_metrics) before consume accepts it. Until then its
+      events stay buffered, the normal state.
 - [x] Recurring jobs: ADR-033 (2026-09-14) - the container keeps its own clock;
       `commitment-sweep` and `usage-flush` run from `instrumentation.ts` on a
       deployed stage, one run per period via a Redis lock, reported on

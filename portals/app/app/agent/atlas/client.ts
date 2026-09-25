@@ -34,6 +34,15 @@ export interface AtlasContext {
   /** Lets an operator find this exact call in /capability/logs?requestId=. */
   requestId?: string;
   /**
+   * Which capability this call serves, and the business object it belongs to
+   * (YC-042 §04). The C3 usage body has no dimension field, so the split of
+   * model spend by advisor capability rides here: featureId = the ADR-015 key
+   * (a session sends "copilot.chat"), businessId = the run id or the user
+   * message id - the same object the usage event's idempotency key names.
+   */
+  featureId?: string;
+  businessId?: string;
+  /**
    * MANDATORY since Atlas v0.15.0 - a call without it is 400 TASK_ID_REQUIRED.
    *
    * Required rather than optional on purpose: making it optional would let a
@@ -171,6 +180,8 @@ export class AtlasClient {
       applicationType: "agent",
       applicationId: ctx.applicationId,
       requestId: ctx.requestId,
+      featureId: ctx.featureId,
+      businessId: ctx.businessId,
       ...req,
       // AFTER the spread, not before. Mandatory since v0.15.0, and a caller
       // passing `taskId: undefined` would otherwise blank it and get a 400 -

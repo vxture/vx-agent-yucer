@@ -446,6 +446,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_gtm.segment_coverage_snapshot",
   // incr/0074. Same discipline for territory attainment.
   "yucer_gtm.territory_attainment_snapshot",
+  // incr/0083. A generation is what the model said for one fingerprint; a
+  // stale one is evicted (DELETE), never rewritten.
+  "yucer_agent.agent_briefing",
 ];
 
 /**

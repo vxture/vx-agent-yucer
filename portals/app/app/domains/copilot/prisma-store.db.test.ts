@@ -42,6 +42,7 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_agent.agent_playbook WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_agent.agent_autonomy WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_agent.agent_session WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_agent.agent_briefing WHERE workspace_id = $1`, [WS]);
   });
 }
 
@@ -547,6 +548,60 @@ test("an unrecognised snooze urgency is refused by the real CHECK", { skip }, as
         }),
       /judgement_snooze_urgency_ck/,
     );
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- agent_briefing (incr/0083) ------------------------------------------------
+
+test("a briefing is kept once per fingerprint; the service role may evict it but never rewrite it", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const key = {
+      subjectType: "account" as const,
+      subjectId: "acc_1",
+      kind: "consistency_check" as const,
+      inputHash: "a".repeat(64),
+    };
+    assert.equal(await s.findBriefing(WS, key), null);
+    const first = await s.saveBriefing(WS, { ...key, capability: "account.consistency", content: { conflicts: 1 }, model: "chat/reasoning" });
+    // A concurrent run of the same input: the unique key keeps one row, and
+    // the second writer is handed the first's.
+    const second = await s.saveBriefing(WS, { ...key, capability: "account.consistency", content: { conflicts: 9 }, model: "chat/reasoning" });
+    assert.equal(second.id, first.id);
+    assert.deepEqual((await s.findBriefing(WS, key))?.content, { conflicts: 1 });
+
+    await withPg(async (c) => {
+      await c.query(`SET ROLE yucer_svc`);
+      try {
+        await assert.rejects(
+          c.query(`UPDATE yucer_agent.agent_briefing SET content = '{}' WHERE workspace_id = $1`, [WS]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_agent.agent_briefing (workspace_id, subject_type, subject_id, kind, capability, input_hash, content, model)
+             VALUES ($1, 'lead', 'x', 'situation', 'c', $2, '{}', 'm')`,
+            [WS, "b".repeat(64)],
+          ),
+          /chk_agent_briefing_subject/,
+        );
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_agent.agent_briefing (workspace_id, subject_type, subject_id, kind, capability, input_hash, content, model)
+             VALUES ($1, 'account', 'x', 'situation', 'c', 'not-a-hash', '{}', 'm')`,
+            [WS],
+          ),
+          /chk_agent_briefing_hash/,
+        );
+        await c.query(`DELETE FROM yucer_agent.agent_briefing WHERE workspace_id = $1`, [WS]);
+      } finally {
+        await c.query(`RESET ROLE`);
+      }
+    });
+    assert.equal(await s.findBriefing(WS, key), null, "evicted");
   } finally {
     await cleanup();
   }

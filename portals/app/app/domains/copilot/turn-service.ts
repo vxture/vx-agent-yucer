@@ -66,6 +66,12 @@ export interface TurnInput {
   admitProposal?: (p: { actionType: string; payload: Record<string, unknown> }) => boolean;
   /** ADR-015 group stamped on the proposals this turn writes. Absent: none, as before. */
   capability?: string;
+  /**
+   * Set when this turn IS an advisor run (runAdvisor): the run's own tags for
+   * Atlas replace the session's. Absent: a member's turn - featureId
+   * "copilot.chat", businessId the question's message id (YC-042 §04).
+   */
+  advisorRun?: { readonly featureId: string; readonly runId: string };
 }
 
 export interface TurnOutput {
@@ -78,6 +84,9 @@ export interface TurnOutput {
   invocations: TurnResult["invocations"];
   truncated: boolean;
 }
+
+/** Atlas featureId for a member's session turn (YC-042 §04). */
+export const COPILOT_CHAT_FEATURE = "copilot.chat";
 
 export interface TurnDeps {
   atlasClient: AtlasClient;
@@ -187,9 +196,12 @@ export async function runCopilotTurn(
     workspaceId: ctx.workspaceId,
     tenantId: input.tenantId,
     subjectToken: input.subjectToken,
-    applicationId: session.id,
+    // An advisor run groups under its run id; a member's turn under the session.
+    applicationId: input.advisorRun?.runId ?? session.id,
     requestId: `${session.id}:${history.length}`,
     taskId,
+    featureId: input.advisorRun?.featureId ?? COPILOT_CHAT_FEATURE,
+    businessId: input.advisorRun?.runId ?? asked.id,
   };
   const runos: RunosContext = {
     workspaceId: ctx.workspaceId,

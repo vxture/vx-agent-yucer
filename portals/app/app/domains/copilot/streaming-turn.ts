@@ -1,3 +1,4 @@
+import { COPILOT_CHAT_FEATURE } from "./turn-service";
 // A streamed copilot turn.
 //
 // The reason this is a separate function rather than a flag on runCopilotTurn:
@@ -170,6 +171,10 @@ export async function* streamCopilotTurn(
     // identifies the agent task, and a streamed answer is the same task as the
     // non-streamed one. Suffixing it would split one task's spend in two.
     taskId: `${session.id}:${history.length}`.slice(0, ATLAS_TASK_ID_MAX),
+    // A member's turn (YC-042 §04): the session feature, and the question -
+    // the object the turn's usage event is keyed by.
+    featureId: COPILOT_CHAT_FEATURE,
+    businessId: asked.id,
   };
 
   let answer = "";

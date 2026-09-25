@@ -3469,6 +3469,10 @@ export const en: Dictionary = {
   },
 
   CONSISTENCY_TEXT: {
+    unchanged: (n: number) =>
+      n > 0
+        ? `No new follow-ups since the last check: ${n} suspected conflict(s) are already in the queue`
+        : "No new follow-ups since the last check: nothing disagreed",
     button: "Check consistency",
     checking: "Checking...",
     never: "Nobody here has checked whether these follow-ups agree",
@@ -3485,6 +3489,7 @@ export const en: Dictionary = {
 
   CONSISTENCY_ERROR: {
     ...GATE_ERROR,
+    advisor_not_admitted: "The platform has not admitted advisor runs for this workspace, so nothing was checked",
     no_active_tenant: "This workspace has no platform tenant yet, so the model cannot be called",
     not_found: "No such customer, or it belongs to another workspace",
     quota_exceeded: "This workspace's copilot quota is used up",

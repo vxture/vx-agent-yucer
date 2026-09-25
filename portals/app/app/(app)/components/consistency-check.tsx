@@ -53,7 +53,9 @@ export function ConsistencyCheck({
         title:
           r.checkedNotes < 2
             ? CONSISTENCY_TEXT.tooFew
-            : r.conflicts > 0
+            : r.unchanged
+              ? CONSISTENCY_TEXT.unchanged(r.conflicts)
+              : r.conflicts > 0
               ? CONSISTENCY_TEXT.found(r.conflicts)
               : CONSISTENCY_TEXT.clean(r.checkedNotes),
       });
