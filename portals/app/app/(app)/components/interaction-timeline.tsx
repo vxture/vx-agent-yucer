@@ -66,6 +66,9 @@ export interface InteractionTimelineProps {
    *  一次"跟进记录", 卡自己的标题再说一遍是重复。 */
   readonly hideTitle?: boolean;
   readonly action?: React.ReactNode;
+  /** The deal page's 沟通记录 (YC-072 .lg): one dashed line per touch -
+   *  date, channel, what was said, who - inside a panel that is the card. */
+  readonly rows?: boolean;
 }
 
 export function InteractionTimeline({
@@ -74,6 +77,7 @@ export function InteractionTimeline({
   hideDescription,
   hideTitle,
   action: externalAction,
+  rows,
 }: InteractionTimelineProps) {
   const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
   const nameOf = useMemberName();
@@ -101,6 +105,41 @@ export function InteractionTimeline({
         {expandButton}
       </span>
     ) : null;
+
+  if (rows) {
+    if (items.length === 0) return <p className="text-muted-foreground text-body-sm">{FIELD_TEXT.recordEmpty}</p>;
+    return (
+      <div className="flex flex-col">
+        <ol className="flex flex-col">
+          {shown.map((i) => (
+            <li
+              key={i.id}
+              className="border-border grid grid-cols-[3.25rem_3.5rem_minmax(0,1fr)_auto] items-baseline gap-sm border-b border-dashed py-xs text-[12px] last:border-b-0"
+            >
+              <time
+                className="text-muted-foreground font-mono tabular-nums"
+                dateTime={i.occurredAt.toISOString()}
+                title={i.occurredAt.toISOString().slice(0, 10)}
+              >
+                {i.occurredAt.toISOString().slice(5, 10)}
+              </time>
+              <span className="text-muted-foreground truncate">{CHANNEL_LABEL[i.channel] ?? i.channel}</span>
+              <span className="text-foreground line-clamp-2 min-w-0" title={i.rawNote}>
+                {i.correctsInteractionId ? (
+                  <StatusBadge tone="warning">{FIELD_TEXT.timelineCorrects}</StatusBadge>
+                ) : null}{" "}
+                {i.rawNote}
+              </span>
+              <span className="text-muted-foreground text-[11px] whitespace-nowrap">
+                {i.actorName ?? nameOf(i.actorSub)}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {expandButton ? <span className="self-start">{expandButton}</span> : null}
+      </div>
+    );
+  }
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释).

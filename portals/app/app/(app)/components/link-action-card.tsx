@@ -19,15 +19,17 @@ export function LinkActionCard({
   reason,
   href,
   cta,
+  source,
 }: {
   readonly severity: BriefTone;
   readonly title: string;
   readonly reason: string;
   readonly href: string;
   readonly cta: string;
+  readonly source?: "rule" | null;
 }) {
   return (
-    <ActionCard severity={severity} title={title} reason={reason}>
+    <ActionCard severity={severity} title={title} reason={reason} source={source}>
       <Button asChild size="sm" variant="outline">
         <a href={href}>{cta}</a>
       </Button>

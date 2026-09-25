@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button, StatusBadge } from "@vxture/design-ui";
-import { Tag } from "./tag";
+import { SOURCE_CHIP_MODEL } from "./deal-tone";
 import { useMessages } from "../lib/i18n/provider";
 import type { Decision } from "../../domains/copilot/lib/action";
 
@@ -61,25 +61,28 @@ export function AdvisorFinding({
   return (
     <div className="flex flex-col gap-xs">
       {shown.map((i) => (
-        // STACKED, so it reads the same in 栏1's narrow column and 栏2's
-        // wide one: the mark and the two verbs on top, then what it says,
-        // then the words it rests on.
-        <div key={i.id} className="border-primary/20 bg-primary/5 flex flex-col gap-2xs rounded-md border border-dashed p-xs text-body-sm">
-          <div className="flex items-center justify-between gap-xs">
-            <Tag tone="info">{DEAL_PAGE_TEXT.findingSource}</Tag>
-            {i.decidable ? (
-              <span className="flex flex-none items-center gap-xs">
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => decide(i.id, "reject")}>
-                  {DEAL_PAGE_TEXT.findingIgnore}
-                </Button>
-                <Button size="sm" disabled={pending} onClick={() => decide(i.id, "accept")}>
-                  {DEAL_PAGE_TEXT.findingAccept}
-                </Button>
-              </span>
-            ) : null}
+        // ONE WRAPPING ROW (YC-072 .finding): the mark, what it says with the
+        // words it rests on under it, the two verbs at the end - on the same
+        // line in 栏2's wide column, wrapped under the text in 栏1's narrow one.
+        <div
+          key={i.id}
+          className="border-primary/40 bg-card flex flex-wrap items-center gap-x-sm gap-y-2xs rounded-md border border-dashed px-sm py-xs text-body-sm"
+        >
+          <span className={SOURCE_CHIP_MODEL}>{DEAL_PAGE_TEXT.findingSource}</span>
+          <div className="min-w-0 flex-[1_1_200px]">
+            <p className="text-foreground">{i.text}</p>
+            {i.quote ? <p className="text-muted-foreground text-[11px]">{DEAL_PAGE_TEXT.findingQuote(i.source, i.quote)}</p> : null}
           </div>
-          <p className="text-foreground">{i.text}</p>
-          {i.quote ? <p className="text-muted-foreground">{DEAL_PAGE_TEXT.findingQuote(i.source, i.quote)}</p> : null}
+          {i.decidable ? (
+            <span className="ml-auto flex flex-none items-center gap-2xs">
+              <Button size="xs" variant="outline" disabled={pending} onClick={() => decide(i.id, "reject")}>
+                {DEAL_PAGE_TEXT.findingIgnore}
+              </Button>
+              <Button size="xs" disabled={pending} onClick={() => decide(i.id, "accept")}>
+                {DEAL_PAGE_TEXT.findingAccept}
+              </Button>
+            </span>
+          ) : null}
         </div>
       ))}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}

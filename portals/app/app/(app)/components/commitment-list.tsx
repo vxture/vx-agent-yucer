@@ -81,6 +81,8 @@ export interface CommitmentListProps {
    *  清单) - 那边这张卡挂在"承诺 (N)"这个 tab 里面, tab 本身已经说过一次
    *  "承诺", 卡自己的标题再说一遍是重复。 */
   readonly hideTitle?: boolean;
+  /** The deal page's 推进计划 rows (YC-072 .pl) instead of a card of its own. */
+  readonly rows?: boolean;
 }
 
 const DAY = 86_400_000;
@@ -96,6 +98,7 @@ export function CommitmentList({
   onSettle,
   hideDescription,
   hideTitle,
+  rows,
 }: CommitmentListProps) {
   const { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } =
     useMessages();
@@ -123,53 +126,10 @@ export function CommitmentList({
   const open = items.filter((c) => c.status === "open");
   const settled = items.filter((c) => c.status !== "open");
 
-  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
-  // org-unit-panel.tsx 同名注释).
-  return (
-    <Section
-      tone="raised"
-      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
-      title={hideTitle ? undefined : FIELD_TEXT.commitTitle}
-      description={hideDescription ? undefined : FIELD_TEXT.commitDescription}
-    >
-      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-
-      {items.length === 0 ? (
-        <EmptyState
-          title={FIELD_TEXT.commitEmpty}
-          description={FIELD_TEXT.commitEmptyDescription}
-        />
-      ) : null}
-
-      {open.map((c) => {
-        const overdue = isOverdue({ status: "open", dueAt: c.dueAt }, at);
-        const days = Math.floor(
-          Math.abs(at.getTime() - c.dueAt.getTime()) / DAY,
-        );
-        const chosen = picked[c.id] ?? "";
-        return (
-          <div key={c.id} className="border-border flex flex-col gap-xs border-b py-xs last:border-b-0">
-            <div className="flex items-center gap-xs">
-              <PartyBadge direction={c.direction} text={FIELD_TEXT} />
-              <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-sm" />
-              <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
-                {overdue
-                  ? FIELD_TEXT.commitDaysOverdue(days)
-                  : FIELD_TEXT.commitDueIn(days)}
-              </Tag>
-              {canWrite ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-expanded={handling === c.id}
-                  onClick={() => setHandling(handling === c.id ? null : c.id)}
-                >
-                  {handling === c.id ? FIELD_TEXT.commitHandleClose : FIELD_TEXT.commitHandle}
-                </Button>
-              ) : null}
-            </div>
-
-            {canWrite && handling === c.id ? (
+  // The closing form, shared by both layouts - one row's at a time.
+  const closeForm = (id: string, overdue: boolean, chosen: string) => {
+    const c = { id };
+    return (
               <div className="bg-muted/40 border-border flex flex-col gap-xs rounded-md border p-sm">
                 {/* Closing needs proof. The picker IS the requirement. */}
                 <div className="flex flex-wrap items-center gap-xs">
@@ -256,7 +216,122 @@ export function CommitmentList({
                   </Button>
                 </div>
               </div>
+);
+  };
+
+  // 推进计划 rows (YC-072 .pl, the deal page): due date, whose, what, when -
+  // one dashed line each, no card of its own; the panel is the card.
+  if (rows) {
+    return (
+      <div className="flex flex-col">
+        {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+        {items.length === 0 ? (
+          <p className="text-muted-foreground py-xs text-body-sm">
+            {FIELD_TEXT.commitEmpty}
+            {canWrite ? (
+              <>
+                {" · "}
+                <a href={captureHref} className="text-primary hover:underline">
+                  {FIELD_TEXT.commitCreate}
+                </a>
+              </>
             ) : null}
+          </p>
+        ) : null}
+        {[...open, ...settled].map((c) => {
+          const isOpen = c.status === "open";
+          const overdue = isOpen && isOverdue({ status: "open", dueAt: c.dueAt }, at);
+          const days = Math.floor(Math.abs(at.getTime() - c.dueAt.getTime()) / DAY);
+          return (
+            <div key={c.id} className="border-border flex flex-col gap-xs border-b border-dashed py-xs last:border-b-0">
+              <div className="grid grid-cols-[3.25rem_2.75rem_minmax(0,1fr)_auto_auto] items-center gap-sm text-body-sm">
+                <time className="text-muted-foreground font-mono tabular-nums" dateTime={c.dueAt.toISOString()} title={c.dueAt.toISOString().slice(0, 10)}>
+                  {c.dueAt.toISOString().slice(5, 10)}
+                </time>
+                <PartyBadge direction={c.direction} text={FIELD_TEXT} />
+                <TruncatedText
+                  text={c.statement}
+                  className={`min-w-0 truncate ${isOpen ? "text-foreground" : "text-muted-foreground line-through"}`}
+                />
+                <span
+                  className={`text-[11.5px] whitespace-nowrap ${
+                    overdue ? "text-destructive-text font-bold" : "text-muted-foreground"
+                  }`}
+                >
+                  {isOpen
+                    ? overdue
+                      ? FIELD_TEXT.commitDaysOverdue(days)
+                      : FIELD_TEXT.commitDueIn(days)
+                    : (COMMIT_STATUS_LABEL[c.status] ?? c.status)}
+                </span>
+                {canWrite && isOpen ? (
+                  <Button size="xs" variant="ghost" aria-expanded={handling === c.id} onClick={() => setHandling(handling === c.id ? null : c.id)}>
+                    {handling === c.id ? FIELD_TEXT.commitHandleClose : FIELD_TEXT.commitHandle}
+                  </Button>
+                ) : (
+                  <span />
+                )}
+              </div>
+              {canWrite && handling === c.id ? closeForm(c.id, overdue, picked[c.id] ?? "") : null}
+            </div>
+          );
+        })}
+        {canWrite && items.length > 0 ? (
+          <a href={captureHref} className="text-primary mt-2xs self-start text-body-sm hover:underline">
+            {FIELD_TEXT.commitCreate}
+          </a>
+        ) : null}
+      </div>
+    );
+  }
+
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
+  return (
+    <Section
+      tone="raised"
+      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
+      title={hideTitle ? undefined : FIELD_TEXT.commitTitle}
+      description={hideDescription ? undefined : FIELD_TEXT.commitDescription}
+    >
+      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+
+      {items.length === 0 ? (
+        <EmptyState
+          title={FIELD_TEXT.commitEmpty}
+          description={FIELD_TEXT.commitEmptyDescription}
+        />
+      ) : null}
+
+      {open.map((c) => {
+        const overdue = isOverdue({ status: "open", dueAt: c.dueAt }, at);
+        const days = Math.floor(
+          Math.abs(at.getTime() - c.dueAt.getTime()) / DAY,
+        );
+        const chosen = picked[c.id] ?? "";
+        return (
+          <div key={c.id} className="border-border flex flex-col gap-xs border-b py-xs last:border-b-0">
+            <div className="flex items-center gap-xs">
+              <PartyBadge direction={c.direction} text={FIELD_TEXT} />
+              <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-sm" />
+              <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
+                {overdue
+                  ? FIELD_TEXT.commitDaysOverdue(days)
+                  : FIELD_TEXT.commitDueIn(days)}
+              </Tag>
+              {canWrite ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-expanded={handling === c.id}
+                  onClick={() => setHandling(handling === c.id ? null : c.id)}
+                >
+                  {handling === c.id ? FIELD_TEXT.commitHandleClose : FIELD_TEXT.commitHandle}
+                </Button>
+              ) : null}
+            </div>
+
+            {canWrite && handling === c.id ? closeForm(c.id, overdue, chosen) : null}
           </div>
         );
       })}

@@ -1,4 +1,3 @@
-import { Tag } from "./tag";
 import { getMessages } from "../lib/i18n/server";
 import { stageLabelFor } from "../lib/view-model";
 import type { StageDefinition } from "../../domains/pipeline/lib/stage";
@@ -65,38 +64,48 @@ export async function ChangeHistory({
     })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
+  // Folded by default (YC-072 .hist): the history is looked up, not read
+  // every visit. MM-DD in the row, the full date on hover.
   return (
-    <div className="flex flex-col">
+    <details className="group">
+      <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-[11.5px] font-bold">
+        {DEAL_PAGE_TEXT.historyFold(rows.length)}
+      </summary>
       {rows.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.historyEmpty}</p>
+        <p className="text-muted-foreground mt-xs text-body-sm">{DEAL_PAGE_TEXT.historyEmpty}</p>
       ) : (
-        <ol className="flex flex-col">
+        <ol className="mt-2xs flex flex-col">
           {rows.map((r) => (
             <li
               key={r.id}
-              className="border-border grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-start gap-sm border-b py-xs text-body-sm last:border-b-0"
+              className="border-border grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-sm border-b border-dashed py-xs text-[12px] last:border-b-0"
             >
-              <time className="text-muted-foreground tabular-nums" dateTime={r.at.toISOString()}>
-                {r.at.toISOString().slice(0, 10)}
+              <time
+                className="text-muted-foreground font-mono tabular-nums"
+                dateTime={r.at.toISOString()}
+                title={r.at.toISOString().slice(0, 10)}
+              >
+                {r.at.toISOString().slice(5, 10)}
               </time>
               <span className="min-w-0">
-                {r.stage ? <Tag>{r.text}</Tag> : r.text}
+                {r.text}
+                {r.reason ? <span className="text-muted-foreground"> · {DEAL_PAGE_TEXT.historyReason(r.reason)}</span> : null}
                 {r.exit ? (
                   <span
-                    className={`ml-xs ${r.exit.unmet.length > 0 ? "text-(color:--warning-text)" : "text-muted-foreground"}`}
+                    className={r.exit.unmet.length > 0 ? "text-(color:--warning-text)" : "text-muted-foreground"}
                     title={r.exit.unmet.length > 0 ? DEAL_PAGE_TEXT.historyExitUnmet(r.exit.unmet) : undefined}
                   >
+                    {" · "}
                     {DEAL_PAGE_TEXT.historyExit(r.exit.met.length, r.exit.met.length + r.exit.unmet.length + r.exit.unknown.length)}
                   </span>
                 ) : null}
-                {r.reason ? <span className="text-muted-foreground block">{DEAL_PAGE_TEXT.historyReason(r.reason)}</span> : null}
               </span>
-              <span className="text-muted-foreground whitespace-nowrap">{r.by}</span>
+              <span className="text-muted-foreground text-[11px] whitespace-nowrap">{r.by}</span>
             </li>
           ))}
         </ol>
       )}
-      <p className="text-muted-foreground mt-xs text-body-sm">{DEAL_PAGE_TEXT.historySince}</p>
-    </div>
+      <p className="text-muted-foreground mt-xs text-[11px]">{DEAL_PAGE_TEXT.historySince}</p>
+    </details>
   );
 }
