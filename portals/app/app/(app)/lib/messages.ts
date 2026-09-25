@@ -7005,6 +7005,7 @@ export const DEAL_PAGE_TEXT = {
   processTitle: "怎么决策、怎么签",
   reasonsFilled: (n: number, total: number) => `${n}/${total} 项已写明`,
   processUnwritten: "流程未写明",
+  processPanelTitle: "决策流程",
   statusQuoSignal: "有不作为信号",
   // 栏2
   todo: "待动手的事",

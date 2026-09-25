@@ -349,8 +349,7 @@ export function DealDecisionPanel({
         {people.length === 0 ? (
           <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.decisionEmpty}</p>
         ) : (
-          // Two across in 栏2's width; one person is still one card.
-          <div className="grid gap-x-lg sm:grid-cols-2">
+          <div className="flex flex-col">
           {people.map((p) => (
             <ContactCard
               key={p.id}

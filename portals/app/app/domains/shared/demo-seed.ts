@@ -505,6 +505,20 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         wechat: "zj_cs_ops",
       }),
       contact("ct_13", workspaceId, "acc_demo_3", DEMO_CONTACTS[9]),
+      // acc_demo_6 西部能源装备 (opp_demo_11 技改能效监测, opp_demo_15 会员中台改造)
+      contact("ct_14", workspaceId, "acc_demo_6", DEMO_CONTACTS[10], { mobile: "+86 139 0000 6001" }),
+      contact("ct_15", workspaceId, "acc_demo_6", DEMO_CONTACTS[11], { email: "gaoyuan@xbny.example.cn" }),
+      contact("ct_16", workspaceId, "acc_demo_6", DEMO_CONTACTS[12], { wechat: "tt_energy" }),
+      // acc_demo_7 东海精密仪器 (opp_demo_12 实验室数据对接, opp_demo_13 调度平台续约)
+      contact("ct_17", workspaceId, "acc_demo_7", DEMO_CONTACTS[13], { email: "xuming@dhjm.example.cn" }),
+      contact("ct_18", workspaceId, "acc_demo_7", DEMO_CONTACTS[14], { mobile: "+86 139 0000 7002" }),
+      contact("ct_19", workspaceId, "acc_demo_7", DEMO_CONTACTS[15]),
+      // acc_demo_8 中原重工集团 (opp_demo_19 重工产线数字化)
+      contact("ct_20", workspaceId, "acc_demo_8", DEMO_CONTACTS[16]),
+      contact("ct_21", workspaceId, "acc_demo_8", DEMO_CONTACTS[17], { wechat: "fx_digital" }),
+      // acc_demo_9 港澳零售集团 (opp_demo_20 港澳仓配网络升级)
+      contact("ct_22", workspaceId, "acc_demo_9", DEMO_CONTACTS[18], { email: "leung@hkmo-retail.example.com" }),
+      contact("ct_23", workspaceId, "acc_demo_9", DEMO_CONTACTS[19]),
     ],
     // incr/0027, ADR-024 batch D. THE POINT OF THE WHOLE BATCH, in five rows.
     //
@@ -553,12 +567,41 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       oc("oc_13", workspaceId, "opp_demo_3", "ct_11", "technical", 65, "neutral"),
       oc("oc_14", workspaceId, "opp_demo_3", "ct_12", "coach", 55, "champion"),
       oc("oc_15", workspaceId, "opp_demo_3", "ct_13", "user", 35, "supporter"),
+      // The same people on the same customer's two deals, different roles -
+      // the per-deal point oc_1-oc_4 make, here for acc_demo_6 and acc_demo_7.
+      oc("oc_16", workspaceId, "opp_demo_11", "ct_14", "economic", 80, "supporter"),
+      oc("oc_17", workspaceId, "opp_demo_11", "ct_15", "technical", 55, "neutral"),
+      oc("oc_18", workspaceId, "opp_demo_11", "ct_16", "coach", 45, "champion"),
+      oc("oc_19", workspaceId, "opp_demo_15", "ct_15", "economic", 85, "neutral"),
+      oc("oc_20", workspaceId, "opp_demo_15", "ct_14", "user", 50, "supporter"),
+      oc("oc_21", workspaceId, "opp_demo_15", "ct_16", "coach", 45, "champion"),
+      oc("oc_22", workspaceId, "opp_demo_12", "ct_17", "economic", 85, "supporter"),
+      oc("oc_23", workspaceId, "opp_demo_12", "ct_18", "coach", 60, "champion"),
+      oc("oc_24", workspaceId, "opp_demo_12", "ct_19", "user", 40, "neutral"),
+      oc("oc_25", workspaceId, "opp_demo_13", "ct_19", "economic", 75, "champion"),
+      oc("oc_26", workspaceId, "opp_demo_13", "ct_18", "coach", 45, "supporter"),
+      oc("oc_27", workspaceId, "opp_demo_19", "ct_20", "economic", 90, "neutral"),
+      oc("oc_28", workspaceId, "opp_demo_19", "ct_21", "coach", 70, "champion"),
+      oc("oc_29", workspaceId, "opp_demo_20", "ct_22", "economic", 85, "supporter"),
+      oc("oc_30", workspaceId, "opp_demo_20", "ct_23", "technical", 60, "neutral"),
     ],
     relations: [
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_3", toContactId: "ct_1", relationType: "reports_to" },
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_2", toContactId: "ct_1", relationType: "reports_to" },
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_4", toContactId: "ct_1", relationType: "opposed_to" },
       { workspaceId, accountId: "acc_demo_2", fromContactId: "ct_6", toContactId: "ct_5", relationType: "reports_to" },
+      // The customers filled in on 2026-09-25: each coach reaches the buyer
+      // through someone on file. acc_demo_9 (opp_demo_20) is left with no
+      // coach, the second honest "unreachable" case beside acc_demo_4.
+      { workspaceId, accountId: "acc_demo_3", fromContactId: "ct_12", toContactId: "ct_10", relationType: "reports_to" },
+      { workspaceId, accountId: "acc_demo_3", fromContactId: "ct_13", toContactId: "ct_12", relationType: "reports_to" },
+      { workspaceId, accountId: "acc_demo_3", fromContactId: "ct_11", toContactId: "ct_10", relationType: "peer_of" },
+      { workspaceId, accountId: "acc_demo_6", fromContactId: "ct_16", toContactId: "ct_14", relationType: "reports_to" },
+      { workspaceId, accountId: "acc_demo_6", fromContactId: "ct_15", toContactId: "ct_14", relationType: "peer_of" },
+      { workspaceId, accountId: "acc_demo_7", fromContactId: "ct_18", toContactId: "ct_17", relationType: "reports_to" },
+      { workspaceId, accountId: "acc_demo_7", fromContactId: "ct_19", toContactId: "ct_18", relationType: "peer_of" },
+      { workspaceId, accountId: "acc_demo_8", fromContactId: "ct_21", toContactId: "ct_20", relationType: "reports_to" },
+      { workspaceId, accountId: "acc_demo_9", fromContactId: "ct_23", toContactId: "ct_22", relationType: "reports_to" },
     ],
     // incr/0079: one earlier reading, so 变化归因 has something to explain.
     // A month ago the last contact was 18 days old, nothing was overdue and
@@ -782,6 +825,26 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       person("pt_25", "int_demo_d3c", "ct_13"),
       person("pt_26", "int_demo_d3c", "ct_12"),
       person("pt_27", "int_demo_d3d", "ct_12"),
+      person("pt_28", "int_demo_d11a", "ct_14"),
+      person("pt_29", "int_demo_d11a", "ct_16"),
+      person("pt_30", "int_demo_d11b", "ct_16"),
+      person("pt_31", "int_demo_d15a", "ct_15"),
+      person("pt_32", "int_demo_d15b", "ct_15"),
+      person("pt_33", "int_demo_d15b", "ct_14"),
+      person("pt_34", "int_demo_d15c", "ct_16"),
+      person("pt_35", "int_demo_d12a", "ct_17"),
+      person("pt_36", "int_demo_d12a", "ct_18"),
+      person("pt_37", "int_demo_d12b", "ct_18"),
+      person("pt_38", "int_demo_d12b", "ct_19"),
+      person("pt_39", "int_demo_d13a", "ct_19"),
+      person("pt_40", "int_demo_d13b", "ct_19"),
+      person("pt_41", "int_demo_d13b", "ct_18"),
+      person("pt_42", "int_demo_d19a", "ct_20"),
+      person("pt_43", "int_demo_d19a", "ct_21"),
+      person("pt_44", "int_demo_d19b", "ct_21"),
+      person("pt_45", "int_demo_d20a", "ct_22"),
+      person("pt_46", "int_demo_d20a", "ct_23"),
+      person("pt_47", "int_demo_d20b", "ct_23"),
     ],
     interactions: [
       // Five months on the flagship account, so the timeline shows a pursuit
@@ -832,6 +895,19 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       note("int_demo_d3b", "acc_demo_3", "meeting", 13, REP1, DEMO_DEAL_NOTES.d3_b, "opp_demo_3"),
       note("int_demo_d3c", "acc_demo_3", "visit", 8, REP1, DEMO_DEAL_NOTES.d3_c, "opp_demo_3"),
       note("int_demo_d3d", "acc_demo_3", "call", 3, REP1, DEMO_DEAL_NOTES.d3_d, "opp_demo_3"),
+      note("int_demo_d11a", "acc_demo_6", "visit", 18, REP1, DEMO_DEAL_NOTES.d11_a, "opp_demo_11"),
+      note("int_demo_d11b", "acc_demo_6", "call", 6, REP1, DEMO_DEAL_NOTES.d11_b, "opp_demo_11"),
+      note("int_demo_d15a", "acc_demo_6", "meeting", 25, REP2, DEMO_DEAL_NOTES.d15_a, "opp_demo_15"),
+      note("int_demo_d15b", "acc_demo_6", "email", 12, REP2, DEMO_DEAL_NOTES.d15_b, "opp_demo_15"),
+      note("int_demo_d15c", "acc_demo_6", "call", 4, REP2, DEMO_DEAL_NOTES.d15_c, "opp_demo_15"),
+      note("int_demo_d12a", "acc_demo_7", "visit", 20, REP1, DEMO_DEAL_NOTES.d12_a, "opp_demo_12"),
+      note("int_demo_d12b", "acc_demo_7", "meeting", 9, REP1, DEMO_DEAL_NOTES.d12_b, "opp_demo_12"),
+      note("int_demo_d13a", "acc_demo_7", "call", 15, REP2, DEMO_DEAL_NOTES.d13_a, "opp_demo_13"),
+      note("int_demo_d13b", "acc_demo_7", "email", 5, REP2, DEMO_DEAL_NOTES.d13_b, "opp_demo_13"),
+      note("int_demo_d19a", "acc_demo_8", "visit", 14, REP2, DEMO_DEAL_NOTES.d19_a, "opp_demo_19"),
+      note("int_demo_d19b", "acc_demo_8", "call", 3, REP2, DEMO_DEAL_NOTES.d19_b, "opp_demo_19"),
+      note("int_demo_d20a", "acc_demo_9", "meeting", 11, REP1, DEMO_DEAL_NOTES.d20_a, "opp_demo_20"),
+      note("int_demo_d20b", "acc_demo_9", "email", 2, REP1, DEMO_DEAL_NOTES.d20_b, "opp_demo_20"),
     ],
     commitments: [
       // Open and 41 days past its date. Nothing in the timeline since cites an
