@@ -31,6 +31,7 @@
 // rather than by the compiler - the same trade every prior vocabulary
 // (win-loss reason, industry) already made once its codes became tenant data.
 
+import type { ExitSnapshot } from "./exit-criteria";
 import { allOf, fail, ok, violation, type RuleResult, type Violation } from "../../shared/result";
 import { OPPORTUNITY_ABANDON_REASONS, OPPORTUNITY_LOSE_REASONS } from "../../shared/funnel-exit";
 import type { ForecastCategory } from "./forecast";
@@ -113,6 +114,14 @@ export interface StageChangeInput {
    * lost deal can no longer close without saying why.
    */
   exitReason?: { code: string; note?: string | null };
+  /**
+   * The current stage's exit check at the moment of the move (deal batch 5b,
+   * YC-065 R1). Moving FORWARD past unmet criteria is allowed - never a hard
+   * block - but needs a reason, and the snapshot goes into the journal with
+   * it. Absent (a caller that could not compute it): nothing is enforced and
+   * the journal says "not recorded".
+   */
+  exitCheck?: ExitSnapshot;
 }
 
 /** The funnel_exit row a close writes alongside its stage change. */
@@ -129,6 +138,8 @@ export interface StageEvent {
   reason: string | null;
   actorSub: string | null;
   occurredAt: Date;
+  /** The stage left, as checked when it was left (incr/0088). Absent / null = not recorded. */
+  exitCheck?: ExitSnapshot | null;
 }
 
 /** The whitelisted column updates that accompany the event. */
@@ -237,6 +248,16 @@ export function planStageChange(
       violation("reason_required", `moving back from ${current.stage} to ${input.to} requires a reason`, "reason"),
     );
   }
+  // 未满足推进须理由 (R1): forward past unmet exit criteria is a reminder with
+  // a required answer, not a block. A loss is not "moving past" - it has its
+  // own reason (R6).
+  const forward =
+    !input.reopen && !isRegression(current.stage, input.to, catalog) && statusFor(input.to, catalog) !== "lost";
+  if (forward && (input.exitCheck?.unmet.length ?? 0) > 0 && !input.reason?.trim()) {
+    checks.push(
+      violation("exit_unmet_reason_required", "moving on past unmet exit criteria requires a reason", "reason"),
+    );
+  }
 
   const invalid = checks.filter((c): c is Violation => c !== null);
   if (invalid.length > 0) return { ok: false, violations: invalid };
@@ -269,6 +290,7 @@ export function planStageChange(
         reason: input.reason?.trim() || null,
         actorSub: input.actorSub ?? null,
         occurredAt,
+        exitCheck: input.exitCheck ?? null,
       },
       patch,
       // One review per opportunity (unique on opportunity_id). Reopening and

@@ -310,6 +310,7 @@ export class PrismaPipelineStore implements PipelineStore {
           reason: plan.event.reason,
           actorSub: plan.event.actorSub,
           occurredAt: plan.event.occurredAt,
+          ...(plan.event.exitCheck ? { exitCheck: plan.event.exitCheck as object } : {}),
         },
       });
       // A LOSS WRITES ITS REASON IN THE SAME UNIT (YC-065 R6). funnel_exit is
@@ -564,11 +565,13 @@ export class PrismaPipelineStore implements PipelineStore {
         reason: string | null;
         actorSub: string | null;
         occurredAt: Date;
+        exitCheck?: unknown;
       }) => ({
         id: r.id,
         opportunityId: r.opportunityId,
         fromStage: r.fromStage as Stage | null,
         toStage: r.toStage as Stage,
+        exitCheck: (r.exitCheck ?? null) as StageEventRecord["exitCheck"],
         reason: r.reason,
         actorSub: r.actorSub,
         occurredAt: r.occurredAt,

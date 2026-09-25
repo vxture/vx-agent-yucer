@@ -17,7 +17,7 @@ import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
 import type { EvidenceVersion } from "./lib/evidence";
-import type { ExitCriterion } from "./lib/exit-criteria";
+import type { ExitCriterion, ExitSnapshot } from "./lib/exit-criteria";
 
 /** A deal's claimed values, as the claim log compares them (incr/0084). */
 export function claimStateOf(o: OpportunityRecord): ClaimState {
@@ -204,6 +204,8 @@ export interface StageEventRecord {
   reason: string | null;
   actorSub: string | null;
   occurredAt: Date;
+  /** incr/0088 - the stage left, as checked when it was left; null = not recorded. */
+  exitCheck?: ExitSnapshot | null;
 }
 
 export interface OpportunityFilter {

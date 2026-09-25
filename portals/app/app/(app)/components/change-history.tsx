@@ -17,6 +17,8 @@ export interface StageMove {
   readonly reason: string | null;
   readonly actorSub: string | null;
   readonly occurredAt: Date;
+  /** The stage left, as checked when it was left (incr/0088); null = not recorded. */
+  readonly exitCheck?: { readonly met: readonly string[]; readonly unmet: readonly string[]; readonly unknown: readonly string[] } | null;
 }
 
 export async function ChangeHistory({
@@ -50,6 +52,7 @@ export async function ChangeHistory({
       reason: c.reason,
       by: DEAL_PAGE_TEXT.historyBy(who(c.actorSub), DEAL_PAGE_TEXT.claimSource[c.source] ?? c.source),
       stage: false,
+      exit: null as StageMove["exitCheck"],
     })),
     ...stages.map((e) => ({
       id: e.id,
@@ -58,6 +61,7 @@ export async function ChangeHistory({
       reason: e.reason,
       by: who(e.actorSub),
       stage: true,
+      exit: e.exitCheck ?? null,
     })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
@@ -77,6 +81,14 @@ export async function ChangeHistory({
               </time>
               <span className="min-w-0">
                 {r.stage ? <Tag>{r.text}</Tag> : r.text}
+                {r.exit ? (
+                  <span
+                    className={`ml-xs ${r.exit.unmet.length > 0 ? "text-(color:--warning-text)" : "text-muted-foreground"}`}
+                    title={r.exit.unmet.length > 0 ? DEAL_PAGE_TEXT.historyExitUnmet(r.exit.unmet) : undefined}
+                  >
+                    {DEAL_PAGE_TEXT.historyExit(r.exit.met.length, r.exit.met.length + r.exit.unmet.length + r.exit.unknown.length)}
+                  </span>
+                ) : null}
                 {r.reason ? <span className="text-muted-foreground block">{DEAL_PAGE_TEXT.historyReason(r.reason)}</span> : null}
               </span>
               <span className="text-muted-foreground whitespace-nowrap">{r.by}</span>

@@ -1203,6 +1203,7 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
 
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
 export const PROPOSAL_ERROR: Record<string, string> = {
+  exit_unmet_reason_required: "本阶段还有退出条件未满足，请在商机页推进并写明理由",
   // Accepting a 证据抽取 proposal writes an evidence version (deal batch 4b).
   evidence_citation_foreign: "这条提案引用的不是本单的跟进，不予写入",
   evidence_slot_unknown: "提案给出的证据项不存在",
@@ -3235,6 +3236,8 @@ export const OPPORTUNITY_TEXT = {
     `${product} 的单价低于底价。签字记录的是这个价格，改价后签字自动失效。`,
   lineApproveReason: "为什么值得破这个底价",
   lineApproveCancel: "取消",
+  advanceExitUnmet: (n: number) => `本阶段还有 ${n} 条退出条件未满足——可以推进，但要写理由`,
+  advanceReasonRequiredExit: "推进过未满足的退出条件，需要写一句理由",
   termsReason: "变更理由（可选）",
   termsReasonRequired: "变更理由（必填）",
   termsReasonWhy: (suggested: string) => `规则建议「${suggested}」，调得更乐观需要写一句理由`,
@@ -3819,6 +3822,8 @@ export const FORECAST_ERROR: Record<string, string> = {
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  // YC-065 R1 未满足推进须理由 (deal batch 5b).
+  exit_unmet_reason_required: "本阶段还有退出条件未满足，推进需要写一句理由",
   // YC-065 R9 偏离规则须理由.
   category_reason_required: "把类别调得比规则建议更乐观，需要写一句理由",
   // incr/0082 - 本单定制说明 on a line.
@@ -6909,6 +6914,8 @@ export const DEAL_PAGE_TEXT = {
   historyBy: (who: string, source: string) => `${who} · ${source}`,
   historySystem: "系统",
   historyEmpty: "还没有变更",
+  historyExit: (met: number, total: number) => (total === 0 ? "离开时未设条件" : `离开时 ${met}/${total}`),
+  historyExitUnmet: (names: readonly string[]) => `未满足：${names.join("、")}`,
   historySince: "声明变更（金额、成交日、类别、赢率）自本功能上线起记录，之前的变化不补录",
   slipped: (n: number, days: number) => `推迟 ${n} 次 · 累计 ${days} 天`,
   slippedQuarter: "推出本季",

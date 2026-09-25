@@ -658,6 +658,50 @@ test("exit criteria hang off the stage catalog: FK, locked kind, cascade with th
       await pg.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1 AND stage_code = 'qualify'`, [WS]);
     });
     assert.equal((await s.listExitCriteria(WS)).length, 0, "cascaded with its stage");
+    // Put the stage back: later tests in this file journal moves out of qualify.
+    await s.upsertStageDefinition(WS, { stageCode: "qualify", name: "合格判定", defaultProbability: 10, isWon: false, isTerminal: false });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the stage journal keeps the exit check of the stage left - insert-only, an object or nothing", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    // The journal's stage codes must be in this workspace's catalog (FK).
+    for (const [code, prob] of [["qualify", 10], ["discover", 25]] as const) {
+      await s.upsertStageDefinition(WS, { stageCode: code, name: code, defaultProbability: prob, isWon: false, isTerminal: false });
+    }
+    const created = await s.createOpportunity(WS, newOpp());
+    const snapshot = { stage: "qualify", met: ["痛点已写明"], unmet: ["至少一位联系人在本单"], unknown: [] };
+    await s.applyStageChange(WS, created.id, {
+      event: { fromStage: "qualify", toStage: "discover", reason: "先推进", actorSub: "usr_a", occurredAt: new Date(), exitCheck: snapshot },
+      patch: { stage: "discover", status: "open", closedAt: null },
+      requiresWinLossReview: false,
+    });
+    const events = await s.listStageEvents(WS, created.id);
+    assert.deepEqual(events.find((e) => e.toStage === "discover")?.exitCheck, snapshot);
+    await withPg(async (pg) => {
+      await pg.query(`SET ROLE yucer_svc`);
+      try {
+        await assert.rejects(
+          pg.query(`UPDATE yucer_pipeline.opportunity_stage_event SET exit_check = NULL WHERE opportunity_id = $1`, [created.id]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          pg.query(
+            `INSERT INTO yucer_pipeline.opportunity_stage_event (workspace_id, opportunity_id, from_stage, to_stage, exit_check)
+             VALUES ($1, $2, 'discover', 'validate', '[]'::jsonb)`,
+            [WS, created.id],
+          ),
+          /chk_stage_event_exit_check/,
+        );
+      } finally {
+        await pg.query(`RESET ROLE`);
+      }
+    });
   } finally {
     await cleanup();
   }

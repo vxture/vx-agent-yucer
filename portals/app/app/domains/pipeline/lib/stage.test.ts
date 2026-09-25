@@ -74,6 +74,8 @@ test("a stage change always produces the journal event and the patch together", 
     reason: null,
     actorSub: "usr_1",
     occurredAt: AT,
+    // Not computed by this caller: the journal says "not recorded" (incr/0088).
+    exitCheck: null,
   });
   assert.equal(r.value.patch.stage, "discover");
 });
@@ -315,4 +317,26 @@ test("an abandoned deal cannot be moved until it is reopened with a reason", () 
   assert.equal(reopened.value.patch.status, "open");
   assert.equal(reopened.value.patch.closedAt, null);
   assert.equal(reopened.value.patch.forecastCategory, "pipeline");
+});
+
+// --- 未满足推进须理由 (deal batch 5b, YC-065 R1) -------------------------------------
+
+const UNMET = { stage: "qualify", met: ["痛点已写明"], unmet: ["至少一位联系人在本单"], unknown: [] };
+
+test("moving forward past an unmet exit criterion needs a reason - a reminder, never a block", () => {
+  const bare = plan(opp({ stage: "qualify" }), "discover", { exitCheck: UNMET });
+  assert.equal(bare.ok === false && bare.violations[0].code, "exit_unmet_reason_required");
+  const withWhy = plan(opp({ stage: "qualify" }), "discover", { exitCheck: UNMET, reason: "客户催得紧，先推进" });
+  assert.equal(withWhy.ok, true);
+  assert.deepEqual(withWhy.ok && withWhy.value.event.exitCheck, UNMET, "the check rides the journal row");
+});
+
+test("all met, nothing to check, going back or losing - no exit reason is asked", () => {
+  const met = plan(opp({ stage: "qualify" }), "discover", { exitCheck: { ...UNMET, unmet: [] } });
+  assert.equal(met.ok, true);
+  assert.equal(plan(opp({ stage: "qualify" }), "discover").ok, true, "not computed: nothing enforced, journal says not recorded");
+  const lost = plan(opp({ stage: "qualify" }), "lost", { exitCheck: UNMET, exitReason: { code: "no_budget" } });
+  assert.equal(lost.ok, true, "a loss has its own reason (R6)");
+  const back = plan(opp({ stage: "discover" }), "qualify", { exitCheck: UNMET });
+  assert.equal(back.ok === false && back.violations[0].code, "reason_required", "going back asks its own question");
 });

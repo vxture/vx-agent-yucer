@@ -55,6 +55,12 @@ export interface StageControlProps {
    *  to the shipped seven so every caller keeps compiling unchanged until it
    *  threads the real thing through - see stage.ts's own header. */
   readonly stageDefinitions?: readonly StageDefinition[];
+  /**
+   * The current stage's UNMET exit criteria, by name (deal batch 5b, R1).
+   * Moving forward past them is allowed but needs a reason - said here, before
+   * the click; the server re-checks and records the check in the journal.
+   */
+  readonly exitUnmet?: readonly string[];
   /** Inside a host that already titles it (a panel or drawer on the deal
    *  page, deal batch 2): the body without its own heading. */
   readonly hideTitle?: boolean;
@@ -83,6 +89,7 @@ export function StageControl({
   exitReason = null,
   stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
   hideTitle = false,
+  exitUnmet = [],
   onAdvance,
   onAbandon,
 }: StageControlProps) {
@@ -121,7 +128,10 @@ export function StageControl({
     : stageDefinitions.map((s) => s.code).filter((s) => s !== stage);
 
   const regression = to !== "" && !closed && isRegression(stage, to, stageDefinitions);
-  const reasonRequired = regression || (closed && reopen);
+  const lostBound = to !== "" && statusFor(to, stageDefinitions) === "lost";
+  // 未满足推进须理由 (R1): forward, past unmet criteria. Not a block.
+  const exitReasonOwed = to !== "" && !closed && !regression && !lostBound && exitUnmet.length > 0;
+  const reasonRequired = regression || (closed && reopen) || exitReasonOwed;
   const terminalTarget = to !== "" && isTerminal(to, stageDefinitions);
   // A LOSS SAYS WHY (R6): the reason is asked for here, before the click,
   // and the server refuses the move without it.
@@ -271,6 +281,17 @@ export function StageControl({
 
           {lostTarget ? exitFields(OPPORTUNITY_LOSE_REASONS, OPPORTUNITY_TEXT.advanceExitReason) : null}
 
+          {exitReasonOwed ? (
+            <div className="flex flex-col gap-2xs">
+              <StatusBadge tone="warning">{OPPORTUNITY_TEXT.advanceExitUnmet(exitUnmet.length)}</StatusBadge>
+              <ul className="text-muted-foreground list-disc pl-lg text-body-sm">
+                {exitUnmet.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           {reasonRequired || reason ? (
             <>
               <Label htmlFor="stage-reason">
@@ -287,7 +308,9 @@ export function StageControl({
                 <StatusBadge tone="warning">
                   {closed && reopen
                     ? OPPORTUNITY_TEXT.advanceReasonRequiredReopen
-                    : OPPORTUNITY_TEXT.advanceReasonRequired}
+                    : exitReasonOwed && !regression
+                      ? OPPORTUNITY_TEXT.advanceReasonRequiredExit
+                      : OPPORTUNITY_TEXT.advanceReasonRequired}
                 </StatusBadge>
               ) : null}
             </>

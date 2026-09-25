@@ -2026,6 +2026,7 @@ export const en: Dictionary = {
     lead_unowned: "This lead has no owner yet - assign it before qualifying it.",
   },
   PROPOSAL_ERROR: {
+    exit_unmet_reason_required: "Exit criteria of this stage are not met - move it on the deal page, with a reason",
     contact_not_on_account: "The person in the proposal is not one of this customer's contacts, so it was not written",
     unknown_decision_role: "The proposal names a role that does not exist",
     unknown_stance: "The proposal names a stance that does not exist",
@@ -2178,6 +2179,7 @@ export const en: Dictionary = {
   },
 
   OPPORTUNITY_ERROR: {
+    exit_unmet_reason_required: "Exit criteria of this stage are not met; moving on needs a reason.",
     category_reason_required: "A category above the rule's suggestion needs a reason.",
     custom_note_too_long: "A customisation note is at most 255 characters.",
     customer_budget_negative: "The customer project budget cannot be negative.",
@@ -2248,6 +2250,8 @@ export const en: Dictionary = {
       `${product} is quoted below its floor. The signature records this price; changing it voids the signature.`,
     lineApproveReason: "Why this floor is worth breaking",
     lineApproveCancel: "Cancel",
+    advanceExitUnmet: (n: number) => `${n} exit criteria of this stage are not met - you can move on, with a reason`,
+    advanceReasonRequiredExit: "Moving on past unmet exit criteria needs a reason",
     termsReason: "Reason (optional)",
     termsReasonRequired: "Reason (required)",
     termsReasonWhy: (suggested: string) => `The rule suggests "${suggested}"; a more optimistic category needs a reason`,
@@ -5852,6 +5856,8 @@ export const en: Dictionary = {
     historyBy: (who: string, source: string) => `${who} · ${source}`,
     historySystem: "System",
     historyEmpty: "No changes yet",
+    historyExit: (met: number, total: number) => (total === 0 ? "left with no criteria set" : `left at ${met}/${total}`),
+    historyExitUnmet: (names: readonly string[]) => `Not met: ${names.join(", ")}`,
     historySince: "Claim changes (amount, close date, category, win rate) are recorded from the day this shipped; earlier changes are not backfilled",
     slipped: (n: number, days: number) => `Pushed ${n}× · ${days} days in total`,
     slippedQuarter: "Out of this quarter",

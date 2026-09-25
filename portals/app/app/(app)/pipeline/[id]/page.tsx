@@ -82,7 +82,7 @@ import {
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
 import { ExitChecks } from "../../components/exit-checks";
-import { checkStage } from "../../../domains/pipeline/lib/exit-criteria";
+import { checkStage, dealFactsFrom } from "../../../domains/pipeline/lib/exit-criteria";
 import { EvidenceSlots, type EvidenceRow } from "../../components/evidence-slots";
 import { AdvisorFinding } from "../../components/advisor-finding";
 import { adjudicateProposals } from "../../copilot/actions";
@@ -731,17 +731,25 @@ export default async function OpportunityDetailPage({
     : null;
   const exitCheck =
     exitCriteria.ok && opportunity.status === "open"
-      ? checkStage(opportunity.stage, exitCriteria.value, {
-          people: dealChain ? chainPeople.map((p) => ({ role: p.decisionRole, lastContactAt: buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(p.id) ?? null) : null })) : null,
-          recencyKnown: buyerRecency.ok,
-          filledSlots,
-          lines: lineRows.ok ? { count: dealLines.length, pending: pendingLines } : null,
-          theirOverdue: commitments.ok
-            ? commitments.value.filter((c) => c.direction === "they_owe" && c.status === "open" && c.dueAt < briefNow).length
-            : null,
-          expectedCloseAt: opportunity.expectedCloseAt,
-          now: briefNow,
-        })
+      ? checkStage(
+          opportunity.stage,
+          exitCriteria.value,
+          // The same builder the stage action snapshots with (exit-snapshot.ts).
+          dealFactsFrom({
+            people: dealChain
+              ? chainPeople.map((p) => ({
+                  decisionRole: p.decisionRole,
+                  lastContactAt: buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(p.id) ?? null) : null,
+                }))
+              : null,
+            recencyKnown: buyerRecency.ok,
+            filledSlots,
+            lines: lineRows.ok ? dealLines : null,
+            commitments: commitments.ok ? commitments.value : null,
+            expectedCloseAt: opportunity.expectedCloseAt,
+            now: briefNow,
+          }),
+        )
       : null;
   const progressSummary = [
     DEAL_PAGE_TEXT.progressSummary(stageText, daysInStage),
@@ -984,6 +992,7 @@ export default async function OpportunityDetailPage({
                 stageDefinitions={stageDefinitions}
                 canAbandon={can(session.authz, session.entitlement, "pipeline.opportunity.abandon", "ui").allowed}
                 canAdvance={can(session.authz, session.entitlement, "pipeline.opportunity.advance", "ui").allowed}
+                exitUnmet={exitCheck ? exitCheck.checks.filter((c) => c.status === "unmet").map((c) => c.criterion.name) : []}
                 onAdvance={advanceOpportunityStage}
                 onAbandon={abandonDeal}
               />

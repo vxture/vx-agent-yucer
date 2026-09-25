@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
+import { exitSnapshotFor } from "./exit-snapshot";
 import { getCatalogStore, getPipelineStore } from "../../domains/shared/registry";
 import {
   abandonOpportunity,
@@ -48,6 +49,11 @@ export async function advanceOpportunityStage(
   // unknown code with the same `unknown_stage`. Checking the factory list
   // first refused every custom stage a workspace had configured.
 
+  // The stage being left, checked now (incr/0088) - computed HERE, not taken
+  // from the browser: the drawer shows the same check, but the journal must
+  // record what the server saw, and the service decides whether a reason is owed.
+  const exitCheck = await exitSnapshotFor(session, opportunityId);
+
   const result = await advanceStage(
     {
       workspaceId: session.workspaceId,
@@ -62,6 +68,7 @@ export async function advanceOpportunityStage(
       reason: input.reason?.trim() || undefined,
       reopen: input.reopen === true,
       ...(input.exitReason ? { exitReason: input.exitReason } : {}),
+      ...(exitCheck ? { exitCheck } : {}),
     },
   );
 
