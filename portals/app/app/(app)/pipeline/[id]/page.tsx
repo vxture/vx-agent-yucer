@@ -656,7 +656,20 @@ export default async function OpportunityDetailPage({
   const otherOpenDeals = accountDeals?.ok
     ? accountDeals.value.filter((o) => o.status === "open" && o.id !== id).length
     : null;
+  // 客户信息 - the customer in brief (owner 2026-09-25); the panel's title is
+  // the way to the full page, so the name leads the rows.
+  const acct = account.ok ? account.value.account : null;
+  const industryRegion = [acct?.industry, acct?.region].filter((v): v is string => !!v).join(" · ");
   const customerRows = [
+    {
+      label: DEAL_PAGE_TEXT.customerName,
+      value: (
+        <span className="block truncate" title={accountName}>
+          {accountName}
+        </span>
+      ),
+    },
+    { label: DEAL_PAGE_TEXT.customerIndustryRegion, value: industryRegion || notSet },
     { label: DEAL_PAGE_TEXT.customerTier, value: tierLabel },
     {
       label: DEAL_PAGE_TEXT.customerHealth,
