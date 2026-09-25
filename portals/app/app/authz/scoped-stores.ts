@@ -85,6 +85,7 @@ class ScopedPipelineStore implements PipelineStore {
   // scoped, or are workspace-level facts by design.
   listStageEvents: PipelineStore["listStageEvents"] = (...a) => this.inner.listStageEvents(...a);
   listClaimEvents: PipelineStore["listClaimEvents"] = (...a) => this.inner.listClaimEvents(...a);
+  setImportance: PipelineStore["setImportance"] = (...a) => this.inner.setImportance(...a);
   listEvidence: PipelineStore["listEvidence"] = (...a) => this.inner.listEvidence(...a);
   listExitCriteria: PipelineStore["listExitCriteria"] = (...a) => this.inner.listExitCriteria(...a);
   createExitCriterion: PipelineStore["createExitCriterion"] = (...a) => this.inner.createExitCriterion(...a);
@@ -191,6 +192,10 @@ class ScopedAccountStore implements AccountStore {
     this.inner.listMarketDivisions(...a);
   /* incr/0043. The frame is workspace-wide configuration, like the divisions. */
   getMarketScope: AccountStore["getMarketScope"] = (...a) => this.inner.getMarketScope(...a);
+  listImportanceLevels: AccountStore["listImportanceLevels"] = (...a) => this.inner.listImportanceLevels(...a);
+  createImportanceLevel: AccountStore["createImportanceLevel"] = (...a) => this.inner.createImportanceLevel(...a);
+  listPriorityRules: AccountStore["listPriorityRules"] = (...a) => this.inner.listPriorityRules(...a);
+  createPriorityRule: AccountStore["createPriorityRule"] = (...a) => this.inner.createPriorityRule(...a);
   setMarketScope: AccountStore["setMarketScope"] = (...a) => this.inner.setMarketScope(...a);
 
   /* Also workspace configuration, not somebody's book of business - the gate on

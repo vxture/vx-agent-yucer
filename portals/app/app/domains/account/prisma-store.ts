@@ -1,3 +1,4 @@
+import type { ImportanceLevel, PriorityRule } from "./lib/importance";
 import type { PrismaClient } from "@prisma/client";
 import type { HealthSnapshot } from "./lib/health-history";
 import { getPrismaClient } from "../../lib/db";
@@ -449,8 +450,54 @@ export class PrismaAccountStore implements AccountStore {
       );
     }
 
+    // 定级同事务写两列 (incr/0090): while account.tier and tier_level_id live
+    // side by side, a tier change carries its level row with it.
+    if (patch.tier !== undefined) {
+      return p.$transaction(async (tx) => {
+        const level = await tx.importanceLevel.findFirst({
+          where: { workspaceId, subject: "account", levelCode: patch.tier },
+        });
+        const res = await tx.account.updateMany({
+          where: { id, workspaceId },
+          data: { ...data, ...(level ? { tierLevelId: level.id } : {}) },
+        });
+        return res.count > 0;
+      });
+    }
     const res = await p.account.updateMany({ where: { id, workspaceId }, data });
     return res.count > 0;
+  }
+
+  async listImportanceLevels(workspaceId: string): Promise<ImportanceLevel[]> {
+    const p = await this.client();
+    const rows = await p.importanceLevel.findMany({ where: { workspaceId } });
+    return rows.map((r) => ({
+      id: r.id,
+      subject: r.subject as ImportanceLevel["subject"],
+      levelCode: r.levelCode,
+      name: r.name,
+      description: r.description,
+      rank: r.rank,
+      isDefault: r.isDefault,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async createImportanceLevel(workspaceId: string, row: Omit<ImportanceLevel, "id">): Promise<ImportanceLevel> {
+    const p = await this.client();
+    const r = await p.importanceLevel.create({ data: { workspaceId, ...row } });
+    return { ...row, id: r.id };
+  }
+
+  async listPriorityRules(workspaceId: string): Promise<PriorityRule[]> {
+    const p = await this.client();
+    const rows = await p.priorityRule.findMany({ where: { workspaceId } });
+    return rows.map((r) => ({ accountLevelId: r.accountLevelId, opportunityLevelId: r.opportunityLevelId, priority: r.priority }));
+  }
+
+  async createPriorityRule(workspaceId: string, row: PriorityRule): Promise<void> {
+    const p = await this.client();
+    await p.priorityRule.create({ data: { workspaceId, ...row } });
   }
 
   /**
@@ -1432,6 +1479,7 @@ function toAccount(
     healthScore: (r.healthScore as number | null) ?? null,
     status: r.status as AccountStatus,
     tier: (r.tier as AccountTier | undefined) ?? "standard",
+    tierLevelId: (r.tierLevelId as string | null | undefined) ?? null,
     creditCode: (r.creditCode as string | null) ?? null,
     website: (r.website as string | null) ?? null,
     employeeCount: (r.employeeCount as number | null) ?? null,

@@ -132,7 +132,7 @@ export function DealDossierPanel({
   readonly facts: readonly Row[];
   readonly more: readonly Row[];
 }) {
-  const { ACCOUNT_TEXT, PANEL_MENU_TEXT, OPPORTUNITY_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, PANEL_MENU_TEXT, OPPORTUNITY_TEXT, DEAL_PAGE_TEXT } = useMessages();
   const edit = useDealEdit();
   const [moreOpen, setMoreOpen] = useState(false);
   return (
@@ -147,15 +147,20 @@ export function DealDossierPanel({
         view: "expand",
         edit: edit?.can.terms ? { onSelect: () => edit.open("terms") } : { hint: PANEL_MENU_TEXT.noEditRight },
         // 放弃 / 重开 open the stage drawer, where both already live.
-        extra: edit?.can.stage
-          ? [
-              {
-                id: "stage",
-                label: open ? OPPORTUNITY_TEXT.abandonOpen : OPPORTUNITY_TEXT.advanceReopen,
-                onSelect: () => edit.open("stage"),
-              },
-            ]
-          : undefined,
+        extra: [
+          ...(edit?.can.importance
+            ? [{ id: "importance", label: DEAL_PAGE_TEXT.importanceEdit, onSelect: () => edit.open("importance") }]
+            : []),
+          ...(edit?.can.stage
+            ? [
+                {
+                  id: "stage",
+                  label: open ? OPPORTUNITY_TEXT.abandonOpen : OPPORTUNITY_TEXT.advanceReopen,
+                  onSelect: () => edit.open("stage"),
+                },
+              ]
+            : []),
+        ],
       }}
       title={
         <span className="flex flex-col">
@@ -449,6 +454,9 @@ export function DealHeaderMenu({ linesHref }: { readonly linesHref: string | nul
     ...(edit.can.terms ? [{ id: "terms", label: DEAL_PAGE_TEXT.editTerms, onSelect: () => edit.open("terms") }] : []),
     ...(edit.can.stage ? [{ id: "stage", label: OPPORTUNITY_TEXT.advanceTitle, onSelect: () => edit.open("stage") }] : []),
     ...(edit.can.roles ? [{ id: "roles", label: DEAL_PAGE_TEXT.editRoles, onSelect: () => edit.open("roles") }] : []),
+    ...(edit.can.importance
+      ? [{ id: "importance", label: DEAL_PAGE_TEXT.importanceEdit, onSelect: () => edit.open("importance") }]
+      : []),
     ...(linesHref ? [{ id: "lines", label: OPPORTUNITY_TEXT.linesEdit, onSelect: () => router.push(linesHref) }] : []),
   ];
   if (items.length === 0) return null;

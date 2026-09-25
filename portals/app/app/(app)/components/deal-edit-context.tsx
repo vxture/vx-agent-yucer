@@ -12,7 +12,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 // action bound to it stays paired with the one error dictionary that
 // component renders (reachable-codes.test.ts pairs at the binding site).
 
-export type DealEditor = "terms" | "roles" | "stage";
+export type DealEditor = "terms" | "roles" | "stage" | "importance";
 
 interface DealEdit {
   readonly can: Readonly<Record<DealEditor, boolean>>;

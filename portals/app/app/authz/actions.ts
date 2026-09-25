@@ -347,6 +347,14 @@ export const ACTIONS = {
     permission: "pipeline.read",
     writes: false,
   },
+  // 重要度 (incr/0090, YC-068): how much a deal matters is working the deal -
+  // the free pipeline, write permission.
+  "pipeline.opportunity.importance": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
   "pipeline.opportunity.create": {
     domain: "pipeline",
     feature: "pipeline.manage",

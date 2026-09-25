@@ -43,7 +43,9 @@ import {
   decisionChainsByOpportunity,
   buyingRolesFor,
   recomputeHealth,
+  importanceScheme,
 } from "../../../domains/account/service";
+import { accountLevelOf, medalOf, opportunityLevelOf, priorityOf } from "../../../domains/account/lib/importance";
 import { listTerritories } from "../../../domains/planning/service";
 import { listContracts, listProjects, projectView } from "../../../domains/delivery/service";
 import { dealShare } from "../../../domains/pipeline/lib/wallet-share";
@@ -103,10 +105,12 @@ import {
 import { settleCommitment } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
-import { AmountCoin, DimensionStat } from "../../components/dimension-stat";
+import { AmountCoin, DimensionStat, ImportanceCoin } from "../../components/dimension-stat";
 import { DealEditProvider } from "../../components/deal-edit-context";
 import { DealRolesDrawer } from "../../components/deal-roles-drawer";
 import { DealStageDrawer } from "../../components/deal-stage-drawer";
+import { DealImportanceDrawer } from "../../components/deal-importance-drawer";
+import { setDealImportance } from "../importance-action";
 import {
   DealCustomerPanel,
   DealDecisionPanel,
@@ -317,6 +321,13 @@ export default async function OpportunityDetailPage({
     ? account.value.account.name
     : opportunity.accountId;
   const tier = account.ok ? account.value.account.tier : "standard";
+  // 重要度 × 客户级别 = 优先级 (incr/0090, YC-065 R11). Levels and the matrix
+  // are the account domain's rows; this page only looks the cell up.
+  const scheme = await importanceScheme(accountCtx);
+  const accountLevel =
+    scheme.ok && account.ok ? accountLevelOf(account.value.account, scheme.value.account) : null;
+  const dealLevel = scheme.ok ? opportunityLevelOf(opportunity, scheme.value.opportunity) : null;
+  const dealPriority = scheme.ok ? priorityOf(accountLevel, dealLevel, scheme.value.rules) : null;
   // 客户上下文 (YC-070 S1): the customer's health and whether it hangs on one
   // person, read-only, linking to the customer page - nothing about the
   // customer is edited from a deal.
@@ -530,6 +541,35 @@ export default async function OpportunityDetailPage({
 
   const dossierBadges = (
     <div className="flex items-center justify-center gap-md">
+      {dealLevel ? (
+        <DimensionStat
+          figure={
+            <ImportanceCoin
+              medal={medalOf(dealLevel.rank)}
+              label={`${DEAL_PAGE_TEXT.importanceLabel} ${dealLevel.name}`}
+            />
+          }
+          label={DEAL_PAGE_TEXT.importanceLabel}
+          value={
+            <>
+              <div>
+                {dealLevel.name} · {DEAL_PAGE_TEXT.importancePriority(dealPriority)}
+              </div>
+              {accountLevel ? (
+                <div className="opacity-80">{DEAL_PAGE_TEXT.importanceCross(accountLevel.name, dealLevel.name)}</div>
+              ) : null}
+              <div className="opacity-80">
+                {opportunity.importanceBySub && opportunity.importanceAt
+                  ? DEAL_PAGE_TEXT.importanceSetBy(
+                      nameOf(opportunity.importanceBySub) ?? opportunity.importanceBySub,
+                      opportunity.importanceAt.toISOString().slice(0, 10),
+                    )
+                  : DEAL_PAGE_TEXT.importanceDefault}
+              </div>
+            </>
+          }
+        />
+      ) : null}
       <DimensionStat
         figure={
           <AmountCoin
@@ -893,6 +933,8 @@ export default async function OpportunityDetailPage({
           can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed &&
           (account.ok ? account.value.contacts.length : 0) > 0,
         stage: can(session.authz, session.entitlement, "pipeline.opportunity.advance", "ui").allowed,
+        importance:
+          scheme.ok && can(session.authz, session.entitlement, "pipeline.opportunity.importance", "ui").allowed,
       }}
     >
       <aside className={BOARD_PANE_CLASS}>
@@ -1006,6 +1048,17 @@ export default async function OpportunityDetailPage({
                 exitUnmet={exitCheck ? exitCheck.checks.filter((c) => c.status === "unmet").map((c) => c.criterion.name) : []}
                 onAdvance={advanceOpportunityStage}
                 onAbandon={abandonDeal}
+              />
+              <DealImportanceDrawer
+                opportunityId={id}
+                current={dealLevel?.id ?? null}
+                options={(scheme.ok ? scheme.value.opportunity : []).map((l) => ({
+                  id: l.id,
+                  name: l.name,
+                  description: l.description,
+                  priority: scheme.ok ? priorityOf(accountLevel, l, scheme.value.rules) : null,
+                }))}
+                onSave={setDealImportance}
               />
             </div>
 

@@ -94,6 +94,10 @@ export interface OpportunityRecord {
   /** Who entered it and when - stamped by the service, never by the caller. */
   customerBudgetBySub?: string | null;
   customerBudgetAt?: Date | null;
+  /** incr/0090 - 重要度: a level row of the deal axis (null = the default), who set it, when. */
+  importanceLevelId?: string | null;
+  importanceBySub?: string | null;
+  importanceAt?: Date | null;
 }
 
 /** One row of the 赢丢原因 vocabulary - incr/0039, per workspace. */
@@ -338,6 +342,13 @@ export interface PipelineStore {
     claim: ClaimContext,
   ): Promise<boolean>;
 
+  /** 重要度 (incr/0090): which level, who, when. False when the deal is absent. */
+  setImportance(
+    workspaceId: string,
+    opportunityId: string,
+    patch: { levelId: string; bySub: string; at: Date },
+  ): Promise<boolean>;
+
   /** 声明变更日志 for one deal, oldest first (incr/0084). */
   listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]>;
 
@@ -555,6 +566,19 @@ export class InMemoryPipelineStore implements PipelineStore {
       this.seq += 1;
       this.claims.push({ ...e, id: `clm_${this.seq}`, workspaceId, opportunityId });
     }
+  }
+
+  async setImportance(
+    workspaceId: string,
+    opportunityId: string,
+    patch: { levelId: string; bySub: string; at: Date },
+  ): Promise<boolean> {
+    const row = this.opportunities.get(opportunityId);
+    if (!row || row.workspaceId !== workspaceId) return false;
+    row.importanceLevelId = patch.levelId;
+    row.importanceBySub = patch.bySub;
+    row.importanceAt = patch.at;
+    return true;
   }
 
   async listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]> {

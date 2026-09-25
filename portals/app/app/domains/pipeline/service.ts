@@ -2030,3 +2030,29 @@ export async function removeExitCriterion(ctx: PipelineContext, id: string): Pro
   if (!removed) return fail(violation("not_found", "no such criterion", "id"));
   return ok({ id });
 }
+
+// --- 重要度 (incr/0090, YC-065 R11) ------------------------------------------------
+
+/**
+ * Set how much this deal matters to us. A person's statement, like the stage
+ * or the amount: who and when are recorded; no reason is required - it moves
+ * no rule, only the order the list is read in. The level must be one of the
+ * deal axis's rows, which the caller reads through the account domain's gated
+ * scheme and passes in (this domain does not reach into that store).
+ */
+export async function setOpportunityImportance(
+  ctx: PipelineContext,
+  opportunityId: string,
+  levelId: string,
+  allowedLevelIds: ReadonlySet<string>,
+  now: Date = new Date(),
+): Promise<RuleResult<{ levelId: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.importance", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!allowedLevelIds.has(levelId)) {
+    return fail(violation("importance_level_unknown", "not an importance level of this workspace's deals", "levelId"));
+  }
+  const set = await ctx.store.setImportance(ctx.workspaceId, opportunityId, { levelId, bySub: ctx.sub, at: now });
+  if (!set) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  return ok({ levelId });
+}

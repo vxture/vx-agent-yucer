@@ -62,6 +62,9 @@ const ALLOWED = new Set([
   // incr/0087. The R1 factory exit criteria - seed data like the stage
   // catalog beside it; exit-criteria.test.ts proves it equals the SQL seed.
   "domains/pipeline/lib/exit-criteria-vocab.ts",
+  // incr/0090. The shipped importance levels of both axes - seed data;
+  // importance.test.ts proves it equals the SQL seed.
+  "domains/account/lib/importance-vocab.ts",
   // 签约类型 and 业务形态 (0067), the same shape again: shipped rows a
   // workspace renames and extends, seeded identically by the increment. Two
   // files because 商机类型 (0060) was one list answering two questions.

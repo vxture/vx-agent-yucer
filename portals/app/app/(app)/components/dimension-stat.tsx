@@ -174,3 +174,16 @@ export function AmountCoin({ figure, label }: { readonly figure: string | null; 
     </div>
   );
 }
+
+/** 重要度 on the deal's 徽章区 (incr/0090, deal batch 6): the medal a level's
+ *  rank earns on the matching pale disc - the customer page's 级别 coin, read
+ *  off the deal axis. Rank, not name, picks the colour. */
+export function ImportanceCoin({ medal, label }: { readonly medal: "gold" | "silver" | "bronze"; readonly label: string }) {
+  return (
+    <div role="img" aria-label={label} className="inline-flex">
+      <Coin src={`/assets/icons/coin-tier-${medal}.png`}>
+        <img src={`/assets/icons/tier-${medal}.png`} alt="" className="h-[1.875rem] w-auto drop-shadow-sm" />
+      </Coin>
+    </div>
+  );
+}

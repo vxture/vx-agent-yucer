@@ -306,6 +306,8 @@ model Account {
   ownerSub      String?   @map("owner_sub") @db.VarChar(128)
   /// strategic | key | standard. Set by D1, not by the owner - see ADR-013.
   tier          String    @default("standard") @db.VarChar(16)
+  /// incr/0090 - the tier as a level row; written with `tier` until reads move.
+  tierLevelId       String?  @map("tier_level_id") @db.Uuid
   healthScore   Int?      @map("health_score") @db.SmallInt
   /// incr/0024. 统一社会信用代码 for a mainland entity; unconstrained in shape
   /// because a foreign counterparty registers somewhere else entirely.
@@ -959,6 +961,10 @@ model Opportunity {
   customerBudget      Decimal?  @map("customer_budget") @db.Decimal(18, 2)
   customerBudgetBySub String?   @map("customer_budget_by_sub") @db.VarChar(128)
   customerBudgetAt    DateTime? @map("customer_budget_at") @db.Timestamptz()
+  /// incr/0090 - 重要度: a level row of the opportunity axis, who set it, when.
+  importanceLevelId String?   @map("importance_level_id") @db.Uuid
+  importanceBySub   String?   @map("importance_by_sub") @db.VarChar(128)
+  importanceAt      DateTime? @map("importance_at") @db.Timestamptz()
   expectedCloseAt  DateTime? @map("expected_close_at") @db.Timestamptz()
   closedAt         DateTime? @map("closed_at") @db.Timestamptz()
   status           String    @default("open") @db.VarChar(32)
@@ -1993,4 +1999,37 @@ model StageExitCriterion {
   @@index([workspaceId, stageCode, sortOrder], map: "idx_exit_criterion_stage")
   @@map("stage_exit_criterion")
   @@schema("yucer_pipeline")
+}
+
+/// incr/0090. Importance levels of both axes (account tier, deal importance) -
+/// data, not code. code / subject / rank are anchors.
+model ImportanceLevel {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  subject     String   @db.VarChar(16)
+  levelCode   String   @map("level_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  description String?  @db.VarChar(255)
+  rank        Int      @db.SmallInt
+  isDefault   Boolean  @default(false) @map("is_default")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, subject, levelCode], map: "uidx_importance_level_code")
+  @@unique([workspaceId, subject, rank], map: "uidx_importance_level_rank")
+  @@map("importance_level")
+  @@schema("yucer_core")
+}
+
+/// incr/0090. The tier x importance matrix; priority is read, never stored.
+model PriorityRule {
+  workspaceId        String @map("workspace_id") @db.Uuid
+  accountLevelId     String @map("account_level_id") @db.Uuid
+  opportunityLevelId String @map("opportunity_level_id") @db.Uuid
+  priority           Int    @db.SmallInt
+
+  @@id([workspaceId, accountLevelId, opportunityLevelId])
+  @@map("priority_rule")
+  @@schema("yucer_core")
 }

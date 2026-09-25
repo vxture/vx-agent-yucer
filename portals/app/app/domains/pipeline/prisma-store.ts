@@ -84,6 +84,9 @@ interface OpportunityRow {
   customerBudget?: { toString(): string } | null;
   customerBudgetBySub?: string | null;
   customerBudgetAt?: Date | null;
+  importanceLevelId?: string | null;
+  importanceBySub?: string | null;
+  importanceAt?: Date | null;
 }
 
 function toRecord(row: OpportunityRow): OpportunityRecord {
@@ -115,6 +118,9 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     customerBudget: row.customerBudget == null ? null : Number(row.customerBudget.toString()),
     customerBudgetBySub: row.customerBudgetBySub ?? null,
     customerBudgetAt: row.customerBudgetAt ?? null,
+    importanceLevelId: row.importanceLevelId ?? null,
+    importanceBySub: row.importanceBySub ?? null,
+    importanceAt: row.importanceAt ?? null,
   };
 }
 
@@ -512,6 +518,19 @@ export class PrismaPipelineStore implements PipelineStore {
       },
     });
     return toEvidence(r);
+  }
+
+  async setImportance(
+    workspaceId: string,
+    opportunityId: string,
+    patch: { levelId: string; bySub: string; at: Date },
+  ): Promise<boolean> {
+    const p = await getPrismaClient();
+    const data = { importanceLevelId: patch.levelId, importanceBySub: patch.bySub, importanceAt: patch.at, updatedAt: new Date() };
+    const guard = assertWritable(OPPORTUNITY_TABLE, data);
+    if (!guard.ok) throw new Error(`refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`);
+    const r = await p.opportunity.updateMany({ where: { id: opportunityId, workspaceId }, data });
+    return r.count > 0;
   }
 
   async listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]> {

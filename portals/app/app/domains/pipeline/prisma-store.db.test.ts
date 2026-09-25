@@ -658,8 +658,19 @@ test("exit criteria hang off the stage catalog: FK, locked kind, cascade with th
       await pg.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1 AND stage_code = 'qualify'`, [WS]);
     });
     assert.equal((await s.listExitCriteria(WS)).length, 0, "cascaded with its stage");
-    // Put the stage back: later tests in this file journal moves out of qualify.
+    // Put the stage back WHERE IT WAS: later tests journal moves out of
+    // qualify, and createOpportunity opens a deal at the FIRST stage - an
+    // upsert appends it last, which left the next run (or a concurrent file)
+    // opening deals at discover.
     await s.upsertStageDefinition(WS, { stageCode: "qualify", name: "合格判定", defaultProbability: 10, isWon: false, isTerminal: false });
+    await withPg((pg) =>
+      pg.query(
+        `UPDATE yucer_pipeline.stage_definition
+            SET sort_order = (SELECT COALESCE(MIN(sort_order), 1) - 1 FROM yucer_pipeline.stage_definition WHERE workspace_id = $1)
+          WHERE workspace_id = $1 AND stage_code = 'qualify'`,
+        [WS],
+      ),
+    );
   } finally {
     await cleanup();
   }
