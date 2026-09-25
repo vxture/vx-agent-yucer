@@ -86,6 +86,10 @@ export const EXECUTABLE_ACTIONS: readonly string[] = [
   // Deal batch 4b: a new VERSION of an evidence slot - append-only, the prior
   // version stays in the history, so accepting is reversible by a later one.
   "record_evidence",
+  // Deal batch 4c: a role or stance on one deal (restated by the next
+  // statement), and a promise (closed or waived like any other).
+  "set_buying_role",
+  "add_commitment",
 ];
 
 /**

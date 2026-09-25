@@ -83,7 +83,7 @@ import { ChangeHistory } from "../../components/change-history";
 import { EvidenceSlots, type EvidenceRow } from "../../components/evidence-slots";
 import { AdvisorFinding } from "../../components/advisor-finding";
 import { adjudicateProposals } from "../../copilot/actions";
-import { EVIDENCE_ACTION_TYPE } from "../../../domains/copilot/lib/action";
+import { COMMITMENT_ACTION_TYPE, EVIDENCE_ACTION_TYPE, ROLE_ACTION_TYPE } from "../../../domains/copilot/lib/action";
 import { canDecideProposal } from "../../../domains/copilot/lib/advisor-gate";
 import { recordEvidenceAction } from "../evidence-action";
 import { PROCESS_SLOTS, REASON_SLOTS, type EvidenceSlot } from "../../../domains/pipeline/lib/evidence";
@@ -143,6 +143,7 @@ export default async function OpportunityDetailPage({
     WAR_ROOM_TEXT,
     EXIT_REASON_LABEL,
     CHANNEL_LABEL,
+    DIRECTION_LABEL,
     LOAD_ERROR,
     DOMAIN_LABEL,
     DEAL_PAGE_TEXT,
@@ -756,6 +757,28 @@ export default async function OpportunityDetailPage({
       }));
     return items.length === 0 ? undefined : <AdvisorFinding items={items} onAdjudicate={adjudicateProposals} />;
   };
+  // 4c: role / stance and promise proposals, each where its fact lives.
+  const findingItems = (type: string, text: (p: Record<string, unknown>) => string) =>
+    (proposals.ok ? proposals.value : [])
+      .filter((a) => a.actionType === type && a.subjectId === id)
+      .map((a) => ({
+        id: a.id,
+        text: text(a.payload),
+        quote: typeof a.payload.quote === "string" ? a.payload.quote : null,
+        source: typeof a.payload.interactionId === "string" ? (noteLabel.get(a.payload.interactionId) ?? null) : null,
+        decidable: canDecideProposal(session.authz, session.entitlement, a.capability, "ui").allowed,
+      }));
+  const roleItems = findingItems(ROLE_ACTION_TYPE, (p) =>
+    DEAL_PAGE_TEXT.findingRole(
+      contactOf.get(String(p.personId))?.name ?? CHAIN_TEXT.unnamedPerson,
+      DECISION_ROLE_LABEL[String(p.buyingRole)] ?? String(p.buyingRole),
+      typeof p.stance === "string" ? (STANCE_LABEL[p.stance] ?? p.stance) : null,
+    ),
+  );
+  const commitmentItems = findingItems(COMMITMENT_ACTION_TYPE, (p) =>
+    DEAL_PAGE_TEXT.findingCommitment(DIRECTION_LABEL[String(p.direction)] ?? String(p.direction), String(p.dueAt), String(p.statement)),
+  );
+  const roleFindings = roleItems.length > 0 ? <AdvisorFinding items={roleItems} onAdjudicate={adjudicateProposals} /> : null;
   const evidenceRows = (slots: readonly EvidenceSlot[]): EvidenceRow[] =>
     slots.map((slot) => {
       const state = evidence.ok ? evidence.value[slot] : null;
@@ -858,6 +881,7 @@ export default async function OpportunityDetailPage({
             people={decisionPeople}
             warning={decisionWarning}
             process={processSlots}
+            findings={roleFindings}
           />
           {opportunity.accountId ? (
             <DealCustomerPanel
@@ -1084,6 +1108,9 @@ export default async function OpportunityDetailPage({
                 ) : null}
               </div>
               <PanelSub>{DEAL_PAGE_TEXT.plan}</PanelSub>
+              {commitmentItems.length > 0 ? (
+                <AdvisorFinding items={commitmentItems} onAdjudicate={adjudicateProposals} />
+              ) : null}
               {commitments.ok ? (
                 <CommitmentList
                   accountId={opportunity.accountId}

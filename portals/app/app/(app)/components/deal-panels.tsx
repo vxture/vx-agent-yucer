@@ -306,9 +306,12 @@ export function DealDecisionPanel({
   people,
   warning,
   process,
+  findings,
 }: {
   /** 怎么决策、怎么签: the 决策流程 / 签约流程 slots (YC-069 §04c). */
   readonly process?: ReactNode;
+  /** 证据抽取's role / stance proposals, decided in place (batch 4c). */
+  readonly findings?: ReactNode;
   readonly summary: string;
   readonly people: readonly DealPerson[];
   /** Reachability, when it is the problem - said above the people. */
@@ -352,6 +355,7 @@ export function DealDecisionPanel({
             />
           ))
         )}
+        {findings ? <div className="mt-xs">{findings}</div> : null}
         {process ? (
           <>
             <PanelSub>{DEAL_PAGE_TEXT.processTitle}</PanelSub>

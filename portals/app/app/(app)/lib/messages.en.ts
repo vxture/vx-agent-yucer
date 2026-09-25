@@ -2026,6 +2026,12 @@ export const en: Dictionary = {
     lead_unowned: "This lead has no owner yet - assign it before qualifying it.",
   },
   PROPOSAL_ERROR: {
+    contact_not_on_account: "The person in the proposal is not one of this customer's contacts, so it was not written",
+    unknown_decision_role: "The proposal names a role that does not exist",
+    unknown_stance: "The proposal names a stance that does not exist",
+    influence_range: "Influence is a whole number from 0 to 100",
+    statement_required: "The proposal does not say what was promised",
+    unknown_direction: "The proposal does not say whose promise it is",
     evidence_citation_foreign: "The proposal cites a follow-up that is not on this deal, so it was not written",
     evidence_slot_unknown: "The proposal names an evidence slot that does not exist",
     evidence_too_long: "The proposal is over 2000 characters, so it was not written",
@@ -2755,6 +2761,8 @@ export const en: Dictionary = {
       propose_upsell: "Recommend an upsell",
       flag_conflict: "Confirm two records disagree",
       record_evidence: "Write buying evidence",
+      set_buying_role: "State a role or stance on this deal",
+      add_commitment: "Record a promise",
       draft_email: "Draft an email",
     } as Record<string, string>,
     approve: "Approve",
@@ -4759,6 +4767,8 @@ export const en: Dictionary = {
     propose_upsell: "Recommend an upsell",
     flag_conflict: "Suspected conflicting records",
     record_evidence: "Buying evidence",
+    set_buying_role: "Role or stance",
+    add_commitment: "Promise",
   },
 
   ACTION_STATUS_LABEL: {
@@ -5868,6 +5878,9 @@ export const en: Dictionary = {
     findingSource: "Advisor",
     findingAccept: "Accept",
     findingIgnore: "Ignore",
+    findingRole: (name: string, role: string, stance: string | null) =>
+      stance ? `${name}: role ${role} · stance ${stance}` : `${name}: role ${role}`,
+    findingCommitment: (direction: string, due: string, statement: string) => `${direction} · by ${due}: ${statement}`,
     findingQuote: (source: string | null, quote: string) => `${source ? `${source}: ` : ""}"${quote}"`,
     processTitle: "How they decide and sign",
     reasonsFilled: (n: number, total: number) => `${n}/${total} written`,

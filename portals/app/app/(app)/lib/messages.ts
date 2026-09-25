@@ -1207,6 +1207,13 @@ export const PROPOSAL_ERROR: Record<string, string> = {
   evidence_citation_foreign: "这条提案引用的不是本单的跟进，不予写入",
   evidence_slot_unknown: "提案给出的证据项不存在",
   evidence_too_long: "提案内容超过 2000 字，不予写入",
+  // 4c: a role / stance or a promise from 证据抽取.
+  contact_not_on_account: "提案里的人不在这家客户的联系人里，不予写入",
+  unknown_decision_role: "提案给出的角色不存在",
+  unknown_stance: "提案给出的立场不存在",
+  influence_range: "影响力要在 0 到 100 之间",
+  statement_required: "提案没有说清承诺了什么",
+  unknown_direction: "提案没有说清是谁的承诺",
   // A proposal that moves a deal runs the stage machine (YC-065 R6).
   abandoned_closed: "这一单已放弃,提案不能推进它;请先重开",
   exit_reason_required: "把商机改成丢单需要原因,提案里没有,请在商机页操作",
@@ -3876,6 +3883,8 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
   propose_upsell: "推荐增购",
   flag_conflict: "疑似说法不一致",
   record_evidence: "写入购买证据",
+  set_buying_role: "标注本单角色 / 立场",
+  add_commitment: "记下一条承诺",
   promote_signal: "信号升级为线索",
 };
 
@@ -6356,6 +6365,8 @@ export const POSITION_TEXT = {
     propose_upsell: "推荐增购",
     flag_conflict: "确认两条记录说法不一致",
     record_evidence: "写入购买证据",
+    set_buying_role: "标注本单角色 / 立场",
+    add_commitment: "记下一条承诺",
     adjust_forecast: "调整预测口径",
     draft_email: "起草邮件",
   } as Record<string, string>,
@@ -6926,6 +6937,9 @@ export const DEAL_PAGE_TEXT = {
   findingSource: "智能分析",
   findingAccept: "采纳",
   findingIgnore: "忽略",
+  findingRole: (name: string, role: string, stance: string | null) =>
+    stance ? `${name}：本单角色 ${role} · 立场 ${stance}` : `${name}：本单角色 ${role}`,
+  findingCommitment: (direction: string, due: string, statement: string) => `${direction} · ${due} 前：${statement}`,
   findingQuote: (source: string | null, quote: string) => `${source ? `${source}：` : ""}「${quote}」`,
   processTitle: "怎么决策、怎么签",
   reasonsFilled: (n: number, total: number) => `${n}/${total} 项已写明`,

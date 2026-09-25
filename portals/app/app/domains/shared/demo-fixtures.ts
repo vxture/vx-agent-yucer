@@ -557,3 +557,10 @@ export const DEMO_EVIDENCE_PROPOSAL = {
   quote: "还在走内部会签",
   rationale: "跟进原文提到方案反馈卡在内部会签，这是签约流程的一步，本单尚未写明。",
 } as const;
+
+/** 证据抽取 4c: a dated promise read out of DEMO_DEAL_NOTES.d6_b, quote verbatim. */
+export const DEMO_COMMITMENT_PROPOSAL = {
+  statement: "周总反馈修改后的方案",
+  quote: "周总说本周内给反馈",
+  rationale: "跟进原文里周总答应本周内反馈修改后的方案，本单还没有记下这条对方承诺。",
+} as const;
