@@ -17,6 +17,13 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
 import {
+  moreOptimisticThanRule,
+  slippageOf,
+  type ClaimEventRecord,
+  type ClaimSource,
+  type Slippage,
+} from "./lib/claims";
+import {
   planNewOpportunity,
   suggestContractType,
   type NewOpportunityDraft,
@@ -452,6 +459,12 @@ export async function dealExit(
 export type CommercialTermsInput = Omit<CommercialTermsPatch, "customerBudget"> & {
   /** 客户项目总投入 in the deal's currency; null clears it (§9.6). */
   customerBudget?: number | null;
+  /**
+   * Why - written to every claim-log row this save produces (incr/0084).
+   * REQUIRED when the category is moved above the rule's suggestion
+   * (YC-065 R9: 偏离规则须理由); optional otherwise.
+   */
+  reason?: string | null;
 };
 
 export async function updateCommercialTerms(
@@ -459,6 +472,7 @@ export async function updateCommercialTerms(
   opportunityId: string,
   input: CommercialTermsInput,
   now: Date = new Date(),
+  opts: { readonly source?: ClaimSource } = {},
 ): Promise<RuleResult<OpportunityRecord>> {
   // TWO gates, because this patch spans two capabilities that the product sells
   // and staffs separately.
@@ -543,12 +557,33 @@ export async function updateCommercialTerms(
     }
   }
 
+  // 偏离规则须理由 (YC-065 R9): a category moved ABOVE the rule's suggestion
+  // needs a reason - a reminder with a required answer, not a block. More
+  // conservative, or agreeing with the rule, needs none.
+  if (
+    patch.forecastCategory !== undefined &&
+    patch.forecastCategory !== current.forecastCategory &&
+    !input.reason?.trim()
+  ) {
+    const verdict = await ruleVerdictFor(ctx, current, now);
+    if (moreOptimisticThanRule(patch.forecastCategory, verdict.kind === "suggested" ? verdict.category : null)) {
+      problems.push(
+        violation("category_reason_required", "a category above the rule's suggestion needs a reason", "reason"),
+      );
+    }
+  }
+
   if (problems.length > 0) return { ok: false, violations: problems };
   if (Object.keys(patch).length === 0) {
     return fail(violation("empty_patch", "nothing was changed", "patch"));
   }
 
-  const applied = await ctx.store.updateCommercialTerms(ctx.workspaceId, opportunityId, patch);
+  const applied = await ctx.store.updateCommercialTerms(ctx.workspaceId, opportunityId, patch, {
+    source: opts.source ?? "manual",
+    actorSub: ctx.sub,
+    reason: input.reason ?? null,
+    occurredAt: now,
+  });
   if (!applied) {
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
@@ -1526,9 +1561,13 @@ export async function replaceOpportunityLines(
   // legacy shape where the header stands on its own, which `reconciles` treats
   // as legal precisely because it is.
   if (written.length > 0) {
-    const applied = await ctx.store.updateCommercialTerms(ctx.workspaceId, opportunityId, {
-      amount: money(total, currency),
-    });
+    const applied = await ctx.store.updateCommercialTerms(
+      ctx.workspaceId,
+      opportunityId,
+      { amount: money(total, currency) },
+      // The lines recomputed it - the system, not a person's claim (YC-067 §02).
+      { source: "lines", actorSub: null, occurredAt: new Date() },
+    );
     if (!applied) {
       return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
     }
@@ -1810,11 +1849,29 @@ export async function applyCategorySuggestion(
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
 
+  const { deal, verdict } = await ruleVerdictWithDeal(ctx, current, opts.now ?? new Date(), opts.thresholds);
+  const plan = planSuggestedCategory(deal, verdict);
+  if (!plan.ok) return plan as RuleResult<OpportunityRecord>;
+
+  return updateCommercialTerms(ctx, opportunityId, {
+    forecastCategory: plan.value.forecastCategory,
+  });
+}
+
+/**
+ * The forecast rule's verdict on ONE deal, with the workspace's own thresholds,
+ * stage catalog and business-form stall line - the same resolution the review
+ * page and the war room use, so the three cannot disagree about a deal.
+ */
+async function ruleVerdictWithDeal(
+  ctx: PipelineContext,
+  current: OpportunityRecord,
+  now: Date,
+  thresholdsIn?: ForecastThresholds,
+): Promise<{ deal: CategorizableDeal; verdict: ReturnType<typeof suggestCategory> }> {
   const [lastMoved, thresholds, stageCatalog, stallOverrides] = await Promise.all([
     ctx.store.latestStageChangeAt(ctx.workspaceId),
-    opts.thresholds
-      ? Promise.resolve(opts.thresholds)
-      : ctx.store.getForecastThresholds(ctx.workspaceId),
+    thresholdsIn ? Promise.resolve(thresholdsIn) : ctx.store.getForecastThresholds(ctx.workspaceId),
     loadStageCatalog(ctx),
     loadBusinessFormStallOverrides(ctx),
   ]);
@@ -1827,12 +1884,28 @@ export async function applyCategorySuggestion(
     lastStageChangeAt: lastMoved.get(current.id) ?? null,
     stallDaysOverride: current.businessFormId ? (stallOverrides.get(current.businessFormId) ?? null) : null,
   };
+  return { deal, verdict: suggestCategory(deal, now, thresholds, stageCatalog) };
+}
 
-  const verdict = suggestCategory(deal, opts.now ?? new Date(), thresholds, stageCatalog);
-  const plan = planSuggestedCategory(deal, verdict);
-  if (!plan.ok) return plan as RuleResult<OpportunityRecord>;
+async function ruleVerdictFor(ctx: PipelineContext, current: OpportunityRecord, now: Date) {
+  return (await ruleVerdictWithDeal(ctx, current, now)).verdict;
+}
 
-  return updateCommercialTerms(ctx, opportunityId, {
-    forecastCategory: plan.value.forecastCategory,
-  });
+export interface ClaimHistory {
+  /** Oldest first. Starts the day incr/0084 landed - nothing is backfilled. */
+  readonly events: readonly ClaimEventRecord[];
+  readonly slippage: Slippage;
+}
+
+/**
+ * 声明变更日志 and the slippage it implies, for one deal (YC-065 R2). Gated
+ * `pipeline.claims.view`: the free pipeline, read permission (YC-068).
+ */
+export async function claimHistory(ctx: PipelineContext, opportunityId: string): Promise<RuleResult<ClaimHistory>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.claims.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  const events = await ctx.store.listClaimEvents(ctx.workspaceId, opportunityId);
+  return ok({ events, slippage: slippageOf(events) });
 }

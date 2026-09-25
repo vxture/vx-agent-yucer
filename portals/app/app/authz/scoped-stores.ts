@@ -84,6 +84,7 @@ class ScopedPipelineStore implements PipelineStore {
   // snapshot to the workspace; both are reached through something already
   // scoped, or are workspace-level facts by design.
   listStageEvents: PipelineStore["listStageEvents"] = (...a) => this.inner.listStageEvents(...a);
+  listClaimEvents: PipelineStore["listClaimEvents"] = (...a) => this.inner.listClaimEvents(...a);
   latestStageChangeAt: PipelineStore["latestStageChangeAt"] = (...a) =>
     this.inner.latestStageChangeAt(...a);
   listForecastSnapshots: PipelineStore["listForecastSnapshots"] = (...a) =>

@@ -15,6 +15,23 @@
 
 import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
+import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
+
+/** A deal's claimed values, as the claim log compares them (incr/0084). */
+export function claimStateOf(o: OpportunityRecord): ClaimState {
+  return {
+    amount: o.amount?.amount ?? null,
+    currency: o.amount?.currency ?? o.currency,
+    expectedCloseAt: o.expectedCloseAt,
+    forecastCategory: o.forecastCategory,
+    probability: o.probability,
+  };
+}
+
+/** The stage machine moving win rate or category: the system, not a person (YC-067 §02). */
+export function stageMachineClaim(occurredAt: Date): ClaimContext {
+  return { source: "stage_machine", actorSub: null, occurredAt };
+}
 import {
   DEFAULT_FORECAST_THRESHOLDS,
   type ForecastThresholds,
@@ -313,7 +330,12 @@ export interface PipelineStore {
     workspaceId: string,
     opportunityId: string,
     patch: CommercialTermsPatch,
+    /** Who and why - the claim log rows are written in the same unit (incr/0084). */
+    claim: ClaimContext,
   ): Promise<boolean>;
+
+  /** 声明变更日志 for one deal, oldest first (incr/0084). */
+  listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]>;
 
   listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]>;
 
@@ -444,6 +466,22 @@ export class InMemoryPipelineStore implements PipelineStore {
   private opportunities = new Map<string, OpportunityRecord>();
   private events: StageEventRecord[] = [];
   private exits: (DealExitRecord & { workspaceId: string; opportunityId: string })[] = [];
+  private claims: (ClaimEventRecord & { workspaceId: string })[] = [];
+
+  /** Append the rows for what changed between two states - the store's half of incr/0084. */
+  private logClaims(workspaceId: string, opportunityId: string, before: ClaimState, after: ClaimState, ctx: ClaimContext): void {
+    for (const e of diffClaims(before, after, ctx)) {
+      this.seq += 1;
+      this.claims.push({ ...e, id: `clm_${this.seq}`, workspaceId, opportunityId });
+    }
+  }
+
+  async listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]> {
+    return this.claims
+      .filter((c) => c.workspaceId === workspaceId && c.opportunityId === opportunityId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
+      .map(({ workspaceId: _ws, ...c }) => c);
+  }
   private snapshots: Array<SnapshotRow & { workspaceId: string }> = [];
   private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
   private reasons: WinLossReasonRecord[] = [];
@@ -571,6 +609,7 @@ export class InMemoryPipelineStore implements PipelineStore {
   ): Promise<boolean> {
     const row = this.opportunities.get(opportunityId);
     if (!row || row.workspaceId !== workspaceId) return false;
+    const before = claimStateOf(row);
 
     row.stage = plan.patch.stage;
     row.status = plan.patch.status;
@@ -580,6 +619,7 @@ export class InMemoryPipelineStore implements PipelineStore {
 
     this.seq += 1;
     this.events.push({ id: `evt_${this.seq}`, opportunityId, ...plan.event });
+    this.logClaims(workspaceId, opportunityId, before, claimStateOf(row), stageMachineClaim(plan.event.occurredAt));
     if (plan.exit) {
       this.exits.push({
         workspaceId,
@@ -599,9 +639,11 @@ export class InMemoryPipelineStore implements PipelineStore {
   ): Promise<boolean> {
     const row = this.opportunities.get(opportunityId);
     if (!row || row.workspaceId !== workspaceId || row.status !== "open") return false;
+    const before = claimStateOf(row);
     row.status = plan.patch.status;
     row.closedAt = plan.patch.closedAt;
     row.forecastCategory = plan.patch.forecastCategory;
+    this.logClaims(workspaceId, opportunityId, before, claimStateOf(row), stageMachineClaim(plan.patch.closedAt));
     this.exits.push({ workspaceId, opportunityId, ...plan.exit, decidedBySub: plan.decidedBySub, decidedAt: plan.patch.closedAt });
     return true;
   }
@@ -618,9 +660,11 @@ export class InMemoryPipelineStore implements PipelineStore {
     workspaceId: string,
     opportunityId: string,
     patch: CommercialTermsPatch,
+    claim: ClaimContext,
   ): Promise<boolean> {
     const row = this.opportunities.get(opportunityId);
     if (!row || row.workspaceId !== workspaceId) return false;
+    const before = claimStateOf(row);
 
     // Field by field against `undefined`, not a spread: `amount: null` and
     // `expectedCloseAt: null` are meaningful values ("unpriced", "no date"), and
@@ -642,6 +686,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       row.customerBudgetBySub = patch.customerBudget.bySub;
       row.customerBudgetAt = patch.customerBudget.at;
     }
+    this.logClaims(workspaceId, opportunityId, before, claimStateOf(row), claim);
     return true;
   }
 

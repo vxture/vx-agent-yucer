@@ -14,21 +14,24 @@ import {
   type AbandonPlan,
   type StageChangePlan,
 } from "./lib/stage";
-import type {
-  BusinessFormRecord,
-  CommercialTermsPatch,
-  ContractTypeRecord,
-  DealExitRecord,
-  NewOpportunity,
-  NewWinLossReview,
-  WinLossReviewRecord,
-  WinLossReasonRecord,
-  StageDefinitionRecord,
-  OpportunityFilter,
-  OpportunityRecord,
-  PipelineStore,
-  StageEventRecord,
+import {
+  claimStateOf,
+  stageMachineClaim,
+  type BusinessFormRecord,
+  type CommercialTermsPatch,
+  type ContractTypeRecord,
+  type DealExitRecord,
+  type NewOpportunity,
+  type NewWinLossReview,
+  type WinLossReviewRecord,
+  type WinLossReasonRecord,
+  type StageDefinitionRecord,
+  type OpportunityFilter,
+  type OpportunityRecord,
+  type PipelineStore,
+  type StageEventRecord,
 } from "./store";
+import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
 import { lockKey } from "../shared/allocate";
 
 // Prisma-backed PipelineStore over yucer_pipeline.
@@ -288,11 +291,13 @@ export class PrismaPipelineStore implements PipelineStore {
     // recorded twice; a partial write leaves the analytics reading a stage
     // history that never happened, or a stage with no history at all.
     return p.$transaction(async (tx) => {
+      const before = await lockedClaimState(tx, workspaceId, opportunityId);
       const updated = await tx.opportunity.updateMany({
         where: { id: opportunityId, workspaceId },
         data: patch,
       });
-      if (updated.count === 0) return false;
+      if (updated.count === 0 || !before) return false;
+      await logClaims(tx, workspaceId, opportunityId, before, stageMachineClaim(plan.event.occurredAt));
 
       await tx.opportunityStageEvent.create({
         data: {
@@ -344,11 +349,13 @@ export class PrismaPipelineStore implements PipelineStore {
     // One transaction, guarded on status = open: two people abandoning the
     // same deal at once write one exit, not two.
     return p.$transaction(async (tx) => {
+      const before = await lockedClaimState(tx, workspaceId, opportunityId);
       const updated = await tx.opportunity.updateMany({
         where: { id: opportunityId, workspaceId, status: "open" },
         data: patch,
       });
-      if (updated.count === 0) return false;
+      if (updated.count === 0 || !before) return false;
+      await logClaims(tx, workspaceId, opportunityId, before, stageMachineClaim(plan.patch.closedAt));
       await tx.funnelExit.create({
         data: {
           workspaceId,
@@ -385,6 +392,7 @@ export class PrismaPipelineStore implements PipelineStore {
     workspaceId: string,
     opportunityId: string,
     input: CommercialTermsPatch,
+    claim: ClaimContext,
   ): Promise<boolean> {
     const p = await getPrismaClient();
 
@@ -419,11 +427,37 @@ export class PrismaPipelineStore implements PipelineStore {
       );
     }
 
-    const updated = await p.opportunity.updateMany({
-      where: { id: opportunityId, workspaceId },
-      data: patch,
+    // One transaction with the claim rows (incr/0084): a log that can
+    // disagree with the row is worse than no log.
+    return p.$transaction(async (tx) => {
+      const before = await lockedClaimState(tx, workspaceId, opportunityId);
+      const updated = await tx.opportunity.updateMany({
+        where: { id: opportunityId, workspaceId },
+        data: patch,
+      });
+      if (updated.count === 0 || !before) return false;
+      await logClaims(tx, workspaceId, opportunityId, before, claim);
+      return true;
     });
-    return updated.count > 0;
+  }
+
+  async listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityClaimEvent.findMany({
+      where: { workspaceId, opportunityId },
+      orderBy: { occurredAt: "asc" },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      opportunityId: r.opportunityId,
+      field: r.field as ClaimEventRecord["field"],
+      fromValue: r.fromValue,
+      toValue: r.toValue,
+      source: r.source as ClaimEventRecord["source"],
+      reason: r.reason,
+      actorSub: r.actorSub,
+      occurredAt: r.occurredAt,
+    }));
   }
 
   async latestStageChangeAt(workspaceId: string): Promise<Map<string, Date>> {
@@ -1055,4 +1089,30 @@ function decimalSnapshot(r: Record<string, unknown>): SnapshotRow {
     currency,
     snapshotAt: r.snapshotAt as Date,
   };
+}
+
+// --- 声明变更日志 (incr/0084) ------------------------------------------------------
+
+type Tx = Parameters<Parameters<Awaited<ReturnType<typeof getPrismaClient>>["$transaction"]>[0]>[0];
+
+/**
+ * The claimed values BEFORE a write, read under a row lock so two concurrent
+ * writers log two consecutive changes rather than two changes from the same
+ * starting point. Null when the deal is not in this workspace.
+ */
+async function lockedClaimState(tx: Tx, workspaceId: string, opportunityId: string): Promise<ClaimState | null> {
+  await tx.$queryRaw`SELECT 1 FROM yucer_pipeline.opportunity WHERE id = ${opportunityId}::uuid AND workspace_id = ${workspaceId}::uuid FOR UPDATE`;
+  const row = await tx.opportunity.findFirst({ where: { id: opportunityId, workspaceId } });
+  return row ? claimStateOf(toRecord(row as OpportunityRow)) : null;
+}
+
+/** Re-read the row after the write and append a row per claim that changed. */
+async function logClaims(tx: Tx, workspaceId: string, opportunityId: string, before: ClaimState, ctx: ClaimContext): Promise<void> {
+  const row = await tx.opportunity.findFirst({ where: { id: opportunityId, workspaceId } });
+  if (!row) return;
+  const events = diffClaims(before, claimStateOf(toRecord(row as OpportunityRow)), ctx);
+  if (events.length === 0) return;
+  await tx.opportunityClaimEvent.createMany({
+    data: events.map((e) => ({ workspaceId, opportunityId, ...e })),
+  });
 }

@@ -17,6 +17,7 @@ import {
   previewCategories,
   updateCommercialTerms,
   replaceOpportunityLines,
+  claimHistory,
   forecastHistory,
   forecastScorecard,
   submitForecast,
@@ -733,7 +734,7 @@ test("the same price is not signed twice", async () => {
 test("a closed deal's prices cannot be signed off after the fact", async () => {
   const c = lineCtx("sales_rep", "free", 800);
   unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
-  await c.store.updateCommercialTerms(WS, "opp_1", {});
+  await c.store.updateCommercialTerms(WS, "opp_1", {}, { source: "manual", actorSub: "usr_me", occurredAt: new Date() });
   const closedStore = new InMemoryPipelineStore();
   closedStore.seed([opp({ closedAt: new Date("2026-07-01"), status: "won", stage: "won" })]);
   const signing = { ...ctx("sales_leader", "free", closedStore), catalog: c.catalog };
@@ -1088,4 +1089,69 @@ test("a negative budget is refused, and so is a member who may not price the dea
   assert.equal(bad.ok === false && bad.violations[0].code, "customer_budget_negative");
   const ops = await updateCommercialTerms(ctx("sales_ops", "enterprise", store), "opp_1", { customerBudget: 100 });
   assert.equal(ops.ok === false && ops.violations[0].code, "permission_denied");
+});
+
+// --- 声明变更日志 (incr/0084, YC-065 R2 / R9) ---------------------------------------
+
+const NOW = new Date("2026-09-25T00:00:00Z");
+
+test("a claim change is logged with who and why; an unchanged save logs nothing", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "free", store);
+  unwrap(
+    await updateCommercialTerms(c, "opp_1", { expectedCloseAt: new Date("2026-10-20T00:00:00Z"), reason: "客户预算会推迟" }, NOW),
+  );
+  unwrap(await updateCommercialTerms(c, "opp_1", { expectedCloseAt: new Date("2026-10-20T00:00:00Z") }, NOW));
+  const events = await store.listClaimEvents(WS, "opp_1");
+  assert.deepEqual(
+    events.map((e) => [e.field, e.fromValue, e.toValue, e.source, e.actorSub, e.reason]),
+    [["expected_close_at", "2026-09-30", "2026-10-20", "manual", "usr_me", "客户预算会推迟"]],
+  );
+});
+
+test("the stage machine and the line recompute log as the system", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_leader", "enterprise", store);
+  unwrap(await advanceStage(c, "opp_1", { to: "validate" }));
+  const moved = (await store.listClaimEvents(WS, "opp_1")).filter((e) => e.field === "probability");
+  assert.equal(moved.length, 1);
+  assert.equal(moved[0].source, "stage_machine");
+  assert.equal(moved[0].actorSub, null);
+
+  const lined = ctx("sales_leader", "enterprise", store);
+  unwrap(await replaceOpportunityLines(lined, "opp_1", [{ productId: "p_x", quantity: 2, unitPrice: 70_000 }]));
+  const amount = (await store.listClaimEvents(WS, "opp_1")).filter((e) => e.field === "amount");
+  assert.deepEqual(amount.map((e) => [e.fromValue, e.toValue, e.source, e.actorSub]), [["100000.00", "140000.00", "lines", null]]);
+});
+
+test("a category above the rule's suggestion needs a reason; at or below it does not (R9)", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp({ forecastCategory: "pipeline" })]);
+  const c = ctx("sales_leader", "pro", store);
+  const bare = await updateCommercialTerms(c, "opp_1", { forecastCategory: "commit" }, NOW);
+  assert.equal(bare.ok === false && bare.violations[0].code, "category_reason_required");
+  assert.equal((await store.listClaimEvents(WS, "opp_1")).length, 0, "a refused save logs nothing");
+
+  unwrap(await updateCommercialTerms(c, "opp_1", { forecastCategory: "commit", reason: "CFO 口头确认本季签" }, NOW));
+  const [e] = await store.listClaimEvents(WS, "opp_1");
+  assert.deepEqual([e.field, e.fromValue, e.toValue, e.reason], ["forecast_category", "pipeline", "commit", "CFO 口头确认本季签"]);
+
+  // Back down to the rule's own category: no reason owed.
+  unwrap(await updateCommercialTerms(c, "opp_1", { forecastCategory: "pipeline" }, NOW));
+});
+
+test("claim history: gated like reading a deal, with the slippage it implies", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "free", store);
+  unwrap(await updateCommercialTerms(c, "opp_1", { expectedCloseAt: new Date("2026-10-20T00:00:00Z") }, NOW));
+  unwrap(await updateCommercialTerms(c, "opp_1", { expectedCloseAt: new Date("2026-11-09T00:00:00Z") }, NOW));
+  const h = unwrap(await claimHistory(c, "opp_1"));
+  assert.equal(h.events.length, 2);
+  assert.deepEqual(h.slippage, { pushes: 2, pushedDays: 40, crossedQuarter: true, datesLost: 0 });
+  assert.equal((await claimHistory(ctx("sales_rep", null, store), "opp_1")).ok, false);
+  const missing = await claimHistory(c, "opp_nope");
+  assert.equal(missing.ok === false && missing.violations[0].code, "not_found");
 });

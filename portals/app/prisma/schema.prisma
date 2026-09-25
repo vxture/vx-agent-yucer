@@ -1937,3 +1937,22 @@ model AgentBriefing {
   @@map("agent_briefing")
   @@schema("yucer_agent")
 }
+
+/// incr/0084. 声明变更日志 - append-only; written in the same transaction as
+/// the change to amount / currency / close date / category / win rate.
+model OpportunityClaimEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  field         String   @db.VarChar(24)
+  fromValue     String?  @map("from_value")
+  toValue       String?  @map("to_value")
+  source        String   @db.VarChar(16)
+  reason        String?
+  actorSub      String?  @map("actor_sub") @db.VarChar(128)
+  occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz()
+
+  @@index([workspaceId, opportunityId, occurredAt], map: "idx_claim_event_by_opp")
+  @@map("opportunity_claim_event")
+  @@schema("yucer_pipeline")
+}

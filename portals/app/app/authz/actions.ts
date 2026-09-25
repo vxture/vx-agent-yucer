@@ -322,6 +322,14 @@ export const ACTIONS = {
     permission: "pipeline.read",
     writes: false,
   },
+  // 声明变更日志 and slippage (incr/0084, YC-068): part of reading a deal -
+  // the free pipeline, read permission.
+  "pipeline.claims.view": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.read",
+    writes: false,
+  },
   "pipeline.opportunity.create": {
     domain: "pipeline",
     feature: "pipeline.manage",

@@ -29,6 +29,7 @@ import {
   listPipeline,
   listStageDefinitions,
   stageHistory,
+  claimHistory,
   dealExit,
   listWinLossReasons,
   stallRules,
@@ -77,7 +78,8 @@ import {
   listProducts as listCatalogProducts,
   listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
-import { StageJourney } from "../../components/stage-journey";
+import { ChangeHistory } from "../../components/change-history";
+import { suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import {
@@ -175,11 +177,13 @@ export default async function OpportunityDetailPage({
   }
   const opportunity = detail.value;
 
-  const [history, stall, exit] = await Promise.all([
+  const [history, stall, exit, claims] = await Promise.all([
     stageHistory(ctx, id),
     stallRules(ctx),
     // Why it ended, for a lost or abandoned deal (YC-065 R6).
     opportunity.status === "lost" || opportunity.status === "abandoned" ? dealExit(ctx, id) : Promise.resolve(null),
+    // 声明变更日志 and slippage (incr/0084, YC-065 R2).
+    claimHistory(ctx, id),
   ]);
 
   // NAMES, NOT IDS (polish, 2026-09-24): the owner card printed usr_demo_m010,
@@ -703,10 +707,12 @@ export default async function OpportunityDetailPage({
       ? Math.max(0, Math.floor((briefNow.getTime() - (lastStageChangeAt ?? opportunity.createdAt).getTime()) / 86_400_000))
       : null;
   const closeDate = (opportunity.closedAt ?? opportunity.expectedCloseAt)?.toISOString().slice(0, 10) ?? null;
+  const slip = claims.ok ? claims.value.slippage : null;
   const progressSummary = [
     DEAL_PAGE_TEXT.progressSummary(stageText, daysInStage),
     ...(probability.value !== null ? [DEAL_PAGE_TEXT.probability(probability.value)] : []),
     ...(closeDate ? [DEAL_PAGE_TEXT.closeOn(closeDate)] : []),
+    ...(slip && slip.pushes > 0 ? [DEAL_PAGE_TEXT.slipped(slip.pushes, slip.pushedDays)] : []),
   ].join(COLLAPSE_TEXT.separator);
   const dealLines = (lineRows.ok ? lineRows.value : []).filter((l) => l.opportunityId === id);
   const pendingLines = dealLines.filter((l) => l.needsApproval && !l.approved).length;
@@ -717,6 +723,23 @@ export default async function OpportunityDetailPage({
   );
   const recentTouches = interactionList.filter((n) => briefNow.getTime() - n.occurredAt.getTime() <= 30 * 86_400_000).length;
   const requirement = opportunity.requirement?.trim() || null;
+  // The rule's category, for the terms dialog's reason field (YC-065 R9) -
+  // the same resolution the brief above used.
+  const ruleVerdict = suggestCategory(
+    {
+      id,
+      stage: opportunity.stage,
+      forecastCategory: opportunity.forecastCategory,
+      probability: opportunity.probability,
+      expectedCloseAt: opportunity.expectedCloseAt,
+      lastStageChangeAt,
+      stallDaysOverride: stall.ok ? stall.value.overrideFor(opportunity.businessFormId) : null,
+    },
+    briefNow,
+    stall.ok ? stall.value.thresholds : undefined,
+    stall.ok ? stall.value.stageCatalog : undefined,
+  );
+  const ruleCategory = ruleVerdict.kind === "suggested" ? ruleVerdict.category : null;
 
   return (
     // TWO PANES, BOTH SERVER-RENDERED - lib/sidebar-slot.ts. DealEditProvider
@@ -802,6 +825,7 @@ export default async function OpportunityDetailPage({
                 // not on the vocabulary's own permission (incr/0063).
                 canSetDealType={canEditTerms}
                 customerBudget={opportunity.customerBudget ?? null}
+                suggestedCategory={ruleCategory}
                 onSave={repriceOpportunity}
               />
               <DealRolesDrawer
@@ -964,6 +988,15 @@ export default async function OpportunityDetailPage({
                 {closeDate ? (
                   <span>{opportunity.closedAt ? `${OPPORTUNITY_TEXT.closedAt} ${closeDate}` : DEAL_PAGE_TEXT.closeOn(closeDate)}</span>
                 ) : null}
+                {/* 滑动史 (YC-065 R2): pushes beside the date they moved;
+                    each push is a row in 变更史 below. */}
+                {slip && slip.pushes > 0 ? (
+                  <a href="#change-history">
+                    <Tag tone={slip.pushes >= 2 || slip.crossedQuarter ? "danger" : "warning"}>
+                      {DEAL_PAGE_TEXT.slipped(slip.pushes, slip.pushedDays)}
+                    </Tag>
+                  </a>
+                ) : null}
               </div>
               <PanelSub>{DEAL_PAGE_TEXT.plan}</PanelSub>
               {commitments.ok ? (
@@ -982,13 +1015,15 @@ export default async function OpportunityDetailPage({
                   hideDescription
                 />
               ) : null}
+              <span id="change-history" />
               <PanelSub>{DEAL_PAGE_TEXT.history}</PanelSub>
               {history.ok ? (
-                <StageJourney
-                  events={history.value}
+                <ChangeHistory
+                  claims={claims.ok ? claims.value.events : []}
+                  stages={history.value}
                   stageDefinitions={stageDefinitions}
                   actorNames={Object.fromEntries([...memberNameOf].filter((e): e is [string, string] => e[1] != null))}
-                  hideTitle
+                  categoryLabel={FORECAST_LABEL}
                 />
               ) : (
                 <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(history.violations, LOAD_ERROR)} />
