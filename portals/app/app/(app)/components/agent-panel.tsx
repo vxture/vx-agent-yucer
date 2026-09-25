@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Button } from "@vxture/design-ui";
 import { AgentCapture } from "./agent-capture";
@@ -43,6 +44,13 @@ export interface AgentPanelProps {
    */
   readonly briefFor?: { accountId: string; contacts: MeetingBriefButtonProps["contacts"] };
   readonly onBuildBrief?: MeetingBriefButtonProps["onBuild"];
+  /**
+   * 本单参谋 (deal batch 2c, YC-069): the section of the deck that follows the
+   * page, placed right under the capture box. Built by the page's own deck
+   * route as its own component, so the action it binds pairs with its own
+   * error dictionary. Absent on every other page.
+   */
+  readonly advisor?: ReactNode;
 }
 
 export function AgentPanel({
@@ -53,13 +61,10 @@ export function AgentPanel({
   onAttach,
   briefFor,
   onBuildBrief,
+  advisor,
 }: AgentPanelProps) {
   const { BOARD_TEXT } = useMessages();
 
-  // THE SAME SURFACE EVERY PAGE'S DOCK USES (2026-09-05). These three blocks
-  // were three hand-rolled cards; as sections they gain the assistant's
-  // grammar for free and, more to the point, stop drifting from the pages
-  // that answer their own questions in the same place.
   const sections = [
     // A quick command, first because it is the one you open the deck for
     // half an hour before a meeting.
@@ -113,13 +118,16 @@ export function AgentPanel({
   return (
     <AssistantDeck
       capture={
-        <AgentCapture
-          data={data}
-          canRecord={canRecord}
-          onRecord={onRecord}
-          onAsk={onAsk}
-          onAttach={onAttach}
-        />
+        <>
+          <AgentCapture
+            data={data}
+            canRecord={canRecord}
+            onRecord={onRecord}
+            onAsk={onAsk}
+            onAttach={onAttach}
+          />
+          {advisor}
+        </>
       }
       sections={sections}
     />

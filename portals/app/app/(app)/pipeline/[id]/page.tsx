@@ -52,17 +52,14 @@ import { getAuthzStore } from "../../../authz/store";
 import { listCampaigns } from "../../../domains/strategy/service";
 import { nameCitations } from "../../lib/name-citations";
 import { dealBrief } from "../../../domains/pipeline/lib/brief";
-import { displayRationale } from "../../lib/proposal-rationale";
 import { WarRoom } from "../../components/war-room";
 import { DealReview } from "../../components/deal-review";
 import { recordReview } from "../winloss-action";
 import { CategoryActionCard } from "../../components/category-action-card";
 import { CommitmentActionCard } from "../../components/commitment-action-card";
-import { ProposalActionCard } from "../../components/proposal-action-card";
 import { LinkActionCard } from "../../components/link-action-card";
 import { applySuggestedCategory } from "../../forecast/actions";
-import { adjudicateProposals } from "../../copilot/actions";
-import { DealJudgements, DealProposals, RivalMentions } from "../../components/position-brief";
+import { DealJudgements, RivalMentions } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
@@ -138,7 +135,6 @@ export default async function OpportunityDetailPage({
     CHANNEL_LABEL,
     LOAD_ERROR,
     DOMAIN_LABEL,
-    RATIONALE_TEXT,
     DEAL_PAGE_TEXT,
     COLLAPSE_TEXT,
     WALLET_TEXT,
@@ -354,17 +350,6 @@ export default async function OpportunityDetailPage({
     }),
   );
 
-  // Proposals for this position, labelled by the capability that produced them
-  // (ADR-015) so a reader can see whether they are signing a commercial move or
-  // a relationship one.
-  const CAP_GROUP: Record<string, string> = {
-    "deal.stall_risk": POSITION_TEXT.planCommercial,
-    "deal.competition": POSITION_TEXT.planCommercial,
-    "pricing.discount_approval": POSITION_TEXT.planCommercial,
-    "account.chain_map": POSITION_TEXT.planRelation,
-    "account.cadence": POSITION_TEXT.planRelation,
-    "delivery.payment_risk": POSITION_TEXT.planTechnical,
-  };
   // THIS DEAL'S OWN, not the customer's (YC-021 L6 客户级与商机级分层). The
   // customer's relationship proposals used to be mixed in here as if they
   // were moves on this deal; they belong on the customer page, and this page
@@ -372,16 +357,6 @@ export default async function OpportunityDetailPage({
   const accountLevelCount = opportunity.accountId
     ? (proposals.ok ? proposals.value : []).filter((a) => a.subjectId === opportunity.accountId).length
     : 0;
-  const positionProposals = (proposals.ok ? proposals.value : [])
-    .filter((a) => a.subjectId === id)
-    .map((a) => ({
-      id: a.id,
-      title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,
-      group: CAP_GROUP[a.capability ?? ""] ?? POSITION_TEXT.planCommercial,
-      rationale: displayRationale(a, RATIONALE_TEXT),
-      confidence: a.confidence,
-    }));
-
   // The evidence plane, scoped to THIS deal.
   //
   // Capture lives here and not only on the account page for one reason: the
@@ -920,25 +895,10 @@ export default async function OpportunityDetailPage({
                           cta={WAR_ROOM_TEXT.approveCta}
                         />
                       );
-                    case "adjudicate":
-                      return (
-                        <ProposalActionCard
-                          key="adjudicate"
-                          proposals={brief.actions
-                            .filter((x) => x.kind === "adjudicate")
-                            .flatMap((x) => (x.kind === "adjudicate" ? x.proposalIds : []))
-                            .map((pid) => {
-                              const src = (proposals.ok ? proposals.value : []).find((p) => p.id === pid);
-                              return {
-                                id: pid,
-                                title: src ? (POSITION_TEXT.actionLabels[src.actionType] ?? src.actionType) : pid,
-                              };
-                            })}
-                          severity={a.severity}
-                          reason={a.reason}
-                          onAdjudicate={adjudicateProposals}
-                        />
-                      );
+                    // "adjudicate" is not rendered here: this deal's proposals
+                    // are decided in 栏3 本单参谋 (deal batch 2c) - one place.
+                    default:
+                      return null;
                   }
                 })}
                 {/* AI 分析辅助: composed question, person presses send. */}
@@ -954,8 +914,6 @@ export default async function OpportunityDetailPage({
               </WarRoom>
               <PanelSub>{DEAL_PAGE_TEXT.judgements}</PanelSub>
               <DealJudgements problems={problems} />
-              <PanelSub>{DEAL_PAGE_TEXT.proposals}</PanelSub>
-              <DealProposals proposals={positionProposals} />
             </DealPanel>
 
             {/* 结局与复盘, above the progress on a closed deal (YC-072). */}

@@ -5912,7 +5912,6 @@ export const WAR_ROOM_TEXT = {
   approveTitle: (n: number) => `${n} 行低于底价,等待签字`,
   approveReason: (n: number) => "底价存在的意义是约束正在成交的人;签字要看着具体行项做。",
   approveCta: "去逐行审批",
-  proposalsTitle: (n: number) => `参谋对本单有 ${n} 条在队提案`,
   adjudicateReason: (n: number) => "采纳即执行(ADR-003:参谋提议,人裁决)。逐条看,逐条定。",
   acceptAndExecute: "采纳并执行",
   accepted: "已采纳",
@@ -6853,6 +6852,11 @@ export const DEAL_PAGE_TEXT = {
   customerProjects: "交付项目",
   customerReadOnly: "只读。客户的事在客户全景图上改。",
   customerOpen: "客户全景图",
+  // 栏3 · 本单参谋 (YC-069): the deck's section that follows the page.
+  advisorTitle: "本单参谋",
+  advisorEmpty: "本单暂无待裁提案",
+  advisorTrail: (group: string, confidence: number | null) =>
+    confidence === null ? group : `${group} · 置信 ${confidence}`,
   // 栏2
   todo: "待动手的事",
   judgements: "判断",

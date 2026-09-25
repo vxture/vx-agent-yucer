@@ -1194,7 +1194,6 @@ export const en: Dictionary = {
     approveReason: (n: number) =>
       "The floor exists to constrain whoever is closing; signing happens looking at the line.",
     approveCta: "Review line by line",
-    proposalsTitle: (n: number) => `The copilot has ${n} queued proposal(s) on this deal`,
     adjudicateReason: (n: number) =>
       "Accepting executes (ADR-003: the copilot proposes, a human decides). Read each, decide each.",
     acceptAndExecute: "Accept & execute",
@@ -5800,6 +5799,10 @@ export const en: Dictionary = {
     customerProjects: "Delivery projects",
     customerReadOnly: "Read-only. Change the customer on its own page.",
     customerOpen: "Customer page",
+    advisorTitle: "Advisor on this deal",
+    advisorEmpty: "No proposals waiting on this deal",
+    advisorTrail: (group: string, confidence: number | null) =>
+      confidence === null ? group : `${group} · confidence ${confidence}`,
     todo: "To do",
     judgements: "Judgements",
     proposals: "Advisor proposals",

@@ -1,7 +1,14 @@
-import { getPipelineStore } from "../../../../domains/shared/registry";
+import { getCopilotStore } from "../../../../domains/shared/registry";
 import { getOpportunityDetail } from "../../../../domains/pipeline/service";
+import { listProposals } from "../../../../domains/copilot/service";
+import { canDecideProposal } from "../../../../domains/copilot/lib/advisor-gate";
+import { adjudicateProposals } from "../../../copilot/actions";
+import { getMessages } from "../../../lib/i18n/server";
+import { displayRationale } from "../../../lib/proposal-rationale";
+import { proposalGroup } from "../../../lib/proposal-group";
 import { resolveAppSession } from "../../../lib/session";
 import { AgentPanel } from "../../../components/agent-panel";
+import { DealAdvisor } from "../../../components/deal-advisor";
 import { deckBundle, recordAction } from "../../deck-data";
 
 // The deck beside one deal.
@@ -35,17 +42,38 @@ export default async function DealDeck({
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) return null;
+  const { POSITION_TEXT, RATIONALE_TEXT } = await getMessages();
 
-  const detail = await getOpportunityDetail(
-    {
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-      store: session.stores.pipeline(),
-    },
-    id,
-  );
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+  const detail = await getOpportunityDetail({ ...base, store: session.stores.pipeline() }, id);
+
+  // 本单参谋 (deal batch 2c): THIS deal's proposals, read through the gated
+  // verb. A refused read shows the section empty rather than hiding it - the
+  // advisor exists on this page whether or not it has anything yet.
+  const proposalsRead = detail.ok
+    ? await listProposals({ ...base, store: getCopilotStore() }, { status: "proposed" }).catch(() => null)
+    : null;
+  const proposals = (proposalsRead?.ok ? proposalsRead.value : [])
+    .filter((a) => a.subjectType === "opportunity" && a.subjectId === id)
+    .map((a) => ({
+      id: a.id,
+      title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,
+      rationale: displayRationale(a, RATIONALE_TEXT),
+      group: proposalGroup(a.capability, POSITION_TEXT),
+      confidence: a.confidence,
+      decidable: canDecideProposal(session.authz, session.entitlement, a.capability, "ui").allowed,
+    }));
+
+  // Built here, not inline in AgentPanel's props: reachable-codes.test binds
+  // an action to the nearest tag opened before it.
+  const advisor = detail.ok ? (
+    <DealAdvisor scope={detail.value.name} proposals={proposals} onAdjudicate={adjudicateProposals} />
+  ) : null;
 
   const bundle = await deckBundle(
     detail.ok
@@ -64,6 +92,7 @@ export default async function DealDeck({
       data={bundle.agent}
       canRecord={bundle.canRecord}
       onRecord={recordAction(detail.ok ? detail.value.accountId : "")}
+      advisor={advisor}
     />
   );
 }
