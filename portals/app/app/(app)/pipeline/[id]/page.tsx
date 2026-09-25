@@ -801,11 +801,16 @@ export default async function OpportunityDetailPage({
     {
       label: DEAL_PAGE_TEXT.factCustomer,
       value: opportunity.accountId ? (
-        <span className="inline-flex items-center gap-xs" title={OPPORTUNITY_TEXT.attributionFrozen}>
-          <Link href={`/account/${opportunity.accountId}`} className="truncate hover:underline">
+        // The level FIRST (owner 2026-09-25): it is the short, fixed-width
+        // part, so a long customer name truncates after it instead of pushing
+        // it out of the row.
+        <span className="inline-flex max-w-full min-w-0 items-center justify-end gap-xs" title={OPPORTUNITY_TEXT.attributionFrozen}>
+          <span className="flex-none">
+            <Tag tone={tier === "strategic" ? "brand" : tier === "key" ? "warning" : "neutral"}>{tierLabel}</Tag>
+          </span>
+          <Link href={`/account/${opportunity.accountId}`} className="min-w-0 truncate hover:underline">
             {accountName}
           </Link>
-          <Tag tone={tier === "strategic" ? "brand" : tier === "key" ? "warning" : "neutral"}>{tierLabel}</Tag>
         </span>
       ) : (
         notSet
