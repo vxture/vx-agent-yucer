@@ -15,7 +15,8 @@ import {
   getPipelineStore,
   getPlanningStore,
 } from "../../domains/shared/registry";
-import { listAccounts } from "../../domains/account/service";
+import { importanceScheme, listAccounts } from "../../domains/account/service";
+import { dealPriorityOf } from "../../domains/account/lib/importance";
 import { listTerritories } from "../../domains/planning/service";
 import { NewEntryLink } from "../components/form-page";
 import {
@@ -119,6 +120,7 @@ export default async function PipelinePage({
       }),
       listStageDefinitions(ctx),
     ]);
+  const scheme = await importanceScheme({ ...ctx, store: session.stores.account() });
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
 
   if (!result.ok) {
@@ -185,8 +187,24 @@ export default async function PipelinePage({
   const noCloseDate = openDeals.filter((o) => o.expectedCloseAt == null).length;
   const unowned = openDeals.filter((o) => !o.ownerSub).length;
 
+  // 优先级 (incr/0090, R11): each deal's customer tier x its importance,
+  // looked up in the matrix. The scheme is the account domain's, through its
+  // gate; a refusal leaves the column blank rather than failing the list.
+  const accountById = new Map((accounts.ok ? accounts.value : []).map((a) => [a.id, a] as const));
   const rows: PipelineRow[] = inWindow.map((o) => ({
     ...(o as (typeof result.value)[number]),
+    ...(() => {
+      if (!scheme.ok) return { priority: null, priorityFrom: null };
+      const rec = o as (typeof result.value)[number];
+      const read = dealPriorityOf(rec, (rec.accountId ? accountById.get(rec.accountId) : null) ?? null, scheme.value);
+      return {
+        priority: read.priority,
+        priorityFrom:
+          read.accountLevel && read.dealLevel
+            ? { tier: read.accountLevel.name, importance: read.dealLevel.name }
+            : null,
+      };
+    })(),
     accountName:
       (o as (typeof result.value)[number]).accountName ??
       (o as (typeof result.value)[number]).accountId,

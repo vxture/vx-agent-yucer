@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { accountLevelOf, medalOf, opportunityLevelOf, priorityOf, type ImportanceLevel, type PriorityRule } from "./importance";
+import { accountLevelOf, dealPriorityOf, medalOf, opportunityLevelOf, priorityKeys, priorityOf, type ImportanceLevel, type PriorityRule } from "./importance";
 import { DEFAULT_IMPORTANCE_LEVELS, DEFAULT_PRIORITY_MATRIX } from "./importance-vocab";
 
 const levels: ImportanceLevel[] = DEFAULT_IMPORTANCE_LEVELS.map((l, i) => ({ ...l, id: `lv${i}`, sortOrder: l.rank }));
@@ -45,4 +45,29 @@ test("the code seed and incr/0090's seed are the same rows", () => {
   assert.deepEqual(lv, DEFAULT_IMPORTANCE_LEVELS.map((l) => [l.subject, l.levelCode, l.name, l.description, l.rank, l.isDefault]));
   const mx = [...sql.matchAll(/\('(\w+)',\s*'(core|major|normal)',\s*(\d)\)/g)].map((m) => [m[1], m[2], Number(m[3])]);
   assert.deepEqual(mx, DEFAULT_PRIORITY_MATRIX.map((r) => [...r]));
+});
+
+test("按优先级: P1 first, the same P by amount, unranked last", () => {
+  const rows = [
+    { id: "a", priority: 3, amount: 100 },
+    { id: "b", priority: null, amount: 999 },
+    { id: "c", priority: 1, amount: 10 },
+    { id: "d", priority: 3, amount: 500 },
+    { id: "e", priority: 3, amount: null },
+  ];
+  const keys = priorityKeys(rows);
+  const order = [...rows]
+    .sort((x, y) => {
+      const kx = keys.get(x), ky = keys.get(y);
+      if (kx == null) return 1;
+      if (ky == null) return -1;
+      return kx - ky;
+    })
+    .map((r) => r.id);
+  assert.deepEqual(order, ["c", "d", "a", "e", "b"]);
+});
+
+test("a deal with no customer has no priority, and says so rather than guessing", () => {
+  const scheme = { account: [], opportunity: [], rules: [] };
+  assert.equal(dealPriorityOf({ importanceLevelId: null }, null, scheme).priority, null);
 });

@@ -2754,6 +2754,8 @@ export const PIPELINE_TEXT = {
   // lines tall, so the stacking costs no row height.
   columnAccount: "客户",
   columnStageForecast: "阶段 / 预测",
+  columnPriority: "优先级",
+  priorityUnranked: "未定级",
   columnAmount: "金额",
   columnProbability: "赢率",
   columnExpectedClose: "预计成交",
