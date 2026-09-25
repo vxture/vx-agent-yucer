@@ -372,8 +372,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_catalog.price_book_entry": ["list_price", "floor_price"],
   // opportunity_id and product_id are the line's identity - moving a line to
   // another deal or another product is a different line.
+  // custom_note joined in incr/0082 (本单定制说明, deal batch 2b).
   "yucer_pipeline.opportunity_line": [
-    "quantity", "unit_price", "amount", "currency", "needs_approval", "updated_at",
+    "quantity", "unit_price", "amount", "currency", "needs_approval", "custom_note", "updated_at",
   ],
   "yucer_core.account_plan": [
     "target_amount", "currency",

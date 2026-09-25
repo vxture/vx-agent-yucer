@@ -543,3 +543,7 @@ export const DEMO_WUXIA_MEMBER_NAMES: readonly string[] = [
   // 白马啸西风
   "李文秀", "苏普",
 ] as const;
+
+/** 本单定制 on a demo line (incr/0082) - what one deal tailored, on the line
+ *  that carries the effort. */
+export const DEMO_LINE_CUSTOM_NOTE = "含与现有 ERP 双向对接的接口开发，约 6 周";

@@ -121,7 +121,10 @@ export function DealDossierPanel({
   summary,
   facts,
   more,
+  open,
 }: {
+  /** Open deals are given up from here; closed ones reopened (YC-069 §04). */
+  readonly open: boolean;
   readonly title: string;
   readonly opportunityNo: string;
   readonly badges: ReactNode;
@@ -129,7 +132,7 @@ export function DealDossierPanel({
   readonly facts: readonly Row[];
   readonly more: readonly Row[];
 }) {
-  const { ACCOUNT_TEXT, PANEL_MENU_TEXT } = useMessages();
+  const { ACCOUNT_TEXT, PANEL_MENU_TEXT, OPPORTUNITY_TEXT } = useMessages();
   const edit = useDealEdit();
   const [moreOpen, setMoreOpen] = useState(false);
   return (
@@ -143,6 +146,16 @@ export function DealDossierPanel({
       menu={{
         view: "expand",
         edit: edit?.can.terms ? { onSelect: () => edit.open("terms") } : { hint: PANEL_MENU_TEXT.noEditRight },
+        // 放弃 / 重开 open the stage drawer, where both already live.
+        extra: edit?.can.stage
+          ? [
+              {
+                id: "stage",
+                label: open ? OPPORTUNITY_TEXT.abandonOpen : OPPORTUNITY_TEXT.advanceReopen,
+                onSelect: () => edit.open("stage"),
+              },
+            ]
+          : undefined,
       }}
       title={
         <span className="flex flex-col">
@@ -186,6 +199,91 @@ export function DealDossierPanel({
           </Collapsible>
         ) : null}
       </div>
+    </CollapsibleSection>
+  );
+}
+
+export interface DealSolutionRow {
+  readonly id: string;
+  readonly product: string;
+  /** Quantity with its unit, already formatted ("16 人天"). */
+  readonly quantity: string;
+  /** Standard or add-on in the source solution; null when the line is not
+   *  from one (a custom combination, or a product added beyond it). */
+  readonly optional: boolean | null;
+  readonly customNote: string | null;
+}
+
+/** 栏1 · 产品方案 (YC-069 §04b) - WHAT is sold: the combination and this
+ *  deal's own customisation. No prices: 报价与审批 prices the same lines, and
+ *  a line said twice in two places is how they come to disagree. Editing the
+ *  combination stays on /pipeline/<id>/lines. */
+export function DealSolutionPanel({
+  source,
+  scenario,
+  rows,
+  summary,
+  editHref,
+  editHint,
+}: {
+  /** The catalogue solution the lines came from; null = a custom combination. */
+  readonly source: string | null;
+  readonly scenario: string | null;
+  readonly rows: readonly DealSolutionRow[];
+  readonly summary: string;
+  readonly editHref: string | null;
+  readonly editHint: string;
+}) {
+  const { DEAL_PAGE_TEXT } = useMessages();
+  const customised = rows.filter((r) => r.customNote);
+  return (
+    <CollapsibleSection
+      id="deal-solution"
+      tone="raised"
+      style={CARD_VEIL_STYLE}
+      className={CARD_VEIL_CLASS}
+      icon="stack"
+      title={DEAL_PAGE_TEXT.solutionTitle}
+      summary={summary}
+      menu={{ view: "expand", edit: editHref ? { href: editHref } : { hint: editHint } }}
+    >
+      {rows.length === 0 ? (
+        <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.solutionNone}</p>
+      ) : (
+        <div className="flex flex-col gap-sm">
+          <div className="text-muted-foreground text-body-sm">
+            {source ? DEAL_PAGE_TEXT.solutionFrom(source) : DEAL_PAGE_TEXT.solutionCustom}
+            {scenario ? <span className="block">{DEAL_PAGE_TEXT.solutionScenario(scenario)}</span> : null}
+          </div>
+          <div className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
+            {rows.map((r) => (
+              <div key={r.id} className="flex items-center gap-sm py-2xs text-body-sm">
+                <span className="min-w-0 flex-1 truncate" title={r.product}>
+                  {r.product}
+                </span>
+                <span className="text-muted-foreground flex-none tabular-nums">{r.quantity}</span>
+                {r.optional === null ? null : (
+                  <Tag tone={r.optional ? "warning" : "neutral"}>
+                    {r.optional ? DEAL_PAGE_TEXT.solutionOptional : DEAL_PAGE_TEXT.solutionStandard}
+                  </Tag>
+                )}
+              </div>
+            ))}
+          </div>
+          {customised.length > 0 ? (
+            <div className="flex flex-col gap-2xs">
+              <span className="text-muted-foreground text-body-sm font-medium">{DEAL_PAGE_TEXT.solutionCustomisations}</span>
+              {customised.map((r) => (
+                <p key={r.id} className="text-body-sm">
+                  {r.customNote}
+                  <span className="text-muted-foreground"> · {DEAL_PAGE_TEXT.customOn(r.product)}</span>
+                </p>
+              ))}
+            </div>
+          ) : null}
+          <span className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.solutionPriceElsewhere}</span>
+        </div>
+      )}
     </CollapsibleSection>
   );
 }

@@ -1446,6 +1446,9 @@ export async function submitForecast(
  * by ADR-001 the owning partition is the deal: pricing a deal is
  * `pipeline.opportunity.update`. The catalogue is read here, not written.
  */
+/** opportunity_line.custom_note is VARCHAR(255) (incr/0082). */
+export const CUSTOM_NOTE_MAX = 255;
+
 export async function replaceOpportunityLines(
   ctx: PipelineContext & { catalog: CatalogStore },
   opportunityId: string,
@@ -1479,10 +1482,35 @@ export async function replaceOpportunityLines(
     }
   }
 
+  // WHAT A RE-QUOTE MUST NOT LOSE (deal batch 2b). Lines are replaced
+  // wholesale, so anything the editor does not restate would be erased by
+  // every save: the solution a product came from (provenance, ADR-014 s4 -
+  // the /lines page never restated it, so one save wiped every deal's
+  // 来源方案) and this deal's own customisation note (incr/0082). Both belong
+  // to the PRODUCT on this deal, so a draft that leaves them undefined keeps
+  // the ones the same product already had; an explicit value (null, "")
+  // replaces them.
+  const previous = new Map(
+    (await ctx.catalog.listLines(ctx.workspaceId, opportunityId)).map((l) => [l.productId, l]),
+  );
+  const carried = [];
+  for (const d of drafts) {
+    const before = previous.get(d.productId);
+    const note = d.customNote === undefined ? (before?.customNote ?? null) : d.customNote?.trim() || null;
+    if (note !== null && note.length > CUSTOM_NOTE_MAX) {
+      return fail(violation("custom_note_too_long", `a customisation note is at most ${CUSTOM_NOTE_MAX} characters`, "customNote"));
+    }
+    carried.push({
+      ...d,
+      solutionId: d.solutionId === undefined ? (before?.solutionId ?? null) : d.solutionId,
+      customNote: note,
+    });
+  }
+
   const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
   const currency = current.amount?.currency ?? policy.defaultCurrency;
   const priced = [];
-  for (const d of drafts) {
+  for (const d of carried) {
     // Priced ONE AT A TIME against the entry in force for that product and
     // currency. Pricing the batch off a single lookup would let a stale floor
     // decide approval for a product it never applied to.

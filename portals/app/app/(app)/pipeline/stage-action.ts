@@ -244,7 +244,7 @@ export interface LinesResult {
  */
 export async function saveOpportunityLines(
   opportunityId: string,
-  lines: readonly { productId: string; quantity: number; unitPrice: number }[],
+  lines: readonly { productId: string; quantity: number; unitPrice: number; customNote?: string }[],
 ): Promise<LinesResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

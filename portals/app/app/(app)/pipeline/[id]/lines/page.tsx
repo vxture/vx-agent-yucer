@@ -89,6 +89,7 @@ export default async function DealLinesPage({
             amount: l.amount,
             needsApproval: l.needsApproval,
             approved: l.approved,
+            customNote: l.customNote,
           }))}
         products={(productRows.ok ? productRows.value : [])
           .filter((p) => p.statusId === onSaleId)

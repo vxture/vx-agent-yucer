@@ -10,6 +10,8 @@ export interface DraftLine {
   readonly quantity: number;
   readonly unitPrice: number;
   readonly currency?: string;
+  /** 本单定制说明 (incr/0082). Undefined = not restated by this save. */
+  readonly customNote?: string | null;
 }
 
 export interface PricedLine {
@@ -21,6 +23,7 @@ export interface PricedLine {
   readonly currency: string;
   /** True when the price fell below the product's floor - a human must sign. */
   readonly needsApproval: boolean;
+  readonly customNote: string | null;
 }
 
 /**
@@ -55,6 +58,7 @@ export function priceLine(
     amount,
     currency,
     needsApproval: entry !== null && draft.unitPrice < entry.floorPrice,
+    customNote: draft.customNote ?? null,
   };
 }
 

@@ -76,6 +76,7 @@ import {
 } from "../stage-action";
 import {
   listOpportunityLines,
+  listSolutions,
   listProducts as listCatalogProducts,
   listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
@@ -100,6 +101,7 @@ import {
   DealDossierPanel,
   DealHeaderMenu,
   DealPanel,
+  DealSolutionPanel,
   PanelSub,
 } from "../../components/deal-panels";
 
@@ -601,6 +603,36 @@ export default async function OpportunityDetailPage({
     amountValue === null ? DEAL_PAGE_TEXT.amountNone : formatMoney(amountValue, opportunity.currency),
   ].join(COLLAPSE_TEXT.separator);
 
+  // 产品方案 (YC-069 §04b): the combination and this deal's customisation,
+  // no prices. The source is the solution the lines were expanded from
+  // (opportunity_line.solution_id, provenance only); a refused catalogue read
+  // shows the combination without naming its source rather than guessing.
+  const solutionLines = (lineRows.ok ? lineRows.value : []).filter((l) => l.opportunityId === id);
+  const sourceId = solutionLines.find((l) => l.solutionId)?.solutionId ?? null;
+  const solutionsRead = sourceId ? await listSolutions(catalogCtx).catch(() => null) : null;
+  const sourceView = sourceId && solutionsRead?.ok ? (solutionsRead.value.find((v) => v.solution.id === sourceId) ?? null) : null;
+  const productName = new Map((productRows.ok ? productRows.value : []).map((p) => [p.id, p]));
+  const solutionRows = solutionLines.map((l) => {
+    const product = productName.get(l.productId);
+    const item = sourceView && l.solutionId === sourceId ? sourceView.items.find((i) => i.productId === l.productId) : undefined;
+    return {
+      id: l.id,
+      product: product?.name ?? l.productId,
+      quantity: `${l.quantity} ${product ? (unitName.get(product.unitId) ?? "") : ""}`.trim(),
+      optional: item ? item.optional : null,
+      customNote: l.customNote,
+    };
+  });
+  const solutionSummary =
+    solutionRows.length === 0
+      ? DEAL_PAGE_TEXT.solutionNone
+      : [
+          sourceView ? sourceView.solution.name : DEAL_PAGE_TEXT.solutionCustom,
+          DEAL_PAGE_TEXT.solutionItems(solutionRows.length),
+          ...(solutionRows.some((r) => r.optional) ? [DEAL_PAGE_TEXT.solutionOptionalCount(solutionRows.filter((r) => r.optional).length)] : []),
+          ...(solutionRows.some((r) => r.customNote) ? [DEAL_PAGE_TEXT.solutionCustomCount(solutionRows.filter((r) => r.customNote).length)] : []),
+        ].join(COLLAPSE_TEXT.separator);
+
   // 决策流程: the people on THIS deal, as the customer page's contact cards.
   const contactOf = new Map((account.ok ? account.value.contacts : []).map((c) => [c.id, c]));
   const warmIds = new Set(buyerRecency.ok ? buyerRecency.value.warm.map((c) => c.id) : []);
@@ -733,6 +765,15 @@ export default async function OpportunityDetailPage({
             summary={dossierSummary}
             facts={dossierFacts}
             more={dossierMore}
+            open={opportunity.status === "open"}
+          />
+          <DealSolutionPanel
+            source={sourceView ? sourceView.solution.name : null}
+            scenario={sourceView ? sourceView.solution.scenario : null}
+            rows={solutionRows}
+            summary={solutionSummary}
+            editHref={linesHref}
+            editHint={opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : PANEL_MENU_TEXT.noEditRight}
           />
           <DealDecisionPanel summary={decisionSummary} people={decisionPeople} warning={decisionWarning} />
           {opportunity.accountId ? (

@@ -633,6 +633,7 @@ export class PrismaCatalogStore implements CatalogStore {
             amount: l.amount,
             currency: l.currency,
             needsApproval: l.needsApproval,
+            customNote: l.customNote,
           },
         });
       }
@@ -767,6 +768,7 @@ export class PrismaCatalogStore implements CatalogStore {
     amount: unknown;
     currency: string;
     needsApproval: boolean;
+    customNote: string | null;
   }): OpportunityLineRecord {
     return {
       id: r.id,
@@ -779,6 +781,7 @@ export class PrismaCatalogStore implements CatalogStore {
       amount: num(r.amount),
       currency: r.currency,
       needsApproval: r.needsApproval,
+      customNote: r.customNote,
     };
   }
 }

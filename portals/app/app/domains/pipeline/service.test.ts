@@ -553,6 +553,42 @@ test("an unpriced product is not a discount", async () => {
   assert.equal(r.needsApproval, 0);
 });
 
+test("a re-quote keeps each product's solution and customisation unless it restates them (incr/0082)", async () => {
+  const c = lineCtx("sales_rep", "free");
+  unwrap(
+    await replaceOpportunityLines(c, "opp_1", [
+      { productId: "p1", quantity: 1, unitPrice: 900, solutionId: "sol_1" },
+      { productId: "p2", quantity: 2, unitPrice: 5000, solutionId: "sol_1", customNote: "  含 ERP 接口开发约 6 周  " },
+    ]),
+  );
+  const note = async (pid: string) => (await c.catalog.listLines(WS, "opp_1")).find((l) => l.productId === pid);
+  assert.equal((await note("p2"))?.customNote, "含 ERP 接口开发约 6 周", "trimmed on the way in");
+
+  // The /lines editor used to send neither: one save wiped the provenance of
+  // every line. Unstated now means kept.
+  unwrap(await replaceOpportunityLines(c, "opp_1", [
+    { productId: "p1", quantity: 3, unitPrice: 900 },
+    { productId: "p2", quantity: 2, unitPrice: 5000 },
+  ]));
+  assert.equal((await note("p1"))?.solutionId, "sol_1");
+  assert.equal((await note("p1"))?.quantity, 3);
+  assert.equal((await note("p2"))?.customNote, "含 ERP 接口开发约 6 周");
+
+  // Stated empty clears it; a removed product takes its note with it.
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p2", quantity: 2, unitPrice: 5000, customNote: "" }]));
+  assert.equal((await note("p2"))?.customNote, null);
+  assert.equal(await note("p1"), undefined);
+});
+
+test("a customisation note longer than the column is refused, not truncated", async () => {
+  const c = lineCtx("sales_rep", "free");
+  const r = await replaceOpportunityLines(c, "opp_1", [
+    { productId: "p1", quantity: 1, unitPrice: 900, customNote: "x".repeat(256) },
+  ]);
+  assert.equal(r.ok === false && r.violations[0].code, "custom_note_too_long");
+  assert.equal((await c.catalog.listLines(WS, "opp_1")).length, 0, "nothing written");
+});
+
 test("replacing with no lines leaves the header alone", async () => {
   const c = lineCtx("sales_rep", "free");
   unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 10, unitPrice: 900 }]));
