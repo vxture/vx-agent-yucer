@@ -6878,8 +6878,8 @@ export const DEAL_PAGE_TEXT = {
   solutionNone: "还没有产品明细",
   solutionPriceElsewhere: "价格与审批在「报价与审批」",
   // 栏1 · 决策流程
-  // 恢复原名 决策链 (owner 2026-09-25); 决策流程 is one of its two rows now.
-  decisionTitle: "决策链",
+  // 决策分析 (owner 2026-09-25), was 决策链.
+  decisionTitle: "决策分析",
   processExpand: "展开详情",
   processCollapse: "收起",
   decisionEmpty: "本单还没有写明任何人的角色",

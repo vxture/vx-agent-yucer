@@ -5822,7 +5822,7 @@ export const en: Dictionary = {
     solutionCustomCount: (n: number) => `${n} customised`,
     solutionNone: "No product lines yet",
     solutionPriceElsewhere: "Prices and approval are under Quote and approval",
-    decisionTitle: "Buying group",
+    decisionTitle: "Decision analysis",
     processExpand: "Show details",
     processCollapse: "Hide",
     decisionEmpty: "No one's role on this deal is stated yet",
