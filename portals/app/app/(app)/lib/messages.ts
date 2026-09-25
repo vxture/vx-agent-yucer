@@ -4664,6 +4664,9 @@ export const CONSISTENCY_TEXT = {
   found: (n: number) => `发现 ${n} 处疑似说法不一致，已进裁决队列`,
   clean: (n: number) => `核对了最近 ${n} 条跟进，没有发现说法不一致`,
   tooFew: "跟进记录少于两条，没有可比的说法",
+  // Same notes as last time: the earlier answer, no new model call (incr/0083).
+  unchanged: (n: number) =>
+    n > 0 ? `跟进没有变化，沿用上次核对：${n} 处疑似不一致已在裁决队列` : "跟进没有变化，沿用上次核对：没有发现说法不一致",
   modelMark: "模型推断 · 疑似冲突",
   modelHint: "模型比较两条跟进原文得出，原文摘句已逐字核验；是否真的冲突由你确认。",
   decide: "去裁决队列确认",
@@ -4678,6 +4681,7 @@ export const CONSISTENCY_ERROR: Record<string, string> = {
   empty_question: "核对请求为空",
   tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
   turn_failed: "这次核对没完成（模型暂不可用），稍后再试——这不代表没有冲突",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用，这次没有核对",
   unknown: "这次核对没完成，稍后再试——这不代表没有冲突",
 };
 

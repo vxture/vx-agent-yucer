@@ -1,4 +1,5 @@
 import { getPrismaClient } from "../../lib/db";
+import type { BriefingKey, BriefingRecord } from "./lib/briefing";
 import { assertWritable } from "../shared/column-locks";
 import type { AutonomyMode } from "./lib/autonomy";
 import type { ActionPatch, ActionStatus, AgentAction, SubjectType } from "./lib/action";
@@ -336,6 +337,60 @@ export class PrismaCopilotStore implements CopilotStore {
     const p = await getPrismaClient();
     return p.agentAction.count({ where: { workspaceId, status: "expired", createdAt: { gte: since } } });
   }
+
+  async findBriefing(workspaceId: string, key: BriefingKey): Promise<BriefingRecord | null> {
+    const p = await getPrismaClient();
+    const r = await p.agentBriefing.findFirst({
+      where: {
+        workspaceId,
+        subjectType: key.subjectType,
+        subjectId: key.subjectId,
+        kind: key.kind,
+        inputHash: key.inputHash,
+      },
+    });
+    return r ? toBriefing(r) : null;
+  }
+
+  async saveBriefing(workspaceId: string, row: Omit<BriefingRecord, "id" | "generatedAt">): Promise<BriefingRecord> {
+    const p = await getPrismaClient();
+    try {
+      const r = await p.agentBriefing.create({
+        data: {
+          workspaceId,
+          subjectType: row.subjectType,
+          subjectId: row.subjectId,
+          kind: row.kind,
+          capability: row.capability,
+          inputHash: row.inputHash,
+          content: row.content as object,
+          model: row.model,
+        },
+      });
+      return toBriefing(r);
+    } catch (e) {
+      // A concurrent run of the same input landed first (uidx_agent_briefing):
+      // its row is the answer.
+      if ((e as { code?: string }).code !== "P2002") throw e;
+      const existing = await this.findBriefing(workspaceId, row);
+      if (!existing) throw e;
+      return existing;
+    }
+  }
+}
+
+function toBriefing(r: Record<string, unknown>): BriefingRecord {
+  return {
+    id: String(r.id),
+    subjectType: r.subjectType as BriefingRecord["subjectType"],
+    subjectId: String(r.subjectId),
+    kind: r.kind as BriefingRecord["kind"],
+    capability: String(r.capability),
+    inputHash: String(r.inputHash),
+    content: r.content,
+    model: String(r.model),
+    generatedAt: r.generatedAt as Date,
+  };
 }
 
 function toPlaybook(r: Record<string, unknown>): PlaybookRecord {

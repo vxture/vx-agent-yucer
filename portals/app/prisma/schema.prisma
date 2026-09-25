@@ -1917,3 +1917,23 @@ model WinLossReason {
   @@map("win_loss_reason")
   @@schema("yucer_pipeline")
 }
+
+/// incr/0083. 参谋生成缓存 - one row per advisor run that reached the model,
+/// keyed by its input fingerprint. A cache: DELETE yes, UPDATE never.
+model AgentBriefing {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  subjectType String   @map("subject_type") @db.VarChar(16)
+  subjectId   String   @map("subject_id") @db.VarChar(128)
+  kind        String   @db.VarChar(24)
+  capability  String   @db.VarChar(64)
+  inputHash   String   @map("input_hash") @db.VarChar(64)
+  content     Json
+  model       String   @db.VarChar(64)
+  generatedAt DateTime @default(now()) @map("generated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, subjectType, subjectId, kind, inputHash], map: "uidx_agent_briefing")
+  @@index([workspaceId, subjectType, subjectId, kind, generatedAt(sort: Desc)], map: "idx_agent_briefing_latest")
+  @@map("agent_briefing")
+  @@schema("yucer_agent")
+}

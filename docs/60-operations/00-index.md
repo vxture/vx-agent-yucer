@@ -1944,3 +1944,17 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 **收回条件**：DS 的 `Section` 提供收起态（或至少转发 `divider` 且在无子元素时不渲染
 正文容器）之后，删掉 `COLLAPSED_CLASS`（DS 若同时提供标题行对齐选项，一并删掉 `HEADER_ALIGN_CLASS`），改用 DS 自己的能力；`CollapsibleSection`
 其余部分（切换按钮、收起时的摘要行、默认展开）不受影响。
+
+### TD-035 - 放行仍在产品内按配额池判断，与「配额归平台」的裁定不符
+
+**发现于**：deal batch 0b（2026-09-25）实现 `yucer.advisor.runs` 时。owner 2026-09-24 裁定
+（YC-042 §04）：「计量归你，上报；你不做配额管理，你也不知道配额是多少。配额和用量是平台下发的。」
+
+**现状**：`usage/lib/copilot-turns.ts` 的 `admitMetric()` 读 C2 信封里该指标的 `quota_pools`，
+按 `remaining` 自己判断放不放行——两个指标（turns、advisor.runs）都走它。这是产品在算剩余。
+
+**为什么暂留**：C2 目前没有下发「放行 / 不放行」的结果字段，只有配额池。去掉判断就等于
+永远放行，平台卖出的配额形同虚设。
+
+**收回条件**：平台在 C2 给出放行结果字段（或 consume 的 `gated` 成为准入依据）后，
+`admitMetric()` 改成只读该字段，产品内不再出现 `remaining` 的比较。需向平台提出（经 liaison）。

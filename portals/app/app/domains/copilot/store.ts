@@ -1,3 +1,4 @@
+import type { BriefingKey, BriefingRecord } from "./lib/briefing";
 // D8 copilot persistence port.
 //
 // The interface deliberately offers NO way to update a proposal's content.
@@ -182,6 +183,15 @@ export interface CopilotStore {
    * would be a number this data does not actually support.
    */
   countExpiredSince(workspaceId: string, since: Date): Promise<number>;
+
+  /** 参谋生成缓存 (incr/0083): the run already made for this exact input, if any. */
+  findBriefing(workspaceId: string, key: BriefingKey): Promise<BriefingRecord | null>;
+  /**
+   * Keep a run's result under its fingerprint. A concurrent run of the same
+   * input that landed first wins: the unique key refuses the second insert and
+   * the stored row is returned - one input, one row, whoever finished first.
+   */
+  saveBriefing(workspaceId: string, row: Omit<BriefingRecord, "id" | "generatedAt">): Promise<BriefingRecord>;
 }
 
 export class InMemoryCopilotStore implements CopilotStore {
@@ -190,6 +200,7 @@ export class InMemoryCopilotStore implements CopilotStore {
   private messages: Array<MessageRecord & { workspaceId: string }> = [];
   private actions = new Map<string, AgentAction & { workspaceId: string }>();
   private playbooks: Array<PlaybookRecord & { workspaceId: string }> = [];
+  private briefings: Array<BriefingRecord & { workspaceId: string }> = [];
   private seq = 0;
 
   private nextId(prefix: string): string {
@@ -417,5 +428,26 @@ export class InMemoryCopilotStore implements CopilotStore {
       if (a.workspaceId === workspaceId && a.status === "expired" && a.createdAt.getTime() >= since.getTime()) n += 1;
     }
     return n;
+  }
+
+  async findBriefing(workspaceId: string, key: BriefingKey): Promise<BriefingRecord | null> {
+    return (
+      this.briefings.find(
+        (b) =>
+          b.workspaceId === workspaceId &&
+          b.subjectType === key.subjectType &&
+          b.subjectId === key.subjectId &&
+          b.kind === key.kind &&
+          b.inputHash === key.inputHash,
+      ) ?? null
+    );
+  }
+
+  async saveBriefing(workspaceId: string, row: Omit<BriefingRecord, "id" | "generatedAt">): Promise<BriefingRecord> {
+    const existing = await this.findBriefing(workspaceId, row);
+    if (existing) return existing;
+    const saved = { ...row, workspaceId, id: this.nextId("brief"), generatedAt: new Date() };
+    this.briefings.push(saved);
+    return saved;
   }
 }

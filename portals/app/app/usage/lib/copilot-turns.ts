@@ -38,14 +38,28 @@ export const COPILOT_TURN_METRIC = "yucer.copilot.turns";
 
 export type TurnAdmission = { ok: true } | { ok: false; remaining: number };
 
-export function admitTurn(e: Entitlement): TurnAdmission {
-  const pool = poolFor(e, COPILOT_TURN_METRIC);
+/**
+ * Admission for one metric, read off the C2 envelope's pool. Shared by both
+ * metrics (yucer.copilot.turns, yucer.advisor.runs).
+ *
+ * TD-035: this still reads `remaining` and decides locally. The owner's ruling
+ * (2026-09-24, YC-042) is that the platform sends the admit result and the
+ * product holds no quota numbers; C2 carries no such field yet, so the pool
+ * read stays until the platform names one - then this function becomes a
+ * read of that field and nothing else.
+ */
+export function admitMetric(e: Entitlement, metric: string): TurnAdmission {
+  const pool = poolFor(e, metric);
   if (!pool) return { ok: true };
   // -1 = unlimited (same convention as limits{}, checked the same way withinCap
   // checks it) - a naive `remaining > 0` would read an unlimited pool's -1 as
   // exhausted, denying a workspace that was never supposed to be gated at all.
   if (isUnlimited(pool.limit)) return { ok: true };
   return pool.remaining > 0 ? { ok: true } : { ok: false, remaining: pool.remaining };
+}
+
+export function admitTurn(e: Entitlement): TurnAdmission {
+  return admitMetric(e, COPILOT_TURN_METRIC);
 }
 
 /** The key one turn is charged under: the metric and the question it was asked in. */
@@ -72,3 +86,14 @@ export interface TurnMeter {
 export function defaultTurnMeter(): TurnMeter {
   return { admit: admitTurn, record: (workspaceId, messageId) => meterTurn(workspaceId, messageId) };
 }
+
+/**
+ * For a model call that is an ADVISOR RUN, not a member's turn (runAdvisor
+ * reuses the turn machinery for its tool loop): the run is admitted and
+ * charged once under yucer.advisor.runs, so charging a turn as well would bill
+ * one piece of work twice under two names.
+ */
+export const ADVISOR_RUN_TURN_METER: TurnMeter = {
+  admit: () => ({ ok: true }),
+  record: async () => "",
+};
