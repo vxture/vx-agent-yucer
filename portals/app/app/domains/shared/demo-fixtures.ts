@@ -69,6 +69,18 @@ export const DEMO_CONTACTS = [
   { name: "吴刚", title: "信息化部主任", department: "信息化" },
   { name: "郑洁", title: "客服运营主管", department: "客户服务" },
   { name: "林芳", title: "热线一线组长", department: "客户服务" },
+  // The other customers whose open deals had nobody on file (owner
+  // 2026-09-25: 商机详情页栏1 还是没有决策链) - indices 10-19.
+  { name: "马骏", title: "设备管理部部长", department: "设备管理" },
+  { name: "高原", title: "信息中心主任", department: "信息中心" },
+  { name: "田甜", title: "能源管理工程师", department: "设备管理" },
+  { name: "许明", title: "研发中心副总", department: "研发" },
+  { name: "秦岚", title: "实验室主任", department: "研发" },
+  { name: "蒋涛", title: "生产计划经理", department: "生产" },
+  { name: "韩峰", title: "生产副总经理", department: "管理层" },
+  { name: "冯雪", title: "数字化办公室主任", department: "数字化" },
+  { name: "梁嘉欣", title: "物流总监", department: "物流" },
+  { name: "黄志伟", title: "IT 经理", department: "信息技术" },
 ] as const;
 
 /** Which regions each demo territory covers - the join lead routing needs. */
@@ -359,6 +371,19 @@ export const DEMO_DEAL_NOTES = {
   d3_b: "吴主任拉信息化部过了一遍现有呼叫中心平台,接口可以开放,但要走他们的安全评审,大约四周。",
   d3_c: "林芳带我们听了半天一线坐席,转人工最多的是查话费和改套餐,正好是第一期能分流的两类。",
   d3_d: "郑洁电话说李总看了初步思路,想要一个同类运营商的案例,再定明年预算。",
+  d11_a: "马部长带我们看了两条老产线,空压机和冷却系统是能耗大头,想先装监测看清楚再决定改哪台。",
+  d11_b: "田甜发来了近一年的电费分项,峰谷差很大,她建议方案里先把回收期算清楚。",
+  d15_a: "高主任讲了会员体系现状:三套系统各管一段积分,对不上账,想合成一个中台。",
+  d15_b: "报价发给高主任并抄送马部长,对方回复实施周期要压到四个月以内。",
+  d15_c: "田甜私下说采购那边还在比另一家,价格差在一成左右。",
+  d12_a: "许总介绍了三个实验室的仪器数据还在手工抄录,想打通到 LIMS。",
+  d12_b: "秦主任组织了技术交流,生产计划那边也来了人,关心数据能不能回流到排产。",
+  d13_a: "蒋经理说调度平台去年用得不错,续约想加两个车间,预算年底前批。",
+  d13_b: "续约方案和扩容报价发过去了,等他们内部走流程。",
+  d19_a: "韩总带我们看了焊装线,设备联网率不到三成,先做一条示范线。",
+  d19_b: "冯主任说集团数字化规划月底定稿,示范线要写进去才有预算。",
+  d20_a: "梁总监讲了港澳两地仓配现状,跨境调拨要三天,想压到一天。",
+  d20_b: "黄经理发来了现有 WMS 的接口文档,问能否先做一次数据对接演示。",
 } as const;
 
 /**

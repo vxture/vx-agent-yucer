@@ -5947,6 +5947,7 @@ export const en: Dictionary = {
     processTitle: "How they decide and sign",
     reasonsFilled: (n: number, total: number) => `${n}/${total} written`,
     processUnwritten: "process not written",
+    processPanelTitle: "Decision process",
     statusQuoSignal: "a pull toward doing nothing",
     todo: "To do",
     judgements: "Judgements",

@@ -1050,6 +1050,13 @@ export default async function OpportunityDetailPage({
             editHref={linesHref}
             editHint={opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : PANEL_MENU_TEXT.noEditRight}
           />
+          {/* 决策链 - 栏1 (owner 2026-09-25): the people who decide. */}
+          <DealDecisionPanel
+            summary={decisionSummary}
+            people={[...decisionPeople, ...unroledPeople]}
+            warning={decisionWarning}
+            findings={roleFindings}
+          />
           {opportunity.accountId ? (
             <DealCustomerPanel
               name={accountName}
@@ -1229,19 +1236,22 @@ export default async function OpportunityDetailPage({
               <DealJudgements problems={problems} />
             </DealPanel>
 
-            {/* 决策链 - 栏2's second panel (owner 2026-09-25): the people who
-                decide, then 决策流程 / 签约流程 as rows that expand. */}
-              <DealDecisionPanel
-                summary={
-                  processRows.every((r) => !r.statement)
-                    ? [decisionSummary, DEAL_PAGE_TEXT.processUnwritten].join(COLLAPSE_TEXT.separator)
-                    : decisionSummary
-                }
-                people={[...decisionPeople, ...unroledPeople]}
-                warning={decisionWarning}
-                process={processSlots}
-                findings={roleFindings}
-              />
+            {/* 决策流程 - 栏2's second panel (owner 2026-09-25): 决策流程 and
+                签约流程, one row each, 展开详情 on the right. The people are
+                栏1's 决策链. */}
+            <DealPanel
+              id="process"
+              icon="workflow"
+              title={DEAL_PAGE_TEXT.processPanelTitle}
+              summary={
+                processRows.every((r) => !r.statement)
+                  ? DEAL_PAGE_TEXT.processUnwritten
+                  : DEAL_PAGE_TEXT.reasonsFilled(processRows.filter((r) => r.statement).length, processRows.length)
+              }
+              editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
+            >
+              {processSlots}
+            </DealPanel>
 
             {/* 结局与复盘, above the progress on a closed deal (YC-072). */}
             {closedDeal ? (
