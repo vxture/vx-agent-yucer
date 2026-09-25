@@ -6855,7 +6855,8 @@ export const DEAL_PAGE_TEXT = {
   factSource: "来源",
   sourceCampaign: (name: string) => `战役 · ${name}`,
   sourceDirect: "直接录入",
-  factTerritory: "区域",
+  // The DEAL's sales territory - not the customer's region (客户信息 carries that).
+  factTerritory: "销售区域",
   factCreated: "创建",
   factBudget: "客户项目总投入",
   factTeam: "售前 / 交付",
@@ -6898,6 +6899,13 @@ export const DEAL_PAGE_TEXT = {
   customerTitleHint: (name: string) => `打开客户详情：${name}`,
   customerName: "客户名称",
   customerIndustryRegion: "行业 · 区域",
+  // 客户信息 counts, not names (owner 2026-09-25: 合同、交付这类留数量，或加点进度)
+  customerOtherDeals: "其他在办商机",
+  customerContracts: "合同",
+  contractsCount: (n: number, active: number) => (n === 0 ? "无" : `${n} 份 · 生效 ${active}`),
+  projectsCount: (n: number, red: number, amber: number) =>
+    n === 0 ? "无" : red + amber === 0 ? `${n} 个 · 均正常` : `${n} 个 · ${[red ? `红灯 ${red}` : "", amber ? `黄灯 ${amber}` : ""].filter(Boolean).join(" ")}`,
+  healthValue: (score: number, band: string) => `${score} · ${band}`,
   customerTier: "客户级别",
   customerHealth: "客户健康",
   customerOpenDeals: "本客户其他在办",
