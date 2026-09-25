@@ -44,6 +44,7 @@ import {
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { loadFailureText } from "../lib/load-failure";
 import { Tag } from "./tag";
+import { priorityKeys } from "../../domains/account/lib/importance";
 // The pipeline board: opportunities plus the forecast roll-up they produce.
 //
 // A thin binding of DS elements to yucer's domain semantics, which is the one
@@ -70,6 +71,14 @@ export interface PipelineRow extends ForecastableOpportunity {
    * as healthy.
    */
   buyerUnreachable?: boolean;
+  /**
+   * 优先级 (incr/0090, R11): the customer's tier crossed with the deal's
+   * importance, looked up in the workspace's matrix. Null = 未定级 - a pair
+   * the matrix has no cell for, never guessed from its neighbours.
+   */
+  priority?: number | null;
+  /** The two levels it was crossed from, for the hover. */
+  priorityFrom?: { readonly tier: string; readonly importance: string } | null;
 }
 
 export interface PipelineBoardProps {
@@ -93,11 +102,20 @@ export interface PipelineBoardProps {
 
 /* 排序取值: what each sortable column ORDERS ON, which is not always what
    it renders - a badge sorts on the score inside it, a money cell on the raw
-   amount rather than its formatted string. */
-const SORT_ON = {
+   amount rather than its formatted string. 优先级 sorts on priorityKeys: the
+   P, then amount within the same P (R11's 按优先级), 未定级 sinking. */
+function sortOn(rows: readonly PipelineRow[]) {
+  const keys = priorityKeys(rows.map((r) => ({ row: r, priority: r.priority ?? null, amount: r.amount?.amount ?? null })));
+  const byRow = new Map([...keys].map(([k, v]) => [k.row, v] as const));
+  return {
     name: (r: PipelineRow) => r.name,
     amount: (r: PipelineRow) => r.amount?.amount ?? null,
+    priority: (r: PipelineRow) => byRow.get(r) ?? null,
   };
+}
+
+/** P1-P2 are what a review opens with; P5-P6 wait their turn. */
+const PRIORITY_TONE = (p: number) => (p <= 2 ? "danger" : p <= 4 ? "warning" : "neutral");
 
 export function PipelineBoard({
   rows,
@@ -115,7 +133,8 @@ export function PipelineBoard({
     STAGE_LABEL,
     LOAD_ERROR,
   } = useMessages();
-  const sorted = useTableSort<PipelineRow>(rows, SORT_ON);
+  const accessors = useMemo(() => sortOn(rows), [rows]);
+  const sorted = useTableSort<PipelineRow>(rows, accessors);
   // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
   // anything, so every figure in the product was formatted Chinese-style
   // whatever the reader's locale. Threading it here fixes this page; the
@@ -201,6 +220,14 @@ export function PipelineBoard({
           tooltip={row.name}
         />
       ),
+    },
+    {
+      // 优先级 (R11): one tag, the cross on hover. Sorting here is 按优先级 -
+      // P1 first, the same P by amount, 未定级 last.
+      id: "priority",
+      header: PIPELINE_TEXT.columnPriority,
+      sortable: true,
+      cell: (row) => <PriorityTag row={row} />,
     },
     {
       // THE CUSTOMER, main over sub - the same two-line shape delivery uses,
@@ -417,6 +444,7 @@ export function PipelineBoard({
                     }
                     meta={
                       <>
+                        <PriorityTag row={row} />
                         <Tag tone={STAGE_TONE[row.stage as Stage]}>
                           {stageLabelFor(row.stage, stageDefinitions, STAGE_LABEL)}
                         </Tag>
@@ -444,5 +472,25 @@ export function PipelineBoard({
         </>
       )}
     </Section>
+  );
+}
+
+function PriorityTag({ row }: { readonly row: PipelineRow }) {
+  const { PIPELINE_TEXT, DEAL_PAGE_TEXT } = useMessages();
+  const p = row.priority ?? null;
+  const tag =
+    p === null ? (
+      <span className="text-muted-foreground">{PIPELINE_TEXT.priorityUnranked}</span>
+    ) : (
+      <Tag tone={PRIORITY_TONE(p)}>{`P${p}`}</Tag>
+    );
+  if (!row.priorityFrom) return tag;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>{tag}</span>
+      </TooltipTrigger>
+      <TooltipContent>{DEAL_PAGE_TEXT.importanceCross(row.priorityFrom.tier, row.priorityFrom.importance)}</TooltipContent>
+    </Tooltip>
   );
 }

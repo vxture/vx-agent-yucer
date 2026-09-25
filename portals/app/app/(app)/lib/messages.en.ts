@@ -3363,6 +3363,8 @@ export const en: Dictionary = {
     columnOpportunity: "Opportunity",
     columnAccount: "Account",
     columnStageForecast: "Stage / forecast",
+    columnPriority: "Priority",
+    priorityUnranked: "Unranked",
     columnAmount: "Amount",
     columnProbability: "Win rate",
     columnExpectedClose: "Expected close",

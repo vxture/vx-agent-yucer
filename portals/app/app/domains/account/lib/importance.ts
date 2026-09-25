@@ -81,3 +81,34 @@ export function priorityOf(
     null
   );
 }
+
+/** One deal read against the scheme: its two levels and the cell they cross in. */
+export interface DealPriority {
+  readonly accountLevel: ImportanceLevel | null;
+  readonly dealLevel: ImportanceLevel | null;
+  readonly priority: number | null;
+}
+
+export function dealPriorityOf(
+  deal: { readonly importanceLevelId?: string | null },
+  account: { readonly tierLevelId?: string | null; readonly tier: string } | null,
+  scheme: ImportanceScheme,
+): DealPriority {
+  const accountLevel = account ? accountLevelOf(account, scheme.account) : null;
+  const dealLevel = opportunityLevelOf(deal, scheme.opportunity);
+  return { accountLevel, dealLevel, priority: priorityOf(accountLevel, dealLevel, scheme.rules) };
+}
+
+/**
+ * 按优先级 (R11): P1 first, the same P by amount (largest first), 未定级
+ * last. Returned as one integer key per row - priority, then the row's place
+ * in the amount order - so a generic ascending sort gives exactly this order
+ * without a float mixing the two scales. Null for 未定级 (a blank sinks).
+ */
+export function priorityKeys<T extends { readonly priority: number | null; readonly amount: number | null }>(
+  rows: readonly T[],
+): Map<T, number | null> {
+  const byAmount = [...rows].sort((a, b) => (b.amount ?? -Infinity) - (a.amount ?? -Infinity));
+  const place = new Map(byAmount.map((r, i) => [r, i] as const));
+  return new Map(rows.map((r) => [r, r.priority === null ? null : r.priority * 1_000_000 + place.get(r)!] as const));
+}
