@@ -494,6 +494,17 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       contact("ct_7", workspaceId, "acc_demo_4", DEMO_CONTACTS[5]),
       contact("ct_8", workspaceId, "acc_demo_4", DEMO_CONTACTS[2]),
       contact("ct_9", workspaceId, "acc_demo_5", DEMO_CONTACTS[0]),
+      // acc_demo_3 北方通信 - 客服智能化改造 (opp_demo_3)'s buying group.
+      contact("ct_10", workspaceId, "acc_demo_3", DEMO_CONTACTS[6], {
+        email: "lina@beifangtel.example.cn",
+        mobile: "+86 139 0000 3001",
+      }),
+      contact("ct_11", workspaceId, "acc_demo_3", DEMO_CONTACTS[7], { email: "wugang@beifangtel.example.cn" }),
+      contact("ct_12", workspaceId, "acc_demo_3", DEMO_CONTACTS[8], {
+        mobile: "+86 139 0000 3003",
+        wechat: "zj_cs_ops",
+      }),
+      contact("ct_13", workspaceId, "acc_demo_3", DEMO_CONTACTS[9]),
     ],
     // incr/0027, ADR-024 batch D. THE POINT OF THE WHOLE BATCH, in five rows.
     //
@@ -536,6 +547,12 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       oc("oc_9", workspaceId, "opp_demo_6", "ct_7", "economic", 80),
       oc("oc_10", workspaceId, "opp_demo_6", "ct_8", "coach", 50),
       oc("oc_11", workspaceId, "opp_demo_7", "ct_9", "economic", 75),
+      // opp_demo_3 客服智能化改造: the service GM holds the budget, IT gates
+      // the integration, the ops lead is our coach, the hotline lead uses it.
+      oc("oc_12", workspaceId, "opp_demo_3", "ct_10", "economic", 85, "supporter"),
+      oc("oc_13", workspaceId, "opp_demo_3", "ct_11", "technical", 65, "neutral"),
+      oc("oc_14", workspaceId, "opp_demo_3", "ct_12", "coach", 55, "champion"),
+      oc("oc_15", workspaceId, "opp_demo_3", "ct_13", "user", 35, "supporter"),
     ],
     relations: [
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_3", toContactId: "ct_1", relationType: "reports_to" },
@@ -755,6 +772,16 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       person("pt_18", "int_demo_a5a", "ct_9"),
       person("pt_19", "int_demo_d7a", "ct_9"),
       person("pt_20", "int_demo_d7b", "ct_9"),
+
+      // acc_demo_3 / opp_demo_3: the buyer in the first visit, IT on the
+      // platform review, the hotline lead on the floor, the coach throughout.
+      person("pt_21", "int_demo_d3a", "ct_10"),
+      person("pt_22", "int_demo_d3a", "ct_12"),
+      person("pt_23", "int_demo_d3b", "ct_11"),
+      person("pt_24", "int_demo_d3b", "ct_12"),
+      person("pt_25", "int_demo_d3c", "ct_13"),
+      person("pt_26", "int_demo_d3c", "ct_12"),
+      person("pt_27", "int_demo_d3d", "ct_12"),
     ],
     interactions: [
       // Five months on the flagship account, so the timeline shows a pursuit
@@ -801,6 +828,10 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       note("int_demo_d7a", "acc_demo_5", "visit", 9, REP1, DEMO_DEAL_NOTES.d7_a, "opp_demo_7"),
       note("int_demo_d2c", "acc_demo_2", "call", 3, REP2, DEMO_DEAL_NOTES.d2_c, "opp_demo_2"),
       note("int_demo_d7b", "acc_demo_5", "email", 2, REP1, DEMO_DEAL_NOTES.d7_b, "opp_demo_7"),
+      note("int_demo_d3a", "acc_demo_3", "visit", 21, REP1, DEMO_DEAL_NOTES.d3_a, "opp_demo_3"),
+      note("int_demo_d3b", "acc_demo_3", "meeting", 13, REP1, DEMO_DEAL_NOTES.d3_b, "opp_demo_3"),
+      note("int_demo_d3c", "acc_demo_3", "visit", 8, REP1, DEMO_DEAL_NOTES.d3_c, "opp_demo_3"),
+      note("int_demo_d3d", "acc_demo_3", "call", 3, REP1, DEMO_DEAL_NOTES.d3_d, "opp_demo_3"),
     ],
     commitments: [
       // Open and 41 days past its date. Nothing in the timeline since cites an

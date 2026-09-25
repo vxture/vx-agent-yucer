@@ -372,6 +372,28 @@ export function DealDecisionPanel({
   );
 }
 
+/** 怎么决策、怎么签 - 决策流程 / 签约流程 as link-styled titles, not yet
+ *  clickable (owner 2026-09-25: 后续补充具体展示方式). A slot's pending
+ *  proposals stay under its title. */
+export function ProcessTitles({
+  rows,
+}: {
+  readonly rows: readonly { readonly slot: string; readonly label: string; readonly pending?: ReactNode }[];
+}) {
+  return (
+    <ul className="flex flex-col gap-2xs">
+      {rows.map((r) => (
+        <li key={r.slot} className="flex flex-col gap-2xs py-2xs">
+          <span className="text-primary text-body-sm font-medium" aria-disabled="true">
+            {r.label}
+          </span>
+          {r.pending ? <div>{r.pending}</div> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** 栏1 · 客户引用 - the customer as this deal needs it, read-only, one link to
  *  the customer page. Nothing about the customer is edited from a deal. */
 export function DealCustomerPanel({

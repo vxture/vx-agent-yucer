@@ -6886,6 +6886,7 @@ export const DEAL_PAGE_TEXT = {
   decisionNoEconomic: (n: number) => `${n} 人 · 没有经济决策人`,
   decisionBlockers: (n: number) => `${n} 位反对`,
   decisionRole: (title: string | null, role: string) => (title ? `${title} · ${role}` : role),
+  roleUnset: "角色未设",
   editRoles: "编辑决策角色",
   // 栏1 · 客户引用
   customerTitle: (name: string) => `客户 · ${name}`,

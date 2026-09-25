@@ -5830,6 +5830,7 @@ export const en: Dictionary = {
     decisionNoEconomic: (n: number) => `${n} people · no economic buyer`,
     decisionBlockers: (n: number) => `${n} opposed`,
     decisionRole: (title: string | null, role: string) => (title ? `${title} · ${role}` : role),
+    roleUnset: "role not set",
     editRoles: "Edit buying roles",
     customerTitle: (name: string) => `Customer · ${name}`,
     customerTier: "Customer tier",

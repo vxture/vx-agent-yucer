@@ -63,6 +63,12 @@ export const DEMO_CONTACTS = [
   { name: "赵强", title: "采购负责人", department: "采购" },
   { name: "孙悦", title: "供应链总监", department: "供应链" },
   { name: "周涛", title: "首席运营官", department: "管理层" },
+  // 北方通信 (acc_demo_3) - the people of 客服智能化改造 (opp_demo_3); owner
+  // 2026-09-25: 补齐这个商机的客户联系人，包括岗位、决策角色、联系沟通记录.
+  { name: "李娜", title: "客户服务部总经理", department: "客户服务" },
+  { name: "吴刚", title: "信息化部主任", department: "信息化" },
+  { name: "郑洁", title: "客服运营主管", department: "客户服务" },
+  { name: "林芳", title: "热线一线组长", department: "客户服务" },
 ] as const;
 
 /** Which regions each demo territory covers - the join lead routing needs. */
@@ -349,6 +355,10 @@ export const DEMO_DEAL_NOTES = {
   d9_c: "合同条款回来两条修改意见,都不涉及价格。",
   d7_a: "第一次正式拜访,主要是摸情况。对方今年确实有预算。",
   d7_b: "把行业案例发过去了,对方问了两个很具体的问题。",
+  d3_a: "第一次上门见了李总和郑洁:客服热线每天约 3 万通来电,高峰期接通率不到 70%,想先把重复问题分流给智能应答。",
+  d3_b: "吴主任拉信息化部过了一遍现有呼叫中心平台,接口可以开放,但要走他们的安全评审,大约四周。",
+  d3_c: "林芳带我们听了半天一线坐席,转人工最多的是查话费和改套餐,正好是第一期能分流的两类。",
+  d3_d: "郑洁电话说李总看了初步思路,想要一个同类运营商的案例,再定明年预算。",
 } as const;
 
 /**

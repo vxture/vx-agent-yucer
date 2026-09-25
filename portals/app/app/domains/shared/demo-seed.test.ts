@@ -547,8 +547,12 @@ test("demo: the evidence plane and the account health inputs tell one story", as
   const days = Math.round((DEMO_NOW.getTime() - last.getTime()) / 86_400_000);
   assert.equal(days, 48);
 
-  // A prospect nobody has met has no contact date at all - not a recent one.
-  assert.equal(await s.field.lastContactAt(WS, "acc_demo_3"), null);
+  // A customer nobody has met has no contact date at all - not a recent one.
+  // acc_nat_1 since 2026-09-25: acc_demo_3 (北方通信) now carries
+  // opp_demo_3's buying group and follow-ups (owner: 补齐这个商机的客户联系人).
+  assert.equal(await s.field.lastContactAt(WS, "acc_nat_1"), null);
+  // ...and the one that gained them agrees with its own evidence.
+  assert.ok(await s.field.lastContactAt(WS, "acc_demo_3"), "acc_demo_3 has recorded interactions");
 
   // The one met commitment cites an interaction that actually exists, and that
   // interaction is on the same account. Closure evidence pointing at a foreign
@@ -684,6 +688,7 @@ test("demo: an account with recorded contact answers the warm-path question", as
   for (const [acc, opp] of [
     ["acc_demo_1", "opp_demo_1"],
     ["acc_demo_2", "opp_demo_2"],
+    ["acc_demo_3", "opp_demo_3"],
   ] as const) {
     const contacts = await s.account.listContacts(WS, acc);
     const relations = await s.account.listRelations(WS, acc);
@@ -697,10 +702,11 @@ test("demo: an account with recorded contact answers the warm-path question", as
     assert.notEqual(r.warmPathToEconomic, null, `${acc} has evidence, so the question is answerable`);
   }
 
-  // acc_demo_3 has no contacts and no interactions at all - unanswerable, and
+  // acc_nat_1 has no contacts and no interactions at all - unanswerable, and
   // that must stay null rather than becoming a false claim about the customer.
-  const c3 = await s.account.listContacts(WS, "acc_demo_3");
-  const l3 = await s.field.lastContactByContact(WS, "acc_demo_3");
+  const c3 = await s.account.listContacts(WS, "acc_nat_1");
+  assert.equal(c3.length, 0, "the never-met case still exists");
+  const l3 = await s.field.lastContactByContact(WS, "acc_nat_1");
   const r3 = analyzeChainRecency(
     chainForOpportunity(c3, []),
     [],
