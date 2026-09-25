@@ -1042,15 +1042,7 @@ export default async function OpportunityDetailPage({
             more={dossierMore}
             open={opportunity.status === "open"}
           />
-          <DealSolutionPanel
-            source={sourceView ? sourceView.solution.name : null}
-            scenario={sourceView ? sourceView.solution.scenario : null}
-            rows={solutionRows}
-            summary={solutionSummary}
-            editHref={linesHref}
-            editHint={opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : PANEL_MENU_TEXT.noEditRight}
-          />
-          {/* 决策链 - 栏1 (owner 2026-09-25): the people who decide. */}
+          {/* 决策分析 - 栏1's second panel (owner 2026-09-25: 决策链改为决策分析，放在第二位). */}
           <DealDecisionPanel
             summary={decisionSummary}
             people={[...decisionPeople, ...unroledPeople]}
@@ -1059,6 +1051,14 @@ export default async function OpportunityDetailPage({
             // The same two rows as 栏2's 决策流程 panel (owner 2026-09-25:
             // 两处都要) - one element, each placement its own open state.
             process={processSlots}
+          />
+          <DealSolutionPanel
+            source={sourceView ? sourceView.solution.name : null}
+            scenario={sourceView ? sourceView.solution.scenario : null}
+            rows={solutionRows}
+            summary={solutionSummary}
+            editHref={linesHref}
+            editHint={opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : PANEL_MENU_TEXT.noEditRight}
           />
           {opportunity.accountId ? (
             <DealCustomerPanel
