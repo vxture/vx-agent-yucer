@@ -5917,6 +5917,9 @@ export const en: Dictionary = {
     findingRole: (name: string, role: string, stance: string | null) =>
       stance ? `${name}: role ${role} · stance ${stance}` : `${name}: role ${role}`,
     findingCommitment: (direction: string, due: string, statement: string) => `${direction} · by ${due}: ${statement}`,
+    assessTitle: "Assessment",
+    assessLabel: (steady: number, total: number) => `${steady} of ${total} dimensions steady`,
+    assessGrade: { good: "Steady", warn: "Watch", bad: "At risk" } as Record<string, string>,
     importanceLabel: "Importance",
     importanceEdit: "Set importance",
     importanceDescription: "How much this deal matters to us. Crossed with the customer's tier it gives the priority - it orders the list and changes no rule.",

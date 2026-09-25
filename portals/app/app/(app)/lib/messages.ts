@@ -6978,6 +6978,10 @@ export const DEAL_PAGE_TEXT = {
   findingRole: (name: string, role: string, stance: string | null) =>
     stance ? `${name}：本单角色 ${role} · 立场 ${stance}` : `${name}：本单角色 ${role}`,
   findingCommitment: (direction: string, due: string, statement: string) => `${direction} · ${due} 前：${statement}`,
+  // 态势研判 coin (徽章区)
+  assessTitle: "态势研判",
+  assessLabel: (steady: number, total: number) => `${total} 维中 ${steady} 维稳`,
+  assessGrade: { good: "稳", warn: "关注", bad: "风险" } as Record<string, string>,
   // 重要度与优先级 (deal batch 6, incr/0090)
   importanceLabel: "重要度",
   importanceEdit: "设定重要度",
