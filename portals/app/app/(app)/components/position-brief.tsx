@@ -1,11 +1,11 @@
-import { Badge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { JudgementNote, type Judgement } from "./judgement-note";
 
 // The position, read as a pursuit rather than a record - in PIECES since deal
 // batch 2 (2026-09-25). The four blocks of the old brief each went to the one
 // panel that owns their fact (YC-069, each fact in one place):
-//   - the problems (judgements) and this deal's proposals -> 态势判决;
+//   - the problems (judgements) -> 态势判决;
+//   - this deal's proposals -> 栏3 本单参谋 (the deck, deal batch 2c);
 //   - the rival mentions -> 竞争态势;
 //   - the customer's delivery projects and its own proposals -> 客户引用 (栏1).
 //
@@ -20,14 +20,6 @@ import { JudgementNote, type Judgement } from "./judgement-note";
 // signs; a free-form "next steps" field would become a second TODO list nobody
 // maintains, and it would carry none of the evidence the proposals carry.
 
-export interface PositionProposal {
-  readonly id: string;
-  readonly title: string;
-  readonly group: string;
-  readonly rationale: string | null;
-  readonly confidence: number | null;
-}
-
 /** 判断: the rules' judgements that landed on this deal or its customer. */
 export async function DealJudgements({ problems }: { readonly problems: readonly (Judgement & { readonly id: string })[] }) {
   const { POSITION_TEXT } = await getMessages();
@@ -40,34 +32,6 @@ export async function DealJudgements({ problems }: { readonly problems: readonly
         // One rendering of a judgement everywhere: claim, source, staleness,
         // and on open the trigger condition and the rows it cites.
         <JudgementNote key={p.id} judgement={p} />
-      ))}
-    </div>
-  );
-}
-
-/** 参谋提案: this deal's own proposals, grouped by the capability that made them. */
-export async function DealProposals({ proposals }: { readonly proposals: readonly PositionProposal[] }) {
-  const { POSITION_TEXT } = await getMessages();
-  if (proposals.length === 0) {
-    return <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planEmpty}</p>;
-  }
-  return (
-    <div className="flex flex-col">
-      {proposals.map((p) => (
-        <div key={p.id} className="border-border flex flex-wrap items-start gap-md border-b py-sm last:border-b-0">
-          <Badge variant="outline">{p.group}</Badge>
-          <div className="min-w-0 flex-1">
-            <p className="text-foreground text-body-sm">{p.title}</p>
-            {p.rationale ? (
-              <p className="text-muted-foreground mt-2xs max-w-[62ch] text-body-sm">{p.rationale}</p>
-            ) : null}
-          </div>
-          {p.confidence !== null ? (
-            <span className="text-muted-foreground shrink-0 text-body-sm tabular-nums">
-              {POSITION_TEXT.confidence(p.confidence)}
-            </span>
-          ) : null}
-        </div>
       ))}
     </div>
   );
