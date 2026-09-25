@@ -90,6 +90,8 @@ export const EXECUTABLE_ACTIONS: readonly string[] = [
   // statement), and a promise (closed or waived like any other).
   "set_buying_role",
   "add_commitment",
+  // Deal batch 5c: an accepted plan step is a commitment, like the above.
+  "plan_step",
 ];
 
 /**

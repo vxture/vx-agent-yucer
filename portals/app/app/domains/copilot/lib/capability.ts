@@ -34,6 +34,9 @@ export const CAPABILITIES = [
   // Deal batch 4b (YC-066 §04 证据抽取): reads each new follow-up on a deal
   // and proposes what it says about the buying evidence slots.
   "deal.evidence",
+  // Deal batch 5c (YC-066 §04 推进计划生成): 3-6 dated steps toward the stage's
+  // unmet exit criteria; each accepted step becomes a commitment.
+  "deal.plan",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -136,6 +139,12 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     feature: "account.manage",
     task: "propose",
     evidence: ["deals", "lines"],
+  },
+  // The deal's unmet criteria and the promises already open - no notes.
+  "deal.plan": {
+    feature: "pipeline.manage",
+    task: "propose",
+    evidence: ["commitments", "deals"],
   },
   // One new follow-up against what the slots already say.
   "deal.evidence": {

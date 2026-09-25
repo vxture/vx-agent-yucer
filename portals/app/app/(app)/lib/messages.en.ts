@@ -2767,6 +2767,7 @@ export const en: Dictionary = {
       record_evidence: "Write buying evidence",
       set_buying_role: "State a role or stance on this deal",
       add_commitment: "Record a promise",
+      plan_step: "A step of the plan",
       draft_email: "Draft an email",
     } as Record<string, string>,
     approve: "Approve",
@@ -4773,6 +4774,7 @@ export const en: Dictionary = {
     record_evidence: "Buying evidence",
     set_buying_role: "Role or stance",
     add_commitment: "Promise",
+    plan_step: "Plan step",
   },
 
   ACTION_STATUS_LABEL: {
@@ -5611,6 +5613,7 @@ export const en: Dictionary = {
       "account.upsell": "Upsell opportunity",
       "account.consistency": "Consistency check",
       "deal.evidence": "Evidence extraction",
+      "deal.plan": "Plan drafting",
       "strategy.segment_coverage": "Segment coverage trend",
       "strategy.territory_attainment": "Territory attainment trend",
     } as Record<string, string>,
@@ -5911,6 +5914,12 @@ export const en: Dictionary = {
     findingRole: (name: string, role: string, stance: string | null) =>
       stance ? `${name}: role ${role} · stance ${stance}` : `${name}: role ${role}`,
     findingCommitment: (direction: string, due: string, statement: string) => `${direction} · by ${due}: ${statement}`,
+    planGenerate: "Draft a plan",
+    planGenerating: "Drafting...",
+    planDone: (n: number) => (n > 0 ? `Drafted ${n} step(s) - accept them one by one under Plan` : "No usable steps were drafted this time"),
+    planCached: (n: number) => `Nothing changed - today's draft stands (${n} step(s))`,
+    findingPlanStep: (direction: string, due: string, statement: string, criterion: string) =>
+      `${direction} · by ${due}: ${statement} · for "${criterion}"`,
     findingQuote: (source: string | null, quote: string) => `${source ? `${source}: ` : ""}"${quote}"`,
     processTitle: "How they decide and sign",
     reasonsFilled: (n: number, total: number) => `${n}/${total} written`,
@@ -5990,5 +5999,18 @@ export const en: Dictionary = {
     criterion_kind_locked: "How it is judged cannot change - remove it and add another",
     criterion_on_terminal: "A closed stage has no exit criteria",
     unknown_stage: "That stage is not in this workspace's catalog",
+  },
+  PLAN_DRAFT_ERROR: {
+    ...GATE_ERROR,
+    not_found: "No such deal, or it belongs to another workspace",
+    no_active_tenant: "This workspace has no platform tenant yet, so the model cannot be called",
+    tenant_required: "This workspace has no platform tenant yet, so the model cannot be called",
+    advisor_not_admitted: "The platform has not admitted advisor runs for this workspace, so nothing was drafted",
+    plan_no_goals: "Every exit criterion of this stage is met and the next stage sets none - there is no goal to plan toward",
+    plan_deal_closed: "The deal is closed; no plan is drafted",
+    empty_question: "The draft request was empty",
+    quota_exceeded: "This workspace's advisor quota is used up",
+    turn_failed: "The draft did not complete (the model is unavailable) - try again later",
+    unknown: "The draft did not complete - try again later",
   },
 };

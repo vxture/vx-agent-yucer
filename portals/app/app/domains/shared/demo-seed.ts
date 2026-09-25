@@ -34,6 +34,7 @@ import {
   DEMO_LESSONS,
   DEMO_EVIDENCE_PROPOSAL,
   DEMO_COMMITMENT_PROPOSAL,
+  DEMO_PLAN_STEP,
   DEMO_LINE_CUSTOM_NOTE,
   DEMO_ACCEPTORS,
   DEMO_MILESTONES,
@@ -1288,6 +1289,12 @@ function seedCopilot(workspaceId: string, stores: DemoStores): void {
       { direction: "they_owe", statement: DEMO_COMMITMENT_PROPOSAL.statement, dueAt: daysAgo(19).toISOString().slice(0, 10), quote: DEMO_COMMITMENT_PROPOSAL.quote, interactionId: "int_demo_d6b" },
       DEMO_COMMITMENT_PROPOSAL.rationale, 70, null, 0,
     ),
+    // 5c: a drafted plan step toward opp_demo_6's unmet 签约流程 criterion.
+    proposal(
+      "act_demo_pl1", "proposed", "plan_step", "opportunity", "opp_demo_6",
+      { direction: "we_owe", statement: DEMO_PLAN_STEP.statement, dueAt: new Date(NOW.getTime() + 5 * 86_400_000).toISOString().slice(0, 10), forCriterion: DEMO_PLAN_STEP.forCriterion },
+      DEMO_PLAN_STEP.rationale, 68, null, 0,
+    ),
     // PAST THE DECISION WINDOW ON PURPOSE. Opening the queue sweeps it, so the
     // demo shows the outcome the spec asks for - a recommendation nobody
     // decided becomes visibly `expired` rather than quietly staying live.
@@ -1827,6 +1834,7 @@ const CAPABILITY_BY_ACTION: Record<string, string> = {
   record_evidence: "deal.evidence",
   set_buying_role: "deal.evidence",
   add_commitment: "deal.evidence",
+  plan_step: "deal.plan",
 };
 
 function proposal(

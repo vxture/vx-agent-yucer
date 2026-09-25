@@ -86,8 +86,10 @@ import { checkStage, dealFactsFrom } from "../../../domains/pipeline/lib/exit-cr
 import { EvidenceSlots, type EvidenceRow } from "../../components/evidence-slots";
 import { AdvisorFinding } from "../../components/advisor-finding";
 import { adjudicateProposals } from "../../copilot/actions";
-import { COMMITMENT_ACTION_TYPE, EVIDENCE_ACTION_TYPE, ROLE_ACTION_TYPE } from "../../../domains/copilot/lib/action";
-import { canDecideProposal } from "../../../domains/copilot/lib/advisor-gate";
+import { COMMITMENT_ACTION_TYPE, EVIDENCE_ACTION_TYPE, PLAN_STEP_ACTION_TYPE, ROLE_ACTION_TYPE } from "../../../domains/copilot/lib/action";
+import { PlanDraftButton } from "../../components/plan-draft-button";
+import { generatePlanAction } from "../plan-action";
+import { canDecideProposal, canRunAdvisor } from "../../../domains/copilot/lib/advisor-gate";
 import { recordEvidenceAction } from "../evidence-action";
 import { PROCESS_SLOTS, REASON_SLOTS, type EvidenceSlot } from "../../../domains/pipeline/lib/evidence";
 import { suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
@@ -809,6 +811,15 @@ export default async function OpportunityDetailPage({
   const commitmentItems = findingItems(COMMITMENT_ACTION_TYPE, (p) =>
     DEAL_PAGE_TEXT.findingCommitment(DIRECTION_LABEL[String(p.direction)] ?? String(p.direction), String(p.dueAt), String(p.statement)),
   );
+  const planItems = findingItems(PLAN_STEP_ACTION_TYPE, (p) =>
+    DEAL_PAGE_TEXT.findingPlanStep(
+      DIRECTION_LABEL[String(p.direction)] ?? String(p.direction),
+      String(p.dueAt),
+      String(p.statement),
+      String(p.forCriterion),
+    ),
+  );
+  const canDraftPlan = opportunity.status === "open" && canRunAdvisor(session.authz, session.entitlement, "deal.plan", "ui").allowed;
   const roleFindings = roleItems.length > 0 ? <AdvisorFinding items={roleItems} onAdjudicate={adjudicateProposals} /> : null;
   const evidenceRows = (slots: readonly EvidenceSlot[]): EvidenceRow[] =>
     slots.map((slot) => {
@@ -1147,9 +1158,13 @@ export default async function OpportunityDetailPage({
                   {exitCheck.total > 0 ? <ExitChecks check={exitCheck} filledSlots={filledSlots ?? new Set()} /> : null}
                 </>
               ) : null}
-              <PanelSub>{DEAL_PAGE_TEXT.plan}</PanelSub>
-              {commitmentItems.length > 0 ? (
-                <AdvisorFinding items={commitmentItems} onAdjudicate={adjudicateProposals} />
+              <PanelSub
+                action={canDraftPlan ? <PlanDraftButton opportunityId={id} onGenerate={generatePlanAction} /> : undefined}
+              >
+                {DEAL_PAGE_TEXT.plan}
+              </PanelSub>
+              {commitmentItems.length > 0 || planItems.length > 0 ? (
+                <AdvisorFinding items={[...planItems, ...commitmentItems]} onAdjudicate={adjudicateProposals} />
               ) : null}
               {commitments.ok ? (
                 <CommitmentList
