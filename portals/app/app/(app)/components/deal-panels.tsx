@@ -167,7 +167,10 @@ export function DealDossierPanel({
           <span className="flex min-w-0 items-center gap-xs">
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="min-w-0 truncate">{title}</span>
+                {/* Up to two lines, then cut (owner 2026-09-26): a deal's name
+                    is its identity - truncating it after six characters hid
+                    the half that told two deals apart. */}
+                <span className="line-clamp-2 min-w-0 break-words">{title}</span>
               </TooltipTrigger>
               <TooltipContent>{title}</TooltipContent>
             </Tooltip>
@@ -541,3 +544,29 @@ const CHECK_INK = {
   bad: "text-destructive-text",
   unknown: "text-muted-foreground",
 };
+
+/** The first `visible` items, the rest behind one 展开其余 N 条 (owner
+ *  2026-09-26: 待动手的事较长时折叠). The order is the caller's - worst first -
+ *  so what is folded is what matters least. */
+export function FoldedList({
+  items,
+  visible = 5,
+}: {
+  readonly items: readonly ReactNode[];
+  readonly visible?: number;
+}) {
+  const { DEAL_PAGE_TEXT } = useMessages();
+  const [open, setOpen] = useState(false);
+  const rest = items.length - visible;
+  return (
+    <>
+      {open || rest <= 0 ? items : items.slice(0, visible)}
+      {rest > 0 ? (
+        <Button size="xs" variant="ghost" className="self-start" onClick={() => setOpen(!open)}>
+          {open ? DEAL_PAGE_TEXT.foldLess : DEAL_PAGE_TEXT.foldMore(rest)}
+          <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+        </Button>
+      ) : null}
+    </>
+  );
+}
