@@ -163,7 +163,7 @@ test("every registry entry (backlog or by-design) still names a table that exist
 });
 
 // PIN THE EDGES, LEAVE ONE BUSINESS COLUMN AUTO - owner ruling, 2026-09-06
-// (see EDGE_COLUMNS's own comment in components/table-fittings.tsx).
+// (see the 64px note in components/table-fittings.tsx).
 //
 // Under `table-fixed`, a `w-[...]` width on a header cell is only HONOURED
 // while some other column in the same row is left with no `width` at all:
@@ -181,12 +181,13 @@ test("every registry entry (backlog or by-design) still names a table that exist
 // all; tried on org-panel's title column first and measured a computed
 // maxWidth of 208px next to an actual rendered width of 552px).
 //
-// THE SAME PHYSICS APPLIES WITHOUT EDGE_COLUMNS. permission-tree.tsx pins
-// every column via ACTION_COLUMN alone (no selection/index columns - see
+// THE SAME PHYSICS APPLIES WITHOUT THE EDGE COLUMNS. permission-tree.tsx
+// pinned every column with only the action column fixed (no selection/index columns - see
 // FITTING_EXEMPTIONS above) and measured the identical defect: 操作 at 96px
 // instead of 64px at 1800px, scaled by the exact same 1.5x every other pinned
-// column scaled by. So this check runs for any table importing EDGE_COLUMNS
-// and/or ACTION_COLUMN, not only the EDGE_COLUMNS ones.
+// column scaled by. So this check runs for every `table-fixed` table. (It
+// used to key on importing EDGE_COLUMNS / ACTION_COLUMN; since DS 14 the DS
+// pins those cells itself and the constants are gone - 2026-09-26.)
 //
 // WHAT THIS CANNOT DO: it does not parse a real AST, so "how many business
 // columns does this table have" is a text heuristic - it counts `id: "..."`
@@ -245,13 +246,13 @@ const WIDTH_EXEMPTIONS: Record<string, string> = {
   "vocabulary-config.tsx": "泛型共享组件，业务列数因调用方而异 - 正文列走 DS width 档位而非 nth-child，扫描器看不到调用方展开进来的列 (owner, 表格列宽新一轮规则: 首列按业务列数量分档公式写在组件里)",
 };
 
-const USES_FITTING_WIDTHS = /import\s*\{[^}]*\b(?:EDGE_COLUMNS|ACTION_COLUMN)\b[^}]*\}\s*from\s*"\.\/table-fittings"/;
+const USES_FIXED_LAYOUT = /\[&_table\]:table-fixed/;
 
-test("every table pinning EDGE_COLUMNS/ACTION_COLUMN leaves one business column auto", () => {
+test("every table-fixed table leaves one business column auto", () => {
   const violations: string[] = [];
   for (const t of TABLES) {
     if (t.name in WIDTH_EXEMPTIONS) continue;
-    if (!USES_FITTING_WIDTHS.test(t.text)) continue;
+    if (!USES_FIXED_LAYOUT.test(t.text)) continue;
     const total = countBusinessColumnDefs(t.text);
     const pinned = pinnedNthChildWidths(t.text);
     if (total > 0 && pinned.length >= total) {
@@ -259,7 +260,7 @@ test("every table pinning EDGE_COLUMNS/ACTION_COLUMN leaves one business column 
         `${t.name}: ${pinned.length} column(s) pinned to a fixed width ` +
           `(nth-child ${pinned.join(", ")}) against ~${total} business column(s) found - ` +
           `none left auto, so 选择/序号/操作 will grow past their pinned width under a wide ` +
-          `container instead of staying exact (table-fittings.tsx's EDGE_COLUMNS comment)`,
+          `container instead of staying exact (table-fittings.tsx's 64px note)`,
       );
     }
   }

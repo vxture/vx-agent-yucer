@@ -31,7 +31,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-019 | 八个 `prisma-store.ts` 从未跑过真实数据库，两个都是真 bug | 2026-09-02 | **closed 2026-09-02**（94 个 `*.db.test.ts`，PR #149） |
 | TD-020 | 没有任何一次运行能测出本仓的真实覆盖率，而 CI 发布的正是瞎的那一半 | 2026-09-02 | **closed 2026-09-02**（`merge-lcov.mjs` 合并两半，PR #151） |
 | TD-021 | Dependabot 在修复落地之后仍然新建告警，且从不自行复评——四条高危全是陈旧信号 | 2026-09-03 | open（本轮四条已以 `inaccurate` 关闭；复发机制未消除） |
-| TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | open（六处 `table-fixed` 包装垫着；已上报 DS） |
+| TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | 半关（DS 14 起三条定宽列由 DS 自己钉 64px，`EDGE_COLUMNS` / `ACTION_COLUMN` 已删；列宽档仍是 `min-w-*`，逐列宽度照旧） |
 | TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS） |
 | TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
@@ -1719,6 +1719,19 @@ fixed 布局下可用；届时删掉这六处包装即可。已作为 DS 请求�
 行高照旧由字号 token 决定。本仓无可观测缺陷（每行走同一个 token，所以行与行仍然
 齐平），不另开 TD，记在这里是因为它与本条是同一个毛病：**DS 的文档说「固定」，
 代码发的是 `min-*`**。看到 d.ts 写「固定」时要去量，不要信。
+
+**2026-09-26 升级 design-system 14 / design-ui 11 后复量：定宽那一半关闭。**
+
+- **已修**：`EDGE_COL` / `ACTION_COL` 现在发 `w-table-col-fixed min-w-table-col-fixed`，
+  token 是 `--spacing-table-col-fixed: calc(var(--vx-spacing) * 16)`，默认密度下
+  64px——与 owner 裁定的 64 一致。实测 `/catalog`、`/admin/org`、`/admin/roles`、
+  `/admin/permissions` 在 1920px 与 1280px 下，把 `EDGE_COLUMNS` / `ACTION_COLUMN`
+  两个类从 DOM 里剥掉后每一列宽度逐像素不变。两个常量连同 19 个调用点一并删除；
+  需要**更宽**操作列的表（行内带关键操作）照旧自己写 `last-child` 宽度。
+- **仍未修**：列宽档 `xs/sm/md/lg` 依然是 `min-w-[120px]`…`min-w-[200px]`，
+  `table-fixed` 下不生效；逐列 nth-child 宽度与「标题列留 auto」规则照旧，
+  `table-fittings.test.ts` 的守卫改为对所有 `table-fixed` 表生效（原先按是否导入
+  两个常量判定）。**回收条件**只剩这一半：列宽档在 fixed 布局下可用。
 
 ### TD-027 - DS 图标表里 `role` 是 `UsersIcon` 的别名，跟 `users` 撞成同一个图标
 

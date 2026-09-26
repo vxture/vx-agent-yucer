@@ -28,7 +28,7 @@ import {
 import { DialogForm } from "./dialog-form";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
+import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { orgUnitIcon } from "../lib/org-unit-icon";
@@ -544,7 +544,7 @@ export function OrgPanel({
                here - org-panel.tsx is named in table-fittings.test.ts's
                WIDTH_EXEMPTIONS for exactly this reason, not left for the
                heuristic to (incorrectly) flag. */
-            `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
+            `[&_table]:table-fixed`
             + " [&_thead_th:nth-child(3)]:w-[30%]"
             + " [&_thead_th:nth-child(4)]:w-[11.6667%] [&_thead_th:nth-child(5)]:w-[11.6667%]"
             + " [&_thead_th:nth-child(6)]:w-[11.6667%] [&_thead_th:nth-child(7)]:w-[11.6667%]"

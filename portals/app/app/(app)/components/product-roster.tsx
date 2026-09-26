@@ -16,8 +16,6 @@ import {
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   FilterSlot,
   RowActions,
   rowClickSelection,
@@ -297,9 +295,7 @@ export function ProductRoster({
        first business column is nth-child(3) rather than (2). */
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${
-        extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ACTION_COLUMN
-      }`}
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ""}`}
     >
       <DataTable
         labels={DATA_TABLE_LABELS}

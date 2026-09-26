@@ -19,7 +19,7 @@ import {
 } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
+import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { moveRoleAction, removeRoleAction } from "../admin/roles/actions";
@@ -402,7 +402,7 @@ export function RolePanel({
            不会再被压没。 */
         <div
           className={
-            `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
+            `[&_table]:table-fixed`
             + " [&_thead_th:nth-child(3)]:w-[30%]"
             + " [&_thead_th:nth-child(4)]:w-[8%]"
             + " [&_thead_th:nth-child(5)]:w-[10%]"

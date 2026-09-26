@@ -14,8 +14,6 @@ import {
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   RowActions,
   useTableSort,
   moveItems,
@@ -230,7 +228,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
     // Status and the count pair pinned (polish, 2026-09-24): under
     // table-fixed the min-width tiers are inert - 进行中 was cut at the edge
     // and "31 / 21" wrapped.
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] [&_thead_th:nth-child(5)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem] ${ACTION_COLUMN}`}>
+    <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[24%] [&_thead_th:nth-child(5)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem]`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

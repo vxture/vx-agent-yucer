@@ -19,8 +19,6 @@ import {
 } from "@vxture/design-ui";
 import { DialogForm } from "./dialog-form";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   FilterSlot,
   rowClickSelection,
   SearchSlot,
@@ -868,7 +866,7 @@ export function LeadList({
         <EmptyState title={LEAD_TEXT.noMatch} description={LEAD_TEXT.noMatchWhy} />
       ) : (
         <div
-          className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
+          className={`[&_table]:table-fixed ${select.className}`}
           ref={select.ref}
         >
           <DataTable

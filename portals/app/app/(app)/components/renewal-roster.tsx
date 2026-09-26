@@ -17,8 +17,6 @@ import { formatMoney } from "../lib/view-model";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   FilterSlot,
   RowActions,
   rowClickSelection,
@@ -334,20 +332,17 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
      gave that column a bigger share than the rest by construction), and rem
      pins on the right-hand columns (which starved the title down to 88px).
 
-     The not-due table's action slot is the 64px default: nothing is openable
+     The not-due table's action slot is the DS's own 64px: nothing is openable
      there, so there is no inline button to make room for - the column still
      holds its place with the dots, which is the fittings ruling. */
   const DUE_WIDTHS = "[&_thead_th:last-child]:w-[8rem]";
-  const NOT_DUE_WIDTHS = ACTION_COLUMN;
 
   const table = (list: readonly RenewalRow[], empty: ReactNode, due: boolean) => {
     const select = rowClickSelection(list, (r) => r.projectId, selected, setSelected);
     return (
       <div
         ref={select.ref}
-        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${
-          due ? DUE_WIDTHS : NOT_DUE_WIDTHS
-        } ${select.className}`}
+        className={`[&_table]:table-fixed ${due ? DUE_WIDTHS : ""} ${select.className}`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}

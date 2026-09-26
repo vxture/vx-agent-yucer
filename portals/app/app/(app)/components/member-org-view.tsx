@@ -26,7 +26,7 @@ import {
 import { DialogForm } from "./dialog-form";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions } from "./table-fittings";
+import { PaginationFooter, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { UNPLACED_ROW_ID, branchNodes, flattenOrgView, personRowId, unitOptions, type OrgView, type OrgViewPerson, type OrgViewRow } from "../lib/member-org-view";
 import { orgUnitIcon } from "../lib/org-unit-icon";
@@ -454,7 +454,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
       {/* 首列 40% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 - 名称/
           关联区域/数据范围/角色四个业务列落在 "2-4 列→40%" 这档). 关联区域、
           角色两列继续留白自适应。 */}
-      <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+      <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={pagination.indexStart}
@@ -494,7 +494,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             }
           >
             <CollapsibleContent>
-              <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+              <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
                 <DataTable
                   labels={DATA_TABLE_LABELS}
                   indexStart={inactivePagination.indexStart}

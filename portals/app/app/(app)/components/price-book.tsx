@@ -22,8 +22,6 @@ import { DialogForm } from "./dialog-form";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   RowActions,
   rowClickSelection,
   SearchSlot,
@@ -328,7 +326,7 @@ export function PriceBook({
     return (
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[22%] [&_thead_th:nth-child(6)]:w-[7rem] ${ACTION_COLUMN} ${select.className}`}
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[22%] [&_thead_th:nth-child(6)]:w-[7rem] ${select.className}`}
     >
       <DataTable
         labels={DATA_TABLE_LABELS}

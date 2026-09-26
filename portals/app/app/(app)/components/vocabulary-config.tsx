@@ -27,8 +27,6 @@ import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
 import type { NavIcon } from "../lib/navigation";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   PaginationFooter,
   RowActions,
   SearchSlot,
@@ -437,7 +435,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           ) : (
             <div
               ref={select.ref}
-              className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${titleWidthClass} ${select.className}`}
+              className={`[&_table]:table-fixed ${titleWidthClass} ${select.className}`}
             >
               <DataTable
                 labels={DATA_TABLE_LABELS}

@@ -12,7 +12,7 @@ import {
 } from "@vxture/design-ui";
 import { useState } from "react";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions, SearchSlot, FilterSlot, useTableSort } from "./table-fittings";
+import { PaginationFooter, RowActions, SearchSlot, FilterSlot, useTableSort } from "./table-fittings";
 import type { AuditOutcome } from "../../audit/lib/store";
 
 /**
@@ -130,7 +130,7 @@ export function AuditRoster({ rows }: { readonly rows: readonly AuditRow[] }) {
         </FilterSlot>
       </FilterBar>
 
-      <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`}>
+      <div className={`[&_table]:table-fixed`}>
         <DataTable
           labels={DATA_TABLE_LABELS}
           leadingSpacer

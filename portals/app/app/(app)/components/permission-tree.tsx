@@ -26,7 +26,7 @@ import {
   useToast,
   type IconName,
 } from "@vxture/design-ui";
-import { ACTION_COLUMN, FilterSlot, PaginationFooter, RowActions, SearchSlot } from "./table-fittings";
+import { FilterSlot, PaginationFooter, RowActions, SearchSlot } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import {
   filterPermissionTree,
@@ -382,15 +382,15 @@ export function PermissionTree({
              path itself (up to "01.01.01.01", eleven characters) rather
              than the DS's own flat `indexStart` count, so it gets more room
              than that fitting's usual 4rem. 层级 / 类型 / 子级 / 来源 /
-             授权角色 split evenly; 操作 is ACTION_COLUMN, the cross-table
+             授权角色 split evenly; 操作 is the cross-table
              rule's own fixed width (owner, 2026-09-06; 编号...是高一层要求
              的固定列宽 no longer applies to 编号 itself, since this table's
              编号 is no longer that fitting - see table-fittings.test.ts's
              FITTING_EXEMPTIONS).
 
              STANDARDS FIX (2026-09-11, table-fittings.test.ts guard): "every
-             column named" is exactly the shape table-fittings.tsx's EDGE_
-             COLUMNS comment warns about - table-fixed only holds a specified
+             column named" is exactly the shape table-fittings.tsx's 64px
+             note warns about - table-fixed only holds a specified
              width while SOME column is left auto to take the slack, and with
              all eight pinned here 操作 measured 96px at 1800px instead of its
              64px contract (confirmed live; org-panel.tsx had the identical
@@ -406,8 +406,8 @@ export function PermissionTree({
              so growing further under a wide container extends that intent
              instead of fighting it. 层级 / 类型 / 子级 / 来源 / 授权角色 keep
              splitting evenly at their named widths, unchanged. */
-          "[&_table]:table-fixed " + ACTION_COLUMN
-          + " [&_thead_th:nth-child(1)]:w-[6rem]"
+          "[&_table]:table-fixed "
+          + "[&_thead_th:nth-child(1)]:w-[6rem]"
           + " [&_thead_th:nth-child(3)]:w-[5rem] [&_thead_th:nth-child(4)]:w-[6rem]"
           + " [&_thead_th:nth-child(5)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem]"
           + " [&_thead_th:nth-child(7)]:w-[7rem]"
