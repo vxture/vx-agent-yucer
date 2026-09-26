@@ -715,7 +715,6 @@ export const en: Dictionary = {
     paginationNext: "Next page",
     paginationPageSizeLabel: "Rows per page",
     paginationPageSizeOptionTemplate: "{size} per page",
-    paginationPageSizeAuto: "Auto rows per page",
   },
 
   REVENUE_ERROR: {
@@ -2909,6 +2908,8 @@ export const en: Dictionary = {
     workspacePanelTitle: "Workspace",
     workspaceLabel: "Workspace",
     tenantLabel: "Tenant",
+    subscriptionLabel: "Subscription",
+    tenantConsole: "Tenant console",
     tenantUnknown: "Not identified",
 
     toolsAria: "Shell tools",

@@ -371,7 +371,6 @@ export function PaginationFooter({
       nextLabel={DS_LABELS.paginationNext}
       pageSizeLabel={DS_LABELS.paginationPageSizeLabel}
       pageSizeOptionTemplate={DS_LABELS.paginationPageSizeOptionTemplate}
-      pageSizeAutoLabel={DS_LABELS.paginationPageSizeAuto}
     />
   );
 }

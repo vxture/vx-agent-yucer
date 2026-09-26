@@ -674,7 +674,6 @@ export const DS_LABELS = {
   paginationNext: "下一页",
   paginationPageSizeLabel: "每页条数",
   paginationPageSizeOptionTemplate: "每页 {size} 条",
-  paginationPageSizeAuto: "每页条数自适应",
 } as const;
 
 /**
@@ -2359,6 +2358,8 @@ export const HEADER_TEXT = {
   workspaceLabel: "工作区",
   tenantLabel: "租户",
   tenantUnknown: "未标识",
+  subscriptionLabel: "订阅",
+  tenantConsole: "租户控制台",
 
   // The four tools. Grouped because they are the same KIND of thing - they act
   // on the shell, not on the data - and a reader who has found one has found
