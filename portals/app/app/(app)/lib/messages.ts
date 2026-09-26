@@ -2358,6 +2358,7 @@ export const HEADER_TEXT = {
   workspaceLabel: "工作区",
   tenantLabel: "租户",
   tenantUnknown: "未标识",
+  close: "关闭",
   subscriptionLabel: "订阅",
   tenantConsole: "租户控制台",
 

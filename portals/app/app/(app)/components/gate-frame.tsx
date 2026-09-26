@@ -3,16 +3,14 @@
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  LocaleSelectPanel,
   ShellHeaderDivider,
   ShellHeaderMark,
   ShellHeaderTitle,
+  ShellHeaderTools,
   ShellProductTitle,
-  ShellToolbox,
-  ShellToolboxButton,
   useTheme,
 } from "@vxture/design-system";
-import { Button, Icon, Popover, PopoverContent, PopoverTrigger, ShellHeader, useFullscreen } from "@vxture/design-ui";
+import { Button, Icon, ShellHeader } from "@vxture/design-ui";
 import { LOCALE_CONFIGS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
 import { BRAND_MARK_SRC, BRAND_WORDMARK, PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -70,8 +68,6 @@ export function GateFrame({
   const locale = useLocale();
   const router = useRouter();
   const { mode, setMode } = useTheme();
-  const fullscreen = useFullscreen();
-  const fullscreenOn = fullscreen.isFullscreen && fullscreen.targetId === ROOT_ID;
   const site = websiteUrl();
 
   return (
@@ -101,46 +97,33 @@ export function GateFrame({
         }
         trailing={
           <div className="gap-sm flex items-center">
-            <ShellToolbox label={HEADER_TEXT.prefTitle}>
-              <ShellToolboxButton
-                icon={mode === "dark" ? "sun" : "moon"}
-                label={mode === "dark" ? HEADER_TEXT.prefThemeLight : HEADER_TEXT.prefThemeDark}
-                onClick={() => setMode(mode === "dark" ? "light" : "dark")}
-              />
-              <Popover>
-                <PopoverTrigger asChild>
-                  <ShellToolboxButton icon="translate" label={HEADER_TEXT.prefLocale} />
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-56 p-xs">
-                  {/* The catalogue is the platform's, not the design package's -
-                      same mapping the shell's preference panel uses. Cookie
-                      first, then ask the server again: the language is
-                      resolved server-side. */}
-                  <LocaleSelectPanel
-                    activeLocale={locale}
-                    options={SUPPORTED_LOCALES.map((l) => ({
-                      locale: l,
-                      label: LOCALE_CONFIGS[l].nativeName,
-                      nativeName: LOCALE_CONFIGS[l].nativeName,
-                      flag: LOCALE_CONFIGS[l].flag,
-                    }))}
-                    onSelect={(next) => {
-                      writeLocale(next as Locale);
-                      router.refresh();
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-              <ShellToolboxButton
-                icon="corners-out"
-                label={fullscreenOn ? HEADER_TEXT.fullscreenExit : HEADER_TEXT.fullscreen}
-                active={fullscreenOn}
-                onClick={() => {
-                  const el = document.getElementById(ROOT_ID);
-                  if (el) fullscreen.toggle(ROOT_ID, el);
-                }}
-              />
-            </ShellToolbox>
+            {/* The visitor's set of the DS's standard tools (13.6): theme,
+                language, fullscreen - in the DS's order. */}
+            <ShellHeaderTools
+              label={HEADER_TEXT.prefTitle}
+              theme={{
+                current: mode === "dark" ? "dark" : "light",
+                onChange: (next) => setMode(next),
+                toDarkLabel: HEADER_TEXT.prefThemeDark,
+                toLightLabel: HEADER_TEXT.prefThemeLight,
+              }}
+              locale={{
+                current: locale,
+                options: SUPPORTED_LOCALES.map((l) => ({
+                  locale: l,
+                  label: LOCALE_CONFIGS[l].nativeName,
+                  nativeName: LOCALE_CONFIGS[l].nativeName,
+                  flag: LOCALE_CONFIGS[l].flag,
+                })),
+                onChange: (next) => {
+                  writeLocale(next as Locale);
+                  router.refresh();
+                },
+                label: HEADER_TEXT.prefLocale,
+                panelLabel: HEADER_TEXT.prefLocale,
+              }}
+              fullscreen={{ enterLabel: HEADER_TEXT.fullscreen, exitLabel: HEADER_TEXT.fullscreenExit, targetId: ROOT_ID }}
+            />
             {/* Null only when a stack empties the variable on purpose: a button
                 that goes nowhere is worse than no button. */}
             {site && (

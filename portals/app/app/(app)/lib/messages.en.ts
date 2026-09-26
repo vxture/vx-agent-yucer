@@ -2910,6 +2910,7 @@ export const en: Dictionary = {
     tenantLabel: "Tenant",
     subscriptionLabel: "Subscription",
     tenantConsole: "Tenant console",
+    close: "Close",
     tenantUnknown: "Not identified",
 
     toolsAria: "Shell tools",
