@@ -114,7 +114,7 @@ import { DealStageDrawer } from "../../components/deal-stage-drawer";
 import { DealImportanceDrawer } from "../../components/deal-importance-drawer";
 import { StageTrack } from "../../components/stage-track";
 import { setDealImportance } from "../importance-action";
-import { DimensionChecks, ProcessTitles,
+import { FoldedList, DimensionChecks, ProcessTitles,
   DealCustomerPanel,
   DealDecisionPanel,
   DealDossierPanel,
@@ -1316,16 +1316,18 @@ export default async function OpportunityDetailPage({
                 {/* 待动手的事 FROM THE FIVE DIMENSIONS (owner 2026-09-26: 按五维
                     生成, 与卡片说法一致): every indicator that is not 稳, the
                     worst first, its button to where the work is done. */}
-                {todos.map((t) => (
-                  <LinkActionCard
-                    key={`todo-${t.key}`}
-                    severity={t.severity}
-                    title={t.title}
-                    reason={t.reason}
-                    href={t.href}
-                    cta={DEAL_SCORE_TEXT.todoCta}
-                  />
-                ))}
+                <FoldedList
+                  items={todos.map((t) => (
+                    <LinkActionCard
+                      key={`todo-${t.key}`}
+                      severity={t.severity}
+                      title={t.title}
+                      reason={t.reason}
+                      href={t.href}
+                      cta={DEAL_SCORE_TEXT.todoCta}
+                    />
+                  ))}
+                />
                 {brief.actions.map((a) => {
                   switch (a.kind) {
                     case "apply_category":
@@ -1470,7 +1472,7 @@ export default async function OpportunityDetailPage({
               editor="stage"
               primary={opportunity.status === "open" ? { label: OPPORTUNITY_TEXT.advanceTitle, editor: "stage" } : undefined}
             >
-              {dimChecks("progress")}
+              {dimChecks("progress", ["exit"])}
               <StageTrack
                 stage={opportunity.stage}
                 open={opportunity.status === "open"}
@@ -1500,7 +1502,18 @@ export default async function OpportunityDetailPage({
               </div>
               {exitCheck ? (
                 <>
-                  <PanelSub>{exitCheck.total > 0 ? DEAL_PAGE_TEXT.exitTitlePlain : DEAL_PAGE_TEXT.exitNone}</PanelSub>
+                  {/* The 退出条件 indicator lives on this heading, not in the
+                      checklist above - the criteria below are its detail. */}
+                  <PanelSub>
+                    {exitCheck.total > 0 ? DEAL_PAGE_TEXT.exitTitlePlain : DEAL_PAGE_TEXT.exitNone}
+                    {exitCheck.total > 0 && markOf("progress", "exit")?.work ? (
+                      <span
+                        className={`ml-sm ${markOf("progress", "exit")!.tone === "bad" ? "text-destructive-text" : "text-(color:--warning-text)"}`}
+                      >
+                        {markOf("progress", "exit")!.work}
+                      </span>
+                    ) : null}
+                  </PanelSub>
                   {exitCheck.total > 0 ? <ExitChecks check={exitCheck} filledSlots={filledSlots ?? new Set()} /> : null}
                 </>
               ) : null}
