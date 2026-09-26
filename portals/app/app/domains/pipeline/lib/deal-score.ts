@@ -198,6 +198,8 @@ export interface DimensionScore {
   readonly weight: number;
   /** The worst indicator's gap - the work to do. Null when every one is 稳. */
   readonly gap: { readonly code: string; readonly n?: number } | null;
+  /** Every indicator, in order - the dimension's panel lists them. */
+  readonly indicators: readonly Indicator[];
 }
 
 export interface DealScore {
@@ -221,6 +223,7 @@ export function dealScore(f: DealFacts, p: DealScoreWeights = DEFAULT_DEAL_SCORE
       score: known.length === 0 ? null : Math.round(known.reduce((n, i) => n + toneScore(i.tone), 0) / known.length),
       weight: p.weights[d],
       gap: worst?.gap ?? (known.length === 0 ? unknownGap : null),
+      indicators: byDim[d],
     };
   });
   const counted = dimensions.filter((d) => d.score !== null && d.weight > 0);

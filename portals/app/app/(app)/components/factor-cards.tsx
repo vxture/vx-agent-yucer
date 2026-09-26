@@ -33,15 +33,20 @@ export interface FactorCardItem {
   /** A small suffix after the figure ("/20"), muted. */
   readonly unit?: string;
   readonly tone: FactorTone;
+  /** Where the card leads - its detail panel on the same page. */
+  readonly href?: string;
 }
 
 export function FactorCards({ items }: { readonly items: readonly FactorCardItem[] }) {
   return (
     <div className={`grid gap-sm ${items.length === 4 ? "grid-cols-4" : "grid-cols-5"}`}>
-      {items.map((it) => (
-        <div
+      {items.map((it) => {
+        const Tag = it.href ? "a" : "div";
+        return (
+        <Tag
           key={it.id}
-          className={`flex min-w-0 items-center gap-sm rounded-md border border-t-2 border-border bg-card/60 px-sm py-xs ${EDGE[it.tone]}`}
+          href={it.href}
+          className={`flex min-w-0 items-center gap-sm rounded-md border border-t-2 border-border bg-card/60 px-sm py-xs ${EDGE[it.tone]} ${it.href ? "hover:bg-accent transition-colors" : ""}`}
         >
           <span className={`text-heading-4 shrink-0 ${INK[it.tone]}`}>
             {it.value}
@@ -51,8 +56,9 @@ export function FactorCards({ items }: { readonly items: readonly FactorCardItem
             <TruncatedText text={it.label} className="text-foreground truncate text-body-sm font-medium" />
             <TruncatedText text={it.note} className="text-muted-foreground truncate text-[0.6875rem] leading-tight" />
           </span>
-        </div>
-      ))}
+        </Tag>
+        );
+      })}
     </div>
   );
 }
