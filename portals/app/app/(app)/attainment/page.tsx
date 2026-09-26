@@ -1,4 +1,4 @@
-import { Card, EmptyState, Progress, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Card, EmptyState, Progress, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
@@ -210,14 +210,7 @@ export default async function AttainmentPage() {
       {wsTarget && cover && cover.ratio !== null && totals ? (
         <Card className="p-lg">
           <div className="flex flex-col gap-md">
-            <div>
-              <h2 className="text-heading-4 text-foreground">
-                {ATTAINMENT_TEXT.pool(wsTarget.period)}
-              </h2>
-              <p className="text-muted-foreground mt-2xs text-body-sm">
-                {ATTAINMENT_TEXT.poolWhy}
-              </p>
-            </div>
+            <SectionHeader level={2} title={ATTAINMENT_TEXT.pool(wsTarget.period)} description={ATTAINMENT_TEXT.poolWhy} />
 
             <div className="flex flex-wrap items-baseline gap-x-xl gap-y-xs">
               <Figure
@@ -274,12 +267,7 @@ export default async function AttainmentPage() {
       <Card className="p-lg">
         <div className="flex flex-col gap-md">
           <div>
-            <h2 className="text-heading-4 text-foreground">
-              {ATTAINMENT_TEXT.composition}
-            </h2>
-            <p className="text-muted-foreground mt-2xs text-body-sm">
-              {ATTAINMENT_TEXT.compositionWhy}
-            </p>
+            <SectionHeader level={2} title={ATTAINMENT_TEXT.composition} description={ATTAINMENT_TEXT.compositionWhy} />
           </div>
           {split.length === 0 ? (
             <p className="text-muted-foreground text-body-sm">

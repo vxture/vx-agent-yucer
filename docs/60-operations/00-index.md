@@ -40,7 +40,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
 | TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | **closed 2026-09-22**（26 项权限、31 个预置角色、420 条授权，逐条核对 catalog.ts 镜像） |
-| TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（`collapsible-section.tsx` 垫着；待上报 DS） |
+| TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（**半项已还 2026-09-26**：标题行对齐由 design-ui 11 的 grid 表头解决，覆盖已删；`Section` 仍不转发 `divider`，收起态垫片保留；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream

@@ -3,19 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ActionMenu,
-  Button,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  Icon,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  type IconName,
-} from "@vxture/design-ui";
+import { ActionMenu, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, SectionHeader, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type IconName } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection, type PanelAction } from "./collapsible-section";
@@ -103,12 +91,9 @@ export function DealPanel({
 
 /** A small heading inside a panel (the prototype's `.sec`). */
 export function PanelSub({ children, action }: { readonly children: ReactNode; readonly action?: ReactNode }) {
-  return (
-    <div className="text-muted-foreground mt-sm flex items-center gap-sm text-body-sm font-medium first:mt-0">
-      <span>{children}</span>
-      {action ? <span className="ml-auto">{action}</span> : null}
-    </div>
-  );
+  // An in-panel sub-heading is the DS ladder's level 4 (design-ui 11: h4,
+  // title-sm, its own dashed underline) - no local type or colour.
+  return <SectionHeader level={4} title={children} action={action} className="mt-sm first:mt-0" />;
 }
 
 /** 栏1 · 交易档案 - the deal's OrgUnitPanel: name + number, 徽章区, the five

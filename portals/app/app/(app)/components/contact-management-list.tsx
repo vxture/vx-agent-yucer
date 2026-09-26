@@ -2,7 +2,7 @@
 
 import { useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, EmptyState, useToast, type ActionMenuItem } from "@vxture/design-ui";
+import { Button, EmptyState, SectionHeader, type ActionMenuItem, useToast } from "@vxture/design-ui";
 import { moveItems, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { ContactCard, type ContactRow } from "./contact-roster";
@@ -76,17 +76,20 @@ export function ContactManagementList({
 
   return (
     <div className="flex flex-col gap-sm">
-      <div className="flex items-center justify-between gap-sm">
-        <h4 className="text-body-sm font-bold">{ACCOUNT_TEXT.contactsTitle}</h4>
-        {canEdit ? (
-          <span className="flex items-center gap-xs">
-            <Button asChild variant="ghost" size="sm">
-              <a href={editHref}>{ACCOUNT_TEXT.contactAddButton}</a>
-            </Button>
-            {linkForm}
-          </span>
-        ) : null}
-      </div>
+      <SectionHeader
+        level={4}
+        title={ACCOUNT_TEXT.contactsTitle}
+        action={
+          canEdit ? (
+            <span className="flex items-center gap-xs">
+              <Button asChild variant="ghost" size="sm">
+                <a href={editHref}>{ACCOUNT_TEXT.contactAddButton}</a>
+              </Button>
+              {linkForm}
+            </span>
+          ) : null
+        }
+      />
 
       {contacts.length === 0 ? (
         <EmptyState title={ACCOUNT_TEXT.contactsNone} description={ACCOUNT_TEXT.contactsNoneWhy} />

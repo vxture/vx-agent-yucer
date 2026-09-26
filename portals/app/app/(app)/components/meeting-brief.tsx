@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Checkbox, Drawer, StatusBadge } from "@vxture/design-ui";
+import { Button, Checkbox, Drawer, SectionHeader, StatusBadge } from "@vxture/design-ui";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 import { Tag } from "./tag";
@@ -133,7 +133,7 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
   return (
     <div className="flex flex-col gap-lg">
       <section className="flex flex-col gap-2xs">
-        <h3 className="text-body-md font-bold">{MEETING_TEXT.attendees}</h3>
+        <SectionHeader level={4} title={MEETING_TEXT.attendees} />
         {brief.attendees.map((a) => (
           <div key={a.contactId} className="text-body-sm">
             <span className="font-medium">{a.name}</span>
@@ -153,7 +153,7 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
       </section>
 
       <section className="flex flex-col gap-2xs">
-        <h3 className="text-body-md font-bold">{MEETING_TEXT.commitments}</h3>
+        <SectionHeader level={4} title={MEETING_TEXT.commitments} />
         {brief.commitments.state !== "ok" ? (
           unavailable(brief.commitments.state)
         ) : brief.commitments.items.length === 0 ? (
@@ -175,7 +175,7 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
       </section>
 
       <section className="flex flex-col gap-2xs">
-        <h3 className="text-body-md font-bold">{MEETING_TEXT.money}</h3>
+        <SectionHeader level={4} title={MEETING_TEXT.money} />
         {brief.money.state !== "ok" ? (
           unavailable(brief.money.state)
         ) : brief.money.items.length === 0 ? (
@@ -194,7 +194,7 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
       </section>
 
       <section className="flex flex-col gap-2xs">
-        <h3 className="text-body-md font-bold">{MEETING_TEXT.conclusion}</h3>
+        <SectionHeader level={4} title={MEETING_TEXT.conclusion} />
         {brief.conclusion.state !== "ok" ? (
           unavailable(brief.conclusion.state)
         ) : (
