@@ -44,7 +44,7 @@ export function CategoryActionCard({
         <StatusBadge tone="success">{WAR_ROOM_TEXT.applied}</StatusBadge>
       ) : (
         <Button
-          size="sm"
+          size="xs"
           disabled={pending}
           onClick={() =>
             start(() => {

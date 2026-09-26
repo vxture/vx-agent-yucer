@@ -18,8 +18,9 @@ export async function adoptJudgement(
   input: {
     opportunityId: string;
     accountId: string;
-    judgementId: string;
-    urgency: Urgency;
+    /** Absent for an item that is not a judgement (a dimension's gap). */
+    judgementId?: string | null;
+    urgency?: Urgency | null;
     statement: string;
     /** YYYY-MM-DD */
     dueOn: string;
@@ -48,7 +49,9 @@ export async function adoptJudgement(
   if (!made.ok) return { ok: false, error: made.violations[0]?.code ?? "denied" };
   // Handled - out of the list. A failed snooze leaves the step written; the
   // judgement simply shows once more, which is the honest failure.
-  await snoozeJudgement({ ...base, store: getCopilotStore() }, { judgementId: input.judgementId, urgency: input.urgency });
+  if (input.judgementId && input.urgency) {
+    await snoozeJudgement({ ...base, store: getCopilotStore() }, { judgementId: input.judgementId, urgency: input.urgency });
+  }
   revalidatePath(`/pipeline/${input.opportunityId}`);
   revalidatePath("/", "layout");
   return { ok: true };

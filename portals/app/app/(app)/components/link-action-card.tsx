@@ -26,11 +26,11 @@ export function LinkActionCard({
   readonly reason: string;
   readonly href: string;
   readonly cta: string;
-  readonly source?: "rule" | null;
+  readonly source?: "rule" | "model" | null;
 }) {
   return (
     <ActionCard severity={severity} title={title} reason={reason} source={source}>
-      <Button asChild size="sm" variant="outline">
+      <Button asChild size="xs">
         <a href={href}>{cta}</a>
       </Button>
     </ActionCard>
