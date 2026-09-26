@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-import { FactorCards, type FactorTone } from "./factor-cards";
-import type { BriefCell } from "../../domains/pipeline/lib/brief";
-import { getMessages } from "../lib/i18n/server";
+import { FactorCards, type FactorCardItem } from "./factor-cards";
 
 // The war room's shell: the verdict strip, and the slot the action cards
 // render into - owner ruling 2026-09-05 (判决 → 建议 → 动作).
@@ -22,44 +20,26 @@ import { getMessages } from "../lib/i18n/server";
 // person can adjudicate them, because the strip states what IS and the cards
 // offer what to DO.
 
-const TONE: Record<BriefCell["tone"], FactorTone> = { good: "good", warn: "mild", bad: "severe" };
 
 export async function WarRoom({
-  cells,
-  points,
+  cards,
   actionsLabel,
   children,
 }: {
-  readonly cells: readonly BriefCell[];
-  /** Each dimension's own 0-100 in 商机评估分 (incr/0091) - every card out
-   *  of 100 (owner 2026-09-25: 这几项满分不是100分); the weights only
-   *  combine them into the dossier's score. */
-  readonly points?: Partial<Record<BriefCell["key"], number>>;
+  /** 商机评估's five cards, built by the page from the deal's facts. */
+  readonly cards: readonly FactorCardItem[];
   /** The heading over the action cards (待动手的事), from the host panel. */
   readonly actionsLabel?: ReactNode;
   /** The action cards, worst-first - each its own client island. */
   readonly children?: ReactNode;
 }) {
-  const { WAR_ROOM_TEXT } = await getMessages();
   return (
     <div className="flex flex-col">
-      {/* 评估卡 (owner 2026-09-25: 按照card方式，参考客户详情页): the
-          customer page's 客户评估 card, figure | (name / note). The figure is
-          this deal's 0-100 on the dimension in 商机评估分, so the five read
-          as one deal's numbers; the note is the
-          verdict's one line, the evidence on hover. */}
-      <FactorCards
-        items={cells.map((c) => {
-          const p = points?.[c.key];
-          return {
-            id: c.key,
-            label: WAR_ROOM_TEXT.cell[c.key] ?? c.key,
-            note: c.detail ? `${c.headline} · ${c.detail}` : c.headline,
-            value: p !== undefined ? String(p) : WAR_ROOM_TEXT.toneWord[c.tone] ?? "",
-            tone: TONE[c.tone],
-          };
-        })}
-      />
+      {/* 商机评估 (owner 2026-09-25/26): five dimensions as the customer
+          page's evaluation cards - each this deal's 0-100 and the one piece
+          of work that closes its gap. The same five weigh the dossier's
+          score and are set in /admin. */}
+      <FactorCards items={cards} />
       {children ? (
         <div className="mt-md flex flex-col gap-xs">
           {actionsLabel}

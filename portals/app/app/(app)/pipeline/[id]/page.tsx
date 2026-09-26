@@ -501,10 +501,10 @@ export default async function OpportunityDetailPage({
 
   // Rival mentions, found in the notes rather than inferred. The words are the
   // evidence; naming an opponent nobody wrote down would be fabrication.
-  const rivalMentions = (interactions.ok ? interactions.value : [])
-    .filter((n: { rawNote: string }) =>
-      POSITION_TEXT.rivalWords.some((w) => n.rawNote.includes(w)),
-    )
+  const rivalMentionsAll = (interactions.ok ? interactions.value : []).filter((n: { rawNote: string }) =>
+    POSITION_TEXT.rivalWords.some((w) => n.rawNote.includes(w)),
+  );
+  const rivalMentions = rivalMentionsAll
     .slice(0, 3)
     .map((n) => ({
       id: n.id,
@@ -714,13 +714,6 @@ export default async function OpportunityDetailPage({
 
   // ---- 栏2 ----------------------------------------------------------------
   const findings = brief.cells.filter((c) => c.tone !== "good").length;
-  const verdictSummary =
-    findings === 0
-      ? WAR_ROOM_TEXT.allClear(brief.cells.length)
-      : brief.cells
-          .filter((c) => c.tone !== "good")
-          .map((c) => c.headline)
-          .join(COLLAPSE_TEXT.separator);
   const stageText = stageLabelFor(opportunity.stage, stageDefinitions, STAGE_LABEL);
   const daysInStage =
     opportunity.status === "open"
@@ -771,16 +764,63 @@ export default async function OpportunityDetailPage({
   );
   const recentTouches = interactionList.filter((n) => briefNow.getTime() - n.occurredAt.getTime() <= 30 * 86_400_000).length;
   const requirement = opportunity.requirement?.trim() || null;
-  // 商机评估分 (incr/0091): the weighted 0-100, from 态势判决's cells, this
-  // stage's exit check and the last touch - the workspace's own weights.
+  // 商机评估 (incr/0091-0092): five dimensions, one set on the cards, in the
+  // dossier's score and in /admin's weights (owner 2026-09-25/26). The facts
+  // are what this page already read.
+  const dayOf = (d: Date) => Math.max(0, Math.floor((briefNow.getTime() - d.getTime()) / 86_400_000));
+  const openCommitments = (commitments.ok ? commitments.value : []).filter((c) => c.status === "open");
+  const theirLate = openCommitments.filter((c) => c.direction === "they_owe" && c.dueAt < briefNow);
+  const scoreParams = scoreWeights.ok ? scoreWeights.value : DEFAULT_DEAL_SCORE_WEIGHTS;
   const score = dealScore(
     {
-      cells: brief.cells,
+      slots: {
+        pain: filledSlots?.has("pain") ?? false,
+        metrics: filledSlots?.has("metrics") ?? false,
+        statusQuo: filledSlots?.has("status_quo") ?? false,
+        decisionProcess: filledSlots?.has("decision_process") ?? false,
+      },
+      budgetKnown: opportunity.customerBudget != null,
+      people: chain.ok
+        ? chainPeople.map((p) => {
+            const last = buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(p.id) ?? null) : null;
+            return { role: p.decisionRole, stance: p.stance ?? null, lastDays: last ? dayOf(last) : null };
+          })
+        : null,
+      rivalMentions: rivalMentionsAll.length,
+      lastTouchDays: lastTouch ? dayOf(lastTouch) : null,
+      theirOverdue: { count: theirLate.length, maxDays: theirLate.reduce((m, c) => Math.max(m, dayOf(c.dueAt)), 0) },
+      hasNextStep: openCommitments.some((c) => c.dueAt >= briefNow),
       exit: exitCheck,
-      lastTouchDays: lastTouch ? Math.max(0, Math.floor((briefNow.getTime() - lastTouch.getTime()) / 86_400_000)) : null,
+      stall: brief.cells.find((c) => c.key === "stage")?.tone ?? "good",
+      stalledDays: daysInStage,
+      slips: slip?.pushes ?? 0,
+      closeDatePassed: opportunity.status === "open" && opportunity.expectedCloseAt != null && opportunity.expectedCloseAt < briefNow,
+      pendingApprovals: pendingLines,
+      open: opportunity.status === "open",
     },
-    scoreWeights.ok ? scoreWeights.value : DEFAULT_DEAL_SCORE_WEIGHTS,
+    scoreParams,
   );
+  const gapText = (g: { code: string; n?: number } | null, known: boolean) =>
+    g ? (DEAL_SCORE_TEXT.gap[g.code]?.(g.n ?? 0) ?? g.code) : known ? DEAL_SCORE_TEXT.allGood : DEAL_SCORE_TEXT.unknownDim;
+  // Folded, 态势判决 says the same five: the score, then each dimension that
+  // is short with its work.
+  const verdictSummary = [
+    `${DEAL_SCORE_TEXT.coinLabel} ${score.score}`,
+    ...score.dimensions
+      .filter((d) => d.score !== null && d.score < 100 && d.gap)
+      .map((d) => `${DEAL_SCORE_TEXT.factor[d.dimension]} ${gapText(d.gap, true)}`),
+  ].join(COLLAPSE_TEXT.separator);
+  const assessmentCards = score.dimensions.map((d) => ({
+    id: d.dimension,
+    label: DEAL_SCORE_TEXT.factor[d.dimension] ?? d.dimension,
+    note: gapText(d.gap, d.score !== null),
+    value: d.score === null ? "—" : String(d.score),
+    tone: (d.score === null ? "none" : { good: "good", warn: "mild", bad: "severe" }[dealScoreBand(d.score)]) as
+      | "good"
+      | "mild"
+      | "severe"
+      | "none",
+  }));
   const dossierBadges = (
     <div className="flex items-center justify-center gap-md">
       {dealLevel ? (
@@ -839,7 +879,10 @@ export default async function OpportunityDetailPage({
             </div>
             <div className="opacity-80">
               {score.primaryConcern
-                ? DEAL_SCORE_TEXT.concern(DEAL_SCORE_TEXT.factor[score.primaryConcern.factor] ?? score.primaryConcern.factor, score.primaryConcern.value)
+                ? DEAL_SCORE_TEXT.concern(
+                    DEAL_SCORE_TEXT.factor[score.primaryConcern.dimension] ?? score.primaryConcern.dimension,
+                    score.primaryConcern.score ?? 0,
+                  )
                 : DEAL_SCORE_TEXT.noConcern}
             </div>
             <div className="opacity-60">{DEAL_SCORE_TEXT.howTo}</div>
@@ -1189,8 +1232,7 @@ export default async function OpportunityDetailPage({
               editHint={PANEL_MENU_TEXT.derived}
             >
               <WarRoom
-                cells={brief.cells}
-                points={Object.fromEntries(score.contributions.map((c) => [c.factor, c.value]))}
+                cards={assessmentCards}
                 actionsLabel={<PanelSub>{DEAL_PAGE_TEXT.todo}</PanelSub>}
               >
                 {brief.actions.map((a) => {

@@ -347,9 +347,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_pipeline.forecast_threshold": [
     "commit_probability", "best_case_probability", "stall_days", "updated_at",
   ],
-  // 0091. 商机评估分's weights and knobs; the workspace key is the anchor.
+  // 0091, reshaped by 0092: 商机评估's five dimension weights and the three
+  // knobs; the workspace key is the anchor.
   "yucer_pipeline.deal_score_weight": [
-    "w_exit", "w_chain", "w_stage", "w_recency", "w_commitment", "w_forecast", "w_price",
+    "w_value", "w_consensus", "w_competition", "w_engagement", "w_progress",
     "watch_score", "recent_days", "quiet_days", "updated_at",
   ],
   // 0042. Same shape, one column.
