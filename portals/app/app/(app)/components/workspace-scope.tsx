@@ -2,6 +2,7 @@
 
 import {
   ShellPanelContent,
+  ShellPanelHeader,
   ShellPanelRow,
   ShellPanelSection,
   ShellScopeButton,
@@ -36,11 +37,17 @@ export interface WorkspaceScopeProps {
    *  rules revision) - a raw org id here was the same class of defect as the
    *  fallback workspace label: neither is a fact a reader can act on. */
   readonly orgLabel: string | null;
+  /** The subscription tier's display label, or 未订阅. */
+  readonly tierLabel: string;
+  /** The platform console - where the tenant is managed. Null hides the row. */
+  readonly consoleUrl: string | null;
 }
 
 export function WorkspaceScope({
   workspaceLabel,
   orgLabel,
+  tierLabel,
+  consoleUrl,
 }: WorkspaceScopeProps) {
   const { HEADER_TEXT } = useMessages();
   /* THE DS'S STRUCTURE (design-system 12.x, owner 2026-09-10: hover 放宽，
@@ -64,20 +71,28 @@ export function WorkspaceScope({
           caret
         />
       </PopoverTrigger>
-      {/* SIMPLIFIED (owner, 2026-09-14): just the two facts, nothing else -
-          no repeated title bar, no switch-hint copy. Tenant first, then
-          workspace, matching how the two are named when this is described. */}
+      {/* THE DS'S TENANT PANEL (design-system 12.20-12.23; owner 2026-09-26:
+          tenantpanel 已更新): the tenant as the panel's header (icon lead, not
+          an avatar - an organisation is not a person), then its facts as
+          panel rows - workspace, subscription tier - and the way to manage it
+          in the platform console. Still only facts this product holds: no
+          balance or quota rows it would have to invent. */}
       <ShellPanelContent align="start">
-          <ShellPanelSection divided={false}>
-            <ShellPanelRow
-              label={HEADER_TEXT.tenantLabel}
-              value={orgLabel ?? HEADER_TEXT.tenantUnknown}
-            />
-            <ShellPanelRow
-              label={HEADER_TEXT.workspaceLabel}
-              value={workspaceLabel}
-            />
+        <ShellPanelHeader
+          lead="icon"
+          icon="building-library"
+          title={orgLabel ?? HEADER_TEXT.tenantUnknown}
+          metaRows={[{ key: "tenant", content: HEADER_TEXT.tenantLabel }]}
+        />
+        <ShellPanelSection>
+          <ShellPanelRow icon="workspace" label={HEADER_TEXT.workspaceLabel} value={workspaceLabel} />
+          <ShellPanelRow icon="seal-check" label={HEADER_TEXT.subscriptionLabel} value={tierLabel} valueTone="strong" />
+        </ShellPanelSection>
+        {consoleUrl ? (
+          <ShellPanelSection>
+            <ShellPanelRow icon="settings" label={HEADER_TEXT.tenantConsole} href={consoleUrl} newTab chevron />
           </ShellPanelSection>
+        ) : null}
       </ShellPanelContent>
     </Popover>
   );

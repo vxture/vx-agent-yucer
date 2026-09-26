@@ -2,18 +2,14 @@
 
 import Link from "next/link";
 
-import {
-  ShellFullscreenToggle,
-  ShellIconButton,
-  ShellIconGroup,
-} from "@vxture/design-system";
+import { ShellToolbox, ShellToolboxButton } from "@vxture/design-system";
 import {
   Badge,
   Popover,
   PopoverContent,
   PopoverTrigger,
+  useFullscreen,
 } from "@vxture/design-ui";
-import { CountBadge } from "./count-badge";
 import { useMessages } from "../lib/i18n/provider";
 
 /**
@@ -50,19 +46,9 @@ export interface HeaderToolsProps {
     readonly count: number;
     readonly href: string;
   }[];
-  /**
-   * Absent when the member holds no admin permission - a locked door they
-   * cannot do anything about is not access control.
-   *
-   * A CALLBACK AND NOT AN HREF, which costs middle-click and is worth saying
-   * out loud: ShellIconButton renders a <button> and takes no href or asChild,
-   * so the only way to make it navigate is to wrap it in an anchor - and a
-   * button inside a link is invalid markup that announces itself twice. It
-   * measured as two identical "设置" controls at the same coordinate. Settings
-   * is a rarely-visited destination, so losing middle-click is the cheaper
-   * side of that trade; an href mode on ShellIconButton is a DS request.
-   */
-  readonly onSettings?: () => void;
+  /** Where administration lives; absent when the member holds no admin
+   *  permission - a locked door they cannot open is not access control. */
+  readonly settingsHref?: string | null;
   /**
    * What fullscreen expands. Defaults to the shell body by id; the shell hands
    * down the document element, because "fullscreen" that leaves a header on
@@ -77,80 +63,66 @@ export interface HeaderToolsProps {
    * back into a signed-in product.
    */
   readonly onHelp?: () => void;
-  readonly onNotifications?: () => void;
 }
 
 export function HeaderTools({
   notifications = 0,
   notificationItems = [],
-  onSettings,
+  settingsHref,
   onHelp,
-  onNotifications,
   fullscreenTarget,
 }: HeaderToolsProps) {
   const { HEADER_TEXT } = useMessages();
+  const fullscreen = useFullscreen();
+  const fullscreenOn = fullscreen.isFullscreen && fullscreen.targetId === SHELL_BODY_ID;
+  // THE DS'S TOOLBOX (design-system 13.3, owner 2026-09-26: header 已更新): one
+  // pale capsule, 20px icons, the hover and open states the DS owns. Help and
+  // settings are LINKS now - the toolbox takes an href, which the old icon
+  // button did not (the reason settings used to be a callback that lost
+  // middle-click). Notifications and fullscreen are composed buttons: one
+  // opens a popover, the other toggles state.
   return (
-    <ShellIconGroup label={HEADER_TEXT.toolsAria}>
-      {/* The DS owns the fullscreen mechanics - the API, the escape key, the
-          scroll lock - and takes both labels, so the state change is announced
-          rather than left to the icon. */}
-      <ShellFullscreenToggle
-        targetId={SHELL_BODY_ID}
-        getTargetElement={fullscreenTarget}
-        enterLabel={HEADER_TEXT.fullscreen}
-        exitLabel={HEADER_TEXT.fullscreenExit}
+    <ShellToolbox
+      label={HEADER_TEXT.toolsAria}
+      linkComponent={Link}
+      items={[
+        onHelp
+          ? { key: "help", icon: "help", label: HEADER_TEXT.help, onClick: onHelp }
+          : { key: "help", icon: "help", label: HEADER_TEXT.help, href: HELP_URL, newTab: true },
+        { key: "settings", icon: "settings", label: HEADER_TEXT.settings, href: settingsHref ?? undefined, hidden: !settingsHref },
+      ]}
+    >
+      <ShellToolboxButton
+        icon="corners-out"
+        label={fullscreenOn ? HEADER_TEXT.fullscreenExit : HEADER_TEXT.fullscreen}
+        active={fullscreenOn}
+        onClick={() => {
+          const el = fullscreenTarget?.() ?? document.getElementById(SHELL_BODY_ID);
+          if (el) fullscreen.toggle(SHELL_BODY_ID, el);
+        }}
       />
-
-      <ShellIconButton
-        icon="help"
-        label={HEADER_TEXT.help}
-        onClick={onHelp ?? (() => window.open(HELP_URL, "_blank", "noopener"))}
-      />
-
       <Popover>
         <PopoverTrigger asChild>
-          <span className="relative inline-flex">
-            <ShellIconButton
-              icon="bell"
-              label={
-                notifications > 0
-                  ? HEADER_TEXT.notificationsWithCount(notifications)
-                  : HEADER_TEXT.notifications
-              }
-            />
-            {notifications > 0 ? (
-              // aria-hidden: the count is already in the button's accessible
-              // name, and a screen reader should hear it once attached to its
-              // control rather than twice as a loose number beside it. Same
-              // construction and the same DS gap as the agent badge - TD-006.
-              <span
-                className="pointer-events-none absolute -top-2xs -right-2xs"
-                aria-hidden="true"
-              >
-                <CountBadge count={notifications} />
-              </span>
-            ) : null}
-          </span>
+          <ShellToolboxButton
+            icon="bell"
+            badge={notifications > 0}
+            label={notifications > 0 ? HEADER_TEXT.notificationsWithCount(notifications) : HEADER_TEXT.notifications}
+          />
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 p-sm">
           {notificationItems.length === 0 ? (
-            <p className="text-muted-foreground p-xs text-sm">
-              {HEADER_TEXT.notificationsEmpty}
-            </p>
+            <p className="text-muted-foreground p-xs text-sm">{HEADER_TEXT.notificationsEmpty}</p>
           ) : (
             <div className="flex flex-col gap-2xs">
               {/* Each row is the queue, not an event: the count is live and the
-                  link lands on the page that owns it. No read-state exists to
-                  manage, so nothing here pretends to be dismissible. */}
+                  link lands on the page that owns it. */}
               {notificationItems.map((item) => (
                 <Link
                   key={item.key}
                   href={item.href}
                   className="hover:bg-accent flex items-center justify-between gap-sm rounded-sm p-xs text-sm"
                 >
-                  <span>
-                    {HEADER_TEXT.notificationLabel[item.key] ?? item.key}
-                  </span>
+                  <span>{HEADER_TEXT.notificationLabel[item.key] ?? item.key}</span>
                   <Badge variant="destructive">{item.count}</Badge>
                 </Link>
               ))}
@@ -158,14 +130,6 @@ export function HeaderTools({
           )}
         </PopoverContent>
       </Popover>
-
-      {onSettings ? (
-        <ShellIconButton
-          icon="settings"
-          label={HEADER_TEXT.settings}
-          onClick={onSettings}
-        />
-      ) : null}
-    </ShellIconGroup>
+    </ShellToolbox>
   );
 }

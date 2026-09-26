@@ -371,6 +371,9 @@ so violating them fails at runtime rather than at review:
   copies do: two `Button`s and two Popover / Tooltip / Fullscreen React
   contexts, with no error. First applied 2026-09-10: design-system 12.2.0 ->
   12.3.1, which still pins design-ui 9.1.0 (its latest).
+  2026-09-26: design-system 12.5.0 -> 13.4.0, design-ui 9.3.0 -> 10.3.0 (one
+  copy each). The product header is the DS's single-product view (03 section
+  7.1) and the gate screens its website view; see app-shell.tsx / gate-frame.tsx.
 
 ## Product vocabulary (2026-08-26)
 

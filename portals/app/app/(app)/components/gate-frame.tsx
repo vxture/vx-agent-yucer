@@ -3,14 +3,16 @@
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ShellBrand,
-  ShellFullscreenToggle,
-  ShellIconGroup,
-  ShellLocaleSwitcher,
-  ShellThemeToggle,
+  LocaleSelectPanel,
+  ShellHeaderDivider,
+  ShellHeaderMark,
+  ShellHeaderTitle,
+  ShellProductTitle,
+  ShellToolbox,
+  ShellToolboxButton,
   useTheme,
 } from "@vxture/design-system";
-import { Button, Icon } from "@vxture/design-ui";
+import { Button, Icon, Popover, PopoverContent, PopoverTrigger, ShellHeader, useFullscreen } from "@vxture/design-ui";
 import { LOCALE_CONFIGS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
 import { BRAND_MARK_SRC, BRAND_WORDMARK, PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -32,13 +34,12 @@ import { websiteUrl } from "../lib/website-url";
 // does not jump between a tall screen and a short one, which is what made four
 // pages feel like four products.
 //
-// THE HEADER IS THE COMPANY'S, NOT THE PRODUCT'S. It carries the Vxture mark
-// and ruyin.work, the same three controls the public site carries (theme /
-// language / fullscreen, all DS shell elements), and one primary action out to
-// that site. Measured on vxture.com rather than guessed: 64px tall, container
-// centred and climbing 1280 -> 1536 -> 1600px, side padding ending at 32px.
-// Because the header says nothing about the product, the product identity had
-// to become a band of its own - which is the top band below.
+// THE HEADER IS THE DS'S 官网 VIEW (design-system 13.4, 03 §7.1; owner
+// 2026-09-26). It used to be hand-measured off vxture.com (64px, a 1280 ->
+// 1600px container) and carried only the company, so the product needed a
+// band of its own under it. The DS now draws the website header itself -
+// centred, transparent, xl - and on a product's page adds the product title
+// after the site name, so the identity band went with the hand-built bar.
 
 /** How wide the middle band is. The door needs room; a refusal is one column. */
 export type GateWidth = "narrow" | "wide";
@@ -69,6 +70,8 @@ export function GateFrame({
   const locale = useLocale();
   const router = useRouter();
   const { mode, setMode } = useTheme();
+  const fullscreen = useFullscreen();
+  const fullscreenOn = fullscreen.isFullscreen && fullscreen.targetId === ROOT_ID;
   const site = websiteUrl();
 
   return (
@@ -78,47 +81,66 @@ export function GateFrame({
     >
       <Ambience />
 
-      <header className="relative">
-        <div className="gap-md px-md sm:px-lg lg:px-xl mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between xl:max-w-[1536px] 2xl:max-w-[1600px]">
-          <ShellBrand href="/" logoSrc={BRAND_MARK_SRC} label={BRAND_WORDMARK} />
-
+      {/* THE DS'S 官网 HEADER (design-system 13.4, 03 §7.1; owner 2026-09-26:
+          登录、订阅等非业务页面有官网类型的 header，需适配): centred, on the page,
+          no working controls - no launcher, tenant, search or agent. A product
+          page adds the product title after the site name, which is why the
+          separate product-identity band under it is gone. */}
+      <ShellHeader
+        layout="centered"
+        surface="transparent"
+        height="xl"
+        className="relative"
+        leading={
+          <>
+            <ShellHeaderMark href="/" src={BRAND_MARK_SRC} alt={BRAND_WORDMARK} />
+            <ShellHeaderTitle>{BRAND_WORDMARK}</ShellHeaderTitle>
+            <ShellHeaderDivider />
+            <ShellProductTitle logoSrc={PRODUCT_MARK_SRC} name={SHELL_TEXT.brandMark} type={SHELL_TEXT.brandTagline} />
+          </>
+        }
+        trailing={
           <div className="gap-sm flex items-center">
-            <ShellIconGroup label={HEADER_TEXT.prefTitle}>
-              <ShellThemeToggle
-                currentTheme={mode === "dark" ? "dark" : "light"}
-                buttonLabel={HEADER_TEXT.prefTheme}
-                lightLabel={HEADER_TEXT.prefThemeLight}
-                darkLabel={HEADER_TEXT.prefThemeDark}
-                onThemeChange={(next) => setMode(next)}
+            <ShellToolbox label={HEADER_TEXT.prefTitle}>
+              <ShellToolboxButton
+                icon={mode === "dark" ? "sun" : "moon"}
+                label={mode === "dark" ? HEADER_TEXT.prefThemeLight : HEADER_TEXT.prefThemeDark}
+                onClick={() => setMode(mode === "dark" ? "light" : "dark")}
               />
-              <ShellLocaleSwitcher
-                currentLocale={locale}
-                // The catalogue is the platform's, not the design package's -
-                // its own note says so. Same mapping the shell's preference
-                // panel uses.
-                options={SUPPORTED_LOCALES.map((l) => ({
-                  locale: l,
-                  label: LOCALE_CONFIGS[l].nativeName,
-                  nativeName: LOCALE_CONFIGS[l].nativeName,
-                  flag: LOCALE_CONFIGS[l].flag,
-                }))}
-                buttonLabel={HEADER_TEXT.prefLocale}
-                panelLabel={HEADER_TEXT.prefLocale}
-                onLocaleChange={(next) => {
-                  // Cookie first, then ask the server again: the language is
-                  // resolved server-side, so re-rendering from what the client
-                  // holds would leave half the page behind.
-                  writeLocale(next as Locale);
-                  router.refresh();
+              <Popover>
+                <PopoverTrigger asChild>
+                  <ShellToolboxButton icon="translate" label={HEADER_TEXT.prefLocale} />
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56 p-xs">
+                  {/* The catalogue is the platform's, not the design package's -
+                      same mapping the shell's preference panel uses. Cookie
+                      first, then ask the server again: the language is
+                      resolved server-side. */}
+                  <LocaleSelectPanel
+                    activeLocale={locale}
+                    options={SUPPORTED_LOCALES.map((l) => ({
+                      locale: l,
+                      label: LOCALE_CONFIGS[l].nativeName,
+                      nativeName: LOCALE_CONFIGS[l].nativeName,
+                      flag: LOCALE_CONFIGS[l].flag,
+                    }))}
+                    onSelect={(next) => {
+                      writeLocale(next as Locale);
+                      router.refresh();
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+              <ShellToolboxButton
+                icon="corners-out"
+                label={fullscreenOn ? HEADER_TEXT.fullscreenExit : HEADER_TEXT.fullscreen}
+                active={fullscreenOn}
+                onClick={() => {
+                  const el = document.getElementById(ROOT_ID);
+                  if (el) fullscreen.toggle(ROOT_ID, el);
                 }}
               />
-              <ShellFullscreenToggle
-                targetId={ROOT_ID}
-                enterLabel={HEADER_TEXT.fullscreen}
-                exitLabel={HEADER_TEXT.fullscreenExit}
-              />
-            </ShellIconGroup>
-
+            </ShellToolbox>
             {/* Null only when a stack empties the variable on purpose: a button
                 that goes nowhere is worse than no button. */}
             {site && (
@@ -127,17 +149,16 @@ export function GateFrame({
               </Button>
             )}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* THE THREE BANDS. Spacing is the token scale rather than round numbers -
           3xl is 48px, 4xl 56, 6xl 80, measured rather than assumed - and it is
           deliberately loose: the identity does not sit against the header and
           the chain does not sit on the floor (80 + 56 under it). */}
       <div className="px-lg pb-4xl relative flex flex-1 flex-col items-center">
-        <div className="pt-6xl pb-3xl">
-          <ProductIdentity mark={SHELL_TEXT.brandMark} tagline={SHELL_TEXT.brandTagline} />
-        </div>
+        {/* No identity band: the 官网 header carries the product title now. */}
+        <div className="pt-6xl" />
 
         {/* THE MIDDLE, and the only band that changes.
             NOT CENTRED: the space under it is twice the space above, so the
@@ -161,49 +182,6 @@ export function GateFrame({
   );
 }
 
-/**
- * The product's identity, on every gate screen.
- *
- * It exists because the header stopped carrying the product (owner,
- * 2026-09-15): the header is the company's now, so a visitor who types the
- * product's domain would otherwise never be told which product they reached.
- *
- * STACKED, and the mark is what holds the height. The name is deliberately
- * smaller than the headline it replaced, and a small name on its own would have
- * left this band too short to read as a band at all.
- */
-function ProductIdentity({
-  mark,
-  tagline,
-}: {
-  readonly mark: string;
-  readonly tagline: string;
-}) {
-  return (
-    <div className="gap-md flex items-center">
-      {/* From lib/brand-assets, never a literal path: both marks are stand-ins
-          for assets a designer hands over later. */}
-      <img
-        src={PRODUCT_MARK_SRC}
-        alt=""
-        aria-hidden
-        className="h-14 w-auto sm:h-16"
-      />
-      {/* 聿策 ｜ 销售智能体 (owner, 2026-09-17): the name and its tagline as one
-          lockup, not one flat string - the separator is decoration and the
-          tagline carries the same weakened tone the header's own brand lockup
-          gives its second segment (ShellBrand's `tag` slot), so the two
-          identity spots agree on which part of the name is emphasised. */}
-      <p className="text-title-xl sm:text-heading-2">
-        <span>{mark}</span>
-        <span className="text-muted-foreground mx-xs" aria-hidden>
-          |
-        </span>
-        <span className="text-muted-foreground">{tagline}</span>
-      </p>
-    </div>
-  );
-}
 
 /**
  * The chain, shown rather than described - and now the bottom band on all four

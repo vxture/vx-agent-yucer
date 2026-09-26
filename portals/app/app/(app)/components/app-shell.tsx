@@ -3,8 +3,11 @@
 import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ShellBrand,
+  ShellHeaderDivider,
+  ShellHeaderDomain,
+  ShellHeaderMark,
   ShellIconButton,
+  ShellProductTitle,
   ShellPreferencePanel,
   ShellSearchBox,
   ShellUserMenu,
@@ -37,7 +40,8 @@ import type { BoardModuleCard, BoardSection } from "../lib/board";
 import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
-import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
+import { BRAND_MARK_SRC, PRODUCT_MARK_SRC } from "../lib/brand-assets";
+import { activeDomainFromPath } from "../lib/functional-domains";
 import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
@@ -201,13 +205,15 @@ export function AppShell({
   const [query, setQuery] = useState("");
   const router = useRouter();
   const { mode, setMode } = useTheme();
-  const { DOMAIN_LABEL, HEADER_TEXT, SHELL_TEXT } = useMessages();
+  const { DOMAIN_LABEL, DOMAIN_GROUP_LABEL, HEADER_TEXT, SHELL_TEXT } = useMessages();
 
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
   const activeKey = segments[0] ?? "home";
+  const activeDomain = activeDomainFromPath(pathname);
+  const domainLabel = activeDomain ? (DOMAIN_GROUP_LABEL[activeDomain] ?? null) : null;
 
   // THE SHELL HAS ONE MODE (owner, 2026-09-24: 整个产品中, 不能存在横跨2栏,
   // 3栏的板块, 除了header). There used to be a "detail" mode that dropped the
@@ -370,6 +376,10 @@ export function AppShell({
       sidebarMode={isAdmin ? (showBoard ? "expanded" : "collapsed") : "hidden"}
       header={
         <ShellHeader
+          // 单产品视角 (design-system 03 §7.1): full width, the page background,
+          // the xl height every workspace view shares.
+          height="xl"
+          surface="background"
           leading={
             <>
               {/* (1) THE BOARD TOGGLE - restored (owner, 2026-09-21: 恢复侧边栏
@@ -412,74 +422,42 @@ export function AppShell({
                 upgradeHref={upgradeHref}
               />
 
-              {/* (3)(4) Two logos, then the name: platform mark | product
-                  mark, 聿策 销售智能体. ShellBrandProps only has one `logoSrc`
-                  slot, so the platform mark rides that slot as before and the
-                  product mark moves into `label` alongside the name - `label`
-                  takes any ReactNode, not just text, and that is the only DS
-                  seam wide enough for a second image without hand-rolling a
-                  new lockup component (CLAUDE.md: DS elements only, extend via
-                  the props they expose). */}
-              {/* The marks, SERVED FROM OUR OWN public/. The DS ships the
-                  master under assets/ but deliberately does not export it, and
-                  its README says why: "运行时应用把需要的资产拷进自己的
-                  public/assets/... 自行伺服,不做跨包静态文件假设". Copied in,
-                  not deep-imported past the package's exports map. */}
-              {/* THE LOCKUP (owner, 2026-09-17, revised): 销售智能体 no longer
-                  rides ShellBrand's `tag` slot - that slot's fixed size/tone
-                  wasn't the point, being able to tune the tagline's own size
-                  and colour independently of 聿策 was, so it is now a plain
-                  styled span inside `label` instead. The raw product code
-                  ("yucer") stays gone - see status page for where a bug report
-                  still finds it. */}
-              <ShellBrand
-                href="/"
-                logoSrc="/assets/brand/vxture-logo-icon.svg"
-                logoAlt={HEADER_TEXT.logoAlt}
-                label={
-                  <span className="gap-xs inline-flex items-center">
-                    <Separator orientation="vertical" className="h-control-xs" />
-                    <img
-                      src={PRODUCT_MARK_SRC}
-                      alt=""
-                      aria-hidden
-                      className="h-6 w-6"
-                    />
-                    <span>{SHELL_TEXT.brandMark}</span>
-                    {/* SAME SIZE AS 聿策 (owner, 2026-09-17): text-body-sm read
-                        too small next to it. Colour still carries the
-                        distinction - gap-xs above is the only spacing. */}
-                    <span className="text-muted-foreground">
-                      {SHELL_TEXT.brandTagline}
-                    </span>
+              {/* (3)-(6) THE DS'S 单产品视角 HEADER (design-system 13.4, 03 §7.1;
+                  owner 2026-09-26: DS 已更新，header 需要适配): platform mark |
+                  product title group | current domain. ShellProductTitle
+                  carries the product mark, name, type and tier itself - the
+                  hand-built lockup (a second logo inside ShellBrand's label, a
+                  separate Tag for the tier) is gone. */}
+              <ShellHeaderMark href="/" src={BRAND_MARK_SRC} alt={HEADER_TEXT.logoAlt} />
+              <ShellHeaderDivider />
+              <ShellProductTitle
+                logoSrc={PRODUCT_MARK_SRC}
+                name={SHELL_TEXT.brandMark}
+                type={SHELL_TEXT.brandTagline}
+                tier={
+                  <span aria-label={HEADER_TEXT.subscriptionAria}>
+                    {tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
                   </span>
                 }
               />
+              {/* THE CURRENT FUNCTIONAL DOMAIN (owner 2026-09-26: 当前功能域), once
+                  in the header; home belongs to none, so it shows none. */}
+              {domainLabel ? (
+                <>
+                  <ShellHeaderDivider />
+                  <ShellHeaderDomain>{domainLabel}</ShellHeaderDomain>
+                </>
+              ) : null}
 
-              {/* (5) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
-                  tier from the entitlement, one of five, in English, on every
-                  screen - production included. The brand tone keeps the DS's
-                  star. Unsubscribed says so in the neutral tone. */}
-              <Tag tone={tier ? "brand" : "neutral"} aria-label={HEADER_TEXT.subscriptionAria}>
-                {tier
-                  ? HEADER_TEXT.subscription(tier)
-                  : HEADER_TEXT.subscriptionNone}
-              </Tag>
-
-              {/* (6) The rule. It separates identity from scope: everything to
-                its left is which PRODUCT this is, everything to its right is
-                which DATA you are in. Those are different questions and they
-                used to run together as two badges. */}
-              <Separator orientation="vertical" className="h-control-sm" />
-
-              {/* (7) Workspace and tenant. The isolation key every row and every
-                gate decision is scoped by - a member with access to more than
-                one has to know which they are reading before they read a single
-                number, so it rides the header rather than a panel that can be
-                shut. */}
+              {/* (7) Workspace and tenant - kept beyond the DS's product view
+                  (owner 2026-09-26: 保留，放在当前域后面): data is isolated by
+                  workspace, so which one you are reading has to be on screen
+                  before any number is. */}
               <WorkspaceScope
                 workspaceLabel={workspaceLabel}
                 orgLabel={orgLabel}
+                tierLabel={tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
+                consoleUrl={consoleUrl}
               />
             </>
           }
@@ -534,11 +512,7 @@ export function AppShell({
                  does, the DS wires it, and a "fullscreen" that leaves a bar on
                  screen is not the thing the button is named after. */
                 fullscreenTarget={() => document.documentElement}
-                onSettings={
-                  admin.some((e) => e.state === "visible")
-                    ? () => router.push("/admin")
-                    : undefined
-                }
+                settingsHref={admin.some((e) => e.state === "visible") ? "/admin" : null}
               />
 
               {/* (4) The member, and their panel. */}
