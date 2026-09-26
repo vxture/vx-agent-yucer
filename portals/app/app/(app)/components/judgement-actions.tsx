@@ -16,36 +16,43 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { LIGHT_BUTTON } from "./action-card";
 import type { Urgency } from "../../domains/judgement/lib/judgement";
 
-// 采纳 / 重新分析 / 忽略 on one judgement (owner 2026-09-26: 判断是 AI 已经做出
-// 的分析，分析这一单是在它的基础上进一步分析；两者的结果都是工作的推进和处置).
-//   采纳     - make it a dated 我方承诺 in 推进计划, in the person's words; the
-//              judgement then leaves the list (handled).
-//   重新分析 - hand exactly this judgement, with the deal, to the advisor.
-//   忽略     - snooze it at its urgency (the home page's own 忽略).
+// The buttons of one 研判与行动 item (owner 2026-09-26: 按钮轻量化，保留一个
+// primary，其他淡化):
+//   primary   - 去处理 to where the work is done, or - when the item has no
+//               place of its own - 加入计划 itself.
+//   light     - 加入计划 (a dated 我方承诺 in 推进计划, in the person's
+//               words; a judgement then leaves the list, handled),
+//               问参谋 (this item and the deal, to the advisor),
+//               忽略 (judgements only: the existing snooze).
 
 export function JudgementActions({
-  judgementId,
-  urgency,
-  claim,
+  judgementId = null,
+  urgency = null,
+  draft,
   opportunityId,
   accountId,
-  reanalyseHref,
+  primaryHref = null,
+  askHref,
   onAdopt,
   onDismiss,
 }: {
-  readonly judgementId: string;
-  readonly urgency: Urgency;
-  readonly claim: string;
+  readonly judgementId?: string | null;
+  readonly urgency?: Urgency | null;
+  /** The step as first written - the conclusion. */
+  readonly draft: string;
   readonly opportunityId: string;
   readonly accountId: string;
-  readonly reanalyseHref: string;
+  /** Where 去处理 goes; null makes 加入计划 the primary. */
+  readonly primaryHref?: string | null;
+  readonly askHref: string;
   readonly onAdopt: (input: {
     opportunityId: string;
     accountId: string;
-    judgementId: string;
-    urgency: Urgency;
+    judgementId?: string | null;
+    urgency?: Urgency | null;
     statement: string;
     dueOn: string;
   }) => Promise<{ ok: boolean; error?: string }>;
@@ -62,7 +69,7 @@ export function JudgementActions({
   };
 
   const openAdopt = () => {
-    setStatement(JUDGEMENT_ACTION_TEXT.adoptDraft(claim));
+    setStatement(draft);
     // A week out: a step with no date is not a step (the commitment needs one).
     setDueOn(new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10));
     setOpen(true);
@@ -70,28 +77,48 @@ export function JudgementActions({
   const adopt = () =>
     start(async () => {
       const r = await onAdopt({ opportunityId, accountId, judgementId, urgency, statement, dueOn });
-      if (!r.ok) return fail(r.error);
+      if (!r.ok) {
+        fail(r.error);
+        return;
+      }
       setOpen(false);
       toast({ tone: "success", title: JUDGEMENT_ACTION_TEXT.adopted });
     });
   const dismiss = () =>
     start(async () => {
+      if (!judgementId || !urgency) return;
       const r = await onDismiss(judgementId, urgency);
-      if (!r.ok) return fail(r.error);
+      if (!r.ok) {
+        fail(r.error);
+        return;
+      }
       toast({ tone: "info", title: JUDGEMENT_ACTION_TEXT.ignored });
     });
 
   return (
     <>
-      <Button size="xs" disabled={pending} onClick={openAdopt}>
-        {JUDGEMENT_ACTION_TEXT.adopt}
+      {primaryHref ? (
+        <Button size="xs" asChild>
+          <Link href={primaryHref}>{JUDGEMENT_ACTION_TEXT.go}</Link>
+        </Button>
+      ) : (
+        <Button size="xs" disabled={pending} onClick={openAdopt}>
+          {JUDGEMENT_ACTION_TEXT.toPlan}
+        </Button>
+      )}
+      {primaryHref ? (
+        <Button size="xs" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={openAdopt}>
+          {JUDGEMENT_ACTION_TEXT.toPlan}
+        </Button>
+      ) : null}
+      <Button size="xs" variant="ghost" className={LIGHT_BUTTON} asChild>
+        <Link href={askHref}>{JUDGEMENT_ACTION_TEXT.ask}</Link>
       </Button>
-      <Button size="xs" variant="outline" asChild>
-        <Link href={reanalyseHref}>{JUDGEMENT_ACTION_TEXT.reanalyse}</Link>
-      </Button>
-      <Button size="xs" variant="ghost" disabled={pending} onClick={dismiss}>
-        {JUDGEMENT_ACTION_TEXT.ignore}
-      </Button>
+      {judgementId ? (
+        <Button size="xs" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={dismiss}>
+          {JUDGEMENT_ACTION_TEXT.ignore}
+        </Button>
+      ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -100,13 +127,13 @@ export function JudgementActions({
           </DialogHeader>
           <div className="flex flex-col gap-md">
             <Field>
-              <FieldLabel htmlFor={`adopt-${judgementId}`}>{JUDGEMENT_ACTION_TEXT.statementLabel}</FieldLabel>
-              <Input id={`adopt-${judgementId}`} value={statement} disabled={pending} onChange={(e) => setStatement(e.target.value)} />
+              <FieldLabel htmlFor={`adopt-${draft}`}>{JUDGEMENT_ACTION_TEXT.statementLabel}</FieldLabel>
+              <Input id={`adopt-${draft}`} value={statement} disabled={pending} onChange={(e) => setStatement(e.target.value)} />
             </Field>
             <Field>
-              <FieldLabel htmlFor={`adopt-due-${judgementId}`}>{JUDGEMENT_ACTION_TEXT.dueLabel}</FieldLabel>
+              <FieldLabel htmlFor={`adopt-due-${draft}`}>{JUDGEMENT_ACTION_TEXT.dueLabel}</FieldLabel>
               <Input
-                id={`adopt-due-${judgementId}`}
+                id={`adopt-due-${draft}`}
                 type="date"
                 className="max-w-[12rem]"
                 value={dueOn}

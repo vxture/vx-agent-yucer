@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { ActionCard } from "./action-card";
+import { ActionCard, LIGHT_BUTTON } from "./action-card";
 import type { BriefTone } from "../../domains/pipeline/lib/brief";
 
 // One-click: settle an overdue commitment from the deal it blocks.
@@ -56,10 +56,10 @@ export function CommitmentActionCard({
         <StatusBadge tone="success">{WAR_ROOM_TEXT.settled}</StatusBadge>
       ) : (
         <>
-          <Button size="sm" disabled={pending} onClick={() => settle("met")}>
+          <Button size="xs" disabled={pending} onClick={() => settle("met")}>
             {WAR_ROOM_TEXT.settleMet}
           </Button>
-          <Button size="sm" variant="outline" disabled={pending} onClick={() => settle("missed")}>
+          <Button size="xs" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={() => settle("missed")}>
             {WAR_ROOM_TEXT.settleMissed}
           </Button>
         </>

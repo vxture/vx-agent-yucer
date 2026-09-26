@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -113,7 +114,8 @@ import { DealRolesDrawer } from "../../components/deal-roles-drawer";
 import { DealStageDrawer } from "../../components/deal-stage-drawer";
 import { DealImportanceDrawer } from "../../components/deal-importance-drawer";
 import { StageTrack } from "../../components/stage-track";
-import { JudgementNote } from "../../components/judgement-note";
+import { CitationList } from "../../components/citation-list";
+import { ActionCard, LIGHT_BUTTON } from "../../components/action-card";
 import { JudgementActions } from "../../components/judgement-actions";
 import { adoptJudgement } from "../judgement-adopt-action";
 import { dismissJudgement } from "../../judgement-actions";
@@ -885,6 +887,167 @@ export default async function OpportunityDetailPage({
       ),
       href: TODO_HREF[i.key] ?? DIM_HREF[d.dimension] ?? "#verdict",
     }));
+  // 研判与行动 (owner 2026-09-26: 待动手的事 + 分析与判断 合并 - 有结论，有分析，
+  // 有操作引导). One list: each dimension's gap is the CONCLUSION; the
+  // judgement that explains it, when there is one, is its ANALYSIS (with its
+  // evidence) - otherwise the deal's own fact is. Judgements that explain no
+  // gap stand as items of their own; the forecast and per-promise cards stay.
+  const JUDGEMENT_FOR: Record<string, string> = {
+    unreached: "economic",
+    singlethread: "coverage",
+    quiet: "contact",
+    cadence: "contact",
+    stalled: "stall",
+  };
+  const W = JUDGEMENT_ACTION_TEXT.why;
+  const economicPerson = chainPeople.find((p) => p.decisionRole === "economic");
+  const economicDays = (() => {
+    const last = economicPerson && buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(economicPerson.id) ?? null) : null;
+    return last ? dayOf(last) : null;
+  })();
+  const nameOfPerson = (pid: string) => contactOf.get(pid)?.name ?? CHAIN_TEXT.unnamedPerson;
+  const whyOf = (code: string, n = 0): string => {
+    switch (code) {
+      case "statusQuo":
+        return W.statusQuo(reasonRows.find((r) => r.slot === "status_quo")?.statement ?? "");
+      case "reachEconomic":
+        return W.reachEconomic(economicPerson ? nameOfPerson(economicPerson.id) : "", economicDays);
+      case "opposition":
+        return W.opposition(chainPeople.filter((p) => p.stance === "antagonist").map((p) => nameOfPerson(p.id)).join(JUDGEMENT_ACTION_TEXT.listSep));
+      case "coverage":
+        return W.coverage(n);
+      case "rivalMentioned":
+        return W.rivalMentioned((rivalMentionsAll[0]?.rawNote ?? "").slice(0, 48));
+      case "quiet":
+        return W.quiet(n, lastTouch ? lastTouch.toISOString().slice(0, 10) : "");
+      case "theirOverdue":
+        return W.theirOverdue(theirLate.length, theirLate.reduce((m, c) => Math.max(m, dayOf(c.dueAt)), 0));
+      case "exitGap":
+        return W.exitGap((exitCheck?.checks ?? []).filter((c) => c.status === "unmet").map((c) => c.criterion.name).join(JUDGEMENT_ACTION_TEXT.listSep));
+      case "stalled":
+        return W.stalled(stageText, daysInStage ?? 0);
+      case "closePassed":
+        return W.closePassed(opportunity.expectedCloseAt?.toISOString().slice(0, 10) ?? "");
+      case "slipped":
+        return W.slipped(n);
+      case "approval":
+        return W.approval(pendingLines);
+      default:
+        return (W as Record<string, (...a: never[]) => string>)[code]?.() ?? "";
+    }
+  };
+  const askAbout = (what: string) =>
+    `/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(JUDGEMENT_ACTION_TEXT.reanalyseQuestion(opportunity.name, what))}`;
+  const judgementEvidence = (j: (typeof problems)[number]) => (
+    <div className="flex flex-col gap-xs">
+      {j.rule ? <p className="text-muted-foreground text-[12px]">{j.rule}</p> : null}
+      {(j.citations?.length ?? 0) > 0 ? <CitationList citations={j.citations!} /> : null}
+    </div>
+  );
+  const usedJudgements = new Set<string>();
+  const actionItems: { rank: number; weight: number; node: ReactNode }[] = [];
+  for (const d of score.dimensions) {
+    for (const i of d.indicators) {
+      if (i.tone === "good" || !i.gap) continue;
+      if (i.key === "theirPromises" && hasSettleCards) continue;
+      const j = problems.find((p) => !usedJudgements.has(p.id) && JUDGEMENT_FOR[p.id.split(":")[0] ?? ""] === i.key);
+      if (j) usedJudgements.add(j.id);
+      const title = gapText(i.gap, true);
+      actionItems.push({
+        rank: toneRank[i.tone],
+        weight: d.weight,
+        node: (
+          <ActionCard
+            key={`dim-${d.dimension}-${i.key}`}
+            severity={i.tone === "bad" ? "bad" : "warn"}
+            source={j?.source ?? "rule"}
+            title={title}
+            meta={DEAL_SCORE_TEXT.todoReason(DEAL_SCORE_TEXT.factor[d.dimension] ?? d.dimension, DEAL_SCORE_TEXT.indicator[i.key] ?? i.key)}
+            reason={j ? j.claim : whyOf(i.gap.code, i.gap.n ?? 0)}
+            evidence={j ? judgementEvidence(j) : undefined}
+          >
+            <JudgementActions
+              judgementId={j?.id ?? null}
+              urgency={j?.urgency ?? null}
+              draft={title}
+              opportunityId={id}
+              accountId={opportunity.accountId}
+              primaryHref={TODO_HREF[i.key] ?? DIM_HREF[d.dimension] ?? "#verdict"}
+              askHref={askAbout(j ? j.claim : title)}
+              onAdopt={adoptJudgement}
+              onDismiss={dismissJudgement}
+            />
+          </ActionCard>
+        ),
+      });
+    }
+  }
+  for (const j of problems) {
+    if (usedJudgements.has(j.id)) continue;
+    actionItems.push({
+      rank: j.urgency === "today" ? 0 : 1,
+      weight: 0,
+      node: (
+        <ActionCard
+          key={`judgement-${j.id}`}
+          severity={j.urgency === "today" ? "bad" : "warn"}
+          source={j.source}
+          title={j.claim}
+          reason={j.rule ?? ""}
+          evidence={(j.citations?.length ?? 0) > 0 ? judgementEvidence({ ...j, rule: null }) : undefined}
+        >
+          <JudgementActions
+            judgementId={j.id}
+            urgency={j.urgency}
+            draft={JUDGEMENT_ACTION_TEXT.adoptDraft(j.claim)}
+            opportunityId={id}
+            accountId={opportunity.accountId}
+            askHref={askAbout(j.claim)}
+            onAdopt={adoptJudgement}
+            onDismiss={dismissJudgement}
+          />
+        </ActionCard>
+      ),
+    });
+  }
+  for (const a of brief.actions) {
+    const rank = a.severity === "bad" ? 0 : 1;
+    if (a.kind === "apply_category") {
+      actionItems.push({
+        rank,
+        weight: 50,
+        node: (
+          <CategoryActionCard
+            key="apply-category"
+            opportunityId={id}
+            to={a.to}
+            severity={a.severity}
+            reason={a.reason}
+            onApply={applySuggestedCategory}
+          />
+        ),
+      });
+    } else if (a.kind === "settle_commitment") {
+      actionItems.push({
+        rank,
+        weight: 50,
+        node: (
+          <CommitmentActionCard
+            key={`settle-${a.commitmentId}`}
+            accountId={opportunity.accountId}
+            opportunityId={id}
+            commitmentId={a.commitmentId}
+            statement={a.statement}
+            severity={a.severity}
+            reason={a.reason}
+            onSettle={settleCommitment}
+          />
+        ),
+      });
+    }
+    // state_roles / approve_discount are dimension items; adjudicate is 栏3's.
+  }
+  actionItems.sort((x, y) => x.rank - y.rank || y.weight - x.weight);
   const DIMENSION_PANEL: Record<string, string> = {
     value: "reasons",
     consensus: "process",
@@ -1317,104 +1480,30 @@ export default async function OpportunityDetailPage({
             >
               <WarRoom
                 cards={assessmentCards}
-                actionsLabel={<PanelSub>{DEAL_PAGE_TEXT.todo}</PanelSub>}
-              >
-                {/* 待动手的事 FROM THE FIVE DIMENSIONS (owner 2026-09-26: 按五维
-                    生成, 与卡片说法一致): every indicator that is not 稳, the
-                    worst first, its button to where the work is done. */}
-                <FoldedList
-                  items={todos.map((t) => (
-                    <LinkActionCard
-                      key={`todo-${t.key}`}
-                      severity={t.severity}
-                      title={t.title}
-                      reason={t.reason}
-                      href={t.href}
-                      cta={DEAL_SCORE_TEXT.todoCta}
-                    />
-                  ))}
-                />
-                {brief.actions.map((a) => {
-                  switch (a.kind) {
-                    case "apply_category":
-                      return (
-                        <CategoryActionCard
-                          key="apply-category"
-                          opportunityId={id}
-                          to={a.to}
-                          severity={a.severity}
-                          reason={a.reason}
-                          onApply={applySuggestedCategory}
-                        />
-                      );
-                    case "settle_commitment":
-                      return (
-                        <CommitmentActionCard
-                          key={`settle-${a.commitmentId}`}
-                          accountId={opportunity.accountId}
-                          opportunityId={id}
-                          commitmentId={a.commitmentId}
-                          statement={a.statement}
-                          severity={a.severity}
-                          reason={a.reason}
-                          onSettle={settleCommitment}
-                        />
-                      );
-                    // state_roles and approve_discount are the five
-                    // dimensions' items now (买方共识 · 经济决策人 / 内线,
-                    // 推进节奏 · 折扣审批) - listed above, said once.
-                    // "adjudicate" is not rendered here: this deal's proposals
-                    // are decided in 栏3 本单参谋 (deal batch 2c) - one place.
-                    default:
-                      return null;
-                  }
-                })}
-              </WarRoom>
-              {/* 分析与判断 (owner 2026-09-26: 分析这一单和判断放在一起): the
-                  judgements are analysis already made; 分析这一单 goes further
-                  from them. Both end in work - each judgement is adopted into
-                  推进计划, re-analysed with the advisor, or ignored. */}
-              <PanelSub
-                action={
-                  <Button size="xs" variant="outline" asChild>
-                    <Link
-                      href={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
-                        WAR_ROOM_TEXT.analyseQuestion(opportunity.name, findings),
-                      )}`}
-                    >
-                      {JUDGEMENT_ACTION_TEXT.analyse}
-                    </Link>
-                  </Button>
+                actionsLabel={
+                  <PanelSub
+                    action={
+                      <Button size="xs" variant="ghost" className={LIGHT_BUTTON} asChild>
+                        <Link
+                          href={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
+                            WAR_ROOM_TEXT.analyseQuestion(opportunity.name, findings),
+                          )}`}
+                        >
+                          {JUDGEMENT_ACTION_TEXT.analyse}
+                        </Link>
+                      </Button>
+                    }
+                  >
+                    {JUDGEMENT_ACTION_TEXT.listTitle}
+                  </PanelSub>
                 }
               >
-                {JUDGEMENT_ACTION_TEXT.title}
-              </PanelSub>
-              {problems.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">{JUDGEMENT_ACTION_TEXT.empty}</p>
-              ) : (
-                <div className="flex flex-col gap-xs">
-                  {problems.map((p) => (
-                    <JudgementNote
-                      key={p.id}
-                      judgement={p}
-                      actions={
-                        <JudgementActions
-                          judgementId={p.id}
-                          urgency={p.urgency}
-                          claim={p.claim}
-                          opportunityId={id}
-                          accountId={opportunity.accountId}
-                          reanalyseHref={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
-                            JUDGEMENT_ACTION_TEXT.reanalyseQuestion(opportunity.name, p.claim),
-                          )}`}
-                          onAdopt={adoptJudgement}
-                          onDismiss={dismissJudgement}
-                        />
-                      }
-                    />
-                  ))}
-                </div>
-              )}
+                {actionItems.length === 0 ? (
+                  <p className="text-muted-foreground text-body-sm">{JUDGEMENT_ACTION_TEXT.empty}</p>
+                ) : (
+                  <FoldedList items={actionItems.map((x) => x.node)} />
+                )}
+              </WarRoom>
             </DealPanel>
 
             {/* 结局与复盘, above the progress on a closed deal (YC-072). */}
