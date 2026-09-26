@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -113,6 +113,10 @@ import { DealRolesDrawer } from "../../components/deal-roles-drawer";
 import { DealStageDrawer } from "../../components/deal-stage-drawer";
 import { DealImportanceDrawer } from "../../components/deal-importance-drawer";
 import { StageTrack } from "../../components/stage-track";
+import { JudgementNote } from "../../components/judgement-note";
+import { JudgementActions } from "../../components/judgement-actions";
+import { adoptJudgement } from "../judgement-adopt-action";
+import { dismissJudgement } from "../../judgement-actions";
 import { setDealImportance } from "../importance-action";
 import { FoldedList, DimensionChecks, ProcessTitles,
   DealCustomerPanel,
@@ -153,6 +157,7 @@ export default async function OpportunityDetailPage({
     POSITION_TEXT,
     CHAIN_TEXT,
     WAR_ROOM_TEXT,
+    JUDGEMENT_ACTION_TEXT,
     DEAL_SCORE_TEXT,
     EXIT_REASON_LABEL,
     CHANNEL_LABEL,
@@ -369,6 +374,7 @@ export default async function OpportunityDetailPage({
     .filter((j) => j.subjectId === opportunity.accountId || j.subjectId === id)
     .map((j) => ({
       id: j.id,
+      urgency: j.urgency,
       claim: j.claim,
       rule: j.rule ?? null,
       // 证据新鲜度 + 判断到证据跳转 (YC-021 底座): the same judgement reads the
@@ -1363,20 +1369,52 @@ export default async function OpportunityDetailPage({
                       return null;
                   }
                 })}
-                {/* AI 分析辅助: composed question, person presses send. */}
-                <LinkActionCard
-                  severity="good"
-                  title={WAR_ROOM_TEXT.analyseTitle}
-                  reason={WAR_ROOM_TEXT.analyseReason}
-                  href={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
-                    WAR_ROOM_TEXT.analyseQuestion(opportunity.name, findings),
-                  )}`}
-                  cta={WAR_ROOM_TEXT.analyseCta}
-                  source={null}
-                />
               </WarRoom>
-              <PanelSub>{DEAL_PAGE_TEXT.judgements}</PanelSub>
-              <DealJudgements problems={problems} />
+              {/* 分析与判断 (owner 2026-09-26: 分析这一单和判断放在一起): the
+                  judgements are analysis already made; 分析这一单 goes further
+                  from them. Both end in work - each judgement is adopted into
+                  推进计划, re-analysed with the advisor, or ignored. */}
+              <PanelSub
+                action={
+                  <Button size="xs" variant="outline" asChild>
+                    <Link
+                      href={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
+                        WAR_ROOM_TEXT.analyseQuestion(opportunity.name, findings),
+                      )}`}
+                    >
+                      {JUDGEMENT_ACTION_TEXT.analyse}
+                    </Link>
+                  </Button>
+                }
+              >
+                {JUDGEMENT_ACTION_TEXT.title}
+              </PanelSub>
+              {problems.length === 0 ? (
+                <p className="text-muted-foreground text-body-sm">{JUDGEMENT_ACTION_TEXT.empty}</p>
+              ) : (
+                <div className="flex flex-col gap-xs">
+                  {problems.map((p) => (
+                    <JudgementNote
+                      key={p.id}
+                      judgement={p}
+                      actions={
+                        <JudgementActions
+                          judgementId={p.id}
+                          urgency={p.urgency}
+                          claim={p.claim}
+                          opportunityId={id}
+                          accountId={opportunity.accountId}
+                          reanalyseHref={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
+                            JUDGEMENT_ACTION_TEXT.reanalyseQuestion(opportunity.name, p.claim),
+                          )}`}
+                          onAdopt={adoptJudgement}
+                          onDismiss={dismissJudgement}
+                        />
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </DealPanel>
 
             {/* 结局与复盘, above the progress on a closed deal (YC-072). */}

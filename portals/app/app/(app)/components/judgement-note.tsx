@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "@vxture/design-ui";
 import { StaleMark } from "./stale-mark";
 import { SourceMark } from "./source-mark";
@@ -23,7 +23,15 @@ export interface Judgement {
   readonly citations?: readonly Citation[];
 }
 
-export function JudgementNote({ judgement }: { readonly judgement: Judgement }) {
+export function JudgementNote({
+  judgement,
+  actions,
+}: {
+  readonly judgement: Judgement;
+  /** What can be done with it, at the end of its line (the deal page's
+   *  采纳 / 重新分析 / 忽略); absent elsewhere. */
+  readonly actions?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const citations = judgement.citations ?? [];
   // The header is the button; the evidence is NOT inside it. A <button> may
@@ -34,6 +42,7 @@ export function JudgementNote({ judgement }: { readonly judgement: Judgement }) 
   // trigger condition and the cited rows follow underneath.
   return (
     <div className="border-s-primary bg-primary/5 rounded-e-md border-s-[3px] px-md py-sm">
+      <div className="flex items-center gap-sm">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -51,6 +60,8 @@ export function JudgementNote({ judgement }: { readonly judgement: Judgement }) 
           </span>
         ) : null}
       </button>
+      {actions ? <span className="flex flex-none items-center gap-2xs">{actions}</span> : null}
+      </div>
       {open && judgement.rule ? (
         <p className="text-muted-foreground mt-xs ps-lg text-body-sm">{judgement.rule}</p>
       ) : null}
