@@ -114,7 +114,7 @@ import { DealStageDrawer } from "../../components/deal-stage-drawer";
 import { DealImportanceDrawer } from "../../components/deal-importance-drawer";
 import { StageTrack } from "../../components/stage-track";
 import { setDealImportance } from "../importance-action";
-import { ProcessTitles,
+import { DimensionChecks, ProcessTitles,
   DealCustomerPanel,
   DealDecisionPanel,
   DealDossierPanel,
@@ -810,8 +810,36 @@ export default async function OpportunityDetailPage({
       .filter((d) => d.score !== null && d.score < 100 && d.gap)
       .map((d) => `${DEAL_SCORE_TEXT.factor[d.dimension]} ${gapText(d.gap, true)}`),
   ].join(COLLAPSE_TEXT.separator);
+  // Each dimension's panel below 态势判决 opens with its indicators and wears
+  // its score (owner 2026-09-26: 名称、顺序与上面一致).
+  const dimOf = (d: string) => score.dimensions.find((x) => x.dimension === d)!;
+  const dimChecks = (d: string) => (
+    <DimensionChecks
+      rows={dimOf(d).indicators.map((i) => ({
+        key: i.key,
+        label: DEAL_SCORE_TEXT.indicator[i.key] ?? i.key,
+        tone: i.tone,
+        verdict: DEAL_SCORE_TEXT.verdict[i.tone] ?? i.tone,
+        work: i.tone === "good" || !i.gap ? null : gapText(i.gap, true),
+      }))}
+    />
+  );
+  const dimTag = (d: string) => {
+    const x = dimOf(d);
+    if (x.score === null) return <Tag tone="neutral">{DEAL_SCORE_TEXT.verdict.unknown}</Tag>;
+    const band = dealScoreBand(x.score);
+    return <Tag tone={band === "good" ? "success" : band === "warn" ? "warning" : "danger"}>{x.score}</Tag>;
+  };
+  const DIMENSION_PANEL: Record<string, string> = {
+    value: "reasons",
+    consensus: "process",
+    competition: "competition",
+    engagement: "comms",
+    progress: "progress",
+  };
   const assessmentCards = score.dimensions.map((d) => ({
     id: d.dimension,
+    href: `#${DIMENSION_PANEL[d.dimension]}`,
     label: DEAL_SCORE_TEXT.factor[d.dimension] ?? d.dimension,
     note: gapText(d.gap, d.score !== null),
     value: d.score === null ? "—" : String(d.score),
@@ -1305,23 +1333,6 @@ export default async function OpportunityDetailPage({
               <DealJudgements problems={problems} />
             </DealPanel>
 
-            {/* 决策流程 - 栏2's second panel (owner 2026-09-25): 决策流程 and
-                签约流程, one row each, 展开详情 on the right. The people are
-                栏1's 决策链. */}
-            <DealPanel
-              id="process"
-              icon="workflow"
-              title={DEAL_PAGE_TEXT.processPanelTitle}
-              summary={
-                processRows.every((r) => !r.statement)
-                  ? DEAL_PAGE_TEXT.processUnwritten
-                  : DEAL_PAGE_TEXT.reasonsFilled(processRows.filter((r) => r.statement).length, processRows.length)
-              }
-              editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
-            >
-              {processSlots}
-            </DealPanel>
-
             {/* 结局与复盘, above the progress on a closed deal (YC-072). */}
             {closedDeal ? (
               <DealReview
@@ -1341,18 +1352,118 @@ export default async function OpportunityDetailPage({
               />
             ) : null}
 
+
+            {/* 需求价值 - 商机评估's first dimension (owner 2026-09-26: 栏2 下方板块按五维构建，名称、顺序与上面一致); was 购买理由. */}
+            {/* 购买理由 (YC-069 §07) - why they would buy, and the pull of doing
+                nothing: 痛点 / 量化价值 / 不作为 (购买证据槽, incr/0085), under
+                the requirement stated when the deal was opened. */}
+            <DealPanel
+              id="reasons"
+              icon="lightbulb"
+              title={DEAL_SCORE_TEXT.factor.value}
+              tags={dimTag("value")}
+              summary={reasonsSummary}
+              editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
+            >
+              {dimChecks("value")}
+              <p className={`text-body-sm whitespace-pre-wrap ${requirement ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className="text-muted-foreground">{DEAL_PAGE_TEXT.requirement}：</span>
+                {requirement ?? DEAL_PAGE_TEXT.requirementNone}
+              </p>
+              <EvidenceSlots
+                opportunityId={id}
+                rows={reasonRows}
+                citable={citable}
+                canRecord={canRecordEvidence}
+                onRecord={recordEvidenceAction}
+              />
+            </DealPanel>
+
+
+            {/* 买方共识 - the second dimension; was 决策流程. The people are 栏1's 决策分析. */}
+            {/* 决策流程 - 栏2's second panel (owner 2026-09-25): 决策流程 and
+                签约流程, one row each, 展开详情 on the right. The people are
+                栏1's 决策链. */}
+            <DealPanel
+              id="process"
+              icon="workflow"
+              title={DEAL_SCORE_TEXT.factor.consensus}
+              tags={dimTag("consensus")}
+              summary={
+                processRows.every((r) => !r.statement)
+                  ? DEAL_PAGE_TEXT.processUnwritten
+                  : DEAL_PAGE_TEXT.reasonsFilled(processRows.filter((r) => r.statement).length, processRows.length)
+              }
+              editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
+            >
+              {dimChecks("consensus")}
+              {processSlots}
+            </DealPanel>
+
+
+            {/* 竞争位置 - the third dimension; was 竞争态势. */}
+            {/* 竞争态势 - verbatim rival mentions until the competitor record
+                (batch 7, 0089). */}
+            <DealPanel
+              id="competition"
+              icon="shield"
+              title={DEAL_SCORE_TEXT.factor.competition}
+              tags={dimTag("competition")}
+              summary={
+                rivalMentions.length > 0
+                  ? DEAL_PAGE_TEXT.competitionMentions(rivalMentions.length)
+                  : POSITION_TEXT.competitionNoMention
+              }
+            >
+              {dimChecks("competition")}
+              <RivalMentions mentions={rivalMentions} />
+            </DealPanel>
+
+
+            {/* 互动热度 - the fourth dimension; was 沟通记录 - the follow-ups are its evidence. */}
+            {/* 沟通记录 (renamed from 记录, YC-069): follow-ups only. Capture is
+                the deck beside this page, anchored to this deal. */}
+            <DealPanel
+              id="comms"
+              icon="chat-dots"
+              title={DEAL_SCORE_TEXT.factor.engagement}
+              tags={dimTag("engagement")}
+              summary={
+                lastTouch
+                  ? DEAL_PAGE_TEXT.commsSummary(
+                      Math.max(0, Math.floor((briefNow.getTime() - lastTouch.getTime()) / 86_400_000)),
+                      recentTouches,
+                    )
+                  : DEAL_PAGE_TEXT.commsNone
+              }
+              editHint={PANEL_MENU_TEXT.noEntryHere}
+            >
+              {dimChecks("engagement")}
+              {interactions.ok ? (
+                <InteractionTimeline
+                  items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
+                  limit={20}
+                  rows
+                />
+              ) : (
+                <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />
+              )}
+            </DealPanel>
+
+            {/* 推进节奏 - the fifth dimension; was 推进进程. */}
             {/* 推进进程 - the single home of stage, win rate, close date and the
                 forecast bucket; the plan is the two sides' commitments; the
                 stage journal is its history. 推进阶段 opens the drawer. */}
             <DealPanel
               id="progress"
               icon="flag"
-              title={DEAL_PAGE_TEXT.progressTitle}
+              title={DEAL_SCORE_TEXT.factor.progress}
               summary={progressSummary}
-              tags={<Tag tone="neutral">{DEAL_PAGE_TEXT.progressSummary(stageText, daysInStage)}</Tag>}
+              tags={<>{dimTag("progress")}<Tag tone="neutral">{DEAL_PAGE_TEXT.progressSummary(stageText, daysInStage)}</Tag></>}
               editor="stage"
               primary={opportunity.status === "open" ? { label: OPPORTUNITY_TEXT.advanceTitle, editor: "stage" } : undefined}
             >
+              {dimChecks("progress")}
               <StageTrack
                 stage={opportunity.stage}
                 open={opportunity.status === "open"}
@@ -1423,43 +1534,6 @@ export default async function OpportunityDetailPage({
               )}
             </DealPanel>
 
-            {/* 购买理由 (YC-069 §07) - why they would buy, and the pull of doing
-                nothing: 痛点 / 量化价值 / 不作为 (购买证据槽, incr/0085), under
-                the requirement stated when the deal was opened. */}
-            <DealPanel
-              id="reasons"
-              icon="lightbulb"
-              title={DEAL_PAGE_TEXT.reasonsTitle}
-              summary={reasonsSummary}
-              editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
-            >
-              <p className={`text-body-sm whitespace-pre-wrap ${requirement ? "text-foreground" : "text-muted-foreground"}`}>
-                <span className="text-muted-foreground">{DEAL_PAGE_TEXT.requirement}：</span>
-                {requirement ?? DEAL_PAGE_TEXT.requirementNone}
-              </p>
-              <EvidenceSlots
-                opportunityId={id}
-                rows={reasonRows}
-                citable={citable}
-                canRecord={canRecordEvidence}
-                onRecord={recordEvidenceAction}
-              />
-            </DealPanel>
-
-            {/* 竞争态势 - verbatim rival mentions until the competitor record
-                (batch 7, 0089). */}
-            <DealPanel
-              id="competition"
-              icon="shield"
-              title={DEAL_PAGE_TEXT.competitionTitle}
-              summary={
-                rivalMentions.length > 0
-                  ? DEAL_PAGE_TEXT.competitionMentions(rivalMentions.length)
-                  : POSITION_TEXT.competitionNoMention
-              }
-            >
-              <RivalMentions mentions={rivalMentions} />
-            </DealPanel>
 
             {/* 报价与审批 - the lines decide the amount the dossier shows.
                 Approving stays here, a flow op made looking at the line; the
@@ -1500,32 +1574,6 @@ export default async function OpportunityDetailPage({
               />
             </DealPanel>
 
-            {/* 沟通记录 (renamed from 记录, YC-069): follow-ups only. Capture is
-                the deck beside this page, anchored to this deal. */}
-            <DealPanel
-              id="comms"
-              icon="chat-dots"
-              title={DEAL_PAGE_TEXT.commsTitle}
-              summary={
-                lastTouch
-                  ? DEAL_PAGE_TEXT.commsSummary(
-                      Math.max(0, Math.floor((briefNow.getTime() - lastTouch.getTime()) / 86_400_000)),
-                      recentTouches,
-                    )
-                  : DEAL_PAGE_TEXT.commsNone
-              }
-              editHint={PANEL_MENU_TEXT.noEntryHere}
-            >
-              {interactions.ok ? (
-                <InteractionTimeline
-                  items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
-                  limit={20}
-                  rows
-                />
-              ) : (
-                <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />
-              )}
-            </DealPanel>
           </div>
         </ViewLayout>
       </div>

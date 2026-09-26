@@ -485,3 +485,36 @@ export function DealHeaderMenu({ linesHref }: { readonly linesHref: string | nul
   if (items.length === 0) return null;
   return <ActionMenu label={DS_LABELS.actionMenu} items={items} />;
 }
+
+/** 商机评估's indicators for one dimension, at the head of its panel (owner
+ *  2026-09-26: 栏2 下方的板块按五个维度构建，名称、顺序与上面一致): each
+ *  indicator, its verdict, and the work when it is not 稳 - the card above
+ *  says the worst one, this says all of them. */
+export function DimensionChecks({
+  rows,
+}: {
+  readonly rows: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly tone: "good" | "warn" | "bad" | "unknown";
+    readonly verdict: string;
+    readonly work: string | null;
+  }[];
+}) {
+  const dot = { good: "bg-(color:--success-text)", warn: "bg-(color:--warning-text)", bad: "bg-destructive", unknown: "border border-dashed border-muted-foreground" };
+  const ink = { good: "text-(color:--success-text)", warn: "text-(color:--warning-text)", bad: "text-destructive-text", unknown: "text-muted-foreground" };
+  return (
+    <ul className="divide-primary/10 dark:divide-primary/20 grid grid-cols-1 gap-x-lg divide-y divide-dashed sm:grid-cols-2 sm:divide-y-0">
+      {rows.map((r) => (
+        <li key={r.key} className="grid grid-cols-[0.5rem_5.5rem_2.5rem_minmax(0,1fr)] items-center gap-xs py-2xs text-body-sm">
+          <span className={`size-2 rounded-full ${dot[r.tone]}`} aria-hidden />
+          <span className="text-foreground truncate font-medium">{r.label}</span>
+          <span className={`text-[11.5px] font-bold ${ink[r.tone]}`}>{r.verdict}</span>
+          <span className="text-muted-foreground truncate text-[12px]" title={r.work ?? undefined}>
+            {r.work ?? ""}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
