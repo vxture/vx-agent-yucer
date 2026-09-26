@@ -7239,3 +7239,34 @@ export const DEAL_SCORE_ERROR: Record<string, string> = {
   quiet_not_after_recent: "沉寂天数要大于新鲜天数，且不超过 365",
   unknown: "没有保存成功，稍后再试",
 };
+
+
+/** 分析与判断 (owner 2026-09-26) - the deal page's judgements and their actions. */
+export const JUDGEMENT_ACTION_TEXT = {
+  title: "分析与判断",
+  analyse: "分析这一单",
+  adopt: "采纳",
+  reanalyse: "重新分析",
+  ignore: "忽略",
+  cancel: "取消",
+  adoptTitle: "采纳为推进计划",
+  adoptHint: "写成我方要做的一步，定一个完成日期。采纳后它进入推进计划，这条判断从列表移除。",
+  adoptDraft: (claim: string) => `跟进：${claim}`,
+  statementLabel: "要做的事",
+  dueLabel: "完成日期",
+  confirm: "采纳",
+  adopted: "已加入推进计划",
+  ignored: "已忽略",
+  reanalyseQuestion: (deal: string, claim: string) =>
+    `请结合商机「${deal}」的全部信息，进一步分析这条判断：「${claim}」——它说明了什么、可能的原因、下一步该怎么推进。`,
+  empty: "暂无判断。可以让参谋分析这一单。",
+};
+
+/** 采纳判断的失败回执。 */
+export const JUDGEMENT_ADOPT_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  statement_required: "写一句要做的事",
+  due_invalid: "选一个完成日期",
+  unknown_direction: "承诺方向不对",
+  unknown: "没有采纳成功，稍后再试",
+};
