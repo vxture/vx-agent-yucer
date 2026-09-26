@@ -7185,7 +7185,7 @@ export const DEAL_SCORE_TEXT = {
     coverage: (n: number) => (n === 0 ? "本单还没有联系人" : "只接触 1 人，扩大接触面"),
     decisionProcess: () => "问清决策流程",
     rivalMentioned: (n: number) => `跟进里提到对手 ${n} 次，摸清是谁`,
-    rivalUnknown: () => "对手未知",
+    rivalUnknown: () => "摸清有哪些对手",
     neverTouched: () => "还没有任何跟进",
     quiet: (n: number) => `${n} 天没跟进，去联系`,
     theirOverdue: (n: number) => `客户有 ${n} 件事逾期，去追`,
@@ -7219,6 +7219,10 @@ export const DEAL_SCORE_TEXT = {
     closed: "已关闭",
   } as Record<string, string>,
   verdict: { good: "稳", warn: "关注", bad: "风险", unknown: "未知" } as Record<string, string>,
+  // 不作为信号 absent: "无", not 稳 - 稳 read as "the inaction is fine".
+  verdictNone: "无",
+  todoCta: "去处理",
+  todoReason: (dimension: string, indicator: string) => `${dimension} · ${indicator}`,
   unknownDim: "暂无可判断的信息",
   howTo: "权重在 管理 · 商机配置",
 };
