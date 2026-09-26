@@ -14,8 +14,6 @@ import { nextPlanStatuses, type PlanStatus } from "../../domains/strategy/lib/li
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   RowActions,
   useTableSort,
 } from "./table-fittings";
@@ -200,7 +198,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
        a table too wide for its container.
      Order: 选择 | # | name | period | owner | campaigns | status | 操作 */
   const table = (list: readonly PlanRow[]) => (
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] ${ACTION_COLUMN}`}>
+    <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[24%]`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

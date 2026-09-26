@@ -15,7 +15,7 @@ import {
 import { DialogForm } from "./dialog-form";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions, useTableSort } from "./table-fittings";
+import { PaginationFooter, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { setMemberActive, setMemberInactive } from "../admin/members/actions";
 import { handOverBook } from "../admin/members/handover";
@@ -208,7 +208,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                成员/角色/单位/数据范围/状态五个业务列落在 "5-6 列→30%" 这档)。
                角色列继续留白自适应，撑起表格宽度守卫要求的"至少一列不钉
                宽度"。 */
-            `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
+            `[&_table]:table-fixed`
             + " [&_thead_th:nth-child(3)]:w-[30%]"
             + " [&_thead_th:nth-child(5)]:w-[9rem]"
             + " [&_thead_th:nth-child(6)]:w-[7rem]"

@@ -39,40 +39,33 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 // to the left of the business columns is unconditional, everything
 // conditional is to the right of them.
 
-/**
+/*
  * 选择列 / 序号列 / 操作列 一律固定 64px - owner ruling, 2026-09-06.
  *
- * TWO THINGS THIS FIXES, and they turned out to be one thing.
+ * THE DS NOW DOES THIS ITSELF (design-ui 11, DS 14): its edge and action
+ * header cells carry `w-table-col-fixed`, a density-scaled token that is 64px
+ * at default density. `EDGE_COLUMNS` / `ACTION_COLUMN` lived here to state
+ * 4rem because the DS used to size those cells with `w-control-3xl` (56px,
+ * TD-022). Measured 2026-09-26 on /catalog, /admin/org, /admin/roles and
+ * /admin/permissions at 1920px and 1280px: stripping the two classes left
+ * every column at the same width to the pixel. So they are gone, and a table
+ * that needs a WIDER action column (an inline key action beside the dots)
+ * still states its own `[&_thead_th:last-child]:w-[...]`.
  *
- * The DS documents its edge columns as fixed 64px and ships `w-control-3xl`,
- * which measures 56px (TD-022 recorded the discrepancy; this is the owner
- * settling it at 64). So the width is stated here rather than taken from the
- * token.
- *
- * And under `table-fixed`, a specified width is only honoured while some
- * column is left auto to absorb the slack: with every column pinned, the
- * surplus is shared out proportionally and the "fixed" edge columns grow with
- * everything else. Measured at 1920px - a 1096px container stretched 选择 and
- * 序号 from 56px to 100px. So the rule has two halves and neither works
- * alone: PIN THE EDGES, LEAVE THE TITLE COLUMN AUTO.
+ * WHAT STILL HOLDS: under `table-fixed`, a specified width is only honoured
+ * while some column is left auto to absorb the slack. With every column
+ * pinned, the surplus is shared out proportionally and the "fixed" edge
+ * columns grow with everything else - measured at 1920px, a 1096px container
+ * stretched 选择 and 序号 from 56px to 100px. The DS pinning the edges does
+ * not change that physics, so the rule is still: LEAVE THE TITLE COLUMN AUTO
+ * (table-fittings.test.ts guards it for every `table-fixed` table).
  */
-export const EDGE_COLUMNS =
-  "[&_thead_th:nth-child(1)]:w-[4rem] [&_thead_th:nth-child(2)]:w-[4rem]";
-
-/** The action column at its default 64px. A table that surfaces a key action
- * inline beside the dots states its own wider figure instead. */
-export const ACTION_COLUMN = "[&_thead_th:last-child]:w-[4rem]";
 
 // `MoneyCell` WAS HERE and design-ui 8.0.0 replaced it: `align:"numeric"` is
 // right alignment plus one step of right padding plus tabular-nums, which is
-// exactly what it hand-rolled - including the measured pad that made a
-// right-aligned column read as centred. A missing element is a request to the
-// DS rather than a local build (CLAUDE.md); the request landed, so the local
+// exactly what it hand-rolled. A missing element is a request to the DS
+// rather than a local build (CLAUDE.md); the request landed, so the local
 // build goes.
-//
-// THE WIDTH CLASSES ABOVE STAY. The DS still sizes its three fixed columns
-// with `w-control-3xl`, and that token still measures 56px on 8.0.0 - TD-022
-// is unchanged, and the owner's ruling is 64px.
 
 /**
  * 工具行的两件量具 - the sizing the DS's `FilterBar` leaves to its caller.

@@ -18,8 +18,6 @@ import { formatMoney } from "../lib/view-model";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   FilterSlot,
   RowActions,
   rowClickSelection,
@@ -368,7 +366,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     return (
       <div
         ref={select.ref}
-        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
+        className={`[&_table]:table-fixed ${select.className}`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}

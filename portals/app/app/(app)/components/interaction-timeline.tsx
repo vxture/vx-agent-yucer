@@ -114,7 +114,7 @@ export function InteractionTimeline({
           {shown.map((i) => (
             <li
               key={i.id}
-              className="border-border grid grid-cols-[3.25rem_3.5rem_minmax(0,1fr)_auto] items-baseline gap-sm border-b border-dashed py-xs text-[12px] last:border-b-0"
+              className="border-border grid grid-cols-[3.25rem_3.5rem_minmax(0,1fr)_auto] items-baseline gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
             >
               <time
                 className="text-muted-foreground font-mono tabular-nums"

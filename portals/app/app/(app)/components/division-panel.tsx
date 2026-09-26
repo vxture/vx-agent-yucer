@@ -27,7 +27,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
+import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketMember } from "../../domains/shared/market-division";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -314,7 +314,7 @@ export function DivisionPanel(
            留给 table-fixed 去按比例分摊，选择/序号/操作照样精确 64px。 */
         <div
           className={
-            `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
+            `[&_table]:table-fixed`
             + " [&_thead_th:nth-child(3)]:w-[40%]"
             + " [&_thead_th:nth-child(4)]:w-[10%]"
             + " [&_thead_th:nth-child(5)]:w-[10%]"

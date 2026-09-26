@@ -1,7 +1,7 @@
 "use client";
 
 import { DataTable, StatusBadge, TableTitleCell, useListPagination } from "@vxture/design-ui";
-import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions, useTableSort } from "./table-fittings";
+import { PaginationFooter, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 
@@ -45,7 +45,7 @@ export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
         /* 首列 40% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 - 成员/
            数据范围/详情三个业务列落在 "2-4 列→40%" 这档)。详情列继续留白
            自适应。 */
-        `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
+        `[&_table]:table-fixed`
         + " [&_thead_th:nth-child(3)]:w-[40%]"
         + " [&_thead_th:nth-child(4)]:w-[9rem]"
       }

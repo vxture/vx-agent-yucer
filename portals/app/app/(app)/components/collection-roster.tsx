@@ -20,8 +20,6 @@ import { DialogForm } from "./dialog-form";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   FilterSlot,
   RowActions,
   rowClickSelection,
@@ -292,7 +290,7 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
     return (
       <div
         ref={select.ref}
-        className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:last-child]:w-[8rem] ${select.className}`}
+        className={`[&_table]:table-fixed [&_thead_th:last-child]:w-[8rem] ${select.className}`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}

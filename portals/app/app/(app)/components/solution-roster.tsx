@@ -17,8 +17,6 @@ import type { SolutionItemRecord, SolutionRecord } from "../../domains/catalog/s
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  ACTION_COLUMN,
-  EDGE_COLUMNS,
   RowActions,
   SearchSlot,
   useTableSort,
@@ -247,7 +245,7 @@ export function SolutionRoster({
      Order: 选择 | # | name | composition | scenario | status | 操作. */
     // Status pinned (polish, 2026-09-24): under table-fixed the min-width
     // tiers are inert and the 生效中 badge was cut at the column edge.
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] [&_thead_th:nth-child(4)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem] ${ACTION_COLUMN}`}>
+    <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[24%] [&_thead_th:nth-child(4)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem]`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
