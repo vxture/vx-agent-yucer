@@ -14,11 +14,11 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-002 | 产品界面文案违反 source ASCII-only 规则 | 2026-08-15 | open |
 | TD-003 | 逾期承诺扫描的读后写竞态，缺一条部分唯一索引 | 2026-08-17 | **closed 2026-08-29**（0016 部分唯一索引 + 冲突映射为 alreadyQueued） |
 | TD-004 | 能力依赖用浮动别名 `stable`，不钉版本、不收弃用信号（L1 规范 X-4） | 2026-08-17 | open（本仓一半已还：版本入审计 + turn 内钉住 + 弃用告警；跨 turn 钉住与 Atlas 模型面无版本仍开） |
-| TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open |
-| TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open |
-| TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
-| TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
-| TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
+| TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open（DS 14 复核 2026-09-26：仍缺） |
+| TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺） |
+| TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺） |
+| TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺） |
+| TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open（DS 14 复核 2026-09-26：仍缺） |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | **closed 2026-08-29**（可达性守卫上线，全部可达 code 有句子） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
 | TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修；**2026-08-31 复核：`dependabot.yml` 的 `registries` 已声明，但 `dependabot/secrets` 为空——`VXTURE_PACKAGES_READ_TOKEN` 从未配置，故 npm PR 数仍为 0，全部 8 个 Dependabot PR 都来自 github-actions**） |
@@ -32,15 +32,17 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-020 | 没有任何一次运行能测出本仓的真实覆盖率，而 CI 发布的正是瞎的那一半 | 2026-09-02 | **closed 2026-09-02**（`merge-lcov.mjs` 合并两半，PR #151） |
 | TD-021 | Dependabot 在修复落地之后仍然新建告警，且从不自行复评——四条高危全是陈旧信号 | 2026-09-03 | open（本轮四条已以 `inaccurate` 关闭；复发机制未消除） |
 | TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | 半关（DS 14 起三条定宽列由 DS 自己钉 64px，`EDGE_COLUMNS` / `ACTION_COLUMN` 已删；列宽档仍是 `min-w-*`，逐列宽度照旧） |
-| TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS） |
-| TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
-| TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
-| TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
-| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
+| TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS；DS 14 复核 2026-09-26：仍缺） |
+| TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS；DS 14 复核 2026-09-26：仍缺） |
+| TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS；DS 14 复核 2026-09-26：仍缺） |
+| TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS；DS 14 复核 2026-09-26：仍缺） |
+| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS；DS 14 复核 2026-09-26：仍缺） |
 | TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
 | TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | **closed 2026-09-22**（26 项权限、31 个预置角色、420 条授权，逐条核对 catalog.ts 镜像） |
 | TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（**半项已还 2026-09-26**：标题行对齐由 design-ui 11 的 grid 表头解决，覆盖已删；`Section` 仍不转发 `divider`，收起态垫片保留；待上报 DS） |
+| TD-035 | 放行仍在产品内按配额池判断，与「配额归平台」的裁定不符 | 2026-09-25 | open（需平台在 C2 给出放行字段） |
+| TD-036 | DS 字号最小档 12px，mockup 的 10.5–11.5px 次级字没有档 | 2026-09-26 | open（本地 `text-[11px]` 等 32 处，全部点名；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -220,6 +222,13 @@ DS 把容器刻度发布为 `--vx-container-*`，**没有**同时别名 Tailwind
 
 **恢复条件**：向 DS 提出数据可视化族（至少：占比条、条形列表、迷你趋势线，
 外加一套分类色阶）。DS 提供后删除本地实现，三处消费点改为消费 DS 元素。
+
+**2026-09-26 DS 14 复核**：DS 已有 `BarChart`，但它是**单序列**（`BarChartDatum`
+只有 `key/label/value`），本仓已在 `forecast-analysis` / `collection-overview` /
+`delivery-analysis` 三处时间序列上消费它。本条的三处垫片仍不可替换：
+`forecast-trajectory` 是四序列同基线分组柱（commit / best case / pipeline / closed
+不嵌套，不能堆叠），`board-chart` 的占比条与条形列表是横向件，DS 均无。缺失元素
+收窄为：多序列分组柱、占比条、横向条形列表、分类色阶。
 
 ### TD-009 - DS 无环形进度元素，信号评分环本地实现
 
@@ -1971,3 +1980,27 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 
 **收回条件**：平台在 C2 给出放行结果字段（或 consume 的 `gated` 成为准入依据）后，
 `admitMetric()` 改成只读该字段，产品内不再出现 `remaining` 的比较。需向平台提出（经 liaison）。
+
+### TD-036 - DS 字号最小档 12px，mockup 的 10.5-11.5px 次级字没有档
+
+**发现于**：DS 14 适配批次 3（2026-09-26）清理手写像素尺寸时。DS 14 的字号阶梯
+（`text-body-*` / `text-label-*` / `text-title-*` / `text-overline` / `text-code-*`）
+实测最小是 12px（`body-sm` / `label-sm` / `overline` / `code-sm`），12 与 14 之间
+也没有档。
+
+**已收回的部分**：`text-[12px]` 与 `text-body-sm` 完全等价，8 个文件里的写法已全部
+换成 DS 档（行高随之落到 DS 的 17.8px 节奏，原来继承 14px 正文的 18.9px）。
+
+**仍在的垫片（点名）**：商机 / 客户详情页按 owner 的 mockup 实现的次级字——
+`text-[11px]`（17 处）、`text-[11.5px]`（5 处）、`text-[10.5px]`（1 处）、
+`text-[13px]`（`action-card.tsx` 结论行，1 处），以及大屏 / 演示的
+`text-[0.6rem]`–`text-[0.6875rem]`（8 处）。所在文件：`account-lifecycle`、
+`action-card`、`advisor-finding`、`change-history`、`commitment-list`、
+`contact-roster`、`deal-panels`、`deal-score-config`、`exit-checks`、
+`interaction-timeline`、`line-editor`、`stage-track`、`wallet-share` 与 screens。
+mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设计），owner 2026-09-24
+允许为打磨写自有样式，前提是点名——这里就是点名。
+
+**缺失元素**：一个 11px 左右的 caption 档（元信息、徽标、时间戳一类），以及 13px
+的强调正文档。**收回条件**：DS 给出这两档后逐处换成 DS 类，删掉本条。待在批次 5
+随 DS 缺口清单一并上报。

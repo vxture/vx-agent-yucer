@@ -109,7 +109,7 @@ export function EvidenceSlots({
             <span className={`min-w-0 flex-1 whitespace-pre-wrap ${row.statement ? "text-foreground" : "text-muted-foreground"}`}>
               {row.statement ?? DEAL_PAGE_TEXT.evidenceEmpty}
               {marks?.[row.slot]?.work ? (
-                <span className={`ml-sm text-[12px] ${MARK_INK[marks[row.slot]!.tone]}`}>{marks[row.slot]!.work}</span>
+                <span className={`ml-sm text-body-sm ${MARK_INK[marks[row.slot]!.tone]}`}>{marks[row.slot]!.work}</span>
               ) : null}
             </span>
             {!compact && row.statement ? <SlotMarks row={row} /> : null}

@@ -396,7 +396,7 @@ export function ProcessTitles({
             <span className="flex min-w-0 items-center gap-xs">
               {r.mark ? <span className={`size-2 flex-none rounded-full ${CHECK_DOT[r.mark.tone]}`} title={r.mark.verdict} /> : null}
               <span className="text-foreground text-body-sm font-bold">{r.label}</span>
-              {r.mark?.work ? <span className={`truncate text-[12px] ${CHECK_INK[r.mark.tone]}`}>{r.mark.work}</span> : null}
+              {r.mark?.work ? <span className={`truncate text-body-sm ${CHECK_INK[r.mark.tone]}`}>{r.mark.work}</span> : null}
             </span>
             <Button size="xs" variant="outline" aria-expanded={open.has(r.slot)} onClick={() => toggle(r.slot)}>
               {open.has(r.slot) ? DEAL_PAGE_TEXT.processCollapse : DEAL_PAGE_TEXT.processExpand}
@@ -511,7 +511,7 @@ export function DimensionChecks({
           <span className={`size-2 rounded-full ${dot[r.tone]}`} aria-hidden />
           <span className="text-foreground truncate font-medium">{r.label}</span>
           <span className={`text-[11.5px] font-bold ${ink[r.tone]}`}>{r.verdict}</span>
-          <span className="text-muted-foreground truncate text-[12px]" title={r.work ?? undefined}>
+          <span className="text-muted-foreground truncate text-body-sm" title={r.work ?? undefined}>
             {r.work ?? ""}
           </span>
         </li>

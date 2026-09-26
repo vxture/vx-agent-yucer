@@ -940,7 +940,7 @@ export default async function OpportunityDetailPage({
     `/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(JUDGEMENT_ACTION_TEXT.reanalyseQuestion(opportunity.name, what))}`;
   const judgementEvidence = (j: (typeof problems)[number]) => (
     <div className="flex flex-col gap-xs">
-      {j.rule ? <p className="text-muted-foreground text-[12px]">{j.rule}</p> : null}
+      {j.rule ? <p className="text-muted-foreground text-body-sm">{j.rule}</p> : null}
       {(j.citations?.length ?? 0) > 0 ? <CitationList citations={j.citations!} /> : null}
     </div>
   );

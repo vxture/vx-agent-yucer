@@ -55,7 +55,7 @@ export async function RivalMentions({
         {mentions.map((m) => (
           <li
             key={m.id}
-            className="border-border grid grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-sm border-b border-dashed py-xs text-[12px] last:border-b-0"
+            className="border-border grid grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
           >
             <span className="text-muted-foreground font-mono tabular-nums">{m.when}</span>
             <q className="text-muted-foreground">{m.text}</q>
