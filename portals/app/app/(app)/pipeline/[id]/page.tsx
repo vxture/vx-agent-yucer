@@ -813,23 +813,72 @@ export default async function OpportunityDetailPage({
   // Each dimension's panel below 态势判决 opens with its indicators and wears
   // its score (owner 2026-09-26: 名称、顺序与上面一致).
   const dimOf = (d: string) => score.dimensions.find((x) => x.dimension === d)!;
-  const dimChecks = (d: string) => (
+  const verdictOf = (i: { key: string; tone: string }) =>
+    i.key === "statusQuo" && i.tone === "good" ? DEAL_SCORE_TEXT.verdictNone : (DEAL_SCORE_TEXT.verdict[i.tone] ?? i.tone);
+  const workOf = (i: { tone: string; gap?: { code: string; n?: number } }) =>
+    i.tone === "good" || !i.gap ? null : gapText(i.gap, true);
+  // The indicators a panel shows on its own rows are left out of its
+  // checklist (owner 2026-09-26: 指标与明细去重 - 同一件事只说一次).
+  const dimChecks = (d: string, onRows: readonly string[] = []) => (
     <DimensionChecks
-      rows={dimOf(d).indicators.map((i) => ({
-        key: i.key,
-        label: DEAL_SCORE_TEXT.indicator[i.key] ?? i.key,
-        tone: i.tone,
-        verdict: DEAL_SCORE_TEXT.verdict[i.tone] ?? i.tone,
-        work: i.tone === "good" || !i.gap ? null : gapText(i.gap, true),
-      }))}
+      rows={dimOf(d)
+        .indicators.filter((i) => !onRows.includes(i.key))
+        .map((i) => ({
+          key: i.key,
+          label: DEAL_SCORE_TEXT.indicator[i.key] ?? i.key,
+          tone: i.tone,
+          verdict: verdictOf(i),
+          work: workOf(i),
+        }))}
     />
   );
+  const markOf = (d: string, key: string) => {
+    const i = dimOf(d).indicators.find((x) => x.key === key);
+    return i ? { tone: i.tone, verdict: verdictOf(i), work: workOf(i) } : undefined;
+  };
   const dimTag = (d: string) => {
     const x = dimOf(d);
     if (x.score === null) return <Tag tone="neutral">{DEAL_SCORE_TEXT.verdict.unknown}</Tag>;
     const band = dealScoreBand(x.score);
     return <Tag tone={band === "good" ? "success" : band === "warn" ? "warning" : "danger"}>{x.score}</Tag>;
   };
+  // 待动手的事 - one per indicator that is not 稳: 风险 before 关注 before
+  // 未知, the heavier dimension first. A promise with its own 处理 card and a
+  // closed deal's nothing-to-do are left out.
+  const hasSettleCards = brief.actions.some((a) => a.kind === "settle_commitment");
+  const TODO_HREF: Record<string, string> = {
+    budget: "#deal-dossier",
+    economic: "#buying-roles-panel",
+    coach: "#buying-roles-panel",
+    opposition: "#buying-roles-panel",
+    coverage: "#buying-roles-panel",
+    approval: "#quote",
+  };
+  const DIM_HREF: Record<string, string> = {
+    value: "#reasons",
+    consensus: "#process",
+    progress: "#progress",
+    competition: "#competition",
+    engagement: "#comms",
+  };
+  const toneRank = { bad: 0, warn: 1, unknown: 2, good: 3 } as const;
+  const todos = score.dimensions
+    .flatMap((d) =>
+      d.indicators
+        .filter((i) => i.tone !== "good" && i.gap && !(i.key === "theirPromises" && hasSettleCards))
+        .map((i) => ({ d, i })),
+    )
+    .sort((a, b) => toneRank[a.i.tone] - toneRank[b.i.tone] || b.d.weight - a.d.weight)
+    .map(({ d, i }) => ({
+      key: `${d.dimension}-${i.key}`,
+      severity: (i.tone === "bad" ? "bad" : "warn") as "bad" | "warn",
+      title: gapText(i.gap!, true),
+      reason: DEAL_SCORE_TEXT.todoReason(
+        DEAL_SCORE_TEXT.factor[d.dimension] ?? d.dimension,
+        DEAL_SCORE_TEXT.indicator[i.key] ?? i.key,
+      ),
+      href: TODO_HREF[i.key] ?? DIM_HREF[d.dimension] ?? "#verdict",
+    }));
   const DIMENSION_PANEL: Record<string, string> = {
     value: "reasons",
     consensus: "process",
@@ -1079,6 +1128,7 @@ export default async function OpportunityDetailPage({
       rows={processRows.map((r) => ({
         slot: r.slot,
         label: DEAL_PAGE_TEXT.evidenceSlot[r.slot] ?? r.slot,
+        mark: r.slot === "decision_process" ? markOf("consensus", "process") : undefined,
         detail: (
           <EvidenceSlots
             opportunityId={id}
@@ -1263,6 +1313,19 @@ export default async function OpportunityDetailPage({
                 cards={assessmentCards}
                 actionsLabel={<PanelSub>{DEAL_PAGE_TEXT.todo}</PanelSub>}
               >
+                {/* 待动手的事 FROM THE FIVE DIMENSIONS (owner 2026-09-26: 按五维
+                    生成, 与卡片说法一致): every indicator that is not 稳, the
+                    worst first, its button to where the work is done. */}
+                {todos.map((t) => (
+                  <LinkActionCard
+                    key={`todo-${t.key}`}
+                    severity={t.severity}
+                    title={t.title}
+                    reason={t.reason}
+                    href={t.href}
+                    cta={DEAL_SCORE_TEXT.todoCta}
+                  />
+                ))}
                 {brief.actions.map((a) => {
                   switch (a.kind) {
                     case "apply_category":
@@ -1289,28 +1352,9 @@ export default async function OpportunityDetailPage({
                           onSettle={settleCommitment}
                         />
                       );
-                    case "state_roles":
-                      return (
-                        <LinkActionCard
-                          key="state-roles"
-                          severity={a.severity}
-                          title={WAR_ROOM_TEXT.stateRolesTitle}
-                          reason={a.reason}
-                          href="#buying-roles-panel"
-                          cta={WAR_ROOM_TEXT.stateRolesCta}
-                        />
-                      );
-                    case "approve_discount":
-                      return (
-                        <LinkActionCard
-                          key="approve-discount"
-                          severity={a.severity}
-                          title={WAR_ROOM_TEXT.approveTitle(a.pendingLines)}
-                          reason={a.reason}
-                          href="#quote"
-                          cta={WAR_ROOM_TEXT.approveCta}
-                        />
-                      );
+                    // state_roles and approve_discount are the five
+                    // dimensions' items now (买方共识 · 经济决策人 / 内线,
+                    // 推进节奏 · 折扣审批) - listed above, said once.
                     // "adjudicate" is not rendered here: this deal's proposals
                     // are decided in 栏3 本单参谋 (deal batch 2c) - one place.
                     default:
@@ -1365,7 +1409,7 @@ export default async function OpportunityDetailPage({
               summary={reasonsSummary}
               editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
             >
-              {dimChecks("value")}
+              {dimChecks("value", ["pain", "metrics", "statusQuo"])}
               <p className={`text-body-sm whitespace-pre-wrap ${requirement ? "text-foreground" : "text-muted-foreground"}`}>
                 <span className="text-muted-foreground">{DEAL_PAGE_TEXT.requirement}：</span>
                 {requirement ?? DEAL_PAGE_TEXT.requirementNone}
@@ -1373,6 +1417,18 @@ export default async function OpportunityDetailPage({
               <EvidenceSlots
                 opportunityId={id}
                 rows={reasonRows}
+                marks={Object.fromEntries(
+                  (
+                    [
+                      ["pain", "pain"],
+                      ["metrics", "metrics"],
+                      ["status_quo", "statusQuo"],
+                    ] as const
+                  ).flatMap(([slot, key]) => {
+                    const m = markOf("value", key);
+                    return m ? [[slot, m]] : [];
+                  }),
+                )}
                 citable={citable}
                 canRecord={canRecordEvidence}
                 onRecord={recordEvidenceAction}
@@ -1396,7 +1452,7 @@ export default async function OpportunityDetailPage({
               }
               editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
             >
-              {dimChecks("consensus")}
+              {dimChecks("consensus", ["process"])}
               {processSlots}
             </DealPanel>
 

@@ -380,7 +380,13 @@ export function DealDecisionPanel({
 export function ProcessTitles({
   rows,
 }: {
-  readonly rows: readonly { readonly slot: string; readonly label: string; readonly detail: ReactNode }[];
+  readonly rows: readonly {
+    readonly slot: string;
+    readonly label: string;
+    readonly detail: ReactNode;
+    /** 商机评估's verdict on this slot, when it has one. */
+    readonly mark?: { readonly tone: "good" | "warn" | "bad" | "unknown"; readonly verdict: string; readonly work: string | null };
+  }[];
 }) {
   const { DEAL_PAGE_TEXT } = useMessages();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
@@ -396,7 +402,11 @@ export function ProcessTitles({
       {rows.map((r) => (
         <li key={r.slot} className="flex flex-col gap-xs py-xs">
           <div className="flex items-center justify-between gap-sm">
-            <span className="text-foreground text-body-sm font-bold">{r.label}</span>
+            <span className="flex min-w-0 items-center gap-xs">
+              {r.mark ? <span className={`size-2 flex-none rounded-full ${CHECK_DOT[r.mark.tone]}`} title={r.mark.verdict} /> : null}
+              <span className="text-foreground text-body-sm font-bold">{r.label}</span>
+              {r.mark?.work ? <span className={`truncate text-[12px] ${CHECK_INK[r.mark.tone]}`}>{r.mark.work}</span> : null}
+            </span>
             <Button size="xs" variant="outline" aria-expanded={open.has(r.slot)} onClick={() => toggle(r.slot)}>
               {open.has(r.slot) ? DEAL_PAGE_TEXT.processCollapse : DEAL_PAGE_TEXT.processExpand}
               <Icon name={open.has(r.slot) ? "chevron-up" : "chevron-down"} size="xs" />
@@ -501,8 +511,8 @@ export function DimensionChecks({
     readonly work: string | null;
   }[];
 }) {
-  const dot = { good: "bg-(color:--success-text)", warn: "bg-(color:--warning-text)", bad: "bg-destructive", unknown: "border border-dashed border-muted-foreground" };
-  const ink = { good: "text-(color:--success-text)", warn: "text-(color:--warning-text)", bad: "text-destructive-text", unknown: "text-muted-foreground" };
+  const dot = CHECK_DOT;
+  const ink = CHECK_INK;
   return (
     <ul className="divide-primary/10 dark:divide-primary/20 grid grid-cols-1 gap-x-lg divide-y divide-dashed sm:grid-cols-2 sm:divide-y-0">
       {rows.map((r) => (
@@ -518,3 +528,16 @@ export function DimensionChecks({
     </ul>
   );
 }
+
+const CHECK_DOT = {
+  good: "bg-(color:--success-text)",
+  warn: "bg-(color:--warning-text)",
+  bad: "bg-destructive",
+  unknown: "border border-dashed border-muted-foreground",
+};
+const CHECK_INK = {
+  good: "text-(color:--success-text)",
+  warn: "text-(color:--warning-text)",
+  bad: "text-destructive-text",
+  unknown: "text-muted-foreground",
+};

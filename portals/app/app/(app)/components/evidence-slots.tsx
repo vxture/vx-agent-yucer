@@ -50,6 +50,7 @@ export function EvidenceSlots({
   canRecord,
   compact = false,
   hideLabel = false,
+  marks,
   onRecord,
 }: {
   readonly opportunityId: string;
@@ -61,6 +62,9 @@ export function EvidenceSlots({
   readonly compact?: boolean;
   /** Under a host row that already names the slot (决策链's 展开详情). */
   readonly hideLabel?: boolean;
+  /** 商机评估's verdict on a slot, shown on its row (owner 2026-09-26:
+   *  同一件事只说一次 - the dimension's checklist leaves these out). */
+  readonly marks?: Readonly<Record<string, SlotMark>>;
   readonly onRecord: (
     opportunityId: string,
     input: { slot: string; statement: string; interactionId?: string | null },
@@ -100,9 +104,13 @@ export function EvidenceSlots({
       {rows.map((row) => (
         <div key={row.slot} className="flex flex-col gap-2xs py-xs">
           <div className="flex items-start gap-sm text-body-sm">
+            {marks?.[row.slot] ? <MarkDot mark={marks[row.slot]!} /> : null}
             {hideLabel ? null : <span className="text-foreground w-[5.5rem] flex-none font-bold">{label(row.slot)}</span>}
             <span className={`min-w-0 flex-1 whitespace-pre-wrap ${row.statement ? "text-foreground" : "text-muted-foreground"}`}>
               {row.statement ?? DEAL_PAGE_TEXT.evidenceEmpty}
+              {marks?.[row.slot]?.work ? (
+                <span className={`ml-sm text-[12px] ${MARK_INK[marks[row.slot]!.tone]}`}>{marks[row.slot]!.work}</span>
+              ) : null}
             </span>
             {!compact && row.statement ? <SlotMarks row={row} /> : null}
             {canRecord ? (
@@ -188,4 +196,28 @@ function SlotMarks({ row }: { readonly row: EvidenceRow }) {
       {row.meta ? <span className="tabular-nums">{row.meta}</span> : null}
     </span>
   );
+}
+
+export interface SlotMark {
+  readonly tone: "good" | "warn" | "bad" | "unknown";
+  readonly verdict: string;
+  readonly work: string | null;
+}
+
+const MARK_DOT = {
+  good: "bg-(color:--success-text)",
+  warn: "bg-(color:--warning-text)",
+  bad: "bg-destructive",
+  unknown: "border border-dashed border-muted-foreground",
+};
+const MARK_INK = {
+  good: "text-(color:--success-text)",
+  warn: "text-(color:--warning-text)",
+  bad: "text-destructive-text",
+  unknown: "text-muted-foreground",
+};
+
+/** The dimension's verdict dot on a slot row; the verdict word is its title. */
+function MarkDot({ mark }: { readonly mark: SlotMark }) {
+  return <span className={`mt-[0.45rem] size-2 flex-none rounded-full ${MARK_DOT[mark.tone]}`} title={mark.verdict} />;
 }
