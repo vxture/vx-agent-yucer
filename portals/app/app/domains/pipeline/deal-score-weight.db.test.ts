@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Client } from "pg";
 import { DEFAULT_DEAL_SCORE_WEIGHTS } from "./lib/deal-score";
 
-// incr/0091 - 商机评估分's weights against a real Postgres: the defaults equal
+// incr/0091 reshaped by 0092 - 商机评估's five dimension weights against a real Postgres: the defaults equal
 // the build's, the set must add to 100, quiet follows recent, and the service
 // role may change the numbers but not re-key the row.
 //
@@ -38,8 +38,8 @@ test("a fresh row carries the build's defaults exactly", { skip }, async () => {
     const r = rows[0];
     const d = DEFAULT_DEAL_SCORE_WEIGHTS;
     assert.deepEqual(
-      [r.w_exit, r.w_chain, r.w_stage, r.w_recency, r.w_commitment, r.w_forecast, r.w_price],
-      [d.weights.exit, d.weights.chain, d.weights.stage, d.weights.recency, d.weights.commitment, d.weights.forecast, d.weights.price],
+      [r.w_value, r.w_consensus, r.w_competition, r.w_engagement, r.w_progress],
+      [d.weights.value, d.weights.consensus, d.weights.competition, d.weights.engagement, d.weights.progress],
     );
     assert.deepEqual([r.watch_score, r.recent_days, r.quiet_days], [d.watchScore, d.recentDays, d.quietDays]);
   });
@@ -49,11 +49,11 @@ test("the weights must add to 100, quiet must follow recent, watch stays inside 
   await withPg(async (c) => {
     await c.query(`INSERT INTO yucer_pipeline.deal_score_weight (workspace_id) VALUES ($1)`, [WS]);
     const upd = `UPDATE yucer_pipeline.deal_score_weight SET `;
-    await refuses(c, upd + `w_exit = 30 WHERE workspace_id = $1`, [WS], /chk_deal_score_weight_sum/);
+    await refuses(c, upd + `w_value = 30 WHERE workspace_id = $1`, [WS], /chk_deal_score_weight_sum/);
     await refuses(c, upd + `quiet_days = 14 WHERE workspace_id = $1`, [WS], /chk_deal_score_weight_days/);
     await refuses(c, upd + `watch_score = 100 WHERE workspace_id = $1`, [WS], /chk_deal_score_weight_watch/);
     // A move that keeps the sum is fine.
-    await c.query(upd + `w_exit = 30, w_price = 0 WHERE workspace_id = $1`, [WS]);
+    await c.query(upd + `w_value = 30, w_competition = 0 WHERE workspace_id = $1`, [WS]);
   });
 });
 
@@ -65,7 +65,7 @@ test("the service role edits the numbers, never the workspace key, and cannot de
           AND table_schema = 'yucer_pipeline' AND table_name = 'deal_score_weight'`,
     );
     const cols = new Set(rows.map((r) => r.column_name));
-    for (const col of ["w_exit", "w_chain", "w_stage", "w_recency", "w_commitment", "w_forecast", "w_price", "watch_score", "recent_days", "quiet_days"]) {
+    for (const col of ["w_value", "w_consensus", "w_competition", "w_engagement", "w_progress", "watch_score", "recent_days", "quiet_days"]) {
       assert.ok(cols.has(col), col);
     }
     assert.ok(!cols.has("workspace_id"));

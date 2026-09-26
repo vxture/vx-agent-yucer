@@ -1128,13 +1128,11 @@ export class PrismaPipelineStore implements PipelineStore {
     if (!row) return DEFAULT_DEAL_SCORE_WEIGHTS;
     return {
       weights: {
-        exit: row.wExit,
-        chain: row.wChain,
-        stage: row.wStage,
-        recency: row.wRecency,
-        commitment: row.wCommitment,
-        forecast: row.wForecast,
-        price: row.wPrice,
+        value: row.wValue,
+        consensus: row.wConsensus,
+        competition: row.wCompetition,
+        engagement: row.wEngagement,
+        progress: row.wProgress,
       },
       watchScore: row.watchScore,
       recentDays: row.recentDays,
@@ -1146,13 +1144,11 @@ export class PrismaPipelineStore implements PipelineStore {
     const p = await getPrismaClient();
     const w = input.weights;
     const update = {
-      wExit: w.exit,
-      wChain: w.chain,
-      wStage: w.stage,
-      wRecency: w.recency,
-      wCommitment: w.commitment,
-      wForecast: w.forecast,
-      wPrice: w.price,
+      wValue: w.value,
+      wConsensus: w.consensus,
+      wCompetition: w.competition,
+      wEngagement: w.engagement,
+      wProgress: w.progress,
       watchScore: input.watchScore,
       recentDays: input.recentDays,
       quietDays: input.quietDays,

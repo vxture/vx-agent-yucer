@@ -5,9 +5,9 @@ import { Button, Field, FieldDescription, FieldLabel, Icon, Input, Section, useT
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import {
-  DEAL_SCORE_FACTORS,
+  DEAL_DIMENSIONS,
   DEFAULT_DEAL_SCORE_WEIGHTS,
-  type DealScoreFactor,
+  type DealDimension,
   type DealScoreWeights,
 } from "../../domains/pipeline/lib/deal-score";
 
@@ -30,10 +30,10 @@ const SHARE_TONES = [
   "bg-primary/15",
 ];
 
-type Form = Record<DealScoreFactor | "watchScore" | "recentDays" | "quietDays", string>;
+type Form = Record<DealDimension | "watchScore" | "recentDays" | "quietDays", string>;
 
 const toForm = (w: DealScoreWeights): Form => ({
-  ...(Object.fromEntries(DEAL_SCORE_FACTORS.map((f) => [f, String(w.weights[f])])) as Record<DealScoreFactor, string>),
+  ...(Object.fromEntries(DEAL_DIMENSIONS.map((f) => [f, String(w.weights[f])])) as Record<DealDimension, string>),
   watchScore: String(w.watchScore),
   recentDays: String(w.recentDays),
   quietDays: String(w.quietDays),
@@ -54,12 +54,12 @@ export function DealScoreConfig({
   const [pending, start] = useTransition();
   const n = (v: string) => (v.trim() === "" ? Number.NaN : Number(v));
   const parsed: DealScoreWeights = {
-    weights: Object.fromEntries(DEAL_SCORE_FACTORS.map((f) => [f, n(form[f])])) as Record<DealScoreFactor, number>,
+    weights: Object.fromEntries(DEAL_DIMENSIONS.map((f) => [f, n(form[f])])) as Record<DealDimension, number>,
     watchScore: n(form.watchScore),
     recentDays: n(form.recentDays),
     quietDays: n(form.quietDays),
   };
-  const sum = DEAL_SCORE_FACTORS.reduce((t, f) => t + (Number.isFinite(parsed.weights[f]) ? parsed.weights[f] : 0), 0);
+  const sum = DEAL_DIMENSIONS.reduce((t, f) => t + (Number.isFinite(parsed.weights[f]) ? parsed.weights[f] : 0), 0);
   const dirty = JSON.stringify(toForm(weights)) !== JSON.stringify(form);
   const save = () =>
     start(async () => {
@@ -88,7 +88,7 @@ export function DealScoreConfig({
           <Field>
             <FieldLabel>{DEAL_SCORE_TEXT.weightsLabel}</FieldLabel>
             <div className="border-border mt-xs flex h-8 w-full overflow-hidden rounded-md border">
-              {DEAL_SCORE_FACTORS.map((f, i) =>
+              {DEAL_DIMENSIONS.map((f, i) =>
                 (parsed.weights[f] || 0) > 0 ? (
                   <div
                     key={f}
@@ -101,8 +101,8 @@ export function DealScoreConfig({
                 ) : null,
               )}
             </div>
-            <div className="mt-sm grid grid-cols-2 gap-sm sm:grid-cols-4 xl:grid-cols-7">
-              {DEAL_SCORE_FACTORS.map((f) => (
+            <div className="mt-sm grid grid-cols-2 gap-sm sm:grid-cols-4 xl:grid-cols-5">
+              {DEAL_DIMENSIONS.map((f) => (
                 <label key={f} className="flex flex-col gap-2xs">
                   <span className="text-muted-foreground text-body-sm">{DEAL_SCORE_TEXT.factor[f]}</span>
                   <Input
