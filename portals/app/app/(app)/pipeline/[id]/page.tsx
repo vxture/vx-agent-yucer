@@ -1401,56 +1401,7 @@ export default async function OpportunityDetailPage({
             </DealPanel>
 
 
-            {/* 竞争位置 - the third dimension; was 竞争态势. */}
-            {/* 竞争态势 - verbatim rival mentions until the competitor record
-                (batch 7, 0089). */}
-            <DealPanel
-              id="competition"
-              icon="shield"
-              title={DEAL_SCORE_TEXT.factor.competition}
-              tags={dimTag("competition")}
-              summary={
-                rivalMentions.length > 0
-                  ? DEAL_PAGE_TEXT.competitionMentions(rivalMentions.length)
-                  : POSITION_TEXT.competitionNoMention
-              }
-            >
-              {dimChecks("competition")}
-              <RivalMentions mentions={rivalMentions} />
-            </DealPanel>
-
-
-            {/* 互动热度 - the fourth dimension; was 沟通记录 - the follow-ups are its evidence. */}
-            {/* 沟通记录 (renamed from 记录, YC-069): follow-ups only. Capture is
-                the deck beside this page, anchored to this deal. */}
-            <DealPanel
-              id="comms"
-              icon="chat-dots"
-              title={DEAL_SCORE_TEXT.factor.engagement}
-              tags={dimTag("engagement")}
-              summary={
-                lastTouch
-                  ? DEAL_PAGE_TEXT.commsSummary(
-                      Math.max(0, Math.floor((briefNow.getTime() - lastTouch.getTime()) / 86_400_000)),
-                      recentTouches,
-                    )
-                  : DEAL_PAGE_TEXT.commsNone
-              }
-              editHint={PANEL_MENU_TEXT.noEntryHere}
-            >
-              {dimChecks("engagement")}
-              {interactions.ok ? (
-                <InteractionTimeline
-                  items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
-                  limit={20}
-                  rows
-                />
-              ) : (
-                <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />
-              )}
-            </DealPanel>
-
-            {/* 推进节奏 - the fifth dimension; was 推进进程. */}
+            {/* 推进节奏 - the third dimension (owner 2026-09-26: 放在第三个); was 推进进程. */}
             {/* 推进进程 - the single home of stage, win rate, close date and the
                 forecast bucket; the plan is the two sides' commitments; the
                 stage journal is its history. 推进阶段 opens the drawer. */}
@@ -1534,6 +1485,55 @@ export default async function OpportunityDetailPage({
               )}
             </DealPanel>
 
+
+            {/* 竞争位置 - the fourth dimension; was 竞争态势. */}
+            {/* 竞争态势 - verbatim rival mentions until the competitor record
+                (batch 7, 0089). */}
+            <DealPanel
+              id="competition"
+              icon="shield"
+              title={DEAL_SCORE_TEXT.factor.competition}
+              tags={dimTag("competition")}
+              summary={
+                rivalMentions.length > 0
+                  ? DEAL_PAGE_TEXT.competitionMentions(rivalMentions.length)
+                  : POSITION_TEXT.competitionNoMention
+              }
+            >
+              {dimChecks("competition")}
+              <RivalMentions mentions={rivalMentions} />
+            </DealPanel>
+
+
+            {/* 互动热度 - the fifth dimension; was 沟通记录 - the follow-ups are its evidence. */}
+            {/* 沟通记录 (renamed from 记录, YC-069): follow-ups only. Capture is
+                the deck beside this page, anchored to this deal. */}
+            <DealPanel
+              id="comms"
+              icon="chat-dots"
+              title={DEAL_SCORE_TEXT.factor.engagement}
+              tags={dimTag("engagement")}
+              summary={
+                lastTouch
+                  ? DEAL_PAGE_TEXT.commsSummary(
+                      Math.max(0, Math.floor((briefNow.getTime() - lastTouch.getTime()) / 86_400_000)),
+                      recentTouches,
+                    )
+                  : DEAL_PAGE_TEXT.commsNone
+              }
+              editHint={PANEL_MENU_TEXT.noEntryHere}
+            >
+              {dimChecks("engagement")}
+              {interactions.ok ? (
+                <InteractionTimeline
+                  items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
+                  limit={20}
+                  rows
+                />
+              ) : (
+                <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />
+              )}
+            </DealPanel>
 
             {/* 报价与审批 - the lines decide the amount the dossier shows.
                 Approving stays here, a flow op made looking at the line; the
