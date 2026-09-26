@@ -1132,6 +1132,7 @@ export const en: Dictionary = {
     title: "Situation verdict",
     allClear: (n: number) => `All ${n} checks pass. Nothing needs attention.`,
     findings: (n: number) => `${n} finding(s); the actionable ones are ranked below.`,
+    toneWord: { good: "Steady", warn: "Watch", bad: "At risk" } as Record<string, string>,
     cell: {
       stage: "Stage",
       forecast: "Forecast",

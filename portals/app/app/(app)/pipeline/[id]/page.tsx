@@ -1188,7 +1188,13 @@ export default async function OpportunityDetailPage({
               viewHref={opportunity.accountId ? `/copilot?account=${opportunity.accountId}` : undefined}
               editHint={PANEL_MENU_TEXT.derived}
             >
-              <WarRoom cells={brief.cells} actionsLabel={<PanelSub>{DEAL_PAGE_TEXT.todo}</PanelSub>}>
+              <WarRoom
+                cells={brief.cells}
+                points={Object.fromEntries(
+                  score.contributions.map((c) => [c.factor, { earned: Math.round((c.value * c.weight) / 100), weight: c.weight }]),
+                )}
+                actionsLabel={<PanelSub>{DEAL_PAGE_TEXT.todo}</PanelSub>}
+              >
                 {brief.actions.map((a) => {
                   switch (a.kind) {
                     case "apply_category":

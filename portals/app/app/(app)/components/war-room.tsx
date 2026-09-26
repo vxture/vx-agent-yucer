@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ROW_EDGE, ROW_TEXT, TONED_ROW, type RowTone } from "./deal-tone";
+import { FactorCards, type FactorTone } from "./factor-cards";
 import type { BriefCell } from "../../domains/pipeline/lib/brief";
 import { getMessages } from "../lib/i18n/server";
 
@@ -22,14 +22,17 @@ import { getMessages } from "../lib/i18n/server";
 // person can adjudicate them, because the strip states what IS and the cards
 // offer what to DO.
 
-const EDGE: Record<BriefCell["tone"], RowTone> = { good: "good", warn: "warn", bad: "bad" };
+const TONE: Record<BriefCell["tone"], FactorTone> = { good: "good", warn: "mild", bad: "severe" };
 
 export async function WarRoom({
   cells,
+  points,
   actionsLabel,
   children,
 }: {
   readonly cells: readonly BriefCell[];
+  /** Each dimension's points in 商机评估分 (incr/0091): earned / its weight. */
+  readonly points?: Partial<Record<BriefCell["key"], { readonly earned: number; readonly weight: number }>>;
   /** The heading over the action cards (待动手的事), from the host panel. */
   readonly actionsLabel?: ReactNode;
   /** The action cards, worst-first - each its own client island. */
@@ -38,22 +41,24 @@ export async function WarRoom({
   const { WAR_ROOM_TEXT } = await getMessages();
   return (
     <div className="flex flex-col">
-      {/* One cell per dimension. minmax(0,1fr) so a long headline wraps inside
-          its cell instead of pushing the strip sideways. */}
-      {/* As many columns as cells - four on a closed deal, not four and a hole. */}
-      <div className={`grid gap-xs sm:grid-cols-2 ${cells.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
-        {cells.map((c) => (
-          // YC-072 .cell: a flat, edge-toned cell - what it reads, then the
-          // verdict in the tone's colour. Its height is its text.
-          <div key={c.key} className={`min-w-0 ${TONED_ROW} border-border border ${ROW_EDGE[EDGE[c.tone]]}`}>
-            <p className="text-muted-foreground text-[11px]">{WAR_ROOM_TEXT.cell[c.key]}</p>
-            <p className={`mt-3xs text-[12.5px] font-bold ${c.tone === "good" ? "text-foreground" : ROW_TEXT[EDGE[c.tone]]}`}>
-              {c.headline}
-            </p>
-            {c.detail ? <p className="text-muted-foreground mt-3xs text-[11px]">{c.detail}</p> : null}
-          </div>
-        ))}
-      </div>
+      {/* 评估卡 (owner 2026-09-25: 按照card方式，参考客户详情页): the
+          customer page's 客户评估 card, figure | (name / note). The figure is
+          this deal's points on the dimension in 商机评估分 - earned over its
+          weight - so the five read as one deal's numbers; the note is the
+          verdict's one line, the evidence on hover. */}
+      <FactorCards
+        items={cells.map((c) => {
+          const p = points?.[c.key];
+          return {
+            id: c.key,
+            label: WAR_ROOM_TEXT.cell[c.key] ?? c.key,
+            note: c.detail ? `${c.headline} · ${c.detail}` : c.headline,
+            value: p ? String(p.earned) : WAR_ROOM_TEXT.toneWord[c.tone] ?? "",
+            unit: p ? `/${p.weight}` : undefined,
+            tone: TONE[c.tone],
+          };
+        })}
+      />
       {children ? (
         <div className="mt-md flex flex-col gap-xs">
           {actionsLabel}
