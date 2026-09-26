@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Icon, StatusBadge } from "@vxture/design-ui";
+import { Card, Icon, SectionHeader, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { SaveCell } from "./save-cell";
 import { AUTONOMY_MODES, CONFIDENCE_FLOOR, EXECUTABLE_ACTIONS } from "../../domains/copilot/lib/autonomy";
@@ -55,9 +55,12 @@ export function AutonomyPanel({
   return (
     <Card className="p-lg">
       <div className="flex flex-col gap-md">
-        <div>
-          <div className="flex items-center gap-xs">
-            <h2 className="text-heading-4 text-foreground">{AUTONOMY_TEXT.title}</h2>
+        <SectionHeader
+          level={2}
+          title={AUTONOMY_TEXT.title}
+          description={AUTONOMY_TEXT.why}
+          titleSuffix={
+            <>
             {/* NOT SET IS ITS OWN STATE, shown rather than smoothed over. A
                 workspace sitting at ask_always because nobody chose it and one
                 sitting there because somebody did are different facts, and only
@@ -71,9 +74,9 @@ export function AutonomyPanel({
             ) : (
               <StatusBadge tone="warning">{AUTONOMY_TEXT.unset}</StatusBadge>
             )}
-          </div>
-          <p className="text-muted-foreground mt-2xs text-body-sm">{AUTONOMY_TEXT.why}</p>
-        </div>
+            </>
+          }
+        />
 
         <div className="flex flex-col gap-xs">
           {AUTONOMY_MODES.map((m) => {

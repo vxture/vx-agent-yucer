@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  Field,
-  FieldLabel,
-  Icon,
-  NativeSelect,
-  useToast,
-} from "@vxture/design-ui";
+import { Button, Field, FieldLabel, Icon, NativeSelect, SectionHeader, useToast } from "@vxture/design-ui";
 import { ConfirmDestructive } from "./confirm-destructive";
 import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
@@ -117,7 +110,7 @@ export function OrgRelationsEditor({
 
   return (
     <div className="flex flex-col gap-sm">
-      <h4 className="text-body-sm font-bold">{ACCOUNT_PARENT_TEXT.sectionTitle}</h4>
+      <SectionHeader level={4} title={ACCOUNT_PARENT_TEXT.sectionTitle} />
 
       <Field>
         <FieldLabel>{ACCOUNT_PARENT_TEXT.field}</FieldLabel>

@@ -28,19 +28,10 @@ import { useMessages } from "../lib/i18n/provider";
 const COLLAPSED_CLASS =
   "data-[collapsed=true]:[&>div:first-child]:border-b-0 data-[collapsed=true]:[&>div:first-child]:pb-0 data-[collapsed=true]:gap-2xs";
 
-// TD-034, second half - the header ROW'S ALIGNMENT (owner, 2026-09-23: icon
-// 和 title 没有对齐; 没有 subtitle 应该全面对齐, 有 subtitle 时占据两行对齐).
-// The DS header is `items-start`, pads its icon down with `mt-2xs` (room for
-// a description line under the title) and pins the action slot to the
-// BOTTOM (`self-end`). With no description the icon sat below the title.
-// Centred instead: icon, title block and buttons share one axis - one line
-// when there is only a title, the middle of both lines when the title block
-// has two (the org unit's name + number). This is safe now that the folded
-// line lives in the body: the header's height no longer changes between
-// open and folded, so centring does not make the buttons jump (the reason
-// they were once pinned to the top). Same recovery condition as above.
-const HEADER_ALIGN_CLASS =
-  "[&>div:first-child]:items-center [&>div:first-child>span:first-child]:mt-0 [&>div:first-child>div:last-child]:self-center";
+// TD-034's second half (the header row's alignment) is CLOSED by
+// design-ui 11.0: SectionHeader is a grid - icon | title | action on one
+// line, vertically centred - which is exactly what the override here used to
+// force onto the old items-start layout. The override is gone.
 
 /**
  * One entry of a panel's own "⋮" menu (owner, 2026-09-23: 每个板块按需一个
@@ -121,15 +112,16 @@ export function CollapsibleSection({
   );
 
   return (
-    // LEVEL 3 BY DEFAULT (owner, 2026-09-23: 板块标题文字可以适当缩小一些):
-    // the DS's own next step down, title-sm (~14px) from title-md (~16px),
-    // with its matching icon size - no restyling. Level 3 headers carry no
-    // divider in the DS, so the expanded card loses that line too.
+    // LEVEL 3 BY DEFAULT: a card inside a page, under the page's level-2
+    // blocks - design-ui 11's ladder (level = h): title-md 16px, its dashed
+    // underline on (every level has one now). In-panel sub-headings are
+    // level 4. Was 14px until 11.0 renumbered the ladder (owner, 2026-09-26:
+    // 全面适配 DS).
     <Section
       {...rest}
       level={level}
       data-collapsed={expanded ? undefined : "true"}
-      className={[className, COLLAPSED_CLASS, HEADER_ALIGN_CLASS].filter(Boolean).join(" ")}
+      className={[className, COLLAPSED_CLASS].filter(Boolean).join(" ")}
       // Only the open card uses the DS description slot. Folded, the line
       // does NOT go there: squeezed beside the buttons under the title it
       // wrapped (owner, 2026-09-23: 按钮和标题拉通一行, 小字单独一行, 太长截断).
