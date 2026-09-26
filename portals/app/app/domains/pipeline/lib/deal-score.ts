@@ -23,7 +23,9 @@
 
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 
-export const DEAL_DIMENSIONS = ["value", "consensus", "competition", "engagement", "progress"] as const;
+// Order is the owner's (2026-09-26: 推进节奏放在第三个) - cards, panels and
+// /admin all follow it.
+export const DEAL_DIMENSIONS = ["value", "consensus", "progress", "competition", "engagement"] as const;
 export type DealDimension = (typeof DEAL_DIMENSIONS)[number];
 
 export type IndicatorTone = "good" | "warn" | "bad" | "unknown";
