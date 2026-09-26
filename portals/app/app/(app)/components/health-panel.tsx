@@ -1,6 +1,6 @@
 "use client";
 
-import { TruncatedText } from "./truncated-text";
+import { FactorCards } from "./factor-cards";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -61,23 +61,6 @@ export interface HealthPanelProps {
    *  (owner, 2026-09-24: 合并进风险分型) - there is no separate note above. */
   readonly risks?: readonly LaneRisk[] | null;
 }
-
-// Two alarm colours, not one (owner, 2026-09-24: 所有告警层级一个颜色了) -
-// the factor's own tier (contributionSeverity) picks red or orange, the same
-// pair the 风险分型 rows below use for 有风险 / 关注.
-type FactorTone = ContributionSeverity;
-const FACTOR_EDGE: Record<FactorTone, string> = {
-  severe: "border-t-destructive",
-  mild: "border-t-warning-border",
-  none: "border-t-border",
-  good: "border-t-(color:--success-text)",
-};
-const FACTOR_INK: Record<FactorTone, string> = {
-  severe: "text-destructive-text",
-  mild: "text-(color:--warning-text)",
-  none: "text-foreground",
-  good: "text-success-text",
-};
 
 export function HealthPanel({
   accountId,
@@ -243,23 +226,7 @@ export function HealthPanel({
               title-xl figure, a watermark chart and generous padding - ~90px
               tall for a two-character label and a signed number. Light cards
               instead, the tone on the top edge and in the figure. */}
-          <div className="grid grid-cols-5 gap-sm">
-            {items.map((it) => (
-              // number | (name / note) - owner, 2026-09-24. The note is the
-              // smallest type and ONE line, cut with an ellipsis; the whole
-              // reason is its hover title.
-              <div
-                key={it.id}
-                className={`flex min-w-0 items-center gap-sm rounded-md border border-t-2 border-border bg-card/60 px-sm py-xs ${FACTOR_EDGE[it.tone]}`}
-              >
-                <span className={`text-heading-4 shrink-0 ${FACTOR_INK[it.tone]}`}>{it.value}</span>
-                <span className="flex min-w-0 flex-col">
-                  <TruncatedText text={it.label} className="text-foreground truncate text-body-sm font-medium" />
-                  <TruncatedText text={it.note} className="text-muted-foreground truncate text-[0.6875rem] leading-tight" />
-                </span>
-              </div>
-            ))}
-          </div>
+          <FactorCards items={items} />
           {risks && risks.length > 0 ? <RiskTypes risks={risks} /> : null}
         </>
     </CollapsibleSection>

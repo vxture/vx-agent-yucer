@@ -5883,6 +5883,7 @@ export const WAR_ROOM_TEXT = {
   title: "态势判决",
   allClear: (n: number) => `${n} 项检查全部通过。没有需要处理的发现。`,
   findings: (n: number) => `${n} 项需要注意,可执行的动作按轻重排在下面。`,
+  toneWord: { good: "稳", warn: "关注", bad: "风险" } as Record<string, string>,
   cell: {
     stage: "阶段",
     forecast: "预测",
