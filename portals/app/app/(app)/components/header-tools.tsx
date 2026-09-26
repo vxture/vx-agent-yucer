@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 
-import { useRouter } from "next/navigation";
-import { ShellHeaderTools, useTheme } from "@vxture/design-system";
+import { ShellHeaderTools } from "@vxture/design-system";
 import { Badge } from "@vxture/design-ui";
-import { LOCALE_CONFIGS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
-import { writeLocale } from "../lib/i18n/write-locale";
-import { useLocale, useMessages } from "../lib/i18n/provider";
+import { useMessages } from "../lib/i18n/provider";
+import { useHeaderToolConfig } from "../lib/header-tool-config";
 
 /**
  * The id the fullscreen toggle expands.
@@ -68,9 +66,7 @@ export function HeaderTools({
   fullscreenTarget,
 }: HeaderToolsProps) {
   const { HEADER_TEXT } = useMessages();
-  const locale = useLocale();
-  const router = useRouter();
-  const { mode, setMode } = useTheme();
+  const tools = useHeaderToolConfig();
   // THE DS'S STANDARD HEADER TOOLS (design-system 13.6, 03 section 7.1; owner
   // 2026-09-26: 全面适配 DS): six tools in a FIXED order - theme, language,
   // fullscreen, help, messages (a side drawer), settings. The DS owns the
@@ -79,30 +75,8 @@ export function HeaderTools({
     <ShellHeaderTools
       label={HEADER_TEXT.toolsAria}
       linkComponent={Link}
-      theme={{
-        current: mode === "dark" ? "dark" : "light",
-        onChange: (next) => setMode(next),
-        toDarkLabel: HEADER_TEXT.prefThemeDark,
-        toLightLabel: HEADER_TEXT.prefThemeLight,
-      }}
-      locale={{
-        current: locale,
-        // The catalogue is the platform's, not the design package's.
-        options: SUPPORTED_LOCALES.map((l) => ({
-          locale: l,
-          label: LOCALE_CONFIGS[l].nativeName,
-          nativeName: LOCALE_CONFIGS[l].nativeName,
-          flag: LOCALE_CONFIGS[l].flag,
-        })),
-        // Cookie first, then ask the server again: the language is resolved
-        // server-side.
-        onChange: (next) => {
-          writeLocale(next as Locale);
-          router.refresh();
-        },
-        label: HEADER_TEXT.prefLocale,
-        panelLabel: HEADER_TEXT.prefLocale,
-      }}
+      theme={tools.theme}
+      locale={tools.locale}
       fullscreen={{
         enterLabel: HEADER_TEXT.fullscreen,
         exitLabel: HEADER_TEXT.fullscreenExit,
