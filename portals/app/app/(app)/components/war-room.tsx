@@ -31,8 +31,10 @@ export async function WarRoom({
   children,
 }: {
   readonly cells: readonly BriefCell[];
-  /** Each dimension's points in 商机评估分 (incr/0091): earned / its weight. */
-  readonly points?: Partial<Record<BriefCell["key"], { readonly earned: number; readonly weight: number }>>;
+  /** Each dimension's own 0-100 in 商机评估分 (incr/0091) - every card out
+   *  of 100 (owner 2026-09-25: 这几项满分不是100分); the weights only
+   *  combine them into the dossier's score. */
+  readonly points?: Partial<Record<BriefCell["key"], number>>;
   /** The heading over the action cards (待动手的事), from the host panel. */
   readonly actionsLabel?: ReactNode;
   /** The action cards, worst-first - each its own client island. */
@@ -43,8 +45,8 @@ export async function WarRoom({
     <div className="flex flex-col">
       {/* 评估卡 (owner 2026-09-25: 按照card方式，参考客户详情页): the
           customer page's 客户评估 card, figure | (name / note). The figure is
-          this deal's points on the dimension in 商机评估分 - earned over its
-          weight - so the five read as one deal's numbers; the note is the
+          this deal's 0-100 on the dimension in 商机评估分, so the five read
+          as one deal's numbers; the note is the
           verdict's one line, the evidence on hover. */}
       <FactorCards
         items={cells.map((c) => {
@@ -53,8 +55,7 @@ export async function WarRoom({
             id: c.key,
             label: WAR_ROOM_TEXT.cell[c.key] ?? c.key,
             note: c.detail ? `${c.headline} · ${c.detail}` : c.headline,
-            value: p ? String(p.earned) : WAR_ROOM_TEXT.toneWord[c.tone] ?? "",
-            unit: p ? `/${p.weight}` : undefined,
+            value: p !== undefined ? String(p) : WAR_ROOM_TEXT.toneWord[c.tone] ?? "",
             tone: TONE[c.tone],
           };
         })}

@@ -1190,9 +1190,7 @@ export default async function OpportunityDetailPage({
             >
               <WarRoom
                 cells={brief.cells}
-                points={Object.fromEntries(
-                  score.contributions.map((c) => [c.factor, { earned: Math.round((c.value * c.weight) / 100), weight: c.weight }]),
-                )}
+                points={Object.fromEntries(score.contributions.map((c) => [c.factor, c.value]))}
                 actionsLabel={<PanelSub>{DEAL_PAGE_TEXT.todo}</PanelSub>}
               >
                 {brief.actions.map((a) => {
