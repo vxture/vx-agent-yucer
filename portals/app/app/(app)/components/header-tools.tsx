@@ -2,15 +2,12 @@
 
 import Link from "next/link";
 
-import { ShellToolbox, ShellToolboxButton } from "@vxture/design-system";
-import {
-  Badge,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  useFullscreen,
-} from "@vxture/design-ui";
-import { useMessages } from "../lib/i18n/provider";
+import { useRouter } from "next/navigation";
+import { ShellHeaderTools, useTheme } from "@vxture/design-system";
+import { Badge } from "@vxture/design-ui";
+import { LOCALE_CONFIGS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
+import { writeLocale } from "../lib/i18n/write-locale";
+import { useLocale, useMessages } from "../lib/i18n/provider";
 
 /**
  * The id the fullscreen toggle expands.
@@ -21,7 +18,7 @@ import { useMessages } from "../lib/i18n/provider";
  * the element this points at; two literals would drift apart silently and the
  * failure mode is a button that does nothing.
  */
-/** The platform documentation site - see the onHelp prop note. */
+/** The platform documentation site (owner decision, 2026-08-30). */
 const HELP_URL = "https://docs.vxture.com";
 
 export const SHELL_BODY_ID = "yucer-shell-body";
@@ -62,55 +59,64 @@ export interface HeaderToolsProps {
    * the docs in a new tab, noopener because the docs site needs no handle
    * back into a signed-in product.
    */
-  readonly onHelp?: () => void;
 }
 
 export function HeaderTools({
   notifications = 0,
   notificationItems = [],
   settingsHref,
-  onHelp,
   fullscreenTarget,
 }: HeaderToolsProps) {
   const { HEADER_TEXT } = useMessages();
-  const fullscreen = useFullscreen();
-  const fullscreenOn = fullscreen.isFullscreen && fullscreen.targetId === SHELL_BODY_ID;
-  // THE DS'S TOOLBOX (design-system 13.3, owner 2026-09-26: header 已更新): one
-  // pale capsule, 20px icons, the hover and open states the DS owns. Help and
-  // settings are LINKS now - the toolbox takes an href, which the old icon
-  // button did not (the reason settings used to be a callback that lost
-  // middle-click). Notifications and fullscreen are composed buttons: one
-  // opens a popover, the other toggles state.
+  const locale = useLocale();
+  const router = useRouter();
+  const { mode, setMode } = useTheme();
+  // THE DS'S STANDARD HEADER TOOLS (design-system 13.6, 03 section 7.1; owner
+  // 2026-09-26: 全面适配 DS): six tools in a FIXED order - theme, language,
+  // fullscreen, help, messages (a side drawer), settings. The DS owns the
+  // order and the interactions; this file only supplies what each one needs.
   return (
-    <ShellToolbox
+    <ShellHeaderTools
       label={HEADER_TEXT.toolsAria}
       linkComponent={Link}
-      items={[
-        onHelp
-          ? { key: "help", icon: "help", label: HEADER_TEXT.help, onClick: onHelp }
-          : { key: "help", icon: "help", label: HEADER_TEXT.help, href: HELP_URL, newTab: true },
-        { key: "settings", icon: "settings", label: HEADER_TEXT.settings, href: settingsHref ?? undefined, hidden: !settingsHref },
-      ]}
-    >
-      <ShellToolboxButton
-        icon="corners-out"
-        label={fullscreenOn ? HEADER_TEXT.fullscreenExit : HEADER_TEXT.fullscreen}
-        active={fullscreenOn}
-        onClick={() => {
-          const el = fullscreenTarget?.() ?? document.getElementById(SHELL_BODY_ID);
-          if (el) fullscreen.toggle(SHELL_BODY_ID, el);
-        }}
-      />
-      <Popover>
-        <PopoverTrigger asChild>
-          <ShellToolboxButton
-            icon="bell"
-            badge={notifications > 0}
-            label={notifications > 0 ? HEADER_TEXT.notificationsWithCount(notifications) : HEADER_TEXT.notifications}
-          />
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-72 p-sm">
-          {notificationItems.length === 0 ? (
+      theme={{
+        current: mode === "dark" ? "dark" : "light",
+        onChange: (next) => setMode(next),
+        toDarkLabel: HEADER_TEXT.prefThemeDark,
+        toLightLabel: HEADER_TEXT.prefThemeLight,
+      }}
+      locale={{
+        current: locale,
+        // The catalogue is the platform's, not the design package's.
+        options: SUPPORTED_LOCALES.map((l) => ({
+          locale: l,
+          label: LOCALE_CONFIGS[l].nativeName,
+          nativeName: LOCALE_CONFIGS[l].nativeName,
+          flag: LOCALE_CONFIGS[l].flag,
+        })),
+        // Cookie first, then ask the server again: the language is resolved
+        // server-side.
+        onChange: (next) => {
+          writeLocale(next as Locale);
+          router.refresh();
+        },
+        label: HEADER_TEXT.prefLocale,
+        panelLabel: HEADER_TEXT.prefLocale,
+      }}
+      fullscreen={{
+        enterLabel: HEADER_TEXT.fullscreen,
+        exitLabel: HEADER_TEXT.fullscreenExit,
+        targetId: SHELL_BODY_ID,
+        getTargetElement: fullscreenTarget,
+      }}
+      help={{ label: HEADER_TEXT.help, href: HELP_URL }}
+      notifications={{
+        label: notifications > 0 ? HEADER_TEXT.notificationsWithCount(notifications) : HEADER_TEXT.notifications,
+        unread: notifications > 0,
+        title: HEADER_TEXT.notifications,
+        closeLabel: HEADER_TEXT.close,
+        children:
+          notificationItems.length === 0 ? (
             <p className="text-muted-foreground p-xs text-sm">{HEADER_TEXT.notificationsEmpty}</p>
           ) : (
             <div className="flex flex-col gap-2xs">
@@ -127,9 +133,9 @@ export function HeaderTools({
                 </Link>
               ))}
             </div>
-          )}
-        </PopoverContent>
-      </Popover>
-    </ShellToolbox>
+          ),
+      }}
+      settings={settingsHref ? { label: HEADER_TEXT.settings, href: settingsHref } : undefined}
+    />
   );
 }

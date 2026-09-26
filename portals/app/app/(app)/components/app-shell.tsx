@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ShellHeaderDivider,
-  ShellHeaderDomain,
   ShellHeaderMark,
   ShellIconButton,
   ShellProductTitle,
@@ -18,6 +17,7 @@ import {
   ShellHeader,
   ShellPageContainer,
   ShellViewport,
+  StatusBadge,
 } from "@vxture/design-ui";
 import {
   LOCALE_CONFIGS,
@@ -41,7 +41,6 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { BRAND_MARK_SRC, PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { activeDomainFromPath } from "../lib/functional-domains";
 import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
@@ -205,15 +204,13 @@ export function AppShell({
   const [query, setQuery] = useState("");
   const router = useRouter();
   const { mode, setMode } = useTheme();
-  const { DOMAIN_LABEL, DOMAIN_GROUP_LABEL, HEADER_TEXT, SHELL_TEXT } = useMessages();
+  const { DOMAIN_LABEL, HEADER_TEXT, SHELL_TEXT } = useMessages();
 
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
   const activeKey = segments[0] ?? "home";
-  const activeDomain = activeDomainFromPath(pathname);
-  const domainLabel = activeDomain ? (DOMAIN_GROUP_LABEL[activeDomain] ?? null) : null;
 
   // THE SHELL HAS ONE MODE (owner, 2026-09-24: 整个产品中, 不能存在横跨2栏,
   // 3栏的板块, 除了header). There used to be a "detail" mode that dropped the
@@ -376,9 +373,8 @@ export function AppShell({
       sidebarMode={isAdmin ? (showBoard ? "expanded" : "collapsed") : "hidden"}
       header={
         <ShellHeader
-          // 单产品视角 (design-system 03 §7.1): full width, the page background,
-          // the xl height every workspace view shares.
-          height="xl"
+          // 单产品视角 (design-system 03 section 7.1, 13.5+): full width, the page
+          // background, the DS's default workspace height (md, 48px).
           surface="background"
           leading={
             <>
@@ -435,24 +431,16 @@ export function AppShell({
                 name={SHELL_TEXT.brandMark}
                 type={SHELL_TEXT.brandTagline}
                 tier={
-                  <span aria-label={HEADER_TEXT.subscriptionAria}>
+                  // The DS's compact tier badge (13.5: StatusBadge size sm).
+                  <StatusBadge size="sm" tone={tier ? "brand" : "warning"} aria-label={HEADER_TEXT.subscriptionAria}>
                     {tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
-                  </span>
+                  </StatusBadge>
                 }
               />
-              {/* THE CURRENT FUNCTIONAL DOMAIN (owner 2026-09-26: 当前功能域), once
-                  in the header; home belongs to none, so it shows none. */}
-              {domainLabel ? (
-                <>
-                  <ShellHeaderDivider />
-                  <ShellHeaderDomain>{domainLabel}</ShellHeaderDomain>
-                </>
-              ) : null}
-
-              {/* (7) Workspace and tenant - kept beyond the DS's product view
-                  (owner 2026-09-26: 保留，放在当前域后面): data is isolated by
-                  workspace, so which one you are reading has to be on screen
-                  before any number is. */}
+              {/* (7) THE CURRENT TENANT after the rule - the DS's product view
+                  as of 13.5 (owner 2026-09-26: 按 DS 最新，只留租户按钮); the
+                  functional domain it used to show here is gone from the header. */}
+              <ShellHeaderDivider />
               <WorkspaceScope
                 workspaceLabel={workspaceLabel}
                 orgLabel={orgLabel}

@@ -374,6 +374,9 @@ so violating them fails at runtime rather than at review:
   2026-09-26: design-system 12.5.0 -> 13.4.0, design-ui 9.3.0 -> 10.3.0 (one
   copy each). The product header is the DS's single-product view (03 section
   7.1) and the gate screens its website view; see app-shell.tsx / gate-frame.tsx.
+  2026-09-26 later: design-system 14.0.0 / design-ui 11.0.0 (heading ladder
+  reordered, ShellHeaderTools). Adapted in batches - see the PRs titled
+  "DS 14 batch N".
 
 ## Product vocabulary (2026-08-26)
 
