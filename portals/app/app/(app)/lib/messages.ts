@@ -7021,8 +7021,7 @@ export const DEAL_PAGE_TEXT = {
   reasonsFilled: (n: number, total: number) => `${n}/${total} 项已写明`,
   processUnwritten: "流程未写明",
   processPanelTitle: "决策流程",
-  foldMore: (n: number) => `展开其余 ${n} 条`,
-  foldLess: "收起",
+  foldMore: (n: number) => `更多待办 · ${n} 条`,
   statusQuoSignal: "有不作为信号",
   // 栏2
   todo: "待动手的事",

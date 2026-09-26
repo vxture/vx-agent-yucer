@@ -189,22 +189,25 @@ export function DealDossierPanel({
             </InfoRow>
           ))}
         </dl>
+        {/* 更多资料 like 待动手的事 (owner 2026-09-26): the extra rows open
+            UNDER the facts, one list, and the toggle stays at the bottom -
+            it used to sit between the two and split the information. */}
+        {more.length > 0 && moreOpen ? (
+          <dl className="divide-primary/10 dark:divide-primary/20 -mt-md flex flex-col divide-y divide-dashed border-t border-dashed border-primary/10 dark:border-primary/20">
+            {more.map((f) => (
+              <InfoRow key={f.label} label={f.label}>
+                {f.value}
+              </InfoRow>
+            ))}
+          </dl>
+        ) : null}
         {more.length > 0 ? (
-          <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
-            <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-sm">
-              <Icon name={moreOpen ? "chevron-down" : "chevron-right"} size="xs" />
-              {ACCOUNT_TEXT.orgUnitMore}
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <dl className="divide-primary/10 dark:divide-primary/20 mt-2xs flex flex-col divide-y divide-dashed">
-                {more.map((f) => (
-                  <InfoRow key={f.label} label={f.label}>
-                    {f.value}
-                  </InfoRow>
-                ))}
-              </dl>
-            </CollapsibleContent>
-          </Collapsible>
+          <Button size="xs" variant="ghost" className="self-start" aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
+            {/* One name in both states (owner 2026-09-26: 都是"更多XX"，不是"收起"
+                这种无意义名词) - the chevron says open or shut. */}
+            {ACCOUNT_TEXT.orgUnitMore}
+            <Icon name={moreOpen ? "chevron-up" : "chevron-down"} size="xs" />
+          </Button>
         ) : null}
       </div>
     </CollapsibleSection>
@@ -563,7 +566,8 @@ export function FoldedList({
       {open || rest <= 0 ? items : items.slice(0, visible)}
       {rest > 0 ? (
         <Button size="xs" variant="ghost" className="self-start" onClick={() => setOpen(!open)}>
-          {open ? DEAL_PAGE_TEXT.foldLess : DEAL_PAGE_TEXT.foldMore(rest)}
+          {/* The same name open or shut; the chevron says which. */}
+          {DEAL_PAGE_TEXT.foldMore(rest)}
           <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
         </Button>
       ) : null}
