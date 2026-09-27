@@ -108,3 +108,11 @@ export const TIER_ICON_SRC: Record<AccountTier, string> = {
   key: "/assets/icons/tier-silver.png",
   standard: "/assets/icons/tier-bronze.png",
 };
+
+/** 客户级别徽章 in a table or card line (owner, 2026-09-26: 客户也应该有级别
+ *  徽章) - the same medal PNG the customer page's 客户级别 coin draws, shrunk
+ *  to one text line. The level's NAME is the alt and the hover, so the medal
+ *  is never the only carrier of which level it is. */
+export function LevelMedal({ medal, label }: { readonly medal: "gold" | "silver" | "bronze"; readonly label: string }) {
+  return <img src={`/assets/icons/tier-${medal}.png`} alt={label} title={label} className="h-[1.125rem] w-auto flex-none" />;
+}
