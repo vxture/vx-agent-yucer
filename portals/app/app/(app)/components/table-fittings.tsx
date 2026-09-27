@@ -242,9 +242,14 @@ export function RowActions({
  *     out the checkbox is focusable but not operable, that is a DS request
  *     (and a TD entry), and it would be true with or without this listener.
  *
- * React 19 lets a ref callback return its cleanup, so the listener is replaced
- * rather than stacked when the row list changes - which also keeps the closure
- * over `rows` and `selected` fresh without a ref-to-latest dance.
+ * IT CLICKS THE ROW'S OWN CHECKBOX (2026-09-27). It used to map the clicked
+ * <tr> BY POSITION into a row list the caller passed - and eight callers passed
+ * the unsorted list while the table drew the sorted one, so after any sort a
+ * row click ticked a different record (measured on 线索: clicked 安徽数字1,
+ * ticked 北京数字3). The checkbox is the DS control that already knows its row's
+ * key, honours isRowSelectable (a disabled box ignores the click), and goes
+ * through onSelectionChange like a direct click - so the helper needs no rows,
+ * no key and no selection state, and no caller can hand it the wrong order.
  *
  * THREE THINGS DO NOT TOGGLE, and each is a real click somebody makes:
  *   - anything interactive inside the row (the action trigger, a link, the
@@ -253,16 +258,8 @@ export function RowActions({
  *   - a click that ends a text SELECTION - copying a product code out of a
  *     cell is a drag, and a drag that silently ticks a box is a surprise;
  *   - a click on the header or on an empty-state row.
- *
- * The row list is passed in because a module page renders this helper once per
- * table (live and settled are two tables), and each has its own row order.
  */
-export function rowClickSelection<T>(
-  rows: readonly T[],
-  rowKey: (row: T) => string,
-  selected: readonly string[],
-  setSelected: (keys: readonly string[]) => void,
-): {
+export function rowClickSelection(): {
   readonly ref: (el: HTMLDivElement | null) => (() => void) | undefined;
   readonly className: string;
 } {
@@ -282,16 +279,10 @@ export function rowClickSelection<T>(
         if ((window.getSelection()?.toString() ?? "") !== "") return;
 
         const tr = target.closest("tbody tr");
-        const body = tr?.parentElement;
-        if (!tr || !body) return;
-        const at = [...body.children].indexOf(tr);
-        const row = at >= 0 ? rows[at] : undefined;
-        if (row === undefined) return;
-
-        const key = rowKey(row);
-        setSelected(
-          selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key],
-        );
+        if (!tr) return;
+        const box = tr.querySelector<HTMLElement>("[role=checkbox], input[type=checkbox]");
+        if (!box || box.hasAttribute("disabled") || box.getAttribute("aria-disabled") === "true") return;
+        box.click();
       };
       el.addEventListener("click", handler);
       return () => el.removeEventListener("click", handler);

@@ -286,7 +286,7 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
      (owner, 2026-09-06). 选择 / 序号 / 操作 carry a width and no other column
      does; table-fixed hands out the remainder in equal shares by itself. */
   const table = (list: readonly CollectionRow[], empty: ReactNode) => {
-    const select = rowClickSelection(list, (r) => r.id, selected, setSelected);
+    const select = rowClickSelection();
     return (
       <div
         ref={select.ref}

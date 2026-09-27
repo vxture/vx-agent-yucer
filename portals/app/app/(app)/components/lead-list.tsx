@@ -588,11 +588,9 @@ export function LeadList({
 
   // 选择列 - one of the three standard fittings. Row click toggles it; the
   // checkbox alone is too small to aim at (owner, 2026-09-06).
-  //
-  // THE ROWS AS SHOWN, not `visible`: the listener maps a clicked <tr> to its
-  // row by position, and the table renders the SORTED page. Passing the
-  // unsorted filter result made a click after sorting tick a different lead.
-  const select = rowClickSelection(pagination.pageRows, (r) => r.id, selected, setSelected);
+  // It clicks the row's own checkbox (see table-fittings.tsx), so sorting and
+  // paging cannot make it tick a different lead.
+  const select = rowClickSelection();
 
   return (
     <Section

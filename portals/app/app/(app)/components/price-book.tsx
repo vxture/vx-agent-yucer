@@ -321,7 +321,7 @@ export function PriceBook({
        carries the DS spacer rather than checkboxes (owner: 占位，不实现多选),
        so a click there would tick a box that is not offered. */
     const select = selectable
-      ? rowClickSelection(rows, (r) => r.id, selected, setSelected)
+      ? rowClickSelection()
       : { ref: undefined, className: "" };
     return (
     <div

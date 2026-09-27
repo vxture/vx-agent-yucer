@@ -338,7 +338,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const DUE_WIDTHS = "[&_thead_th:last-child]:w-[8rem]";
 
   const table = (list: readonly RenewalRow[], empty: ReactNode, due: boolean) => {
-    const select = rowClickSelection(list, (r) => r.projectId, selected, setSelected);
+    const select = rowClickSelection();
     return (
       <div
         ref={select.ref}
