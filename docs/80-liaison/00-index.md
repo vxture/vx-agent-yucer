@@ -30,6 +30,7 @@ Atlas 仓还为此加了 CI 守卫（`check-liaison-archive`：新增 `NN-*.md` 
 | 2026-08-17 | atlas | `taskId` 已适配；D-1 的「通知消费方」对尚未注册的消费方没有渠道 | [vxture-atlas#248](https://github.com/vxture/vxture-atlas/issues/248) | 待回复 |
 | 2026-08-17 | platform | `product_251` X-3 与 `product_200 §4.1` 两套字段名互不引用 | [vxture-platform/vxture-platform#22](https://github.com/vxture-platform/vxture-platform/issues/22) | **本方已回帖 2026-09-01**：范围划错，非冲突，撤回原请求 |
 | 2026-09-14 | platform | C2 正式对接：`PLATFORM_API_BASE` 与 `/platform`、`/usage` 通道的凭据（vxtpl 140 号未答问题的 yucer 版）、webhook 测试投递、换票请求体形状 | [vxture-platform/vxture-platform#329](https://github.com/vxture-platform/vxture-platform/issues/329) | 待回复 |
+| 2026-09-27 | design | DS 14 适配后仍缺的 14 项：元件（步骤条、计数徽标、环形进度、图表族、大屏元件、登录背景）、开关（DataTable 列宽档、FilterBar 文案透传、ViewModeSwitch 图标、role 图标、Section 收起态、BarChart 纵轴）、token（行宽、次级字号）。TD 登记里此前的「已上报 DS」均未实际发出，此为首次 | [vxture/vxture-design#111](https://github.com/vxture/vxture-design/issues/111) | 待回复 |
 
 ## 目录里那份文件
 

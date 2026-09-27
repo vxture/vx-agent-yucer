@@ -376,7 +376,9 @@ so violating them fails at runtime rather than at review:
   7.1) and the gate screens its website view; see app-shell.tsx / gate-frame.tsx.
   2026-09-26 later: design-system 14.0.0 / design-ui 11.0.0 (heading ladder
   reordered, ShellHeaderTools). Adapted in batches - see the PRs titled
-  "DS 14 batch N".
+  "DS 14 batch N". Batches 0-5 done 2026-09-27; what the DS still lacks is
+  filed upstream as vxture/vxture-design#111 and each stopgap is a TD entry
+  pointing at it.
 
 ## Product vocabulary (2026-08-26)
 

@@ -14,11 +14,11 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-002 | 产品界面文案违反 source ASCII-only 规则 | 2026-08-15 | open |
 | TD-003 | 逾期承诺扫描的读后写竞态，缺一条部分唯一索引 | 2026-08-17 | **closed 2026-08-29**（0016 部分唯一索引 + 冲突映射为 alreadyQueued） |
 | TD-004 | 能力依赖用浮动别名 `stable`，不钉版本、不收弃用信号（L1 规范 X-4） | 2026-08-17 | open（本仓一半已还：版本入审计 + turn 内钉住 + 弃用告警；跨 turn 钉住与 Atlas 模型面无版本仍开） |
-| TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open（DS 14 复核 2026-09-26：仍缺） |
-| TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺） |
-| TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺） |
-| TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺） |
-| TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open（DS 14 复核 2026-09-26：仍缺） |
+| TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
+| TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
+| TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
+| TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
+| TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | **closed 2026-08-29**（可达性守卫上线，全部可达 code 有句子） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
 | TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修；**2026-08-31 复核：`dependabot.yml` 的 `registries` 已声明，但 `dependabot/secrets` 为空——`VXTURE_PACKAGES_READ_TOKEN` 从未配置，故 npm PR 数仍为 0，全部 8 个 Dependabot PR 都来自 github-actions**） |
@@ -31,18 +31,18 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-019 | 八个 `prisma-store.ts` 从未跑过真实数据库，两个都是真 bug | 2026-09-02 | **closed 2026-09-02**（94 个 `*.db.test.ts`，PR #149） |
 | TD-020 | 没有任何一次运行能测出本仓的真实覆盖率，而 CI 发布的正是瞎的那一半 | 2026-09-02 | **closed 2026-09-02**（`merge-lcov.mjs` 合并两半，PR #151） |
 | TD-021 | Dependabot 在修复落地之后仍然新建告警，且从不自行复评——四条高危全是陈旧信号 | 2026-09-03 | open（本轮四条已以 `inaccurate` 关闭；复发机制未消除） |
-| TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | 半关（DS 14 起三条定宽列由 DS 自己钉 64px，`EDGE_COLUMNS` / `ACTION_COLUMN` 已删；列宽档仍是 `min-w-*`，逐列宽度照旧） |
-| TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS；DS 14 复核 2026-09-26：仍缺） |
-| TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS；DS 14 复核 2026-09-26：仍缺） |
-| TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS；DS 14 复核 2026-09-26：仍缺） |
-| TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS；DS 14 复核 2026-09-26：仍缺） |
-| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS；DS 14 复核 2026-09-26：仍缺） |
+| TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | 半关（DS 14 起三条定宽列由 DS 自己钉 64px，`EDGE_COLUMNS` / `ACTION_COLUMN` 已删；列宽档仍是 `min-w-*`，逐列宽度照旧；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
+| TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
+| TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
+| TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
+| TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
+| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
 | TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
 | TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | **closed 2026-09-22**（26 项权限、31 个预置角色、420 条授权，逐条核对 catalog.ts 镜像） |
-| TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（**半项已还 2026-09-26**：标题行对齐由 design-ui 11 的 grid 表头解决，覆盖已删；`Section` 仍不转发 `divider`，收起态垫片保留；待上报 DS） |
+| TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（**半项已还 2026-09-26**：标题行对齐由 design-ui 11 的 grid 表头解决，覆盖已删；`Section` 仍不转发 `divider`，收起态垫片保留；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 | TD-035 | 放行仍在产品内按配额池判断，与「配额归平台」的裁定不符 | 2026-09-25 | open（需平台在 C2 给出放行字段） |
-| TD-036 | DS 字号最小档 12px，mockup 的 10.5–11.5px 次级字没有档 | 2026-09-26 | open（本地 `text-[11px]` 等 32 处，全部点名；待上报 DS） |
+| TD-036 | DS 字号最小档 12px，mockup 的 10.5–11.5px 次级字没有档 | 2026-09-26 | open（本地 `text-[11px]` 等 32 处，全部点名；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1980,6 +1980,14 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 
 **收回条件**：平台在 C2 给出放行结果字段（或 consume 的 `gated` 成为准入依据）后，
 `admitMetric()` 改成只读该字段，产品内不再出现 `remaining` 的比较。需向平台提出（经 liaison）。
+
+## 2026-09-27：「已上报 DS」的更正
+
+TD-023 / TD-024 / TD-025 等条目多次写着「已上报 DS」，DS 14 适配第 5 批复核时查了
+`vxture/vxture-design` 的 issue 列表：**这些条目从没开过 issue**（该仓当时只有本方 4 个
+无关 issue）。「已上报」只存在于本仓的登记里——正是 `80-liaison/00-index.md` 记下的那个
+错误：更正写在写的人会看到的地方，而不是读的人会看到的地方。现已汇总成一个 issue：
+[vxture-design#111](https://github.com/vxture/vxture-design/issues/111)（14 项，三类：缺元件、元件缺开关、缺 token），上表所有 DS 相关条目都指向它。
 
 ### TD-036 - DS 字号最小档 12px，mockup 的 10.5-11.5px 次级字没有档
 
