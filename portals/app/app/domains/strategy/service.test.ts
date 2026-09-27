@@ -10,6 +10,7 @@ import {
   createPlan,
   editPlan,
   listSegments,
+  strategyDiagnosticSnapshots,
   upsertSegment,
   upsertExecution,
   listPlans,
@@ -501,4 +502,20 @@ test("a plan in another workspace reads as not found", async () => {
   store.seed({ plans: [plan({ workspaceId: "ws_other" })] });
   const r = await editPlan(ctx("sales_leader", "business", store), "plan_1", EDIT);
   assert.equal(r.ok === false && r.violations[0].code, "not_found");
+});
+
+test("战略诊断 snapshots: read through the store, newest first, behind strategy.plan.view", async () => {
+  const store = new InMemoryStrategyStore();
+  const at = (d: string) => new Date(d);
+  await store.appendSegmentCoverageSnapshot(WS, { segmentId: "seg_1", snapshotedAt: at("2026-08-01"), matchedAccountCount: 3, openPipelineAmount: 100, wonAmount: 0, currency: "CNY" });
+  await store.appendSegmentCoverageSnapshot(WS, { segmentId: "seg_1", snapshotedAt: at("2026-08-08"), matchedAccountCount: 4, openPipelineAmount: 150, wonAmount: 10, currency: "CNY" });
+  await store.appendSegmentCoverageSnapshot("ws_other", { segmentId: "seg_x", snapshotedAt: at("2026-08-09"), matchedAccountCount: 9, openPipelineAmount: 1, wonAmount: 0, currency: "CNY" });
+  await store.appendTerritoryAttainmentSnapshot(WS, { territoryId: "ter_1", period: "2026Q3", snapshotedAt: at("2026-08-08"), targetAmount: 1000, attainedAmount: 400, currency: "CNY" });
+
+  const r = unwrap(await strategyDiagnosticSnapshots(ctx("sales_leader", "business", store), 10));
+  assert.deepEqual(r.segments.map((s) => s.matchedAccountCount), [4, 3], "newest first, and another workspace's row stays out");
+  assert.equal(r.territories.length, 1);
+  assert.equal(unwrap(await strategyDiagnosticSnapshots(ctx("sales_leader", "business", store), 1)).segments.length, 1, "the limit holds");
+  // The same two gates as the plan list: a tier without the feature is refused.
+  assert.equal((await strategyDiagnosticSnapshots(ctx("sales_leader", "pro", store))).ok, false);
 });

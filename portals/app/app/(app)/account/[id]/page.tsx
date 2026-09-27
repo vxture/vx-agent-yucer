@@ -64,7 +64,7 @@ import {
 import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
-import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage, stallLineFor } from "../../../domains/pipeline/lib/forecast-rule";
+import { DEFAULT_FORECAST_THRESHOLDS, daysAtStage, enteredStageAt, stallLineFor } from "../../../domains/pipeline/lib/forecast-rule";
 import { listPipeline, listStageDefinitions, stageChangeTimestamps, stageHistory, stallRules } from "../../../domains/pipeline/service";
 import { classifyRisks, mergeJudgements } from "../../../domains/account/lib/risk-types";
 import { walletShare } from "../../../domains/pipeline/lib/wallet-share";
@@ -696,7 +696,7 @@ export default async function AccountDetailPage({
         : null,
       stagePosition: d.status === "open" && stageIndex >= 0 ? { index: stageIndex, total: openStages.length } : null,
       daysInStage: daysAtStage(
-        { lastStageChangeAt: stageChanges.ok ? (stageChanges.value.get(d.id) ?? null) : null },
+        { lastStageChangeAt: enteredStageAt(stageChanges.ok ? stageChanges.value.get(d.id) : null, d.createdAt) },
         now,
       ),
       hasChain: chainedDealIds.has(d.id),

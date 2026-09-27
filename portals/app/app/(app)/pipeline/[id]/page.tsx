@@ -97,7 +97,7 @@ import { generatePlanAction } from "../plan-action";
 import { canDecideProposal, canRunAdvisor } from "../../../domains/copilot/lib/advisor-gate";
 import { recordEvidenceAction } from "../evidence-action";
 import { PROCESS_SLOTS, REASON_SLOTS, type EvidenceSlot } from "../../../domains/pipeline/lib/evidence";
-import { suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
+import { enteredStageAt, suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import {
@@ -428,9 +428,10 @@ export default async function OpportunityDetailPage({
   // THE BRIEF - the war room's single verdict (owner ruling 2026-09-05).
   // Every input below is a row this page already loaded; the convergence is
   // the only new thing, and it is a tested pure function.
-  const lastStageChangeAt = history.ok
-    ? (history.value.map((e) => e.occurredAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null)
-    : null;
+  const lastStageChangeAt = enteredStageAt(
+    history.ok ? (history.value.map((e) => e.occurredAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null) : null,
+    opportunity.createdAt,
+  );
   const briefNow = new Date();
   // For 卡在谁身上: names for the people a commitment or the chain points at,
   // and when anyone last spoke with this deal's buyers.

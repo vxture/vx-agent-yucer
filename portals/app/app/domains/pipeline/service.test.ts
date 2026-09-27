@@ -946,7 +946,10 @@ test("disagreements sort above agreements", async () => {
     // Probability pinned rather than left to the shared fixture, which carries
     // 25 - that lands in `pipeline` and would make BOTH rows disagree, so the
     // test would pass or fail on the sort's tie-break instead of on the sort.
-    opp({ id: "opp_agrees", stage: "negotiate", probability: 90, forecastCategory: "commit" }),
+    // Created just now: with no journal row it has been at its stage since
+    // creation (enteredStageAt), and the fixture's 2026-01-01 would make it
+    // stalled - a second disagreement, not the one this test is about.
+    opp({ id: "opp_agrees", stage: "negotiate", probability: 90, forecastCategory: "commit", createdAt: new Date() }),
     // No close date caps it at pipeline while the rep has it at commit.
     opp({
       id: "opp_disagrees",
@@ -954,13 +957,14 @@ test("disagreements sort above agreements", async () => {
       probability: 90,
       forecastCategory: "commit",
       expectedCloseAt: null,
+      createdAt: new Date(),
     }),
   ]);
   const rows = unwrap(await previewCategories(ctx("sales_rep", "business", store)));
   assert.deepEqual(rows.map((r) => r.opportunity.id), ["opp_disagrees", "opp_agrees"]);
 });
 
-test("dwell comes from the journal, and a deal with no journal is not stalled", async () => {
+test("dwell comes from the journal, and a deal with no journal has sat since it was created", async () => {
   const store = new InMemoryPipelineStore();
   store.seed(
     [opp({ id: "opp_moved", stage: "negotiate", probability: 90, forecastCategory: "commit" }),
@@ -990,10 +994,13 @@ test("dwell comes from the journal, and a deal with no journal is not stalled", 
   assert.equal(moved.daysAtStage, 242);
   assert.equal(moved.verdict.kind === "suggested" && moved.verdict.category, "best_case");
 
-  // UNKNOWN IS NOT "A LONG TIME". Defaulting an empty journal to the deal's
-  // creation date would downgrade every deal older than the journal itself.
-  assert.equal(silent.daysAtStage, null);
-  assert.equal(silent.verdict.kind === "suggested" && silent.verdict.category, "commit");
+  // NO ROW = NEVER MOVED (2026-09-27, reversing the earlier "unknown" reading).
+  // Creation writes no journal row and every stage change writes one (business
+  // rule 1), so a deal with none has been at its stage since it was created -
+  // here 2026-01-01, the same 242 days. Reading it as unknown made the stall
+  // rule call a deal 稳 while the deal page said "停 78 天".
+  assert.equal(silent.daysAtStage, 242);
+  assert.equal(silent.verdict.kind === "suggested" && silent.verdict.category, "best_case");
 });
 
 test("a rep sees the disagreement and cannot apply it", async () => {

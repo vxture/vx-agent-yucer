@@ -35,8 +35,10 @@ import type {
   CampaignRecord,
   ExecutionRecord,
   PlanRecord,
+  SegmentCoverageSnapshotInput,
   SegmentRecord,
   StrategyStore,
+  TerritoryAttainmentSnapshotInput,
 } from "./store";
 import type { MoveDirection } from "../shared/ordering";
 
@@ -258,6 +260,24 @@ export async function upsertExecution(
     return fail(violation("not_found", `execution ${input.id} is not on this campaign`, "id"));
   }
   return ok(written);
+}
+
+/**
+ * 战略诊断's reads: the newest segment coverage and territory attainment
+ * snapshots. Gated on strategy.plan.view - the screen's own gate, now checked
+ * at the data layer too (the page used to query Prisma directly, past both).
+ */
+export async function strategyDiagnosticSnapshots(
+  ctx: StrategyContext,
+  limit = 500,
+): Promise<RuleResult<{ segments: SegmentCoverageSnapshotInput[]; territories: TerritoryAttainmentSnapshotInput[] }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const [segments, territories] = await Promise.all([
+    ctx.store.listSegmentCoverageSnapshots(ctx.workspaceId, limit),
+    ctx.store.listTerritoryAttainmentSnapshots(ctx.workspaceId, limit),
+  ]);
+  return ok({ segments, territories });
 }
 
 export async function listSegments(

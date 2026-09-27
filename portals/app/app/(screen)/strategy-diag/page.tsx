@@ -3,7 +3,9 @@ import { resolveAppSession } from "../../(app)/lib/session";
 import { getMessages } from "../../(app)/lib/i18n/server";
 import { SignIn } from "../../(app)/components/sign-in";
 import { can } from "../../authz/decide";
-import { getPrismaClient } from "../../lib/db";
+import { getPlanningStore, getStrategyStore } from "../../domains/shared/registry";
+import { listSegments, strategyDiagnosticSnapshots } from "../../domains/strategy/service";
+import { listTerritories } from "../../domains/planning/service";
 import {
   StrategyDiagScreen,
   type SegmentTrendRow,
@@ -44,29 +46,28 @@ export default async function StrategyDiagPage() {
     );
   }
 
-  const p = await getPrismaClient();
-  const wid = session.workspaceId;
-
-  const [segSnapshots, terrSnapshots, segments, territories] = await Promise.all([
-    p.segmentCoverageSnapshot.findMany({
-      where: { workspaceId: wid },
-      orderBy: { snapshotedAt: "desc" },
-      take: 500,
-    }),
-    p.territoryAttainmentSnapshot.findMany({
-      where: { workspaceId: wid },
-      orderBy: { snapshotedAt: "desc" },
-      take: 500,
-    }),
-    p.marketSegment.findMany({
-      where: { workspaceId: wid, status: "active" },
-      select: { id: true, name: true },
-    }),
-    p.territory.findMany({
-      where: { workspaceId: wid },
-      select: { id: true, name: true },
-    }),
+  // Through the domain services, not Prisma (2026-09-27 walkthrough): the
+  // page used to query the tables itself, past the data gate and past the
+  // store layer - which also made it crash wherever there is no database.
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+  const [snapshots, segmentsRead, territoriesRead] = await Promise.all([
+    strategyDiagnosticSnapshots({ ...base, store: getStrategyStore() }, 500),
+    listSegments({ ...base, store: getStrategyStore() }),
+    listTerritories({ ...base, store: getPlanningStore() }, { includeRetired: true }),
   ]);
+  if (!snapshots.ok) {
+    return <EmptyState title={T.deniedTitle} description={T.deniedDescription} />;
+  }
+  const segSnapshots = snapshots.value.segments;
+  const terrSnapshots = snapshots.value.territories;
+  // A name read refused leaves those rows out, the same as a missing name did.
+  const segments = segmentsRead.ok ? segmentsRead.value.filter((s) => s.status === "active") : [];
+  const territories = territoriesRead.ok ? territoriesRead.value : [];
 
   const segNameMap = new Map(segments.map((s) => [s.id, s.name]));
   const terrNameMap = new Map(territories.map((t) => [t.id, t.name]));

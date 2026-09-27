@@ -348,7 +348,10 @@ export function deriveJudgements(
         id: `stalled:${a.accountId}`,
         source: "rule",
         urgency: "today",
-        claim: `${a.accountName}在${biggest ? stageLabel(biggest.stage) : "推进"}阶段停了 ${quiet} 天，对方答应的${theirOverdue.length > 1 ? `${theirOverdue.length} 件事都` : "事"}没兑现。`,
+        // `quiet` is days WITHOUT CONTACT, not days in the stage (2026-09-27
+        // walkthrough: this read "在谈判签约阶段停了 48 天" beside a deal row
+        // that said 停留 10 天). The stage is context, in brackets.
+        claim: `${a.accountName}已 ${quiet} 天没有跟进${biggest ? `（${stageLabel(biggest.stage)}阶段）` : ""}，对方答应的${theirOverdue.length > 1 ? `${theirOverdue.length} 件事都` : "事"}没兑现。`,
         subjectType: "account",
         subjectId: a.accountId,
         subjectName: a.accountName,

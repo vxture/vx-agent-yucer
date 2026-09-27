@@ -56,6 +56,10 @@ test("silence alone is not the story - a broken promise beside it is", () => {
   const stalled = withBroken.find((j) => j.id === "stalled:acc_1");
   assert.ok(stalled, "the two together produce the top-tier judgement");
   assert.equal(stalled.urgency, "today");
+  // The number in the sentence is days WITHOUT CONTACT, and says so - it read
+  // "在X阶段停了 N 天" beside a deal row whose stage stay was 10 (2026-09-27).
+  assert.match(stalled.claim, /已 \d+ 天没有跟进/);
+  assert.doesNotMatch(stalled.claim, /阶段停了/);
   // And the weaker one does NOT also fire - one situation, one card.
   assert.equal(withBroken.some((j) => j.id === "quiet:acc_1"), false);
 });

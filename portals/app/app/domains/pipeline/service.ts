@@ -51,6 +51,7 @@ import {
 } from "./lib/business-form-vocab";
 import {
   daysAtStage,
+  enteredStageAt,
   planSuggestedCategory,
   suggestCategory,
   planForecastThresholds,
@@ -1801,11 +1802,13 @@ export async function previewCategories(
       forecastCategory: opportunity.forecastCategory,
       probability: opportunity.probability,
       expectedCloseAt: opportunity.expectedCloseAt,
-      // Absent from the map means no journal rows, which reads as UNKNOWN.
-      // Defaulting to the deal's createdAt would turn "we have no history for
-      // this" into "it has sat here since it was created" and downgrade every
-      // deal older than the journal.
-      lastStageChangeAt: lastMoved.get(opportunity.id) ?? null,
+      // No journal row = it has not moved since it was created (2026-09-27
+      // walkthrough). This used to read as UNKNOWN, out of concern for deals
+      // older than the journal - but opportunity_stage_event is in the
+      // baseline, every stage change writes a row (business rule 1) and only
+      // creation writes none. Reading it as unknown made the stall rule call a
+      // deal 稳 while the page beside it said "停 78 天".
+      lastStageChangeAt: enteredStageAt(lastMoved.get(opportunity.id), opportunity.createdAt),
       stallDaysOverride: opportunity.businessFormId ? (stallOverrides.get(opportunity.businessFormId) ?? null) : null,
     };
     return {
@@ -1892,7 +1895,7 @@ async function ruleVerdictWithDeal(
     forecastCategory: current.forecastCategory,
     probability: current.probability,
     expectedCloseAt: current.expectedCloseAt,
-    lastStageChangeAt: lastMoved.get(current.id) ?? null,
+    lastStageChangeAt: enteredStageAt(lastMoved.get(current.id), current.createdAt),
     stallDaysOverride: current.businessFormId ? (stallOverrides.get(current.businessFormId) ?? null) : null,
   };
   return { deal, verdict: suggestCategory(deal, now, thresholds, stageCatalog) };

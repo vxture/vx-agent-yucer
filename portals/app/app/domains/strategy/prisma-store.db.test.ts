@@ -750,3 +750,25 @@ test("a size condition round-trips through the JSONB criteria (ICP, 2026-09-24 -
     await c.end();
   }
 });
+
+test("the 战略诊断 reads: snapshots newest first, workspace-scoped, amounts as numbers, limit honoured", { skip }, async () => {
+  try {
+    await withPg(async (c) => {
+      await seedSegment(c);
+      await seedTerritory(c);
+    });
+    const s = await store();
+    await s.appendSegmentCoverageSnapshot(WS, { segmentId: SEG, snapshotedAt: new Date("2026-08-01T00:00:00Z"), matchedAccountCount: 3, openPipelineAmount: 1000.5, wonAmount: 0, currency: "CNY" });
+    await s.appendSegmentCoverageSnapshot(WS, { segmentId: SEG, snapshotedAt: new Date("2026-08-08T00:00:00Z"), matchedAccountCount: 4, openPipelineAmount: 1500, wonAmount: 200, currency: "CNY" });
+    await s.appendTerritoryAttainmentSnapshot(WS, { territoryId: TERR, period: "2026Q3", snapshotedAt: new Date("2026-08-08T00:00:00Z"), targetAmount: 5000, attainedAmount: 1250.25, currency: "CNY" });
+
+    const segs = await s.listSegmentCoverageSnapshots(WS, 10);
+    assert.deepEqual(segs.map((r) => [r.matchedAccountCount, r.openPipelineAmount, r.wonAmount]), [[4, 1500, 200], [3, 1000.5, 0]]);
+    assert.equal((await s.listSegmentCoverageSnapshots(WS, 1)).length, 1);
+    assert.equal((await s.listSegmentCoverageSnapshots("eeeeeeee-0000-0000-0000-0000000000ff", 10)).length, 0);
+    const terrs = await s.listTerritoryAttainmentSnapshots(WS, 10);
+    assert.deepEqual(terrs.map((r) => [r.period, r.targetAmount, r.attainedAmount]), [["2026Q3", 5000, 1250.25]]);
+  } finally {
+    await cleanup();
+  }
+});
