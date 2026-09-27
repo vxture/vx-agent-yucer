@@ -40,8 +40,6 @@ const COMPONENTS = join(LIB, "..", "components");
  * domain whose turn has not come.
  */
 const NOT_YET_CONVERTED: Record<string, string> = {
-  "planning-table.tsx": "D6 planning - not rebuilt yet",
-  "territory-panel.tsx": "D2 territory - not rebuilt yet",
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -124,6 +122,14 @@ const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[
   "line-editor.tsx": {
     skip: ["选择"],
     reason: "行项逐行签批 (行内 ⋮ 批准)，没有批量操作；编辑在表下的表单里 (同报价 / 商机的裁定, owner 2026-09-26: 可以不要选择列)",
+  },
+  "territory-panel.tsx": {
+    skip: ["选择"],
+    reason: "区域逐个编辑 (编辑区域 进入编辑页)，没有批量操作 (同报价 / 商机的裁定, owner 2026-09-26: 可以不要选择列)",
+  },
+  "planning-table.tsx": {
+    skip: ["选择"],
+    reason: "目标逐个调整 / 提交 / 关闭 (行内 ⋮)，没有批量操作 (同报价 / 商机的裁定, owner 2026-09-26: 可以不要选择列)",
   },
   "pipeline-board.tsx": {
     skip: ["选择"],

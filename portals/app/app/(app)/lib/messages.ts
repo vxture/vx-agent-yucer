@@ -5343,6 +5343,8 @@ export const PLANNING_TEXT = {
   territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
   // 两个入口同处一页（区域名册 + 指标表），所以各自说清楚建的是什么。
   territoryNewEntry: "新建区域",
+  territoryEdit: "编辑区域",
+  territoryEditDenied: "你没有编辑销售区域的权限",
   targetNew: "新建目标",
   territoryFormTitle: "新建 / 编辑销售区域",
   territoryEditing: "编辑已有区域",

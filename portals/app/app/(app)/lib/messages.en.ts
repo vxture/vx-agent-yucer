@@ -4500,6 +4500,8 @@ export const en: Dictionary = {
     territoryNoneWhy:
       "Create one before setting a target on it or attributing deals to it.",
     territoryNewEntry: "New territory",
+    territoryEdit: "Edit territory",
+    territoryEditDenied: "You may not edit territories",
     targetNew: "New target",
     territoryFormTitle: "New / edit territory",
     territoryEditing: "Edit an existing territory",

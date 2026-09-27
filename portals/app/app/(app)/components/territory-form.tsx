@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Field,
@@ -36,7 +36,10 @@ export function TerritoryForm({
   divisions,
   units,
   onSave,
+  initialId,
 }: {
+  /** Open on this territory (the roster's 编辑区域 links here with ?territory=). */
+  readonly initialId?: string;
   readonly rows: readonly {
     readonly id: string;
     readonly territoryCode: string;
@@ -83,7 +86,23 @@ export function TerritoryForm({
   // THE CODE IS THE IDENTITY - typing an existing code edits that territory
   // (upsert-by-anchor, ADR-017's shape). The page keeps that semantic and adds
   // the load: picking a code fills the form with what that territory says now.
+  // WHICH territory the fields describe. The select was hard-wired to "", so
+  // after picking one it still read 新建一个区域 over a filled-in form
+  // (2026-09-27) - saying "new" while editing an existing code.
+  const [pickedId, setPickedId] = useState("");
+
   function pick(id: string) {
+    setPickedId(id);
+    if (id === "") {
+      setCode("");
+      setName("");
+      setParentId("");
+      setOwnerSub("");
+      setDivisionIds([]);
+      setUnitIds([]);
+      setStatus("active");
+      return;
+    }
     const t = rows.find((r) => r.id === id);
     if (!t) return;
     setCode(t.territoryCode);
@@ -94,6 +113,13 @@ export function TerritoryForm({
     setUnitIds(t.unitIds);
     setStatus(t.status);
   }
+  // Arrived from a roster row: open on it (pick fills every field from it).
+  useEffect(() => {
+    if (initialId) pick(initialId);
+    // Once, on arrival - picking again on every render would undo the edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const gaps = useMemo(() => uncoveredRegions(accountRegions, rows), [accountRegions, rows]);
   const inField = new Set(divisionIds);
@@ -136,7 +162,7 @@ export function TerritoryForm({
             <FormFieldWide>
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryEditing}</FieldLabel>
-              <NativeSelect value="" onChange={(e) => e.target.value && pick(e.target.value)}>
+              <NativeSelect value={pickedId} onChange={(e) => pick(e.target.value)}>
                 <option value="">{PLANNING_TEXT.territoryNew}</option>
                 {rows.map((r) => (
                   <option key={r.id} value={r.id}>
