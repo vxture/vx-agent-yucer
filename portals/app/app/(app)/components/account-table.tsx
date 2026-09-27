@@ -1,7 +1,7 @@
 "use client";
 
 import { MemberName, useMemberName } from "../lib/member-names";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -9,22 +9,26 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  Input,
   ListCard,
   ListCardGrid,
+  NativeSelect,
   Stack,
   StatusBadge,
   TableTitleCell,
+  useListPagination,
   useToast,
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
+import { filterAccounts, type HealthBand } from "../lib/account-list-filter";
 import type { AccountRecord } from "../../domains/account/store";
 import { recomputeAccountHealth } from "../account/actions";
 import { healthTone } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
-import { Tag } from "./tag";
+import { LevelMedal, Tag } from "./tag";
 // The account list's table.
 //
 // It lives in a CLIENT component because DataTableColumn.cell is a function,
@@ -72,6 +76,10 @@ export interface AccountTableProps {
    * not a cell to tidy.
    */
   readonly segmentNames?: ReadonlyMap<string, string>;
+  /** 客户级别 per account (name + medal), resolved on the page from the
+   *  importance scheme - the same source as the customer page's 级别 coin.
+   *  Absent = no badge and no 级别 filter, never a guessed level. */
+  readonly levelOf?: ReadonlyMap<string, { readonly name: string; readonly medal: "gold" | "silver" | "bronze" }>;
 }
 
 /* 排序取值: what each sortable column ORDERS ON, which is not always what
@@ -87,8 +95,9 @@ export function AccountTable({
   segmentNames,
   buyerUnreachable,
   statusOf,
+  levelOf,
 }: AccountTableProps) {
-  const { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS } =
+  const { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS, TABLE_TOOLBAR_TEXT } =
     useMessages();
   const statusLabel = (id: string) => {
     const s = statusOf?.get(id);
@@ -106,6 +115,24 @@ export function AccountTable({
   const { toast } = useToast();
   const [view, setView] = useState<FilterBarView>("list");
   const sorted = useTableSort(rows, SORT_ON);
+  // 工具行 (module rebuild, 2026-09-27): 98 customers used to sit on one page
+  // with no way to look one up.
+  const [query, setQuery] = useState("");
+  const [level, setLevel] = useState("");
+  const [health, setHealth] = useState<HealthBand | "">("");
+  const filtering = query !== "" || level !== "" || health !== "";
+  const visible = useMemo(() => filterAccounts(rows, { query, level, health }, levelOf), [rows, query, level, health, levelOf]);
+  const ordered = useMemo(() => sorted.sortRows(visible), [sorted, visible]);
+  const pagination = useListPagination(ordered, 20);
+  // By rank - the medal is the rank (gold = 1) - so 战略级 leads the filter.
+  const MEDAL_ORDER = { gold: 0, silver: 1, bronze: 2 } as const;
+  const levelsPresent = useMemo(
+    () =>
+      [...new Map([...(levelOf?.values() ?? [])].map((l) => [l.name, MEDAL_ORDER[l.medal]] as const))]
+        .sort((a, b) => a[1] - b[1])
+        .map(([name]) => name),
+    [levelOf],
+  );
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -187,7 +214,12 @@ export function AccountTable({
       // A link rather than an onRowClick handler: navigable, middle-clickable
       // and shareable in a way a click handler is not.
       cell: (row) => (
+        <span className="flex min-w-0 items-center gap-sm">
+          {levelOf?.get(row.id) ? (
+            <LevelMedal medal={levelOf.get(row.id)!.medal} label={ACCOUNT_TEXT.levelOf(levelOf.get(row.id)!.name)} />
+          ) : null}
         <TableTitleCell
+          className="min-w-0"
           title={
             <Link href={`/account/${row.id}`} className="hover:underline">
               {row.name}
@@ -201,6 +233,7 @@ export function AccountTable({
           }
           description={row.accountNo}
         />
+        </span>
       ),
     },
     {
@@ -234,7 +267,7 @@ export function AccountTable({
       // given the second-widest column on the table.
       cell: (row) =>
         row.ownerSub ? (
-          <span className="text-muted-foreground font-mono text-body-sm">
+          <span className="text-body-sm">
             <MemberName sub={row.ownerSub} />
           </span>
         ) : (
@@ -273,25 +306,75 @@ export function AccountTable({
       <FilterBar
         view={view}
         onViewChange={setView}
-        count={ACCOUNT_TEXT.rowCount(rows.length)}
-      />
+        count={filtering ? TABLE_TOOLBAR_TEXT.filteredCount(visible.length, rows.length) : ACCOUNT_TEXT.rowCount(rows.length)}
+        search={
+          <SearchSlot>
+            <Input
+              type="search"
+              className="w-full"
+              value={query}
+              placeholder={ACCOUNT_TEXT.searchHint}
+              aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                pagination.resetPage();
+              }}
+            />
+          </SearchSlot>
+        }
+        onReset={
+          filtering
+            ? () => {
+                setQuery("");
+                setLevel("");
+                setHealth("");
+                pagination.resetPage();
+              }
+            : undefined
+        }
+        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+      >
+        {levelsPresent.length > 0 ? (
+          <FilterSlot width="w-[7rem]">
+            <NativeSelect value={level} aria-label={ACCOUNT_TEXT.filterLevel} onChange={(e) => { setLevel(e.target.value); pagination.resetPage(); }}>
+              <option value="">{ACCOUNT_TEXT.filterAllLevels}</option>
+              {levelsPresent.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        ) : null}
+        <FilterSlot width="w-[7rem]">
+          <NativeSelect value={health} aria-label={ACCOUNT_TEXT.filterHealth} onChange={(e) => { setHealth(e.target.value as HealthBand | ""); pagination.resetPage(); }}>
+            <option value="">{ACCOUNT_TEXT.filterAllHealth}</option>
+            {(["good", "warn", "bad", "unscored"] as const).map((b) => (
+              <option key={b} value={b}>{ACCOUNT_TEXT.healthBand[b]}</option>
+            ))}
+          </NativeSelect>
+        </FilterSlot>
+      </FilterBar>
 
       {/* ONLY THE TABLE IS IN A CARD, not the section: the section is a heading
           and its tools, the card is the surface the rows sit on. */}
-        {view === "list" ? (
+        {visible.length === 0 ? (
+          <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
+        ) : view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
-            indexStart={1}
+            indexStart={pagination.indexStart}
             columns={columns}
-            rows={[...sorted.rows]}
+            rows={[...pagination.pageRows]}
             sort={sorted.sort}
-            onSortChange={sorted.onSortChange}
+            onSortChange={(s) => {
+              sorted.onSortChange(s);
+              pagination.resetPage();
+            }}
             rowKey={(row) => row.id}
             rowActions={actions}
           />
         ) : (
           <ListCardGrid className="p-md">
-            {rows.map((row) => (
+            {pagination.pageRows.map((row) => (
               <ListCard
                 key={row.id}
                 title={
@@ -322,6 +405,9 @@ export function AccountTable({
             ))}
           </ListCardGrid>
         )}
+      {visible.length > 0 ? (
+        <PaginationFooter pagination={pagination} total={rows.length} filteredTotal={filtering ? visible.length : undefined} />
+      ) : null}
     </>
   );
 }

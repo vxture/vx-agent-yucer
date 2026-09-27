@@ -4385,6 +4385,13 @@ export const ACCOUNT_TEXT = {
   emptyTitle: "还没有客户",
   emptyDescription: "线索转化或手工录入后，客户会出现在这里。",
   rowCount: (n: number) => `${n} 家客户`,
+  searchHint: "客户、编号或行业",
+  filterLevel: "客户级别",
+  filterAllLevels: "全部级别",
+  filterHealth: "健康度",
+  filterAllHealth: "全部健康度",
+  healthBand: { good: "健康 (70+)", warn: "关注 (40-69)", bad: "风险 (<40)", unscored: "未评分" } as Record<"good" | "warn" | "bad" | "unscored", string>,
+  levelOf: (name: string) => `客户级别：${name}`,
 
   // The action column. Both verbs are always listed; the one the member may not
   // use is disabled with the reason, not hidden - a menu whose contents change

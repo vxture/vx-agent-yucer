@@ -11,9 +11,11 @@ import {
 } from "../../domains/shared/registry";
 import {
   accountStatuses,
+  importanceScheme,
   listAccounts,
   workspaceCompleteness,
 } from "../../domains/account/service";
+import { accountLevelBadges } from "../../domains/account/lib/importance";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
 import { NewEntryLink } from "../components/form-page";
@@ -48,7 +50,7 @@ export default async function AccountPage() {
   };
 
   const now = new Date();
-  const [result, overdue, segments, feed, completeness] = await Promise.all([
+  const [result, overdue, segments, feed, completeness, scheme] = await Promise.all([
     listAccounts({ ...ctx, store: session.stores.account() }),
     listCommitments(
       { ...ctx, store: getFieldStore() },
@@ -75,6 +77,8 @@ export default async function AccountPage() {
       planning: getPlanningStore(),
       strategy: getStrategyStore(),
     }),
+    // 客户级别 badges and the 级别 filter - the same scheme the customer page reads.
+    importanceScheme({ ...ctx, store: session.stores.account() }),
   ]);
 
   if (!result.ok) {
@@ -183,6 +187,7 @@ export default async function AccountPage() {
             reason. */}
         <AccountTable
           rows={result.value}
+          levelOf={scheme.ok ? accountLevelBadges(result.value, scheme.value.account) : undefined}
           statusOf={statusRead?.ok ? statusRead.value : null}
           buyerUnreachable={
             new Set(feed.ok ? feed.value.unreachableAccountIds : [])

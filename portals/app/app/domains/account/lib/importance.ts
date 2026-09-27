@@ -112,3 +112,20 @@ export function priorityKeys<T extends { readonly priority: number | null; reado
   const place = new Map(byAmount.map((r, i) => [r, i] as const));
   return new Map(rows.map((r) => [r, r.priority === null ? null : r.priority * 1_000_000 + place.get(r)!] as const));
 }
+
+/**
+ * Each account's level as a badge - its name and the medal its rank earns.
+ * One definition for every list that shows 客户级别 (客户管理, 战略客户, 报价管理);
+ * an account with no resolvable level is left out, never guessed.
+ */
+export function accountLevelBadges(
+  accounts: readonly { readonly id: string; readonly tierLevelId?: string | null; readonly tier: string }[],
+  levels: readonly ImportanceLevel[],
+): Map<string, { readonly name: string; readonly medal: "gold" | "silver" | "bronze" }> {
+  const out = new Map<string, { readonly name: string; readonly medal: "gold" | "silver" | "bronze" }>();
+  for (const a of accounts) {
+    const level = accountLevelOf(a, levels);
+    if (level) out.set(a.id, { name: level.name, medal: medalOf(level.rank) });
+  }
+  return out;
+}

@@ -3786,6 +3786,13 @@ export const en: Dictionary = {
     emptyDescription:
       "They appear here once a lead converts or one is entered by hand.",
     rowCount: (n: number) => `${n} accounts`,
+    searchHint: "Account, number or industry",
+    filterLevel: "Account level",
+    filterAllLevels: "All levels",
+    filterHealth: "Health",
+    filterAllHealth: "All health",
+    healthBand: { good: "Healthy (70+)", warn: "Watch (40-69)", bad: "At risk (<40)", unscored: "Unscored" } as Record<"good" | "warn" | "bad" | "unscored", string>,
+    levelOf: (name: string) => `Account level: ${name}`,
     roster: "Positions",
     rosterNoDeals: "No open deals",
     rosterNoProjects: "No delivery projects",
