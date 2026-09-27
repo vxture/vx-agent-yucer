@@ -41,8 +41,6 @@ const COMPONENTS = join(LIB, "..", "components");
  */
 const NOT_YET_CONVERTED: Record<string, string> = {
   "batch-completeness.tsx": "D4 account - not rebuilt yet",
-  "campaign-table.tsx": "D3 campaign - not rebuilt yet",
-  "execution-panel.tsx": "D3 campaign - not rebuilt yet",
   "line-editor.tsx": "D5 pipeline - not rebuilt yet",
   "planning-table.tsx": "D6 planning - not rebuilt yet",
   "territory-panel.tsx": "D2 territory - not rebuilt yet",
@@ -116,6 +114,14 @@ const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[
   "pending-reviews.tsx": {
     skip: ["选择"],
     reason: "复盘一笔一笔记，没有批量操作 (同报价 / 商机 / 客户列表的裁定, owner 2026-09-26: 可以不要选择列)",
+  },
+  "campaign-table.tsx": {
+    skip: ["选择"],
+    reason: "战役一次推进一场 (行内生命周期菜单)，没有批量操作 (同报价 / 商机 / 客户列表的裁定, owner 2026-09-26: 可以不要选择列)",
+  },
+  "execution-panel.tsx": {
+    skip: ["选择"],
+    reason: "执行项逐条编辑 (编辑执行项 进入编辑页)，没有批量操作 (同上)",
   },
   "pipeline-board.tsx": {
     skip: ["选择"],

@@ -3947,6 +3947,9 @@ export const en: Dictionary = {
     executionCampaign: "Campaign",
     executionPickCampaign: "Pick a campaign",
     executionTitle: "Action",
+    executionEdit: "Edit execution",
+    executionEditDenied: "You may not edit campaign executions",
+    executionEditFrozen: "The campaign is complete; its executions are frozen",
     executionType: "Type",
     executionTypeLabel: {
       outreach: "Outreach",

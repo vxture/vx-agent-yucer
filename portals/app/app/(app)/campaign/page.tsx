@@ -180,7 +180,10 @@ export default async function CampaignPage() {
           and this is what blocks that: a campaign with one outstanding item
           cannot be marked complete. The reader meets the refusal first and
           then what to do about it. */}
-      <ExecutionPanel rows={executions} />
+      <ExecutionPanel
+        rows={executions}
+        canEdit={can(session.authz, session.entitlement, "campaign.execution.upsert", "ui").allowed}
+      />
     </ViewLayout>
   );
 }
