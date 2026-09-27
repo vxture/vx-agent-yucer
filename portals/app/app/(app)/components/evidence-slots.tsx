@@ -111,6 +111,15 @@ export function EvidenceSlots({
               {marks?.[row.slot]?.work ? (
                 <span className={`ml-sm text-body-sm ${MARK_INK[marks[row.slot]!.tone]}`}>{marks[row.slot]!.work}</span>
               ) : null}
+              {/* AN EMPTY SLOT THAT COSTS NOTHING SAYS SO (owner 2026-09-26:
+                  对照客户详情页 - the customer page's 0-point factor still
+                  gives its reason, 业务规则 §5 不跳过). 不作为 scores 稳 while
+                  unwritten, so beside 痛点 and 量化价值 - which both ask for
+                  work - it was a third identical 未写明 with no explanation of
+                  why it was not asking for anything. */}
+              {!row.statement && marks?.[row.slot]?.tone === "good" ? (
+                <span className="text-muted-foreground ml-sm text-body-sm">{DEAL_PAGE_TEXT.evidenceNoPenalty}</span>
+              ) : null}
             </span>
             {!compact && row.statement ? <SlotMarks row={row} /> : null}
             {canRecord ? (

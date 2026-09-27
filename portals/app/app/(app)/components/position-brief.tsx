@@ -46,9 +46,15 @@ export async function RivalMentions({
   const { POSITION_TEXT } = await getMessages();
   return (
     <div className="flex flex-col">
-      <p className="text-muted-foreground text-body-sm">
-        {mentions.length > 0 ? POSITION_TEXT.competitionNone : POSITION_TEXT.competitionNoMention}
-      </p>
+      {/* NO PARAGRAPH OVER THE ROWS (owner 2026-09-26: 对照客户详情页 - the
+          09-20 去掉所有垃圾说明 ruling reaches here too). "尚无结构化的竞争
+          情报，以下是跟进原文里提到对手的片段" said what 竞争位置's own
+          indicator row already says, one line above it. The empty case is not
+          a description - with no mentions there are no rows, and the line is
+          the only thing the card can say. */}
+      {mentions.length === 0 ? (
+        <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.competitionNoMention}</p>
+      ) : null}
       {/* Dated rows like 沟通记录 (YC-072 .lg): the words are a quote, so
           they stay muted and verbatim. */}
       <ol className="mt-2xs flex flex-col">

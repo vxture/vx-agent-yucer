@@ -6970,7 +6970,6 @@ export const DEAL_PAGE_TEXT = {
   historyEmpty: "还没有变更",
   historyExit: (met: number, total: number) => (total === 0 ? "离开时未设条件" : `离开时 ${met}/${total}`),
   historyExitUnmet: (names: readonly string[]) => `未满足：${names.join("、")}`,
-  historySince: "声明变更（金额、成交日、类别、赢率）自本功能上线起记录，之前的变化不补录",
   slipped: (n: number, days: number) => `推迟 ${n} 次 · 累计 ${days} 天`,
   slippedQuarter: "推出本季",
   // 购买证据槽 (incr/0085)
@@ -7061,7 +7060,6 @@ export const DEAL_PAGE_TEXT = {
   closeOn: (d: string) => `成交日 ${d}`,
   plan: "推进计划",
   history: "变更史",
-  historyFold: (n: number) => `变更史 · 声明与阶段 ${n} 条`,
   trackCurrent: (met: number, total: number) => `当前 ${met}/${total}`,
   trackHere: "当前",
   trackWithReason: "有理由",
@@ -7077,6 +7075,14 @@ export const DEAL_PAGE_TEXT = {
   quoteSummary: (lines: number, pending: number) =>
     pending > 0 ? `${lines} 行明细 · ${pending} 行待批` : `${lines} 行明细`,
   quoteNone: "还没有明细",
+  // 交易清单 (owner 2026-09-26: 承诺/变更史另起一张清单卡) - the deal's
+  // list-shaped collections in one card, the customer page's 阵地清单.
+  rosterTitle: "交易清单",
+  // The quote clause is quoteSummary / quoteNone - the tab's own line, said
+  // once. Only the two counts this card adds are formatted here.
+  rosterSummary: (quote: string, commits: number, changes: number) =>
+    [quote, `${commits} 条未结承诺`, `${changes} 次变更`].join(" · "),
+  evidenceNoPenalty: "不扣分",
   commsTitle: "沟通记录",
   commsSummary: (days: number, recent: number) => `最近 ${days} 天前 · 近 30 天 ${recent} 次`,
   commsNone: "还没有沟通记录",
