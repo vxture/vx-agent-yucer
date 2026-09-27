@@ -323,6 +323,40 @@ export class PrismaStrategyStore implements StrategyStore {
       },
     });
   }
+
+  async listSegmentCoverageSnapshots(workspaceId: string, limit: number): Promise<SegmentCoverageSnapshotInput[]> {
+    const p = await getPrismaClient();
+    const rows = await p.segmentCoverageSnapshot.findMany({
+      where: { workspaceId },
+      orderBy: { snapshotedAt: "desc" },
+      take: limit,
+    });
+    return rows.map((r) => ({
+      segmentId: r.segmentId,
+      snapshotedAt: r.snapshotedAt,
+      matchedAccountCount: r.matchedAccountCount,
+      openPipelineAmount: Number(r.openPipelineAmount),
+      wonAmount: Number(r.wonAmount),
+      currency: r.currency,
+    }));
+  }
+
+  async listTerritoryAttainmentSnapshots(workspaceId: string, limit: number): Promise<TerritoryAttainmentSnapshotInput[]> {
+    const p = await getPrismaClient();
+    const rows = await p.territoryAttainmentSnapshot.findMany({
+      where: { workspaceId },
+      orderBy: { snapshotedAt: "desc" },
+      take: limit,
+    });
+    return rows.map((r) => ({
+      territoryId: r.territoryId,
+      period: r.period,
+      snapshotedAt: r.snapshotedAt,
+      targetAmount: Number(r.targetAmount),
+      attainedAmount: Number(r.attainedAmount),
+      currency: r.currency,
+    }));
+  }
 }
 
 function toPlan(r: Record<string, unknown>): PlanRecord {

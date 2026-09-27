@@ -191,6 +191,13 @@ export interface StrategyStore {
     workspaceId: string,
     row: TerritoryAttainmentSnapshotInput,
   ): Promise<void>;
+
+  /** The newest segment coverage snapshots, newest first, at most `limit`
+   *  (the 战略诊断 screen's read - it used to query Prisma itself). */
+  listSegmentCoverageSnapshots(workspaceId: string, limit: number): Promise<SegmentCoverageSnapshotInput[]>;
+
+  /** The newest territory attainment snapshots, newest first, at most `limit`. */
+  listTerritoryAttainmentSnapshots(workspaceId: string, limit: number): Promise<TerritoryAttainmentSnapshotInput[]>;
 }
 
 export class InMemoryStrategyStore implements StrategyStore {
@@ -363,13 +370,38 @@ export class InMemoryStrategyStore implements StrategyStore {
     return this.attributed.get(`${workspaceId}|${campaignId}`) ?? [];
   }
 
+  // KEPT, not dropped: the in-memory store used to discard these, so the
+  // 战略诊断 screen had nothing to read without a database.
+  private readonly segmentSnapshots: Array<SegmentCoverageSnapshotInput & { workspaceId: string }> = [];
+  private readonly territorySnapshots: Array<TerritoryAttainmentSnapshotInput & { workspaceId: string }> = [];
+
   async appendSegmentCoverageSnapshot(
-    _workspaceId: string,
-    _row: SegmentCoverageSnapshotInput,
-  ): Promise<void> {}
+    workspaceId: string,
+    row: SegmentCoverageSnapshotInput,
+  ): Promise<void> {
+    this.segmentSnapshots.push({ ...row, workspaceId });
+  }
 
   async appendTerritoryAttainmentSnapshot(
-    _workspaceId: string,
-    _row: TerritoryAttainmentSnapshotInput,
-  ): Promise<void> {}
+    workspaceId: string,
+    row: TerritoryAttainmentSnapshotInput,
+  ): Promise<void> {
+    this.territorySnapshots.push({ ...row, workspaceId });
+  }
+
+  async listSegmentCoverageSnapshots(workspaceId: string, limit: number): Promise<SegmentCoverageSnapshotInput[]> {
+    return this.segmentSnapshots
+      .filter((s) => s.workspaceId === workspaceId)
+      .sort((a, b) => b.snapshotedAt.getTime() - a.snapshotedAt.getTime())
+      .slice(0, limit)
+      .map(({ workspaceId: _w, ...row }) => row);
+  }
+
+  async listTerritoryAttainmentSnapshots(workspaceId: string, limit: number): Promise<TerritoryAttainmentSnapshotInput[]> {
+    return this.territorySnapshots
+      .filter((s) => s.workspaceId === workspaceId)
+      .sort((a, b) => b.snapshotedAt.getTime() - a.snapshotedAt.getTime())
+      .slice(0, limit)
+      .map(({ workspaceId: _w, ...row }) => row);
+  }
 }

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   daysAtStage,
+  enteredStageAt,
   planSuggestedCategory,
   suggestCategory,
   planForecastThresholds,
@@ -199,4 +200,14 @@ test("a real disagreement plans the suggested band", () => {
 
 test("days at stage counts down from the last move", () => {
   assert.equal(daysAtStage({ lastStageChangeAt: daysAgo(64) }, NOW), 64);
+});
+
+test("enteredStageAt: the latest journal row, else creation - no row means it never moved", () => {
+  const created = new Date("2026-07-01T00:00:00Z");
+  const moved = new Date("2026-09-01T00:00:00Z");
+  assert.equal(enteredStageAt(moved, created), moved);
+  assert.equal(enteredStageAt(null, created), created, "creation writes no journal row; every change does (business rule 1)");
+  assert.equal(enteredStageAt(undefined, null), null);
+  // And the stall clock reads it: 78 days since creation is 78 days at stage, not unknown.
+  assert.equal(daysAtStage({ lastStageChangeAt: enteredStageAt(null, created) }, new Date("2026-09-17T00:00:00Z")), 78);
 });

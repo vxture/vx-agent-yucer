@@ -117,7 +117,8 @@ export interface CategorizableDeal {
   forecastCategory: ForecastCategory;
   probability: number | null;
   expectedCloseAt: Date | null;
-  /** When it last moved stage. Null when the journal has nothing for it. */
+  /** When it entered its current stage: the latest journal row, else its
+   *  creation (see enteredStageAt). Null only when neither is known. */
   lastStageChangeAt: Date | null;
   /**
    * This deal's own stall-days threshold, already resolved from its deal
@@ -237,7 +238,18 @@ export function stallLineFor(
   return deal.stallDaysOverride ?? thresholds.stallDays;
 }
 
-/** Days at the current stage, or null when the journal has nothing. */
+/**
+ * When a deal entered its current stage: its latest stage-journal row, else
+ * the moment it was created. Every stage change writes a journal row
+ * (business rule 1) and creation writes none, so "no row" means "has not
+ * moved since it was created" - not "unknown". One definition for the deal
+ * page, the customer page, the forecast rule and the judgements (2026-09-27).
+ */
+export function enteredStageAt(lastMoved: Date | null | undefined, createdAt: Date | null | undefined): Date | null {
+  return lastMoved ?? createdAt ?? null;
+}
+
+/** Days at the current stage, or null when neither date is known. */
 export function daysAtStage(deal: Pick<CategorizableDeal, "lastStageChangeAt">, now: Date): number | null {
   if (!deal.lastStageChangeAt) return null;
   return Math.floor((now.getTime() - deal.lastStageChangeAt.getTime()) / DAY);
