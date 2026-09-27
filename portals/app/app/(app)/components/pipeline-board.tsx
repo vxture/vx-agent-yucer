@@ -8,9 +8,11 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  Input,
   ListCard,
   ListCardGrid,
   MetricGrid,
+  NativeSelect,
   Section,
   Stack,
   StatusBadge,
@@ -18,10 +20,11 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  useListPagination,
   type DataTableColumn,
   type MetricGridItem,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
 import {
   DEFAULT_STAGE_DEFINITIONS,
   type Stage,
@@ -131,10 +134,44 @@ export function PipelineBoard({
     FORECAST_LABEL,
     PIPELINE_TEXT,
     STAGE_LABEL,
+    TABLE_TOOLBAR_TEXT,
     LOAD_ERROR,
   } = useMessages();
   const accessors = useMemo(() => sortOn(rows), [rows]);
   const sorted = useTableSort<PipelineRow>(rows, accessors);
+  // 工具行 (module rebuild, 2026-09-27): search + 阶段 / 预测 / 优先级 filters
+  // and a pager - the list is 93 open deals in the demo, all on one page.
+  const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
+  const [forecastFilter, setForecastFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const filtering = query !== "" || stageFilter !== "" || forecastFilter !== "" || priorityFilter !== "";
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (q === "" ||
+          r.name.toLowerCase().includes(q) ||
+          r.opportunityNo.toLowerCase().includes(q) ||
+          r.accountName.toLowerCase().includes(q)) &&
+        (stageFilter === "" || r.stage === stageFilter) &&
+        (forecastFilter === "" || r.forecastCategory === forecastFilter) &&
+        (priorityFilter === "" ||
+          (priorityFilter === "none" ? (r.priority ?? null) === null : String(r.priority ?? "") === priorityFilter)),
+    );
+  }, [rows, query, stageFilter, forecastFilter, priorityFilter]);
+  // Sorted BEFORE paging, so a sort orders the list and not just this page.
+  const ordered = useMemo(() => sorted.sortRows(visible), [sorted, visible]);
+  const pagination = useListPagination(ordered, 20);
+  const stagesPresent = useMemo(() => [...new Set(rows.map((r) => r.stage))], [rows]);
+  const prioritiesPresent = useMemo(
+    () => [...new Set(rows.map((r) => r.priority ?? null).filter((p): p is number => p !== null))].sort((a, b) => a - b),
+    [rows],
+  );
+  const reset = (set: (v: string) => void) => (v: string) => {
+    set(v);
+    pagination.resetPage();
+  };
   // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
   // anything, so every figure in the product was formatted Chinese-style
   // whatever the reader's locale. Threading it here fixes this page; the
@@ -350,21 +387,78 @@ export function PipelineBoard({
           <FilterBar
             view={view}
             onViewChange={setView}
-            count={PIPELINE_TEXT.rowCount(rows.length)}
-          />
+            count={filtering ? TABLE_TOOLBAR_TEXT.filteredCount(visible.length, rows.length) : PIPELINE_TEXT.rowCount(rows.length)}
+            search={
+              <SearchSlot>
+                <Input
+                  type="search"
+                  className="w-full"
+                  value={query}
+                  placeholder={PIPELINE_TEXT.searchHint}
+                  aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                  onChange={(e) => reset(setQuery)(e.target.value)}
+                />
+              </SearchSlot>
+            }
+            onReset={
+              filtering
+                ? () => {
+                    setQuery("");
+                    setStageFilter("");
+                    setForecastFilter("");
+                    setPriorityFilter("");
+                    pagination.resetPage();
+                  }
+                : undefined
+            }
+            resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+          >
+            <FilterSlot width="w-[7rem]">
+              <NativeSelect value={stageFilter} aria-label={PIPELINE_TEXT.filterStage} onChange={(e) => reset(setStageFilter)(e.target.value)}>
+                <option value="">{PIPELINE_TEXT.filterAllStages}</option>
+                {stagesPresent.map((s) => (
+                  <option key={s} value={s}>
+                    {stageLabelFor(s, stageDefinitions, STAGE_LABEL)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FilterSlot>
+            <FilterSlot width="w-[7rem]">
+              <NativeSelect value={forecastFilter} aria-label={PIPELINE_TEXT.filterForecast} onChange={(e) => reset(setForecastFilter)(e.target.value)}>
+                <option value="">{PIPELINE_TEXT.filterAllForecast}</option>
+                {(Object.keys(FORECAST_LABEL) as ForecastCategory[]).map((k) => (
+                  <option key={k} value={k}>
+                    {FORECAST_LABEL[k]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FilterSlot>
+            <FilterSlot width="w-[6.5rem]">
+              <NativeSelect value={priorityFilter} aria-label={PIPELINE_TEXT.columnPriority} onChange={(e) => reset(setPriorityFilter)(e.target.value)}>
+                <option value="">{PIPELINE_TEXT.filterAllPriority}</option>
+                {prioritiesPresent.map((p) => (
+                  <option key={p} value={String(p)}>{`P${p}`}</option>
+                ))}
+                <option value="none">{PIPELINE_TEXT.priorityUnranked}</option>
+              </NativeSelect>
+            </FilterSlot>
+          </FilterBar>
 
           {/* ONLY THE TABLE IS IN A CARD, not the section. The section is a
               heading and its tools; the card is the surface the rows sit on, so
               wrapping the whole section would put the heading inside the thing
               it names. */}
-            {view === "list" ? (
+            {visible.length === 0 ? null : view === "list" ? (
               <DataTable
                 labels={DATA_TABLE_LABELS}
-                indexStart={1}
+                indexStart={pagination.indexStart}
                 columns={columns}
-                rows={[...sorted.rows]}
-            sort={sorted.sort}
-            onSortChange={sorted.onSortChange}
+                rows={[...pagination.pageRows]}
+                sort={sorted.sort}
+                onSortChange={(s) => {
+                  sorted.onSortChange(s);
+                  pagination.resetPage();
+                }}
                 rowKey={(row) => row.id}
                 loading={loading}
                 /* The fixed column: pinned right, locked during horizontal
@@ -387,7 +481,7 @@ export function PipelineBoard({
               />
             ) : (
               <ListCardGrid className="p-md">
-                {rows.map((row) => (
+                {pagination.pageRows.map((row) => (
                   <ListCard
                     key={row.id}
                     title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
@@ -441,6 +535,11 @@ export function PipelineBoard({
                 ))}
               </ListCardGrid>
             )}
+          {visible.length > 0 ? (
+            <PaginationFooter pagination={pagination} total={rows.length} filteredTotal={filtering ? visible.length : undefined} />
+          ) : (
+            <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
+          )}
         </>
       )}
     </Section>
