@@ -490,16 +490,10 @@ export function AppShell({
                 onToggle={toggleDock}
               />
 
-              {/* (3) The four shell tools. */}
+              {/* (3) The shell tools: help, messages, settings. */}
               <HeaderTools
                 notifications={notificationsTotal}
                 notificationItems={notificationItems}
-                /* FULLSCREEN TAKES THE DOCUMENT, header included. The earlier
-                 version expanded only the shell body on the reasoning that the
-                 header holds the way out - but the browser's own escape key
-                 does, the DS wires it, and a "fullscreen" that leaves a bar on
-                 screen is not the thing the button is named after. */
-                fullscreenTarget={() => document.documentElement}
                 settingsHref={admin.some((e) => e.state === "visible") ? "/admin" : null}
               />
 
