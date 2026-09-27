@@ -17,16 +17,10 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   TableTitleCell,
   Textarea,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { RowActions, useTableSort } from "./table-fittings";
 import { formatMoney } from "../lib/view-model";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -140,7 +134,7 @@ export function LineEditor({
   currency = "CNY",
 }: LineEditorProps) {
   const router = useRouter();
-  const { DATA_TABLE_LABELS, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
+  const { DATA_TABLE_LABELS, DS_LABELS, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
     useMessages();
   const [drafts, setDrafts] = useState<Draft[]>(
     lines.map((l) => ({
@@ -213,57 +207,70 @@ export function LineEditor({
           description={OPPORTUNITY_TEXT.lineNoneWhy}
         />
       ) : hideTitle && !canEdit ? (
-        // THE DEAL PAGE'S READ VIEW (YC-072 .tbl): a quote is read, not
-        // sorted - four lines need no sort arrows. Money in the deal's
-        // currency, a below-floor line marked on its left edge and in its
-        // own last cell.
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-muted-foreground h-auto py-xs text-[11px] font-semibold">{OPPORTUNITY_TEXT.lineProduct}</TableHead>
-              <TableHead className="text-muted-foreground h-auto py-xs text-right text-[11px] font-semibold">{OPPORTUNITY_TEXT.lineQty}</TableHead>
-              <TableHead className="text-muted-foreground h-auto py-xs text-right text-[11px] font-semibold">{OPPORTUNITY_TEXT.linePrice}</TableHead>
-              <TableHead className="text-muted-foreground h-auto py-xs text-right text-[11px] font-semibold">{OPPORTUNITY_TEXT.lineAmount}</TableHead>
-              <TableHead className="h-auto w-[5.5rem] py-xs" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lines.map((r, i) => {
-              const below = r.needsApproval && !r.approved;
-              return (
-                <TableRow key={`${r.productId}-${i}`}>
-                  <TableCell className={`py-xs text-body-sm ${below ? "shadow-[inset_3px_0_0_var(--warning-text)]" : ""}`}>
-                    {name.get(r.productId) ?? r.productId}
-                  </TableCell>
-                  <TableCell className="py-xs text-right font-mono text-body-sm tabular-nums">{r.quantity}</TableCell>
-                  <TableCell className={`py-xs text-right font-mono text-body-sm tabular-nums ${r.needsApproval ? "text-(color:--warning-text)" : ""}`}>
+        // THE DEAL PAGE'S READ VIEW (交易清单 · 报价与审批). The DS table with
+        // its fittings (owner 2026-09-26: 列没有首列，文字与标识线重叠；右侧
+        // 没有操作 icon；待签标识放在价格，操作放在操作区):
+        //   - 序号 first, so the product name no longer sits on a painted
+        //     warning edge - the edge is gone, the mark is on the price;
+        //   - the price carries 待批 / 已批准, since the price is what broke
+        //     the floor;
+        //   - 批准 lives in the pinned ⋮ menu. A line with nothing to sign, or
+        //     a reader who may not sign, gets the disabled trigger (the
+        //     action column never vanishes - table-fittings.tsx).
+        // A quote is read, not sorted: no sort arrows.
+        <DataTable
+          labels={DATA_TABLE_LABELS}
+          indexStart={1}
+          rowKey={(r: EditorLine, i: number) => `${r.productId}-${i}`}
+          rows={[...lines]}
+          columns={[
+            {
+              id: "product",
+              header: OPPORTUNITY_TEXT.lineProduct,
+              cell: (r: EditorLine) => <TableTitleCell title={name.get(r.productId) ?? r.productId} tooltip={name.get(r.productId) ?? r.productId} />,
+            },
+            { id: "qty", header: OPPORTUNITY_TEXT.lineQty, align: "numeric" as const, cell: (r: EditorLine) => r.quantity },
+            {
+              id: "price",
+              header: OPPORTUNITY_TEXT.linePrice,
+              align: "money" as const,
+              cell: (r: EditorLine) => (
+                <span className="inline-flex items-center justify-end gap-xs">
+                  {!r.needsApproval ? null : r.approved ? (
+                    <StatusBadge size="sm" tone="success">{OPPORTUNITY_TEXT.lineApproved}</StatusBadge>
+                  ) : (
+                    <StatusBadge size="sm" tone="warning">{OPPORTUNITY_TEXT.lineAwaiting}</StatusBadge>
+                  )}
+                  <span className={r.needsApproval && !r.approved ? "text-(color:--warning-text)" : undefined}>
                     {formatMoney(r.unitPrice, currency)}
-                  </TableCell>
-                  <TableCell className="py-xs text-right font-mono text-body-sm tabular-nums">{formatMoney(r.amount, currency)}</TableCell>
-                  <TableCell className="py-xs text-right">
-                    {!r.needsApproval ? null : r.approved ? (
-                      <StatusBadge tone="success">{OPPORTUNITY_TEXT.lineApproved}</StatusBadge>
-                    ) : canApprove && !closed ? (
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={() => {
+                  </span>
+                </span>
+              ),
+            },
+            { id: "amount", header: OPPORTUNITY_TEXT.lineAmount, align: "money" as const, cell: (r: EditorLine) => formatMoney(r.amount, currency) },
+          ]}
+          rowActions={(r: EditorLine) => (
+            <RowActions
+              label={DS_LABELS.actionMenu}
+              items={
+                r.needsApproval && !r.approved && canApprove && !closed
+                  ? [
+                      {
+                        id: "approve",
+                        label: OPPORTUNITY_TEXT.lineApprove,
+                        icon: "check",
+                        onSelect: () => {
                           setSigning(r.productId);
                           setReason("");
                           setErr(null);
-                        }}
-                      >
-                        {OPPORTUNITY_TEXT.lineApprove}
-                      </Button>
-                    ) : (
-                      <StatusBadge tone="warning">{OPPORTUNITY_TEXT.lineAwaiting}</StatusBadge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                        },
+                      },
+                    ]
+                  : []
+              }
+            />
+          )}
+        />
       ) : (
         <DataTable
           labels={DATA_TABLE_LABELS}
