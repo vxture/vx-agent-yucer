@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   ActionMenu,
-  Button,
-  Card,
   DataTable,
   EmptyState,
+  Field,
+  FieldLabel,
   FilterBar,
   Input,
-  Label,
   ListCard,
   ListCardGrid,
   NativeSelect,
@@ -18,9 +17,11 @@ import {
   StatusBadge,
   TableTitleCell,
   Textarea,
+  useListPagination,
   type DataTableColumn,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
+import { DialogForm } from "./dialog-form";
 import { Tag } from "./tag";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
@@ -91,6 +92,7 @@ export function PendingReviews({
     DATA_TABLE_LABELS,
     DS_LABELS,
     PIPELINE_TEXT,
+    TABLE_TOOLBAR_TEXT,
     WINLOSS_TEXT,
     REVIEW_ERROR,
   } = useMessages();
@@ -112,7 +114,21 @@ export function PendingReviews({
   // Pending is a SUBSET of all, so the two lists share every row object - the
   // outstanding badge below reads the pending ids rather than a second flag.
   const pendingIds = new Set(opportunities.map((o) => o.id));
-  const shown = scope === "pending" ? opportunities : allClosed;
+  const population = scope === "pending" ? opportunities : allClosed;
+  // 工具行 (module rebuild, 2026-09-27): search + 结果 filter + pager.
+  const [query, setQuery] = useState("");
+  const [outcome, setOutcome] = useState("");
+  const filtering = query !== "" || outcome !== "";
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return population.filter(
+      (o) =>
+        (q === "" || o.name.toLowerCase().includes(q) || o.opportunityNo.toLowerCase().includes(q)) &&
+        (outcome === "" || o.status === outcome),
+    );
+  }, [population, query, outcome]);
+  const ordered = useMemo(() => sorted.sortRows(shown), [sorted, shown]);
+  const pagination = useListPagination(ordered, 20);
   const [openId, setOpenId] = useState<string | null>(null);
   const [reason, setReason] = useState<string>("");
   const [competitor, setCompetitor] = useState("");
@@ -136,6 +152,25 @@ export function PendingReviews({
       );
     });
   }
+
+  const recordMenu = (row: OpportunityRecord) => (
+    <ActionMenu
+      label={DS_LABELS.actionMenu}
+      items={[
+        {
+          id: "record",
+          label: WINLOSS_TEXT.record,
+          disabled: !canRecord || !pendingIds.has(row.id),
+          hint: !canRecord
+            ? WINLOSS_TEXT.recordHintDenied
+            : !pendingIds.has(row.id)
+              ? WINLOSS_TEXT.recordHintDone
+              : undefined,
+          onSelect: () => setOpenId(row.id),
+        },
+      ]}
+    />
+  );
 
   const columns: readonly DataTableColumn<OpportunityRecord>[] = [
     {
@@ -202,13 +237,41 @@ export function PendingReviews({
       <FilterBar
         view={view}
         onViewChange={setView}
-        count={PIPELINE_TEXT.rowCount(shown.length)}
+        count={filtering ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, population.length) : PIPELINE_TEXT.rowCount(population.length)}
+        search={
+          <SearchSlot>
+            <Input
+              type="search"
+              className="w-full"
+              value={query}
+              placeholder={WINLOSS_TEXT.searchHint}
+              aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                pagination.resetPage();
+              }}
+            />
+          </SearchSlot>
+        }
+        onReset={
+          filtering
+            ? () => {
+                setQuery("");
+                setOutcome("");
+                pagination.resetPage();
+              }
+            : undefined
+        }
+        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
         scope={
           <SegmentedControl
             size="sm"
             ariaLabel={WINLOSS_TEXT.sectionTitle}
             value={scope}
-            onChange={setScope}
+            onChange={(v) => {
+              setScope(v);
+              pagination.resetPage();
+            }}
             items={[
               {
                 value: "pending",
@@ -223,9 +286,25 @@ export function PendingReviews({
             ]}
           />
         }
-      />
+      >
+        <FilterSlot width="w-[7rem]">
+          <NativeSelect
+            value={outcome}
+            aria-label={WINLOSS_TEXT.filterOutcome}
+            onChange={(e) => {
+              setOutcome(e.target.value);
+              pagination.resetPage();
+            }}
+          >
+            <option value="">{WINLOSS_TEXT.filterAllOutcomes}</option>
+            <option value="won">{WINLOSS_TEXT.outcomeWon}</option>
+            <option value="lost">{WINLOSS_TEXT.outcomeLost}</option>
+            <option value="abandoned">{WINLOSS_TEXT.outcomeAbandoned}</option>
+          </NativeSelect>
+        </FilterSlot>
+      </FilterBar>
 
-      {shown.length === 0 ? (
+      {population.length === 0 ? (
         <EmptyState
           title={
             scope === "pending"
@@ -238,6 +317,8 @@ export function PendingReviews({
               : WINLOSS_TEXT.allEmptyDescription
           }
         />
+      ) : shown.length === 0 ? (
+        <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
       ) : view === "list" ? (
         /* NO CARD (design-ui 8.0.0 透明模式): a table floats on the page
            canvas, its structure carried by the three rules the DS draws. */
@@ -247,111 +328,93 @@ export function PendingReviews({
                anyone can rely on them. This table shipped with an "Actions"
                column header in a Chinese interface. */
               labels={DATA_TABLE_LABELS}
-              indexStart={1}
+              indexStart={pagination.indexStart}
               columns={columns}
-              rows={[...sorted.sortRows(shown)]}
-            sort={sorted.sort}
-            onSortChange={sorted.onSortChange}
+              rows={[...pagination.pageRows]}
+              sort={sorted.sort}
+              onSortChange={(s) => {
+                sorted.onSortChange(s);
+                pagination.resetPage();
+              }}
               rowKey={(row) => row.id}
               /* Pinned right, one trigger. Items stay VISIBLE and disabled
                  rather than absent when they cannot be used, with the reason on
                  the hint - a menu whose contents change per row teaches nobody
                  what the product can do, and "why is it greyed" is answerable
                  where "why is it missing" is not. */
-              rowActions={(row) => (
-                <ActionMenu
-                  label={DS_LABELS.actionMenu}
-                  items={[
-                    {
-                      id: "record",
-                      label: WINLOSS_TEXT.record,
-                      disabled: !canRecord || !pendingIds.has(row.id),
-                      hint: !canRecord
-                        ? WINLOSS_TEXT.recordHintDenied
-                        : !pendingIds.has(row.id)
-                          ? WINLOSS_TEXT.recordHintDone
-                          : undefined,
-                      onSelect: () =>
-                        setOpenId(openId === row.id ? null : row.id),
-                    },
-                  ]}
-                />
-              )}
+              rowActions={recordMenu}
             />
           ) : (
             <ListCardGrid className="p-md">
-              {shown.map((row) => (
+              {pagination.pageRows.map((row) => (
                 <ListCard
                   key={row.id}
                   title={row.name}
                   description={row.opportunityNo}
-                  status={
-                    outcomeBadge(row.status, false)
-                  }
+                  /* The record action in cards too - the card view had none -
+                     and the outcome in the meta row, not the status slot
+                     (it clipped the title in a 250px card). */
+                  actions={recordMenu(row)}
                   meta={
-                    !pendingIds.has(row.id) ? (
-                      <StatusBadge tone="success">
-                        {WINLOSS_TEXT.reviewed}
-                      </StatusBadge>
-                    ) : (
-                      <span>
-                        {row.closedAt
-                          ? row.closedAt.toISOString().slice(0, 10)
-                          : "-"}
-                      </span>
-                    )
+                    <>
+                      {outcomeBadge(row.status, false)}
+                      {!pendingIds.has(row.id) ? (
+                        <StatusBadge tone="success">{WINLOSS_TEXT.reviewed}</StatusBadge>
+                      ) : (
+                        <span>{row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-"}</span>
+                      )}
+                    </>
                   }
                 />
               ))}
             </ListCardGrid>
       )}
+      {shown.length > 0 ? (
+        <PaginationFooter pagination={pagination} total={population.length} filteredTotal={filtering ? shown.length : undefined} />
+      ) : null}
 
+      {/* THE REVIEW IN A DIALOG (module rebuild, 2026-09-27). It opened as a
+          section BELOW the table - with fifty rows, off-screen, so 记录复盘
+          looked like it did nothing. */}
       {target ? (
-        <Section tone="default" title={target.name}>
-          <Label htmlFor="wlr-reason">{WINLOSS_TEXT.reasonLabel}</Label>
-          <NativeSelect
-            id="wlr-reason"
-            value={reason}
-            onChange={(e) => setReason(e.currentTarget.value)}
-          >
-            {/* The ones that can explain THIS outcome. Offering a
-                loss-only reason on a win invites a review that says nothing,
-                and the service refuses it anyway. */}
-            <option value="">{WINLOSS_TEXT.reasonNone}</option>
-            {reasons
-              .filter((r) => (target.status === "won" ? r.forWon : r.forLost))
-              .map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-          </NativeSelect>
-
-          <Label htmlFor="wlr-competitor">{WINLOSS_TEXT.competitorLabel}</Label>
-          <Input
-            id="wlr-competitor"
-            value={competitor}
-            onChange={(e) => setCompetitor(e.currentTarget.value)}
-          />
-
-          <Label htmlFor="wlr-lessons">{WINLOSS_TEXT.lessonsLabel}</Label>
-          <Textarea
-            id="wlr-lessons"
-            value={lessons}
-            onChange={(e) => setLessons(e.currentTarget.value)}
-          />
-
-          <Button
-            variant="ghost"
-            onClick={() => setOpenId(null)}
-            disabled={pending}
-          >
-            {WINLOSS_TEXT.cancel}
-          </Button>
-          <Button onClick={() => submit(target.id)} disabled={pending}>
-            {WINLOSS_TEXT.save}
-          </Button>
-        </Section>
+        <DialogForm
+          open
+          onOpenChange={(o: boolean) => {
+            if (!o) setOpenId(null);
+          }}
+          title={WINLOSS_TEXT.recordTitle(target.name)}
+          submitLabel={WINLOSS_TEXT.save}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!pending) submit(target.id);
+          }}
+        >
+          <Field>
+            <FieldLabel htmlFor="wlr-reason">{WINLOSS_TEXT.reasonLabel}</FieldLabel>
+            <NativeSelect id="wlr-reason" value={reason} onChange={(e) => setReason(e.currentTarget.value)}>
+              {/* The ones that can explain THIS outcome. Offering a loss-only
+                  reason on a win invites a review that says nothing, and the
+                  service refuses it anyway. */}
+              <option value="">{WINLOSS_TEXT.reasonNone}</option>
+              {reasons
+                .filter((r) => (target.status === "won" ? r.forWon : r.forLost))
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+            </NativeSelect>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="wlr-competitor">{WINLOSS_TEXT.competitorLabel}</FieldLabel>
+            <Input id="wlr-competitor" value={competitor} onChange={(e) => setCompetitor(e.currentTarget.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="wlr-lessons">{WINLOSS_TEXT.lessonsLabel}</FieldLabel>
+            <Textarea id="wlr-lessons" value={lessons} onChange={(e) => setLessons(e.currentTarget.value)} />
+          </Field>
+          {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+        </DialogForm>
       ) : null}
     </Section>
   );

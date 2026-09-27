@@ -294,3 +294,19 @@ test("the new reads and the abandon are gated, and a missing deal is named", asy
   const bad = await abandonOpportunity(ctx("sales_rep", "business", store), "opp_1", { reasonCode: "lost_to_competitor" });
   assert.equal(bad.ok === false && bad.violations[0]!.code, "exit_reason_invalid");
 });
+
+test("the pending list is the WHOLE debt - 60 owed reads as 60, and one review makes it 59", async () => {
+  // It used to cap at 50: every count read "50", and recording a review let the
+  // 51st in, so saving looked like it did nothing (2026-09-27).
+  const store = new InMemoryPipelineStore();
+  store.seed(
+    Array.from({ length: 60 }, (_, i) =>
+      opp({ id: `closed_${i}`, opportunityNo: `OPP-${i}`, status: "lost", stage: "lost", closedAt: new Date(Date.UTC(2026, 0, 1 + i)) }),
+    ),
+  );
+  const c = ctx("sales_leader", "business", store);
+  assert.equal(unwrap(await listPendingReviews(c)).length, 60);
+  unwrap(await recordWinLossReview(c, "closed_0", { primaryReasonId: await reasonId(c, "price") }));
+  assert.equal(unwrap(await listPendingReviews(c)).length, 59);
+  assert.equal(unwrap(await listPendingReviews(c, 10)).length, 10, "an explicit limit still holds");
+});

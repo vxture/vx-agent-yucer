@@ -2642,6 +2642,10 @@ export const en: Dictionary = {
 
   WINLOSS_TEXT: {
     reasonNoun: "reason",
+    searchHint: "Deal name or number",
+    filterOutcome: "Outcome",
+    filterAllOutcomes: "All outcomes",
+    recordTitle: (name: string) => `Record the review: ${name}`,
     reasonConfigTitle: "Win/loss reasons",
     reasonCount: (n: number) => `${n} reasons`,
     reasonConfigWhy: "What a review may choose from. A reason cited by a review cannot be deleted.",

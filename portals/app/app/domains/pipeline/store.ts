@@ -1117,7 +1117,7 @@ export class InMemoryPipelineStore implements PipelineStore {
     return record;
   }
 
-  async listUnreviewedClosed(workspaceId: string, limit = 50): Promise<OpportunityRecord[]> {
+  async listUnreviewedClosed(workspaceId: string, limit?: number): Promise<OpportunityRecord[]> {
     return [...this.opportunities.values()]
       .filter(
         (o) =>

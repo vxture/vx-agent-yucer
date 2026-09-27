@@ -679,7 +679,7 @@ export class PrismaPipelineStore implements PipelineStore {
     return toReview(row as Record<string, unknown>);
   }
 
-  async listUnreviewedClosed(workspaceId: string, limit = 50): Promise<OpportunityRecord[]> {
+  async listUnreviewedClosed(workspaceId: string, limit?: number): Promise<OpportunityRecord[]> {
     const p = await getPrismaClient();
     const reviewed = await p.winLossReview.findMany({
       where: { workspaceId },
