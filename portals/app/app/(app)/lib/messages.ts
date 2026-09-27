@@ -4138,7 +4138,6 @@ export const SCREEN_TEXT = {
   chartCash: "近 7 期回款率",
   cashCollected: (p: string) => `已回款 ${p}`,
   cashOverdue: (p: string) => `逾期 ${p}`,
-  stageLabels: ["初步接洽", "方案验证", "商务谈判", "决策签批"],
   healthLabels: ["健康", "有隐忧", "高风险"],
   healthCentre: "健康占比",
   funnelLeads: "线索",
