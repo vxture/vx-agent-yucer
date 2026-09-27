@@ -20,7 +20,7 @@ import {
   TableTitleCell,
   Textarea,
 } from "@vxture/design-ui";
-import { RowActions, useTableSort } from "./table-fittings";
+import { RowActions } from "./table-fittings";
 import { formatMoney } from "../lib/view-model";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -110,14 +110,6 @@ interface Draft {
   customNote: string;
 }
 
-/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
-   renders - a money cell sorts on the raw amount, not its formatted string. */
-const SORT_ON = {
-  product: (r: EditorLine) => r.productId,
-  qty: (r: EditorLine) => r.quantity,
-  price: (r: EditorLine) => r.unitPrice,
-  amount: (r: EditorLine) => r.amount,
-};
 
 export function LineEditor({
   action,
@@ -144,7 +136,6 @@ export function LineEditor({
       customNote: l.customNote ?? "",
     })),
   );
-  const sorted = useTableSort<EditorLine>([], SORT_ON);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -185,7 +176,9 @@ export function LineEditor({
       id="lines"
       icon={hideTitle ? undefined : "stack"}
       title={hideTitle ? undefined : OPPORTUNITY_TEXT.linesTitle}
-      description={hideTitle ? undefined : OPPORTUNITY_TEXT.linesWhy}
+      // Not on the editor PAGE either (doneHref): its ViewHeader already says
+      // it, and the same paragraph twice made the reader compare them.
+      description={hideTitle || doneHref ? undefined : OPPORTUNITY_TEXT.linesWhy}
       /* THE SECTION'S OWN ACTION SLOT holds both the warning and the way in
          to the editor. The page used to put that link in a row of its own
          below the table; the DS puts a panel's action in its header, and one
@@ -206,7 +199,7 @@ export function LineEditor({
           title={OPPORTUNITY_TEXT.lineNone}
           description={OPPORTUNITY_TEXT.lineNoneWhy}
         />
-      ) : hideTitle && !canEdit ? (
+      ) : (
         // THE DEAL PAGE'S READ VIEW (交易清单 · 报价与审批). The DS table with
         // its fittings (owner 2026-09-26: 列没有首列，文字与标识线重叠；右侧
         // 没有操作 icon；待签标识放在价格，操作放在操作区):
@@ -271,84 +264,6 @@ export function LineEditor({
             />
           )}
         />
-      ) : (
-        <DataTable
-          labels={DATA_TABLE_LABELS}
-          rowKey={(_r: EditorLine, i: number) => `${_r.productId}-${i}`}
-          rows={[...sorted.sortRows(lines)]}
-          sort={sorted.sort}
-          onSortChange={sorted.onSortChange}
-          columns={[
-            {
-              id: "product",
-  sortable: true,
-              header: OPPORTUNITY_TEXT.lineProduct,
-              cell: (r: EditorLine) => (
-                <TableTitleCell title={name.get(r.productId) ?? r.productId} />
-              ),
-            },
-            {
-              id: "qty",
-              header: OPPORTUNITY_TEXT.lineQty,
-              sortable: true,
-              align: "numeric" as const,
-              cell: (r: EditorLine) => r.quantity,
-            },
-            {
-              id: "price",
-              header: OPPORTUNITY_TEXT.linePrice,
-              // A below-floor price is marked ON THE PRICE, not in a separate
-              // column: the reader is looking at the number that caused it.
-              sortable: true,
-              align: "money" as const,
-              cell: (r: EditorLine) => (
-                <span
-                  className={
-                    r.needsApproval ? "text-(color:--warning-text)" : undefined
-                  }
-                >
-                  {r.unitPrice.toLocaleString()}
-                </span>
-              ),
-            },
-            {
-              id: "amount",
-              header: OPPORTUNITY_TEXT.lineAmount,
-              sortable: true,
-              align: "money" as const,
-              cell: (r: EditorLine) => r.amount.toLocaleString(),
-            },
-            {
-              id: "approval",
-              header: OPPORTUNITY_TEXT.lineApprovalHeader,
-              // Empty for a line at or above its floor. A column that says
-              // "nothing to decide" on most rows buries the rows where there
-              // IS something to decide.
-              cell: (r: EditorLine) =>
-                !r.needsApproval ? null : r.approved ? (
-                  <StatusBadge tone="success">
-                    {OPPORTUNITY_TEXT.lineApproved}
-                  </StatusBadge>
-                ) : canApprove && !closed ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSigning(r.productId);
-                      setReason("");
-                      setErr(null);
-                    }}
-                  >
-                    {OPPORTUNITY_TEXT.lineApprove}
-                  </Button>
-                ) : (
-                  <StatusBadge tone="warning">
-                    {OPPORTUNITY_TEXT.lineAwaiting}
-                  </StatusBadge>
-                ),
-            },
-          ]}
-        />
       )}
 
       {/* Hosted read view (the deal page's 报价与审批): the way in is the
@@ -389,6 +304,10 @@ export function LineEditor({
                 type="number"
                 min="1"
                 className="w-24"
+                /* Labelled (module rebuild, 2026-09-27): these two read as a
+                   bare "1" and "520000" with nothing saying which is which. */
+                aria-label={OPPORTUNITY_TEXT.lineQty}
+                placeholder={OPPORTUNITY_TEXT.lineQty}
                 value={d.quantity}
                 onChange={(e) =>
                   setDrafts((prev) =>
@@ -402,6 +321,8 @@ export function LineEditor({
                 type="number"
                 min="0"
                 className="w-32"
+                aria-label={OPPORTUNITY_TEXT.linePrice}
+                placeholder={OPPORTUNITY_TEXT.linePrice}
                 value={d.unitPrice}
                 onChange={(e) =>
                   setDrafts((prev) =>
@@ -411,6 +332,12 @@ export function LineEditor({
                   )
                 }
               />
+              {/* The line's own subtotal, as it will be saved. */}
+              <span className="text-muted-foreground w-28 text-right text-body-sm tabular-nums" aria-live="polite">
+                {Number.isFinite(Number(d.quantity) * Number(d.unitPrice))
+                  ? formatMoney(Number(d.quantity) * Number(d.unitPrice), currency)
+                  : "-"}
+              </span>
               <Input
                 className="min-w-48 flex-1"
                 maxLength={255}
@@ -488,7 +415,7 @@ export function LineEditor({
                 will BECOME - so the reader sees the consequence before they
                 commit to it rather than discovering it afterwards. */}
             <span className="text-muted-foreground text-body-sm tabular-nums">
-              {OPPORTUNITY_TEXT.lineAmount} {total.toLocaleString()}
+              {OPPORTUNITY_TEXT.lineAmount} {formatMoney(total, currency)}
             </span>
             {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
             {saved && !err ? (
