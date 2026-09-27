@@ -8,6 +8,7 @@ import {
   TableTitleCell,
 } from "@vxture/design-ui";
 import { RowActions, useTableSort } from "./table-fittings";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
@@ -50,7 +51,10 @@ const SORT_ON = {
 export function TerritoryPanel({
   rows,
   action,
+  canEdit = false,
 }: {
+  /** planning.territory.upsert - the same gate the editor page redirects on. */
+  readonly canEdit?: boolean;
   readonly rows: readonly TerritoryRow[];
   /** The panel's action, in the DS Section header slot - 新建区域 on /planning. */
   readonly action?: ReactNode;
@@ -58,6 +62,7 @@ export function TerritoryPanel({
   const { DATA_TABLE_LABELS, DS_LABELS, DOMAIN_LABEL, PLANNING_TEXT } = useMessages();
   const memberName = useMemberName();
   const sorted = useTableSort<TerritoryRow>([], SORT_ON);
+  const router = useRouter();
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   return (
     <Section id="territories" icon="map-pin" title={DOMAIN_LABEL.territory} action={action}>
@@ -74,10 +79,25 @@ export function TerritoryPanel({
           sort={sorted.sort}
           onSortChange={sorted.onSortChange}
           indexStart={1}
-          /* The column holds its place with the DS's disabled trigger (表格三件
-             标配, DS 14 batch 4): territories are display-only here - creating
-             them lives on /planning/territory/new. */
-          rowActions={() => <RowActions label={DS_LABELS.actionMenu} items={[]} />}
+          /* 编辑区域 opens the editor ON THIS TERRITORY (module rebuild,
+             2026-09-27). The editor already edits by code (saveTerritory
+             upserts on territory_code); only the way in from the row was
+             missing. Disabled with the reason without the right. */
+          rowActions={(r: TerritoryRow) => (
+            <RowActions
+              label={DS_LABELS.actionMenu}
+              items={[
+                {
+                  id: "edit",
+                  label: PLANNING_TEXT.territoryEdit,
+                  icon: "edit",
+                  disabled: !canEdit,
+                  hint: canEdit ? undefined : PLANNING_TEXT.territoryEditDenied,
+                  onSelect: () => router.push(`/planning/territory/new?territory=${encodeURIComponent(r.id)}`),
+                },
+              ]}
+            />
+          )}
           columns={[
             {
               /* 编码与名称合成首列 (owner: 首列全部走 TableTitleCell). They were

@@ -17,7 +17,12 @@ import { saveTerritory } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewTerritoryPage() {
+export default async function NewTerritoryPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ territory?: string }>;
+}) {
+  const { territory } = await searchParams;
   const { DOMAIN_LABEL, PLANNING_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -55,6 +60,7 @@ export default async function NewTerritoryPage() {
       />
       <ViewHeader title={PLANNING_TEXT.territoryFormTitle} description={PLANNING_TEXT.territoryFormWhy} />
       <TerritoryForm
+        initialId={territory}
         rows={territories.ok ? territories.value : []}
         accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}
         divisions={divisions.ok ? divisions.value.map((d) => ({ id: d.id, name: d.name })) : []}

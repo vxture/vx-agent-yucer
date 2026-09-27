@@ -160,6 +160,7 @@ export default async function PlanningPage() {
           floating between them belongs to neither. NAMED for the same reason:
           two bare 新建 on one page would make the reader guess which. */}
       <TerritoryPanel
+        canEdit={can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed}
         rows={
           territories.ok
             ? territories.value.map((t) => ({
