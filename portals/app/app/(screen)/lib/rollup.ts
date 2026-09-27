@@ -195,6 +195,16 @@ const money = (m: { amount: number } | null | undefined) => m?.amount ?? 0;
  *  deal at 方案报价 dropped out of 商机储备 and the design's fixed labels sat
  *  on the wrong bars. Names come from the workspace's own catalog. */
 export const STAGE_KEYS = ["qualify", "discover", "validate", "propose", "negotiate"] as const;
+
+/** 商机储备's bar labels: each STAGE_KEYS code under the workspace's own name
+ *  for it (a renamed stage reads as renamed), else the shipped label, else the
+ *  bare code - never a blank bar. */
+export function stageMixLabels(
+  catalog: readonly { readonly code: string; readonly name: string }[],
+  fallback: Readonly<Record<string, string>>,
+): string[] {
+  return STAGE_KEYS.map((code) => catalog.find((s) => s.code === code)?.name ?? fallback[code] ?? code);
+}
 /** The design's three health bands, in donut order. */
 export const HEALTH_KEYS = ["green", "amber", "red"] as const;
 /** 期 is a WEEK: 12 of them is a quarter, which is the intake the panel charts. */
