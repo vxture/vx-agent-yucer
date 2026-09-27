@@ -74,6 +74,10 @@ export interface NationalScreenProps {
   readonly provinceDivision: Readonly<Record<string, string>>;
   readonly enter: ScreenEntry;
   readonly viewerSub: string;
+  /** The signed-in person's name from the access token; null falls back to the sub. */
+  readonly viewerName?: string | null;
+  /** 商机储备's bar labels, one per STAGE_KEYS entry, from the workspace catalog. */
+  readonly stageLabels: readonly string[];
 }
 
 /**
@@ -266,7 +270,7 @@ function FoldArc(
 }
 
 export function NationalScreen(
-  { rows, divisions, provinceDivision, enter, viewerSub }: NationalScreenProps,
+  { rows, divisions, provinceDivision, enter, viewerSub, viewerName, stageLabels }: NationalScreenProps,
 ) {
   const { SCREEN_TEXT } = useMessages();
   const units = {
@@ -650,18 +654,17 @@ export function NationalScreen(
             </span>
           ) : null}
           {/* The design puts a named person here with an avatar, a name and a
-              role. Two of the three are real: the avatar takes the sub's own
-              initials and the second line is the sub itself, monospaced. The
-              NAME line is the workspace, not an invented person - AuthUser
-              carries no display name, and dressing an id up as somebody called
-              张明 is the defect the account page already fixed once. */}
+              role. The access token has carried a display name since the
+              2026-09-16 rules revision (the app header shows it); this chip
+              still printed the raw sub. The sub remains the fallback and the
+              hover, never an invented name. */}
           <ScreenTools />
 
           <div className="user">
-            <div className="av" aria-hidden>{initialsOf(viewerSub)}</div>
+            <div className="av" aria-hidden>{viewerName ? viewerName.slice(0, 1) : initialsOf(viewerSub)}</div>
             <div>
               <div className="nm">{SCREEN_TEXT.viewerRole}</div>
-              <div className="rl" title={viewerSub}>{viewerSub}</div>
+              <div className="rl" title={viewerSub}>{viewerName ?? viewerSub}</div>
             </div>
           </div>
         </div>
@@ -693,7 +696,7 @@ export function NationalScreen(
               </Cells>
               <StageChart
                 mix={total.stageMix}
-                labels={SCREEN_TEXT.stageLabels}
+                labels={stageLabels}
                 fmt={{ num, money: (v) => cash(v).n + cash(v).u }}
               />
             </Mod>

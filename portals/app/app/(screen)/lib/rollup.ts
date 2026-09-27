@@ -190,7 +190,11 @@ const money = (m: { amount: number } | null | undefined) => m?.amount ?? 0;
 
 /** One province's running totals while the three lists are folded in. */
 /** The design's four stages, and the deal stages that fall in each. */
-export const STAGE_KEYS = ["discover", "qualify", "validate", "negotiate"] as const;
+/** The open stages, in selling order (DS 14 batch 4 walkthrough, 2026-09-27):
+ *  this was four codes in the wrong order with `propose` missing, so every
+ *  deal at 方案报价 dropped out of 商机储备 and the design's fixed labels sat
+ *  on the wrong bars. Names come from the workspace's own catalog. */
+export const STAGE_KEYS = ["qualify", "discover", "validate", "propose", "negotiate"] as const;
 /** The design's three health bands, in donut order. */
 export const HEALTH_KEYS = ["green", "amber", "red"] as const;
 /** 期 is a WEEK: 12 of them is a quarter, which is the intake the panel charts. */

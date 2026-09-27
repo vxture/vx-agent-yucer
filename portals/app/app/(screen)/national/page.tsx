@@ -4,12 +4,15 @@ import { getMessages } from "../../(app)/lib/i18n/server";
 import { SignIn } from "../../(app)/components/sign-in";
 import { can } from "../../authz/decide";
 import { listAccounts, listMarketDivisions } from "../../domains/account/service";
-import { listPipeline } from "../../domains/pipeline/service";
+import { listPipeline, listStageDefinitions } from "../../domains/pipeline/service";
+import { toStageCatalog } from "../../domains/pipeline/store";
+import { DEFAULT_STAGE_DEFINITIONS } from "../../domains/pipeline/lib/stage";
+import { stageLabelFor } from "../../(app)/lib/view-model";
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listLeads } from "../../domains/signal/service";
 import { listProposals } from "../../domains/copilot/service";
 import { getCopilotStore, getDeliveryStore } from "../../domains/shared/registry";
-import type { InstalmentLike, MilestoneLike } from "../lib/rollup";
+import { STAGE_KEYS, type InstalmentLike, type MilestoneLike } from "../lib/rollup";
 import { ENTRY_TARGETS, type EntryKey } from "../lib/entry";
 import { NationalScreen } from "../components/national-screen";
 
@@ -37,7 +40,7 @@ import { NationalScreen } from "../components/national-screen";
 export const dynamic = "force-dynamic";
 
 export default async function NationalScreenPage() {
-  const { SCREEN_TEXT } = await getMessages();
+  const { SCREEN_TEXT, STAGE_LABEL } = await getMessages();
   const session = await resolveAppSession();
   // THE SAME FRONT DOOR AS THE REST OF THE PRODUCT (2026-09-15). This used to
   // be a bare EmptyState - the exact pre-redesign shape the four gate screens
@@ -89,14 +92,19 @@ export default async function NationalScreenPage() {
      carries no owner column and so has no scoped wrapper; it takes the registry
      getter like /delivery does. */
   const deliveryCtx = { ...base, store: getDeliveryStore() };
-  const [accounts, deals, projects, leads, proposals, divisionRows] = await Promise.all([
+  const [accounts, deals, projects, leads, proposals, divisionRows, stageRows] = await Promise.all([
     listAccounts({ ...base, store: session.stores.account() }),
     listPipeline({ ...base, store: session.stores.pipeline() }, { includeClosed: true }),
     listProjects(deliveryCtx),
     listLeads({ ...base, store: session.stores.signal() }),
     listProposals({ ...base, store: getCopilotStore() }),
     listMarketDivisions({ ...base, store: session.stores.account() }),
+    listStageDefinitions({ ...base, store: session.stores.pipeline() }),
   ]);
+  // 商机储备's labels are the workspace's own stage names (a refused catalog
+  // read falls back to the shipped seven, like the pipeline page).
+  const stageCatalog = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
+  const stageLabels = STAGE_KEYS.map((code) => stageLabelFor(code, stageCatalog, STAGE_LABEL));
 
   /* 大区, READ FROM THE WORKSPACE (incr/0036). Nothing on this screen knows how
      many divisions there are or what they are called: a tenant that renames one
@@ -216,6 +224,8 @@ export default async function NationalScreenPage() {
       provinceDivision={provinceDivision}
       enter={enter}
       viewerSub={session.user.sub}
+      viewerName={session.user.displayName ?? null}
+      stageLabels={stageLabels}
     />
   );
 }

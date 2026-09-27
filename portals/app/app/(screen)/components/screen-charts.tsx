@@ -84,9 +84,10 @@ export function StageChart(
 ) {
   const W = 328, x0 = 62, barW = W - x0 - 74;
   const total = mix.reduce((a, b) => a + b, 0) || 1;
-  const lit = ["var(--screen-l5)", "var(--screen-l5)", "var(--screen-l4)", "var(--screen-l3)"];
+  const lit = ["var(--screen-l5)", "var(--screen-l5)", "var(--screen-l4)", "var(--screen-l4)", "var(--screen-l3)"];
+  const H = 6 + STAGE_KEYS.length * 26;
   return (
-    <svg viewBox={`0 0 ${W} 112`} style={{ flex: 1, minHeight: 0 }} role="img">
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ flex: 1, minHeight: 0 }} role="img">
       <defs>
         {lit.map((c, i) => (
           <linearGradient id={`sg${i}`} key={i} x1="0" y1="0" x2="1" y2="0">

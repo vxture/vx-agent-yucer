@@ -3094,7 +3094,6 @@ export const en: Dictionary = {
     chartCash: "Collection rate, last 7 periods",
     cashCollected: (p: string) => `Collected ${p}`,
     cashOverdue: (p: string) => `Overdue ${p}`,
-    stageLabels: ["Discover", "Validate", "Negotiate", "Approve"],
     healthLabels: ["Healthy", "At risk", "Critical"],
     healthCentre: "Healthy",
     funnelLeads: "Leads",
