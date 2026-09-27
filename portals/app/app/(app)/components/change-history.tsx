@@ -64,13 +64,13 @@ export async function ChangeHistory({
     })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
-  // Folded by default (YC-072 .hist): the history is looked up, not read
-  // every visit. MM-DD in the row, the full date on hover.
+  // NO FOLD OF ITS OWN since 交易清单 (owner 2026-09-26: 承诺/变更史另起一张
+  // 清单卡). YC-072's .hist fold existed because this sat open inside 推进进程;
+  // in a tab the tab IS the disclosure, its count pill IS historyFold's count,
+  // and a <details> inside it made the reader open the same list twice.
+  // MM-DD in the row, the full date on hover.
   return (
-    <details className="group">
-      <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-[11.5px] font-bold">
-        {DEAL_PAGE_TEXT.historyFold(rows.length)}
-      </summary>
+    <div className="flex flex-col">
       {rows.length === 0 ? (
         <p className="text-muted-foreground mt-xs text-body-sm">{DEAL_PAGE_TEXT.historyEmpty}</p>
       ) : (
@@ -105,7 +105,6 @@ export async function ChangeHistory({
           ))}
         </ol>
       )}
-      <p className="text-muted-foreground mt-xs text-[11px]">{DEAL_PAGE_TEXT.historySince}</p>
-    </details>
+    </div>
   );
 }

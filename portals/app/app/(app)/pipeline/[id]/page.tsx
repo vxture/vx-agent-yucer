@@ -85,6 +85,7 @@ import {
   listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
+import { AnalysisTabs } from "../../components/analysis-tabs";
 import { ExitChecks } from "../../components/exit-checks";
 import { checkStage, dealFactsFrom } from "../../../domains/pipeline/lib/exit-criteria";
 import { EvidenceSlots, type EvidenceRow } from "../../components/evidence-slots";
@@ -173,6 +174,7 @@ export default async function OpportunityDetailPage({
     DECISION_ROLE_LABEL,
     STANCE_LABEL,
     PANEL_MENU_TEXT,
+    FIELD_TEXT,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -731,6 +733,9 @@ export default async function OpportunityDetailPage({
   const dealLines = (lineRows.ok ? lineRows.value : []).filter((l) => l.opportunityId === id);
   const pendingLines = dealLines.filter((l) => l.needsApproval && !l.approved).length;
   const slip = claims.ok ? claims.value.slippage : null;
+  // 交易清单 · 变更史's count: the claim log and the stage journal are one
+  // history (change-history.tsx merges them), so the tab counts both.
+  const changeCount = (claims.ok ? claims.value.events.length : 0) + (history.ok ? history.value.length : 0);
   // 本阶段退出核验 (incr/0087, R1): the current stage's criteria against what
   // this page already read. A refused read is 无法判断, never met.
   const filledSlots = evidence.ok
@@ -860,7 +865,7 @@ export default async function OpportunityDetailPage({
     coach: "#buying-roles-panel",
     opposition: "#buying-roles-panel",
     coverage: "#buying-roles-panel",
-    approval: "#quote",
+    approval: "#deal-roster",
   };
   const DIM_HREF: Record<string, string> = {
     value: "#reasons",
@@ -1362,9 +1367,9 @@ export default async function OpportunityDetailPage({
             people={[...decisionPeople, ...unroledPeople]}
             warning={decisionWarning}
             findings={roleFindings}
-            // The same two rows as 栏2's 决策流程 panel (owner 2026-09-25:
-            // 两处都要) - one element, each placement its own open state.
-            process={processSlots}
+            // 决策流程 / 签约流程 are 栏2 买方共识's, not repeated here (owner
+            // 2026-09-26, reversing the 09-25 两处都要: 栏2 留、栏1 撤). 栏1
+            // keeps who the people are; how they decide is the dimension's.
           />
           <DealSolutionPanel
             source={sourceView ? sourceView.solution.name : null}
@@ -1474,6 +1479,17 @@ export default async function OpportunityDetailPage({
               id="verdict"
               icon="target"
               title={WAR_ROOM_TEXT.title}
+              // 商机评估分 on the title (owner 2026-09-26: 对照客户评估) - the
+              // card that owns the five dimensions was the only panel in 栏2
+              // without a number, while all six below wear theirs. The disc in
+              // 栏1 keeps the band and the biggest loss; this is the figure.
+              tags={
+                <Tag tone={
+                  dealScoreBand(score.score) === "good" ? "success" : dealScoreBand(score.score) === "warn" ? "warning" : "danger"
+                }>
+                  {score.score}
+                </Tag>
+              }
               summary={verdictSummary}
               viewHref={opportunity.accountId ? `/copilot?account=${opportunity.accountId}` : undefined}
               editHint={PANEL_MENU_TEXT.derived}
@@ -1539,10 +1555,15 @@ export default async function OpportunityDetailPage({
               editHint={canRecordEvidence ? PANEL_MENU_TEXT.noEntryHere : PANEL_MENU_TEXT.noEditRight}
             >
               {dimChecks("value", ["pain", "metrics", "statusQuo"])}
+              {/* The requirement is what was STATED when the deal was opened;
+                  the slots below are the EVIDENCE for it. Two kinds of thing,
+                  so the slots get their own heading rather than reading as
+                  three more rows of the sentence above. */}
               <p className={`text-body-sm whitespace-pre-wrap ${requirement ? "text-foreground" : "text-muted-foreground"}`}>
                 <span className="text-muted-foreground">{DEAL_PAGE_TEXT.requirement}：</span>
                 {requirement ?? DEAL_PAGE_TEXT.requirementNone}
               </p>
+              <PanelSub>{DEAL_PAGE_TEXT.reasonsTitle}</PanelSub>
               <EvidenceSlots
                 opportunityId={id}
                 rows={reasonRows}
@@ -1620,7 +1641,7 @@ export default async function OpportunityDetailPage({
                 {/* 滑动史 (YC-065 R2): pushes beside the date they moved;
                     each push is a row in 变更史 below. */}
                 {slip && slip.pushes > 0 ? (
-                  <a href="#change-history">
+                  <a href="#deal-roster">
                     <Tag tone={slip.pushes >= 2 || slip.crossedQuarter ? "danger" : "warning"}>
                       {DEAL_PAGE_TEXT.slipped(slip.pushes, slip.pushedDays)}
                     </Tag>
@@ -1649,36 +1670,12 @@ export default async function OpportunityDetailPage({
               >
                 {DEAL_PAGE_TEXT.plan}
               </PanelSub>
-              {commitmentItems.length > 0 || planItems.length > 0 ? (
-                <AdvisorFinding items={[...planItems, ...commitmentItems]} onAdjudicate={adjudicateProposals} />
+              {/* The plan's own proposals only. A promise 证据抽取 proposed is
+                  decided in 交易清单 · 承诺, beside the promises it joins
+                  (owner 2026-09-26: 承诺/变更史另起一张清单卡). */}
+              {planItems.length > 0 ? (
+                <AdvisorFinding items={planItems} onAdjudicate={adjudicateProposals} />
               ) : null}
-              {commitments.ok ? (
-                <CommitmentList
-                  accountId={opportunity.accountId}
-                  opportunityId={id}
-                  items={commitments.value}
-                  evidence={interactionList.map((i) => ({
-                    id: i.id,
-                    label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
-                  }))}
-                  canWrite={canRecord}
-                  captureHref={`/capture?account=${opportunity.accountId}&opportunity=${id}&back=/pipeline/${id}`}
-                  onSettle={settleCommitment}
-                  rows
-                />
-              ) : null}
-              <span id="change-history" />
-              {history.ok ? (
-                <ChangeHistory
-                  claims={claims.ok ? claims.value.events : []}
-                  stages={history.value}
-                  stageDefinitions={stageDefinitions}
-                  actorNames={Object.fromEntries([...memberNameOf].filter((e): e is [string, string] => e[1] != null))}
-                  categoryLabel={FORECAST_LABEL}
-                />
-              ) : (
-                <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(history.violations, LOAD_ERROR)} />
-              )}
             </DealPanel>
 
 
@@ -1723,7 +1720,11 @@ export default async function OpportunityDetailPage({
               {interactions.ok ? (
                 <InteractionTimeline
                   items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
-                  limit={20}
+                  // Five, not twenty (owner 2026-09-26: 对照客户详情页) - at 20
+                  // nothing ever folded and twelve follow-ups made this the
+                  // tallest block in 栏2. The component's own toggle opens the
+                  // rest in place; the customer page keeps them behind a tab.
+                  limit={5}
                   rows
                 />
               ) : (
@@ -1731,44 +1732,121 @@ export default async function OpportunityDetailPage({
               )}
             </DealPanel>
 
-            {/* 报价与审批 - the lines decide the amount the dossier shows.
-                Approving stays here, a flow op made looking at the line; the
-                editor itself is its own page (/lines). */}
-            <DealPanel
-              id="quote"
+            {/* 交易清单 - the customer page's 阵地清单 (owner 2026-09-26:
+                承诺/变更史另起一张清单卡). The five dimension panels above stay
+                指标 + 证据 only; this card holds what is list-shaped - the
+                priced lines, the open promises, and every change - one tab
+                each, with its own 查看 / 编辑. The 报价 tab keeps approving
+                beside the line; editing is /lines, and the workspace's quote
+                list is /quote (#468). */}
+            <AnalysisTabs
+              id="deal-roster"
               icon="stack"
-              title={DEAL_PAGE_TEXT.quoteTitle}
-              summary={
-                dealLines.length === 0 ? DEAL_PAGE_TEXT.quoteNone : DEAL_PAGE_TEXT.quoteSummary(dealLines.length, pendingLines)
+              title={DEAL_PAGE_TEXT.rosterTitle}
+              collapsible={{
+                summary: DEAL_PAGE_TEXT.rosterSummary(
+                  dealLines.length === 0
+                    ? DEAL_PAGE_TEXT.quoteNone
+                    : DEAL_PAGE_TEXT.quoteSummary(dealLines.length, pendingLines),
+                  openCommitments.length,
+                  changeCount,
+                ),
+              }}
+              // Steered, not fixed on the first tab - the customer page's rule
+              // (阵地清单: 默认展开第一个有内容的 tab). A deal whose close date
+              // has been pushed opens on 变更史, because that is what the 滑动
+              // tag in 推进节奏 links here to show; otherwise the priced lines.
+              defaultKey={
+                slip && slip.pushes > 0
+                  ? "history"
+                  : dealLines.length > 0
+                    ? "quote"
+                    : openCommitments.length > 0
+                      ? "commitments"
+                      : "history"
               }
-              tags={pendingLines > 0 ? <StatusBadge tone="warning">{OPPORTUNITY_TEXT.lineBelowFloor}</StatusBadge> : null}
-              editHref={linesHref ?? undefined}
-              editHint={opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : undefined}
-            >
-              <LineEditor
-                hideTitle
-                currency={opportunity.currency}
-                opportunityId={id}
-                lines={dealLines.map((l) => ({
-                  productId: l.productId,
-                  quantity: l.quantity,
-                  unitPrice: l.unitPrice,
-                  amount: l.amount,
-                  needsApproval: l.needsApproval,
-                  approved: l.approved,
-                }))}
-                products={(productRows.ok ? productRows.value : []).map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                  unit: unitName.get(p.unitId) ?? "",
-                }))}
-                canEdit={false}
-                canApprove={can(session.authz, session.entitlement, "pipeline.discount.approve", "ui").allowed}
-                closed={opportunity.closedAt !== null}
-                onSave={saveOpportunityLines}
-                onApprove={approveDiscount}
-              />
-            </DealPanel>
+              tabs={[
+                {
+                  key: "quote",
+                  label: DEAL_PAGE_TEXT.quoteTitle,
+                  count: dealLines.length,
+                  view: { href: "/quote" },
+                  edit: linesHref
+                    ? { href: linesHref }
+                    : { hint: opportunity.closedAt !== null ? OPPORTUNITY_TEXT.lineClosedHint : PANEL_MENU_TEXT.noEditRight },
+                  content: (
+                    <LineEditor
+                      hideTitle
+                      currency={opportunity.currency}
+                      opportunityId={id}
+                      lines={dealLines.map((l) => ({
+                        productId: l.productId,
+                        quantity: l.quantity,
+                        unitPrice: l.unitPrice,
+                        amount: l.amount,
+                        needsApproval: l.needsApproval,
+                        approved: l.approved,
+                      }))}
+                      products={(productRows.ok ? productRows.value : []).map((p) => ({
+                        id: p.id,
+                        name: p.name,
+                        unit: unitName.get(p.unitId) ?? "",
+                      }))}
+                      canEdit={false}
+                      canApprove={can(session.authz, session.entitlement, "pipeline.discount.approve", "ui").allowed}
+                      closed={opportunity.closedAt !== null}
+                      onSave={saveOpportunityLines}
+                      onApprove={approveDiscount}
+                    />
+                  ),
+                },
+                {
+                  key: "commitments",
+                  label: FIELD_TEXT.commitTitle,
+                  count: commitments.ok ? commitments.value.length : 0,
+                  view: { hint: PANEL_MENU_TEXT.noListPage },
+                  edit: { hint: PANEL_MENU_TEXT.noEntryHere },
+                  content: commitments.ok ? (
+                    <div className="flex flex-col gap-sm">
+                      {commitmentItems.length > 0 ? (
+                        <AdvisorFinding items={commitmentItems} onAdjudicate={adjudicateProposals} />
+                      ) : null}
+                      <CommitmentList
+                        accountId={opportunity.accountId}
+                        opportunityId={id}
+                        items={commitments.value}
+                        evidence={interactionList.map((i) => ({
+                          id: i.id,
+                          label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+                        }))}
+                        canWrite={canRecord}
+                        captureHref={`/capture?account=${opportunity.accountId}&opportunity=${id}&back=/pipeline/${id}`}
+                        onSettle={settleCommitment}
+                        rows
+                      />
+                    </div>
+                  ) : null,
+                },
+                {
+                  key: "history",
+                  label: DEAL_PAGE_TEXT.history,
+                  count: changeCount,
+                  view: { hint: PANEL_MENU_TEXT.noListPage },
+                  edit: { hint: PANEL_MENU_TEXT.derived },
+                  content: history.ok ? (
+                    <ChangeHistory
+                      claims={claims.ok ? claims.value.events : []}
+                      stages={history.value}
+                      stageDefinitions={stageDefinitions}
+                      actorNames={Object.fromEntries([...memberNameOf].filter((e): e is [string, string] => e[1] != null))}
+                      categoryLabel={FORECAST_LABEL}
+                    />
+                  ) : (
+                    <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(history.violations, LOAD_ERROR)} />
+                  ),
+                },
+              ]}
+            />
 
           </div>
         </ViewLayout>

@@ -5906,7 +5906,6 @@ export const en: Dictionary = {
     historyEmpty: "No changes yet",
     historyExit: (met: number, total: number) => (total === 0 ? "left with no criteria set" : `left at ${met}/${total}`),
     historyExitUnmet: (names: readonly string[]) => `Not met: ${names.join(", ")}`,
-    historySince: "Claim changes (amount, close date, category, win rate) are recorded from the day this shipped; earlier changes are not backfilled",
     slipped: (n: number, days: number) => `Pushed ${n}× · ${days} days in total`,
     slippedQuarter: "Out of this quarter",
     evidenceSlot: {
@@ -5968,7 +5967,6 @@ export const en: Dictionary = {
     importanceSetBy: (who: string, at: string) => `Set by ${who} on ${at}`,
     importanceDefault: "The default level - nobody has set it yet",
     importanceCross: (tier: string, level: string) => `Customer ${tier} x deal ${level}`,
-    historyFold: (n: number) => `History · claims and stages, ${n}`,
     trackCurrent: (met: number, total: number) => `Now ${met}/${total}`,
     trackHere: "Now",
     trackWithReason: "with reason",
@@ -6007,6 +6005,10 @@ export const en: Dictionary = {
     quoteSummary: (lines: number, pending: number) =>
       pending > 0 ? `${lines} line(s) · ${pending} awaiting approval` : `${lines} line(s)`,
     quoteNone: "No lines yet",
+    rosterTitle: "Deal roster",
+    rosterSummary: (quote: string, commits: number, changes: number) =>
+      [quote, `${commits} open commitment(s)`, `${changes} change(s)`].join(" · "),
+    evidenceNoPenalty: "no penalty",
     commsTitle: "Communication log",
     commsSummary: (days: number, recent: number) => `Last ${days} days ago · ${recent} in 30 days`,
     commsNone: "No communication recorded yet",
