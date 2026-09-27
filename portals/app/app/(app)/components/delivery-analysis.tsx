@@ -2,7 +2,8 @@
 
 import { BarChart, Card } from "@vxture/design-ui";
 import { AnalysisTabs } from "./analysis-tabs";
-import { useMessages } from "../lib/i18n/provider";
+import { useLocale, useMessages } from "../lib/i18n/provider";
+import { formatCompactNumber } from "../lib/view-model";
 import type { DeliveryStats } from "../../domains/delivery/lib/delivery-stats";
 
 // 交付分析 - the statistics block above the project list, built to the shape
@@ -35,7 +36,10 @@ export function DeliveryAnalysis({
 }) {
   const { DELIVERY_TEXT, PROJECT_STATUS_LABEL, HEALTH_LABEL } = useMessages();
 
-  const money = (n: number) => n.toLocaleString();
+  const locale = useLocale();
+  // Compact on the axis and the peak read-out: full figures truncated to
+  // "14,44..." in the chart's fixed axis width (DS 14 batch 4).
+  const money = (n: number) => formatCompactNumber(n, locale);
 
   const byStage = stats.byStage.map((b) => ({
     key: b.key,

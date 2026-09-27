@@ -229,6 +229,17 @@ export function formatMoney(
  * discrepancy rather than introducing one. The exact figure is a column away in
  * the table below, where a row has the width for it.
  */
+/**
+ * A chart axis figure, compact ("1444.5万" / "14.4M"). The DS BarChart gives
+ * its axis a fixed width, and full figures there truncated to "14,44..." - a
+ * clipped number is a wrong one that looks exact (DS 14 batch 4).
+ */
+export function formatCompactNumber(n: number, locale: string): string {
+  // Three significant digits: "1444.5万" still clipped at the axis width; the
+  // exact figure is in the table under every chart.
+  return new Intl.NumberFormat(locale, { notation: "compact", maximumSignificantDigits: 3 }).format(n);
+}
+
 export function formatMoneyCompact(
   amount: number | null,
   currency: string,
