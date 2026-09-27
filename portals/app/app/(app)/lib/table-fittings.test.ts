@@ -47,7 +47,6 @@ const NOT_YET_CONVERTED: Record<string, string> = {
   "lead-list.tsx": "D5 pipeline - not rebuilt yet",
   "line-editor.tsx": "D5 pipeline - not rebuilt yet",
   "pending-reviews.tsx": "D5 pipeline - not rebuilt yet",
-  "pipeline-board.tsx": "D5 pipeline - not rebuilt yet",
   "planning-table.tsx": "D6 planning - not rebuilt yet",
   "territory-panel.tsx": "D2 territory - not rebuilt yet",
 };
@@ -113,6 +112,10 @@ const ACTIONS_REPLACED: Record<string, string> = {
  * one but relying on the OTHER also being absent stays a bug, not a pass.
  */
 const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[]; reason: string }> = {
+  "pipeline-board.tsx": {
+    skip: ["选择"],
+    reason: "商机列表不设选择列 - 没有作用于多笔商机的操作，且 776px 中栏里表格已恰好放满 (同报价管理的裁定, owner 2026-09-26: 可以不要选择列)",
+  },
   "quote-table.tsx": {
     skip: ["选择"],
     reason: "报价管理不需要选择列 (owner, 2026-09-26: 可以不要选择列) - nothing on the page acts on several quotes at once",
