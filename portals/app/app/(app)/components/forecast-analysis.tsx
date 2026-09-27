@@ -2,7 +2,8 @@
 
 import { BarChart, Card, Progress } from "@vxture/design-ui";
 import { AnalysisTabs } from "./analysis-tabs";
-import { useMessages } from "../lib/i18n/provider";
+import { useLocale, useMessages } from "../lib/i18n/provider";
+import { formatCompactNumber } from "../lib/view-model";
 import type { ForecastStats } from "../../domains/pipeline/lib/forecast-stats";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 
@@ -22,7 +23,10 @@ import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 export function ForecastAnalysis({ stats }: { readonly stats: ForecastStats }) {
   const { FORECAST_RULE_TEXT, FORECAST_LABEL } = useMessages();
 
-  const money = (n: number) => n.toLocaleString();
+  const locale = useLocale();
+  // Compact on the axis and the peak read-out: full figures truncated to
+  // "14,44..." in the chart's fixed axis width (DS 14 batch 4).
+  const money = (n: number) => formatCompactNumber(n, locale);
   const disputed = stats.optimistic.count + stats.conservative.count;
   const rate = stats.total === 0 ? 100 : Math.round((stats.agreed.count / stats.total) * 100);
 

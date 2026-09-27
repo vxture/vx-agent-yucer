@@ -2,7 +2,8 @@
 
 import { BarChart, Card } from "@vxture/design-ui";
 import { AnalysisTabs } from "./analysis-tabs";
-import { useMessages } from "../lib/i18n/provider";
+import { useLocale, useMessages } from "../lib/i18n/provider";
+import { formatCompactNumber } from "../lib/view-model";
 import type { CollectionStats } from "../../domains/delivery/lib/collection-stats";
 
 // 回款分析 - the statistics block above the schedule (owner, 2026-09-06:
@@ -28,7 +29,10 @@ import type { CollectionStats } from "../../domains/delivery/lib/collection-stat
 export function CollectionOverview({ stats }: { readonly stats: CollectionStats }) {
   const { DELIVERY_TEXT } = useMessages();
 
-  const money = (n: number) => n.toLocaleString();
+  const locale = useLocale();
+  // Compact on the axis and the peak read-out: full figures truncated to
+  // "14,44..." in the chart's fixed axis width (DS 14 batch 4).
+  const money = (n: number) => formatCompactNumber(n, locale);
 
   /* THE LABEL IS COMPOSED, not looked up (incr/0042). The bands used to be
      five literals with five translations beside them; a workspace ageing at
