@@ -512,6 +512,7 @@ export const QUOTE_TEXT = {
   noList: "无价目",
   listShort: (list: string) => `原价 ${list}`,
   levelOf: (name: string) => `客户级别：${name}`,
+  importanceOf: (name: string) => `商机重要度：${name}`,
   rowCount: (n: number) => `共 ${n} 份`,
   filteredCount: (shown: number, total: number) => `${shown} / ${total} 份`,
   searchLabel: "搜索报价",

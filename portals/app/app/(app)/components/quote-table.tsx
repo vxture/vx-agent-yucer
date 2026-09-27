@@ -64,6 +64,8 @@ export interface QuoteRow {
   readonly accountName: string | null;
   /** The customer's level (级别徽章); null = no level or not allowed to read it. */
   readonly accountLevel: { readonly name: string; readonly medal: "gold" | "silver" | "bronze" } | null;
+  /** The deal's importance (重要度) as its medal; null = scheme not readable. */
+  readonly dealLevel: { readonly name: string; readonly medal: "gold" | "silver" | "bronze" } | null;
   readonly stage: string;
   readonly lineCount: number;
   readonly amount: number;
@@ -157,18 +159,25 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
       header: QUOTE_TEXT.colDeal,
       // Floors, not pins: auto layout sizes the rest to their content, and in
       // a narrow middle column the table scrolls rather than crushing names.
-      width: "md",
+      // lg since the importance medal took ~26px of it (编号 · N 行项 clipped).
+      width: "lg",
       cell: (r) => (
-        <TableTitleCell
-          icon="medal"
-          tooltip={r.name}
-          title={
-            <Link href={`/pipeline/${r.opportunityId}`} className="hover:underline">
-              {r.name}
-            </Link>
-          }
-          description={QUOTE_TEXT.dealMeta(r.opportunityNo, r.lineCount)}
-        />
+        /* The importance medal where the DS icon would sit (owner, 2026-09-26:
+           换成商机详情页的重要度奖牌). TableTitleCell's icon slot takes a DS
+           glyph only, so the medal stands beside the cell instead. */
+        <span className="flex min-w-0 items-center gap-sm">
+          {r.dealLevel ? <LevelMedal medal={r.dealLevel.medal} label={QUOTE_TEXT.importanceOf(r.dealLevel.name)} /> : null}
+          <TableTitleCell
+            className="min-w-0"
+            tooltip={r.name}
+            title={
+              <Link href={`/pipeline/${r.opportunityId}`} className="hover:underline">
+                {r.name}
+              </Link>
+            }
+            description={QUOTE_TEXT.dealMeta(r.opportunityNo, r.lineCount)}
+          />
+        </span>
       ),
     },
     {
@@ -309,8 +318,12 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
           {pagination.pageRows.map((r) => (
             <ListCard
               key={r.opportunityId}
-              icon="medal"
-              title={<Link href={`/pipeline/${r.opportunityId}`}>{r.name}</Link>}
+              title={
+                <span className="inline-flex min-w-0 items-center gap-xs">
+                  {r.dealLevel ? <LevelMedal medal={r.dealLevel.medal} label={QUOTE_TEXT.importanceOf(r.dealLevel.name)} /> : null}
+                  <Link href={`/pipeline/${r.opportunityId}`} className="truncate">{r.name}</Link>
+                </span>
+              }
               description={r.opportunityNo}
               /* 待签 in the meta row, not the status slot: in a 250px card the
                  status slot squeezed the title down to one character. Money

@@ -639,6 +639,7 @@ export const en: Dictionary = {
     noList: "No list price",
     listShort: (list: string) => `list ${list}`,
     levelOf: (name: string) => `Customer level: ${name}`,
+    importanceOf: (name: string) => `Deal importance: ${name}`,
     rowCount: (n: number) => `${n} quotes`,
     filteredCount: (shown: number, total: number) => `${shown} of ${total} quotes`,
     searchLabel: "Search quotes",
