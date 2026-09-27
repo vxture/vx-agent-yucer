@@ -6,7 +6,11 @@ import {
   ActionMenu,
   DataTable,
   EmptyState,
+  Field,
+  FieldDescription,
+  FieldLabel,
   FilterBar,
+  Input,
   ListCard,
   ListCardGrid,
   TableTitleCell,
@@ -18,6 +22,7 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import { RowActions, useTableSort } from "./table-fittings";
+import { DialogForm } from "./dialog-form";
 import type { AttainmentRow } from "../../domains/planning/service";
 import type { TargetValue } from "../../domains/planning/lib/target";
 import { formatMoney, formatPercent } from "../lib/view-model";
@@ -93,6 +98,11 @@ export function PlanningTable({
     pendingLabel: DS_LABELS.confirmPending,
   };
   const [view, setView] = useState<FilterBarView>("list");
+  // 调整 asks in a DS dialog (module rebuild, 2026-09-27) - it was a
+  // window.prompt: not a DS element, unstyled, and it could not say which
+  // target it was adjusting or validate before the round trip.
+  const [adjusting, setAdjusting] = useState<AttainmentRow | null>(null);
+  const [draft, setDraft] = useState("");
   const { toast } = useToast();
 
   // A refused update used to be discarded (`void onUpdate(...)`), so a rule
@@ -204,16 +214,8 @@ export function PlanningTable({
             label: PLANNING_TEXT.adjust,
             icon: "edit",
             onSelect: () => {
-              const next = window.prompt(
-                row.target.targetValue.unit === "count"
-                  ? PLANNING_TEXT.setCount
-                  : PLANNING_TEXT.setAmount,
-                String(row.target.targetValue.amount),
-              );
-              if (next === null) return;
-              const n = Number(next);
-              if (!Number.isFinite(n) || n < 0) return;
-              runUpdate(row.target.id, { amount: n });
+              setDraft(String(row.target.targetValue.amount));
+              setAdjusting(row);
             },
           },
           // Committing is offered only from draft, because the rule layer
@@ -319,6 +321,36 @@ export function PlanningTable({
             ))}
           </ListCardGrid>
         )}
+      {adjusting ? (
+        <DialogForm
+          open
+          onOpenChange={(o: boolean) => {
+            if (!o) setAdjusting(null);
+          }}
+          title={PLANNING_TEXT.adjust}
+          submitLabel={PLANNING_TEXT.adjustConfirm}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const n = Number(draft);
+            if (draft.trim() === "" || !Number.isFinite(n) || n < 0) return;
+            runUpdate(adjusting.target.id, { amount: n });
+            setAdjusting(null);
+          }}
+        >
+          <Field>
+            <FieldLabel>
+              {adjusting.target.targetValue.unit === "count" ? PLANNING_TEXT.setCount : PLANNING_TEXT.setAmount}
+            </FieldLabel>
+            <Input
+              value={draft}
+              inputMode="decimal"
+              aria-invalid={draft.trim() !== "" && !(Number(draft) >= 0) ? true : undefined}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <FieldDescription>{PLANNING_TEXT.adjustWhich(scopeLabel(adjusting, names, nameOf, PLANNING_TEXT))}</FieldDescription>
+          </Field>
+        </DialogForm>
+      ) : null}
     </>
   );
 }

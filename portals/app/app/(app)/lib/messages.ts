@@ -5373,6 +5373,8 @@ export const PLANNING_TEXT = {
   setDenied: "你没有设定目标的权限",
   // Row-level adjustment. This one IS a row gesture: the number is on screen.
   adjust: "调整金额",
+  adjustConfirm: "保存",
+  adjustWhich: (scope: string) => `调整的是「${scope}」的目标；已提交的目标也可调整，已关闭的不可。`,
   adjustSaved: "已调整",
   commit: "提交为承诺",
   commitWhy: "提交后不能退回草稿——已经报上去的数字撤不回来",
