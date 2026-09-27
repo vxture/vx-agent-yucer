@@ -351,3 +351,51 @@ export function planPriceRemoval(input: {
   }
   return ok(true);
 }
+
+/**
+ * 原价 - what a deal's lines would come to at list price (owner, 2026-09-26:
+ * 报价管理要有原价列，直观比较报价与原价).
+ *
+ * Each line is valued at the entry in force for its product and currency -
+ * the LATEST one, the same pick `priceFor` makes when the line is priced, so
+ * the list figure here is the one the floor check read. A line whose product
+ * has no entry in that currency has no list price: it is counted in
+ * `unpriced` and left out of BOTH sides, so the comparison is like for like
+ * rather than a partial list total set against a full quote.
+ *
+ * `discount` is 1 - quoted / list over the priced lines: 0.12 = 12% off,
+ * negative = quoted above list. Null when no line has a list price.
+ */
+export function listComparison(
+  lines: readonly { readonly productId: string; readonly currency: string; readonly quantity: number; readonly amount: number }[],
+  entries: readonly PriceEntryRecord[],
+): { readonly listAmount: number | null; readonly quotedOnListed: number; readonly unpriced: number; readonly discount: number | null } {
+  const latest = new Map<string, PriceEntryRecord>();
+  for (const e of entries) {
+    const key = `${e.productId}\u0000${e.currency}`;
+    const held = latest.get(key);
+    if (!held || e.effectiveAt.getTime() > held.effectiveAt.getTime()) latest.set(key, e);
+  }
+  let list = 0;
+  let quoted = 0;
+  let listed = 0;
+  let unpriced = 0;
+  for (const l of lines) {
+    const entry = latest.get(`${l.productId}\u0000${l.currency}`);
+    if (!entry) {
+      unpriced += 1;
+      continue;
+    }
+    listed += 1;
+    list += l.quantity * entry.listPrice;
+    quoted += l.amount;
+  }
+  const listAmount = listed === 0 ? null : Math.round(list * 100) / 100;
+  const quotedOnListed = Math.round(quoted * 100) / 100;
+  return {
+    listAmount,
+    quotedOnListed,
+    unpriced,
+    discount: listAmount === null || listAmount === 0 ? null : 1 - quotedOnListed / listAmount,
+  };
+}

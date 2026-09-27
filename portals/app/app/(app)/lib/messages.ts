@@ -498,8 +498,34 @@ export const QUOTE_TEXT = {
   colStage: "阶段",
   colLines: "行项",
   colAmount: "报价金额",
+  dealMeta: (no: string, lines: number) => `${no} · ${lines} 行项`,
+  colList: "原价",
+  colDiscount: "折扣",
   colSignature: "待签字",
   awaiting: (n: number) => `${n} 行待签`,
+  // 折扣: 12% off reads "-12%"; quoted above list reads "+3%"; exactly list "0%".
+  discount: (d: number) => {
+    const pct = Math.round(d * 1000) / 10;
+    return pct === 0 ? "0%" : pct > 0 ? `-${pct}%` : `+${-pct}%`;
+  },
+  unpricedHint: (n: number) => `${n} 行在价目表里没有价格，原价与折扣只算有价格的行`,
+  noList: "无价目",
+  listShort: (list: string) => `原价 ${list}`,
+  levelOf: (name: string) => `客户级别：${name}`,
+  rowCount: (n: number) => `共 ${n} 份`,
+  filteredCount: (shown: number, total: number) => `${shown} / ${total} 份`,
+  searchLabel: "搜索报价",
+  searchHint: "商机、编号或客户",
+  filterAllStages: "全部阶段",
+  filterSignature: "签字状态",
+  filterAllSignature: "全部签字状态",
+  filterAwaiting: "有待签",
+  filterClear: "无待签",
+  resetFilters: "重置筛选",
+  noMatch: "没有符合条件的报价",
+  noMatchWhy: "换个关键词，或重置筛选。",
+  openDeal: "打开商机",
+  openAccount: "查看客户",
 } as const;
 
 export const DOMAIN_FACT_LABEL: Record<string, string> = {

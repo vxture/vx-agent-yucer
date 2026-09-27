@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { priceLine, lineTotal, reconciles, byProduct, planPriceRemoval } from "./pricing";
+import { priceLine, lineTotal, reconciles, byProduct, planPriceRemoval, listComparison } from "./pricing";
 import type { PriceEntryRecord } from "../store";
 
 const entry = (list: number, floor: number): PriceEntryRecord => ({
@@ -73,4 +73,36 @@ test("a superseded entry a signature cites is not deletable either", () => {
 
 test("a superseded entry nothing leans on is deletable - the typo case", () => {
   assert.equal(planPriceRemoval({ inForce: false, signaturesOnFloor: 0 }).ok, true);
+});
+
+test("listComparison: values each line at its latest entry, like for like", () => {
+  const at = (d: string) => new Date(d);
+  const entry = (productId: string, currency: string, listPrice: number, effective: string) => ({
+    id: `${productId}-${effective}`,
+    workspaceId: "w",
+    productId,
+    currency,
+    listPrice,
+    floorPrice: listPrice / 2,
+    effectiveAt: at(effective),
+    supersedesId: null,
+  });
+  const entries = [entry("p1", "CNY", 100, "2026-01-01"), entry("p1", "CNY", 120, "2026-06-01"), entry("p2", "CNY", 50, "2026-01-01")];
+  const r = listComparison(
+    [
+      { productId: "p1", currency: "CNY", quantity: 2, amount: 200 }, // list 240
+      { productId: "p2", currency: "CNY", quantity: 4, amount: 160 }, // list 200
+      { productId: "p3", currency: "CNY", quantity: 1, amount: 999 }, // no entry
+    ],
+    entries,
+  );
+  assert.equal(r.listAmount, 440);
+  assert.equal(r.quotedOnListed, 360, "the unpriced line is left out of the quoted side too");
+  assert.equal(r.unpriced, 1);
+  assert.ok(Math.abs(r.discount! - (1 - 360 / 440)) < 1e-9);
+});
+
+test("listComparison: no listed line means no list total, not zero", () => {
+  const r = listComparison([{ productId: "p9", currency: "USD", quantity: 1, amount: 10 }], []);
+  assert.deepEqual(r, { listAmount: null, quotedOnListed: 0, unpriced: 1, discount: null });
 });

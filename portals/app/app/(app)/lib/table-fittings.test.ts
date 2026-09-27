@@ -50,7 +50,6 @@ const NOT_YET_CONVERTED: Record<string, string> = {
   "pipeline-board.tsx": "D5 pipeline - not rebuilt yet",
   "planning-table.tsx": "D6 planning - not rebuilt yet",
   "proposal-queue.tsx": "D9 copilot - not rebuilt yet",
-  "quote-table.tsx": "D5 quote - not rebuilt yet",
   "territory-panel.tsx": "D2 territory - not rebuilt yet",
 };
 
@@ -115,6 +114,10 @@ const ACTIONS_REPLACED: Record<string, string> = {
  * one but relying on the OTHER also being absent stays a bug, not a pass.
  */
 const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[]; reason: string }> = {
+  "quote-table.tsx": {
+    skip: ["选择"],
+    reason: "报价管理不需要选择列 (owner, 2026-09-26: 可以不要选择列) - nothing on the page acts on several quotes at once",
+  },
   "permission-tree.tsx": {
     skip: ["选择", "序号"],
     reason:

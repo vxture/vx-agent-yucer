@@ -7,11 +7,13 @@ import {
   getCatalogStore,
   getPipelineStore,
 } from "../../domains/shared/registry";
-import { listOpportunityLines } from "../../domains/catalog/service";
+import { listOpportunityLines, listPrices, type ApprovedLine } from "../../domains/catalog/service";
+import { listComparison } from "../../domains/catalog/lib/pricing";
 import { listPipeline, listStageDefinitions } from "../../domains/pipeline/service";
 import { toStageCatalog } from "../../domains/pipeline/store";
 import { DEFAULT_STAGE_DEFINITIONS } from "../../domains/pipeline/lib/stage";
-import { listAccounts } from "../../domains/account/service";
+import { importanceScheme, listAccounts } from "../../domains/account/service";
+import { accountLevelOf, medalOf } from "../../domains/account/lib/importance";
 import { QuoteTable, type QuoteRow } from "../components/quote-table";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -47,7 +49,7 @@ export default async function QuotePage() {
     entitlement: session.entitlement,
   };
 
-  const [deals, lines, accounts, stageRows] = await Promise.all([
+  const [deals, lines, accounts, stageRows, prices, scheme] = await Promise.all([
     listPipeline(
       { ...base, store: session.stores.pipeline() },
       { includeClosed: true },
@@ -60,6 +62,12 @@ export default async function QuotePage() {
     // the honest answer to "who is this" when you are not allowed to know.
     listAccounts({ ...base, store: session.stores.account() }),
     listStageDefinitions({ ...base, store: session.stores.pipeline() }),
+    // 原价 reads the price book through its own gate: a member who may see
+    // deals but not the book gets a blank 原价 column, not a guessed one.
+    listPrices({ ...base, store: getCatalogStore() }),
+    // The customer's level (级别徽章), from the same scheme the customer page
+    // and the priority matrix read. Refused = no badge, never a guess.
+    importanceScheme({ ...base, store: session.stores.account() }),
   ]);
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
 
@@ -75,43 +83,44 @@ export default async function QuotePage() {
   // Grouped here rather than by a second query: the lines come back joined to
   // their approvals, and asking the database again per deal would be one
   // round trip per row to re-derive what is already in hand.
-  const byDeal = new Map<
-    string,
-    { count: number; amount: number; currency: string; unsigned: number }
-  >();
+  const linesByDeal = new Map<string, ApprovedLine[]>();
   for (const l of lines.ok ? lines.value : []) {
-    const acc = byDeal.get(l.opportunityId) ?? {
-      count: 0,
-      amount: 0,
-      currency: l.currency,
-      unsigned: 0,
-    };
-    acc.count += 1;
-    acc.amount += l.amount;
-    // Below the floor AND unsigned. needsApproval alone would count lines a
-    // human has already signed for, which is the opposite of what blocks.
-    if (l.needsApproval && !l.approved) acc.unsigned += 1;
-    byDeal.set(l.opportunityId, acc);
+    const list = linesByDeal.get(l.opportunityId);
+    if (list) list.push(l);
+    else linesByDeal.set(l.opportunityId, [l]);
   }
 
-  const accountName = new Map(
-    (accounts.ok ? accounts.value : []).map((a) => [a.id, a.name]),
-  );
+  const accountById = new Map((accounts.ok ? accounts.value : []).map((a) => [a.id, a] as const));
+  const levelOf = (accountId: string) => {
+    const a = accountById.get(accountId);
+    if (!a || !scheme.ok) return null;
+    const level = accountLevelOf(a, scheme.value.account);
+    return level ? { name: level.name, medal: medalOf(level.rank) } : null;
+  };
 
   const rows: QuoteRow[] = deals.value
-    .filter((d) => byDeal.has(d.id))
+    .filter((d) => linesByDeal.has(d.id))
     .map((d) => {
-      const q = byDeal.get(d.id)!;
+      const own = linesByDeal.get(d.id)!;
+      const amount = Math.round(own.reduce((n, l) => n + l.amount, 0) * 100) / 100;
+      const list = prices.ok ? listComparison(own, prices.value) : null;
       return {
         opportunityId: d.id,
         opportunityNo: d.opportunityNo,
         name: d.name,
-        accountName: accountName.get(d.accountId) ?? null,
+        accountId: d.accountId,
+        accountName: accountById.get(d.accountId)?.name ?? null,
+        accountLevel: levelOf(d.accountId),
         stage: d.stage,
-        lineCount: q.count,
-        amount: q.amount,
-        currency: q.currency,
-        awaitingSignature: q.unsigned,
+        lineCount: own.length,
+        amount,
+        currency: own[0]!.currency,
+        listAmount: list?.listAmount ?? null,
+        discount: list?.discount ?? null,
+        unpriced: list?.unpriced ?? 0,
+        // Below the floor AND unsigned. needsApproval alone would count lines
+        // a human has already signed for, which is the opposite of what blocks.
+        awaitingSignature: own.filter((l) => l.needsApproval && !l.approved).length,
       };
     })
     // Blocked quotes first: they are the ones somebody has to act on, and a
