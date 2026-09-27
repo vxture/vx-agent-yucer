@@ -12,7 +12,6 @@ import {
   type TargetScopeType,
   type TargetStatus,
 } from "../../domains/planning/lib/target";
-import { money } from "../../domains/shared/money";
 import {
   TERRITORY_STATUSES,
   type TerritoryStatus,
@@ -102,6 +101,16 @@ export async function updateSalesTarget(
     return { ok: false, error: "unknown_status" };
   }
 
+  // `amount`, the key updateTarget reads (2026-09-27). This passed
+  // `targetAmount: money(...)` inside an object spread - a key updateTarget
+  // does not have, and a spread escapes the excess-property check - so every
+  // 调整金额 returned ok and changed nothing. Written as a plain literal typed
+  // against the service's own parameter, a wrong key is now a compile error.
+  // The unit and currency are the stored target's; never taken from here.
+  const servicePatch: Parameters<typeof updateTarget>[2] = {
+    amount: patch.amount,
+    status: patch.status !== undefined && isStatus(patch.status) ? patch.status : undefined,
+  };
   const result = await updateTarget(
     {
       workspaceId: session.workspaceId,
@@ -111,14 +120,7 @@ export async function updateSalesTarget(
       store: getPlanningStore(),
     },
     id,
-    {
-      ...(patch.amount !== undefined
-        ? { targetAmount: money(patch.amount, patch.currency) }
-        : {}),
-      ...(patch.status !== undefined && isStatus(patch.status)
-        ? { status: patch.status }
-        : {}),
-    },
+    servicePatch,
   );
 
   if (!result.ok) {

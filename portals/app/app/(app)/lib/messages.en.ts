@@ -4519,6 +4519,8 @@ export const en: Dictionary = {
     setSaved: "Created",
     setDenied: "You cannot set targets",
     adjust: "Adjust the amount",
+    adjustConfirm: "Save",
+    adjustWhich: (scope: string) => `Adjusting the target for ${scope}; committed targets can be adjusted, closed ones cannot.`,
     adjustSaved: "Adjusted",
     commit: "Commit it",
     commitWhy:
