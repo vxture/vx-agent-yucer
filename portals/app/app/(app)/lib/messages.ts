@@ -23,6 +23,7 @@ import type { SignalType } from "../../domains/signal/lib/scoring";
 // CLAUDE.md.
 
 import type { Stage } from "../../domains/pipeline/lib/stage";
+import type { GapBasis } from "../../domains/account/lib/completeness";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import type { ActionStatus } from "../../domains/copilot/lib/action";
 import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/revenue";
@@ -1973,6 +1974,21 @@ export const COMPLETENESS_ERROR: Record<string, string> = {
 };
 
 export const COMPLETENESS_TEXT = {
+  /** Why a suggestion - the rule gives a code and its facts (GapBasis). */
+  basis: (b: GapBasis): string => {
+    switch (b.code) {
+      case "province_region":
+        return `${b.province}属于${b.region}`;
+      case "territory_region":
+        return `本客户的商机所在的销售区域只覆盖${b.region}`;
+      case "region_uncovered":
+        return `${b.region}没有被任何销售区域覆盖`;
+      case "industry_segment":
+        return `${b.industry}只匹配细分市场 ${b.segment}`;
+      case "sole_deal_owner":
+        return "这家客户的商机只有这一位负责人";
+    }
+  },
   title: "这份客户资料还缺什么",
   description:
     "缺的信息分两种：本工作区的数据已经能推出来的，和需要问助手的。推出来的会写明依据——一次说不出来路的填写，等于机器替你在客户档案上签字。",
@@ -2026,6 +2042,9 @@ export const BATCH_COMPLETE_TEXT = {
   columnSuggestion: "建议值",
   columnBasis: "依据",
   selectionNoun: "条建议",
+  applyOne: "应用这一条",
+  applyDenied: "你没有修改客户资料的权限",
+  openAccount: "打开客户",
   apply: "批量应用",
   applying: "应用中",
   clearSelection: "取消选择",
