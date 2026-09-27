@@ -1,7 +1,7 @@
 "use client";
 
 import { MemberName, useMemberName } from "../lib/member-names";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   ActionMenu,
   Button,
@@ -11,15 +11,19 @@ import {
   FieldLabel,
   FilterBar,
   Input,
+  ListCard,
+  ListCardGrid,
   NativeSelect,
   Section,
   StatusBadge,
   TableTitleCell,
+  useListPagination,
   type DataTableColumn,
 } from "@vxture/design-ui";
 import { DialogForm } from "./dialog-form";
 import {
   FilterSlot,
+  PaginationFooter,
   rowClickSelection,
   SearchSlot,
   useTableSort,
@@ -577,9 +581,16 @@ export function LeadList({
     );
   }
 
+  // PAGED (module rebuild, 2026-09-27): 184 leads sat on one page. Sorted
+  // BEFORE paging, so a sort orders the list and not just this page.
+  const ordered = sorted.sortRows(visible);
+  const pagination = useListPagination(ordered, 20);
+
   // 选择列 - one of the three standard fittings. Row click toggles it; the
   // checkbox alone is too small to aim at (owner, 2026-09-06).
-  const select = rowClickSelection(visible, (r) => r.id, selected, setSelected);
+  // It clicks the row's own checkbox (see table-fittings.tsx), so sorting and
+  // paging cannot make it tick a different lead.
+  const select = rowClickSelection();
 
   return (
     <Section
@@ -800,7 +811,7 @@ export function LeadList({
                 value={query}
                 placeholder={LEAD_TEXT.searchHint}
                 aria-label={LEAD_TEXT.searchLabel}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); pagination.resetPage(); }}
               />
             </SearchSlot>
           }
@@ -812,6 +823,7 @@ export function LeadList({
                   setQuery("");
                   setStatusFilter("");
                   setOwnerFilter("");
+                  pagination.resetPage();
                 }
               : undefined
           }
@@ -821,7 +833,7 @@ export function LeadList({
             <NativeSelect
               value={statusFilter}
               aria-label={LEAD_TEXT.columnStatus}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); pagination.resetPage(); }}
             >
               <option value="">{LEAD_TEXT.filterAllStatus}</option>
               {Object.entries(LEAD_STATUS_LABEL).map(([k, label]) => (
@@ -835,7 +847,7 @@ export function LeadList({
             <NativeSelect
               value={ownerFilter}
               aria-label={LEAD_TEXT.columnOwner}
-              onChange={(e) => setOwnerFilter(e.target.value)}
+              onChange={(e) => { setOwnerFilter(e.target.value); pagination.resetPage(); }}
             >
               <option value="">{LEAD_TEXT.filterAllOwners}</option>
               <option value="__none__">{LEAD_TEXT.filterUnowned}</option>
@@ -865,23 +877,62 @@ export function LeadList({
         visible.length === 0 ? (
         <EmptyState title={LEAD_TEXT.noMatch} description={LEAD_TEXT.noMatchWhy} />
       ) : (
+        <>
+        {view === "list" ? (
         <div
-          className={`[&_table]:table-fixed ${select.className}`}
+          /* 公司 gets a quarter of the width (nth-child(3): 选择 | 序号 come
+             first); the rest still share out equally. Equal shares clipped the
+             lead number under the company name to "LEAD-001...". */
+          className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[24%] ${select.className}`}
           ref={select.ref}
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
-            indexStart={1}
+            indexStart={pagination.indexStart}
             columns={columns}
-            rows={[...sorted.sortRows(visible)]}
+            rows={[...pagination.pageRows]}
             sort={sorted.sort}
-            onSortChange={sorted.onSortChange}
+            onSortChange={(s) => {
+              sorted.onSortChange(s);
+              pagination.resetPage();
+            }}
             rowKey={(row) => row.id}
             selectedKeys={selected}
             onSelectionChange={setSelected}
             rowActions={(row) => <LeadActions row={row} />}
           />
         </div>
+        ) : (
+          /* THE CARD VIEW the switch always offered and never drew (the
+             toggle changed state and nothing rendered differently). */
+          <ListCardGrid>
+            {pagination.pageRows.map((row) => (
+              <ListCard
+                key={row.id}
+                title={row.companyName}
+                description={`${row.leadNo}${row.contactName ? ` / ${row.contactName}` : ""}`}
+                actions={<LeadActions row={row} />}
+                /* 状态 in the meta row, not the status slot: in a 250px card
+                   the slot clipped the lead number (same fix as 报价卡片). */
+                meta={
+                  <>
+                    <Tag tone={row.status === "converted" ? "success" : "neutral"} dot>
+                      {LEAD_STATUS_LABEL[row.status] ?? row.status}
+                    </Tag>
+                    {row.score == null ? null : <Tag tone={confidenceTone(row.score)}>{row.score}</Tag>}
+                    <span>{nameOf(row.ownerSub) ?? LEAD_TEXT.filterUnowned}</span>
+                  </>
+                }
+              />
+            ))}
+          </ListCardGrid>
+        )}
+        <PaginationFooter
+          pagination={pagination}
+          total={leads.length}
+          filteredTotal={visible.length === leads.length ? undefined : visible.length}
+        />
+        </>
       ))}
     </Section>
   );

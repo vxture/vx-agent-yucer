@@ -229,7 +229,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
   /* THE FIXED COLUMNS ARE FIXED AND EVERYTHING ELSE IS DIVIDED EQUALLY
      (owner, 2026-09-06). */
   const table = (list: readonly ForecastRow[], empty: ReactNode) => {
-    const select = rowClickSelection(list, (r) => r.opportunityId, selected, setSelected);
+    const select = rowClickSelection();
     return (
       <div
         ref={select.ref}

@@ -100,7 +100,7 @@ export function ProductRoster({
   // Clicking the row toggles it - the checkbox is too small a target
   // (owner, 2026-09-06). Bound per table because each has its own row order.
   const click = (list: readonly ProductRecord[]) =>
-    rowClickSelection(list, (r) => r.id, selected, setSelected);
+    rowClickSelection();
   const { toast } = useToast();
 
   const typeName = new Map(types.map((t) => [t.id, t.name]));

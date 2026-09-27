@@ -231,7 +231,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5) - 8 个调用方共用这一处,
      不用各自接一遍。 */
   const pagination = useListPagination(sortedFiltered, 20);
-  const select = rowClickSelection(filtered, (r) => r.id, selected, setSelected);
+  const select = rowClickSelection();
   const { toast } = useToast();
   const router = useRouter();
 
