@@ -25,7 +25,7 @@ import { applyBatchFill } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function AccountBatchCompletePage() {
-  const { BATCH_COMPLETE_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+  const { BATCH_COMPLETE_TEXT, COMPLETENESS_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -69,7 +69,8 @@ export default async function AccountBatchCompletePage() {
           accountName: r.accountName,
           field: r.gap.field,
           suggestion: r.gap.suggestion as string,
-          basis: r.gap.basis,
+          // The sentence, in the reader's language, from the rule's code.
+          basis: r.gap.basis ? COMPLETENESS_TEXT.basis(r.gap.basis) : null,
         }))}
         canApply={
           can(session.authz, session.entitlement, "account.upsert", "ui")

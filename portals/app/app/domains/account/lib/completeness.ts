@@ -93,8 +93,21 @@ export interface AccountGap {
    * it. This is the same reason a stage change carries the model's rationale
    * into the journal.
    */
-  basis: string | null;
+  basis: GapBasis | null;
 }
+
+/**
+ * WHY a suggestion, as a code and its facts - never a sentence (2026-09-27).
+ * This was English prose ("江苏省 sits in 华东") rendered straight into a Chinese
+ * page: TD-010's defect in the completeness rule. The sentence belongs to the
+ * dictionary (COMPLETENESS_TEXT.basis), in the reader's language.
+ */
+export type GapBasis =
+  | { readonly code: "province_region"; readonly province: string; readonly region: string }
+  | { readonly code: "territory_region"; readonly territories: number; readonly region: string }
+  | { readonly code: "region_uncovered"; readonly region: string }
+  | { readonly code: "industry_segment"; readonly industry: string; readonly segment: string }
+  | { readonly code: "sole_deal_owner" };
 
 /**
  * Everything missing or wrong on one customer.
@@ -137,7 +150,7 @@ export function accountGaps(
     gaps.push({
       field: "region",
       suggestion: fromProvince,
-      basis: `${account.province} sits in ${fromProvince}`,
+      basis: { code: "province_region", province: account.province as string, region: fromProvince },
       forModel: false,
     });
   } else if (!account.region) {
@@ -154,9 +167,7 @@ export function accountGaps(
     gaps.push({
       field: "region",
       suggestion: only,
-      basis: only
-        ? `deals filed in ${[...territoryIds].length === 1 ? "a territory" : "territories"} covering only ${only}`
-        : null,
+      basis: only ? { code: "territory_region", territories: territoryIds.size, region: only } : null,
       // A customer with no deals, or deals across an ambiguous territory, is
       // exactly the first-entry case the owner asked about: nothing in the
       // workspace places them yet, and the company is a real thing the model
@@ -175,7 +186,7 @@ export function accountGaps(
     gaps.push({
       field: "regionUnplaced",
       suggestion: null,
-      basis: `${account.region} is covered by no territory`,
+      basis: { code: "region_uncovered", region: account.region },
       // NOT a model question. Which territory ought to cover 东北 is a decision
       // about how this company organises its sales, and no fact about the
       // customer settles it. Asking would produce a confident answer to a
@@ -211,7 +222,7 @@ export function accountGaps(
     gaps.push({
       field: "segmentCode",
       suggestion: only ? only.code : null,
-      basis: only ? `${account.industry} matches only ${only.code}` : null,
+      basis: only ? { code: "industry_segment", industry: account.industry as string, segment: only.code } : null,
       // Never the model's question. The segment is decided by criteria an
       // administrator wrote down; asking a model to guess at it would override
       // a rule somebody in this company owns.
@@ -230,7 +241,7 @@ export function accountGaps(
     gaps.push({
       field: "ownerSub",
       suggestion: only,
-      basis: only ? "the only person holding deals on this customer" : null,
+      basis: only ? { code: "sole_deal_owner" } : null,
       // Never the model's question either: who should own a customer is a
       // staffing decision, and the routing rule already answers it from
       // territory and load when nobody is on it yet.

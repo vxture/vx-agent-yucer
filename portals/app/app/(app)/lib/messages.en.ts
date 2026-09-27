@@ -1,6 +1,7 @@
 import type { Dictionary } from "./i18n/dictionary";
 import * as zh from "./messages";
 import type { PeerBenchmark } from "../../domains/account/lib/benchmark";
+import type { GapBasis } from "../../domains/account/lib/completeness";
 import type { IcpDimension, IcpFeatureStatus } from "../../domains/strategy/lib/icp";
 import type { FindingSource, RiskFinding, RiskLevel } from "../../domains/account/lib/risk-types";
 import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
@@ -93,6 +94,20 @@ export const en: Dictionary = {
   },
 
   COMPLETENESS_TEXT: {
+    basis: (b: GapBasis): string => {
+      switch (b.code) {
+        case "province_region":
+          return `${b.province} sits in ${b.region}`;
+        case "territory_region":
+          return `deals filed in ${b.territories === 1 ? "a territory" : "territories"} covering only ${b.region}`;
+        case "region_uncovered":
+          return `${b.region} is covered by no territory`;
+        case "industry_segment":
+          return `${b.industry} matches only ${b.segment}`;
+        case "sole_deal_owner":
+          return "the only person holding deals on this customer";
+      }
+    },
     title: "What this customer record is missing",
     description:
       "Two kinds of gap: what this workspace's own data can already work out, and what the assistant has to find. The first kind shows what it was read from - a fill that cannot say where the value came from is a machine signing your name on a customer record.",
@@ -143,6 +158,9 @@ export const en: Dictionary = {
     columnSuggestion: "Suggested value",
     columnBasis: "Basis",
     selectionNoun: "suggestions",
+    applyOne: "Apply this one",
+    applyDenied: "You may not edit customer records",
+    openAccount: "Open account",
     apply: "Apply selected",
     applying: "Applying",
     clearSelection: "Clear selection",

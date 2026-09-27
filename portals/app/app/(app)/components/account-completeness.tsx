@@ -1,5 +1,6 @@
 "use client";
 
+import type { GapBasis } from "../../domains/account/lib/completeness";
 import { useState, useTransition } from "react";
 import { Button, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -30,7 +31,7 @@ import Link from "next/link";
 export interface CompletenessGap {
   readonly field: string;
   readonly suggestion: string | null;
-  readonly basis: string | null;
+  readonly basis: GapBasis | null;
   readonly forModel: boolean;
 }
 
@@ -129,7 +130,7 @@ export function AccountCompleteness({
               {g.suggestion}
             </span>
             {/* THE BASIS, always. See the header. */}
-            <span className="text-muted-foreground text-body-sm">{g.basis}</span>
+            <span className="text-muted-foreground text-body-sm">{g.basis ? COMPLETENESS_TEXT.basis(g.basis) : null}</span>
           </span>
           {canFill ? (
             <Button
@@ -215,7 +216,7 @@ export function AccountCompleteness({
       {structural.map((g) => (
         <div key={g.field} className="flex flex-col items-start gap-2xs">
           <StatusBadge tone="warning">
-            {COMPLETENESS_TEXT.structural[g.field] ?? g.basis ?? g.field}
+            {COMPLETENESS_TEXT.structural[g.field] ?? (g.basis ? COMPLETENESS_TEXT.basis(g.basis) : g.field)}
           </StatusBadge>
           {/* The fix is not on this record - the sentence says so - so the
               action goes where it is: the territory map. */}

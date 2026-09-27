@@ -40,7 +40,6 @@ const COMPONENTS = join(LIB, "..", "components");
  * domain whose turn has not come.
  */
 const NOT_YET_CONVERTED: Record<string, string> = {
-  "batch-completeness.tsx": "D4 account - not rebuilt yet",
   "line-editor.tsx": "D5 pipeline - not rebuilt yet",
   "planning-table.tsx": "D6 planning - not rebuilt yet",
   "territory-panel.tsx": "D2 territory - not rebuilt yet",

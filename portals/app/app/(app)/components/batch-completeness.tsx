@@ -10,7 +10,8 @@ import {
   TableTitleCell,
   type DataTableColumn,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { RowActions, useTableSort } from "./table-fittings";
+import { useRouter } from "next/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
 // The batch version of AccountCompleteness's derivable half - one table
@@ -62,6 +63,7 @@ export function BatchCompleteness({
     DS_LABELS,
   } = useMessages();
   const sorted = useTableSort(rows, SORT_ON);
+  const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [applying, setApplying] = useState(false);
@@ -77,13 +79,16 @@ export function BatchCompleteness({
     [rows, selected],
   );
 
-  function apply() {
+  /** Applies the given rows - the selection from the bar, or one row from its
+   *  own menu (module rebuild, 2026-09-27: the table had no action column, so
+   *  one suggestion could only be applied by selecting it alone first). */
+  function apply(target: readonly BatchGapRow[] = selectedRows) {
     setApplying(true);
     setResult(null);
     setError(null);
     startTransition(() => {
       void onApply(
-        selectedRows.map((r) => ({
+        target.map((r) => ({
           accountId: r.accountId,
           field: r.field,
           value: r.suggestion,
@@ -160,7 +165,7 @@ export function BatchCompleteness({
               pending || applying
                 ? BATCH_COMPLETE_TEXT.applying
                 : BATCH_COMPLETE_TEXT.apply,
-            onSelect: apply,
+            onSelect: () => apply(),
           },
         ]}
       />
@@ -182,6 +187,28 @@ export function BatchCompleteness({
             selectedKeys={[...selected]}
             onSelectionChange={(keys) => setSelected(new Set(keys))}
             isRowSelectable={() => canApply}
+            rowActions={(row: BatchGapRow) => (
+              <RowActions
+                label={DS_LABELS.actionMenu}
+                disabled={pending || applying}
+                items={[
+                  {
+                    id: "apply",
+                    label: BATCH_COMPLETE_TEXT.applyOne,
+                    icon: "check",
+                    disabled: !canApply,
+                    hint: canApply ? undefined : BATCH_COMPLETE_TEXT.applyDenied,
+                    onSelect: () => apply([row]),
+                  },
+                  {
+                    id: "open",
+                    label: BATCH_COMPLETE_TEXT.openAccount,
+                    icon: "arrow-right",
+                    onSelect: () => router.push(`/account/${row.accountId}`),
+                  },
+                ]}
+              />
+            )}
           />
       )}
     </Section>

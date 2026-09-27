@@ -46,7 +46,8 @@ test("a region is derived from where the customer's deals are filed", () => {
   const region = gaps.find((g) => g.field === "region")!;
   assert.equal(region.suggestion, "华北");
   assert.equal(region.forModel, false, "the data answered, so no turn is worth spending");
-  assert.match(region.basis!, /华北/);
+  // The basis names the region it read (a code and its facts, not a sentence).
+  assert.equal(region.basis && "region" in region.basis ? region.basis.region : null, "华北");
 });
 
 test("an ambiguous territory refuses to choose, and hands the question up", () => {
@@ -115,7 +116,7 @@ test("what nobody could know is not asked of the model either", () => {
   const unplaced = gaps.find((g) => g.field === "regionUnplaced")!;
   assert.equal(unplaced.forModel, false);
   assert.equal(unplaced.suggestion, null);
-  assert.match(unplaced.basis!, /东北/);
+  assert.deepEqual(unplaced.basis, { code: "region_uncovered", region: "东北" });
 });
 
 test("未分区 is reported even though every field is filled in", () => {
@@ -166,7 +167,8 @@ test("the province settles the 大区 exactly, without needing a territory", () 
   const gaps = gapsOf({ region: null, province: "江苏省" }, []);
   const region = gaps.find((g) => g.field === "region")!;
   assert.equal(region.suggestion, "华东");
-  assert.equal(region.basis, "江苏省 sits in 华东");
+  // A code and its facts, never an English sentence (it rendered as one).
+  assert.deepEqual(region.basis, { code: "province_region", province: "江苏省", region: "华东" });
   assert.equal(region.forModel, false, "the data answered - there is nothing to ask");
 });
 
@@ -184,4 +186,11 @@ test("province comes before region, because region is derived from it", () => {
   // against what the previous one settled.
   const fields = gapsOf({ province: null, region: null }, []).map((g) => g.field);
   assert.ok(fields.indexOf("province") < fields.indexOf("region"));
+});
+
+test("with no province, the region comes from the deals' territory - and says so as a code", () => {
+  const gaps = gapsOf({ region: null, province: null }, [{ territoryId: "t_north", ownerSub: "usr_a" }]);
+  const region = gaps.find((g) => g.field === "region")!;
+  assert.equal(region.suggestion, "华北");
+  assert.deepEqual(region.basis, { code: "territory_region", territories: 1, region: "华北" });
 });
