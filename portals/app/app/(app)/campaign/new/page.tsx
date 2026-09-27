@@ -19,7 +19,12 @@ import { saveExecution } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewExecutionPage() {
+export default async function NewExecutionPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ execution?: string }>;
+}) {
+  const { execution } = await searchParams;
   const { CAMPAIGN_TEXT, DOMAIN_LABEL } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -66,6 +71,7 @@ export default async function NewExecutionPage() {
       />
       <ViewHeader title={CAMPAIGN_TEXT.executionsTitle} description={CAMPAIGN_TEXT.executionsWhy} />
       <ExecutionForm
+        initialId={execution}
         rows={executions}
         campaigns={rows
           .filter((r) => r.status !== "completed")

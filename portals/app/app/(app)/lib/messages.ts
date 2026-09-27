@@ -5562,6 +5562,9 @@ export const CAMPAIGN_TEXT = {
   executionCampaign: "战役",
   executionPickCampaign: "选择战役",
   executionTitle: "动作",
+  executionEdit: "编辑执行项",
+  executionEditDenied: "你没有编辑战役执行项的权限",
+  executionEditFrozen: "战役已完成，执行项已冻结",
   executionType: "类型",
   executionTypeLabel: {
     outreach: "外呼触达",

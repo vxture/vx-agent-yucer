@@ -8,6 +8,8 @@ import {
   TableTitleCell,
 } from "@vxture/design-ui";
 import { RowActions, useTableSort } from "./table-fittings";
+import { useRouter } from "next/navigation";
+import { useMemberName } from "../lib/member-names";
 import { useMessages } from "../lib/i18n/provider";
 
 // The work a campaign is made of - DISPLAY ONLY since 2026-09-05.
@@ -62,8 +64,17 @@ const SORT_ON = {
   campaign: (r: ExecutionRow) => r.campaignName,
 };
 
-export function ExecutionPanel({ rows }: { readonly rows: readonly ExecutionRow[] }) {
+export function ExecutionPanel({
+  rows,
+  canEdit = false,
+}: {
+  readonly rows: readonly ExecutionRow[];
+  /** campaign.execution.upsert - the same gate /campaign/new redirects on. */
+  readonly canEdit?: boolean;
+}) {
   const { DATA_TABLE_LABELS, DS_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const router = useRouter();
+  const memberName = useMemberName();
   const sorted = useTableSort<ExecutionRow>([], SORT_ON);
   return (
     <Section
@@ -84,12 +95,33 @@ export function ExecutionPanel({ rows }: { readonly rows: readonly ExecutionRow[
           rows={[...sorted.sortRows(rows)]}
           sort={sorted.sort}
           onSortChange={sorted.onSortChange}
-          columns={executionColumns(CAMPAIGN_TEXT)}
+          columns={executionColumns(CAMPAIGN_TEXT, (sub) => memberName(sub) ?? sub)}
           indexStart={1}
-          /* The column holds its place with the DS's disabled trigger (表格三件
-             标配, DS 14 batch 4): executions are display-only here since
-             2026-09-05 - editing lives on /campaign/new. */
-          rowActions={() => <RowActions label={DS_LABELS.actionMenu} items={[]} />}
+          /* 编辑执行项 opens the editor ON THIS ROW (module rebuild, 2026-09-27).
+             The rows were display-only with an empty menu, and the editor was
+             reachable only through 新建 - while an unfinished execution blocks
+             its campaign from completing, so the row that blocks is the row
+             that needs the way in. Disabled with the reason when the reader
+             may not edit, or the campaign is finished (frozen). */
+          rowActions={(r: ExecutionRow) => (
+            <RowActions
+              label={DS_LABELS.actionMenu}
+              items={[
+                {
+                  id: "edit",
+                  label: CAMPAIGN_TEXT.executionEdit,
+                  icon: "edit",
+                  disabled: !canEdit || r.campaignStatus === "completed",
+                  hint: !canEdit
+                    ? CAMPAIGN_TEXT.executionEditDenied
+                    : r.campaignStatus === "completed"
+                      ? CAMPAIGN_TEXT.executionEditFrozen
+                      : undefined,
+                  onSelect: () => router.push(`/campaign/new?execution=${encodeURIComponent(r.id)}`),
+                },
+              ]}
+            />
+          )}
         />
       )}
       <p className="text-muted-foreground mt-sm text-body-sm">{CAMPAIGN_TEXT.executionBlocks}</p>
@@ -98,7 +130,8 @@ export function ExecutionPanel({ rows }: { readonly rows: readonly ExecutionRow[
 }
 
 /** Columns at module scope with the dictionary passed in - see milestone-panel. */
-function executionColumns(text: {
+function executionColumns(
+  text: {
   executionCampaign: string;
   executionTitle: string;
   executionType: string;
@@ -107,7 +140,10 @@ function executionColumns(text: {
   executionStatus: string;
   executionTypeLabel: Record<string, string>;
   executionStatusLabel: Record<string, string>;
-}) {
+  },
+  /** 负责人 by name; the sub only when no name resolves. */
+  nameOf: (sub: string) => string,
+) {
   return [
     {
       id: "campaign",
@@ -123,7 +159,7 @@ function executionColumns(text: {
     {
       id: "assignee",
       header: text.executionAssignee,
-      cell: (r: ExecutionRow) => r.assigneeSub ?? "",
+      cell: (r: ExecutionRow) => (r.assigneeSub ? nameOf(r.assigneeSub) : ""),
     },
     { id: "due", header: text.executionDue, cell: (r: ExecutionRow) => r.dueAt ?? "" },
     {

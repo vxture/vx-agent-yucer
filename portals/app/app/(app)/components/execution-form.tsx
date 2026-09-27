@@ -56,7 +56,10 @@ export function ExecutionForm({
   rows,
   campaigns,
   onSave,
+  initialId,
 }: {
+  /** Open on this execution (the list rows link here with ?execution=). */
+  readonly initialId?: string;
   readonly rows: readonly ExecutionFormRow[];
   /** Campaigns that are not complete - a finished one is frozen. */
   readonly campaigns: readonly {
@@ -77,7 +80,21 @@ export function ExecutionForm({
   ) => Promise<Saved>;
 }) {
   const { CAMPAIGN_TEXT, EXECUTION_ERROR, ASSIST_TEXT } = useMessages();
-  const [form, setForm] = useState(BLANK);
+  const [form, setForm] = useState(() => {
+    // The row the list linked from, if it is still editable; else a new one.
+    const e = initialId ? rows.find((r) => r.id === initialId && r.campaignStatus !== "completed") : undefined;
+    return e
+      ? {
+          id: e.id,
+          campaignId: e.campaignId,
+          title: e.title,
+          actionType: e.actionType,
+          assigneeSub: e.assigneeSub ?? "",
+          dueAt: e.dueAt ?? "",
+          status: e.status,
+        }
+      : BLANK;
+  });
   const submit = useFormSubmit("/campaign");
 
   // Picking an existing item fills the form from it. A control that says
