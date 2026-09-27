@@ -25,7 +25,7 @@ test("the question carries the goals, the open promises and today", () => {
   const q = planQuestion({
     dealName: "干线运输调度平台",
     opportunityId: "opp_6",
-    stageName: "报价投标",
+    stageName: "方案报价",
     goals,
     openCommitments: [{ direction: "they_owe", statement: "反馈方案", dueAt: "2026-09-26" }],
     today: "2026-09-25",

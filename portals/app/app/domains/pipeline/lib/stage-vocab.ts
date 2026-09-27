@@ -21,7 +21,9 @@ export interface StageDefinition {
   readonly isTerminal: boolean;
 }
 
-/** The shipped seven - unchanged codes/names/probabilities/order/flags, now
+/** The shipped seven. Names of propose / negotiate changed by incr/0093
+ *  (owner 2026-09-26): 报价投标 -> 方案报价, 商务谈判 -> 谈判签约 - order and
+ *  win rates unchanged. The rest - codes/probabilities/order/flags - are now
  *  data's shape instead of four separate module constants. This is the
  *  fallback every catalog-aware function in stage.ts defaults to, and what
  *  incr/0057 seeds verbatim for every existing workspace. */
@@ -29,8 +31,8 @@ export const DEFAULT_STAGE_DEFINITIONS: readonly StageDefinition[] = [
   { code: "qualify", name: "合格判定", sortOrder: 1, defaultProbability: 10, isWon: false, isTerminal: false },
   { code: "discover", name: "需求挖掘", sortOrder: 2, defaultProbability: 25, isWon: false, isTerminal: false },
   { code: "validate", name: "方案验证", sortOrder: 3, defaultProbability: 50, isWon: false, isTerminal: false },
-  { code: "propose", name: "报价投标", sortOrder: 4, defaultProbability: 70, isWon: false, isTerminal: false },
-  { code: "negotiate", name: "商务谈判", sortOrder: 5, defaultProbability: 90, isWon: false, isTerminal: false },
+  { code: "propose", name: "方案报价", sortOrder: 4, defaultProbability: 70, isWon: false, isTerminal: false },
+  { code: "negotiate", name: "谈判签约", sortOrder: 5, defaultProbability: 90, isWon: false, isTerminal: false },
   { code: "won", name: "赢单", sortOrder: 6, defaultProbability: 100, isWon: true, isTerminal: true },
   { code: "lost", name: "丢单", sortOrder: 7, defaultProbability: 0, isWon: false, isTerminal: true },
 ];

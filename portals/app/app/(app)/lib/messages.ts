@@ -35,8 +35,8 @@ export const STAGE_LABEL: Record<Stage, string> = {
   qualify: "合格判定",
   discover: "需求挖掘",
   validate: "方案验证",
-  propose: "报价投标",
-  negotiate: "商务谈判",
+  propose: "方案报价",
+  negotiate: "谈判签约",
   won: "赢单",
   lost: "丢单",
 };
