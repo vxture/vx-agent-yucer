@@ -7,7 +7,7 @@ import {
   Section,
   TableTitleCell,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { RowActions, useTableSort } from "./table-fittings";
 import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
@@ -55,7 +55,7 @@ export function TerritoryPanel({
   /** The panel's action, in the DS Section header slot - 新建区域 on /planning. */
   readonly action?: ReactNode;
 }) {
-  const { DATA_TABLE_LABELS, DOMAIN_LABEL, PLANNING_TEXT } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, DOMAIN_LABEL, PLANNING_TEXT } = useMessages();
   const memberName = useMemberName();
   const sorted = useTableSort<TerritoryRow>([], SORT_ON);
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
@@ -73,6 +73,11 @@ export function TerritoryPanel({
           rows={[...sorted.sortRows(rows)]}
           sort={sorted.sort}
           onSortChange={sorted.onSortChange}
+          indexStart={1}
+          /* The column holds its place with the DS's disabled trigger (表格三件
+             标配, DS 14 batch 4): territories are display-only here - creating
+             them lives on /planning/territory/new. */
+          rowActions={() => <RowActions label={DS_LABELS.actionMenu} items={[]} />}
           columns={[
             {
               /* 编码与名称合成首列 (owner: 首列全部走 TableTitleCell). They were

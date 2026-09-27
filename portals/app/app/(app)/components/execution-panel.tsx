@@ -7,7 +7,7 @@ import {
   StatusBadge,
   TableTitleCell,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The work a campaign is made of - DISPLAY ONLY since 2026-09-05.
@@ -63,7 +63,7 @@ const SORT_ON = {
 };
 
 export function ExecutionPanel({ rows }: { readonly rows: readonly ExecutionRow[] }) {
-  const { DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, CAMPAIGN_TEXT } = useMessages();
   const sorted = useTableSort<ExecutionRow>([], SORT_ON);
   return (
     <Section
@@ -85,6 +85,11 @@ export function ExecutionPanel({ rows }: { readonly rows: readonly ExecutionRow[
           sort={sorted.sort}
           onSortChange={sorted.onSortChange}
           columns={executionColumns(CAMPAIGN_TEXT)}
+          indexStart={1}
+          /* The column holds its place with the DS's disabled trigger (表格三件
+             标配, DS 14 batch 4): executions are display-only here since
+             2026-09-05 - editing lives on /campaign/new. */
+          rowActions={() => <RowActions label={DS_LABELS.actionMenu} items={[]} />}
         />
       )}
       <p className="text-muted-foreground mt-sm text-body-sm">{CAMPAIGN_TEXT.executionBlocks}</p>

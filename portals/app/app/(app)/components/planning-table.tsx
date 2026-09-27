@@ -17,7 +17,7 @@ import {
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { RowActions, useTableSort } from "./table-fittings";
 import type { AttainmentRow } from "../../domains/planning/service";
 import type { TargetValue } from "../../domains/planning/lib/target";
 import { formatMoney, formatPercent } from "../lib/view-model";
@@ -187,10 +187,13 @@ export function PlanningTable({
   ];
 
   function actions(row: AttainmentRow) {
-    // A CLOSED target gets an empty menu rather than a disabled one. It is
-    // frozen by rule - planTargetUpdate refuses every patch on it - so every
-    // item would be a click that can only fail.
-    if (!onUpdate || row.target.status === "closed") return null;
+    // A CLOSED target, or a reader who may not adjust: the column keeps its
+    // place with the DS's disabled trigger (表格三件标配 - the action column is
+    // there even with nothing in it; DS 14 batch 4). It is frozen by rule -
+    // planTargetUpdate refuses every patch - so no item is offered.
+    if (!canUpdate || !onUpdate || row.target.status === "closed") {
+      return <RowActions label={DS_LABELS.actionMenu} items={[]} />;
+    }
     const label = scopeLabel(row, names, nameOf, PLANNING_TEXT);
     return (
       <ActionMenu
@@ -275,13 +278,12 @@ export function PlanningTable({
           menu is right for is changing a number you are already looking at, and
           moving its state forward. Both of those are here.
 
-          A CLOSED target gets no menu at all rather than a disabled one: it is
-          frozen by rule (planTargetUpdate refuses every patch), and a greyed
-          menu invites a click that can only ever fail. */}
+          A CLOSED target, or a reader without the right, gets the disabled
+          trigger: the column never vanishes (表格三件标配). */}
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
-            rowActions={canUpdate && onUpdate ? actions : undefined}
+            rowActions={actions}
             indexStart={1}
             columns={columns}
             rows={[...sorted.rows]}

@@ -498,7 +498,9 @@ export const QUOTE_TEXT = {
   colStage: "阶段",
   colLines: "行项",
   colAmount: "报价金额",
-  dealMeta: (no: string, lines: number) => `${no} · ${lines} 行项`,
+  // Stage FIRST: in a narrow column the tail truncates, and the stage is the
+  // fact a reader scans for; the number is how they would search.
+  dealMeta: (no: string, stage: string) => `${stage} · ${no}`,
   colList: "原价",
   colDiscount: "折扣",
   colSignature: "待签字",
@@ -2787,6 +2789,9 @@ export const PIPELINE_TEXT = {
   priorityUnranked: "未定级",
   columnAmount: "金额",
   columnProbability: "赢率",
+  columnStageForecastClose: "阶段 / 预测 / 成交日",
+  columnAmountProbability: "金额 / 赢率",
+  probabilityLine: (value: number) => `赢率 ${value}%`,
   columnExpectedClose: "预计成交",
   probabilityOverridden: (value: number) => `${value}% 人工`,
   probabilityHintOverridden: (fallback: number) =>
@@ -5580,6 +5585,10 @@ export const CAMPAIGN_TEXT = {
   rowCount: (n: number) => `${n} 场战役`,
   columnName: "战役",
   columnChannel: "渠道",
+  // campaign.channel is an open code (VARCHAR, no CHECK); these are the ones
+  // seen so far, and an unknown code prints as itself rather than a blank.
+  channelLabel: { outbound: "主动外拓", inbound: "集客", event: "活动", webinar: "线上研讨", content: "内容营销", partner: "伙伴渠道", ads: "广告投放" } as Record<string, string>,
+  nameMeta: (no: string, channel: string | null) => (channel ? `${no} · ${channel}` : no),
   columnBudget: "预算",
   columnProgress: "执行进度",
   columnStatus: "状态",
