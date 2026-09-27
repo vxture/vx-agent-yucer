@@ -13,7 +13,7 @@ import { listPipeline, listStageDefinitions } from "../../domains/pipeline/servi
 import { toStageCatalog } from "../../domains/pipeline/store";
 import { DEFAULT_STAGE_DEFINITIONS } from "../../domains/pipeline/lib/stage";
 import { importanceScheme, listAccounts } from "../../domains/account/service";
-import { accountLevelOf, medalOf } from "../../domains/account/lib/importance";
+import { accountLevelOf, medalOf, opportunityLevelOf } from "../../domains/account/lib/importance";
 import { QuoteTable, type QuoteRow } from "../components/quote-table";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -111,6 +111,12 @@ export default async function QuotePage() {
         accountId: d.accountId,
         accountName: accountById.get(d.accountId)?.name ?? null,
         accountLevel: levelOf(d.accountId),
+        // 重要度 (incr/0090): the same medal the deal page's 徽章区 draws.
+        dealLevel: (() => {
+          if (!scheme.ok) return null;
+          const level = opportunityLevelOf(d, scheme.value.opportunity);
+          return level ? { name: level.name, medal: medalOf(level.rank) } : null;
+        })(),
         stage: d.stage,
         lineCount: own.length,
         amount,
