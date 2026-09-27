@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { accountLevelOf, dealPriorityOf, medalOf, opportunityLevelOf, priorityKeys, priorityOf, type ImportanceLevel, type PriorityRule } from "./importance";
+import { accountLevelBadges, accountLevelOf, dealPriorityOf, medalOf, opportunityLevelOf, priorityKeys, priorityOf, type ImportanceLevel, type PriorityRule } from "./importance";
 import { DEFAULT_IMPORTANCE_LEVELS, DEFAULT_PRIORITY_MATRIX } from "./importance-vocab";
 
 const levels: ImportanceLevel[] = DEFAULT_IMPORTANCE_LEVELS.map((l, i) => ({ ...l, id: `lv${i}`, sortOrder: l.rank }));
@@ -70,4 +70,18 @@ test("按优先级: P1 first, the same P by amount, unranked last", () => {
 test("a deal with no customer has no priority, and says so rather than guessing", () => {
   const scheme = { account: [], opportunity: [], rules: [] };
   assert.equal(dealPriorityOf({ importanceLevelId: null }, null, scheme).priority, null);
+});
+
+test("accountLevelBadges: each account's level name and medal; an unresolvable one is left out", () => {
+  const badges = accountLevelBadges(
+    [
+      { id: "a1", tierLevelId: null, tier: "strategic" },
+      { id: "a2", tierLevelId: byCode("key").id, tier: "standard" },
+      { id: "a3", tierLevelId: null, tier: "no-such-tier" },
+    ],
+    levels,
+  );
+  assert.deepEqual(badges.get("a1"), { name: byCode("strategic").name, medal: "gold" });
+  assert.deepEqual(badges.get("a2"), { name: byCode("key").name, medal: "silver" });
+  assert.equal(badges.has("a3"), false);
 });

@@ -40,7 +40,6 @@ const COMPONENTS = join(LIB, "..", "components");
  * domain whose turn has not come.
  */
 const NOT_YET_CONVERTED: Record<string, string> = {
-  "account-table.tsx": "D4 account - not rebuilt yet",
   "batch-completeness.tsx": "D4 account - not rebuilt yet",
   "campaign-table.tsx": "D3 campaign - not rebuilt yet",
   "execution-panel.tsx": "D3 campaign - not rebuilt yet",
@@ -112,6 +111,10 @@ const ACTIONS_REPLACED: Record<string, string> = {
  * one but relying on the OTHER also being absent stays a bug, not a pass.
  */
 const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[]; reason: string }> = {
+  "account-table.tsx": {
+    skip: ["选择"],
+    reason: "客户列表不设选择列 - 没有作用于多个客户的操作 (同报价管理 / 商机列表的裁定, owner 2026-09-26: 可以不要选择列)",
+  },
   "pipeline-board.tsx": {
     skip: ["选择"],
     reason: "商机列表不设选择列 - 没有作用于多笔商机的操作，且 776px 中栏里表格已恰好放满 (同报价管理的裁定, owner 2026-09-26: 可以不要选择列)",

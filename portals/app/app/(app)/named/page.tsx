@@ -4,7 +4,8 @@ import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getAccountStore, getDeliveryStore } from "../../domains/shared/registry";
-import { accountStatuses, listAccounts } from "../../domains/account/service";
+import { accountStatuses, importanceScheme, listAccounts } from "../../domains/account/service";
+import { accountLevelBadges } from "../../domains/account/lib/importance";
 import { AccountTable } from "../components/account-table";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -71,6 +72,15 @@ export default async function NamedAccountPage() {
     );
   }
 
+  // 客户级别 badges, from the same scheme as the customer page.
+  const scheme = await importanceScheme({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: session.stores.account(),
+  });
+
   // 状态标签, derived (YC-021 L5) - see account/page.tsx.
   const statusRead = await accountStatuses(
     {
@@ -96,6 +106,7 @@ export default async function NamedAccountPage() {
       />
       <AccountTable
         rows={named}
+        levelOf={scheme.ok ? accountLevelBadges(named, scheme.value.account) : undefined}
         statusOf={statusRead?.ok ? statusRead.value : null}
         canRecompute={
           can(session.authz, session.entitlement, "account.upsert", "ui")
