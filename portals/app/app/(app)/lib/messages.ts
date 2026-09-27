@@ -5777,6 +5777,10 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
 export const WINLOSS_TEXT = {
   // 行菜单的 XX（ROW_OPS）：原因配置 / 删除原因。
   reasonNoun: "原因",
+  searchHint: "商机名或编号",
+  filterOutcome: "结果",
+  filterAllOutcomes: "全部结果",
+  recordTitle: (name: string) => `记录复盘：${name}`,
   // 赢丢原因的配置面 (0039)。
   reasonConfigTitle: "赢丢原因",
   reasonCount: (n: number) => `${n} 条原因`,

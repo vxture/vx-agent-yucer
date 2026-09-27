@@ -660,7 +660,11 @@ export async function stageHistory(
  */
 export async function listPendingReviews(
   ctx: PipelineContext,
-  limit = 50,
+  /** Omit for ALL of them (2026-09-27): a default cap of 50 made the nav badge,
+   *  the board card and the page all read "50" whatever the real debt, and
+   *  recording one review just let the 51st in - it looked like saving did
+   *  nothing. The page pages the list; the counts need the whole of it. */
+  limit?: number,
 ): Promise<RuleResult<OpportunityRecord[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
   if (!gate.allowed) return denied(gate);

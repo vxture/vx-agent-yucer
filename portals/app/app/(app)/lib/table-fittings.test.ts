@@ -44,7 +44,6 @@ const NOT_YET_CONVERTED: Record<string, string> = {
   "campaign-table.tsx": "D3 campaign - not rebuilt yet",
   "execution-panel.tsx": "D3 campaign - not rebuilt yet",
   "line-editor.tsx": "D5 pipeline - not rebuilt yet",
-  "pending-reviews.tsx": "D5 pipeline - not rebuilt yet",
   "planning-table.tsx": "D6 planning - not rebuilt yet",
   "territory-panel.tsx": "D2 territory - not rebuilt yet",
 };
@@ -113,6 +112,10 @@ const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[
   "account-table.tsx": {
     skip: ["选择"],
     reason: "客户列表不设选择列 - 没有作用于多个客户的操作 (同报价管理 / 商机列表的裁定, owner 2026-09-26: 可以不要选择列)",
+  },
+  "pending-reviews.tsx": {
+    skip: ["选择"],
+    reason: "复盘一笔一笔记，没有批量操作 (同报价 / 商机 / 客户列表的裁定, owner 2026-09-26: 可以不要选择列)",
   },
   "pipeline-board.tsx": {
     skip: ["选择"],
