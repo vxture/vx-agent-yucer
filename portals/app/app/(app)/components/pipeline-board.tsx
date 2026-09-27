@@ -260,7 +260,7 @@ export function PipelineBoard({
       // lines (name, then number and account), so the row was that tall before
       // this and is that tall after.
       id: "stage",
-      header: PIPELINE_TEXT.columnStageForecast,
+      header: PIPELINE_TEXT.columnStageForecastClose,
       cell: (row) => (
         <Stack gap="sm">
           <Tag tone={STAGE_TONE[row.stage as Stage]} dot>
@@ -271,59 +271,31 @@ export function PipelineBoard({
           >
             {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
           </Tag>
+          {/* 预计成交 under the stage (DS 14 batch 4, owner: 压缩到放得下): when
+              it closes is the third half of "where it stands", and as a column
+              of its own it pushed the table past the 776px middle column. */}
+          <span className="text-muted-foreground text-body-sm tabular-nums">
+            {row.expectedCloseAt ? row.expectedCloseAt.toISOString().slice(0, 10) : "-"}
+          </span>
         </Stack>
       ),
     },
     {
-      // SPLIT AGAIN (owner, 2026-09-04), and the rule that split it is worth
-      // writing down: two fields share a column only when they are the SAME
-      // DIMENSION. 阶段 and 预测类别 are - both say where this deal stands,
-      // both render as tone+tag, and a reader takes them as one sentence.
-      // Money and probability are not. One is a quantity in yuan and the other
-      // a likelihood in percent; putting them in one cell asks the eye to read
-      // two scales stacked, and it makes each one harder to sort and filter on
-      // than it was as its own column.
+      // 金额 with 赢率 beneath (DS 14 batch 4, owner: 压缩到放得下). Two scales
+      // in one cell was refused on 2026-09-04 while there was room for both;
+      // in the 776px middle column the choice is a stacked cell or a table
+      // that scrolls its figures away. Stacked, each keeps its own line and
+      // format, and 金额 keeps its sort.
       id: "amount",
-      header: PIPELINE_TEXT.columnAmount,
+      header: PIPELINE_TEXT.columnAmountProbability,
       sortable: true,
       align: "money",
-      cell: (row) =>
-        formatMoney(row.amount?.amount ?? null, row.currency, locale),
-    },
-    {
-      // An overridden win rate is marked. A number the machine suggested and a
-      // number a salesperson committed to look identical in the database and
-      // mean entirely different things in a review.
-      id: "probability",
-      header: PIPELINE_TEXT.columnProbability,
-      cell: (row) => {
-        const p = probabilityDisplay(row, stageDefinitions);
-        if (p.value == null) return "-";
-        return p.overridden ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <StatusBadge tone="info">
-                  {PIPELINE_TEXT.probabilityOverridden(p.value)}
-                </StatusBadge>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              {PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <span>{p.value}%</span>
-        );
-      },
-    },
-    {
-      id: "close",
-      header: PIPELINE_TEXT.columnExpectedClose,
-      cell: (row) =>
-        row.expectedCloseAt
-          ? row.expectedCloseAt.toISOString().slice(0, 10)
-          : "-",
+      cell: (row) => (
+        <span className="inline-flex flex-col items-end gap-3xs">
+          <span>{formatMoney(row.amount?.amount ?? null, row.currency, locale)}</span>
+          <ProbabilityLine row={row} stageDefinitions={stageDefinitions} />
+        </span>
+      ),
     },
   ];
 
@@ -491,6 +463,28 @@ function PriorityTag({ row }: { readonly row: PipelineRow }) {
         <span>{tag}</span>
       </TooltipTrigger>
       <TooltipContent>{DEAL_PAGE_TEXT.importanceCross(row.priorityFrom.tier, row.priorityFrom.importance)}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** 赢率 as a second line under 金额. An overridden rate is marked: a number the
+ *  machine suggested and one a salesperson committed look identical in the
+ *  database and mean different things in a review. */
+function ProbabilityLine({ row, stageDefinitions }: { readonly row: PipelineRow; readonly stageDefinitions: readonly StageDefinition[] }) {
+  const { PIPELINE_TEXT } = useMessages();
+  const p = probabilityDisplay(row, stageDefinitions);
+  if (p.value == null) return <span className="text-muted-foreground text-body-sm">-</span>;
+  if (!p.overridden) return <span className="text-muted-foreground text-body-sm tabular-nums">{PIPELINE_TEXT.probabilityLine(p.value)}</span>;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>
+          <StatusBadge size="sm" tone="info">
+            {PIPELINE_TEXT.probabilityOverridden(p.value)}
+          </StatusBadge>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}</TooltipContent>
     </Tooltip>
   );
 }

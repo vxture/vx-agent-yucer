@@ -94,7 +94,6 @@ const SORT_ON = {
   list: (r: QuoteRow) => r.listAmount,
   amount: (r: QuoteRow) => r.amount,
   discount: (r: QuoteRow) => r.discount,
-  signature: (r: QuoteRow) => r.awaitingSignature,
 };
 
 type SignatureFilter = "" | "awaiting" | "clear";
@@ -175,7 +174,7 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
                 {r.name}
               </Link>
             }
-            description={QUOTE_TEXT.dealMeta(r.opportunityNo, r.lineCount)}
+            description={QUOTE_TEXT.dealMeta(r.opportunityNo, stageLabelFor(r.stage, stageDefinitions, STAGE_LABEL))}
           />
         </span>
       ),
@@ -184,7 +183,7 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
       id: "account",
       sortable: true,
       header: QUOTE_TEXT.colAccount,
-      width: "sm",
+      width: "xs",
       align: "left",
       cell: (r) => <AccountCell row={r} />,
     },
@@ -195,7 +194,21 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
       align: "money",
       cell: (r) => <ListCell row={r} text={r.listAmount === null ? null : money(r.listAmount, r)} />,
     },
-    { id: "amount", header: QUOTE_TEXT.colAmount, sortable: true, align: "money", cell: (r) => money(r.amount, r) },
+    {
+      // 待签 ON THE PRICE, below it (owner 2026-09-26 on 交易清单: 待签标识放在
+      // 价格) - and the column it had of its own, with 阶段's, pushed the table
+      // 240px past the 776px middle column (DS 14 batch 4: 压缩到放得下).
+      id: "amount",
+      header: QUOTE_TEXT.colAmount,
+      sortable: true,
+      align: "money",
+      cell: (r) => (
+        <span className="inline-flex flex-col items-end gap-3xs">
+          <span>{money(r.amount, r)}</span>
+          {r.awaitingSignature > 0 ? signature(r) : null}
+        </span>
+      ),
+    },
     {
       id: "discount",
       header: QUOTE_TEXT.colDiscount,
@@ -209,11 +222,6 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
           <span className={`tabular-nums ${r.discount > 0 ? "text-foreground" : "text-muted-foreground"}`}>{QUOTE_TEXT.discount(r.discount)}</span>
         ),
     },
-    { id: "signature", header: QUOTE_TEXT.colSignature, sortable: true, cell: signature },
-    // 阶段 LAST: on this page it is context, not the subject. The three money
-    // columns sit right after the names so 原价 vs 报价 stays on screen in a
-    // narrow middle column, where everything past ~700px scrolls.
-    { id: "stage", header: QUOTE_TEXT.colStage, cell: stageTag },
   ];
 
   if (rows.length === 0) {

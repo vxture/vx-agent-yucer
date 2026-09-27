@@ -11,7 +11,7 @@ import {
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { RowActions, useTableSort } from "./table-fittings";
 import {
   nextCampaignStatuses,
   type CampaignStatus,
@@ -61,7 +61,7 @@ const SORT_ON = {
   };
 
 export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
-  const { DATA_TABLE_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } =
+  const { DATA_TABLE_LABELS, DS_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } =
     useMessages();
   const [view, setView] = useState<FilterBarView>("list");
   const sorted = useTableSort(rows, SORT_ON);
@@ -81,13 +81,15 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
   sortable: true,
       header: CAMPAIGN_TEXT.columnName,
       cell: (row) => (
-        <TableTitleCell title={row.name} description={row.campaignNo} tooltip={row.name} />
+        /* 渠道 on the second line, labelled (DS 14 batch 4): as its own column
+           it printed the raw code ("event") and pushed the table 28px past the
+           776px middle column. */
+        <TableTitleCell
+          title={row.name}
+          description={CAMPAIGN_TEXT.nameMeta(row.campaignNo, row.channel ? (CAMPAIGN_TEXT.channelLabel[row.channel] ?? row.channel) : null)}
+          tooltip={row.name}
+        />
       ),
-    },
-    {
-      id: "channel",
-      header: CAMPAIGN_TEXT.columnChannel,
-      cell: (row) => row.channel ?? "-",
     },
     {
       id: "budget",
@@ -127,7 +129,13 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     },
   ];
 
-  const actions = (row: CampaignRow) => (
+  const actions = (row: CampaignRow) =>
+    /* A finished campaign has no next status; the column keeps its place with
+       the DS's disabled trigger rather than an empty cell (表格三件标配, DS 14
+       batch 4) - the same grid for every row. */
+    nextCampaignStatuses(row.status as CampaignStatus).length === 0 ? (
+      <RowActions label={DS_LABELS.actionMenu} items={[]} />
+    ) : (
     <LifecycleControl
       id={row.id}
       status={row.status}
@@ -136,7 +144,7 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
       canChange={canMove}
       onChange={onMove}
     />
-  );
+    );
 
   return (
     <>
@@ -161,10 +169,7 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
                way - as an ordinary column it scrolled away from the row it acts
                on.
 
-               A TERMINAL CAMPAIGN RENDERS AN EMPTY CELL HERE, on purpose:
-               LifecycleControl returns null when there is no next status, and
-               its own file says why. A disabled menu would promise a move that
-               does not exist rather than saying the record is finished. */
+               A TERMINAL CAMPAIGN gets the disabled trigger (see `actions`). */
             rowActions={actions}
             columns={columns}
             rows={[...sorted.rows]}
@@ -178,7 +183,7 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
               <ListCard
                 key={row.id}
                 title={row.name}
-                description={`${row.campaignNo}${row.channel ? ` / ${row.channel}` : ""}`}
+                description={CAMPAIGN_TEXT.nameMeta(row.campaignNo, row.channel ? (CAMPAIGN_TEXT.channelLabel[row.channel] ?? row.channel) : null)}
                 status={
                   <Tag
                     tone={row.status === "completed" ? "success" : "neutral"}
