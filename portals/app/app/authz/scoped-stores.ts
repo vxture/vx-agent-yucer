@@ -94,6 +94,18 @@ class ScopedPipelineStore implements PipelineStore {
   updateExitCriterion: PipelineStore["updateExitCriterion"] = (...a) => this.inner.updateExitCriterion(...a);
   removeExitCriterion: PipelineStore["removeExitCriterion"] = (...a) => this.inner.removeExitCriterion(...a);
   appendEvidence: PipelineStore["appendEvidence"] = (...a) => this.inner.appendEvidence(...a);
+  // 竞争位置 (incr/0094): per-deal rows go through the deal id the service has
+  // already read through this scoped store; the rival list is workspace config.
+  listCompetitors: PipelineStore["listCompetitors"] = (...a) => this.inner.listCompetitors(...a);
+  createCompetitor: PipelineStore["createCompetitor"] = (...a) => this.inner.createCompetitor(...a);
+  updateCompetitor: PipelineStore["updateCompetitor"] = (...a) => this.inner.updateCompetitor(...a);
+  listCompetitorEntries: PipelineStore["listCompetitorEntries"] = (...a) => this.inner.listCompetitorEntries(...a);
+  appendCompetitorEntry: PipelineStore["appendCompetitorEntry"] = (...a) => this.inner.appendCompetitorEntry(...a);
+  listCriteria: PipelineStore["listCriteria"] = (...a) => this.inner.listCriteria(...a);
+  createCriterion: PipelineStore["createCriterion"] = (...a) => this.inner.createCriterion(...a);
+  updateCriterion: PipelineStore["updateCriterion"] = (...a) => this.inner.updateCriterion(...a);
+  removeCriterion: PipelineStore["removeCriterion"] = (...a) => this.inner.removeCriterion(...a);
+  listCompetitorReviews: PipelineStore["listCompetitorReviews"] = (...a) => this.inner.listCompetitorReviews(...a);
   latestStageChangeAt: PipelineStore["latestStageChangeAt"] = (...a) =>
     this.inner.latestStageChangeAt(...a);
   listForecastSnapshots: PipelineStore["listForecastSnapshots"] = (...a) =>

@@ -1133,7 +1133,10 @@ model WinLossReview {
   /// three became uuids: why a deal was lost is the workspace's own list.
   primaryReasonId String?        @map("primary_reason_id") @db.Uuid
   primaryReason   WinLossReason? @relation(fields: [primaryReasonId], references: [id], onDelete: Restrict)
+  /// Free text until incr/0094; kept as history, no longer written.
   competitor      String?        @db.VarChar(255)
+  /// incr/0094 - the rival by row (the 竞争位置 win rate groups on it).
+  competitorId    String?        @map("competitor_id") @db.Uuid
   lessons         String?        @db.Text
   reviewerSub     String?        @map("reviewer_sub") @db.VarChar(128)
   reviewedAt      DateTime       @default(now()) @map("reviewed_at") @db.Timestamptz()
@@ -1999,6 +2002,60 @@ model OpportunityEvidence {
 
   @@index([workspaceId, opportunityId, slot, recordedAt(sort: Desc)], map: "idx_evidence_latest")
   @@map("opportunity_evidence")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0094. 竞争位置 - the workspace's rivals, a vocabulary (no factory seed).
+model Competitor {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  name        String   @db.VarChar(128)
+  aliases     String[] @default([])
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, name], map: "uidx_competitor_name")
+  @@map("competitor")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0094. Who competes on a deal - append-only versions (present=false = out;
+/// competitorId NULL = confirmed "only us").
+model OpportunityCompetitor {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  competitorId  String?  @map("competitor_id") @db.Uuid
+  isIncumbent   Boolean  @default(false) @map("is_incumbent")
+  present       Boolean  @default(true)
+  interactionId String?  @map("interaction_id") @db.Uuid
+  source        String   @default("manual") @db.VarChar(16)
+  proposalId    String?  @map("proposal_id") @db.Uuid
+  authorSub     String   @map("author_sub") @db.VarChar(128)
+  recordedAt    DateTime @default(now()) @map("recorded_at") @db.Timestamptz()
+
+  @@index([workspaceId, opportunityId, recordedAt], map: "idx_opportunity_competitor_opp")
+  @@map("opportunity_competitor")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0094. The buyer's decision criteria, one row each, edited in place.
+model OpportunityCriterion {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  statement     String
+  shapedBy      String   @default("unknown") @map("shaped_by") @db.VarChar(8)
+  fit           String?  @db.VarChar(8)
+  fitNote       String?  @map("fit_note") @db.VarChar(255)
+  sortOrder     Int      @default(0) @map("sort_order")
+  updatedBySub  String?  @map("updated_by_sub") @db.VarChar(128)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@index([workspaceId, opportunityId, sortOrder], map: "idx_opportunity_criterion_opp")
+  @@map("opportunity_criterion")
   @@schema("yucer_pipeline")
 }
 

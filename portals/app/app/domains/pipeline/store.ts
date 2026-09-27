@@ -18,6 +18,7 @@ import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
 import type { EvidenceVersion } from "./lib/evidence";
+import type { CompetitorEntry, CompetitorRecord, CriterionRecord, Fit, ShapedBy } from "./lib/competition";
 import type { ExitCriterion, ExitSnapshot } from "./lib/exit-criteria";
 
 /** A deal's claimed values, as the claim log compares them (incr/0084). */
@@ -185,6 +186,8 @@ export interface WinLossReviewRecord {
    *  given, which is the state the review roster exists to surface. */
   primaryReasonId: string | null;
   competitor: string | null;
+  /** incr/0094 - the rival by row; the text above is history. */
+  competitorId: string | null;
   lessons: string | null;
   reviewerSub: string | null;
   reviewedAt: Date;
@@ -197,6 +200,8 @@ export interface NewWinLossReview {
    *  given, which is the state the review roster exists to surface. */
   primaryReasonId: string | null;
   competitor?: string | null;
+  /** incr/0094 - the rival by row. */
+  competitorId?: string | null;
   lessons?: string | null;
   reviewerSub: string;
 }
@@ -373,6 +378,35 @@ export interface PipelineStore {
     row: Omit<EvidenceVersion, "id" | "recordedAt">,
   ): Promise<EvidenceVersion>;
 
+  /* 竞争位置 (incr/0094) ------------------------------------------------ */
+  /** The workspace's rivals, in sort order. */
+  listCompetitors(workspaceId: string): Promise<CompetitorRecord[]>;
+  createCompetitor(workspaceId: string, input: { name: string; aliases: string[] }): Promise<CompetitorRecord>;
+  updateCompetitor(workspaceId: string, id: string, patch: { name: string; aliases: string[] }): Promise<boolean>;
+  /** Every version of who competes on a deal, any order. */
+  listCompetitorEntries(workspaceId: string, opportunityId: string): Promise<CompetitorEntry[]>;
+  /** Append one version - never an update. */
+  appendCompetitorEntry(
+    workspaceId: string,
+    opportunityId: string,
+    row: Omit<CompetitorEntry, "id" | "recordedAt">,
+  ): Promise<CompetitorEntry>;
+  listCriteria(workspaceId: string, opportunityId: string): Promise<CriterionRecord[]>;
+  createCriterion(
+    workspaceId: string,
+    opportunityId: string,
+    input: { statement: string; shapedBy: ShapedBy; fit: Fit | null; fitNote: string | null; sortOrder: number; updatedBySub: string },
+  ): Promise<CriterionRecord>;
+  updateCriterion(
+    workspaceId: string,
+    opportunityId: string,
+    id: string,
+    patch: { statement: string; shapedBy: ShapedBy; fit: Fit | null; fitNote: string | null; updatedBySub: string },
+  ): Promise<boolean>;
+  removeCriterion(workspaceId: string, opportunityId: string, id: string): Promise<boolean>;
+  /** Reviews that name a rival - the win-rate read (grouped at read time). */
+  listCompetitorReviews(workspaceId: string): Promise<{ competitorId: string; outcome: string; reviewedAt: Date }[]>;
+
   listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]>;
 
   /**
@@ -507,6 +541,9 @@ export class InMemoryPipelineStore implements PipelineStore {
   private exits: (DealExitRecord & { workspaceId: string; opportunityId: string })[] = [];
   private claims: (ClaimEventRecord & { workspaceId: string })[] = [];
   private evidence: (EvidenceVersion & { workspaceId: string; opportunityId: string })[] = [];
+  private competitors: (CompetitorRecord & { workspaceId: string })[] = [];
+  private competitorEntries: (CompetitorEntry & { workspaceId: string; opportunityId: string })[] = [];
+  private criteria0094: (CriterionRecord & { workspaceId: string; opportunityId: string })[] = [];
   private criteria: (ExitCriterion & { workspaceId: string })[] = [];
 
   async listExitCriteria(workspaceId: string): Promise<ExitCriterion[]> {
@@ -543,6 +580,92 @@ export class InMemoryPipelineStore implements PipelineStore {
     const before = this.criteria.length;
     this.criteria = this.criteria.filter((x) => !(x.workspaceId === workspaceId && x.id === id));
     return this.criteria.length < before;
+  }
+
+  async listCompetitors(workspaceId: string): Promise<CompetitorRecord[]> {
+    return this.competitors
+      .filter((c) => c.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "zh-CN"))
+      .map(({ workspaceId: _w, ...c }) => c);
+  }
+
+  async createCompetitor(workspaceId: string, input: { name: string; aliases: string[] }): Promise<CompetitorRecord> {
+    this.seq += 1;
+    const sortOrder = this.competitors.filter((c) => c.workspaceId === workspaceId).length;
+    const row = { id: `cmp_${this.seq}`, name: input.name, aliases: [...input.aliases], sortOrder };
+    this.competitors.push({ ...row, workspaceId });
+    return row;
+  }
+
+  async updateCompetitor(workspaceId: string, id: string, patch: { name: string; aliases: string[] }): Promise<boolean> {
+    const c = this.competitors.find((x) => x.workspaceId === workspaceId && x.id === id);
+    if (!c) return false;
+    Object.assign(c, { name: patch.name, aliases: [...patch.aliases] });
+    return true;
+  }
+
+  async listCompetitorEntries(workspaceId: string, opportunityId: string): Promise<CompetitorEntry[]> {
+    return this.competitorEntries
+      .filter((e) => e.workspaceId === workspaceId && e.opportunityId === opportunityId)
+      .map(({ workspaceId: _w, opportunityId: _o, ...e }) => e);
+  }
+
+  async appendCompetitorEntry(
+    workspaceId: string,
+    opportunityId: string,
+    row: Omit<CompetitorEntry, "id" | "recordedAt">,
+  ): Promise<CompetitorEntry> {
+    this.seq += 1;
+    const last = this.competitorEntries.at(-1)?.recordedAt.getTime() ?? 0;
+    const saved = { ...row, id: `cpe_${this.seq}`, recordedAt: new Date(Math.max(Date.now(), last + 1)) };
+    this.competitorEntries.push({ ...saved, workspaceId, opportunityId });
+    return saved;
+  }
+
+  async listCriteria(workspaceId: string, opportunityId: string): Promise<CriterionRecord[]> {
+    return this.criteria0094
+      .filter((c) => c.workspaceId === workspaceId && c.opportunityId === opportunityId)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(({ workspaceId: _w, opportunityId: _o, ...c }) => c);
+  }
+
+  async createCriterion(
+    workspaceId: string,
+    opportunityId: string,
+    input: { statement: string; shapedBy: ShapedBy; fit: Fit | null; fitNote: string | null; sortOrder: number; updatedBySub: string },
+  ): Promise<CriterionRecord> {
+    this.seq += 1;
+    const row: CriterionRecord = { id: `crt_${this.seq}`, ...input, updatedAt: new Date() };
+    this.criteria0094.push({ ...row, workspaceId, opportunityId });
+    return row;
+  }
+
+  async updateCriterion(
+    workspaceId: string,
+    opportunityId: string,
+    id: string,
+    patch: { statement: string; shapedBy: ShapedBy; fit: Fit | null; fitNote: string | null; updatedBySub: string },
+  ): Promise<boolean> {
+    const c = this.criteria0094.find((x) => x.workspaceId === workspaceId && x.opportunityId === opportunityId && x.id === id);
+    if (!c) return false;
+    Object.assign(c, patch, { updatedAt: new Date() });
+    return true;
+  }
+
+  async removeCriterion(workspaceId: string, opportunityId: string, id: string): Promise<boolean> {
+    const before = this.criteria0094.length;
+    this.criteria0094 = this.criteria0094.filter((x) => !(x.workspaceId === workspaceId && x.opportunityId === opportunityId && x.id === id));
+    return this.criteria0094.length < before;
+  }
+
+  async listCompetitorReviews(workspaceId: string): Promise<{ competitorId: string; outcome: string; reviewedAt: Date }[]> {
+    const out: { competitorId: string; outcome: string; reviewedAt: Date }[] = [];
+    for (const r of this.reviews.values()) {
+      if (r.workspaceId === workspaceId && r.competitorId) {
+        out.push({ competitorId: r.competitorId, outcome: r.outcome, reviewedAt: r.reviewedAt });
+      }
+    }
+    return out;
   }
 
   async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {
@@ -1109,6 +1232,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       outcome: review.outcome,
       primaryReasonId: review.primaryReasonId,
       competitor: review.competitor ?? null,
+      competitorId: review.competitorId ?? null,
       lessons: review.lessons ?? null,
       reviewerSub: review.reviewerSub,
       reviewedAt: new Date(),

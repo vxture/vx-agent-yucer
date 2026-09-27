@@ -34,6 +34,7 @@ import {
 } from "./store";
 import { diffClaims, type ClaimContext, type ClaimEventRecord, type ClaimState } from "./lib/claims";
 import type { EvidenceVersion } from "./lib/evidence";
+import type { CompetitorEntry, CompetitorRecord, CriterionRecord, Fit, ShapedBy } from "./lib/competition";
 import type { ExitCriterion, ExitCriterionKind } from "./lib/exit-criteria";
 import { lockKey } from "../shared/allocate";
 
@@ -495,6 +496,103 @@ export class PrismaPipelineStore implements PipelineStore {
     return r.count > 0;
   }
 
+  // --- 竞争位置 (incr/0094) ------------------------------------------------
+
+  async listCompetitors(workspaceId: string): Promise<CompetitorRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.competitor.findMany({ where: { workspaceId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+    return rows.map((r) => ({ id: r.id, name: r.name, aliases: r.aliases, sortOrder: r.sortOrder }));
+  }
+
+  async createCompetitor(workspaceId: string, input: { name: string; aliases: string[] }): Promise<CompetitorRecord> {
+    const p = await getPrismaClient();
+    const sortOrder = await p.competitor.count({ where: { workspaceId } });
+    const r = await p.competitor.create({ data: { workspaceId, name: input.name, aliases: input.aliases, sortOrder } });
+    return { id: r.id, name: r.name, aliases: r.aliases, sortOrder: r.sortOrder };
+  }
+
+  async updateCompetitor(workspaceId: string, id: string, patch: { name: string; aliases: string[] }): Promise<boolean> {
+    const p = await getPrismaClient();
+    const data = { name: patch.name, aliases: patch.aliases, updatedAt: new Date() };
+    const guard = assertWritable("yucer_pipeline.competitor", data);
+    if (!guard.ok) throw new Error(`refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`);
+    const r = await p.competitor.updateMany({ where: { workspaceId, id }, data });
+    return r.count > 0;
+  }
+
+  async listCompetitorEntries(workspaceId: string, opportunityId: string): Promise<CompetitorEntry[]> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityCompetitor.findMany({ where: { workspaceId, opportunityId } });
+    return rows.map(toCompetitorEntry);
+  }
+
+  async appendCompetitorEntry(
+    workspaceId: string,
+    opportunityId: string,
+    row: Omit<CompetitorEntry, "id" | "recordedAt">,
+  ): Promise<CompetitorEntry> {
+    const p = await getPrismaClient();
+    const r = await p.opportunityCompetitor.create({
+      data: {
+        workspaceId,
+        opportunityId,
+        competitorId: row.competitorId,
+        isIncumbent: row.isIncumbent,
+        present: row.present,
+        interactionId: row.interactionId,
+        source: row.source,
+        proposalId: row.proposalId,
+        authorSub: row.authorSub,
+      },
+    });
+    return toCompetitorEntry(r);
+  }
+
+  async listCriteria(workspaceId: string, opportunityId: string): Promise<CriterionRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityCriterion.findMany({ where: { workspaceId, opportunityId }, orderBy: { sortOrder: "asc" } });
+    return rows.map(toDecisionCriterion);
+  }
+
+  async createCriterion(
+    workspaceId: string,
+    opportunityId: string,
+    input: { statement: string; shapedBy: ShapedBy; fit: Fit | null; fitNote: string | null; sortOrder: number; updatedBySub: string },
+  ): Promise<CriterionRecord> {
+    const p = await getPrismaClient();
+    const r = await p.opportunityCriterion.create({ data: { workspaceId, opportunityId, ...input } });
+    return toDecisionCriterion(r);
+  }
+
+  async updateCriterion(
+    workspaceId: string,
+    opportunityId: string,
+    id: string,
+    patch: { statement: string; shapedBy: ShapedBy; fit: Fit | null; fitNote: string | null; updatedBySub: string },
+  ): Promise<boolean> {
+    const p = await getPrismaClient();
+    const data = { ...patch, updatedAt: new Date() };
+    const guard = assertWritable("yucer_pipeline.opportunity_criterion", data);
+    if (!guard.ok) throw new Error(`refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`);
+    const r = await p.opportunityCriterion.updateMany({ where: { workspaceId, opportunityId, id }, data });
+    return r.count > 0;
+  }
+
+  async removeCriterion(workspaceId: string, opportunityId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const r = await p.opportunityCriterion.deleteMany({ where: { workspaceId, opportunityId, id } });
+    return r.count > 0;
+  }
+
+  async listCompetitorReviews(workspaceId: string): Promise<{ competitorId: string; outcome: string; reviewedAt: Date }[]> {
+    const p = await getPrismaClient();
+    const rows = await p.winLossReview.findMany({
+      where: { workspaceId, competitorId: { not: null } },
+      select: { competitorId: true, outcome: true, reviewedAt: true },
+    });
+    return rows.map((r) => ({ competitorId: r.competitorId as string, outcome: r.outcome, reviewedAt: r.reviewedAt }));
+  }
+
   async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {
     const p = await getPrismaClient();
     const rows = await p.opportunityEvidence.findMany({ where: { workspaceId, opportunityId } });
@@ -642,6 +740,7 @@ export class PrismaPipelineStore implements PipelineStore {
       outcome: review.outcome,
       primaryReasonId: review.primaryReasonId,
       competitor: review.competitor ?? null,
+      competitorId: review.competitorId ?? null,
       lessons: review.lessons ?? null,
       reviewerSub: review.reviewerSub,
       reviewedAt: new Date(),
@@ -1202,6 +1301,7 @@ function toReview(r: Record<string, unknown>): WinLossReviewRecord {
     outcome: r.outcome as "won" | "lost" | "abandoned",
     primaryReasonId: (r.primaryReasonId as string | null) ?? null,
     competitor: (r.competitor as string | null) ?? null,
+    competitorId: (r.competitorId as string | null) ?? null,
     lessons: (r.lessons as string | null) ?? null,
     reviewerSub: (r.reviewerSub as string | null) ?? null,
     reviewedAt: r.reviewedAt as Date,
@@ -1250,6 +1350,52 @@ async function logClaims(tx: Tx, workspaceId: string, opportunityId: string, bef
   await tx.opportunityClaimEvent.createMany({
     data: events.map((e) => ({ workspaceId, opportunityId, ...e })),
   });
+}
+
+function toCompetitorEntry(r: {
+  id: string;
+  competitorId: string | null;
+  isIncumbent: boolean;
+  present: boolean;
+  interactionId: string | null;
+  source: string;
+  proposalId: string | null;
+  authorSub: string;
+  recordedAt: Date;
+}): CompetitorEntry {
+  return {
+    id: r.id,
+    competitorId: r.competitorId,
+    isIncumbent: r.isIncumbent,
+    present: r.present,
+    interactionId: r.interactionId,
+    source: r.source as CompetitorEntry["source"],
+    proposalId: r.proposalId,
+    authorSub: r.authorSub,
+    recordedAt: r.recordedAt,
+  };
+}
+
+function toDecisionCriterion(r: {
+  id: string;
+  statement: string;
+  shapedBy: string;
+  fit: string | null;
+  fitNote: string | null;
+  sortOrder: number;
+  updatedBySub: string | null;
+  updatedAt: Date;
+}): CriterionRecord {
+  return {
+    id: r.id,
+    statement: r.statement,
+    shapedBy: r.shapedBy as ShapedBy,
+    fit: r.fit as Fit | null,
+    fitNote: r.fitNote,
+    sortOrder: r.sortOrder,
+    updatedBySub: r.updatedBySub,
+    updatedAt: r.updatedAt,
+  };
 }
 
 function toEvidence(r: {

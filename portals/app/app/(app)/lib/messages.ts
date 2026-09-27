@@ -6710,6 +6710,7 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.opportunity.abandon": "放弃商机",
     "pipeline.claims.view": "查看声明变更与推迟",
     "pipeline.evidence.record": "记录购买证据",
+    "pipeline.competition.record": "记录竞争态势",
     "pipeline.exitcheck.view": "查看阶段退出核验",
     "pipeline.opportunity.importance": "设定商机重要度",
     "pipeline.forecast.view": "查看销售预测",
