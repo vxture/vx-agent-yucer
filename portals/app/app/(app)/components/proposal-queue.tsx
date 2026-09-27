@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Badge,
   BulkActionBar,
@@ -28,6 +29,7 @@ import { capabilityLabel } from "../../domains/copilot/lib/capability";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
 import {
   FilterSlot,
+  RowActions,
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
@@ -139,6 +141,7 @@ export function ProposalQueue({
   // an English audit sentence; this rebuilds it from the payload (TD-010).
   const why = (a: AgentAction) => displayRationale(a, RATIONALE_TEXT);
   const sorted = useTableSort<AgentAction>([], SORT_ON);
+  const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   // The DS owns the disclosure, the same way it owns the selection above.
   const [expanded, setExpanded] = useState<readonly string[]>([]);
@@ -318,51 +321,51 @@ export function ProposalQueue({
       // The reasoning column came out at 59px - narrower than the status badges
       // and narrower than a "decider" column that reads "-" on every row - and
       // wrapped one word per line. "Visible on the row" was true and useless.
-      header: PROPOSAL_TEXT.columnRationale,
-      width: "lg",
-      cell: (row) => why(row) ?? "-",
-    },
-    {
-      id: "confidence",
-      header: PROPOSAL_TEXT.columnConfidence,
+      //
+      // 置信度 ON TOP OF THE REASONING (DS 14 batch 4, 2026-09-27): it says how
+      // sure the machine is of exactly this reasoning, so the two are read
+      // together - and as a column of its own it pushed 状态 under the pinned
+      // action column in the 776px middle column.
+      header: PROPOSAL_TEXT.columnRationaleConfidence,
+      width: "md",
       cell: (row) => (
-        <Tag tone={confidenceTone(row.confidence)}>
-          {row.confidence == null
-            ? PROPOSAL_TEXT.confidenceMissing
-            : `${row.confidence}%`}
-        </Tag>
+        <span className="flex flex-col items-start gap-3xs text-left">
+          <Tag tone={confidenceTone(row.confidence)}>
+            {row.confidence == null ? PROPOSAL_TEXT.confidenceMissing : `${row.confidence}%`}
+          </Tag>
+          <span>{why(row) ?? "-"}</span>
+        </span>
       ),
     },
     {
+      // 状态 with 裁决人 beneath it (DS 14 batch 4, 2026-09-27): who decided is
+      // part of the decision, not a column of its own - and the separate
+      // column pushed the table past the 776px middle column so the status
+      // badges were clipped.
       id: "status",
-      header: PROPOSAL_TEXT.columnStatus,
+      header: PROPOSAL_TEXT.columnStatusDecider,
       cell: (row) => (
-        <Tag tone={ACTION_STATUS_TONE[row.status]} dot>
-          {ACTION_STATUS_LABEL[row.status]}
-        </Tag>
+        <span className="flex flex-col items-center gap-3xs">
+          <Tag tone={ACTION_STATUS_TONE[row.status]} dot>
+            {ACTION_STATUS_LABEL[row.status]}
+          </Tag>
+          {
+            // A null decider on an executed row is the autopilot marker, not
+            // missing data - it is how the record says no human signed for this.
+            row.status === "executed" && !row.decidedBySub ? (
+              <StatusBadge size="sm" tone="warning">
+                {PROPOSAL_TEXT.autopilotMarker}
+              </StatusBadge>
+            ) : row.decidedBySub ? (
+              deciderNames[row.decidedBySub] ? (
+                <span className="text-muted-foreground text-body-sm">{deciderNames[row.decidedBySub]}</span>
+              ) : (
+                <span className="text-muted-foreground font-mono text-body-sm">{row.decidedBySub}</span>
+              )
+            ) : null
+          }
+        </span>
       ),
-    },
-    {
-      id: "decided",
-      header: PROPOSAL_TEXT.columnDecider,
-      cell: (row) =>
-        // A null decider on an executed row is the autopilot marker, not missing
-        // data - it is how the record says no human signed for this.
-        row.status === "executed" && !row.decidedBySub ? (
-          <StatusBadge tone="warning">
-            {PROPOSAL_TEXT.autopilotMarker}
-          </StatusBadge>
-        ) : row.decidedBySub ? (
-          deciderNames[row.decidedBySub] ? (
-            <span className="text-body-sm">{deciderNames[row.decidedBySub]}</span>
-          ) : (
-            <span className="text-muted-foreground font-mono text-body-sm">
-              {row.decidedBySub}
-            </span>
-          )
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
     },
   ];
 
@@ -482,6 +485,28 @@ export function ProposalQueue({
           sort={sorted.sort}
           onSortChange={sorted.onSortChange}
             rowKey={(row) => row.id}
+            /* 操作列 (DS 14 batch 4): one row's 采纳 / 拒绝 go through the SAME
+               confirmation as a batch - the row becomes the selection - so a
+               single decision is never a lighter path than a bulk one. A row
+               that cannot be decided keeps the column with a disabled trigger. */
+            rowActions={(row) => {
+              const decidable = canDecide && row.status === "proposed" && !undecidable.includes(row.id);
+              const subject = subjectOf(row);
+              return (
+                <RowActions
+                  label={DS_LABELS.actionMenu}
+                  items={[
+                    ...(decidable
+                      ? [
+                          { id: "accept", label: PROPOSAL_TEXT.verbAccept, icon: "check" as const, onSelect: () => { setSelected(new Set([row.id])); setConfirming("accept"); } },
+                          { id: "reject", label: PROPOSAL_TEXT.verbReject, icon: "x" as const, onSelect: () => { setSelected(new Set([row.id])); setConfirming("reject"); } },
+                        ]
+                      : []),
+                    ...(subject ? [{ id: "open", label: PROPOSAL_TEXT.openSubject, icon: "arrow-right" as const, separatorBefore: decidable, onSelect: () => router.push(subject.href) }] : []),
+                  ]}
+                />
+              );
+            }}
             /* SELECTION IS THE DS'S NOW. It was a hand-rolled `select` column
                with two Checkboxes, which landed the boxes AFTER the index
                instead of first - the convention is select, then index, then
