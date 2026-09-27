@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
+import { readFileSync } from "node:fs";
 import { DEFAULT_STAGE_DEFINITIONS } from "./lib/stage";
 
 // incr/0057-0058 - the stage catalog and its composite FK, against a real
@@ -308,5 +309,45 @@ test("the service role may write name/order/probability/flags, and not the ancho
     }
     assert.equal(await col("stage_code"), false, "stage_code is the anchor and must not be writable");
     assert.equal(await col("workspace_id"), false, "workspace_id must not be writable");
+  });
+});
+
+// --- incr/0093: two factory names renamed, a workspace's own name kept ----------
+
+test("incr/0093 renames only the factory names of propose / negotiate, and runs twice cleanly", { skip }, async () => {
+  const sql = readFileSync(
+    new URL("../../../../../deploy/database/ddl/incr/0093_stage_names_propose_negotiate.sql", import.meta.url),
+    "utf8",
+  );
+  const OTHER = "ffffffff-0000-0000-0000-000000000093";
+  await withPg(async (c) => {
+    // WS still carries the old factory names; OTHER renamed negotiate itself.
+    await insertStage(c, { code: "propose", name: "报价投标", sortOrder: 4, probability: 70 });
+    await insertStage(c, { code: "negotiate", name: "商务谈判", sortOrder: 5, probability: 90 });
+    await c.query(
+      `INSERT INTO yucer_pipeline.stage_definition
+         (workspace_id, stage_code, name, sort_order, default_probability, is_won, is_terminal)
+       VALUES ($1, 'negotiate', '合同谈判', 5, 90, FALSE, FALSE)`,
+      [OTHER],
+    );
+    await c.query(sql);
+    await c.query(sql);
+    const { rows } = await c.query(
+      `SELECT workspace_id, stage_code, name, sort_order, default_probability
+         FROM yucer_pipeline.stage_definition WHERE workspace_id IN ($1, $2) ORDER BY workspace_id, sort_order`,
+      [WS, OTHER],
+    );
+    assert.deepEqual(
+      rows.map((r) => [r.workspace_id, r.stage_code, r.name, r.sort_order, r.default_probability]),
+      [
+        [WS, "propose", "方案报价", 4, 70],
+        [WS, "negotiate", "谈判签约", 5, 90],
+        [OTHER, "negotiate", "合同谈判", 5, 90],
+      ],
+    );
+    // The TS seed says the same, so a workspace seeded on first contact matches one migrated here.
+    const names = new Map(DEFAULT_STAGE_DEFINITIONS.map((d) => [d.code, d.name]));
+    assert.equal(names.get("propose"), "方案报价");
+    assert.equal(names.get("negotiate"), "谈判签约");
   });
 });

@@ -604,5 +604,5 @@ export const DEMO_COMMITMENT_PROPOSAL = {
 export const DEMO_PLAN_STEP = {
   statement: "约周涛确认客户内部的签约流程和会签环节",
   forCriterion: "签约流程已写明",
-  rationale: "报价投标阶段的「签约流程已写明」尚未满足，先约经济决策人把签约流程问清。",
+  rationale: "方案报价阶段的「签约流程已写明」尚未满足，先约经济决策人把签约流程问清。",
 } as const;
