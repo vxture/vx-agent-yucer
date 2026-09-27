@@ -7,12 +7,11 @@ import { listAccounts, listMarketDivisions } from "../../domains/account/service
 import { listPipeline, listStageDefinitions } from "../../domains/pipeline/service";
 import { toStageCatalog } from "../../domains/pipeline/store";
 import { DEFAULT_STAGE_DEFINITIONS } from "../../domains/pipeline/lib/stage";
-import { stageLabelFor } from "../../(app)/lib/view-model";
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listLeads } from "../../domains/signal/service";
 import { listProposals } from "../../domains/copilot/service";
 import { getCopilotStore, getDeliveryStore } from "../../domains/shared/registry";
-import { STAGE_KEYS, type InstalmentLike, type MilestoneLike } from "../lib/rollup";
+import { stageMixLabels, type InstalmentLike, type MilestoneLike } from "../lib/rollup";
 import { ENTRY_TARGETS, type EntryKey } from "../lib/entry";
 import { NationalScreen } from "../components/national-screen";
 
@@ -104,7 +103,7 @@ export default async function NationalScreenPage() {
   // 商机储备's labels are the workspace's own stage names (a refused catalog
   // read falls back to the shipped seven, like the pipeline page).
   const stageCatalog = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
-  const stageLabels = STAGE_KEYS.map((code) => stageLabelFor(code, stageCatalog, STAGE_LABEL));
+  const stageLabels = stageMixLabels(stageCatalog, STAGE_LABEL);
 
   /* 大区, READ FROM THE WORKSPACE (incr/0036). Nothing on this screen knows how
      many divisions there are or what they are called: a tenant that renames one

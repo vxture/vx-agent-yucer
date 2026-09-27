@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { rollUpByProvince, totalOf, type DealLike, type ProjectLike } from "./rollup";
+import { STAGE_KEYS, rollUpByProvince, stageMixLabels, totalOf, type DealLike, type ProjectLike } from "./rollup";
 import type { AccountRecord } from "../../domains/account/store";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
 
@@ -338,4 +338,18 @@ test("统计周期 - accounts are NOT filtered, because they carry no date", () 
   // filter on would report a number nobody could reproduce.
   const accounts = [account("a1", "江苏省"), account("a2", "广东省")];
   assert.equal(totalOf(rollUpByProvince(accounts, [], [], { now: PNOW, period: Q1 }).provinces).accounts, 2);
+});
+
+test("stageMixLabels: every open stage, in order, under the workspace's own name", () => {
+  const catalog = [
+    { code: "qualify", name: "合格判定" },
+    { code: "discover", name: "需求挖掘" },
+    { code: "validate", name: "方案验证" },
+    { code: "propose", name: "方案报价" },
+    { code: "negotiate", name: "我们的谈判" },
+  ];
+  assert.deepEqual(stageMixLabels(catalog, {}), ["合格判定", "需求挖掘", "方案验证", "方案报价", "我们的谈判"]);
+  // A catalog missing a stage falls back to the shipped label, then the code.
+  assert.deepEqual(stageMixLabels(catalog.slice(0, 3), { propose: "方案报价" }), ["合格判定", "需求挖掘", "方案验证", "方案报价", "negotiate"]);
+  assert.equal(STAGE_KEYS.includes("propose"), true, "方案报价 is counted - it used to be missing");
 });
