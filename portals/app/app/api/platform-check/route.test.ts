@@ -102,13 +102,15 @@ import { resetS2SCache } from "../../platform/s2s";
 function stubFetch(handler: (url: string) => { status: number; body: unknown }) {
   const original = globalThis.fetch;
   const seen: string[] = [];
-  globalThis.fetch = (async (input: string | URL | Request) => {
+  const bodies: Array<{ url: string; body: string; headers: Headers }> = [];
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     seen.push(url);
+    bodies.push({ url, body: String(init?.body ?? ""), headers: new Headers(init?.headers) });
     const { status, body } = handler(url);
     return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
-  return { seen, restore: () => (globalThis.fetch = original) };
+  return { seen, bodies, restore: () => (globalThis.fetch = original) };
 }
 
 const LIVE = { workspaceId: "ws_live", tenantId: "org_live", subjectToken: "member-access-token" };
@@ -135,6 +137,10 @@ test("signed in: the exchange runs for both planes and Atlas answers an authenti
     assert.equal(check.planes.atlas.ok, true);
     assert.match(check.planes.atlas.detail, /answered 200 - 2 model\(s\)/);
     assert.ok(net.seen.some((u) => u === "http://atlas.test:3100/v1/models"));
+    // Runos gets the turn's own shape: a non-empty query and a limit.
+    const mcp = JSON.parse(net.bodies.find((b) => b.url.endsWith("/v1/mcp"))!.body);
+    assert.equal(mcp.params.arguments.query, "sales");
+    assert.equal(mcp.params.arguments.limit, 20);
     // An empty Runos catalog is a normal answer, and says so.
     assert.equal(check.planes.runos.ok, true);
     assert.match(check.planes.runos.detail, /0 capabilities granted to yucer \(an empty catalog is a normal answer\)/);
@@ -171,4 +177,30 @@ test("a session mints only with an access token and an active tenant", () => {
   assert.deepEqual(liveIdentityFrom({ workspaceId: "w", tenantId: "t", accessToken: "a" }), { workspaceId: "w", tenantId: "t", subjectToken: "a" });
   assert.equal(liveIdentityFrom({ workspaceId: "w", tenantId: null, accessToken: "a" }), null);
   assert.equal(liveIdentityFrom({ workspaceId: "w", tenantId: "t", accessToken: null }), null);
+});
+
+test("the Atlas live-call probe sends a UUID applicationId - Atlas casts it for its grant lookup", async () => {
+  bare();
+  resetS2SCache();
+  process.env.OIDC_CLIENT_SECRET = "s";
+  process.env.ATLAS_BASE_URL = "http://atlas.test:3100";
+  const net = stubFetch((url) =>
+    url.endsWith("/oidc/token")
+      ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
+      : url.endsWith("/v1/chat")
+        ? {
+            status: 200,
+            body: { id: "c", modelCode: "m1", message: { role: "assistant", content: "pong" }, usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 }, latencyMs: 5 },
+          }
+        : { status: 404, body: {} },
+  );
+  try {
+    const { runAtlasProbe } = await import("./check");
+    const r = await runAtlasProbe("ws_live", "org_live");
+    assert.equal(r.ok, true);
+    const sent = JSON.parse(net.bodies.find((b) => b.url.endsWith("/v1/chat"))!.body);
+    assert.match(sent.applicationId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  } finally {
+    net.restore();
+  }
 });
