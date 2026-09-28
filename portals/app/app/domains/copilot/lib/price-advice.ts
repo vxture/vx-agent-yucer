@@ -12,6 +12,8 @@
 // follow-up it comes from and must appear in it verbatim; one that does not is
 // dropped. Advice with nothing left after admission is no advice.
 
+import { admitSentences, allowFigures, figuresConsistent, type AllowedFigures } from "./figures";
+
 export const PRICE_CAPABILITY = "deal.price";
 export const PRICE_SESSION_MARK = "[price-advice]";
 /** The follow-ups the advice may read, newest first. */
@@ -74,77 +76,17 @@ export function priceQuestion(input: PriceAdviceInput): string {
   ].join("\n");
 }
 
-/**
- * Every figure the advice may repeat, by kind: amounts (in yuan and in 万, as
- * the page speaks) and percentages (the deal's rate and each line's discount
- * off list). Kept apart so 80,000 - "8 万" - never licenses "8%".
- */
-export interface AllowedFigures {
-  readonly amounts: ReadonlySet<string>;
-  readonly percents: ReadonlySet<string>;
-}
-
-const key = (n: number) => String(Math.round(n * 100) / 100);
-
+/** Every figure the advice may repeat: the sheet's amounts, the deal rate
+ *  and each line's discount off list. */
 export function allowedFigures(input: PriceAdviceInput): AllowedFigures {
-  const amounts = new Set<string>();
-  const wan = new Set<string>();
-  const percents = new Set<string>();
-  const add = (n: number | null) => {
-    if (n === null) return;
-    amounts.add(key(n));
-    if (n >= 10_000) wan.add(key(n / 10_000));
-  };
-  const pct = (ratio: number) => {
-    percents.add(key(Math.round(ratio * 1000) / 10));
-    percents.add(key(Math.round(ratio * 100)));
-  };
+  const amounts: (number | null)[] = [input.listAmount, input.concession];
+  const ratios: (number | null)[] = [input.rate];
   for (const l of input.lines) {
-    add(l.listPrice);
-    add(l.floorPrice);
-    add(l.unitPrice);
-    add(l.belowFloor > 0 ? l.belowFloor : null);
-    add(l.listPrice === null ? null : l.listPrice * l.quantity);
-    add(l.unitPrice * l.quantity);
-    if (l.listPrice !== null && l.listPrice > 0) pct(1 - l.unitPrice / l.listPrice);
+    amounts.push(l.listPrice, l.floorPrice, l.unitPrice, l.belowFloor > 0 ? l.belowFloor : null);
+    amounts.push(l.listPrice === null ? null : l.listPrice * l.quantity, l.unitPrice * l.quantity);
+    if (l.listPrice !== null && l.listPrice > 0) ratios.push(1 - l.unitPrice / l.listPrice);
   }
-  add(input.listAmount);
-  add(input.concession);
-  if (input.rate !== null) pct(input.rate);
-  return { amounts: new Set([...amounts, ...wan]), percents };
-}
-
-/** A figure followed by one of these is a date or a count, not a price. */
-const COUNT_UNIT = /^(\u5e74|\u4e2a\u6708|\u6708|\u65e5|\u53f7|\u5929|\u5468|\u671f|\u6b21|\u4eba|\u5bb6|\u5957|\u4e2a|\u9879|\u6761|\u53f0|\u5e74\u5ea6|\u5b63\u5ea6|Q)/;
-
-/**
- * True when every money-like figure in the text is on the sheet. A percentage
- * and a 万 amount always count; a figure followed by a date or count unit
- * ("2026 年", "3 期") is not a price and passes; any other bare figure of 100
- * or more counts; small bare figures pass.
- */
-export function figuresConsistent(text: string, allowed: AllowedFigures): boolean {
-  const plain = text.replace(/(\d),(?=\d{3})/g, "$1");
-  for (const m of plain.matchAll(/(\d+(?:\.\d+)?)\s*(%|\uff05|\u4e07)?/g)) {
-    const value = Number(m[1]);
-    const unit = m[2];
-    const after = plain.slice((m.index ?? 0) + m[0].length);
-    if (unit === undefined) {
-      if (COUNT_UNIT.test(after)) continue;
-      if (value < 100) continue;
-    }
-    const set = unit === "%" || unit === "\uff05" ? allowed.percents : allowed.amounts;
-    if (!set.has(key(value))) return false;
-  }
-  return true;
-}
-
-/** Split into sentences, keep the consistent ones. */
-function admitSentences(text: string, allowed: AllowedFigures): { kept: string; dropped: number } {
-  // A full stop ends a sentence only before a space - "26.2%" is one figure.
-  const parts = text.split(/(?<=[\u3002\uff01\uff1f!?])\s*|(?<=\.)\s+/).filter((s) => s.trim() !== "");
-  const kept = parts.filter((s) => figuresConsistent(s, allowed));
-  return { kept: kept.join("").trim(), dropped: parts.length - kept.length };
+  return allowFigures({ amounts, ratios });
 }
 
 /**
@@ -164,7 +106,8 @@ export function admitPriceAdvice(answer: string, input: PriceAdviceInput): Price
   const allowed = allowedFigures(input);
   let dropped = 0;
 
-  const strategy = admitSentences(typeof raw.strategy === "string" ? raw.strategy : "", allowed);
+  const strategyParts = admitSentences(typeof raw.strategy === "string" ? raw.strategy : "", allowed);
+  const strategy = { kept: strategyParts.kept.join("").trim(), dropped: strategyParts.dropped };
   dropped += strategy.dropped;
 
   const trades: string[] = [];

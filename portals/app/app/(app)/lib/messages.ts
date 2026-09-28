@@ -2277,6 +2277,7 @@ export const BOARD_TEXT = {
     "deal.evidence": "证据抽取",
     "deal.plan": "推进计划生成",
     "deal.price": "价格参谋",
+    "forecast.brief": "预测会简报",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3901,6 +3902,32 @@ export const CONCESSION_TEXT = {
   totalUnknown: "没有目录价，整单让价算不出",
   unpriced: (n: number) => `（${n} 项无目录价，未计入）`,
   historyTitle: "本单金额变化",
+};
+
+/** 预测会简报 (deal batch 9e, YC-069 section 11 ③). */
+export const FORECAST_BRIEF_TEXT = {
+  title: "预测会简报",
+  why: "参谋按上面的数字写三句话：较上次动了什么、承诺里哪些站不住，再给出逐人该问的问题。数字全部来自规则。",
+  run: "生成简报",
+  running: "参谋在写…",
+  questions: "逐人该问",
+  dropped: (n: number) => `另有 ${n} 条因数字不在本页、或对象不在本期名单上，没有显示`,
+  cached: "与上次输入相同，沿用上次的简报（未再计费）",
+};
+
+/** 预测会简报的失败回执 (deal batch 9e)。 */
+export const FORECAST_BRIEF_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
+  tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用",
+  brief_empty: "参谋这次写的都没通过核对（数字或对象对不上），没有可显示的",
+  not_found: "找不到这一期或这一口径的数据",
+  period_unparsed: "无法识别这个周期",
+  empty_question: "请求为空",
+  quota_exceeded: "本工作区的参谋调用额度已用完",
+  turn_failed: "这次没完成（模型暂不可用），稍后再试",
+  unknown: "这次没完成，稍后再试",
 };
 
 /** 未经证实金额 (deal batch 9d, YC-069 section 11 ①). */

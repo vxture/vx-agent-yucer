@@ -2,14 +2,13 @@ import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
-import { forecastChange, forecastHistory, forecastScorecard, previewCategories } from "../../domains/pipeline/service";
 import { ForecastChange } from "../components/forecast-change";
 import { ForecastUnverified } from "../components/forecast-unverified";
-import { assessDeals } from "../pipeline/deal-assessments";
-import { unverifiedAmounts } from "../../domains/pipeline/lib/unverified";
-import { inPeriod, inScope } from "../../domains/pipeline/lib/forecast";
-import { listTerritories } from "../../domains/planning/service";
+import { forecastBoard } from "./board";
+import { briefForecast } from "./brief-action";
+import { ForecastBriefPanel } from "../components/forecast-brief";
+import { canRunAdvisor } from "../../domains/copilot/lib/advisor-gate";
+import { FORECAST_BRIEF_CAPABILITY } from "../../domains/copilot/lib/forecast-brief";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
 import { SubmitForecast } from "../components/submit-forecast";
 import { submitForecastSnapshot } from "../pipeline/forecast-action";
@@ -68,68 +67,11 @@ export default async function ForecastPage({
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.
 
-  const ctx = {
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: session.stores.pipeline(),
-  };
-  const [preview, history, score, territories, change] = await Promise.all([
-    previewCategories(ctx),
-    // The series, not the latest point - the only reader that makes
-    // forecast_snapshot's immutability pay for itself.
-    forecastHistory(ctx, period, scope),
-    forecastScorecard({ ...ctx, catalog: getCatalogStore() }, period, { scope }),
-    listTerritories({ ...ctx, store: getPlanningStore() }),
-    // 快照间变化 (batch 9c): since the latest snapshot of this period and scope.
-    // A failed read hides the block rather than failing the page (YC-067
-    // section 11: 任一批量读失败，依赖它的列显示读不到).
-    forecastChange({ ...ctx, catalog: getCatalogStore() }, period, scope).catch(() => undefined),
-  ]);
-
-  if (!preview.ok) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.loadFailed}
-        description={loadFailureText(preview.violations, LOAD_ERROR)}
-      />
-    );
+  const board = await forecastBoard(session, period, scope, POSITION_TEXT.rivalWords);
+  if (!board.ok) {
+    return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(board.violations, LOAD_ERROR)} />;
   }
-
-  // THE PERIOD AND SCOPE GOVERN THE LIST TOO. The same two rules the snapshot
-  // applies (inPeriod: an open deal by its expected close, a closed one by its
-  // close; inScope: territory or owner), so the figures here and the point a
-  // snapshot would record describe the same deals.
-  const all = preview.value.map((p) => p.opportunity);
-  const windowed = inPeriod(all, period);
-  const kept = new Set(inScope(windowed ? windowed.kept : all, scope).map((o) => o.id));
-  const inView = preview.value.filter((p) => kept.has(p.opportunity.id));
-  // Owners from the whole book, not the window: an owner with nothing this
-  // quarter is still one somebody may want to look at this quarter for.
-  const ownerOptions = [...new Set(all.map((o) => o.ownerSub).filter((o): o is string => !!o))].sort((a, b) =>
-    a.localeCompare(b),
-  );
-  const territoryOptions = territories.ok ? territories.value.map((t) => ({ id: t.id, name: t.name })) : [];
-  const points = history.ok ? history.value : [];
-
-  // 未经证实金额 (batch 9d): 承诺 and 乐观 in view, each deal judged as its own
-  // page judges it. A failed assessment hides the block (never "all proven").
-  const atStake = inView.filter(
-    (p) => p.opportunity.status === "open" && (p.opportunity.forecastCategory === "commit" || p.opportunity.forecastCategory === "best_case"),
-  );
-  const assessed = await assessDeals(session, atStake, POSITION_TEXT.rivalWords).catch(() => null);
-  const unverified = assessed
-    ? unverifiedAmounts(
-        atStake.flatMap((p) => {
-          const a = assessed.get(p.opportunity.id);
-          return a
-            ? [{ ...a, name: p.opportunity.name, category: p.opportunity.forecastCategory, amount: p.opportunity.amount?.amount ?? 0 }]
-            : [];
-        }),
-        ["commit", "best_case"],
-      )
-    : null;
+  const { inView, ownerOptions, territoryOptions, points, score, change, unverified } = board;
 
   const rows: ForecastRow[] = inView.map((p) => ({
     opportunityId: p.opportunity.id,
@@ -200,6 +142,11 @@ export default async function ForecastPage({
           labels={{ commit: PIPELINE_TEXT.tCommit, best_case: PIPELINE_TEXT.tBestCase }}
           wan={BOARD_TEXT.wan}
         />
+      ) : null}
+
+      {/* 预测会简报 (batch 9e): the 参谋's narrative over this page's figures. */}
+      {canRunAdvisor(session.authz, session.entitlement, FORECAST_BRIEF_CAPABILITY).allowed ? (
+        <ForecastBriefPanel period={period} scopeKey={scopeKey} onBrief={briefForecast} />
       ) : null}
 
       {/* The series for this period and scope, its accuracy, and the snapshot
