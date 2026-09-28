@@ -52,6 +52,11 @@ export const CAPABILITIES = [
   // Deal batch 8b (YC-066 S3/S5): 局势简报, 风险解读 and 卡点诊断 in one run
   // over the rule's assessment. Findings; no level moves.
   "deal.brief",
+  // Deal batch 8c (YC-066 S6 下一步最佳动作): one dated action for us, its
+  // reason naming an unmet exit criterion or the stall. A proposal; accepted,
+  // it is our commitment. Written when the deal page opens on changed data
+  // (owner 2026-09-28), not by a daily sweep.
+  "deal.next_action",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -192,6 +197,12 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     feature: "pipeline.manage",
     task: "summarize",
     evidence: ["interactions", "commitments", "chain", "deals"],
+  },
+  // The goals (unmet criteria, the stall), open promises and recent notes.
+  "deal.next_action": {
+    feature: "pipeline.manage",
+    task: "propose",
+    evidence: ["interactions", "commitments", "deals"],
   },
   // One new follow-up against what the slots already say.
   "deal.evidence": {

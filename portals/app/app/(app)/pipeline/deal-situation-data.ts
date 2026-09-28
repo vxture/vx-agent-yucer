@@ -32,6 +32,8 @@ const DAY = 86_400_000;
 
 export interface SituationFrame {
   readonly opportunityId: string;
+  /** The deal's stage code (input.stage is its display name). */
+  readonly stageCode: string;
   readonly input: SituationInput;
   readonly question: string;
   /** The rule's line for who it is stuck on - shown above the 参谋's why. */
@@ -135,7 +137,7 @@ export async function situationFrameFor(session: AppSession, opportunityId: stri
       .slice(0, SITUATION_NOTE_WINDOW)
       .map((n) => ({ id: n.id, date: day(n.occurredAt), text: n.rawNote })),
   };
-  return { opportunityId: o.id, input, question: situationQuestion(input), stallHolder: holderLine };
+  return { opportunityId: o.id, stageCode: o.stage, input, question: situationQuestion(input), stallHolder: holderLine };
 }
 
 /** What runAdvisor keys the run on - the deck's peek and the action must agree. */

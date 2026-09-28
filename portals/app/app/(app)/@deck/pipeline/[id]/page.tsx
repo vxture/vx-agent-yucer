@@ -17,6 +17,10 @@ import { DealSituation } from "../../../components/deal-situation";
 import { briefDealSituation } from "../../../pipeline/deal-situation-action";
 import { citedNotes, peekSituation, situationFrameFor } from "../../../pipeline/deal-situation-data";
 import { SITUATION_CAPABILITY } from "../../../../domains/copilot/lib/deal-situation";
+import { NEXT_ACTION_CAPABILITY } from "../../../../domains/copilot/lib/next-action";
+import { NextActionTrigger } from "../../../components/next-action-trigger";
+import { proposeNextAction } from "../../../pipeline/next-action-action";
+import { nextActionDue, nextActionFrameFor } from "../../../pipeline/next-action-data";
 import { decisionChainsByOpportunity, getAccountDetail } from "../../../../domains/account/service";
 import { deckBundle, recordAction } from "../../deck-data";
 
@@ -50,7 +54,7 @@ export default async function DealDeck({
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) return null;
-  const { POSITION_TEXT, RATIONALE_TEXT, ASK_ABOUT_TEXT } = await getMessages();
+  const { POSITION_TEXT, RATIONALE_TEXT, ASK_ABOUT_TEXT, NEXT_ACTION_TEXT } = await getMessages();
 
   const base = {
     workspaceId: session.workspaceId,
@@ -67,12 +71,25 @@ export default async function DealDeck({
     ? await listProposals({ ...base, store: getCopilotStore() }, { status: "proposed" }).catch(() => null)
     : null;
   const proposals = (proposalsRead?.ok ? proposalsRead.value : [])
-    // 证据抽取's proposals are decided in place, beside their fact (batch 4b/4c).
-    .filter((a) => a.subjectType === "opportunity" && a.subjectId === id && !EXTRACTION_ACTION_TYPES.includes(a.actionType))
+    // 证据抽取's proposals are decided in place, beside their fact (batch 4b/4c)
+    // - except 下一步最佳动作 (batch 8c), a plan step that belongs here, first.
+    .filter(
+      (a) =>
+        a.subjectType === "opportunity" &&
+        a.subjectId === id &&
+        (a.capability === NEXT_ACTION_CAPABILITY || !EXTRACTION_ACTION_TYPES.includes(a.actionType)),
+    )
+    .sort((a, b) => Number(b.capability === NEXT_ACTION_CAPABILITY) - Number(a.capability === NEXT_ACTION_CAPABILITY))
     .map((a) => ({
       id: a.id,
-      title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,
-      rationale: displayRationale(a, RATIONALE_TEXT),
+      title:
+        a.capability === NEXT_ACTION_CAPABILITY
+          ? NEXT_ACTION_TEXT.proposal(String(a.payload.statement ?? ""), String(a.payload.dueAt ?? ""))
+          : (POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType),
+      rationale:
+        a.capability === NEXT_ACTION_CAPABILITY
+          ? NEXT_ACTION_TEXT.why(String(a.payload.forCriterion ?? ""), a.rationale)
+          : displayRationale(a, RATIONALE_TEXT),
       group: proposalGroup(a.capability, POSITION_TEXT),
       confidence: a.confidence,
       decidable: canDecideProposal(session.authz, session.entitlement, a.capability, "ui").allowed,
@@ -113,6 +130,14 @@ export default async function DealDeck({
       onRun={briefDealSituation}
     />
   ) : null;
+  // 下一步最佳动作 (batch 8c): asked on open when this data has had no run
+  // today and no next action waits (owner 2026-09-28: on open, not a sweep).
+  const nextFrame =
+    frame && canRunAdvisor(session.authz, session.entitlement, NEXT_ACTION_CAPABILITY).allowed
+      ? await nextActionFrameFor(session, frame).catch(() => null)
+      : null;
+  const askNext = nextFrame ? await nextActionDue(session, nextFrame).catch(() => false) : false;
+  const nextAction = askNext ? <NextActionTrigger opportunityId={id} onRun={proposeNextAction} /> : null;
   const proposalsBlock = detail.ok ? (
     <DealAdvisor scope={detail.value.name} proposals={proposals} onAdjudicate={adjudicateProposals} />
   ) : null;
@@ -130,6 +155,7 @@ export default async function DealDeck({
         {meeting}
       </div>
       {situation}
+      {nextAction}
       {proposalsBlock}
     </>
   ) : null;
