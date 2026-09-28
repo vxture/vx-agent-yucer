@@ -817,3 +817,44 @@ test("a review names its rival by row, and the win-rate read returns only review
     await cleanup();
   }
 });
+
+test("主管预估数 (0096): the call round-trips, and the two CHECKs hold in the real database", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const base = {
+      period: "2026Q4", scopeType: "workspace" as const, territoryId: null, ownerSub: null,
+      commitAmount: { amount: 100, currency: "CNY" }, bestCaseAmount: { amount: 150, currency: "CNY" },
+      pipelineAmount: { amount: 300, currency: "CNY" }, closedAmount: { amount: 50, currency: "CNY" },
+      newLogoCount: null, currency: "CNY",
+    };
+    await s.appendForecastSnapshot(WS, {
+      ...base, snapshotAt: new Date("2026-10-01T00:00:00Z"),
+      callAmount: { amount: 90.5, currency: "CNY" }, callNote: "保守一点", submittedBySub: "usr_mgr",
+    });
+    // Older-shape row: no call, no submitter.
+    await s.appendForecastSnapshot(WS, { ...base, snapshotAt: new Date("2026-10-02T00:00:00Z") });
+    const [called, plain] = await s.listForecastSnapshots(WS, { period: "2026Q4" });
+    assert.equal(called?.callAmount?.amount, 90.5);
+    assert.equal(called?.callNote, "保守一点");
+    assert.equal(called?.submittedBySub, "usr_mgr");
+    assert.equal(plain?.callAmount, null);
+    assert.equal(plain?.submittedBySub, null);
+
+    // The database says what planCall says, for a writer that skipped it.
+    await assert.rejects(
+      () => withPg((c) => c.query(
+        `INSERT INTO yucer_pipeline.forecast_snapshot (workspace_id, period, scope_type, call_note, snapshot_at)
+         VALUES ($1, '2026Q4', 'workspace', 'note only', now())`, [WS])),
+      /chk_forecast_snapshot_call_note/,
+    );
+    await assert.rejects(
+      () => withPg((c) => c.query(
+        `INSERT INTO yucer_pipeline.forecast_snapshot (workspace_id, period, scope_type, call_amount, snapshot_at)
+         VALUES ($1, '2026Q4', 'workspace', -1, now())`, [WS])),
+      /chk_forecast_snapshot_call_amount/,
+    );
+  } finally {
+    await cleanup();
+  }
+});

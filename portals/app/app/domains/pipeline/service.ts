@@ -1370,6 +1370,16 @@ export interface ForecastScorecard {
   attainment: number | null;
   /** How close the commit was, both directions counted as misses. 0..1. */
   accuracy: number | null;
+  /**
+   * 主管预估数 (incr/0096, R9): the earliest call made for this period and
+   * scope, and how close IT was - scored by the same rule as the computed
+   * commit, so the two can be read side by side (did the rule know, did the
+   * manager). Null when no snapshot in the period carries a call.
+   */
+  call: { amount: Money; at: Date; accuracy: number | null } | null;
+  /** What a snapshot taken now would store - the submit dialog shows these
+   *  four read-only, so the reader sees exactly what they are committing. */
+  current: SnapshotRow;
 }
 
 /**
@@ -1470,9 +1480,18 @@ export async function forecastScorecard(
   if (!live.ok) return live as RuleResult<ForecastScorecard>;
 
   const settled = range.end.getTime() <= now.getTime();
-  const opening = [...snapshots].sort(
-    (a, b) => a.snapshotAt.getTime() - b.snapshotAt.getTime(),
-  )[0];
+  const ordered = [...snapshots].sort((a, b) => a.snapshotAt.getTime() - b.snapshotAt.getTime());
+  const opening = ordered[0];
+  // The manager's opening call: the earliest snapshot that carries one - an
+  // opening snapshot taken before 0096, or without a call, does not erase a
+  // call made the next week.
+  const called = ordered.find((s) => s.callAmount != null);
+  let call: ForecastScorecard["call"] = null;
+  if (called?.callAmount) {
+    const callScore = forecastAccuracy({ commitAmount: called.callAmount }, live.value.closedAmount);
+    if (!callScore.ok) return callScore as RuleResult<ForecastScorecard>;
+    call = { amount: called.callAmount, at: called.snapshotAt, accuracy: callScore.value };
+  }
   if (!opening) {
     return ok({
       period,
@@ -1481,6 +1500,8 @@ export async function forecastScorecard(
       actualClosed: live.value.closedAmount,
       attainment: null,
       accuracy: null,
+      call,
+      current: live.value,
     });
   }
 
@@ -1496,12 +1517,21 @@ export async function forecastScorecard(
     actualClosed: live.value.closedAmount,
     attainment: attained.value,
     accuracy: score.value,
+    call,
+    current: live.value,
   });
 }
 
 export async function submitForecast(
   ctx: PipelineContext & { catalog: CatalogStore },
-  input: { period: string; scope: ForecastScope; currency?: string; snapshotAt?: Date },
+  input: {
+    period: string;
+    scope: ForecastScope;
+    currency?: string;
+    snapshotAt?: Date;
+    /** 主管预估数 (incr/0096); omitted or null amount = no call. */
+    call?: { amount?: number | null; note?: string | null };
+  },
 ): Promise<RuleResult<SnapshotRow>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.snapshot", "data");
   if (!gate.allowed) return denied(gate);
@@ -1516,6 +1546,8 @@ export async function submitForecast(
     ...input,
     currency: input.currency ?? policy.defaultCurrency,
     opportunities,
+    // Who submitted is the session subject, never a caller's claim (0096).
+    submittedBySub: ctx.sub,
   });
   if (!row.ok) return row;
 

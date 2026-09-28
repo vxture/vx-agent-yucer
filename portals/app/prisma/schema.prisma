@@ -1093,6 +1093,10 @@ model ForecastSnapshot {
   /// increment, or one whose period label could not be parsed, was never
   /// counted - which is a different fact from having counted zero.
   newLogoCount   Int?     @map("new_logo_count")
+  /// incr/0096: the manager's call, its note, who submitted. NULL on older rows.
+  callAmount     Decimal? @map("call_amount") @db.Decimal(18, 2)
+  callNote       String?  @map("call_note")
+  submittedBySub String?  @map("submitted_by_sub") @db.VarChar(128)
   snapshotAt     DateTime @default(now()) @map("snapshot_at") @db.Timestamptz()
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
 

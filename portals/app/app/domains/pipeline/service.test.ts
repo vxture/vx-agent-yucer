@@ -1230,3 +1230,51 @@ test("criteria are configured behind opportunity config; kind is locked; closed 
   const rep = await saveExitCriterion(ctx("viewer", "enterprise", store), { stageCode: "qualify", kind: "lines_priced", param: {}, name: "x" });
   assert.equal(rep.ok === false && rep.violations[0].code, "permission_denied");
 });
+
+test("主管预估数 (0096): the call and its submitter are stored, and scored beside the computed commit", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp({ id: "a", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 })]);
+  const c = ctx("sales_ops", "pro", store);
+  // Opening snapshot with no call; the manager's call arrives a week later.
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+  const called = unwrap(
+    await submitForecast(c, {
+      period: Q3,
+      scope: SCOPE,
+      snapshotAt: new Date("2026-07-08T00:00:00Z"),
+      call: { amount: 700, note: "  甲方预算推到下季  " },
+    }),
+  );
+  assert.equal(called.callAmount?.amount, 700);
+  assert.equal(called.callNote, "甲方预算推到下季");
+  // The submitter is the session subject, never a caller's claim.
+  assert.equal(called.submittedBySub, c.sub);
+
+  store.seed([
+    opp({ id: "a", stage: "won", status: "won", forecastCategory: "closed", amount: money(600), expectedCloseAt: IN_Q3, closedAt: IN_Q3 }),
+  ]);
+  const r = unwrap(await forecastScorecard(c, Q3, { now: AFTER_Q3 }));
+  // The rule committed 1000 and 600 landed: 60%. The manager called 700: 1 - 100/700.
+  assert.equal(r.accuracy, 0.6);
+  assert.equal(r.call?.amount.amount, 700);
+  assert.ok(Math.abs((r.call?.accuracy ?? 0) - (1 - 100 / 700)) < 1e-9);
+  // What a snapshot taken now would store - the dialog's read-only figures.
+  assert.equal(r.current.closedAmount.amount, 600);
+});
+
+test("a call note with no call, or a negative call, is refused before anything is stored", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp({ id: "a", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 })]);
+  const c = ctx("sales_ops", "pro", store);
+  const noAmount = await submitForecast(c, { period: Q3, scope: SCOPE, call: { amount: null, note: "只写说明" } });
+  assert.equal(noAmount.ok ? null : noAmount.violations[0]?.code, "call_note_without_amount");
+  const negative = await submitForecast(c, { period: Q3, scope: SCOPE, call: { amount: -5 } });
+  assert.equal(negative.ok ? null : negative.violations[0]?.code, "call_amount_invalid");
+  const nan = await submitForecast(c, { period: Q3, scope: SCOPE, call: { amount: Number.NaN } });
+  assert.equal(nan.ok ? null : nan.violations[0]?.code, "call_amount_invalid");
+  assert.equal((await store.listForecastSnapshots(WS, { period: Q3 })).length, 0);
+  // No call at all is the ordinary case, and stores nulls.
+  const plain = unwrap(await submitForecast(c, { period: Q3, scope: SCOPE }));
+  assert.equal(plain.callAmount, null);
+  assert.equal(plain.callNote, null);
+});

@@ -717,6 +717,10 @@ export class PrismaPipelineStore implements PipelineStore {
         newLogoCount: row.newLogoCount,
         currency: row.currency,
         snapshotAt: row.snapshotAt,
+        // incr/0096 - written on insert only, like every column here.
+        callAmount: row.callAmount?.amount ?? null,
+        callNote: row.callNote ?? null,
+        submittedBySub: row.submittedBySub ?? null,
       },
     });
   }
@@ -1323,6 +1327,9 @@ function decimalSnapshot(r: Record<string, unknown>): SnapshotRow {
     newLogoCount: (r.newLogoCount as number | null) ?? null,
     currency,
     snapshotAt: r.snapshotAt as Date,
+    callAmount: r.callAmount == null ? null : num(r.callAmount),
+    callNote: (r.callNote as string | null) ?? null,
+    submittedBySub: (r.submittedBySub as string | null) ?? null,
   };
 }
 
