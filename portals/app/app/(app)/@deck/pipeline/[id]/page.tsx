@@ -10,6 +10,9 @@ import { proposalGroup } from "../../../lib/proposal-group";
 import { resolveAppSession } from "../../../lib/session";
 import { AgentPanel } from "../../../components/agent-panel";
 import { DealAdvisor } from "../../../components/deal-advisor";
+import { DealMeetingButton } from "../../../components/deal-meeting";
+import { buildDealMeetingPackAction } from "../../../pipeline/meeting-pack-action";
+import { decisionChainsByOpportunity, getAccountDetail } from "../../../../domains/account/service";
 import { deckBundle, recordAction } from "../../deck-data";
 
 // The deck beside one deal.
@@ -72,8 +75,28 @@ export default async function DealDeck({
 
   // Built here, not inline in AgentPanel's props: reachable-codes.test binds
   // an action to the nearest tag opened before it.
-  const advisor = detail.ok ? (
+  // 商机会前包 (batch 11a): the people to choose from are this deal's chain,
+  // named from the customer's contacts - both through their gated verbs.
+  const accountCtx = { ...base, store: session.stores.account() };
+  const [accountRead, chainRead] = detail.ok
+    ? await Promise.all([
+        getAccountDetail(accountCtx, detail.value.accountId).catch(() => null),
+        decisionChainsByOpportunity(accountCtx, detail.value.accountId, [{ id, name: detail.value.name }]).catch(() => null),
+      ])
+    : [null, null];
+  const onDeal = new Set(chainRead?.ok ? (chainRead.value[0]?.people ?? []).filter((p) => p.status === "active").map((p) => p.id) : []);
+  const meetingPeople = (accountRead?.ok ? accountRead.value.contacts : [])
+    .filter((c) => onDeal.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name, title: c.title ?? null }));
+  const meeting = detail.ok ? <DealMeetingButton opportunityId={id} people={meetingPeople} onBuild={buildDealMeetingPackAction} /> : null;
+  const proposalsBlock = detail.ok ? (
     <DealAdvisor scope={detail.value.name} proposals={proposals} onAdjudicate={adjudicateProposals} />
+  ) : null;
+  const advisor = detail.ok ? (
+    <>
+      <div className="flex justify-end">{meeting}</div>
+      {proposalsBlock}
+    </>
   ) : null;
 
   const bundle = await deckBundle(
