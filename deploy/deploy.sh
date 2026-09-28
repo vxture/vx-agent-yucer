@@ -73,6 +73,17 @@ cmd_directories() {
 cmd_start() {
   local reg="${IMAGE_REGISTRY:-ghcr.io}" ns="${IMAGE_NAMESPACE:-vxture}" tag="${IMAGE_TAG:-latest}"
   local primary="${reg}/${ns}/${IMAGE_NAME}:${tag}"
+  # AN IMMUTABLE TAG ALREADY ON THE HOST IS NOT PULLED AGAIN (2026-09-28).
+  # sha-<7> names one build forever; env-update recreates the app on the image
+  # that is already running, and re-pulling it only adds a way to fail (it
+  # did: an expired registry login stopped an env change from taking effect).
+  if [[ "$tag" == sha-* ]] && docker image inspect "$primary" >/dev/null 2>&1; then
+    log "${primary} is already on this host; not pulling"
+    compose pull redis db || true
+    compose up -d
+    log "started"
+    return
+  fi
   log "pulling ${primary}"
   # GHCR is a cross-border pull from this host, and it does not fail, it
   # occasionally just stalls: observed twice (v0.1.13, v0.1.17) as 5 of 6
