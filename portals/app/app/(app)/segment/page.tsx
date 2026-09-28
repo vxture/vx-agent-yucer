@@ -14,6 +14,7 @@ import { ModuleHeadline, type HeadlineStat } from "../components/module-headline
 import { loadFailureText } from "../lib/load-failure";
 import { changeSegmentStatus, deleteSegment, moveSegmentRow } from "../strategy/actions";
 import { Tag } from "../components/tag";
+import { lockedPage } from "../components/locked-page";
 
 // D1 market segments - a module page since 2026-08-30.
 //
@@ -32,6 +33,9 @@ export default async function SegmentPage() {
   const { LOAD_ERROR, SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "segment");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

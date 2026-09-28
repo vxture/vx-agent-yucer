@@ -144,7 +144,6 @@ export interface AppShellProps {
   /** The console's account centre; null hides the link. */
   readonly consoleUrl: string | null;
   readonly workspaceLabel: string;
-  readonly upgradeHref: string;
   /** The tier itself, not its display label - null when unsubscribed. */
   readonly tier: string | null;
   /**
@@ -192,7 +191,6 @@ export function AppShell({
   accountStatus,
   consoleUrl,
   workspaceLabel,
-  upgradeHref,
   tier,
   orgLabel,
   locale,
@@ -415,7 +413,6 @@ export function AppShell({
               <DomainLauncher
                 nav={nav}
                 activeKey={activeKey}
-                upgradeHref={upgradeHref}
               />
 
               {/* (3)-(6) THE DS'S 单产品视角 HEADER (design-system 13.4, 03 §7.1;

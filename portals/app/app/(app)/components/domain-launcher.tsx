@@ -59,13 +59,6 @@ export interface DomainLauncherProps {
   readonly nav: readonly ResolvedNavEntry[];
   /** The nav key of the route on screen, so its row and domain read as active. */
   readonly activeKey: string;
-  /**
-   * Where a locked row goes. navigation.ts states the rule this satisfies:
-   * an entitlement gap is shown "with an upgrade path, because a feature
-   * nobody can see is a feature nobody buys". A locked row that were merely
-   * greyed out would advertise the feature and then refuse to sell it.
-   */
-  readonly upgradeHref: string;
 }
 
 /**
@@ -123,7 +116,6 @@ export const CROSSCUTTING_RULE =
 export function DomainLauncher({
   nav,
   activeKey,
-  upgradeHref,
 }: DomainLauncherProps) {
   const {
     DOMAIN_LABEL,
@@ -171,9 +163,13 @@ export function DomainLauncher({
       // AND IT NAMES THE TIER. "需升级" says you cannot have it without saying
       // what would change that, which is an upsell nobody can act on. The
       // required tier has always been derivable (`minTierFor`); until now
-      // nothing carried it to a surface. The external-link glyph stays -
-      // trailingIcon, not chevron, because the destination is the platform
-      // console and not a route in this app.
+      // nothing carried it to a surface.
+      //
+      // IT OPENS THE MODULE'S UPGRADE PAGE, in this app (owner 2026-09-28):
+      // what the module is for, what else the tier brings, and 【升级】 -
+      // the pricing page is one deliberate click further, not the row's
+      // destination. navigation.ts's rule still holds: an entitlement gap is
+      // shown "with an upgrade path".
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
@@ -183,9 +179,8 @@ export function DomainLauncher({
             ? LAUNCHER_TEXT.locked(TIER_LABEL[m.requiredTier] ?? m.requiredTier)
             : LAUNCHER_TEXT.lockedNoTier
         }
-        href={upgradeHref}
-        newTab
-        trailingIcon="external-link"
+        href={`/upgrade/${m.key}`}
+        linkComponent={Link}
       />
     ) : m.key === "national" || m.key === "enablement" || m.key === "strategyDiag" ? (
       // 销售大屏 / 赋能分析 / 战略诊断 OPEN IN A NEW TAB (owner, 2026-09-13;

@@ -16,6 +16,7 @@ import {
   removeLead,
 } from "../signal/lead-actions";
 import { loadFailureText } from "../lib/load-failure";
+import { lockedPage } from "../components/locked-page";
 
 // 线索管理 - its own module since 2026-09-06 (design_yucer_110).
 //
@@ -42,6 +43,9 @@ export default async function LeadPage() {
   const { LEAD_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "lead");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

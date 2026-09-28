@@ -12,6 +12,7 @@ import {
 import { PendingReviews } from "../components/pending-reviews";
 import { recordReview } from "../pipeline/winloss-action";
 import { loadFailureText } from "../lib/load-failure";
+import { lockedPage } from "../components/locked-page";
 
 // D6 win/loss reviews - a module page since 2026-08-30.
 //
@@ -27,6 +28,9 @@ export default async function WinLossPage() {
   const { LOAD_ERROR, SHELL_TEXT, WINLOSS_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "winLossReview");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

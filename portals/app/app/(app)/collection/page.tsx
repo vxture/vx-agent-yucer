@@ -15,6 +15,7 @@ import { moveInstalment } from "../delivery/actions";
 import { loadFailureText } from "../lib/load-failure";
 import Link from "next/link";
 import { getAccountDetail } from "../../domains/account/service";
+import { lockedPage } from "../components/locked-page";
 
 // D7 collections - a module page since 2026-08-30.
 //
@@ -37,6 +38,9 @@ export default async function CollectionPage({
   const { DELIVERY_TEXT, LOAD_ERROR, REVENUE_STATUS_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "collection");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

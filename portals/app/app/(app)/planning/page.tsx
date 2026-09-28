@@ -14,6 +14,7 @@ import { getMessages } from "../lib/i18n/server";
 import { summaryTarget } from "../../domains/planning/lib/target";
 import { currentPeriod } from "../../domains/shared/period";
 import { loadFailureText } from "../lib/load-failure";
+import { lockedPage } from "../components/locked-page";
 // D2 planning: 规划团队 -> 划定区域 -> 明确指标 (owner, 2026-09-08).
 //
 // ONE FLOW, ONE PAGE. 销售区域 was a module of its own from 2026-08-30, which
@@ -39,6 +40,9 @@ export default async function PlanningPage() {
   const { PLANNING_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "planning");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

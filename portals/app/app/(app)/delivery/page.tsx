@@ -20,6 +20,7 @@ import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
 import { pricingPolicy } from "../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
+import { lockedPage } from "../components/locked-page";
 export const dynamic = "force-dynamic";
 
 // D7 delivery list.
@@ -34,6 +35,9 @@ export default async function DeliveryPage() {
   const { DELIVERY_TEXT, PROJECT_STATUS_LABEL, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "delivery");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

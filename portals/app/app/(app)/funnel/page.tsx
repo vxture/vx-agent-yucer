@@ -10,6 +10,7 @@ import type { FunnelStage } from "../../domains/shared/funnel-exit";
 import { ModuleHeadline } from "../components/module-headline";
 import { FunnelOverview } from "../components/funnel-overview";
 import { Tag } from "../components/tag";
+import { lockedPage } from "../components/locked-page";
 
 // 漏斗总览 - the whole chain in one reading (design_yucer_110 batch E).
 //
@@ -30,6 +31,9 @@ export default async function FunnelPage() {
   const { FUNNEL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "funnel");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

@@ -4036,6 +4036,167 @@ export const DEAL_SITUATION_ERROR: Record<string, string> = {
   unknown: "这次没完成，稍后再试",
 };
 
+/**
+ * 高级功能升级页 (owner 2026-09-28): one template for every module the
+ * workspace has not bought - 功能定位 and 【升级】, in the centre pane.
+ * The tier and "同时解锁" come from the capability matrix (lib/upgrade.ts);
+ * only the words are here.
+ */
+export const UPGRADE_TEXT = {
+  badge: (tier: string) => `${tier} 功能`,
+  positioning: "功能定位",
+  advisorLead: "随功能开放的参谋：",
+  current: "当前",
+  need: "需要",
+  noTier: "未订阅",
+  alsoUnlocks: (tier: string) => `${tier} 同时解锁：`,
+  allOf: (tier: string) => `${tier} 的全部`,
+  onlyThis: (tier: string) => `${tier} 解锁的就是它`,
+  upgrade: "升级",
+  sep: " · ",
+  feature: {
+    "account.manage": "客户管理",
+    "pipeline.manage": "商机管理",
+    "copilot.ask": "问参谋",
+    "signal.inbox": "信号收件箱",
+    "campaign.manage": "营销活动",
+    "delivery.project": "项目交付",
+    "planning.target": "销售目标",
+    "planning.territory": "销售区域",
+    "account.graph": "决策链图谱",
+    "signal.autoscore": "信号自动评分",
+    "pipeline.forecast": "预测口径",
+    "copilot.suggest": "会话里让参谋动手",
+    "strategy.plan": "市场战略",
+    "strategy.segment": "细分市场",
+    "campaign.execute": "战役执行",
+    "signal.external_feed": "外部信号源",
+    "pipeline.winloss": "赢丢复盘",
+    "delivery.revenue": "回款管理",
+    "copilot.autopilot": "授权参谋自动执行",
+  } as Record<string, string>,
+  module: {
+    forecastRule: {
+      pitch: "把团队的预测从「各自填的数」变成「规则站得住的数」：每笔承诺是否有证据撑着、较上次动了什么、谁该被追问，开预测会前一页看清。",
+      points: [
+        { title: "规则口径对照", body: "每笔商机按阶段、退出条件、成交日自动归档，与销售填的类别并排，分歧逐单列出。" },
+        { title: "未经证实金额", body: "承诺里有多少钱缺证据：退出条件没满足、评估在风险档，按单写明缺什么。" },
+        { title: "快照与变化", body: "每次提交留快照，较上次动了什么、为什么动；主管预估数单独记准确率。" },
+      ],
+      advisor: { name: "预测会简报", body: "数字全部来自规则，参谋写三句叙述和逐人该问的问题。" },
+    },
+    winLossReview: {
+      pitch: "每一单关掉时都留下原因、对手和经验；攒够了，团队就知道自己输在哪、对谁赢得多。",
+      points: [
+        { title: "复盘底稿", body: "从阶段日志、承诺、决策链、折扣签字合成四段：在哪开始滑、谁没兑现、覆盖缺谁、让了几轮。" },
+        { title: "原因与对手", body: "原因码不预选，按工作区词表记；输给谁、赢了谁逐单落到友商上。" },
+        { title: "对友商胜率", body: "近 12 个月按对手算胜率，样本不足 5 单明说，不给数；回流到商机的竞争位置。" },
+      ],
+      advisor: { name: "复盘叙述", body: "在底稿上写一段有引用的叙述，并建议原因码，由人确认。" },
+    },
+    planning: {
+      pitch: "把年度目标拆到区域和人，达成从商机的预测快照算，不靠手填。",
+      points: [
+        { title: "目标拆解", body: "按期把目标落到区域、团队和人，一处设定，各处引用。" },
+        { title: "销售区域", body: "区域管哪些省、谁负责，客户与商机按区域归属。" },
+        { title: "达成对照", body: "目标在这里设，达成由商机域的预测快照计算，两边不互相改数。" },
+      ],
+      advisor: { name: "区域达成趋势", body: "按区域看达成走势，哪里在掉队、差多少。" },
+    },
+    strategy: {
+      pitch: "战略是全链路的起点：写下要打哪些市场、怎么打，下游的战役、线索、商机都能回指到它。",
+      points: [
+        { title: "战略方案", body: "分期写清目标、重点市场与打法，版本留痕。" },
+        { title: "细分市场", body: "把要打的市场切成有名字的块并排优先级，客户与战役都指向它。" },
+        { title: "全链回指", body: "战役、线索、商机都能追到它服务的是哪条战略。" },
+      ],
+    },
+    segment: {
+      pitch: "把要打的市场切成有名字的块，按优先级排；客户身上的细分、战役瞄准的目标，从此都有着落。",
+      points: [
+        { title: "命名与优先级", body: "每个细分有名字、定义和排序，工作区统一口径。" },
+        { title: "客户归属", body: "客户按细分归档，哪块市场覆盖了多少客户一目了然。" },
+        { title: "战役瞄准", body: "战役可以瞄准其中一块，投入与回报按细分对得上。" },
+      ],
+      advisor: { name: "细分市场覆盖趋势", body: "每块市场的覆盖在变好还是变差。" },
+    },
+    strategyDiag: {
+      pitch: "一屏看清战略落地得怎样：细分市场覆盖了多少、各区域达成到哪，哪里在掉队。",
+      points: [
+        { title: "细分覆盖", body: "每块市场的客户覆盖与走势，按快照看变化。" },
+        { title: "区域达成", body: "各区域对目标的达成与走势，落后的排在前面。" },
+        { title: "独立大屏", body: "在自己的标签页里运行，开会投屏不打断手头的工作。" },
+      ],
+    },
+    campaign: {
+      pitch: "每场营销活动都算回报：只计赢单收入，管道额不算——没成交的钱还不是钱。",
+      points: [
+        { title: "活动管理", body: "目标客群、预算与周期，一场活动一处记录。" },
+        { title: "来源归因", body: "活动带来的信号、线索、商机都回指这场活动。" },
+        { title: "回报核算", body: "按赢单收入算回报，投入产出逐场对得上。" },
+      ],
+      advisor: { name: "战役回报", body: "哪场活动在出单、哪场只在造管道。" },
+    },
+    signal: {
+      pitch: "不等销售录入，主动发现商机线索；评分越高越值得先看。",
+      points: [
+        { title: "信号收件箱", body: "来自各渠道的购买信号集中到一处，逐条处理。" },
+        { title: "按分排序", body: "每条信号有评分和理由，先看最值得看的。" },
+        { title: "升级为线索", body: "值得跟的信号一键升级成线索，来源一路保留。" },
+      ],
+      advisor: { name: "信号分拣", body: "参谋先读一遍，建议哪些该跟、哪些可以放。" },
+    },
+    lead: {
+      pitch: "信号升级成线索，线索合格后转成商机；每条线索都有人认领，才谈得上合格。",
+      points: [
+        { title: "线索台账", body: "每条线索的来源、状态和负责人，一处看清。" },
+        { title: "智能分配", body: "按区域和负载建议该谁接，采纳与否由你定。" },
+        { title: "转化商机", body: "合格即转成商机，来源战役与信号一路带过去。" },
+      ],
+    },
+    funnel: {
+      pitch: "信号 → 线索 → 商机 → 项目 → 回款：唯一一个讲整条链的页面，其余模块只讲自己那一段。",
+      points: [
+        { title: "整链转化", body: "每一段有多少、转到下一段的有多少。" },
+        { title: "掉在哪一段", body: "流失最多的一段放在最显眼的地方。" },
+        { title: "逐段下钻", body: "点进任意一段，看是哪些线索、商机、项目。" },
+      ],
+    },
+    delivery: {
+      pitch: "链路终点不是赢单，是钱到账：赢下的单转成交付项目，回款逾期的项目不会显示为健康。",
+      points: [
+        { title: "交付项目", body: "从赢单派生项目，里程碑与负责人一处跟踪。" },
+        { title: "回款排期", body: "分期计划跟着项目走，到期、逾期一眼看清。" },
+        { title: "健康度如实", body: "回款逾期的项目不允许显示为健康。" },
+      ],
+      advisor: { name: "回款风险", body: "参谋提示哪些项目的回款可能出问题。" },
+    },
+    renewal: {
+      pitch: "订阅类项目到期前进入提醒窗口，续约商机从项目派生，不靠记性。",
+      points: [
+        { title: "到期提醒", body: "提前多少天提醒由工作区设定，到窗口就出现在这里。" },
+        { title: "派生续约商机", body: "一步开出续约商机，已有在跑的不重复开。" },
+        { title: "只为订阅类", body: "一次性交付不造续约义务——那是客户从没承诺过的事。" },
+      ],
+    },
+    collection: {
+      pitch: "链路终点不是赢单，是钱到账：每一笔分期、逾期、坏账逐笔看清。",
+      points: [
+        { title: "分期台账", body: "每个项目的回款分期、金额与到期日，一处汇总。" },
+        { title: "账龄分档", body: "逾期按工作区设定的天数分档，风险一眼排序。" },
+        { title: "终态可信", body: "已回款与坏账是终态，纠正靠新排期，不靠改旧行。" },
+      ],
+    },
+  } as Record<
+    string,
+    {
+      readonly pitch: string;
+      readonly points: readonly { readonly title: string; readonly body: string }[];
+      readonly advisor?: { readonly name: string; readonly body: string };
+    }
+  >,
+};
+
 /** 下一步最佳动作 (deal batch 8c, YC-066 S6)。 */
 export const NEXT_ACTION_TEXT = {
   thinking: "参谋在想这一单的下一步…",
