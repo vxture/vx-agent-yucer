@@ -1,7 +1,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { GET, POST } from "./route";
-import { runPlatformCheck } from "./check";
+import { liveIdentityFrom, runPlatformCheck } from "./check";
 
 // The self-proof surface, offline: with nothing configured every probe must
 // say so without touching the network, and the gate must behave like
@@ -118,12 +118,15 @@ test("signed in: the exchange runs for both planes and Atlas answers an authenti
   resetS2SCache();
   process.env.OIDC_CLIENT_SECRET = "s";
   process.env.ATLAS_BASE_URL = "http://atlas.test:3100";
+  process.env.RUNOS_BASE_URL = "http://runos.test:3120";
   const net = stubFetch((url) =>
     url.endsWith("/oidc/token")
       ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
       : url.endsWith("/v1/models")
         ? { status: 200, body: { data: [{ modelCode: "m1" }, { modelCode: "m2" }] } }
-        : { status: 404, body: {} },
+        : url.endsWith("/v1/mcp")
+          ? { status: 200, body: { jsonrpc: "2.0", id: 1, result: { structuredContent: { capabilities: [] } } } }
+          : { status: 404, body: {} },
   );
   try {
     const check = await runPlatformCheck("ws_live", LIVE);
@@ -132,6 +135,9 @@ test("signed in: the exchange runs for both planes and Atlas answers an authenti
     assert.equal(check.planes.atlas.ok, true);
     assert.match(check.planes.atlas.detail, /answered 200 - 2 model\(s\)/);
     assert.ok(net.seen.some((u) => u === "http://atlas.test:3100/v1/models"));
+    // An empty Runos catalog is a normal answer, and says so.
+    assert.equal(check.planes.runos.ok, true);
+    assert.match(check.planes.runos.detail, /0 capabilities granted to yucer \(an empty catalog is a normal answer\)/);
   } finally {
     net.restore();
   }
@@ -159,4 +165,10 @@ test("signed in: a refused Atlas call reports its status and code, not just 'rea
   } finally {
     net.restore();
   }
+});
+
+test("a session mints only with an access token and an active tenant", () => {
+  assert.deepEqual(liveIdentityFrom({ workspaceId: "w", tenantId: "t", accessToken: "a" }), { workspaceId: "w", tenantId: "t", subjectToken: "a" });
+  assert.equal(liveIdentityFrom({ workspaceId: "w", tenantId: null, accessToken: "a" }), null);
+  assert.equal(liveIdentityFrom({ workspaceId: "w", tenantId: "t", accessToken: null }), null);
 });

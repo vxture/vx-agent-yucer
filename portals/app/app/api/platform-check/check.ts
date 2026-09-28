@@ -313,6 +313,13 @@ export interface LiveIdentity {
   readonly subjectToken: string;
 }
 
+/** A session's live identity, or null when it cannot mint: no access token
+ *  (a dev session) or no active tenant (Atlas rejects a token without one). */
+export function liveIdentityFrom(s: { workspaceId: string; tenantId: string | null; accessToken: string | null }): LiveIdentity | null {
+  if (!s.accessToken || !s.tenantId) return null;
+  return { workspaceId: s.workspaceId, tenantId: s.tenantId, subjectToken: s.accessToken };
+}
+
 const describe = (err: unknown): string => {
   const e = err as { status?: number; code?: string; message?: string };
   return [e.status ? `HTTP ${e.status}` : "", e.code ?? "", e.message ?? String(err)].filter(Boolean).join(" · ").slice(0, 300);
