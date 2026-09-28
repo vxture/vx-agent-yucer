@@ -135,6 +135,46 @@ export function lateColumnGrants(locksSql, increments) {
   return out;
 }
 
+/**
+ * Schemas an increment creates, and schemas any increment grants USAGE on.
+ *
+ * THE SAME FAILURE ONE LEVEL UP. A table privilege is unreachable without
+ * USAGE on its schema, and 97 grants USAGE only on the schemas it names.
+ * incr/0023 created local_audit, granted SELECT, INSERT on its table and never
+ * granted the schema - so every audit read and write in production answered
+ * "permission denied for schema local_audit" until incr/0095 (2026-09-28).
+ * The table check above was satisfied the whole time.
+ *
+ * Matched across ALL increments rather than per file: a later increment may
+ * repair an earlier one, which is exactly what 0095 is.
+ */
+export function schemasCreated(sql) {
+  const set = new Set();
+  for (const m of uncommented(sql).matchAll(/CREATE\s+SCHEMA(?:\s+IF\s+NOT\s+EXISTS)?\s+(\w+)/gi)) set.add(m[1]);
+  return set;
+}
+
+export function schemasGrantedUsage(sql) {
+  const set = new Set();
+  for (const statement of uncommented(sql).split(";")) {
+    const m = statement.match(/^\s*GRANT\s+USAGE\s+ON\s+SCHEMA\s+([\w\s,]+?)\s+TO\s+yucer_svc\b/i);
+    if (!m) continue;
+    for (const s of m[1].split(",")) if (s.trim()) set.add(s.trim());
+  }
+  return set;
+}
+
+/** Every schema some increment creates that no increment grants USAGE on. */
+export function ungrantedSchemas(increments) {
+  const granted = new Set();
+  for (const { sql } of increments) for (const s of schemasGrantedUsage(sql)) granted.add(s);
+  const out = [];
+  for (const { file, sql } of increments) {
+    for (const s of schemasCreated(sql)) if (!granted.has(s)) out.push(`${file} creates schema ${s}, but no increment grants USAGE on it`);
+  }
+  return out;
+}
+
 export function auditIncrement(sql) {
   const clean = uncommented(sql);
   const created = tablesCreated(clean);
@@ -180,6 +220,16 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const missing = auditIncrement(readFileSync(join(INCR_DIR, f), "utf8"));
     createdTotal += tablesCreated(uncommented(readFileSync(join(INCR_DIR, f), "utf8"))).size;
     for (const t of missing) offenders.push(`${f}: ${t}`);
+  }
+
+  const schemaGaps = ungrantedSchemas(
+    files.map((f) => ({ file: f, sql: readFileSync(join(INCR_DIR, f), "utf8") })),
+  );
+  if (schemaGaps.length > 0) {
+    console.error("[incr-grants] a schema the service role cannot enter:");
+    for (const o of schemaGaps) console.error(`  ${o}`);
+    console.error("\n  Grant it in place: GRANT USAGE ON SCHEMA <schema> TO yucer_svc;");
+    process.exit(STRICT ? 1 : 0);
   }
 
   if (lateColumns.length > 0) {
