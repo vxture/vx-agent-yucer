@@ -25,7 +25,7 @@ export function dropCommentValues(env: Record<string, string | undefined>): stri
       cleared.push(key);
     }
   }
-  return cleared.sort();
+  return cleared.sort((a, b) => a.localeCompare(b));
 }
 
 /** One value, read defensively: a comment is empty. */
