@@ -6,6 +6,9 @@ import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import { ReviewDraftSections } from "./review-draft";
+import type { ReviewDraft } from "../../domains/pipeline/lib/review-draft";
+import type { ReviewNarrativeResult } from "../pipeline/review-narrative-action";
 
 // 结局与复盘 on the deal page itself (YC-065 R7: 入口在作战页关单后首屏,
 // and /winloss's queue is the same form). Before this, a closed deal's page
@@ -37,6 +40,11 @@ export interface DealReviewProps {
   /** The workspace's rivals (incr/0094), offered as the rival box's suggestions;
    *  a typed name is matched to one of them - or added - when saved. */
   readonly knownRivals?: readonly string[];
+  /** 复盘底稿 (deal batch 12): the rule's four sections; absent below the tier. */
+  readonly draft?: ReviewDraft | null;
+  /** 复盘叙述 (12b), shown only when canNarrate. */
+  readonly onNarrate?: (opportunityId: string) => Promise<ReviewNarrativeResult>;
+  readonly canNarrate?: boolean;
   readonly onRecord: (
     opportunityId: string,
     input: { primaryReasonId: string | null; competitor?: string; lessons?: string },
@@ -52,6 +60,9 @@ export function DealReview({
   review,
   reasons,
   knownRivals = [],
+  draft = null,
+  onNarrate,
+  canNarrate = false,
   onRecord,
 }: DealReviewProps) {
   const { WINLOSS_TEXT, REVIEW_ERROR, DEAL_PAGE_TEXT, PANEL_MENU_TEXT } = useMessages();
@@ -179,6 +190,24 @@ export function DealReview({
       ) : null}
 
       {!review && !canRecord ? <Tag>{WINLOSS_TEXT.recordHintDenied}</Tag> : null}
+      {draft && entitled ? (
+        <ReviewDraftSections
+          draft={draft}
+          opportunityId={opportunityId}
+          reasonName={new Map(reasons.map((r) => [r.id, r.name]))}
+          onNarrate={canNarrate ? onNarrate : undefined}
+          // 原因码不预选: the suggestion enters the form only when pressed, and
+          // the reviewer still saves it themselves.
+          onAdoptReason={
+            canRecord
+              ? (id) => {
+                  setReason(id);
+                  setEditing(true);
+                }
+              : undefined
+          }
+        />
+      ) : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
     </CollapsibleSection>
   );
