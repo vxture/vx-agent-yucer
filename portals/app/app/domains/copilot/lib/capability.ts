@@ -43,6 +43,9 @@ export const CAPABILITIES = [
   // Deal batch 9e (YC-066 预测会简报): the forecast meeting's narrative over
   // 预测检视台's own numbers. A finding, not a proposal.
   "forecast.brief",
+  // Deal batch 11a (YC-066 S6 会前包): agenda, talk tracks, objections and
+  // questions over the rule-built pack. A finding, not a proposal.
+  "deal.meeting",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -160,6 +163,12 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     feature: "pipeline.forecast",
     task: "summarize",
     evidence: ["deals"],
+  },
+  // The chosen attendees, the open promises, the goal and recent notes.
+  "deal.meeting": {
+    feature: "pipeline.manage",
+    task: "summarize",
+    evidence: ["interactions", "commitments", "chain", "deals"],
   },
   "deal.price": {
     feature: "pipeline.manage",

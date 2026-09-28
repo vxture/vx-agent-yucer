@@ -2278,6 +2278,7 @@ export const BOARD_TEXT = {
     "deal.plan": "推进计划生成",
     "deal.price": "价格参谋",
     "forecast.brief": "预测会简报",
+    "deal.meeting": "商机会前包",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3902,6 +3903,53 @@ export const CONCESSION_TEXT = {
   totalUnknown: "没有目录价，整单让价算不出",
   unpriced: (n: number) => `（${n} 项无目录价，未计入）`,
   historyTitle: "本单金额变化",
+};
+
+/** 商机会前包 (deal batch 11a, YC-066 S6)。 */
+export const DEAL_MEETING_TEXT = {
+  open: "会前包",
+  title: "商机会前包",
+  pickHint: "选出这次会面到场的人（本单决策流程里的人）",
+  builtNote: "目标、到场的人和未兑现承诺来自本单记录；参谋部分在最下方另起一段。",
+  build: "生成会前包",
+  building: "生成中…",
+  repick: "重新选人",
+  goal: "本次会议目标",
+  goalCurrent: (stage: string) => `（${stage}的退出条件，尚未满足）`,
+  goalNext: (stage: string) => `（本阶段条件已满足，这是${stage}的第一条）`,
+  goalLink: "看推进进程",
+  goalNone: "本阶段和下一阶段都没有设退出条件——会前包不替工作区编目标",
+  attendees: "到场的人",
+  noRole: "未标注角色",
+  lastContact: (days: number) => `${days} 天前最近一次出现在跟进里`,
+  neverContacted: "从没出现在跟进里",
+  promises: "未兑现的承诺",
+  promisesNone: "本单没有未兑现的承诺",
+  overdue: (days: number) => `已逾期 ${days} 天`,
+  dueIn: (days: number) => (days === 0 ? "今天到期" : `${days} 天后到期`),
+  advisorTitle: "参谋准备的",
+  agenda: "议程",
+  tracks: "逐人话术",
+  objections: "可能的异议与应对",
+  questions: "要问的问题",
+  dropped: (n: number) => `另有 ${n} 条因数字不是本单的、或对象不在场，没有显示`,
+  cached: "与上次输入相同，沿用上次的内容（未再计费）",
+  noPeople: "本单的决策流程里还没有人——先在决策流程里加人",
+};
+
+/** 商机会前包的失败回执 (deal batch 11a)。 */
+export const DEAL_MEETING_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在，或不属于当前工作区",
+  attendees_required: "至少选一个到场的人",
+  no_active_tenant: "当前工作区没有接入平台租户，参谋部分暂时不能生成",
+  tenant_required: "当前工作区没有接入平台租户，参谋部分暂时不能生成",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用",
+  meeting_advice_empty: "参谋这次写的都没通过核对，没有可显示的",
+  empty_question: "请求为空",
+  quota_exceeded: "本工作区的参谋调用额度已用完",
+  turn_failed: "参谋这次没完成（模型暂不可用），稍后再试",
+  unknown: "这次没完成，稍后再试",
 };
 
 /** 预测会简报 (deal batch 9e, YC-069 section 11 ③). */
