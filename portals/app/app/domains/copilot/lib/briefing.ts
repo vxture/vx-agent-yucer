@@ -23,6 +23,8 @@ export const BRIEFING_KINDS = [
   "evidence_extract",
   // incr/0089 - 推进计划生成: the deal's unmet criteria and open promises.
   "plan_draft",
+  // incr/0097 - 价格参谋: the concession sheet and the deal's follow-ups.
+  "price_advice",
 ] as const;
 export type BriefingKind = (typeof BRIEFING_KINDS)[number];
 

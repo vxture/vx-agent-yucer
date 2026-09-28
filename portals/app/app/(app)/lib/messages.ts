@@ -2276,6 +2276,7 @@ export const BOARD_TEXT = {
     "account.consistency": "说法核对",
     "deal.evidence": "证据抽取",
     "deal.plan": "推进计划生成",
+    "deal.price": "价格参谋",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -7250,6 +7251,34 @@ export const EXIT_CRITERION_ERROR: Record<string, string> = {
   criterion_kind_locked: "判定方式不能改，删掉这条再加一条",
   criterion_on_terminal: "已关闭的阶段没有退出条件",
   unknown_stage: "这个阶段不在本工作区的阶段目录里",
+};
+
+/** 价格参谋 (deal batch 10b)。 */
+export const PRICE_ADVICE_TEXT = {
+  title: "价格参谋",
+  run: "让参谋看看",
+  running: "参谋在看…",
+  why: "结合底价、让价与跟进里对方说的价格，给出守价策略和可以换的条件。数字只用上表的，不替你决定批不批。",
+  strategy: "策略",
+  trades: "可以换的条件",
+  quotes: "对方原话",
+  dropped: (n: number) => `另有 ${n} 条因数字不在上表或原话对不上，没有显示`,
+  cached: "与上次输入相同，沿用上次的建议（未再计费）",
+};
+
+/** 价格参谋的失败回执 (deal batch 10b)。 */
+export const PRICE_ADVICE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在，或不属于当前工作区",
+  no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
+  tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用",
+  price_nothing_pending: "这一单没有待签的让价，无需参谋",
+  price_advice_empty: "参谋这次给出的建议都没通过核对（数字或原话对不上），没有可显示的",
+  empty_question: "请求为空",
+  quota_exceeded: "本工作区的参谋调用额度已用完",
+  turn_failed: "这次没完成（模型暂不可用），稍后再试",
+  unknown: "这次没完成，稍后再试",
 };
 
 /** 生成计划草案的失败回执 (deal batch 5c)。 */

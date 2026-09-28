@@ -18,6 +18,7 @@ const YC042: Record<string, string> = {
   "account.consistency": "free",
   "deal.evidence": "free",
   "deal.plan": "free",
+  "deal.price": "free",
   "signal.triage": "starter",
   "campaign.return": "starter",
   "delivery.payment_risk": "starter",

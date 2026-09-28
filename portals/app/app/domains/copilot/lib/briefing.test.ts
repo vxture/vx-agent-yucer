@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canonicalJson, inputFingerprint, runIdOf } from "./briefing";
+import { BRIEFING_KINDS, canonicalJson, inputFingerprint, runIdOf } from "./briefing";
 
 const run = (input: unknown) => ({
   capability: "account.consistency",
@@ -28,4 +28,22 @@ test("the run id is the fingerprint shaped as a UUID - deterministic, never rand
   const f = inputFingerprint(run({ q: 1 }));
   assert.equal(runIdOf(f), runIdOf(f));
   assert.match(runIdOf(f), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+});
+
+test("BRIEFING_KINDS is exactly the database's chk_agent_briefing_kind - the latest increment that restates it", async () => {
+  // A kind added here but not to the CHECK is refused by Postgres at the first
+  // write - after the model was already called and charged. Mirror, both ways.
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const dir = join(process.cwd(), "../../deploy/database/ddl/incr");
+  const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+  let latest: string | null = null;
+  for (const f of files) {
+    const sql = readFileSync(join(dir, f), "utf8");
+    const m = /ADD CONSTRAINT chk_agent_briefing_kind CHECK \(kind IN \(([^)]*)\)\)/.exec(sql);
+    if (m) latest = m[1]!;
+  }
+  assert.ok(latest, "no increment restates chk_agent_briefing_kind");
+  const inDb = [...latest.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+  assert.deepEqual(inDb, [...BRIEFING_KINDS].sort());
 });

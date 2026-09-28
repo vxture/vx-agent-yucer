@@ -539,6 +539,30 @@ export const en: Dictionary = {
   // D6 forecast snapshots. Four codes here also live in FORECAST_RULE_ERROR
   // above and read identically on purpose: one code, one sentence, wherever a
   // reader meets it.
+  PRICE_ADVICE_TEXT: {
+    title: "Pricing advice",
+    run: "Ask the advisor",
+    running: "Thinking...",
+    why: "From the floor, the concession and what the buyer said about price in the follow-ups: how to hold the price and what to ask in exchange. It uses only the numbers above and does not decide for you.",
+    strategy: "Strategy",
+    trades: "Ask in exchange",
+    quotes: "Buyer's words",
+    dropped: (n: number) => `${n} more were not shown: a number not on the sheet, or a quote not in the notes`,
+    cached: "Same input as last time - the earlier advice, not charged again",
+  },
+  PRICE_ADVICE_ERROR: {
+    ...GATE_ERROR,
+    not_found: "Not found, or not in this workspace.",
+    no_active_tenant: "This workspace is not connected to a platform tenant, so the model cannot be called",
+    tenant_required: "This workspace is not connected to a platform tenant, so the model cannot be called",
+    advisor_not_admitted: "The platform has not admitted this workspace's advisor runs",
+    price_nothing_pending: "Nothing on this deal waits for a signature",
+    price_advice_empty: "Nothing the advisor wrote passed the check (a number or a quote did not match)",
+    empty_question: "The request was empty",
+    quota_exceeded: "This workspace's advisor quota is used up",
+    turn_failed: "Not done this time (the model is unavailable) - try again later",
+    unknown: "Not done this time - try again later",
+  },
   CONCESSION_TEXT: {
     product: "Product",
     quantity: "Qty",
@@ -5738,6 +5762,7 @@ export const en: Dictionary = {
       "account.consistency": "Consistency check",
       "deal.evidence": "Evidence extraction",
       "deal.plan": "Plan drafting",
+      "deal.price": "Pricing advice",
       "strategy.segment_coverage": "Segment coverage trend",
       "strategy.territory_attainment": "Territory attainment trend",
     } as Record<string, string>,
