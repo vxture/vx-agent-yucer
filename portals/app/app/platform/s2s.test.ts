@@ -41,11 +41,15 @@ function req(over: Partial<S2SRequest> = {}): S2SRequest {
 
 /** Records every call and hands back a distinct token each time. */
 function idp(opts: { expiresIn?: number; status?: number; body?: unknown } = {}) {
-  const calls: Array<{ url: string; params: URLSearchParams }> = [];
+  const calls: Array<{ url: string; params: URLSearchParams; authorization: string | null }> = [];
   let n = 0;
   const fetchImpl: FetchLike = async (url, init) => {
     n += 1;
-    calls.push({ url, params: new URLSearchParams(String(init.body)) });
+    calls.push({
+      url,
+      params: new URLSearchParams(String(init.body)),
+      authorization: new Headers(init.headers as HeadersInit).get("authorization"),
+    });
     if (opts.status && opts.status !== 200) {
       return new Response(typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body ?? {}), {
         status: opts.status,
@@ -112,8 +116,11 @@ test("the exchange carries every claim both platforms authorize on", async () =>
   assert.equal(p.get("mode"), "service");
   assert.equal(p.get("grant_type"), "urn:ietf:params:oauth:grant-type:token-exchange");
   assert.equal(p.get("requested_token_type"), "urn:ietf:params:oauth:token-type:access_token");
-  assert.equal(p.get("client_id"), "yucer");
-  assert.equal(p.get("client_secret"), "s3cret");
+  // The client authenticates by HTTP Basic, as the C1 code exchange does - and
+  // by that ONE method only: the secret must not also ride in the body.
+  assert.equal(calls[0].authorization, "Basic " + Buffer.from("yucer:s3cret").toString("base64"));
+  assert.equal(p.get("client_id"), null);
+  assert.equal(p.get("client_secret"), null);
 });
 
 test("act_sub comes from the configured product code, not from the caller", async () => {
