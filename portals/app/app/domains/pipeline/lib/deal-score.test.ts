@@ -99,3 +99,49 @@ test("weights must add to 100, quiet must follow recent, watch sits inside 1-99"
 test("bands follow the health score's 40 / 70 lines", () => {
   assert.deepEqual([dealScoreBand(39), dealScoreBand(40), dealScoreBand(69), dealScoreBand(70)], ["bad", "warn", "warn", "good"]);
 });
+
+// --- 竞争位置 from the structured record (incr/0094, deal batch 7b) ---------
+
+const noCriteria = { total: 0, byUs: 0, byOthers: 0, met: 0, partial: 0, unmet: 0 };
+
+test("竞争位置 with a record: four indicators - field known, shaped, fit, win rate", () => {
+  const s = dealScore({
+    ...clean,
+    competition: {
+      known: true,
+      onlyUs: false,
+      rivals: 1,
+      criteria: { total: 3, byUs: 1, byOthers: 1, met: 2, partial: 1, unmet: 0 },
+      worstWinRate: 0.6,
+    },
+  });
+  const d = dim(s, "competition");
+  assert.deepEqual(d.indicators.map((i) => [i.key, i.tone]), [["rivals", "good"], ["shaped", "good"], ["fit", "warn"], ["winRate", "good"]]);
+  // rivals 100, shaped 100, fit 50, win rate 100 -> 88
+  assert.equal(d.score, 88);
+  assert.equal(d.gap?.code, "criteriaPartial");
+});
+
+test("an unmet criterion is 风险; a low win rate says how low", () => {
+  const ind = dimensionIndicators({
+    ...clean,
+    competition: { known: true, onlyUs: false, rivals: 2, criteria: { total: 2, byUs: 0, byOthers: 2, met: 0, partial: 0, unmet: 1 }, worstWinRate: 0.2 },
+  }).competition;
+  assert.deepEqual(ind.map((i) => [i.key, i.tone, i.gap?.code ?? null]), [
+    ["rivals", "good", null],
+    ["shaped", "warn", "criteriaShapedByOthers"],
+    ["fit", "bad", "criteriaUnmet"],
+    ["winRate", "bad", "winRateLow"],
+  ]);
+  assert.equal(ind[3]!.gap?.n, 20);
+});
+
+test("nothing recorded stays 未知 - the dimension leaves the total instead of scoring zero", () => {
+  const s = dealScore({ ...clean, competition: { known: false, onlyUs: false, rivals: 0, criteria: noCriteria, worstWinRate: null } });
+  const d = dim(s, "competition");
+  assert.equal(d.score, null);
+  assert.equal(d.gap?.code, "rivalUnknown");
+  // "Only us" confirmed is a known field - 稳, not 未知.
+  const only = dimensionIndicators({ ...clean, competition: { known: true, onlyUs: true, rivals: 0, criteria: noCriteria, worstWinRate: null } }).competition;
+  assert.equal(only[0]!.tone, "good");
+});

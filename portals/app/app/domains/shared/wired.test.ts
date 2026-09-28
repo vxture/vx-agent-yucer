@@ -49,12 +49,6 @@ const KNOWN_UNWIRED: Record<string, string> = {
   // companion entry under KNOWN_TEST_ONLY (`planFailure`) went at the same
   // time and for the same reason: once a payload is carried out, an attempt
   // can fail.
-  // 竞争位置 (incr/0094) - the data half shipped first (deal batch 7a); the deal
-  // page's 竞争位置 section (batch 7b, the next PR) calls all four.
-  "pipeline.competitionOf": "deal batch 7b - the 竞争位置 section reads it",
-  "pipeline.recordCompetitor": "deal batch 7b - the 竞争位置 section records rivals",
-  "pipeline.saveDecisionCriterion": "deal batch 7b - the 竞争位置 section edits criteria",
-  "pipeline.removeDecisionCriterion": "deal batch 7b - the 竞争位置 section removes criteria",
 };
 
 /** Helpers that live in service.ts but are not domain verbs. */

@@ -742,6 +742,10 @@ export class InMemoryPipelineStore implements PipelineStore {
       /** A forecast series. Append-only in the DDL; seeded as a series here so
        *  the trajectory the immutability exists for is actually visible. */
       snapshots?: Array<SnapshotRow & { workspaceId: string }>;
+      /** 竞争位置 (incr/0094): the rival vocabulary, each deal's field, its criteria. */
+      competitors?: Array<CompetitorRecord & { workspaceId: string }>;
+      competitorEntries?: Array<CompetitorEntry & { workspaceId: string; opportunityId: string }>;
+      decisionCriteria?: Array<CriterionRecord & { workspaceId: string; opportunityId: string }>;
     } = {},
   ): void {
     for (const r of records) this.opportunities.set(r.id, { ...r });
@@ -752,6 +756,9 @@ export class InMemoryPipelineStore implements PipelineStore {
     if (extra.contractTypes) this.contractTypes = [...extra.contractTypes];
     if (extra.businessForms) this.businessForms = [...extra.businessForms];
     this.snapshots.push(...(extra.snapshots ?? []));
+    this.competitors.push(...(extra.competitors ?? []));
+    this.competitorEntries.push(...(extra.competitorEntries ?? []));
+    this.criteria0094.push(...(extra.decisionCriteria ?? []));
   }
 
   async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {

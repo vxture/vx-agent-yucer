@@ -32,6 +32,8 @@ import {
   DEMO_RETIRED_PRODUCTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
+  DEMO_COMPETITORS,
+  DEMO_CRITERIA,
   DEMO_EVIDENCE_PROPOSAL,
   DEMO_COMMITMENT_PROPOSAL,
   DEMO_PLAN_STEP,
@@ -1147,7 +1149,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           outcome: "lost",
           primaryReasonId: "wlx_demo_2",
           competitor: null,
-          competitorId: null,
+          competitorId: "cmp_demo_1",
           lessons: DEMO_LESSONS[1],
           reviewerSub: LEADER,
           reviewedAt: daysAgo(85),
@@ -1165,6 +1167,27 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           reviewedAt: daysAgo(35),
         },
       ],
+      // 竞争位置 (incr/0094): opp_demo_12 is up against the incumbent and one
+      // newcomer, with the buyer's criteria half in our favour. One lost
+      // review names the incumbent - one decided deal, so the page says the
+      // sample is too thin rather than printing a 0% rate.
+      competitors: DEMO_COMPETITORS.map((name, i) => ({ id: `cmp_demo_${i + 1}`, workspaceId, name, aliases: [], sortOrder: i })),
+      competitorEntries: [
+        { id: "cpe_demo_1", workspaceId, opportunityId: "opp_demo_12", competitorId: "cmp_demo_1", isIncumbent: true, present: true, interactionId: "int_demo_d12a", authorSub: REP1, source: "manual", proposalId: null, recordedAt: daysAgo(20) },
+        { id: "cpe_demo_2", workspaceId, opportunityId: "opp_demo_12", competitorId: "cmp_demo_2", isIncumbent: false, present: true, interactionId: null, authorSub: REP1, source: "manual", proposalId: null, recordedAt: daysAgo(9) },
+      ],
+      decisionCriteria: DEMO_CRITERIA.map(([statement, shapedBy, fit, fitNote], i) => ({
+        id: `crt_demo_${i + 1}`,
+        workspaceId,
+        opportunityId: "opp_demo_12",
+        statement,
+        shapedBy,
+        fit,
+        fitNote,
+        sortOrder: i,
+        updatedBySub: REP1,
+        updatedAt: daysAgo(9),
+      })),
       // A forecast SERIES, five points across the quarter.
       //
       // This is the only reason forecast_snapshot has UPDATE revoked: accuracy
