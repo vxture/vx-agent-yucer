@@ -54,6 +54,9 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_pipeline.opportunity_stage_event WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.forecast_snapshot WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
+    // incr/0094: after the deals (their competitor rows cascade) and reviews -
+    // a rival still referenced is RESTRICTed.
+    await c.query(`DELETE FROM yucer_pipeline.competitor WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_delivery.project WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
   });
@@ -713,6 +716,103 @@ test("the stage journal keeps the exit check of the stage left - insert-only, an
         await pg.query(`RESET ROLE`);
       }
     });
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- 竞争位置 (incr/0094) ----------------------------------------------------------
+
+test("competition: rivals are a vocabulary, a deal's field is append-only, criteria edit in place", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const deal = await s.createOpportunity(WS, newOpp());
+    const jia = await s.createCompetitor(WS, { name: "友商甲", aliases: ["甲科技"] });
+    assert.deepEqual((await s.listCompetitors(WS)).map((c) => [c.name, c.aliases]), [["友商甲", ["甲科技"]]]);
+    assert.equal(await s.updateCompetitor(WS, jia.id, { name: "友商甲", aliases: ["甲科技", "Jia"] }), true);
+
+    await s.appendCompetitorEntry(WS, deal.id, { competitorId: jia.id, isIncumbent: true, present: true, interactionId: null, authorSub: "usr_a", source: "manual", proposalId: null });
+    await s.appendCompetitorEntry(WS, deal.id, { competitorId: jia.id, isIncumbent: true, present: false, interactionId: null, authorSub: "usr_a", source: "manual", proposalId: null });
+    const entries = await s.listCompetitorEntries(WS, deal.id);
+    assert.deepEqual(entries.map((e) => e.present).sort(), [false, true]);
+
+    const crit = await s.createCriterion(WS, deal.id, { statement: "支持私有化部署", shapedBy: "rfp", fit: null, fitNote: null, sortOrder: 0, updatedBySub: "usr_a" });
+    assert.equal(await s.updateCriterion(WS, deal.id, crit.id, { statement: "支持私有化部署", shapedBy: "rfp", fit: "partial", fitNote: "二期", updatedBySub: "usr_b" }), true);
+    assert.deepEqual((await s.listCriteria(WS, deal.id)).map((c) => [c.fit, c.fitNote, c.updatedBySub]), [["partial", "二期", "usr_b"]]);
+    assert.equal(await s.removeCriterion(WS, deal.id, crit.id), true);
+
+    await withPg(async (c) => {
+      await c.query(`SET ROLE yucer_svc`);
+      try {
+        // Append-only: a version is never rewritten or removed.
+        await assert.rejects(
+          c.query(`UPDATE yucer_pipeline.opportunity_competitor SET present = true WHERE opportunity_id = $1`, [deal.id]),
+          /permission denied/,
+        );
+        await assert.rejects(
+          c.query(`DELETE FROM yucer_pipeline.opportunity_competitor WHERE opportunity_id = $1`, [deal.id]),
+          /permission denied/,
+        );
+        // The same name twice in a workspace.
+        await assert.rejects(
+          c.query(`INSERT INTO yucer_pipeline.competitor (workspace_id, name) VALUES ($1, '友商甲')`, [WS]),
+          /uidx_competitor_name/,
+        );
+        // 'Only us' cannot be an incumbent; a model version names its proposal.
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_pipeline.opportunity_competitor (workspace_id, opportunity_id, competitor_id, is_incumbent, author_sub)
+             VALUES ($1, $2, NULL, true, 'usr_a')`,
+            [WS, deal.id],
+          ),
+          /chk_opportunity_competitor_only_us/,
+        );
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_pipeline.opportunity_competitor (workspace_id, opportunity_id, competitor_id, author_sub, source)
+             VALUES ($1, $2, $3, 'usr_a', 'model_accepted')`,
+            [WS, deal.id, jia.id],
+          ),
+          /chk_opportunity_competitor_proposal/,
+        );
+        await assert.rejects(
+          c.query(
+            `INSERT INTO yucer_pipeline.opportunity_criterion (workspace_id, opportunity_id, statement, fit)
+             VALUES ($1, $2, 'x', 'maybe')`,
+            [WS, deal.id],
+          ),
+          /chk_opportunity_criterion_fit/,
+        );
+        // A rival a deal still names cannot be deleted from the list.
+        await assert.rejects(
+          c.query(`DELETE FROM yucer_pipeline.competitor WHERE id = $1`, [jia.id]),
+          /opportunity_competitor_competitor_id_fkey/,
+        );
+      } finally {
+        await c.query(`RESET ROLE`);
+      }
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("a review names its rival by row, and the win-rate read returns only reviews that do", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const jia = await s.createCompetitor(WS, { name: "友商甲", aliases: [] });
+    const lost = await s.createOpportunity(WS, newOpp({ name: "Lost to Jia" }));
+    await withPg((c) =>
+      c.query(`UPDATE yucer_pipeline.opportunity SET status = 'lost', stage = 'lost', closed_at = now() WHERE id = $1`, [lost.id]),
+    );
+    await s.saveWinLossReview(WS, lost.id, { outcome: "lost", primaryReasonId: null, competitorId: jia.id, reviewerSub: "usr_a" });
+    const rows = await s.listCompetitorReviews(WS);
+    assert.deepEqual(rows.map((r) => [r.competitorId, r.outcome]), [[jia.id, "lost"]]);
+    assert.equal((await s.getWinLossReview(WS, lost.id))?.competitorId, jia.id);
   } finally {
     await cleanup();
   }

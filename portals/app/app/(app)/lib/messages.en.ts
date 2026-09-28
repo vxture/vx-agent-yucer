@@ -5070,6 +5070,7 @@ export const en: Dictionary = {
       "pipeline.opportunity.abandon": "Abandon a deal",
       "pipeline.claims.view": "View claim changes and slippage",
       "pipeline.evidence.record": "Record buying evidence",
+      "pipeline.competition.record": "Record the competitive position",
       "pipeline.exitcheck.view": "View stage exit checks",
       "pipeline.opportunity.importance": "Set a deal's importance",
       "pipeline.forecast.view": "View the forecast",

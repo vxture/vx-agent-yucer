@@ -13,6 +13,18 @@
 // BEFORE the rule: a member who may not touch the pipeline should be told that,
 // not told their stage transition was invalid.
 
+import {
+  competitiveField,
+  matchCompetitor,
+  planCompetitor,
+  planCompetitorEntry,
+  planDecisionCriterion,
+  winRateAgainst,
+  type CompetitiveField,
+  type CompetitorEntry,
+  type CompetitorRecord,
+  type CriterionRecord,
+} from "./lib/competition";
 import { planDealScoreWeights, type DealScoreWeights } from "./lib/deal-score";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
@@ -1982,6 +1994,137 @@ export async function recordEvidence(
     proposalId: accepted?.proposalId ?? null,
   });
   return ok({ recorded: true });
+}
+
+// --- 竞争位置 (incr/0094, YC-065 R4) ---------------------------------------------
+
+/** The window the historical win rate reads (YC-067: 近 12 个月). */
+const WIN_RATE_WINDOW_DAYS = 365;
+
+export interface CompetitionView {
+  readonly competitors: readonly CompetitorRecord[];
+  readonly field: CompetitiveField;
+  readonly entries: readonly CompetitorEntry[];
+  readonly criteria: readonly CriterionRecord[];
+  /** Per rival on this deal: won / decided in the window; rate null below the minimum sample. */
+  readonly winRates: ReadonlyMap<string, { readonly won: number; readonly decided: number; readonly rate: number | null }>;
+}
+
+/** A deal's competitive position - read with the deal (pipeline.view). */
+export async function competitionOf(
+  ctx: PipelineContext,
+  opportunityId: string,
+  now: Date = new Date(),
+): Promise<RuleResult<CompetitionView>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  const [competitors, entries, criteria, reviews] = await Promise.all([
+    ctx.store.listCompetitors(ctx.workspaceId),
+    ctx.store.listCompetitorEntries(ctx.workspaceId, opportunityId),
+    ctx.store.listCriteria(ctx.workspaceId, opportunityId),
+    ctx.store.listCompetitorReviews(ctx.workspaceId),
+  ]);
+  const field = competitiveField(entries);
+  const since = new Date(now.getTime() - WIN_RATE_WINDOW_DAYS * 86_400_000);
+  const winRates = new Map(field.rivals.map((r) => [r.competitorId, winRateAgainst(reviews, r.competitorId, since)] as const));
+  return ok({ competitors, field, entries, criteria, winRates });
+}
+
+/**
+ * Record one version of a rival's standing on a deal - or "only us" when
+ * competitorId is null. A rival typed by NAME is matched against the
+ * workspace's list (name or alias) and added to it when new: recording who we
+ * are up against should not wait for an administrator to type the name first.
+ */
+export async function recordCompetitor(
+  ctx: PipelineContext,
+  opportunityId: string,
+  input: {
+    competitorId?: string | null;
+    competitorName?: string;
+    isIncumbent?: boolean;
+    present?: boolean;
+    interactionId?: string | null;
+  },
+  citable: ReadonlySet<string>,
+): Promise<RuleResult<{ recorded: boolean; competitorId: string | null }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.competition.record", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  if (input.interactionId && !citable.has(input.interactionId)) {
+    return fail(violation("evidence_citation_foreign", "a statement can only cite a follow-up on this deal", "interactionId"));
+  }
+
+  let known = await ctx.store.listCompetitors(ctx.workspaceId);
+  let competitorId = input.competitorId ?? null;
+  if (competitorId === null && input.competitorName !== undefined && input.competitorName.trim() !== "") {
+    const match = matchCompetitor(input.competitorName, known);
+    if (match) competitorId = match.id;
+    else {
+      const planned = planCompetitor({ name: input.competitorName }, known);
+      if (!planned.ok) return planned as RuleResult<{ recorded: boolean; competitorId: string | null }>;
+      const created = await ctx.store.createCompetitor(ctx.workspaceId, planned.value);
+      known = [...known, created];
+      competitorId = created.id;
+    }
+  }
+
+  const entries = await ctx.store.listCompetitorEntries(ctx.workspaceId, opportunityId);
+  const plan = planCompetitorEntry(
+    { competitorId, isIncumbent: input.isIncumbent, present: input.present, interactionId: input.interactionId },
+    entries,
+    known,
+  );
+  if (!plan.ok) return plan as RuleResult<{ recorded: boolean; competitorId: string | null }>;
+  if (plan.value === null) return ok({ recorded: false, competitorId });
+  await ctx.store.appendCompetitorEntry(ctx.workspaceId, opportunityId, {
+    ...plan.value,
+    authorSub: ctx.sub,
+    source: "manual",
+    proposalId: null,
+  });
+  return ok({ recorded: true, competitorId });
+}
+
+/** Add or edit one decision criterion on a deal. */
+export async function saveDecisionCriterion(
+  ctx: PipelineContext,
+  opportunityId: string,
+  input: { id?: string | null; statement: string; shapedBy?: string; fit?: string | null; fitNote?: string | null },
+): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.competition.record", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  const plan = planDecisionCriterion(input);
+  if (!plan.ok) return plan as RuleResult<{ id: string }>;
+  if (input.id) {
+    const updated = await ctx.store.updateCriterion(ctx.workspaceId, opportunityId, input.id, { ...plan.value, updatedBySub: ctx.sub });
+    if (!updated) return fail(violation("not_found", `criterion ${input.id} is not on this deal`, "id"));
+    return ok({ id: input.id });
+  }
+  const existing = await ctx.store.listCriteria(ctx.workspaceId, opportunityId);
+  const created = await ctx.store.createCriterion(ctx.workspaceId, opportunityId, {
+    ...plan.value,
+    sortOrder: existing.length,
+    updatedBySub: ctx.sub,
+  });
+  return ok({ id: created.id });
+}
+
+export async function removeDecisionCriterion(
+  ctx: PipelineContext,
+  opportunityId: string,
+  id: string,
+): Promise<RuleResult<{ removed: boolean }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.competition.record", "data");
+  if (!gate.allowed) return denied(gate);
+  const removed = await ctx.store.removeCriterion(ctx.workspaceId, opportunityId, id);
+  if (!removed) return fail(violation("not_found", `criterion ${id} is not on this deal`, "id"));
+  return ok({ removed: true });
 }
 
 // --- 阶段退出条件 (incr/0087, YC-065 R1) -------------------------------------------

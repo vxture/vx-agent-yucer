@@ -338,6 +338,16 @@ export const ACTIONS = {
     permission: "pipeline.write",
     writes: true,
   },
+  // 竞争位置 (incr/0094, YC-068): recording who we are up against and how the
+  // buyer decides is working the deal - the free pipeline, write permission.
+  // No new permission or feature key (YC-068: zero new keys/permissions).
+  // Reading rides pipeline.view.
+  "pipeline.competition.record": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
   // 阶段退出核验 (incr/0087, YC-068): reading what this stage should have got
   // us is part of reading a deal - the free pipeline, read permission.
   // Configuring the criteria rides pipeline.opportunityconfig.manage.

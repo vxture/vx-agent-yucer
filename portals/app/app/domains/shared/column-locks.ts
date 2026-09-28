@@ -217,6 +217,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     // 0039: the free-text reason left; the vocabulary row's uuid took its place.
     "primary_reason_id",
     "competitor",
+    // incr/0094 - the rival by row; the text column above is history now.
+    "competitor_id",
     "lessons",
     "reviewer_sub",
     "reviewed_at",
@@ -393,6 +395,12 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_pipeline.stage_exit_criterion": ["name", "param", "sort_order", "updated_at"],
   // incr/0090 - code, subject and rank are anchors; the matrix edits its P.
   "yucer_core.importance_level": ["name", "description", "sort_order", "updated_at"],
+  // incr/0094 - 竞争位置. The rival vocabulary is renamed like any other; a
+  // criterion is edited in place (its text, who shaped it, how we fit).
+  "yucer_pipeline.competitor": ["name", "aliases", "sort_order", "updated_at"],
+  "yucer_pipeline.opportunity_criterion": [
+    "statement", "shaped_by", "fit", "fit_note", "sort_order", "updated_by_sub", "updated_at",
+  ],
   "yucer_core.priority_rule": ["priority"],
   "yucer_core.account_plan": [
     "target_amount", "currency",
@@ -470,6 +478,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // incr/0084. What a deal claimed and when it changed its mind - a
   // correction is a new row, never an edit (声明变更日志, YC-065 R2).
   "yucer_pipeline.opportunity_claim_event",
+  // incr/0094. Who is competing on a deal - versions, like 0085 evidence: a
+  // rival dropping out is a new row (present = false), never an edit.
+  "yucer_pipeline.opportunity_competitor",
   // incr/0083. A generation is what the model said for one fingerprint; a
   // stale one is evicted (DELETE), never rewritten.
   "yucer_agent.agent_briefing",
