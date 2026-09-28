@@ -370,12 +370,7 @@ export function listComparison(
   lines: readonly { readonly productId: string; readonly currency: string; readonly quantity: number; readonly amount: number }[],
   entries: readonly PriceEntryRecord[],
 ): { readonly listAmount: number | null; readonly quotedOnListed: number; readonly unpriced: number; readonly discount: number | null } {
-  const latest = new Map<string, PriceEntryRecord>();
-  for (const e of entries) {
-    const key = `${e.productId}\u0000${e.currency}`;
-    const held = latest.get(key);
-    if (!held || e.effectiveAt.getTime() > held.effectiveAt.getTime()) latest.set(key, e);
-  }
+  const latest = latestEntries(entries);
   let list = 0;
   let quoted = 0;
   let listed = 0;
@@ -397,5 +392,91 @@ export function listComparison(
     quotedOnListed,
     unpriced,
     discount: listAmount === null || listAmount === 0 ? null : 1 - quotedOnListed / listAmount,
+  };
+}
+
+/** The newest price entry per product and currency. */
+function latestEntries(entries: readonly PriceEntryRecord[]): Map<string, PriceEntryRecord> {
+  const latest = new Map<string, PriceEntryRecord>();
+  for (const e of entries) {
+    const key = `${e.productId}\u0000${e.currency}`;
+    const held = latest.get(key);
+    if (!held || e.effectiveAt.getTime() > held.effectiveAt.getTime()) latest.set(key, e);
+  }
+  return latest;
+}
+
+export interface ConcessionRow {
+  readonly productId: string;
+  readonly quantity: number;
+  /** Per unit. Null when the product has no price entry in this currency. */
+  readonly listPrice: number | null;
+  readonly floorPrice: number | null;
+  readonly unitPrice: number;
+  /** Per unit, how far the quote sits under the floor; 0 at or above it. */
+  readonly belowFloor: number;
+  readonly needsApproval: boolean;
+  readonly approved: boolean;
+}
+
+/**
+ * 让价对照 (YC-065 R8, deal batch 10a): every line's list, floor and quote
+ * side by side, and the deal's concession in total - what the approver signs
+ * against. SHOWN, NEVER JUDGED: there is no "approve / reject" suggestion
+ * here, only the numbers the rule already holds.
+ *
+ * The total counts only lines that have a list price; `unpriced` says how many
+ * were left out, so a partial figure never passes for the whole deal.
+ */
+export function concessionSheet(
+  lines: readonly {
+    readonly productId: string;
+    readonly currency: string;
+    readonly quantity: number;
+    readonly unitPrice: number;
+    readonly amount: number;
+    readonly needsApproval: boolean;
+    readonly approved: boolean;
+  }[],
+  entries: readonly PriceEntryRecord[],
+): {
+  readonly rows: readonly ConcessionRow[];
+  readonly listAmount: number | null;
+  readonly concession: number | null;
+  readonly rate: number | null;
+  readonly unpriced: number;
+} {
+  const latest = latestEntries(entries);
+  const round = (n: number) => Math.round(n * 100) / 100;
+  let list = 0;
+  let quoted = 0;
+  let unpriced = 0;
+  const rows = lines.map((l) => {
+    const entry = latest.get(`${l.productId}\u0000${l.currency}`) ?? null;
+    if (entry) {
+      list += l.quantity * entry.listPrice;
+      quoted += l.amount;
+    } else {
+      unpriced += 1;
+    }
+    return {
+      productId: l.productId,
+      quantity: l.quantity,
+      listPrice: entry?.listPrice ?? null,
+      floorPrice: entry?.floorPrice ?? null,
+      unitPrice: l.unitPrice,
+      belowFloor: entry ? round(Math.max(0, entry.floorPrice - l.unitPrice)) : 0,
+      needsApproval: l.needsApproval,
+      approved: l.approved,
+    };
+  });
+  const listAmount = rows.length - unpriced === 0 ? null : round(list);
+  const concession = listAmount === null ? null : round(list - quoted);
+  return {
+    rows,
+    listAmount,
+    concession,
+    rate: listAmount === null || listAmount === 0 || concession === null ? null : concession / listAmount,
+    unpriced,
   };
 }
