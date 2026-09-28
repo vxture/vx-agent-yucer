@@ -8,6 +8,8 @@ import { getAccountDetail } from "../../domains/account/service";
 import { evidenceForPrompt } from "../../domains/account/field-service";
 import type { EvidenceGrounding } from "../../agent/orchestrator/prompt";
 import { runCopilotTurn } from "../../domains/copilot/turn-service";
+import { getOpportunityDetail } from "../../domains/pipeline/service";
+import { rehearsalFrame } from "../../domains/copilot/lib/rehearsal";
 import { resolveAppSession, tenantIdOf } from "../lib/session";
 import type { TurnOutcome } from "../components/copilot-chat";
 
@@ -37,6 +39,13 @@ export async function askCopilot(
    * the evidence itself could hand over another workspace's.
    */
   accountId?: string,
+  /**
+   * Deal batch 11b/11c. `opportunityId` anchors the conversation to one deal
+   * (对话锚定本单): its account, and only that deal's follow-ups and promises
+   * as evidence - re-read here behind the deal's own gate. `rehearsal` makes
+   * the turn a 预演: framed as role-play, and no proposal is admitted.
+   */
+  anchor?: { opportunityId?: string; rehearsal?: boolean },
 ): Promise<AskResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -48,8 +57,29 @@ export async function askCopilot(
   // here: the conversation continues without the grounding, because a member
   // who cannot read the account can still ask the copilot general questions.
   let evidence: EvidenceGrounding | undefined;
-  let subject: { type: "account"; id: string; summary?: string } | undefined;
-  if (accountId) {
+  let subject: { type: "account" | "opportunity"; id: string; summary?: string } | undefined;
+  let framing: string | undefined;
+  if (anchor?.opportunityId) {
+    const base = {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+    };
+    const deal = await getOpportunityDetail({ ...base, store: session.stores.pipeline() }, anchor.opportunityId);
+    if (deal.ok) {
+      subject = { type: "opportunity", id: deal.value.id, summary: deal.value.name };
+      const account = await getAccountDetail({ ...base, store: session.stores.account() }, deal.value.accountId);
+      const built = await evidenceForPrompt(
+        { ...base, store: getFieldStore() },
+        deal.value.accountId,
+        account.ok ? account.value.account.name : deal.value.name,
+        { opportunityId: deal.value.id },
+      );
+      if (built.ok) evidence = built.value;
+      if (anchor.rehearsal) framing = rehearsalFrame(deal.value.name);
+    }
+  } else if (accountId) {
     const accountCtx = {
       workspaceId: session.workspaceId,
       sub: session.user.sub,
@@ -83,6 +113,9 @@ export async function askCopilot(
       tenantId,
       subject,
       evidence,
+      framing,
+      // 预演: nothing said in a rehearsal becomes a proposal.
+      ...(framing ? { admitProposal: () => false } : {}),
       // THE SETTING EXISTS NOW - incr/0020 gave autonomy a home, and this
       // comment used to say it did not. Still false, and now for a reason
       // rather than for want of a column: `autopilotActive` shapes what the

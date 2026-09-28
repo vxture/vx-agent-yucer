@@ -7,7 +7,7 @@ import {
   getCopilotStore,
 } from "../../domains/shared/registry";
 import { getAccountDetail, listAccounts } from "../../domains/account/service";
-import { listPipeline } from "../../domains/pipeline/service";
+import { getOpportunityDetail, listPipeline } from "../../domains/pipeline/service";
 import { getAuthzStore } from "../../authz/store";
 import {
   expireStaleProposals,
@@ -18,6 +18,7 @@ import {
 import { MAX_PLAYBOOKS } from "../../domains/copilot/turn-service";
 import { can } from "../../authz/decide";
 import { CopilotChat, type ChatMessageView } from "../components/copilot-chat";
+import { isMemberConversation } from "../../domains/copilot/lib/rehearsal";
 import { PlaybookCatalog } from "../components/playbook-catalog";
 import { ProposalQueue, type ProposalSubjectView } from "../components/proposal-queue";
 import { AutonomyPanel } from "../components/autonomy-panel";
@@ -40,10 +41,10 @@ export const dynamic = "force-dynamic";
 export default async function CopilotPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; ask?: string }>;
+  searchParams: Promise<{ account?: string; ask?: string; opportunity?: string; mode?: string }>;
 }) {
   const { PROPOSAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
-  const { account: accountId, ask } = await searchParams;
+  const { account: accountId, ask, opportunity: opportunityId, mode } = await searchParams;
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -71,6 +72,14 @@ export default async function CopilotPage({
     anchored?.ok === true
       ? { id: anchored.value.account.id, name: anchored.value.account.name }
       : undefined;
+  // 对话锚定本单 / 预演 (deal batch 11b/11c): the deal is re-read through its
+  // own gate, like the account above - an id the member may not read simply
+  // does not anchor anything.
+  const dealRead = opportunityId
+    ? await getOpportunityDetail({ ...ctx, store: session.stores.pipeline() }, opportunityId).catch(() => null)
+    : null;
+  const deal = dealRead?.ok ? { id: dealRead.value.id, name: dealRead.value.name } : undefined;
+  const rehearsal = deal !== undefined && mode === "rehearsal";
 
   // BEFORE THE LIST, NOT ALONGSIDE IT. The sweep is what makes the queue below
   // true, so it has to have finished before the read - run in the same
@@ -86,7 +95,9 @@ export default async function CopilotPage({
   const [proposals, playbooks, sessions, autonomy] = await Promise.all([
     listProposals(ctx, { limit: 100 }),
     listPlaybooks(ctx, { activeOnly: true }),
-    ctx.store.listSessions(session.workspaceId, session.user.sub, 1),
+    // The member's own latest conversation - never a 参谋 run or a rehearsal
+    // opened on their behalf (both are marked in the title).
+    ctx.store.listSessions(session.workspaceId, session.user.sub, 50),
     getAutonomy(ctx),
   ]);
 
@@ -138,7 +149,7 @@ export default async function CopilotPage({
   // Resume the most recent session rather than opening a new one on every page
   // load: a copilot that forgets the last exchange every time you navigate is
   // not a copilot.
-  const latest = sessions[0] ?? null;
+  const latest = sessions.find((s) => isMemberConversation(s.title)) ?? null;
   const history = latest
     ? await ctx.store.listMessages(session.workspaceId, latest.id)
     : [];
@@ -184,8 +195,12 @@ export default async function CopilotPage({
       />
 
       <CopilotChat
-        initialMessages={initialMessages}
-        sessionId={latest?.id ?? null}
+        // A rehearsal starts its own conversation: it must not continue, or
+        // be continued by, a real one.
+        initialMessages={rehearsal ? [] : initialMessages}
+        sessionId={rehearsal ? null : (latest?.id ?? null)}
+        deal={deal}
+        rehearsal={rehearsal}
         canAsk={
           can(session.authz, session.entitlement, "copilot.ask", "ui").allowed
         }

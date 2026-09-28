@@ -411,3 +411,32 @@ test("capability, when given, is stamped on what the turn writes", async () => {
   );
   assert.equal(out.proposals[0].capability, "account.consistency");
 });
+
+test("预演 framing (11c): the model reads the frame, the history keeps only the question, the session is marked, nothing is proposed", async () => {
+  setAuditStore(new InMemoryAuditStore());
+  const store = new InMemoryCopilotStore();
+  const seen: string[] = [];
+  const { d } = deps({ replies: [proposeReply, { content: "（扮演）价格确实偏高……" }] });
+  const chat = d.atlasClient.chat.bind(d.atlasClient);
+  (d.atlasClient as unknown as { chat: (...a: unknown[]) => unknown }).chat = async (...a: unknown[]) => {
+    seen.push(JSON.stringify(a));
+    return (chat as (...x: unknown[]) => unknown)(...a);
+  };
+  const out = unwrap(
+    await runCopilotTurn(
+      ctx("sales_rep", "pro", store),
+      {
+        question: "如果对方说价格太高？",
+        tenantId: TENANT,
+        framing: "[rehearsal] This is a rehearsal (a role-play) for the deal.",
+        admitProposal: () => false,
+      },
+      d,
+    ),
+  );
+  assert.ok(seen.some((s) => s.includes("[rehearsal] This is a rehearsal")), "the model saw the frame");
+  const messages = await store.listMessages(WS, out.session.id);
+  assert.equal(messages.find((m) => m.role === "user")?.content, "如果对方说价格太高？");
+  assert.ok(out.session.title?.startsWith("[rehearsal] "));
+  assert.equal(out.proposals.length, 0);
+});
