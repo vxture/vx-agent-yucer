@@ -1266,15 +1266,49 @@ export async function recordWinLossReview(
     }
   }
 
+  /* THE RIVAL BY ROW (incr/0094). A name typed into the review is matched
+     against the workspace's rivals - or added to them - and stored as
+     competitor_id, which is what the deal page's historical win rate counts.
+     The free-text column is history from before 0094 and is no longer
+     written; a review saved with no rival clears both. */
+  let competitorId: string | null = null;
+  const typed = input.competitor?.trim() ?? "";
+  if (typed !== "") {
+    const resolved = await competitorByName(ctx, typed, await ctx.store.listCompetitors(ctx.workspaceId));
+    if (!resolved.ok) return resolved as RuleResult<WinLossReviewRecord>;
+    competitorId = resolved.value.id;
+  }
+
   return ok(
     await ctx.store.saveWinLossReview(ctx.workspaceId, opportunityId, {
       ...input,
+      competitor: null,
+      competitorId,
       outcome: opportunity.status,
       // The reviewer is the session subject. A caller that could name the
       // reviewer could attribute a post-mortem to someone who never wrote it.
       reviewerSub: ctx.sub,
     }),
   );
+}
+
+/**
+ * The vocabulary row a typed rival name means - matched by name or alias, and
+ * added to the workspace's list when new. Shared by the deal's field and the
+ * win/loss review, so the same company typed on either lands on one row and
+ * the win rate against it can be counted.
+ */
+async function competitorByName(
+  ctx: PipelineContext,
+  name: string,
+  known: readonly CompetitorRecord[],
+): Promise<RuleResult<{ id: string; known: CompetitorRecord[] }>> {
+  const match = matchCompetitor(name, known);
+  if (match) return ok({ id: match.id, known: [...known] });
+  const planned = planCompetitor({ name }, known);
+  if (!planned.ok) return planned as RuleResult<{ id: string; known: CompetitorRecord[] }>;
+  const created = await ctx.store.createCompetitor(ctx.workspaceId, planned.value);
+  return ok({ id: created.id, known: [...known, created] });
 }
 
 /**
@@ -2061,15 +2095,10 @@ export async function recordCompetitor(
   let known = await ctx.store.listCompetitors(ctx.workspaceId);
   let competitorId = input.competitorId ?? null;
   if (competitorId === null && input.competitorName !== undefined && input.competitorName.trim() !== "") {
-    const match = matchCompetitor(input.competitorName, known);
-    if (match) competitorId = match.id;
-    else {
-      const planned = planCompetitor({ name: input.competitorName }, known);
-      if (!planned.ok) return planned as RuleResult<{ recorded: boolean; competitorId: string | null }>;
-      const created = await ctx.store.createCompetitor(ctx.workspaceId, planned.value);
-      known = [...known, created];
-      competitorId = created.id;
-    }
+    const resolved = await competitorByName(ctx, input.competitorName, known);
+    if (!resolved.ok) return resolved as RuleResult<{ recorded: boolean; competitorId: string | null }>;
+    known = resolved.value.known;
+    competitorId = resolved.value.id;
   }
 
   const entries = await ctx.store.listCompetitorEntries(ctx.workspaceId, opportunityId);

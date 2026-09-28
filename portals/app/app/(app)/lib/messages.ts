@@ -1316,6 +1316,10 @@ export const REVIEW_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   not_closed: "只有已关闭的商机才能复盘——过程未定，结论还不存在",
+  // incr/0094: the rival is matched to - or added to - the workspace's list.
+  competitor_name_required: "请填写对手名称",
+  competitor_name_too_long: "对手名称最多 128 个字",
+  competitor_taken: "这个名称已是另一个对手的别名",
 };
 
 /** 行业分类的写入回执 (0040)。与目录词表同一套说法。 */
