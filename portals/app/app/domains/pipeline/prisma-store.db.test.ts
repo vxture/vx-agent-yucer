@@ -858,3 +858,28 @@ test("主管预估数 (0096): the call round-trips, and the two CHECKs hold in t
     await cleanup();
   }
 });
+
+test("listClaimEventsSince (9c) returns the workspace's claim changes strictly after the instant, oldest first", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const a = await s.createOpportunity(WS, newOpp());
+    const b = await s.createOpportunity(WS, newOpp());
+    const at = (iso: string) => ({ source: "manual" as const, actorSub: "usr_test", occurredAt: new Date(iso) });
+    await s.updateCommercialTerms(WS, a.id, { amount: { amount: 100, currency: "CNY" } }, at("2026-07-01T00:00:00Z"));
+    await s.updateCommercialTerms(WS, b.id, { forecastCategory: "commit" }, at("2026-07-03T00:00:00Z"));
+    await s.updateCommercialTerms(WS, a.id, { amount: { amount: 200, currency: "CNY" } }, at("2026-07-05T00:00:00Z"));
+    const since = await s.listClaimEventsSince(WS, new Date("2026-07-01T00:00:00Z"));
+    // The 07-01 change is AT the instant, not after it.
+    assert.deepEqual(
+      since.map((e) => [e.opportunityId, e.field, e.toValue]),
+      [
+        [b.id, "forecast_category", "commit"],
+        [a.id, "amount", "200.00"],
+      ],
+    );
+  } finally {
+    await cleanup();
+  }
+});

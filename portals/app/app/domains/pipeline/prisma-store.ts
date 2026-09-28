@@ -633,23 +633,22 @@ export class PrismaPipelineStore implements PipelineStore {
     return r.count > 0;
   }
 
+  async listClaimEventsSince(workspaceId: string, since: Date): Promise<ClaimEventRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityClaimEvent.findMany({
+      where: { workspaceId, occurredAt: { gt: since } },
+      orderBy: { occurredAt: "asc" },
+    });
+    return rows.map(toClaimEvent);
+  }
+
   async listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.opportunityClaimEvent.findMany({
       where: { workspaceId, opportunityId },
       orderBy: { occurredAt: "asc" },
     });
-    return rows.map((r) => ({
-      id: r.id,
-      opportunityId: r.opportunityId,
-      field: r.field as ClaimEventRecord["field"],
-      fromValue: r.fromValue,
-      toValue: r.toValue,
-      source: r.source as ClaimEventRecord["source"],
-      reason: r.reason,
-      actorSub: r.actorSub,
-      occurredAt: r.occurredAt,
-    }));
+    return rows.map(toClaimEvent);
   }
 
   async latestStageChangeAt(workspaceId: string): Promise<Map<string, Date>> {
@@ -1442,5 +1441,29 @@ function toCriterion(r: {
     param: (r.param && typeof r.param === "object" ? r.param : {}) as Record<string, unknown>,
     name: r.name,
     sortOrder: r.sortOrder,
+  };
+}
+
+function toClaimEvent(r: {
+  id: string;
+  opportunityId: string;
+  field: string;
+  fromValue: string | null;
+  toValue: string | null;
+  source: string;
+  reason: string | null;
+  actorSub: string | null;
+  occurredAt: Date;
+}): ClaimEventRecord {
+  return {
+    id: r.id,
+    opportunityId: r.opportunityId,
+    field: r.field as ClaimEventRecord["field"],
+    fromValue: r.fromValue,
+    toValue: r.toValue,
+    source: r.source as ClaimEventRecord["source"],
+    reason: r.reason,
+    actorSub: r.actorSub,
+    occurredAt: r.occurredAt,
   };
 }

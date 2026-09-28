@@ -233,10 +233,10 @@ export function inPeriod(
 }
 
 /** Keep only the opportunities a scope covers. */
-export function inScope(
-  opportunities: readonly ForecastableOpportunity[],
+export function inScope<T extends Pick<ForecastableOpportunity, "territoryId" | "ownerSub">>(
+  opportunities: readonly T[],
   scope: ForecastScope,
-): ForecastableOpportunity[] {
+): T[] {
   if (scope.scopeType === "workspace") return [...opportunities];
   if (scope.scopeType === "territory") {
     return opportunities.filter((o) => o.territoryId === scope.territoryId);

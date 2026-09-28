@@ -357,6 +357,9 @@ export interface PipelineStore {
 
   /** 声明变更日志 for one deal, oldest first (incr/0084). */
   listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]>;
+  /** Every claim change in the workspace after `since`, oldest first - one
+   *  batch read for 预测检视台's change-since-snapshot (deal batch 9c). */
+  listClaimEventsSince(workspaceId: string, since: Date): Promise<ClaimEventRecord[]>;
 
   /** 阶段退出条件 (incr/0087): every criterion of the workspace, any order. */
   listExitCriteria(workspaceId: string): Promise<ExitCriterion[]>;
@@ -706,6 +709,13 @@ export class InMemoryPipelineStore implements PipelineStore {
     row.importanceBySub = patch.bySub;
     row.importanceAt = patch.at;
     return true;
+  }
+
+  async listClaimEventsSince(workspaceId: string, since: Date): Promise<ClaimEventRecord[]> {
+    return this.claims
+      .filter((c) => c.workspaceId === workspaceId && c.occurredAt > since)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
+      .map(({ workspaceId: _ws, ...c }) => c);
   }
 
   async listClaimEvents(workspaceId: string, opportunityId: string): Promise<ClaimEventRecord[]> {

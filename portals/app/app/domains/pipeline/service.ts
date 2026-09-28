@@ -82,9 +82,11 @@ import {
   planCategoryChange,
   validateScope,
   planSnapshot,
+  type ForecastCategory,
   type ForecastScope,
   type SnapshotRow,
 } from "./lib/forecast";
+import { explainChange, type CategoryChange, type ChangeDeal } from "./lib/forecast-change";
 import {
   DEFAULT_STAGE_DEFINITIONS,
   planProbabilityOverride,
@@ -1520,6 +1522,62 @@ export async function forecastScorecard(
     call,
     current: live.value,
   });
+}
+
+/**
+ * 快照间变化 (YC-065 R9, deal batch 9c): how 承诺 and 乐观 moved since the
+ * latest snapshot of this period and scope, deal by deal.
+ *
+ * Both sides by ONE definition: the snapshot's stored totals, and today's
+ * computed by planSnapshot - the same function that computed the stored ones.
+ * The per-deal half is rebuilt from the claim log (lib/forecast-change.ts), and
+ * whatever it cannot account for is returned as `unexplained`. Null when the
+ * period and scope have no snapshot yet: there is nothing to have changed from.
+ */
+export async function forecastChange(
+  ctx: PipelineContext & { catalog: CatalogStore },
+  period: string,
+  scope: ForecastScope,
+  opts: { now?: Date } = {},
+): Promise<RuleResult<{ since: Date; commit: CategoryChange; bestCase: CategoryChange } | null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const scopeCheck = validateScope(scope);
+  if (!scopeCheck.ok) return scopeCheck as RuleResult<null>;
+
+  const snapshots = (await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType: scope.scopeType })).filter(
+    (r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub,
+  );
+  const last = [...snapshots].sort((a, b) => b.snapshotAt.getTime() - a.snapshotAt.getTime())[0];
+  if (!last) return ok(null);
+
+  const [opportunities, policy, claims] = await Promise.all([
+    ctx.store.listOpportunities(ctx.workspaceId, { includeClosed: true }),
+    ctx.catalog.getPricingPolicy(ctx.workspaceId),
+    ctx.store.listClaimEventsSince(ctx.workspaceId, last.snapshotAt),
+  ]);
+  const live = planSnapshot({ period, scope, opportunities, snapshotAt: opts.now ?? new Date(), currency: policy.defaultCurrency });
+  if (!live.ok) return live as RuleResult<null>;
+
+  const deals: ChangeDeal[] = opportunities.map((o) => ({
+    id: o.id,
+    name: o.name,
+    status: o.status,
+    forecastCategory: o.forecastCategory,
+    amount: o.amount?.amount ?? null,
+    expectedCloseAt: o.expectedCloseAt,
+    closedAt: o.closedAt,
+    createdAt: o.createdAt,
+    territoryId: o.territoryId,
+    ownerSub: o.ownerSub,
+  }));
+  const of = (category: ForecastCategory, stored: Money, now: Money) =>
+    explainChange({ category, period, scope, since: last.snapshotAt, snapshotTotal: stored.amount, currentTotal: now.amount, deals, claims });
+  const commit = of("commit", last.commitAmount, live.value.commitAmount);
+  const bestCase = of("best_case", last.bestCaseAmount, live.value.bestCaseAmount);
+  // planSnapshot already refused an unbounded period, so both exist.
+  if (!commit || !bestCase) return ok(null);
+  return ok({ since: last.snapshotAt, commit, bestCase });
 }
 
 export async function submitForecast(
