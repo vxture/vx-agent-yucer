@@ -191,10 +191,14 @@ export async function mintS2SToken(
   const hit = cache.get(key);
   if (hit && hit.expiresAt - EXPIRY_SKEW_SECONDS > nowSeconds()) return hit;
 
+  // CLIENT AUTHENTICATION BY HTTP BASIC (2026-09-28), exactly as the C1 code
+  // exchange does (auth/lib/oidc.ts). The exchange used to put client_id and
+  // client_secret in the form body; production answered 401 invalid_client
+  // for both planes while C1 login - same client, same secret, Basic header -
+  // kept working. OAuth allows one authentication method per request, so the
+  // secret travels only in the header now.
   const body = new URLSearchParams({
     grant_type: TOKEN_EXCHANGE_GRANT,
-    client_id: cfg.clientId,
-    client_secret: cfg.clientSecret,
     audience: req.audience,
     scope: scopeFor(req.audience),
     requested_token_type: ACCESS_TOKEN_TYPE,
@@ -215,7 +219,10 @@ export async function mintS2SToken(
   try {
     res = await doFetch(cfg.tokenUrl, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        authorization: "Basic " + Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString("base64"),
+      },
       body: body.toString(),
     });
   } catch (e) {
@@ -224,7 +231,7 @@ export async function mintS2SToken(
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new S2SError(`token exchange failed (${res.status}) for aud=${req.audience}: ${detail.slice(0, 200)}`);
+    throw new S2SError(`token exchange failed (${res.status}) for aud=${req.audience}, client_id=${cfg.clientId}: ${detail.slice(0, 200)}`);
   }
 
   const json = (await res.json()) as { access_token?: string; expires_in?: number };
