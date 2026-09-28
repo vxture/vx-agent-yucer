@@ -1316,6 +1316,15 @@ export const REVIEW_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   not_closed: "只有已关闭的商机才能复盘——过程未定，结论还不存在",
+  // 复盘叙述 (deal batch 12b) - the same card, one dictionary.
+  no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
+  tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用",
+  review_narrative_empty: "参谋这次写的都没通过核对，没有可显示的",
+  empty_question: "请求为空",
+  quota_exceeded: "本工作区的参谋调用额度已用完",
+  turn_failed: "这次没完成（模型暂不可用），稍后再试",
+  unknown: "这次没完成，稍后再试",
   // incr/0094: the rival is matched to - or added to - the workspace's list.
   competitor_name_required: "请填写对手名称",
   competitor_name_too_long: "对手名称最多 128 个字",
@@ -2279,6 +2288,7 @@ export const BOARD_TEXT = {
     "deal.price": "价格参谋",
     "forecast.brief": "预测会简报",
     "deal.meeting": "商机会前包",
+    "deal.review": "复盘叙述",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3911,6 +3921,40 @@ export const CONCESSION_TEXT = {
   unpriced: (n: number) => `（${n} 项无目录价，未计入）`,
   historyTitle: "本单金额变化",
 };
+
+/** 复盘底稿 (deal batch 12, YC-069 section 09)。 */
+export const REVIEW_DRAFT_TEXT = {
+  title: "复盘底稿",
+  slipTitle: "在哪开始滑：",
+  slipLine: (at: string, stage: string | null, n: number) => `${at} 起${stage ? `（${stage}阶段）` : ""}，共 ${n} 处变差`,
+  slipNone: "声明日志里没有变差的记录",
+  promisesTitle: "谁没兑现：",
+  promisesLine: (n: number) => `${n} 条承诺没按时兑现`,
+  promisesNone: "承诺都按时兑现了",
+  coverageTitle: "覆盖缺谁：",
+  coverageLine: (roles: string, cold: number) => [roles ? `没有${roles}` : "", cold ? `${cold} 人在关单前 30 天没出现在跟进里` : ""].filter(Boolean).join("；"),
+  coverageNone: "关键角色都在，且关单前都有接触",
+  concessionTitle: "让了几轮：",
+  concessionLine: (rounds: number, cuts: number) => `签字让价 ${rounds} 次，金额下调 ${cuts} 次`,
+  concessionNone: "没有签字让价，金额也没下调",
+  field: { expected_close_at: "成交日", amount: "金额", forecast_category: "预测类别", probability: "赢率" } as Record<string, string>,
+  change: (from: string, to: string) => `${from} → ${to}`,
+  state: { open: "到关单时仍未兑现", missed: "未兑现", late: "兑现晚了" } as Record<string, string>,
+  neverContacted: "从没出现在跟进里",
+  coldDays: (days: number) => `关单前 ${days} 天最后一次出现`,
+  signature: (product: string, below: number) => `${product} 低于底价 ${below} 签字`,
+  sep: "、",
+  more: "看记录",
+  // 复盘叙述 (12b).
+  narrativeTitle: "参谋的复盘叙述",
+  narrate: "写复盘叙述",
+  narrating: "参谋在写…",
+  suggested: (name: string) => `建议原因码：${name}`,
+  adoptReason: "采用建议原因码",
+  dropped: (n: number) => `另有 ${n} 条因数字不在底稿里、或原因码不在可选范围，没有显示`,
+  cached: "与上次输入相同，沿用上次的叙述（未再计费）",
+};
+
 
 /** 商机会前包 (deal batch 11a, YC-066 S6)。 */
 export const DEAL_MEETING_TEXT = {

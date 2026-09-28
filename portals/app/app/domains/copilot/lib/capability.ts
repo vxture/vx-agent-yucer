@@ -46,6 +46,9 @@ export const CAPABILITIES = [
   // Deal batch 11a (YC-066 S6 会前包): agenda, talk tracks, objections and
   // questions over the rule-built pack. A finding, not a proposal.
   "deal.meeting",
+  // Deal batch 12b (YC-066 S7 复盘底稿): a narrative over the rule's four
+  // sections and a suggested reason code - never pre-selected.
+  "deal.review",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -165,6 +168,12 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     evidence: ["deals"],
   },
   // The chosen attendees, the open promises, the goal and recent notes.
+  // The rule's four review sections and the outcome's reasons - no notes.
+  "deal.review": {
+    feature: "pipeline.winloss",
+    task: "summarize",
+    evidence: ["commitments", "chain", "deals", "lines"],
+  },
   "deal.meeting": {
     feature: "pipeline.manage",
     task: "summarize",

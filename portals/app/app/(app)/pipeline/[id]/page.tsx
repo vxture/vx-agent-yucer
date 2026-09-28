@@ -90,6 +90,9 @@ import {
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
 import { concessionSheet } from "../../../domains/catalog/lib/pricing";
+import { reviewDraftFor } from "../review-draft-data";
+import { draftReviewNarrative } from "../review-narrative-action";
+import { REVIEW_CAPABILITY } from "../../../domains/copilot/lib/review-narrative";
 import { adviseOnPrice } from "../price-advice-action";
 import { PRICE_CAPABILITY } from "../../../domains/copilot/lib/price-advice";
 import { AnalysisTabs } from "../../components/analysis-tabs";
@@ -767,6 +770,16 @@ export default async function OpportunityDetailPage({
       }
     : undefined;
   const pendingLines = dealLines.filter((l) => l.needsApproval && !l.approved).length;
+  // 复盘底稿 (deal batch 12): the rule's four sections, only for a closed deal
+  // whose workspace has 复盘 (pipeline.winloss) - the one assembly the 参谋's
+  // narrative is written over too (review-draft-data.ts).
+  const draft =
+    opportunity.status !== "open" && can(session.authz, session.entitlement, "pipeline.winloss.view", "ui").allowed
+      ? await reviewDraftFor(session, id, {
+          stageName: (code, catalog) => stageLabelFor(code, catalog, STAGE_LABEL),
+          unnamedPerson: CHAIN_TEXT.unnamedPerson,
+        })
+      : null;
   const slip = claims.ok ? claims.value.slippage : null;
   // 交易清单 · 变更史's count: the claim log and the stage journal are one
   // history (change-history.tsx merges them), so the tab counts both.
@@ -1588,6 +1601,9 @@ export default async function OpportunityDetailPage({
             {/* 结局与复盘, above the progress on a closed deal (YC-072). */}
             {closedDeal ? (
               <DealReview
+                draft={draft}
+                onNarrate={draftReviewNarrative}
+                canNarrate={canRunAdvisor(session.authz, session.entitlement, REVIEW_CAPABILITY).allowed}
                 opportunityId={id}
                 status={opportunity.status}
                 entitled={can(session.authz, session.entitlement, "pipeline.winloss.view", "ui").allowed}

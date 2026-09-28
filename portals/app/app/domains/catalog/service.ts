@@ -169,6 +169,17 @@ export async function listOpportunityLines(
   );
 }
 
+/**
+ * One deal's discount signatures, oldest first (deal batch 12: 复盘底稿's
+ * 让了几轮). Read with the deal (pipeline.view), like the lines they sign.
+ */
+export async function dealApprovals(ctx: CatalogContext, opportunityId: string): Promise<RuleResult<DiscountApprovalRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const rows = await ctx.store.listApprovals(ctx.workspaceId, opportunityId);
+  return ok([...rows].sort((a, b) => a.approvedAt.getTime() - b.approvedAt.getTime()));
+}
+
 // --- writes ------------------------------------------------------------------
 
 export async function upsertProduct(
