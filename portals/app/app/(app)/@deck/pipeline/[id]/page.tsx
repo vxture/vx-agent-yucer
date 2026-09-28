@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCopilotStore } from "../../../../domains/shared/registry";
 import { getOpportunityDetail } from "../../../../domains/pipeline/service";
 import { listProposals } from "../../../../domains/copilot/service";
-import { canDecideProposal } from "../../../../domains/copilot/lib/advisor-gate";
+import { canDecideProposal, canRunAdvisor } from "../../../../domains/copilot/lib/advisor-gate";
 import { EXTRACTION_ACTION_TYPES } from "../../../../domains/copilot/lib/action";
 import { adjudicateProposals } from "../../../copilot/actions";
 import { getMessages } from "../../../lib/i18n/server";
@@ -13,6 +13,10 @@ import { AgentPanel } from "../../../components/agent-panel";
 import { DealAdvisor } from "../../../components/deal-advisor";
 import { DealMeetingButton } from "../../../components/deal-meeting";
 import { buildDealMeetingPackAction } from "../../../pipeline/meeting-pack-action";
+import { DealSituation } from "../../../components/deal-situation";
+import { briefDealSituation } from "../../../pipeline/deal-situation-action";
+import { citedNotes, peekSituation, situationFrameFor } from "../../../pipeline/deal-situation-data";
+import { SITUATION_CAPABILITY } from "../../../../domains/copilot/lib/deal-situation";
 import { decisionChainsByOpportunity, getAccountDetail } from "../../../../domains/account/service";
 import { deckBundle, recordAction } from "../../deck-data";
 
@@ -90,6 +94,25 @@ export default async function DealDeck({
     .filter((c) => onDeal.has(c.id))
     .map((c) => ({ id: c.id, name: c.name, title: c.title ?? null }));
   const meeting = detail.ok ? <DealMeetingButton opportunityId={id} people={meetingPeople} onBuild={buildDealMeetingPackAction} /> : null;
+  // 局势简报 (batch 8b): on an open deal whose workspace may run it. What is
+  // already written for the data as it stands comes with the page; nothing
+  // written means the card writes it and says it is updating.
+  const frame =
+    detail.ok && detail.value.status === "open" && canRunAdvisor(session.authz, session.entitlement, SITUATION_CAPABILITY).allowed
+      ? await situationFrameFor(session, id).catch(() => null)
+      : null;
+  const written = frame ? await peekSituation(session, frame).catch(() => null) : null;
+  const situation = frame ? (
+    <DealSituation
+      opportunityId={id}
+      initial={
+        written?.situation
+          ? { ok: true, situation: written.situation, cited: citedNotes(frame, written.situation), stallHolder: frame.stallHolder, cached: true }
+          : null
+      }
+      onRun={briefDealSituation}
+    />
+  ) : null;
   const proposalsBlock = detail.ok ? (
     <DealAdvisor scope={detail.value.name} proposals={proposals} onAdjudicate={adjudicateProposals} />
   ) : null;
@@ -106,6 +129,7 @@ export default async function DealDeck({
         </Link>
         {meeting}
       </div>
+      {situation}
       {proposalsBlock}
     </>
   ) : null;

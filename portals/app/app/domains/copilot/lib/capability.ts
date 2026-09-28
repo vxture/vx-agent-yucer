@@ -49,6 +49,9 @@ export const CAPABILITIES = [
   // Deal batch 12b (YC-066 S7 复盘底稿): a narrative over the rule's four
   // sections and a suggested reason code - never pre-selected.
   "deal.review",
+  // Deal batch 8b (YC-066 S3/S5): 局势简报, 风险解读 and 卡点诊断 in one run
+  // over the rule's assessment. Findings; no level moves.
+  "deal.brief",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -158,8 +161,6 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     task: "propose",
     evidence: ["commitments", "deals"],
   },
-  // The concession sheet (rule numbers) and the deal's follow-ups - the
-  // buyer's own words about price are what the strategy answers.
   // The board's computed figures only - totals, change, unverified deals,
   // owners. It reads no notes: the numbers are the brief.
   "forecast.brief": {
@@ -167,22 +168,30 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     task: "summarize",
     evidence: ["deals"],
   },
-  // The chosen attendees, the open promises, the goal and recent notes.
   // The rule's four review sections and the outcome's reasons - no notes.
   "deal.review": {
     feature: "pipeline.winloss",
     task: "summarize",
     evidence: ["commitments", "chain", "deals", "lines"],
   },
+  // The chosen attendees, the open promises, the goal and recent notes.
   "deal.meeting": {
     feature: "pipeline.manage",
     task: "summarize",
     evidence: ["interactions", "commitments", "chain", "deals"],
   },
+  // The concession sheet (rule numbers) and the deal's follow-ups - the
+  // buyer's own words about price are what the strategy answers.
   "deal.price": {
     feature: "pipeline.manage",
     task: "propose",
     evidence: ["interactions", "lines", "deals"],
+  },
+  // The rule's assessment, the stall holder, open promises and recent notes.
+  "deal.brief": {
+    feature: "pipeline.manage",
+    task: "summarize",
+    evidence: ["interactions", "commitments", "chain", "deals"],
   },
   // One new follow-up against what the slots already say.
   "deal.evidence": {

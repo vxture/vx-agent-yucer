@@ -2289,6 +2289,7 @@ export const BOARD_TEXT = {
     "forecast.brief": "预测会简报",
     "deal.meeting": "商机会前包",
     "deal.review": "复盘叙述",
+    "deal.brief": "局势简报",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -3997,6 +3998,37 @@ export const DEAL_MEETING_ERROR: Record<string, string> = {
   tenant_required: "当前工作区没有接入平台租户，参谋部分暂时不能生成",
   advisor_not_admitted: "平台暂未放行本工作区的参谋调用",
   meeting_advice_empty: "参谋这次写的都没通过核对，没有可显示的",
+  empty_question: "请求为空",
+  quota_exceeded: "本工作区的参谋调用额度已用完",
+  turn_failed: "参谋这次没完成（模型暂不可用），稍后再试",
+  unknown: "这次没完成，稍后再试",
+};
+
+/** 局势简报 · 风险解读 · 卡点诊断 in 本单参谋 (deal batch 8b, YC-066 S3/S5)。 */
+export const DEAL_SITUATION_TEXT = {
+  title: "局势简报",
+  updating: "本单数据有变化，正在更新…",
+  retry: "重试",
+  stallTitle: "卡点",
+  byRule: "规则 · ",
+  byAdvisor: "参谋 · ",
+  risksTitle: "风险解读（展开看为什么是这个档、做什么能改变它；档位以态势判决为准）",
+  why: "为什么：",
+  change: "怎么改：",
+  cite: (n: number) => `[${n}]`,
+  quoted: (text: string) => `原句：「${text}」`,
+  source: "智能分析 · 数字与档位来自规则",
+  dropped: (n: number) => `另有 ${n} 条因数字不是本单的、或引用对不上，没有显示`,
+};
+
+/** 局势简报的失败回执 (deal batch 8b)。 */
+export const DEAL_SITUATION_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在、已关闭，或不属于当前工作区",
+  no_active_tenant: "当前工作区没有接入平台租户，局势简报暂时不能生成",
+  tenant_required: "当前工作区没有接入平台租户，局势简报暂时不能生成",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用",
+  situation_empty: "参谋这次写的都没通过核对，没有可显示的",
   empty_question: "请求为空",
   quota_exceeded: "本工作区的参谋调用额度已用完",
   turn_failed: "参谋这次没完成（模型暂不可用），稍后再试",

@@ -17,6 +17,7 @@ import {
   dealScore,
   dealScoreBand,
   scoreFactsFrom,
+  type DealScore,
 } from "../../domains/pipeline/lib/deal-score";
 import { stallLineFor } from "../../domains/pipeline/lib/forecast-rule";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
@@ -41,12 +42,19 @@ import type { AppSession } from "../lib/session";
 /** The page reads a deal's latest 50 follow-ups; the batch keeps the same window. */
 const NOTE_WINDOW = 50;
 
+/** One deal's judgement. `assessment` and `stallLine` are for 局势简报
+ *  (deal batch 8b), which explains the same five dimensions the page shows. */
+export type DealAssessment = Omit<AssessedDeal, "category" | "amount" | "name"> & {
+  readonly assessment: DealScore;
+  readonly stallLine: number;
+};
+
 export async function assessDeals(
   session: AppSession,
   deals: readonly { readonly opportunity: OpportunityRecord; readonly daysAtStage: number | null }[],
   rivalWords: readonly string[],
   now: Date = new Date(),
-): Promise<Map<string, Omit<AssessedDeal, "category" | "amount" | "name">>> {
+): Promise<Map<string, DealAssessment>> {
   const base = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
@@ -95,7 +103,7 @@ export async function assessDeals(
     ),
   );
 
-  const out = new Map<string, Omit<AssessedDeal, "category" | "amount" | "name">>();
+  const out = new Map<string, DealAssessment>();
   for (const { opportunity: o, daysAtStage } of deals) {
     const acc = o.accountId ? perAccount.get(o.accountId) : undefined;
     const chain = acc?.chains?.ok ? (acc.chains.value.find((c) => c.opportunityId === o.id) ?? null) : null;
@@ -130,6 +138,10 @@ export async function assessDeals(
           )
         : null;
     const view = competition.ok ? competition.value.get(o.id) : undefined;
+    const stallLine = stallLineFor(
+      { stallDaysOverride: stall.ok ? stall.value.overrideFor(o.businessFormId) : null },
+      stall.ok ? stall.value.thresholds : undefined,
+    );
     const score = dealScore(
       scoreFactsFrom({
         open: o.status === "open",
@@ -145,10 +157,7 @@ export async function assessDeals(
         commitments: commitments ?? [],
         exit: exitCheck,
         daysInStage: o.status === "open" ? daysAtStage : null,
-        stallLine: stallLineFor(
-          { stallDaysOverride: stall.ok ? stall.value.overrideFor(o.businessFormId) : null },
-          stall.ok ? stall.value.thresholds : undefined,
-        ),
+        stallLine,
         slips: slips.ok ? (slips.value.get(o.id)?.pushes ?? 0) : 0,
         pendingApprovals: (dealLines ?? []).filter((l) => l.needsApproval && !l.approved).length,
         now,
@@ -161,6 +170,8 @@ export async function assessDeals(
       exit: exitCheck ? { total: exitCheck.total, unmet: names("unmet"), unknown: names("unknown") } : null,
       score: score.score,
       risk: dealScoreBand(score.score) === "bad",
+      assessment: score,
+      stallLine,
     });
   }
   return out;
