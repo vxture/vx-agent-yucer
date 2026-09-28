@@ -40,6 +40,9 @@ export const CAPABILITIES = [
   // Deal batch 10b (YC-066 S4 价格参谋): a discount strategy and what to ask
   // in exchange, when a line waits for a signature. A finding, not a proposal.
   "deal.price",
+  // Deal batch 9e (YC-066 预测会简报): the forecast meeting's narrative over
+  // 预测检视台's own numbers. A finding, not a proposal.
+  "forecast.brief",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -151,6 +154,13 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   },
   // The concession sheet (rule numbers) and the deal's follow-ups - the
   // buyer's own words about price are what the strategy answers.
+  // The board's computed figures only - totals, change, unverified deals,
+  // owners. It reads no notes: the numbers are the brief.
+  "forecast.brief": {
+    feature: "pipeline.forecast",
+    task: "summarize",
+    evidence: ["deals"],
+  },
   "deal.price": {
     feature: "pipeline.manage",
     task: "propose",

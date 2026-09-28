@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { admitPriceAdvice, allowedFigures, figuresConsistent, priceQuestion, type PriceAdviceInput } from "./price-advice";
+import { admitPriceAdvice, allowedFigures, priceQuestion, type PriceAdviceInput } from "./price-advice";
+import { figuresConsistent } from "./figures";
 
 // 价格参谋 (deal batch 10b): the model writes, the rule admits. Numbers must be
 // the concession sheet's; quotes must be the buyer's exact words.

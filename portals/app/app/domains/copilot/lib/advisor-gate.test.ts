@@ -19,6 +19,7 @@ const YC042: Record<string, string> = {
   "deal.evidence": "free",
   "deal.plan": "free",
   "deal.price": "free",
+  "forecast.brief": "pro",
   "signal.triage": "starter",
   "campaign.return": "starter",
   "delivery.payment_risk": "starter",
