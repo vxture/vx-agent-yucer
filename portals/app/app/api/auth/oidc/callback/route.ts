@@ -4,6 +4,7 @@ import { exchangeCode, verifyToken } from "../../../../auth/lib/oidc";
 import { takeAuthState, putSession, type RpSession } from "../../../../auth/lib/session-store";
 import { sessionCookieOptions } from "../../../../auth/lib/cookie";
 import { randomToken } from "../../../../auth/lib/pkce";
+import { silentErrorOutcome, ssoAttemptCookieName, ssoAttemptCookieOptions } from "../../../../auth/lib/sso";
 
 // GET /api/auth/oidc/callback (080-rp section 2.3/2.5) - the redirect_uri the
 // platform REGISTERED for the `yucer` OIDC client (platform handoff,
@@ -32,6 +33,20 @@ export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+  const error = url.searchParams.get("error");
+
+  // An authorize ERROR is read before the code. The IdP's answer to a silent
+  // attempt (prompt=none, auth/lib/sso.ts) with nobody signed in is
+  // `error=login_required` - information, not a failure: send the visitor
+  // where they were going and let the front door render. The state is
+  // consumed either way, so a failed handshake cannot be replayed.
+  if (error) {
+    const errored = state ? await takeAuthState(cfg.clientId, state) : null;
+    if (errored && silentErrorOutcome(error, errored) === "return") {
+      return NextResponse.redirect(new URL(errored.returnTo, cfg.appOrigin || url.origin).toString());
+    }
+    return reject("authorization error");
+  }
   if (!code || !state) return reject("missing code/state");
 
   const authState = await takeAuthState(cfg.clientId, state);
@@ -76,5 +91,8 @@ export async function GET(req: Request): Promise<Response> {
   const dest = new URL(authState.returnTo, cfg.appOrigin || url.origin);
   const res = NextResponse.redirect(dest.toString());
   res.cookies.set(cfg.cookieName, rpsid, sessionCookieOptions(cfg));
+  // Signed in: retire the silent-attempt marker, so the next signed-out visit
+  // gets its own attempt.
+  res.cookies.set(ssoAttemptCookieName(cfg.cookieName), "", ssoAttemptCookieOptions(cfg.cookieName, 0));
   return res;
 }

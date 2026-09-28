@@ -24,3 +24,9 @@ test("a callback with only a code and no state is refused before any lookup", as
   assert.equal(res.status, 400);
   assert.match(await res.text(), /missing code\/state/);
 });
+
+test("an authorize error with no state is refused, not followed", async () => {
+  const res = await GET(new Request("https://yucer.vxture.com/api/auth/oidc/callback?error=login_required"));
+  assert.equal(res.status, 400);
+  assert.match(await res.text(), /authorization error/);
+});

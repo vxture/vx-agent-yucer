@@ -33,6 +33,9 @@ export interface AuthState {
   verifier: string;
   nonce: string;
   returnTo: string;
+  /** A `prompt=none` attempt (auth/lib/sso.ts): the callback treats the IdP's
+   *  login_required as "show the front door", not as a failure. */
+  silent?: boolean;
 }
 
 export interface RpSession {
