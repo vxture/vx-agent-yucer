@@ -13,12 +13,25 @@ import { Tag } from "./tag";
 //            a lock tag with the tier, one line on what it is for;
 //   功能定位  three capabilities, and the 参谋 that comes with it if any;
 //   档位条    current tier -> required tier, what else that tier brings, and
-//            【升级】 - the ONLY way to the subscription page.
+//            【升级】 - the ONLY way to the subscription page - for the
+//            workspace owner; everyone else reads "请联系管理员", not a link.
 //
 // No preview of the page (owner: 去掉「长这样」), and never this workspace's
 // data: that would hand a lower tier what a higher tier reads.
 
-export function UpgradePage({ target, pricingHref }: { readonly target: UpgradeTarget; readonly pricingHref: string }) {
+export function UpgradePage({
+  target,
+  pricingHref,
+  canUpgrade,
+}: {
+  readonly target: UpgradeTarget;
+  readonly pricingHref: string;
+  /** Workspace owner: the one role the platform lets change the subscription
+   *  (auth/lib/claims.ts - a manager manages members and settings, "not
+   *  billing"). Everyone else is told whom to ask, not handed a link that
+   *  would dead-end at the platform (owner 2026-09-28). */
+  readonly canUpgrade: boolean;
+}) {
   const { UPGRADE_TEXT: T, TIER_LABEL } = useMessages();
   const tier = (t: string) => TIER_LABEL[t] ?? t;
   const copy = T.module[target.key];
@@ -81,12 +94,19 @@ export function UpgradePage({ target, pricingHref }: { readonly target: UpgradeT
               {also.length > 0 ? `${T.alsoUnlocks(required)}${also.join(T.sep)}` : T.onlyThis(required)}
             </span>
           </div>
-          <Button asChild size="lg" className="shrink-0">
-            <a href={pricingHref} target="_blank" rel="noopener noreferrer">
-              {T.upgrade}
-              <Icon name="external-link" size="sm" />
-            </a>
-          </Button>
+          {canUpgrade ? (
+            <Button asChild size="lg" className="shrink-0">
+              <a href={pricingHref} target="_blank" rel="noopener noreferrer">
+                {T.upgrade}
+                <Icon name="external-link" size="sm" />
+              </a>
+            </Button>
+          ) : (
+            <span className="text-muted-foreground text-body flex shrink-0 items-center gap-xs">
+              <Icon name="user" size="sm" />
+              {T.contactAdmin}
+            </span>
+          )}
         </div>
       </Card>
     </ViewLayout>

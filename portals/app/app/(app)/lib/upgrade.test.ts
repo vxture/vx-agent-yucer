@@ -47,11 +47,12 @@ test("the tier is asked first, exactly as the launcher asks it", () => {
   assert.equal(upgradeTarget("forecastRule", none, at("starter"))?.requiredTier, "pro");
 });
 
-test("every module a free workspace sees locked in the launcher has its own copy", () => {
-  const launcherKeys = new Set(NAV_ENTRIES.map((e) => e.key));
+test("every module a free workspace sees locked - launcher or admin plane - has its own copy", () => {
+  const known = new Set(NAV_ENTRIES.map((e) => e.key));
   const locked = resolveNavigation(owner, at("free"))
-    .filter((e) => e.state === "locked" && launcherKeys.has(e.key) && !e.href.startsWith("/admin"))
+    .filter((e) => e.state === "locked" && known.has(e.key))
     .map((e) => e.key);
+  assert.ok(locked.includes("division"), "区域设置 locks by tier too");
   assert.ok(locked.length >= 10, `expected the tier-gated modules, found ${locked.length}`);
   const missing = locked.filter((k) => !UPGRADE_TEXT.module[k]);
   assert.deepEqual(missing, [], `no upgrade copy for: ${missing.join(", ")}`);
