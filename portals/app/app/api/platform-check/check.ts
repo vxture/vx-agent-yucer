@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { probeHttp } from "../../lib/status-probe";
 import { getOidcConfig } from "../../auth/lib/config";
@@ -265,7 +265,10 @@ export async function runAtlasProbe(
   const res = await client.chat(
     "chat",
     { messages: [{ role: "user", content: "ping" }], maxTokens: 8 },
-    { workspaceId, tenantId, taskId, applicationId: "yucer-diagnostics", requestId: taskId },
+    // applicationId is a UUID on Atlas's side (its grant lookup casts it): a
+    // label like "yucer-diagnostics" failed the probe with a Prisma cast
+    // error (2026-09-28). The business paths send a session or run id.
+    { workspaceId, tenantId, taskId, applicationId: randomUUID(), requestId: taskId },
   );
   return {
     ok: true,
@@ -344,7 +347,7 @@ async function liveAtlas(id: LiveIdentity): Promise<ProbeResult> {
   const cfg = getAtlasConfig();
   if (!cfg.enabled) return notConfigured("ATLAS_BASE_URL");
   try {
-    const models = (await new AtlasClient(cfg).models({ ...id, taskId: `diag-models-${Date.now()}`, applicationId: "yucer-diagnostics", requestId: `diag-models-${Date.now()}` })) as
+    const models = (await new AtlasClient(cfg).models({ ...id, taskId: `diag-models-${Date.now()}`, applicationId: randomUUID(), requestId: `diag-models-${Date.now()}` })) as
       | { data?: unknown[]; models?: unknown[] }
       | unknown[];
     const n = Array.isArray(models) ? models.length : (models.data ?? models.models ?? []).length;
@@ -358,7 +361,9 @@ async function liveRunos(id: LiveIdentity): Promise<ProbeResult> {
   const cfg = getRunosConfig();
   if (!cfg.enabled) return notConfigured("RUNOS_BASE_URL");
   try {
-    const caps = await new RunosClient(cfg).discover({ query: "" }, { ...id, taskId: `diag-runos-${Date.now()}` });
+    // The shape the copilot turn sends (orchestrator/turn.ts): a non-empty
+    // query and a limit - an empty query breaks Runos's input contract.
+    const caps = await new RunosClient(cfg).discover({ query: "sales", limit: 20 }, { ...id, taskId: `diag-runos-${Date.now()}` });
     return {
       configured: true,
       ok: true,
