@@ -539,6 +539,18 @@ export const en: Dictionary = {
   // D6 forecast snapshots. Four codes here also live in FORECAST_RULE_ERROR
   // above and read identically on purpose: one code, one sentence, wherever a
   // reader meets it.
+  CONCESSION_TEXT: {
+    product: "Product",
+    quantity: "Qty",
+    list: "List",
+    floor: "Floor",
+    quoted: "Quoted",
+    belowFloor: "Below floor",
+    total: (amount: string, pct: number) => `Deal concession ${amount} (${pct}%)`,
+    totalUnknown: "No list prices - the deal's concession cannot be computed",
+    unpriced: (n: number) => `(${n} line(s) without a list price left out)`,
+    historyTitle: "This deal's amount over time",
+  },
   FORECAST_CHANGE_TEXT: {
     title: "Since the last snapshot",
     why: "How each deal moved since the latest snapshot of this period and scope.",

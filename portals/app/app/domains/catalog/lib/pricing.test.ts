@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { priceLine, lineTotal, reconciles, byProduct, planPriceRemoval, listComparison } from "./pricing";
+import { priceLine, lineTotal, reconciles, byProduct, planPriceRemoval, listComparison, concessionSheet } from "./pricing";
 import type { PriceEntryRecord } from "../store";
 
 const entry = (list: number, floor: number): PriceEntryRecord => ({
@@ -105,4 +105,33 @@ test("listComparison: values each line at its latest entry, like for like", () =
 test("listComparison: no listed line means no list total, not zero", () => {
   const r = listComparison([{ productId: "p9", currency: "USD", quantity: 1, amount: 10 }], []);
   assert.deepEqual(r, { listAmount: null, quotedOnListed: 0, unpriced: 1, discount: null });
+});
+
+test("concessionSheet (让价对照): each line against list and floor, and the deal's concession in total", () => {
+  const at = new Date("2026-01-01T00:00:00Z");
+  const e = (productId: string, list: number, floor: number): PriceEntryRecord => ({
+    id: `pe_${productId}`, workspaceId: "ws", productId, currency: "CNY", listPrice: list, floorPrice: floor, effectiveAt: at, supersedesId: null,
+  });
+  const line = (productId: string, quantity: number, unitPrice: number, needsApproval = false, approved = false) => ({
+    productId, currency: "CNY", quantity, unitPrice, amount: quantity * unitPrice, needsApproval, approved,
+  });
+  const r = concessionSheet(
+    [line("a", 2, 900), line("b", 1, 600, true, false), line("c", 3, 50)],
+    [e("a", 1000, 800), e("b", 1000, 700)],
+  );
+  // a: 100 under list, above floor; b: 100 under its floor; c: never priced.
+  assert.deepEqual(r.rows.map((x) => [x.productId, x.listPrice, x.floorPrice, x.belowFloor]), [
+    ["a", 1000, 800, 0],
+    ["b", 1000, 700, 100],
+    ["c", null, null, 0],
+  ]);
+  // Totals over the priced lines only: list 3000, quoted 2400.
+  assert.equal(r.listAmount, 3000);
+  assert.equal(r.concession, 600);
+  assert.equal(r.rate, 0.2);
+  assert.equal(r.unpriced, 1);
+  // Nothing priced: no total rather than a zero.
+  const none = concessionSheet([line("c", 1, 10)], []);
+  assert.equal(none.listAmount, null);
+  assert.equal(none.rate, null);
 });

@@ -3888,6 +3888,20 @@ export const TARGET_ERROR: Record<string, string> = {
 /**
  * 预测快照。同上：`submit-forecast` 也是直接渲染 `error`。
  */
+/** 让价对照 (deal batch 10a, YC-065 R8): the approver's side-by-side. */
+export const CONCESSION_TEXT = {
+  product: "产品",
+  quantity: "数量",
+  list: "目录价",
+  floor: "底价",
+  quoted: "报价",
+  belowFloor: "低于底价",
+  total: (amount: string, pct: number) => `整单让价 ${amount}（${pct}%）`,
+  totalUnknown: "没有目录价，整单让价算不出",
+  unpriced: (n: number) => `（${n} 项无目录价，未计入）`,
+  historyTitle: "本单金额变化",
+};
+
 /** 快照间变化 (deal batch 9c, YC-069 section 11 ②). */
 export const FORECAST_CHANGE_TEXT = {
   title: "较上次快照",

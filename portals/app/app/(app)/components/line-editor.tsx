@@ -22,6 +22,7 @@ import {
 } from "@vxture/design-ui";
 import { RowActions } from "./table-fittings";
 import { formatMoney } from "../lib/view-model";
+import { ConcessionSheet, type ConcessionView } from "./concession-sheet";
 import { useMessages } from "../lib/i18n/provider";
 
 // The deal's product lines.
@@ -81,6 +82,8 @@ export interface LineEditorProps {
   }[];
   readonly canEdit: boolean;
   readonly canApprove: boolean;
+  /** 让价对照 (deal batch 10a): shown in the signing dialog beside the reason. */
+  readonly concession?: ConcessionView;
   readonly closed: boolean;
   readonly onApprove: (
     opportunityId: string,
@@ -118,6 +121,7 @@ export function LineEditor({
   products,
   canEdit,
   canApprove,
+  concession,
   closed,
   onSave,
   onApprove,
@@ -437,7 +441,7 @@ export function LineEditor({
           if (!open) setSigning(null);
         }}
       >
-        <DialogContent width="sm">
+        <DialogContent width={concession ? "md" : "sm"}>
           <DialogHeader>
             <DialogTitle>{OPPORTUNITY_TEXT.lineApproveTitle}</DialogTitle>
             <DialogDescription>
@@ -446,6 +450,7 @@ export function LineEditor({
               )}
             </DialogDescription>
           </DialogHeader>
+          {concession ? <ConcessionSheet view={concession} names={name} currency={currency} highlight={signing} /> : null}
           <Textarea
             value={reason}
             aria-label={OPPORTUNITY_TEXT.lineApproveReason}

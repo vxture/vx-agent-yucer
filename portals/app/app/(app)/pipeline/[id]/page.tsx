@@ -83,11 +83,13 @@ import {
 } from "../stage-action";
 import {
   listOpportunityLines,
+  listPrices,
   listSolutions,
   listProducts as listCatalogProducts,
   listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
+import { concessionSheet } from "../../../domains/catalog/lib/pricing";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import { ExitChecks } from "../../components/exit-checks";
 import { checkStage, dealFactsFrom } from "../../../domains/pipeline/lib/exit-criteria";
@@ -738,6 +740,22 @@ export default async function OpportunityDetailPage({
       : null;
   const closeDate = (opportunity.closedAt ?? opportunity.expectedCloseAt)?.toISOString().slice(0, 10) ?? null;
   const dealLines = (lineRows.ok ? lineRows.value : []).filter((l) => l.opportunityId === id);
+  // 让价对照 (deal batch 10a): only when a line waits for a signature - the
+  // sheet lives in the signing dialog. The price book through its own gate;
+  // a refusal leaves the dialog as it was rather than showing a wrong sheet.
+  const priceRows = dealLines.some((l) => l.needsApproval && !l.approved) ? await listPrices(catalogCtx) : null;
+  const concession = priceRows?.ok
+    ? {
+        ...concessionSheet(dealLines, priceRows.value),
+        amountHistory: (claims.ok ? claims.value.events : [])
+          .filter((e) => e.field === "amount")
+          .map((e) => ({
+            at: e.occurredAt.toISOString().slice(0, 10),
+            from: e.fromValue === null ? null : Number(e.fromValue),
+            to: e.toValue === null ? null : Number(e.toValue),
+          })),
+      }
+    : undefined;
   const pendingLines = dealLines.filter((l) => l.needsApproval && !l.approved).length;
   const slip = claims.ok ? claims.value.slippage : null;
   // 交易清单 · 变更史's count: the claim log and the stage journal are one
@@ -1878,6 +1896,7 @@ export default async function OpportunityDetailPage({
                       }))}
                       canEdit={false}
                       canApprove={can(session.authz, session.entitlement, "pipeline.discount.approve", "ui").allowed}
+                      concession={concession}
                       closed={opportunity.closedAt !== null}
                       onSave={saveOpportunityLines}
                       onApprove={approveDiscount}
