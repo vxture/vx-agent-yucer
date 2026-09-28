@@ -37,6 +37,9 @@ export const CAPABILITIES = [
   // Deal batch 5c (YC-066 §04 推进计划生成): 3-6 dated steps toward the stage's
   // unmet exit criteria; each accepted step becomes a commitment.
   "deal.plan",
+  // Deal batch 10b (YC-066 S4 价格参谋): a discount strategy and what to ask
+  // in exchange, when a line waits for a signature. A finding, not a proposal.
+  "deal.price",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -145,6 +148,13 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
     feature: "pipeline.manage",
     task: "propose",
     evidence: ["commitments", "deals"],
+  },
+  // The concession sheet (rule numbers) and the deal's follow-ups - the
+  // buyer's own words about price are what the strategy answers.
+  "deal.price": {
+    feature: "pipeline.manage",
+    task: "propose",
+    evidence: ["interactions", "lines", "deals"],
   },
   // One new follow-up against what the slots already say.
   "deal.evidence": {

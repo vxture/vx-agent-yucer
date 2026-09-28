@@ -84,6 +84,8 @@ export interface LineEditorProps {
   readonly canApprove: boolean;
   /** 让价对照 (deal batch 10a): shown in the signing dialog beside the reason. */
   readonly concession?: ConcessionView;
+  /** 价格参谋 (deal batch 10b): absent when the member may not run it. */
+  readonly onAdvisePrice?: (opportunityId: string) => ReturnType<NonNullable<Parameters<typeof ConcessionSheet>[0]["onAdvise"]>>;
   readonly closed: boolean;
   readonly onApprove: (
     opportunityId: string,
@@ -122,6 +124,7 @@ export function LineEditor({
   canEdit,
   canApprove,
   concession,
+  onAdvisePrice,
   closed,
   onSave,
   onApprove,
@@ -450,7 +453,15 @@ export function LineEditor({
               )}
             </DialogDescription>
           </DialogHeader>
-          {concession ? <ConcessionSheet view={concession} names={name} currency={currency} highlight={signing} /> : null}
+          {concession ? (
+            <ConcessionSheet
+              view={concession}
+              names={name}
+              currency={currency}
+              highlight={signing}
+              onAdvise={onAdvisePrice ? () => onAdvisePrice(opportunityId) : undefined}
+            />
+          ) : null}
           <Textarea
             value={reason}
             aria-label={OPPORTUNITY_TEXT.lineApproveReason}

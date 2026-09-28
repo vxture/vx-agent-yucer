@@ -90,6 +90,8 @@ import {
 } from "../../../domains/catalog/service";
 import { ChangeHistory } from "../../components/change-history";
 import { concessionSheet } from "../../../domains/catalog/lib/pricing";
+import { adviseOnPrice } from "../price-advice-action";
+import { PRICE_CAPABILITY } from "../../../domains/copilot/lib/price-advice";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import { ExitChecks } from "../../components/exit-checks";
 import { checkStage, dealFactsFrom } from "../../../domains/pipeline/lib/exit-criteria";
@@ -743,6 +745,8 @@ export default async function OpportunityDetailPage({
   // 让价对照 (deal batch 10a): only when a line waits for a signature - the
   // sheet lives in the signing dialog. The price book through its own gate;
   // a refusal leaves the dialog as it was rather than showing a wrong sheet.
+  // 价格参谋 (deal batch 10b): on the deal's feature, like every advisor.
+  const canAdvisePrice = canRunAdvisor(session.authz, session.entitlement, PRICE_CAPABILITY).allowed;
   const priceRows = dealLines.some((l) => l.needsApproval && !l.approved) ? await listPrices(catalogCtx) : null;
   const concession = priceRows?.ok
     ? {
@@ -1897,6 +1901,7 @@ export default async function OpportunityDetailPage({
                       canEdit={false}
                       canApprove={can(session.authz, session.entitlement, "pipeline.discount.approve", "ui").allowed}
                       concession={concession}
+                      onAdvisePrice={canAdvisePrice ? adviseOnPrice : undefined}
                       closed={opportunity.closedAt !== null}
                       onSave={saveOpportunityLines}
                       onApprove={approveDiscount}
