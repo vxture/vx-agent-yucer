@@ -261,6 +261,17 @@ export const DEMO_LESSONS = [
   "方案匹配度是主因，价格不是。",
 ] as const;
 
+/** 竞争位置 (incr/0094): the demo workspace's rivals - invented names. */
+export const DEMO_COMPETITORS = ["华策软件", "云衡科技"] as const;
+
+/** opp_demo_12 实验室数据对接's decision criteria: [statement, shapedBy, fit, note]. */
+export const DEMO_CRITERIA = [
+  ["与现有 LIMS 双向对接，不改原系统", "us", "met", null],
+  ["私有化部署，数据不出厂区", "buyer", "met", null],
+  ["三年总成本最低", "rfp", "partial", "我方报价高约 8%，实施费可谈"],
+  ["上线周期不超过 3 个月", "buyer", null, null],
+] as const;
+
 export const DEMO_PLAYBOOKS = [
   {
     code: "PB-QUALIFY",

@@ -98,6 +98,28 @@ export interface DealFacts {
     | null;
   /** Follow-ups on this deal that name a rival. */
   readonly rivalMentions: number;
+  /**
+   * The structured competitive position (incr/0094, deal batch 7b). Absent =
+   * not read (the dimension falls back to rival mentions alone).
+   */
+  readonly competition?: {
+    /** Something is on record: rivals, or a confirmed "only us". */
+    readonly known: boolean;
+    readonly onlyUs: boolean;
+    readonly rivals: number;
+    readonly criteria: {
+      readonly total: number;
+      /** Shaped by us. */
+      readonly byUs: number;
+      /** Shaped by the buyer or a tender document. */
+      readonly byOthers: number;
+      readonly met: number;
+      readonly partial: number;
+      readonly unmet: number;
+    };
+    /** The lowest historical win rate among the rivals present; null = no rival with enough sample. */
+    readonly worstWinRate: number | null;
+  };
   /** Days since the last follow-up on this deal; null = never. */
   readonly lastTouchDays: number | null;
   /** Their open commitments: how many overdue, and the worst overdue days. */
@@ -152,13 +174,11 @@ export function dimensionIndicators(f: DealFacts, p: DealScoreWeights = DEFAULT_
             },
             { key: "process", tone: f.slots.decisionProcess ? "good" : "warn", gap: { code: "decisionProcess" } },
           ],
-    // No structured rival record yet (batch 7): a mention says a rival is in
-    // play; none says nothing - 未知, not 稳.
-    competition: [
-      f.rivalMentions > 0
-        ? { key: "rivals", tone: "warn", gap: { code: "rivalMentioned", n: f.rivalMentions } }
-        : { key: "rivals", tone: "unknown", gap: { code: "rivalUnknown" } },
-    ],
+    // 竞争位置 (deal batch 7b, incr/0094): four indicators from the structured
+    // record - who is in the field, who shaped the criteria, how we fit them,
+    // and how we have fared against these rivals before. Without a record, a
+    // mention says a rival is in play; none says nothing - 未知, not 稳.
+    competition: competitionIndicators(f),
     engagement: [
       {
         key: "contact",
@@ -191,6 +211,48 @@ export function dimensionIndicators(f: DealFacts, p: DealScoreWeights = DEFAULT_
         ]
       : [{ key: "closed", tone: "unknown" }],
   };
+}
+
+/** Win rate at or above this is 稳; below the lower line, 风险. */
+const WIN_RATE_GOOD = 0.5;
+const WIN_RATE_WARN = 0.3;
+
+function competitionIndicators(f: DealFacts): Indicator[] {
+  const c = f.competition;
+  const rivals: Indicator =
+    c?.known
+      ? { key: "rivals", tone: "good" }
+      : f.rivalMentions > 0
+        ? { key: "rivals", tone: "warn", gap: { code: "rivalMentioned", n: f.rivalMentions } }
+        : { key: "rivals", tone: "unknown", gap: { code: "rivalUnknown" } };
+  if (!c) return [rivals];
+  const k = c.criteria;
+  const shaped: Indicator =
+    k.byUs > 0
+      ? { key: "shaped", tone: "good" }
+      : k.byOthers > 0
+        ? { key: "shaped", tone: "warn", gap: { code: "criteriaShapedByOthers" } }
+        : { key: "shaped", tone: "unknown", gap: { code: k.total === 0 ? "criteriaNone" : "criteriaShaperUnknown" } };
+  const assessed = k.met + k.partial + k.unmet;
+  const fit: Indicator =
+    k.unmet > 0
+      ? { key: "fit", tone: "bad", gap: { code: "criteriaUnmet", n: k.unmet } }
+      : k.partial > 0
+        ? { key: "fit", tone: "warn", gap: { code: "criteriaPartial", n: k.partial } }
+        : assessed > 0
+          ? { key: "fit", tone: "good" }
+          : { key: "fit", tone: "unknown", gap: { code: k.total === 0 ? "criteriaNone" : "criteriaUnassessed" } };
+  const winRate: Indicator =
+    c.worstWinRate === null
+      ? { key: "winRate", tone: "unknown" }
+      : c.worstWinRate >= WIN_RATE_GOOD
+        ? { key: "winRate", tone: "good" }
+        : {
+            key: "winRate",
+            tone: c.worstWinRate >= WIN_RATE_WARN ? "warn" : "bad",
+            gap: { code: "winRateLow", n: Math.round(c.worstWinRate * 100) },
+          };
+  return [rivals, shaped, fit, winRate];
 }
 
 export interface DimensionScore {

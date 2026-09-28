@@ -38,7 +38,10 @@ import {
   stallRules,
   dealScoreWeights,
   winLossReviewOf,
+  competitionOf,
 } from "../../../domains/pipeline/service";
+import { CompetitionPanel } from "../../components/competition-panel";
+import { recordCompetitorAction, removeCriterionAction, saveCriterionAction } from "../competition-action";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import {
   getAccountDetail,
@@ -158,6 +161,7 @@ export default async function OpportunityDetailPage({
     SHELL_TEXT,
     STAGE_LABEL,
     POSITION_TEXT,
+    COMPETITION_TEXT,
     CHAIN_TEXT,
     WAR_ROOM_TEXT,
     JUDGEMENT_ACTION_TEXT,
@@ -220,6 +224,8 @@ export default async function OpportunityDetailPage({
   ]);
   // 购买证据槽 (incr/0085) and the exit criteria (incr/0087).
   const [evidence, exitCriteria] = await Promise.all([evidenceOf(ctx, id), listExitCriteria(ctx)]);
+  // 竞争位置 (incr/0094): rivals, the buyer's decision criteria, win rates.
+  const competition = await competitionOf(ctx, id);
 
   // NAMES, NOT IDS (polish, 2026-09-24): the owner card printed usr_demo_m010,
   // the plan triangle three raw subs and 来源战役 camp_demo_1. The member
@@ -784,6 +790,26 @@ export default async function OpportunityDetailPage({
   const dayOf = (d: Date) => Math.max(0, Math.floor((briefNow.getTime() - d.getTime()) / 86_400_000));
   const openCommitments = (commitments.ok ? commitments.value : []).filter((c) => c.status === "open");
   const theirLate = openCommitments.filter((c) => c.direction === "they_owe" && c.dueAt < briefNow);
+  const competitionFacts = competition.ok
+    ? (() => {
+        const { field, criteria, winRates } = competition.value;
+        const rates = field.rivals.map((r) => winRates.get(r.competitorId)?.rate ?? null).filter((x): x is number => x !== null);
+        return {
+          known: !field.unknown,
+          onlyUs: field.onlyUs,
+          rivals: field.rivals.length,
+          criteria: {
+            total: criteria.length,
+            byUs: criteria.filter((c) => c.shapedBy === "us").length,
+            byOthers: criteria.filter((c) => c.shapedBy === "buyer" || c.shapedBy === "rfp").length,
+            met: criteria.filter((c) => c.fit === "met").length,
+            partial: criteria.filter((c) => c.fit === "partial").length,
+            unmet: criteria.filter((c) => c.fit === "unmet").length,
+          },
+          worstWinRate: rates.length > 0 ? Math.min(...rates) : null,
+        };
+      })()
+    : undefined;
   const scoreParams = scoreWeights.ok ? scoreWeights.value : DEFAULT_DEAL_SCORE_WEIGHTS;
   const score = dealScore(
     {
@@ -801,6 +827,7 @@ export default async function OpportunityDetailPage({
           })
         : null,
       rivalMentions: rivalMentionsAll.length,
+      competition: competitionFacts,
       lastTouchDays: lastTouch ? dayOf(lastTouch) : null,
       theirOverdue: { count: theirLate.length, maxDays: theirLate.reduce((m, c) => Math.max(m, dayOf(c.dueAt)), 0) },
       hasNextStep: openCommitments.some((c) => c.dueAt >= briefNow),
@@ -938,6 +965,12 @@ export default async function OpportunityDetailPage({
         return W.slipped(n);
       case "approval":
         return W.approval(pendingLines);
+      case "criteriaUnmet":
+        return W.criteriaUnmet(n);
+      case "criteriaPartial":
+        return W.criteriaPartial(n);
+      case "winRateLow":
+        return W.winRateLow(n);
       default:
         return (W as Record<string, (...a: never[]) => string>)[code]?.() ?? "";
     }
@@ -1283,6 +1316,26 @@ export default async function OpportunityDetailPage({
     id: i.id,
     label: `${noteLabel.get(i.id)} · ${i.rawNote.slice(0, 24)}`,
   }));
+  const competitionView = competition.ok ? competition.value : null;
+  const competitorName = (cid: string) => competitionView?.competitors.find((c) => c.id === cid)?.name ?? cid;
+  // Folded, the section says what is on record; the mention count only when
+  // nothing is (panel fold norm: the folded line is mandatory).
+  const competitionSummary =
+    competitionView && !competitionView.field.unknown
+      ? [
+          competitionView.field.onlyUs
+            ? COMPETITION_TEXT.onlyUsState
+            : COMPETITION_TEXT.summaryRivals(
+                competitionView.field.rivals
+                  .map((r) => (r.isIncumbent ? COMPETITION_TEXT.incumbentMark(competitorName(r.competitorId)) : competitorName(r.competitorId)))
+                  .join(COMPETITION_TEXT.sep),
+              ),
+          ...(competitionView.criteria.length > 0 ? [COMPETITION_TEXT.summaryCriteria(competitionView.criteria.length)] : []),
+        ].join(COLLAPSE_TEXT.separator)
+      : rivalMentions.length > 0
+        ? DEAL_PAGE_TEXT.competitionMentions(rivalMentions.length)
+        : POSITION_TEXT.competitionNoMention;
+  const canRecordCompetition = can(session.authz, session.entitlement, "pipeline.competition.record", "ui").allowed;
   const canRecordEvidence = can(session.authz, session.entitlement, "pipeline.evidence.record", "ui").allowed;
   const reasonRows = evidenceRows(REASON_SLOTS);
   const processRows = evidenceRows(PROCESS_SLOTS);
@@ -1680,22 +1733,43 @@ export default async function OpportunityDetailPage({
             </DealPanel>
 
 
-            {/* 竞争位置 - the fourth dimension; was 竞争态势. */}
-            {/* 竞争态势 - verbatim rival mentions until the competitor record
-                (batch 7, 0089). */}
+            {/* 竞争位置 - the fourth dimension: the rivals and the buyer's
+                decision criteria on record (incr/0094), then the verbatim
+                rival mentions in the follow-ups. */}
             <DealPanel
               id="competition"
               icon="shield"
               title={DEAL_SCORE_TEXT.factor.competition}
               tags={dimTag("competition")}
-              summary={
-                rivalMentions.length > 0
-                  ? DEAL_PAGE_TEXT.competitionMentions(rivalMentions.length)
-                  : POSITION_TEXT.competitionNoMention
-              }
+              summary={competitionSummary}
             >
               {dimChecks("competition")}
-              <RivalMentions mentions={rivalMentions} />
+              {competitionView ? (
+                <CompetitionPanel
+                  opportunityId={id}
+                  rivals={competitionView.field.rivals.map((r) => ({
+                    competitorId: r.competitorId,
+                    name: competitorName(r.competitorId),
+                    isIncumbent: r.isIncumbent,
+                    winRate: competitionView.winRates.get(r.competitorId) ?? null,
+                  }))}
+                  outNames={competitionView.field.out.map(competitorName)}
+                  onlyUs={competitionView.field.onlyUs}
+                  criteria={competitionView.criteria.map((c) => ({
+                    id: c.id,
+                    statement: c.statement,
+                    shapedBy: c.shapedBy,
+                    fit: c.fit,
+                    fitNote: c.fitNote,
+                  }))}
+                  knownNames={competitionView.competitors.map((c) => c.name)}
+                  canRecord={canRecordCompetition}
+                  onRecord={recordCompetitorAction}
+                  onSaveCriterion={saveCriterionAction}
+                  onRemoveCriterion={removeCriterionAction}
+                />
+              ) : null}
+              {rivalMentions.length > 0 || !competitionFacts?.known ? <RivalMentions mentions={rivalMentions} /> : null}
             </DealPanel>
 
 
