@@ -296,3 +296,92 @@ export function dealScore(f: DealFacts, p: DealScoreWeights = DEFAULT_DEAL_SCORE
   const worst = [...counted].filter((d) => d.score! < 100).sort((a, b) => (100 - b.score!) * b.weight - (100 - a.score!) * a.weight)[0] ?? null;
   return { score: Math.min(100, Math.max(0, score)), dimensions, primaryConcern: worst };
 }
+
+// --- One assembly of the facts (deal batch 9d) --------------------------------
+//
+// The deal page scored one deal from variables it had read inline; 预测检视台
+// now scores many (未经证实金额: a commit whose assessment is 风险 is not
+// proven). TWO ASSEMBLIES WOULD DRIFT - the forecast would call a deal risky
+// that its own page calls sound - so both build DealFacts here, from the same
+// raw records.
+
+const DAY_MS = 86_400_000;
+
+/** DealFacts.competition from the deal's competitive field (incr/0094). */
+export function competitionFactsFrom(view: {
+  readonly field: { readonly unknown: boolean; readonly onlyUs: boolean; readonly rivals: readonly { readonly competitorId: string }[] };
+  readonly criteria: readonly { readonly shapedBy: string; readonly fit: string | null }[];
+  readonly winRates: ReadonlyMap<string, { readonly rate: number | null }>;
+}): NonNullable<DealFacts["competition"]> {
+  const rates = view.field.rivals
+    .map((r) => view.winRates.get(r.competitorId)?.rate ?? null)
+    .filter((x): x is number => x !== null);
+  const c = view.criteria;
+  return {
+    known: !view.field.unknown,
+    onlyUs: view.field.onlyUs,
+    rivals: view.field.rivals.length,
+    criteria: {
+      total: c.length,
+      byUs: c.filter((x) => x.shapedBy === "us").length,
+      byOthers: c.filter((x) => x.shapedBy === "buyer" || x.shapedBy === "rfp").length,
+      met: c.filter((x) => x.fit === "met").length,
+      partial: c.filter((x) => x.fit === "partial").length,
+      unmet: c.filter((x) => x.fit === "unmet").length,
+    },
+    worstWinRate: rates.length > 0 ? Math.min(...rates) : null,
+  };
+}
+
+/** The raw records a deal's assessment reads - what the deal page loads. */
+export interface ScoreRecords {
+  readonly open: boolean;
+  readonly customerBudgetKnown: boolean;
+  readonly expectedCloseAt: Date | null;
+  /** Filled evidence slots; null = the evidence could not be read. */
+  readonly filledSlots: ReadonlySet<string> | null;
+  /** The deal's active people; null = the chain could not be read. */
+  readonly people: readonly { readonly role: string; readonly stance: string | null; readonly lastContactAt: Date | null }[] | null;
+  /** The deal's follow-ups (the page reads the latest 50). */
+  readonly interactions: readonly { readonly rawNote: string; readonly occurredAt: Date }[];
+  /** The dictionary's rival words - rivals are found in the notes, never inferred. */
+  readonly rivalWords: readonly string[];
+  readonly competition?: DealFacts["competition"];
+  /** The deal's commitments, either side. */
+  readonly commitments: readonly { readonly direction: string; readonly status: string; readonly dueAt: Date }[];
+  readonly exit: { readonly met: number; readonly total: number } | null;
+  /** Days at the current stage (open deals), and the stall line that applies. */
+  readonly daysInStage: number | null;
+  readonly stallLine: number;
+  readonly slips: number;
+  readonly pendingApprovals: number;
+  readonly now: Date;
+}
+
+export function scoreFactsFrom(r: ScoreRecords): DealFacts {
+  const dayOf = (d: Date) => Math.max(0, Math.floor((r.now.getTime() - d.getTime()) / DAY_MS));
+  const lastTouch = r.interactions.reduce<Date | null>((m, n) => (m === null || n.occurredAt > m ? n.occurredAt : m), null);
+  const open = r.commitments.filter((c) => c.status === "open");
+  const theirLate = open.filter((c) => c.direction === "they_owe" && c.dueAt < r.now);
+  const has = (slot: string) => r.filledSlots?.has(slot) ?? false;
+  return {
+    slots: { pain: has("pain"), metrics: has("metrics"), statusQuo: has("status_quo"), decisionProcess: has("decision_process") },
+    budgetKnown: r.customerBudgetKnown,
+    people: r.people
+      ? r.people.map((p) => ({ role: p.role, stance: p.stance, lastDays: p.lastContactAt ? dayOf(p.lastContactAt) : null }))
+      : null,
+    rivalMentions: r.interactions.filter((n) => r.rivalWords.some((w) => n.rawNote.includes(w))).length,
+    ...(r.competition ? { competition: r.competition } : {}),
+    lastTouchDays: lastTouch ? dayOf(lastTouch) : null,
+    theirOverdue: { count: theirLate.length, maxDays: theirLate.reduce((m, c) => Math.max(m, dayOf(c.dueAt)), 0) },
+    hasNextStep: open.some((c) => c.dueAt >= r.now),
+    exit: r.exit,
+    // The brief's 阶段 rule: past the stall line is bad, and a closed deal is not stalled.
+    stall: r.open && r.daysInStage !== null && r.daysInStage > r.stallLine ? "bad" : "good",
+    stalledDays: r.daysInStage,
+    slips: r.slips,
+    closeDatePassed: r.open && r.expectedCloseAt != null && r.expectedCloseAt < r.now,
+    pendingApprovals: r.pendingApprovals,
+    open: r.open,
+  };
+}

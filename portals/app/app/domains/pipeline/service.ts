@@ -2064,6 +2064,19 @@ export async function claimHistory(ctx: PipelineContext, opportunityId: string):
   return ok({ events, slippage: slippageOf(events) });
 }
 
+/**
+ * claimHistory's slippage for many deals at once (deal batch 9d), one read of
+ * the claim log. Gated like claimHistory: a refusal is the caller's to read as
+ * "not known", exactly as the deal page does.
+ */
+export async function slippagesFor(ctx: PipelineContext, opportunityIds: readonly string[]): Promise<RuleResult<Map<string, Slippage>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.claims.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const wanted = new Set(opportunityIds);
+  const events = (await ctx.store.listClaimEventsSince(ctx.workspaceId, new Date(0))).filter((e) => wanted.has(e.opportunityId));
+  return ok(new Map(opportunityIds.map((id) => [id, slippageOf(events.filter((e) => e.opportunityId === id))] as const)));
+}
+
 // --- 购买证据槽 (incr/0085, YC-065 R1/R4) -------------------------------------------
 
 /** Every slot's current version and history for one deal. Gated like reading it. */
@@ -2154,6 +2167,48 @@ export async function competitionOf(
   const since = new Date(now.getTime() - WIN_RATE_WINDOW_DAYS * 86_400_000);
   const winRates = new Map(field.rivals.map((r) => [r.competitorId, winRateAgainst(reviews, r.competitorId, since)] as const));
   return ok({ competitors, field, entries, criteria, winRates });
+}
+
+/**
+ * competitionOf for many deals at once (deal batch 9d) - 预测检视台 scores
+ * every committed deal, and "每类一次批量读": one read per kind for all of
+ * them, keyed by deal. Each value is exactly what competitionOf returns.
+ */
+export async function competitionFor(
+  ctx: PipelineContext,
+  opportunityIds: readonly string[],
+  now: Date = new Date(),
+): Promise<RuleResult<Map<string, CompetitionView>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const [competitors, entries, criteria, reviews] = await Promise.all([
+    ctx.store.listCompetitors(ctx.workspaceId),
+    ctx.store.listCompetitorEntriesFor(ctx.workspaceId, opportunityIds),
+    ctx.store.listCriteriaFor(ctx.workspaceId, opportunityIds),
+    ctx.store.listCompetitorReviews(ctx.workspaceId),
+  ]);
+  const since = new Date(now.getTime() - WIN_RATE_WINDOW_DAYS * 86_400_000);
+  return ok(
+    new Map(
+      opportunityIds.map((id) => {
+        const mine = entries.get(id) ?? [];
+        const field = competitiveField(mine);
+        const winRates = new Map(field.rivals.map((r) => [r.competitorId, winRateAgainst(reviews, r.competitorId, since)] as const));
+        return [id, { competitors, field, entries: mine, criteria: criteria.get(id) ?? [], winRates }] as const;
+      }),
+    ),
+  );
+}
+
+/** evidenceOf for many deals at once (deal batch 9d), one read. */
+export async function evidenceFor(
+  ctx: PipelineContext,
+  opportunityIds: readonly string[],
+): Promise<RuleResult<Map<string, Record<EvidenceSlot, SlotState>>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const rows = await ctx.store.listEvidenceFor(ctx.workspaceId, opportunityIds);
+  return ok(new Map(opportunityIds.map((id) => [id, slotStates(rows.get(id) ?? [])] as const)));
 }
 
 /**

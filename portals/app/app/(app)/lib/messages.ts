@@ -3903,6 +3903,20 @@ export const CONCESSION_TEXT = {
   historyTitle: "本单金额变化",
 };
 
+/** 未经证实金额 (deal batch 9d, YC-069 section 11 ①). */
+export const FORECAST_UNVERIFIED_TEXT = {
+  title: "未经证实",
+  why: "当前阶段退出条件没有全部满足、或商机评估落在风险档的单——判断方式与各自商机页一致。无法判断的也算：读不到不是证实。",
+  headline: (category: string, total: string, unverified: string) => `${category} ${total}，其中 ${unverified} 未经证实`,
+  exitUnmet: (names: string) => `未满足：${names}`,
+  exitUnknown: (names: string) => `无法判断：${names}`,
+  exitUnreadable: "退出核验读不到",
+  risk: (score: number) => `商机评估 ${score}（风险）`,
+  none: "都站得住",
+  showDeals: (n: number) => `查看这 ${n} 单，各缺什么`,
+  sep: "、",
+};
+
 /** 快照间变化 (deal batch 9c, YC-069 section 11 ②). */
 export const FORECAST_CHANGE_TEXT = {
   title: "较上次快照",

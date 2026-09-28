@@ -4,6 +4,7 @@ import {
   DEFAULT_DEAL_SCORE_WEIGHTS,
   dealScore,
   dealScoreBand,
+  scoreFactsFrom,
   dimensionIndicators,
   planDealScoreWeights,
   type DealFacts,
@@ -145,3 +146,50 @@ test("nothing recorded stays 未知 - the dimension leaves the total instead of 
   const only = dimensionIndicators({ ...clean, competition: { known: true, onlyUs: true, rivals: 0, criteria: noCriteria, worstWinRate: null } }).competition;
   assert.equal(only[0]!.tone, "good");
 });
+
+test("scoreFactsFrom (9d): the one assembly - stall past the line, rivals by the dictionary's words, overdue and next step", () => {
+  const now = new Date("2026-10-01T00:00:00Z");
+  const day = (n: number) => new Date(now.getTime() - n * 86_400_000);
+  const f = scoreFactsFrom({
+    open: true,
+    customerBudgetKnown: true,
+    expectedCloseAt: day(3),
+    filledSlots: new Set(["pain", "decision_process"]),
+    people: [{ role: "economic", stance: "supporter", lastContactAt: day(12) }],
+    interactions: [
+      { rawNote: "对方提到友商也在报价", occurredAt: day(5) },
+      { rawNote: "技术评估通过", occurredAt: day(2) },
+    ],
+    rivalWords: ["友商", "竞品"],
+    commitments: [
+      { direction: "they_owe", status: "open", dueAt: day(4) },
+      { direction: "we_owe", status: "open", dueAt: new Date(now.getTime() + 86_400_000) },
+      { direction: "they_owe", status: "done", dueAt: day(30) },
+    ],
+    exit: { met: 1, total: 3 },
+    daysInStage: 46,
+    stallLine: 45,
+    slips: 2,
+    pendingApprovals: 1,
+    now,
+  });
+  assert.deepEqual(f.slots, { pain: true, metrics: false, statusQuo: false, decisionProcess: true });
+  assert.deepEqual(f.people, [{ role: "economic", stance: "supporter", lastDays: 12 }]);
+  assert.equal(f.rivalMentions, 1);
+  assert.equal(f.lastTouchDays, 2);
+  assert.deepEqual(f.theirOverdue, { count: 1, maxDays: 4 });
+  assert.equal(f.hasNextStep, true);
+  assert.equal(f.stall, "bad");
+  assert.equal(f.closeDatePassed, true);
+  // On the line is not past it; a closed deal is never stalled.
+  assert.equal(scoreFactsFrom({ ...base(now), daysInStage: 45, stallLine: 45 }).stall, "good");
+  assert.equal(scoreFactsFrom({ ...base(now), open: false, daysInStage: 400, stallLine: 45 }).stall, "good");
+});
+
+function base(now: Date) {
+  return {
+    open: true, customerBudgetKnown: false, expectedCloseAt: null, filledSlots: null, people: null,
+    interactions: [], rivalWords: [], commitments: [], exit: null, daysInStage: null, stallLine: 45,
+    slips: 0, pendingApprovals: 0, now,
+  };
+}

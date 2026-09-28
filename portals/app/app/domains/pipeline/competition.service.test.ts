@@ -6,7 +6,12 @@ import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import {
+  claimHistory,
+  competitionFor,
   competitionOf,
+  evidenceFor,
+  evidenceOf,
+  slippagesFor,
   recordCompetitor,
   recordWinLossReview,
   removeDecisionCriterion,
@@ -151,4 +156,32 @@ test("a review's typed rival lands on the workspace's row - matched, or added - 
   unwrap(await recordWinLossReview(c, "opp_l2", { primaryReasonId: null, competitor: "acme corp" }));
   const after = unwrap(await competitionOf(c, "opp_1"));
   assert.deepEqual(after.winRates.get(rivals[0]!.id), { won: 0, decided: 5, rate: 0 });
+});
+
+test("the batched reads (9d) return exactly what the per-deal verbs return, deal by deal", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp(), opp({ id: "opp_2" }), opp({ id: "opp_3" })]);
+  const c = ctx("sales_director", "business", store);
+  unwrap(await recordCompetitor(c, "opp_1", { competitorName: "Acme", isIncumbent: true }, new Set()));
+  unwrap(await recordCompetitor(c, "opp_2", { competitorId: null }, new Set()));
+  unwrap(await saveDecisionCriterion(c, "opp_1", { statement: "On premise", shapedBy: "buyer", fit: "met" }));
+  await store.appendEvidence(WS, "opp_2", { slot: "pain", statement: "Manual reconciliation", interactionId: null, authorSub: "usr_me", source: "manual", proposalId: null });
+  await store.updateCommercialTerms(WS, "opp_3", { expectedCloseAt: new Date("2026-12-01T00:00:00Z") }, { source: "manual", actorSub: "usr_me", occurredAt: new Date() });
+  await store.updateCommercialTerms(WS, "opp_3", { expectedCloseAt: new Date("2027-02-01T00:00:00Z") }, { source: "manual", actorSub: "usr_me", occurredAt: new Date(Date.now() + 1) });
+
+  const ids = ["opp_1", "opp_2", "opp_3"];
+  const now = new Date();
+  const [comp, ev, slips] = [
+    unwrap(await competitionFor(c, ids, now)),
+    unwrap(await evidenceFor(c, ids)),
+    unwrap(await slippagesFor(c, ids)),
+  ];
+  for (const id of ids) {
+    assert.deepEqual(comp.get(id), unwrap(await competitionOf(c, id, now)), `competition ${id}`);
+    assert.deepEqual(ev.get(id), unwrap(await evidenceOf(c, id)), `evidence ${id}`);
+    assert.deepEqual(slips.get(id), unwrap(await claimHistory(c, id)).slippage, `slippage ${id}`);
+  }
+  assert.equal(slips.get("opp_3")?.pushes, 1);
+  // Below the tier, refused like the per-deal reads.
+  assert.equal((await competitionFor(ctx("sales_director", null, store), ids)).ok, false);
 });

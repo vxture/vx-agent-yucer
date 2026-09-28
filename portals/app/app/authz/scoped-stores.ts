@@ -92,6 +92,11 @@ class ScopedPipelineStore implements PipelineStore {
   getDealScoreWeights: PipelineStore["getDealScoreWeights"] = (...a) => this.inner.getDealScoreWeights(...a);
   setDealScoreWeights: PipelineStore["setDealScoreWeights"] = (...a) => this.inner.setDealScoreWeights(...a);
   listEvidence: PipelineStore["listEvidence"] = (...a) => this.inner.listEvidence(...a);
+  // Batched by deal id (9d): the caller passes ids it already read through
+  // the scoped listOpportunities, like the per-deal reads above.
+  listEvidenceFor: PipelineStore["listEvidenceFor"] = (...a) => this.inner.listEvidenceFor(...a);
+  listCompetitorEntriesFor: PipelineStore["listCompetitorEntriesFor"] = (...a) => this.inner.listCompetitorEntriesFor(...a);
+  listCriteriaFor: PipelineStore["listCriteriaFor"] = (...a) => this.inner.listCriteriaFor(...a);
   listExitCriteria: PipelineStore["listExitCriteria"] = (...a) => this.inner.listExitCriteria(...a);
   createExitCriterion: PipelineStore["createExitCriterion"] = (...a) => this.inner.createExitCriterion(...a);
   updateExitCriterion: PipelineStore["updateExitCriterion"] = (...a) => this.inner.updateExitCriterion(...a);
