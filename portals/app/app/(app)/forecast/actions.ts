@@ -39,5 +39,6 @@ export async function applySuggestedCategory(input: {
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/forecast");
+  revalidatePath("/pipeline");
   return { ok: true };
 }

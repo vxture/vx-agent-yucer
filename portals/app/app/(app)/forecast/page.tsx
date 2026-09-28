@@ -2,8 +2,17 @@ import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { getPipelineStore } from "../../domains/shared/registry";
-import { previewCategories } from "../../domains/pipeline/service";
+import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
+import { forecastHistory, forecastScorecard, previewCategories } from "../../domains/pipeline/service";
+import { inPeriod, inScope } from "../../domains/pipeline/lib/forecast";
+import { listTerritories } from "../../domains/planning/service";
+import { ForecastTrajectory } from "../components/forecast-trajectory";
+import { SubmitForecast } from "../components/submit-forecast";
+import { submitForecastSnapshot } from "../pipeline/forecast-action";
+import { PeriodTabs } from "../components/period-tabs";
+import { ForecastScopePicker } from "../components/forecast-scope-picker";
+import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
+import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
 import { ForecastRoster, type ForecastRow } from "../components/forecast-roster";
 import { ForecastAnalysis } from "../components/forecast-analysis";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
@@ -28,24 +37,48 @@ import { loadFailureText } from "../lib/load-failure";
 // catalog withholds it from a rep who owns the deal. So a rep sees the rule
 // disagreeing with them and cannot quietly make that go away - which is the
 // arrangement a forecast review depends on.
+//
+// 预测检视台 (deal batch 9a, YC-069 section 11): EVERYTHING ABOUT THE FORECAST
+// ON ONE PAGE. The trajectory, the period and scope, the accuracy and the
+// snapshot submit lived on /pipeline, under a board that answers a different
+// question; they are here now, and the period and scope govern the whole page
+// - the category figures and the list as well as the series. /pipeline keeps
+// one line: this quarter's commit and its move since the last snapshot,
+// linking here.
 
 export const dynamic = "force-dynamic";
 
-export default async function ForecastPage() {
-  const { FORECAST_LABEL, FORECAST_RULE_TEXT, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+export default async function ForecastPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; scope?: string }>;
+}) {
+  const { FORECAST_LABEL, FORECAST_RULE_TEXT, LOAD_ERROR, SHELL_TEXT, BOARD_TEXT } = await getMessages();
+  const params = await searchParams;
+  const period = resolvePeriod(params.period);
+  const scope = parseForecastScope(params.scope);
+  const scopeKey = forecastScopeKey(scope);
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.
 
-  const preview = await previewCategories({
+  const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     store: session.stores.pipeline(),
-  });
+  };
+  const [preview, history, score, territories] = await Promise.all([
+    previewCategories(ctx),
+    // The series, not the latest point - the only reader that makes
+    // forecast_snapshot's immutability pay for itself.
+    forecastHistory(ctx, period, scope),
+    forecastScorecard({ ...ctx, catalog: getCatalogStore() }, period, { scope }),
+    listTerritories({ ...ctx, store: getPlanningStore() }),
+  ]);
 
   if (!preview.ok) {
     return (
@@ -56,7 +89,23 @@ export default async function ForecastPage() {
     );
   }
 
-  const rows: ForecastRow[] = preview.value.map((p) => ({
+  // THE PERIOD AND SCOPE GOVERN THE LIST TOO. The same two rules the snapshot
+  // applies (inPeriod: an open deal by its expected close, a closed one by its
+  // close; inScope: territory or owner), so the figures here and the point a
+  // snapshot would record describe the same deals.
+  const all = preview.value.map((p) => p.opportunity);
+  const windowed = inPeriod(all, period);
+  const kept = new Set(inScope(windowed ? windowed.kept : all, scope).map((o) => o.id));
+  const inView = preview.value.filter((p) => kept.has(p.opportunity.id));
+  // Owners from the whole book, not the window: an owner with nothing this
+  // quarter is still one somebody may want to look at this quarter for.
+  const ownerOptions = [...new Set(all.map((o) => o.ownerSub).filter((o): o is string => !!o))].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const territoryOptions = territories.ok ? territories.value.map((t) => ({ id: t.id, name: t.name })) : [];
+  const points = history.ok ? history.value : [];
+
+  const rows: ForecastRow[] = inView.map((p) => ({
     opportunityId: p.opportunity.id,
     opportunityNo: p.opportunity.opportunityNo,
     dealName: p.opportunity.name,
@@ -99,6 +148,7 @@ export default async function ForecastPage() {
     <ViewLayout>
       <ModuleHeadline
         moduleKey="forecastRule"
+        action={<PeriodTabs value={period} periods={PERIODS} yearLabel={PERIOD_YEAR} />}
         description={FORECAST_RULE_TEXT.why}
         tags={
           <>
@@ -116,6 +166,39 @@ export default async function ForecastPage() {
         }
         stats={stats$}
         emptyNote={FORECAST_RULE_TEXT.forecastStatEmpty}
+      />
+
+      {/* The series for this period and scope, its accuracy, and the snapshot
+          submit - moved here from /pipeline (batch 9a). */}
+      <ForecastTrajectory
+        points={points.map((p) => ({
+          at: p.snapshotAt.toISOString().slice(5, 10),
+          commit: p.commitAmount.amount,
+          bestCase: p.bestCaseAmount.amount,
+          pipeline: p.pipelineAmount.amount,
+          closed: p.closedAmount.amount,
+        }))}
+        wan={BOARD_TEXT.wan}
+        scopePicker={<ForecastScopePicker value={scopeKey} territories={territoryOptions} owners={ownerOptions} />}
+        /* Absent when the read failed, rather than shown as zero. */
+        accuracy={
+          score.ok
+            ? {
+                accuracy: score.value.accuracy,
+                attainment: score.value.attainment,
+                settled: score.value.settled,
+                hasOpening: score.value.opening !== null,
+              }
+            : undefined
+        }
+        submit={
+          <SubmitForecast
+            period={period}
+            scopeKey={scopeKey}
+            canSubmit={can(session.authz, session.entitlement, "pipeline.forecast.snapshot", "ui").allowed}
+            onSubmit={submitForecastSnapshot}
+          />
+        }
       />
 
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - both computed from the

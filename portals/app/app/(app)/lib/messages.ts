@@ -2872,6 +2872,8 @@ export const PIPELINE_TEXT = {
     `较 ${since} 天前的预测 ${delta}`,
   leadFlat: "与上次预测持平",
   leadNoHistory: "本期尚无预测记录",
+  // The one line /pipeline keeps; everything else lives on /forecast (batch 9a).
+  toForecast: "到预测检视台",
   periodOf: (p: string) => `${p} 口径`,
 
   // The fact that used to be a board card, now beside the deal it applies to.

@@ -1,9 +1,7 @@
 import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { ForecastTrajectory } from "../components/forecast-trajectory";
+import Link from "next/link";
 import { ModuleHeadline } from "../components/module-headline";
-import { SubmitForecast } from "../components/submit-forecast";
-import { submitForecastSnapshot } from "./forecast-action";
 import { createDeal } from "./stage-action";
 import { PeriodTabs } from "../components/period-tabs";
 import { HeadlineCard } from "../components/headline-card";
@@ -13,15 +11,12 @@ import {
   getAccountStore,
   getCatalogStore,
   getPipelineStore,
-  getPlanningStore,
 } from "../../domains/shared/registry";
 import { importanceScheme, listAccounts } from "../../domains/account/service";
 import { dealPriorityOf } from "../../domains/account/lib/importance";
-import { listTerritories } from "../../domains/planning/service";
 import { NewEntryLink } from "../components/form-page";
 import {
   forecastHistory,
-  forecastScorecard,
   listPipeline,
   listStageDefinitions,
 } from "../../domains/pipeline/service";
@@ -33,8 +28,6 @@ import { can } from "../../authz/decide";
 import { getMessages } from "../lib/i18n/server";
 import { cachedFeed } from "../lib/board";
 import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
-import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
-import { ForecastScopePicker } from "../components/forecast-scope-picker";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
@@ -54,16 +47,12 @@ export const dynamic = "force-dynamic";
 export default async function PipelinePage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; scope?: string }>;
+  searchParams: Promise<{ period?: string }>;
 }) {
   const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
     await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);
-  // ONE PARAM, parsed on the server into the shape the domain demands. See
-  // lib/forecast-scope.ts for why it is not three.
-  const scope = parseForecastScope(params.scope);
-  const scopeKey = forecastScopeKey(scope);
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -85,7 +74,7 @@ export default async function PipelinePage({
   const policy = await pricingPolicy(catalogCtx);
   const currency = policy.ok ? policy.value.defaultCurrency : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [result, history, score, lines, products, accounts, territories, feed, stageRows] =
+  const [result, history, lines, products, accounts, feed, stageRows] =
     await Promise.all([
       // includeClosed, or the "closed" tile reports zero on a workspace that has
       // closed 2.7M - the same false zero that hit the quota card, in a third
@@ -94,11 +83,9 @@ export default async function PipelinePage({
       listPipeline(ctx, { includeClosed: true }),
       // The series, not the latest point. See forecastHistory: this read is the
       // only thing that makes forecast_snapshot's immutability pay for itself.
-      forecastHistory(ctx, period, scope),
-      // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
-      // promised this number in its own description since batch 1 ("预测准确率是
-      // 期末实际对期初快照"), while nothing computed it.
-      forecastScorecard({ ...ctx, catalog: getCatalogStore() }, period, { scope }),
+      // The workspace's series for the one line the headline keeps; the
+      // trajectory, scope, accuracy and submit are /forecast's (batch 9a).
+      forecastHistory(ctx, period, { scopeType: "workspace", territoryId: null, ownerSub: null }),
       // THROUGH THE SERVICE, not the store handle. Both of these used to call
       // getCatalogStore() straight from the page, which skips BOTH gates - the
       // same defect PR #26 fixed on the account detail page. The catalogue read
@@ -109,7 +96,6 @@ export default async function PipelinePage({
       // services, so both gates run - a page reaching a store handle directly is
       // the defect PR #26 fixed on the account page.
       listAccounts({ ...ctx, store: session.stores.account() }),
-      listTerritories({ ...ctx, store: getPlanningStore() }),
       // The SAME memoised call the shell's board and the home screen make, so
       // the most expensive read in the product still happens once per request.
       cachedFeed({
@@ -147,29 +133,6 @@ export default async function PipelinePage({
   const window = inPeriod(result.value, period);
   const inWindow = window ? window.kept : result.value;
   const undated = window?.undated ?? 0;
-
-  // The scope picker's options.
-  //
-  // OWNERS COME FROM THE PIPELINE ITSELF, because this product has no member
-  // directory. Derived from the WHOLE result rather than the period window: an
-  // owner with nothing in Q3 is still an owner you may want to look at Q3 for,
-  // and computing the list from the window would make the option vanish exactly
-  // when someone went looking for the empty quarter.
-  const territoryOptions = territories.ok
-    ? territories.value.map((t) => ({ id: t.id, name: t.name }))
-    : [];
-  const ownerOptions = [
-    ...new Set(
-      result.value
-        .map((o) => (o as (typeof result.value)[number]).ownerSub)
-        .filter((o): o is string => typeof o === "string" && o.length > 0),
-    ),
-    // AN EXPLICIT COMPARATOR, and localeCompare rather than `<`. The default
-    // sort coerces to string and orders by UTF-16 code unit, which is right for
-    // ASCII subs by accident and wrong the moment a workspace has non-ASCII
-    // ones - and this list is READ BY A PERSON in a picker, so the order they
-    // expect is their locale's, not the code page's.
-  ].sort((a, b) => a.localeCompare(b));
 
   // WHICH accounts have no reachable economic buyer. The same memoised feed
   // the shell and the home screen read, so this costs nothing extra - and it
@@ -301,6 +264,8 @@ export default async function PipelinePage({
               {PIPELINE_TEXT.lead(BOARD_TEXT.wan(commit))}
             </p>
             <p className="text-muted-foreground mt-2xs text-body-sm">
+              {/* The forecast itself - trajectory, scope, accuracy, the
+                  snapshot - is /forecast's (batch 9a); this line leads there. */}
               {points.length < 2
                 ? PIPELINE_TEXT.leadNoHistory
                 : delta === 0
@@ -309,6 +274,10 @@ export default async function PipelinePage({
                       `${delta > 0 ? "+" : "-"}${BOARD_TEXT.wan(Math.abs(delta))}`,
                       sinceDays,
                     )}
+              {" · "}
+              <Link href={`/forecast?period=${encodeURIComponent(period)}`} className="text-primary hover:underline">
+                {PIPELINE_TEXT.toForecast}
+              </Link>
             </p>
           </div>
         }
@@ -354,55 +323,6 @@ export default async function PipelinePage({
           the "must review on close" rule creates; without it the rule is a
           sentence in a document. */}
       {/* Its own section, after the board it is derived from. */}
-      <ForecastTrajectory
-        points={points.map((p) => ({
-          at: p.snapshotAt.toISOString().slice(5, 10),
-          commit: p.commitAmount.amount,
-          bestCase: p.bestCaseAmount.amount,
-          pipeline: p.pipelineAmount.amount,
-          closed: p.closedAmount.amount,
-        }))}
-        wan={BOARD_TEXT.wan}
-        scopePicker={
-          <ForecastScopePicker
-            value={scopeKey}
-            territories={territoryOptions}
-            owners={ownerOptions}
-          />
-        }
-        /* Absent when the read failed, rather than shown as zero: a badge that
-           says 0% because a query errored is worse than no badge. */
-        accuracy={
-          score.ok
-            ? {
-                accuracy: score.value.accuracy,
-                attainment: score.value.attainment,
-                settled: score.value.settled,
-                hasOpening: score.value.opening !== null,
-              }
-            : undefined
-        }
-        /* The gate is decided HERE and re-decided inside the action: this only
-           chooses which control renders. `pipeline.forecast.snapshot`, not
-           `pipeline.view` - reading a forecast and committing to one are
-           different acts, which is why the permission was split off
-           pipeline.write in the first place. */
-        submit={
-          <SubmitForecast
-            period={period}
-            scopeKey={scopeKey}
-            canSubmit={
-              can(
-                session.authz,
-                session.entitlement,
-                "pipeline.forecast.snapshot",
-                "ui",
-              ).allowed
-            }
-            onSubmit={submitForecastSnapshot}
-          />
-        }
-      />
     </ViewLayout>
   );
 }

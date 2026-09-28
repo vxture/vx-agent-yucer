@@ -3462,6 +3462,7 @@ export const en: Dictionary = {
       `${delta} against the forecast ${since} days ago`,
     leadFlat: "Unchanged since the last forecast",
     leadNoHistory: "No forecast recorded this period",
+    toForecast: "Open the forecast review",
     periodOf: (p: string) => `${p} basis`,
     trajectory: "Forecast trajectory",
     trajectoryWhy:
