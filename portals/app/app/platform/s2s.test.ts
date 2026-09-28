@@ -378,3 +378,15 @@ test("a token URL that is not an http(s) URL - a leaked env comment - falls back
   assert.equal(cfg.tokenUrl, "https://accounts.vxture.com/oidc/token");
   assert.equal(getS2SConfig({ OIDC_CLIENT_SECRET: "s", S2S_TOKEN_URL: "https://idp.example/oidc/token" }).tokenUrl, "https://idp.example/oidc/token");
 });
+
+test("a comment standing in for an empty S2S key is no value: the C1 client and secret are used", async () => {
+  const { getS2SConfig } = await import("./s2s");
+  const cfg = getS2SConfig({
+    OIDC_CLIENT_ID: "yucer",
+    OIDC_CLIENT_SECRET: "real-secret",
+    S2S_CLIENT_ID: "# default: OIDC_CLIENT_ID",
+    S2S_CLIENT_SECRET: "# procure: OIDC_CLIENT_SECRET_<CLIENT>; the",
+  });
+  assert.equal(cfg.clientId, "yucer");
+  assert.equal(cfg.clientSecret, "real-secret");
+});

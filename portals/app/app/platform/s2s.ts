@@ -87,7 +87,9 @@ export function scopeFor(audience: Audience): string {
  * invalid_client, which reads like an environment problem and is not one.
  */
 function nonEmpty(v: string | undefined): string | undefined {
-  return v && v.trim() ? v : undefined;
+  // A value that is only a comment is no value (lib/env-hygiene.ts): the
+  // host's "S2S_CLIENT_ID=   # default: OIDC_CLIENT_ID" arrived as the comment.
+  return v && v.trim() && !v.trimStart().startsWith("#") ? v : undefined;
 }
 
 /**

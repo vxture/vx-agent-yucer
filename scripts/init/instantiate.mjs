@@ -141,7 +141,8 @@ APP_PUBLISH_PORT=<assigned-at-registration>
 # Runtime connects as the least-privilege service role, not the DB owner.
 POSTGRES_DB=vxturebiz_${snake}_prod     # BETA OVERRIDES: vxturebiz_${snake}_beta
 POSTGRES_USER=${snake}_svc
-POSTGRES_PASSWORD=                      # procure: ${upper}_DB_SVC_PASSWORD
+# procure: ${upper}_DB_SVC_PASSWORD
+POSTGRES_PASSWORD=
 DATABASE_URL=postgresql://${snake}_svc:@${code}-db:5432/vxturebiz_${snake}_prod
 
 # --- Redis (RP session store) ---
@@ -154,7 +155,8 @@ STATUS_SHOW_INFRA=on                     # on shows db host/name/role; off hides
 # --- C1 OIDC RP (080-rp section 2.11) ---
 OIDC_ISSUER=https://accounts.vxture.com
 OIDC_CLIENT_ID=${code}                   # BETA OVERRIDES: ${code}-beta
-OIDC_CLIENT_SECRET=                      # procure: platform-issued client secret
+# procure: platform-issued client secret
+OIDC_CLIENT_SECRET=
 OIDC_REDIRECT_URI=https://${code}.vxture.com/auth/callback
 OIDC_SCOPES=openid profile email phone
 OIDC_POST_LOGOUT_REDIRECT_URI=https://${code}.vxture.com/
@@ -164,14 +166,19 @@ RP_SESSION_COOKIE_NAME=__Host-vx_rp_session   # dev over http: vx_rp_session
 NEXT_PUBLIC_APP_URL=https://${code}.vxture.com
 
 # --- C2 entitlement / platform client ---
-PLATFORM_API_URL=                        # internal-network base; unset -> Mock resolver
-PLATFORM_INTERNAL_AUTH_TOKEN=            # procure: shared internal-auth secret (S2S)
+# internal-network base; unset -> Mock resolver
+PLATFORM_API_URL=
+# procure: shared internal-auth secret (S2S)
+PLATFORM_INTERNAL_AUTH_TOKEN=
 NEXT_PUBLIC_CONSOLE_URL=https://console.vxture.com
 
 # --- C3 provisioning webhook / usage ---
-PROVISION_WEBHOOK_SECRET=               # procure: ${upper}_PROVISION_WEBHOOK_SECRET (platform key)
-PROVISION_WEBHOOK_SECRET_NEXT=          # optional, rotation overlap
-INTERNAL_JOB_TOKEN=                     # procure: gates POST /api/usage/flush
+# procure: ${upper}_PROVISION_WEBHOOK_SECRET (platform key)
+PROVISION_WEBHOOK_SECRET=
+# optional, rotation overlap
+PROVISION_WEBHOOK_SECRET_NEXT=
+# procure: gates POST /api/usage/flush
+INTERNAL_JOB_TOKEN=
 `;
 
 const ENV_PATH = ".env.example";
