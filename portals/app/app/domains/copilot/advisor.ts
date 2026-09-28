@@ -65,16 +65,7 @@ export async function runAdvisor<T>(
   const gate = canRunAdvisor(ctx.holder, ctx.entitlement, req.capability);
   if (!gate.allowed) return denied(gate);
 
-  const inputHash = inputFingerprint({
-    capability: req.capability,
-    kind: req.kind,
-    subjectType: req.subject.type,
-    subjectId: req.subject.id,
-    input: req.input,
-  });
-  const runId = runIdOf(inputHash);
-  const key = { subjectType: req.subject.type, subjectId: req.subject.id, kind: req.kind, inputHash };
-
+  const { runId, key } = runKey(req);
   const hit = await ctx.store.findBriefing(ctx.workspaceId, key);
   if (hit) return ok({ content: hit.content as T, runId, cached: true });
 
@@ -99,6 +90,37 @@ export async function runAdvisor<T>(
     model: routeOf(req.capability),
   });
   return ok({ content: generated.value, runId, cached: false });
+}
+
+/**
+ * The cached answer for exactly this input, or null - never a model call,
+ * never a charge. For a finding the page shows unasked (局势简报, deal batch
+ * 8b): the page reads what is already written for the data as it stands, and
+ * only a miss asks runAdvisor. An answer to OLDER data is not returned - a
+ * stale brief is never shown as the current one.
+ */
+export async function peekAdvisor<T>(
+  ctx: CopilotContext,
+  req: Pick<AdvisorRunRequest<T>, "capability" | "kind" | "subject" | "input">,
+): Promise<AdvisorRunOutcome<T> | null> {
+  if (!canRunAdvisor(ctx.holder, ctx.entitlement, req.capability).allowed) return null;
+  const { runId, key } = runKey(req);
+  const hit = await ctx.store.findBriefing(ctx.workspaceId, key);
+  return hit ? { content: hit.content as T, runId, cached: true } : null;
+}
+
+function runKey(req: Pick<AdvisorRunRequest<unknown>, "capability" | "kind" | "subject" | "input">) {
+  const inputHash = inputFingerprint({
+    capability: req.capability,
+    kind: req.kind,
+    subjectType: req.subject.type,
+    subjectId: req.subject.id,
+    input: req.input,
+  });
+  return {
+    runId: runIdOf(inputHash),
+    key: { subjectType: req.subject.type, subjectId: req.subject.id, kind: req.kind, inputHash },
+  };
 }
 
 function routeOf(capability: Capability): string {

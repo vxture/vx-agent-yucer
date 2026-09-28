@@ -199,7 +199,10 @@ export type StallHolder =
  *   4. otherwise "unknown", said out loud. Guessing a holder would be the
  *      one wrong answer here: it sends someone to the wrong person.
  */
-export function stallHolder(input: DealBriefInput, stageDays: number): StallHolder {
+export function stallHolder(
+  input: Pick<DealBriefInput, "commitments" | "economicBuyers" | "now">,
+  stageDays: number,
+): StallHolder {
   const lateOf = (c: { dueAt: Date }) => Math.floor((input.now.getTime() - c.dueAt.getTime()) / DAY);
   const overdue = input.commitments
     .filter((c) => c.status === "open" && isOverdue(c, input.now))
@@ -223,7 +226,11 @@ export function stallHolder(input: DealBriefInput, stageDays: number): StallHold
   return { kind: "unknown" };
 }
 
-function stallSentence(h: StallHolder, text: BriefText): string {
+/** The rule's one line for who a stalled deal is stuck on. */
+export function stallSentence(
+  h: StallHolder,
+  text: Pick<BriefText, "stallOnUs" | "stallOnThem" | "stallOnBuyer" | "stallUnknown">,
+): string {
   switch (h.kind) {
     case "us":
       return text.stallOnUs(h.statement, h.lateDays);

@@ -4,7 +4,7 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles } from "../../authz/catalog";
 import { ok, fail, violation, unwrap, type RuleResult } from "../shared/result";
 import { InMemoryCopilotStore } from "./store";
-import { runAdvisor, type AdvisorAtlasTags } from "./advisor";
+import { peekAdvisor, runAdvisor, type AdvisorAtlasTags } from "./advisor";
 import type { AdvisorMeter } from "../../usage/lib/advisor-runs";
 
 const WS = "ws_1";
@@ -107,4 +107,18 @@ test("a failed generation is still the run that was asked for, and is not cached
   const retry = unwrap(await runAdvisor(c, req({ n: 4 }), { meter: m }));
   assert.equal(retry.cached, false, "nothing was cached from the failure");
   assert.equal(charged[1], charged[0], "the retry carries the same run id, so the platform folds it");
+});
+
+test("peek returns what is written for exactly this input - never a call, never a charge, never an older answer", async () => {
+  const c = ctx("free");
+  const { m, charged } = meter();
+  assert.equal(await peekAdvisor(c, req({ v: 1 })), null, "nothing written yet");
+  const first = unwrap(await runAdvisor(c, req({ v: 1 }), { meter: m }));
+  const hit = await peekAdvisor(c, req({ v: 1 }));
+  assert.deepEqual(hit, { content: { conflicts: 1 }, runId: first.runId, cached: true });
+  // The data changed: the earlier answer is not the current one.
+  assert.equal(await peekAdvisor(c, req({ v: 2 })), null);
+  assert.equal(charged.length, 1);
+  // A workspace whose tier cannot run the capability reads nothing either.
+  assert.equal(await peekAdvisor(ctx("free", c.store), { ...req({ v: 1 }), capability: "signal.triage" }), null);
 });

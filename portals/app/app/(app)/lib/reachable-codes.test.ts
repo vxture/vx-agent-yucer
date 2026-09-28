@@ -73,6 +73,13 @@ function resolveModule(from: string, spec: string): string | null {
   return null;
 }
 
+/**
+ * A call of `name`, with or without a type argument. `runAdvisor<Run>(` read as
+ * no call until 2026-09-28, so every 参谋 action's advisor codes went
+ * unchecked (deal batch 8b found it by removing one and staying green).
+ */
+const callOf = (name: string) => new RegExp(`\\b${name}(?:<[^()]*?>)?\\(`);
+
 const CODE_RE = /violation\(\s*\n?\s*"([a-z0-9_]+)"/g;
 
 function codesOfFn(file: string, fn: string, depth: number, seen: Set<string>): Set<string> {
@@ -84,12 +91,12 @@ function codesOfFn(file: string, fn: string, depth: number, seen: Set<string>): 
   if (!body) return new Set();
   const out = new Set([...body.matchAll(CODE_RE)].map((m) => m[1]));
   for (const [name, spec] of importsOf(text)) {
-    if (!new RegExp(`\\b${name}\\(`).test(body)) continue;
+    if (!callOf(name).test(body)) continue;
     const tgt = resolveModule(file, spec);
     if (tgt) for (const c of codesOfFn(tgt, name, depth + 1, seen)) out.add(c);
   }
   for (const other of slices(text).keys()) {
-    if (other !== fn && new RegExp(`\\b${other}\\(`).test(body)) {
+    if (other !== fn && callOf(other).test(body)) {
       for (const c of codesOfFn(file, other, depth + 1, seen)) out.add(c);
     }
   }
@@ -106,7 +113,7 @@ for (const f of walk(UI).filter((p) => p.endsWith(".ts") && !p.endsWith(".test.t
     const codes = new Set<string>();
     for (const [name, spec] of imps) {
       if (!spec.includes("/domains/")) continue;
-      if (!new RegExp(`\\b${name}\\(`).test(body)) continue;
+      if (!callOf(name).test(body)) continue;
       const tgt = resolveModule(f, spec);
       if (tgt) for (const c of codesOfFn(tgt, name, 0, new Set())) codes.add(c);
     }
