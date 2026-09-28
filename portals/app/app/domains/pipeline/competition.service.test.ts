@@ -8,6 +8,7 @@ import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import {
   competitionOf,
   recordCompetitor,
+  recordWinLossReview,
   removeDecisionCriterion,
   saveDecisionCriterion,
   type PipelineContext,
@@ -115,4 +116,39 @@ test("an unknown deal is not_found, not a silent write", async () => {
   const store = seeded();
   const r = await recordCompetitor(ctx("sales_rep", "business", store), "opp_nope", { competitorName: "友商甲" }, new Set());
   assert.equal(r.ok === false && r.violations[0]!.code, "not_found");
+});
+
+test("a review's typed rival lands on the workspace's row - matched, or added - and counts toward the win rate", async () => {
+  const store = new InMemoryPipelineStore();
+  // Five lost deals, one open deal the rival is on.
+  const lost = [1, 2, 3, 4, 5].map((i) => opp({ id: `opp_l${i}`, status: "lost", stage: "lost", closedAt: new Date() }));
+  store.seed([opp(), ...lost]);
+  const c = ctx("sales_director", "business", store);
+  unwrap(await recordCompetitor(c, "opp_1", { competitorName: "Acme Corp" }, new Set()));
+
+  // Spelled differently on the first review: still the same row.
+  unwrap(await recordWinLossReview(c, "opp_l1", { primaryReasonId: null, competitor: "  acme   corp " }));
+  const rivals = await store.listCompetitors(WS);
+  assert.equal(rivals.length, 1);
+  const review = await store.getWinLossReview(WS, "opp_l1");
+  assert.equal(review?.competitorId, rivals[0]!.id);
+  assert.equal(review?.competitor, null, "the free-text column is history, no longer written");
+
+  // A name nobody recorded yet joins the list.
+  unwrap(await recordWinLossReview(c, "opp_l2", { primaryReasonId: null, competitor: "Globex" }));
+  assert.deepEqual((await store.listCompetitors(WS)).map((r) => r.name).sort(), ["Acme Corp", "Globex"]);
+
+  // No rival typed: none recorded.
+  unwrap(await recordWinLossReview(c, "opp_l3", { primaryReasonId: null, competitor: "" }));
+  assert.equal((await store.getWinLossReview(WS, "opp_l3"))?.competitorId, null);
+
+  // Five decided reviews against Acme give the deal page a rate: 0 of 5.
+  for (const id of ["opp_l3", "opp_l4", "opp_l5"]) {
+    unwrap(await recordWinLossReview(c, id, { primaryReasonId: null, competitor: "ACME CORP" }));
+  }
+  const view = unwrap(await competitionOf(c, "opp_1"));
+  assert.deepEqual(view.winRates.get(rivals[0]!.id), { won: 0, decided: 4, rate: null });
+  unwrap(await recordWinLossReview(c, "opp_l2", { primaryReasonId: null, competitor: "acme corp" }));
+  const after = unwrap(await competitionOf(c, "opp_1"));
+  assert.deepEqual(after.winRates.get(rivals[0]!.id), { won: 0, decided: 5, rate: 0 });
 });

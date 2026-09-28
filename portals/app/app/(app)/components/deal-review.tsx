@@ -34,6 +34,9 @@ export interface DealReviewProps {
     readonly lessons: string | null;
   } | null;
   readonly reasons: readonly { readonly id: string; readonly name: string; readonly forWon: boolean; readonly forLost: boolean }[];
+  /** The workspace's rivals (incr/0094), offered as the rival box's suggestions;
+   *  a typed name is matched to one of them - or added - when saved. */
+  readonly knownRivals?: readonly string[];
   readonly onRecord: (
     opportunityId: string,
     input: { primaryReasonId: string | null; competitor?: string; lessons?: string },
@@ -48,6 +51,7 @@ export function DealReview({
   exitReason,
   review,
   reasons,
+  knownRivals = [],
   onRecord,
 }: DealReviewProps) {
   const { WINLOSS_TEXT, REVIEW_ERROR, DEAL_PAGE_TEXT, PANEL_MENU_TEXT } = useMessages();
@@ -153,7 +157,12 @@ export function DealReview({
             ))}
           </NativeSelect>
           <Label htmlFor="deal-review-competitor">{WINLOSS_TEXT.competitorLabel}</Label>
-          <Input id="deal-review-competitor" value={competitor} onChange={(e) => setCompetitor(e.currentTarget.value)} disabled={pending} />
+          <Input id="deal-review-competitor" list="deal-review-rivals" value={competitor} onChange={(e) => setCompetitor(e.currentTarget.value)} disabled={pending} />
+          <datalist id="deal-review-rivals">
+            {knownRivals.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
           <Label htmlFor="deal-review-lessons">{WINLOSS_TEXT.lessonsLabel}</Label>
           <Textarea id="deal-review-lessons" value={lessons} onChange={(e) => setLessons(e.currentTarget.value)} disabled={pending} />
           <div className="flex gap-sm">

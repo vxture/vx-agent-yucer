@@ -1584,7 +1584,16 @@ export default async function OpportunityDetailPage({
                 entitled={can(session.authz, session.entitlement, "pipeline.winloss.view", "ui").allowed}
                 canRecord={can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed}
                 exitReason={exit?.ok && exit.value ? (EXIT_REASON_LABEL[exit.value.reasonCode] ?? exit.value.reasonCode) : null}
-                review={review?.ok && review.value ? review.value : null}
+                review={
+                  review?.ok && review.value
+                    ? {
+                        ...review.value,
+                        // The rival by row (0094); older reviews keep their typed text.
+                        competitor: review.value.competitorId ? competitorName(review.value.competitorId) : review.value.competitor,
+                      }
+                    : null
+                }
+                knownRivals={competitionView?.competitors.map((c) => c.name) ?? []}
                 reasons={(reviewReasons?.ok ? reviewReasons.value : []).map((r) => ({
                   id: r.id,
                   name: r.name,

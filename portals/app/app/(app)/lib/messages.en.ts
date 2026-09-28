@@ -2149,6 +2149,8 @@ export const en: Dictionary = {
     ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     not_closed: "Only a closed opportunity can be reviewed.",
+    competitor_name_too_long: "A rival's name is at most 128 characters",
+    competitor_taken: "That name is already another rival's alias",
   },
   LOAD_ERROR: {
     ...GATE_ERROR,
