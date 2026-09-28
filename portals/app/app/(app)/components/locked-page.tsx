@@ -12,5 +12,7 @@ import { UpgradePage } from "./upgrade-page";
  */
 export function lockedPage(session: AppSession, moduleKey: string) {
   const target = upgradeTarget(moduleKey, session.authz, session.entitlement);
-  return target ? <UpgradePage target={target} pricingHref={pricingUrl()} /> : null;
+  return target ? (
+    <UpgradePage target={target} pricingHref={pricingUrl()} canUpgrade={session.authz.isWorkspaceOwner} />
+  ) : null;
 }

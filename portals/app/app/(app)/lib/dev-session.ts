@@ -74,6 +74,9 @@ export async function resolveDevSession(
   if (!devSessionEnabled(env)) return null;
 
   const role = devRole(env);
+  // YUCER_DEV_OWNER=off: a member who is not the platform workspace owner -
+  // what the upgrade page shows someone who cannot change the subscription.
+  const owner = env.YUCER_DEV_OWNER !== "off";
   const workspaceId = env.YUCER_DEV_WORKSPACE || DEV_WORKSPACE;
 
   const user: AuthUser = {
@@ -86,7 +89,7 @@ export async function resolveDevSession(
     roles: [],
     accountStatus: "active",
     canManage: true,
-    isWorkspaceOwner: true,
+    isWorkspaceOwner: owner,
     // Same name the member roster seeds below (seeMember), so the header and
     // the roster never disagree about who this synthetic reviewer is.
     displayName: DEV_REVIEWER_NAME,
@@ -108,7 +111,7 @@ export async function resolveDevSession(
     // Derived from the catalog, so the permission gate sees exactly what this
     // role really grants - including what it does NOT.
     permissions: new Set<PermCode>(permissionsForRoles([role])),
-    isWorkspaceOwner: true,
+    isWorkspaceOwner: owner,
   };
 
   // RECORD THE SIGHTING, like a real login does.

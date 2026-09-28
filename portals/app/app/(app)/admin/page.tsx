@@ -35,7 +35,7 @@ import { Tag } from "../components/tag";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHomePage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, LAUNCHER_TEXT, TIER_LABEL } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -45,6 +45,9 @@ export default async function AdminHomePage() {
   const nav = resolveNavigation(session.authz, session.entitlement);
   const keys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
   const entries = nav.filter((e) => keys.has(e.key) && e.state === "visible");
+  // Tier-locked entries (owner 2026-09-28: 区域设置按授权设置) - a card with the
+  // tier it needs, opening the upgrade template on its own page.
+  const locked = nav.filter((e) => keys.has(e.key) && e.state === "locked");
   /* The unbuilt half of the map, from the same registry the menu reads. It is
      drawn only when the reader can see the plane at all - a card saying "not
      built yet" is still a statement about a workspace they may not administer. */
@@ -170,6 +173,24 @@ export default async function AdminHomePage() {
                     <span className="text-muted-foreground text-body-sm">
                       {FACTS[e.key] ?? ""}
                     </span>
+                    <Icon name="arrow-right" size="xs" />
+                  </span>
+                </PanelCard>
+              </Link>
+            ))}
+            {locked.map((e) => (
+              <Link key={e.key} href={e.href} className="no-underline">
+                <PanelCard
+                  icon={e.icon}
+                  title={DOMAIN_LABEL[e.key] ?? e.key}
+                  description={ADMIN_TEXT.entryHint[e.key] ?? ""}
+                >
+                  <span className="flex items-center justify-between gap-md">
+                    <Tag tone="warning" icon="lock">
+                      {e.decision.requiredTier
+                        ? LAUNCHER_TEXT.locked(TIER_LABEL[e.decision.requiredTier] ?? e.decision.requiredTier)
+                        : LAUNCHER_TEXT.lockedNoTier}
+                    </Tag>
                     <Icon name="arrow-right" size="xs" />
                   </span>
                 </PanelCard>

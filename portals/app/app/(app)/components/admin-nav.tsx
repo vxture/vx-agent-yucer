@@ -34,26 +34,37 @@ export function AdminNav({
   collapsed,
   onToggleCollapsed,
 }: {
-  /** The resolved entries, gated - only `visible` ones are drawn. */
+  /** The resolved entries, gated - visible ones, and tier-locked ones marked. */
   readonly nav: readonly ResolvedNavEntry[];
   readonly pathname: string;
   readonly collapsed: boolean;
   readonly onToggleCollapsed: () => void;
 }) {
-  const { ADMIN_GROUP_LABEL, ADMIN_TEXT, DOMAIN_LABEL, SHELL_TEXT } = useMessages();
-  const visible = new Map(
-    nav.filter((e) => e.state === "visible").map((e) => [e.key, e]),
-  );
+  const { ADMIN_GROUP_LABEL, ADMIN_TEXT, DOMAIN_LABEL, SHELL_TEXT, LAUNCHER_TEXT, TIER_LABEL } = useMessages();
+  // A tier-locked entry is drawn too (owner 2026-09-28: 区域设置按授权设置),
+  // with the tier it needs and a lock - it opens the upgrade template in its
+  // own page. A permission gap never reaches here (resolveNavigation drops it).
+  const shown = new Map(nav.map((e) => [e.key, e]));
 
   const sections = ADMIN_NAV_GROUPS.map((group) => ({
     title: ADMIN_GROUP_LABEL[group.key] ?? group.key,
     items: group.items
-      .filter((i) => i.href !== null && visible.has(i.key))
-      .map((i) => ({
-        href: i.href!,
-        label: DOMAIN_LABEL[i.key] ?? i.key,
-        icon: i.icon,
-      })),
+      .filter((i) => i.href !== null && shown.has(i.key))
+      .map((i) => {
+        const e = shown.get(i.key)!;
+        const tier = e.state === "locked" ? e.decision.requiredTier : null;
+        return {
+          href: i.href!,
+          label: DOMAIN_LABEL[i.key] ?? i.key,
+          icon: i.icon,
+          ...(e.state === "locked"
+            ? {
+                subLabel: tier ? LAUNCHER_TEXT.locked(TIER_LABEL[tier] ?? tier) : LAUNCHER_TEXT.lockedNoTier,
+                trailingIcon: "lock" as const,
+              }
+            : {}),
+        };
+      }),
     // 组名就是层级，不再画线：四个分组各自成层，没有要再聚一层的东西。
     brandPosition: "none" as const,
   })).filter((s) => s.items.length > 0);

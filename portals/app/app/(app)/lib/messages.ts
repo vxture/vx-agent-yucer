@@ -4053,6 +4053,7 @@ export const UPGRADE_TEXT = {
   allOf: (tier: string) => `${tier} 的全部`,
   onlyThis: (tier: string) => `${tier} 解锁的就是它`,
   upgrade: "升级",
+  contactAdmin: "请联系管理员升级",
   sep: " · ",
   feature: {
     "account.manage": "客户管理",
@@ -4177,6 +4178,14 @@ export const UPGRADE_TEXT = {
         { title: "到期提醒", body: "提前多少天提醒由工作区设定，到窗口就出现在这里。" },
         { title: "派生续约商机", body: "一步开出续约商机，已有在跑的不重复开。" },
         { title: "只为订阅类", body: "一次性交付不造续约义务——那是客户从没承诺过的事。" },
+      ],
+    },
+    division: {
+      pitch: "全国怎么切成区域、每个区域管哪些省，定一次，客户、商机、目标和数据范围都按它归属。",
+      points: [
+        { title: "区域划分", body: "把全国切成大区与区域，每个区域覆盖哪些省份一处设定。" },
+        { title: "归属自动跟随", body: "客户按所在省份落到区域，商机与目标随之归属，不靠逐条手填。" },
+        { title: "按区域看数", body: "区域是销售规划与数据范围的共同底座，达成与权限都按它切。" },
       ],
     },
     collection: {

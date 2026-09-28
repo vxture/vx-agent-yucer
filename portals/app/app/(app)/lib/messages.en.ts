@@ -675,6 +675,7 @@ export const en: Dictionary = {
     allOf: (tier: string) => `everything in ${tier}`,
     onlyThis: (tier: string) => `${tier} unlocks exactly this`,
     upgrade: "Upgrade",
+    contactAdmin: "Ask your workspace admin to upgrade",
     sep: " - ",
     feature: {
       "account.manage": "Accounts",
@@ -799,6 +800,14 @@ export const en: Dictionary = {
           { title: "Expiry reminders", body: "The workspace sets how early; due ones appear here." },
           { title: "Renewal deals", body: "Open the renewal deal in one step - never twice for the same one." },
           { title: "Subscriptions only", body: "One-off deliveries get no renewal obligation the customer never agreed to." },
+        ],
+      },
+      division: {
+        pitch: "How the country is cut into territories and which provinces each covers - set once, and accounts, deals, targets and data scope all follow it.",
+        points: [
+          { title: "Territory map", body: "Regions and territories, and the provinces each one covers, set in one place." },
+          { title: "Ownership follows", body: "Accounts land in a territory by province; deals and targets follow, no row-by-row filing." },
+          { title: "Numbers by territory", body: "The shared base of sales planning and data scope - attainment and access both cut by it." },
         ],
       },
       collection: {

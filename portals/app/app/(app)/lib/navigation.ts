@@ -396,7 +396,10 @@ export function lockoutReason(
 export function moduleIcon(key: string): NavIcon {
   const entry =
     DOMAIN_NAV_ENTRIES.find((e) => e.key === key) ??
-    MODULE_NAV_ENTRIES.find((e) => e.key === key);
+    MODULE_NAV_ENTRIES.find((e) => e.key === key) ??
+    // The admin plane's entries too: a tier-locked one (区域设置) renders the
+    // upgrade template, whose headline is the module's own (2026-09-28).
+    ADMIN_NAV_ENTRIES.find((e) => e.key === key);
   if (!entry) throw new Error(`no nav entry for ${key} - icons come from the nav table`);
   return entry.icon;
 }
