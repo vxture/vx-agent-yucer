@@ -53,7 +53,7 @@ export default async function ForecastPage({
 }: {
   searchParams: Promise<{ period?: string; scope?: string }>;
 }) {
-  const { FORECAST_LABEL, FORECAST_RULE_TEXT, LOAD_ERROR, SHELL_TEXT, BOARD_TEXT } = await getMessages();
+  const { FORECAST_LABEL, FORECAST_RULE_TEXT, LOAD_ERROR, SHELL_TEXT, BOARD_TEXT, PIPELINE_TEXT } = await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);
   const scope = parseForecastScope(params.scope);
@@ -177,6 +177,7 @@ export default async function ForecastPage({
           bestCase: p.bestCaseAmount.amount,
           pipeline: p.pipelineAmount.amount,
           closed: p.closedAmount.amount,
+          call: p.callAmount?.amount ?? null,
         }))}
         wan={BOARD_TEXT.wan}
         scopePicker={<ForecastScopePicker value={scopeKey} territories={territoryOptions} owners={ownerOptions} />}
@@ -188,6 +189,7 @@ export default async function ForecastPage({
                 attainment: score.value.attainment,
                 settled: score.value.settled,
                 hasOpening: score.value.opening !== null,
+                callAccuracy: score.value.call?.accuracy ?? null,
               }
             : undefined
         }
@@ -196,6 +198,16 @@ export default async function ForecastPage({
             period={period}
             scopeKey={scopeKey}
             canSubmit={can(session.authz, session.entitlement, "pipeline.forecast.snapshot", "ui").allowed}
+            computed={
+              score.ok
+                ? [
+                    { key: "commit", label: PIPELINE_TEXT.tCommit, amount: score.value.current.commitAmount.amount },
+                    { key: "bestCase", label: PIPELINE_TEXT.tBestCase, amount: score.value.current.bestCaseAmount.amount },
+                    { key: "pipeline", label: PIPELINE_TEXT.tPipeline, amount: score.value.current.pipelineAmount.amount },
+                    { key: "closed", label: PIPELINE_TEXT.tClosed, amount: score.value.current.closedAmount.amount },
+                  ]
+                : []
+            }
             onSubmit={submitForecastSnapshot}
           />
         }

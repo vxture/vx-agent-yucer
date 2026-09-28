@@ -38,6 +38,8 @@ export interface SubmitForecastResult {
 export async function submitForecastSnapshot(
   period: string,
   scopeKey?: string,
+  /** 主管预估数 (incr/0096): the manager's call and its note; both optional. */
+  call?: { amount?: number | null; note?: string | null },
 ): Promise<SubmitForecastResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -58,6 +60,7 @@ export async function submitForecastSnapshot(
       // which is why this goes through the parser rather than being assembled
       // from separate params that could disagree.
       scope: parseForecastScope(scopeKey),
+      call,
     },
   );
 

@@ -21,6 +21,8 @@ export interface TrajectoryPoint {
   readonly bestCase: number;
   readonly pipeline: number;
   readonly closed: number;
+  /** 主管预估数 (incr/0096): the manager's call on this snapshot; null = none. */
+  readonly call?: number | null;
 }
 
 /**
@@ -76,6 +78,9 @@ export async function ForecastTrajectory({
     /** False until the period is over. The word is only honest after that. */
     readonly settled: boolean;
     readonly hasOpening: boolean;
+    /** The manager's opening call scored by the same rule (0096); null = no
+     *  call, or nothing to measure. Shown only once the period is over. */
+    readonly callAccuracy?: number | null;
   };
 }) {
   // A SERVER component, so it awaits rather than hooks - and it had to become
@@ -95,6 +100,9 @@ export async function ForecastTrajectory({
     },
     { key: "closed", label: PIPELINE_TEXT.tClosed, cls: "bg-success" },
   ] as const;
+  // 主管预估数 (incr/0096) - a fifth bar, only on snapshots that carry a call,
+  // so the reader sees the manager's number beside what the rule computed.
+  const CALL = { label: PIPELINE_TEXT.tCall, cls: "bg-warning" };
 
   // One baseline across all four series: they are the same unit measured the
   // same way, so scaling each to its own max would make the small ones look
@@ -110,9 +118,12 @@ export async function ForecastTrajectory({
   // that are no longer on screen would flatten the ones that are, with nothing
   // visible to explain why.
   const max = Math.max(
-    ...shown.flatMap((p) => [p.commit, p.bestCase, p.pipeline, p.closed]),
+    ...shown.flatMap((p) => [p.commit, p.bestCase, p.pipeline, p.closed, p.call ?? 0]),
     1,
   );
+  // The latest call on screen, and whether it is the newest snapshot's own.
+  const lastCallIndex = shown.map((p) => p.call != null).lastIndexOf(true);
+  const lastCall = lastCallIndex >= 0 ? shown[lastCallIndex]!.call! : null;
 
   return (
     /* Section, not Card+SectionHeader, so this reads the same way as the board
@@ -162,6 +173,13 @@ export async function ForecastTrajectory({
                 {accuracy.settled && accuracy.accuracy !== null ? (
                   <StatusBadge tone={accuracy.accuracy >= 0.8 ? "success" : "warning"}>
                     {PIPELINE_TEXT.accuracySettled(accuracy.accuracy)}
+                  </StatusBadge>
+                ) : null}
+                {/* The manager's call, scored the same way (0096): did the
+                    rule know, and did the manager - side by side. */}
+                {accuracy.settled && accuracy.callAccuracy != null ? (
+                  <StatusBadge tone={accuracy.callAccuracy >= 0.8 ? "success" : "warning"}>
+                    {PIPELINE_TEXT.callAccuracySettled(accuracy.callAccuracy)}
                   </StatusBadge>
                 ) : null}
               </>
@@ -226,6 +244,13 @@ export async function ForecastTrajectory({
                         />
                       );
                     })}
+                    {p.call != null ? (
+                      <div
+                        className={`w-3 rounded-t-sm ${CALL.cls}`}
+                        style={{ height: `${Math.max(2, (p.call / max) * 112)}px` }}
+                        title={`${CALL.label} ${wan(p.call)}`}
+                      />
+                    ) : null}
                   </div>
                   <span className="text-muted-foreground truncate text-body-sm tabular-nums">
                     {p.at}
@@ -253,6 +278,17 @@ export async function ForecastTrajectory({
                   </span>
                 </li>
               ))}
+              {lastCall !== null ? (
+                <li className="flex items-baseline gap-xs">
+                  <span className={`size-2 shrink-0 rounded-sm ${CALL.cls}`} aria-hidden />
+                  <span className="text-muted-foreground text-body-sm">{CALL.label}</span>
+                  <span className="text-foreground text-body-sm font-semibold tabular-nums">{wan(lastCall)}</span>
+                  {/* Not the newest snapshot's own: say it is the last one given. */}
+                  {lastCallIndex < shown.length - 1 ? (
+                    <span className="text-muted-foreground text-body-sm">{PIPELINE_TEXT.callPrevious}</span>
+                  ) : null}
+                </li>
+              ) : null}
             </ul>
           </div>
         </Card>

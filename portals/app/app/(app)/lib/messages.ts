@@ -2885,6 +2885,10 @@ export const PIPELINE_TEXT = {
   tBestCase: "乐观",
   tPipeline: "管道",
   tClosed: "已成交",
+  // 主管预估数 (incr/0096).
+  tCall: "主管预估",
+  callPrevious: "（上次）",
+  callAccuracySettled: (r: number) => `主管预估准确率 ${Math.round(r * 100)}%`,
 
   // The snapshot control. "存快照" rather than "保存": a snapshot is appended
   // and can never be edited or removed (UPDATE is revoked on the table), and
@@ -2894,6 +2898,14 @@ export const PIPELINE_TEXT = {
   snapshotTaken: "已记入轨迹",
   snapshotFailed: "快照没有存成",
   snapshotDenied: "你没有提交预测的权限——读预测的人常常不是对它承诺的人",
+  // The submit dialog (0096): the rule's four figures read-only, the call beside.
+  snapshotDialogTitle: "存一次快照",
+  snapshotDialogWhy: "四类金额由规则按当前商机算出，存下后不可修改；主管预估是你在预测会上报的数，可以不填。",
+  snapshotComputed: "规则算出的",
+  callLabel: "主管预估（元，可空）",
+  callNoteLabel: "预估说明（可空）",
+  callNoteHint: "为什么和规则算的不一样",
+  snapshotSubmit: "存下快照",
   newTitle: "新建商机",
   newWhy:
     "不是每一笔生意都从线索来。自己挖到的、别人转介的、客户直接找上门的，都从这里进。",
@@ -3877,6 +3889,10 @@ export const TARGET_ERROR: Record<string, string> = {
  * 预测快照。同上：`submit-forecast` 也是直接渲染 `error`。
  */
 export const FORECAST_ERROR: Record<string, string> = {
+  // 主管预估数 (incr/0096).
+  call_note_without_amount: "写了说明就要填预估数——说明解释的是那个数",
+  call_amount_invalid: "预估数须是不小于 0 的金额",
+  call_note_too_long: "说明最多 500 字",
   ...GATE_ERROR,
   period_required: "快照必须写明它服务的周期",
   period_unparsed: "无法识别这个周期的写法",

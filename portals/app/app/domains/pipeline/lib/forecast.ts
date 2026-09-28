@@ -258,6 +258,42 @@ export interface SnapshotRow extends ForecastTotals {
   ownerSub: string | null;
   currency: string;
   snapshotAt: Date;
+  /**
+   * 主管预估数 (incr/0096, R9): the number the manager calls, beside the four the
+   * rule computed. Null = no call this time; absent/null on rows from before
+   * 0096 too, which read as "not recorded then".
+   */
+  callAmount?: Money | null;
+  callNote?: string | null;
+  /** Who submitted the snapshot (0096). Null on older rows. */
+  submittedBySub?: string | null;
+}
+
+/** call_note has no column limit; the form holds it to a paragraph. */
+export const CALL_NOTE_MAX = 500;
+
+/**
+ * The manager's call, checked: a non-negative finite number, or none; a note
+ * only beside a number (the DB's chk_forecast_snapshot_call_note says the
+ * same - a note explains a number, and with none it explains nothing).
+ */
+export function planCall(
+  input: { readonly amount?: number | null; readonly note?: string | null } | undefined,
+  currency: string,
+): RuleResult<{ callAmount: Money | null; callNote: string | null }> {
+  const amount = input?.amount ?? null;
+  const note = input?.note?.trim() || null;
+  if (amount === null) {
+    if (note !== null) return fail(violation("call_note_without_amount", "a note needs the call it explains", "callNote"));
+    return ok({ callAmount: null, callNote: null });
+  }
+  if (!Number.isFinite(amount) || amount < 0) {
+    return fail(violation("call_amount_invalid", "a call is a non-negative amount", "callAmount"));
+  }
+  if (note !== null && note.length > CALL_NOTE_MAX) {
+    return fail(violation("call_note_too_long", `a note is at most ${CALL_NOTE_MAX} characters`, "callNote"));
+  }
+  return ok({ callAmount: { amount, currency }, callNote: note });
 }
 
 /**
@@ -273,8 +309,13 @@ export function planSnapshot(input: {
   opportunities: readonly ForecastableOpportunity[];
   currency: string;
   snapshotAt?: Date;
+  /** The manager's call (0096); omitted = none. */
+  call?: { readonly amount?: number | null; readonly note?: string | null };
+  submittedBySub?: string | null;
 }): RuleResult<SnapshotRow> {
   const currency = input.currency;
+  const call = planCall(input.call, currency);
+  if (!call.ok) return call as RuleResult<SnapshotRow>;
   if (!input.period.trim()) {
     return fail(violation("period_required", "a snapshot must name the period it forecasts", "period"));
   }
@@ -313,6 +354,8 @@ export function planSnapshot(input: {
     ownerSub: input.scope.ownerSub,
     currency,
     snapshotAt: input.snapshotAt ?? new Date(),
+    ...call.value,
+    submittedBySub: input.submittedBySub ?? null,
   });
 }
 

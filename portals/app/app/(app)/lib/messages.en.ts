@@ -541,6 +541,9 @@ export const en: Dictionary = {
   // reader meets it.
   FORECAST_ERROR: {
     ...GATE_ERROR,
+    call_note_without_amount: "A note needs the call it explains",
+    call_amount_invalid: "A call is an amount of zero or more",
+    call_note_too_long: "A note is at most 500 characters",
     period_required: "A snapshot must say which period it is for",
     period_unparsed: "That period is not written in a form we recognise",
     currency_mismatch: "The currency does not match the deal's",
@@ -3471,6 +3474,17 @@ export const en: Dictionary = {
     tBestCase: "Best case",
     tPipeline: "Pipeline",
     tClosed: "Closed",
+    tCall: "Manager's call",
+    callPrevious: "(last given)",
+    callAccuracySettled: (r: number) => `Call ${Math.round(r * 100)}% accurate`,
+    snapshotDialogTitle: "Take a snapshot",
+    snapshotDialogWhy:
+      "The four totals are computed by the rule from the current deals and cannot be changed once stored; the manager's call is the number you give in the forecast meeting, and is optional.",
+    snapshotComputed: "Computed by the rule",
+    callLabel: "Manager's call (optional)",
+    callNoteLabel: "Note on the call (optional)",
+    callNoteHint: "Why it differs from the rule",
+    snapshotSubmit: "Store the snapshot",
     snapshot: "Take a snapshot",
     snapshotPending: "Recording...",
     snapshotTaken: "Added to the series",
