@@ -17,6 +17,7 @@ import {
 } from "./lib/stage";
 import {
   claimStateOf,
+  groupBy,
   stageMachineClaim,
   type BusinessFormRecord,
   type CommercialTermsPatch,
@@ -591,6 +592,27 @@ export class PrismaPipelineStore implements PipelineStore {
       select: { competitorId: true, outcome: true, reviewedAt: true },
     });
     return rows.map((r) => ({ competitorId: r.competitorId as string, outcome: r.outcome, reviewedAt: r.reviewedAt }));
+  }
+
+  async listEvidenceFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, EvidenceVersion[]>> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityEvidence.findMany({ where: { workspaceId, opportunityId: { in: [...opportunityIds] } } });
+    return groupBy(opportunityIds, rows, toEvidence);
+  }
+
+  async listCompetitorEntriesFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, CompetitorEntry[]>> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityCompetitor.findMany({ where: { workspaceId, opportunityId: { in: [...opportunityIds] } } });
+    return groupBy(opportunityIds, rows, toCompetitorEntry);
+  }
+
+  async listCriteriaFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, CriterionRecord[]>> {
+    const p = await getPrismaClient();
+    const rows = await p.opportunityCriterion.findMany({
+      where: { workspaceId, opportunityId: { in: [...opportunityIds] } },
+      orderBy: { sortOrder: "asc" },
+    });
+    return groupBy(opportunityIds, rows, toDecisionCriterion);
   }
 
   async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {

@@ -883,3 +883,35 @@ test("listClaimEventsSince (9c) returns the workspace's claim changes strictly a
     await cleanup();
   }
 });
+
+test("the batched reads (9d) key every asked-for deal, empty when it has none", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const a = await s.createOpportunity(WS, newOpp());
+    const b = await s.createOpportunity(WS, newOpp());
+    const rival = await s.createCompetitor(WS, { name: "Acme", aliases: [] });
+    await s.appendCompetitorEntry(WS, a.id, {
+      competitorId: rival.id, isIncumbent: false, present: true, interactionId: null, authorSub: "usr_test", source: "manual", proposalId: null,
+    });
+    await s.createCriterion(WS, a.id, { statement: "On premise", shapedBy: "buyer", fit: "met", fitNote: null, sortOrder: 0, updatedBySub: "usr_test" });
+    await s.appendEvidence(WS, b.id, { slot: "pain", statement: "Manual reconciliation", interactionId: null, authorSub: "usr_test", source: "manual", proposalId: null });
+
+    const ids = [a.id, b.id];
+    const [entries, criteria, evidence] = await Promise.all([
+      s.listCompetitorEntriesFor(WS, ids),
+      s.listCriteriaFor(WS, ids),
+      s.listEvidenceFor(WS, ids),
+    ]);
+    assert.deepEqual([...entries.keys()].sort(), [...ids].sort());
+    assert.equal(entries.get(a.id)?.length, 1);
+    assert.deepEqual(entries.get(b.id), []);
+    assert.equal(criteria.get(a.id)?.[0]?.statement, "On premise");
+    assert.deepEqual(criteria.get(b.id), []);
+    assert.equal(evidence.get(b.id)?.[0]?.slot, "pain");
+    assert.deepEqual(evidence.get(a.id), []);
+  } finally {
+    await cleanup();
+  }
+});

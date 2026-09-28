@@ -104,7 +104,7 @@ import { generatePlanAction } from "../plan-action";
 import { canDecideProposal, canRunAdvisor } from "../../../domains/copilot/lib/advisor-gate";
 import { recordEvidenceAction } from "../evidence-action";
 import { PROCESS_SLOTS, REASON_SLOTS, type EvidenceSlot } from "../../../domains/pipeline/lib/evidence";
-import { enteredStageAt, suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
+import { enteredStageAt, stallLineFor, suggestCategory } from "../../../domains/pipeline/lib/forecast-rule";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import {
@@ -116,7 +116,13 @@ import { settleCommitment } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
 import { AmountCoin, DimensionStat, HealthCoin, ImportanceCoin } from "../../components/dimension-stat";
-import { DEFAULT_DEAL_SCORE_WEIGHTS, dealScore, dealScoreBand } from "../../../domains/pipeline/lib/deal-score";
+import {
+  DEFAULT_DEAL_SCORE_WEIGHTS,
+  competitionFactsFrom,
+  dealScore,
+  dealScoreBand,
+  scoreFactsFrom,
+} from "../../../domains/pipeline/lib/deal-score";
 import { DealEditProvider } from "../../components/deal-edit-context";
 import { DealRolesDrawer } from "../../components/deal-roles-drawer";
 import { DealStageDrawer } from "../../components/deal-stage-drawer";
@@ -812,55 +818,36 @@ export default async function OpportunityDetailPage({
   const dayOf = (d: Date) => Math.max(0, Math.floor((briefNow.getTime() - d.getTime()) / 86_400_000));
   const openCommitments = (commitments.ok ? commitments.value : []).filter((c) => c.status === "open");
   const theirLate = openCommitments.filter((c) => c.direction === "they_owe" && c.dueAt < briefNow);
-  const competitionFacts = competition.ok
-    ? (() => {
-        const { field, criteria, winRates } = competition.value;
-        const rates = field.rivals.map((r) => winRates.get(r.competitorId)?.rate ?? null).filter((x): x is number => x !== null);
-        return {
-          known: !field.unknown,
-          onlyUs: field.onlyUs,
-          rivals: field.rivals.length,
-          criteria: {
-            total: criteria.length,
-            byUs: criteria.filter((c) => c.shapedBy === "us").length,
-            byOthers: criteria.filter((c) => c.shapedBy === "buyer" || c.shapedBy === "rfp").length,
-            met: criteria.filter((c) => c.fit === "met").length,
-            partial: criteria.filter((c) => c.fit === "partial").length,
-            unmet: criteria.filter((c) => c.fit === "unmet").length,
-          },
-          worstWinRate: rates.length > 0 ? Math.min(...rates) : null,
-        };
-      })()
-    : undefined;
+  // One assembly with 预测检视台 (deal batch 9d): lib/deal-score.ts.
+  const competitionFacts = competition.ok ? competitionFactsFrom(competition.value) : undefined;
   const scoreParams = scoreWeights.ok ? scoreWeights.value : DEFAULT_DEAL_SCORE_WEIGHTS;
   const score = dealScore(
-    {
-      slots: {
-        pain: filledSlots?.has("pain") ?? false,
-        metrics: filledSlots?.has("metrics") ?? false,
-        statusQuo: filledSlots?.has("status_quo") ?? false,
-        decisionProcess: filledSlots?.has("decision_process") ?? false,
-      },
-      budgetKnown: opportunity.customerBudget != null,
-      people: chain.ok
-        ? chainPeople.map((p) => {
-            const last = buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(p.id) ?? null) : null;
-            return { role: p.decisionRole, stance: p.stance ?? null, lastDays: last ? dayOf(last) : null };
-          })
-        : null,
-      rivalMentions: rivalMentionsAll.length,
-      competition: competitionFacts,
-      lastTouchDays: lastTouch ? dayOf(lastTouch) : null,
-      theirOverdue: { count: theirLate.length, maxDays: theirLate.reduce((m, c) => Math.max(m, dayOf(c.dueAt)), 0) },
-      hasNextStep: openCommitments.some((c) => c.dueAt >= briefNow),
-      exit: exitCheck,
-      stall: brief.cells.find((c) => c.key === "stage")?.tone ?? "good",
-      stalledDays: daysInStage,
-      slips: slip?.pushes ?? 0,
-      closeDatePassed: opportunity.status === "open" && opportunity.expectedCloseAt != null && opportunity.expectedCloseAt < briefNow,
-      pendingApprovals: pendingLines,
+    scoreFactsFrom({
       open: opportunity.status === "open",
-    },
+      customerBudgetKnown: opportunity.customerBudget != null,
+      expectedCloseAt: opportunity.expectedCloseAt,
+      filledSlots,
+      people: chain.ok
+        ? chainPeople.map((p) => ({
+            role: p.decisionRole,
+            stance: p.stance ?? null,
+            lastContactAt: buyerRecency.ok ? (buyerRecency.value.lastContactAt.get(p.id) ?? null) : null,
+          }))
+        : null,
+      interactions: interactionList,
+      rivalWords: POSITION_TEXT.rivalWords,
+      competition: competitionFacts,
+      commitments: commitments.ok ? commitments.value : [],
+      exit: exitCheck,
+      daysInStage,
+      stallLine: stallLineFor(
+        { stallDaysOverride: stall.ok ? stall.value.overrideFor(opportunity.businessFormId) : null },
+        stall.ok ? stall.value.thresholds : undefined,
+      ),
+      slips: slip?.pushes ?? 0,
+      pendingApprovals: pendingLines,
+      now: briefNow,
+    }),
     scoreParams,
   );
   const gapText = (g: { code: string; n?: number } | null, known: boolean) =>

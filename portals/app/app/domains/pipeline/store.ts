@@ -32,6 +32,17 @@ export function claimStateOf(o: OpportunityRecord): ClaimState {
   };
 }
 
+/** Rows keyed by deal, every asked-for deal present (empty when it has none). */
+export function groupBy<R extends { opportunityId: string }, T>(
+  ids: readonly string[],
+  rows: readonly R[],
+  map: (r: R) => T,
+): Map<string, T[]> {
+  const out = new Map<string, T[]>(ids.map((id) => [id, []]));
+  for (const r of rows) out.get(r.opportunityId)?.push(map(r));
+  return out;
+}
+
 /** The stage machine moving win rate or category: the system, not a person (YC-067 §02). */
 export function stageMachineClaim(occurredAt: Date): ClaimContext {
   return { source: "stage_machine", actorSub: null, occurredAt };
@@ -374,6 +385,13 @@ export interface PipelineStore {
 
   /** 购买证据槽 (incr/0085): every version of a deal's evidence, any order. */
   listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]>;
+  /**
+   * Deal batch 9d - 预测检视台 assesses many deals at once, and the design is
+   * "每类一次批量读，不逐单查": one read per kind for all of them, keyed by deal.
+   */
+  listEvidenceFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, EvidenceVersion[]>>;
+  listCompetitorEntriesFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, CompetitorEntry[]>>;
+  listCriteriaFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, CriterionRecord[]>>;
   /** Append one version. Never an update - the history is the point. */
   appendEvidence(
     workspaceId: string,
@@ -669,6 +687,19 @@ export class InMemoryPipelineStore implements PipelineStore {
       }
     }
     return out;
+  }
+
+  async listEvidenceFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, EvidenceVersion[]>> {
+    return groupBy(opportunityIds, this.evidence.filter((e) => e.workspaceId === workspaceId), ({ workspaceId: _w, opportunityId: _o, ...e }) => e);
+  }
+
+  async listCompetitorEntriesFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, CompetitorEntry[]>> {
+    return groupBy(opportunityIds, this.competitorEntries.filter((e) => e.workspaceId === workspaceId), ({ workspaceId: _w, opportunityId: _o, ...e }) => e);
+  }
+
+  async listCriteriaFor(workspaceId: string, opportunityIds: readonly string[]): Promise<Map<string, CriterionRecord[]>> {
+    const rows = this.criteria0094.filter((c) => c.workspaceId === workspaceId).sort((a, b) => a.sortOrder - b.sortOrder);
+    return groupBy(opportunityIds, rows, ({ workspaceId: _w, opportunityId: _o, ...c }) => c);
   }
 
   async listEvidence(workspaceId: string, opportunityId: string): Promise<EvidenceVersion[]> {

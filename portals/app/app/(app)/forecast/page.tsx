@@ -5,6 +5,9 @@ import { can } from "../../authz/decide";
 import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
 import { forecastChange, forecastHistory, forecastScorecard, previewCategories } from "../../domains/pipeline/service";
 import { ForecastChange } from "../components/forecast-change";
+import { ForecastUnverified } from "../components/forecast-unverified";
+import { assessDeals } from "../pipeline/deal-assessments";
+import { unverifiedAmounts } from "../../domains/pipeline/lib/unverified";
 import { inPeriod, inScope } from "../../domains/pipeline/lib/forecast";
 import { listTerritories } from "../../domains/planning/service";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
@@ -54,7 +57,7 @@ export default async function ForecastPage({
 }: {
   searchParams: Promise<{ period?: string; scope?: string }>;
 }) {
-  const { FORECAST_LABEL, FORECAST_RULE_TEXT, LOAD_ERROR, SHELL_TEXT, BOARD_TEXT, PIPELINE_TEXT } = await getMessages();
+  const { FORECAST_LABEL, FORECAST_RULE_TEXT, LOAD_ERROR, SHELL_TEXT, BOARD_TEXT, PIPELINE_TEXT, POSITION_TEXT } = await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);
   const scope = parseForecastScope(params.scope);
@@ -109,6 +112,24 @@ export default async function ForecastPage({
   );
   const territoryOptions = territories.ok ? territories.value.map((t) => ({ id: t.id, name: t.name })) : [];
   const points = history.ok ? history.value : [];
+
+  // 未经证实金额 (batch 9d): 承诺 and 乐观 in view, each deal judged as its own
+  // page judges it. A failed assessment hides the block (never "all proven").
+  const atStake = inView.filter(
+    (p) => p.opportunity.status === "open" && (p.opportunity.forecastCategory === "commit" || p.opportunity.forecastCategory === "best_case"),
+  );
+  const assessed = await assessDeals(session, atStake, POSITION_TEXT.rivalWords).catch(() => null);
+  const unverified = assessed
+    ? unverifiedAmounts(
+        atStake.flatMap((p) => {
+          const a = assessed.get(p.opportunity.id);
+          return a
+            ? [{ ...a, name: p.opportunity.name, category: p.opportunity.forecastCategory, amount: p.opportunity.amount?.amount ?? 0 }]
+            : [];
+        }),
+        ["commit", "best_case"],
+      )
+    : null;
 
   const rows: ForecastRow[] = inView.map((p) => ({
     opportunityId: p.opportunity.id,
@@ -172,6 +193,14 @@ export default async function ForecastPage({
         stats={stats$}
         emptyNote={FORECAST_RULE_TEXT.forecastStatEmpty}
       />
+
+      {unverified ? (
+        <ForecastUnverified
+          blocks={unverified}
+          labels={{ commit: PIPELINE_TEXT.tCommit, best_case: PIPELINE_TEXT.tBestCase }}
+          wan={BOARD_TEXT.wan}
+        />
+      ) : null}
 
       {/* The series for this period and scope, its accuracy, and the snapshot
           submit - moved here from /pipeline (batch 9a). */}

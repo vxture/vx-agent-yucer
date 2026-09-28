@@ -563,6 +563,18 @@ export const en: Dictionary = {
     turn_failed: "Not done this time (the model is unavailable) - try again later",
     unknown: "Not done this time - try again later",
   },
+  FORECAST_UNVERIFIED_TEXT: {
+    title: "Unverified",
+    why: "Deals whose current stage's exit criteria are not all met, or whose assessment is in the risk band - judged exactly as on each deal's page. What cannot be judged counts too: unreadable is not proven.",
+    headline: (category: string, total: string, unverified: string) => `${category} ${total}, of which ${unverified} unverified`,
+    exitUnmet: (names: string) => `Not met: ${names}`,
+    exitUnknown: (names: string) => `Cannot judge: ${names}`,
+    exitUnreadable: "Exit check unreadable",
+    risk: (score: number) => `Assessment ${score} (risk)`,
+    none: "All stand up",
+    showDeals: (n: number) => `Show these ${n} deals and what each lacks`,
+    sep: ", ",
+  },
   CONCESSION_TEXT: {
     product: "Product",
     quantity: "Qty",
