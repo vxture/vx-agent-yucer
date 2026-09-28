@@ -2290,6 +2290,7 @@ export const BOARD_TEXT = {
     "deal.meeting": "商机会前包",
     "deal.review": "复盘叙述",
     "deal.brief": "局势简报",
+    "deal.next_action": "下一步最佳动作",
     "strategy.segment_coverage": "细分市场覆盖趋势",
     "strategy.territory_attainment": "区域达成趋势",
   } as Record<string, string>,
@@ -4033,6 +4034,28 @@ export const DEAL_SITUATION_ERROR: Record<string, string> = {
   quota_exceeded: "本工作区的参谋调用额度已用完",
   turn_failed: "参谋这次没完成（模型暂不可用），稍后再试",
   unknown: "这次没完成，稍后再试",
+};
+
+/** 下一步最佳动作 (deal batch 8c, YC-066 S6)。 */
+export const NEXT_ACTION_TEXT = {
+  thinking: "参谋在想这一单的下一步…",
+  failed: (why: string) => `下一步最佳动作这次没生成：${why}`,
+  proposal: (statement: string, dueAt: string) => `下一步：${statement}（${dueAt} 前）`,
+  stallGoal: (holder: string) => `卡点：${holder}`,
+  why: (goal: string, rationale: string | null) => (rationale ? `为了「${goal}」：${rationale}` : `为了「${goal}」`),
+};
+
+/** 下一步最佳动作的失败回执 (deal batch 8c)。 */
+export const NEXT_ACTION_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在，或不属于当前工作区",
+  no_active_tenant: "当前工作区没有接入平台租户",
+  tenant_required: "当前工作区没有接入平台租户",
+  advisor_not_admitted: "平台暂未放行本工作区的参谋调用",
+  empty_question: "请求为空",
+  quota_exceeded: "本工作区的参谋调用额度已用完",
+  turn_failed: "模型暂不可用，稍后再试",
+  unknown: "稍后再试",
 };
 
 /** 预测会简报 (deal batch 9e, YC-069 section 11 ③). */

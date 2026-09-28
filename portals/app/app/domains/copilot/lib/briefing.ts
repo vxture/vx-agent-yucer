@@ -25,6 +25,8 @@ export const BRIEFING_KINDS = [
   "plan_draft",
   // incr/0097 - 价格参谋: the concession sheet and the deal's follow-ups.
   "price_advice",
+  // incr/0098 - 下一步最佳动作: one dated action toward an unmet criterion or the stall.
+  "next_action",
 ] as const;
 export type BriefingKind = (typeof BRIEFING_KINDS)[number];
 

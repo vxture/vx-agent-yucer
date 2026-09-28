@@ -103,6 +103,7 @@ import { AdvisorFinding } from "../../components/advisor-finding";
 import { adjudicateProposals } from "../../copilot/actions";
 import { COMMITMENT_ACTION_TYPE, EVIDENCE_ACTION_TYPE, PLAN_STEP_ACTION_TYPE, ROLE_ACTION_TYPE } from "../../../domains/copilot/lib/action";
 import { PlanDraftButton } from "../../components/plan-draft-button";
+import { NEXT_ACTION_CAPABILITY } from "../../../domains/copilot/lib/next-action";
 import { generatePlanAction } from "../plan-action";
 import { canDecideProposal, canRunAdvisor } from "../../../domains/copilot/lib/advisor-gate";
 import { recordEvidenceAction } from "../evidence-action";
@@ -1286,7 +1287,8 @@ export default async function OpportunityDetailPage({
   // 4c: role / stance and promise proposals, each where its fact lives.
   const findingItems = (type: string, text: (p: Record<string, unknown>) => string) =>
     (proposals.ok ? proposals.value : [])
-      .filter((a) => a.actionType === type && a.subjectId === id)
+      // 下一步最佳动作 is a plan step decided in 本单参谋, not here (batch 8c).
+      .filter((a) => a.actionType === type && a.subjectId === id && a.capability !== NEXT_ACTION_CAPABILITY)
       .map((a) => ({
         id: a.id,
         text: text(a.payload),
