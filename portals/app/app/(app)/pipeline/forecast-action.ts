@@ -69,5 +69,6 @@ export async function submitForecastSnapshot(
   // what changed is that the series grew a point, and the series is what the
   // page renders.
   revalidatePath("/pipeline");
+  revalidatePath("/forecast");
   return { ok: true, period: result.value.period };
 }
