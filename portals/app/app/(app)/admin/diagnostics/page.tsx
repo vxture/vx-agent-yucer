@@ -4,6 +4,7 @@ import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { runPlatformCheck } from "../../../api/platform-check/check";
+import { liveIdentity } from "../../../api/platform-check/live-identity";
 import { DiagnosticsPanel } from "../../components/diagnostics-panel";
 
 // 系统验证 (owner, 2026-09-17): "主要放与平台的对接验证，C1 C2 C3。可以主动
@@ -41,7 +42,7 @@ export default async function DiagnosticsPage() {
   }
 
   const canProbe = can(session.authz, session.entitlement, "admin.diagnostics.probe", "data").allowed;
-  const check = await runPlatformCheck(session.workspaceId);
+  const check = await runPlatformCheck(session.workspaceId, await liveIdentity());
 
   return (
     <ViewLayout>

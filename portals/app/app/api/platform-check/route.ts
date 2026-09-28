@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { errorResponse } from "../../platform/envelope";
 import { statusMode } from "../../lib/status";
 import { resolveWorkspace, runC3ReplayProbe, runPlatformCheck } from "./check";
+import { liveIdentity } from "./live-identity";
 import { getPlatformClientConfig } from "../../entitlement/platform-client";
 
 // GET /api/platform-check - the self-proof surface: consumer-side verification
@@ -23,7 +24,9 @@ export async function GET(): Promise<Response> {
   if (mode === "authed" && !workspaceId) {
     return errorResponse(401, "PLATFORM_CHECK_NOT_AUTHENTICATED", "sign in to run the platform check");
   }
-  return NextResponse.json(await runPlatformCheck(workspaceId));
+  // Signed in: the S2S exchange and one authenticated read per plane run for
+  // real (free reads - nothing metered), not just a reachability ping.
+  return NextResponse.json(await runPlatformCheck(workspaceId, workspaceId ? await liveIdentity() : null));
 }
 
 /**
