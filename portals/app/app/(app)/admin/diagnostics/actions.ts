@@ -3,6 +3,7 @@
 import { resolveAppSession, tenantIdOf } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { runAtlasProbe, runC3ReplayProbe, runPlatformCheck, type PlatformCheck } from "../../../api/platform-check/check";
+import { liveIdentity } from "../../../api/platform-check/live-identity";
 
 // 系统验证 > 平台对接's own writes (owner, 2026-09-17).
 //
@@ -23,7 +24,7 @@ export async function refreshDiagnosticsAction(): Promise<Result<{ check: Platfo
   if (!can(session.authz, session.entitlement, "admin.diagnostics.view", "ui").allowed) {
     return { ok: false, error: "permission_denied" };
   }
-  return { ok: true, check: await runPlatformCheck(session.workspaceId) };
+  return { ok: true, check: await runPlatformCheck(session.workspaceId, await liveIdentity()) };
 }
 
 /**

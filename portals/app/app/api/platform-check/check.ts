@@ -8,10 +8,10 @@ import { getPlatformClientConfig, parseEntitlementEnvelope } from "../../entitle
 import { getUsageStore } from "../../usage/lib/store";
 import { verifySignature, webhookSecrets } from "../../provisioning/lib/verify";
 import { getProvisioningStore } from "../../provisioning/lib/store";
-import { getS2SConfig } from "../../platform/s2s";
+import { getS2SConfig, mintS2SToken } from "../../platform/s2s";
 import { AtlasClient, getAtlasConfig } from "../../agent/atlas/client";
 import { ATLAS_TASK_ID_MAX } from "../../agent/atlas/types";
-import { getRunosConfig } from "../../agent/runos/client";
+import { RunosClient, getRunosConfig } from "../../agent/runos/client";
 import { getArdaConfig } from "../../platform/arda/source";
 import { COPILOT_TURN_METRIC } from "../../usage/lib/copilot-turns";
 import { makePlatformConsume } from "../../usage/lib/flush";
@@ -301,7 +301,68 @@ export async function resolveWorkspace(): Promise<string | null> {
   }
 }
 
-export async function runPlatformCheck(workspaceId: string | null): Promise<PlatformCheck> {
+/**
+ * Who a signed-in check speaks for (2026-09-28). With it, the check stops
+ * DESCRIBING the S2S path and exercises it: a real on-behalf-of exchange for
+ * each plane, then one authenticated read on each - Atlas's model list and
+ * Runos's capability discovery. Both reads are free: neither is metered.
+ */
+export interface LiveIdentity {
+  readonly workspaceId: string;
+  readonly tenantId: string;
+  readonly subjectToken: string;
+}
+
+const describe = (err: unknown): string => {
+  const e = err as { status?: number; code?: string; message?: string };
+  return [e.status ? `HTTP ${e.status}` : "", e.code ?? "", e.message ?? String(err)].filter(Boolean).join(" · ").slice(0, 300);
+};
+
+async function liveTokenMint(id: LiveIdentity): Promise<ProbeResult> {
+  const out: string[] = [];
+  let ok = true;
+  for (const audience of ["atlas", "runos"] as const) {
+    try {
+      const tok = await mintS2SToken({ audience, mode: "obo", workspaceId: id.workspaceId, tenantId: id.tenantId, subjectToken: id.subjectToken });
+      out.push(`${audience}: minted, expires in ${Math.max(0, tok.expiresAt - Math.floor(Date.now() / 1000))}s`);
+    } catch (err) {
+      ok = false;
+      out.push(`${audience}: ${describe(err)}`);
+    }
+  }
+  return { configured: true, ok, detail: `on-behalf-of exchange, act.sub=${getS2SConfig().productCode} - ${out.join("; ")}` };
+}
+
+async function liveAtlas(id: LiveIdentity): Promise<ProbeResult> {
+  const cfg = getAtlasConfig();
+  if (!cfg.enabled) return notConfigured("ATLAS_BASE_URL");
+  try {
+    const models = (await new AtlasClient(cfg).models({ ...id, taskId: `diag-models-${Date.now()}`, applicationId: "yucer-diagnostics", requestId: `diag-models-${Date.now()}` })) as
+      | { data?: unknown[]; models?: unknown[] }
+      | unknown[];
+    const n = Array.isArray(models) ? models.length : (models.data ?? models.models ?? []).length;
+    return { configured: true, ok: true, detail: `Atlas at ${cfg.baseUrl}: authenticated GET /v1/models answered 200 - ${n} model(s) visible to yucer` };
+  } catch (err) {
+    return { configured: true, ok: false, detail: `Atlas at ${cfg.baseUrl}: authenticated GET /v1/models failed - ${describe(err)}` };
+  }
+}
+
+async function liveRunos(id: LiveIdentity): Promise<ProbeResult> {
+  const cfg = getRunosConfig();
+  if (!cfg.enabled) return notConfigured("RUNOS_BASE_URL");
+  try {
+    const caps = await new RunosClient(cfg).discover({ query: "" }, { ...id, taskId: `diag-runos-${Date.now()}` });
+    return {
+      configured: true,
+      ok: true,
+      detail: `Runos at ${cfg.baseUrl}: authenticated runos_discover answered - ${caps.length} capabilit${caps.length === 1 ? "y" : "ies"} granted to yucer${caps.length === 0 ? " (an empty catalog is a normal answer)" : ""}`,
+    };
+  } catch (err) {
+    return { configured: true, ok: false, detail: `Runos at ${cfg.baseUrl}: authenticated runos_discover failed - ${describe(err)}` };
+  }
+}
+
+export async function runPlatformCheck(workspaceId: string | null, live: LiveIdentity | null = null): Promise<PlatformCheck> {
   const atlas = getAtlasConfig();
   const runos = getRunosConfig();
   const arda = getArdaConfig();
@@ -310,8 +371,8 @@ export async function runPlatformCheck(workspaceId: string | null): Promise<Plat
     checkC2(workspaceId),
     checkC3Up(),
     checkC3Down(),
-    checkPlane("Atlas", atlas.enabled, atlas.baseUrl, "ATLAS_BASE_URL"),
-    checkPlane("Runos", runos.enabled, runos.baseUrl, "RUNOS_BASE_URL"),
+    live ? liveAtlas(live) : checkPlane("Atlas", atlas.enabled, atlas.baseUrl, "ATLAS_BASE_URL"),
+    live ? liveRunos(live) : checkPlane("Runos", runos.enabled, runos.baseUrl, "RUNOS_BASE_URL"),
     checkPlane("arda", arda.enabled, arda.baseUrl, "ARDA_BASE_URL"),
   ]);
   return {
@@ -320,7 +381,7 @@ export async function runPlatformCheck(workspaceId: string | null): Promise<Plat
     c2,
     c3Up,
     c3Down,
-    tokenMint: checkTokenMint(workspaceId != null),
+    tokenMint: live && getS2SConfig().enabled ? await liveTokenMint(live) : checkTokenMint(workspaceId != null),
     planes: { atlas: atlasP, runos: runosP, arda: ardaP },
     c3Replay: c3ReplayDescription(),
   };
