@@ -1226,25 +1226,6 @@ export async function setBusinessFormStallOverride(
   return ok(updated);
 }
 
-/**
- * The vocabulary row a typed rival name means - matched by name or alias, and
- * added to the workspace's list when new. Shared by the deal's field and the
- * win/loss review, so the same company typed on either lands on one row and
- * the win rate against it can be counted.
- */
-async function competitorByName(
-  ctx: PipelineContext,
-  name: string,
-  known: readonly CompetitorRecord[],
-): Promise<RuleResult<{ id: string; known: CompetitorRecord[] }>> {
-  const match = matchCompetitor(name, known);
-  if (match) return ok({ id: match.id, known: [...known] });
-  const planned = planCompetitor({ name }, known);
-  if (!planned.ok) return planned as RuleResult<{ id: string; known: CompetitorRecord[] }>;
-  const created = await ctx.store.createCompetitor(ctx.workspaceId, planned.value);
-  return ok({ id: created.id, known: [...known, created] });
-}
-
 export async function recordWinLossReview(
   ctx: PipelineContext,
   opportunityId: string,
@@ -1309,6 +1290,25 @@ export async function recordWinLossReview(
       reviewerSub: ctx.sub,
     }),
   );
+}
+
+/**
+ * The vocabulary row a typed rival name means - matched by name or alias, and
+ * added to the workspace's list when new. Shared by the deal's field and the
+ * win/loss review, so the same company typed on either lands on one row and
+ * the win rate against it can be counted.
+ */
+async function competitorByName(
+  ctx: PipelineContext,
+  name: string,
+  known: readonly CompetitorRecord[],
+): Promise<RuleResult<{ id: string; known: CompetitorRecord[] }>> {
+  const match = matchCompetitor(name, known);
+  if (match) return ok({ id: match.id, known: [...known] });
+  const planned = planCompetitor({ name }, known);
+  if (!planned.ok) return planned as RuleResult<{ id: string; known: CompetitorRecord[] }>;
+  const created = await ctx.store.createCompetitor(ctx.workspaceId, planned.value);
+  return ok({ id: created.id, known: [...known, created] });
 }
 
 /**
