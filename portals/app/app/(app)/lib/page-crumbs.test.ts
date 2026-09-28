@@ -28,7 +28,13 @@ const APP = join(import.meta.dirname, "..");
  * Empty, and that is the point of writing it down: the next entry has to
  * argue for itself in this file rather than being an omission nobody sees.
  */
-const NO_CRUMB: Record<string, string> = {};
+const NO_CRUMB: Record<string, string> = {
+  // owner 2026-09-28: the upgrade page STANDS IN for a first-level module
+  // page - the same template renders at the module's own address when it is
+  // locked - and its headline names that module. There is no parent to name:
+  // a crumb above it would point at a functional domain, which is not a page.
+  "upgrade/[module]": "stands in for a first-level module page",
+};
 
 /**
  * Nested routes that DO render <PageCrumbs>, but through a named wrapper

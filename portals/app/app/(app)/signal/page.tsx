@@ -13,6 +13,7 @@ import { scoreSignal } from "../../domains/signal/lib/scoring";
 import { actOnSignal, dismissSignal } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
 import { ModuleHeadline } from "../components/module-headline";
+import { lockedPage } from "../components/locked-page";
 
 // D5 商机智探 - SIGNALS ONLY since 2026-09-06 (design_yucer_110).
 //
@@ -36,6 +37,9 @@ export default async function SignalPage({
   const { SIGNAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "signal");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

@@ -664,6 +664,153 @@ export const en: Dictionary = {
     turn_failed: "The advisor did not finish (the model is unavailable) - try again later",
     unknown: "Not done this time - try again later",
   },
+  UPGRADE_TEXT: {
+    badge: (tier: string) => `${tier} feature`,
+    positioning: "What it is for",
+    advisorLead: "Advisor that comes with it: ",
+    current: "Current",
+    need: "Needs",
+    noTier: "No plan",
+    alsoUnlocks: (tier: string) => `${tier} also unlocks: `,
+    allOf: (tier: string) => `everything in ${tier}`,
+    onlyThis: (tier: string) => `${tier} unlocks exactly this`,
+    upgrade: "Upgrade",
+    sep: " - ",
+    feature: {
+      "account.manage": "Accounts",
+      "pipeline.manage": "Deals",
+      "copilot.ask": "Ask the advisor",
+      "signal.inbox": "Signal inbox",
+      "campaign.manage": "Campaigns",
+      "delivery.project": "Delivery projects",
+      "planning.target": "Sales targets",
+      "planning.territory": "Territories",
+      "account.graph": "Decision-chain map",
+      "signal.autoscore": "Signal auto-scoring",
+      "pipeline.forecast": "Forecast rules",
+      "copilot.suggest": "Advisor actions in chat",
+      "strategy.plan": "Market strategy",
+      "strategy.segment": "Segments",
+      "campaign.execute": "Campaign execution",
+      "signal.external_feed": "External signal feeds",
+      "pipeline.winloss": "Win/loss review",
+      "delivery.revenue": "Collections",
+      "copilot.autopilot": "Advisor autopilot",
+    },
+    module: {
+      forecastRule: {
+        pitch: "Turn the team's forecast from numbers people typed into numbers the rules stand behind: which commitments have evidence, what moved since last time, and whom to ask - on one page before the forecast meeting.",
+        points: [
+          { title: "Rule vs. called", body: "Every deal is placed by stage, exit criteria and close date, beside the rep's category; disagreements are listed deal by deal." },
+          { title: "Unverified amount", body: "How much of the commit lacks evidence - unmet exit criteria or a risky assessment - and what each deal is missing." },
+          { title: "Snapshots and change", body: "Every submission is kept; what moved and why since the last one. The manager's call is scored on its own." },
+        ],
+        advisor: { name: "Forecast briefing", body: "Every figure is the rule's; the advisor writes three sentences and the questions to ask each owner." },
+      },
+      winLossReview: {
+        pitch: "Every closed deal leaves its reason, rival and lesson; over time the team learns where it loses and whom it beats.",
+        points: [
+          { title: "Review draft", body: "Four sections from the stage log, promises, decision chain and discount signatures: where it slipped, who did not deliver, who was missing, how many concessions." },
+          { title: "Reasons and rivals", body: "Reason codes are never pre-selected; each loss and win lands on a named competitor." },
+          { title: "Win rate by rival", body: "Twelve months by competitor; under five deals it says so instead of giving a number." },
+        ],
+        advisor: { name: "Review narrative", body: "A cited narrative over the draft and a suggested reason code, confirmed by a person." },
+      },
+      planning: {
+        pitch: "Break the year's target down to territories and people; attainment comes from the deals' forecast snapshots, not from typing.",
+        points: [
+          { title: "Target breakdown", body: "Targets by period for territories, teams and people - set once, referenced everywhere." },
+          { title: "Territories", body: "Which provinces each territory covers and who owns it; accounts and deals follow." },
+          { title: "Target vs. attainment", body: "Targets are set here; attainment is computed from forecast snapshots. Neither side edits the other." },
+        ],
+        advisor: { name: "Territory attainment trend", body: "Attainment over time by territory - who is falling behind and by how much." },
+      },
+      strategy: {
+        pitch: "Strategy is where the chain starts: which markets to win and how, with campaigns, leads and deals all traceable back to it.",
+        points: [
+          { title: "Strategy plan", body: "Goals, focus markets and plays by period, with versions kept." },
+          { title: "Segments", body: "The market cut into named, ranked pieces that accounts and campaigns point at." },
+          { title: "Traceable chain", body: "Every campaign, lead and deal shows which strategy it serves." },
+        ],
+      },
+      segment: {
+        pitch: "Cut the market into named, ranked pieces, so an account's segment and a campaign's target finally point at something real.",
+        points: [
+          { title: "Names and priority", body: "Each segment has a name, a definition and a rank - one vocabulary for the workspace." },
+          { title: "Account coverage", body: "Accounts are filed by segment, so coverage per market is visible." },
+          { title: "Campaign targeting", body: "Campaigns can target a segment, so spend and return line up." },
+        ],
+        advisor: { name: "Segment coverage trend", body: "Whether each market's coverage is getting better or worse." },
+      },
+      strategyDiag: {
+        pitch: "One screen on how the strategy is landing: segment coverage, territory attainment, and who is falling behind.",
+        points: [
+          { title: "Segment coverage", body: "Coverage and trend per market, from snapshots." },
+          { title: "Territory attainment", body: "Attainment and trend per territory, laggards first." },
+          { title: "Its own screen", body: "Runs in its own tab, for the meeting room, without taking over your work." },
+        ],
+      },
+      campaign: {
+        pitch: "Every campaign is measured on return: only won revenue counts - pipeline is not money yet.",
+        points: [
+          { title: "Campaigns", body: "Audience, budget and dates, one record per campaign." },
+          { title: "Attribution", body: "Signals, leads and deals it produced point back to it." },
+          { title: "Return", body: "Measured on won revenue, campaign by campaign." },
+        ],
+        advisor: { name: "Campaign return", body: "Which campaigns produce wins and which only produce pipeline." },
+      },
+      signal: {
+        pitch: "Find opportunities before anyone types them in; the higher the score, the sooner to look.",
+        points: [
+          { title: "Signal inbox", body: "Buying signals from every channel in one place, handled one by one." },
+          { title: "Ranked by score", body: "Each signal has a score and a reason - the best first." },
+          { title: "Promote to lead", body: "A signal worth pursuing becomes a lead in one step, source kept." },
+        ],
+        advisor: { name: "Signal triage", body: "The advisor reads them first and suggests which to pursue and which to drop." },
+      },
+      lead: {
+        pitch: "Signals become leads, qualified leads become deals; a lead nobody owns cannot be qualified.",
+        points: [
+          { title: "Lead ledger", body: "Source, status and owner of every lead in one place." },
+          { title: "Smart assignment", body: "Who should take it, by territory and load - you decide." },
+          { title: "Convert to deal", body: "Qualified leads become deals, carrying their campaign and signal." },
+        ],
+      },
+      funnel: {
+        pitch: "Signal - lead - deal - project - payment: the one page about the whole chain; every other module covers its own link.",
+        points: [
+          { title: "End-to-end conversion", body: "How many at each stage, and how many move on." },
+          { title: "Where it drops", body: "The biggest leak is where you see it first." },
+          { title: "Drill into a stage", body: "Open any stage to see the leads, deals or projects in it." },
+        ],
+      },
+      delivery: {
+        pitch: "The chain ends when the money arrives, not at the win: won deals become projects, and a project with overdue payments never shows as healthy.",
+        points: [
+          { title: "Delivery projects", body: "Projects derived from wins, milestones and owners in one place." },
+          { title: "Payment schedule", body: "Instalments follow the project; due and overdue at a glance." },
+          { title: "Honest health", body: "A project with an overdue payment cannot show as healthy." },
+        ],
+        advisor: { name: "Payment risk", body: "The advisor flags projects whose payments may slip." },
+      },
+      renewal: {
+        pitch: "Subscription projects enter a reminder window before they end; the renewal deal is derived from the project, not from memory.",
+        points: [
+          { title: "Expiry reminders", body: "The workspace sets how early; due ones appear here." },
+          { title: "Renewal deals", body: "Open the renewal deal in one step - never twice for the same one." },
+          { title: "Subscriptions only", body: "One-off deliveries get no renewal obligation the customer never agreed to." },
+        ],
+      },
+      collection: {
+        pitch: "The chain ends when the money arrives: every instalment, overdue payment and bad debt, one by one.",
+        points: [
+          { title: "Instalment ledger", body: "Instalments, amounts and due dates per project, in one place." },
+          { title: "Ageing buckets", body: "Overdue payments bucketed by the workspace's own day counts." },
+          { title: "Final states", body: "Paid and bad debt are final; a correction is a new schedule, not an edit." },
+        ],
+      },
+    },
+  },
   NEXT_ACTION_TEXT: {
     thinking: "The advisor is working out this deal's next step...",
     failed: (why: string) => `No next best action this time: ${why}`,

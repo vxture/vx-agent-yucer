@@ -12,6 +12,7 @@ import { RenewalRoster, type RenewalRow } from "../components/renewal-roster";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { openRenewal } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
+import { lockedPage } from "../components/locked-page";
 
 // D7 -> D6: the subscriptions coming back round.
 //
@@ -37,6 +38,9 @@ export default async function RenewalPage() {
   const { LOAD_ERROR, RENEWAL_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "renewal");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

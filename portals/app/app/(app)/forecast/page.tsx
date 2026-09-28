@@ -22,6 +22,7 @@ import { ModuleHeadline, type HeadlineStat } from "../components/module-headline
 import { forecastStats } from "../../domains/pipeline/lib/forecast-stats";
 import { applySuggestedCategory } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
+import { lockedPage } from "../components/locked-page";
 
 // D6: what the rule would file each deal as, beside what a person filed it as.
 //
@@ -63,6 +64,9 @@ export default async function ForecastPage({
   const scopeKey = forecastScopeKey(scope);
   const session = await resolveAppSession();
   if (!session) return null;
+  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
+  const locked = lockedPage(session, "forecastRule");
+  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.

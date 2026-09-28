@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Separator, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
-import { pricingUrl } from "../../entitlement/deeplink";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 // The pure decision module, not authz/context.ts - see the note there.
 import type { PermissionHolder } from "../../authz/decide";
@@ -271,7 +270,6 @@ export default function ProductPreviewPage() {
         <DomainLauncher
           nav={nav}
           activeKey="pipeline"
-          upgradeHref={pricingUrl()}
         />
 
         <Separator />
