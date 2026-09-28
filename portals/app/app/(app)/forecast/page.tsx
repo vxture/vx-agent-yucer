@@ -3,7 +3,8 @@ import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
-import { forecastHistory, forecastScorecard, previewCategories } from "../../domains/pipeline/service";
+import { forecastChange, forecastHistory, forecastScorecard, previewCategories } from "../../domains/pipeline/service";
+import { ForecastChange } from "../components/forecast-change";
 import { inPeriod, inScope } from "../../domains/pipeline/lib/forecast";
 import { listTerritories } from "../../domains/planning/service";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
@@ -71,13 +72,17 @@ export default async function ForecastPage({
     entitlement: session.entitlement,
     store: session.stores.pipeline(),
   };
-  const [preview, history, score, territories] = await Promise.all([
+  const [preview, history, score, territories, change] = await Promise.all([
     previewCategories(ctx),
     // The series, not the latest point - the only reader that makes
     // forecast_snapshot's immutability pay for itself.
     forecastHistory(ctx, period, scope),
     forecastScorecard({ ...ctx, catalog: getCatalogStore() }, period, { scope }),
     listTerritories({ ...ctx, store: getPlanningStore() }),
+    // 快照间变化 (batch 9c): since the latest snapshot of this period and scope.
+    // A failed read hides the block rather than failing the page (YC-067
+    // section 11: 任一批量读失败，依赖它的列显示读不到).
+    forecastChange({ ...ctx, catalog: getCatalogStore() }, period, scope).catch(() => undefined),
   ]);
 
   if (!preview.ok) {
@@ -212,6 +217,24 @@ export default async function ForecastPage({
           />
         }
       />
+
+      {change?.ok ? (
+      <ForecastChange
+        change={
+          change.value
+            ? {
+                since: change.value.since,
+                blocks: [
+                  { key: "commit", change: change.value.commit },
+                  { key: "bestCase", change: change.value.bestCase },
+                ],
+              }
+            : null
+        }
+        labels={{ commit: PIPELINE_TEXT.tCommit, bestCase: PIPELINE_TEXT.tBestCase }}
+        wan={BOARD_TEXT.wan}
+      />
+      ) : null}
 
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - both computed from the
           SAME rows, so the block and the list cannot disagree. */}

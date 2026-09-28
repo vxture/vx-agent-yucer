@@ -26,6 +26,7 @@ import {
   listStageDefinitions,
   forecastHistory,
   forecastScorecard,
+  forecastChange,
   submitForecast,
   type PipelineContext,
 } from "./service";
@@ -1277,4 +1278,42 @@ test("a call note with no call, or a negative call, is refused before anything i
   const plain = unwrap(await submitForecast(c, { period: Q3, scope: SCOPE }));
   assert.equal(plain.callAmount, null);
   assert.equal(plain.callNote, null);
+});
+
+test("快照间变化 (9c): 承诺's move since the last snapshot, per deal, and nothing unexplained", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 }),
+    opp({ id: "b", forecastCategory: "commit", amount: money(400), expectedCloseAt: IN_Q3 }),
+    opp({ id: "c", forecastCategory: "best_case", amount: money(250), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  // No snapshot yet: nothing to have changed from.
+  assert.equal(unwrap(await forecastChange(c, Q3, SCOPE)), null);
+
+  const T = new Date("2026-07-01T00:00:00Z");
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: T });
+  const later = { source: "manual" as const, actorSub: "usr_me", occurredAt: new Date("2026-07-10T00:00:00Z") };
+  await store.updateCommercialTerms(WS, "a", { amount: money(1300) }, later); // resized +300
+  await store.updateCommercialTerms(WS, "b", { expectedCloseAt: new Date("2026-11-01T00:00:00Z") }, later); // pushed -400
+  await store.updateCommercialTerms(WS, "c", { forecastCategory: "commit" }, later); // added +250
+
+  const r = unwrap(await forecastChange(c, Q3, SCOPE));
+  assert.ok(r);
+  assert.equal(r.since.getTime(), T.getTime());
+  assert.equal(r.commit.total, 150);
+  assert.equal(r.commit.byKind.resized, 300);
+  assert.equal(r.commit.byKind.pushed, -400);
+  assert.equal(r.commit.byKind.added, 250);
+  assert.equal(r.commit.unexplained, 0);
+  // 乐观 lost c to commit.
+  assert.equal(r.bestCase.total, -250);
+  assert.equal(r.bestCase.byKind.removed, -250);
+  assert.equal(r.bestCase.unexplained, 0);
+});
+
+test("快照间变化 is a forecast read - below the forecast tier it is refused", async () => {
+  const store = new InMemoryPipelineStore();
+  const r = await forecastChange(ctx("sales_ops", "free", store), Q3, SCOPE);
+  assert.equal(r.ok, false);
 });

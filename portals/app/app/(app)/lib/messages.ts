@@ -3888,6 +3888,20 @@ export const TARGET_ERROR: Record<string, string> = {
 /**
  * 预测快照。同上：`submit-forecast` 也是直接渲染 `error`。
  */
+/** 快照间变化 (deal batch 9c, YC-069 section 11 ②). */
+export const FORECAST_CHANGE_TEXT = {
+  title: "较上次快照",
+  why: "这一期、这一口径最近一次快照之后，每一单怎么动的。",
+  since: (date: string) => `相对 ${date} 的快照：各项之和等于总差额，对不上的单列为「未解释」。`,
+  headline: (category: string, delta: string) => `${category} ${delta}`,
+  kind: { added: "新进", removed: "移出", resized: "改额", pushed: "推出本期", won: "赢单" } as Record<string, string>,
+  unexplained: "未解释",
+  unexplainedWhy: "声明日志上线前的变化，或负责人、区域变动——这两项不记日志",
+  none: "没有变化",
+  emptyTitle: "本期此口径还没有快照",
+  emptyDescription: "存一次快照后，这里会说明之后每一单怎么动的。",
+};
+
 export const FORECAST_ERROR: Record<string, string> = {
   // 主管预估数 (incr/0096).
   call_note_without_amount: "写了说明就要填预估数——说明解释的是那个数",

@@ -85,6 +85,9 @@ class ScopedPipelineStore implements PipelineStore {
   // scoped, or are workspace-level facts by design.
   listStageEvents: PipelineStore["listStageEvents"] = (...a) => this.inner.listStageEvents(...a);
   listClaimEvents: PipelineStore["listClaimEvents"] = (...a) => this.inner.listClaimEvents(...a);
+  // Unfiltered like listClaimEvents: a claim only counts against a deal the
+  // caller already read through the scoped listOpportunities.
+  listClaimEventsSince: PipelineStore["listClaimEventsSince"] = (...a) => this.inner.listClaimEventsSince(...a);
   setImportance: PipelineStore["setImportance"] = (...a) => this.inner.setImportance(...a);
   getDealScoreWeights: PipelineStore["getDealScoreWeights"] = (...a) => this.inner.getDealScoreWeights(...a);
   setDealScoreWeights: PipelineStore["setDealScoreWeights"] = (...a) => this.inner.setDealScoreWeights(...a);

@@ -539,6 +539,18 @@ export const en: Dictionary = {
   // D6 forecast snapshots. Four codes here also live in FORECAST_RULE_ERROR
   // above and read identically on purpose: one code, one sentence, wherever a
   // reader meets it.
+  FORECAST_CHANGE_TEXT: {
+    title: "Since the last snapshot",
+    why: "How each deal moved since the latest snapshot of this period and scope.",
+    since: (date: string) => `Against the ${date} snapshot: the parts add up to the total; what does not is shown as "unexplained".`,
+    headline: (category: string, delta: string) => `${category} ${delta}`,
+    kind: { added: "Added", removed: "Moved out", resized: "Resized", pushed: "Pushed out", won: "Won" } as Record<string, string>,
+    unexplained: "Unexplained",
+    unexplainedWhy: "A change from before the claim log, or an owner or territory move - neither is logged",
+    none: "No change",
+    emptyTitle: "No snapshot yet for this period and scope",
+    emptyDescription: "Once a snapshot is taken, this shows how each deal moved after it.",
+  },
   FORECAST_ERROR: {
     ...GATE_ERROR,
     call_note_without_amount: "A note needs the call it explains",
