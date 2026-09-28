@@ -137,6 +137,11 @@ jobs:
           GHCR_NAMESPACE: ${{ github.repository_owner }}
           ACR_PULL_REGISTRY: ${{ vars.ACR_PULL_REGISTRY || vars.ALIYUN_ACR_REGISTRY }}
           ALIYUN_ACR_NAMESPACE: ${{ vars.ALIYUN_ACR_NAMESPACE }}
+          # The registries' credentials, exactly as deploy.yml passes them.
+          ALIYUN_ACR_USERNAME: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          ALIYUN_ACR_PASSWORD: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           port="${DEPLOY_PORT:-22}"
@@ -195,6 +200,21 @@ jobs:
           # with changed, and leaves db and redis alone. The image is the one
           # already deployed - its SHA is in the VERSION file deploy.yml wrote.
           [ -n "$APP_PUBLISH_PORT" ] || { echo "APP_PUBLISH_PORT variable is not set" >&2; exit 1; }
+          # LOG IN FIRST, as deploy.yml does (2026-09-28). This step used to rely
+          # on a registry credential left on the host by the last deploy; when it
+          # was gone the patch landed but the restart died on "failed to auth"
+          # (ACR) and "denied" (GHCR), leaving the app on the old environment.
+          # Passwords travel over stdin, never argv.
+          if [ -n "${ALIYUN_ACR_USERNAME:-}" ] && [ -n "${ALIYUN_ACR_PASSWORD:-}" ]; then
+            printf '%s' "$ALIYUN_ACR_PASSWORD" | ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+              "timeout 45 docker login '$ACR_PULL_REGISTRY' -u '$ALIYUN_ACR_USERNAME' --password-stdin >/dev/null && echo '[env-update] ACR login ok'" \
+              || echo "[env-update] ACR login failed - the pull may still use a local image"
+          fi
+          if [ -n "${GHCR_TOKEN:-}" ]; then
+            printf '%s' "$GHCR_TOKEN" | ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+              "docker login ghcr.io -u '$GHCR_USERNAME' --password-stdin >/dev/null && echo '[env-update] GHCR login ok'" \
+              || echo "[env-update] GHCR login failed"
+          fi
           # ACR primary, GHCR fallback (2026-09-16) - same swap and the same
           # reason as deploy.yml: matches deploy.sh, its own comment there.
           ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
