@@ -1282,6 +1282,12 @@ export const en: Dictionary = {
     anchoredHint:
       "The copilot can read the follow-up notes and promises recorded against this account, and it cites which one it used. It will not fill in what it cannot see - anything nobody wrote down, it does not know either.",
     linkFromAccount: "Ask about this account",
+    anchoredDeal: (name: string) => `This conversation is locked to the deal: ${name}`,
+    anchoredDealHint: "The assistant reads only this deal's follow-ups and promises, and marks which one it cites; what it cannot read, it says so.",
+    rehearsal: (name: string) => `Rehearsal: ${name}`,
+    rehearsalHint: "The assistant plays the buyer as this deal's notes describe them. A rehearsal feeds no judgement, proposal or forecast - nothing said here becomes a record.",
+    linkFromDeal: "Ask about this deal",
+    linkRehearsal: "Rehearse",
   },
 
   BUYING_ROLE_TEXT: {

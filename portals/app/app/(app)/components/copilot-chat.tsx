@@ -53,10 +53,15 @@ export interface CopilotChatProps {
    * what makes that theirs. They can edit it first, which is the point.
    */
   readonly initialDraft?: string;
+  /** 对话锚定本单 (deal batch 11b): the deal this conversation is about. */
+  readonly deal?: { id: string; name: string };
+  /** 预演 (deal batch 11c): role-play on that deal - labelled, proposes nothing. */
+  readonly rehearsal?: boolean;
   readonly onAsk: (
     question: string,
     sessionId: string | null,
     accountId?: string,
+    anchor?: { opportunityId?: string; rehearsal?: boolean },
   ) => Promise<
     | { ok: true; sessionId: string; outcome: TurnOutcome }
     | { ok: false; error: string }
@@ -69,6 +74,8 @@ export function CopilotChat({
   canAsk,
   account,
   initialDraft,
+  deal,
+  rehearsal = false,
   onAsk,
 }: CopilotChatProps) {
   const { ASK_ABOUT_TEXT, COPILOT_TEXT } = useMessages();
@@ -94,7 +101,7 @@ export function CopilotChat({
     setOutcome(null);
 
     startTransition(() => {
-      void onAsk(question, session, account?.id).then((result) => {
+      void onAsk(question, session, account?.id, deal ? { opportunityId: deal.id, rehearsal } : undefined).then((result) => {
         if (!result.ok) {
           setError(explainModelPlaneError(result.error, COPILOT_TEXT));
           return;
@@ -114,7 +121,14 @@ export function CopilotChat({
       {/* Said out loud, because the difference between a grounded answer and a
           general one is the difference between citing and guessing - and a
           reader who cannot tell which they are getting will trust both alike. */}
-      {account ? (
+      {deal ? (
+        <>
+          <StatusBadge tone={rehearsal ? "warning" : "info"} dot>
+            {rehearsal ? ASK_ABOUT_TEXT.rehearsal(deal.name) : ASK_ABOUT_TEXT.anchoredDeal(deal.name)}
+          </StatusBadge>
+          <p>{rehearsal ? ASK_ABOUT_TEXT.rehearsalHint : ASK_ABOUT_TEXT.anchoredDealHint}</p>
+        </>
+      ) : account ? (
         <>
           <StatusBadge tone="info" dot>
             {ASK_ABOUT_TEXT.anchored(account.name)}

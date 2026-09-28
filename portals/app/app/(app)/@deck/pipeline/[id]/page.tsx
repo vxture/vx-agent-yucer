@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCopilotStore } from "../../../../domains/shared/registry";
 import { getOpportunityDetail } from "../../../../domains/pipeline/service";
 import { listProposals } from "../../../../domains/copilot/service";
@@ -45,7 +46,7 @@ export default async function DealDeck({
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) return null;
-  const { POSITION_TEXT, RATIONALE_TEXT } = await getMessages();
+  const { POSITION_TEXT, RATIONALE_TEXT, ASK_ABOUT_TEXT } = await getMessages();
 
   const base = {
     workspaceId: session.workspaceId,
@@ -94,7 +95,17 @@ export default async function DealDeck({
   ) : null;
   const advisor = detail.ok ? (
     <>
-      <div className="flex justify-end">{meeting}</div>
+      {/* 对话锚定本单 / 预演 (batch 11b/11c) beside 会前包 - all three are
+          about this one deal. */}
+      <div className="flex flex-wrap items-center justify-end gap-sm text-body-sm">
+        <Link href={`/copilot?opportunity=${encodeURIComponent(id)}`} className="text-primary hover:underline">
+          {ASK_ABOUT_TEXT.linkFromDeal}
+        </Link>
+        <Link href={`/copilot?opportunity=${encodeURIComponent(id)}&mode=rehearsal`} className="text-primary hover:underline">
+          {ASK_ABOUT_TEXT.linkRehearsal}
+        </Link>
+        {meeting}
+      </div>
       {proposalsBlock}
     </>
   ) : null;

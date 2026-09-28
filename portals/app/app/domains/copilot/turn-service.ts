@@ -64,6 +64,12 @@ export interface TurnInput {
    * as before.
    */
   admitProposal?: (p: { actionType: string; payload: Record<string, unknown> }) => boolean;
+  /**
+   * Deal batch 11c (预演). An instruction the MODEL reads ahead of the question
+   * but that is never stored as the member's message - the history shows what
+   * the person asked, not the frame the product put around it.
+   */
+  framing?: string;
   /** ADR-015 group stamped on the proposals this turn writes. Absent: none, as before. */
   capability?: string;
   /**
@@ -150,7 +156,10 @@ export async function runCopilotTurn(
         actorSub: ctx.sub,
         subjectType: input.subject?.type ?? null,
         subjectId: input.subject?.id ?? null,
-        title: question.slice(0, 120),
+        // A framed turn (预演) carries its frame's mark in the title, like every
+        // advisor question does in its text, so it is never mistaken for the
+        // member's own conversation (isMemberConversation).
+        title: `${input.framing?.match(/^\[[a-z-]+\]/)?.[0] ?? ""}${input.framing?.startsWith("[") ? " " : ""}${question}`.slice(0, 120),
       });
   if (!session) return fail(violation("not_found", `session ${input.sessionId} was not found`, "sessionId"));
 
@@ -215,7 +224,7 @@ export async function runCopilotTurn(
   try {
     turn = await runTurn(
       {
-        question,
+        question: input.framing ? `${input.framing}\n\n${question}` : question,
         history: history.slice(0, -1).map((m) => ({ role: m.role, content: m.content })),
         prompt,
         atlas,

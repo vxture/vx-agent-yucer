@@ -2375,6 +2375,13 @@ export const ASK_ABOUT_TEXT = {
   anchoredHint:
     "助手能读到这个客户下已记录的跟进原文与承诺，回答时会标注它引用了哪一条。读不到的东西它不会替你补——没记下来的事，它也不知道。",
   linkFromAccount: "就这个客户问助手",
+  // 对话锚定本单 / 预演 (deal batch 11b/11c).
+  anchoredDeal: (name: string) => `本次对话已锁定商机：${name}`,
+  anchoredDealHint: "助手只读这一单的跟进原文与承诺，回答时会标注它引用了哪一条；读不到的它会明说。",
+  rehearsal: (name: string) => `推演：${name}`,
+  rehearsalHint: "助手按本单跟进里记下的人和顾虑扮演买方。推演不进任何判断、提案或预测——这里说的话不会变成记录。",
+  linkFromDeal: "问参谋（本单）",
+  linkRehearsal: "预演",
 } as const;
 
 /** The platform login account_status values that have a sentence (not the customer-account table below); the rest show as-is. */
