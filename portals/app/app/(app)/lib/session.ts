@@ -1,4 +1,5 @@
-import { cookies } from "next/headers";
+import { cache } from "react";
+import { cookies, headers } from "next/headers";
 import type { Entitlement } from "../../entitlement/types";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getOidcConfig } from "../../auth/lib/config";
@@ -46,12 +47,15 @@ export interface AppSession {
   authz: AuthzContext;
   /**
    * The member's own access token, for OBO S2S calls (platform/s2s.ts) -
-   * server-only, never serialize this into a client component prop or a JSON
-   * response. Null on the dev-session bypass (no real OIDC token exists
-   * there); a caller with no subject token simply falls back to service mode,
-   * same as a background job with no user in the loop.
+   * server-only, never serialize it into a client component prop or a JSON
+   * response. FETCHED ON DEMAND (auth/lib/login-state.ts): knowing who is here
+   * never needs a token, so a page that makes no platform call never touches
+   * one. Resolves to null on the dev-session bypass (no real OIDC token exists
+   * there) or when no token can be had right now; a caller with no subject
+   * token falls back to service mode, same as a background job - and the
+   * member stays signed in either way.
    */
-  accessToken: string | null;
+  accessToken: () => Promise<string | null>;
   /**
    * Which rows this member may see, resolved once for the request.
    *
@@ -141,7 +145,25 @@ function withStores(
   };
 }
 
-export async function resolveAppSession(): Promise<AppSession | null> {
+/**
+ * ONE RESOLUTION PER RENDER. The layout, the page and the @deck slot all ask;
+ * React's cache() makes them share a single answer, so a render reads the
+ * login state once instead of three times. (Server actions are their own
+ * request and resolve once each.)
+ */
+export const resolveAppSession = cache(resolveAppSessionUncached);
+
+/**
+ * A request the member made - as opposed to Next prefetching a link they
+ * have not clicked. Only the former may ask accounts and so renew the login
+ * (auth/lib/login-state.ts: asked on activity only).
+ */
+async function isMemberActivity(): Promise<boolean> {
+  const h = await headers();
+  return !(h.has("next-router-prefetch") || h.get("purpose") === "prefetch" || h.get("sec-purpose")?.includes("prefetch"));
+}
+
+async function resolveAppSessionUncached(): Promise<AppSession | null> {
   // Local review only, and refused three independent ways - see dev-session.ts.
   // Placed FIRST so it is obvious that it short-circuits the real chain, rather
   // than hidden as a fallback where a reader would have to reason about when it
@@ -155,7 +177,7 @@ export async function resolveAppSession(): Promise<AppSession | null> {
     // first render and everything on the second.
     const scope = await resolveDataScope(dev.workspaceId, dev.user.sub, getAuthzStore());
     // No real OIDC token on this bypass; OBO callers fall back to service mode.
-    return withStores({ ...dev, scope, accessToken: null });
+    return withStores({ ...dev, scope, accessToken: async () => null });
   }
 
   const cfg = getOidcConfig();
@@ -163,7 +185,7 @@ export async function resolveAppSession(): Promise<AppSession | null> {
   const rpsid = jar.get(cfg.cookieName)?.value;
   if (!rpsid) return null;
 
-  const authSession = await getAuthSession(cfg, rpsid);
+  const authSession = await getAuthSession(cfg, rpsid, { activity: await isMemberActivity() });
   if (!authSession) return null;
   const { user, accessToken } = authSession;
 

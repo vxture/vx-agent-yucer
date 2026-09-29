@@ -1825,6 +1825,7 @@ export const en: Dictionary = {
 
   SIGNIN_TEXT: {
     cta: "Sign in",
+    resuming: "Restoring your sign-in...",
     ariaLabel: "Sign in",
     title: "Welcome",
     description: "One traceable chain, from strategy to cash collected",

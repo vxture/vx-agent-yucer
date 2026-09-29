@@ -20,6 +20,8 @@ import { SignedOut } from "./components/signed-out";
 import { NoSubscription } from "./components/no-subscription";
 import { NoRoles } from "./components/no-roles";
 import { SIGNED_OUT_COOKIE } from "../auth/lib/signed-out-marker";
+import { getOidcConfig } from "../auth/lib/config";
+import { shouldResumeSilently, ssoAttemptCookieName } from "../auth/lib/sso";
 import { readNavCollapsed } from "@vxture/shared";
 import {
   getAccountStore,
@@ -92,10 +94,22 @@ export default async function AppLayout({
     // that their sign-out failed. /auth/logout leaves a marker cookie on the
     // way to the IdP and this reads it - see auth/lib/signed-out-marker.ts for
     // why the product cannot simply be sent to a /signed-out route instead.
-    const justSignedOut = (await cookies()).get(SIGNED_OUT_COOKIE)?.value === "1";
+    const jar = await cookies();
+    const justSignedOut = jar.get(SIGNED_OUT_COOKIE)?.value === "1";
+    // A member whose session died SERVER side still holds its cookie, and the
+    // IdP's own session is usually alive - which is why 登录 used to go
+    // straight back in. Ask the IdP silently once instead of asking them to
+    // click (shouldResumeSilently says when, and the marker says "once").
+    const oidc = getOidcConfig();
+    const resume = shouldResumeSilently({
+      enabled: oidc.enabled,
+      hasCookie: jar.has(oidc.cookieName),
+      triedRecently: jar.has(ssoAttemptCookieName(oidc.cookieName)),
+      justSignedOut,
+    });
     return (
       <MessagesProvider locale={locale}>
-        {justSignedOut ? <SignedOut consoleHref={consoleUrl()} /> : <SignIn />}
+        {justSignedOut ? <SignedOut consoleHref={consoleUrl()} /> : <SignIn resume={resume} />}
       </MessagesProvider>
     );
   }
