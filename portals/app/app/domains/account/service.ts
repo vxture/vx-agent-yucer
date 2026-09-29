@@ -142,7 +142,7 @@ export async function importDivisionTemplate(
   ctx: AccountContext,
   key: string,
 ): Promise<RuleResult<{ key: string; divisions: number; replaced: number }>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "planning.division.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
   /* FROM THE TABLE (incr/0045): the store answers only the carves that cut
@@ -201,7 +201,7 @@ export async function saveMarketDivision(
   ctx: AccountContext,
   input: { code: string; name: string; sortOrder?: number; members: readonly string[] },
 ): Promise<RuleResult<{ code: string; moved: { member: MarketMember; from: string }[] }>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "planning.division.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
   const code = input.code.trim();
@@ -281,7 +281,7 @@ export async function removeMarketDivision(
   ctx: AccountContext,
   code: string,
 ): Promise<RuleResult<{ code: string }>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "planning.division.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
   const divisions = await ctx.store.listMarketDivisions(ctx.workspaceId);
@@ -314,7 +314,7 @@ export async function moveMarketDivision(
   ctx: AccountContext,
   input: { code: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "planning.division.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
   const rows = await ctx.store.listMarketDivisions(ctx.workspaceId);
@@ -336,7 +336,7 @@ export async function moveMarketDivision(
  * 市场范围 - the frame a workspace carves inside (incr/0043).
  *
  * READ rides account.view, like the divisions: every roster that resolves a
- * customer's 大区 resolves it inside a frame. WRITE is planning.territory.upsert
+ * customer's 大区 resolves it inside a frame. WRITE is planning.division.upsert
  * - who may re-carve the market is who may choose what it is carved out of.
  * ------------------------------------------------------------------------ */
 
@@ -350,7 +350,7 @@ export async function setMarketScope(
   ctx: AccountContext,
   input: MarketScope,
 ): Promise<RuleResult<MarketScope>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "planning.division.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
   const frame = MARKET_SCOPES.find((s) => s.kind === input.kind);

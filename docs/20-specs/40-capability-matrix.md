@@ -33,6 +33,15 @@
 | `delivery.revenue` | D7 | - | - | - | O | O |
 | `copilot.autopilot` | D8 | - | - | - | - | O |
 
+## 配置管理不设档位（owner 2026-09-28）
+
+「admin 的所有板块都是最最基础功能，不要设限。」配置管理平面（`/admin/*`）的每一项都不挂
+feature key，任何档位都能配置；门控只在权限层。区域设置（大区划分及其与组织单位的关联）因此从
+`planning.territory.*` 拆出独立动作 `planning.division.view` / `planning.division.upsert`
+（`feature: null`，权限仍为 `planning.read` / `planning.write`，谁能看、谁能改不变）；
+销售规划里的销售区域仍是 `planning.territory`（pro）。`upgrade.test.ts` 钉住：free 档下没有任何
+配置管理条目被档位锁住。
+
 ## 分档的产品逻辑
 
 每一档解锁的是**一个完整的工作方式**，不是零散功能点。这是定价能讲清楚的前提。

@@ -52,7 +52,9 @@ test("every module a free workspace sees locked - launcher or admin plane - has 
   const locked = resolveNavigation(owner, at("free"))
     .filter((e) => e.state === "locked" && known.has(e.key))
     .map((e) => e.key);
-  assert.ok(locked.includes("division"), "区域设置 locks by tier too");
+  // owner 2026-09-28: admin 的所有板块都是最基础功能，不要设限 - no admin
+  // entry ever locks by tier.
+  assert.deepEqual(locked.filter((k) => NAV_ENTRIES.find((e) => e.key === k)?.href.startsWith("/admin")), []);
   assert.ok(locked.length >= 10, `expected the tier-gated modules, found ${locked.length}`);
   const missing = locked.filter((k) => !UPGRADE_TEXT.module[k]);
   assert.deepEqual(missing, [], `no upgrade copy for: ${missing.join(", ")}`);
