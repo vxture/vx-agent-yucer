@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { permissionsForRoles } from "../../authz/catalog";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
-import { NAV_ENTRIES, resolveNavigation } from "./navigation";
+import { NAV_ENTRIES, moduleIcon, resolveNavigation } from "./navigation";
 import { upgradeTarget } from "./upgrade";
 import { UPGRADE_TEXT } from "./messages";
 
@@ -56,4 +56,17 @@ test("every module a free workspace sees locked - launcher or admin plane - has 
   assert.ok(locked.length >= 10, `expected the tier-gated modules, found ${locked.length}`);
   const missing = locked.filter((k) => !UPGRADE_TEXT.module[k]);
   assert.deepEqual(missing, [], `no upgrade copy for: ${missing.join(", ")}`);
+});
+
+test("every entry's headline icon resolves - the template renders any of them", () => {
+  // /upgrade/strategyDiag threw in production: moduleIcon read only some tables.
+  const broken = NAV_ENTRIES.filter((e) => {
+    try {
+      moduleIcon(e.key);
+      return false;
+    } catch {
+      return true;
+    }
+  }).map((e) => e.key);
+  assert.deepEqual(broken, []);
 });
