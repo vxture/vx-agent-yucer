@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Banner, Button, DestructiveButton, type DestructiveConfirm } from "@vxture/design-ui";
 import { AssistantSection } from "./assistant";
+import { useFormAssistSlot } from "./form-assist-slot";
 import { useMessages } from "../lib/i18n/provider";
 
 // The shape every DEDICATED FORM PAGE shares - owner ruling, 2026-09-05.
@@ -14,19 +16,13 @@ import { useMessages } from "../lib/i18n/provider";
 // Before it, eight list pages carried their create forms inline, and the form
 // was always the cramped afterthought under the table.
 //
-// TWO COLUMNS: the work on the left, the help on the right. The aside is not
-// decoration - it is where the product's intelligence surfaces while somebody
-// is mid-form, which is exactly when a suggestion is worth something. When the
-// space is narrow the aside drops BELOW the form: the form is the errand.
-//
-// A CONTAINER QUERY, NOT A VIEWPORT BREAKPOINT. This split keyed on `xl:`
-// (viewport >= 1280px) and that was the squeeze every form page showed at
-// 1440px: with the board and the AI dock both open the CONTENT area is
-// ~660px, but the viewport still said xl, so the grid went two-column and
-// handed the form ~300px. What varies with the side panels is the container,
-// so the container is what the breakpoint has to read. @3xl = 48rem of
-// container: two columns only when the form would still get ~28rem for
-// itself.
+// ONE COLUMN, THE ASSISTANT IN 栏3 (owner 2026-09-28: 智能填写挤在中栏). The
+// form takes the centre pane's whole width; the assist (智能填写) renders in
+// the deck under 记一笔, through the shell's slot (form-assist-slot.tsx) -
+// a portal, so its suggestions still read and fill this form. With the deck
+// shut there is no slot, and the assist drops BELOW the form: the form is the
+// errand. It used to be a second 20rem column inside the centre pane, which
+// squeezed the form and put the product's intelligence in two places.
 export function FormPage({
   form,
   assist,
@@ -34,16 +30,11 @@ export function FormPage({
   readonly form: ReactNode;
   readonly assist?: ReactNode;
 }) {
+  const slot = useFormAssistSlot();
   return (
-    <div className="@container">
-      {/* The 20rem second column is reserved ONLY when there is an aside to
-          put in it - a form with no `assist` used to keep the template
-          anyway, leaving a permanent 20rem blank strip on the right past
-          @3xl (owner, 2026-09-11: 没有留白空间, org-unit-form.tsx has none). */}
-      <div className={`grid items-start gap-lg${assist ? " @3xl:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
-        <div className="min-w-0">{form}</div>
-        {assist ? <div className="min-w-0">{assist}</div> : null}
-      </div>
+    <div className="flex min-w-0 flex-col gap-lg">
+      {form}
+      {assist ? (slot ? createPortal(assist, slot) : assist) : null}
     </div>
   );
 }

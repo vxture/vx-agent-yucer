@@ -131,12 +131,12 @@ export function NewProductForm({
   return (
     <FormPage
       form={
-        <Section
-          icon="stack"
-          title={editing ? CATALOG_TEXT.editProduct : CATALOG_TEXT.newProduct}
-          description={editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}
-        >
+        /* No heading of its own: the page's header already says 新建产品 /
+           修改产品 (owner 2026-09-28: 标题重复). The code rule stays, as a
+           line above the fields. */
+        <Section>
           <div className="gap-xl flex flex-col">
+            <p className="text-muted-foreground text-body-sm">{editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}</p>
             <FormFields>
             <Field>
               <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
@@ -325,11 +325,9 @@ export function NewSolutionForm({
   return (
     <FormPage
       form={
-        <Section
-          icon="puzzle"
-          title={editing ? CATALOG_TEXT.editSolution : CATALOG_TEXT.newSolution}
-          description={CATALOG_TEXT.rosterSolutionWhy}
-        >
+        /* No heading of its own: the page's header already says 新建方案 /
+           修改方案 and what a solution is (owner 2026-09-28: 标题重复). */
+        <Section>
           <FormFields>
             <Field>
               <FieldLabel htmlFor="sol-code">{CATALOG_TEXT.colCode}</FieldLabel>

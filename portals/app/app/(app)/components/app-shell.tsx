@@ -42,6 +42,7 @@ import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { BRAND_MARK_SRC, PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
+import { FormAssistSlotProvider } from "./form-assist-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -338,6 +339,7 @@ export function AppShell({
        The scrollbars land where they belong as a consequence - inside each
        zone, against the gutter - instead of one bar at the window's edge
        governing everything at once. */
+    <FormAssistSlotProvider>
     <ShellViewport
       /* THE DS SLOTS ARE NOT USED FOR THE FLANKS, and that is a considered
          departure. ShellSidebarFrame hardcodes w-sidebar-expanded (256px) and
@@ -743,5 +745,6 @@ export function AppShell({
       </div>
       )}
     </ShellViewport>
+    </FormAssistSlotProvider>
   );
 }
