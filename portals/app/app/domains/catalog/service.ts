@@ -404,23 +404,24 @@ export async function listProductTypes(
   return ok(types);
 }
 
-/** One type as the dialog sends it: an existing row (`id`) or a new one. */
+/** One level as the dialog sends it: an existing row (`id`) or a new one. */
 export interface TypeRowInput {
   readonly id?: string;
-  readonly typeCode: string;
   readonly typeNo: string;
   readonly name: string;
 }
 
 /**
- * Save what the type dialog holds (owner, 2026-09-29): a 一级类 on the first
- * line and, optionally, a 二级类 under it on the second. Either may be new or
- * an existing row being edited; the 一级类 may be an existing one picked from
- * the list.
+ * Save what the type dialog holds (owner, 2026-09-29): a 一级类 line, an
+ * optional 二级类 line under it, and ONE code on a line of its own.
  *
- * Both rows are judged BEFORE either is written, so a refused second line
- * does not leave a half-saved first one. The 二级类 is placed under whatever
- * the 一级类 turns out to be.
+ * ONE CODE PER CATEGORY (owner's review of incr/0100: 代码需要单独一行，一二级
+ * 都有代码不合理). The code belongs to the category being saved - the 二级类
+ * when there is one, otherwise the 一级类. A 一级类 saved together with a
+ * 二级类 keeps whatever code it already had, and a new one gets none.
+ *
+ * Both lines are judged BEFORE either is written, so a refused second line
+ * does not leave a half-saved first one.
  *
  * `catalog.product.upsert`, deliberately NOT a new permission: the vocabulary
  * exists to classify products, and the person trusted to say what a product IS
@@ -428,15 +429,21 @@ export interface TypeRowInput {
  */
 export async function saveProductTypes(
   ctx: CatalogContext,
-  input: { readonly level1: TypeRowInput; readonly level2?: TypeRowInput | null },
+  input: { readonly level1: TypeRowInput; readonly level2?: TypeRowInput | null; readonly typeCode: string },
 ): Promise<RuleResult<{ level1: ProductTypeRecord; level2: ProductTypeRecord | null }>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
+  const code = input.typeCode.trim();
+  if (!code) return fail(violation("code_required", "a category needs a code", "typeCode"));
+
   const existing = await ctx.store.listProductTypes(ctx.workspaceId);
   const keep = (id: string | undefined) => existing.find((t) => t.id === id);
+  const hasL2 = Boolean(input.level2);
 
-  const plan1 = planProductType({ ...input.level1, status: keep(input.level1.id)?.status ?? "active" });
+  // Whose code is it: the 二级类 when there is one, else the 一级类.
+  const l1Code = hasL2 ? (keep(input.level1.id)?.typeCode ?? null) : code;
+  const plan1 = planProductType({ ...input.level1, typeCode: l1Code, status: keep(input.level1.id)?.status ?? "active" });
   if (!plan1.ok) return plan1 as never;
   // The first line is always a 一级类.
   const place1 = planTypePlacement({ ...plan1.value, id: input.level1.id, parentId: null }, existing);
@@ -444,7 +451,7 @@ export async function saveProductTypes(
 
   let plan2: ProductTypeDraftOf | null = null;
   if (input.level2) {
-    const r = planProductType({ ...input.level2, status: keep(input.level2.id)?.status ?? "active" });
+    const r = planProductType({ ...input.level2, typeCode: code, status: keep(input.level2.id)?.status ?? "active" });
     if (!r.ok) return r as never;
     // Judged as if the 一级类 were already saved: a new one gets a stand-in id.
     const parentId = input.level1.id ?? "__new_level1__";
@@ -453,10 +460,6 @@ export async function saveProductTypes(
       : [...existing, { ...plan1.value, id: parentId, parentId: null } as never];
     const place2 = planTypePlacement({ ...r.value, id: input.level2.id, parentId }, withParent);
     if (!place2.ok) return place2 as never;
-    // Two lines naming the same code between them.
-    if (r.value.typeCode === plan1.value.typeCode) {
-      return fail(violation("type_code_taken", "the two levels need different codes", "typeCode"));
-    }
     plan2 = r.value;
   }
 
@@ -474,7 +477,7 @@ export async function saveProductTypes(
     : null;
   return ok({ level1, level2 });
 }
-type ProductTypeDraftOf = { typeCode: string; typeNo: string; name: string; status: "active" | "retired" };
+type ProductTypeDraftOf = { typeCode: string | null; typeNo: string; name: string; status: "active" | "retired" };
 
 /** Retire or reinstate one type - the list's own toggle, not the dialog. */
 export async function setProductTypeStatus(

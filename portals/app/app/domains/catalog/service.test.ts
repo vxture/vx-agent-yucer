@@ -282,52 +282,62 @@ test("the type vocabulary saves BY ID (a code rename is the same row) and delete
   const store = lifecycleStore();
   const c = ctx("sales_ops", "free", store);
   // The code is editable since incr/0100: renaming it must not mint a second type.
-  const renamed = await saveProductTypes(c, { level1: { id: "t2", typeCode: "services", typeNo: "02", name: "专业服务" } });
+  const renamed = await saveProductTypes(c, { level1: { id: "t2", typeNo: "02", name: "专业服务" }, typeCode: "services" });
   assert.equal(renamed.ok && renamed.value.level1.id, "t2");
   assert.equal(renamed.ok && renamed.value.level1.typeCode, "services");
   assert.equal(unwrap(await listProductTypes(c)).length, 2, "same row, not a duplicate");
 
   const refused = await removeProductType(c, { typeId: "t1" });
   assert.equal(!refused.ok && refused.violations[0]!.code, "type_in_use");
-  const empty = await saveProductTypes(c, { level1: { typeCode: "empty", typeNo: "09", name: "空型" } });
+  const empty = await saveProductTypes(c, { level1: { typeNo: "09", name: "空型" }, typeCode: "empty" });
   const id = empty.ok ? empty.value.level1.id : "";
   assert.equal((await removeProductType(c, { typeId: id })).ok, true);
 });
 
-test("two levels: one dialog saves a new 一级类 and a 二级类 under it; a parent with children will not delete", async () => {
+test("ONE code per category (incr/0101): it lands on the 二级类; a new 一级类 saved with it gets none", async () => {
   const store = lifecycleStore();
   const c = ctx("sales_ops", "free", store);
   const r = unwrap(
     await saveProductTypes(c, {
-      level1: { typeCode: "software2", typeNo: "05", name: "软件产品" },
-      level2: { typeCode: "software2-basic", typeNo: "01", name: "基础软件" },
+      level1: { typeNo: "05", name: "软件产品" },
+      level2: { typeNo: "01", name: "基础软件" },
+      typeCode: "software-basic",
     }),
   );
+  assert.equal(r.level2?.typeCode, "software-basic");
+  assert.equal(r.level1.typeCode, null, "the 一级类 carries no code of its own");
   assert.equal(r.level2?.parentId, r.level1.id);
 
-  // A second 二级类 under the EXISTING 一级类, picked by id.
+  // A second 二级类 under the EXISTING 一级类, picked by id; the 一级类 keeps
+  // what it had.
   const more = unwrap(
     await saveProductTypes(c, {
-      level1: { id: r.level1.id, typeCode: "software2", typeNo: "05", name: "软件产品" },
-      level2: { typeCode: "software2-tools", typeNo: "03", name: "工具软件" },
+      level1: { id: "t1", typeNo: "01", name: "平台" },
+      level2: { typeNo: "03", name: "工具" },
+      typeCode: "platform-tools",
     }),
   );
-  assert.equal(more.level2?.parentId, r.level1.id);
+  assert.equal(more.level1.typeCode, "平台", "an existing 一级类's code is untouched");
+  assert.equal(more.level2?.typeCode, "platform-tools");
 
   const blocked = await removeProductType(c, { typeId: r.level1.id });
   assert.equal(!blocked.ok && blocked.violations[0]!.code, "type_has_children");
 });
 
-test("two levels: a refused second line writes NOTHING, not a half-saved first", async () => {
+test("a category needs its code; a taken code refuses and writes NOTHING", async () => {
   const store = lifecycleStore();
   const c = ctx("sales_ops", "free", store);
+  const none = await saveProductTypes(c, { level1: { typeNo: "07", name: "硬件" }, typeCode: "  " });
+  assert.equal(!none.ok && none.violations[0]!.code, "code_required");
+
   const before = unwrap(await listProductTypes(c)).length;
   const r = await saveProductTypes(c, {
-    level1: { typeCode: "hw", typeNo: "07", name: "硬件" },
-    level2: { typeCode: "平台", typeNo: "01", name: "重复代码" }, // code taken by t1
+    level1: { typeNo: "07", name: "硬件" },
+    level2: { typeNo: "01", name: "重复代码" },
+    typeCode: "平台", // taken by t1
   });
   assert.equal(!r.ok && r.violations[0]!.code, "type_code_taken");
-  assert.equal(unwrap(await listProductTypes(c)).length, before);
+  assert.equal(unwrap(await listProductTypes(c)).length, before, "no half-saved 一级类");
 });
 
 test("retire and reinstate a type through its own verb", async () => {
@@ -432,7 +442,7 @@ test("every row operation refuses without catalog.write", async () => {
     await setProductStatus(c, { productId: "p1", statusId: "st_retired" }),
     await moveProduct(c, { productId: "p1", direction: "down" }),
     await removeProduct(c, { productId: "p3" }),
-    await saveProductTypes(c, { level1: { typeCode: "new", typeNo: "08", name: "新" } }),
+    await saveProductTypes(c, { level1: { typeNo: "08", name: "新" }, typeCode: "new" }),
     await setProductTypeStatus(c, { typeId: "t1", status: "retired" }),
     await removeProductType(c, { typeId: "t1" }),
     await saveProductStatus(c, { statusCode: "x", name: "x" }),

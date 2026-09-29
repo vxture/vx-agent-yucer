@@ -30,9 +30,10 @@ export interface ProductTypeRecord {
   /** The identity - products reference it. Never shown (owner, 2026-09-29). */
   id: string;
   workspaceId: string;
-  /** The English code (software, ...). Editable since incr/0100; unique per
-   * workspace - imports match on it. */
-  typeCode: string;
+  /** The English code (software, ...) of the CATEGORY - editable since
+   * incr/0100, unique per workspace (imports match on it). One per category,
+   * not per level (incr/0101): null on a 一级类 created with its first 二级类. */
+  typeCode: string | null;
   /** Two digits, the number people read (incr/0100): 01 for a 一级类; a
    * 二级类 reads as its parent's number then its own, 01-02. Unique among
    * siblings. */
@@ -467,7 +468,7 @@ export class InMemoryCatalogStore implements CatalogStore {
   async listProductTypes(workspaceId: string): Promise<ProductTypeRecord[]> {
     return this.types
       .filter((t) => t.workspaceId === workspaceId)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.typeCode.localeCompare(b.typeCode));
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.typeNo.localeCompare(b.typeNo));
   }
 
   async saveProductType(workspaceId: string, input: ProductTypeInput): Promise<ProductTypeRecord> {

@@ -552,6 +552,25 @@ test("types save BY ID on the real table: a code rename is the same row, and the
   }
 });
 
+test("one code per category (incr/0101): several 一级类 may carry none, a real code is still unique", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await seedStatuses(s);
+    const a = await s.saveProductType(WS, { typeCode: null, typeNo: "01", parentId: null, name: "软件产品", status: "active" });
+    const b = await s.saveProductType(WS, { typeCode: null, typeNo: "02", parentId: null, name: "硬件设备", status: "active" });
+    assert.equal(a.typeCode, null);
+    assert.equal(b.typeCode, null, "two rows with no code do not clash");
+    await s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: a.id, name: "基础软件", status: "active" });
+    await assert.rejects(
+      () => s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: b.id, name: "重复", status: "active" }),
+      /uidx_product_type_code|Unique constraint/i,
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
 test("two levels hold in Postgres: sibling numbers unique, a third level refused (incr/0100)", { skip }, async () => {
   await cleanup();
   try {

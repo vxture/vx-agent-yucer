@@ -7,18 +7,20 @@ import { Tag } from "./tag";
 import { useMessages } from "../lib/i18n/provider";
 import type { ProductTypeRecord } from "../../domains/catalog/store";
 
-// The product-type dialog (owner, 2026-09-29) - two lines and a preview:
+// The product-type dialog (owner, 2026-09-29):
 //
-//   一级类  [XX] [NAME                ] [code     ]
-//   二级类  [XX] [NAME                ] [code     ]
+//   一级类  [pick ▾] [XX] [NAME                         ]
+//   二级类           [XX] [NAME                         ]
+//   代码             [code                               ]
 //   预览    【01-02】【软件产品-基础软件】
 //
 // XX is the two-digit number, narrow; NAME takes the rest of the line. The
-// first line may pick an existing 一级类 or define a new one; the second line
-// left empty saves the 一级类 alone (single level still valid).
+// first line may pick an existing 一级类 or define a new one; the second left
+// empty saves the 一级类 alone (single level still valid).
 //
-// 代码 sits on each line because the English code is required and, since
-// incr/0100, editable - it has to be filled somewhere.
+// ONE CODE, ON ITS OWN LINE (owner's review: 代码需要单独一行，一二级都有代码
+// 不合理): the code belongs to the CATEGORY being saved - the 二级类 when
+// there is one, otherwise the 一级类 (incr/0101).
 
 export type ProductTypeDialogOpen =
   | { readonly mode: "create" }
@@ -27,10 +29,9 @@ export type ProductTypeDialogOpen =
 interface Line {
   typeNo: string;
   name: string;
-  typeCode: string;
 }
 
-const EMPTY: Line = { typeNo: "", name: "", typeCode: "" };
+const EMPTY: Line = { typeNo: "", name: "" };
 const NEW = "__new__";
 
 export function ProductTypeDialog({
@@ -49,6 +50,7 @@ export function ProductTypeDialog({
   readonly onSubmit: (input: {
     level1: Line & { id?: string };
     level2: (Line & { id?: string }) | null;
+    typeCode: string;
   }) => void;
 }) {
   const { CATALOG_TEXT } = useMessages();
@@ -57,10 +59,11 @@ export function ProductTypeDialog({
   const [choice, setChoice] = useState<string>(NEW);
   const [l1, setL1] = useState<Line>(EMPTY);
   const [l2, setL2] = useState<Line & { id?: string }>(EMPTY);
+  const [code, setCode] = useState("");
   /** Editing a 一级类 that is its own row: the first line IS that row, no picker. */
   const [editingTop, setEditingTop] = useState(false);
 
-  const lineOf = (t: ProductTypeRecord): Line => ({ typeNo: t.typeNo, name: t.name, typeCode: t.typeCode });
+  const lineOf = (t: ProductTypeRecord): Line => ({ typeNo: t.typeNo, name: t.name });
 
   useEffect(() => {
     if (!open) return;
@@ -68,6 +71,7 @@ export function ProductTypeDialog({
       setChoice(NEW);
       setL1(EMPTY);
       setL2(EMPTY);
+      setCode("");
       setEditingTop(false);
       return;
     }
@@ -84,12 +88,13 @@ export function ProductTypeDialog({
       setL2(EMPTY);
       setEditingTop(true);
     }
+    setCode(t?.typeCode ?? "");
     // types is the page's own list; re-seed only when the dialog opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Picking an existing 一级类 while ADDING fills and locks the line; while
-  // EDITING, the line edits that 一级类 (its number, name and code).
+  // EDITING, the line edits that 一级类 (its number and name).
   const locked = open?.mode === "create" && choice !== NEW;
 
   const pick = (id: string) => {
@@ -98,26 +103,25 @@ export function ProductTypeDialog({
     setL1(t ? lineOf(t) : EMPTY);
   };
 
-  const hasL2 = l2.typeNo.trim() !== "" || l2.name.trim() !== "" || l2.typeCode.trim() !== "";
+  const hasL2 = l2.typeNo.trim() !== "" || l2.name.trim() !== "";
   const two = /^[0-9]{2}$/;
-  const lineReady = (l: Line) => two.test(l.typeNo.trim()) && l.name.trim() !== "" && l.typeCode.trim() !== "";
-  const ready = lineReady(l1) && (!hasL2 || lineReady(l2));
+  const lineReady = (l: Line) => two.test(l.typeNo.trim()) && l.name.trim() !== "";
+  const ready = lineReady(l1) && (!hasL2 || lineReady(l2)) && code.trim() !== "";
 
   const previewNo = hasL2 ? `${l1.typeNo || "XX"}-${l2.typeNo || "XX"}` : l1.typeNo || "XX";
   const previewName = hasL2
     ? `${l1.name || CATALOG_TEXT.typeLevel1}-${l2.name || CATALOG_TEXT.typeLevel2}`
     : l1.name || CATALOG_TEXT.typeLevel1;
 
-  const row = (
-    label: string,
-    line: Line,
-    set: (next: Line) => void,
-    disabled: boolean,
-    idPrefix: string,
-    picker?: React.ReactNode,
-  ) => (
+  const labelCell = (text: string) => (
+    <span className="text-muted-foreground w-[3.5rem] shrink-0 text-body-sm">{text}</span>
+  );
+  /** Keeps the number and name columns aligned whether or not a line has the picker. */
+  const pickerSlot = editingTop ? null : <span className="w-[9rem] shrink-0" aria-hidden />;
+
+  const row = (label: string, line: Line, set: (next: Line) => void, disabled: boolean, idPrefix: string, picker: React.ReactNode) => (
     <div className="flex items-center gap-sm">
-      <span className="text-muted-foreground w-[3.5rem] shrink-0 text-body-sm">{label}</span>
+      {labelCell(label)}
       {picker}
       <Input
         id={`${idPrefix}-no`}
@@ -138,15 +142,6 @@ export function ProductTypeDialog({
         value={line.name}
         disabled={disabled || pending}
         onChange={(e) => set({ ...line, name: e.target.value })}
-      />
-      <Input
-        id={`${idPrefix}-code`}
-        className="w-[8rem] shrink-0"
-        placeholder={CATALOG_TEXT.typeCodeLabel}
-        aria-label={`${label} ${CATALOG_TEXT.typeCodeLabel}`}
-        value={line.typeCode}
-        disabled={disabled || pending}
-        onChange={(e) => set({ ...line, typeCode: e.target.value })}
       />
     </div>
   );
@@ -169,6 +164,7 @@ export function ProductTypeDialog({
         onSubmit({
           level1: { ...l1, id: choice === NEW ? undefined : choice },
           level2: hasL2 ? l2 : null,
+          typeCode: code.trim(),
         });
       }}
     >
@@ -179,38 +175,45 @@ export function ProductTypeDialog({
           setL1,
           locked,
           "type-l1",
-          editingTop ? undefined : (
+          editingTop ? null : (
             // Wrapped: the DS select takes its wrapper's width, not a class of
             // its own - bare, it filled the line and crushed the name field.
             <div className="w-[9rem] shrink-0">
-            <NativeSelect
-              aria-label={CATALOG_TEXT.typeLevel1}
-              value={choice}
-              disabled={pending}
-              onChange={(e) => pick(e.target.value)}
-            >
-              <option value={NEW}>{CATALOG_TEXT.typeNewLevel1}</option>
-              {tops.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.typeNo} {t.name}
-                </option>
-              ))}
-            </NativeSelect>
+              <NativeSelect
+                aria-label={CATALOG_TEXT.typeLevel1}
+                value={choice}
+                disabled={pending}
+                onChange={(e) => pick(e.target.value)}
+              >
+                <option value={NEW}>{CATALOG_TEXT.typeNewLevel1}</option>
+                {tops.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.typeNo} {t.name}
+                  </option>
+                ))}
+              </NativeSelect>
             </div>
           ),
         )}
-        {row(
-          CATALOG_TEXT.typeLevel2,
-          l2,
-          (next) => setL2({ ...l2, ...next }),
-          false,
-          "type-l2",
-          editingTop ? undefined : <span className="w-[9rem] shrink-0" aria-hidden />,
-        )}
+        {row(CATALOG_TEXT.typeLevel2, l2, (next) => setL2({ ...l2, ...next }), false, "type-l2", pickerSlot)}
+
+        <div className="flex items-center gap-sm">
+          {labelCell(CATALOG_TEXT.typeCodeLabel)}
+          {pickerSlot}
+          <Input
+            id="type-code"
+            className="min-w-0 flex-1"
+            placeholder={CATALOG_TEXT.typeCodeLabel}
+            aria-label={CATALOG_TEXT.typeCodeLabel}
+            value={code}
+            disabled={pending}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </div>
         <p className="text-muted-foreground pl-[4.25rem] text-body-sm">{CATALOG_TEXT.typeLevel2Hint}</p>
 
         <div className="flex items-center gap-sm border-border border-t pt-sm">
-          <span className="text-muted-foreground w-[3.5rem] shrink-0 text-body-sm">{CATALOG_TEXT.typePreview}</span>
+          {labelCell(CATALOG_TEXT.typePreview)}
           <Tag>{previewNo}</Tag>
           <span className="text-foreground text-body-md">{previewName}</span>
         </div>
