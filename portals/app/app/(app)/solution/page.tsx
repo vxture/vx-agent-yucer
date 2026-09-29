@@ -2,7 +2,8 @@ import { StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
+import { inForceByProduct, solutionListFacts } from "../../domains/catalog/lib/pricing";
 import { SolutionRoster } from "../components/solution-roster";
 import { changeSolutionStatus, deleteSolution, moveSolutionRow } from "../catalog/actions";
 import { Tag } from "../components/tag";
@@ -16,9 +17,9 @@ import { Tag } from "../components/tag";
 // strand a deal - and why a broken template fails silently in front of a
 // customer instead of loudly here, which is what the dock's check is for.
 //
-// THE HEADLINE COUNTS COVERAGE, not solutions: how much of what is on sale
-// any solution actually takes to market. The number of templates is a fact
-// about this page; what it decomposes into is a fact about the business.
+// The header is title and roster tags only - no fold since 2026-09-29 (owner:
+// 展开内容删除). Coverage by product type now reads per row, in the roster's
+// 涵盖产品类型 column.
 
 export const dynamic = "force-dynamic";
 
@@ -26,41 +27,30 @@ export default async function SolutionPage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, solutions, types, statuses, authz, entitlement }) => {
+      render={({ products, prices, solutions, types, policy, authz, entitlement }) => {
         const canWrite = can(authz, entitlement, "catalog.solution.upsert", "ui").allowed;
 
-        const activeId = statuses.find((r) => r.statusCode === "active")?.id;
-        const sellable = products.filter((p) => p.statusId === activeId);
         const live = solutions.filter((s) => s.solution.status !== "retired");
-        const covered = new Set(live.flatMap((s) => s.items.map((i) => i.productId)));
 
-        const count = (typeId: string | null) => {
-          const rows = sellable.filter((p) => p.typeId === typeId);
-          const yes = rows.filter((p) => covered.has(p.id)).length;
-          return { inSolution: yes, outside: rows.length - yes };
-        };
-        const stats: HeadlineStat[] = types
-          .map((t) => ({ key: t.id, name: t.name, ...count(t.id) }))
-          .filter((c) => c.inSolution + c.outside > 0)
-          .map((c) => ({
-            key: c.key,
-            name: c.name,
-            value: c.inSolution + c.outside,
-            note: CATALOG_TEXT.solutionStat(c.inSolution, c.outside),
-          }));
-        const untyped = count(null);
-        if (untyped.inSolution + untyped.outside > 0) {
-          stats.push({
-            key: "__none",
-            name: CATALOG_TEXT.noCategory,
-            value: untyped.inSolution + untyped.outside,
-            note: CATALOG_TEXT.solutionStat(untyped.inSolution, untyped.outside),
-          });
-        }
+        // 涵盖产品类型 + 标准价合计 (owner, 2026-09-29), derived here on the
+        // server: "in force" reads a clock, and a clock read again during
+        // hydration is a different clock.
+        const listPrice = new Map(
+          [...inForceByProduct(prices, policy.defaultCurrency, Date.now())].map(([id, e]) => [id, e.listPrice]),
+        );
+        const productType = new Map(products.map((p) => [p.id, p.typeId]));
+        const typeOrder = types.map((t) => t.id);
+        const facts = Object.fromEntries(
+          solutions.map((s) => [
+            s.solution.id,
+            solutionListFacts(s.items, productType, typeOrder, listPrice),
+          ]),
+        );
 
         return (
           <>
             <ModuleHeadline
+              divider={false}
               moduleKey="solution"
               description={CATALOG_TEXT.solutionsWhy}
               tags={
@@ -75,12 +65,12 @@ export default async function SolutionPage() {
                   ) : null}
                 </>
               }
-              stats={stats}
-              emptyNote={CATALOG_TEXT.solutionStatEmpty}
             />
 
             <SolutionRoster
               solutions={solutions}
+              facts={facts}
+              types={types}
               canWrite={canWrite}
               onMove={moveSolutionRow}
               onStatus={changeSolutionStatus}

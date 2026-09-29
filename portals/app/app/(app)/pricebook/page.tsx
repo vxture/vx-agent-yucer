@@ -2,13 +2,15 @@ import { StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
 import { PriceBook } from "../components/price-book";
 import { deletePriceEntry, savePrice } from "../catalog/actions";
 
 // D9 price book - the catalogue module page's pattern and layout, applied
-// here on the owner's 2026-09-05 ruling: the collapsible header card with its
-// roster tags and per-type breakdown, then the rosters with their operations.
+// here on the owner's 2026-09-05 ruling, then trimmed on 2026-09-29: the
+// header card keeps its title and roster tags but NO fold - the per-type
+// breakdown it used to open onto is gone, divider and space with it
+// (ModuleHeadline without `stats`). The rosters follow.
 //
 // It carries the FLOOR, which the discount-signature rule reads (ADR-019), so
 // it is the one catalogue surface whose numbers decide whether a sale needs a
@@ -33,30 +35,6 @@ export default async function PricebookPage() {
         const activeId = statuses.find((r) => r.statusCode === "active")?.id;
         const sellable = products.filter((p) => p.statusId === activeId);
         const priced = new Set(prices.map((e) => e.productId));
-
-        const count = (typeId: string | null) => {
-          const rows = sellable.filter((p) => p.typeId === typeId);
-          const yes = rows.filter((p) => priced.has(p.id)).length;
-          return { priced: yes, unpriced: rows.length - yes };
-        };
-        const stats: HeadlineStat[] = types
-          .map((t) => ({ key: t.id, name: t.name, ...count(t.id) }))
-          .filter((c) => c.priced + c.unpriced > 0)
-          .map((c) => ({
-            key: c.key,
-            name: c.name,
-            value: c.priced + c.unpriced,
-            note: CATALOG_TEXT.priceStat(c.priced, c.unpriced),
-          }));
-        const untyped = count(null);
-        if (untyped.priced + untyped.unpriced > 0) {
-          stats.push({
-            key: "__none",
-            name: CATALOG_TEXT.noCategory,
-            value: untyped.priced + untyped.unpriced,
-            note: CATALOG_TEXT.priceStat(untyped.priced, untyped.unpriced),
-          });
-        }
 
         const pricedCount = sellable.filter((p) => priced.has(p.id)).length;
         const unpricedCount = sellable.length - pricedCount;
@@ -108,6 +86,7 @@ export default async function PricebookPage() {
         return (
           <>
             <ModuleHeadline
+              divider={false}
               moduleKey="pricebook"
               description={CATALOG_TEXT.pricebookWhy}
               tags={
@@ -120,13 +99,12 @@ export default async function PricebookPage() {
                   ) : null}
                 </>
               }
-              stats={stats}
-              emptyNote={CATALOG_TEXT.priceStatEmpty}
             />
 
             <PriceBook
               currency={policy.defaultCurrency}
               products={products}
+              types={types}
               current={current}
               superseded={superseded}
               canPrice={canPrice}

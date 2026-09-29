@@ -63,6 +63,64 @@ export function priceLine(
 }
 
 /**
+ * The entry IN FORCE for each product in one currency: the newest that has
+ * taken effect by `now`. A future-dated entry is a decision made and not yet
+ * in force, so it does not count. Products with no entry are absent - "not
+ * priced" is its own state, not a zero.
+ *
+ * `now` is passed, not read: the caller is a server render, and a clock read
+ * again during hydration is a different clock.
+ */
+export function inForceByProduct(
+  prices: readonly PriceEntryRecord[],
+  currency: string,
+  now: number,
+): Map<string, PriceEntryRecord> {
+  const out = new Map<string, PriceEntryRecord>();
+  for (const e of prices) {
+    if (e.currency !== currency || e.effectiveAt.getTime() > now) continue;
+    const held = out.get(e.productId);
+    if (!held || held.effectiveAt.getTime() < e.effectiveAt.getTime()) out.set(e.productId, e);
+  }
+  return out;
+}
+
+/**
+ * One solution's list reading (owner, 2026-09-29: 涵盖产品类型 + 标准价合计).
+ *
+ * `typeIds` - the product types its items cover, in `typeOrder` (the
+ * vocabulary's order), untyped products contributing none.
+ * `listTotal` - quantity x 标准价 over the STANDARD lines only; optional lines
+ * are the per-deal menu, not the package's price.
+ * `unpriced` - standard lines with no price in force, which the total cannot
+ * include; the caller says so rather than showing a sum that silently lost a
+ * product.
+ */
+export function solutionListFacts(
+  items: readonly { productId: string; quantity: number; optional: boolean }[],
+  productType: ReadonlyMap<string, string | null>,
+  typeOrder: readonly string[],
+  listPrice: ReadonlyMap<string, number>,
+): { typeIds: string[]; listTotal: number; unpriced: number } {
+  const covered = new Set(
+    items.map((i) => productType.get(i.productId)).filter((t): t is string => !!t),
+  );
+  let total = 0;
+  let unpriced = 0;
+  for (const i of items) {
+    if (i.optional) continue;
+    const price = listPrice.get(i.productId);
+    if (price === undefined) unpriced += 1;
+    else total += i.quantity * price;
+  }
+  return {
+    typeIds: typeOrder.filter((t) => covered.has(t)),
+    listTotal: Math.round(total * 100) / 100,
+    unpriced,
+  };
+}
+
+/**
  * The deal total, from its lines.
  *
  * ADR-014 section 2: when lines exist they are authoritative and the header is

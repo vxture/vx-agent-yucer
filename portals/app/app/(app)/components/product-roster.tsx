@@ -8,15 +8,16 @@ import {
   FilterBar,
   Icon,
   Input,
-  NativeSelect,
+  ListCard,
+  ListCardGrid,
   Section,
   StatusBadge,
   TableTitleCell,
   useToast,
+  type FilterBarView,
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
 import {
-  FilterSlot,
   RowActions,
   rowClickSelection,
   SearchSlot,
@@ -31,6 +32,7 @@ import type {
 } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -63,6 +65,10 @@ export interface ProductRosterProps {
    *  render the roster without it and print an empty 单位 column, which is
    *  exactly the kind of miss a type can catch and a default cannot. */
   readonly units: readonly ProductUnitRecord[];
+  /** 标准价 in force per product id (owner, 2026-09-29), computed by the page
+   * on the server. Absent = this surface shows no price column (the sort
+   * page); a product missing from it is 未定价, not zero. */
+  readonly listPrices?: Readonly<Record<string, number>>;
   readonly canWrite: boolean;
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
@@ -78,11 +84,18 @@ const SORT_ON = {
   name: (r: ProductRecord) => r.name,
 };
 
+/** 标准价 sorts on the amount; an unpriced product sorts below every price. */
+const priceSort = (listPrices: Readonly<Record<string, number>>) => ({
+  ...SORT_ON,
+  list: (r: ProductRecord) => listPrices[r.id] ?? -1,
+});
+
 export function ProductRoster({
   units,
   products,
   types,
   statuses,
+  listPrices,
   canWrite,
   variant = "full",
   onMove,
@@ -96,7 +109,8 @@ export function ProductRoster({
   // across BOTH rosters because the keys are product ids: a selection is of
   // products, not of whichever half of the page they were shown in.
   const [selected, setSelected] = useState<readonly string[]>([]);
-  const sorted = useTableSort<ProductRecord>([], SORT_ON);
+  const sorted = useTableSort<ProductRecord>([], listPrices ? priceSort(listPrices) : SORT_ON);
+  const [view, setView] = useState<FilterBarView>("list");
   // Clicking the row toggles it - the checkbox is too small a target
   // (owner, 2026-09-06). Bound per table because each has its own row order.
   const click = (list: readonly ProductRecord[]) =>
@@ -187,6 +201,32 @@ export function ProductRoster({
         r.typeId ? (typeName.get(r.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory,
     },
     {
+      id: "unit",
+      header: CATALOG_TEXT.colUnitPrice,
+      /* THE NAME, resolved from the vocabulary (0037). The row carries a uuid;
+         printing it would be a column of hex. A product whose unit row was
+         deleted underneath it cannot exist - fk_product_unit RESTRICTs - so
+         the fallback is for a partial read, not for a real state. */
+      cell: (r: ProductRecord) => unitName.get(r.unitId) ?? "",
+    },
+    ...(listPrices
+      ? [
+          {
+            id: "list",
+            header: CATALOG_TEXT.colList,
+            sortable: true,
+            align: "money" as const,
+            // 未定价 is a state, not a zero: a 0 here would read as "free".
+            cell: (r: ProductRecord) =>
+              listPrices[r.id] === undefined ? (
+                <span className="text-muted-foreground">{CATALOG_TEXT.unpricedShort}</span>
+              ) : (
+                listPrices[r.id].toLocaleString()
+              ),
+          },
+        ]
+      : []),
+    {
       id: "status",
       header: CATALOG_TEXT.colStatus,
       cell: (r: ProductRecord) => {
@@ -197,15 +237,6 @@ export function ProductRoster({
           </Tag>
         );
       },
-    },
-    {
-      id: "unit",
-      header: CATALOG_TEXT.colUnitPrice,
-      /* THE NAME, resolved from the vocabulary (0037). The row carries a uuid;
-         printing it would be a column of hex. A product whose unit row was
-         deleted underneath it cannot exist - fk_product_unit RESTRICTs - so
-         the fallback is for a partial read, not for a real state. */
-      cell: (r: ProductRecord) => unitName.get(r.unitId) ?? "",
     },
   ];
 
@@ -340,20 +371,27 @@ export function ProductRoster({
         icon="stack"
         title={CATALOG_TEXT.rosterLive}
         description={CATALOG_TEXT.rosterLiveWhy}
-        action={
-          canWrite ? (
-            <Button asChild>
-              <a href="/catalog/new">{CATALOG_TEXT.newProduct}</a>
-            </Button>
-          ) : undefined
-        }
       >
         {/* ONE TOOL ROW FOR BOTH ROSTERS. A catalogue is looked up by name or
             code, and the person looking does not necessarily know the product
             has been retired - that is often the answer they came for. The
             retired roster below says on its own heading that the same control
             is narrowing it. */}
+        {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
+            【新建产品】. The create button moved here from the section header;
+            without the permission it stays, disabled - FilterBar's contract. */}
         <FilterBar
+          view={view}
+          onViewChange={setView}
+          actions={
+            canWrite ? (
+              <Button asChild>
+                <a href="/catalog/new">{CATALOG_TEXT.newProduct}</a>
+              </Button>
+            ) : (
+              <Button disabled>{CATALOG_TEXT.newProduct}</Button>
+            )
+          }
           count={
             narrowed
               ? TABLE_TOOLBAR_TEXT.filteredCount(live.length, liveTotal)
@@ -381,23 +419,47 @@ export function ProductRoster({
           }
           resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
         >
-          <FilterSlot width="w-[9rem]">
-            <NativeSelect
-              value={typeFilter}
-              aria-label={CATALOG_TEXT.filterAllTypes}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">{CATALOG_TEXT.filterAllTypes}</option>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </FilterSlot>
+          <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
         </FilterBar>
 
-        {table(live)}
+        {view === "list" ? (
+          table(live)
+        ) : live.length === 0 ? (
+          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+        ) : (
+          /* The same row as a card (DS ListCard): name and code, status and
+             the row menu top right, type / unit / 标准价 as the meta line. */
+          <ListCardGrid className="p-md">
+            {live.map((row, i) => {
+              const status = vocab.get(row.statusId);
+              return (
+                <ListCard
+                  key={row.id}
+                  title={row.name}
+                  description={row.productCode}
+                  status={<Tag tone={status ? statusTone(status) : "neutral"}>{status?.name ?? ""}</Tag>}
+                  actions={rowActions(row, i)}
+                  meta={
+                    <>
+                      <span>
+                        {row.typeId ? (typeName.get(row.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory}
+                      </span>
+                      <span>{unitName.get(row.unitId) ?? ""}</span>
+                      {listPrices ? (
+                        <span className="tabular-nums">
+                          {CATALOG_TEXT.colList}{" "}
+                          {listPrices[row.id] === undefined
+                            ? CATALOG_TEXT.unpricedShort
+                            : listPrices[row.id].toLocaleString()}
+                        </span>
+                      ) : null}
+                    </>
+                  }
+                />
+              );
+            })}
+          </ListCardGrid>
+        )}
       </Section>
 
       {/* Holds its place while narrowed - a section that vanishes under a

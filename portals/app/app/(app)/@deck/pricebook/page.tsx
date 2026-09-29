@@ -5,6 +5,7 @@ import { analysePriceBook, pricingPolicy } from "../../../domains/catalog/servic
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 import { AgentCapture } from "../../components/agent-capture";
 import { PriceAdvicePanel } from "../../components/price-advice-panel";
+import { PriceAnalysisBar } from "../../components/price-analysis-bar";
 import { savePrice } from "../../catalog/actions";
 import { deckBundle, recordAction } from "../deck-data";
 
@@ -60,6 +61,9 @@ export default async function PricebookDeck({
         canRecord={bundle.canRecord}
         onRecord={recordAction("")}
       />
+      {/* 业务智能区: the analysis controls sit with the analysis (owner,
+          2026-09-29) - they used to be in the price table's header. */}
+      <PriceAnalysisBar />
       {advice.ok ? (
         <PriceAdvicePanel
           currency={policy.ok ? policy.value.defaultCurrency : DEFAULT_PRICING_POLICY.defaultCurrency}
