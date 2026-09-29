@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { priceLine, lineTotal, reconciles, byProduct, planPrice, planPriceRemoval, listComparison, concessionSheet } from "./pricing";
+import { priceLine, lineTotal, reconciles, byProduct, inForceByProduct, solutionListFacts, planPrice, planPriceRemoval, listComparison, concessionSheet } from "./pricing";
 import type { PriceEntryRecord } from "../store";
 
 const entry = (list: number, floor: number): PriceEntryRecord => ({
@@ -167,4 +167,41 @@ test("concessionSheet (让价对照): each line against list and floor, and the 
   const none = concessionSheet([line("c", 1, 10)], []);
   assert.equal(none.listAmount, null);
   assert.equal(none.rate, null);
+});
+
+test("inForceByProduct: the newest entry that has taken effect, per product, in one currency", () => {
+  const at = (iso: string, productId: string, list: number, currency = "CNY"): PriceEntryRecord => ({
+    id: `${productId}@${iso}`, workspaceId: "ws", productId, currency, listPrice: list, floorPrice: list,
+    minPrice: null, effectiveAt: new Date(iso), supersedesId: null,
+  });
+  const now = new Date("2026-06-01T00:00:00Z").getTime();
+  const m = inForceByProduct(
+    [
+      at("2026-01-01", "a", 100),
+      at("2026-03-01", "a", 120),
+      at("2026-09-01", "a", 999), // future-dated: decided, not in force
+      at("2026-02-01", "b", 50, "USD"), // another currency
+    ],
+    "CNY",
+    now,
+  );
+  assert.equal(m.get("a")?.listPrice, 120);
+  assert.equal(m.has("b"), false, "unpriced in this currency is absent, not zero");
+});
+
+test("solutionListFacts: standard lines only, types in vocabulary order, unpriced counted not zeroed", () => {
+  const f = solutionListFacts(
+    [
+      { productId: "sw", quantity: 2, optional: false },
+      { productId: "svc", quantity: 10, optional: false },
+      { productId: "addon", quantity: 1, optional: true },
+      { productId: "new", quantity: 1, optional: false },
+    ],
+    new Map([["sw", "t_sw"], ["svc", "t_svc"], ["addon", "t_hw"], ["new", null]]),
+    ["t_hw", "t_svc", "t_sw"],
+    new Map([["sw", 1000], ["svc", 150.5], ["addon", 9999]]),
+  );
+  assert.deepEqual(f.typeIds, ["t_hw", "t_svc", "t_sw"], "an optional line's type is still covered");
+  assert.equal(f.listTotal, 3505, "2x1000 + 10x150.5; the optional add-on is not the package");
+  assert.equal(f.unpriced, 1);
 });

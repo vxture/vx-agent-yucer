@@ -1428,7 +1428,7 @@ export const en: Dictionary = {
     priceStat: (priced: number, unpriced: number) =>
       unpriced > 0 ? `${priced} priced · ${unpriced} unpriced` : `${priced} priced`,
     priceStatEmpty: "No products yet - the pricing breakdown starts with the first one",
-    priceCurrent: "Current prices",
+    priceCurrent: "Baseline prices in force",
     priceCurrentWhy: "The row in force for each product. A quote below the approval price needs a signature; below the minimum price it is refused.",
     priceHistory: "Superseded prices",
     priceHistoryWhy: "Prices that were replaced. They explain how today's number was arrived at, so they are kept rather than deleted.",
@@ -1458,7 +1458,7 @@ export const en: Dictionary = {
     adviceOpenCatalogue: "Open the catalogue",
     adviceOpenHistory: "See superseded prices",
     assessSelected: "Pricing assessment",
-    analyzeSelectedHint: "Tick the prices to assess first",
+    analyzeSelectedHint: "Assesses the ticked prices; with none ticked, every price in force",
     priceTrend: "Price movement",
     priceTrendSoon: "Price movement analysis is in development: the lineage is being recorded, the screen is not connected yet",
     priceInForceHint: "The price in force cannot be deleted - re-price to append a new one",
@@ -1487,6 +1487,10 @@ export const en: Dictionary = {
     filterAllTypes: "All types",
     narrowedNote: "Narrowed by the search above",
     priceCount: (n: number) => `${n} prices`,
+    unpricedShort: "Unpriced",
+    colCoveredTypes: "Product types",
+    colListTotal: "List total",
+    listTotalPartial: (n: number) => `${n} unpriced`,
   },
 
   REVENUE_STATUS_LABEL: {

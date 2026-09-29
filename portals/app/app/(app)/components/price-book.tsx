@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -12,22 +12,31 @@ import {
   FieldLabel,
   FilterBar,
   Input,
+  ListCard,
+  ListCardGrid,
   NativeSelect,
   Section,
   StatusBadge,
   TableTitleCell,
   useToast,
+  type FilterBarView,
 } from "@vxture/design-ui";
+import { Tag } from "./tag";
 import { DialogForm } from "./dialog-form";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
+  FilterSlot,
   RowActions,
   rowClickSelection,
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
-import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
+import type {
+  PriceEntryRecord,
+  ProductRecord,
+  ProductTypeRecord,
+} from "../../domains/catalog/store";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
 // applied here (owner ruling 2026-09-05).
@@ -52,6 +61,9 @@ export type SupersededPrice = PriceEntryRecord & { readonly supersededAt: Date |
 
 export interface PriceBookProps {
   readonly products: readonly ProductRecord[];
+  /** The catalogue's type vocabulary - the 产品类型 filter reads the same list
+   * the product catalogue's does (owner, 2026-09-29: 同产品目录). */
+  readonly types: readonly ProductTypeRecord[];
   /** The entry in force per product, computed on the SERVER: "in force" reads
    * a clock, and a clock read during hydration is a different clock from the
    * one that rendered the HTML. */
@@ -78,16 +90,28 @@ export interface PriceBookProps {
  * name's width on a constant. The column returns the day a second currency
  * does. */
 
+/** How far a price sits under the standard price, as the tag beside it says:
+ * "-20%". Null when there is nothing to say - no list to measure against, or
+ * no price (a 保底价 from before incr/0099). Equal to list reads "0%": not
+ * discountable is a stance, and the tag says it rather than going quiet. */
+export function discountPct(price: number | null, list: number): string | null {
+  if (price === null || !(list > 0)) return null;
+  const pct = Math.round((1 - price / list) * 100);
+  return pct === 0 ? "0%" : `-${pct}%`;
+}
+
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
    renders - a money cell sorts on the raw amount, not its formatted string. */
 const SORT_ON = {
   product: (r: PriceEntryRecord) => r.productId,
   list: (r: PriceEntryRecord) => r.listPrice,
   floor: (r: PriceEntryRecord) => r.floorPrice,
+  min: (r: PriceEntryRecord) => r.minPrice ?? -1,
 };
 
 export function PriceBook({
   products,
+  types,
   current,
   superseded,
   canPrice,
@@ -98,12 +122,30 @@ export function PriceBook({
   const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
     useMessages();
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [view, setView] = useState<FilterBarView>("list");
   // The SELECTION drives analysis, and only the in-force table carries it:
   // history is never analysed (owner, 2026-09-05), so a checkbox there would
   // promise something the dock refuses to do. The history table takes the
   // DS's leadingSpacer instead - the same width, no control - so the two
   // tables line up column for column and read as one layout.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  /* THE SELECTION IS PUBLISHED TO THE URL (?sel=). 智能定价评估 moved to the
+     栏3 business-intelligence area (owner, 2026-09-29), which is a parallel
+     route - a different React tree that cannot receive this state. The URL is
+     the bridge the deck already reads (`?analyze=`); `sel` is what is ticked,
+     `analyze` is what the deck's button last ran on. Product ids, not entry
+     ids: the analysis is about products. */
+  const publishSelection = (keys: readonly string[]) => {
+    setSelected(keys);
+    const ids = current.filter((e) => keys.includes(e.id)).map((e) => e.productId);
+    const next = new URLSearchParams(params.toString());
+    if (ids.length > 0) next.set("sel", ids.join(","));
+    else next.delete("sel");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
   const sorted = useTableSort<PriceEntryRecord>([], SORT_ON);
   const [dialog, setDialog] = useState<{
     productId: string;
@@ -123,12 +165,16 @@ export function PriceBook({
      it: "what did we use to charge for this" is the same lookup as "what do
      we charge for this", one row further down.
 
-     No second filter here. The only closed-set column is currency, and this
-     book is single-currency in practice - a filter whose dropdown holds one
-     option is a control that cannot do anything. */
+     产品类型 IS THE FILTER (owner, 2026-09-29: 同产品目录) - the same
+     vocabulary and the same control the catalogue's tool row carries, so the
+     two pages narrow the same way. Currency is still not one: this book is
+     single-currency in practice, and a one-option dropdown does nothing. */
   const [query, setQuery] = useState("");
-  const narrowed = query.trim() !== "";
+  const [typeFilter, setTypeFilter] = useState("");
+  const productType = new Map(products.map((p) => [p.id, p.typeId]));
+  const narrowed = query.trim() !== "" || typeFilter !== "";
   const match = (e: PriceEntryRecord) => {
+    if (typeFilter !== "" && productType.get(e.productId) !== typeFilter) return false;
     const q = query.trim().toLowerCase();
     if (q === "") return true;
     const name = productName.get(e.productId) ?? "";
@@ -215,7 +261,6 @@ export function PriceBook({
     {
       id: "list",
       header: CATALOG_TEXT.colList,
-      width: "sm" as const,
       // 资金列：右对齐让个位对齐，右侧留白让数字块看上去仍在列中间
       // (owner, 2026-09-06). Widened from 5.5rem to 6.5rem to make room for
       // the inset: at 5.5rem the content box was 56px against a 48px number,
@@ -229,16 +274,23 @@ export function PriceBook({
     {
       id: "floor",
       header: CATALOG_TEXT.colFloor,
-      width: "sm" as const,
-      // Equal to list means "not discountable" - a stance, worth seeing at a
-      // glance rather than worked out by comparing two columns.
+      // TAG AND PRICE ON ONE LINE (owner, 2026-09-29): the discount says how
+      // far under 标准价 this sits, the number says where. Equal to list keeps
+      // its warning colour - "not discountable" is a stance worth seeing.
       sortable: true,
       align: "money" as const,
       cell: (r: PriceEntryRecord) => (
-        <span className={r.floorPrice === r.listPrice ? "text-(color:--warning-text)" : ""}>
-          {r.floorPrice.toLocaleString()}
-        </span>
+        <PriceWithTag price={r.floorPrice} list={r.listPrice} warn={r.floorPrice === r.listPrice} />
       ),
+    },
+    {
+      id: "min",
+      header: CATALOG_TEXT.colMin,
+      sortable: true,
+      align: "money" as const,
+      // A price from before incr/0099 has no 保底价 - a dash, not a zero:
+      // zero would claim the product may be given away.
+      cell: (r: PriceEntryRecord) => <PriceWithTag price={r.minPrice} list={r.listPrice} />,
     },
     {
       id: "effective",
@@ -319,6 +371,9 @@ export function PriceBook({
      "fixed" edge columns came to measure 100px at 1920. One set of columns
      has to stay elastic, and it is the ones whose content is elastic.
 
+     Columns (owner, 2026-09-29): 选择 | 序号 | 产品 | 标准价 | 审批价 | 保底价 |
+     生效时间 | 操作 - so 生效时间 is the 7th header cell.
+
      生效时间 IS PINNED, and it belongs with the edges rather than with the
      elastic columns: its content has a hard floor. The stamp is deliberately
      two lines - date above, time below - and the DATE alone measures 76px, so
@@ -341,7 +396,7 @@ export function PriceBook({
     return (
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[22%] [&_thead_th:nth-child(6)]:w-[7rem] ${select.className}`}
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[22%] [&_thead_th:nth-child(7)]:w-[7rem] ${select.className}`}
     >
       <DataTable
         labels={DATA_TABLE_LABELS}
@@ -353,7 +408,7 @@ export function PriceBook({
         columns={extra ? [...columns, extra] : columns}
         rowActions={acts}
         selectedKeys={selectable ? selected : undefined}
-        onSelectionChange={selectable ? (keys) => setSelected([...keys]) : undefined}
+        onSelectionChange={selectable ? (keys) => publishSelection([...keys]) : undefined}
         leadingSpacer={!selectable}
         empty={
           narrowed ? (
@@ -377,51 +432,16 @@ export function PriceBook({
         icon={moduleIcon("pricebook")}
         title={CATALOG_TEXT.priceCurrent}
         description={CATALOG_TEXT.priceCurrentWhy}
-        action={
-          <span className="flex items-center gap-sm">
-            {/* TWO DIFFERENT THINGS, named apart (owner, 2026-09-05).
-                The assessment judges what is TICKED and recommends - disabled
-                until something is ticked, with the reason on the hover rather
-                than a click that silently does nothing. The dock's own button
-                covers the whole book; this one is the narrow question. */}
-            <Button
-              variant="secondary"
-              disabled={selected.length === 0}
-              title={selected.length === 0 ? CATALOG_TEXT.analyzeSelectedHint : undefined}
-              onClick={() => {
-                const ids = current
-                  .filter((e) => selected.includes(e.id))
-                  .map((e) => e.productId);
-                router.push(`/pricebook?analyze=${ids.join(",")}`);
-              }}
-            >
-              {CATALOG_TEXT.assessSelected}
-            </Button>
-            {/* Price MOVEMENT analysis - a different question, and not built.
-                Shown disabled rather than hidden, on the same grounds the
-                agent panel shows its unconnected controls: a capability the
-                product intends is worth seeing, and the hover says why it
-                does nothing. The data it will read is already accruing -
-                incr/0030 records which price replaced which. */}
-            <Button variant="secondary" disabled title={CATALOG_TEXT.priceTrendSoon}>
-              {CATALOG_TEXT.priceTrend}
-            </Button>
-            {canPrice ? (
-              <Button
-                onClick={() => {
-                  setErr(null);
-                  setDialog({ productId: "", list: "", floor: "", min: "" });
-                }}
-              >
-                {CATALOG_TEXT.newPrice}
-              </Button>
-            ) : null}
-          </span>
-        }
       >
-        {/* The tool row sits with the in-force table; the history below reads
-            the same keyword and says so on its own heading. */}
+        {/* THE TOOL ROW IS THE DS's (owner, 2026-09-29): 列表/卡片 on the left,
+            then 搜索 · 产品类型 · 【设定价格】 on the right. The two analysis
+            buttons that used to sit in this header moved to 栏3's business-
+            intelligence area, where the analysis itself is shown - see
+            @deck/pricebook. The history below reads the same keyword and type,
+            and says so on its own heading. */}
         <FilterBar
+          view={view}
+          onViewChange={setView}
           count={
             narrowed
               ? TABLE_TOOLBAR_TEXT.filteredCount(shownCurrent.length, current.length)
@@ -439,13 +459,87 @@ export function PriceBook({
               />
             </SearchSlot>
           }
-          onReset={narrowed ? () => setQuery("") : undefined}
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setTypeFilter("");
+                }
+              : undefined
+          }
           resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
-        />
+          actions={
+            /* A primary button, DISABLED rather than hidden without the
+               permission (FilterBar's own contract): the reader learns the
+               action exists and why it is not theirs. */
+            <Button
+              disabled={!canPrice}
+              title={canPrice ? undefined : CATALOG_TEXT.priceDenied}
+              onClick={() => {
+                setErr(null);
+                setDialog({ productId: "", list: "", floor: "", min: "" });
+              }}
+            >
+              {CATALOG_TEXT.newPrice}
+            </Button>
+          }
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={typeFilter}
+              aria-label={CATALOG_TEXT.filterAllTypes}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">{CATALOG_TEXT.filterAllTypes}</option>
+              {types.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
 
-        {table(shownCurrent, rowActions(true), true)}
-        {canPrice ? null : (
-          <p className="text-muted-foreground mt-sm text-body-sm">{CATALOG_TEXT.priceDenied}</p>
+        {view === "list" ? (
+          table(shownCurrent, rowActions(true), true)
+        ) : shownCurrent.length === 0 ? (
+          narrowed ? (
+            <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
+          ) : (
+            <EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />
+          )
+        ) : (
+          /* THE SAME ROW, DRAWN AS A CARD (DS ListCard): product and code top
+             left, the row menu top right, and the three prices with their
+             tags plus 生效时间 as the meta line. */
+          <ListCardGrid className="p-md">
+            {[...sorted.sortRows(shownCurrent)].map((row) => (
+              <ListCard
+                key={row.id}
+                title={productName.get(row.productId) ?? CATALOG_TEXT.noCategory}
+                description={productCode.get(row.productId) ?? ""}
+                actions={rowActions(true)(row)}
+                meta={
+                  <>
+                    <span className="tabular-nums">
+                      {CATALOG_TEXT.colList} {row.listPrice.toLocaleString()}
+                    </span>
+                    <span className="flex items-center gap-2xs">
+                      {CATALOG_TEXT.colFloor}
+                      <PriceWithTag price={row.floorPrice} list={row.listPrice} />
+                    </span>
+                    <span className="flex items-center gap-2xs">
+                      {CATALOG_TEXT.colMin}
+                      <PriceWithTag price={row.minPrice} list={row.listPrice} />
+                    </span>
+                    <span className="tabular-nums">
+                      {CATALOG_TEXT.colEffective} {row.effectiveAt.toISOString().slice(0, 10)}
+                    </span>
+                  </>
+                }
+              />
+            ))}
+          </ListCardGrid>
         )}
       </Section>
 
@@ -551,5 +645,30 @@ export function PriceBook({
         {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
       </DialogForm>
     </>
+  );
+}
+
+/** A price with its discount tag on the SAME line (owner, 2026-09-29): the
+ * tag first, then the number, right-aligned together so the digits still line
+ * up down the column. A missing price (a 保底价 from before incr/0099) is a
+ * dash with no tag. */
+function PriceWithTag({
+  price,
+  list,
+  warn = false,
+}: {
+  readonly price: number | null;
+  readonly list: number;
+  readonly warn?: boolean;
+}) {
+  if (price === null) return <span className="text-muted-foreground">-</span>;
+  const pct = discountPct(price, list);
+  return (
+    <span className="inline-flex items-center justify-end gap-xs whitespace-nowrap">
+      {pct ? <Tag>{pct}</Tag> : null}
+      <span className={`tabular-nums ${warn ? "text-(color:--warning-text)" : ""}`}>
+        {price.toLocaleString()}
+      </span>
+    </span>
   );
 }

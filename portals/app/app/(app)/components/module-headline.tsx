@@ -101,6 +101,7 @@ export function ModuleHeadline({
   stats,
   share,
   emptyNote,
+  divider = true,
 }: {
   /** The nav entry this page IS. Its icon and its NAME both come from the
    * registries - a page that spelled its own name drifted from the menu the
@@ -143,6 +144,14 @@ export function ModuleHeadline({
    */
   readonly share?: boolean;
   readonly emptyNote?: string;
+  /**
+   * The header's dashed underline - the DS default, on (owner 2026-09-26:
+   * 每级都有下划线，可显隐). Off where the owner took the header down to
+   * title and tags alone (2026-09-29, 产品定价 / 解决方案 / 产品目录: 展开
+   * 内容删除，包括分割线及下部空间): a rule under a header with nothing
+   * beneath it divides the card from itself.
+   */
+  readonly divider?: boolean;
 }) {
   const { CATALOG_TEXT, DOMAIN_LABEL } = useMessages();
   const [open, setOpen] = useState(true);
@@ -158,6 +167,7 @@ export function ModuleHeadline({
       title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
       description={description}
       secondary={tags ? <span className="flex items-center gap-xs">{tags}</span> : undefined}
+      divider={divider}
       action={
         <span className="flex items-center gap-sm">
           {action}
@@ -179,7 +189,16 @@ export function ModuleHeadline({
   // THE CARD AND THE ICON ARE THE MODULE HEADER, not the fold's packaging.
   // A page that opted out of the breakdown still belongs to the same set of
   // pages, and dropping to a bare title made it look like a different product.
-  if (!folds) return <Card className="p-lg">{header}</Card>;
+  //
+  // NAMED OVERRIDE (owner allows local CSS where the DS stops, 2026-09-24):
+  // ViewHeader keeps its pb-lg with `divider={false}` - padding that exists
+  // to hold the dashed rule off the text, left behind as 24px of blank card
+  // once the rule is gone (measured 2026-09-29: header 97-211, text ends
+  // 187). Zeroed only when the divider is off. DS gap: ViewHeader should drop
+  // the padding with the rule.
+  if (!folds) {
+    return <Card className={divider ? "p-lg" : "p-lg [&>section]:pb-0"}>{header}</Card>;
+  }
 
   return (
     <Card className="p-lg">

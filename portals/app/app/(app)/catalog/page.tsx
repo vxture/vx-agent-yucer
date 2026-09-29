@@ -1,14 +1,15 @@
 import { can } from "../../authz/decide";
 import { CatalogPage } from "./shell";
 import { StatusBadge } from "@vxture/design-ui";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
+import { inForceByProduct } from "../../domains/catalog/lib/pricing";
 import { ProductRoster } from "../components/product-roster";
 import { changeProductStatus, deleteProduct, moveProductRow } from "./actions";
 import { getMessages } from "../lib/i18n/server";
 
 // D9 products - the catalogue module page, rebuilt to the owner's 2026-09-05
-// ruling: the header is the board's collapsible card (name, roster tags, gear
-// to system config, per-type breakdown), the body is the two rosters with the
+// ruling: the header is the board's card (name, roster tags) - no fold since
+// 2026-09-29, the per-type breakdown and its divider are gone - the body is the two rosters with the
 // row operations locked right, and creation/ordering/config each have a page
 // of their own.
 //
@@ -21,7 +22,7 @@ export default async function ProductsPage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, types, statuses, units, authz, entitlement }) => {
+      render={({ products, prices, types, statuses, units, policy, authz, entitlement }) => {
         const canWrite = can(authz, entitlement, "catalog.product.upsert", "ui").allowed;
         // The two tags and the roster split are wired to the CANONICAL rows -
         // products on a workspace-added status live in the main roster and
@@ -32,37 +33,17 @@ export default async function ProductsPage() {
         const retiredId = idOf("retired");
         const live = products.filter((p) => p.statusId !== retiredId);
 
-        // Per-type stats in VOCABULARY order, so the config page's ordering is
-        // what the header renders. Types with nothing live are skipped rather
-        // than shown as zero - the breakdown decomposes the headline count,
-        // and a zero contributes nothing to it. Untyped products close the
-        // list under their own cell.
-        const count = (typeId: string | null) => ({
-          active: live.filter((p) => p.typeId === typeId && p.statusId === activeId).length,
-          dev: live.filter((p) => p.typeId === typeId && p.statusId === devId).length,
-        });
-        const stats: HeadlineStat[] = types
-          .map((t) => ({ key: t.id, name: t.name, ...count(t.id) }))
-          .filter((c) => c.active + c.dev > 0)
-          .map((c) => ({
-            key: c.key,
-            name: c.name,
-            value: c.active + c.dev,
-            note: CATALOG_TEXT.typeStat(c.active, c.dev),
-          }));
-        const untyped = count(null);
-        if (untyped.active + untyped.dev > 0) {
-          stats.push({
-            key: "__none",
-            name: CATALOG_TEXT.noCategory,
-            value: untyped.active + untyped.dev,
-            note: CATALOG_TEXT.typeStat(untyped.active, untyped.dev),
-          });
-        }
+        // 标准价 column (owner, 2026-09-29): the list price IN FORCE, computed
+        // here on the server - "in force" reads a clock, and a clock read
+        // again during hydration is a different clock.
+        const listPrices = Object.fromEntries(
+          [...inForceByProduct(prices, policy.defaultCurrency, Date.now())].map(([id, e]) => [id, e.listPrice]),
+        );
 
         return (
           <>
             <ModuleHeadline
+              divider={false}
               moduleKey="catalog"
               description={CATALOG_TEXT.description}
               tags={
@@ -77,8 +58,6 @@ export default async function ProductsPage() {
                   ) : null}
                 </>
               }
-              stats={stats}
-              emptyNote={CATALOG_TEXT.byTypeEmpty}
             />
 
             <ProductRoster
@@ -86,6 +65,7 @@ export default async function ProductsPage() {
               types={types}
               statuses={statuses}
               units={units}
+              listPrices={listPrices}
               canWrite={canWrite}
               onMove={moveProductRow}
               onStatus={changeProductStatus}

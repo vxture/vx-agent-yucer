@@ -951,7 +951,7 @@ export const CATALOG_TEXT = {
   priceStat: (priced: number, unpriced: number) =>
     unpriced > 0 ? `${priced} 已定价 · ${unpriced} 未定价` : `${priced} 已定价`,
   priceStatEmpty: "还没有产品，定价统计从第一个产品开始",
-  priceCurrent: "当前价目",
+  priceCurrent: "现行基准价目",
   priceCurrentWhy: "每个产品此刻生效的那一行。低于审批价的报价需要签字，低于保底价的报价直接拒绝。",
   priceHistory: "历史价目",
   priceHistoryWhy: "被取代的价格。它们解释了今天这个数字是怎么来的，所以保留而不删除。",
@@ -984,7 +984,7 @@ export const CATALOG_TEXT = {
   // 「智能定价评估」按规则给出建议并可一键采纳；
   // 「定价变化分析」看价格随时间怎么走，开发中——incr/0030 的继承链就是它的数据基础。
   assessSelected: "智能定价评估",
-  analyzeSelectedHint: "先在左侧勾选要评估的价目",
+  analyzeSelectedHint: "评估左侧勾选的价目；未勾选时评估全部生效价目",
   priceTrend: "定价变化分析",
   priceTrendSoon: "定价变化分析开发中：继承链数据已在记录，界面还没有接通",
   priceInForceHint: "当前生效的价格不能删除——请用「重新定价」追加一条新的",
@@ -1022,6 +1022,10 @@ export const CATALOG_TEXT = {
   filterAllTypes: "全部分类",
   narrowedNote: "已按检索条件收窄",
   priceCount: (n: number) => `${n} 条价格`,
+  unpricedShort: "未定价",
+  colCoveredTypes: "涵盖产品类型",
+  colListTotal: "标准价合计",
+  listTotalPartial: (n: number) => `${n} 项未定价`,
 } as const;
 
 /**
