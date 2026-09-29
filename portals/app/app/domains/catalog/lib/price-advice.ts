@@ -37,6 +37,9 @@ export interface PriceAdvice {
   readonly priceId?: string;
   readonly listPrice?: number;
   readonly floorPrice?: number;
+  /** 保底价 of the entry (incr/0099) - null when it predates that increment.
+   * Applying a suggestion writes a NEW entry, which must carry one. */
+  readonly minPrice?: number | null;
   readonly currency?: string;
   /** What the advice would set the floor to, when it can name a number. */
   readonly suggestedFloor?: number;
@@ -91,6 +94,7 @@ export function analysePrices(input: PriceAdviceInput): PriceAdvice[] {
       priceId: entry.id,
       listPrice: entry.listPrice,
       floorPrice: entry.floorPrice,
+      minPrice: entry.minPrice,
       currency: entry.currency,
     };
 

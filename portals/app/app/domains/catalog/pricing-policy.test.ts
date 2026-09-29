@@ -62,7 +62,7 @@ test("a line priced with no currency anywhere takes the workspace's, not the bui
   assert.equal(l.currency, "USD");
   // The book's currency still wins over the default: a priced product is
   // priced in something, and that something is not a policy.
-  const entry = { id: "e", workspaceId: WS, productId: "p", currency: "HKD", listPrice: 10, floorPrice: 5, effectiveAt: new Date(), supersedesId: null };
+  const entry = { id: "e", workspaceId: WS, productId: "p", currency: "HKD", listPrice: 10, floorPrice: 5, minPrice: null, effectiveAt: new Date(), supersedesId: null };
   assert.equal(priceLine({ productId: "p", quantity: 1, unitPrice: 10 }, entry, "USD").currency, "HKD");
 });
 

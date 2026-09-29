@@ -97,7 +97,12 @@ export interface PriceEntryRecord {
   productId: string;
   currency: string;
   listPrice: number;
+  /** 审批价 in the interface since 2026-09-29: a line below it needs a
+   * signature. The column keeps its name (incr/0099 says why). */
   floorPrice: number;
+  /** 保底价 - incr/0099. A line below it is REFUSED; no signature makes it
+   * legal. Null on entries written before that increment. */
+  minPrice: number | null;
   effectiveAt: Date;
   /** The entry this one replaced - incr/0030. The chain the product ASSERTED,
    * as opposed to the one a sort by date infers: a backdated correction or an

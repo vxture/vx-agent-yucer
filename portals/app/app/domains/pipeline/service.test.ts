@@ -491,7 +491,7 @@ test("an incoherent scope is refused rather than quietly filtered", async () => 
 // constraint - it spans a header and many rows - so it is only true if this
 // service keeps it true, which makes these the tests that hold the rule up.
 
-function catalogWith(floor: number | null): InMemoryCatalogStore {
+function catalogWith(floor: number | null, min: number | null = null): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
@@ -509,6 +509,7 @@ function catalogWith(floor: number | null): InMemoryCatalogStore {
               currency: "CNY",
               listPrice: 1000,
               floorPrice: floor,
+              minPrice: min,
               effectiveAt: new Date("2026-01-01"),
               supersedesId: null,
             },
@@ -517,13 +518,18 @@ function catalogWith(floor: number | null): InMemoryCatalogStore {
   return store;
 }
 
-function lineCtx(role: RoleCode, tier: Entitlement["tier"], floor: number | null = 800) {
+function lineCtx(
+  role: RoleCode,
+  tier: Entitlement["tier"],
+  floor: number | null = 800,
+  min: number | null = null,
+) {
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
   // `deals` keeps the CONCRETE store alongside the context, so a second context
   // on the same data (a quoter and an approver, which is the normal case for
   // this feature) can be built without re-seeding and drifting apart.
-  return { ...ctx(role, tier, store), catalog: catalogWith(floor), deals: store };
+  return { ...ctx(role, tier, store), catalog: catalogWith(floor, min), deals: store };
 }
 
 test("the header becomes the sum of the lines - ADR-014 section 2", async () => {
@@ -559,6 +565,28 @@ test("an unpriced product is not a discount", async () => {
   const c = lineCtx("sales_rep", "free", null);
   const r = unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 1 }]));
   assert.equal(r.needsApproval, 0);
+});
+
+test("保底价 (incr/0099): below the minimum is refused outright, and nothing is written", async () => {
+  // 标准价 1000, 审批价 800, 保底价 600.
+  const c = lineCtx("sales_rep", "free", 800, 600);
+  const refused = await replaceOpportunityLines(c, "opp_1", [
+    { productId: "p2", quantity: 1, unitPrice: 5000 },
+    { productId: "p1", quantity: 1, unitPrice: 599 },
+  ]);
+  assert.equal(refused.ok === false && refused.violations[0].code, "below_min_price");
+  assert.equal((await c.catalog.listLines(WS, "opp_1")).length, 0, "one line under the minimum leaves the deal as it was");
+
+  // Between the minimum and the approval price is the signature's territory,
+  // not a refusal; exactly at the minimum is still legal.
+  const signed = unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 600 }]));
+  assert.equal(signed.needsApproval, 1);
+});
+
+test("a price with no 保底价 (written before incr/0099) sets no hard limit", async () => {
+  const c = lineCtx("sales_rep", "free", 800, null);
+  const r = unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 1 }]));
+  assert.equal(r.needsApproval, 1, "still below the approval price, so still flagged");
 });
 
 test("a re-quote keeps each product's solution and customisation unless it restates them (incr/0082)", async () => {
@@ -762,6 +790,7 @@ test("the floor is copied in, so a later price change cannot rewrite what was au
     currency: "CNY",
     listPrice: 1000,
     floorPrice: 200,
+    minPrice: null,
     effectiveAt: new Date("2026-06-01"),
   });
   const stored = (await c.catalog.listApprovals(WS, "opp_1"))[0]!;

@@ -67,6 +67,7 @@ export interface PriceBookProps {
     currency: string;
     listPrice: number;
     floorPrice: number;
+    minPrice: number | null;
   }) => Promise<{ ok: boolean; error?: string }>;
   readonly onDelete: (priceId: string) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -104,7 +105,12 @@ export function PriceBook({
   // tables line up column for column and read as one layout.
   const [selected, setSelected] = useState<readonly string[]>([]);
   const sorted = useTableSort<PriceEntryRecord>([], SORT_ON);
-  const [dialog, setDialog] = useState<{ productId: string; list: string; floor: string } | null>(null);
+  const [dialog, setDialog] = useState<{
+    productId: string;
+    list: string;
+    floor: string;
+    min: string;
+  } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
@@ -143,13 +149,18 @@ export function PriceBook({
 
   const list = Number(dialog?.list);
   const floor = Number(dialog?.floor);
+  const min = Number(dialog?.min);
+  // 保底价 is required on every new price (incr/0099) - the service refuses
+  // without it, so the dialog does not offer a submit that can only fail.
   const ready =
     dialog !== null &&
     dialog.productId !== "" &&
     dialog.list.trim() !== "" &&
     dialog.floor.trim() !== "" &&
+    dialog.min.trim() !== "" &&
     Number.isFinite(list) &&
-    Number.isFinite(floor);
+    Number.isFinite(floor) &&
+    Number.isFinite(min);
 
   const submit = () => {
     if (!dialog || !ready) return;
@@ -160,6 +171,7 @@ export function PriceBook({
         currency,
         listPrice: list,
         floorPrice: floor,
+        minPrice: min,
       }).then((r) => {
         if (r.ok) setDialog(null);
         else setErr(CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied);
@@ -269,6 +281,9 @@ export function PriceBook({
                           productId: row.productId,
                           list: String(row.listPrice),
                           floor: String(row.floorPrice),
+                          // History has no minimum (pre-0099): left blank
+                          // for the person repricing to decide.
+                          min: row.minPrice === null ? "" : String(row.minPrice),
                         });
                       },
                     },
@@ -395,7 +410,7 @@ export function PriceBook({
               <Button
                 onClick={() => {
                   setErr(null);
-                  setDialog({ productId: "", list: "", floor: "" });
+                  setDialog({ productId: "", list: "", floor: "", min: "" });
                 }}
               >
                 {CATALOG_TEXT.newPrice}
@@ -511,6 +526,20 @@ export function PriceBook({
               onChange={(e) => setDialog((d) => (d ? { ...d, floor: e.target.value } : d))}
             />
             <FieldDescription>{CATALOG_TEXT.floorHint}</FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="price-min">{CATALOG_TEXT.colMin}</FieldLabel>
+            <Input
+              id="price-min"
+              type="number"
+              min="0"
+              inputMode="decimal"
+              value={dialog?.min ?? ""}
+              disabled={pending}
+              onChange={(e) => setDialog((d) => (d ? { ...d, min: e.target.value } : d))}
+            />
+            <FieldDescription>{CATALOG_TEXT.minHint}</FieldDescription>
           </Field>
         </FieldGroup>
 

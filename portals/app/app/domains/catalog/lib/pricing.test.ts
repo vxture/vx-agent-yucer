@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { priceLine, lineTotal, reconciles, byProduct, planPriceRemoval, listComparison, concessionSheet } from "./pricing";
+import { priceLine, lineTotal, reconciles, byProduct, planPrice, planPriceRemoval, listComparison, concessionSheet } from "./pricing";
 import type { PriceEntryRecord } from "../store";
 
 const entry = (list: number, floor: number): PriceEntryRecord => ({
@@ -10,6 +10,7 @@ const entry = (list: number, floor: number): PriceEntryRecord => ({
   currency: "CNY",
   listPrice: list,
   floorPrice: floor,
+  minPrice: null,
   effectiveAt: new Date("2026-01-01T00:00:00Z"),
   supersedesId: null,
 });
@@ -59,6 +60,37 @@ test("rolling up by product is what the whole table is for", () => {
   assert.equal(rolled.get("b")!.quantity, 2);
 });
 
+// --- planPrice: the three prices (incr/0099) ----------------------------------
+
+const draft = (list: number, floor: number, min: number | null) => ({
+  productId: "prd_1",
+  currency: "CNY",
+  listPrice: list,
+  floorPrice: floor,
+  minPrice: min,
+  effectiveAt: new Date("2026-01-01T00:00:00Z"),
+});
+
+test("planPrice: a new price must carry a 保底价 (owner: 新设价必填)", () => {
+  const r = planPrice(draft(1000, 800, null));
+  assert.equal(r.ok === false && r.violations[0].code, "min_price_required");
+});
+
+test("planPrice: 保底价 above 审批价 is refused - the signature would be unreachable", () => {
+  const r = planPrice(draft(1000, 800, 801));
+  assert.equal(r.ok === false && r.violations[0].code, "min_above_floor");
+});
+
+test("planPrice: min <= floor <= list is accepted, equality included", () => {
+  assert.equal(planPrice(draft(1000, 800, 600)).ok, true);
+  assert.equal(planPrice(draft(1000, 1000, 1000)).ok, true, "not discountable at all is a stance");
+});
+
+test("planPrice: a negative 保底价 is refused", () => {
+  const r = planPrice(draft(1000, 800, -1));
+  assert.equal(r.ok === false && r.violations[0].code, "amount_negative");
+});
+
 // --- planPriceRemoval --------------------------------------------------------
 
 test("the price in force is never deletable", () => {
@@ -84,6 +116,7 @@ test("listComparison: values each line at its latest entry, like for like", () =
     currency,
     listPrice,
     floorPrice: listPrice / 2,
+    minPrice: null,
     effectiveAt: at(effective),
     supersedesId: null,
   });
@@ -110,7 +143,7 @@ test("listComparison: no listed line means no list total, not zero", () => {
 test("concessionSheet (让价对照): each line against list and floor, and the deal's concession in total", () => {
   const at = new Date("2026-01-01T00:00:00Z");
   const e = (productId: string, list: number, floor: number): PriceEntryRecord => ({
-    id: `pe_${productId}`, workspaceId: "ws", productId, currency: "CNY", listPrice: list, floorPrice: floor, effectiveAt: at, supersedesId: null,
+    id: `pe_${productId}`, workspaceId: "ws", productId, currency: "CNY", listPrice: list, floorPrice: floor, minPrice: null, effectiveAt: at, supersedesId: null,
   });
   const line = (productId: string, quantity: number, unitPrice: number, needsApproval = false, approved = false) => ({
     productId, currency: "CNY", quantity, unitPrice, amount: quantity * unitPrice, needsApproval, approved,

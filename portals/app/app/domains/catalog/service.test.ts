@@ -60,9 +60,9 @@ function seeded(): InMemoryCatalogStore {
       { id: "i2", workspaceId: WS, solutionId: "s1", productId: "p2", quantity: 5, optional: false, note: null },
     ],
     prices: [
-      { id: "e1", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1000, floorPrice: 800, effectiveAt: new Date("2026-01-01"), supersedesId: null },
-      { id: "e2", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1200, floorPrice: 900, effectiveAt: new Date("2026-06-01"), supersedesId: "e1" },
-      { id: "ex", workspaceId: "ws_other", productId: "px", currency: "CNY", listPrice: 5, floorPrice: 5, effectiveAt: new Date("2026-06-01"), supersedesId: null },
+      { id: "e1", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1000, floorPrice: 800, minPrice: null, effectiveAt: new Date("2026-01-01"), supersedesId: null },
+      { id: "e2", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1200, floorPrice: 900, minPrice: null, effectiveAt: new Date("2026-06-01"), supersedesId: "e1" },
+      { id: "ex", workspaceId: "ws_other", productId: "px", currency: "CNY", listPrice: 5, floorPrice: 5, minPrice: null, effectiveAt: new Date("2026-06-01"), supersedesId: null },
     ],
   });
   return store;
@@ -145,10 +145,10 @@ test("catalog.write maintains the catalogue; catalog.price is a different job", 
   const pricer: CatalogContext = { ...base, holder: { permissions: new Set(["catalog.price"] as never) } };
 
   assert.equal((await upsertProduct(writer, { productCode: "P-9", name: "New", unitId: "u_seat" })).ok, true);
-  const refusedPrice = await setPrice(writer, { productId: "p1", currency: "CNY", listPrice: 10, floorPrice: 5 });
+  const refusedPrice = await setPrice(writer, { productId: "p1", currency: "CNY", listPrice: 10, floorPrice: 5, minPrice: 5 });
   assert.equal(refusedPrice.ok, false, "catalog.write must NOT be able to move the floor");
 
-  assert.equal((await setPrice(pricer, { productId: "p1", currency: "CNY", listPrice: 10, floorPrice: 5 })).ok, true);
+  assert.equal((await setPrice(pricer, { productId: "p1", currency: "CNY", listPrice: 10, floorPrice: 5, minPrice: 5 })).ok, true);
   const refusedWrite = await upsertProduct(pricer, { productCode: "P-8", name: "Nope", unitId: "u_seat" });
   assert.equal(refusedWrite.ok, false, "catalog.price must NOT be able to edit the catalogue");
 });
@@ -158,13 +158,13 @@ test("a floor above list is refused - it is the same as having no floor", async 
     ...ctx("sales_rep", "free"),
     holder: { permissions: new Set(["catalog.price"] as never) },
   };
-  const r = await setPrice(c, { productId: "p1", currency: "CNY", listPrice: 100, floorPrice: 101 });
+  const r = await setPrice(c, { productId: "p1", currency: "CNY", listPrice: 100, floorPrice: 101, minPrice: 101 });
   assert.equal(r.ok, false);
   assert.equal(r.ok === false && r.violations[0]!.code, "floor_above_list");
 
   // Equal IS allowed: "this product is not discountable" is a position, not a
   // mistake.
-  assert.equal((await setPrice(c, { productId: "p1", currency: "CNY", listPrice: 100, floorPrice: 100 })).ok, true);
+  assert.equal((await setPrice(c, { productId: "p1", currency: "CNY", listPrice: 100, floorPrice: 100, minPrice: 100 })).ok, true);
 });
 
 test("setting a price appends - the superseded entry stays readable", async () => {
@@ -174,7 +174,7 @@ test("setting a price appends - the superseded entry stays readable", async () =
     holder: { permissions: new Set(["catalog.price", "catalog.read"] as never) },
   };
   const before = unwrap(await listPrices(pricer)).length;
-  unwrap(await setPrice(pricer, { productId: "p1", currency: "CNY", listPrice: 1500, floorPrice: 1100 }));
+  unwrap(await setPrice(pricer, { productId: "p1", currency: "CNY", listPrice: 1500, floorPrice: 1100, minPrice: 1100 }));
   const after = unwrap(await listPrices(pricer));
   assert.equal(after.length, before + 1, "a price book records history, it does not overwrite");
   assert.equal(after[0]!.listPrice, 1500, "newest first");
@@ -490,6 +490,7 @@ test("a new price records which price it replaced, and the first records none", 
     currency: "CNY",
     listPrice: 1000,
     floorPrice: 800,
+    minPrice: 800,
   });
   assert.equal(first.ok && first.value.supersedesId, null, "nothing came before it");
 
@@ -498,6 +499,7 @@ test("a new price records which price it replaced, and the first records none", 
     currency: "CNY",
     listPrice: 1200,
     floorPrice: 900,
+    minPrice: 900,
   });
   assert.equal(
     second.ok && second.value.supersedesId,
@@ -511,6 +513,7 @@ test("a new price records which price it replaced, and the first records none", 
     currency: "CNY",
     listPrice: 500,
     floorPrice: 400,
+    minPrice: 400,
   });
   assert.equal(other.ok && other.value.supersedesId, null);
 });
