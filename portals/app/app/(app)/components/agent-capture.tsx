@@ -12,6 +12,7 @@ import {
 } from "@vxture/design-ui";
 import type { AgentPanelData } from "../lib/board";
 import { useMessages } from "../lib/i18n/provider";
+import { FormAssistSlot } from "./form-assist-slot";
 
 // The assistant's own card: who is looking, at how much, the way into the
 // full thread, and the box you type into.
@@ -46,6 +47,7 @@ export function AgentCapture({
   // scope line belongs to the box you are about to type into, because it says
   // what the answer will be based on.
   return (
+    <>
     <Card className="p-sm">
       <div className="flex items-center gap-xs">
         <Avatar className="size-6">
@@ -139,5 +141,8 @@ export function AgentCapture({
         </>
       ) : null}
     </Card>
+    {/* 智能填写 of the form on screen, if any (form-assist-slot.tsx). */}
+    <FormAssistSlot />
+    </>
   );
 }
