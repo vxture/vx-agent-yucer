@@ -23,7 +23,7 @@ import { GateHeading } from "./gate-heading";
 // sentence and the way in, which is what a door is: the product is introduced
 // on the public site, which the header links to.
 
-export function SignIn() {
+export function SignIn({ resume = false }: { readonly resume?: boolean }) {
   const { SIGNIN_TEXT } = useMessages();
 
   // Built client-side because a server layout cannot see the path. Starts as
@@ -34,7 +34,13 @@ export function SignIn() {
   useEffect(() => {
     const here = window.location.pathname + window.location.search;
     setHref(`/auth/login?returnTo=${encodeURIComponent(here)}`);
-  }, []);
+    // A session that died while the IdP's own session is alive: try the IdP
+    // once, silently, before asking anybody to click (auth/lib/sso.ts
+    // shouldResumeSilently). A hard navigation, from here, because this may
+    // be a client-side route change and the IdP hop must be top-level. The
+    // login route sets the marker that makes this happen once, not forever.
+    if (resume) window.location.replace(`/auth/login?silent=1&returnTo=${encodeURIComponent(here)}`);
+  }, [resume]);
 
   return (
     <GateFrame ariaLabel={SIGNIN_TEXT.ariaLabel} width="wide">
@@ -44,9 +50,15 @@ export function SignIn() {
             this band looking unfinished. */}
         <GateHeading title={SIGNIN_TEXT.title} description={SIGNIN_TEXT.description} />
 
-        <Button asChild size="xl" className="min-w-[240px]">
-          <a href={href}>{SIGNIN_TEXT.cta}</a>
-        </Button>
+        {resume ? (
+          <p className="text-muted-foreground text-body-md" role="status">
+            {SIGNIN_TEXT.resuming}
+          </p>
+        ) : (
+          <Button asChild size="xl" className="min-w-[240px]">
+            <a href={href}>{SIGNIN_TEXT.cta}</a>
+          </Button>
+        )}
       </Stack>
     </GateFrame>
   );

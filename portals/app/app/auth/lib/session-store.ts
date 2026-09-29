@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import type { AccessClaims } from "./claims";
 
 // RP session store on Redis (080-rp section 2.4). Key families are namespaced by
 // client_id so multiple RPs can share one Redis:
@@ -27,6 +28,7 @@ const k = {
   sess: (cid: string, rpsid: string) => `vx:rp:${cid}:sess:${rpsid}`,
   sididx: (cid: string, sid: string) => `vx:rp:${cid}:sididx:${sid}`,
   bclogout: (cid: string, jti: string) => `vx:rp:${cid}:bclogout:${jti}`,
+  check: (cid: string, rpsid: string) => `vx:rp:${cid}:check:${rpsid}`,
 };
 
 export interface AuthState {
@@ -43,8 +45,22 @@ export interface RpSession {
   accessToken: string;
   refreshToken?: string;
   accessExpiresAt: number; // epoch seconds
-  sid?: string; // IdP session id (for back-channel logout)
+  sid?: string; // the accounts login this session mirrors - what login-state asks about
   sub: string;
+  /**
+   * WHO THIS IS, as accounts last said (login-state.ts). The product's one
+   * copy of the person, read by every section; refreshed on every check with
+   * accounts. Absent on sessions written before login-state existed - those
+   * are checked on first use.
+   */
+  claims?: AccessClaims;
+  /**
+   * When accounts is next asked whether this login still holds, epoch
+   * seconds. Set from what ACCOUNTS says - the token's own expiry today, the
+   * status query's next-check time once that exists (vxture-platform#538) -
+   * never from a product constant.
+   */
+  nextCheckAt?: number;
 }
 
 export async function putAuthState(
@@ -91,6 +107,20 @@ export async function deleteSession(cid: string, rpsid: string): Promise<void> {
     if (sess.sid) await r.srem(k.sididx(cid, sess.sid), rpsid);
   }
   await r.del(k.sess(cid, rpsid));
+}
+
+/**
+ * The one-checker lock (login-state.ts): SET NX with a short expiry, so a
+ * crashed holder frees it on its own. Across processes and replicas, not just
+ * in-process - the platform revokes a whole token chain on a replay, so two
+ * checkers anywhere is one too many.
+ */
+export async function acquireCheckLock(cid: string, rpsid: string, holdSeconds: number): Promise<boolean> {
+  return (await redis().set(k.check(cid, rpsid), "1", "EX", holdSeconds, "NX")) === "OK";
+}
+
+export async function releaseCheckLock(cid: string, rpsid: string): Promise<void> {
+  await redis().del(k.check(cid, rpsid));
 }
 
 export async function sessionsForSid(cid: string, sid: string): Promise<string[]> {

@@ -31,6 +31,16 @@ const SSO_ATTEMPT_BASE = "yucer_sso_tried";
  *  platform a few minutes later still gets a silent attempt, not a door. */
 export const SSO_ATTEMPT_TTL_SECONDS = 600;
 
+/** What a SUCCESSFUL sign-in leaves the marker at, instead of clearing it.
+ *
+ *  Clearing it would let a member whose session is valid but unusable to the
+ *  layout - no active workspace, no role row - loop: resume silently, sign in,
+ *  marker cleared, layout still has no session, resume silently... A few
+ *  seconds is all the loop guard needs; it is deliberately not the full
+ *  SSO_ATTEMPT_TTL_SECONDS, so a session that dies again a few minutes later
+ *  still gets its own silent attempt. */
+export const SSO_FRESH_TTL_SECONDS = 30;
+
 /** Host-prefixed exactly when the session cookie is (`__Host-` needs Secure,
  *  which dev over http cannot satisfy). */
 export function ssoAttemptCookieName(sessionCookieName: string): string {
@@ -45,6 +55,32 @@ export function ssoAttemptCookieOptions(sessionCookieName: string, maxAge = SSO_
     path: "/" as const,
     maxAge,
   };
+}
+
+/**
+ * Whether a page that found NO USABLE SESSION should try to get one back
+ * silently, rather than show the front door.
+ *
+ * The gap this closes (owner report, 2026-09-29: signed out after about ten
+ * minutes, and 登录 then goes straight back in): shouldTrySilentSso above only
+ * fires for a visit with NO session cookie. A member whose session died SERVER
+ * side - refresh refused, Redis lost it - still holds the cookie, so they were
+ * shown the door and asked to click through something the IdP already knows.
+ * Same person, same IdP session, same answer as a silent attempt - it just
+ * never got asked.
+ *
+ * Only when there IS a cookie: no cookie is shouldTrySilentSso's case and the
+ * middleware has already had its turn. And the same marker keeps it from
+ * looping - the login route sets it on the attempt, so an IdP that answers
+ * login_required costs one redirect and then the door renders as before.
+ */
+export function shouldResumeSilently(r: {
+  enabled: boolean;
+  hasCookie: boolean;
+  triedRecently: boolean;
+  justSignedOut: boolean;
+}): boolean {
+  return r.enabled && r.hasCookie && !r.triedRecently && !r.justSignedOut;
 }
 
 /**

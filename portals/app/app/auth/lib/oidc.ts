@@ -1,5 +1,6 @@
 import {
   createRemoteJWKSet,
+  decodeJwt,
   jwtVerify,
   type JWTPayload,
   type KeyLike,
@@ -50,6 +51,33 @@ export async function verifyToken(
       ? await jwtVerify(token, key, options)
       : await jwtVerify(token, key, options);
   return payload;
+}
+
+/**
+ * When an access token stops being good, in epoch seconds: the EARLIER of what
+ * the token response says (`expires_in`) and what the token itself says (its
+ * `exp` claim).
+ *
+ * The session used to trust `expires_in` alone. If the two ever disagree - a
+ * token that lives 10 minutes with a response that says 15 - the refresh is
+ * scheduled after the token has already died, and every request in that gap
+ * fails verification: signed out on a clock nobody set. The claim is what
+ * verifyToken actually enforces, so it is the one to schedule against.
+ *
+ * `decodeJwt` does NOT verify - fine here, the token came straight from the
+ * IdP's token endpoint over TLS and is verified again on every use.
+ */
+export function accessExpiry(accessToken: string, expiresIn: number | undefined, nowSeconds: number): number {
+  // Number() first: an `expires_in` that arrives as "600" must not become
+  // now + "600" - the string "1800000000600", a session that never refreshes.
+  const seconds = Number(expiresIn);
+  const fromResponse = nowSeconds + (Number.isFinite(seconds) && seconds > 0 ? seconds : 300);
+  try {
+    const exp = decodeJwt(accessToken).exp;
+    return typeof exp === "number" && Number.isFinite(exp) ? Math.min(fromResponse, exp) : fromResponse;
+  } catch {
+    return fromResponse;
+  }
 }
 
 export interface TokenSet {

@@ -1,5 +1,6 @@
 import { BRAND } from "@yucer/shared/brand";
 import type { JobsSnapshot } from "../jobs/scheduler";
+import type { AuthDropSnapshot } from "../auth/lib/auth-failures";
 import { deployStageOf, type DeployStage } from "./deploy-stage";
 import { DEFAULT_CACHE_TTL_MS } from "../entitlement/platform-client";
 import { serviceIdentity } from "@vxture/shared";
@@ -77,6 +78,10 @@ export interface IntegrationStatus {
   showInfra: boolean;
   /** The in-app job scheduler (ADR-033): attached by the route, not derived from env. */
   jobs?: JobsSnapshot;
+  /** Why sessions died since this process started (auth/lib/auth-failures.ts):
+   * counts per reason and the last one. A reason code and a time - no token,
+   * no identifier. */
+  auth?: AuthDropSnapshot;
 }
 
 /** Parse the NON-SECRET parts of a postgres URL. The password is never returned. */
