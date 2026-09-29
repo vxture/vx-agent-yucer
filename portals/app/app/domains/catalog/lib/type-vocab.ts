@@ -30,7 +30,8 @@ export const DEFAULT_TYPE_VOCABULARY: readonly {
 ];
 
 export interface ProductTypeDraft {
-  typeCode: string;
+  /** The category's code, or null for a level that carries none (incr/0101). */
+  typeCode: string | null;
   typeNo: string;
   name: string;
   status: "active" | "retired";
@@ -44,9 +45,6 @@ export interface ProductTypeDraft {
  * imports match on; the number is what people read, 01 or 01-02.
  */
 export function planProductType(input: ProductTypeDraft): RuleResult<ProductTypeDraft> {
-  if (!input.typeCode.trim()) {
-    return fail(violation("code_required", "a type needs a code", "typeCode"));
-  }
   if (!input.name.trim()) {
     return fail(violation("name_required", "a type needs a name", "name"));
   }
@@ -55,7 +53,9 @@ export function planProductType(input: ProductTypeDraft): RuleResult<ProductType
   }
   return ok({
     ...input,
-    typeCode: input.typeCode.trim(),
+    // ONE CODE PER CATEGORY (incr/0101): a level may carry none. The service
+    // decides which row the category's code belongs to.
+    typeCode: input.typeCode?.trim() || null,
     typeNo: input.typeNo.trim(),
     name: input.name.trim(),
   });
@@ -64,7 +64,7 @@ export function planProductType(input: ProductTypeDraft): RuleResult<ProductType
 /** The fields placement is judged on - enough of a type to compare. */
 export interface TypeSlot {
   readonly id?: string;
-  readonly typeCode: string;
+  readonly typeCode: string | null;
   readonly typeNo: string;
   readonly parentId: string | null;
 }
@@ -84,10 +84,10 @@ export interface TypeSlot {
  */
 export function planTypePlacement(
   slot: TypeSlot,
-  existing: readonly { id: string; typeCode: string; typeNo: string; parentId: string | null }[],
+  existing: readonly { id: string; typeCode: string | null; typeNo: string; parentId: string | null }[],
 ): RuleResult<true> {
   const others = existing.filter((t) => t.id !== slot.id);
-  if (others.some((t) => t.typeCode === slot.typeCode)) {
+  if (slot.typeCode !== null && others.some((t) => t.typeCode === slot.typeCode)) {
     return fail(violation("type_code_taken", `code ${slot.typeCode} is already used`, "typeCode"));
   }
   if (others.some((t) => t.parentId === slot.parentId && t.typeNo === slot.typeNo)) {

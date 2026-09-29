@@ -26,13 +26,16 @@ interface TypeRowInput {
   id?: string;
   typeNo: string;
   name: string;
-  typeCode: string;
 }
 
 export interface CatalogTypeConfigProps {
   readonly types: readonly ProductTypeRecord[];
   readonly products: readonly ProductRecord[];
-  readonly onSave: (input: { level1: TypeRowInput; level2?: TypeRowInput | null }) => Promise<VocabularyResult>;
+  readonly onSave: (input: {
+    level1: TypeRowInput;
+    level2?: TypeRowInput | null;
+    typeCode: string;
+  }) => Promise<VocabularyResult>;
   readonly onStatus: (typeId: string, status: "active" | "retired") => Promise<VocabularyResult>;
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }
@@ -56,9 +59,9 @@ export function CatalogTypeConfig({ types, products, onSave, onStatus, onDelete 
         name: label.name,
         fullName: label.name,
         no: label.no,
-        // Its OWN code: a 二级类's code already reads as itself
-        // (software-basic); prefixing the parent's repeated it and wrapped.
-        code: t.typeCode,
+        // The category's one code (incr/0101) - a row with none yet shows a
+        // dash, and its dialog is where it gets one.
+        code: t.typeCode ?? "-",
       };
     });
   const inUse = (typeId: string) => products.filter((p) => p.typeId === typeId).length;

@@ -1572,7 +1572,9 @@ model Product {
 model ProductType {
   id          String   @id @default(uuid()) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
-  typeCode    String   @map("type_code") @db.VarChar(64)
+  /// One code per CATEGORY (incr/0101): a 一级类 created with its first
+  /// 二级类 has none of its own.
+  typeCode    String?  @map("type_code") @db.VarChar(64)
   /// Two digits (incr/0100); unique among siblings (uidx_product_type_no).
   typeNo      String   @map("type_no") @db.VarChar(2)
   /// Null for a 一级类 (incr/0100); two levels at most (trigger).

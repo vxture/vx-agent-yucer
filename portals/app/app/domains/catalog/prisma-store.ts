@@ -324,7 +324,7 @@ export class PrismaCatalogStore implements CatalogStore {
   private toType(r: {
     id: string;
     workspaceId: string;
-    typeCode: string;
+    typeCode: string | null;
     typeNo: string;
     parentId: string | null;
     name: string;

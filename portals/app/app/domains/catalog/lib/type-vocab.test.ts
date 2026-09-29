@@ -17,8 +17,9 @@ test("trims and accepts a code, a two-digit number and a name", () => {
   assert.equal(r.ok && r.value.typeNo, "01");
 });
 
-test("refuses a blank code or name, and a number that is not two digits", () => {
-  assert.equal(planProductType(draft(" ", "01", "x")).ok, false);
+test("a level may carry no code (incr/0101); a blank name or a bad number refuses", () => {
+  const r = planProductType(draft(" ", "01", "x"));
+  assert.equal(r.ok && r.value.typeCode, null, "blank code means none, not an error");
   assert.equal(planProductType(draft("x", "01", " ")).ok, false);
   for (const no of ["1", "001", "ab", "1a", ""]) {
     const r = planProductType(draft("x", no, "x"));
@@ -37,7 +38,8 @@ const T = [
 
 const code = (r: ReturnType<typeof planTypePlacement>) => (!r.ok ? r.violations[0]!.code : "ok");
 
-test("placement: the code is unique in the workspace; editing a row keeps its own", () => {
+test("placement: the code is unique in the workspace; editing a row keeps its own; no code is never a clash", () => {
+  assert.equal(code(planTypePlacement({ typeCode: null, typeNo: "09", parentId: null }, [...T, { id: "n", typeCode: null, typeNo: "08", parentId: null }])), "ok");
   assert.equal(code(planTypePlacement({ typeCode: "software", typeNo: "09", parentId: null }, T)), "type_code_taken");
   assert.equal(code(planTypePlacement({ id: "sw", typeCode: "software", typeNo: "01", parentId: null }, T)), "ok");
 });
