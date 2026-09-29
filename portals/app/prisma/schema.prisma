@@ -1573,6 +1573,10 @@ model ProductType {
   id          String   @id @default(uuid()) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
   typeCode    String   @map("type_code") @db.VarChar(64)
+  /// Two digits (incr/0100); unique among siblings (uidx_product_type_no).
+  typeNo      String   @map("type_no") @db.VarChar(2)
+  /// Null for a 一级类 (incr/0100); two levels at most (trigger).
+  parentId    String?  @map("parent_id") @db.Uuid
   name        String   @db.VarChar(64)
   sortOrder   Int      @default(0) @map("sort_order")
   status      String   @default("active") @db.VarChar(16)
@@ -1580,6 +1584,7 @@ model ProductType {
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, typeCode], map: "uidx_product_type_code")
+  @@index([parentId], map: "idx_product_type_parent")
   @@index([workspaceId, sortOrder], map: "idx_product_type_ws_sort")
   @@map("product_type")
   @@schema("yucer_catalog")

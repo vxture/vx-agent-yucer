@@ -22,6 +22,7 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import { Tag } from "./tag";
+import { typeFamily } from "../../domains/catalog/lib/type-vocab";
 import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
 import { DialogForm } from "./dialog-form";
 import { moduleIcon } from "../lib/navigation";
@@ -174,7 +175,11 @@ export function PriceBook({
   const productType = new Map(products.map((p) => [p.id, p.typeId]));
   const narrowed = query.trim() !== "" || typeFilter !== "";
   const match = (e: PriceEntryRecord) => {
-    if (typeFilter !== "" && productType.get(e.productId) !== typeFilter) return false;
+    // A 一级类 matches its 二级类 too (incr/0100).
+    if (typeFilter !== "") {
+      const t = productType.get(e.productId);
+      if (!t || !typeFamily(types, typeFilter).has(t)) return false;
+    }
     const q = query.trim().toLowerCase();
     if (q === "") return true;
     const name = productName.get(e.productId) ?? "";

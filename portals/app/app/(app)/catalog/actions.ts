@@ -6,7 +6,6 @@ import { getCatalogStore } from "../../domains/shared/registry";
 import {
   moveProduct,
   moveProductStatus,
-  moveProductType,
   removeProduct,
   removeProductStatus,
   removeProductType,
@@ -21,7 +20,9 @@ import {
   setSolutionStatus,
   setProductStatus,
   upsertProduct,
-  upsertProductType,
+  saveProductTypes as saveProductTypesVerb,
+  setProductTypeStatus,
+  type TypeRowInput,
   upsertSolution,
 } from "../../domains/catalog/service";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -193,27 +194,27 @@ export async function deleteProduct(productId: string): Promise<CatalogResult> {
 
 // --- the config page: the type vocabulary ------------------------------------
 
-export async function saveProductType(input: {
-  typeCode: string;
-  name: string;
-  status?: "active" | "retired";
+/** The type dialog: a 一级类 line and an optional 二级类 line (incr/0100). */
+export async function saveProductTypes(input: {
+  level1: TypeRowInput;
+  level2?: TypeRowInput | null;
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await upsertProductType(ctx, input);
+  const r = await saveProductTypesVerb(ctx, input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   revalidatePath("/admin/product");
   return { ok: true };
 }
 
-export async function moveProductTypeRow(
+export async function setProductTypeStatusRow(
   typeId: string,
-  direction: MoveDirection,
+  status: "active" | "retired",
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await moveProductType(ctx, { typeId, direction });
+  const r = await setProductTypeStatus(ctx, { typeId, status });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   revalidatePath("/admin/product");

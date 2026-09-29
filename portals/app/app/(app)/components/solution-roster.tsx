@@ -30,6 +30,7 @@ import {
   moveItems,
 } from "./table-fittings";
 import { Tag } from "./tag";
+import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
 import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
@@ -108,7 +109,8 @@ export function SolutionRoster({
     total: (r: SolutionView) => factsOf(r).listTotal,
   });
   const [view, setView] = useState<FilterBarView>("list");
-  const typeName = new Map(types.map((t) => [t.id, t.name]));
+  // Full names, 软件产品-基础软件 (incr/0100).
+  const typeName = new Map(types.map((t) => [t.id, typeLabel(types, t.id)?.name ?? t.name]));
   const { toast } = useToast();
 
   /* 工具行. 适用场景 is in the search alongside the name and code, and that
@@ -124,7 +126,11 @@ export function SolutionRoster({
   const [typeFilter, setTypeFilter] = useState("");
   const narrowed = query.trim() !== "" || typeFilter !== "";
   const match = (r: (typeof solutions)[number]) => {
-    if (typeFilter !== "" && !factsOf(r).typeIds.includes(typeFilter)) return false;
+    if (typeFilter !== "") {
+      // A 一级类 matches a solution carrying any of its 二级类 (incr/0100).
+      const family = typeFamily(types, typeFilter);
+      if (!factsOf(r).typeIds.some((id) => family.has(id))) return false;
+    }
     const q = query.trim().toLowerCase();
     if (q === "") return true;
     const sol = r.solution;

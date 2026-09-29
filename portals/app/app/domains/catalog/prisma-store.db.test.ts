@@ -176,7 +176,7 @@ test("the type association is a real FK: deleting a carried type RESTRICTs", { s
     const s = await store();
     const ids = await seedStatuses(s);
     const unit = await seedUnit(s);
-    const t = await s.upsertProductType(WS, { typeCode: "硬件", name: "硬件", status: "active" });
+    const t = await s.saveProductType(WS, { typeCode: "硬件", typeNo: "01", parentId: null, name: "硬件", status: "active" });
     await s.upsertProduct(WS, { productCode: "P-HW", name: "HW", typeId: t.id, unitId: unit, statusId: ids.active! });
     assert.equal(await s.countProductsByType(WS, t.id), 1);
     await assert.rejects(() => s.removeProductType(WS, t.id), /constraint|Foreign key/i);
@@ -531,34 +531,51 @@ test("removeProduct cascades prices but the line FK restricts underneath", { ski
   }
 });
 
-test("the type vocabulary upserts on its real unique index and its code is locked", { skip }, async () => {
+test("types save BY ID on the real table: a code rename is the same row, and the code is writable (incr/0100)", { skip }, async () => {
   await cleanup();
   try {
     const s = await store();
-    const ids = await seedStatuses(s);
-    const unit = await seedUnit(s);
-    const first = await s.upsertProductType(WS, { typeCode: "平台", name: "平台", status: "active" });
-    const renamed = await s.upsertProductType(WS, { typeCode: "平台", name: "平台产品", status: "active" });
-    assert.equal(renamed.id, first.id, "same type_code must upsert, not duplicate");
-    assert.equal(renamed.name, "平台产品");
+    await seedStatuses(s);
+    const first = await s.saveProductType(WS, { typeCode: "平台", typeNo: "01", parentId: null, name: "平台", status: "active" });
+    const renamed = await s.saveProductType(WS, { id: first.id, typeCode: "platform", typeNo: "01", parentId: null, name: "平台产品", status: "active" });
+    assert.equal(renamed.id, first.id, "a code rename must update, not duplicate");
+    assert.equal(renamed.typeCode, "platform");
+    assert.equal((await s.listProductTypes(WS)).length, 1);
 
-    const second = await s.upsertProductType(WS, { typeCode: "服务", name: "服务", status: "active" });
+    const second = await s.saveProductType(WS, { typeCode: "服务", typeNo: "02", parentId: null, name: "服务", status: "active" });
     assert.equal(second.sortOrder, first.sortOrder + 1, "a new type joins at the end");
 
-    await s.setProductTypeOrder(WS, [
-      { id: first.id, sortOrder: 2 },
-      { id: second.id, sortOrder: 1 },
-    ]);
-    assert.deepEqual((await s.listProductTypes(WS)).map((t) => t.typeCode), ["服务", "平台"]);
-
-    // type_code carries no UPDATE grant - the adapter's own guard refuses
-    // before Prisma even builds the query (renames go through the anchor rule).
     const { assertWritable } = await import("../shared/column-locks");
-    assert.equal(assertWritable("yucer_catalog.product_type", { typeCode: "X" }).ok, false);
+    assert.equal(assertWritable("yucer_catalog.product_type", { typeCode: "X", typeNo: "03", parentId: null }).ok, true);
   } finally {
     await cleanup();
   }
 });
+
+test("two levels hold in Postgres: sibling numbers unique, a third level refused (incr/0100)", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await seedStatuses(s);
+    const sw = await s.saveProductType(WS, { typeCode: "software", typeNo: "01", parentId: null, name: "软件产品", status: "active" });
+    const basic = await s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: sw.id, name: "基础软件", status: "active" });
+    assert.equal(basic.parentId, sw.id, "01 under 软件产品 is free - numbers are per level");
+
+    await assert.rejects(
+      () => s.saveProductType(WS, { typeCode: "other", typeNo: "01", parentId: null, name: "重号", status: "active" }),
+      /uidx_product_type_no|Unique constraint/i,
+    );
+    await assert.rejects(
+      () => s.saveProductType(WS, { typeCode: "deep", typeNo: "01", parentId: basic.id, name: "三级", status: "active" }),
+      /two levels|chk_product_type_depth/i,
+    );
+    // A parent with children will not delete (fk_product_type_parent).
+    await assert.rejects(() => s.removeProductType(WS, sw.id), /constraint|Foreign key/i);
+  } finally {
+    await cleanup();
+  }
+});
+
 
 test("the price chain is a real self-FK: it survives, nulls, and cannot be edited", { skip }, async () => {
   await cleanup();

@@ -432,6 +432,15 @@ export const DEMO_RETIRED_PRODUCTS = [
 // the seed resolves them against the same domain constants every real
 // tenant is provisioned with.
 
+// 二级类 (incr/0100): the owner's own example under 软件产品, so the demo
+// shows 01-01 软件产品-基础软件. No product is moved onto them - a product may
+// carry either level.
+export const DEMO_SUB_TYPES = [
+  { parent: "software", code: "software-basic", no: "01", name: "基础软件" },
+  { parent: "software", code: "software-business", no: "02", name: "业务软件" },
+  { parent: "software", code: "software-tools", no: "03", name: "工具软件" },
+] as const;
+
 // A solution is a COMBINATION plus its CUSTOMISATION (incr/0031): the
 // scenario it is shaped for, which lines are standard and which are add-ons,
 // and what gets tailored per deal.

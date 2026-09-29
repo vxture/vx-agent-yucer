@@ -17,6 +17,7 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
+import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
 import {
   RowActions,
   rowClickSelection,
@@ -117,7 +118,9 @@ export function ProductRoster({
     rowClickSelection();
   const { toast } = useToast();
 
-  const typeName = new Map(types.map((t) => [t.id, t.name]));
+  // 类别 reads 软件产品-基础软件 for a 二级类 (owner, 2026-09-29: 两个字段，
+  // 连接显示), and a filter on a 一级类 matches its 二级类 too.
+  const typeNameOf = (typeId: string | null) => typeLabel(types, typeId)?.name ?? CATALOG_TEXT.noCategory;
   const unitName = new Map(units.map((u) => [u.id, u.name]));
   const vocab = new Map(statuses.map((r) => [r.id, r]));
   const codeOf = (p: ProductRecord) => vocab.get(p.statusId)?.statusCode;
@@ -129,13 +132,14 @@ export function ProductRoster({
      with a small, closed set of values. */
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const family = typeFilter === "" ? null : typeFamily(types, typeFilter);
   const match = (p: ProductRecord) => {
     const q = query.trim().toLowerCase();
     return (
       (q === "" ||
         p.name.toLowerCase().includes(q) ||
         p.productCode.toLowerCase().includes(q)) &&
-      (typeFilter === "" || p.typeId === typeFilter)
+      (family === null || (p.typeId !== null && family.has(p.typeId)))
     );
   };
   const narrowed = query.trim() !== "" || typeFilter !== "";
@@ -198,7 +202,7 @@ export function ProductRoster({
       id: "type",
       header: CATALOG_TEXT.colType,
       cell: (r: ProductRecord) =>
-        r.typeId ? (typeName.get(r.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory,
+        typeNameOf(r.typeId),
     },
     {
       id: "unit",
@@ -442,7 +446,7 @@ export function ProductRoster({
                   meta={
                     <>
                       <span>
-                        {row.typeId ? (typeName.get(row.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory}
+                        {typeNameOf(row.typeId)}
                       </span>
                       <span>{unitName.get(row.unitId) ?? ""}</span>
                       {listPrices ? (

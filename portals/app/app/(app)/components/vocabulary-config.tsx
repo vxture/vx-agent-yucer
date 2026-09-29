@@ -116,6 +116,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   onSave,
   onMove,
   onDelete,
+  customDialog,
 }: {
   readonly rows: readonly T[];
   readonly text: VocabularyText;
@@ -207,7 +208,20 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   readonly extraFromRow: (row: T) => E;
   readonly renderExtra?: (value: E, set: (next: E) => void, disabled: boolean) => ReactNode;
   readonly onSave: (input: { code: string; name: string } & E) => Promise<VocabularyResult>;
-  readonly onMove: (id: string, direction: MoveDirection) => Promise<VocabularyResult>;
+  /** Absent = this vocabulary has no manual order (product types read in
+   *  their own number order, incr/0100): no 上移/下移 in the row menu. */
+  readonly onMove?: (id: string, direction: MoveDirection) => Promise<VocabularyResult>;
+  /**
+   * The caller's OWN dialog, instead of the code + name one below. For a
+   * vocabulary whose editing is not one row's code and name - product types
+   * edit a 一级类 and a 二级类 together (incr/0100). The add button and the
+   * 编辑 item call these; the table, toolbar, search, pagination and the
+   * remaining row operations stay shared.
+   */
+  readonly customDialog?: {
+    readonly onAdd: () => void;
+    readonly onEdit: (row: T) => void;
+  };
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }) {
   const { DATA_TABLE_LABELS, ROW_OPS } = useMessages();
@@ -255,7 +269,11 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   const add = (
     <Button
       disabled={!editable}
-      onClick={() => setDialog({ mode: "create", code: "", name: "", extra: extraDefaults })}
+      onClick={() =>
+        customDialog
+          ? customDialog.onAdd()
+          : setDialog({ mode: "create", code: "", name: "", extra: extraDefaults })
+      }
     >
       {text.add}
     </Button>
@@ -282,17 +300,21 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
                   id: "rename",
                   label: ROW_OPS.configure(text.noun),
                   onSelect: () =>
-                    setDialog({
-                      mode: "rename",
-                      code: r.code,
-                      name: r.name,
-                      extra: extraFromRow(r),
-                    }),
+                    customDialog
+                      ? customDialog.onEdit(r)
+                      : setDialog({
+                          mode: "rename",
+                          code: r.code,
+                          name: r.name,
+                          extra: extraFromRow(r),
+                        }),
                 },
               ]
             : []),
           ...(editable && extraActions ? extraActions(r, run) : []),
-          ...(editable ? moveItems(ROW_OPS, rowIndex, filtered.length, (d) => run(onMove(r.id, d))) : []),
+          ...(editable && onMove
+            ? moveItems(ROW_OPS, rowIndex, filtered.length, (d) => run(onMove(r.id, d)))
+            : []),
           ...(deleteHiddenWhen?.(r) || !editable
             ? []
             : [

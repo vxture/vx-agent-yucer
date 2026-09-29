@@ -58,6 +58,7 @@ import {
   DEMO_SEGMENTS,
   DEMO_TERRITORY_NAMES,
   DEMO_TERRITORY_REGIONS,
+  DEMO_SUB_TYPES,
 } from "./demo-fixtures";
 import { buildNationalCohort } from "./demo-national";
 import { DEMO_SUCCESSOR_SUBS } from "./demo-members";
@@ -2013,10 +2014,25 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     id: `ptp_demo_${i + 1}`,
     workspaceId,
     typeCode: d.typeCode,
+    typeNo: d.typeNo,
+    parentId: null as string | null,
     name: d.name,
     sortOrder: i + 1,
     status: "active" as const,
   }));
+  // Two levels (incr/0100) - DEMO_SUB_TYPES says why.
+  DEMO_SUB_TYPES.forEach((sub, i) =>
+    types.push({
+      id: `ptp_demo_sub_${i + 1}`,
+      workspaceId,
+      typeCode: sub.code,
+      typeNo: sub.no,
+      parentId: types.find((t) => t.typeCode === sub.parent)?.id ?? null,
+      name: sub.name,
+      sortOrder: types.length + 1,
+      status: "active",
+    }),
+  );
   // The association is by UUID (incr/0029) - the fixtures name types by their
   // code for readability, the seed resolves them to ids here.
   const typeIdOf = new Map(types.map((t) => [t.typeCode, t.id]));

@@ -93,7 +93,16 @@ export function NewProductForm({
   const editing = initial !== undefined;
   const [code, setCode] = useState(initial?.productCode ?? "");
   const [name, setName] = useState(initial?.name ?? "");
-  const [typeId, setTypeId] = useState(initial?.typeId ?? "");
+  // TWO FIELDS, ONE TYPE (incr/0100; owner, 2026-09-29: 两个字段，连接显示).
+  // 一级类 first, then an optional 二级类 under it; the product carries the
+  // more specific one - either level is allowed.
+  const parentOf = (id: string | null | undefined) => types.find((t) => t.id === id)?.parentId ?? null;
+  const [level1Id, setLevel1Id] = useState(() => parentOf(initial?.typeId) ?? initial?.typeId ?? "");
+  const [level2Id, setLevel2Id] = useState(() => (parentOf(initial?.typeId) ? (initial?.typeId ?? "") : ""));
+  const typeId = level2Id || level1Id;
+  const usable = (t: ProductTypeRecord) => t.status === "active" || t.id === typeId || t.id === level1Id;
+  const level1Options = types.filter((t) => t.parentId === null && usable(t)).sort((a, b) => a.typeNo.localeCompare(b.typeNo));
+  const level2Options = types.filter((t) => t.parentId === level1Id && level1Id !== "" && usable(t)).sort((a, b) => a.typeNo.localeCompare(b.typeNo));
   const [unitId, setUnitId] = useState(
     /* The first row of the vocabulary on a new product - a unit is required
        and every workspace has one, so an empty select would be a field the
@@ -153,16 +162,36 @@ export function NewProductForm({
               {/* A select over the vocabulary, valued by the type's uuid -
                   internal joins are uuid, and the id never renders. New kinds
                   are minted on the config page, where minting is a decision. */}
-              <NativeSelect value={typeId} onChange={(e) => setTypeId(e.target.value)}>
-                <option value="">{CATALOG_TEXT.noCategory}</option>
-                {types
-                  .filter((t) => t.status === "active" || t.id === typeId)
-                  .map((t) => (
+              <div className="flex items-center gap-sm">
+                <NativeSelect
+                  value={level1Id}
+                  aria-label={CATALOG_TEXT.typeLevel1}
+                  onChange={(e) => {
+                    setLevel1Id(e.target.value);
+                    setLevel2Id("");
+                  }}
+                >
+                  <option value="">{CATALOG_TEXT.noCategory}</option>
+                  {level1Options.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
                   ))}
-              </NativeSelect>
+                </NativeSelect>
+                <NativeSelect
+                  value={level2Id}
+                  aria-label={CATALOG_TEXT.typeLevel2}
+                  disabled={level2Options.length === 0}
+                  onChange={(e) => setLevel2Id(e.target.value)}
+                >
+                  <option value="">{CATALOG_TEXT.typeLevel2None}</option>
+                  {level2Options.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
             </Field>
             <Field>
               {/* Required, and the rule layer refuses without it: a unit-less

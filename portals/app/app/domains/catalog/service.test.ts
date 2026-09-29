@@ -12,7 +12,6 @@ import {
   listSolutions,
   moveProduct,
   moveProductStatus,
-  moveProductType,
   moveSolution,
   removePrice,
   removeProduct,
@@ -24,7 +23,8 @@ import {
   setPrice,
   setProductStatus,
   upsertProduct,
-  upsertProductType,
+  saveProductTypes,
+  setProductTypeStatus,
   upsertSolution,
   type CatalogContext,
 } from "./service";
@@ -40,8 +40,8 @@ function seeded(): InMemoryCatalogStore {
       { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", typeId: null, unitId: "u_seat", statusId: "stx", sortOrder: 1 },
     ],
     types: [
-      { id: "t_sw", workspaceId: WS, typeCode: "software", name: "software", sortOrder: 1, status: "active" },
-      { id: "t_svc", workspaceId: WS, typeCode: "service", name: "service", sortOrder: 2, status: "active" },
+      { id: "t_sw", workspaceId: WS, typeCode: "software", typeNo: "01", parentId: null, name: "software", sortOrder: 1, status: "active" },
+      { id: "t_svc", workspaceId: WS, typeCode: "service", typeNo: "02", parentId: null, name: "service", sortOrder: 2, status: "active" },
     ],
     units: [
       { id: "u_day", workspaceId: WS, unitCode: "day", name: "day", sortOrder: 1 },
@@ -238,8 +238,8 @@ function lifecycleStore(): InMemoryCatalogStore {
       { id: "st_retired", workspaceId: WS, statusCode: "retired", name: "已退役", description: null, sortOrder: 3 },
     ],
     types: [
-      { id: "t1", workspaceId: WS, typeCode: "平台", name: "平台", sortOrder: 1, status: "active" },
-      { id: "t2", workspaceId: WS, typeCode: "服务", name: "服务", sortOrder: 2, status: "active" },
+      { id: "t1", workspaceId: WS, typeCode: "平台", typeNo: "01", parentId: null, name: "平台", sortOrder: 1, status: "active" },
+      { id: "t2", workspaceId: WS, typeCode: "服务", typeNo: "02", parentId: null, name: "服务", sortOrder: 2, status: "active" },
     ],
     items: [{ id: "i1", workspaceId: WS, solutionId: "s1", productId: "p1", quantity: 1, optional: false, note: null }],
   });
@@ -278,26 +278,65 @@ test("deletion is refused while anything references the product", async () => {
   assert.equal(unwrap(await listProducts(c)).some((p) => p.id === "p3"), false);
 });
 
-test("the type vocabulary upserts by code, reorders, and deletes only when empty", async () => {
+test("the type vocabulary saves BY ID (a code rename is the same row) and deletes only when empty", async () => {
   const store = lifecycleStore();
   const c = ctx("sales_ops", "free", store);
-  const renamed = await upsertProductType(c, { typeCode: "服务", name: "专业服务" });
-  assert.equal(renamed.ok && renamed.value.name, "专业服务");
-  assert.equal(renamed.ok && renamed.value.id, "t2"); // same row, not a duplicate
-
-  const moved = await moveProductType(c, { typeId: "t2", direction: "up" });
-  assert.equal(moved.ok, true);
-  assert.deepEqual(
-    unwrap(await listProductTypes(c)).map((t) => t.typeCode),
-    ["服务", "平台"],
-  );
+  // The code is editable since incr/0100: renaming it must not mint a second type.
+  const renamed = await saveProductTypes(c, { level1: { id: "t2", typeCode: "services", typeNo: "02", name: "专业服务" } });
+  assert.equal(renamed.ok && renamed.value.level1.id, "t2");
+  assert.equal(renamed.ok && renamed.value.level1.typeCode, "services");
+  assert.equal(unwrap(await listProductTypes(c)).length, 2, "same row, not a duplicate");
 
   const refused = await removeProductType(c, { typeId: "t1" });
   assert.equal(!refused.ok && refused.violations[0]!.code, "type_in_use");
-  const empty = await upsertProductType(c, { typeCode: "空型", name: "空型" });
-  const id = empty.ok ? empty.value.id : "";
+  const empty = await saveProductTypes(c, { level1: { typeCode: "empty", typeNo: "09", name: "空型" } });
+  const id = empty.ok ? empty.value.level1.id : "";
   assert.equal((await removeProductType(c, { typeId: id })).ok, true);
 });
+
+test("two levels: one dialog saves a new 一级类 and a 二级类 under it; a parent with children will not delete", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const r = unwrap(
+    await saveProductTypes(c, {
+      level1: { typeCode: "software2", typeNo: "05", name: "软件产品" },
+      level2: { typeCode: "software2-basic", typeNo: "01", name: "基础软件" },
+    }),
+  );
+  assert.equal(r.level2?.parentId, r.level1.id);
+
+  // A second 二级类 under the EXISTING 一级类, picked by id.
+  const more = unwrap(
+    await saveProductTypes(c, {
+      level1: { id: r.level1.id, typeCode: "software2", typeNo: "05", name: "软件产品" },
+      level2: { typeCode: "software2-tools", typeNo: "03", name: "工具软件" },
+    }),
+  );
+  assert.equal(more.level2?.parentId, r.level1.id);
+
+  const blocked = await removeProductType(c, { typeId: r.level1.id });
+  assert.equal(!blocked.ok && blocked.violations[0]!.code, "type_has_children");
+});
+
+test("two levels: a refused second line writes NOTHING, not a half-saved first", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const before = unwrap(await listProductTypes(c)).length;
+  const r = await saveProductTypes(c, {
+    level1: { typeCode: "hw", typeNo: "07", name: "硬件" },
+    level2: { typeCode: "平台", typeNo: "01", name: "重复代码" }, // code taken by t1
+  });
+  assert.equal(!r.ok && r.violations[0]!.code, "type_code_taken");
+  assert.equal(unwrap(await listProductTypes(c)).length, before);
+});
+
+test("retire and reinstate a type through its own verb", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  assert.equal(unwrap(await setProductTypeStatus(c, { typeId: "t2", status: "retired" })).status, "retired");
+  assert.equal(unwrap(await setProductTypeStatus(c, { typeId: "t2", status: "active" })).status, "active");
+});
+
 
 // --- the status vocabulary (owner's final model: rows ARE the content) -------
 
@@ -393,8 +432,8 @@ test("every row operation refuses without catalog.write", async () => {
     await setProductStatus(c, { productId: "p1", statusId: "st_retired" }),
     await moveProduct(c, { productId: "p1", direction: "down" }),
     await removeProduct(c, { productId: "p3" }),
-    await upsertProductType(c, { typeCode: "新", name: "新" }),
-    await moveProductType(c, { typeId: "t1", direction: "down" }),
+    await saveProductTypes(c, { level1: { typeCode: "new", typeNo: "08", name: "新" } }),
+    await setProductTypeStatus(c, { typeId: "t1", status: "retired" }),
     await removeProductType(c, { typeId: "t1" }),
     await saveProductStatus(c, { statusCode: "x", name: "x" }),
     await removeProductStatus(c, { statusId: "st_dev" }),
