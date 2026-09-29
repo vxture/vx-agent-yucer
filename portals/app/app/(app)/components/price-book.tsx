@@ -22,11 +22,11 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import { Tag } from "./tag";
+import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
 import { DialogForm } from "./dialog-form";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  FilterSlot,
   RowActions,
   rowClickSelection,
   SearchSlot,
@@ -484,30 +484,13 @@ export function PriceBook({
             </Button>
           }
         >
-          <FilterSlot width="w-[9rem]">
-            <NativeSelect
-              value={typeFilter}
-              aria-label={CATALOG_TEXT.filterAllTypes}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">{CATALOG_TEXT.filterAllTypes}</option>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </FilterSlot>
+          <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
         </FilterBar>
 
         {view === "list" ? (
           table(shownCurrent, rowActions(true), true)
         ) : shownCurrent.length === 0 ? (
-          narrowed ? (
-            <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
-          ) : (
-            <EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />
-          )
+          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />
         ) : (
           /* THE SAME ROW, DRAWN AS A CARD (DS ListCard): product and code top
              left, the row menu top right, and the three prices with their

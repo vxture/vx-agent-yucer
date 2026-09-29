@@ -10,7 +10,6 @@ import {
   Input,
   ListCard,
   ListCardGrid,
-  NativeSelect,
   Section,
   StatusBadge,
   TableTitleCell,
@@ -25,13 +24,13 @@ import type {
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
-  FilterSlot,
   RowActions,
   SearchSlot,
   useTableSort,
   moveItems,
 } from "./table-fittings";
 import { Tag } from "./tag";
+import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
@@ -377,30 +376,13 @@ export function SolutionRoster({
           }
           resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
         >
-          <FilterSlot width="w-[9rem]">
-            <NativeSelect
-              value={typeFilter}
-              aria-label={CATALOG_TEXT.filterAllTypes}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">{CATALOG_TEXT.filterAllTypes}</option>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </FilterSlot>
+          <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
         </FilterBar>
 
         {view === "list" ? (
           table(live)
         ) : live.length === 0 ? (
-          narrowed ? (
-            <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
-          ) : (
-            <EmptyState title={CATALOG_TEXT.noSolutions} description={CATALOG_TEXT.rosterSolutionWhy} />
-          )
+          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noSolutions} description={CATALOG_TEXT.rosterSolutionWhy} />
         ) : (
           /* The same row as a card (DS ListCard): name and code, status and
              the row menu top right; composition, covered types and 标准价合计

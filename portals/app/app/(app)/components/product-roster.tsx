@@ -10,7 +10,6 @@ import {
   Input,
   ListCard,
   ListCardGrid,
-  NativeSelect,
   Section,
   StatusBadge,
   TableTitleCell,
@@ -19,7 +18,6 @@ import {
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
 import {
-  FilterSlot,
   RowActions,
   rowClickSelection,
   SearchSlot,
@@ -34,6 +32,7 @@ import type {
 } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -420,30 +419,13 @@ export function ProductRoster({
           }
           resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
         >
-          <FilterSlot width="w-[9rem]">
-            <NativeSelect
-              value={typeFilter}
-              aria-label={CATALOG_TEXT.filterAllTypes}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">{CATALOG_TEXT.filterAllTypes}</option>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </FilterSlot>
+          <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
         </FilterBar>
 
         {view === "list" ? (
           table(live)
         ) : live.length === 0 ? (
-          narrowed ? (
-            <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
-          ) : (
-            <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
-          )
+          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
         ) : (
           /* The same row as a card (DS ListCard): name and code, status and
              the row menu top right, type / unit / 标准价 as the meta line. */
