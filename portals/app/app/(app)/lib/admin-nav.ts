@@ -57,7 +57,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
       // middle one (总部-大区-团队) default. Read behind admin.member.view -
       // the organisation is what the member list is organised by.
       { key: "orgUnit", href: "/admin/org", icon: "tree-structure", action: "admin.member.view" },
-      { key: "division", href: "/admin/division", icon: "map-pin", action: "planning.territory.view" },
+      { key: "division", href: "/admin/division", icon: "map-pin", action: "planning.division.view" },
     ],
   },
   {

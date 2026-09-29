@@ -740,6 +740,25 @@ export const ACTIONS = {
   // manage share admin.manage rather than minting a new PermCode the way
   // pipeline.opportunityConfig did (that one existed to replace six PAID-TIER
   // gates; these three were never tier-gated to begin with).
+  // 区域设置 (owner 2026-09-28: admin 的所有板块都是最基础功能，不要设限).
+  // The market divisions (大区) and their org-unit links are workspace setup,
+  // so NO feature key - every tier configures them. The permissions are the
+  // ones planning.territory.* asked before (a viewer still READS the carve -
+  // it explains every figure grouped by 大区), so who may view and edit is
+  // unchanged; only the tier gate is gone. 销售区域 in 销售规划 keeps
+  // planning.territory (PRO) - the two used to share that action.
+  "planning.division.view": {
+    domain: "planning",
+    feature: null,
+    permission: "planning.read",
+    writes: false,
+  },
+  "planning.division.upsert": {
+    domain: "planning",
+    feature: null,
+    permission: "planning.write",
+    writes: true,
+  },
   "admin.reminderthreshold.view": {
     domain: "admin",
     feature: null,

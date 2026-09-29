@@ -4180,14 +4180,6 @@ export const UPGRADE_TEXT = {
         { title: "只为订阅类", body: "一次性交付不造续约义务——那是客户从没承诺过的事。" },
       ],
     },
-    division: {
-      pitch: "全国怎么切成区域、每个区域管哪些省，定一次，客户、商机、目标和数据范围都按它归属。",
-      points: [
-        { title: "区域划分", body: "把全国切成大区与区域，每个区域覆盖哪些省份一处设定。" },
-        { title: "归属自动跟随", body: "客户按所在省份落到区域，商机与目标随之归属，不靠逐条手填。" },
-        { title: "按区域看数", body: "区域是销售规划与数据范围的共同底座，达成与权限都按它切。" },
-      ],
-    },
     collection: {
       pitch: "链路终点不是赢单，是钱到账：每一笔分期、逾期、坏账逐笔看清。",
       points: [
@@ -7083,6 +7075,7 @@ export const PERMISSION_TREE_TEXT = {
     "admin.role": "角色",
     "admin.org": "组织架构",
     "admin.reminderthreshold": "提醒阈值",
+    "admin.division": "区域设置",
   } as Record<string, string>,
   actionLabel: {
     "strategy.plan.view": "查看战略方案",
@@ -7167,6 +7160,8 @@ export const PERMISSION_TREE_TEXT = {
     "admin.diagnostics.view": "查看系统验证",
     "admin.diagnostics.probe": "运行平台探测",
     "admin.reminderthreshold.view": "查看提醒阈值",
+    "planning.division.view": "查看区域设置",
+    "planning.division.upsert": "维护区域设置",
     "admin.reminderthreshold.manage": "设置提醒阈值",
     "admin.member.role.assign": "分配角色",
     "admin.member.role.revoke": "撤销角色",

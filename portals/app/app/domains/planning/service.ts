@@ -114,7 +114,7 @@ export async function upsertTerritory(
  * same "who may see the sales ground" question territories already answer.
  */
 export async function listUnitDivisionLinks(ctx: PlanningContext): Promise<RuleResult<{ id: string; unitIds: string[] }[]>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.view", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "planning.division.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listUnitDivisionLinks(ctx.workspaceId));
 }
@@ -189,7 +189,7 @@ export async function setUnitDivisions(
    *  `knownDivisionIds` carries. */
   knownDivisionIds?: ReadonlySet<string>,
 ): Promise<RuleResult<object>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "planning.division.upsert", "data");
   if (!gate.allowed) return denied(gate);
   const units = new Set((await ctx.store.listOrgUnits(ctx.workspaceId)).map((u) => u.id));
   if (!units.has(unitId)) return fail(violation("unit_unknown", `${unitId} is not a unit of this workspace`, "unitId"));

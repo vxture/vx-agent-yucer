@@ -183,6 +183,7 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "admin/audit": { group: "admin", module: "admin", page: "admin.audit" },
   "admin/role": { group: "admin", module: "admin", page: "admin.role" },
   "admin/org": { group: "admin", module: "admin", page: "admin.org" },
+  "planning/division": { group: "admin", module: "admin", page: "admin.division" },
   "admin/reminderthreshold": { group: "admin", module: "admin", page: "admin.reminderthreshold" },
   "admin/diagnostics": { group: "admin", module: "admin", page: "admin.diagnostics" },
 };

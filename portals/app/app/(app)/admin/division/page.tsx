@@ -11,7 +11,6 @@ import { isSystemDivision, type MarketScope } from "../../../domains/shared/mark
 import { frameName, frameNoun } from "../../lib/frame-copy";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgUnits, listTerritories } from "../../../domains/planning/service";
-import { lockedPage } from "../../components/locked-page";
 
 // 市场划分 (大区) - CONFIGURATION, not a business module (owner, 2026-09-08).
 //
@@ -45,9 +44,6 @@ export default async function DivisionPage() {
   const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
-  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
-  const locked = lockedPage(session, "division");
-  if (locked) return locked;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.
@@ -103,7 +99,7 @@ export default async function DivisionPage() {
   const total = ground.ok ? ground.value : [];
   const unassigned = total.filter((m) => !placed.has(m.key));
   const upsert = can(
-    session.authz, session.entitlement, "planning.territory.upsert", "ui",
+    session.authz, session.entitlement, "planning.division.upsert", "ui",
   ).allowed;
 
   return (

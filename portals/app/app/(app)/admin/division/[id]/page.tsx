@@ -30,7 +30,7 @@ export default async function EditDivisionPage(
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.
-  if (!can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed) {
+  if (!can(session.authz, session.entitlement, "planning.division.upsert", "ui").allowed) {
     redirect("/admin/division");
   }
 

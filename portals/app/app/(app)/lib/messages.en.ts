@@ -802,14 +802,6 @@ export const en: Dictionary = {
           { title: "Subscriptions only", body: "One-off deliveries get no renewal obligation the customer never agreed to." },
         ],
       },
-      division: {
-        pitch: "How the country is cut into territories and which provinces each covers - set once, and accounts, deals, targets and data scope all follow it.",
-        points: [
-          { title: "Territory map", body: "Regions and territories, and the provinces each one covers, set in one place." },
-          { title: "Ownership follows", body: "Accounts land in a territory by province; deals and targets follow, no row-by-row filing." },
-          { title: "Numbers by territory", body: "The shared base of sales planning and data scope - attainment and access both cut by it." },
-        ],
-      },
       collection: {
         pitch: "The chain ends when the money arrives: every instalment, overdue payment and bad debt, one by one.",
         points: [
@@ -5416,6 +5408,7 @@ export const en: Dictionary = {
       "admin.role": "Roles",
       "admin.org": "Organization",
       "admin.reminderthreshold": "Reminder thresholds",
+      "admin.division": "Territory setup",
     } as Record<string, string>,
     actionLabel: {
       "strategy.plan.view": "View strategy plans",
@@ -5500,6 +5493,8 @@ export const en: Dictionary = {
       "admin.diagnostics.view": "View system verification",
       "admin.diagnostics.probe": "Run a platform probe",
       "admin.reminderthreshold.view": "View reminder thresholds",
+      "planning.division.view": "View territory setup",
+      "planning.division.upsert": "Maintain territory setup",
       "admin.reminderthreshold.manage": "Set reminder thresholds",
       "admin.member.role.assign": "Assign a role",
       "admin.member.role.revoke": "Revoke a role",

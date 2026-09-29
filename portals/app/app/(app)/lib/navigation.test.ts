@@ -266,7 +266,7 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
   // be opened would mean the split had invented a gate.
   /* PLUS TWO ITEMS OF 配置管理, and the +2 is the point rather than an
      adjustment to make the number fit. Both are gated on actions a viewer
-     holds - 市场划分 on planning.territory.view, 产品配置 on
+     holds - 市场划分 on planning.division.view (no feature key since 2026-09-28), 产品配置 on
      catalog.product.view - so a viewer who opens the gear finds those two and
      nothing else: the four 成员权限 items need admin.member.view, which a
      viewer does not hold. Reading is deliberate on both: the carve explains
