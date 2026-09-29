@@ -394,12 +394,11 @@ export function lockoutReason(
  * showing a currency mark while the menu had moved to scales).
  */
 export function moduleIcon(key: string): NavIcon {
-  const entry =
-    DOMAIN_NAV_ENTRIES.find((e) => e.key === key) ??
-    MODULE_NAV_ENTRIES.find((e) => e.key === key) ??
-    // The admin plane's entries too: a tier-locked one (区域设置) renders the
-    // upgrade template, whose headline is the module's own (2026-09-28).
-    ADMIN_NAV_ENTRIES.find((e) => e.key === key);
+  // EVERY table, not a hand-picked few: the upgrade template (2026-09-28)
+  // renders the headline of any locked entry, and reading only the domain and
+  // module tables crashed it twice - 区域设置 (admin plane), then 战略诊断
+  // (the crosscutting row) in production.
+  const entry = NAV_ENTRIES.find((e) => e.key === key);
   if (!entry) throw new Error(`no nav entry for ${key} - icons come from the nav table`);
   return entry.icon;
 }
