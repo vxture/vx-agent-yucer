@@ -9,6 +9,7 @@ import type {
   PriceEntryRecord,
   ProductRecord,
   ProductStatusRecord,
+  ProductTypeInput,
   ProductTypeRecord,
   ProductUnitRecord,
   SolutionItemRecord,
@@ -284,49 +285,61 @@ export class PrismaCatalogStore implements CatalogStore {
       where: { workspaceId },
       orderBy: [{ sortOrder: "asc" }, { typeCode: "asc" }],
     });
-    return rows.map((r) => ({
-      id: r.id,
-      workspaceId: r.workspaceId,
-      typeCode: r.typeCode,
-      name: r.name,
-      sortOrder: r.sortOrder,
-      status: r.status as ProductTypeRecord["status"],
-    }));
+    return rows.map((r) => this.toType(r));
   }
 
-  async upsertProductType(
-    workspaceId: string,
-    input: Omit<ProductTypeRecord, "id" | "workspaceId" | "sortOrder">,
-  ): Promise<ProductTypeRecord> {
+  async saveProductType(workspaceId: string, input: ProductTypeInput): Promise<ProductTypeRecord> {
     const p = await getPrismaClient();
-    const update = { name: input.name, status: input.status, updatedAt: new Date() };
+    const update = {
+      typeCode: input.typeCode,
+      typeNo: input.typeNo,
+      parentId: input.parentId,
+      name: input.name,
+      status: input.status,
+      updatedAt: new Date(),
+    };
     const guard = assertWritable(PRODUCT_TYPE_TABLE, update);
     if (!guard.ok) {
       throw new Error(
         `refusing to write a locked product_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
       );
     }
+    if (input.id) {
+      const { count } = await p.productType.updateMany({ where: { workspaceId, id: input.id }, data: update });
+      if (count > 0) {
+        const row = await p.productType.findFirst({ where: { workspaceId, id: input.id } });
+        if (row) return this.toType(row);
+      }
+    }
     const tail = await p.productType.aggregate({
       where: { workspaceId },
       _max: { sortOrder: true },
     });
-    const row = await p.productType.upsert({
-      where: { workspaceId_typeCode: { workspaceId, typeCode: input.typeCode } },
-      update,
-      create: {
-        workspaceId,
-        typeCode: input.typeCode,
-        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
-        ...update,
-      },
+    const row = await p.productType.create({
+      data: { workspaceId, sortOrder: (tail._max?.sortOrder ?? 0) + 1, ...update },
     });
+    return this.toType(row);
+  }
+
+  private toType(r: {
+    id: string;
+    workspaceId: string;
+    typeCode: string;
+    typeNo: string;
+    parentId: string | null;
+    name: string;
+    sortOrder: number;
+    status: string;
+  }): ProductTypeRecord {
     return {
-      id: row.id,
-      workspaceId: row.workspaceId,
-      typeCode: row.typeCode,
-      name: row.name,
-      sortOrder: row.sortOrder,
-      status: row.status as ProductTypeRecord["status"],
+      id: r.id,
+      workspaceId: r.workspaceId,
+      typeCode: r.typeCode,
+      typeNo: r.typeNo,
+      parentId: r.parentId,
+      name: r.name,
+      sortOrder: r.sortOrder,
+      status: r.status as ProductTypeRecord["status"],
     };
   }
 

@@ -361,7 +361,13 @@ test("no writable list contains an anchor column", () => {
     // makes it identity-LIKE and is exactly why it needed arguing rather than
     // exempting quietly: uniqueness stops two customers claiming one entity, it
     // does not mean the value was ours to assign.
-    const ANCHOR_EXEMPT = new Set(["segment_code", "credit_code"]);
+    //
+    // type_code and type_no (product_type, incr/0100) are LABELS PEOPLE SET,
+    // not identity (owner, 2026-09-29: 代码可修改，编号是 XX-XX，唯一的是
+    // UUID 不显示). Products reference the type by id since incr/0029, so a new
+    // code or number moves no product; both stay unique (per workspace, per
+    // level) for the same reason credit_code does.
+    const ANCHOR_EXEMPT = new Set(["segment_code", "credit_code", "type_code", "type_no"]);
     const businessNumber = cols.find((c) => /_(no|code)$/.test(c) && !ANCHOR_EXEMPT.has(c));
     assert.equal(businessNumber, undefined, `${table} must not allow writing ${businessNumber}`);
   }

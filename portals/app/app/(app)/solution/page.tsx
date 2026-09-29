@@ -4,6 +4,7 @@ import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
 import { ModuleHeadline } from "../components/module-headline";
 import { inForceByProduct, solutionListFacts } from "../../domains/catalog/lib/pricing";
+import { typesInOrder } from "../../domains/catalog/lib/type-vocab";
 import { SolutionRoster } from "../components/solution-roster";
 import { changeSolutionStatus, deleteSolution, moveSolutionRow } from "../catalog/actions";
 import { Tag } from "../components/tag";
@@ -39,7 +40,7 @@ export default async function SolutionPage() {
           [...inForceByProduct(prices, policy.defaultCurrency, Date.now())].map(([id, e]) => [id, e.listPrice]),
         );
         const productType = new Map(products.map((p) => [p.id, p.typeId]));
-        const typeOrder = types.map((t) => t.id);
+        const typeOrder = typesInOrder(types).map((t) => t.id);
         const facts = Object.fromEntries(
           solutions.map((s) => [
             s.solution.id,

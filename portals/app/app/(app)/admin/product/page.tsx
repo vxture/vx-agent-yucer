@@ -9,12 +9,12 @@ import { CatalogStatusConfig } from "../../components/catalog-status-config";
 import { CatalogUnitConfig } from "../../components/catalog-unit-config";
 import {
   deleteProductType,
+  setProductTypeStatusRow,
   deleteStatusRow,
   deleteUnitRow,
-  moveProductTypeRow,
   moveStatusRow,
   moveUnitRow,
-  saveProductType,
+  saveProductTypes,
   saveStatusRow,
   saveUnitRow,
 } from "../../catalog/actions";
@@ -60,8 +60,8 @@ export default async function ProductSettingsPage() {
             <CatalogTypeConfig
               types={types}
               products={products}
-              onSave={saveProductType}
-              onMove={moveProductTypeRow}
+              onSave={saveProductTypes}
+              onStatus={setProductTypeStatusRow}
               onDelete={deleteProductType}
             />
             <CatalogStatusConfig

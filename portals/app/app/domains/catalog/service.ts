@@ -11,7 +11,7 @@ import {
   approvalFor,
 } from "./lib/pricing";
 import { planMove, planRemoval } from "./lib/lifecycle";
-import { DEFAULT_TYPE_VOCABULARY, planProductType, planTypeRemoval } from "./lib/type-vocab";
+import { DEFAULT_TYPE_VOCABULARY, planProductType, planTypePlacement, planTypeRemoval } from "./lib/type-vocab";
 import { DEFAULT_UNIT_VOCABULARY, planProductUnit, planUnitRemoval } from "./lib/unit-vocab";
 import { analysePrices, type PriceAdvice } from "./lib/price-advice";
 import { analyseSolutions, type SolutionAdvice } from "./lib/solution-advice";
@@ -390,8 +390,10 @@ export async function listProductTypes(
     const products = await ctx.store.listProducts(ctx.workspaceId);
     if (products.length === 0) {
       for (const d of DEFAULT_TYPE_VOCABULARY) {
-        await ctx.store.upsertProductType(ctx.workspaceId, {
+        await ctx.store.saveProductType(ctx.workspaceId, {
           typeCode: d.typeCode,
+          typeNo: d.typeNo,
+          parentId: null,
           name: d.name,
           status: "active",
         });
@@ -402,48 +404,88 @@ export async function listProductTypes(
   return ok(types);
 }
 
+/** One type as the dialog sends it: an existing row (`id`) or a new one. */
+export interface TypeRowInput {
+  readonly id?: string;
+  readonly typeCode: string;
+  readonly typeNo: string;
+  readonly name: string;
+}
+
 /**
- * Create or rename a type, or retire/reinstate it.
+ * Save what the type dialog holds (owner, 2026-09-29): a 一级类 on the first
+ * line and, optionally, a 二级类 under it on the second. Either may be new or
+ * an existing row being edited; the 一级类 may be an existing one picked from
+ * the list.
+ *
+ * Both rows are judged BEFORE either is written, so a refused second line
+ * does not leave a half-saved first one. The 二级类 is placed under whatever
+ * the 一级类 turns out to be.
  *
  * `catalog.product.upsert`, deliberately NOT a new permission: the vocabulary
  * exists to classify products, and the person trusted to say what a product IS
  * is the person trusted to say what kinds exist.
  */
-export async function upsertProductType(
+export async function saveProductTypes(
   ctx: CatalogContext,
-  input: { typeCode: string; name: string; status?: "active" | "retired" },
+  input: { readonly level1: TypeRowInput; readonly level2?: TypeRowInput | null },
+): Promise<RuleResult<{ level1: ProductTypeRecord; level2: ProductTypeRecord | null }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const existing = await ctx.store.listProductTypes(ctx.workspaceId);
+  const keep = (id: string | undefined) => existing.find((t) => t.id === id);
+
+  const plan1 = planProductType({ ...input.level1, status: keep(input.level1.id)?.status ?? "active" });
+  if (!plan1.ok) return plan1 as never;
+  // The first line is always a 一级类.
+  const place1 = planTypePlacement({ ...plan1.value, id: input.level1.id, parentId: null }, existing);
+  if (!place1.ok) return place1 as never;
+
+  let plan2: ProductTypeDraftOf | null = null;
+  if (input.level2) {
+    const r = planProductType({ ...input.level2, status: keep(input.level2.id)?.status ?? "active" });
+    if (!r.ok) return r as never;
+    // Judged as if the 一级类 were already saved: a new one gets a stand-in id.
+    const parentId = input.level1.id ?? "__new_level1__";
+    const withParent = input.level1.id
+      ? existing
+      : [...existing, { ...plan1.value, id: parentId, parentId: null } as never];
+    const place2 = planTypePlacement({ ...r.value, id: input.level2.id, parentId }, withParent);
+    if (!place2.ok) return place2 as never;
+    // Two lines naming the same code between them.
+    if (r.value.typeCode === plan1.value.typeCode) {
+      return fail(violation("type_code_taken", "the two levels need different codes", "typeCode"));
+    }
+    plan2 = r.value;
+  }
+
+  const level1 = await ctx.store.saveProductType(ctx.workspaceId, {
+    ...plan1.value,
+    id: input.level1.id,
+    parentId: null,
+  });
+  const level2 = plan2
+    ? await ctx.store.saveProductType(ctx.workspaceId, {
+        ...plan2,
+        id: input.level2?.id,
+        parentId: level1.id,
+      })
+    : null;
+  return ok({ level1, level2 });
+}
+type ProductTypeDraftOf = { typeCode: string; typeNo: string; name: string; status: "active" | "retired" };
+
+/** Retire or reinstate one type - the list's own toggle, not the dialog. */
+export async function setProductTypeStatus(
+  ctx: CatalogContext,
+  input: { typeId: string; status: "active" | "retired" },
 ): Promise<RuleResult<ProductTypeRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
-
-  const plan = planProductType({
-    typeCode: input.typeCode,
-    name: input.name,
-    status: input.status ?? "active",
-  });
-  if (!plan.ok) return plan as RuleResult<ProductTypeRecord>;
-
-  return ok(await ctx.store.upsertProductType(ctx.workspaceId, plan.value));
-}
-
-/** Reorder the type vocabulary - the order the header's stat cells render in. */
-export async function moveProductType(
-  ctx: CatalogContext,
-  input: { typeId: string; direction: MoveDirection },
-): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
-  if (!gate.allowed) return denied(gate);
-
-  const types = await ctx.store.listProductTypes(ctx.workspaceId);
-  const plan = planMove(
-    types.map((t) => ({ id: t.id, movable: true })),
-    input.typeId,
-    input.direction,
-  );
-  if (!plan.ok) return plan as RuleResult<true>;
-
-  await ctx.store.setProductTypeOrder(ctx.workspaceId, plan.value);
-  return ok(true);
+  const row = (await ctx.store.listProductTypes(ctx.workspaceId)).find((t) => t.id === input.typeId);
+  if (!row) return fail(violation("not_found", "no such type", "typeId"));
+  return ok(await ctx.store.saveProductType(ctx.workspaceId, { ...row, status: input.status }));
 }
 
 /**
@@ -460,7 +502,10 @@ export async function removeProductType(
   if (!gate.allowed) return denied(gate);
 
   const carrying = await ctx.store.countProductsByType(ctx.workspaceId, input.typeId);
-  const plan = planTypeRemoval(carrying);
+  const children = (await ctx.store.listProductTypes(ctx.workspaceId)).filter(
+    (t) => t.parentId === input.typeId,
+  ).length;
+  const plan = planTypeRemoval(carrying, children);
   if (!plan.ok) return plan as RuleResult<true>;
 
   const removed = await ctx.store.removeProductType(ctx.workspaceId, input.typeId);

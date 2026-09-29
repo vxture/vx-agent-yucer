@@ -27,13 +27,27 @@ export interface ProductRecord {
 /** The workspace's own type vocabulary - incr/0028. Products associate by
  * uuid; the code is the workspace's anchor for upserts and imports. */
 export interface ProductTypeRecord {
+  /** The identity - products reference it. Never shown (owner, 2026-09-29). */
   id: string;
   workspaceId: string;
+  /** The English code (software, ...). Editable since incr/0100; unique per
+   * workspace - imports match on it. */
   typeCode: string;
+  /** Two digits, the number people read (incr/0100): 01 for a 一级类; a
+   * 二级类 reads as its parent's number then its own, 01-02. Unique among
+   * siblings. */
+  typeNo: string;
+  /** Null for a 一级类; the 一级类's id for a 二级类. Two levels at most. */
+  parentId: string | null;
   name: string;
   sortOrder: number;
   status: "active" | "retired";
 }
+
+/** What a save writes. With `id`: update that row; without: a new one. */
+export type ProductTypeInput = Omit<ProductTypeRecord, "id" | "workspaceId" | "sortOrder"> & {
+  readonly id?: string;
+};
 
 /** 计价单位 - the third catalogue vocabulary (incr/0037). Anchor code, display
  * name, order; independent of type and status. */
@@ -209,11 +223,9 @@ export interface CatalogStore {
 
   /** The type vocabulary, in its own order. */
   listProductTypes(workspaceId: string): Promise<ProductTypeRecord[]>;
-  /** Upsert by type_code - the anchor, like product_code one table over. */
-  upsertProductType(
-    workspaceId: string,
-    input: Omit<ProductTypeRecord, "id" | "workspaceId" | "sortOrder">,
-  ): Promise<ProductTypeRecord>;
+  /** Save BY ID (incr/0100): the code is editable now, so it can no longer be
+   * the key - an upsert on it would turn a rename into a second type. */
+  saveProductType(workspaceId: string, input: ProductTypeInput): Promise<ProductTypeRecord>;
   setProductTypeOrder(
     workspaceId: string,
     orders: readonly { id: string; sortOrder: number }[],
@@ -458,15 +470,11 @@ export class InMemoryCatalogStore implements CatalogStore {
       .sort((a, b) => a.sortOrder - b.sortOrder || a.typeCode.localeCompare(b.typeCode));
   }
 
-  async upsertProductType(
-    workspaceId: string,
-    input: Omit<ProductTypeRecord, "id" | "workspaceId" | "sortOrder">,
-  ): Promise<ProductTypeRecord> {
-    const at = this.types.findIndex(
-      (t) => t.workspaceId === workspaceId && t.typeCode === input.typeCode,
-    );
+  async saveProductType(workspaceId: string, input: ProductTypeInput): Promise<ProductTypeRecord> {
+    const { id, ...fields } = input;
+    const at = id ? this.types.findIndex((t) => t.workspaceId === workspaceId && t.id === id) : -1;
     if (at >= 0) {
-      const next = { ...this.types[at]!, ...input, typeCode: this.types[at]!.typeCode };
+      const next = { ...this.types[at]!, ...fields };
       this.types[at] = next;
       return next;
     }
@@ -474,7 +482,7 @@ export class InMemoryCatalogStore implements CatalogStore {
       0,
       ...this.types.filter((t) => t.workspaceId === workspaceId).map((t) => t.sortOrder),
     );
-    const row: ProductTypeRecord = { id: `ptp_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+    const row: ProductTypeRecord = { id: `ptp_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...fields };
     this.types.push(row);
     return row;
   }
