@@ -594,6 +594,7 @@ export class PrismaCatalogStore implements CatalogStore {
         currency: input.currency,
         listPrice: input.listPrice,
         floorPrice: input.floorPrice,
+        minPrice: input.minPrice,
         effectiveAt: input.effectiveAt,
         supersedesId: input.supersedesId ?? null,
       },
@@ -742,6 +743,7 @@ export class PrismaCatalogStore implements CatalogStore {
     currency: string;
     listPrice: unknown;
     floorPrice: unknown;
+    minPrice: unknown;
     effectiveAt: Date;
     supersedesId: string | null;
   }): PriceEntryRecord {
@@ -752,6 +754,7 @@ export class PrismaCatalogStore implements CatalogStore {
       currency: r.currency,
       listPrice: num(r.listPrice),
       floorPrice: num(r.floorPrice),
+      minPrice: r.minPrice === null || r.minPrice === undefined ? null : num(r.minPrice),
       effectiveAt: r.effectiveAt,
       supersedesId: r.supersedesId,
     };

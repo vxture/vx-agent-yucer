@@ -865,6 +865,7 @@ export async function setPrice(
     currency: string;
     listPrice: number;
     floorPrice: number;
+    minPrice: number | null;
     effectiveAt?: Date;
   },
 ): Promise<RuleResult<PriceEntryRecord>> {
@@ -876,6 +877,7 @@ export async function setPrice(
     currency: input.currency,
     listPrice: input.listPrice,
     floorPrice: input.floorPrice,
+    minPrice: input.minPrice,
     effectiveAt: input.effectiveAt ?? new Date(),
   });
   if (!plan.ok) return plan as RuleResult<PriceEntryRecord>;

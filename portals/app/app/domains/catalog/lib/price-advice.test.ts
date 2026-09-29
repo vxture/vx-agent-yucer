@@ -26,6 +26,7 @@ const price = (
   currency: "CNY",
   listPrice,
   floorPrice,
+  minPrice: null,
   effectiveAt: new Date("2026-01-01"),
   supersedesId: null,
 });

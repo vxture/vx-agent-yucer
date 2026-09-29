@@ -32,6 +32,7 @@ export function PriceAdvicePanel({
     currency: string;
     listPrice: number;
     floorPrice: number;
+    minPrice: number | null;
   }) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { CATALOG_TEXT, ASSISTANT_TEXT, CATALOG_ERROR } = useMessages();
@@ -54,16 +55,23 @@ export function PriceAdvicePanel({
   };
 
   const items: AssistantItem[] = advice.map((a) => {
-    const applicable =
+    const suggests =
       canPrice && a.kind === "floor_outlier" && a.suggestedFloor !== undefined && a.listPrice !== undefined;
+    // ADOPTING WRITES A NEW ENTRY, and a new entry must carry a 保底价
+    // (incr/0099). It keeps the one in force; an entry from before 0099 has
+    // none, and inventing one here would be a commercial decision nobody
+    // made - so the one-click path steps aside and says where to set it.
+    const applicable = suggests && a.minPrice !== null && a.minPrice !== undefined;
     return {
       id: a.id,
       text: text(a),
       evidence: applicable
         ? CATALOG_TEXT.adviceApplyFloor((a.suggestedFloor ?? 0).toLocaleString())
-        : a.kind === "unpriced"
-          ? CATALOG_TEXT.adviceNoNumberWhy
-          : undefined,
+        : suggests
+          ? CATALOG_TEXT.adviceNeedsMinPrice
+          : a.kind === "unpriced"
+            ? CATALOG_TEXT.adviceNoNumberWhy
+            : undefined,
       tone: a.kind === "unpriced" || a.kind === "floor_overridden" ? "warn" : "info",
       act: applicable
         ? {
@@ -76,6 +84,7 @@ export function PriceAdvicePanel({
                 currency: a.currency ?? currency,
                 listPrice: a.listPrice!,
                 floorPrice: a.suggestedFloor!,
+                minPrice: a.minPrice ?? null,
               }),
           }
         : undefined,

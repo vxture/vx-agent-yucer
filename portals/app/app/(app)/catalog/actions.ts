@@ -139,6 +139,7 @@ export async function savePrice(input: {
   currency: string;
   listPrice: number;
   floorPrice: number;
+  minPrice: number | null;
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };

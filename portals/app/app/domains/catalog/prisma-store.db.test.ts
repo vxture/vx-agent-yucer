@@ -255,8 +255,8 @@ test("priceFor returns the latest entry that has already taken effect, not a fut
     const ids = await seedStatuses(s);
     const unit = await seedUnit(s);
     const p = await s.upsertProduct(WS, { productCode: "P-PR", name: "Priced", typeId: null, unitId: unit, statusId: ids.active! });
-    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 60, effectiveAt: new Date(Date.now() - 86_400_000) });
-    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 120, floorPrice: 70, effectiveAt: new Date(Date.now() + 86_400_000) });
+    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 60, minPrice: null, effectiveAt: new Date(Date.now() - 86_400_000) });
+    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 120, floorPrice: 70, minPrice: null, effectiveAt: new Date(Date.now() + 86_400_000) });
 
     const current = await s.priceFor(WS, p.id, "CNY");
     assert.equal(current?.listPrice, 100, "the future-dated entry must not be treated as in force yet");
@@ -272,7 +272,7 @@ test("priceFor returns null when nothing has taken effect yet", { skip }, async 
     const ids = await seedStatuses(s);
     const unit = await seedUnit(s);
     const p = await s.upsertProduct(WS, { productCode: "P-NONE", name: "None", typeId: null, unitId: unit, statusId: ids.active! });
-    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 50, floorPrice: 20, effectiveAt: new Date(Date.now() + 86_400_000) });
+    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 50, floorPrice: 20, minPrice: null, effectiveAt: new Date(Date.now() + 86_400_000) });
     assert.equal(await s.priceFor(WS, p.id, "CNY"), null);
   } finally {
     await cleanup();
@@ -287,9 +287,30 @@ test("a floor above list price is refused by the real CHECK", { skip }, async ()
     const unit = await seedUnit(s);
     const p = await s.upsertProduct(WS, { productCode: "P-FL", name: "Floor", typeId: null, unitId: unit, statusId: ids.active! });
     await assert.rejects(
-      () => s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 50, floorPrice: 80, effectiveAt: new Date() }),
+      () => s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 50, floorPrice: 80, minPrice: null, effectiveAt: new Date() }),
       /chk_price_floor/,
     );
+  } finally {
+    await cleanup();
+  }
+});
+
+test("保底价 above 审批价 is refused by the real CHECK, and a stored one reads back (incr/0099)", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const ids = await seedStatuses(s);
+    const unit = await seedUnit(s);
+    const p = await s.upsertProduct(WS, { productCode: "P-MN", name: "Min", typeId: null, unitId: unit, statusId: ids.active! });
+    await assert.rejects(
+      () => s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 80, minPrice: 81, effectiveAt: new Date() }),
+      /chk_price_min/,
+    );
+    const ok = await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 80, minPrice: 60.5, effectiveAt: new Date() });
+    assert.equal(ok.minPrice, 60.5);
+    // NULL is legal - every entry written before 0099 is one.
+    const legacy = await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 80, minPrice: null, effectiveAt: new Date(Date.now() + 1_000) });
+    assert.equal(legacy.minPrice, null);
   } finally {
     await cleanup();
   }
@@ -302,8 +323,8 @@ test("appendPrice always creates a new row - price history is a book, not a fiel
     const ids = await seedStatuses(s);
     const unit = await seedUnit(s);
     const p = await s.upsertProduct(WS, { productCode: "P-HIST", name: "History", typeId: null, unitId: unit, statusId: ids.active! });
-    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 50, effectiveAt: new Date(Date.now() - 2_000) });
-    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 110, floorPrice: 55, effectiveAt: new Date() });
+    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 50, minPrice: null, effectiveAt: new Date(Date.now() - 2_000) });
+    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 110, floorPrice: 55, minPrice: null, effectiveAt: new Date() });
     const list = await s.listPrices(WS);
     assert.equal(list.length, 2);
   } finally {
@@ -491,7 +512,7 @@ test("removeProduct cascades prices but the line FK restricts underneath", { ski
     const ids = await seedStatuses(s);
     const unit = await seedUnit(s);
     const p = await s.upsertProduct(WS, { productCode: "P-DEL", name: "Doomed", typeId: null, unitId: unit, statusId: ids.active! });
-    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 10, floorPrice: 8, effectiveAt: new Date() });
+    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 10, floorPrice: 8, minPrice: null, effectiveAt: new Date() });
     assert.equal(await s.removeProduct(WS, p.id), true);
     assert.equal((await s.listPrices(WS)).length, 0, "fk_price_product cascades");
 
@@ -552,6 +573,7 @@ test("the price chain is a real self-FK: it survives, nulls, and cannot be edite
       currency: "CNY",
       listPrice: 1000,
       floorPrice: 800,
+      minPrice: null,
       effectiveAt: new Date("2026-01-01"),
     });
     assert.equal(first.supersedesId, null);
@@ -561,6 +583,7 @@ test("the price chain is a real self-FK: it survives, nulls, and cannot be edite
       currency: "CNY",
       listPrice: 1200,
       floorPrice: 900,
+      minPrice: null,
       effectiveAt: new Date("2026-06-01"),
       supersedesId: first.id,
     });

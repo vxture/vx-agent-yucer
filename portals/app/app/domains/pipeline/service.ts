@@ -1702,6 +1702,20 @@ export async function replaceOpportunityLines(
     // currency. Pricing the batch off a single lookup would let a stale floor
     // decide approval for a product it never applied to.
     const entry = await ctx.catalog.priceFor(ctx.workspaceId, d.productId, currency);
+    // 保底价 (incr/0099) is a REFUSAL, not a flag: below the approval price a
+    // person may sign, below the minimum nobody may (owner, 2026-09-29:
+    // 拒绝保存). Checked before anything is written, so one line under the
+    // minimum leaves the whole deal as it was. An entry with no minimum -
+    // every price written before 0099 - sets no limit.
+    if (entry && entry.minPrice !== null && d.unitPrice < entry.minPrice) {
+      return fail(
+        violation(
+          "below_min_price",
+          `${d.productId} is quoted below its minimum price, which no approval can cover`,
+          "unitPrice",
+        ),
+      );
+    }
     priced.push(priceLine({ ...d, currency }, entry, policy.defaultCurrency));
   }
 

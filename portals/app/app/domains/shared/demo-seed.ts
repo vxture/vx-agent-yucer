@@ -2116,6 +2116,9 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     currency: CNY,
     listPrice: p.list,
     floorPrice: p.floor,
+    // 保底价 (incr/0099): the demo book sets one, a tenth under the approval
+    // price, so the three-price table has something to show.
+    minPrice: Math.round(p.floor * 0.9),
     effectiveAt: daysAgo(180),
     // The first price of each product replaces nothing (incr/0030).
     supersedesId: null,

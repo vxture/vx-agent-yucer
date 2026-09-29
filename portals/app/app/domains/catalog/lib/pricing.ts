@@ -239,6 +239,9 @@ export interface PriceDraft {
   currency: string;
   listPrice: number;
   floorPrice: number;
+  /** 保底价 (incr/0099). Null is accepted by the TYPE because history carries
+   * it, and refused by planPrice because a new price must set one. */
+  minPrice: number | null;
   effectiveAt: Date;
 }
 
@@ -260,7 +263,13 @@ export function planPrice(input: PriceDraft): RuleResult<PriceDraft> {
   if (!input.currency.trim()) {
     return fail(violation("currency_required", "a price needs a currency", "currency"));
   }
-  if (input.listPrice < 0 || input.floorPrice < 0) {
+  // 保底价 IS REQUIRED ON EVERY NEW PRICE (owner, 2026-09-29: 新设价必填).
+  // Entries written before incr/0099 carry none and keep carrying none; this
+  // rule only runs on a new entry, so it cannot reach back into history.
+  if (input.minPrice === null || !Number.isFinite(input.minPrice)) {
+    return fail(violation("min_price_required", "a new price needs a minimum price", "minPrice"));
+  }
+  if (input.listPrice < 0 || input.floorPrice < 0 || input.minPrice < 0) {
     return fail(violation("amount_negative", "a price cannot be negative", "listPrice"));
   }
   if (input.floorPrice > input.listPrice) {
@@ -269,6 +278,17 @@ export function planPrice(input: PriceDraft): RuleResult<PriceDraft> {
         "floor_above_list",
         "a floor above list price would make every sale need approval, which is the same as having no floor",
         "floorPrice",
+      ),
+    );
+  }
+  // min <= floor: a minimum above the approval line makes the signature
+  // unreachable - every price an approver could sign would be refused anyway.
+  if (input.minPrice > input.floorPrice) {
+    return fail(
+      violation(
+        "min_above_floor",
+        "a minimum above the approval price would refuse every price an approver could sign",
+        "minPrice",
       ),
     );
   }
