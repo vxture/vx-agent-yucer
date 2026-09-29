@@ -6,6 +6,7 @@ import { PROBE_TIMEOUT_MS, probeHttp, withTimeout } from "../../lib/status-probe
 import { getOidcConfig } from "../../auth/lib/config";
 import { getAuthUser } from "../../auth/lib/session";
 import { jobsSnapshot } from "../../jobs/scheduler";
+import { authDropSnapshot } from "../../auth/lib/auth-failures";
 
 // GET /api/status - the integration-status surface. Gated by STATUS_PAGE:
 // off -> 404, authed -> requires a valid session, public -> open. Reports only
@@ -77,6 +78,7 @@ export async function GET(): Promise<Response> {
 
   const status = buildStatus(process.env, new Date().toISOString());
   status.jobs = jobsSnapshot();
+  status.auth = authDropSnapshot();
   const [dbReachable, redisReachable, runos, atlas, arda] = await Promise.all([
     probeDb(process.env.DATABASE_URL),
     probeRedis(process.env.REDIS_URL),

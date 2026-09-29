@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { getOidcConfig } from "../../../../auth/lib/config";
-import { exchangeCode, verifyToken } from "../../../../auth/lib/oidc";
+import { accessExpiry, exchangeCode, verifyToken } from "../../../../auth/lib/oidc";
 import { takeAuthState, putSession, type RpSession } from "../../../../auth/lib/session-store";
 import { sessionCookieOptions } from "../../../../auth/lib/cookie";
 import { randomToken } from "../../../../auth/lib/pkce";
-import { silentErrorOutcome, ssoAttemptCookieName, ssoAttemptCookieOptions } from "../../../../auth/lib/sso";
+import {
+  silentErrorOutcome,
+  SSO_FRESH_TTL_SECONDS,
+  ssoAttemptCookieName,
+  ssoAttemptCookieOptions,
+} from "../../../../auth/lib/sso";
 
 // GET /api/auth/oidc/callback (080-rp section 2.3/2.5) - the redirect_uri the
 // platform REGISTERED for the `yucer` OIDC client (platform handoff,
@@ -81,7 +86,7 @@ export async function GET(req: Request): Promise<Response> {
     idToken: tokens.id_token,
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
-    accessExpiresAt: Math.floor(Date.now() / 1000) + (tokens.expires_in ?? 300),
+    accessExpiresAt: accessExpiry(tokens.access_token, tokens.expires_in, Math.floor(Date.now() / 1000)),
     sid: typeof idClaims.sid === "string" ? idClaims.sid : undefined,
     sub: String(idClaims.sub),
   };
@@ -91,8 +96,15 @@ export async function GET(req: Request): Promise<Response> {
   const dest = new URL(authState.returnTo, cfg.appOrigin || url.origin);
   const res = NextResponse.redirect(dest.toString());
   res.cookies.set(cfg.cookieName, rpsid, sessionCookieOptions(cfg));
-  // Signed in: retire the silent-attempt marker, so the next signed-out visit
-  // gets its own attempt.
-  res.cookies.set(ssoAttemptCookieName(cfg.cookieName), "", ssoAttemptCookieOptions(cfg.cookieName, 0));
+  // Signed in: shorten the silent-attempt marker to a few seconds rather than
+  // clearing it. Cleared, a session the layout cannot use (no workspace, no
+  // role) would be resumed, signed in and bounced forever; a few seconds stops
+  // that and still lets the next signed-out visit, or a session that dies
+  // minutes later, get its own attempt (auth/lib/sso.ts SSO_FRESH_TTL_SECONDS).
+  res.cookies.set(
+    ssoAttemptCookieName(cfg.cookieName),
+    "1",
+    ssoAttemptCookieOptions(cfg.cookieName, SSO_FRESH_TTL_SECONDS),
+  );
   return res;
 }

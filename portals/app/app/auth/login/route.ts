@@ -3,6 +3,7 @@ import { getOidcConfig } from "../lib/config";
 import { makePkce, randomToken } from "../lib/pkce";
 import { putAuthState } from "../lib/session-store";
 import { safeReturnTo } from "../lib/return-to";
+import { ssoAttemptCookieName, ssoAttemptCookieOptions } from "../lib/sso";
 
 // GET /auth/login (080-rp section 2.3): mint PKCE(S256) + state + nonce, persist
 // the handshake to Redis keyed by state (single-use), and top-level 302 to the
@@ -44,5 +45,12 @@ export async function GET(req: Request): Promise<Response> {
   // an ordinary login sends no prompt and behaves exactly as before.
   if (url.searchParams.get("switch") === "1") authorize.searchParams.set("prompt", "login");
   else if (silent) authorize.searchParams.set("prompt", "none");
-  return NextResponse.redirect(authorize.toString());
+  const res = NextResponse.redirect(authorize.toString());
+  // THE MARKER IS SET HERE TOO, not only by the middleware. A silent attempt
+  // can now start from the layout (a session that died with its cookie still
+  // in the browser - auth/lib/sso.ts shouldResumeSilently), where there is no
+  // middleware redirect to carry it; without the marker an IdP that answers
+  // login_required would be asked again on every render.
+  if (silent) res.cookies.set(ssoAttemptCookieName(cfg.cookieName), "1", ssoAttemptCookieOptions(cfg.cookieName));
+  return res;
 }

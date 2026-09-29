@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   isInteractionRequired,
+  shouldResumeSilently,
   shouldTrySilentSso,
   silentErrorOutcome,
   ssoAttemptCookieName,
@@ -62,4 +63,16 @@ test("the marker is host-prefixed exactly when the session cookie is", () => {
   assert.equal(ssoAttemptCookieName("vx_rp_session"), "yucer_sso_tried");
   assert.equal(ssoAttemptCookieOptions("__Host-vx_rp_session").secure, true);
   assert.equal(ssoAttemptCookieOptions("vx_rp_session", 0).maxAge, 0);
+});
+
+test("a dead session with its cookie still in the browser resumes silently, once", () => {
+  const dead = { enabled: true, hasCookie: true, triedRecently: false, justSignedOut: false };
+  assert.equal(shouldResumeSilently(dead), true);
+  // The attempt has been made: an IdP that said login_required gets the door.
+  assert.equal(shouldResumeSilently({ ...dead, triedRecently: true }), false);
+  // No cookie is the middleware's case, not this one.
+  assert.equal(shouldResumeSilently({ ...dead, hasCookie: false }), false);
+  // A member who just signed out must see the sign-out confirmation.
+  assert.equal(shouldResumeSilently({ ...dead, justSignedOut: true }), false);
+  assert.equal(shouldResumeSilently({ ...dead, enabled: false }), false);
 });

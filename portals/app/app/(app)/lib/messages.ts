@@ -2123,6 +2123,8 @@ export const SHELL_TEXT = {
  */
 export const SIGNIN_TEXT = {
   cta: "登录",
+  /** Said while the door is quietly trying the IdP's existing session. */
+  resuming: "正在恢复登录……",
   ariaLabel: "登录",
   // Every gate screen is a title and a line under it; the door had only the
   // line, which left its middle band looking unfinished (owner, 2026-09-15).
