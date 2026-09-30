@@ -17,6 +17,8 @@
 export interface OrgViewUnit {
   readonly id: string;
   readonly name: string;
+  /** The unit's English code - shown under its name, as on the org unit list. */
+  readonly code: string;
   readonly parentId: string | null;
   /** The territories this unit works (0052), by name. */
   readonly territories: readonly string[];
@@ -38,6 +40,7 @@ export interface OrgViewPerson {
 export interface OrgViewNode {
   readonly id: string;
   readonly name: string;
+  readonly code: string;
   readonly territories: readonly string[];
   /** The people placed in THIS unit, in roster order. */
   readonly people: readonly OrgViewPerson[];
@@ -72,7 +75,7 @@ export function buildOrgView(units: readonly OrgViewUnit[], people: readonly Org
     const people = byUnit.get(u.id) ?? [];
     const children = build(u.id);
     const totalPeople = people.length + children.reduce((s, c) => s + c.totalPeople, 0);
-    return { id: u.id, name: u.name, territories: u.territories, people, children, totalPeople };
+    return { id: u.id, name: u.name, code: u.code, territories: u.territories, people, children, totalPeople };
   };
   const build = (parentId: string | null): OrgViewNode[] => units.filter((u) => u.parentId === parentId).map(node);
   // A unit whose parent is not in the list (should not happen: the FK) is
@@ -92,6 +95,8 @@ export type OrgViewRow =
       readonly kind: "unit";
       readonly id: string;
       readonly name: string;
+      /** The unit's code; empty on the 未归属 pseudo-unit, which has none. */
+      readonly code: string;
       readonly depth: number;
       /** Units directly under this one. */
       readonly children: number;
@@ -139,14 +144,14 @@ export function flattenOrgView(view: OrgView, collapsed: ReadonlySet<string>): O
     for (const p of list) out.push({ kind: "person", id: personRowId(unitId, p.sub), sub: p.sub, name: p.name, picture: p.picture, status: p.status, depth, unitId, scope: p.scope, territories: p.territories });
   };
   const walk = (node: OrgViewNode, depth: number) => {
-    out.push({ kind: "unit", id: node.id, name: node.name, depth, children: node.children.length, headcount: node.people.length, totalHeadcount: node.totalPeople, territories: node.territories, unplaced: false });
+    out.push({ kind: "unit", id: node.id, name: node.name, code: node.code, depth, children: node.children.length, headcount: node.people.length, totalHeadcount: node.totalPeople, territories: node.territories, unplaced: false });
     if (collapsed.has(node.id)) return;
     for (const c of node.children) walk(c, depth + 1);
     people(node.id, node.people, depth + 1);
   };
   for (const r of view.roots) walk(r, 0);
   if (view.unplaced.length > 0) {
-    out.push({ kind: "unit", id: UNPLACED_ROW_ID, name: "", depth: 0, children: 0, headcount: view.unplaced.length, totalHeadcount: view.unplaced.length, territories: [], unplaced: true });
+    out.push({ kind: "unit", id: UNPLACED_ROW_ID, name: "", code: "", depth: 0, children: 0, headcount: view.unplaced.length, totalHeadcount: view.unplaced.length, territories: [], unplaced: true });
     if (!collapsed.has(UNPLACED_ROW_ID)) people(null, view.unplaced, 1);
   }
   return out;

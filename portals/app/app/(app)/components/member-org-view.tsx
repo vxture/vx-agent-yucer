@@ -326,7 +326,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             {r.kind === "unit" ? (
               r.unplaced
                 ? <TableTitleCell icon={orgUnitIcon(r)} title={MEMBER_TEXT.orgUnplaced} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
-                : <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} titleSuffix={headcountSuffix(r)} />
+                : <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} description={r.code} titleSuffix={headcountSuffix(r)} />
             ) : (
               <span className="gap-sm flex min-w-0 items-center">
                 <UserAvatar src={r.picture ?? undefined} alt={r.name} className="size-6 shrink-0" />

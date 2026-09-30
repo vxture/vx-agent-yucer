@@ -100,6 +100,7 @@ export default async function MembersPage() {
         orgUnits={(units.ok ? units.value : []).map((u) => ({
           id: u.id,
           name: u.name,
+          code: u.unitCode,
           parentId: u.parentId,
           // 关联区域 (0052): the territories this unit works, by name.
           territories: worked.filter((t) => t.unitIds.includes(u.id)).map((t) => t.name),

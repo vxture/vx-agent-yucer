@@ -53,6 +53,13 @@ import { Tag } from "./tag";
  * operation, in the row's own menu: 上移 / 下移 / 移到最顶 / 移到最低.
  */
 
+/** A region's icon (owner, 2026-09-30: 区域设置 had none; 组织管理 does). The
+ *  same icon in the list's name column and on the card, as org units do. One
+ *  icon, not one per depth: every division is the same kind of thing - a named
+ *  set of provinces or cities - where org units differ by level. It is the
+ *  page's own icon (区域设置 header and navigation). */
+const DIVISION_ICON = "map-pin" as const;
+
 export interface DivisionRow {
   /** The row's id - what the edit link carries. The code is unique only
    *  within a frame (0045); the id is unique full stop. */
@@ -282,6 +289,7 @@ export function DivisionPanel(
           {pagination.pageRows.map((r) => (
             <ListCard
               key={r.code}
+              icon={DIVISION_ICON}
               title={r.name}
               description={r.code}
               onTitleClick={() => setDetails(r)}
@@ -338,10 +346,10 @@ export function DivisionPanel(
               cell: (r: DivisionRow) =>
                 editable ? (
                   <Link href={`/admin/division/${r.id}`}>
-                    <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
+                    <TableTitleCell icon={DIVISION_ICON} title={r.name} description={r.code} tooltip={r.name} />
                   </Link>
                 ) : (
-                  <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
+                  <TableTitleCell icon={DIVISION_ICON} title={r.name} description={r.code} tooltip={r.name} />
                 ),
             },
             {
