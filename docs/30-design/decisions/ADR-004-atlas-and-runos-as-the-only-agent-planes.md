@@ -157,8 +157,14 @@ Atlas v0.7.8 起把「怎么答」从路由里分出来，作为每次调用的�
   包装成带码的 `LOCAL_DEADLINE`。
 - 助手消息上的 `reasoning` 信封在工具多轮中原样回传，不重建（有测试）。
 - 路由不支持所请求的推理模式（`422 THINKING_MODE_UNSUPPORTED`）时，去掉
-  `thinking` 重问一次；按路由 `thinkingModes` 预先选择留待第 2 批
-  （读 `/v1/model-routes`）。
+  `thinking` 重问一次（兜底）。
+- 第 2 批（同日）：调用前读 `/v1/model-routes`（每进程缓存 10 分钟，读不到就
+  照旧发送），按路由的 `thinkingModes` 预先去掉不被接受的模式、按
+  `maxOutputTokens` 压低输出预算；按路由 `contextWindow`（整条备选链的最小值）
+  给回合定预算：先裁旧的对话历史，再裁最旧的跟进记录，裁掉的条数计入
+  「未展示」提示；仍收到 `CONTEXT_LENGTH_EXCEEDED` 时在首轮减半重问一次。
+- 契约指纹钉在 `agent/atlas/contract.ts`；后台诊断页对照线上
+  `/.well-known/vxture-contract`，变了即报红，并列出各档位路由的容量。
 
 ## 未决
 

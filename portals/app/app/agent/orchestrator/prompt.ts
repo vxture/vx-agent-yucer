@@ -240,3 +240,57 @@ export function buildTurnMessages(
     { role: "user", content: question },
   ];
 }
+
+// --- Fitting a turn to the route's context window ----------------------------
+//
+// Atlas never estimates tokens and never truncates input (its ADR-008): a
+// prompt that does not fit comes back as 422 CONTEXT_LENGTH_EXCEEDED. The
+// route catalog publishes each route's window (the minimum across its fallback
+// chain), so the turn can be fitted BEFORE it is sent.
+
+/**
+ * A deliberately high estimate: one token per CJK character, one per three
+ * other characters. Over-estimating trims a note that would have fit;
+ * under-estimating sends a prompt that fails. The first is the cheap mistake.
+ */
+export function estimateTokens(text: string): number {
+  let cjk = 0;
+  for (const ch of text) if (/[　-鿿가-힯＀-￯]/.test(ch)) cjk += 1;
+  return cjk + Math.ceil((text.length - cjk) / 3);
+}
+
+export function estimateMessages(messages: readonly ChatMessage[]): number {
+  return messages.reduce((n, m) => n + estimateTokens(m.content) + 4, 0);
+}
+
+/**
+ * The largest turn that fits `budget` tokens. What goes first, in order:
+ * older conversation history (oldest first), then the oldest evidence notes -
+ * each dropped note is COUNTED into omittedNotes, so the model is told a
+ * window is not the whole history. The system rules and the question are
+ * never cut; if they alone exceed the budget the turn is sent as is and Atlas
+ * says so.
+ */
+export function fitTurnToWindow(
+  ctx: PromptContext,
+  history: readonly ChatMessage[],
+  question: string,
+  budget: number,
+): { ctx: PromptContext; history: ChatMessage[]; trimmed: boolean } {
+  let hist = [...history];
+  let prompt = ctx;
+  let trimmed = false;
+  const size = () => estimateMessages(buildTurnMessages(prompt, hist, question));
+  while (size() > budget) {
+    if (hist.length > 0) {
+      hist = hist.slice(1);
+    } else if (prompt.evidence && prompt.evidence.notes.length > 0) {
+      const e = prompt.evidence;
+      prompt = { ...prompt, evidence: { ...e, notes: e.notes.slice(0, -1), omittedNotes: e.omittedNotes + 1 } };
+    } else {
+      break;
+    }
+    trimmed = true;
+  }
+  return { ctx: prompt, history: hist, trimmed };
+}

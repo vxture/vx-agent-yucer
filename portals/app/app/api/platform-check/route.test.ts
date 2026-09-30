@@ -98,6 +98,15 @@ test("the replay probe is the only spending probe, and it is refused offline in 
 // --- The live probes (2026-09-28), against a stubbed network -----------------
 
 import { resetS2SCache } from "../../platform/s2s";
+import { ATLAS_CONTRACT_FINGERPRINT } from "../../agent/atlas/contract";
+
+const ROUTES = {
+  endpoints: [
+    { endpointCode: "chat/default", state: "active", contextWindow: 64000, maxOutputTokens: 4000, thinkingModes: ["off", "on"] },
+    { endpointCode: "chat/reasoning", state: "active", contextWindow: 128000, maxOutputTokens: 8000, thinkingModes: ["off", "on"] },
+  ],
+  maxRequestBytes: 16777216,
+};
 
 function stubFetch(handler: (url: string) => { status: number; body: unknown }) {
   const original = globalThis.fetch;
@@ -126,13 +135,19 @@ test("signed in: the exchange runs for both planes and Atlas answers an authenti
       ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
       : url.endsWith("/v1/models")
         ? { status: 200, body: { data: [{ modelCode: "m1" }, { modelCode: "m2" }] } }
-        : url.endsWith("/v1/mcp")
-          ? { status: 200, body: { jsonrpc: "2.0", id: 1, result: { structuredContent: { capabilities: [] } } } }
-          : { status: 404, body: {} },
+        : url.endsWith("/v1/model-routes")
+          ? { status: 200, body: ROUTES }
+          : url.endsWith("/.well-known/vxture-contract")
+            ? { status: 200, body: { fingerprint: ATLAS_CONTRACT_FINGERPRINT } }
+            : url.endsWith("/v1/mcp")
+              ? { status: 200, body: { jsonrpc: "2.0", id: 1, result: { structuredContent: { capabilities: [] } } } }
+              : { status: 404, body: {} },
   );
   try {
     const check = await runPlatformCheck("ws_live", LIVE);
     assert.equal(check.tokenMint.ok, true);
+    assert.match(check.planes.atlas.detail, /judgement -> chat\/reasoning: window 128000, output 8000, thinking off\/on/);
+    assert.match(check.planes.atlas.detail, /contract c1-5f484ea774f6 \(as pinned\)/);
     assert.match(check.tokenMint.detail, /atlas: minted.*runos: minted/);
     assert.equal(check.planes.atlas.ok, true);
     assert.match(check.planes.atlas.detail, /answered 200 - 2 model\(s\)/);
@@ -144,6 +159,33 @@ test("signed in: the exchange runs for both planes and Atlas answers an authenti
     // An empty Runos catalog is a normal answer, and says so.
     assert.equal(check.planes.runos.ok, true);
     assert.match(check.planes.runos.detail, /0 capabilities granted to yucer \(an empty catalog is a normal answer\)/);
+  } finally {
+    net.restore();
+  }
+});
+
+test("signed in: a route not granted, or a contract that moved, fails the Atlas line and says why", async () => {
+  bare();
+  resetS2SCache();
+  process.env.OIDC_CLIENT_SECRET = "s";
+  process.env.ATLAS_BASE_URL = "http://atlas.test:3100";
+  process.env.RUNOS_BASE_URL = "http://runos.test:3120";
+  const net = stubFetch((url) =>
+    url.endsWith("/oidc/token")
+      ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
+      : url.endsWith("/v1/models")
+        ? { status: 200, body: { data: [] } }
+        : url.endsWith("/v1/model-routes")
+          ? { status: 200, body: { endpoints: ROUTES.endpoints.filter((e) => e.endpointCode !== "chat/reasoning") } }
+          : url.endsWith("/.well-known/vxture-contract")
+            ? { status: 200, body: { fingerprint: "c1-ffffffffffff" } }
+            : { status: 404, body: {} },
+  );
+  try {
+    const check = await runPlatformCheck("ws_live", LIVE);
+    assert.equal(check.planes.atlas.ok, false);
+    assert.match(check.planes.atlas.detail, /judgement -> chat\/reasoning: not granted/);
+    assert.match(check.planes.atlas.detail, /contract MOVED: pinned c1-5f484ea774f6, live c1-ffffffffffff/);
   } finally {
     net.restore();
   }
