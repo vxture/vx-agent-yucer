@@ -38,6 +38,17 @@ test("first sighting creates the member row lazily", async () => {
   assert.equal((await store.listMembers(WS)).length, 1);
 });
 
+test("a sighting caches the token's name for the roster; a nameless token keeps the cached one", async () => {
+  // Production rendered every member as the bare sub: this sighting never
+  // passed the name, and the roster is the only place other pages read it.
+  const store = fresh();
+  await resolveAuthzContext(toAuthUser({ sub: "usr_1", active_workspace: WS, roles: [], name: "张三" }), store);
+  assert.equal((await store.listMembers(WS))[0]!.displayName, "张三");
+  resetAuthzCache();
+  await resolveAuthzContext(toAuthUser({ sub: "usr_1", active_workspace: WS, roles: [] }), store);
+  assert.equal((await store.listMembers(WS))[0]!.displayName, "张三", "the sub is never cached as a name");
+});
+
 test("a plain member starts with no roles and therefore no permissions", async () => {
   const store = fresh();
   const ctx = await resolveAuthzContext(user(), store);

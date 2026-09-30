@@ -82,7 +82,15 @@ export async function resolveAuthzContext(
   const hit = cache.get(k);
   if (hit && hit.expiresAt > now) return hit.value;
 
-  const { created } = await store.seeMember({ workspaceId, sub: user.sub });
+  // THE ROSTER'S NAMES COME FROM HERE (2026-09-29). Every "who" outside the
+  // header reads local_authz.member.display_name (lib/member-names.tsx), and
+  // this sighting - the only one on a deployed stage - never passed it, so in
+  // production every member rendered as their bare sub. The platform releases
+  // the name on the access token and offers no directory to ask instead, so
+  // each member's own sign-in refreshes their row. A token with no name
+  // (displayName fell back to the sub) leaves a good cached value alone.
+  const name = user.displayName !== user.sub ? user.displayName : undefined;
+  const { created } = await store.seeMember({ workspaceId, sub: user.sub, displayName: name });
 
   // A WORKSPACE'S ROLES ARE ITS OWN (incr/0046), and it starts from the
   // presets: the first member the workspace ever sees brings the nine in,
