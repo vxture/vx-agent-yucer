@@ -34,6 +34,7 @@ import { collapseFromDepth, depthLevels } from "../lib/tree-expand";
 import { addMemberToUnits, bulkPlaceMembers, moveMemberToUnit, placeMembersInUnit } from "../admin/members/actions";
 import { MemberViewSwitch, type MemberView } from "./member-view-switch";
 import { CountCircle, Tag } from "./tag";
+import { TreeToggle, TreeToggleSpacer } from "./tree-toggle";
 
 /* 组织视图 - THE TREE, people and units as rows of one table (owner,
  * 2026-09-10, five points):
@@ -239,18 +240,14 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
     router.refresh();
   };
 
-  /* THE CHEVRON (point 3): a bare button, a muted glyph, state in the
-     label. Not the DS Button: its ghost variant tiles on hover and tints on
-     aria-expanded, and both are the "常态背景" the owner asked to lose. */
+  /* THE CHEVRON (point 3): the shared bare-button arrow (tree-toggle.tsx),
+     which is this button's style lifted out so the other trees match it. */
   const chevron = (id: string, name: string) => (
-    <button
-      type="button"
-      className="text-muted-foreground hover:text-foreground flex size-6 shrink-0 cursor-pointer items-center justify-center"
-      aria-label={collapsed.has(id) ? MEMBER_TEXT.orgExpand(name) : MEMBER_TEXT.orgCollapse(name)}
-      onClick={() => toggle(id)}
-    >
-      <Icon name={collapsed.has(id) ? "chevron-right" : "chevron-down"} size="xs" />
-    </button>
+    <TreeToggle
+      expanded={!collapsed.has(id)}
+      label={collapsed.has(id) ? MEMBER_TEXT.orgExpand(name) : MEMBER_TEXT.orgCollapse(name)}
+      onToggle={() => toggle(id)}
+    />
   );
 
   const rowActions = (r: OrgViewRow) => {
@@ -325,7 +322,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
         header: MEMBER_TEXT.orgColName,
         cell: (r: OrgViewRow) => (
           <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.5}rem` }}>
-            {r.kind === "unit" && (r.children > 0 || r.headcount > 0) ? chevron(r.id, r.unplaced ? MEMBER_TEXT.orgUnplaced : r.name) : <span className="size-6 shrink-0" />}
+            {r.kind === "unit" && (r.children > 0 || r.headcount > 0) ? chevron(r.id, r.unplaced ? MEMBER_TEXT.orgUnplaced : r.name) : <TreeToggleSpacer />}
             {r.kind === "unit" ? (
               r.unplaced
                 ? <TableTitleCell icon={orgUnitIcon(r)} title={MEMBER_TEXT.orgUnplaced} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />

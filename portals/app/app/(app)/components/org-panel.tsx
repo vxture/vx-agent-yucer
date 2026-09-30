@@ -10,7 +10,6 @@ import {
   Field,
   FieldLabel,
   FilterBar,
-  Icon,
   Input,
   ListCard,
   ListCardGrid,
@@ -37,6 +36,7 @@ import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from ".
 import { OrgMembersDrawer } from "./org-members-drawer";
 import { OrgMemberPickerDrawer } from "./org-member-picker-drawer";
 import { CountCircle, Tag } from "./tag";
+import { TreeToggle, TreeToggleSpacer } from "./tree-toggle";
 
 /* 组织结构 - 展示. DISPLAY ONLY, the shape /admin/roles has.
  *
@@ -568,17 +568,9 @@ export function OrgPanel({
                 cell: (r: OrgUnitRow) => (
                   <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.5}rem` }}>
                     {r.children > 0 ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-expanded={!collapsed.has(r.id)}
-                        aria-label={r.name}
-                        onClick={() => toggle(r.id)}
-                      >
-                        <Icon name={collapsed.has(r.id) ? "chevron-right" : "chevron-down"} size="sm" />
-                      </Button>
+                      <TreeToggle expanded={!collapsed.has(r.id)} label={r.name} onToggle={() => toggle(r.id)} />
                     ) : (
-                      <span className="w-8 shrink-0" />
+                      <TreeToggleSpacer />
                     )}
                     <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} description={r.unitCode} onTitleClick={() => setDetails(r)} />
                   </span>
