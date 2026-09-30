@@ -49,6 +49,21 @@ test("a sighting caches the token's name for the roster; a nameless token keeps 
   assert.equal((await store.listMembers(WS))[0]!.displayName, "张三", "the sub is never cached as a name");
 });
 
+test("a sighting caches phone, email and face; a claim gone clears it; user_no is kept until told", async () => {
+  const store = fresh();
+  await store.seeMember({ workspaceId: WS, sub: "usr_1", userNo: "1000010000" });
+  await resolveAuthzContext(
+    toAuthUser({ sub: "usr_1", active_workspace: WS, roles: [], phone: "+8613800000000", email: "a@example.com", picture: "https://x/avatar" }),
+    store,
+  );
+  let m = (await store.listMembers(WS))[0]!;
+  assert.deepEqual([m.phone, m.email, m.pictureUrl, m.userNo], ["+8613800000000", "a@example.com", "https://x/avatar", "1000010000"]);
+  resetAuthzCache();
+  await resolveAuthzContext(toAuthUser({ sub: "usr_1", active_workspace: WS, roles: [], email: "a@example.com" }), store);
+  m = (await store.listMembers(WS))[0]!;
+  assert.deepEqual([m.phone, m.pictureUrl, m.userNo], [null, null, "1000010000"]);
+});
+
 test("a plain member starts with no roles and therefore no permissions", async () => {
   const store = fresh();
   const ctx = await resolveAuthzContext(user(), store);

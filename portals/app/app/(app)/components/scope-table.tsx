@@ -21,6 +21,8 @@ import { Tag } from "./tag";
 export interface ScopeRow {
   readonly sub: string;
   readonly name: string;
+  /** phone > email > user_no (memberIdLine); null when none is known. */
+  readonly idLine: string | null;
   readonly scope: string;
   readonly territories: number;
   readonly active: boolean;
@@ -64,14 +66,13 @@ export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
             id: "member",
             header: ADMIN_PAGE_TEXT.scopeColumnMember,
             sortable: true,
-            /* The sub is the description, not the title, and it is here for
-               the same reason the account roster shows one: this product has
-               no directory, and dressing an id up as a person is a defect this
-               repo has already fixed once. */
+            /* The description is the member's one identifying line - phone >
+               email > user_no (owner, 2026-09-29) - never the sub: a UUID
+               tells nobody who this is. */
             cell: (r: ScopeRow) => (
               <TableTitleCell
                 title={r.name}
-                description={r.sub}
+                description={r.idLine ?? undefined}
                 tooltip={r.name}
               />
             ),

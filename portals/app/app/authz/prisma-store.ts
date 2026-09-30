@@ -1,3 +1,4 @@
+import { profileChanges } from "./member-profile";
 import type { AuthzStore, MemberRecord, MemberSighting, RoleGroup, RoleGroupKind, WorkspaceRole } from "./store";
 import { isDataScope, type DataScopeKind, type ScopeSetting } from "./scope";
 import { getPrismaClient } from "../lib/db";
@@ -35,19 +36,11 @@ export class PrismaAuthzStore implements AuthzStore {
     if (existing) {
       // Refresh the platform display cache only when the caller supplied one, so
       // a sighting without profile data does not blank a good cached value.
-      // Only when it changed: every sighting now carries the name, and an
-      // unchanged one is not worth a write.
-      const renamed = m.displayName !== undefined && m.displayName !== existing.displayName;
-      const reavatared = m.avatarHash !== undefined && m.avatarHash !== existing.avatarHash;
-      if (renamed || reavatared) {
-        await p.member.update({
-          where,
-          data: {
-            ...(m.displayName !== undefined ? { displayName: m.displayName } : {}),
-            ...(m.avatarHash !== undefined ? { avatarHash: m.avatarHash } : {}),
-            updatedAt: new Date(),
-          },
-        });
+      // Only when something changed: every sighting now carries the profile,
+      // and an unchanged one is not worth a write.
+      const changed = profileChanges(m, existing);
+      if (Object.keys(changed).length > 0) {
+        await p.member.update({ where, data: { ...changed, updatedAt: new Date() } });
       }
       return { memberId: existing.id, created: false };
     }
@@ -59,6 +52,10 @@ export class PrismaAuthzStore implements AuthzStore {
           sub: m.sub,
           displayName: m.displayName ?? null,
           avatarHash: m.avatarHash ?? null,
+          phone: m.phone ?? null,
+          email: m.email ?? null,
+          userNo: m.userNo ?? null,
+          pictureUrl: m.pictureUrl ?? null,
         },
       });
       return { memberId: row.id, created: true };
@@ -412,6 +409,10 @@ export class PrismaAuthzStore implements AuthzStore {
         id: string;
         sub: string;
         displayName: string | null;
+        phone: string | null;
+        email: string | null;
+        userNo: string | null;
+        pictureUrl: string | null;
         status: string;
         scope: string;
       }) => ({
@@ -419,6 +420,10 @@ export class PrismaAuthzStore implements AuthzStore {
         workspaceId,
         sub: m.sub,
         displayName: m.displayName,
+        phone: m.phone,
+        email: m.email,
+        userNo: m.userNo,
+        pictureUrl: m.pictureUrl,
         status: m.status,
         roles: byMember.get(m.id) ?? [],
         // An unrecognised scope reads as `workspace`. The DDL has a CHECK, so

@@ -25,6 +25,8 @@ export interface OrgViewUnit {
 export interface OrgViewPerson {
   readonly sub: string;
   readonly name: string;
+  /** Their face, when the platform has one on file (incr/0103). */
+  readonly picture?: string | null;
   readonly status: string;
   readonly unitIds: readonly string[];
   /** Their data scope kind (0022 / 0052). */
@@ -109,6 +111,7 @@ export type OrgViewRow =
       readonly id: string;
       readonly sub: string;
       readonly name: string;
+      readonly picture?: string | null;
       readonly status: string;
       readonly depth: number;
       /** The unit this row sits under; null under 未归属. */
@@ -133,7 +136,7 @@ export function personRowId(unitId: string | null, sub: string): string {
 export function flattenOrgView(view: OrgView, collapsed: ReadonlySet<string>): OrgViewRow[] {
   const out: OrgViewRow[] = [];
   const people = (unitId: string | null, list: readonly OrgViewPerson[], depth: number) => {
-    for (const p of list) out.push({ kind: "person", id: personRowId(unitId, p.sub), sub: p.sub, name: p.name, status: p.status, depth, unitId, scope: p.scope, territories: p.territories });
+    for (const p of list) out.push({ kind: "person", id: personRowId(unitId, p.sub), sub: p.sub, name: p.name, picture: p.picture, status: p.status, depth, unitId, scope: p.scope, territories: p.territories });
   };
   const walk = (node: OrgViewNode, depth: number) => {
     out.push({ kind: "unit", id: node.id, name: node.name, depth, children: node.children.length, headcount: node.people.length, totalHeadcount: node.totalPeople, territories: node.territories, unplaced: false });

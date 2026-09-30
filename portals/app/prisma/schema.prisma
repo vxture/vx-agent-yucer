@@ -68,6 +68,11 @@ model Member {
   sub         String   @db.VarChar(128)
   displayName String?  @map("display_name") @db.VarChar(255)
   avatarHash  String?  @map("avatar_hash") @db.VarChar(128)
+  /// incr/0103 - the platform display cache: one identifying line (phone > email > user_no) and a face.
+  phone       String?  @db.VarChar(32)
+  email       String?  @db.VarChar(255)
+  userNo      String?  @map("user_no") @db.VarChar(32)
+  pictureUrl  String?  @map("picture_url") @db.VarChar(512)
   status      String   @default("active") @db.VarChar(32)
   /// Which rows this member may see. incr/0022 - a second isolation key, set by
   /// the workspace administrator rather than derived from the role.

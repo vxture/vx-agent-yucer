@@ -367,7 +367,12 @@ test("no writable list contains an anchor column", () => {
     // UUID 不显示). Products reference the type by id since incr/0029, so a new
     // code or number moves no product; both stay unique (per workspace, per
     // level) for the same reason credit_code does.
-    const ANCHOR_EXEMPT = new Set(["segment_code", "credit_code", "type_code", "type_no"]);
+    //
+    // user_no (incr/0103) is the PLATFORM'S number for a person, cached on
+    // local_authz.member from their token like display_name. This system
+    // assigns nothing there; the cache has to be writable or the number could
+    // never arrive on a row that was first seen before the token carried it.
+    const ANCHOR_EXEMPT = new Set(["segment_code", "credit_code", "type_code", "type_no", "user_no"]);
     const businessNumber = cols.find((c) => /_(no|code)$/.test(c) && !ANCHOR_EXEMPT.has(c));
     assert.equal(businessNumber, undefined, `${table} must not allow writing ${businessNumber}`);
   }

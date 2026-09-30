@@ -3,6 +3,7 @@ import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
+import { memberIdLine } from "../../../authz/member-profile";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { listRoles } from "../../../authz/roles";
 import { MemberPanel, type MemberRow } from "../../components/member-panel";
@@ -61,6 +62,8 @@ export default async function MembersPage() {
     memberId: m.memberId,
     sub: m.sub,
     name: m.displayName ?? m.sub,
+    idLine: memberIdLine(m),
+    picture: m.pictureUrl,
     roles: m.roles.map((code) => roleOf.get(code) ?? { code, name: code, admin: false }),
     status: m.status,
     // Several since 0053, in tree order; a unit the tree no longer has keeps

@@ -19,13 +19,25 @@ export interface MemberSighting {
   /** Platform display cache; may be stale, never authoritative. */
   displayName?: string | null;
   avatarHash?: string | null;
+  /** incr/0103 - the rest of the display cache, same rules as the name. */
+  phone?: string | null;
+  email?: string | null;
+  userNo?: string | null;
+  pictureUrl?: string | null;
 }
+
+import { profileChanges } from "./member-profile";
 
 export interface MemberRecord {
   memberId: string;
   workspaceId: string;
   sub: string;
   displayName: string | null;
+  /** incr/0103 - platform display cache; any may be null. */
+  phone: string | null;
+  email: string | null;
+  userNo: string | null;
+  pictureUrl: string | null;
   status: string;
   /** Codes of the WORKSPACE'S roles (incr/0046) - a preset copy or the
    *  tenant's own; a string because the list is theirs, not the build's. */
@@ -244,7 +256,7 @@ export class InMemoryAuthzStore implements AuthzStore {
     const existing = this.members.get(k);
     if (existing) {
       // Refresh the platform display cache; never touch roles or status.
-      if (m.displayName !== undefined) existing.displayName = m.displayName ?? null;
+      Object.assign(existing, profileChanges(m, existing));
       return { memberId: existing.memberId, created: false };
     }
     const record: MemberRecord = {
@@ -252,6 +264,10 @@ export class InMemoryAuthzStore implements AuthzStore {
       workspaceId: m.workspaceId,
       sub: m.sub,
       displayName: m.displayName ?? null,
+      phone: m.phone ?? null,
+      email: m.email ?? null,
+      userNo: m.userNo ?? null,
+      pictureUrl: m.pictureUrl ?? null,
       status: "active",
       roles: [],
       // UNSCOPED ON FIRST SIGHTING. Narrowing is the administrator's act; a
@@ -475,6 +491,10 @@ export class InMemoryAuthzStore implements AuthzStore {
       workspaceId,
       sub,
       displayName: null,
+      phone: null,
+      email: null,
+      userNo: null,
+      pictureUrl: null,
       status: "active",
       roles: roles.filter((r) => ws!.has(r)),
       scope: "workspace",

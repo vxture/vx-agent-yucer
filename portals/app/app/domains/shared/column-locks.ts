@@ -26,7 +26,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // `scope` added by incr/0022: which rows this member may see, set by the
   // workspace administrator. Writable for the same reason `status` is - it is a
   // decision somebody makes about a colleague, not a fact about them.
-  "local_authz.member": ["display_name", "avatar_hash", "status", "scope", "updated_at"],
+  // phone / email / user_no / picture_url joined in incr/0103: the platform
+  // display cache, refreshed from the member's own token like display_name.
+  "local_authz.member": ["display_name", "avatar_hash", "phone", "email", "user_no", "picture_url", "status", "scope", "updated_at"],
   // incr/0046 - the workspace's own roles. role_code is the anchor every
   // member link and every reset keys on, and is deliberately not here.
   "local_authz.workspace_role": [
