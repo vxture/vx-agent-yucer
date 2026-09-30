@@ -302,7 +302,7 @@ async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<stri
   const out: string[] = ["Rerank probe:"];
   let routeCodes: string[] = [];
   try {
-    routeCodes = [...parseRouteCatalog(await client.modelRoutes(ctx)).routes.keys()].sort();
+    routeCodes = [...parseRouteCatalog(await client.modelRoutes(ctx)).routes.keys()].sort((a, b) => a.localeCompare(b));
     out.push(`  routes held: ${routeCodes.join(", ") || "(none)"}`);
   } catch (err) {
     out.push(`  routes held: read failed - ${describe(err)}`);
@@ -318,9 +318,11 @@ async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<stri
       // Only what a caller has to get right: the required fields, and the
       // shape of the two fields that carry the data. The full schema runs to
       // pages of selector prose.
-      out.push(`  required: ${clip(schema.required)}`);
-      out.push(`  candidates: ${clip(schema.properties?.candidates)}`);
-      out.push(`  other fields: ${Object.keys(schema.properties ?? {}).filter((k) => k !== "candidates").join(", ")}`);
+      out.push(
+        `  required: ${clip(schema.required)}`,
+        `  candidates: ${clip(schema.properties?.candidates)}`,
+        `  other fields: ${Object.keys(schema.properties ?? {}).filter((k) => k !== "candidates").join(", ")}`,
+      );
     }
   } catch (err) {
     out.push(`  tool descriptor: read failed - ${describe(err)}`);
@@ -344,8 +346,7 @@ async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<stri
         },
         ctx,
       );
-      out.push(`  call ${endpointCode}: ok`);
-      out.push(`  raw answer: ${clip(answer, 800)}`);
+      out.push(`  call ${endpointCode}: ok`, `  raw answer: ${clip(answer, 800)}`);
     } catch (err) {
       out.push(`  call ${endpointCode}: failed - ${describe(err)}`);
     }
