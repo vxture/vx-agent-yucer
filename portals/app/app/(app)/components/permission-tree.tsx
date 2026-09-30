@@ -37,6 +37,7 @@ import {
   type PermissionRow,
 } from "../lib/permission-tree";
 import { Tag } from "./tag";
+import { TreeToggle, TreeToggleSpacer } from "./tree-toggle";
 
 /* 权限策略 - 业务域 / 模块 / 页面 / 操作, one tree in one table (owner,
  * 2026-09-09; the reference is the platform console's permission tree; the
@@ -451,17 +452,9 @@ export function PermissionTree({
                     {/* The chevron is the row's own control; a leaf keeps
                         its width so titles line up down a level. */}
                     {branch ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-expanded={r.expanded}
-                        aria-label={title(n)}
-                        onClick={() => toggle(n.key)}
-                      >
-                        <Icon name={r.expanded ? "chevron-down" : "chevron-right"} size="sm" />
-                      </Button>
+                      <TreeToggle expanded={r.expanded} label={title(n)} onToggle={() => toggle(n.key)} />
                     ) : (
-                      <span className="w-8 shrink-0" />
+                      <TreeToggleSpacer />
                     )}
                     {/* THE DS'S TABLE TITLE CELL (owner, 2026-09-10: 权限视图
                         文字小了): the title wore `text-body`, a tier that does
@@ -712,17 +705,9 @@ export function PermissionTreeTable({
                 <TableCell>
                   <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.25}rem` }}>
                     {branch ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-expanded={r.expanded}
-                        aria-label={title(n)}
-                        onClick={() => toggle(n.key)}
-                      >
-                        <Icon name={r.expanded ? "chevron-down" : "chevron-right"} size="sm" />
-                      </Button>
+                      <TreeToggle expanded={r.expanded} label={title(n)} onToggle={() => toggle(n.key)} />
                     ) : (
-                      <span className="w-8 shrink-0" />
+                      <TreeToggleSpacer />
                     )}
                     <TableTitleCell icon={LEVEL_ICON[n.level]} title={title(n)} tooltip={title(n)} description={subtitle(n)} />
                   </span>
