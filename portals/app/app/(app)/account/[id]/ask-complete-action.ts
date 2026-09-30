@@ -87,6 +87,8 @@ export async function askToComplete(accountId: string): Promise<AskCompleteResul
       // one turn where the model is being asked about facts it may simply not
       // know - which is exactly when an unwatched write is worst.
       autopilotActive: false,
+      // A structured draft that rule functions check: no reasoning needed.
+      profile: "drafting",
     },
     { atlasClient: new AtlasClient(), runosClient: new RunosClient() },
   );

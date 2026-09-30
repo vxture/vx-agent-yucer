@@ -182,7 +182,7 @@ export async function* streamCopilotTurn(
   let totalTokens = 0;
 
   try {
-    for await (const frame of deps.atlasClient.chatStream("chat", { messages }, atlas)) {
+    for await (const frame of deps.atlasClient.chatStream("dialogue", { messages }, atlas)) {
       if (frame.type === "text") {
         answer += frame.delta;
         yield { type: "delta", text: frame.delta };

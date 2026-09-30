@@ -7,6 +7,8 @@ const TEXT = {
   errorNoGrant: "no grant",
   errorQuota: "quota",
   errorTurnQuota: "turn quota",
+  errorTooMuch: "too much",
+  errorTimeout: "timeout",
   errorGeneric: "generic",
 } as never;
 
@@ -46,4 +48,15 @@ test("a session with no tenant reads as unconfigured, not as a failure", () => {
 test("the product's own turn quota gets its own sentence, not the model plane's", () => {
   assert.equal(explainModelPlaneError("quota_exceeded", TEXT), "turn quota");
   assert.equal(explainModelPlaneError("atlas_QUOTA_EXCEEDED", TEXT), "quota");
+});
+
+test("too much input and too long a wait each get their own advice", () => {
+  // Atlas v0.7.6-v0.7.10 made these non-retryable 422s and a 504; "try again"
+  // is wrong advice for the first and incomplete for the second.
+  for (const c of ["CONTEXT_LENGTH_EXCEEDED", "UPSTREAM_REJECTED_REQUEST", "PAYLOAD_TOO_LARGE"]) {
+    assert.equal(explainModelPlaneError(`atlas_${c}`, TEXT), "too much", c);
+  }
+  for (const c of ["DEADLINE_EXCEEDED", "LOCAL_DEADLINE", "BODY_TIMEOUT", "STREAM_IDLE_TIMEOUT"]) {
+    assert.equal(explainModelPlaneError(`atlas_${c}`, TEXT), "timeout", c);
+  }
 });

@@ -45,5 +45,25 @@ export function explainModelPlaneError(
   // model is called. Distinct sentence from the model plane's quota - one is
   // "buy more turns", the other is "operations must top up the plane".
   if (code === "quota_exceeded") return COPILOT_TEXT.errorTurnQuota;
+  // Atlas v0.7.6-v0.7.10: the input was too big for the route. None of these
+  // is retryable - the same request fails the same way - so "try again" is
+  // the wrong advice; narrowing what is asked about is the right one.
+  if (TOO_MUCH.has(code)) return COPILOT_TEXT.errorTooMuch;
+  // The call's budget ran out (Atlas cancelled upstream, or this client gave
+  // up waiting). Not a fault of the question.
+  if (TOO_SLOW.has(code)) return COPILOT_TEXT.errorTimeout;
   return COPILOT_TEXT.errorGeneric;
 }
+
+const TOO_MUCH = new Set([
+  "atlas_CONTEXT_LENGTH_EXCEEDED",
+  "atlas_UPSTREAM_REJECTED_REQUEST",
+  "atlas_PAYLOAD_TOO_LARGE",
+]);
+
+const TOO_SLOW = new Set([
+  "atlas_DEADLINE_EXCEEDED",
+  "atlas_LOCAL_DEADLINE",
+  "atlas_BODY_TIMEOUT",
+  "atlas_STREAM_IDLE_TIMEOUT",
+]);

@@ -352,14 +352,38 @@ test("several proposals in one turn are all collected", async () => {
   assert.deepEqual(r.proposals.map((p) => p.actionType), ["a", "b"]);
 });
 
-test("the first call uses the chat task and later rounds use the reasoning task", async () => {
-  const h = harness({
+test("one profile for the whole turn, tool rounds included; dialogue by default", async () => {
+  // The owner rules per capability whether work reasons (2026-09-30). A turn
+  // that escalated itself to the reasoning route after a tool round would
+  // overrule that - and did, before profiles existed.
+  const script = () => harness({
     replies: [{ toolCalls: [{ id: "t", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] }, { content: "ok" }],
     capabilities: [cap()],
   });
+  const plain = script();
+  await runTurn({ ...BASE, question: "q" }, plain);
+  assert.deepEqual(plain.calls.map((c) => c.task), ["dialogue", "dialogue"]);
+
+  const judged = script();
+  await runTurn({ ...BASE, question: "q", profile: "judgement" }, judged);
+  assert.deepEqual(judged.calls.map((c) => c.task), ["judgement", "judgement"]);
+});
+
+test("a reasoning envelope goes back on the next round exactly as received", async () => {
+  // Rebuilding it as { text } drops provider keys such as Anthropic's
+  // signature, and the upstream answers 400 on the next round.
+  const reasoning = { text: "thinking...", signature: "sig-abc", opaque: { n: 1 } };
+  const h = harness({
+    replies: [
+      { reasoning, toolCalls: [{ id: "t", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+      { content: "ok" },
+    ],
+    capabilities: [cap()],
+  });
   await runTurn({ ...BASE, question: "q" }, h);
-  assert.equal(h.calls[0].task, "chat");
-  assert.equal(h.calls[1].task, "propose");
+  const echoed = h.calls[1].messages.find((m) => m.role === "assistant" && m.toolCalls?.length);
+  assert.ok(echoed, "the assistant's tool-call message is replayed");
+  assert.deepEqual(echoed!.reasoning, reasoning);
 });
 
 // --- Proposal parsing -------------------------------------------------------

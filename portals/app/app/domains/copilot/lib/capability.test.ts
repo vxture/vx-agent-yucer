@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CAPABILITIES, CAPABILITY_SPEC, isCapability, capabilityLabel } from "./capability";
+import { CALL_PROFILES } from "../../../agent/atlas/profiles";
 
 const LABELS: Record<string, string> = { "deal.stall_risk": "stall" };
 
-test("every capability declares a task and a non-empty evidence scope", () => {
+test("every capability declares a profile and a non-empty evidence scope", () => {
   for (const c of CAPABILITIES) {
     const spec = CAPABILITY_SPEC[c];
     assert.ok(spec, `${c} has no spec`);
@@ -12,17 +13,22 @@ test("every capability declares a task and a non-empty evidence scope", () => {
   }
 });
 
-// ADR-015: the operator owns the model, the product owns the task. A capability
-// that named a model would take that back.
-test("capabilities name a task, never a model", () => {
-  const tasks = new Set(CAPABILITIES.map((c) => CAPABILITY_SPEC[c].task));
-  for (const t of tasks) {
-    assert.ok(["chat", "propose", "score", "summarize"].includes(t), `${t} is not a CopilotTask`);
+// ADR-015: the operator owns the model, the product owns the profile. A
+// capability that named a model would take that back.
+test("capabilities name a call profile, never a model", () => {
+  for (const c of CAPABILITIES) {
+    assert.ok(CALL_PROFILES.includes(CAPABILITY_SPEC[c].profile), `${c}: ${CAPABILITY_SPEC[c].profile} is not a CallProfile`);
   }
-  // Bulk scoring must not sit on the reasoning endpoint by accident.
-  assert.equal(CAPABILITY_SPEC["signal.triage"].task, "score");
-  // A proposal a human signs is worth the stronger model.
-  assert.equal(CAPABILITY_SPEC["deal.stall_risk"].task, "propose");
+  // Bulk scoring must not sit on the reasoning route by accident.
+  assert.equal(CAPABILITY_SPEC["signal.triage"].profile, "triage");
+});
+
+// The owner's ruling (2026-09-30): exactly these four reason. Reasoning is
+// slower and dearer, so a fifth is a decision, not a drift - this test makes
+// adding one an explicit edit here.
+test("only the four ruled capabilities reason", () => {
+  const reasoning = CAPABILITIES.filter((c) => CAPABILITY_SPEC[c].profile === "judgement").sort();
+  assert.deepEqual(reasoning, ["account.consistency", "deal.next_action", "deal.plan", "deal.price"]);
 });
 
 // The cadence capability is the one whose evidence is an ABSENCE (ADR-013).

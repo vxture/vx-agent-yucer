@@ -136,6 +136,30 @@ Runos 版本有两份文档互相矛盾：审计报告（2026-08-16）写 `v0.6.
 的刚性区只写了三通道（C1/C2/C3），根本没提 Atlas 与 Runos——所以仓库自己的治理
 恰恰不把已经发生漂移的那两个面当作冻结面。
 
+## 调用档位（2026-09-30 补记，对接 Atlas v0.7.11）
+
+Atlas v0.7.8 起把「怎么答」从路由里分出来，作为每次调用的参数：`thinking`
+（`off`/`on`）、`timeoutMs`（整次调用总预算，到点取消上游并回
+`504 DEADLINE_EXCEEDED`），配合 `maxTokens`。不传 `thinking` 就是上游默认，
+而现役思考型模型默认开推理；本仓此前一个都没传，同步调用又要等生成结束才拿到
+响应头，推理一长就撞上本地 60 秒超时，成员看到的是一条无码的通用错误。
+
+本仓的约定（`agent/atlas/profiles.ts`）：
+
+- 路由仍只按 `endpointCode`（第 1 节不变）。每次调用另带一个**档位**：
+  对话 `dialogue` / 研判 `judgement` / 成稿 `drafting` / 分诊 `triage`，
+  档位决定路由任务、`thinking`、`maxTokens`、`timeoutMs`，数值可由环境变量覆盖。
+- 哪些工作开推理是产品决定（负责人，2026-09-30）：价格参谋、下一步建议、
+  推进计划、说法核对四项用 `judgement`，其余不开。写在 `CAPABILITY_SPEC`，
+  由 `capability.test.ts` 钉住名单。一次回合内所有轮次用同一档位，不再在工具
+  轮次后自行升到推理路由。
+- 本地等待 = Atlas 预算 + 10 秒，让 Atlas 先停、先回带码的 504；本地超时也
+  包装成带码的 `LOCAL_DEADLINE`。
+- 助手消息上的 `reasoning` 信封在工具多轮中原样回传，不重建（有测试）。
+- 路由不支持所请求的推理模式（`422 THINKING_MODE_UNSUPPORTED`）时，去掉
+  `thinking` 重问一次；按路由 `thinkingModes` 预先选择留待第 2 批
+  （读 `/v1/model-routes`）。
+
 ## 未决
 
 - Runos 的 `delegation_token`（对象级判定凭据）如何从 yucer 的会话派生，尚未定型。

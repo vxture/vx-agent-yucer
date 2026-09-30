@@ -47,6 +47,8 @@ export async function structureMeetingNotes(
       subject: { type: "account", id: accountId, summary: account.name },
       evidence: evidenceResult.ok ? evidenceResult.value : undefined,
       autopilotActive: false,
+      // A structured draft that rule functions check: no reasoning needed.
+      profile: "drafting",
     },
     { atlasClient: new AtlasClient(), runosClient: new RunosClient() },
   );
