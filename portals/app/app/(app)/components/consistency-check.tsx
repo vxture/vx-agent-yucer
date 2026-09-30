@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button, Icon, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
 import { Tag } from "./tag";
 import type { ConsistencyResult } from "../account/[id]/consistency-action";
 
@@ -35,7 +36,7 @@ export function ConsistencyCheck({
   readonly pending: readonly PendingConflict[];
   readonly onCheck: (accountId: string) => Promise<ConsistencyResult>;
 }) {
-  const { CONSISTENCY_TEXT, CONSISTENCY_ERROR } = useMessages();
+  const { CONSISTENCY_TEXT, CONSISTENCY_ERROR, COPILOT_TEXT } = useMessages();
   const { toast } = useToast();
   const [busy, start] = useTransition();
   const [failed, setFailed] = useState<string | null>(null);
@@ -45,7 +46,13 @@ export function ConsistencyCheck({
       setFailed(null);
       const r = await onCheck(accountId);
       if (!r.ok) {
-        setFailed(CONSISTENCY_ERROR[r.error] ?? CONSISTENCY_ERROR.unknown);
+        // The model plane's codes (atlas_*) get the one shared sentence per
+        // code (lib/model-plane-error.ts), as on every other advisor.
+        setFailed(
+          isModelPlaneError(r.error)
+            ? explainModelPlaneError(r.error, COPILOT_TEXT)
+            : (CONSISTENCY_ERROR[r.error] ?? CONSISTENCY_ERROR.unknown ?? r.error),
+        );
         return;
       }
       toast({

@@ -4233,7 +4233,7 @@ export const UPGRADE_TEXT = {
 
 /** 下一步最佳动作 (deal batch 8c, YC-066 S6)。 */
 export const NEXT_ACTION_TEXT = {
-  thinking: "参谋在想这一单的下一步…",
+  thinking: "参谋在深入推演这一单的下一步，约需半分钟到两分钟…",
   failed: (why: string) => `下一步最佳动作这次没生成：${why}`,
   proposal: (statement: string, dueAt: string) => `下一步：${statement}（${dueAt} 前）`,
   stallGoal: (holder: string) => `卡点：${holder}`,
@@ -5199,7 +5199,7 @@ export const COLLAPSE_TEXT = {
 /** 说法核对 (L2 批七 b, owner 2026-09-22: 手动按钮 / 复用提案 / 最近 20 条同一事实)。 */
 export const CONSISTENCY_TEXT = {
   button: "核对说法",
-  checking: "核对中…",
+  checking: "参谋在逐条比对说法，约需半分钟到两分钟…",
   never: "还没核对过这家的跟进说法是否一致",
   checkedOn: (d: string) => `${d} 核对过最近的跟进，没有发现说法不一致`,
   pending: (n: number) => `发现 ${n} 处疑似说法不一致，待你确认`,
@@ -7540,7 +7540,7 @@ export const DEAL_PAGE_TEXT = {
   importanceCross: (tier: string, level: string) => `客户 ${tier} × 商机 ${level}`,
   // 推进计划生成 (deal batch 5c)
   planGenerate: "生成计划草案",
-  planGenerating: "生成中…",
+  planGenerating: "深入推演中，约需半分钟到两分钟…",
   planDone: (n: number) => (n > 0 ? `起草了 ${n} 步，在推进计划下逐条采纳` : "这次没有起草出可用的步骤"),
   planCached: (n: number) => `条件与承诺没有变化，沿用今天的草案（${n} 步）`,
   findingPlanStep: (direction: string, due: string, statement: string, criterion: string) =>
@@ -7653,7 +7653,7 @@ export const EXIT_CRITERION_ERROR: Record<string, string> = {
 export const PRICE_ADVICE_TEXT = {
   title: "价格参谋",
   run: "让参谋看看",
-  running: "参谋在看…",
+  running: "参谋在深入分析，约需半分钟到两分钟…",
   why: "结合审批价、让价与跟进里对方说的价格，给出守价策略和可以换的条件。数字只用上表的，不替你决定批不批。",
   strategy: "策略",
   trades: "可以换的条件",
