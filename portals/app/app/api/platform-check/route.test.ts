@@ -23,6 +23,9 @@ afterEach(() => {
 });
 function bare(): void {
   for (const k of KEYS) delete process.env[k];
+  // The route catalog is cached per process and per base URL; every test here
+  // uses the same URL, so a catalog one test served must not leak into the next.
+  resetRouteCatalogCache();
 }
 
 test("STATUS_PAGE=off is indistinguishable from a missing route", async () => {
@@ -99,6 +102,7 @@ test("the replay probe is the only spending probe, and it is refused offline in 
 
 import { resetS2SCache } from "../../platform/s2s";
 import { ATLAS_CONTRACT_FINGERPRINT } from "../../agent/atlas/contract";
+import { resetRouteCatalogCache } from "../../agent/atlas/routes";
 
 const ROUTES = {
   endpoints: [
@@ -242,6 +246,39 @@ test("the Atlas live-call probe sends a UUID applicationId - Atlas casts it for 
     assert.equal(r.ok, true);
     const sent = JSON.parse(net.bodies.find((b) => b.url.endsWith("/v1/chat"))!.body);
     assert.match(sent.applicationId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  } finally {
+    net.restore();
+  }
+});
+
+test("the Atlas probe reports rerank as found: route codes, the tool's input schema, one call's raw answer", async () => {
+  bare();
+  resetS2SCache();
+  process.env.OIDC_CLIENT_SECRET = "s";
+  process.env.ATLAS_BASE_URL = "http://atlas.test:3100";
+  const net = stubFetch((url) =>
+    url.endsWith("/oidc/token")
+      ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
+      : url.endsWith("/v1/chat")
+        ? { status: 200, body: { id: "c", modelCode: "m1", message: { role: "assistant", content: "pong" }, usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 }, latencyMs: 5 } }
+        : url.endsWith("/v1/model-routes")
+          ? { status: 200, body: { endpoints: [...ROUTES.endpoints, { endpointCode: "rerank/default", state: "active" }] } }
+          : url.endsWith("/.well-known/vxture-tools")
+            ? { status: 200, body: { tools: [{ name: "atlas.rerank", input_schema: { required: ["query", "candidates"] } }] } }
+            : url.endsWith("/v1/rerank")
+              ? { status: 200, body: { results: [{ index: 0, score: 0.91 }] } }
+              : { status: 404, body: {} },
+  );
+  try {
+    const { runAtlasProbe } = await import("./check");
+    const r = await runAtlasProbe("ws_live", "org_live");
+    assert.equal(r.ok, true);
+    assert.match(r.detail, /route codes held: chat\/default, chat\/reasoning, rerank\/default/);
+    assert.match(r.detail, /rerank tool: \{"required":\["query","candidates"\]\}/);
+    assert.match(r.detail, /rerank rerank\/default answered: \{"results":\[\{"index":0,"score":0.91\}\]\}/);
+    const sent = JSON.parse(net.bodies.find((b) => b.url.endsWith("/v1/rerank"))!.body);
+    assert.equal(sent.workspaceId, "ws_live", "rerank takes workspaceId, not tenantId");
+    assert.ok(sent.taskId);
   } finally {
     net.restore();
   }

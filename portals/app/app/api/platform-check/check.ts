@@ -277,12 +277,61 @@ export async function runAtlasProbe(
     // error (2026-09-28). The business paths send a session or run id.
     { workspaceId, tenantId, taskId, applicationId: randomUUID(), requestId: taskId },
   );
+  const rerank = await rerankProbe(client, { workspaceId, tenantId, taskId, applicationId: randomUUID(), requestId: `${taskId}-rerank` });
   return {
     ok: true,
     detail:
       `model ${res.modelCode} answered in ${res.latencyMs}ms, ` +
-      `${res.usage.totalTokens} token(s) (prompt ${res.usage.promptTokens} + completion ${res.usage.completionTokens})`,
+      `${res.usage.totalTokens} token(s) (prompt ${res.usage.promptTokens} + completion ${res.usage.completionTokens}); ` +
+      rerank,
   };
+}
+
+/**
+ * What rerank looks like from here (2026-09-30). Its response shape and route
+ * name are not published anywhere this repo can read, so before a typed
+ * rerank is written this reports the facts it needs, raw: the tool
+ * descriptor's input_schema, the route codes yucer holds, and one two-item
+ * call's answer. Never fails the probe it rides on - it is a report.
+ */
+async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<string> {
+  const clip = (v: unknown, n = 600) => JSON.stringify(v ?? null).slice(0, n);
+  const out: string[] = [];
+  let routeCodes: string[] = [];
+  try {
+    routeCodes = [...parseRouteCatalog(await client.modelRoutes(ctx)).routes.keys()];
+    out.push(`route codes held: ${routeCodes.join(", ") || "(none)"}`);
+  } catch (err) {
+    out.push(`route codes: ${describe(err)}`);
+  }
+  try {
+    const tools = (await client.tools(ctx)) as { tools?: unknown[] } | unknown[];
+    const list = (Array.isArray(tools) ? tools : (tools.tools ?? [])) as Array<Record<string, unknown>>;
+    const tool = list.find((t) => /rerank/i.test(String(t.name ?? t.id ?? "")));
+    out.push(tool ? `rerank tool: ${clip(tool.input_schema ?? tool.inputSchema ?? tool)}` : "rerank tool: not in the descriptor list");
+  } catch (err) {
+    out.push(`tools: ${describe(err)}`);
+  }
+  const endpointCode = process.env.ATLAS_ENDPOINT_RERANK?.trim() || routeCodes.find((c) => /rerank/i.test(c));
+  if (!endpointCode) {
+    out.push("rerank call: skipped - no route code containing 'rerank' is held (set ATLAS_ENDPOINT_RERANK to name one)");
+  } else {
+    try {
+      const answer = await client.rerankRaw(
+        {
+          endpointCode,
+          workspaceId: ctx.workspaceId,
+          query: "budget confirmed",
+          candidates: ["The customer confirmed the budget for next quarter.", "Lunch was at noon."],
+        },
+        ctx,
+      );
+      out.push(`rerank ${endpointCode} answered: ${clip(answer)}`);
+    } catch (err) {
+      out.push(`rerank ${endpointCode}: ${describe(err)}`);
+    }
+  }
+  return `RERANK PROBE - ${out.join(" | ")}`;
 }
 
 function c3ReplayDescription(): ProbeResult {
