@@ -27,6 +27,8 @@ export interface AuditRow {
   readonly occurredAt: Date;
   readonly actorSub: string;
   readonly actorName: string;
+  /** The actor's one identifying line (memberIdLine); null when none is known. */
+  readonly actorIdLine: string | null;
   readonly action: string;
   readonly objectType: string;
   readonly objectId: string;
@@ -156,7 +158,7 @@ export function AuditRoster({ rows }: { readonly rows: readonly AuditRow[] }) {
               header: AUDIT_TEXT.colActor,
               sortable: true,
               cell: (r: AuditRow) => (
-                <TableTitleCell title={r.actorName} description={r.actorSub} tooltip={r.actorName} />
+                <TableTitleCell title={r.actorName} description={r.actorIdLine ?? undefined} tooltip={r.actorName} />
               ),
             },
             {
