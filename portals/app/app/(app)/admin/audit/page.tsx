@@ -4,6 +4,7 @@ import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
+import { memberIdLine } from "../../../authz/member-profile";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { getAuditStore } from "../../../audit/lib/store";
 import { AuditRoster } from "../../components/audit-roster";
@@ -70,15 +71,18 @@ export default async function AuditPage() {
     }),
     listWorkspaceMembers({ ...base, store: getAuthzStore() }),
   ]);
-  const nameOf = new Map(
-    (members.ok ? members.value : []).map((m) => [m.sub, m.displayName ?? m.sub]),
-  );
+  const roster = new Map((members.ok ? members.value : []).map((m) => [m.sub, m]));
 
   const rows = events.map((e) => ({
     id: e.id,
     occurredAt: e.occurredAt,
     actorSub: e.actorId,
-    actorName: nameOf.get(e.actorId) ?? e.actorId,
+    actorName: roster.get(e.actorId)?.displayName ?? e.actorId,
+    // phone > email > user_no, as on the member roster - never the sub.
+    actorIdLine: (() => {
+      const m = roster.get(e.actorId);
+      return m ? memberIdLine(m) : null;
+    })(),
     action: e.action,
     objectType: e.objectType,
     objectId: e.objectId,
