@@ -233,6 +233,25 @@ export class AtlasClient {
     return catalog?.routes.get(endpointCode) ?? null;
   }
 
+  /** The tool descriptors (/.well-known/vxture-tools): each capability's input_schema. */
+  async tools(ctx: AtlasContext): Promise<unknown> {
+    const { res, json } = await this.requestJson("GET", "/.well-known/vxture-tools", undefined, ctx);
+    if (!res.ok) throw parseAtlasError(res.status, json);
+    return json;
+  }
+
+  /**
+   * POST /v1/rerank, answer UNPARSED. Deliberately raw: the response shape is
+   * not published anywhere this repo can read (2026-09-30), and a parser
+   * written from a guess would drop results silently. The diagnostics probe
+   * shows what comes back; a typed rerank is written against that.
+   */
+  async rerankRaw(body: Record<string, unknown>, ctx: AtlasContext): Promise<unknown> {
+    const { res, json } = await this.requestJson("POST", "/v1/rerank", { ...body, taskId: ctx.taskId }, ctx);
+    if (!res.ok) throw parseAtlasError(res.status, json);
+    return json;
+  }
+
   /** Entitlement as Atlas sees it, scoped by the token rather than by a param. */
   async quotas(ctx: AtlasContext): Promise<unknown> {
     const { res, json } = await this.requestJson("GET", "/tenancy/quotas", undefined, ctx);
