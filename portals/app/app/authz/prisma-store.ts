@@ -35,7 +35,11 @@ export class PrismaAuthzStore implements AuthzStore {
     if (existing) {
       // Refresh the platform display cache only when the caller supplied one, so
       // a sighting without profile data does not blank a good cached value.
-      if (m.displayName !== undefined || m.avatarHash !== undefined) {
+      // Only when it changed: every sighting now carries the name, and an
+      // unchanged one is not worth a write.
+      const renamed = m.displayName !== undefined && m.displayName !== existing.displayName;
+      const reavatared = m.avatarHash !== undefined && m.avatarHash !== existing.avatarHash;
+      if (renamed || reavatared) {
         await p.member.update({
           where,
           data: {
