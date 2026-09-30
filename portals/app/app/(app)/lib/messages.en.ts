@@ -542,7 +542,7 @@ export const en: Dictionary = {
   PRICE_ADVICE_TEXT: {
     title: "Pricing advice",
     run: "Ask the advisor",
-    running: "Thinking...",
+    running: "The advisor is analysing; this takes 30 seconds to 2 minutes...",
     why: "From the floor, the concession and what the buyer said about price in the follow-ups: how to hold the price and what to ask in exchange. It uses only the numbers above and does not decide for you.",
     strategy: "Strategy",
     trades: "Ask in exchange",
@@ -813,7 +813,7 @@ export const en: Dictionary = {
     },
   },
   NEXT_ACTION_TEXT: {
-    thinking: "The advisor is working out this deal's next step...",
+    thinking: "The advisor is reasoning through this deal's next step; this takes 30 seconds to 2 minutes...",
     failed: (why: string) => `No next best action this time: ${why}`,
     proposal: (statement: string, dueAt: string) => `Next: ${statement} (by ${dueAt})`,
     stallGoal: (holder: string) => `Stall: ${holder}`,
@@ -3970,7 +3970,7 @@ export const en: Dictionary = {
         ? `No new follow-ups since the last check: ${n} suspected conflict(s) are already in the queue`
         : "No new follow-ups since the last check: nothing disagreed",
     button: "Check consistency",
-    checking: "Checking...",
+    checking: "The advisor is comparing the statements; this takes 30 seconds to 2 minutes...",
     never: "Nobody here has checked whether these follow-ups agree",
     checkedOn: (d: string) => `Checked the latest follow-ups on ${d} - no conflicting statements`,
     pending: (n: number) => `${n} suspected conflicting statement(s) waiting for you`,
@@ -6449,7 +6449,7 @@ export const en: Dictionary = {
     planEmpty: "No commitments yet",
     exitTitlePlain: "This stage's exit criteria",
     planGenerate: "Draft a plan",
-    planGenerating: "Drafting...",
+    planGenerating: "Reasoning it through; this takes 30 seconds to 2 minutes...",
     planDone: (n: number) => (n > 0 ? `Drafted ${n} step(s) - accept them one by one under Plan` : "No usable steps were drafted this time"),
     planCached: (n: number) => `Nothing changed - today's draft stands (${n} step(s))`,
     findingPlanStep: (direction: string, due: string, statement: string, criterion: string) =>
