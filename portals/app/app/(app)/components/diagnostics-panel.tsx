@@ -57,7 +57,7 @@ function ProbeCard({ title, probe }: { readonly title: string; readonly probe: P
         <p className="text-body-sm font-medium">{title}</p>
         <Tag tone={tone}>{label}</Tag>
       </div>
-      <p className="text-muted-foreground mt-xs text-body-sm break-words">{probe.detail}</p>
+      <p className="text-muted-foreground mt-xs text-body-sm break-words whitespace-pre-line">{probe.detail}</p>
     </Card>
   );
 }
@@ -106,7 +106,7 @@ function SpendingProbeCard({
           <p className="text-body-sm font-medium">{title}</p>
           <p className="text-muted-foreground mt-2xs max-w-prose text-body-sm">{hint}</p>
           <p
-            className={`mt-sm text-body-sm ${result ? TONE_INK[result.probeOk ? "success" : "danger"] : "text-muted-foreground"}`}
+            className={`mt-sm text-body-sm break-words whitespace-pre-line ${result ? TONE_INK[result.probeOk ? "success" : "danger"] : "text-muted-foreground"}`}
           >
             {result ? result.detail : currentDetail}
           </p>

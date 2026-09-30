@@ -280,10 +280,13 @@ export async function runAtlasProbe(
   const rerank = await rerankProbe(client, { workspaceId, tenantId, taskId, applicationId: randomUUID(), requestId: `${taskId}-rerank` });
   return {
     ok: true,
-    detail:
-      `model ${res.modelCode} answered in ${res.latencyMs}ms, ` +
-      `${res.usage.totalTokens} token(s) (prompt ${res.usage.promptTokens} + completion ${res.usage.completionTokens}); ` +
-      rerank,
+    // One fact per line: this is read by a person on the diagnostics page,
+    // which renders line breaks (whitespace-pre-line), not by a parser.
+    detail: [
+      `Chat probe: model ${res.modelCode} answered in ${res.latencyMs}ms, ${res.usage.totalTokens} token(s) (prompt ${res.usage.promptTokens} + completion ${res.usage.completionTokens})`,
+      "",
+      ...rerank,
+    ].join("\n"),
   };
 }
 
@@ -294,27 +297,37 @@ export async function runAtlasProbe(
  * descriptor's input_schema, the route codes yucer holds, and one two-item
  * call's answer. Never fails the probe it rides on - it is a report.
  */
-async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<string> {
-  const clip = (v: unknown, n = 600) => JSON.stringify(v ?? null).slice(0, n);
-  const out: string[] = [];
+async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<string[]> {
+  const clip = (v: unknown, n = 400) => JSON.stringify(v ?? null).slice(0, n);
+  const out: string[] = ["Rerank probe:"];
   let routeCodes: string[] = [];
   try {
-    routeCodes = [...parseRouteCatalog(await client.modelRoutes(ctx)).routes.keys()];
-    out.push(`route codes held: ${routeCodes.join(", ") || "(none)"}`);
+    routeCodes = [...parseRouteCatalog(await client.modelRoutes(ctx)).routes.keys()].sort();
+    out.push(`  routes held: ${routeCodes.join(", ") || "(none)"}`);
   } catch (err) {
-    out.push(`route codes: ${describe(err)}`);
+    out.push(`  routes held: read failed - ${describe(err)}`);
   }
   try {
     const tools = (await client.tools(ctx)) as { tools?: unknown[] } | unknown[];
     const list = (Array.isArray(tools) ? tools : (tools.tools ?? [])) as Array<Record<string, unknown>>;
     const tool = list.find((t) => /rerank/i.test(String(t.name ?? t.id ?? "")));
-    out.push(tool ? `rerank tool: ${clip(tool.input_schema ?? tool.inputSchema ?? tool)}` : "rerank tool: not in the descriptor list");
+    const schema = (tool?.input_schema ?? tool?.inputSchema) as { required?: unknown; properties?: Record<string, unknown> } | undefined;
+    if (!schema) {
+      out.push("  tool descriptor: rerank is not in the list");
+    } else {
+      // Only what a caller has to get right: the required fields, and the
+      // shape of the two fields that carry the data. The full schema runs to
+      // pages of selector prose.
+      out.push(`  required: ${clip(schema.required)}`);
+      out.push(`  candidates: ${clip(schema.properties?.candidates)}`);
+      out.push(`  other fields: ${Object.keys(schema.properties ?? {}).filter((k) => k !== "candidates").join(", ")}`);
+    }
   } catch (err) {
-    out.push(`tools: ${describe(err)}`);
+    out.push(`  tool descriptor: read failed - ${describe(err)}`);
   }
-  const endpointCode = process.env.ATLAS_ENDPOINT_RERANK?.trim() || routeCodes.find((c) => /rerank/i.test(c));
+  const endpointCode = process.env.ATLAS_ENDPOINT_RERANK?.trim() || routeCodes.find((c) => c === "rerank/default") || routeCodes.find((c) => /rerank/i.test(c));
   if (!endpointCode) {
-    out.push("rerank call: skipped - no route code containing 'rerank' is held (set ATLAS_ENDPOINT_RERANK to name one)");
+    out.push("  call: skipped - no held route has rerank in its name (set ATLAS_ENDPOINT_RERANK to name one)");
   } else {
     try {
       const answer = await client.rerankRaw(
@@ -322,16 +335,22 @@ async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<stri
           endpointCode,
           workspaceId: ctx.workspaceId,
           query: "budget confirmed",
-          candidates: ["The customer confirmed the budget for next quarter.", "Lunch was at noon."],
+          // Each candidate is { id, text } (RERANK_CANDIDATES_INVALID, seen live
+          // 2026-09-30); a bare string is refused.
+          candidates: [
+            { id: "a", text: "The customer confirmed the budget for next quarter." },
+            { id: "b", text: "Lunch was at noon." },
+          ],
         },
         ctx,
       );
-      out.push(`rerank ${endpointCode} answered: ${clip(answer)}`);
+      out.push(`  call ${endpointCode}: ok`);
+      out.push(`  raw answer: ${clip(answer, 800)}`);
     } catch (err) {
-      out.push(`rerank ${endpointCode}: ${describe(err)}`);
+      out.push(`  call ${endpointCode}: failed - ${describe(err)}`);
     }
   }
-  return `RERANK PROBE - ${out.join(" | ")}`;
+  return out;
 }
 
 function c3ReplayDescription(): ProbeResult {
@@ -415,13 +434,17 @@ async function liveAtlas(id: LiveIdentity): Promise<ProbeResult> {
   // The two reads batch 2 added (2026-09-30): the routes each call profile
   // uses, with what they can take, and whether the contract moved under us.
   const [routes, contract] = await Promise.all([routesLine(client, ctx("routes")), contractLine(client, ctx("contract"))]);
-  return { configured: true, ok: routes.ok && contract.ok, detail: `Atlas at ${cfg.baseUrl}: ${models}; ${routes.text}; ${contract.text}` };
+  return {
+    configured: true,
+    ok: routes.ok && contract.ok,
+    detail: [`Atlas ${cfg.baseUrl}`, `  ${models}`, ...routes.lines.map((l) => `  ${l}`), `  ${contract.text}`].join("\n"),
+  };
 }
 
 /** The profiles that serve members today; triage has no caller yet. */
 const PROFILES_IN_USE: readonly CallProfile[] = ["dialogue", "judgement", "drafting"];
 
-async function routesLine(client: AtlasClient, ctx: AtlasContext): Promise<{ ok: boolean; text: string }> {
+async function routesLine(client: AtlasClient, ctx: AtlasContext): Promise<{ ok: boolean; lines: string[] }> {
   try {
     const catalog = parseRouteCatalog(await client.modelRoutes(ctx));
     let ok = true;
@@ -435,9 +458,9 @@ async function routesLine(client: AtlasClient, ctx: AtlasContext): Promise<{ ok:
       const modes = r.thinkingModes ? r.thinkingModes.join("/") : "?";
       return `${p} -> ${code}: window ${r.contextWindow ?? "?"}, output ${r.maxOutputTokens ?? "?"}, thinking ${modes}`;
     });
-    return { ok, text: `routes: ${parts.join("; ")}` };
+    return { ok, lines: parts };
   } catch (err) {
-    return { ok: false, text: `GET /v1/model-routes failed - ${describe(err)}` };
+    return { ok: false, lines: [`GET /v1/model-routes failed - ${describe(err)}`] };
   }
 }
 
