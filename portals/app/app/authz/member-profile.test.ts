@@ -4,7 +4,7 @@ import { formatUserNo, memberIdLine, profileChanges } from "./member-profile";
 
 test("the line under a name: phone, else email, else user_no - one only", () => {
   const all = { phone: "+8613800000000", email: "a@example.com", userNo: "1000010000" };
-  assert.equal(memberIdLine(all), "+8613800000000");
+  assert.equal(memberIdLine(all), "138 0000 0000", "a phone shows without +86");
   assert.equal(memberIdLine({ ...all, phone: null }), "a@example.com");
   assert.equal(memberIdLine({ phone: null, email: null, userNo: "1000010000" }), "T-1000010000");
   assert.equal(memberIdLine({}), null, "nothing known is no line - never the sub");

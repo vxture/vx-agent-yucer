@@ -1,4 +1,5 @@
 import type { MemberSighting } from "./store";
+import { formatPhone } from "../(app)/lib/format-phone";
 
 // THE MEMBER'S DISPLAY CACHE (incr/0103). What the platform releases on each
 // member's own access token - name, face, phone, email, and (once it is on the
@@ -40,7 +41,8 @@ export function memberIdLine(m: {
   readonly email?: string | null;
   readonly userNo?: string | null;
 }): string | null {
-  if (m.phone) return m.phone;
+  // As people write it here: no +86, 3-4-4 (owner: 所有显示电话，不要+86 前缀).
+  if (m.phone) return formatPhone(m.phone);
   if (m.email) return m.email;
   if (m.userNo) return formatUserNo(m.userNo);
   return null;
