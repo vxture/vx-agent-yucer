@@ -89,8 +89,21 @@ export async function resolveAuthzContext(
   // the name on the access token and offers no directory to ask instead, so
   // each member's own sign-in refreshes their row. A token with no name
   // (displayName fell back to the sub) leaves a good cached value alone.
+  //
+  // The rest of the display cache (incr/0103) rides along. phone, email and
+  // picture are released whenever the member has one, so an absent claim
+  // means "has none" and clears a stale value. user_no is not on the token
+  // yet: absent means "not told", and a cached value is kept.
   const name = user.displayName !== user.sub ? user.displayName : undefined;
-  const { created } = await store.seeMember({ workspaceId, sub: user.sub, displayName: name });
+  const { created } = await store.seeMember({
+    workspaceId,
+    sub: user.sub,
+    displayName: name,
+    phone: user.phone,
+    email: user.email,
+    pictureUrl: user.picture,
+    userNo: user.userNo ?? undefined,
+  });
 
   // A WORKSPACE'S ROLES ARE ITS OWN (incr/0046), and it starts from the
   // presets: the first member the workspace ever sees brings the nine in,

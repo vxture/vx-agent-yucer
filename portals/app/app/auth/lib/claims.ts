@@ -80,6 +80,9 @@ export interface AccessClaims {
   picture?: string;
   email?: string;
   phone?: string;
+  /** The platform's stable readable id (ten digits). NOT on the token yet -
+   *  read when it arrives, so the roster's last-resort line needs no release. */
+  user_no?: string;
 }
 
 export interface AuthUser {
@@ -106,6 +109,7 @@ export interface AuthUser {
   picture: string | null;
   email: string | null;
   phone: string | null;
+  userNo: string | null;
 }
 
 export function toAuthUser(claims: AccessClaims): AuthUser {
@@ -125,5 +129,6 @@ export function toAuthUser(claims: AccessClaims): AuthUser {
     picture: claims.picture ?? null,
     email: claims.email ?? null,
     phone: claims.phone ?? null,
+    userNo: claims.user_no ?? null,
   };
 }

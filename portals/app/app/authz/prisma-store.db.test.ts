@@ -89,6 +89,27 @@ test("a later sighting refreshes the display cache but never touches roles or st
   }
 });
 
+test("the display cache keeps phone, email, user_no and face (0103); an unchanged sighting writes nothing", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const profile = { displayName: "Alice", phone: "+8613800000000", email: "a@example.com", userNo: "1000010000", pictureUrl: "https://x/avatar" };
+    await s.seeMember({ workspaceId: WS, sub: SUB, ...profile });
+    const stamp = () =>
+      withPg(async (c) => (await c.query(`SELECT updated_at FROM local_authz.member WHERE workspace_id = $1 AND sub = $2`, [WS, SUB])).rows[0].updated_at.getTime());
+    const before = await stamp();
+
+    await s.seeMember({ workspaceId: WS, sub: SUB, ...profile });
+    assert.equal(await stamp(), before, "the same profile again is not a write");
+
+    await s.seeMember({ workspaceId: WS, sub: SUB, phone: null });
+    const m = (await s.listMembers(WS)).find((r) => r.sub === SUB)!;
+    assert.deepEqual([m.phone, m.email, m.userNo, m.pictureUrl], [null, "a@example.com", "1000010000", "https://x/avatar"]);
+  } finally {
+    await cleanup();
+  }
+});
+
 // --- roles / permissions --------------------------------------------------------
 
 test("rolesOf is empty before any grant, and permissionsOf derives from the real catalog join", { skip }, async () => {

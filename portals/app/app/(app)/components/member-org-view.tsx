@@ -114,7 +114,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
   const [showInactive, setShowInactive] = useState(false);
   const [selectedInactive, setSelectedInactive] = useState<string[]>([]);
   const inactiveRows = useMemo<OrgViewRow[]>(
-    () => inactive.map((p) => ({ kind: "person", id: personRowId(null, p.sub), sub: p.sub, name: p.name, status: p.status, depth: 0, unitId: null, scope: p.scope, territories: p.territories })),
+    () => inactive.map((p) => ({ kind: "person", id: personRowId(null, p.sub), sub: p.sub, name: p.name, picture: p.picture, status: p.status, depth: 0, unitId: null, scope: p.scope, territories: p.territories })),
     [inactive],
   );
   const rows = useMemo(() => flattenOrgView(view, collapsed), [view, collapsed]);
@@ -332,7 +332,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
                 : <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} titleSuffix={headcountSuffix(r)} />
             ) : (
               <span className="gap-sm flex min-w-0 items-center">
-                <UserAvatar alt={r.name} className="size-6 shrink-0" />
+                <UserAvatar src={r.picture ?? undefined} alt={r.name} className="size-6 shrink-0" />
                 {/* 标题不走手写 button (owner, 2026-09-12: admin 标题体系统一) -
                     两行上面的 unit 分支已经用 TableTitleCell，这里看齐它，
                     只是没有 icon（UserAvatar 已经是这一行的头像）。 */}

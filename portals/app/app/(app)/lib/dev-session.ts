@@ -96,6 +96,7 @@ export async function resolveDevSession(
     picture: null,
     email: null,
     phone: null,
+    userNo: null,
   };
 
   // The REAL resolver, not a hardcoded entitlement. Without PLATFORM_API_URL

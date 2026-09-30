@@ -4,6 +4,7 @@ import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
+import { memberIdLine } from "../../../authz/member-profile";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { ScopeTable } from "../../components/scope-table";
 import { loadFailureText } from "../../lib/load-failure";
@@ -51,6 +52,7 @@ export default async function ScopePage() {
   const rows = members.value.map((m) => ({
     sub: m.sub,
     name: m.displayName ?? m.sub,
+    idLine: memberIdLine(m),
     scope: m.scope,
     territories: m.territoryIds.length,
     active: m.status === "active",

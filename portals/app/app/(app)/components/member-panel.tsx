@@ -9,6 +9,7 @@ import {
   Section,
   StatusBadge,
   TableTitleCell,
+  UserAvatar,
   useListPagination,
   useToast,
 } from "@vxture/design-ui";
@@ -55,6 +56,10 @@ export interface MemberRow {
   readonly memberId: string;
   readonly sub: string;
   readonly name: string;
+  /** The one line under the name - phone > email > user_no (memberIdLine). */
+  readonly idLine: string | null;
+  /** Their face, when the platform has one on file. */
+  readonly picture: string | null;
   /** Role codes held, and their names in the workspace's own words. */
   readonly roles: readonly { readonly code: string; readonly name: string; readonly admin: boolean }[];
   readonly status: string;
@@ -112,7 +117,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
   /* THE TREE HOLDS THE PEOPLE IN STANDING; the departed are listed apart
      under it (owner, 2026-09-10). */
   const people = useMemo(
-    () => rows.map((r) => ({ sub: r.sub, name: r.name, status: r.status, unitIds: r.units.map((u) => u.id), scope: r.scope, territories: r.territories })),
+    () => rows.map((r) => ({ sub: r.sub, name: r.name, picture: r.picture, status: r.status, unitIds: r.units.map((u) => u.id), scope: r.scope, territories: r.territories })),
     [rows],
   );
   const orgView = useMemo(() => buildOrgView(orgUnits, people.filter((p) => p.status !== "inactive")), [orgUnits, people]);
@@ -280,12 +285,18 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                     aria-label={MEMBER_TEXT.detailsTitle(r.name)}
                     onClick={() => setDetails(r)}
                   >
-                    <TableTitleCell
-                      title={r.name}
-                      tooltip={r.name}
-                      description={r.sub}
-                      titleSuffix={r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : undefined}
-                    />
+                    {/* A face and ONE identifying line (owner, 2026-09-29):
+                        phone > email > user_no. It was the sub - a UUID
+                        nobody reads - and that is never the fallback. */}
+                    <span className="gap-sm flex min-w-0 items-center">
+                      <UserAvatar src={r.picture ?? undefined} alt={r.name} className="size-8 shrink-0" />
+                      <TableTitleCell
+                        title={r.name}
+                        tooltip={r.name}
+                        description={r.idLine ?? undefined}
+                        titleSuffix={r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : undefined}
+                      />
+                    </span>
                   </button>
                 ),
               },
@@ -348,7 +359,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         onClose={() => setDetails(null)}
         width="md"
         title={details ? MEMBER_TEXT.detailsTitle(details.name) : ""}
-        description={details ? details.sub : ""}
+        description={details?.idLine ?? ""}
         closeLabel={MEMBER_TEXT.detailsDone}
         footer={
           <div className="gap-sm flex items-center justify-end">
