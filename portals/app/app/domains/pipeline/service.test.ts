@@ -24,6 +24,9 @@ import {
   saveExitCriterion,
   removeExitCriterion,
   listStageDefinitions,
+  moveStageDefinition,
+  removeStageDefinition,
+  upsertStageDefinition,
   forecastHistory,
   forecastScorecard,
   forecastChange,
@@ -1356,4 +1359,56 @@ test("快照间变化 is a forecast read - below the forecast tier it is refused
   const store = new InMemoryPipelineStore();
   const r = await forecastChange(ctx("sales_ops", "free", store), Q3, SCOPE);
   assert.equal(r.ok, false);
+});
+
+// --- The line has a start and ends (owner, 2026-09-30) ---------------------------
+
+const codes = (rows: { stageCode: string }[]) => rows.map((r) => r.stageCode);
+
+test("a stage added to the catalog lands before 赢单/丢单, not after them", async () => {
+  const c = ctx("sales_leader", "enterprise");
+  unwrap(await listStageDefinitions(c));
+  unwrap(await upsertStageDefinition(c, { code: "pilot", name: "试点", defaultProbability: 60, isWon: false, isTerminal: false }));
+  assert.deepEqual(codes(unwrap(await listStageDefinitions(c))), [
+    "qualify", "discover", "validate", "propose", "negotiate", "pilot", "won", "lost",
+  ]);
+});
+
+test("an end cannot be moved into the process, nor a process stage past an end", async () => {
+  const c = ctx("sales_leader", "enterprise");
+  const stages = unwrap(await listStageDefinitions(c));
+  const id = (code: string) => stages.find((s) => s.stageCode === code)!.id;
+  // 赢单 is the first end: up would step onto 谈判签约.
+  const up = await moveStageDefinition(c, { stageId: id("won"), direction: "up" });
+  assert.equal(up.ok === false && up.violations[0]!.code, "move_at_edge");
+  // 谈判签约 is the last process stage: down would step onto 赢单.
+  const down = await moveStageDefinition(c, { stageId: id("negotiate"), direction: "down" });
+  assert.equal(down.ok === false && down.violations[0]!.code, "move_at_edge");
+  // Within a group they still move: the ends swap, the process stages swap.
+  unwrap(await moveStageDefinition(c, { stageId: id("won"), direction: "down" }));
+  unwrap(await moveStageDefinition(c, { stageId: id("qualify"), direction: "down" }));
+  assert.deepEqual(codes(unwrap(await listStageDefinitions(c))), [
+    "discover", "qualify", "validate", "propose", "negotiate", "lost", "won",
+  ]);
+});
+
+test("a catalog written before the rule - a stage after 丢单 - is healed when it is read", async () => {
+  const store = new InMemoryPipelineStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  unwrap(await listStageDefinitions(c));
+  // What the old append-at-tail produced: the new stage numbered past 丢单.
+  await store.upsertStageDefinition(WS, { stageCode: "late", name: "晚了", defaultProbability: 40, isWon: false, isTerminal: false });
+  assert.equal(codes(await store.listStageDefinitions(WS)).at(-1), "late", "the raw store still shows the fault");
+  assert.deepEqual(codes(unwrap(await listStageDefinitions(c))).slice(-3), ["late", "won", "lost"]);
+  assert.deepEqual(codes(await store.listStageDefinitions(WS)).slice(-3), ["late", "won", "lost"], "and it was written back");
+});
+
+test("the last process stage cannot be deleted, however empty it is", async () => {
+  const c = ctx("sales_leader", "enterprise");
+  const stages = unwrap(await listStageDefinitions(c));
+  for (const s of stages.filter((x) => !x.isTerminal).slice(1)) unwrap(await removeStageDefinition(c, { stageId: s.id }));
+  const left = unwrap(await listStageDefinitions(c)).filter((x) => !x.isTerminal);
+  assert.equal(left.length, 1);
+  const r = await removeStageDefinition(c, { stageId: left[0]!.id });
+  assert.equal(r.ok === false && r.violations[0]!.code, "last_open_stage");
 });

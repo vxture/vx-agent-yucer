@@ -92,6 +92,8 @@ import {
   planProbabilityOverride,
   planAbandon,
   planStageChange,
+  isStageOrderSound,
+  normalizeStageOrder,
   planStageDefinition,
   planStageRemoval,
   type Stage,
@@ -877,7 +879,19 @@ export async function listStageDefinitions(
       if (codes.has(c.stageCode)) await ctx.store.createExitCriterion(ctx.workspaceId, { ...c, param: { ...c.param } });
     }
   }
-  return ok(stages);
+  return ok(await withEndsLast(ctx, stages));
+}
+
+/**
+ * Put every end (赢单/丢单) after every process stage, renumbering only when
+ * they are not - which is how a catalog written before this rule looks (a stage
+ * appended after 丢单, an end moved into the middle). Heals once; a sound
+ * catalog is returned untouched and nothing is written.
+ */
+async function withEndsLast(ctx: PipelineContext, stages: StageDefinitionRecord[]): Promise<StageDefinitionRecord[]> {
+  if (isStageOrderSound(stages)) return stages;
+  await ctx.store.setStageDefinitionOrder(ctx.workspaceId, normalizeStageOrder(stages));
+  return ctx.store.listStageDefinitions(ctx.workspaceId);
 }
 
 /**
@@ -911,15 +925,17 @@ export async function upsertStageDefinition(
   const plan = planStageDefinition(input);
   if (!plan.ok) return plan as RuleResult<StageDefinitionRecord>;
 
-  return ok(
-    await ctx.store.upsertStageDefinition(ctx.workspaceId, {
-      stageCode: plan.value.code,
-      name: plan.value.name,
-      defaultProbability: plan.value.defaultProbability,
-      isWon: plan.value.isWon,
-      isTerminal: plan.value.isTerminal,
-    }),
-  );
+  const saved = await ctx.store.upsertStageDefinition(ctx.workspaceId, {
+    stageCode: plan.value.code,
+    name: plan.value.name,
+    defaultProbability: plan.value.defaultProbability,
+    isWon: plan.value.isWon,
+    isTerminal: plan.value.isTerminal,
+  });
+  // The store appends a new stage at the tail - past 赢单/丢单. A process stage
+  // belongs before the ends; renumber so it does.
+  await withEndsLast(ctx, await ctx.store.listStageDefinitions(ctx.workspaceId));
+  return ok(saved);
 }
 
 /** Reorder the catalog - the order the board's columns and the funnel walk in. */
@@ -930,9 +946,12 @@ export async function moveStageDefinition(
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
-  const stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  const stages = await withEndsLast(ctx, await ctx.store.listStageDefinitions(ctx.workspaceId));
+  // A process stage moves among the process stages and an end among the ends:
+  // neither may cross the line between them (see stage-vocab.ts).
+  const moving = stages.find((s) => s.id === input.stageId);
   const plan = planMove(
-    stages.map((s) => ({ id: s.id, movable: true })),
+    stages.map((s) => ({ id: s.id, movable: moving !== undefined && s.isTerminal === moving.isTerminal })),
     input.stageId,
     input.direction,
   );

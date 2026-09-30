@@ -117,7 +117,15 @@ test("the workspace's last (non-won) terminal stage cannot be removed, even unus
 });
 
 test("an unused, non-anchor stage may be removed", () => {
-  const r = planStageRemoval(0, catalog3[0]!, catalog3);
+  // With a second process stage to stay the start - the LAST one cannot go
+  // (stage-line.test.ts), a pipeline with no start has nowhere to open a deal.
+  const withSecondOpen: readonly StageDefinition[] = [
+    catalog3[0]!,
+    { code: "scope", name: "立项", sortOrder: 2, defaultProbability: 30, isWon: false, isTerminal: false },
+    { ...catalog3[1]!, sortOrder: 3 },
+    { ...catalog3[2]!, sortOrder: 4 },
+  ];
+  const r = planStageRemoval(0, withSecondOpen[0]!, withSecondOpen);
   assert.ok(r.ok);
 });
 
@@ -281,15 +289,16 @@ test("removing an unused, non-anchor stage succeeds and a second read no longer 
   store.seed([], {
     stageDefinitions: [
       row({ id: "s1", stageCode: "a", sortOrder: 1 }),
-      row({ id: "s2", stageCode: "b", sortOrder: 2, isWon: true, isTerminal: true, defaultProbability: 100 }),
-      row({ id: "s3", stageCode: "c", sortOrder: 3, isTerminal: true, defaultProbability: 0 }),
+      row({ id: "s1b", stageCode: "a2", sortOrder: 2 }),
+      row({ id: "s2", stageCode: "b", sortOrder: 3, isWon: true, isTerminal: true, defaultProbability: 100 }),
+      row({ id: "s3", stageCode: "c", sortOrder: 4, isTerminal: true, defaultProbability: 0 }),
     ],
   });
   const managerCtx = ctx("sales_manager", "enterprise", store);
   const removed = await removeStageDefinition(managerCtx, { stageId: "s1" });
   assert.ok(removed.ok);
   const after = unwrap(await listStageDefinitions(managerCtx));
-  assert.deepEqual(after.map((s) => s.stageCode), ["b", "c"]);
+  assert.deepEqual(after.map((s) => s.stageCode), ["a2", "b", "c"]);
 });
 
 // --- createOpportunity lands on the workspace's OWN entry stage -----------------

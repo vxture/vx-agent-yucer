@@ -75,6 +75,64 @@ export function planStageDefinition(input: StageDefinitionDraft): RuleResult<Sta
   return ok({ ...input, code: input.code.trim(), name: input.name.trim() });
 }
 
+// --- Where a stage sits in the line (owner, 2026-09-30) ----------------------
+//
+// A pipeline has a START, PROCESS stages and END points - not a list of
+// process stages that never stops. The catalog stores two flags and an order;
+// the rest is DERIVED, so there is nothing to keep in step:
+//
+//   start   - the first open stage (what a new deal begins at)
+//   process - every other open stage
+//   won     - a terminal stage that is won   (an END)
+//   lost    - a terminal stage that is not   (an END)
+//
+// THE ORDER INVARIANT: every open stage comes before every terminal one. It
+// was not held before - a new stage was appended after 赢单/丢单, and an end
+// could be moved into the middle of the process - so the line read as if it
+// went on past its own ends. Open-stage logic (direction, funnel, regression)
+// already ignored terminals, so no deal was ever misjudged; the admin page and
+// the board columns were what showed it.
+
+export type StageRole = "start" | "process" | "won" | "lost";
+
+interface StageShape {
+  readonly isWon: boolean;
+  readonly isTerminal: boolean;
+  readonly sortOrder: number;
+}
+
+/** The role of each row, in the order the rows were given. */
+export function stageRoles(rows: readonly StageShape[]): StageRole[] {
+  let start = -1;
+  rows.forEach((r, i) => {
+    if (r.isTerminal) return;
+    if (start < 0 || r.sortOrder < rows[start]!.sortOrder) start = i;
+  });
+  return rows.map((r, i) => (r.isTerminal ? (r.isWon ? "won" : "lost") : i === start ? "start" : "process"));
+}
+
+/** True when no end sits before a process stage. Equal numbers (the DDL's
+ *  default of 0) do not count as sound: the order is then undefined. */
+export function isStageOrderSound(rows: readonly StageShape[]): boolean {
+  const open = rows.filter((r) => !r.isTerminal).map((r) => r.sortOrder);
+  const ends = rows.filter((r) => r.isTerminal).map((r) => r.sortOrder);
+  if (open.length === 0 || ends.length === 0) return true;
+  return Math.max(...open) < Math.min(...ends);
+}
+
+/** A dense renumbering with every open stage first, each group keeping the
+ *  order it already had (ties broken by the order given). */
+export function normalizeStageOrder(
+  rows: readonly (StageShape & { readonly id: string })[],
+): { readonly id: string; readonly sortOrder: number }[] {
+  const indexed = rows.map((r, i) => ({ r, i }));
+  const byOrder = (a: { r: StageShape; i: number }, b: { r: StageShape; i: number }) =>
+    a.r.sortOrder - b.r.sortOrder || a.i - b.i;
+  const open = indexed.filter((x) => !x.r.isTerminal).sort(byOrder);
+  const ends = indexed.filter((x) => x.r.isTerminal).sort(byOrder);
+  return [...open, ...ends].map((x, n) => ({ id: x.r.id, sortOrder: n + 1 }));
+}
+
 /**
  * A stage a tenant wants to retire. Refused, cleanly, ahead of the raw FK
  * error the database would otherwise throw (incr/0058's ON DELETE RESTRICT).
@@ -94,6 +152,11 @@ export function planStageRemoval(
 ): RuleResult<true> {
   if (opportunitiesOnStage > 0) {
     return fail(violation("stage_in_use", `${opportunitiesOnStage} opportunity(ies) are on this stage`, "stageCode"));
+  }
+  // A pipeline with no process stage has no start: a deal could only ever be
+  // created already closed.
+  if (!removing.isTerminal && catalog.filter((s) => !s.isTerminal).length <= 1) {
+    return fail(violation("last_open_stage", "a workspace needs at least one process stage - the start", "stageCode"));
   }
   if (removing.isWon && catalog.filter((s) => s.isWon).length <= 1) {
     return fail(violation("last_won_stage", "a workspace needs at least one won stage", "stageCode"));
