@@ -6,6 +6,8 @@ import { useMessages } from "../lib/i18n/provider";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
 import { Tag } from "./tag";
 import type { MoveDirection } from "../../domains/shared/ordering";
+import { stageRoles, type StageRole } from "../../domains/pipeline/lib/stage-vocab";
+import { STAGE_ROLE_TONE } from "../lib/stage-role";
 
 // 商机阶段 - the workspace's own catalog (incr/0057-0059).
 //
@@ -22,6 +24,18 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 //
 // DEFAULT WIN RATE follows the same split as the DDL's CHECK constraints: an
 // open stage's is genuinely editable, a won/terminal one is shown fixed.
+
+/** The tag for a stage's place in the line. */
+function PositionTag({ role }: { readonly role: StageRole }) {
+  const { STAGE_CONFIG_TEXT } = useMessages();
+  const label = {
+    start: STAGE_CONFIG_TEXT.positionStart,
+    process: STAGE_CONFIG_TEXT.positionProcess,
+    won: STAGE_CONFIG_TEXT.positionWon,
+    lost: STAGE_CONFIG_TEXT.positionLost,
+  }[role];
+  return <Tag tone={STAGE_ROLE_TONE[role]}>{label}</Tag>;
+}
 
 type Extra = { defaultProbability: number; isWon: boolean; isTerminal: boolean };
 
@@ -49,7 +63,9 @@ export function StageDefinitionConfig({
   readonly onDelete: (stageId: string) => Promise<VocabularyResult>;
 }) {
   const { STAGE_ERROR, STAGE_CONFIG_TEXT } = useMessages();
-  const rows = stages.map((s) => ({ ...s, code: s.stageCode }));
+  // Where each stage sits in the line - derived, never stored (stage-vocab.ts).
+  const roles = stageRoles(stages);
+  const rows = stages.map((s, i) => ({ ...s, code: s.stageCode, role: roles[i]! }));
 
   // Client-side hints only - planStageRemoval is the real refusal, run again
   // server-side on every delete. Mirrored here so the control reads as
@@ -76,17 +92,14 @@ export function StageDefinitionConfig({
         colName: STAGE_CONFIG_TEXT.colName,
         deleteConsequence: STAGE_CONFIG_TEXT.deleteConsequence,
       }}
+      // The process stages move among themselves and the ends among themselves.
+      moveGroup={(r) => (r.isTerminal ? "end" : "process")}
       columns={[
         {
-          id: "flags",
-          header: STAGE_CONFIG_TEXT.colFlags,
+          id: "position",
+          header: STAGE_CONFIG_TEXT.colPosition,
           width: "sm",
-          cell: (r) =>
-            r.isWon ? (
-              <Tag tone="success">{STAGE_CONFIG_TEXT.flagWon}</Tag>
-            ) : r.isTerminal ? (
-              <Tag tone="danger">{STAGE_CONFIG_TEXT.flagLost}</Tag>
-            ) : null,
+          cell: (r) => <PositionTag role={r.role} />,
         },
         {
           id: "probability",

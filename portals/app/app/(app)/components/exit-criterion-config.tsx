@@ -11,6 +11,9 @@ import {
   Input,
   Label,
   NativeSelect,
+  PanelCard,
+  PanelItem,
+  PanelList,
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
@@ -25,12 +28,20 @@ import {
   type ExitCriterionKind,
 } from "../../domains/pipeline/lib/exit-criteria";
 import { EVIDENCE_SLOTS } from "../../domains/pipeline/lib/evidence";
+import { stageRoles } from "../../domains/pipeline/lib/stage-vocab";
+import { STAGE_ROLE_ICON, STAGE_ROLE_TONE } from "../lib/stage-role";
 
-// 阶段退出条件 - configuration (incr/0087, YC-065 R1). Per open stage of the
-// workspace's catalog, its criteria: the sentence the deal page shows, how it
-// is judged, and its parameters. KIND IS LOCKED once a criterion exists -
-// changing how it is judged is remove + add, so past checks keep their
-// meaning. A stage with none says so on the deal page; it is not "all met".
+// 阶段推进标准 - configuration (incr/0087, YC-065 R1; renamed from 阶段退出条件
+// 2026-09-30, owner). One CARD per stage, in the line's own order: the start,
+// the process stages, then the two ends. The stages are not entered here - they
+// ARE the 商机阶段 above, read from the same catalog, so adding, renaming or
+// reordering one shows up here on its own.
+//
+// Each card holds its criteria: the sentence the deal page shows, how it is
+// judged, and its parameters. An end has none - nothing moves on from it - and
+// says so. KIND IS LOCKED once a criterion exists - changing how it is judged
+// is remove + add, so past checks keep their meaning. A stage with none says
+// so on the deal page; it is not "all met".
 
 interface Draft {
   id?: string;
@@ -58,7 +69,15 @@ export function ExitCriterionConfig({
   onSave,
   onDelete,
 }: {
-  readonly stages: readonly { readonly stageCode: string; readonly name: string; readonly isTerminal: boolean }[];
+  /** The whole catalog, in order - the ends included, as cards with no criteria. */
+  readonly stages: readonly {
+    readonly stageCode: string;
+    readonly name: string;
+    readonly sortOrder: number;
+    readonly defaultProbability: number;
+    readonly isWon: boolean;
+    readonly isTerminal: boolean;
+  }[];
   readonly criteria: readonly ExitCriterion[];
   readonly editable: boolean;
   readonly onSave: (input: {
@@ -112,61 +131,77 @@ export function ExitCriterionConfig({
       setDraft(null);
     });
 
-  const open = stages.filter((s) => !s.isTerminal);
+  const roles = stageRoles(stages);
 
   return (
     <Section icon="list-checks" title={EXIT_CONFIG_TEXT.title} description={EXIT_CONFIG_TEXT.why}>
-      <div className="flex flex-col gap-md">
-        {open.map((s) => {
+      <div className="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-3">
+        {stages.map((s, i) => {
+          const role = roles[i]!;
           const mine = criteria.filter((c) => c.stageCode === s.stageCode).sort((a, b) => a.sortOrder - b.sortOrder);
           return (
-            <div key={s.stageCode} className="flex flex-col gap-2xs">
-              <div className="flex items-center gap-sm">
-                <span className="text-label-md text-foreground">{s.name}</span>
-                <span className="text-muted-foreground text-body-sm">{EXIT_CONFIG_TEXT.count(mine.length)}</span>
-                {editable ? (
-                  <Button size="sm" variant="ghost" className="ml-auto" onClick={() => { setError(null); setDraft(blank(s.stageCode)); }}>
+            <PanelCard
+              key={s.stageCode}
+              icon={STAGE_ROLE_ICON[role]}
+              tone={STAGE_ROLE_TONE[role] === "neutral" ? "brand" : STAGE_ROLE_TONE[role]}
+              title={s.name}
+              titleSuffix={<Tag tone={STAGE_ROLE_TONE[role]}>{EXIT_CONFIG_TEXT.position[role]}</Tag>}
+              description={`${s.stageCode} · ${EXIT_CONFIG_TEXT.winRate(s.defaultProbability)}`}
+              action={
+                editable && !s.isTerminal ? (
+                  <Button size="sm" variant="ghost" onClick={() => { setError(null); setDraft(blank(s.stageCode)); }}>
                     {EXIT_CONFIG_TEXT.add}
                   </Button>
-                ) : null}
-              </div>
-              {mine.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.exitNone}</p>
+                ) : undefined
+              }
+            >
+              {s.isTerminal ? (
+                <p className="text-muted-foreground text-body-sm">{EXIT_CONFIG_TEXT.endNote}</p>
               ) : (
-                <ol className="divide-border flex flex-col divide-y">
-                  {mine.map((c) => (
-                    <li key={c.id} className="flex items-center gap-sm py-2xs text-body-sm">
-                      <span className="text-foreground min-w-0 flex-1">{c.name}</span>
-                      <Tag>{describe(c)}</Tag>
-                      {editable ? (
-                        <ActionMenu
-                          label={DS_LABELS.actionMenu}
-                          items={[
-                            {
-                              id: "edit",
-                              label: EXIT_CONFIG_TEXT.edit,
-                              onSelect: () => {
-                                setError(null);
-                                setDraft({
-                                  id: c.id,
-                                  stageCode: c.stageCode,
-                                  kind: c.kind,
-                                  name: c.name,
-                                  roles: Array.isArray(c.param.roles) ? (c.param.roles as string[]) : [],
-                                  days: Number(c.param.days ?? 30),
-                                  slot: String(c.param.slot ?? "pain"),
-                                });
+                <PanelList empty={<p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.exitNone}</p>}>
+                  {mine.map((c, n) => (
+                    <PanelItem
+                      key={c.id}
+                      lead={<span className="text-muted-foreground tabular-nums">{n + 1}</span>}
+                      main={
+                        <span className="flex min-w-0 flex-col items-start gap-2xs">
+                          <span className="text-foreground text-body-sm">{c.name}</span>
+                          {/* The rule behind the sentence - skipped when it IS the
+                              sentence, which the factory criteria often are. */}
+                          {describe(c) !== c.name ? <Tag>{describe(c)}</Tag> : null}
+                        </span>
+                      }
+                      trail={
+                        editable ? (
+                          <ActionMenu
+                            label={DS_LABELS.actionMenu}
+                            items={[
+                              {
+                                id: "edit",
+                                label: EXIT_CONFIG_TEXT.edit,
+                                onSelect: () => {
+                                  setError(null);
+                                  setDraft({
+                                    id: c.id,
+                                    stageCode: c.stageCode,
+                                    kind: c.kind,
+                                    name: c.name,
+                                    roles: Array.isArray(c.param.roles) ? (c.param.roles as string[]) : [],
+                                    days: Number(c.param.days ?? 30),
+                                    slot: String(c.param.slot ?? "pain"),
+                                  });
+                                },
                               },
-                            },
-                            { id: "delete", label: EXIT_CONFIG_TEXT.remove, onSelect: () => setRemoving(c) },
-                          ]}
-                        />
-                      ) : null}
-                    </li>
+                              { id: "delete", label: EXIT_CONFIG_TEXT.remove, onSelect: () => setRemoving(c) },
+                            ]}
+                          />
+                        ) : undefined
+                      }
+                    />
                   ))}
-                </ol>
+                </PanelList>
               )}
-            </div>
+            </PanelCard>
           );
         })}
       </div>

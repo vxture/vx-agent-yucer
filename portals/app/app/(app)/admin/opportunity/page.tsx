@@ -224,7 +224,7 @@ export default async function OpportunityConfigPage() {
         onDelete={removeStageDefinitionAction}
       />
 
-      {/* 阶段退出条件 (incr/0087) - right after the stages they belong to. */}
+      {/* 阶段推进标准 (incr/0087) - right after the stages they belong to; one card per stage, read from the same catalog. */}
       {criteria.ok ? (
         <ExitCriterionConfig
           stages={stages.value}

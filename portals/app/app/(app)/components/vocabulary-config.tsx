@@ -115,6 +115,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   renderExtra,
   onSave,
   onMove,
+  moveGroup,
   onDelete,
   customDialog,
   leadingColumn,
@@ -213,6 +214,14 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
    *  their own number order, incr/0100): no 上移/下移 in the row menu. */
   readonly onMove?: (id: string, direction: MoveDirection) => Promise<VocabularyResult>;
   /**
+   * Rows that may only move among THEMSELVES, by group key (商机阶段: the
+   * process stages move among the process stages and the ends among the ends -
+   * neither crosses the line between them). The menu's first/last greying is
+   * then read within the group, so a control that the rule would refuse is not
+   * live. Absent: one group, as every other vocabulary.
+   */
+  readonly moveGroup?: (row: T) => string;
+  /**
    * The caller's OWN dialog, instead of the code + name one below. For a
    * vocabulary whose editing is not one row's code and name - product types
    * edit a 一级类 and a 二级类 together (incr/0100). The add button and the
@@ -293,7 +302,8 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
      reflects what a reader is currently looking at, the same "local to the
      view" choice search results carry everywhere else in this product. */
   const actionsFor = (r: T) => {
-    const rowIndex = filtered.findIndex((x) => x.id === r.id);
+    const siblings = moveGroup ? filtered.filter((x) => moveGroup(x) === moveGroup(r)) : filtered;
+    const rowIndex = siblings.findIndex((x) => x.id === r.id);
     return (
       <RowActions
         disabled={pending}
@@ -321,7 +331,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
             : []),
           ...(editable && extraActions ? extraActions(r, run) : []),
           ...(editable && onMove
-            ? moveItems(ROW_OPS, rowIndex, filtered.length, (d) => run(onMove(r.id, d)))
+            ? moveItems(ROW_OPS, rowIndex, siblings.length, (d) => run(onMove(r.id, d)))
             : []),
           ...(deleteHiddenWhen?.(r) || !editable
             ? []

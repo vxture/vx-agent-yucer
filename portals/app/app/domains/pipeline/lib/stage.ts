@@ -45,8 +45,16 @@ export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 // ./stage-vocab, not here - the seven names are seed data (CJK containment
 // exempts vocab files, not rule modules), and re-exporting keeps every
 // existing `from "./stage"` import unchanged.
-export { DEFAULT_STAGE_DEFINITIONS, type StageDefinition, planStageDefinition, planStageRemoval } from "./stage-vocab";
-export type { StageDefinitionDraft } from "./stage-vocab";
+export {
+  DEFAULT_STAGE_DEFINITIONS,
+  type StageDefinition,
+  isStageOrderSound,
+  normalizeStageOrder,
+  planStageDefinition,
+  planStageRemoval,
+  stageRoles,
+} from "./stage-vocab";
+export type { StageDefinitionDraft, StageRole } from "./stage-vocab";
 
 export function isStage(v: string, catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS): v is Stage {
   return catalog.some((s) => s.code === v);

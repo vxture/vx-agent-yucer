@@ -1256,7 +1256,7 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
 
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
 export const PROPOSAL_ERROR: Record<string, string> = {
-  exit_unmet_reason_required: "本阶段还有退出条件未满足，请在商机页推进并写明理由",
+  exit_unmet_reason_required: "本阶段还有推进标准未满足，请在商机页推进并写明理由",
   // Accepting a 证据抽取 proposal writes an evidence version (deal batch 4b).
   evidence_citation_foreign: "这条提案引用的不是本单的跟进，不予写入",
   evidence_slot_unknown: "提案给出的证据项不存在",
@@ -1377,6 +1377,7 @@ export const STAGE_ERROR: Record<string, string> = {
   won_probability_fixed: "赢单阶段的默认赢率固定为 100%",
   lost_probability_fixed: "终态、非赢单阶段的默认赢率固定为 0%",
   stage_in_use: "还有商机停在这个阶段，先把它们移到别处",
+  last_open_stage: "工作区至少要保留一个过程阶段——它是商机的起点",
   last_won_stage: "工作区至少要保留一个赢单阶段",
   last_lost_stage: "工作区至少要保留一个非赢单的终态阶段",
   move_at_edge: "已经在这一端了",
@@ -3371,8 +3372,8 @@ export const OPPORTUNITY_TEXT = {
     `${product} 的单价低于审批价。签字记录的是这个价格，改价后签字自动失效。`,
   lineApproveReason: "为什么值得破这个审批价",
   lineApproveCancel: "取消",
-  advanceExitUnmet: (n: number) => `本阶段还有 ${n} 条退出条件未满足——可以推进，但要写理由`,
-  advanceReasonRequiredExit: "推进过未满足的退出条件，需要写一句理由",
+  advanceExitUnmet: (n: number) => `本阶段还有 ${n} 条推进标准未满足——可以推进，但要写理由`,
+  advanceReasonRequiredExit: "推进过未满足的推进标准，需要写一句理由",
   termsReason: "变更理由（可选）",
   termsReasonRequired: "变更理由（必填）",
   termsReasonWhy: (suggested: string) => `规则建议「${suggested}」，调得更乐观需要写一句理由`,
@@ -4001,10 +4002,10 @@ export const DEAL_MEETING_TEXT = {
   building: "生成中…",
   repick: "重新选人",
   goal: "本次会议目标",
-  goalCurrent: (stage: string) => `（${stage}的退出条件，尚未满足）`,
+  goalCurrent: (stage: string) => `（${stage}的推进标准，尚未满足）`,
   goalNext: (stage: string) => `（本阶段条件已满足，这是${stage}的第一条）`,
   goalLink: "看推进进程",
-  goalNone: "本阶段和下一阶段都没有设退出条件——会前包不替工作区编目标",
+  goalNone: "本阶段和下一阶段都没有设推进标准——会前包不替工作区编目标",
   attendees: "到场的人",
   noRole: "未标注角色",
   lastContact: (days: number) => `${days} 天前最近一次出现在跟进里`,
@@ -4113,8 +4114,8 @@ export const UPGRADE_TEXT = {
     forecastRule: {
       pitch: "把团队的预测从「各自填的数」变成「规则站得住的数」：每笔承诺是否有证据撑着、较上次动了什么、谁该被追问，开预测会前一页看清。",
       points: [
-        { title: "规则口径对照", body: "每笔商机按阶段、退出条件、成交日自动归档，与销售填的类别并排，分歧逐单列出。" },
-        { title: "未经证实金额", body: "承诺里有多少钱缺证据：退出条件没满足、评估在风险档，按单写明缺什么。" },
+        { title: "规则口径对照", body: "每笔商机按阶段、推进标准、成交日自动归档，与销售填的类别并排，分歧逐单列出。" },
+        { title: "未经证实金额", body: "承诺里有多少钱缺证据：推进标准没满足、评估在风险档，按单写明缺什么。" },
         { title: "快照与变化", body: "每次提交留快照，较上次动了什么、为什么动；主管预估数单独记准确率。" },
       ],
       advisor: { name: "预测会简报", body: "数字全部来自规则，参谋写三句叙述和逐人该问的问题。" },
@@ -4282,7 +4283,7 @@ export const FORECAST_BRIEF_ERROR: Record<string, string> = {
 /** 未经证实金额 (deal batch 9d, YC-069 section 11 ①). */
 export const FORECAST_UNVERIFIED_TEXT = {
   title: "未经证实",
-  why: "当前阶段退出条件没有全部满足、或商机评估落在风险档的单——判断方式与各自商机页一致。无法判断的也算：读不到不是证实。",
+  why: "当前阶段推进标准没有全部满足、或商机评估落在风险档的单——判断方式与各自商机页一致。无法判断的也算：读不到不是证实。",
   headline: (category: string, total: string, unverified: string) => `${category} ${total}，其中 ${unverified} 未经证实`,
   exitUnmet: (names: string) => `未满足：${names}`,
   exitUnknown: (names: string) => `无法判断：${names}`,
@@ -4326,7 +4327,7 @@ export const FORECAST_ERROR: Record<string, string> = {
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
   // YC-065 R1 未满足推进须理由 (deal batch 5b).
-  exit_unmet_reason_required: "本阶段还有退出条件未满足，推进需要写一句理由",
+  exit_unmet_reason_required: "本阶段还有推进标准未满足，推进需要写一句理由",
   // YC-065 R9 偏离规则须理由.
   category_reason_required: "把类别调得比规则建议更乐观，需要写一句理由",
   // incr/0082 - 本单定制说明 on a line.
@@ -6325,24 +6326,26 @@ export const STAGE_CONFIG_TEXT = {
   noun: "阶段",
   title: "商机阶段",
   stageCount: (n: number) => `${n} 个阶段`,
-  why: "商机推进经过的阶段。可以改名称、调顺序、改默认赢率，或增删阶段——赢单/终态阶段的默认赢率由系统固定，不可编辑。",
+  why: "商机从起点出发，经过各个过程阶段，到赢单或丢单这两个终点结束。可以改名称、调顺序、改默认赢率，或增删过程阶段；新建的阶段自动排在起点与终点之间，终点永远在最后，它的默认赢率由系统固定。",
   add: "新建阶段",
   save: "保存",
   codeLabel: "阶段代码",
   codeHint: "创建后不可更改。已存在的代码表示改名。",
   nameLabel: "阶段名称",
   colName: "阶段",
-  deleteConsequence: "该阶段将从阶段目录中移除。仍有商机停留在这个阶段，或它是工作区最后一个赢单/终态阶段时，删不掉。",
-  colFlags: "标记",
+  deleteConsequence: "该阶段将从阶段目录中移除。仍有商机停留在这个阶段，或它是工作区最后一个过程阶段（起点）、最后一个赢单或丢单终点时，删不掉。",
+  colPosition: "位置",
   colProbability: "默认赢率",
   colUsed: "商机数",
-  flagWon: "赢单",
-  flagLost: "终态",
+  positionStart: "起点",
+  positionProcess: "过程",
+  positionWon: "终点 · 赢单",
+  positionLost: "终点 · 丢单",
   probabilityLabel: "默认赢率",
   probabilityHint: "0-100 之间的整数。",
   probabilityFixedWon: "固定 100%",
   probabilityFixedLost: "固定 0%",
-  probabilityFixedHint: "赢单/终态阶段的默认赢率由系统固定，不可编辑。",
+  probabilityFixedHint: "终点（赢单、丢单）的默认赢率由系统固定，不可编辑。",
 } as const;
 
 /** 签约类型 / 业务形态两张目录的配置面 (incr/0067)。 */
@@ -7499,10 +7502,10 @@ export const DEAL_PAGE_TEXT = {
   evidenceCite: "依据哪条跟进（可选）",
   evidenceCiteNone: "不引用（口述）",
   evidenceSave: "保存这一版",
-  // 本阶段退出条件 (incr/0087)
-  exitTitle: (met: number, total: number) => `本阶段退出条件 ${met}/${total}`,
+  // 本阶段推进标准 (incr/0087)
+  exitTitle: (met: number, total: number) => `本阶段推进标准 ${met}/${total}`,
   exitShort: (met: number, total: number) => `退出 ${met}/${total}`,
-  exitNone: "本阶段未设退出条件",
+  exitNone: "本阶段未设推进标准",
   exitMet: "满足",
   exitUnmet: "未满足",
   exitUnknown: "无法判断",
@@ -7570,7 +7573,7 @@ export const DEAL_PAGE_TEXT = {
   trackWithReason: "有理由",
   trackUnrecorded: "未记录",
   planEmpty: "还没有承诺",
-  exitTitlePlain: "本阶段退出条件",
+  exitTitlePlain: "本阶段推进标准",
   reasonsTitle: "购买理由",
   requirement: "需求",
   requirementNone: "还没有写明需求",
@@ -7604,16 +7607,19 @@ export const EVIDENCE_ERROR: Record<string, string> = {
   evidence_citation_foreign: "只能引用这一单自己的跟进",
 };
 
-/** 阶段退出条件配置 (incr/0087, YC-065 R1)。 */
+/** 阶段推进标准配置 (incr/0087, YC-065 R1)。 */
 export const EXIT_CONFIG_TEXT = {
-  title: "阶段退出条件",
-  why: "每个阶段该拿到的东西：由系统按已有记录判定，不是勾选框。作战页按当前阶段逐条核验；推进时不硬拦。",
+  title: "阶段推进标准",
+  why: "每个阶段往下推进之前该拿到什么，由系统按已有记录判定，不是勾选框。阶段来自上面的「商机阶段」：增删、改名、调顺序都会自动同步到这里。作战页按当前阶段逐条核验，推进时不硬拦。",
   count: (n: number) => `${n} 条`,
-  add: "添加条件",
+  add: "添加标准",
+  position: { start: "起点", process: "过程", won: "终点 · 赢单", lost: "终点 · 丢单" },
+  winRate: (p: number) => `默认赢率 ${p}%`,
+  endNote: "终点不再往下推进，没有推进标准",
   edit: "编辑",
   remove: "删除",
-  addTitle: "添加退出条件",
-  editTitle: "编辑退出条件",
+  addTitle: "添加推进标准",
+  editTitle: "编辑推进标准",
   save: "保存",
   kindLabel: "判定方式",
   kindLocked: "判定方式不能改——要换判定方式，删掉这条再加一条，过往核验的含义才不会被悄悄换掉。",
@@ -7634,11 +7640,11 @@ export const EXIT_CONFIG_TEXT = {
   describeRolePresent: (who: string) => `本单有${who}`,
   describeRoleReached: (who: string, days: number) => `${who} ${days} 天内触达`,
   describeSlot: (slot: string) => `${slot}已写明`,
-  removeTitle: "{verb}退出条件「{target}」？",
+  removeTitle: "{verb}推进标准「{target}」？",
   removeConsequence: "作战页不再核验这一条；已经写进阶段日志的过往核验不受影响。",
 } as const;
 
-/** 阶段退出条件的写入回执 (incr/0087)。 */
+/** 阶段推进标准的写入回执 (incr/0087)。 */
 export const EXIT_CRITERION_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "找不到这条条件，可能刚被删掉，刷新后重试",
@@ -7647,7 +7653,7 @@ export const EXIT_CRITERION_ERROR: Record<string, string> = {
   criterion_kind_unknown: "没有这种判定方式",
   criterion_param_invalid: "参数不对：角色至少选一个（触达类），天数 1-365，证据项从列表里选",
   criterion_kind_locked: "判定方式不能改，删掉这条再加一条",
-  criterion_on_terminal: "已关闭的阶段没有退出条件",
+  criterion_on_terminal: "终点阶段没有推进标准",
   unknown_stage: "这个阶段不在本工作区的阶段目录里",
 };
 
@@ -7686,7 +7692,7 @@ export const PLAN_DRAFT_ERROR: Record<string, string> = {
   no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
   tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
   advisor_not_admitted: "平台暂未放行本工作区的参谋调用，这次没有起草",
-  plan_no_goals: "本阶段的退出条件都满足了，下一阶段也没有设条件——没有要推进的目标",
+  plan_no_goals: "本阶段的推进标准都满足了，下一阶段也没有设条件——没有要推进的目标",
   plan_deal_closed: "商机已关闭，不再起草推进计划",
   empty_question: "起草请求为空",
   quota_exceeded: "本工作区的参谋调用额度已用完",
@@ -7722,7 +7728,7 @@ export const DEAL_SCORE_TEXT = {
     consensus: "经济决策人、内线、反对者、接触面、决策流程",
     competition: "对手是否已知、被提及几次",
     engagement: "多少天没跟进、客户答应的事是否逾期",
-    progress: "退出条件、停滞、成交日、下一步、待批",
+    progress: "推进标准、停滞、成交日、下一步、待批",
   } as Record<string, string>,
   watchLabel: "「关注」得分",
   watchHint: "某项指标为「关注」时得几分（稳 100、风险 0）；每维是它各项指标的平均",
@@ -7763,7 +7769,7 @@ export const DEAL_SCORE_TEXT = {
     neverTouched: () => "还没有任何跟进",
     quiet: (n: number) => `${n} 天没跟进，去联系`,
     theirOverdue: (n: number) => `客户有 ${n} 件事逾期，去追`,
-    exitGap: (n: number) => `退出条件还差 ${n} 项`,
+    exitGap: (n: number) => `推进标准还差 ${n} 项`,
     stalled: (n: number) => `本阶段停了 ${n} 天`,
     closePassed: () => "成交日已过，重新约定",
     slipped: (n: number) => `成交日推迟过 ${n} 次`,
@@ -7788,7 +7794,7 @@ export const DEAL_SCORE_TEXT = {
     winRate: "历史胜率",
     contact: "最近联系",
     theirPromises: "客户承诺",
-    exit: "退出条件",
+    exit: "推进标准",
     stall: "停滞",
     closeDate: "成交日",
     nextStep: "下一步",
