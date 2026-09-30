@@ -3,10 +3,10 @@ import { test } from "node:test";
 import { UNPLACED_ROW_ID, branchIds, branchNodes, buildOrgView, flattenOrgView, personRowId, unitOptions } from "./member-org-view";
 
 const UNITS = [
-  { id: "hq", name: "总部", parentId: null, territories: [] },
-  { id: "east", name: "华东", parentId: "hq", territories: ["华东区域"] },
-  { id: "east_t1", name: "华东一组", parentId: "east", territories: [] },
-  { id: "south", name: "华南", parentId: "hq", territories: [] },
+  { id: "hq", name: "总部", code: "headquarters", parentId: null, territories: [] },
+  { id: "east", name: "华东", code: "east", parentId: "hq", territories: ["华东区域"] },
+  { id: "east_t1", name: "华东一组", code: "east-team-1", parentId: "east", territories: [] },
+  { id: "south", name: "华南", code: "south", parentId: "hq", territories: [] },
 ];
 
 test("people sit under the unit they are placed in; one person in two units appears under both", () => {
@@ -28,7 +28,7 @@ test("people sit under the unit they are placed in; one person in two units appe
 
 test("a placement in a unit the tree no longer has counts as unplaced; an orphan unit is shown as a root", () => {
   const view = buildOrgView(
-    [...UNITS, { id: "lost", name: "孤儿", parentId: "gone", territories: [] }],
+    [...UNITS, { id: "lost", name: "孤儿", code: "lost", parentId: "gone", territories: [] }],
     [{ sub: "a", name: "甲", status: "active", unitIds: ["nope"], scope: "workspace", territories: [] }],
   );
   assert.deepEqual(view.unplaced.map((p) => p.name), ["甲"]);
@@ -93,4 +93,11 @@ test("totalPeople rolls up the whole subtree; people stays direct-only (owner, 2
   const rows = flattenOrgView(view, new Set());
   const eastRow = rows.find((r) => r.kind === "unit" && r.name === "华东")!;
   assert.deepEqual([(eastRow as { headcount: number }).headcount, (eastRow as { totalHeadcount: number }).totalHeadcount], [1, 2]);
+});
+
+test("a unit row carries its code for the title column; the 未归属 row carries none", () => {
+  const rows = flattenOrgView(buildOrgView(UNITS, [{ sub: "a", name: "甲", status: "active", unitIds: [], scope: "workspace", territories: [] }]), new Set());
+  const unit = (id: string) => rows.find((r) => r.kind === "unit" && r.id === id);
+  assert.equal(unit("east_t1") && "code" in unit("east_t1")! ? (unit("east_t1") as { code: string }).code : null, "east-team-1");
+  assert.equal((unit(UNPLACED_ROW_ID) as { code: string }).code, "");
 });

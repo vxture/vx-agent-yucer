@@ -7023,10 +7023,12 @@ export const PERMISSION_TREE_TEXT = {
   copyCode: "复制权限码",
   codeCopied: (code: string) => `已复制：${code}`,
   copyFailed: "复制失败，换成手动选中",
-  // 顶部总览卡（owner 2026-09-10：参考平台治理平面的统计区，换成我们真有的数）。
-  overviewTotal: "总操作数",
-  overviewRoles: "角色数",
-  overviewUnheld: "未持有角色",
+  // 标题旁的标签（owner 2026-09-30：三张统计卡提到页面标题后按标签显示，参考
+  // 角色管理）。三个数：权限点总数、角色数、没有任何角色持有的权限点。
+  tagOperations: (n: number) => `${n} 项操作`,
+  tagRoles: (n: number) => `${n} 个角色`,
+  tagUnheld: (n: number) => `${n} 项无人持有`,
+  tagAllHeld: "每项都有角色持有",
   // 授权角色一列（owner, 2026-09-10: 撤掉角色横铺，前三名 + 数量，悬停看全部）。
   colHolders: "授权角色",
   // 授权角色列只放数量（owner 2026-09-10：只留数字，tags 模式，悬浮看名单）。
