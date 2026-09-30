@@ -94,7 +94,7 @@ test("a thrown error frame leaves no request in flight", async () => {
   });
 
   await assert.rejects(async () => {
-    for await (const _f of client.chatStream("chat", { messages: [] }, CTX)) {
+    for await (const _f of client.chatStream("dialogue", { messages: [] }, CTX)) {
       // the error frame throws before anything is yielded
     }
   });
@@ -208,7 +208,7 @@ test("chatStream aborts the fetch it started when the consumer walks away", asyn
     }),
   });
 
-  for await (const _f of client.chatStream("chat", { messages: [] }, CTX)) {
+  for await (const _f of client.chatStream("dialogue", { messages: [] }, CTX)) {
     break;
   }
 
@@ -290,7 +290,7 @@ test("a refused stream keeps its error envelope", async () => {
 
   await assert.rejects(
     async () => {
-      for await (const _f of client.chatStream("chat", { messages: [] }, CTX)) {
+      for await (const _f of client.chatStream("dialogue", { messages: [] }, CTX)) {
         // never reached
       }
     },
@@ -319,7 +319,7 @@ test("a non-200 streaming response does not leave a request in flight", async ()
   });
 
   await assert.rejects(async () => {
-    for await (const _f of client.chatStream("chat", { messages: [] }, CTX)) {
+    for await (const _f of client.chatStream("dialogue", { messages: [] }, CTX)) {
       // never reached
     }
   });

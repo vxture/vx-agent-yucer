@@ -4791,6 +4791,8 @@ export const COPILOT_TEXT = {
   errorNoGrant: "本产品在模型平面上还没有被授权",
   errorQuota: "模型用量配额已耗尽",
   errorTurnQuota: "本工作区的参谋对话轮次配额已用完",
+  errorTooMuch: "这次要读的材料超出了模型一次能处理的量，缩小范围后再试",
+  errorTimeout: "模型这次用时过长，已停止生成，请稍后重试",
   errorGeneric: "请稍后重试；持续失败请联系运营",
   newSession: "新对话",
 } as const;

@@ -27,6 +27,8 @@ import type {
   PromptContext,
 } from "../../agent/orchestrator/prompt";
 import { AtlasError } from "../../agent/atlas/errors";
+import type { CallProfile } from "../../agent/atlas/profiles";
+import { CAPABILITY_SPEC, isCapability } from "./lib/capability";
 import { recordAuditEvent } from "../../audit/lib/record";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
@@ -78,6 +80,19 @@ export interface TurnInput {
    * "copilot.chat", businessId the question's message id (YC-042 §04).
    */
   advisorRun?: { readonly featureId: string; readonly runId: string };
+  /**
+   * How the model is called (agent/atlas/profiles.ts). Absent: an advisor
+   * run takes its capability's profile from CAPABILITY_SPEC, a member's turn
+   * takes "dialogue".
+   */
+  profile?: CallProfile;
+}
+
+/** The profile a turn runs on - see TurnInput.profile. */
+export function profileForTurn(input: Pick<TurnInput, "profile" | "advisorRun">): CallProfile {
+  if (input.profile) return input.profile;
+  const cap = input.advisorRun?.featureId;
+  return cap && isCapability(cap) ? CAPABILITY_SPEC[cap].profile : "dialogue";
 }
 
 export interface TurnOutput {
@@ -229,6 +244,7 @@ export async function runCopilotTurn(
         prompt,
         atlas,
         runos,
+        profile: profileForTurn(input),
       },
       deps,
     );

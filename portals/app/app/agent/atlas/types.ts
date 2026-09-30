@@ -11,6 +11,23 @@
 
 export type ChatRole = "system" | "user" | "assistant" | "tool";
 
+/**
+ * A reasoning model's reasoning, as Atlas carries it (v0.7.5): an OPAQUE
+ * envelope, not a piece of text.
+ *
+ * `text` is a readable projection for display only - it may be missing (some
+ * providers never return one) and may be truncated. Every other key is the
+ * provider's continuation material (Anthropic's `signature`, for one) and
+ * MUST NOT be parsed or rebuilt.
+ *
+ * The obligation: when an assistant message that carried one goes back into a
+ * later round of the same exchange, the WHOLE object goes back unchanged,
+ * including keys this code does not recognise. Rebuilding it as
+ * `{ text: m.reasoning.text }` drops the signature - invisible on DeepSeek, an
+ * upstream 400 on Anthropic, reported on OUR side with no reason given.
+ */
+export type ReasoningEnvelope = { readonly text?: string } & Readonly<Record<string, unknown>>;
+
 export interface ToolCall {
   id: string;
   name: string;
@@ -27,6 +44,8 @@ export interface ChatMessage {
   toolCallId?: string;
   /** tool: the tool name, which some providers require. */
   name?: string;
+  /** assistant: the reasoning envelope, returned as received. See ReasoningEnvelope. */
+  reasoning?: ReasoningEnvelope;
 }
 
 export interface ToolDefinition {
@@ -81,6 +100,19 @@ export interface ChatRequest {
    * because a token minted without it would otherwise 400 at the far end. */
   tenantId?: string;
   stream?: boolean;
+  /**
+   * Whether the model reasons (Atlas v0.7.8, ADR-009 there). Absent means the
+   * upstream default, which for the current reasoning models is ON - slow and
+   * expensive. yucer always sends it; the value comes from the call profile
+   * (profiles.ts). A route whose primary model cannot honour the mode answers
+   * 422 THINKING_MODE_UNSUPPORTED without calling upstream.
+   */
+  thinking?: "off" | "on";
+  /**
+   * The whole call's budget, 1000-600000 ms, primary and fallbacks together.
+   * On expiry Atlas cancels upstream and answers 504 DEADLINE_EXCEEDED.
+   */
+  timeoutMs?: number;
   temperature?: number;
   maxTokens?: number;
   topP?: number;
@@ -119,6 +151,8 @@ export interface ChatResponse {
    * streaming calls and should not be reported as time-to-first-token. */
   latencyMs: number;
   finishReason?: FinishReason;
+  /** The mode actually used: "off" / "on", or null when none was sent. */
+  thinking?: "off" | "on" | null;
 }
 
 // --- Streaming frames -------------------------------------------------------
@@ -131,10 +165,21 @@ export interface StreamToolCallFrame {
   type: "tool_call";
   toolCall: ToolCall;
 }
+/** A reasoning fragment, for DISPLAY only - never assembled into an envelope
+ *  (the done frame carries the complete one). A caller that wants only the
+ *  answer ignores these. */
+export interface StreamReasoningFrame {
+  type: "reasoning";
+  delta: string;
+}
 export interface StreamDoneFrame {
   type: "done";
   usage?: TokenUsage;
   finishReason?: FinishReason;
+  /** The model that actually served, after any fallback. */
+  modelCode?: string;
+  thinking?: "off" | "on" | null;
+  reasoning?: ReasoningEnvelope;
 }
 export interface StreamErrorFrame {
   type: "error";
@@ -151,6 +196,7 @@ export interface StreamErrorFrame {
 
 export type StreamFrame =
   | StreamTextFrame
+  | StreamReasoningFrame
   | StreamToolCallFrame
   | StreamDoneFrame
   | StreamErrorFrame;

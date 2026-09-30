@@ -1,5 +1,6 @@
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { endpointFor } from "../../agent/atlas/endpoints";
+import { profileSettings } from "../../agent/atlas/profiles";
 import { denied } from "../pipeline/service";
 import { defaultAdvisorMeter, type AdvisorMeter } from "../../usage/lib/advisor-runs";
 import { canRunAdvisor } from "./lib/advisor-gate";
@@ -85,8 +86,10 @@ export async function runAdvisor<T>(
     ...key,
     capability: req.capability,
     content: generated.value,
-    // The ROUTE, not a model name: the product routes by endpoint and the
-    // operator decides which model serves it (agent/atlas/endpoints.ts).
+    // The ROUTE and the thinking mode, not a model name: the product routes
+    // by endpoint and the operator decides which model serves it
+    // (agent/atlas/endpoints.ts). The model that actually answered is on
+    // Atlas's request log under this run's businessId.
     model: routeOf(req.capability),
   });
   return ok({ content: generated.value, runId, cached: false });
@@ -124,5 +127,6 @@ function runKey(req: Pick<AdvisorRunRequest<unknown>, "capability" | "kind" | "s
 }
 
 function routeOf(capability: Capability): string {
-  return endpointFor(CAPABILITY_SPEC[capability].task);
+  const settings = profileSettings(CAPABILITY_SPEC[capability].profile);
+  return `${endpointFor(settings.task)} thinking:${settings.thinking}`;
 }

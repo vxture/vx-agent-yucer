@@ -1,6 +1,7 @@
 import { mintS2SToken, type FetchLike } from "../../platform/s2s";
 import { AtlasError, parseAtlasError, streamFrameError, type RetryPolicy } from "./errors";
-import { endpointFor, type CopilotTask } from "./endpoints";
+import { endpointFor } from "./endpoints";
+import { LOCAL_DEADLINE_MARGIN_MS, profileSettings, type CallProfile } from "./profiles";
 import type { ChatRequest, ChatResponse, StreamFrame } from "./types";
 
 /** Env reader shape. Matches lib/status.ts rather than NodeJS.ProcessEnv:
@@ -68,6 +69,8 @@ export interface AtlasDeps {
   /** Injected so tests do not need an IdP. */
   mintToken?: typeof mintS2SToken;
   sleep?: (ms: number) => Promise<void>;
+  /** How much longer than Atlas's budget this client waits (profiles.ts). */
+  deadlineMarginMs?: number;
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -76,6 +79,7 @@ export class AtlasClient {
   private readonly fetchImpl: FetchLike;
   private readonly mint: typeof mintS2SToken;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly marginMs: number;
 
   constructor(
     private readonly cfg: AtlasConfig = getAtlasConfig(),
@@ -84,12 +88,35 @@ export class AtlasClient {
     this.fetchImpl = deps.fetchImpl ?? (globalThis.fetch as FetchLike);
     this.mint = deps.mintToken ?? mintS2SToken;
     this.sleep = deps.sleep ?? defaultSleep;
+    this.marginMs = deps.deadlineMarginMs ?? LOCAL_DEADLINE_MARGIN_MS;
   }
 
-  /** Non-streaming chat, with per-code retry. */
-  async chat(task: CopilotTask, req: Omit<ChatRequest, "stream" | "taskId">, ctx: AtlasContext): Promise<ChatResponse> {
+  /**
+   * Non-streaming chat, with per-code retry. The profile decides the route and
+   * the per-call parameters (profiles.ts); anything in `req` overrides it.
+   */
+  async chat(profile: CallProfile, req: Omit<ChatRequest, "stream" | "taskId">, ctx: AtlasContext): Promise<ChatResponse> {
+    const body = this.body(profile, req, ctx, false);
+    try {
+      return await this.chatOnce(body, ctx);
+    } catch (e) {
+      // A route whose primary model cannot honour the mode refuses before
+      // calling upstream (422, no spend). The member still deserves an answer,
+      // so ask once more on the route's own default - the same thing every
+      // call did before thinking existed. Batch 2 reads the route's
+      // thinkingModes up front so this stops happening at all.
+      if (e instanceof AtlasError && e.code === "THINKING_MODE_UNSUPPORTED" && body.thinking !== undefined) {
+        return this.chatOnce({ ...body, thinking: undefined }, ctx);
+      }
+      throw e;
+    }
+  }
+
+  /** The local deadline is Atlas's budget plus a margin, so Atlas - which
+   *  cancels upstream and answers with a code - is the one that stops. */
+  private chatOnce(body: ChatRequest, ctx: AtlasContext): Promise<ChatResponse> {
     return this.withRetry(async () => {
-      const { res, json } = await this.requestJson("POST", "/v1/chat", this.body(task, req, ctx, false), ctx);
+      const { res, json } = await this.requestJson("POST", "/v1/chat", body, ctx, (body.timeoutMs ?? 0) + this.marginMs);
       if (!res.ok) throw parseAtlasError(res.status, json);
       return json as ChatResponse;
     });
@@ -108,11 +135,11 @@ export class AtlasClient {
    * would duplicate them. The caller decides whether to start over.
    */
   async *chatStream(
-    task: CopilotTask,
+    profile: CallProfile,
     req: Omit<ChatRequest, "stream" | "taskId">,
     ctx: AtlasContext,
   ): AsyncGenerator<StreamFrame, void, void> {
-    const { res, controller } = await this.postStreaming("/v1/chat", this.body(task, req, ctx, true), ctx);
+    const { res, controller } = await this.postStreaming("/v1/chat", this.body(profile, req, ctx, true), ctx);
     if (!res.ok) {
       // READ THEN ABORT, in that order. Aborting first errors the body, json()
       // swallows that into null, and parseAtlasError falls through to its
@@ -168,14 +195,19 @@ export class AtlasClient {
   }
 
   private body(
-    task: CopilotTask,
+    profile: CallProfile,
     req: Omit<ChatRequest, "stream" | "taskId">,
     ctx: AtlasContext,
     stream: boolean,
   ): ChatRequest {
+    const settings = profileSettings(profile);
     return {
       // Routing by endpoint, never by model - see endpoints.ts.
-      endpointCode: req.endpointCode ?? endpointFor(task),
+      endpointCode: req.endpointCode ?? endpointFor(settings.task),
+      // Always sent: absent means the upstream default, which reasons.
+      thinking: settings.thinking,
+      maxTokens: settings.maxTokens,
+      timeoutMs: settings.timeoutMs,
       tenantId: ctx.tenantId,
       applicationType: "agent",
       applicationId: ctx.applicationId,
@@ -217,6 +249,7 @@ export class AtlasClient {
     ctx: AtlasContext,
     /** Supplied by a streaming caller that outlives the headers. */
     externalController?: AbortController,
+    deadlineMs: number = this.cfg.timeoutMs,
   ): Promise<Response> {
     if (!this.cfg.enabled) {
       throw new AtlasError({
@@ -236,7 +269,11 @@ export class AtlasClient {
     });
 
     const controller = externalController ?? new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
+    let expired = false;
+    const timer = setTimeout(() => {
+      expired = true;
+      controller.abort();
+    }, deadlineMs);
 
     try {
       return await this.fetchImpl(`${this.cfg.baseUrl}${path}`, {
@@ -249,6 +286,21 @@ export class AtlasClient {
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
+    } catch (e) {
+      // A synchronous call only gets its headers when generation ENDS, so this
+      // is the deadline a long answer runs into. It used to escape as a bare
+      // AbortError - not an AtlasError, so it reached the member as a generic
+      // failure with no code. Atlas is handed a shorter budget than this
+      // (profiles.ts) and normally answers DEADLINE_EXCEEDED first; reaching
+      // here means the connection itself went quiet.
+      if (expired) {
+        throw new AtlasError({
+          code: "LOCAL_DEADLINE",
+          status: 0,
+          message: `atlas did not answer within ${deadlineMs}ms`,
+        });
+      }
+      throw e;
     } finally {
       // This deadline covers reaching the far side, and nothing more: the
       // response resolves when the HEADERS arrive. Whoever reads the body owns
@@ -270,11 +322,12 @@ export class AtlasClient {
     path: string,
     body: unknown,
     ctx: AtlasContext,
+    deadlineMs: number = this.cfg.timeoutMs,
   ): Promise<{ res: Response; json: unknown }> {
     const controller = new AbortController();
-    const res = await this.request(method, path, body, ctx, controller);
+    const res = await this.request(method, path, body, ctx, controller, deadlineMs);
 
-    const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), deadlineMs);
     try {
       const json = await this.json(res);
       // json() is deliberately tolerant - it turns an unreadable body into null
@@ -285,7 +338,7 @@ export class AtlasClient {
         throw new AtlasError({
           code: "BODY_TIMEOUT",
           status: res.status,
-          message: `atlas did not finish sending within ${this.cfg.timeoutMs}ms`,
+          message: `atlas did not finish sending within ${deadlineMs}ms`,
         });
       }
       return { res, json };

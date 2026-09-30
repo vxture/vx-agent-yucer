@@ -263,7 +263,10 @@ export async function runAtlasProbe(
   const taskId = `diag-atlas-${workspaceId}-${day}`.slice(0, ATLAS_TASK_ID_MAX);
   const client = new AtlasClient(cfg);
   const res = await client.chat(
-    "chat",
+    // dialogue carries thinking "off": a probe with a tiny maxTokens on a
+    // reasoning default spends it all on reasoning and fails with
+    // 422 OUTPUT_BUDGET_EXHAUSTED - a false alarm about a healthy plane.
+    "dialogue",
     { messages: [{ role: "user", content: "ping" }], maxTokens: 8 },
     // applicationId is a UUID on Atlas's side (its grant lookup casts it): a
     // label like "yucer-diagnostics" failed the probe with a Prisma cast

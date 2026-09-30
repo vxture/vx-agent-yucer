@@ -5300,6 +5300,8 @@ export const en: Dictionary = {
     errorNoGrant: "This product has no grant on the model plane",
     errorQuota: "The model usage quota is exhausted",
     errorTurnQuota: "This workspace's copilot turn quota is used up",
+    errorTooMuch: "There is more material than the model can read in one go; narrow it down and try again",
+    errorTimeout: "The model took too long and was stopped; try again shortly",
     errorGeneric: "Try again shortly; if it keeps failing, contact operations",
     newSession: "New conversation",
   },

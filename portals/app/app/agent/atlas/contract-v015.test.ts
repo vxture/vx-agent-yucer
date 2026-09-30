@@ -46,7 +46,7 @@ test("every chat call carries taskId - it is mandatory since v0.15.0", async () 
   // copilot was entirely non-functional against production and nothing here
   // said so, because the suite only ever talks to a stub.
   const { client, seen } = capturingClient();
-  await client.chat("chat", { messages: [{ role: "user", content: "hi" }] }, CTX).catch(() => {});
+  await client.chat("dialogue", { messages: [{ role: "user", content: "hi" }] }, CTX).catch(() => {});
   assert.equal(seen.length, 1);
   const body = JSON.parse(String(seen[0].init.body)) as { taskId?: string };
   assert.equal(body.taskId, "sess_1:4");
@@ -61,7 +61,7 @@ test("a caller cannot set or erase taskId - it comes from the context", async ()
   // spreading the caller's object, so even an `as any` cannot blank it.
   const { client, seen } = capturingClient();
   const sneaky = { messages: [{ role: "user", content: "hi" }], taskId: undefined } as never;
-  await client.chat("chat", sneaky, CTX).catch(() => {});
+  await client.chat("dialogue", sneaky, CTX).catch(() => {});
   const body = JSON.parse(String(seen[0].init.body)) as { taskId?: string };
   assert.equal(body.taskId, "sess_1:4", "the context value survives the spread");
 });

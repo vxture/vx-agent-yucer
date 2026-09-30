@@ -65,7 +65,7 @@ test("chat routes by endpointCode and never sends a modelCode", () => {
   // Pinning a model forfeits the endpoint's fallback chain and blocks an
   // operator from re-pointing the capability.
   const { client, calls } = harness([() => ok()]);
-  return client.chat("chat", { messages: [{ role: "user", content: "hi" }] }, CTX).then(() => {
+  return client.chat("dialogue", { messages: [{ role: "user", content: "hi" }] }, CTX).then(() => {
     assert.equal(calls[0].url, "http://atlas.test/v1/chat");
     assert.equal(calls[0].body.endpointCode, "chat/default");
     assert.equal(calls[0].body.modelCode, undefined);
@@ -87,14 +87,14 @@ test("each copilot task maps to its own endpoint, overridable by env", () => {
 test("an explicit endpointCode on the request wins over the task default", () => {
   const { client, calls } = harness([() => ok()]);
   return client
-    .chat("chat", { messages: [], endpointCode: "chat/special" }, CTX)
+    .chat("dialogue", { messages: [], endpointCode: "chat/special" }, CTX)
     .then(() => assert.equal(calls[0].body.endpointCode, "chat/special"));
 });
 
 test("the call is tagged as an agent application for metering", () => {
   const { client, calls } = harness([() => ok()]);
   return client
-    .chat("chat", { messages: [] }, { ...CTX, applicationId: "sess_1", requestId: "req_9" })
+    .chat("dialogue", { messages: [] }, { ...CTX, applicationId: "sess_1", requestId: "req_9" })
     .then(() => {
       assert.equal(calls[0].body.applicationType, "agent");
       assert.equal(calls[0].body.applicationId, "sess_1");
@@ -107,18 +107,18 @@ test("the call is tagged as an agent application for metering", () => {
 
 test("a member behind the call gets an OBO ticket; background work gets service", async () => {
   const a = harness([() => ok()]);
-  await a.client.chat("chat", { messages: [] }, { ...CTX, subjectToken: "member-access-token" });
+  await a.client.chat("dialogue", { messages: [] }, { ...CTX, subjectToken: "member-access-token" });
   assert.match(String((a.calls[0].init.headers as Record<string, string>).authorization), /tok-obo-atlas/);
 
   const b = harness([() => ok()]);
-  await b.client.chat("score", { messages: [] }, CTX);
+  await b.client.chat("triage", { messages: [] }, CTX);
   assert.match(String((b.calls[0].init.headers as Record<string, string>).authorization), /tok-service-atlas/);
 });
 
 test("an unconfigured base URL fails loudly instead of silently doing nothing", async () => {
   const client = new AtlasClient({ ...CFG, baseUrl: "", enabled: false });
   await assert.rejects(
-    () => client.chat("chat", { messages: [] }, CTX),
+    () => client.chat("dialogue", { messages: [] }, CTX),
     (e: unknown) => e instanceof AtlasError && e.code === "ATLAS_NOT_CONFIGURED",
   );
 });
@@ -130,7 +130,7 @@ test("a rate limit is retried after the delay the body names", async () => {
     () => jsonRes(429, { code: "RATE_LIMITED", message: "slow", retryAfterMs: 900 }),
     () => ok(),
   ]);
-  const res = await client.chat("chat", { messages: [] }, CTX);
+  const res = await client.chat("dialogue", { messages: [] }, CTX);
   assert.equal(res.id, "call_1");
   assert.deepEqual(slept, [900]);
   assert.equal(calls.length, 2);
@@ -142,14 +142,14 @@ test("a provider outage is retried with exponential backoff", async () => {
     () => jsonRes(503, { code: "PROVIDER_UNAVAILABLE", message: "down" }),
     () => ok(),
   ]);
-  await client.chat("chat", { messages: [] }, CTX);
+  await client.chat("dialogue", { messages: [] }, CTX);
   assert.deepEqual(slept, [backoffMs(0), backoffMs(1)]);
 });
 
 test("a grant denial is surfaced immediately without a single retry", async () => {
   const { client, calls, slept } = harness([() => jsonRes(403, { code: "GRANT_DENIED", message: "no grant" })]);
   await assert.rejects(
-    () => client.chat("chat", { messages: [] }, CTX),
+    () => client.chat("dialogue", { messages: [] }, CTX),
     (e: unknown) => e instanceof AtlasError && e.code === "GRANT_DENIED",
   );
   assert.equal(calls.length, 1);
@@ -159,7 +159,7 @@ test("a grant denial is surfaced immediately without a single retry", async () =
 test("retries stop at the configured ceiling and rethrow the last error", async () => {
   const { client, calls } = harness([() => jsonRes(503, { code: "PROVIDER_UNAVAILABLE", message: "down" })]);
   await assert.rejects(
-    () => client.chat("chat", { messages: [] }, CTX),
+    () => client.chat("dialogue", { messages: [] }, CTX),
     (e: unknown) => e instanceof AtlasError && e.code === "PROVIDER_UNAVAILABLE",
   );
   assert.equal(calls.length, CFG.maxRetries + 1);
@@ -237,7 +237,7 @@ test("chatStream yields text then done", async () => {
       ),
   ]);
   const frames: StreamFrame[] = [];
-  for await (const f of client.chatStream("chat", { messages: [] }, CTX)) frames.push(f);
+  for await (const f of client.chatStream("dialogue", { messages: [] }, CTX)) frames.push(f);
   assert.equal(frames.length, 3);
   assert.equal(frames[2].type, "done");
 });
@@ -259,7 +259,7 @@ test("a mid-stream error frame throws even though the response was 200", async (
   const seen: StreamFrame[] = [];
   await assert.rejects(
     async () => {
-      for await (const f of client.chatStream("chat", { messages: [] }, CTX)) seen.push(f);
+      for await (const f of client.chatStream("dialogue", { messages: [] }, CTX)) seen.push(f);
     },
     (e: unknown) =>
       e instanceof AtlasError && e.fromStream && e.code === "PROVIDER_UNAVAILABLE" && e.status === 200,
@@ -271,7 +271,7 @@ test("a stream request that fails before any frame throws the HTTP error", async
   const { client } = harness([() => jsonRes(403, { code: "GRANT_DENIED", message: "no grant" })]);
   await assert.rejects(
     async () => {
-      for await (const _ of client.chatStream("chat", { messages: [] }, CTX)) void _;
+      for await (const _ of client.chatStream("dialogue", { messages: [] }, CTX)) void _;
     },
     (e: unknown) => e instanceof AtlasError && e.code === "GRANT_DENIED" && !e.fromStream,
   );
@@ -279,10 +279,71 @@ test("a stream request that fails before any frame throws the HTTP error", async
 
 test("the stream request sets stream:true and the non-stream one does not", async () => {
   const a = harness([() => new Response(sse(["data: [DONE]\n"]), { status: 200 })]);
-  for await (const _ of a.client.chatStream("chat", { messages: [] }, CTX)) void _;
+  for await (const _ of a.client.chatStream("dialogue", { messages: [] }, CTX)) void _;
   assert.equal(a.calls[0].body.stream, true);
 
   const b = harness([() => ok()]);
-  await b.client.chat("chat", { messages: [] }, CTX);
+  await b.client.chat("dialogue", { messages: [] }, CTX);
   assert.equal(b.calls[0].body.stream, false);
+});
+
+// --- Call profiles (Atlas v0.7.8) ---------------------------------------------
+
+test("every call carries its profile's thinking, maxTokens and timeoutMs", async () => {
+  // Absent `thinking` means the upstream default, which reasons: slow and
+  // dear, and past a synchronous deadline a generic failure (2026-09-30).
+  const h = harness([() => ok()]);
+  await h.client.chat("dialogue", { messages: [] }, CTX);
+  await h.client.chat("judgement", { messages: [] }, CTX);
+  const [dialogue, judgement] = h.calls.map((c) => c.body);
+  assert.deepEqual(
+    [dialogue!.endpointCode, dialogue!.thinking, dialogue!.maxTokens, dialogue!.timeoutMs],
+    ["chat/default", "off", 1500, 45_000],
+  );
+  assert.deepEqual(
+    [judgement!.endpointCode, judgement!.thinking, judgement!.maxTokens, judgement!.timeoutMs],
+    ["chat/reasoning", "on", 6000, 150_000],
+  );
+});
+
+test("a caller's own maxTokens wins over the profile's", async () => {
+  const h = harness([() => ok()]);
+  await h.client.chat("dialogue", { messages: [], maxTokens: 8 }, CTX);
+  assert.equal(h.calls[0]!.body.maxTokens, 8);
+  assert.equal(h.calls[0]!.body.thinking, "off", "the probe still asks for no reasoning");
+});
+
+test("a route that cannot honour the mode is asked once more on its own default", async () => {
+  const h = harness([
+    () => jsonRes(422, { code: "THINKING_MODE_UNSUPPORTED", message: "no off", retryable: false }),
+    () => ok(),
+  ]);
+  const res = await h.client.chat("dialogue", { messages: [] }, CTX);
+  assert.equal(res.modelCode, "glm-4");
+  assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[0]!.body.thinking, "off");
+  assert.equal("thinking" in h.calls[1]!.body, false, "the retry sends no mode at all");
+});
+
+test("a call that outlives its deadline fails with a code, not a bare AbortError", async () => {
+  // A synchronous answer's headers only arrive when generation ends; this is
+  // the deadline a long answer runs into, and it used to escape uncoded.
+  const client = new AtlasClient(CFG, {
+    fetchImpl: (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      }),
+    mintToken: async (req) => ({ accessToken: "t", expiresAt: 0, audience: req.audience, mode: req.mode }),
+    sleep: async () => {},
+    deadlineMarginMs: 0,
+  });
+  process.env.ATLAS_PROFILE_TRIAGE_TIMEOUT_MS = "1000";
+  try {
+    await assert.rejects(
+      () => client.chat("triage", { messages: [] }, CTX),
+      (e: unknown) => e instanceof AtlasError && e.code === "LOCAL_DEADLINE" && e.retry.kind === "no",
+    );
+  } finally {
+    delete process.env.ATLAS_PROFILE_TRIAGE_TIMEOUT_MS;
+  }
 });

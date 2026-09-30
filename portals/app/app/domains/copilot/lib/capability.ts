@@ -1,4 +1,4 @@
-import type { CopilotTask } from "../../../agent/atlas/endpoints";
+import type { CallProfile } from "../../../agent/atlas/profiles";
 import type { FeatureKey } from "../../../entitlement/capability";
 
 // What the agent can do, as a stable set of keys - see ADR-015.
@@ -72,13 +72,19 @@ export interface CapabilitySpec {
    */
   readonly feature: FeatureKey;
   /**
-   * The shape of the work, which is what routes to a model.
+   * How the model is called for this work (agent/atlas/profiles.ts): the
+   * route, whether it reasons, its output budget and its deadline.
    *
-   * The product names the task; the OPERATOR decides which model serves it
-   * (endpoints.ts). Pinning a model here would take that back and forfeit the
-   * endpoint's fallback chain.
+   * The product names the profile; the OPERATOR decides which model serves
+   * its route (endpoints.ts). Pinning a model here would take that back and
+   * forfeit the endpoint's fallback chain.
+   *
+   * `judgement` - the one profile that reasons - is the owner's ruling
+   * (2026-09-30) for exactly four: deal.price, deal.next_action, deal.plan,
+   * account.consistency. Giving it to another capability is a new ruling,
+   * not an edit; capability.test.ts holds the list.
    */
-  readonly task: CopilotTask;
+  readonly profile: CallProfile;
   /**
    * What this capability is allowed to look at.
    *
@@ -99,22 +105,22 @@ export interface CapabilitySpec {
 export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   "deal.stall_risk": {
     feature: "pipeline.manage",
-    task: "propose",
+    profile: "drafting",
     evidence: ["interactions", "commitments", "deals"],
   },
   "deal.competition": {
     feature: "pipeline.manage",
-    task: "propose",
+    profile: "drafting",
     evidence: ["interactions", "deals", "signals"],
   },
   "account.chain_map": {
     feature: "account.manage",
-    task: "propose",
+    profile: "drafting",
     evidence: ["interactions", "chain"],
   },
   "account.cadence": {
     feature: "account.manage",
-    task: "propose",
+    profile: "drafting",
     // No interactions on purpose: this capability exists BECAUSE there are
     // none. Its evidence is the chain and the deals that are not moving.
     evidence: ["chain", "deals"],
@@ -122,12 +128,12 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   "signal.triage": {
     feature: "signal.inbox",
     // Runs in bulk over a feed, so cost per call dominates quality per call.
-    task: "score",
+    profile: "triage",
     evidence: ["signals"],
   },
   "pricing.discount_approval": {
     feature: "pipeline.manage",
-    task: "propose",
+    profile: "drafting",
     // Lines and the price book only. A discount decision does not need the
     // customer's meeting notes, and pulling them in would bury the one number
     // the decision turns on.
@@ -135,85 +141,85 @@ export const CAPABILITY_SPEC: Record<Capability, CapabilitySpec> = {
   },
   "delivery.payment_risk": {
     feature: "delivery.project",
-    task: "propose",
+    profile: "drafting",
     evidence: ["projects", "deals"],
   },
   "campaign.return": {
     feature: "campaign.manage",
-    task: "summarize",
+    profile: "drafting",
     evidence: ["deals", "signals"],
   },
   "strategy.segment_coverage": {
     feature: "strategy.segment",
-    task: "summarize",
+    profile: "drafting",
     evidence: ["segments", "deals"],
   },
   "strategy.territory_attainment": {
     feature: "planning.territory",
-    task: "propose",
+    profile: "drafting",
     evidence: ["targets", "deals"],
   },
   // Filed by the rule-based upsell sweep today; if a model is ever asked for
   // upsell reasoning it reads the deals and their lines, not meeting notes.
   "account.upsell": {
     feature: "account.manage",
-    task: "propose",
+    profile: "drafting",
     evidence: ["deals", "lines"],
   },
   // The deal's unmet criteria and the promises already open - no notes.
   "deal.plan": {
     feature: "pipeline.manage",
-    task: "propose",
+    profile: "judgement",
     evidence: ["commitments", "deals"],
   },
   // The board's computed figures only - totals, change, unverified deals,
   // owners. It reads no notes: the numbers are the brief.
   "forecast.brief": {
     feature: "pipeline.forecast",
-    task: "summarize",
+    profile: "drafting",
     evidence: ["deals"],
   },
   // The rule's four review sections and the outcome's reasons - no notes.
   "deal.review": {
     feature: "pipeline.winloss",
-    task: "summarize",
+    profile: "drafting",
     evidence: ["commitments", "chain", "deals", "lines"],
   },
   // The chosen attendees, the open promises, the goal and recent notes.
   "deal.meeting": {
     feature: "pipeline.manage",
-    task: "summarize",
+    profile: "drafting",
     evidence: ["interactions", "commitments", "chain", "deals"],
   },
   // The concession sheet (rule numbers) and the deal's follow-ups - the
   // buyer's own words about price are what the strategy answers.
   "deal.price": {
     feature: "pipeline.manage",
-    task: "propose",
+    profile: "judgement",
     evidence: ["interactions", "lines", "deals"],
   },
   // The rule's assessment, the stall holder, open promises and recent notes.
   "deal.brief": {
     feature: "pipeline.manage",
-    task: "summarize",
+    profile: "drafting",
     evidence: ["interactions", "commitments", "chain", "deals"],
   },
   // The goals (unmet criteria, the stall), open promises and recent notes.
   "deal.next_action": {
     feature: "pipeline.manage",
-    task: "propose",
+    profile: "judgement",
     evidence: ["interactions", "commitments", "deals"],
   },
   // One new follow-up against what the slots already say.
   "deal.evidence": {
     feature: "pipeline.manage",
-    task: "propose",
+    profile: "drafting",
     evidence: ["interactions", "deals"],
   },
   // Reads the notes and nothing else: a conflict is between two records.
   "account.consistency": {
     feature: "account.manage",
-    task: "propose",
+    profile: "judgement",
     evidence: ["interactions"],
   },
 };

@@ -1,5 +1,6 @@
 import type { AtlasClient, AtlasContext } from "../atlas/client";
 import type { ChatMessage, ToolCall } from "../atlas/types";
+import type { CallProfile } from "../atlas/profiles";
 import type { RunosClient, RunosContext } from "../runos/client";
 import { RunosError } from "../runos/errors";
 import { buildTurnMessages, type PromptContext } from "./prompt";
@@ -33,6 +34,13 @@ export interface TurnInput {
   runos: RunosContext;
   /** Semantic query used to pull candidate capabilities. Defaults to the question. */
   capabilityQuery?: string;
+  /**
+   * How every model call of this turn is made (agent/atlas/profiles.ts).
+   * Defaults to "dialogue". One profile for the whole turn, tool rounds
+   * included: which work reasons is the owner's ruling per capability
+   * (2026-09-30), and a turn that escalated on its own would overrule it.
+   */
+  profile?: CallProfile;
   maxToolRounds?: number;
 }
 
@@ -83,6 +91,7 @@ const DEFAULT_MAX_TOOL_ROUNDS = 4;
 
 export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnResult> {
   const maxRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
+  const profile: CallProfile = input.profile ?? "dialogue";
   const surface = await discoverTools(input, deps);
 
   const messages: ChatMessage[] = buildTurnMessages(
@@ -107,9 +116,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
 
   for (;;) {
     const res = await deps.atlasClient.chat(
-      // The proposing task, not the chat task: a proposal is read by a human who
-      // then signs for it, so it carries the reasoning load.
-      proposals.length > 0 || rounds > 0 ? "propose" : "chat",
+      profile,
       { messages, tools: surface.definitions, toolChoice: "auto" },
       input.atlas,
     );
@@ -121,6 +128,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     const calls = reply.toolCalls ?? [];
     if (calls.length === 0) break;
 
+    // The reply goes back AS RECEIVED - its reasoning envelope included. A
+    // reasoning model with tools requires the whole envelope on the next
+    // round or the upstream answers 400 (types.ts, ReasoningEnvelope). Never
+    // rebuild this message from its fields.
     messages.push(reply);
 
     if (rounds >= maxRounds) {
@@ -132,7 +143,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
         content:
           "Tool budget for this turn is spent. Answer with what you already have, and say what you could not check.",
       });
-      const final = await deps.atlasClient.chat("propose", { messages }, input.atlas);
+      const final = await deps.atlasClient.chat(profile, { messages }, input.atlas);
       totalTokens += final.usage.totalTokens;
       if (final.message.content) answer = final.message.content;
       break;
