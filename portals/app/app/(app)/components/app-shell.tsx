@@ -25,6 +25,7 @@ import {
   writeNavCollapsed,
   type Locale,
 } from "@vxture/shared";
+import { formatPhone } from "../lib/format-phone";
 import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
@@ -527,7 +528,8 @@ export function AppShell({
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
                   displayName: userName,
-                  uniqueLine: userPhone ?? undefined,
+                  // No +86, 3-4-4 - the same as every other phone shown here.
+                  uniqueLine: userPhone ? formatPhone(userPhone) : undefined,
                   meta: `${workspaceLabel} · ${orgLabel ?? HEADER_TEXT.tenantUnknown}`,
                   avatarSrc: userPicture ?? "/assets/icons/avatar-default.svg",
                   avatarAlt: userName,
