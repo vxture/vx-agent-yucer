@@ -264,7 +264,7 @@ test("the Atlas probe reports rerank as found: route codes, the tool's input sch
         : url.endsWith("/v1/model-routes")
           ? { status: 200, body: { endpoints: [...ROUTES.endpoints, { endpointCode: "rerank/default", state: "active" }] } }
           : url.endsWith("/.well-known/vxture-tools")
-            ? { status: 200, body: { tools: [{ name: "atlas.rerank", input_schema: { required: ["query", "candidates"] } }] } }
+            ? { status: 200, body: { tools: [{ name: "atlas.rerank", input_schema: { required: ["query", "candidates"], properties: { candidates: { type: "array" }, query: { type: "string" } } } }] } }
             : url.endsWith("/v1/rerank")
               ? { status: 200, body: { results: [{ index: 0, score: 0.91 }] } }
               : { status: 404, body: {} },
@@ -273,11 +273,18 @@ test("the Atlas probe reports rerank as found: route codes, the tool's input sch
     const { runAtlasProbe } = await import("./check");
     const r = await runAtlasProbe("ws_live", "org_live");
     assert.equal(r.ok, true);
-    assert.match(r.detail, /route codes held: chat\/default, chat\/reasoning, rerank\/default/);
-    assert.match(r.detail, /rerank tool: \{"required":\["query","candidates"\]\}/);
-    assert.match(r.detail, /rerank rerank\/default answered: \{"results":\[\{"index":0,"score":0.91\}\]\}/);
+    // One fact per line, so the diagnostics page reads as a list, not a wall.
+    const lines = r.detail.split("\n");
+    assert.ok(lines.length >= 6, "the report is several lines");
+    assert.ok(lines.every((l) => l.length < 260), "no line is a run-on");
+    assert.match(r.detail, /routes held: chat\/default, chat\/reasoning, rerank\/default/);
+    assert.match(r.detail, /required: \["query","candidates"\]/);
+    assert.match(r.detail, /call rerank\/default: ok/);
+    assert.match(r.detail, /raw answer: \{"results":\[\{"index":0,"score":0.91\}\]\}/);
     const sent = JSON.parse(net.bodies.find((b) => b.url.endsWith("/v1/rerank"))!.body);
     assert.equal(sent.workspaceId, "ws_live", "rerank takes workspaceId, not tenantId");
+    // Atlas refuses bare strings: RERANK_CANDIDATES_INVALID, "each must have a non-empty id and a text string".
+    assert.ok(sent.candidates.every((c: { id?: string; text?: string }) => c.id && typeof c.text === "string"));
     assert.ok(sent.taskId);
   } finally {
     net.restore();
