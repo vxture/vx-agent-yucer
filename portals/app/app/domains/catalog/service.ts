@@ -396,6 +396,7 @@ export async function listProductTypes(
           parentId: null,
           name: d.name,
           status: "active",
+          customizable: false,
         });
       }
       types = await ctx.store.listProductTypes(ctx.workspaceId);
@@ -429,7 +430,13 @@ export interface TypeRowInput {
  */
 export async function saveProductTypes(
   ctx: CatalogContext,
-  input: { readonly level1: TypeRowInput; readonly level2?: TypeRowInput | null; readonly typeCode: string },
+  input: {
+    readonly level1: TypeRowInput;
+    readonly level2?: TypeRowInput | null;
+    readonly typeCode: string;
+    /** 支持定制 (incr/0102) - like the code, it belongs to the category row. */
+    readonly customizable?: boolean;
+  },
 ): Promise<RuleResult<{ level1: ProductTypeRecord; level2: ProductTypeRecord | null }>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -463,16 +470,21 @@ export async function saveProductTypes(
     plan2 = r.value;
   }
 
+  // 支持定制 follows the code: the category row gets what the dialog says;
+  // a 一级类 saved alongside a 二级类 keeps what it had (false when new).
+  const marker = input.customizable ?? false;
   const level1 = await ctx.store.saveProductType(ctx.workspaceId, {
     ...plan1.value,
     id: input.level1.id,
     parentId: null,
+    customizable: hasL2 ? (keep(input.level1.id)?.customizable ?? false) : marker,
   });
   const level2 = plan2
     ? await ctx.store.saveProductType(ctx.workspaceId, {
         ...plan2,
         id: input.level2?.id,
         parentId: level1.id,
+        customizable: marker,
       })
     : null;
   return ok({ level1, level2 });

@@ -436,9 +436,11 @@ export const DEMO_RETIRED_PRODUCTS = [
 // shows 01-01 软件产品-基础软件. No product is moved onto them - a product may
 // carry either level.
 export const DEMO_SUB_TYPES = [
-  { parent: "software", code: "software-basic", no: "01", name: "基础软件" },
-  { parent: "software", code: "software-business", no: "02", name: "业务软件" },
-  { parent: "software", code: "software-tools", no: "03", name: "工具软件" },
+  // 业务软件 is the one tailored per customer, so the demo shows the 支持定制
+  // marker (incr/0102) on one row and not the others.
+  { parent: "software", code: "software-basic", no: "01", name: "基础软件", customizable: false },
+  { parent: "software", code: "software-business", no: "02", name: "业务软件", customizable: true },
+  { parent: "software", code: "software-tools", no: "03", name: "工具软件", customizable: false },
 ] as const;
 
 // A solution is a COMBINATION plus its CUSTOMISATION (incr/0031): the

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Input, NativeSelect, StatusBadge } from "@vxture/design-ui";
+import { Checkbox, Input, NativeSelect, StatusBadge } from "@vxture/design-ui";
 import { DialogForm } from "./dialog-form";
 import { Tag } from "./tag";
 import { useMessages } from "../lib/i18n/provider";
@@ -51,6 +51,7 @@ export function ProductTypeDialog({
     level1: Line & { id?: string };
     level2: (Line & { id?: string }) | null;
     typeCode: string;
+    customizable: boolean;
   }) => void;
 }) {
   const { CATALOG_TEXT } = useMessages();
@@ -60,6 +61,8 @@ export function ProductTypeDialog({
   const [l1, setL1] = useState<Line>(EMPTY);
   const [l2, setL2] = useState<Line & { id?: string }>(EMPTY);
   const [code, setCode] = useState("");
+  // 支持定制 (incr/0102) - on the category row, like the code.
+  const [customizable, setCustomizable] = useState(false);
   /** Editing a 一级类 that is its own row: the first line IS that row, no picker. */
   const [editingTop, setEditingTop] = useState(false);
 
@@ -72,6 +75,7 @@ export function ProductTypeDialog({
       setL1(EMPTY);
       setL2(EMPTY);
       setCode("");
+      setCustomizable(false);
       setEditingTop(false);
       return;
     }
@@ -89,6 +93,7 @@ export function ProductTypeDialog({
       setEditingTop(true);
     }
     setCode(t?.typeCode ?? "");
+    setCustomizable(t?.customizable ?? false);
     // types is the page's own list; re-seed only when the dialog opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -165,6 +170,7 @@ export function ProductTypeDialog({
           level1: { ...l1, id: choice === NEW ? undefined : choice },
           level2: hasL2 ? l2 : null,
           typeCode: code.trim(),
+          customizable,
         });
       }}
     >
@@ -209,6 +215,20 @@ export function ProductTypeDialog({
             disabled={pending}
             onChange={(e) => setCode(e.target.value)}
           />
+        </div>
+        <div className="flex items-center gap-sm">
+          {labelCell("")}
+          {pickerSlot}
+          <Checkbox
+            id="type-customizable"
+            checked={customizable}
+            disabled={pending}
+            onCheckedChange={(v) => setCustomizable(v === true)}
+          />
+          <label htmlFor="type-customizable" className="text-foreground text-body-sm">
+            {CATALOG_TEXT.typeCustomizableLabel}
+          </label>
+          <span className="text-muted-foreground text-body-sm">{CATALOG_TEXT.typeCustomizableHint}</span>
         </div>
         <p className="text-muted-foreground pl-[4.25rem] text-body-sm">{CATALOG_TEXT.typeLevel2Hint}</p>
 

@@ -117,6 +117,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   onMove,
   onDelete,
   customDialog,
+  leadingColumn,
 }: {
   readonly rows: readonly T[];
   readonly text: VocabularyText;
@@ -222,6 +223,13 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
     readonly onAdd: () => void;
     readonly onEdit: (row: T) => void;
   };
+  /**
+   * A column that takes the 序号 slot, for a vocabulary whose rows carry a
+   * number people read (product types, 01-02 - owner, 2026-09-29: 编号列内容
+   * 改为产品类型编号). The row's own number means something; a running 1, 2, 3
+   * beside it would be a second, meaningless count.
+   */
+  readonly leadingColumn?: VocabularyColumn<T>;
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }) {
   const { DATA_TABLE_LABELS, ROW_OPS } = useMessages();
@@ -457,11 +465,11 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           ) : (
             <div
               ref={select.ref}
-              className={`[&_table]:table-fixed ${titleWidthClass} ${select.className}`}
+              className={`[&_table]:table-fixed ${titleWidthClass} ${leadingColumn ? "[&_thead_th:nth-child(2)]:w-[6rem]" : ""} ${select.className}`}
             >
               <DataTable
                 labels={DATA_TABLE_LABELS}
-                indexStart={pagination.indexStart}
+                indexStart={leadingColumn ? undefined : pagination.indexStart}
                 selectedKeys={selected}
                 onSelectionChange={setSelected}
                 rowKey={(r: T) => r.id}
@@ -469,6 +477,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
                 sort={sorted.sort}
                 onSortChange={sorted.onSortChange}
                 columns={[
+                  ...(leadingColumn ? [leadingColumn] : []),
                   {
                     id: "name",
                     sortable: true,

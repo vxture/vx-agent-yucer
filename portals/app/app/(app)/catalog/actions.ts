@@ -199,6 +199,7 @@ export async function saveProductTypes(input: {
   level1: TypeRowInput;
   level2?: TypeRowInput | null;
   typeCode: string;
+  customizable?: boolean;
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };

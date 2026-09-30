@@ -176,7 +176,7 @@ test("the type association is a real FK: deleting a carried type RESTRICTs", { s
     const s = await store();
     const ids = await seedStatuses(s);
     const unit = await seedUnit(s);
-    const t = await s.saveProductType(WS, { typeCode: "硬件", typeNo: "01", parentId: null, name: "硬件", status: "active" });
+    const t = await s.saveProductType(WS, { typeCode: "硬件", typeNo: "01", parentId: null, name: "硬件", status: "active", customizable: false });
     await s.upsertProduct(WS, { productCode: "P-HW", name: "HW", typeId: t.id, unitId: unit, statusId: ids.active! });
     assert.equal(await s.countProductsByType(WS, t.id), 1);
     await assert.rejects(() => s.removeProductType(WS, t.id), /constraint|Foreign key/i);
@@ -536,13 +536,13 @@ test("types save BY ID on the real table: a code rename is the same row, and the
   try {
     const s = await store();
     await seedStatuses(s);
-    const first = await s.saveProductType(WS, { typeCode: "平台", typeNo: "01", parentId: null, name: "平台", status: "active" });
-    const renamed = await s.saveProductType(WS, { id: first.id, typeCode: "platform", typeNo: "01", parentId: null, name: "平台产品", status: "active" });
+    const first = await s.saveProductType(WS, { typeCode: "平台", typeNo: "01", parentId: null, name: "平台", status: "active", customizable: false });
+    const renamed = await s.saveProductType(WS, { id: first.id, typeCode: "platform", typeNo: "01", parentId: null, name: "平台产品", status: "active", customizable: false });
     assert.equal(renamed.id, first.id, "a code rename must update, not duplicate");
     assert.equal(renamed.typeCode, "platform");
     assert.equal((await s.listProductTypes(WS)).length, 1);
 
-    const second = await s.saveProductType(WS, { typeCode: "服务", typeNo: "02", parentId: null, name: "服务", status: "active" });
+    const second = await s.saveProductType(WS, { typeCode: "服务", typeNo: "02", parentId: null, name: "服务", status: "active", customizable: false });
     assert.equal(second.sortOrder, first.sortOrder + 1, "a new type joins at the end");
 
     const { assertWritable } = await import("../shared/column-locks");
@@ -557,15 +557,30 @@ test("one code per category (incr/0101): several 一级类 may carry none, a rea
   try {
     const s = await store();
     await seedStatuses(s);
-    const a = await s.saveProductType(WS, { typeCode: null, typeNo: "01", parentId: null, name: "软件产品", status: "active" });
-    const b = await s.saveProductType(WS, { typeCode: null, typeNo: "02", parentId: null, name: "硬件设备", status: "active" });
+    const a = await s.saveProductType(WS, { typeCode: null, typeNo: "01", parentId: null, name: "软件产品", status: "active", customizable: false });
+    const b = await s.saveProductType(WS, { typeCode: null, typeNo: "02", parentId: null, name: "硬件设备", status: "active", customizable: false });
     assert.equal(a.typeCode, null);
     assert.equal(b.typeCode, null, "two rows with no code do not clash");
-    await s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: a.id, name: "基础软件", status: "active" });
+    await s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: a.id, name: "基础软件", status: "active", customizable: false });
     await assert.rejects(
-      () => s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: b.id, name: "重复", status: "active" }),
+      () => s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: b.id, name: "重复", status: "active", customizable: false }),
       /uidx_product_type_code|Unique constraint/i,
     );
+  } finally {
+    await cleanup();
+  }
+});
+
+test("支持定制 round-trips on the real column (incr/0102)", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await seedStatuses(s);
+    const t = await s.saveProductType(WS, { typeCode: "biz", typeNo: "01", parentId: null, name: "业务软件", status: "active", customizable: true });
+    assert.equal(t.customizable, true);
+    const off = await s.saveProductType(WS, { ...t, customizable: false });
+    assert.equal(off.customizable, false);
+    assert.equal((await s.listProductTypes(WS))[0]?.customizable, false);
   } finally {
     await cleanup();
   }
@@ -576,16 +591,16 @@ test("two levels hold in Postgres: sibling numbers unique, a third level refused
   try {
     const s = await store();
     await seedStatuses(s);
-    const sw = await s.saveProductType(WS, { typeCode: "software", typeNo: "01", parentId: null, name: "软件产品", status: "active" });
-    const basic = await s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: sw.id, name: "基础软件", status: "active" });
+    const sw = await s.saveProductType(WS, { typeCode: "software", typeNo: "01", parentId: null, name: "软件产品", status: "active", customizable: false });
+    const basic = await s.saveProductType(WS, { typeCode: "software-basic", typeNo: "01", parentId: sw.id, name: "基础软件", status: "active", customizable: false });
     assert.equal(basic.parentId, sw.id, "01 under 软件产品 is free - numbers are per level");
 
     await assert.rejects(
-      () => s.saveProductType(WS, { typeCode: "other", typeNo: "01", parentId: null, name: "重号", status: "active" }),
+      () => s.saveProductType(WS, { typeCode: "other", typeNo: "01", parentId: null, name: "重号", status: "active", customizable: false }),
       /uidx_product_type_no|Unique constraint/i,
     );
     await assert.rejects(
-      () => s.saveProductType(WS, { typeCode: "deep", typeNo: "01", parentId: basic.id, name: "三级", status: "active" }),
+      () => s.saveProductType(WS, { typeCode: "deep", typeNo: "01", parentId: basic.id, name: "三级", status: "active", customizable: false }),
       /two levels|chk_product_type_depth/i,
     );
     // A parent with children will not delete (fk_product_type_parent).

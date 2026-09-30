@@ -20,7 +20,13 @@ import { ProductTypeDialog, type ProductTypeDialogOpen } from "./product-type-di
 // NO MANUAL ORDER: the number is the order. 上移/下移 would move a row while
 // its number said something else.
 
-type TypeRow = ProductTypeRecord & { readonly code: string; readonly no: string; readonly fullName: string };
+type TypeRow = ProductTypeRecord & {
+  readonly code: string;
+  readonly no: string;
+  readonly fullName: string;
+  /** The 一级类's number for a 二级类; null for a 一级类. */
+  readonly parentNo: string | null;
+};
 
 interface TypeRowInput {
   id?: string;
@@ -35,6 +41,7 @@ export interface CatalogTypeConfigProps {
     level1: TypeRowInput;
     level2?: TypeRowInput | null;
     typeCode: string;
+    customizable?: boolean;
   }) => Promise<VocabularyResult>;
   readonly onStatus: (typeId: string, status: "active" | "retired") => Promise<VocabularyResult>;
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
@@ -59,9 +66,11 @@ export function CatalogTypeConfig({ types, products, onSave, onStatus, onDelete 
         name: label.name,
         fullName: label.name,
         no: label.no,
-        // The category's one code (incr/0101) - a row with none yet shows a
-        // dash, and its dialog is where it gets one.
-        code: t.typeCode ?? "-",
+        // The category's one code (incr/0101), shown under the name. A row
+        // with none yet repeats the name so the shared cell prints no second
+        // line (it prints the code only when it differs from the name).
+        code: t.typeCode ?? label.name,
+        parentNo: t.parentId ? (types.find((x) => x.id === t.parentId)?.typeNo ?? null) : null,
       };
     });
   const inUse = (typeId: string) => products.filter((p) => p.typeId === typeId).length;
@@ -87,13 +96,27 @@ export function CatalogTypeConfig({ types, products, onSave, onStatus, onDelete 
           colName: CATALOG_TEXT.colTypeName,
           deleteConsequence: CATALOG_TEXT.typeDeleteConsequence,
         }}
-        nameSuffix={(t) => <Tag>{t.no}</Tag>}
+        /* 编号 takes the 序号 slot (owner, 2026-09-29): the row's own number,
+           01-02, not a running count. Name above, code below, in one cell -
+           the shared default; a category with no code yet shows its name alone. */
+        leadingColumn={{
+          id: "no",
+          header: CATALOG_TEXT.typeNoLabel,
+          sortable: true,
+          cell: (t) => <span className="tabular-nums">{t.no}</span>,
+        }}
         columns={[
           {
-            id: "code",
-            header: CATALOG_TEXT.typeCodeLabel,
-            width: "md",
-            cell: (t) => <span className="text-muted-foreground whitespace-nowrap text-body-sm">{t.code}</span>,
+            id: "parent",
+            header: CATALOG_TEXT.colTypeParent,
+            width: "sm",
+            // The 一级类 this row sits under, by number; a 一级类 has none.
+            cell: (t) =>
+              t.parentNo ? (
+                <Tag>{t.parentNo}</Tag>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              ),
           },
           {
             id: "linked",
@@ -104,7 +127,7 @@ export function CatalogTypeConfig({ types, products, onSave, onStatus, onDelete 
           {
             id: "status",
             header: CATALOG_TEXT.colTypeStatus,
-            width: "lg",
+            width: "sm",
             cell: (t) =>
               t.status === "retired" ? (
                 <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag>
@@ -112,8 +135,20 @@ export function CatalogTypeConfig({ types, products, onSave, onStatus, onDelete 
                 <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>
               ),
           },
+          {
+            id: "customizable",
+            header: CATALOG_TEXT.colTypeCustomizable,
+            width: "sm",
+            // A marker only (incr/0102): nothing enforces it yet.
+            cell: (t) =>
+              t.customizable ? (
+                <Tag tone="info">{CATALOG_TEXT.typeCustomizableYes}</Tag>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              ),
+          },
         ]}
-        sortOn={{ name: (t) => t.no, linked: (t) => inUse(t.id) }}
+        sortOn={{ no: (t) => t.no, name: (t) => t.no, linked: (t) => inUse(t.id) }}
         extraActions={(t, run) => [
           {
             id: "toggle",
