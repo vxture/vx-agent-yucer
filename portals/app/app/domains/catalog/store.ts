@@ -43,6 +43,8 @@ export interface ProductTypeRecord {
   name: string;
   sortOrder: number;
   status: "active" | "retired";
+  /** 支持定制 (incr/0102) - a marker on the category row; nothing enforces it yet. */
+  customizable: boolean;
 }
 
 /** What a save writes. With `id`: update that row; without: a new one. */

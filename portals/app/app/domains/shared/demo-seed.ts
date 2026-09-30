@@ -2019,6 +2019,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     name: d.name,
     sortOrder: i + 1,
     status: "active" as const,
+    customizable: false,
   }));
   // Two levels (incr/0100) - DEMO_SUB_TYPES says why.
   DEMO_SUB_TYPES.forEach((sub, i) =>
@@ -2031,6 +2032,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       name: sub.name,
       sortOrder: types.length + 1,
       status: "active",
+      customizable: sub.customizable,
     }),
   );
   // The association is by UUID (incr/0029) - the fixtures name types by their

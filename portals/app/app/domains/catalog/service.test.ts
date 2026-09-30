@@ -40,8 +40,8 @@ function seeded(): InMemoryCatalogStore {
       { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", typeId: null, unitId: "u_seat", statusId: "stx", sortOrder: 1 },
     ],
     types: [
-      { id: "t_sw", workspaceId: WS, typeCode: "software", typeNo: "01", parentId: null, name: "software", sortOrder: 1, status: "active" },
-      { id: "t_svc", workspaceId: WS, typeCode: "service", typeNo: "02", parentId: null, name: "service", sortOrder: 2, status: "active" },
+      { id: "t_sw", workspaceId: WS, typeCode: "software", typeNo: "01", parentId: null, name: "software", sortOrder: 1, status: "active", customizable: false },
+      { id: "t_svc", workspaceId: WS, typeCode: "service", typeNo: "02", parentId: null, name: "service", sortOrder: 2, status: "active", customizable: false },
     ],
     units: [
       { id: "u_day", workspaceId: WS, unitCode: "day", name: "day", sortOrder: 1 },
@@ -238,8 +238,8 @@ function lifecycleStore(): InMemoryCatalogStore {
       { id: "st_retired", workspaceId: WS, statusCode: "retired", name: "已退役", description: null, sortOrder: 3 },
     ],
     types: [
-      { id: "t1", workspaceId: WS, typeCode: "平台", typeNo: "01", parentId: null, name: "平台", sortOrder: 1, status: "active" },
-      { id: "t2", workspaceId: WS, typeCode: "服务", typeNo: "02", parentId: null, name: "服务", sortOrder: 2, status: "active" },
+      { id: "t1", workspaceId: WS, typeCode: "平台", typeNo: "01", parentId: null, name: "平台", sortOrder: 1, status: "active", customizable: false },
+      { id: "t2", workspaceId: WS, typeCode: "服务", typeNo: "02", parentId: null, name: "服务", sortOrder: 2, status: "active", customizable: false },
     ],
     items: [{ id: "i1", workspaceId: WS, solutionId: "s1", productId: "p1", quantity: 1, optional: false, note: null }],
   });
@@ -322,6 +322,23 @@ test("ONE code per category (incr/0101): it lands on the 二级类; a new 一级
 
   const blocked = await removeProductType(c, { typeId: r.level1.id });
   assert.equal(!blocked.ok && blocked.violations[0]!.code, "type_has_children");
+});
+
+test("支持定制 (incr/0102) sits on the category row, like the code", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const r = unwrap(
+    await saveProductTypes(c, {
+      level1: { typeNo: "05", name: "软件产品" },
+      level2: { typeNo: "02", name: "业务软件" },
+      typeCode: "software-business",
+      customizable: true,
+    }),
+  );
+  assert.equal(r.level2?.customizable, true, "the 二级类 is the category");
+  assert.equal(r.level1.customizable, false, "the new 一级类 does not inherit it");
+  const alone = unwrap(await saveProductTypes(c, { level1: { typeNo: "06", name: "咨询" }, typeCode: "consult", customizable: true }));
+  assert.equal(alone.level1.customizable, true, "no 二级类: the 一级类 is the category");
 });
 
 test("a category needs its code; a taken code refuses and writes NOTHING", async () => {

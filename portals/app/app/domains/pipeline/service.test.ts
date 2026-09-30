@@ -979,7 +979,18 @@ test("disagreements sort above agreements", async () => {
     // Created just now: with no journal row it has been at its stage since
     // creation (enteredStageAt), and the fixture's 2026-01-01 would make it
     // stalled - a second disagreement, not the one this test is about.
-    opp({ id: "opp_agrees", stage: "negotiate", probability: 90, forecastCategory: "commit", createdAt: new Date() }),
+    // Its close date is pinned a month AHEAD of now for the same reason: the
+    // shared fixture's fixed 2026-09-30 went into the past on that day, made
+    // this row overdue - a second disagreement - and failed the test from
+    // then on without a line of product code changing.
+    opp({
+      id: "opp_agrees",
+      stage: "negotiate",
+      probability: 90,
+      forecastCategory: "commit",
+      createdAt: new Date(),
+      expectedCloseAt: new Date(Date.now() + 30 * 86_400_000),
+    }),
     // No close date caps it at pipeline while the rep has it at commit.
     opp({
       id: "opp_disagrees",

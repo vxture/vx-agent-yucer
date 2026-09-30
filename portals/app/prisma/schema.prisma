@@ -1582,6 +1582,8 @@ model ProductType {
   name        String   @db.VarChar(64)
   sortOrder   Int      @default(0) @map("sort_order")
   status      String   @default("active") @db.VarChar(16)
+  /// 支持定制 - a marker only (incr/0102), on the category row.
+  customizable Boolean @default(false)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 

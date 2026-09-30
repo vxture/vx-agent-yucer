@@ -322,7 +322,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_core.market_division_member": ["division_id", "updated_at"],
   // type_code, type_no and parent_id joined in incr/0100 (two levels; the code
   // is editable now that products reference the type by id).
-  "yucer_catalog.product_type": ["type_code", "type_no", "parent_id", "name", "sort_order", "status", "updated_at"],
+  // customizable joined in incr/0102 (支持定制, a marker).
+  "yucer_catalog.product_type": ["type_code", "type_no", "parent_id", "name", "sort_order", "status", "customizable", "updated_at"],
   // 0029. status_code is the anchor; the rest of the row - name, 状态描述,
   // order - is the workspace's to edit.
   "yucer_catalog.product_status": ["name", "description", "sort_order", "updated_at"],

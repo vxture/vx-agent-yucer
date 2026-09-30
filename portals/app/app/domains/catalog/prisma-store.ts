@@ -296,6 +296,7 @@ export class PrismaCatalogStore implements CatalogStore {
       parentId: input.parentId,
       name: input.name,
       status: input.status,
+      customizable: input.customizable,
       updatedAt: new Date(),
     };
     const guard = assertWritable(PRODUCT_TYPE_TABLE, update);
@@ -330,6 +331,7 @@ export class PrismaCatalogStore implements CatalogStore {
     name: string;
     sortOrder: number;
     status: string;
+    customizable: boolean;
   }): ProductTypeRecord {
     return {
       id: r.id,
@@ -340,6 +342,7 @@ export class PrismaCatalogStore implements CatalogStore {
       name: r.name,
       sortOrder: r.sortOrder,
       status: r.status as ProductTypeRecord["status"],
+      customizable: r.customizable,
     };
   }
 
