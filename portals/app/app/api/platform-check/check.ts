@@ -9,7 +9,11 @@ import { getUsageStore } from "../../usage/lib/store";
 import { verifySignature, webhookSecrets } from "../../provisioning/lib/verify";
 import { getProvisioningStore } from "../../provisioning/lib/store";
 import { getS2SConfig, mintS2SToken } from "../../platform/s2s";
-import { AtlasClient, getAtlasConfig } from "../../agent/atlas/client";
+import { AtlasClient, getAtlasConfig, type AtlasContext } from "../../agent/atlas/client";
+import { endpointFor } from "../../agent/atlas/endpoints";
+import { profileSettings, type CallProfile } from "../../agent/atlas/profiles";
+import { parseRouteCatalog } from "../../agent/atlas/routes";
+import { ATLAS_CONTRACT_FINGERPRINT, contractDrift } from "../../agent/atlas/contract";
 import { ATLAS_TASK_ID_MAX } from "../../agent/atlas/types";
 import { RunosClient, getRunosConfig } from "../../agent/runos/client";
 import { getArdaConfig } from "../../platform/arda/source";
@@ -349,14 +353,56 @@ async function liveTokenMint(id: LiveIdentity): Promise<ProbeResult> {
 async function liveAtlas(id: LiveIdentity): Promise<ProbeResult> {
   const cfg = getAtlasConfig();
   if (!cfg.enabled) return notConfigured("ATLAS_BASE_URL");
+  const client = new AtlasClient(cfg);
+  const ctx = (tag: string) => ({ ...id, taskId: `diag-${tag}-${Date.now()}`, applicationId: randomUUID(), requestId: `diag-${tag}-${Date.now()}` });
+  let models: string;
   try {
-    const models = (await new AtlasClient(cfg).models({ ...id, taskId: `diag-models-${Date.now()}`, applicationId: randomUUID(), requestId: `diag-models-${Date.now()}` })) as
-      | { data?: unknown[]; models?: unknown[] }
-      | unknown[];
-    const n = Array.isArray(models) ? models.length : (models.data ?? models.models ?? []).length;
-    return { configured: true, ok: true, detail: `Atlas at ${cfg.baseUrl}: authenticated GET /v1/models answered 200 - ${n} model(s) visible to yucer` };
+    const list = (await client.models(ctx("models"))) as { data?: unknown[]; models?: unknown[] } | unknown[];
+    const n = Array.isArray(list) ? list.length : (list.data ?? list.models ?? []).length;
+    models = `authenticated GET /v1/models answered 200 - ${n} model(s) visible to yucer`;
   } catch (err) {
     return { configured: true, ok: false, detail: `Atlas at ${cfg.baseUrl}: authenticated GET /v1/models failed - ${describe(err)}` };
+  }
+  // The two reads batch 2 added (2026-09-30): the routes each call profile
+  // uses, with what they can take, and whether the contract moved under us.
+  const [routes, contract] = await Promise.all([routesLine(client, ctx("routes")), contractLine(client, ctx("contract"))]);
+  return { configured: true, ok: routes.ok && contract.ok, detail: `Atlas at ${cfg.baseUrl}: ${models}; ${routes.text}; ${contract.text}` };
+}
+
+/** The profiles that serve members today; triage has no caller yet. */
+const PROFILES_IN_USE: readonly CallProfile[] = ["dialogue", "judgement", "drafting"];
+
+async function routesLine(client: AtlasClient, ctx: AtlasContext): Promise<{ ok: boolean; text: string }> {
+  try {
+    const catalog = parseRouteCatalog(await client.modelRoutes(ctx));
+    let ok = true;
+    const parts = PROFILES_IN_USE.map((p) => {
+      const code = endpointFor(profileSettings(p).task);
+      const r = catalog.routes.get(code);
+      if (!r || r.state !== "active") {
+        ok = false;
+        return `${p} -> ${code}: ${r ? r.state : "not granted"}`;
+      }
+      const modes = r.thinkingModes ? r.thinkingModes.join("/") : "?";
+      return `${p} -> ${code}: window ${r.contextWindow ?? "?"}, output ${r.maxOutputTokens ?? "?"}, thinking ${modes}`;
+    });
+    return { ok, text: `routes: ${parts.join("; ")}` };
+  } catch (err) {
+    return { ok: false, text: `GET /v1/model-routes failed - ${describe(err)}` };
+  }
+}
+
+async function contractLine(client: AtlasClient, ctx: AtlasContext): Promise<{ ok: boolean; text: string }> {
+  try {
+    const drift = contractDrift(await client.contract(ctx));
+    if (drift.kind === "same") return { ok: true, text: `contract ${ATLAS_CONTRACT_FINGERPRINT} (as pinned)` };
+    if (drift.kind === "unreadable") return { ok: false, text: "contract answered without a fingerprint" };
+    return {
+      ok: false,
+      text: `contract MOVED: pinned ${ATLAS_CONTRACT_FINGERPRINT}, live ${drift.live} - review requests/errorCodes, then move the pin (agent/atlas/contract.ts)`,
+    };
+  } catch (err) {
+    return { ok: false, text: `GET /.well-known/vxture-contract failed - ${describe(err)}` };
   }
 }
 

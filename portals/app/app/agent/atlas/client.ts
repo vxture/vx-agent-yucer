@@ -2,6 +2,7 @@ import { mintS2SToken, type FetchLike } from "../../platform/s2s";
 import { AtlasError, parseAtlasError, streamFrameError, type RetryPolicy } from "./errors";
 import { endpointFor } from "./endpoints";
 import { LOCAL_DEADLINE_MARGIN_MS, profileSettings, type CallProfile } from "./profiles";
+import { cachedRouteCatalog, fitToRoute, type RouteCapacity } from "./routes";
 import type { ChatRequest, ChatResponse, StreamFrame } from "./types";
 
 /** Env reader shape. Matches lib/status.ts rather than NodeJS.ProcessEnv:
@@ -21,6 +22,12 @@ export interface AtlasConfig {
   timeoutMs: number;
   maxRetries: number;
   enabled: boolean;
+  /**
+   * Consult GET /v1/model-routes before calls (routes.ts). On for the real
+   * configuration; absent in a hand-built config, so a test's scripted
+   * responses are not consumed by a catalog read it did not ask for.
+   */
+  routeCatalog?: boolean;
 }
 
 export interface AtlasContext {
@@ -61,6 +68,7 @@ export function getAtlasConfig(env: EnvLike = process.env): AtlasConfig {
     timeoutMs: Number(env.ATLAS_TIMEOUT_MS ?? 60_000),
     maxRetries: Number(env.ATLAS_MAX_RETRIES ?? 2),
     enabled: Boolean(baseUrl),
+    routeCatalog: true,
   };
 }
 
@@ -96,7 +104,8 @@ export class AtlasClient {
    * the per-call parameters (profiles.ts); anything in `req` overrides it.
    */
   async chat(profile: CallProfile, req: Omit<ChatRequest, "stream" | "taskId">, ctx: AtlasContext): Promise<ChatResponse> {
-    const body = this.body(profile, req, ctx, false);
+    const draft = this.body(profile, req, ctx, false);
+    const body = fitToRoute(draft, await this.routeOf(draft.endpointCode, ctx));
     try {
       return await this.chatOnce(body, ctx);
     } catch (e) {
@@ -139,7 +148,9 @@ export class AtlasClient {
     req: Omit<ChatRequest, "stream" | "taskId">,
     ctx: AtlasContext,
   ): AsyncGenerator<StreamFrame, void, void> {
-    const { res, controller } = await this.postStreaming("/v1/chat", this.body(profile, req, ctx, true), ctx);
+    const draft = this.body(profile, req, ctx, true);
+    const body = fitToRoute(draft, await this.routeOf(draft.endpointCode, ctx));
+    const { res, controller } = await this.postStreaming("/v1/chat", body, ctx);
     if (!res.ok) {
       // READ THEN ABORT, in that order. Aborting first errors the body, json()
       // swallows that into null, and parseAtlasError falls through to its
@@ -185,6 +196,41 @@ export class AtlasClient {
     const { res, json } = await this.requestJson("GET", "/v1/models", undefined, ctx);
     if (!res.ok) throw parseAtlasError(res.status, json);
     return json;
+  }
+
+  /**
+   * The routes this product holds and what each can take (Atlas v0.7.7).
+   * Product identity comes from the token's act.sub, never a parameter.
+   */
+  async modelRoutes(ctx: AtlasContext): Promise<unknown> {
+    const { res, json } = await this.requestJson("GET", "/v1/model-routes", undefined, ctx);
+    if (!res.ok) throw parseAtlasError(res.status, json);
+    return json;
+  }
+
+  /**
+   * The contract this instance ENFORCES - required fields per face and the
+   * error vocabulary, with a content-derived fingerprint (Atlas v0.5.0).
+   */
+  async contract(ctx: AtlasContext): Promise<unknown> {
+    const { res, json } = await this.requestJson("GET", "/.well-known/vxture-contract", undefined, ctx);
+    if (!res.ok) throw parseAtlasError(res.status, json);
+    return json;
+  }
+
+  /**
+   * What the route behind this profile can take, from the cached catalog.
+   * Null when the catalog is unreadable or does not list the route - the
+   * caller then proceeds exactly as it did before the catalog existed.
+   */
+  async routeFor(profile: CallProfile, ctx: AtlasContext): Promise<RouteCapacity | null> {
+    return this.routeOf(endpointFor(profileSettings(profile).task), ctx);
+  }
+
+  private async routeOf(endpointCode: string | undefined, ctx: AtlasContext): Promise<RouteCapacity | null> {
+    if (!endpointCode || !this.cfg.enabled || !this.cfg.routeCatalog) return null;
+    const catalog = await cachedRouteCatalog(this.cfg.baseUrl, () => this.modelRoutes(ctx));
+    return catalog?.routes.get(endpointCode) ?? null;
   }
 
   /** Entitlement as Atlas sees it, scoped by the token rather than by a param. */

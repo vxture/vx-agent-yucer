@@ -1,9 +1,10 @@
 import type { AtlasClient, AtlasContext } from "../atlas/client";
 import type { ChatMessage, ToolCall } from "../atlas/types";
-import type { CallProfile } from "../atlas/profiles";
+import { profileSettings, type CallProfile } from "../atlas/profiles";
+import { AtlasError } from "../atlas/errors";
 import type { RunosClient, RunosContext } from "../runos/client";
 import { RunosError } from "../runos/errors";
-import { buildTurnMessages, type PromptContext } from "./prompt";
+import { buildTurnMessages, estimateMessages, estimateTokens, fitTurnToWindow, type PromptContext } from "./prompt";
 import {
   PROPOSE_ACTION_TOOL_NAME,
   buildToolSurface,
@@ -94,11 +95,14 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   const profile: CallProfile = input.profile ?? "dialogue";
   const surface = await discoverTools(input, deps);
 
-  const messages: ChatMessage[] = buildTurnMessages(
-    input.prompt,
-    input.history ?? [],
-    input.question,
-  );
+  // Fitted to the route's context window when the catalog knows it; sent as
+  // built when it does not (the behaviour before the catalog existed).
+  const window = await contextBudget(profile, surface, input, deps);
+  const fitted = window === null
+    ? { ctx: input.prompt, history: [...(input.history ?? [])] }
+    : fitTurnToWindow(input.prompt, input.history ?? [], input.question, window);
+  let messages: ChatMessage[] = buildTurnMessages(fitted.ctx, fitted.history, input.question);
+  let refitted = false;
 
   const proposals: ProposalDraft[] = [];
   const invocations: ToolInvocation[] = [];
@@ -115,11 +119,26 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   let totalTokens = 0;
 
   for (;;) {
-    const res = await deps.atlasClient.chat(
-      profile,
-      { messages, tools: surface.definitions, toolChoice: "auto" },
-      input.atlas,
-    );
+    let res;
+    try {
+      res = await deps.atlasClient.chat(
+        profile,
+        { messages, tools: surface.definitions, toolChoice: "auto" },
+        input.atlas,
+      );
+    } catch (e) {
+      // The window was unknown, or the estimate low. Before any tool round,
+      // cut the turn to half its size once and ask again; the member gets an
+      // answer on less evidence (declared in the prompt) instead of an error.
+      if (!refitted && rounds === 0 && e instanceof AtlasError && e.code === "CONTEXT_LENGTH_EXCEEDED") {
+        refitted = true;
+        const half = Math.floor(estimateMessages(messages) / 2);
+        const again = fitTurnToWindow(fitted.ctx, fitted.history, input.question, half);
+        messages = buildTurnMessages(again.ctx, again.history, input.question);
+        continue;
+      }
+      throw e;
+    }
     totalTokens += res.usage.totalTokens;
 
     const reply = res.message;
@@ -314,4 +333,21 @@ function textOf(content: Array<{ type: string; text?: string }>): string {
     .filter((c) => c.type === "text" && c.text)
     .map((c) => c.text)
     .join("\n");
+}
+
+/** Headroom kept off the window: the token estimate is an estimate. */
+const WINDOW_SLACK = 0.1;
+
+/** Prompt tokens a turn may use on this route, or null when the window is unknown. */
+async function contextBudget(
+  profile: CallProfile,
+  surface: ToolSurface,
+  input: TurnInput,
+  deps: TurnDeps,
+): Promise<number | null> {
+  const route = await deps.atlasClient.routeFor?.(profile, input.atlas).catch(() => null);
+  if (!route?.contextWindow) return null;
+  const output = Math.min(profileSettings(profile).maxTokens, route.maxOutputTokens ?? Infinity);
+  const tools = estimateTokens(JSON.stringify(surface.definitions));
+  return Math.floor(route.contextWindow * (1 - WINDOW_SLACK)) - output - tools;
 }
