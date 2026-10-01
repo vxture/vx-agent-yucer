@@ -59,3 +59,13 @@ export function endpointMap(env: EnvLike = process.env): Record<CopilotTask, str
     summarize: endpointFor("summarize", env),
   };
 }
+
+/**
+ * The rerank route (Atlas A3). Not a CopilotTask: it orders text, it does not
+ * write any. `rerank/quality` is the heavier route held beside it; the default
+ * is the cheaper, which is what ordering notes needs.
+ */
+export function rerankEndpoint(env: EnvLike = process.env): string {
+  const override = env.ATLAS_ENDPOINT_RERANK;
+  return override && override.trim() ? override.trim() : "rerank/default";
+}

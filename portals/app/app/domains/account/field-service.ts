@@ -375,7 +375,7 @@ export async function evidenceForPrompt(
   ctx: FieldContext,
   accountId: string,
   accountName: string,
-  options: { now?: Date; maxNotes?: number; opportunityId?: string } = {},
+  options: { now?: Date; maxNotes?: number; opportunityId?: string; pool?: number } = {},
 ): Promise<RuleResult<EvidenceGrounding>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
@@ -392,9 +392,15 @@ export async function evidenceForPrompt(
     ctx.store.lastContactAt(ctx.workspaceId, accountId),
   ]);
 
-  const notes = all.slice(0, maxNotes);
+  // `pool` > maxNotes hands the turn MORE candidates than will be shown (newest
+  // first), with `keep` saying how many to show, so it can choose by relevance
+  // to the question. Without it - and wherever nothing chooses - the newest
+  // maxNotes show, as before.
+  const pool = Math.max(maxNotes, options.pool ?? maxNotes);
+  const notes = all.slice(0, pool);
   return ok({
     accountName,
+    keep: maxNotes,
     notes: notes.map((n) => ({
       id: n.id,
       channel: n.channel,

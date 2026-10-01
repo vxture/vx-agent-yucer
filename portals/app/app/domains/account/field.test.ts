@@ -10,6 +10,7 @@ import {
   closeCommitment,
   contactRecencyPolicy,
   createCommitment,
+  evidenceForPrompt,
   listCommitments,
   recordInteraction,
   relationshipEvidence,
@@ -566,4 +567,39 @@ test("chainRecency resolves the workspace's own chainWarmDays, not the shipped o
   // read at all - a viewer holds account.view but not admin.manage.
   const asViewer = await chainRecency(ctx("viewer", "enterprise", store), ACC, contacts, [], { now: NOW });
   assert.equal(asViewer.ok, true);
+});
+
+// --- The candidate pool for choosing which notes show (rerank) --------------------
+
+async function noted(c: FieldContext, n: number) {
+  for (let i = 0; i < n; i++) {
+    unwrap(await recordInteraction(c, { accountId: ACC, channel: "visit", occurredAt: days(-i), rawNote: `note ${i}` }));
+  }
+}
+
+test("evidence shows the newest maxNotes, as it always did - a pool is opt-in", async () => {
+  const c = ctx("sales_rep", "pro");
+  await noted(c, 20);
+  const e = unwrap(await evidenceForPrompt(c, ACC, "Acme", { now: NOW, maxNotes: 12 }));
+  assert.equal(e.notes.length, 12);
+  assert.equal(e.keep, 12);
+  assert.equal(e.omittedNotes, 8);
+  assert.deepEqual(e.notes.map((n) => n.rawNote).slice(0, 2), ["note 0", "note 1"], "newest first");
+});
+
+test("a pool hands the turn more candidates than will show, and says how many show", async () => {
+  const c = ctx("sales_rep", "pro");
+  await noted(c, 20);
+  const e = unwrap(await evidenceForPrompt(c, ACC, "Acme", { now: NOW, maxNotes: 12, pool: 100 }));
+  assert.equal(e.notes.length, 20, "every note is a candidate");
+  assert.equal(e.keep, 12, "only twelve are to be shown");
+  assert.equal(e.omittedNotes, 0, "none is omitted yet - the turn omits what it does not pick");
+});
+
+test("a pool never exceeds what exists, and is never smaller than maxNotes", async () => {
+  const c = ctx("sales_rep", "pro");
+  await noted(c, 5);
+  assert.equal(unwrap(await evidenceForPrompt(c, ACC, "Acme", { now: NOW, maxNotes: 12, pool: 100 })).notes.length, 5);
+  await noted(c, 15);
+  assert.equal(unwrap(await evidenceForPrompt(c, ACC, "Acme", { now: NOW, maxNotes: 12, pool: 3 })).notes.length, 12);
 });
