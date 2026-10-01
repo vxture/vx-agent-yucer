@@ -4,7 +4,8 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { InMemoryCopilotStore } from "./store";
-import { runCopilotTurn, type TurnDeps } from "./turn-service";
+import { profileForTurn, runCopilotTurn, type TurnDeps } from "./turn-service";
+import { CAPABILITIES, CAPABILITY_SPEC } from "./lib/capability";
 import type { CopilotContext } from "./service";
 import type { AtlasClient } from "../../agent/atlas/client";
 import { AtlasError } from "../../agent/atlas/errors";
@@ -439,4 +440,35 @@ test("预演 framing (11c): the model reads the frame, the history keeps only th
   assert.equal(messages.find((m) => m.role === "user")?.content, "如果对方说价格太高？");
   assert.ok(out.session.title?.startsWith("[rehearsal] "));
   assert.equal(out.proposals.length, 0);
+});
+
+// --- Which call profile a turn runs on (owner, 2026-09-30: four advisors reason) -----
+
+test("every capability, asked for as an advisor run, gets exactly the profile its spec names", () => {
+  // The four that reason (deal.price / deal.next_action / deal.plan /
+  // account.consistency) arrive through here: a turn that loses its advisorRun
+  // falls back to "dialogue" - thinking off - and nothing would say so.
+  for (const cap of CAPABILITIES) {
+    assert.equal(profileForTurn({ advisorRun: { featureId: cap, runId: "r" } }), CAPABILITY_SPEC[cap].profile, cap);
+  }
+});
+
+test("a plain turn is dialogue; an explicit profile wins; an unknown capability key falls back to dialogue", () => {
+  assert.equal(profileForTurn({}), "dialogue");
+  assert.equal(profileForTurn({ profile: "drafting" }), "drafting");
+  assert.equal(profileForTurn({ profile: "drafting", advisorRun: { featureId: "deal.price", runId: "r" } }), "drafting", "explicit beats the capability's");
+  assert.equal(profileForTurn({ advisorRun: { featureId: "copilot.chat", runId: "r" } }), "dialogue", "a feature id that is not a capability key");
+});
+
+test("the profile reaches the model client: judgement for deal.price, drafting for the brief, dialogue for chat", async () => {
+  setAuditStore(new InMemoryAuditStore());
+  const run = async (input: Record<string, unknown>) => {
+    const h = deps({ replies: [{ content: "ok" }] });
+    unwrap(await runCopilotTurn(ctx("sales_leader", "enterprise"), { question: "q", tenantId: TENANT, ...input } as never, h.d));
+    return h.calls.map((c) => c.task);
+  };
+  assert.deepEqual(await run({ advisorRun: { featureId: "deal.price", runId: "run-1" } }), ["judgement"]);
+  assert.deepEqual(await run({ advisorRun: { featureId: "forecast.brief", runId: "run-2" } }), ["drafting"]);
+  assert.deepEqual(await run({}), ["dialogue"]);
+  assert.deepEqual(await run({ profile: "drafting" }), ["drafting"]);
 });
