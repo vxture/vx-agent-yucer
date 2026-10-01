@@ -27,7 +27,7 @@ import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
 import { cachedFeed } from "../lib/board";
-import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
+import { offeredPeriods, resolvePeriod } from "../lib/periods";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
@@ -127,7 +127,7 @@ export default async function PipelinePage({
   //
   // A won deal belongs to the period it closed in, an open one to the period it
   // is expected to close in; `inPeriod` holds that rule. `resolvePeriod` only
-  // ever returns a label from `PERIODS`, so the null branch is unreachable here
+  // ever returns a label the control offers, so the null branch is unreachable here
   // - it is written as a fallback to the unfiltered list rather than a throw,
   // because a page that cannot filter should still render the deals.
   const window = inPeriod(result.value, period);
@@ -287,8 +287,8 @@ export default async function PipelinePage({
         filter={
           <PeriodTabs
             value={period}
-            periods={PERIODS}
-            yearLabel={PERIOD_YEAR}
+            periods={offeredPeriods().quarters}
+            yearLabel={offeredPeriods().year}
           />
         }
       />

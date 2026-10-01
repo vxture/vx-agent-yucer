@@ -117,7 +117,7 @@ import {
 import { TheatrePlan, type PlanReview } from "../../components/theatre-plan";
 import { AccountHeaderMenu } from "../../components/account-header-menu";
 import { AccountEditDrawers, AccountEditProvider } from "../../components/account-edit-context";
-import { DEFAULT_PERIOD } from "../../lib/periods";
+import { defaultPeriod } from "../../lib/periods";
 import {
   designateAccountTier,
   linkAccountContacts,
@@ -1342,7 +1342,7 @@ export default async function AccountDetailPage({
               tier={{
                 accountId: id,
                 tier: detail.value.account.tier,
-                period: DEFAULT_PERIOD,
+                period: defaultPeriod(),
                 onDesignate: designateAccountTier,
               }}
               basics={{
