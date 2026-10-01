@@ -11,7 +11,7 @@
 // its `requests` and `errorCodes` with this client (types.ts, errors.ts,
 // model-plane-error.ts), change what needs changing, then move the pin.
 
-/** Checked 2026-09-30 against Atlas v0.7.11. */
+/** Checked 2026-09-30 against Atlas v0.7.11; unchanged through v0.7.18 (2026-10-01). */
 export const ATLAS_CONTRACT_FINGERPRINT = "c1-5f484ea774f6";
 
 export function contractFingerprint(json: unknown): string | null {

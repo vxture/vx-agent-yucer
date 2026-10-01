@@ -290,3 +290,79 @@ test("the Atlas probe reports rerank as found: route codes, the tool's input sch
     net.restore();
   }
 });
+
+// --- Atlas's version floor (behaviour the contract fingerprint cannot see) ----------
+
+function liveAtlasStub(version: unknown) {
+  return stubFetch((url) =>
+    url.endsWith("/oidc/token")
+      ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
+      : url.endsWith("/healthz")
+        ? { status: 200, body: { service: "atlas", version, status: "ok" } }
+        : url.endsWith("/v1/models")
+          ? { status: 200, body: { data: [] } }
+          : url.endsWith("/v1/model-routes")
+            ? { status: 200, body: ROUTES }
+            : url.endsWith("/.well-known/vxture-contract")
+              ? { status: 200, body: { fingerprint: ATLAS_CONTRACT_FINGERPRINT } }
+              : { status: 404, body: {} },
+  );
+}
+
+async function atlasCheck(version: unknown) {
+  bare();
+  resetS2SCache();
+  process.env.OIDC_CLIENT_SECRET = "s";
+  process.env.ATLAS_BASE_URL = "http://atlas.test:3100";
+  process.env.RUNOS_BASE_URL = "http://runos.test:3120";
+  const net = liveAtlasStub(version);
+  try {
+    return (await runPlatformCheck("ws_live", LIVE)).planes.atlas;
+  } finally {
+    net.restore();
+  }
+}
+
+test("an Atlas below the floor fails its line and says why - the fingerprint alone would have passed it", async () => {
+  // v0.7.11 had the same contract fingerprint as today and the 30 s non-streaming cap.
+  const atlas = await atlasCheck("0.7.11");
+  assert.equal(atlas.ok, false);
+  assert.match(atlas.detail, /version 0\.7\.11 is BELOW the floor 0\.7\.18/);
+  assert.match(atlas.detail, /30 s/);
+  assert.match(atlas.detail, /contract c1-5f484ea774f6 \(as pinned\)/, "the contract was fine - that is the point");
+});
+
+test("the floor and anything above it pass", async () => {
+  for (const v of ["0.7.18", "v0.7.19", "0.8.0"]) {
+    const atlas = await atlasCheck(v);
+    assert.equal(atlas.ok, true, v);
+    assert.match(atlas.detail, /version \d+\.\d+\.\d+ \(floor 0\.7\.18\)/);
+  }
+});
+
+test("a version Atlas does not report is noted and not failed", async () => {
+  const atlas = await atlasCheck(undefined);
+  assert.equal(atlas.ok, true);
+  assert.match(atlas.detail, /version: not readable from \/healthz/);
+});
+
+test("the Atlas probe prints the usage subsets as numbers, or as not reported - never as 0", async () => {
+  bare();
+  resetS2SCache();
+  process.env.OIDC_CLIENT_SECRET = "s";
+  process.env.ATLAS_BASE_URL = "http://atlas.test:3100";
+  const net = stubFetch((url) =>
+    url.endsWith("/oidc/token")
+      ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
+      : url.endsWith("/v1/chat")
+        ? { status: 200, body: { id: "c", modelCode: "m1", message: { role: "assistant", content: "pong" }, usage: { promptTokens: 40, completionTokens: 8, totalTokens: 48, cachedInputTokens: 32 }, latencyMs: 5 } }
+        : { status: 404, body: {} },
+  );
+  try {
+    const { runAtlasProbe } = await import("./check");
+    const r = await runAtlasProbe("ws_live", "org_live");
+    assert.match(r.detail, /of which: cached 32, cache-written not reported, reasoning not reported/);
+  } finally {
+    net.restore();
+  }
+});
