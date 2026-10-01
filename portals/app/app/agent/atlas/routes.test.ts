@@ -75,3 +75,45 @@ test("a chat consults the catalog and sends what the route accepts", async () =>
   assert.equal((await client.routeFor("dialogue", ctx))?.contextWindow, 64000);
   resetRouteCatalogCache();
 });
+
+// --- rerank (A3) ---------------------------------------------------------------
+
+test("rerank sends { id, text } candidates with workspaceId in the body, and reads { scores }", async () => {
+  const sent: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const client = new AtlasClient(
+    { baseUrl: "http://atlas.rerank", timeoutMs: 5000, maxRetries: 0, enabled: true },
+    {
+      fetchImpl: async (url, init) => {
+        sent.push({ url, body: JSON.parse(String(init.body)) });
+        // The shape read off a live call, 2026-09-30.
+        return new Response(JSON.stringify({ modelCode: "rerank", scores: [{ id: "a", score: 1 }, { id: "b", score: 0.99709916 }] }), { status: 200 });
+      },
+      mintToken: async (req) => ({ accessToken: "t", expiresAt: 0, audience: req.audience, mode: req.mode }),
+    },
+  );
+  const scores = await client.rerank(
+    "budget",
+    [{ id: "a", text: "The customer confirmed the budget." }, { id: "b", text: "Lunch." }],
+    { workspaceId: "ws1", tenantId: "t1", taskId: "task-1", applicationId: "app-1" },
+  );
+  assert.deepEqual([...scores], [["a", 1], ["b", 0.99709916]]);
+  assert.equal(new URL(sent[0]!.url).pathname, "/v1/rerank");
+  assert.equal(sent[0]!.body.endpointCode, "rerank/default");
+  assert.equal(sent[0]!.body.workspaceId, "ws1");
+  assert.equal(sent[0]!.body.taskId, "task-1");
+  assert.deepEqual(sent[0]!.body.candidates, [{ id: "a", text: "The customer confirmed the budget." }, { id: "b", text: "Lunch." }]);
+});
+
+test("rerank throws on a refusal and on an answer it cannot read - the caller decides what to do", async () => {
+  const make = (status: number, body: unknown) =>
+    new AtlasClient(
+      { baseUrl: "http://atlas.rerank", timeoutMs: 5000, maxRetries: 0, enabled: true },
+      {
+        fetchImpl: async () => new Response(JSON.stringify(body), { status }),
+        mintToken: async (req) => ({ accessToken: "t", expiresAt: 0, audience: req.audience, mode: req.mode }),
+      },
+    );
+  const ctx = { workspaceId: "w", tenantId: "t", taskId: "k" };
+  await assert.rejects(() => make(400, { code: "RERANK_CANDIDATES_INVALID", message: "x", retryable: false }).rerank("q", [], ctx), /RERANK_CANDIDATES_INVALID|x/);
+  await assert.rejects(() => make(200, { results: [] }).rerank("q", [], ctx), (e: unknown) => (e as { code?: string }).code === "RERANK_UNREADABLE");
+});

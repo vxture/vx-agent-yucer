@@ -9,6 +9,7 @@ import { evidenceForPrompt } from "../../domains/account/field-service";
 import type { EvidenceGrounding } from "../../agent/orchestrator/prompt";
 import { runCopilotTurn } from "../../domains/copilot/turn-service";
 import { getOpportunityDetail } from "../../domains/pipeline/service";
+import { RERANK_MAX_CANDIDATES } from "../../agent/atlas/rerank";
 import { rehearsalFrame } from "../../domains/copilot/lib/rehearsal";
 import { resolveAppSession, tenantIdOf } from "../lib/session";
 import type { TurnOutcome } from "../components/copilot-chat";
@@ -74,7 +75,7 @@ export async function askCopilot(
         { ...base, store: getFieldStore() },
         deal.value.accountId,
         account.ok ? account.value.account.name : deal.value.name,
-        { opportunityId: deal.value.id },
+        { opportunityId: deal.value.id, pool: RERANK_MAX_CANDIDATES },
       );
       if (built.ok) evidence = built.value;
       if (anchor.rehearsal) framing = rehearsalFrame(deal.value.name);
@@ -94,6 +95,7 @@ export async function askCopilot(
         { ...accountCtx, store: getFieldStore() },
         accountId,
         detail.value.account.name,
+        { pool: RERANK_MAX_CANDIDATES },
       );
       if (built.ok) evidence = built.value;
     }

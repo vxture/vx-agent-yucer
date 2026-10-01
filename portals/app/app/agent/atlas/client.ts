@@ -1,6 +1,7 @@
 import { mintS2SToken, type FetchLike } from "../../platform/s2s";
 import { AtlasError, parseAtlasError, streamFrameError, type RetryPolicy } from "./errors";
-import { endpointFor } from "./endpoints";
+import { endpointFor, rerankEndpoint } from "./endpoints";
+import { RERANK_QUERY_MAX_CHARS, parseRerankScores, type RerankCandidate } from "./rerank";
 import { LOCAL_DEADLINE_MARGIN_MS, profileSettings, type CallProfile } from "./profiles";
 import { cachedRouteCatalog, fitToRoute, type RouteCapacity } from "./routes";
 import type { ChatRequest, ChatResponse, StreamFrame } from "./types";
@@ -80,6 +81,10 @@ export interface AtlasDeps {
   /** How much longer than Atlas's budget this client waits (profiles.ts). */
   deadlineMarginMs?: number;
 }
+
+/** Rerank's P95 is ~550 ms at 100 candidates (Atlas, 2026-09-30); anything past
+ *  this is not worth holding the member's answer for. */
+const RERANK_DEADLINE_MS = 8_000;
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -231,6 +236,44 @@ export class AtlasClient {
     if (!endpointCode || !this.cfg.enabled || !this.cfg.routeCatalog) return null;
     const catalog = await cachedRouteCatalog(this.cfg.baseUrl, () => this.modelRoutes(ctx));
     return catalog?.routes.get(endpointCode) ?? null;
+  }
+
+  /**
+   * Rank `candidates` against `query` (A3). Returns id -> score, which means
+   * something only relative to the other scores in the same answer.
+   *
+   * ONE ATTEMPT, a short deadline, and it THROWS: this orders notes for a
+   * prompt, and a caller that cannot wait goes on with the order it had. It is
+   * not worth a retry that delays the member's answer.
+   *
+   * `workspaceId` rides in the body - rerank takes it there, unlike chat's
+   * tenantId (the first thing to check if this answers RERANK_..._REQUIRED).
+   */
+  async rerank(
+    query: string,
+    candidates: readonly RerankCandidate[],
+    ctx: AtlasContext,
+  ): Promise<ReadonlyMap<string, number>> {
+    const body = {
+      endpointCode: rerankEndpoint(),
+      workspaceId: ctx.workspaceId,
+      tenantId: ctx.tenantId,
+      taskId: ctx.taskId,
+      applicationType: "agent",
+      applicationId: ctx.applicationId,
+      requestId: ctx.requestId,
+      featureId: ctx.featureId,
+      businessId: ctx.businessId,
+      query: query.length > RERANK_QUERY_MAX_CHARS ? query.slice(0, RERANK_QUERY_MAX_CHARS) : query,
+      candidates,
+    };
+    const { res, json } = await this.requestJson("POST", "/v1/rerank", body, ctx, RERANK_DEADLINE_MS);
+    if (!res.ok) throw parseAtlasError(res.status, json);
+    const scores = parseRerankScores(json);
+    if (!scores) {
+      throw new AtlasError({ code: "RERANK_UNREADABLE", status: res.status, message: "rerank answered in a shape this client does not read" });
+    }
+    return scores;
   }
 
   /** The tool descriptors (/.well-known/vxture-tools): each capability's input_schema. */

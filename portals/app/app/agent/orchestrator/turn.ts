@@ -2,6 +2,7 @@ import type { AtlasClient, AtlasContext } from "../atlas/client";
 import type { ChatMessage, ToolCall } from "../atlas/types";
 import { profileSettings, type CallProfile } from "../atlas/profiles";
 import { AtlasError } from "../atlas/errors";
+import { RERANK_MAX_CANDIDATES, selectEvidence, toRerankCandidate } from "../atlas/rerank";
 import type { RunosClient, RunosContext } from "../runos/client";
 import { RunosError } from "../runos/errors";
 import { buildTurnMessages, estimateMessages, estimateTokens, fitTurnToWindow, type PromptContext } from "./prompt";
@@ -35,6 +36,13 @@ export interface TurnInput {
   runos: RunosContext;
   /** Semantic query used to pull candidate capabilities. Defaults to the question. */
   capabilityQuery?: string;
+  /**
+   * What the member actually asked, for choosing which follow-up notes to show
+   * (rerank). Defaults to `question` - but a rehearsal's question carries a
+   * long role-play frame in front, which would crowd the real words out of a
+   * short query.
+   */
+  evidenceQuery?: string;
   /**
    * How every model call of this turn is made (agent/atlas/profiles.ts).
    * Defaults to "dialogue". One profile for the whole turn, tool rounds
@@ -94,6 +102,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   const maxRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
   const profile: CallProfile = input.profile ?? "dialogue";
   const surface = await discoverTools(input, deps);
+
+  // Which follow-up notes to show, when the customer has more than fit: by what
+  // was asked, not just by recency. Floors at the old behaviour.
+  input = { ...input, prompt: await withRankedEvidence(input, deps) };
 
   // Fitted to the route's context window when the catalog knows it; sent as
   // built when it does not (the behaviour before the catalog existed).
@@ -333,6 +345,35 @@ function textOf(content: Array<{ type: string; text?: string }>): string {
     .filter((c) => c.type === "text" && c.text)
     .map((c) => c.text)
     .join("\n");
+}
+
+/** The newest notes are shown whatever they resemble: "where do we stand" lives
+ *  in the latest of them. */
+const EVIDENCE_NEWEST_ANCHOR = 4;
+
+/**
+ * When the evidence is a candidate pool (more notes than it shows), pick which
+ * to show by relevance to the question, keeping the newest few. Any failure -
+ * rerank off, slow, refused, unreadable - leaves the newest `keep`, which is
+ * what the prompt showed before this existed. It never fails the turn.
+ */
+async function withRankedEvidence(input: TurnInput, deps: TurnDeps): Promise<PromptContext> {
+  const evidence = input.prompt.evidence;
+  if (!evidence || evidence.keep === undefined || evidence.notes.length <= evidence.keep) return input.prompt;
+  const pool = evidence.notes.slice(0, RERANK_MAX_CANDIDATES);
+  const scores = await deps.atlasClient
+    .rerank?.(
+      input.evidenceQuery ?? input.question,
+      pool.map((n) => toRerankCandidate(n.id, n.rawNote)),
+      input.atlas,
+    )
+    .catch(() => null);
+  const { chosen } = selectEvidence(pool, scores ?? null, evidence.keep, EVIDENCE_NEWEST_ANCHOR);
+  const { keep: _keep, ...rest } = evidence;
+  return {
+    ...input.prompt,
+    evidence: { ...rest, notes: chosen, omittedNotes: evidence.omittedNotes + (evidence.notes.length - chosen.length) },
+  };
 }
 
 /** Headroom kept off the window: the token estimate is an estimate. */

@@ -245,6 +245,9 @@ export async function runCopilotTurn(
         atlas,
         runos,
         profile: profileForTurn(input),
+        // The member's own words choose which notes show (rerank) - not the
+        // role-play frame a rehearsal puts in front of them.
+        evidenceQuery: question,
       },
       deps,
     );

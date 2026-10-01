@@ -186,10 +186,19 @@ test("submitting a forecast needs the dedicated forecast permission", async () =
   assert.equal(opsResult.commitAmount.amount, 100_000);
 });
 
+/** The period code of today, e.g. 2026Q4 - for tests that stamp a deal "closed now". */
+function quarterOfNow(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}Q${Math.floor(d.getUTCMonth() / 3) + 1}`;
+}
+
 test("a snapshot includes closed deals, because attainment is measured from them", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([
-    opp({ id: "open", forecastCategory: "commit", amount: money(100) }),
+    // Both deals are "now", so both land in quarterOfNow() below. The fixture's
+    // own default close date is a fixed 2026-09-30 and stopped being in range
+    // the day the calendar left Q3.
+    opp({ id: "open", forecastCategory: "commit", amount: money(100), expectedCloseAt: new Date() }),
     opp({
       id: "won",
       stage: "won",
@@ -201,7 +210,10 @@ test("a snapshot includes closed deals, because attainment is measured from them
   ]);
   const snap = unwrap(
     await submitForecast(ctx("sales_ops", "pro", store), {
-      period: "2026Q3",
+      // The quarter the deal closed in - it was "2026Q3" until 2026-10-01, when
+      // `closedAt: new Date()` moved into Q4 and the test began failing for
+      // reasons that had nothing to do with what it checks.
+      period: quarterOfNow(),
       scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
     }),
   );
