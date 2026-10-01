@@ -366,3 +366,43 @@ test("the Atlas probe prints the usage subsets as numbers, or as not reported - 
     net.restore();
   }
 });
+
+test("the signed-in Atlas line lists every held route, the ones no profile uses under their own heading", async () => {
+  bare();
+  resetS2SCache();
+  process.env.OIDC_CLIENT_SECRET = "s";
+  process.env.ATLAS_BASE_URL = "http://atlas.test:3100";
+  process.env.RUNOS_BASE_URL = "http://runos.test:3120";
+  const net = stubFetch((url) =>
+    url.endsWith("/oidc/token")
+      ? { status: 200, body: { access_token: "tok", token_type: "Bearer", expires_in: 300 } }
+      : url.endsWith("/v1/models")
+        ? { status: 200, body: { data: [] } }
+        : url.endsWith("/v1/model-routes")
+          ? {
+              status: 200,
+              body: {
+                endpoints: [
+                  ...ROUTES.endpoints,
+                  { endpointCode: "chat/extract", state: "active", contextWindow: 64000, maxOutputTokens: 4000, thinkingModes: ["off"] },
+                  { endpointCode: "rerank/default", state: "active" },
+                ],
+              },
+            }
+          : url.endsWith("/.well-known/vxture-contract")
+            ? { status: 200, body: { fingerprint: ATLAS_CONTRACT_FINGERPRINT } }
+            : { status: 404, body: {} },
+  );
+  try {
+    const atlas = (await runPlatformCheck("ws_live", LIVE)).planes.atlas;
+    assert.equal(atlas.ok, true, "extra grants are information, not a fault");
+    assert.match(atlas.detail, /also held, used by no profile:/);
+    assert.match(atlas.detail, /chat\/extract: window 64000, output 4000, thinking off\n/);
+    assert.match(atlas.detail, /rerank\/default: window \?, output \?, thinking \?/);
+    // The two routes the profiles DO use are not repeated under the heading.
+    const tail = atlas.detail.split("also held, used by no profile:")[1]!;
+    assert.ok(!tail.includes("chat/default") && !tail.includes("chat/reasoning"));
+  } finally {
+    net.restore();
+  }
+});

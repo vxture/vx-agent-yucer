@@ -12,7 +12,7 @@ import { getS2SConfig, mintS2SToken } from "../../platform/s2s";
 import { AtlasClient, getAtlasConfig, type AtlasContext } from "../../agent/atlas/client";
 import { endpointFor } from "../../agent/atlas/endpoints";
 import { profileSettings, type CallProfile } from "../../agent/atlas/profiles";
-import { parseRouteCatalog } from "../../agent/atlas/routes";
+import { describeRouteCapacity, parseRouteCatalog, routesNotInUse } from "../../agent/atlas/routes";
 import { ATLAS_CONTRACT_FINGERPRINT, contractDrift } from "../../agent/atlas/contract";
 import { MIN_ATLAS_VERSION, MIN_ATLAS_VERSION_REASON, checkAtlasVersion } from "../../agent/atlas/version";
 import { ATLAS_TASK_ID_MAX } from "../../agent/atlas/types";
@@ -462,16 +462,23 @@ async function routesLine(client: AtlasClient, ctx: AtlasContext): Promise<{ ok:
   try {
     const catalog = parseRouteCatalog(await client.modelRoutes(ctx));
     let ok = true;
+    const inUse = new Set<string>();
     const parts = PROFILES_IN_USE.map((p) => {
       const code = endpointFor(profileSettings(p).task);
+      inUse.add(code);
       const r = catalog.routes.get(code);
       if (!r || r.state !== "active") {
         ok = false;
         return `${p} -> ${code}: ${r ? r.state : "not granted"}`;
       }
-      const modes = r.thinkingModes ? r.thinkingModes.join("/") : "?";
-      return `${p} -> ${code}: window ${r.contextWindow ?? "?"}, output ${r.maxOutputTokens ?? "?"}, thinking ${modes}`;
+      return `${p} -> ${code}: ${describeRouteCapacity(r)}`;
     });
+    // Everything else this product has been granted. Facts only: which of them
+    // suits which job is the operator's to say - the names do not settle it.
+    const others = routesNotInUse(catalog, inUse);
+    if (others.length > 0) {
+      parts.push("also held, used by no profile:", ...others.map((r) => `  ${r.endpointCode}: ${describeRouteCapacity(r)}`));
+    }
     return { ok, lines: parts };
   } catch (err) {
     return { ok: false, lines: [`GET /v1/model-routes failed - ${describe(err)}`] };
