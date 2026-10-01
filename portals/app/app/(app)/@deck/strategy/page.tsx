@@ -37,7 +37,7 @@ export default async function StrategyDeck() {
   ]);
 
   const capture = (
-    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} onRecord={recordAction("")} />
+    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} canAsk={bundle.canAsk} onRecord={recordAction("")} />
   );
 
   // A refused read is not an empty finding list: saying "nothing to fix" to

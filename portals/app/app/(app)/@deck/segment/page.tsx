@@ -43,6 +43,7 @@ export default async function SegmentDeck() {
         <AgentCapture
           data={bundle.agent}
           canRecord={bundle.canRecord}
+          canAsk={bundle.canAsk}
           onRecord={recordAction("")}
         />
       </div>
@@ -84,6 +85,7 @@ export default async function SegmentDeck() {
       <AgentCapture
         data={bundle.agent}
         canRecord={bundle.canRecord}
+        canAsk={bundle.canAsk}
         onRecord={recordAction("")}
       />
       <SegmentAdvicePanel advice={advice} />

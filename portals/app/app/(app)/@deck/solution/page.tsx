@@ -32,6 +32,7 @@ export default async function SolutionDeck() {
       <AgentCapture
         data={bundle.agent}
         canRecord={bundle.canRecord}
+        canAsk={bundle.canAsk}
         onRecord={recordAction("")}
       />
       {advice.ok ? <SolutionAdvicePanel advice={advice.value} /> : null}

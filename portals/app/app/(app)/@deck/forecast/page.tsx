@@ -20,7 +20,7 @@ export default async function ForecastDeck() {
   if (!bundle || !session) return null;
 
   const capture = (
-    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} onRecord={recordAction("")} />
+    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} canAsk={bundle.canAsk} onRecord={recordAction("")} />
   );
 
   const preview = await previewCategories({

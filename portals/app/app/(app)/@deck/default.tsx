@@ -17,6 +17,7 @@ export default async function DefaultDeck() {
     <AgentPanel
       data={bundle.agent}
       canRecord={bundle.canRecord}
+      canAsk={bundle.canAsk}
       // No account id: an unanchored note is still worth keeping, and demanding
       // one at capture time is the friction ADR-012's kill criterion measures.
       onRecord={recordAction("")}

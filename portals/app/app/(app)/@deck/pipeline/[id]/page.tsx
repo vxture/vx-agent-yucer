@@ -176,6 +176,10 @@ export default async function DealDeck({
     <AgentPanel
       data={bundle.agent}
       canRecord={bundle.canRecord}
+      canAsk={bundle.canAsk}
+      // The question goes to the copilot about THIS deal - which carries its
+      // customer, as the 问参谋（本单） link below it already does.
+      askAnchor={detail.ok ? { opportunityId: id } : undefined}
       onRecord={recordAction(detail.ok ? detail.value.accountId : "", detail.ok ? id : undefined)}
       advisor={advisor}
     />

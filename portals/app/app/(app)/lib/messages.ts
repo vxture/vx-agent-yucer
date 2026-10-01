@@ -2392,6 +2392,11 @@ export const BOARD_TEXT = {
   openThread: "完整对话",
   attach: "添加附件",
   notWired: "该能力尚未接通",
+  captured: "已记下",
+  // 问参谋 carries the question to the copilot page, which takes at most this
+  // many characters of it (lib/agent-ask.ts) - past that, say so rather than cut.
+  askTooLong: (over: number) => `提问最多 500 字，还多 ${over} 字；「记一笔」不受这个限制`,
+  askHint: "「问参谋」带着这句话去参谋页，由你确认后再发送",
   pendingEmpty: "此刻没有等你裁决的事。",
   // 会前准备 (L6 批五) 快捷指令。
   meetingTitle: "会前准备",
@@ -3129,6 +3134,8 @@ export const FIELD_ERROR: Record<string, string> = {
   // 统一录入的部分成功:笔记是证据、只追加,落了就不回滚;某条承诺被拒时如实说。
   commitment_partial: "跟进已记下,但有承诺没记上——到承诺列表补一条",
   contact_not_on_account: "选的联系人不在这家客户名下——刷新页面再选",
+  // 侧栏的会前包也可能带这一条：这家客户的在办商机币种不一致，金额没法汇总。
+  currency_mismatch: "这家客户的在办商机币种不一致，金额没法汇总",
   evidence_not_found: "作证据的那条跟进找不到了——刷新后重新选一条",
   evidence_other_account: "作证据的跟进不是这家客户的——承诺只能由跟这家客户的往来来证明",
   note_required: "写一句发生了什么——只记下它发生过,没有价值",

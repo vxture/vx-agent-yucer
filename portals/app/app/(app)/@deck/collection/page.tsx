@@ -31,7 +31,7 @@ export default async function CollectionDeck() {
   };
 
   const capture = (
-    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} onRecord={recordAction("")} />
+    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} canAsk={bundle.canAsk} onRecord={recordAction("")} />
   );
 
   const projects = await listProjects(ctx);

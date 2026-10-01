@@ -30,7 +30,7 @@ export default async function LeadDeck() {
 
   return (
     <div className="flex flex-col gap-sm">
-      <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} onRecord={recordAction("")} />
+      <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} canAsk={bundle.canAsk} onRecord={recordAction("")} />
       <RoutingAssignPanel
         canAssign={
           can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed

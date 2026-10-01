@@ -1969,6 +1969,7 @@ export const en: Dictionary = {
   FIELD_ERROR: {
     commitment_partial: "The follow-up is recorded, but a promise was refused - add it from the commitment list",
     contact_not_on_account: "A picked contact is not on this customer - reload and pick again",
+    currency_mismatch: "This customer's open deals are in different currencies, so their amounts cannot be added up",
     evidence_not_found: "The follow-up given as evidence no longer exists - reload and pick one again",
     evidence_other_account: "The follow-up given as evidence belongs to another customer - only this customer's dealings can prove the promise",
     ...GATE_ERROR,
@@ -6180,6 +6181,9 @@ export const en: Dictionary = {
       "Nothing scouted yet; there is no formed intelligence.",
     reconCta: "Run a competitive analysis",
     analysisNote: 'The result enters the feed as a "model" judgement.',
+    captured: "Saved",
+    askTooLong: (over: number) => `A question is at most 500 characters - ${over} over. Save a note has no such limit`,
+    askHint: "Ask takes this to the copilot page, and nothing is sent until you confirm there",
     captureSend: "Save",
     capturePlaceholder: "Just got off the phone with Wang...",
     captureHelp:
