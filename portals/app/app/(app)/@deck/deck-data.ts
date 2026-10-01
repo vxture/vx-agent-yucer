@@ -19,6 +19,8 @@ import { recordFollowUp } from "../account/field-actions";
 export interface DeckBundle {
   readonly agent: AgentPanelData;
   readonly canRecord: boolean;
+  /** copilot.ask - the same check the copilot page's own box makes. */
+  readonly canAsk: boolean;
 }
 
 export async function deckBundle(
@@ -42,6 +44,7 @@ export async function deckBundle(
     agent,
     canRecord: can(session.authz, session.entitlement, "account.upsert", "ui")
       .allowed,
+    canAsk: can(session.authz, session.entitlement, "copilot.ask", "ui").allowed,
   };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   Avatar,
@@ -9,8 +10,11 @@ import {
   Card,
   Icon,
   Textarea,
+  useToast,
 } from "@vxture/design-ui";
 import type { AgentPanelData } from "../lib/board";
+import { askHref, askOverBy, type AskAnchor } from "../lib/agent-ask";
+import { captureFeedback } from "../lib/capture-feedback";
 import { useMessages } from "../lib/i18n/provider";
 import { FormAssistSlot } from "./form-assist-slot";
 
@@ -26,21 +30,31 @@ import { FormAssistSlot } from "./form-assist-slot";
 export function AgentCapture({
   data,
   canRecord,
+  canAsk,
+  askAnchor,
   onRecord,
-  onAsk,
   onAttach,
 }: {
   readonly data: AgentPanelData;
   readonly canRecord: boolean;
+  /** copilot.ask - without it the button is not offered at all, rather than
+   *  shown dead. */
+  readonly canAsk: boolean;
+  /** What the panel is looking at, carried to the copilot page with the question. */
+  readonly askAnchor?: AskAnchor;
   readonly onRecord?: (
     text: string,
   ) => Promise<{ ok: boolean; error?: string }>;
-  readonly onAsk?: (text: string) => void;
   readonly onAttach?: () => void;
 }) {
-  const { BOARD_TEXT } = useMessages();
+  const { BOARD_TEXT, FIELD_ERROR } = useMessages();
+  const router = useRouter();
+  const { toast } = useToast();
   const [text, setText] = useState("");
   const [pendingSave, start] = useTransition();
+  // null when there is nothing to send, or too much of it to carry whole.
+  const href = askHref(text, askAnchor);
+  const over = askOverBy(text);
 
   // ONE card, with the agent's identity as its header. Splitting the identity
   // into its own card made the panel read as two unrelated things stacked; the
@@ -92,6 +106,13 @@ export function AgentCapture({
           <p className="text-muted-foreground mt-xs text-body-sm leading-relaxed">
             {BOARD_TEXT.captureHelp}
           </p>
+          {/* Said where the reader is looking, not only in a tooltip: the
+              question is longer than the copilot page will take. */}
+          {canAsk && over > 0 ? (
+            <p className="text-warning mt-xs text-body-sm leading-relaxed" role="status">
+              {BOARD_TEXT.askTooLong(over)}
+            </p>
+          ) : null}
 
           {/* THE VERB IS THE BUTTON, not a mode set beforehand.
                 A segmented control at the top made you declare what you were
@@ -111,25 +132,38 @@ export function AgentCapture({
             </Button>
 
             <div className="ml-auto flex items-center gap-xs">
-              {/* Disabled until the ask path is wired to the agent plane.
-                    A button that silently does nothing teaches people the
-                    product is broken; one that is visibly not ready does not. */}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!onAsk || pendingSave || text.trim() === ""}
-                title={onAsk ? undefined : BOARD_TEXT.notWired}
-                onClick={() => onAsk?.(text)}
-              >
-                {BOARD_TEXT.ask}
-              </Button>
+              {/* 问参谋 takes the question to the copilot page (lib/agent-ask.ts).
+                    Not offered to a member who cannot ask: a dead button on
+                    every page was what stood here. */}
+              {canAsk ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pendingSave || href === null}
+                  title={over > 0 ? BOARD_TEXT.askTooLong(over) : BOARD_TEXT.askHint}
+                  onClick={() => {
+                    if (!href) return;
+                    router.push(href);
+                    // The question now lives in the copilot page's own box. The
+                    // deck persists across navigation, so leaving it here would
+                    // show the same sentence twice - and one click on 记一笔 would
+                    // file a QUESTION as a note.
+                    setText("");
+                  }}
+                >
+                  {BOARD_TEXT.ask}
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 disabled={pendingSave || text.trim() === "" || !onRecord}
                 onClick={() =>
                   start(() => {
                     void onRecord?.(text).then((r) => {
-                      if (r.ok) setText("");
+                      // Said either way. A refused note stays in the box.
+                      const f = captureFeedback(r, FIELD_ERROR, BOARD_TEXT.captured);
+                      toast({ tone: f.tone, title: f.title });
+                      if (f.clear) setText("");
                     });
                   })
                 }

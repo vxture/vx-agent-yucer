@@ -59,6 +59,7 @@ export default async function PricebookDeck({
       <AgentCapture
         data={bundle.agent}
         canRecord={bundle.canRecord}
+        canAsk={bundle.canAsk}
         onRecord={recordAction("")}
       />
       {/* 业务智能区: the analysis controls sit with the analysis (owner,

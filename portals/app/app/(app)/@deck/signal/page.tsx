@@ -39,7 +39,7 @@ export default async function SignalDeck() {
   };
 
   const capture = (
-    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} onRecord={recordAction("")} />
+    <AgentCapture data={bundle.agent} canRecord={bundle.canRecord} canAsk={bundle.canAsk} onRecord={recordAction("")} />
   );
 
   const signals = await listSignals({ ...base, store: session.stores.signal() }, { limit: 200 });

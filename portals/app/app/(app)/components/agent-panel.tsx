@@ -7,6 +7,7 @@ import { Button } from "@vxture/design-ui";
 import { AgentCapture } from "./agent-capture";
 import { AssistantDeck } from "./assistant";
 import type { AgentPanelData } from "../lib/board";
+import type { AskAnchor } from "../lib/agent-ask";
 import { MeetingBriefButton, type MeetingBriefButtonProps } from "./meeting-brief";
 
 import { useMessages } from "../lib/i18n/provider";
@@ -31,11 +32,13 @@ import { useMessages } from "../lib/i18n/provider";
 export interface AgentPanelProps {
   readonly data: AgentPanelData;
   readonly canRecord: boolean;
+  /** copilot.ask. REQUIRED: a deck that does not say cannot be assumed able. */
+  readonly canAsk: boolean;
+  /** What this deck is beside - carried to the copilot page by 问参谋. */
+  readonly askAnchor?: AskAnchor;
   readonly onRecord?: (
     text: string,
   ) => Promise<{ ok: boolean; error?: string }>;
-  /** Absent until the ask path reaches the agent plane; the button says so. */
-  readonly onAsk?: (text: string) => void;
   /** Absent until attachment intake exists; same treatment. */
   readonly onAttach?: () => void;
   /**
@@ -56,8 +59,9 @@ export interface AgentPanelProps {
 export function AgentPanel({
   data,
   canRecord,
+  canAsk,
+  askAnchor,
   onRecord,
-  onAsk,
   onAttach,
   briefFor,
   onBuildBrief,
@@ -119,11 +123,17 @@ export function AgentPanel({
     <AssistantDeck
       capture={
         <>
+          {/* KEYED BY WHAT THE DECK IS BESIDE. The deck persists across
+              navigation, so a draft typed beside deal A came along to the
+              list, where 记一笔 filed it with no deal - a note written for one
+              thing quietly losing its subject. A new subject is a new box. */}
           <AgentCapture
+            key={`${askAnchor?.opportunityId ?? ""}:${askAnchor?.accountId ?? ""}`}
             data={data}
             canRecord={canRecord}
+            canAsk={canAsk}
+            askAnchor={askAnchor}
             onRecord={onRecord}
-            onAsk={onAsk}
             onAttach={onAttach}
           />
           {advisor}

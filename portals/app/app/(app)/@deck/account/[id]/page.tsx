@@ -53,6 +53,9 @@ export default async function AccountDeck({
     <AgentPanel
       data={bundle.agent}
       canRecord={bundle.canRecord}
+      canAsk={bundle.canAsk}
+      // The question goes to the copilot about THIS customer.
+      askAnchor={detail.ok ? { accountId: id } : undefined}
       // Anchored: a note captured while reading this account belongs to it, and
       // making the reader re-state that is asking them to type what the screen
       // already knows.
