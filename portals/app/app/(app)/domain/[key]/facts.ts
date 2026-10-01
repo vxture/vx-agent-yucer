@@ -16,7 +16,7 @@ import { listSignals, listLeads } from "../../../domains/signal/service";
 import { listPendingReviews, listPipeline } from "../../../domains/pipeline/service";
 import { attainment, listTerritories } from "../../../domains/planning/service";
 import { listProjects, projectView } from "../../../domains/delivery/service";
-import { DEFAULT_PERIOD } from "../../lib/periods";
+import { defaultPeriod } from "../../lib/periods";
 import { listCommitments } from "../../../domains/account/field-service";
 import { accountStatuses, listAccounts } from "../../../domains/account/service";
 import { accountMatchesCriteria } from "../../../domains/strategy/lib/lifecycle";
@@ -154,7 +154,7 @@ async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
 /** Who carries the number, and where the ground is cut. */
 async function deploymentFacts(ctx: FactsContext): Promise<DomainFact[]> {
   const [targets, territories] = await Promise.all([
-    attainment({ ...ctx, store: getPlanningStore() }, DEFAULT_PERIOD),
+    attainment({ ...ctx, store: getPlanningStore() }, defaultPeriod()),
     listTerritories({ ...ctx, store: getPlanningStore() }, { includeRetired: false }),
   ]);
 

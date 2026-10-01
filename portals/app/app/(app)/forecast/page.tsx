@@ -14,7 +14,7 @@ import { SubmitForecast } from "../components/submit-forecast";
 import { submitForecastSnapshot } from "../pipeline/forecast-action";
 import { PeriodTabs } from "../components/period-tabs";
 import { ForecastScopePicker } from "../components/forecast-scope-picker";
-import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
+import { offeredPeriods, resolvePeriod } from "../lib/periods";
 import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
 import { ForecastRoster, type ForecastRow } from "../components/forecast-roster";
 import { ForecastAnalysis } from "../components/forecast-analysis";
@@ -120,7 +120,7 @@ export default async function ForecastPage({
     <ViewLayout>
       <ModuleHeadline
         moduleKey="forecastRule"
-        action={<PeriodTabs value={period} periods={PERIODS} yearLabel={PERIOD_YEAR} />}
+        action={<PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} />}
         description={FORECAST_RULE_TEXT.why}
         tags={
           <>
