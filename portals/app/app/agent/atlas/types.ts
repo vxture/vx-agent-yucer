@@ -130,9 +130,20 @@ export interface ChatRequest {
 }
 
 export interface TokenUsage {
+  /** ALL the input, on every provider (Atlas v0.7.13): uncached, cache reads and
+   *  cache writes together. Before that a Claude route reported it WITHOUT the
+   *  cache, so the same call read smaller there than anywhere else. */
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  /** The parts of promptTokens served from cache / written to cache (and the
+   *  part of that written with a 1-hour TTL), and the part of completionTokens
+   *  spent reasoning. Each is a SUBSET of its total, never added to it. A field
+   *  that is absent was not reported by the upstream - it is NOT 0. */
+  cachedInputTokens?: number;
+  cacheWriteInputTokens?: number;
+  cacheWrite1hInputTokens?: number;
+  reasoningTokens?: number;
 }
 
 export type FinishReason = "stop" | "length" | "tool_calls" | "content_filter" | string;

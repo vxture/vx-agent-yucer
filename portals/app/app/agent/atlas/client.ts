@@ -276,6 +276,26 @@ export class AtlasClient {
     return scores;
   }
 
+  /**
+   * Atlas's liveness answer, which carries its version. Public - no token - and
+   * it throws on anything but a 200 with a JSON body. Used by diagnostics to
+   * check the version floor (version.ts); never on a member's request path.
+   */
+  async healthz(): Promise<{ readonly version?: unknown }> {
+    if (!this.cfg.enabled) {
+      throw new AtlasError({ code: "ATLAS_NOT_CONFIGURED", status: 0, message: "ATLAS_BASE_URL is not set; the model plane is unreachable" });
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5_000);
+    try {
+      const res = await this.fetchImpl(`${this.cfg.baseUrl}/healthz`, { method: "GET", headers: { accept: "application/json" }, signal: controller.signal });
+      if (!res.ok) throw new AtlasError({ code: "HEALTHZ_FAILED", status: res.status, message: `healthz answered ${res.status}` });
+      return (await res.json()) as { version?: unknown };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   /** The tool descriptors (/.well-known/vxture-tools): each capability's input_schema. */
   async tools(ctx: AtlasContext): Promise<unknown> {
     const { res, json } = await this.requestJson("GET", "/.well-known/vxture-tools", undefined, ctx);

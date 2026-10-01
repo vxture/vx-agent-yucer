@@ -14,6 +14,7 @@ import { endpointFor } from "../../agent/atlas/endpoints";
 import { profileSettings, type CallProfile } from "../../agent/atlas/profiles";
 import { parseRouteCatalog } from "../../agent/atlas/routes";
 import { ATLAS_CONTRACT_FINGERPRINT, contractDrift } from "../../agent/atlas/contract";
+import { MIN_ATLAS_VERSION, MIN_ATLAS_VERSION_REASON, checkAtlasVersion } from "../../agent/atlas/version";
 import { ATLAS_TASK_ID_MAX } from "../../agent/atlas/types";
 import { RunosClient, getRunosConfig } from "../../agent/runos/client";
 import { getArdaConfig } from "../../platform/arda/source";
@@ -284,10 +285,18 @@ export async function runAtlasProbe(
     // which renders line breaks (whitespace-pre-line), not by a parser.
     detail: [
       `Chat probe: model ${res.modelCode} answered in ${res.latencyMs}ms, ${res.usage.totalTokens} token(s) (prompt ${res.usage.promptTokens} + completion ${res.usage.completionTokens})`,
+      // The subsets Atlas reports since v0.7.13 - each part of its total, and an
+      // absent one means "not reported", which is printed as such, never as 0.
+      `  of which: cached ${usagePart(res.usage.cachedInputTokens)}, cache-written ${usagePart(res.usage.cacheWriteInputTokens)}, reasoning ${usagePart(res.usage.reasoningTokens)}`,
       "",
       ...rerank,
     ].join("\n"),
   };
+}
+
+/** A usage subset for display: the number, or "not reported" - never 0. */
+function usagePart(n: number | undefined): string {
+  return n === undefined ? "not reported" : String(n);
 }
 
 /**
@@ -434,11 +443,15 @@ async function liveAtlas(id: LiveIdentity): Promise<ProbeResult> {
   }
   // The two reads batch 2 added (2026-09-30): the routes each call profile
   // uses, with what they can take, and whether the contract moved under us.
-  const [routes, contract] = await Promise.all([routesLine(client, ctx("routes")), contractLine(client, ctx("contract"))]);
+  const [routes, contract, version] = await Promise.all([
+    routesLine(client, ctx("routes")),
+    contractLine(client, ctx("contract")),
+    versionLine(client),
+  ]);
   return {
     configured: true,
-    ok: routes.ok && contract.ok,
-    detail: [`Atlas ${cfg.baseUrl}`, `  ${models}`, ...routes.lines.map((l) => `  ${l}`), `  ${contract.text}`].join("\n"),
+    ok: routes.ok && contract.ok && version.ok,
+    detail: [`Atlas ${cfg.baseUrl}`, `  ${models}`, `  ${version.text}`, ...routes.lines.map((l) => `  ${l}`), `  ${contract.text}`].join("\n"),
   };
 }
 
@@ -462,6 +475,22 @@ async function routesLine(client: AtlasClient, ctx: AtlasContext): Promise<{ ok:
     return { ok, lines: parts };
   } catch (err) {
     return { ok: false, lines: [`GET /v1/model-routes failed - ${describe(err)}`] };
+  }
+}
+
+/**
+ * The Atlas version, against the floor. Only a version KNOWN to be old fails:
+ * an unreadable one is reported and left alone, since the check exists to catch
+ * the behaviour change the contract fingerprint cannot see (version.ts).
+ */
+async function versionLine(client: AtlasClient): Promise<{ ok: boolean; text: string }> {
+  try {
+    const check = checkAtlasVersion((await client.healthz()).version);
+    if (check.kind === "ok") return { ok: true, text: `version ${check.version} (floor ${MIN_ATLAS_VERSION})` };
+    if (check.kind === "unknown") return { ok: true, text: "version: not readable from /healthz" };
+    return { ok: false, text: `version ${check.version} is BELOW the floor ${MIN_ATLAS_VERSION} - ${MIN_ATLAS_VERSION_REASON}` };
+  } catch (err) {
+    return { ok: true, text: `version: /healthz not readable - ${describe(err)}` };
   }
 }
 
