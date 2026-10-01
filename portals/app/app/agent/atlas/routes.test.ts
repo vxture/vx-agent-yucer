@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AtlasClient, type AtlasConfig } from "./client";
-import { cachedRouteCatalog, fitToRoute, parseRouteCatalog, resetRouteCatalogCache } from "./routes";
+import { cachedRouteCatalog, describeRouteCapacity, fitToRoute, parseRouteCatalog, resetRouteCatalogCache, routesNotInUse } from "./routes";
 
 const CATALOG = {
   endpoints: [
@@ -116,4 +116,26 @@ test("rerank throws on a refusal and on an answer it cannot read - the caller de
   const ctx = { workspaceId: "w", tenantId: "t", taskId: "k" };
   await assert.rejects(() => make(400, { code: "RERANK_CANDIDATES_INVALID", message: "x", retryable: false }).rerank("q", [], ctx), /RERANK_CANDIDATES_INVALID|x/);
   await assert.rejects(() => make(200, { results: [] }).rerank("q", [], ctx), (e: unknown) => (e as { code?: string }).code === "RERANK_UNREADABLE");
+});
+
+// --- Showing what the product has been granted ----------------------------------------
+
+
+test("a route's capacity reads as window, output, thinking modes; unknown is ?, never unlimited", () => {
+  const c = parseRouteCatalog({
+    endpoints: [
+      { endpointCode: "chat/extract", state: "active", contextWindow: 64000, maxOutputTokens: 4000, thinkingModes: ["off", "on"] },
+      { endpointCode: "chat/vision", state: "inactive", contextWindow: null, maxOutputTokens: null },
+    ],
+  });
+  assert.equal(describeRouteCapacity(c.routes.get("chat/extract")!), "window 64000, output 4000, thinking off/on");
+  assert.equal(describeRouteCapacity(c.routes.get("chat/vision")!), "window ?, output ?, thinking ?, inactive");
+});
+
+test("the held routes no profile uses are listed by code, the used ones left out", () => {
+  const c = parseRouteCatalog({
+    endpoints: ["rerank/default", "chat/default", "chat/extract", "chat/deterministic"].map((endpointCode) => ({ endpointCode, state: "active" })),
+  });
+  assert.deepEqual(routesNotInUse(c, new Set(["chat/default"])).map((r) => r.endpointCode), ["chat/deterministic", "chat/extract", "rerank/default"]);
+  assert.deepEqual(routesNotInUse(c, new Set(c.routes.keys())), []);
 });

@@ -54,6 +54,23 @@ export function parseRouteCatalog(json: unknown): RouteCatalog {
   return { routes, maxRequestBytes: posInt(body.maxRequestBytes) };
 }
 
+/** One route's capacity as a line of text: window, output, thinking modes,
+ *  and its state when it is not the usual `active`. "?" is unknown - a route
+ *  that did not say - and is never read as unlimited. */
+export function describeRouteCapacity(r: RouteCapacity): string {
+  const modes = r.thinkingModes ? r.thinkingModes.join("/") : "?";
+  const state = r.state === "active" ? "" : `, ${r.state}`;
+  return `window ${r.contextWindow ?? "?"}, output ${r.maxOutputTokens ?? "?"}, thinking ${modes}${state}`;
+}
+
+/** The held routes no call profile uses, by code - what an operator has
+ *  granted this product beyond what it calls. */
+export function routesNotInUse(catalog: RouteCatalog, inUse: ReadonlySet<string>): RouteCapacity[] {
+  return [...catalog.routes.values()]
+    .filter((r) => !inUse.has(r.endpointCode))
+    .sort((a, b) => a.endpointCode.localeCompare(b.endpointCode));
+}
+
 /**
  * What a call to this route should actually send, given what the route says
  * it takes. Two adjustments, both toward the call succeeding:
