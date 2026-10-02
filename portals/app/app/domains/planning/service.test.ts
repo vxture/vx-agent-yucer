@@ -11,6 +11,7 @@ import {
   listTargets,
   listTerritories,
   retireOrphanedAutoTerritories,
+  removeTarget,
   updateTarget,
   upsertTerritory,
   type PlanningContext,
@@ -92,6 +93,23 @@ test("only the number and the state move", async () => {
   assert.ok((await updateTarget(c, "tgt_1", { amount: 1_500_000 })).ok);
   assert.equal((await store.getTarget(WS, "tgt_1"))?.targetValue.amount, 1_500_000);
   assert.ok((await updateTarget(c, "tgt_1", { status: "committed" })).ok);
+});
+
+test("a draft target can be deleted; a committed or closed one cannot", async () => {
+  const store = new InMemoryPlanningStore();
+  store.seed({
+    targets: [target({ id: "tgt_1", status: "draft" }), target({ id: "tgt_2", status: "committed" }), target({ id: "tgt_3", status: "closed" })],
+  });
+  const c = ctx("sales_ops", "pro", store);
+  assert.ok((await removeTarget(c, "tgt_1")).ok);
+  assert.equal(await store.getTarget(WS, "tgt_1"), null);
+  for (const id of ["tgt_2", "tgt_3"]) {
+    const r = await removeTarget(c, id);
+    assert.equal(r.ok === false && r.violations[0]!.code, "target_not_draft");
+    assert.notEqual(await store.getTarget(WS, id), null);
+  }
+  const missing = await removeTarget(c, "tgt_9");
+  assert.equal(missing.ok === false && missing.violations[0]!.code, "not_found");
 });
 
 test("a closed target is frozen", async () => {

@@ -951,6 +951,7 @@ export const en: Dictionary = {
     terminal_requires_closed: "A closed deal can only be forecast as closed",
   },
   TARGET_ERROR: {
+    target_not_draft: "Only a draft target can be deleted - a committed or closed one is a record of what was held to",
     ...GATE_ERROR,
     name_required: "A target needs a name",
     period_required: "A target must say which period it is for",
@@ -1593,6 +1594,7 @@ export const en: Dictionary = {
       "Who signs, who evaluates, who can introduce you - all of it is relative to this purchase. The same person can be something else on another deal.",
     person: "Person",
     pickPerson: "Choose a person",
+    removeFromDeal: "Take off this deal",
     role: "Role on this deal",
     stance: "Stance toward us",
     stanceNotStated: "Not stated yet",
@@ -4121,6 +4123,8 @@ export const en: Dictionary = {
     illegal_transition: "A terminated contract cannot reopen, and an active one cannot return to draft",
     currency_mismatch: "The contract already has lines; its currency cannot change",
     contract_closed: "A terminated contract takes no more changes",
+    contract_not_draft: "Only a draft contract can be deleted - one that was active or terminated is something the customer signed",
+    contract_has_history: "This contract is part of a renewal chain (renewed, or the result of a renewal) and cannot be deleted",
     product_required: "A line needs a product",
     quantity_not_positive: "Quantity must be greater than zero",
     line_outside_term: "A line must end inside the contract's term",
@@ -4143,6 +4147,8 @@ export const en: Dictionary = {
     edit: "Edit",
     addLine: "Add line",
     removeLine: "Remove",
+    removeContract: "Delete contract",
+    removeContractConsequence: "This draft contract and its lines are deleted for good.",
     removeConsequence: "The line leaves the contract, and what the customer owns updates with it.",
     drawerCreate: "Record a contract",
     drawerEdit: "Edit contract",
@@ -5014,6 +5020,8 @@ export const en: Dictionary = {
     commit: "Commit it",
     commitWhy:
       "Committing cannot be undone - a number already reported upward does not come back",
+    deleteTarget: "Delete target",
+    deleteWhy: "Only a draft can be deleted. A target's scope is fixed once created, so a wrong one has to go and be made again.",
     closeTarget: "Close the period",
     closeWhy:
       "Closing freezes it. It records what was committed for a finished period, and editing that is how a missed quarter becomes a met one",

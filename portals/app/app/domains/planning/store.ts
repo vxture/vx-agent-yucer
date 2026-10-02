@@ -133,6 +133,9 @@ export interface PlanningStore {
     patch: { targetValue?: TargetValue; status?: TargetStatus; planId?: string | null },
   ): Promise<boolean>;
 
+  /** Hard delete of one target. The service only asks for a draft. */
+  removeTarget(workspaceId: string, id: string): Promise<boolean>;
+
   /** Active territories, unless the caller asks for the retired ones too. */
   listTerritories(
     workspaceId: string,
@@ -374,6 +377,13 @@ export class InMemoryPlanningStore implements PlanningStore {
     if (patch.targetValue !== undefined) t.targetValue = patch.targetValue;
     if (patch.status !== undefined) t.status = patch.status;
     if (patch.planId !== undefined) t.planId = patch.planId;
+    return true;
+  }
+
+  async removeTarget(workspaceId: string, id: string): Promise<boolean> {
+    const t = this.targets.get(id);
+    if (!t || t.workspaceId !== workspaceId) return false;
+    this.targets.delete(id);
     return true;
   }
 

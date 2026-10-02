@@ -266,6 +266,31 @@ export async function updateTarget(
   return ok({ id });
 }
 
+/**
+ * Delete a target that was only ever a draft.
+ *
+ * A target's scope - period, metric, who it is for - is frozen the moment it is
+ * created, so one made for the wrong scope could not be corrected and sat
+ * there forever. Only a DRAFT may go: a committed target is what a team was
+ * held to, and a closed one is the record of how a finished period went.
+ * Gated like any other edit of a target.
+ */
+export async function removeTarget(
+  ctx: PlanningContext,
+  id: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.target.update", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const current = await ctx.store.getTarget(ctx.workspaceId, id);
+  if (!current) return fail(violation("not_found", `target ${id} was not found`, "id"));
+  if (current.status !== "draft") {
+    return fail(violation("target_not_draft", "only a draft target can be deleted", "id"));
+  }
+  await ctx.store.removeTarget(ctx.workspaceId, id);
+  return ok({ removed: true });
+}
+
 export interface AttainmentRow {
   target: TargetRecord;
   /**

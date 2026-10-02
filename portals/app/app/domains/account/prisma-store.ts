@@ -895,6 +895,12 @@ export class PrismaAccountStore implements AccountStore {
     return rows.map((r: Record<string, unknown>) => toOpportunityContact(r));
   }
 
+  async removeOpportunityContact(workspaceId: string, opportunityId: string, personId: string): Promise<boolean> {
+    const p = await this.client();
+    const res = await p.opportunityContact.deleteMany({ where: { workspaceId, opportunityId, personId } });
+    return res.count > 0;
+  }
+
   async setOpportunityContact(
     workspaceId: string,
     opportunityId: string,

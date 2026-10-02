@@ -57,7 +57,7 @@ import { dealShare } from "../../../domains/pipeline/lib/wallet-share";
 import { DealWalletLine } from "../../components/wallet-share";
 import { listProposals } from "../../../domains/copilot/service";
 import { cachedFeed } from "../../lib/board";
-import { saveBuyingRole } from "../buying-role-action";
+import { dropBuyingRole, saveBuyingRole } from "../buying-role-action";
 import { getAuthzStore } from "../../../authz/store";
 import { listCampaigns } from "../../../domains/strategy/service";
 import { nameCitations } from "../../lib/name-citations";
@@ -1518,10 +1518,12 @@ export default async function OpportunityDetailPage({
                     buyingRole: stated?.buyingRole ?? "unknown",
                     influence: stated?.influence ?? null,
                     stance: stated?.stance ?? null,
+                    stated: stated !== undefined,
                   };
                 })}
                 canEdit={can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed}
                 onSave={saveBuyingRole}
+                onRemove={dropBuyingRole}
               />
               <DealStageDrawer
                 opportunityId={id}

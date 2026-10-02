@@ -191,6 +191,23 @@ test("updateTarget returns false when nothing matched, rather than throwing", { 
   }
 });
 
+test("removeTarget deletes one target in its own workspace only", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const created = await s.createTarget(WS, {
+      period: "2026Q4", scopeType: "workspace", territoryId: null, ownerSub: null,
+      metric: "revenue", targetValue: { unit: "money", amount: 100, currency: "CNY" }, status: "draft", planId: null,
+    });
+    assert.equal(await s.removeTarget("eeeeeeee-0000-0000-0000-000000000999", created.id), false);
+    assert.equal(await s.removeTarget(WS, created.id), true);
+    assert.equal(await s.getTarget(WS, created.id), null);
+    assert.equal(await s.removeTarget(WS, created.id), false);
+  } finally {
+    await cleanup();
+  }
+});
+
 // --- Territories ---------------------------------------------------------------
 
 test("upsertTerritory creates on the first call and updates on the second, on the real unique index", { skip }, async () => {

@@ -7,7 +7,7 @@ import { attainment, listTerritories, listOrgUnits } from "../../domains/plannin
 import { PlanningTable } from "../components/planning-table";
 import { TerritoryPanel } from "../components/territory-panel";
 import { NewEntryLink } from "../components/form-page";
-import { updateSalesTarget } from "./actions";
+import { deleteSalesTarget, updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
@@ -208,6 +208,7 @@ export default async function PlanningPage() {
             ).allowed
           }
           onUpdate={updateSalesTarget}
+          onDelete={deleteSalesTarget}
         />
       </Section>
     </ViewLayout>

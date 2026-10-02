@@ -1162,6 +1162,8 @@ export const CONTRACT_ERROR: Record<string, string> = {
   illegal_transition: "已终止的合同不能重新打开，生效中的合同不能退回草稿",
   currency_mismatch: "合同已有明细，不能再改币种",
   contract_closed: "已终止的合同不再接受修改",
+  contract_not_draft: "只有草稿合同能删除——生效过或已终止的合同是客户签过的，不删",
+  contract_has_history: "这份合同在续约链上（续约过或由续约而来），不能删除",
   product_required: "明细必须选择产品",
   quantity_not_positive: "数量必须大于零",
   line_outside_term: "明细的到期日必须落在合同期限之内",
@@ -3982,6 +3984,7 @@ export const TARGET_ERROR: Record<string, string> = {
   period_required: "目标必须写明周期",
   unknown_metric: "未知的指标类型",
   unknown_status: "未知的目标状态",
+  target_not_draft: "只有草稿目标能删除——已提交或已关闭的目标是被考核过的记录",
   count_not_integer: "计数类指标必须是整数——家数、个数不存在小数",
   unit_mismatch: "单位与该指标不符",
   amount_negative: "金额不能为负",
@@ -5110,6 +5113,8 @@ export const CONTRACT_TEXT = {
   edit: "编辑",
   addLine: "添加明细",
   removeLine: "移除",
+  removeContract: "删除合同",
+  removeContractConsequence: "这份草稿合同和它的明细会被删除，不可恢复。",
   removeConsequence: "这条明细会从合同里删掉，已购态随之更新。",
   drawerCreate: "录入合同",
   drawerEdit: "编辑合同",
@@ -5901,6 +5906,8 @@ export const PLANNING_TEXT = {
   adjustSaved: "已调整",
   commit: "提交为承诺",
   commitWhy: "提交后不能退回草稿——已经报上去的数字撤不回来",
+  deleteTarget: "删除目标",
+  deleteWhy: "只有草稿能删。目标的范围建好就不能改，建错了只能删掉重建。",
   closeTarget: "关闭本期",
   closeWhy:
     "关闭后冻结。它记录的是一个已结束周期上承诺过什么，改它等于把没达成的季度改成达成",
@@ -6447,6 +6454,7 @@ export const BUYING_ROLE_TEXT = {
     "谁签字、谁评估、谁能引荐——都是相对这一笔采购而言的。同一个人在另一单里可以是另一个角色。",
   person: "联系人",
   pickPerson: "选择联系人",
+  removeFromDeal: "移出本单",
   role: "在本单的角色",
   // 立场是独立于角色的第二个维度 (owner, 2026-09-21: 对我方的立场态度), 跟
   // "role" 分开两个 Field, 不是同一个下拉的另一组选项。

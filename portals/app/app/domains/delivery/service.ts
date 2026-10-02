@@ -696,6 +696,34 @@ export async function removeContractLine(
   return ok({ removed: true });
 }
 
+/**
+ * Delete a contract that was only ever a draft.
+ *
+ * A mistaken draft had no exit: the only way out of `draft` was `terminated`,
+ * which is final and leaves the row behind. Only a DRAFT with NO HISTORY may be
+ * deleted - an active or terminated contract is something the customer signed,
+ * and a contract that renewed, was renewed or has a renewal event is part of a
+ * lineage another row points at (the database restricts it too).
+ */
+export async function removeContract(
+  ctx: DeliveryContext,
+  contractId: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.contract.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const contract = await ctx.store.getContract(ctx.workspaceId, contractId);
+  if (!contract) return fail(violation("not_found", `contract ${contractId} was not found`, "contractId"));
+  if (contract.status !== "draft") {
+    return fail(violation("contract_not_draft", "only a draft contract can be deleted", "contractId"));
+  }
+  if (contract.renewedFromContractId !== null || contract.renewedBy !== null || contract.events.length > 0) {
+    return fail(violation("contract_has_history", "a contract in a renewal lineage cannot be deleted", "contractId"));
+  }
+  await ctx.store.removeContract(ctx.workspaceId, contractId);
+  return ok({ removed: true });
+}
+
 /* ---------------------------------------------------------------------------
  * 续约世系与续约事件 (incr/0078, L4 batch two).
  *

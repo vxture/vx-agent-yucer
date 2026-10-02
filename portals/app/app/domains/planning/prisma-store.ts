@@ -333,6 +333,12 @@ export class PrismaPlanningStore implements PlanningStore {
     return toTarget(row as Record<string, unknown>);
   }
 
+  async removeTarget(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const res = await p.salesTarget.deleteMany({ where: { id, workspaceId } });
+    return res.count > 0;
+  }
+
   async updateTarget(
     workspaceId: string,
     id: string,

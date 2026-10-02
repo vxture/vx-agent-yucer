@@ -154,6 +154,8 @@ export interface ContractRosterProps {
     termEnd: string | null;
   }) => Result;
   readonly onRemoveLine: (input: { accountId: string; contractId: string; lineId: string }) => Result;
+  /** Draft contracts only; the rule layer refuses anything else. */
+  readonly onRemoveContract: (input: { accountId: string; contractId: string }) => Result;
   /** delivery.contract.renew - separate from canWrite, it is its own action. */
   readonly canRenew: boolean;
   readonly onRenew: (input: {
@@ -206,6 +208,7 @@ export function ContractRoster(props: ContractRosterProps) {
   const [outcomeFor, setOutcomeFor] = useState<ContractRow | null>(null);
   const [lineFor, setLineFor] = useState<{ contract: ContractRow; line: ContractLineRow | null } | null>(null);
   const [removing, setRemoving] = useState<{ contract: ContractRow; line: ContractLineRow } | null>(null);
+  const [removingContract, setRemovingContract] = useState<ContractRow | null>(null);
 
   const phaseLabel: Record<ContractPhase, string> = {
     draft: CONTRACT_TEXT.phaseDraft,
@@ -245,6 +248,17 @@ export function ContractRoster(props: ContractRosterProps) {
       }
       toast({ tone: "success", title: CONTRACT_TEXT.removed });
       setRemoving(null);
+    });
+
+  const removeWhole = (target: ContractRow) =>
+    start(async () => {
+      const r = await props.onRemoveContract({ accountId: props.accountId, contractId: target.id });
+      if (!r.ok) {
+        refuse(r.error);
+        return;
+      }
+      toast({ tone: "success", title: CONTRACT_TEXT.removed });
+      setRemovingContract(null);
     });
 
   return (
@@ -358,6 +372,11 @@ export function ContractRoster(props: ContractRosterProps) {
                   {props.canWrite ? (
                     <Button size="sm" variant="ghost" onClick={() => setEditing({ mode: "edit", row: c })}>
                       {CONTRACT_TEXT.edit}
+                    </Button>
+                  ) : null}
+                  {props.canWrite && c.status === "draft" ? (
+                    <Button size="sm" variant="ghost" onClick={() => setRemovingContract(c)}>
+                      {CONTRACT_TEXT.removeContract}
                     </Button>
                   ) : null}
                 </span>
@@ -512,6 +531,18 @@ export function ContractRoster(props: ContractRosterProps) {
           target={productName(removing.line.productName)}
           consequence={CONTRACT_TEXT.removeConsequence}
           onConfirm={() => remove(removing)}
+        />
+      ) : null}
+      {removingContract ? (
+        <ConfirmDestructive
+          open={!!removingContract}
+          onOpenChange={(o) => {
+            if (!o && !pending) setRemovingContract(null);
+          }}
+          verb={CONTRACT_TEXT.removeContract}
+          target={removingContract.name}
+          consequence={CONTRACT_TEXT.removeContractConsequence}
+          onConfirm={() => removeWhole(removingContract)}
         />
       ) : null}
     </div>
