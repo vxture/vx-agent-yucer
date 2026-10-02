@@ -7,7 +7,7 @@ import { can } from "../../../authz/decide";
 import { getStrategyStore } from "../../../domains/shared/registry";
 import { campaignReturn, listCampaigns } from "../../../domains/strategy/service";
 import { ExecutionForm, type ExecutionFormRow } from "../../components/execution-form";
-import { saveExecution } from "../actions";
+import { deleteExecution, saveExecution } from "../actions";
 
 // 新建/编辑执行项 - a page since 2026-09-05 (owner ruling; see /catalog/new for
 // the shape and why the gate redirects).
@@ -77,6 +77,7 @@ export default async function NewExecutionPage({
           .filter((r) => r.status !== "completed")
           .map((r) => ({ id: r.id, name: r.name, status: r.status }))}
         onSave={saveExecution}
+        onDelete={deleteExecution}
       />
     </ViewLayout>
   );

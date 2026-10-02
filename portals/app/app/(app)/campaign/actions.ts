@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getStrategyStore } from "../../domains/shared/registry";
-import { upsertExecution, transitionCampaign } from "../../domains/strategy/service";
+import { removeExecution, upsertExecution, transitionCampaign } from "../../domains/strategy/service";
 import { CAMPAIGN_STATUSES, type CampaignStatus } from "../../domains/strategy/lib/lifecycle";
 
 // Moving a campaign through its lifecycle.
@@ -38,6 +38,28 @@ export async function moveCampaign(id: string, to: string): Promise<TransitionRe
     to as CampaignStatus,
   );
 
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/campaign");
+  return { ok: true };
+}
+
+export async function deleteExecution(
+  campaignId: string,
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await removeExecution(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getStrategyStore(),
+    },
+    campaignId,
+    id,
+  );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/campaign");
   return { ok: true };

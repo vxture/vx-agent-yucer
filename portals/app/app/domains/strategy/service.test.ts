@@ -12,6 +12,7 @@ import {
   listSegments,
   strategyDiagnosticSnapshots,
   upsertSegment,
+  removeExecution,
   upsertExecution,
   listPlans,
   transitionCampaign,
@@ -309,6 +310,29 @@ test("finishing the outstanding execution is what lets a campaign complete", asy
   }));
 
   assert.equal((await transitionCampaign(c, "camp_1", "completed")).ok, true);
+});
+
+test("an execution can be deleted - not from another campaign, not from a completed one", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({
+    campaigns: [
+      campaign({ id: "camp_1", status: "running" }),
+      campaign({ id: "camp_2", status: "running" }),
+      campaign({ id: "camp_3", status: "completed" }),
+    ],
+    executions: [
+      { id: "e1", workspaceId: WS, campaignId: "camp_1", title: "a", actionType: "outreach", assigneeSub: null, dueAt: null, status: "pending" },
+      { id: "e3", workspaceId: WS, campaignId: "camp_3", title: "c", actionType: "outreach", assigneeSub: null, dueAt: null, status: "done" },
+    ],
+  });
+  const c = ctx("marketing_manager", "business", store);
+  const wrong = await removeExecution(c, "camp_2", "e1");
+  assert.equal(wrong.ok === false && wrong.violations[0]!.code, "not_found");
+  assert.equal((await store.listExecutions(WS, "camp_1")).length, 1);
+  const frozen = await removeExecution(c, "camp_3", "e3");
+  assert.equal(frozen.ok === false && frozen.violations[0]!.code, "campaign_completed");
+  unwrap(await removeExecution(c, "camp_1", "e1"));
+  assert.equal((await store.listExecutions(WS, "camp_1")).length, 0);
 });
 
 test("a viewer may read a campaign and may not write its executions", async () => {

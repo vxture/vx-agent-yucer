@@ -146,6 +146,8 @@ export interface StrategyStore {
    * workspace or another campaign - the service turns that into "not found"
    * rather than moving the item between campaigns.
    */
+  /** Delete one execution of one campaign. False when it is not on that campaign. */
+  removeExecution(workspaceId: string, campaignId: string, id: string): Promise<boolean>;
   upsertExecution(
     workspaceId: string,
     campaignId: string,
@@ -288,6 +290,15 @@ export class InMemoryStrategyStore implements StrategyStore {
     const c = this.campaigns.get(id);
     if (!c || c.workspaceId !== workspaceId) return false;
     Object.assign(c, patch);
+    return true;
+  }
+
+  async removeExecution(workspaceId: string, campaignId: string, id: string): Promise<boolean> {
+    const at = this.executions.findIndex(
+      (e) => e.id === id && e.workspaceId === workspaceId && e.campaignId === campaignId,
+    );
+    if (at < 0) return false;
+    this.executions.splice(at, 1);
     return true;
   }
 

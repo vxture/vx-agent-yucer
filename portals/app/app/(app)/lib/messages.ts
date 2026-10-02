@@ -6114,6 +6114,8 @@ export const CAMPAIGN_TEXT = {
   } as Record<string, string>,
   executionEditing: "编辑哪一项",
   executionNew: "新建执行项",
+  executionDelete: "删除执行项",
+  executionDeleteConsequence: "这一项会从战役里删掉，不可恢复。已完成的战役不能删。",
   executionSave: "保存执行项",
   executionSaved: "已保存",
   executionsDenied: "你没有维护战役执行项的权限",
