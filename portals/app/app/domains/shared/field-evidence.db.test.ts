@@ -101,20 +101,26 @@ test("evidence tables have no UPDATE at any level", { skip }, async () => {
   });
 });
 
-test("evidence cannot be DELETED by the service role either", { skip }, async () => {
-  // "Append-only" has so far meant "no UPDATE" in this repo, while 97 hands out
-  // DELETE ON ALL TABLES. A judgement citing what a customer said on 4 March is
-  // worthless if that row can be removed, so this plane withholds DELETE too.
+test("DELETE is held on interaction and commitment only (ADR-037), never on a participant", { skip }, async () => {
+  // ADR-006 withheld DELETE from the whole plane, so a mistaken follow-up could
+  // never be taken back. ADR-037 / incr/0104 lets an author delete their own -
+  // and WHICH rows is the rule layer's job (author only, nothing relying on it,
+  // a promise only while open). The grant is wide on these two tables and absent
+  // on interaction_participant: its rows go with their interaction (CASCADE)
+  // and nothing may remove a participant on its own.
   await withDb(async (c) => {
-    for (const t of ["interaction", "interaction_participant", "commitment"]) {
+    const holds = async (t: string) => {
       const { rows } = await c.query(
         `SELECT 1 FROM information_schema.table_privileges
          WHERE grantee = 'yucer_svc' AND privilege_type = 'DELETE'
            AND table_schema = 'yucer_field' AND table_name = $1`,
         [t],
       );
-      assert.equal(rows.length, 0, `${t} grants DELETE; evidence must not be erasable`);
-    }
+      return rows.length > 0;
+    };
+    assert.equal(await holds("interaction"), true, "interaction must grant DELETE (incr/0104)");
+    assert.equal(await holds("commitment"), true, "commitment must grant DELETE (incr/0104)");
+    assert.equal(await holds("interaction_participant"), false, "a participant must not be deletable alone");
   });
 });
 
