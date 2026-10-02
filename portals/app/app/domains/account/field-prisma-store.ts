@@ -192,9 +192,35 @@ export class PrismaFieldStore implements FieldStore {
         ownerSub: input.ownerSub ?? null,
         counterpartContactId: input.counterpartContactId ?? null,
         dueAt: input.dueAt,
+        createdBySub: input.createdBySub ?? null,
       },
     });
     return toCommitment(row as Record<string, unknown>);
+  }
+
+  async removeInteraction(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The participants go with it (ON DELETE CASCADE, incr/0004).
+    const res = await p.interaction.deleteMany({ where: { id, workspaceId } });
+    return res.count > 0;
+  }
+
+  async removeCommitment(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const res = await p.commitment.deleteMany({ where: { id, workspaceId } });
+    return res.count > 0;
+  }
+
+  async interactionCitations(workspaceId: string, id: string): Promise<number> {
+    const p = await getPrismaClient();
+    const [corrections, origin, closedOn, evidence, rivals] = await Promise.all([
+      p.interaction.count({ where: { workspaceId, correctsInteractionId: id } }),
+      p.commitment.count({ where: { workspaceId, originInteractionId: id } }),
+      p.commitment.count({ where: { workspaceId, closureEvidenceKind: "interaction", closureEvidenceId: id } }),
+      p.opportunityEvidence.count({ where: { workspaceId, interactionId: id } }),
+      p.opportunityCompetitor.count({ where: { workspaceId, interactionId: id } }),
+    ]);
+    return corrections + origin + closedOn + evidence + rivals;
   }
 
   async getCommitment(workspaceId: string, id: string): Promise<CommitmentRecord | null> {
@@ -316,6 +342,7 @@ function toCommitment(r: Record<string, unknown>): CommitmentRecord {
     metAt: (r.metAt as Date | null) ?? null,
     waivedBySub: r.waivedBySub == null ? null : String(r.waivedBySub),
     waiveReason: r.waiveReason == null ? null : String(r.waiveReason),
+    createdBySub: r.createdBySub == null ? null : String(r.createdBySub),
   };
 }
 

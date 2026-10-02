@@ -136,6 +136,102 @@ test("recordInteraction with no participants writes zero rows, not a null crash"
   }
 });
 
+// --- ADR-037: delete, and what relies on a follow-up ------------------------------
+
+const OPP_DEL = "ffffffff-0000-0000-0000-0000000000d1";
+
+test("removeInteraction and removeCommitment delete in their own workspace; the service role may, and cascades the participants", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seedAccounts);
+    const s = await store();
+    const note = await s.recordInteraction(WS, {
+      accountId: ACC, actorSub: "usr_rep", channel: "call", occurredAt: new Date("2026-08-03T10:00:00Z"),
+      rawNote: "to be deleted", participants: [{ contactId: CONTACT }],
+    });
+    const promise = await s.createCommitment(WS, {
+      accountId: ACC, direction: "we_owe", statement: "send the quote", dueAt: new Date("2026-09-01T00:00:00Z"),
+      ownerSub: "usr_rep", createdBySub: "usr_rep",
+    });
+    assert.equal((await s.getCommitment(WS, promise.id))?.createdBySub, "usr_rep");
+
+    assert.equal(await s.removeInteraction(WS_OTHER, note.id), false);
+    assert.equal(await s.removeCommitment(WS_OTHER, promise.id), false);
+    assert.equal(await s.removeInteraction(WS, note.id), true);
+    assert.equal(await s.removeCommitment(WS, promise.id), true);
+    assert.equal(await s.removeInteraction(WS, note.id), false);
+    assert.deepEqual(await s.listParticipants(WS, note.id), [], "the participants went with it");
+
+    // As the runtime does: the service role holds DELETE on these two (incr/0104)
+    // and on nothing else in the plane - a participant cannot be removed alone.
+    await withPg(async (c) => {
+      await c.query(`SET ROLE yucer_svc`);
+      try {
+        const a = await c.query(
+          `INSERT INTO yucer_field.interaction (workspace_id, account_id, channel, occurred_at, actor_sub, raw_note)
+           VALUES ($1, $2, 'call', now(), 'usr_rep', 'by the service role') RETURNING id`,
+          [WS, ACC],
+        );
+        await c.query(`INSERT INTO yucer_field.interaction_participant (workspace_id, interaction_id, external_name) VALUES ($1, $2, 'x')`, [WS, a.rows[0].id]);
+        await assert.rejects(
+          c.query(`DELETE FROM yucer_field.interaction_participant WHERE interaction_id = $1`, [a.rows[0].id]),
+          /permission denied/,
+        );
+        await c.query(`DELETE FROM yucer_field.interaction WHERE id = $1`, [a.rows[0].id]);
+      } finally {
+        await c.query(`RESET ROLE`);
+      }
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("interactionCitations counts corrections, promises it started, promises closed on it, deal evidence and a rival's basis", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seedAccounts);
+    const s = await store();
+    const base = { accountId: ACC, actorSub: "usr_rep", channel: "call" as const, occurredAt: new Date("2026-08-04T10:00:00Z") };
+    const note = await s.recordInteraction(WS, { ...base, rawNote: "the original" });
+    assert.equal(await s.interactionCitations(WS, note.id), 0);
+
+    await s.recordInteraction(WS, { ...base, rawNote: "a correction", correctsInteractionId: note.id });
+    assert.equal(await s.interactionCitations(WS, note.id), 1);
+
+    await s.createCommitment(WS, { accountId: ACC, direction: "they_owe", statement: "a PO", dueAt: new Date("2026-09-01T00:00:00Z"), originInteractionId: note.id });
+    assert.equal(await s.interactionCitations(WS, note.id), 2);
+
+    await withPg(async (c) => {
+      await c.query(
+        `INSERT INTO yucer_pipeline.stage_definition (workspace_id, stage_code, name) VALUES ($1, 'qualify', 'Qualify')
+         ON CONFLICT DO NOTHING`,
+        [WS],
+      );
+      await c.query(
+        `INSERT INTO yucer_pipeline.opportunity (id, workspace_id, opportunity_no, name, account_id, owner_sub, requirement)
+         VALUES ($1, $2, 'OPP-DEL-1', 'Deal', $3, 'usr_rep', 'req')`,
+        [OPP_DEL, WS, ACC],
+      );
+      await c.query(
+        `INSERT INTO yucer_pipeline.opportunity_evidence (workspace_id, opportunity_id, slot, statement, interaction_id, author_sub)
+         VALUES ($1, $2, 'pain', 'they hurt', $3, 'usr_rep')`,
+        [WS, OPP_DEL, note.id],
+      );
+    });
+    assert.equal(await s.interactionCitations(WS, note.id), 3);
+    assert.equal(await s.interactionCitations(WS_OTHER, note.id), 0, "another workspace counts nothing");
+
+    await withPg(async (c) => {
+      await c.query(`DELETE FROM yucer_pipeline.opportunity_evidence WHERE workspace_id = $1`, [WS]);
+      await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
+      await c.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1`, [WS]);
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
 // --- listInteractions ---------------------------------------------------------
 
 test("listInteractions scopes by account, orders newest first, and respects limit", { skip }, async () => {

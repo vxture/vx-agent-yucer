@@ -1521,6 +1521,9 @@ model Commitment {
   metAt                DateTime? @map("met_at") @db.Timestamptz(6)
   waivedBySub          String?   @map("waived_by_sub") @db.VarChar(128)
   waiveReason          String?   @map("waive_reason")
+  /// incr/0104. Who recorded it (owner_sub is who OWES it). NULL for rows
+  /// written before then - and a NULL author is nobody.
+  createdBySub         String?   @map("created_by_sub") @db.VarChar(128)
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

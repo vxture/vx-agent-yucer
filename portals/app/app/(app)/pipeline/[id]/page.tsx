@@ -116,7 +116,7 @@ import {
   listCommitments,
   listInteractions,
 } from "../../../domains/account/field-service";
-import { settleCommitment } from "../../account/field-actions";
+import { deleteCommitment, deleteFollowUp, settleCommitment } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
 import { AmountCoin, DimensionStat, HealthCoin, ImportanceCoin } from "../../components/dimension-stat";
@@ -1839,6 +1839,8 @@ export default async function OpportunityDetailPage({
                   // rest in place; the customer page keeps them behind a tab.
                   limit={5}
                   rows
+                  currentSub={session.user.sub}
+                  onDelete={(iid) => deleteFollowUp(opportunity.accountId, iid, id)}
                 />
               ) : (
                 <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />
@@ -1937,6 +1939,8 @@ export default async function OpportunityDetailPage({
                         canWrite={canRecord}
                         captureHref={`/capture?account=${opportunity.accountId}&opportunity=${id}&back=/pipeline/${id}`}
                         onSettle={settleCommitment}
+                        currentSub={session.user.sub}
+                        onDelete={deleteCommitment}
                         rows
                       />
                     </div>

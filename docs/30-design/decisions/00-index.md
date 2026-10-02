@@ -37,3 +37,5 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-031 | [一人可在多个单位，持多个角色；成员管理有清单与组织两个视图](ADR-031-a-person-belongs-to-several-units.md) | accepted | 2026-09-10 |
 
 | ADR-032 | [db-init 记账：每个 DDL 文件只应用一次](ADR-032-db-init-keeps-a-ledger.md) | accepted | 2026-09-10 |
+
+| ADR-037 | [作者可以删除自己写的跟进记录和承诺，前提是没有任何东西依赖它](ADR-037-an-author-may-delete-what-they-wrote.md) | accepted | 2026-10-02 |

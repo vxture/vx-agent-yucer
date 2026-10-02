@@ -13,6 +13,8 @@ import {
   evidenceForPrompt,
   listCommitments,
   recordInteraction,
+  removeCommitment,
+  removeInteraction,
   relationshipEvidence,
   setContactRecencyPolicy,
   type FieldContext,
@@ -602,4 +604,77 @@ test("a pool never exceeds what exists, and is never smaller than maxNotes", asy
   assert.equal(unwrap(await evidenceForPrompt(c, ACC, "Acme", { now: NOW, maxNotes: 12, pool: 100 })).notes.length, 5);
   await noted(c, 15);
   assert.equal(unwrap(await evidenceForPrompt(c, ACC, "Acme", { now: NOW, maxNotes: 12, pool: 3 })).notes.length, 12);
+});
+
+// --- ADR-037: an author may delete what they wrote --------------------------
+
+function asMember(c: FieldContext, sub: string): FieldContext {
+  return { ...c, sub };
+}
+
+test("a follow-up can be deleted by its author, and by nobody else", async () => {
+  const store = new InMemoryFieldStore();
+  const mine = ctx("sales_rep", "business", store);
+  const note = unwrap(await recordInteraction(mine, { accountId: ACC, channel: "call", occurredAt: NOW, rawNote: "called about renewal" }));
+
+  const other = await removeInteraction(asMember(mine, "usr_other"), note.id);
+  assert.equal(other.ok === false && other.violations[0]!.code, "not_author");
+  assert.equal((await store.getInteraction(WS, note.id))?.id, note.id);
+
+  unwrap(await removeInteraction(mine, note.id));
+  assert.equal(await store.getInteraction(WS, note.id), null);
+  const again = await removeInteraction(mine, note.id);
+  assert.equal(again.ok === false && again.violations[0]!.code, "not_found");
+});
+
+test("a follow-up something relies on stays: a promise it started, a promise closed on it", async () => {
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_rep", "business", store);
+  const origin = unwrap(await recordInteraction(c, { accountId: ACC, channel: "call", occurredAt: NOW, rawNote: "they promised a PO" }));
+  const proof = unwrap(await recordInteraction(c, { accountId: ACC, channel: "email", occurredAt: NOW, rawNote: "PO arrived" }));
+  const promise = await openCommitment(c, { originInteractionId: origin.id });
+
+  // It originated a promise.
+  const cited = await removeInteraction(c, origin.id);
+  assert.equal(cited.ok === false && cited.violations[0]!.code, "interaction_cited");
+
+  // It is the proof a promise was kept.
+  unwrap(await closeCommitment(ctx("sales_manager", "business", store), promise.id, { to: "met", evidence: { kind: "interaction", id: proof.id } }));
+  const proofCited = await removeInteraction(c, proof.id);
+  assert.equal(proofCited.ok === false && proofCited.violations[0]!.code, "interaction_cited");
+  assert.notEqual(await store.getInteraction(WS, proof.id), null);
+});
+
+test("an open promise can be deleted by the person who recorded it; a settled or someone else's cannot", async () => {
+  const store = new InMemoryFieldStore();
+  const me = ctx("sales_rep", "business", store);
+  const open = await openCommitment(me);
+  assert.equal(open.createdBySub, "usr_me");
+
+  const other = await removeCommitment(asMember(me, "usr_other"), open.id);
+  assert.equal(other.ok === false && other.violations[0]!.code, "not_author");
+
+  const waived = await openCommitment(me, { statement: "let this one go" });
+  unwrap(await closeCommitment(ctx("sales_manager", "business", store), waived.id, { to: "waived", waiveReason: "customer withdrew" }));
+  const settled = await removeCommitment(me, waived.id);
+  assert.equal(settled.ok === false && settled.violations[0]!.code, "commitment_settled");
+
+  unwrap(await removeCommitment(me, open.id));
+  assert.equal(await store.getCommitment(WS, open.id), null);
+});
+
+test("a promise recorded before authorship existed has no author and stays", async () => {
+  const store = new InMemoryFieldStore();
+  const me = ctx("sales_rep", "business", store);
+  store.seed({
+    commitments: [
+      {
+        id: "cmt_old", workspaceId: WS, accountId: ACC, opportunityId: null, originInteractionId: null,
+        direction: "we_owe", statement: "old", ownerSub: "usr_me", counterpartContactId: null, dueAt: days(5),
+        status: "open", closureEvidenceKind: null, closureEvidenceId: null, metAt: null, waivedBySub: null, waiveReason: null,
+      },
+    ],
+  });
+  const r = await removeCommitment(me, "cmt_old");
+  assert.equal(r.ok === false && r.violations[0]!.code, "not_author");
 });

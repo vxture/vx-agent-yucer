@@ -92,6 +92,9 @@ export interface CommitmentRecord {
   metAt: Date | null;
   waivedBySub: string | null;
   waiveReason: string | null;
+  /** incr/0104. Who recorded it; absent or null for rows older than that, and
+   *  a null author is nobody (ADR-037). */
+  createdBySub?: string | null;
 }
 
 export interface NewCommitment {
@@ -103,6 +106,8 @@ export interface NewCommitment {
   ownerSub?: string | null;
   counterpartContactId?: string | null;
   dueAt: Date;
+  /** Set by the service from the session, never by a caller. */
+  createdBySub?: string | null;
 }
 
 /** The whitelisted lifecycle patch - exactly the columns the increment grants. */
@@ -162,6 +167,15 @@ export interface FieldStore {
   createCommitment(workspaceId: string, input: NewCommitment): Promise<CommitmentRecord>;
   getCommitment(workspaceId: string, id: string): Promise<CommitmentRecord | null>;
   listCommitments(workspaceId: string, filter?: CommitmentFilter): Promise<CommitmentRecord[]>;
+  /** ADR-037. Hard deletes - the service decides whether a row may go. */
+  removeInteraction(workspaceId: string, id: string): Promise<boolean>;
+  removeCommitment(workspaceId: string, id: string): Promise<boolean>;
+  /**
+   * What relies on one interaction: corrections of it, promises it originated,
+   * promises closed on it, and (in the database) a deal's evidence and a
+   * rival's basis. Zero means nothing does.
+   */
+  interactionCitations(workspaceId: string, id: string): Promise<number>;
   /** Takes a decided plan; see the note at the top of this file. */
   applyClosure(workspaceId: string, id: string, patch: CommitmentClosurePatch): Promise<boolean>;
 
@@ -257,6 +271,34 @@ export class InMemoryFieldStore implements FieldStore {
     return new Date(Math.max(...rows.map((i) => i.occurredAt.getTime())));
   }
 
+  async removeInteraction(workspaceId: string, id: string): Promise<boolean> {
+    const at = this.interactions.findIndex((i) => i.workspaceId === workspaceId && i.id === id);
+    if (at < 0) return false;
+    this.interactions.splice(at, 1);
+    return true;
+  }
+
+  async removeCommitment(workspaceId: string, id: string): Promise<boolean> {
+    const held = this.commitments.get(id);
+    if (!held || held.workspaceId !== workspaceId) return false;
+    this.commitments.delete(id);
+    return true;
+  }
+
+  async interactionCitations(workspaceId: string, id: string): Promise<number> {
+    // The pipeline's own citations (a deal's evidence, a rival's basis) live in
+    // another store; the database counts those, and the db test covers them.
+    const corrections = this.interactions.filter(
+      (i) => i.workspaceId === workspaceId && i.correctsInteractionId === id,
+    ).length;
+    const promises = [...this.commitments.values()].filter(
+      (c) =>
+        c.workspaceId === workspaceId &&
+        (c.originInteractionId === id || (c.closureEvidenceKind === "interaction" && c.closureEvidenceId === id)),
+    ).length;
+    return corrections + promises;
+  }
+
   async createCommitment(workspaceId: string, input: NewCommitment): Promise<CommitmentRecord> {
     this.seq += 1;
     const row: CommitmentRecord = {
@@ -276,6 +318,7 @@ export class InMemoryFieldStore implements FieldStore {
       metAt: null,
       waivedBySub: null,
       waiveReason: null,
+      createdBySub: input.createdBySub ?? null,
     };
     this.commitments.set(row.id, row);
     return { ...row };
