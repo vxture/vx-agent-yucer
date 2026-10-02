@@ -31,7 +31,7 @@ export const CENTRE_PANE_CLASS = "min-h-0 min-w-0 flex-1 overflow-y-auto px-md p
  *  sibling routes, not ids; a deeper route (/pipeline/<id>/lines) keeps the
  *  shell's own panes. */
 const DOSSIER_SIBLINGS: Readonly<Record<string, readonly string[]>> = {
-  account: ["complete"],
+  account: ["complete", "new"],
   pipeline: ["new"],
 };
 
