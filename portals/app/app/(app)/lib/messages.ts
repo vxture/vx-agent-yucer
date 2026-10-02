@@ -324,7 +324,6 @@ export const ROUTING_TEXT = {
 export const RENEWAL_TEXT = {
   title: "合同续约",
   // 提前多少天不再是写死的 90——incr/0066 把它挪进「提醒阈值」页，工作区自己设。
-  why: "订阅制项目进入到期前的提醒窗口就出现在这里（窗口天数在「提醒阈值」页配置；owner 裁定 2026-08-30：从项目派生，且只为订阅类）。一次性交付不在此列——它交付完就结束了，替它造一个续约义务是客户从没承诺过的事。",
   none: "没有临近到期的订阅项目",
   noneWhy: "一次性项目不产生续约；订阅项目要进入到期前的提醒窗口才出现在这里，窗口天数在「提醒阈值」页配置。",
   colProject: "项目",
@@ -405,7 +404,6 @@ export const RENEWAL_TEXT = {
 
 export const FORECAST_RULE_TEXT = {
   title: "预测口径",
-  why: "规则会把每笔生意归到哪一档，摆在人归的那一档旁边（owner 裁定 2026-08-31：只建议，逐单应用）。分歧本身就是预测评审要谈的东西——以前它只能靠一单一单翻看板才看得见。",
   none: "没有开放中的生意",
   noneWhy:
     "已成交与已判负的生意，档位由阶段定死，不是判断，也就没有第二种意见。",
@@ -1006,8 +1004,6 @@ export const CATALOG_TEXT = {
   solutionAdviceOpen: "打开方案",
   solutionAdviceOpenCatalogue: "前往产品目录",
   solutions: "解决方案",
-  solutionsWhy:
-    "组合模板。行项从不引用它做计算（ADR-014 §4）——模板是起点，不是权威。",
   solutionItems: (n: number) => `${n} 个产品`,
   noSolutions: "还没有解决方案",
   emptyBundle: "一个不装产品的方案只是个名字",
@@ -4460,7 +4456,6 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
 };
 
 export const PROPOSAL_TEXT = {
-  why: "参谋提出的动作，由人裁决。机器只提议，采纳与否你定（ADR-003）。",
   // 客户详情页 (owner, 2026-09-18): 采纳/忽略不在本页内联执行——按 ADR-003，
   // 真正的裁决只在队列页发生，这里的按钮只是把人带过去。分析仅在有理由文本
   // 时出现：没有 rationale 就没有值得深挖的东西。

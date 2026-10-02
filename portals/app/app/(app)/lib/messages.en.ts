@@ -407,7 +407,6 @@ export const en: Dictionary = {
     title: "Renewals",
     // The lead time is no longer a hardcoded 90 - incr/0066 moved it under
     // Reminder thresholds, workspace-set.
-    why: "Subscription projects appear here once they enter the reminder window before their term ends (window set under Reminder thresholds; owner ruling, 2026-08-30: derived from the project, and only for subscriptions). One-off deliveries are absent - they finished when they were handed over, and inventing a renewal for one chases an obligation the customer never took on.",
     none: "No subscription terms coming up",
     noneWhy:
       "One-off projects never renew; a subscription appears once it enters the reminder window before its term ends, set under Reminder thresholds.",
@@ -493,7 +492,6 @@ export const en: Dictionary = {
   },
   FORECAST_RULE_TEXT: {
     title: "Forecast rules",
-    why: "Where the rule would file each deal, beside where a person filed it (owner ruling, 2026-08-31: suggest only, applied one deal at a time). The disagreement is what a forecast review is about - and until now it could only be found by reading the board deal by deal.",
     none: "No open deals",
     noneWhy:
       "Won and lost deals have their category bound to the stage. That is not a judgement, so there is no second opinion to offer.",
@@ -1483,8 +1481,6 @@ export const en: Dictionary = {
     solutionAdviceOpen: "Open the solution",
     solutionAdviceOpenCatalogue: "Open the catalogue",
     solutions: "Solutions",
-    solutionsWhy:
-      "Quoting templates. Lines never reference one for calculation (ADR-014 s4) - a template is a starting point, not the authority.",
     solutionItems: (n: number) => `${n} products`,
     noSolutions: "No solutions yet",
     emptyBundle: "A solution with no products is just a name",
@@ -5219,7 +5215,6 @@ export const en: Dictionary = {
   // --- /copilot -----------------------------------------------------------
 
   PROPOSAL_TEXT: {
-    why: "Actions the copilot proposes and a person decides on. The machine proposes; accepting is yours (ADR-003).",
     viewInQueue: "Decide in the queue",
     analyze: "Analyze",
     analyzeQuestion: (title: string, rationale: string) =>
