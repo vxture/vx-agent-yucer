@@ -318,6 +318,21 @@ function execution(overrides: Record<string, unknown> = {}) {
   };
 }
 
+test("removeExecution deletes within its own campaign only", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seedCampaigns);
+    const s = await store();
+    const created = await s.upsertExecution(WS, CAMPAIGN, execution());
+    assert.equal(await s.removeExecution(WS, "eeeeeeee-0000-0000-0000-0000000000ff", created!.id), false);
+    assert.equal(await s.removeExecution(WS, CAMPAIGN, created!.id), true);
+    assert.equal((await s.listExecutions(WS, CAMPAIGN)).length, 0);
+    assert.equal(await s.removeExecution(WS, CAMPAIGN, created!.id), false);
+  } finally {
+    await cleanup();
+  }
+});
+
 test("upsertExecution creates without an id and edits in place with one", { skip }, async () => {
   await cleanup();
   try {

@@ -263,6 +263,40 @@ export async function upsertExecution(
 }
 
 /**
+ * Remove one execution from a campaign.
+ *
+ * Skipping was the only way out of an item added by mistake, and a skipped item
+ * stays on the campaign as a decision somebody made. A COMPLETED campaign's
+ * items are the record it was completed on, so they stay: same freeze as
+ * editing one.
+ */
+export async function removeExecution(
+  ctx: StrategyContext,
+  campaignId: string,
+  id: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "campaign.execution.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const campaign = await ctx.store.getCampaign(ctx.workspaceId, campaignId);
+  if (!campaign) {
+    return fail(violation("not_found", `campaign ${campaignId} was not found`, "campaignId"));
+  }
+  if (campaign.status === "completed") {
+    return fail(
+      violation(
+        "campaign_completed",
+        "this campaign is complete; its executions are the record it was completed on",
+        "status",
+      ),
+    );
+  }
+  const removed = await ctx.store.removeExecution(ctx.workspaceId, campaignId, id);
+  if (!removed) return fail(violation("not_found", `execution ${id} is not on this campaign`, "id"));
+  return ok({ removed: true });
+}
+
+/**
  * 战略诊断's reads: the newest segment coverage and territory attainment
  * snapshots. Gated on strategy.plan.view - the screen's own gate, now checked
  * at the data layer too (the page used to query Prisma directly, past both).

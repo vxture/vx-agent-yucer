@@ -11,6 +11,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { ConfirmDestructive } from "./confirm-destructive";
 import {
   AssistPanel,
   FormFields,
@@ -56,6 +57,7 @@ export function ExecutionForm({
   rows,
   campaigns,
   onSave,
+  onDelete,
   initialId,
 }: {
   /** Open on this execution (the list rows link here with ?execution=). */
@@ -78,6 +80,8 @@ export function ExecutionForm({
       status: string;
     },
   ) => Promise<Saved>;
+  /** Only offered for an execution that exists; the rule layer refuses a completed campaign's. */
+  readonly onDelete: (campaignId: string, id: string) => Promise<Saved>;
 }) {
   const { CAMPAIGN_TEXT, EXECUTION_ERROR, ASSIST_TEXT } = useMessages();
   const [form, setForm] = useState(() => {
@@ -96,6 +100,7 @@ export function ExecutionForm({
       : BLANK;
   });
   const submit = useFormSubmit("/campaign");
+  const [confirming, setConfirming] = useState(false);
 
   // Picking an existing item fills the form from it. A control that says
   // "editing X" and then writes whatever is in the fields is worse than no edit.
@@ -246,7 +251,29 @@ export function ExecutionForm({
               >
                 {CAMPAIGN_TEXT.executionSave}
               </Button>
+              {form.id !== "" ? (
+                <Button variant="ghost" disabled={submit.pending} onClick={() => setConfirming(true)}>
+                  {CAMPAIGN_TEXT.executionDelete}
+                </Button>
+              ) : null}
               {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
+              {confirming ? (
+                <ConfirmDestructive
+                  open={confirming}
+                  onOpenChange={(o) => {
+                    if (!o && !submit.pending) setConfirming(false);
+                  }}
+                  verb={CAMPAIGN_TEXT.executionDelete}
+                  target={form.title}
+                  consequence={CAMPAIGN_TEXT.executionDeleteConsequence}
+                  onConfirm={() =>
+                    submit.run(
+                      () => onDelete(form.campaignId, form.id),
+                      (c) => EXECUTION_ERROR[c] ?? EXECUTION_ERROR.denied,
+                    )
+                  }
+                />
+              ) : null}
             </div>
           </div>
         </Section>

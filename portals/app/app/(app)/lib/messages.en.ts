@@ -4453,6 +4453,8 @@ export const en: Dictionary = {
     } as Record<string, string>,
     executionEditing: "Editing",
     executionNew: "New execution",
+    executionDelete: "Delete execution",
+    executionDeleteConsequence: "This item is deleted from the campaign for good. A completed campaign cannot lose items.",
     executionSave: "Save execution",
     executionSaved: "Saved",
     executionsDenied: "You cannot maintain campaign executions",

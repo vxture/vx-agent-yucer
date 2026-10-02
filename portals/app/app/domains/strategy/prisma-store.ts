@@ -157,6 +157,14 @@ export class PrismaStrategyStore implements StrategyStore {
     return res.count > 0;
   }
 
+  async removeExecution(workspaceId: string, campaignId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The campaign is in the predicate, as in the update: an id from another
+    // campaign must delete nothing.
+    const res = await p.campaignExecution.deleteMany({ where: { id, workspaceId, campaignId } });
+    return res.count > 0;
+  }
+
   async upsertExecution(
     workspaceId: string,
     campaignId: string,
