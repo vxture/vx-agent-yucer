@@ -9,6 +9,8 @@ import {
   closeCommitment,
   createCommitment,
   recordInteraction,
+  removeCommitment,
+  removeInteraction,
 } from "../../domains/account/field-service";
 import { isChannel, isDirection } from "../../domains/account/lib/commitment";
 
@@ -214,6 +216,37 @@ export async function settleCommitment(
   });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
 
+  revalidateField(accountId, opportunityId);
+  return { ok: true };
+}
+
+/**
+ * Delete a follow-up the signed-in member wrote (ADR-037). The service refuses
+ * someone else's, and one that anything relies on; the code says which.
+ */
+export async function deleteFollowUp(
+  accountId: string,
+  id: string,
+  opportunityId?: string,
+): Promise<FieldResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const r = await removeInteraction(ctx(session), id);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidateField(accountId, opportunityId);
+  return { ok: true };
+}
+
+/** Delete an open promise the signed-in member recorded (ADR-037). */
+export async function deleteCommitment(
+  accountId: string,
+  id: string,
+  opportunityId?: string,
+): Promise<FieldResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const r = await removeCommitment(ctx(session), id);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidateField(accountId, opportunityId);
   return { ok: true };
 }

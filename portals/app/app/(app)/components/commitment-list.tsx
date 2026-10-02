@@ -19,6 +19,7 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+import { ConfirmDestructive } from "./confirm-destructive";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -38,6 +39,8 @@ export interface CommitmentItem {
   readonly dueAt: Date;
   readonly status: string;
   readonly ownerSub: string | null;
+  /** incr/0104. Who recorded it; null for older rows, and null is nobody. */
+  readonly createdBySub?: string | null;
 }
 
 export interface EvidenceOption {
@@ -83,6 +86,13 @@ export interface CommitmentListProps {
   readonly hideTitle?: boolean;
   /** The deal page's 推进计划 rows (YC-072 .pl) instead of a card of its own. */
   readonly rows?: boolean;
+  /** Who is looking: only the author of an OPEN promise is offered delete (ADR-037). */
+  readonly currentSub?: string;
+  readonly onDelete?: (
+    accountId: string,
+    id: string,
+    opportunityId?: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const DAY = 86_400_000;
@@ -99,6 +109,8 @@ export function CommitmentList({
   hideDescription,
   hideTitle,
   rows,
+  currentSub,
+  onDelete,
 }: CommitmentListProps) {
   const { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } =
     useMessages();
@@ -112,6 +124,7 @@ export function CommitmentList({
   // three buttons and a reason box at once - three commitments were a wall of
   // form. A row is its statement and its due date until someone asks to 处理.
   const [handling, setHandling] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   function run(op: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -125,6 +138,25 @@ export function CommitmentList({
 
   const open = items.filter((c) => c.status === "open");
   const settled = items.filter((c) => c.status !== "open");
+
+  // ADR-037. One dialog for both layouts; the row only opens it.
+  const deleteDialog =
+    deleting && onDelete ? (
+      <ConfirmDestructive
+        open
+        onOpenChange={(o) => {
+          if (!o && !pending) setDeleting(null);
+        }}
+        verb={FIELD_TEXT.commitDelete}
+        target={items.find((x) => x.id === deleting)?.statement ?? ""}
+        consequence={FIELD_TEXT.commitDeleteConsequence}
+        onConfirm={() => {
+          const id = deleting;
+          setDeleting(null);
+          run(() => onDelete(accountId, id, opportunityId));
+        }}
+      />
+    ) : null;
 
   // The closing form, shared by both layouts - one row's at a time.
   const closeForm = (id: string, overdue: boolean, chosen: string) => {
@@ -215,6 +247,14 @@ export function CommitmentList({
                     {FIELD_TEXT.commitWaive}
                   </Button>
                 </div>
+                {/* ADR-037: the author may take back an open promise. */}
+                {onDelete && currentSub && items.find((x) => x.id === c.id)?.createdBySub === currentSub ? (
+                  <div className="flex justify-end">
+                    <Button variant="ghost" size="sm" disabled={pending} onClick={() => setDeleting(c.id)}>
+                      {FIELD_TEXT.commitDelete}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
 );
   };
@@ -281,6 +321,7 @@ export function CommitmentList({
             {FIELD_TEXT.commitCreate}
           </a>
         ) : null}
+        {deleteDialog}
       </div>
     );
   }
@@ -363,6 +404,7 @@ export function CommitmentList({
           </Button>
         </div>
       ) : null}
+      {deleteDialog}
     </Section>
   );
 }

@@ -1,16 +1,18 @@
 "use client";
 
 import { MemberName, useMemberName } from "../lib/member-names";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   Button,
   EmptyState,
   Icon,
   Section,
   StatusBadge,
+  useToast,
   type IconName,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { ConfirmDestructive } from "./confirm-destructive";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 const DAY_MS = 86_400_000;
@@ -69,6 +71,9 @@ export interface InteractionTimelineProps {
   /** The deal page's 沟通记录 (YC-072 .lg): one dashed line per touch -
    *  date, channel, what was said, who - inside a panel that is the card. */
   readonly rows?: boolean;
+  /** Who is looking. Only the author of a follow-up is offered delete (ADR-037). */
+  readonly currentSub?: string;
+  readonly onDelete?: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function InteractionTimeline({
@@ -78,8 +83,33 @@ export function InteractionTimeline({
   hideTitle,
   action: externalAction,
   rows,
+  currentSub,
+  onDelete,
 }: InteractionTimelineProps) {
-  const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
+  const { CHANNEL_LABEL, FIELD_TEXT, FIELD_ERROR } = useMessages();
+  const { toast } = useToast();
+  const [removing, setRemoving] = useState<TimelineItem | null>(null);
+  const [pending, startTransition] = useTransition();
+  const mine = (i: TimelineItem) => Boolean(onDelete && currentSub && i.actorSub === currentSub);
+  const removeDialog =
+    removing && onDelete ? (
+      <ConfirmDestructive
+        open
+        onOpenChange={(o) => {
+          if (!o && !pending) setRemoving(null);
+        }}
+        verb={FIELD_TEXT.timelineDelete}
+        target={removing.rawNote.slice(0, 40)}
+        consequence={FIELD_TEXT.timelineDeleteConsequence}
+        onConfirm={() =>
+          startTransition(async () => {
+            const r = await onDelete(removing.id);
+            setRemoving(null);
+            if (!r.ok) toast({ tone: "danger", title: FIELD_ERROR[r.error ?? "denied"] ?? FIELD_ERROR.denied ?? "" });
+          })
+        }
+      />
+    ) : null;
   const nameOf = useMemberName();
   const [open, setOpen] = useState(false);
   // Expands IN PLACE rather than opening a page. A note is read in the context
@@ -130,13 +160,19 @@ export function InteractionTimeline({
                 ) : null}{" "}
                 {i.rawNote}
               </span>
-              <span className="text-muted-foreground text-[11px] whitespace-nowrap">
+              <span className="text-muted-foreground flex items-center gap-2xs text-[11px] whitespace-nowrap">
                 {i.actorName ?? nameOf(i.actorSub)}
+                {mine(i) ? (
+                  <Button variant="ghost" size="sm" disabled={pending} onClick={() => setRemoving(i)}>
+                    {FIELD_TEXT.timelineDelete}
+                  </Button>
+                ) : null}
               </span>
             </li>
           ))}
         </ol>
         {expandButton ? <span className="self-start">{expandButton}</span> : null}
+        {removeDialog}
       </div>
     );
   }
@@ -197,9 +233,15 @@ export function InteractionTimeline({
               </div>
               <p className="text-foreground mt-2xs text-body-sm leading-relaxed">{i.rawNote}</p>
             </div>
+            {mine(i) ? (
+              <Button variant="ghost" size="sm" disabled={pending} onClick={() => setRemoving(i)}>
+                {FIELD_TEXT.timelineDelete}
+              </Button>
+            ) : null}
           </div>
         ))}
       </div>
+      {removeDialog}
     </Section>
   );
 }

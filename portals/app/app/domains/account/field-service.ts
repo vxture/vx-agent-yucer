@@ -121,8 +121,58 @@ export async function createCommitment(
       statement: input.statement.trim(),
       // Ours defaults to the person making it. Theirs has no owner_sub at all.
       ownerSub: input.direction === "we_owe" ? (input.ownerSub ?? ctx.sub) : null,
+      // From the session: who recorded it is what lets them take it back (ADR-037).
+      createdBySub: ctx.sub,
     }),
   );
+}
+
+/**
+ * Delete a follow-up the caller wrote (ADR-037).
+ *
+ * Only its author, and only while nothing relies on it: a follow-up that a
+ * correction, a promise, a deal's evidence or a rival's basis points at is a
+ * fact somebody else's judgement stands on, and stays. The refusal says so.
+ */
+export async function removeInteraction(
+  ctx: FieldContext,
+  id: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.interaction.record", "data");
+  if (!gate.allowed) return denied(gate);
+  const held = await ctx.store.getInteraction(ctx.workspaceId, id);
+  if (!held) return fail(violation("not_found", `interaction ${id} was not found`, "id"));
+  if (held.actorSub !== ctx.sub) {
+    return fail(violation("not_author", "only the person who wrote a follow-up can delete it", "id"));
+  }
+  if ((await ctx.store.interactionCitations(ctx.workspaceId, id)) > 0) {
+    return fail(violation("interaction_cited", "something relies on this follow-up, so it stays", "id"));
+  }
+  await ctx.store.removeInteraction(ctx.workspaceId, id);
+  return ok({ removed: true });
+}
+
+/**
+ * Delete a promise the caller recorded, while it is still open (ADR-037).
+ * A promise that was kept, missed or waived is a settled record. One recorded
+ * before authorship existed has no author and stays.
+ */
+export async function removeCommitment(
+  ctx: FieldContext,
+  id: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.commitment.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const held = await ctx.store.getCommitment(ctx.workspaceId, id);
+  if (!held) return fail(violation("not_found", `commitment ${id} was not found`, "id"));
+  if (!held.createdBySub || held.createdBySub !== ctx.sub) {
+    return fail(violation("not_author", "only the person who recorded a promise can delete it", "id"));
+  }
+  if (held.status !== "open") {
+    return fail(violation("commitment_settled", "a promise that is settled is a record and stays", "id"));
+  }
+  await ctx.store.removeCommitment(ctx.workspaceId, id);
+  return ok({ removed: true });
 }
 
 export async function listCommitments(

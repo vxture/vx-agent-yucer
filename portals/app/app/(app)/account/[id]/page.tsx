@@ -138,6 +138,8 @@ import {
 import {
   recordFollowUp,
   settleCommitment,
+  deleteCommitment,
+  deleteFollowUp,
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag, TIER_ICON_SRC } from "../../components/tag";
@@ -1610,6 +1612,8 @@ export default async function AccountDetailPage({
                       canWrite={canWrite}
                       captureHref={`/capture?account=${id}&back=/account/${id}`}
                       onSettle={settleCommitment}
+                      currentSub={session.user.sub}
+                      onDelete={deleteCommitment}
                       hideDescription
                       hideTitle
                     />
@@ -1627,6 +1631,8 @@ export default async function AccountDetailPage({
                     <InteractionTimeline
                       items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null, participantNames: participantsByInteraction.get(i.id) }))}
                       limit={20} hideDescription hideTitle
+                      currentSub={session.user.sub}
+                      onDelete={(iid) => deleteFollowUp(id, iid)}
                       action={
                         canRecord || canCheckConsistency ? (
                           <span className="flex flex-col items-end gap-xs">
