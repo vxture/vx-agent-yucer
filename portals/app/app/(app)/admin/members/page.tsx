@@ -32,7 +32,7 @@ import { Tag } from "../../components/tag";
 export const dynamic = "force-dynamic";
 
 export default async function MembersPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -82,10 +82,11 @@ export default async function MembersPage() {
     <ViewLayout>
       <PageCrumbs trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]} current={DOMAIN_LABEL.members} />
       <ViewHeader
+        divider={false}
         icon="users"
         title={DOMAIN_LABEL.members}
-        description={MEMBER_TEXT.description}
-        secondary={<Tag>{MEMBER_TEXT.count(active, rows.length - active)}</Tag>}
+        description={PAGE_BRIEF.adminMembers}
+        secondary={<Tag tone="info">{MEMBER_TEXT.count(active, rows.length - active)}</Tag>}
         action={
           canManage && inviteUrl ? (
             <Button asChild variant="secondary">

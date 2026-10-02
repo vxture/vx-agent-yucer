@@ -41,7 +41,7 @@ export const dynamic = "force-dynamic";
 const CHINA: MarketScope = { kind: "china", code: null };
 
 export default async function DivisionPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -111,9 +111,10 @@ export default async function DivisionPage() {
         current={DOMAIN_LABEL.division}
       />
       <ViewHeader
+        divider={false}
         icon="map-pin"
         title={DOMAIN_LABEL.division}
-        description={PLANNING_TEXT.divisionWhy(frameName(frame, PLANNING_TEXT), noun)}
+        description={PAGE_BRIEF.adminDivision}
         /* ONE SENTENCE, ONCE (owner, 2026-09-09): placed and regions, and the
            unplaced count only when there is one. The same figure used to
            close the table as well; a number said twice on one screen is a

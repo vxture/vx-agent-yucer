@@ -101,7 +101,7 @@ export default async function NamedAccountPage() {
           by construction, so there is nothing to break into shares. */}
       <ModuleHeadline
         moduleKey="namedAccount"
-        description={NAMED_ACCOUNT_TEXT.why}
+        brief="named"
         tags={<StatusBadge tone="success">{NAMED_ACCOUNT_TEXT.tagNamed(named.length)}</StatusBadge>}
       />
       <AccountTable

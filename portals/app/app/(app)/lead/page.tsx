@@ -141,7 +141,6 @@ export default async function LeadPage() {
     <ViewLayout>
       <ModuleHeadline
         moduleKey="lead"
-        description={LEAD_TEXT.moduleWhy}
         tags={
           <>
             <StatusBadge tone="success">{LEAD_TEXT.tagOpen(open)}</StatusBadge>

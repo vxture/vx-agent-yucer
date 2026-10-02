@@ -153,7 +153,6 @@ export default async function SignalPage({
           is built from, so the header cannot describe a different inbox. */}
       <ModuleHeadline
         moduleKey="signal"
-        description={SIGNAL_TEXT.description}
         tags={
           <>
             <StatusBadge tone="success">

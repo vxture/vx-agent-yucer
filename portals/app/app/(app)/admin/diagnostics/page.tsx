@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -31,7 +32,7 @@ import { DiagnosticsPanel } from "../../components/diagnostics-panel";
 export const dynamic = "force-dynamic";
 
 export default async function DiagnosticsPage() {
-  const { ADMIN_TEXT, DIAGNOSTICS_TEXT, DOMAIN_LABEL } = await getMessages();
+  const { ADMIN_TEXT, DIAGNOSTICS_TEXT, DOMAIN_LABEL, PAGE_BRIEF, PAGE_TAG } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -51,9 +52,11 @@ export default async function DiagnosticsPage() {
         current={DOMAIN_LABEL.diagnostics}
       />
       <ViewHeader
+        divider={false}
         icon="plugs-connected"
         title={DIAGNOSTICS_TEXT.title}
-        description={DIAGNOSTICS_TEXT.description}
+        description={PAGE_BRIEF.adminDiagnostics}
+        secondary={(() => { const probes = [check.c1, check.c2, check.c3Up, check.c3Down, check.tokenMint, check.planes.atlas, check.planes.runos, check.planes.arda].filter((p) => p.configured); const ok = probes.filter((p) => p.ok).length; return <Tag tone={ok === probes.length ? "success" : ok === 0 ? "danger" : "warning"}>{PAGE_TAG.checksOk(ok, probes.length)}</Tag>; })()}
       />
       <DiagnosticsPanel initialCheck={check} canProbe={canProbe} />
     </ViewLayout>

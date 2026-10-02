@@ -16,7 +16,7 @@ import { Tag } from "../../../components/tag";
 export const dynamic = "force-dynamic";
 
 export default async function RoleGroupsPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, ROLE_GROUP_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, ROLE_GROUP_TEXT, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -46,9 +46,10 @@ export default async function RoleGroupsPage() {
         current={ROLE_GROUP_TEXT.pageTitle}
       />
       <ViewHeader
+        divider={false}
         icon="user-circle"
         title={ROLE_GROUP_TEXT.pageTitle}
-        description={ROLE_GROUP_TEXT.pageWhy}
+        description={PAGE_BRIEF.adminRoleGroups}
         secondary={<Tag>{ROLE_GROUP_TEXT.count(lineRows.length, rankRows.length)}</Tag>}
       />
       <RoleGroupsConfig kind="line" rows={lineRows} />

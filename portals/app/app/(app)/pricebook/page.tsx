@@ -86,9 +86,7 @@ export default async function PricebookPage() {
         return (
           <>
             <ModuleHeadline
-              divider={false}
               moduleKey="pricebook"
-              description={CATALOG_TEXT.pricebookWhy}
               tags={
                 <>
                   <StatusBadge tone="success">{CATALOG_TEXT.tagPriced(pricedCount)}</StatusBadge>

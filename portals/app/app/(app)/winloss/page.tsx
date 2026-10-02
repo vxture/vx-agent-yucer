@@ -73,7 +73,7 @@ export default async function WinLossPage() {
           bar - and the reviews below say which each one was. */}
       <ModuleHeadline
         moduleKey="winLossReview"
-        description={WINLOSS_TEXT.description}
+        brief="winloss"
         tags={
           <StatusBadge tone={pending.value.length > 0 ? "warning" : "success"}>
             {WINLOSS_TEXT.tagPending(pending.value.length)}

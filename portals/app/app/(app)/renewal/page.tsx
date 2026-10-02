@@ -9,7 +9,7 @@ import {
 import { listRenewals } from "../../domains/delivery/service";
 import { listRenewedProjectIds } from "../../domains/pipeline/service";
 import { RenewalRoster, type RenewalRow } from "../components/renewal-roster";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
 import { openRenewal } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
 import { lockedPage } from "../components/locked-page";
@@ -102,30 +102,11 @@ export default async function RenewalPage() {
   const lapsed = due.filter((r) => r.daysToEnd !== null && r.daysToEnd < 0 && !r.anchorContractNo);
   const noticeMissed = due.filter((r) => r.daysToEnd !== null && r.daysToEnd < 0 && r.anchorContractNo);
   const watch = due.filter((r) => r.risk === "watch");
-  // One cell per project coming up, its term as the number: the breakdown
-  // decomposes the headline the way every other module's does, and a negative
-  // number is the finding the dock then explains.
-  const stats: HeadlineStat[] = due.map((r) => ({
-    key: r.projectId,
-    name: r.projectName,
-    value: r.amount ?? 0,
-    note:
-      r.daysToEnd === null
-        ? RENEWAL_TEXT.renewalStatNoDate
-        : r.daysToEnd < 0
-          ? r.anchorContractNo
-            ? RENEWAL_TEXT.noticePassed(-r.daysToEnd)
-            : RENEWAL_TEXT.renewalStatLapsed(-r.daysToEnd)
-          : r.anchorContractNo
-            ? RENEWAL_TEXT.noticeIn(r.daysToEnd)
-            : RENEWAL_TEXT.renewalStatDays(r.daysToEnd),
-  }));
 
   return (
     <ViewLayout>
       <ModuleHeadline
         moduleKey="renewal"
-        description={RENEWAL_TEXT.why}
         tags={
           <>
             <StatusBadge tone="success">{RENEWAL_TEXT.tagRenewalDue(due.length)}</StatusBadge>
@@ -146,8 +127,6 @@ export default async function RenewalPage() {
             ) : null}
           </>
         }
-        stats={stats}
-        emptyNote={RENEWAL_TEXT.renewalStatEmpty}
       />
       <RenewalRoster
         rows={rows}

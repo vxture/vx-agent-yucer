@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -29,7 +30,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function ReminderConfigPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT, PAGE_BRIEF, PAGE_TAG } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -80,9 +81,11 @@ export default async function ReminderConfigPage() {
         current={DOMAIN_LABEL.reminderThreshold}
       />
       <ViewHeader
+        divider={false}
         icon="bell"
         title={DOMAIN_LABEL.reminderThreshold}
-        description={ADMIN_TEXT.entryHint.reminderThreshold}
+        description={PAGE_BRIEF.adminReminder}
+        secondary={<Tag tone="info">{PAGE_TAG.rules(2)}</Tag>}
       />
 
       <ReminderConfigPanel

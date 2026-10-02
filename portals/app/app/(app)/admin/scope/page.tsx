@@ -21,7 +21,7 @@ import { Tag } from "../../components/tag";
 export const dynamic = "force-dynamic";
 
 export default async function ScopePage() {
-  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -65,11 +65,12 @@ export default async function ScopePage() {
         current={DOMAIN_LABEL.scope}
       />
       <ViewHeader
+        divider={false}
         icon="eye"
         title={ADMIN_PAGE_TEXT.scopeTitle}
-        description={ADMIN_PAGE_TEXT.scopeWhy}
+        description={PAGE_BRIEF.adminScope}
         secondary={
-          <Tag>{ADMIN_PAGE_TEXT.scopeCount(rows.length)}</Tag>
+          <Tag tone="info">{ADMIN_PAGE_TEXT.scopeCount(rows.length)}</Tag>
         }
       />
       <ScopeTable rows={rows} />

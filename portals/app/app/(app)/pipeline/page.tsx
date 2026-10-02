@@ -234,7 +234,6 @@ export default async function PipelinePage({
           can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui")
             .allowed ? <NewEntryLink href="/pipeline/new" /> : null
         }
-        description={PIPELINE_TEXT.description}
         tags={
           <>
             <StatusBadge tone="success">{PIPELINE_TEXT.tagOpen(openCount)}</StatusBadge>

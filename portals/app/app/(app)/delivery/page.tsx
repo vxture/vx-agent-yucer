@@ -10,7 +10,7 @@ import { listProjects, projectView } from "../../domains/delivery/service";
 import { listAccounts } from "../../domains/account/service";
 import { DeliveryRoster, type DeliveryRow } from "../components/delivery-roster";
 import { DeliveryAnalysis } from "../components/delivery-analysis";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
 import { deliveryStats } from "../../domains/delivery/lib/delivery-stats";
 import { milestoneSlippage } from "../../domains/delivery/lib/milestone";
 import { reconcileHealth } from "./actions";
@@ -132,55 +132,11 @@ export default async function DeliveryPage() {
     (r) => r.status !== "delivered" && r.status !== "closed" && r.status !== "cancelled",
   );
   const red = stats.byHealth.find((b) => b.key === "red")?.count ?? 0;
-  // THE HEADER STRIP FOLLOWS THE COLLECTIONS TEMPLATE (owner, 2026-09-06 -
-  // see design_yucer_100 "模块头部统计条"). Same three parts: a segmented bar
-  // over the numbers it names, a percentage beside each figure, a colour dot
-  // tying each cell to its share.
-  //
-  // THE ORDER IS THE MANAGEMENT VIEW, the same reading collections takes:
-  // what is DONE, what is STUCK, what is in flight, what has not started, what
-  // is out. The lifecycle order - planning first, delivered fourth - is how a
-  // project TRAVELS, which is the roster's business below.
-  const HEADER_STAGES = [
-    "delivered",
-    "on_hold",
-    "active",
-    "planning",
-    "closed",
-    "cancelled",
-  ] as const;
-  // Depth is how far along; 已暂停 leaves the ramp because a stalled project is
-  // not a further step down the same road - it is the thing that went wrong,
-  // and it should be found without comparing shades.
-  const STAGE_DEPTH = {
-    delivered: 3,
-    on_hold: 2,
-    active: 2,
-    planning: 1,
-    closed: 0,
-    cancelled: 0,
-  } as const;
-  const stats$: HeadlineStat[] = HEADER_STAGES.flatMap((stage) => {
-    const cell = stats.byStage.find((b) => b.key === stage);
-    return cell
-      ? [
-          {
-            key: stage as string,
-            name: PROJECT_STATUS_LABEL[stage] ?? stage,
-            value: cell.amount,
-            note: DELIVERY_TEXT.deliveryStatCount(cell.count),
-            depth: STAGE_DEPTH[stage],
-            ...(stage === "on_hold" ? { tone: "warning" as const } : {}),
-          },
-        ]
-      : [];
-  });
 
   return (
     <ViewLayout>
       <ModuleHeadline
         moduleKey="delivery"
-        description={DELIVERY_TEXT.description}
         tags={
           <>
             <StatusBadge tone="success">
@@ -196,9 +152,6 @@ export default async function DeliveryPage() {
             ) : null}
           </>
         }
-        stats={stats$}
-        share
-        emptyNote={DELIVERY_TEXT.deliveryStatEmpty}
       />
 
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - and both are computed

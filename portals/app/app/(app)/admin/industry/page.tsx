@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -66,7 +67,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function IndustryPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT, PAGE_BRIEF, PAGE_TAG } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -147,9 +148,11 @@ export default async function IndustryPage() {
         current={DOMAIN_LABEL.industry}
       />
       <ViewHeader
+        divider={false}
         icon="buildings"
         title={DOMAIN_LABEL.industry}
-        description={ADMIN_TEXT.entryHint.industry}
+        description={PAGE_BRIEF.adminIndustry}
+        secondary={<Tag tone="info">{PAGE_TAG.options(industries.value.length + customerTypes.value.length + customerSizes.value.length + customerNatures.value.length)}</Tag>}
       />
       {/* Each panel's own header is a Section now (icon=, not page=): the
           page header above names the quartet, and each table says which one

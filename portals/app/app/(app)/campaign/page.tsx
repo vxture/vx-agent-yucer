@@ -159,7 +159,6 @@ export default async function CampaignPage() {
           can(session.authz, session.entitlement, "campaign.execution.upsert", "ui")
             .allowed ? <NewEntryLink href="/campaign/new" /> : null
         }
-        description={CAMPAIGN_TEXT.leadRule}
         tags={
           <>
             <StatusBadge tone="success">{CAMPAIGN_TEXT.tagCount(rows.length)}</StatusBadge>

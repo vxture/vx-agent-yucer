@@ -47,7 +47,7 @@ const CONFIG_ACTIONS = [
 const AUDIT_LIST_LIMIT = 500;
 
 export default async function AuditPage() {
-  const { ADMIN_TEXT, AUDIT_TEXT, DOMAIN_LABEL } = await getMessages();
+  const { ADMIN_TEXT, AUDIT_TEXT, DOMAIN_LABEL, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -96,10 +96,11 @@ export default async function AuditPage() {
         current={DOMAIN_LABEL.audit}
       />
       <ViewHeader
+        divider={false}
         icon="clipboard"
         title={AUDIT_TEXT.title}
-        description={AUDIT_TEXT.description}
-        secondary={<Tag>{AUDIT_TEXT.count(rows.length)}</Tag>}
+        description={PAGE_BRIEF.adminAudit}
+        secondary={<Tag tone="info">{AUDIT_TEXT.count(rows.length)}</Tag>}
       />
       <AuditRoster rows={rows} />
     </ViewLayout>

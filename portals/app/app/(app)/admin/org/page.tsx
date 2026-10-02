@@ -31,7 +31,7 @@ import { Tag } from "../../components/tag";
 export const dynamic = "force-dynamic";
 
 export default async function OrgPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, ORG_TEXT, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, ORG_TEXT, SHELL_TEXT, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -146,10 +146,11 @@ export default async function OrgPage() {
     <ViewLayout>
       <PageCrumbs trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]} current={DOMAIN_LABEL.orgUnit} />
       <ViewHeader
+        divider={false}
         icon="tree-structure"
         title={ORG_TEXT.title}
-        description={ORG_TEXT.why}
-        secondary={<Tag>{ORG_TEXT.count(rows.length, placed)}</Tag>}
+        description={PAGE_BRIEF.adminOrg}
+        secondary={<Tag tone="info">{ORG_TEXT.count(rows.length, placed)}</Tag>}
         action={
           editable ? (
             <>

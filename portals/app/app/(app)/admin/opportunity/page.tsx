@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -93,7 +94,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function OpportunityConfigPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT, PAGE_BRIEF, PAGE_TAG } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -187,9 +188,11 @@ export default async function OpportunityConfigPage() {
         current={DOMAIN_LABEL.opportunityConfig}
       />
       <ViewHeader
+        divider={false}
         icon="kanban"
         title={DOMAIN_LABEL.opportunityConfig}
-        description={ADMIN_TEXT.entryHint.opportunityConfig}
+        description={PAGE_BRIEF.adminOpportunity}
+        secondary={<Tag tone="info">{PAGE_TAG.stages(stages.value.length)}</Tag>}
       />
 
       {/* TWO SECTIONS, NOT ONE (owner, 2026-09-14 / incr/0067): the old 商机类型
