@@ -29,6 +29,7 @@ import { healthTone } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
 import { LevelMedal, Tag } from "./tag";
+import { AccountDeleteDialog, type AccountDeleteProps } from "./account-delete-dialog";
 // The account list's table.
 //
 // It lives in a CLIENT component because DataTableColumn.cell is a function,
@@ -68,6 +69,11 @@ export interface AccountTableProps {
   readonly statusOf: ReadonlyMap<string, string> | null;
   /** False when the member may read accounts but not recompute them. */
   readonly canRecompute?: boolean;
+  /** 删除客户 in the row menu. Absent = no delete control at all; present but
+   *  `canDelete` false = shown disabled with the reason (a menu that changes
+   *  with the viewer teaches nobody what the product can do). */
+  readonly canDelete?: boolean;
+  readonly remove?: AccountDeleteProps;
   /**
    * segment_code -> display name, resolved on the page. account.segment_code
    * is a plain string with no foreign key behind it, so a code CAN point at a
@@ -96,9 +102,13 @@ export function AccountTable({
   buyerUnreachable,
   statusOf,
   levelOf,
+  canDelete = false,
+  remove,
 }: AccountTableProps) {
-  const { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS, TABLE_TOOLBAR_TEXT } =
+  const { ACCOUNT_DELETE_TEXT, ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS, TABLE_TOOLBAR_TEXT } =
     useMessages();
+  const [deleting, setDeleting] = useState<AccountRecord | null>(null);
+  const props = { remove, canDelete };
   const statusLabel = (id: string) => {
     const s = statusOf?.get(id);
     return s ? (ACCOUNT_STATUS_LABEL[s] ?? s) : null;
@@ -193,6 +203,23 @@ export function AccountTable({
               : ACCOUNT_TEXT.recomputeDenied,
             onSelect: () => recompute(row.id, row.name),
           },
+          ...(props.remove
+            ? [
+                {
+                  id: "delete",
+                  label: ACCOUNT_DELETE_TEXT.menu,
+                  icon: "trash" as const,
+                  danger: true as const,
+                  // The item only OPENS the confirmation (which checks what is on
+                  // the customer first), so the menu has nothing more to ask.
+                  confirmExempt: "opens its own confirmation dialog, which reads the customer's records first",
+                  separatorBefore: true,
+                  disabled: !props.canDelete,
+                  hint: props.canDelete ? undefined : ACCOUNT_TEXT.recomputeDenied,
+                  onSelect: () => setDeleting(row),
+                },
+              ]
+            : []),
         ]}
       />
     );
@@ -407,6 +434,18 @@ export function AccountTable({
         )}
       {visible.length > 0 ? (
         <PaginationFooter pagination={pagination} total={rows.length} filteredTotal={filtering ? visible.length : undefined} />
+      ) : null}
+      {remove && deleting ? (
+        <AccountDeleteDialog
+          accountId={deleting.id}
+          name={deleting.name}
+          open
+          onOpenChange={(o) => {
+            if (!o) setDeleting(null);
+          }}
+          onFootprint={remove.onFootprint}
+          onDelete={remove.onDelete}
+        />
       ) : null}
     </>
   );

@@ -404,6 +404,11 @@ export interface PipelineStore {
   listCompetitors(workspaceId: string): Promise<CompetitorRecord[]>;
   createCompetitor(workspaceId: string, input: { name: string; aliases: string[] }): Promise<CompetitorRecord>;
   updateCompetitor(workspaceId: string, id: string, patch: { name: string; aliases: string[] }): Promise<boolean>;
+  /** Hard delete. The database RESTRICTS it while a deal's journal or a review
+   *  points at the rival; the service checks first and says why. */
+  removeCompetitor(workspaceId: string, id: string): Promise<boolean>;
+  /** How many journal entries and reviews name each competitor, by id. */
+  competitorUsage(workspaceId: string): Promise<Record<string, number>>;
   /** Every version of who competes on a deal, any order. */
   listCompetitorEntries(workspaceId: string, opportunityId: string): Promise<CompetitorEntry[]>;
   /** Append one version - never an update. */
@@ -623,6 +628,24 @@ export class InMemoryPipelineStore implements PipelineStore {
     if (!c) return false;
     Object.assign(c, { name: patch.name, aliases: [...patch.aliases] });
     return true;
+  }
+
+  async removeCompetitor(workspaceId: string, id: string): Promise<boolean> {
+    const at = this.competitors.findIndex((c) => c.workspaceId === workspaceId && c.id === id);
+    if (at < 0) return false;
+    this.competitors.splice(at, 1);
+    return true;
+  }
+
+  async competitorUsage(workspaceId: string): Promise<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const e of this.competitorEntries) {
+      if (e.workspaceId === workspaceId && e.competitorId) out[e.competitorId] = (out[e.competitorId] ?? 0) + 1;
+    }
+    for (const r of this.reviews.values()) {
+      if (r.workspaceId === workspaceId && r.competitorId) out[r.competitorId] = (out[r.competitorId] ?? 0) + 1;
+    }
+    return out;
   }
 
   async listCompetitorEntries(workspaceId: string, opportunityId: string): Promise<CompetitorEntry[]> {

@@ -19,7 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@vxture/design-ui";
-import { ConfirmDestructive } from "./confirm-destructive";
+import { AccountDeleteDialog } from "./account-delete-dialog";
 import { CollapsibleSection } from "./collapsible-section";
 import { useAccountEdit } from "./account-edit-context";
 import { InfoRow } from "./info-row";
@@ -171,17 +171,9 @@ export function OrgUnitPanel({
   } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
-  // The footprint is read when the confirmation opens, not on every render of
-  // the page: null while it loads (every condition "unknown"), then counts.
   const [deleting, setDeleting] = useState(false);
-  const [footprint, setFootprint] = useState<Footprint | null>(null);
   const openDelete = () => {
-    if (!remove) return;
-    setFootprint(null);
-    setDeleting(true);
-    void remove.onFootprint(remove.accountId).then((r) => {
-      if (r.ok) setFootprint(r.footprint);
-    });
+    if (remove) setDeleting(true);
   };
   const edit = useAccountEdit();
   return (
@@ -332,34 +324,15 @@ export function OrgUnitPanel({
           {ownerRow}
         </div>
       ) : null}
-      {remove && deleting ? (
-        <ConfirmDestructive
+      {remove ? (
+        <AccountDeleteDialog
+          accountId={remove.accountId}
+          name={title}
           open={deleting}
           onOpenChange={setDeleting}
-          verb={ACCOUNT_DELETE_TEXT.verb}
-          titleTemplate={ACCOUNT_DELETE_TEXT.titleTemplate}
-          target={title}
-          consequence={ACCOUNT_DELETE_TEXT.consequence}
-          preconditions={FOOTPRINT_KINDS.map((k) => ({
-            label: ACCOUNT_DELETE_TEXT.condition[k],
-            met: footprint !== null && footprint[k] === 0,
-            unknown: footprint === null,
-            note:
-              footprint === null
-                ? ACCOUNT_DELETE_TEXT.checking
-                : footprint[k] > 0
-                  ? ACCOUNT_DELETE_TEXT.present(footprint[k])
-                  : undefined,
-          }))}
-          onConfirm={async () => {
-            const r = await remove.onDelete(remove.accountId);
-            if (!r.ok) {
-              toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? ACCOUNT_ERROR.denied ?? "" });
-              return;
-            }
-            toast({ tone: "success", title: ACCOUNT_DELETE_TEXT.done });
-            router.push("/account");
-          }}
+          onFootprint={remove.onFootprint}
+          onDelete={remove.onDelete}
+          afterDelete="/account"
         />
       ) : null}
     </CollapsibleSection>

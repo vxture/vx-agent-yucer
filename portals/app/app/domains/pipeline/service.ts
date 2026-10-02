@@ -1314,6 +1314,71 @@ export async function recordWinLossReview(
 }
 
 /**
+ * The rivals, for the admin list - with how many times each is named.
+ *
+ * A rival is created by name the moment someone records it on a deal, so a
+ * misspelling lands in the list and stays there: nothing could rename or remove
+ * it. Read gated like the rest of the opportunity configuration.
+ */
+export async function competitorsForConfig(
+  ctx: PipelineContext,
+): Promise<RuleResult<{ rows: CompetitorRecord[]; usage: Record<string, number> }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const [rows, usage] = await Promise.all([
+    ctx.store.listCompetitors(ctx.workspaceId),
+    ctx.store.competitorUsage(ctx.workspaceId),
+  ]);
+  return ok({ rows, usage });
+}
+
+/** Add a rival by hand, or rename one and edit its aliases. */
+export async function saveCompetitor(
+  ctx: PipelineContext,
+  input: { id?: string | null; name: string; aliases?: readonly string[] },
+): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  const known = await ctx.store.listCompetitors(ctx.workspaceId);
+  if (input.id && !known.some((c) => c.id === input.id)) {
+    return fail(violation("not_found", `competitor ${input.id} was not found`, "id"));
+  }
+  const planned = planCompetitor({ name: input.name, aliases: input.aliases }, known, input.id ?? undefined);
+  if (!planned.ok) return planned as RuleResult<{ id: string }>;
+  if (input.id) {
+    const applied = await ctx.store.updateCompetitor(ctx.workspaceId, input.id, planned.value);
+    if (!applied) return fail(violation("not_found", `competitor ${input.id} was not found`, "id"));
+    return ok({ id: input.id });
+  }
+  const created = await ctx.store.createCompetitor(ctx.workspaceId, planned.value);
+  return ok({ id: created.id });
+}
+
+/**
+ * Remove a rival nothing refers to.
+ *
+ * A rival that a deal's journal or a review has ever named stays: those rows are
+ * append-only evidence about what was true when they were written, and the
+ * database restricts the delete too. Refused with a code that says so, before
+ * the database would.
+ */
+export async function removeCompetitor(
+  ctx: PipelineContext,
+  id: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  const known = await ctx.store.listCompetitors(ctx.workspaceId);
+  if (!known.some((c) => c.id === id)) return fail(violation("not_found", `competitor ${id} was not found`, "id"));
+  const usage = await ctx.store.competitorUsage(ctx.workspaceId);
+  if ((usage[id] ?? 0) > 0) {
+    return fail(violation("competitor_in_use", "a rival that deals or reviews name cannot be deleted", "id"));
+  }
+  await ctx.store.removeCompetitor(ctx.workspaceId, id);
+  return ok({ removed: true });
+}
+
+/**
  * The vocabulary row a typed rival name means - matched by name or alias, and
  * added to the workspace's list when new. Shared by the deal's field and the
  * win/loss review, so the same company typed on either lands on one row and

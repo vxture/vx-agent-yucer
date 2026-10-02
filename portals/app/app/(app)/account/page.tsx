@@ -18,6 +18,7 @@ import {
 import { accountLevelBadges } from "../../domains/account/lib/importance";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
+import { accountFootprintAction, deleteAccountAction } from "./actions";
 import { NewEntryLink } from "../components/form-page";
 import { listSegments } from "../../domains/strategy/service";
 import { OverdueCommitments } from "../components/overdue-commitments";
@@ -200,6 +201,11 @@ export default async function AccountPage() {
             can(session.authz, session.entitlement, "account.upsert", "ui")
               .allowed
           }
+          canDelete={
+            can(session.authz, session.entitlement, "account.upsert", "ui")
+              .allowed
+          }
+          remove={{ onFootprint: accountFootprintAction, onDelete: deleteAccountAction }}
         />
       </Section>
     </ViewLayout>
