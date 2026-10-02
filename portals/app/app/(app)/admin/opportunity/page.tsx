@@ -9,6 +9,7 @@ import { pricingPolicy } from "../../../domains/catalog/service";
 import { ageingCutoffsForConfig } from "../../../domains/delivery/service";
 import {
   businessFormUsage,
+  competitorsForConfig,
   contractTypeUsage,
   dealScoreWeights,
   forecastThresholds,
@@ -31,9 +32,12 @@ import { DealScoreConfig } from "../../components/deal-score-config";
 import { saveDealScoreWeights } from "../../pipeline/deal-score-actions";
 import {
   moveWinLossReasonAction,
+  removeCompetitorAction,
   removeWinLossReasonAction,
+  saveCompetitorAction,
   saveWinLossReason,
 } from "../../pipeline/reason-actions";
+import { CompetitorConfig } from "../../components/competitor-config";
 import {
   moveContractTypeAction,
   removeContractTypeAction,
@@ -131,6 +135,7 @@ export default async function OpportunityConfigPage() {
     thresholds,
     policy,
     cutoffs,
+    competitors,
   ] = await Promise.all([
     listWinLossReasonsForConfig(ctx),
     winLossReasonUsage(ctx),
@@ -143,6 +148,7 @@ export default async function OpportunityConfigPage() {
     forecastThresholds(ctx),
     pricingPolicy(catalogCtx),
     ageingCutoffsForConfig(deliveryCtx),
+    competitorsForConfig(ctx),
   ]);
 
   if (!reasons.ok) {
@@ -251,6 +257,16 @@ export default async function OpportunityConfigPage() {
         onMove={moveWinLossReasonAction}
         onDelete={removeWinLossReasonAction}
       />
+
+      {competitors.ok ? (
+        <CompetitorConfig
+          rivals={competitors.value.rows}
+          usage={competitors.value.usage}
+          editable={canManage}
+          onSave={saveCompetitorAction}
+          onDelete={removeCompetitorAction}
+        />
+      ) : null}
 
       <OpportunityConfigPanel
         canManage={canManage}

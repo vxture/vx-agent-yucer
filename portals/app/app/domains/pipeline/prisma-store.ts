@@ -521,6 +521,25 @@ export class PrismaPipelineStore implements PipelineStore {
     return r.count > 0;
   }
 
+  async removeCompetitor(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const r = await p.competitor.deleteMany({ where: { workspaceId, id } });
+    return r.count > 0;
+  }
+
+  async competitorUsage(workspaceId: string): Promise<Record<string, number>> {
+    const p = await getPrismaClient();
+    const [entries, reviews] = await Promise.all([
+      p.opportunityCompetitor.groupBy({ by: ["competitorId"], where: { workspaceId, competitorId: { not: null } }, _count: { _all: true } }),
+      p.winLossReview.groupBy({ by: ["competitorId"], where: { workspaceId, competitorId: { not: null } }, _count: { _all: true } }),
+    ]);
+    const out: Record<string, number> = {};
+    for (const g of [...entries, ...reviews]) {
+      if (g.competitorId) out[g.competitorId] = (out[g.competitorId] ?? 0) + g._count._all;
+    }
+    return out;
+  }
+
   async listCompetitorEntries(workspaceId: string, opportunityId: string): Promise<CompetitorEntry[]> {
     const p = await getPrismaClient();
     const rows = await p.opportunityCompetitor.findMany({ where: { workspaceId, opportunityId } });

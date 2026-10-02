@@ -107,6 +107,10 @@ class ScopedPipelineStore implements PipelineStore {
   listCompetitors: PipelineStore["listCompetitors"] = (...a) => this.inner.listCompetitors(...a);
   createCompetitor: PipelineStore["createCompetitor"] = (...a) => this.inner.createCompetitor(...a);
   updateCompetitor: PipelineStore["updateCompetitor"] = (...a) => this.inner.updateCompetitor(...a);
+  removeCompetitor: PipelineStore["removeCompetitor"] = (...a) => this.inner.removeCompetitor(...a);
+  // UNFILTERED ON PURPOSE: whether a rival may be deleted depends on every deal
+  // that names it, including the ones this member's scope cannot see.
+  competitorUsage: PipelineStore["competitorUsage"] = (...a) => this.inner.competitorUsage(...a);
   listCompetitorEntries: PipelineStore["listCompetitorEntries"] = (...a) => this.inner.listCompetitorEntries(...a);
   appendCompetitorEntry: PipelineStore["appendCompetitorEntry"] = (...a) => this.inner.appendCompetitorEntry(...a);
   listCriteria: PipelineStore["listCriteria"] = (...a) => this.inner.listCriteria(...a);

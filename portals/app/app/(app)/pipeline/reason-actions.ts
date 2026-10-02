@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import {
   moveWinLossReason,
+  removeCompetitor,
   removeWinLossReason,
+  saveCompetitor,
   upsertWinLossReason,
 } from "../../domains/pipeline/service";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -58,6 +60,31 @@ export async function removeWinLossReasonAction(reasonId: string): Promise<Reaso
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await removeWinLossReason(context(session), { reasonId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/admin/opportunity");
+  return { ok: true };
+}
+
+/* 竞争对手 - renamed or removed here. Gated inside the service on
+ * `pipeline.opportunityconfig.manage`. A rival any deal or review has named
+ * cannot be deleted; the service says so with `competitor_in_use`. */
+export async function saveCompetitorAction(input: {
+  id: string | null;
+  name: string;
+  aliases: string[];
+}): Promise<ReasonResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const r = await saveCompetitor(context(session), input);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/admin/opportunity");
+  return { ok: true };
+}
+
+export async function removeCompetitorAction(id: string): Promise<ReasonResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const r = await removeCompetitor(context(session), id);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/opportunity");
   return { ok: true };

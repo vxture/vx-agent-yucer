@@ -721,6 +721,30 @@ test("the stage journal keeps the exit check of the stage left - insert-only, an
   }
 });
 
+test("competitorUsage counts what names a rival, and removeCompetitor deletes only one nothing names", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const deal = await s.createOpportunity(WS, newOpp());
+    const named = await s.createCompetitor(WS, { name: "Rival Named", aliases: [] });
+    const lonely = await s.createCompetitor(WS, { name: "Rival Lonely", aliases: [] });
+    await s.appendCompetitorEntry(WS, deal.id, { competitorId: named.id, isIncumbent: false, present: true, interactionId: null, authorSub: "usr_a", source: "manual", proposalId: null });
+
+    const usage = await s.competitorUsage(WS);
+    assert.equal(usage[named.id], 1);
+    assert.equal(usage[lonely.id] ?? 0, 0);
+
+    assert.equal(await s.removeCompetitor("eeeeeeee-0000-0000-0000-000000000999", lonely.id), false);
+    assert.equal(await s.removeCompetitor(WS, lonely.id), true);
+    assert.equal(await s.removeCompetitor(WS, lonely.id), false);
+    // The database refuses the one a journal entry points at, whatever the service says.
+    await assert.rejects(s.removeCompetitor(WS, named.id), /foreign key|violates|restrict/i);
+  } finally {
+    await cleanup();
+  }
+});
+
 // --- 竞争位置 (incr/0094) ----------------------------------------------------------
 
 test("competition: rivals are a vocabulary, a deal's field is append-only, criteria edit in place", { skip }, async () => {
