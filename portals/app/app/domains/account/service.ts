@@ -1034,6 +1034,25 @@ export async function setBuyingRole(
 }
 
 /**
+ * Take a person off one deal's chain.
+ *
+ * What somebody is ON ONE DEAL is a statement, and a mistaken one had no way
+ * out: setBuyingRole only replaces. The person stays on the customer - only the
+ * statement about this deal goes. Same gate as stating it.
+ */
+export async function removeBuyingRole(
+  ctx: AccountContext,
+  opportunityId: string,
+  personId: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const removed = await ctx.store.removeOpportunityContact(ctx.workspaceId, opportunityId, personId);
+  if (!removed) return fail(violation("not_found", "that deal has no role stated for that person", "personId"));
+  return ok({ removed: true });
+}
+
+/**
  * The chain's raw edges.
  *
  * Exposed so a caller can compute a SECOND analysis over the same graph -

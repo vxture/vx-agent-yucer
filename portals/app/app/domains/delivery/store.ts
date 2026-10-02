@@ -229,6 +229,9 @@ export interface DeliveryStore {
   addContractLine(workspaceId: string, contractId: string, line: PlannedContractLine): Promise<ContractLineRecord>;
   updateContractLine(workspaceId: string, lineId: string, patch: ContractLinePatch): Promise<boolean>;
   removeContractLine(workspaceId: string, lineId: string): Promise<boolean>;
+  /** Hard delete of a whole contract (its lines go with it). The service only
+   *  asks for a draft with no history. */
+  removeContract(workspaceId: string, id: string): Promise<boolean>;
 }
 
 export class InMemoryDeliveryStore implements DeliveryStore {
@@ -481,6 +484,14 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     const at = this.contractLines.findIndex((l) => l.id === lineId && l.workspaceId === workspaceId);
     if (at < 0) return false;
     this.contractLines.splice(at, 1);
+    return true;
+  }
+
+  async removeContract(workspaceId: string, id: string): Promise<boolean> {
+    const held = this.contracts.get(id);
+    if (!held || held.workspaceId !== workspaceId) return false;
+    this.contracts.delete(id);
+    this.contractLines = this.contractLines.filter((l) => l.contractId !== id);
     return true;
   }
 }

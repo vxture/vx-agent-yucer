@@ -260,8 +260,16 @@ test("the adapter: create, lines attached in one read, NUMERIC back as numbers, 
 
     assert.equal(await s.removeContractLine(WS, line.id), true);
     assert.equal((await s.getContract(WS, created.id))?.lines.length, 0);
-    // Another workspace sees nothing.
+    // Another workspace sees nothing, and cannot delete it either.
     assert.equal(await s.getContract("eeeeeeee-0000-0000-0000-000000000999", created.id), null);
+    assert.equal(await s.removeContract("eeeeeeee-0000-0000-0000-000000000999", created.id), false);
+    // Deleting the contract takes its lines with it (ON DELETE CASCADE).
+    await s.addContractLine(WS, created.id, {
+      productId: PROD, quantity: 1, unitPrice: 1, amount: 1, currency: "CNY", termEnd: null,
+    });
+    assert.equal(await s.removeContract(WS, created.id), true);
+    assert.equal(await s.getContract(WS, created.id), null);
+    assert.equal(await s.removeContract(WS, created.id), false);
   } finally {
     await cleanup();
   }

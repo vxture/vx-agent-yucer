@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { setBuyingRole } from "../../domains/account/service";
+import { removeBuyingRole, setBuyingRole } from "../../domains/account/service";
 
 // Stating who somebody is ON ONE DEAL - incr/0027, ADR-024.
 //
@@ -54,6 +54,31 @@ export async function saveBuyingRole(
     stance as never,
   );
 
+  if (!result.ok) return { ok: false, error: result.violations[0]!.code };
+  revalidatePath(`/pipeline/${opportunityId}`);
+  revalidatePath(`/account/${accountId}`);
+  return { ok: true };
+}
+
+export async function dropBuyingRole(
+  opportunityId: string,
+  accountId: string,
+  personId: string,
+): Promise<SetBuyingRoleResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await removeBuyingRole(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    opportunityId,
+    personId,
+  );
   if (!result.ok) return { ok: false, error: result.violations[0]!.code };
   revalidatePath(`/pipeline/${opportunityId}`);
   revalidatePath(`/account/${accountId}`);

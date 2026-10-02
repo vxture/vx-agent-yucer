@@ -294,6 +294,10 @@ class ScopedAccountStore implements AccountStore {
     this.inner.listOpportunityContactsFor(...a);
   setOpportunityContact: AccountStore["setOpportunityContact"] = (...a) =>
     this.inner.setOpportunityContact(...a);
+  // Same reasoning as setOpportunityContact: keyed by a deal the caller got
+  // from a scoped read, so it passes straight through.
+  removeOpportunityContact: AccountStore["removeOpportunityContact"] = (...a) =>
+    this.inner.removeOpportunityContact(...a);
   /* incr/0040. The industry vocabulary is WORKSPACE-WIDE configuration, not a
      set of customer records: a seller whose data scope is their own accounts
      still reads the same list, because it is the list the whole workspace

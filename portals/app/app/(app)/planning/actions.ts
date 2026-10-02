@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
-import { createTarget, updateTarget, upsertTerritory } from "../../domains/planning/service";
+import { createTarget, removeTarget, updateTarget, upsertTerritory } from "../../domains/planning/service";
 import { listMarketDivisions } from "../../domains/account/service";
 import {
   TARGET_METRICS,
@@ -126,6 +126,24 @@ export async function updateSalesTarget(
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
+  revalidatePath("/planning");
+  return { ok: true };
+}
+
+export async function deleteSalesTarget(id: string): Promise<TargetResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await removeTarget(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getPlanningStore(),
+    },
+    id,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/planning");
   return { ok: true };
 }

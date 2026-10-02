@@ -422,6 +422,14 @@ export class PrismaDeliveryStore implements DeliveryStore {
     return res.count > 0;
   }
 
+  async removeContract(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The lines go with it (ON DELETE CASCADE, incr/0076). A renewal event or a
+    // successor would RESTRICT this; the service has already refused those.
+    const res = await p.contract.deleteMany({ where: { id, workspaceId } });
+    return res.count > 0;
+  }
+
   private async attachLines(
     workspaceId: string,
     heads: Record<string, unknown>[],

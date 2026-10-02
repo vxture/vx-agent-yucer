@@ -86,6 +86,7 @@ import {
 } from "../../../domains/delivery/lib/contract";
 import { ContractRoster, type ContractReadState, type ContractRow } from "../../components/contract-roster";
 import {
+  deleteContract,
   deleteContractLine,
   recordRenewalOutcomeAction,
   renewContractAction,
@@ -1578,6 +1579,7 @@ export default async function AccountDetailPage({
                     onSaveContract={saveContract}
                     onSaveLine={saveContractLine}
                     onRemoveLine={deleteContractLine}
+                    onRemoveContract={deleteContract}
                     canRenew={canRenewContract}
                     onRenew={renewContractAction}
                     onRecordOutcome={recordRenewalOutcomeAction}

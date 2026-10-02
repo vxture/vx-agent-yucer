@@ -6,6 +6,7 @@ import { unwrap, type RuleResult } from "../shared/result";
 import { InMemoryDeliveryStore } from "./store";
 import {
   listContracts,
+  removeContract,
   removeContractLine,
   upsertContract,
   upsertContractLine,
@@ -111,4 +112,21 @@ test("editing and removing a line; a terminated contract refuses both", async ()
     firstCode(await upsertContractLine(c, created.id, { productId: "p3", quantity: 1, unitPrice: 1, termEnd: null })),
     "contract_closed",
   );
+});
+
+test("a draft contract can be deleted; an active one, or one with history, cannot", async () => {
+  const c = ctx("delivery_manager", "starter");
+  const draftOne = unwrap(await upsertContract(c, draft({ contractNo: "HT-DEL-1", status: "draft" })));
+  unwrap(await upsertContractLine(c, draftOne.id, { productId: "p1", quantity: 1, unitPrice: 5, termEnd: null }));
+  unwrap(await removeContract(c, draftOne.id));
+  assert.equal(unwrap(await listContracts(c)).some((x) => x.id === draftOne.id), false);
+  assert.equal(firstCode(await removeContract(c, draftOne.id)), "not_found");
+
+  const active = unwrap(
+    await upsertContract(
+      c,
+      draft({ contractNo: "HT-DEL-2", status: "active" }),
+    ),
+  );
+  assert.equal(firstCode(await removeContract(c, active.id)), "contract_not_draft");
 });

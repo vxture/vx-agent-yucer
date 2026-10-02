@@ -72,6 +72,8 @@ export interface PlanningTableProps {
     id: string,
     patch: { amount?: number; status?: string },
   ) => Promise<{ ok: boolean; error?: string }>;
+  /** Draft targets only; the rule layer refuses the rest. */
+  readonly onDelete?: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function PlanningTable({
@@ -79,6 +81,7 @@ export function PlanningTable({
   territoryNames,
   canUpdate = false,
   onUpdate,
+  onDelete,
 }: PlanningTableProps) {
   const {
     DATA_TABLE_LABELS,
@@ -113,6 +116,14 @@ export function PlanningTable({
   function runUpdate(id: string, patch: Parameters<NonNullable<typeof onUpdate>>[1]) {
     if (!onUpdate) return;
     void onUpdate(id, patch).then((r) => {
+      if (!r.ok) {
+        toast({ tone: "danger", title: TARGET_ERROR[r.error ?? "denied"] ?? TARGET_ERROR.denied });
+      }
+    });
+  }
+  function runDelete(id: string) {
+    if (!onDelete) return;
+    void onDelete(id).then((r) => {
       if (!r.ok) {
         toast({ tone: "danger", title: TARGET_ERROR[r.error ?? "denied"] ?? TARGET_ERROR.denied });
       }
@@ -237,6 +248,24 @@ export function PlanningTable({
                   icon: "check" as const,
                   hint: PLANNING_TEXT.commitWhy,
                   onSelect: () => runUpdate(row.target.id, { status: "committed" }),
+                },
+              ]
+            : []),
+          ...(row.target.status === "draft" && onDelete
+            ? [
+                {
+                  id: "delete",
+                  label: PLANNING_TEXT.deleteTarget,
+                  icon: "trash" as const,
+                  danger: true as const,
+                  separatorBefore: true,
+                  confirm: {
+                    verb: PLANNING_TEXT.deleteTarget,
+                    target: label,
+                    consequence: PLANNING_TEXT.deleteWhy,
+                    ...CONFIRM,
+                    onConfirm: () => runDelete(row.target.id),
+                  },
                 },
               ]
             : []),

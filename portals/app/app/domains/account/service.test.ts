@@ -10,6 +10,7 @@ import { InMemoryStrategyStore, type SegmentRecord } from "../strategy/store";
 import { money } from "../shared/money";
 import {
   decisionChainsByOpportunity,
+  removeBuyingRole,
   setBuyingRole,
   linkContacts,
   listAccounts,
@@ -605,6 +606,19 @@ test("setBuyingRole keeps influence 0-100 and whole, and null meaning null", asy
   // Null is "no judgement on this deal" and is always allowed - the same
   // distinction the attainment rules keep for an unset quota.
   assert.ok((await setBuyingRole(c, "opp_1", "c1", "economic", null)).ok);
+});
+
+test("a mistaken role can be taken off the deal, and only that deal", async () => {
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account()], contacts: [contact("c1", "unknown")] });
+  const c = ctx("sales_rep", "pro", store);
+  unwrap(await setBuyingRole(c, "opp_1", "c1", "economic", 80));
+  unwrap(await setBuyingRole(c, "opp_2", "c1", "user", 20));
+  unwrap(await removeBuyingRole(c, "opp_1", "c1"));
+  assert.equal((await store.listOpportunityContacts(WS, "opp_1")).length, 0);
+  assert.equal((await store.listOpportunityContacts(WS, "opp_2")).length, 1);
+  const again = await removeBuyingRole(c, "opp_1", "c1");
+  assert.equal(again.ok === false && again.violations[0]!.code, "not_found");
 });
 
 test("stating a role twice on one deal replaces rather than duplicates", async () => {

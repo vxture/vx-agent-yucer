@@ -5,6 +5,7 @@ import { resolveAppSession } from "../lib/session";
 import { getDeliveryStore } from "../../domains/shared/registry";
 import {
   recordRenewalOutcome,
+  removeContract,
   removeContractLine,
   renewContract,
   upsertContract,
@@ -126,6 +127,18 @@ export async function deleteContractLine(input: {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const result = await removeContractLine(ctx, input.contractId, input.lineId);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${input.accountId}`);
+  return { ok: true };
+}
+
+export async function deleteContract(input: {
+  accountId: string;
+  contractId: string;
+}): Promise<ContractActionResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const result = await removeContract(ctx, input.contractId);
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath(`/account/${input.accountId}`);
   return { ok: true };

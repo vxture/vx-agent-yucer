@@ -357,6 +357,9 @@ export interface AccountStore {
     workspaceId: string,
     opportunityIds: readonly string[],
   ): Promise<OpportunityContactRecord[]>;
+  /** Take a person off a deal's chain. The pair is the identity, so this is one
+   *  row; false when there was none. */
+  removeOpportunityContact(workspaceId: string, opportunityId: string, personId: string): Promise<boolean>;
   setOpportunityContact(
     workspaceId: string,
     opportunityId: string,
@@ -800,6 +803,15 @@ export class InMemoryAccountStore implements AccountStore {
   ): Promise<OpportunityContactRecord[]> {
     const wanted = new Set(opportunityIds);
     return this.oppContacts.filter((r) => r.workspaceId === workspaceId && wanted.has(r.opportunityId));
+  }
+
+  async removeOpportunityContact(workspaceId: string, opportunityId: string, personId: string): Promise<boolean> {
+    const at = this.oppContacts.findIndex(
+      (r) => r.workspaceId === workspaceId && r.opportunityId === opportunityId && r.personId === personId,
+    );
+    if (at < 0) return false;
+    this.oppContacts.splice(at, 1);
+    return true;
   }
 
   async setOpportunityContact(

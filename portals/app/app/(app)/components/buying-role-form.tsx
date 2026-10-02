@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Field, FieldLabel, Input, NativeSelect, Section } from "@vxture/design-ui";
+import { Button, Field, FieldLabel, Input, NativeSelect, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { useSaveAction } from "../lib/use-save-action";
 import { SaveRow } from "./save-row";
@@ -34,6 +34,8 @@ export interface BuyingRolePerson {
   readonly buyingRole: string;
   readonly influence: number | null;
   readonly stance: string | null;
+  /** The deal has a row for this person - only then is there something to take off. */
+  readonly stated: boolean;
 }
 
 export interface BuyingRoleFormProps {
@@ -44,6 +46,7 @@ export interface BuyingRoleFormProps {
   /** Inside a host that already titles it (a panel or drawer on the deal
    *  page, deal batch 2): the body without its own heading. */
   readonly hideTitle?: boolean;
+  readonly onRemove: (opportunityId: string, accountId: string, personId: string) => Promise<{ ok: boolean; error?: string }>;
   readonly onSave: (
     opportunityId: string,
     accountId: string,
@@ -61,6 +64,7 @@ export function BuyingRoleForm({
   canEdit,
   hideTitle = false,
   onSave,
+  onRemove,
 }: BuyingRoleFormProps) {
   const { BUYING_ROLE_TEXT, DECISION_ROLE_LABEL, DECISION_ROLE_ABBR, STANCE_LABEL, CONTACT_ERROR } = useMessages();
   const [personId, setPersonId] = useState("");
@@ -83,6 +87,7 @@ export function BuyingRoleForm({
   }
 
   const parsed = influence.trim() === "" ? null : Number(influence);
+  const picked = people.find((x) => x.id === personId);
   const ready =
     personId !== "" &&
     (parsed === null || (Number.isInteger(parsed) && parsed >= 0 && parsed <= 100));
@@ -159,6 +164,15 @@ export function BuyingRoleForm({
           )
         }
       />
+      {picked?.stated ? (
+        <Button
+          variant="ghost"
+          disabled={save.pending}
+          onClick={() => save.run(() => onRemove(opportunityId, accountId, personId), () => setPersonId(""))}
+        >
+          {BUYING_ROLE_TEXT.removeFromDeal}
+        </Button>
+      ) : null}
     </Section>
   );
 }
