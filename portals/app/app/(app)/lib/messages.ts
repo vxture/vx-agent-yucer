@@ -7915,6 +7915,22 @@ export const COMPETITION_TEXT = {
 };
 
 /** 竞争位置的写入回执 - one sentence per code the service can refuse with. */
+export const COMPETITOR_TEXT = {
+  title: "竞争对手",
+  noun: "对手",
+  why: "销售在商机上记下对手时会自动新建一条。这里可以改名、补别名、手工新增；被商机或复盘提到过的对手不能删。",
+  add: "新增对手",
+  save: "保存",
+  name: "对手名称",
+  colName: "对手",
+  colAliases: "别名",
+  colNamed: "被提到",
+  dialogEdit: "编辑对手",
+  dialogWhy: "别名用来把不同写法认成同一家，名称和别名都不能与其他对手重复。",
+  aliasesHint: "多个别名用逗号分隔",
+  deleteConsequence: "这个对手会从名单里删掉，不可恢复。",
+};
+
 export const COMPETITION_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "这条记录已不存在，刷新后再试",
@@ -7922,6 +7938,7 @@ export const COMPETITION_ERROR: Record<string, string> = {
   competitor_name_required: "请填写对手名称",
   competitor_name_too_long: "对手名称最多 128 个字",
   competitor_taken: "这个名称已被另一个对手使用",
+  competitor_in_use: "有商机或复盘提到过这个对手，不能删除——那是当时留下的记录",
   only_us_is_plain: "“只有我们”不能设为现有供应商或出局",
   only_us_with_rivals: "还有对手在场，先把他们标记出局",
   evidence_citation_foreign: "只能引用本商机的跟进记录",

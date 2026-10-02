@@ -7,6 +7,9 @@ import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import {
   claimHistory,
+  competitorsForConfig,
+  removeCompetitor,
+  saveCompetitor,
   competitionFor,
   competitionOf,
   evidenceFor,
@@ -184,4 +187,35 @@ test("the batched reads (9d) return exactly what the per-deal verbs return, deal
   assert.equal(slips.get("opp_3")?.pushes, 1);
   // Below the tier, refused like the per-deal reads.
   assert.equal((await competitionFor(ctx("sales_director", null, store), ids)).ok, false);
+});
+
+test("a rival can be renamed, and one nothing names can be deleted - one a deal names cannot", async () => {
+  const store = seeded();
+  const rep = ctx("sales_rep", "business", store);
+  const admin = ctx("sales_director", "business", store);
+  // Two rivals appear by name, as a seller would record them; one lands on a deal.
+  unwrap(await recordCompetitor(rep, "opp_1", { competitorName: "Acmee" }, new Set()));
+  const typo = unwrap(await saveCompetitor(admin, { name: "Orphan Co" }));
+
+  const listed = unwrap(await competitorsForConfig(admin));
+  const acmee = listed.rows.find((r) => r.name === "Acmee")!;
+  assert.equal(listed.usage[acmee.id], 1);
+
+  // Rename the misspelling; the name and aliases may not collide with another rival.
+  unwrap(await saveCompetitor(admin, { id: acmee.id, name: "Acme", aliases: ["Acme Inc"] }));
+  assert.equal(unwrap(await competitorsForConfig(admin)).rows.some((r) => r.name === "Acme"), true);
+  const clash = await saveCompetitor(admin, { id: typo.id, name: "Acme Inc" });
+  assert.equal(clash.ok === false && clash.violations[0]!.code, "competitor_taken");
+
+  // The one a deal names stays; the one nothing names goes.
+  const kept = await removeCompetitor(admin, acmee.id);
+  assert.equal(kept.ok === false && kept.violations[0]!.code, "competitor_in_use");
+  unwrap(await removeCompetitor(admin, typo.id));
+  assert.equal(unwrap(await competitorsForConfig(admin)).rows.some((r) => r.id === typo.id), false);
+  const gone = await removeCompetitor(admin, typo.id);
+  assert.equal(gone.ok === false && gone.violations[0]!.code, "not_found");
+
+  // A reader of the pipeline does not curate the list.
+  const denied = await removeCompetitor(ctx("viewer", "business", store), typo.id);
+  assert.equal(denied.ok === false && denied.violations[0]!.code, "permission_denied");
 });
