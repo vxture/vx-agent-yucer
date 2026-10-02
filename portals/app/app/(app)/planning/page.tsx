@@ -141,7 +141,6 @@ export default async function PlanningPage() {
           sees a neutral number with no explanation will read it as one. */}
       <ModuleHeadline
         moduleKey="planning"
-        description={PLANNING_TEXT.leadRule}
         tags={
           <>
             <StatusBadge tone="info">{PLANNING_TEXT.tagPeriod(period)}</StatusBadge>

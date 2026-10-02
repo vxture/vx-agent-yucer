@@ -54,6 +54,14 @@ export interface AgentPanelProps {
    * error dictionary. Absent on every other page.
    */
   readonly advisor?: ReactNode;
+  /**
+   * The decision sections under the assistant (今天要定的, 敌情). Off on the
+   * deck that has no page of its own to be about: a workspace-wide list of
+   * "to decide" next to a page that is not about those decisions is another
+   * module's information in this one's sidebar (owner, 2026-10-02: 不能串).
+   * Default on - the deal and account decks are scoped to their object.
+   */
+  readonly decisions?: boolean;
 }
 
 export function AgentPanel({
@@ -66,10 +74,11 @@ export function AgentPanel({
   briefFor,
   onBuildBrief,
   advisor,
+  decisions = true,
 }: AgentPanelProps) {
   const { BOARD_TEXT } = useMessages();
 
-  const sections = [
+  const sections = !decisions ? [] : [
     // A quick command, first because it is the one you open the deck for
     // half an hour before a meeting.
     ...(briefFor && onBuildBrief

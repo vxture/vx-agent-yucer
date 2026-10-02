@@ -1,281 +1,58 @@
 "use client";
 
-import { TruncatedText } from "./truncated-text";
-import { useState, type ReactNode } from "react";
-import {
-  Card,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  Icon,
-  ViewHeader,
-} from "@vxture/design-ui";
+import type { ReactNode } from "react";
+import { Card, ViewHeader } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
-// A module page's header card - owner ruling 2026-09-05, generalised when the
-// price book was told to follow the catalogue's pattern and layout.
+// A module page's header: 4 + 1 (owner ruling 2026-10-02, 聚焦标题).
 //
-// The board name, its tags and any header action are the always-visible row;
-// what folds is the per-type breakdown. Same construction as the pipeline's
-// HeadlineCard: the WHOLE card is the collapsible so the trigger lives in the
-// title row and survives the thing it toggles, and the Card has exactly one
-// child so its own gap-xl never fires.
+// FOUR THAT ARE ALWAYS THERE - the icon, the title, one short line of
+// description, and the tags after the title (the key figures, in tone). ONE
+// THAT IS THERE ON DEMAND - the action button, bottom-right, on the
+// description's line (the DS ViewHeader's own self-end).
 //
-// The breakdown is the 承诺构成 list style by instruction: no sub-heading,
-// number first, description after, wrapping to a second row when there are
-// many. What the number MEANS is each page's business - this component only
-// promises they will look the same.
-
-/**
- * How deep a breakdown cell sits on the shared ramp, 1 (lightest) to 5.
- *
- * ONE HUE, DEPTH ONLY (owner, 2026-09-06). The first version used the intent
- * palette - blue, blue, red, green - which made the bar read as four verdicts
- * standing side by side rather than as one quantity cut five ways. A single
- * hue in five steps says what a proportion bar is for: these are parts of the
- * same thing, and the depth is how far along it is.
- *
- * The ramp is the DS's own `--level-N`, a single-hue lightness scale defined
- * in its colour policy. Only the COLOURS are borrowed; LevelMarker's gradient
- * and glow material stays where its docs reserve it, on ranking.
- */
-export type StatDepth = 0 | 1 | 2 | 3 | 4 | 5;
-
-/**
- * A colour that OVERRIDES the depth ramp, for a cell that is not part of the
- * ordinary sequence (owner, 2026-09-06: 逾期属于异常，用警示色，有优先权).
- *
- * The ramp says how far along; a tone says something has gone wrong. They are
- * different claims, so a tone wins where both are given - the exception should
- * not have to be found by comparing shades.
- *
- * ONLY TOKENS THAT RESOLVE. Measured in this build: `--warning-text` and
- * `--success-text` are real colours, while `--danger-text`, `--danger-border`
- * and `--warning-border` all compute to transparent. Danger therefore takes
- * the DS's own `destructive`.
- */
-export type StatTone = "warning" | "danger" | "success";
-
-const TONE_BG: Record<StatTone, string> = {
-  warning: "bg-(color:--warning-text)",
-  danger: "bg-destructive",
-  success: "bg-(color:--success-text)",
-};
-
-const DEPTH_BG: Record<StatDepth, string> = {
-  // A step BELOW the ramp. The DS scale starts at level-1 and a strip that
-  // sits above the fold on every visit wanted one lighter still (owner,
-  // 2026-09-06), so 0 is the DS's `accent` wash - the palest fill the product
-  // already uses, not a new colour invented for this.
-  0: "bg-accent",
-  1: "bg-(color:--level-1)",
-  2: "bg-(color:--level-2)",
-  3: "bg-(color:--level-3)",
-  4: "bg-(color:--level-4)",
-  5: "bg-(color:--level-5)",
-};
-
-/** One cell of the breakdown: a number, what it counts, and its split. */
-export interface HeadlineStat {
-  readonly key: string;
-  readonly name: string;
-  readonly value: number;
-  /** The small print after the name - "3 在售 · 1 研发". */
-  readonly note: string;
-  /** Its step on the depth ramp - colours the dot and its share of the bar. */
-  readonly depth?: StatDepth;
-  /** An exception's colour. Takes priority over `depth` when both are given. */
-  readonly tone?: StatTone;
-}
-
-/** The tone wins; the ramp is the default. One function, so the bar segment
- * and the dot beside the number can never resolve it differently. */
-const fill = (s: HeadlineStat) => (s.tone ? TONE_BG[s.tone] : DEPTH_BG[s.depth ?? 3]);
+// NOTHING ELSE. No rule under it, no fold. What used to fold here was either a
+// statistic - it moved to the page's own "xx分析" block - or a duplicate of one
+// the page already had, and it is gone. A header that can open is a header
+// that can hold anything, and it did.
 
 export function ModuleHeadline({
   moduleKey,
+  brief,
   description,
   tags,
   action,
-  stats,
-  share,
-  emptyNote,
-  divider = true,
 }: {
   /** The nav entry this page IS. Its icon and its NAME both come from the
    * registries - a page that spelled its own name drifted from the menu the
    * moment either was edited (owner, 2026-09-05: 价目与底价 in the page,
-   * 产品定价 in the menu). The description stays the page's own: it explains
-   * this screen, not the menu entry. */
+   * 产品定价 in the menu). */
   readonly moduleKey: string;
-  readonly description: string;
-  /** StatusBadges beside the title - the roster counts. */
+  /** Which PAGE_BRIEF line this page carries; the module key when omitted. */
+  readonly brief?: string;
+  /** Only where the line is not ours to write (the upgrade page's own pitch). */
+  readonly description?: string;
+  /** StatusBadges beside the title - the key figures, toned. */
   readonly tags?: ReactNode;
-  /** An extra control in the header's right slot, left of the fold trigger. */
+  /** The one button this page's header may carry. */
   readonly action?: ReactNode;
-  /**
-   * Omit for a header with NO FOLD AT ALL - card, icon, title, badges and
-   * action, and nothing beneath them.
-   *
-   * DIFFERENT FROM AN EMPTY ARRAY, which still opens onto `emptyNote`: that
-   * says "there is a breakdown here and it is empty", and this says "this
-   * module has no breakdown". 线索分派 is the second (owner, 2026-09-06:
-   * 去掉下拉展示内容，只留标题) - and it still wants the card and the icon
-   * every other module's header carries.
-   */
-  readonly stats?: readonly HeadlineStat[];
-  /**
-   * Draw a proportion bar above the cells, segmented in the SAME ORDER and the
-   * SAME COLOURS (owner, 2026-09-06: 一个看数字，一个直观看比例).
-   *
-   * Fed by the same `stats` array the numbers come from, which is the whole
-   * point: order and colour cannot drift between the two readings, because
-   * there is only one list. Carrying a second array for the bar would be two
-   * lists to keep in step, and they would not stay in step.
-   *
-   * It also turns on the percentage beside each number: the bar is the
-   * proportion seen, the percentage is the same proportion said, and a flag
-   * that produced one without the other would be two half-ideas.
-   *
-   * NO TITLE AND NO FIGURES ON THE BAR ITSELF. The numbers are directly
-   * beneath it; printing them twice makes the reader check whether the two
-   * agree instead of reading either.
-   */
-  readonly share?: boolean;
-  readonly emptyNote?: string;
-  /**
-   * The header's dashed underline - the DS default, on (owner 2026-09-26:
-   * 每级都有下划线，可显隐). Off where the owner took the header down to
-   * title and tags alone (2026-09-29, 产品定价 / 解决方案 / 产品目录: 展开
-   * 内容删除，包括分割线及下部空间): a rule under a header with nothing
-   * beneath it divides the card from itself.
-   */
-  readonly divider?: boolean;
 }) {
-  const { CATALOG_TEXT, DOMAIN_LABEL } = useMessages();
-  const [open, setOpen] = useState(true);
-  const folds = stats !== undefined;
-  // The denominator for the per-cell percentage. Zero total means no shares to
-  // state - not 0% five times over, which would read as a claim.
-  const cells = stats ?? [];
-  const total = cells.reduce((n, s) => n + Math.max(s.value, 0), 0);
-
-  const header = (
-    <ViewHeader
-      icon={moduleIcon(moduleKey)}
-      title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
-      description={description}
-      secondary={tags ? <span className="flex items-center gap-xs">{tags}</span> : undefined}
-      divider={divider}
-      action={
-        <span className="flex items-center gap-sm">
-          {action}
-          {/* NO TRIGGER WHEN THERE IS NOTHING TO OPEN. A chevron over an empty
-              fold is a control that teaches the reader it does nothing. */}
-          {folds ? (
-            <CollapsibleTrigger
-              aria-label={open ? CATALOG_TEXT.byTypeCollapse : CATALOG_TEXT.byTypeExpand}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
-            </CollapsibleTrigger>
-          ) : null}
-        </span>
-      }
-    />
-  );
-
-  // THE CARD AND THE ICON ARE THE MODULE HEADER, not the fold's packaging.
-  // A page that opted out of the breakdown still belongs to the same set of
-  // pages, and dropping to a bare title made it look like a different product.
-  //
+  const { DOMAIN_LABEL, PAGE_BRIEF } = useMessages();
   // NAMED OVERRIDE (owner allows local CSS where the DS stops, 2026-09-24):
-  // ViewHeader keeps its pb-lg with `divider={false}` - padding that exists
-  // to hold the dashed rule off the text, left behind as 24px of blank card
-  // once the rule is gone (measured 2026-09-29: header 97-211, text ends
-  // 187). Zeroed only when the divider is off. DS gap: ViewHeader should drop
-  // the padding with the rule.
-  if (!folds) {
-    return <Card className={divider ? "p-lg" : "p-lg [&>section]:pb-0"}>{header}</Card>;
-  }
-
+  // ViewHeader keeps its pb-lg with `divider={false}` - padding that holds the
+  // rule off the text, left behind as blank card once the rule is gone. DS
+  // gap: ViewHeader should drop the padding with the rule.
   return (
-    <Card className="p-lg">
-      <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-md">
-        {header}
-
-        <CollapsibleContent className="flex flex-col gap-md">
-          {share && cells.length > 0 ? (
-            <div className="flex h-xs w-full overflow-hidden rounded-full">
-              {cells.map((s) => (
-                <span
-                  key={s.key}
-                  className={fill(s)}
-                  style={{ flexGrow: Math.max(s.value, 0), flexBasis: 0 }}
-                  title={`${s.name} ${s.value.toLocaleString()}`}
-                  aria-hidden
-                />
-              ))}
-            </div>
-          ) : null}
-          {cells.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">{emptyNote}</p>
-          ) : (
-            <ul className="border-border flex w-full flex-wrap items-stretch rounded-md border">
-              {cells.map((s) => (
-                <li
-                  key={s.key}
-                  /* Hairline between neighbours only - survives wrapping, no
-                     stray rule at a wrapped row's left edge (headline-card's
-                     divider argument, verbatim). */
-                  // A FLOOR, so the row WRAPS instead of crushing (polish,
-                  // 2026-09-24): five cells in a ~565px card shrank until money
-                  // read "14,4..." and the 已交付 label stacked one character
-                  // per line on /delivery.
-                  className="border-border min-w-[9.5rem] flex-1 basis-0 px-md py-sm not-first:border-l"
-                >
-                  {/* THOUSANDS SEPARATORS, ALWAYS. This cell was written for
-                      counts - 5 products, 2 segments - and reads fine raw. The
-                      settlement and forecast modules put MONEY in it, and a
-                      seven-digit figure with no separators is a number nobody
-                      can read at a glance: 1370000 (owner, 2026-09-06). A
-                      count is unaffected; 5 formats to 5. */}
-                  {/* THE SHARE SITS WITH THE NUMBER, QUIETLY (owner asked for a
-                      percentage and left the form to me). Not a badge: five
-                      badges in a row is five pieces of chrome competing with
-                      the five figures they annotate, and the dot is already
-                      this cell's one piece of colour. A percentage is not a
-                      status - it is the same quantity said a second way - so
-                      it reads as small print beside its number, which is the
-                      voice the note beneath already uses. */}
-                  <div className="flex items-baseline gap-2xs">
-                    <TruncatedText text={s.value.toLocaleString()} className="text-foreground truncate text-heading-4 tabular-nums" />
-                    {share && total > 0 ? (
-                      <span className="text-muted-foreground shrink-0 tabular-nums text-body-sm">
-                        {Math.round((Math.max(s.value, 0) / total) * 100)}%
-                      </span>
-                    ) : null}
-                  </div>
-                  {/* 色标圆点 + 名称 + 小字 (owner, 2026-09-06). The dot is
-                      what ties this cell to its share of the bar above; the
-                      name alone made the reader match by position. */}
-                  <div className="text-muted-foreground flex items-center gap-2xs text-body-sm">
-                    {s.depth || s.tone ? (
-                      <span
-                        aria-hidden
-                        className={`size-xs shrink-0 rounded-full ${fill(s)}`}
-                      />
-                    ) : null}
-                    <span className="text-foreground whitespace-nowrap">{s.name}</span>
-                    <span className="whitespace-nowrap">{s.note}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
+    <Card className="p-lg [&>section]:pb-0">
+      <ViewHeader
+        icon={moduleIcon(moduleKey)}
+        title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
+        description={description ?? PAGE_BRIEF[brief ?? moduleKey] ?? ""}
+        secondary={tags ? <span className="flex items-center gap-xs">{tags}</span> : undefined}
+        divider={false}
+        action={action}
+      />
     </Card>
   );
 }

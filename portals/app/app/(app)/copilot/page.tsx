@@ -179,7 +179,6 @@ export default async function CopilotPage({
           that needed reading. */}
       <ModuleHeadline
         moduleKey="copilot"
-        description={PROPOSAL_TEXT.why}
         tags={
           <>
             <StatusBadge tone={awaiting.length > 0 ? "warning" : "success"}>

@@ -31,7 +31,7 @@ import { NewEntryLink } from "../../components/form-page";
 export const dynamic = "force-dynamic";
 
 export default async function RolesPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, ROLE_TEXT, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, ROLE_TEXT, SHELL_TEXT, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -86,9 +86,10 @@ export default async function RolesPage() {
         current={DOMAIN_LABEL.roles}
       />
       <ViewHeader
+        divider={false}
         icon="user-circle"
         title={ROLE_TEXT.title}
-        description={ROLE_TEXT.why}
+        description={PAGE_BRIEF.adminRoles}
         secondary={
           <StatusBadge tone={rows.some((r) => r.permissions.length === 0) ? "warning" : "success"}>
             {ROLE_TEXT.coverage(rows.length, custom, PERM_CODES.length)}

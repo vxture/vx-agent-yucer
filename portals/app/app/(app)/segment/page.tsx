@@ -10,7 +10,7 @@ import { listPlans, listSegments } from "../../domains/strategy/service";
 import { listAccounts } from "../../domains/account/service";
 import { accountMatchesCriteria } from "../../domains/strategy/lib/lifecycle";
 import { SegmentRoster, type SegmentRow } from "../components/segment-roster";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
 import { loadFailureText } from "../lib/load-failure";
 import { changeSegmentStatus, deleteSegment, moveSegmentRow } from "../strategy/actions";
 import { Tag } from "../components/tag";
@@ -94,15 +94,6 @@ export default async function SegmentPage() {
     .map((p) => ({ id: p.id, name: p.name }));
 
   const live = rows.filter((r) => r.status === "active");
-  // The breakdown decomposes the headline the same way the catalogue's does -
-  // one cell per cut, its two counts as the small print, so a divergence is
-  // visible before anybody opens the table.
-  const stats: HeadlineStat[] = live.map((r) => ({
-    key: r.id,
-    name: r.name,
-    value: r.accountCount,
-    note: STRATEGY_TEXT.segmentStatCovered(r.accountCount, r.matchedCount),
-  }));
 
   const canWrite = can(
     session.authz,
@@ -115,7 +106,6 @@ export default async function SegmentPage() {
     <ViewLayout>
       <ModuleHeadline
         moduleKey="segment"
-        description={STRATEGY_TEXT.segmentsWhy}
         tags={
           <>
             <StatusBadge tone="success">
@@ -128,8 +118,6 @@ export default async function SegmentPage() {
             ) : null}
           </>
         }
-        stats={stats}
-        emptyNote={STRATEGY_TEXT.segmentStatEmpty}
       />
       <SegmentRoster
         rows={rows}

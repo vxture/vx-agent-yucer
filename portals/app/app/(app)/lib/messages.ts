@@ -73,6 +73,59 @@ export const MILESTONE_STATUS_LABEL: Record<MilestoneStatus, string> = {
   missed: "已错过",
 };
 
+/**
+ * The one line under each page title (owner, 2026-10-02: 面向租户用户，极其简要).
+ * Written for the tenant's own user: what the page is for, nothing about how
+ * it was decided. header-standard.test.ts holds the length and the wording.
+ */
+export const PAGE_BRIEF: Record<string, string> = {
+  forecast: "规则把每笔商机归到哪一档，与你的判断放在一起看。",
+  pipeline: "按阶段看全部在谈的商机。",
+  collection: "已承诺、还没到账的钱，逾期的最先看到。",
+  attainment: "目标完成到哪了，还差多少。",
+  winloss: "赢单与输单的原因，用来复盘。",
+  copilot: "助手给出的建议，由你决定是否采纳。",
+  quote: "商机的报价与审批进度。",
+  catalog: "公司在售的产品与服务。",
+  segment: "把要打的市场切成块，按优先级排。",
+  planning: "各区域、各负责人的目标与分配。",
+  solution: "由多个产品组合成的成套方案。",
+  pricebook: "产品的标价与底价。",
+  renewal: "订阅项目到期前的续约提醒。",
+  lead: "新进线索的分派与跟进。",
+  campaign: "营销战役，以及它带来的线索。",
+  named: "重点盯防的指名客户。",
+  delivery: "合同签下之后，项目交付得怎么样。",
+  account: "全部客户，一处查看。",
+  signal: "客户身上值得跟进的变化。",
+  funnel: "从线索到赢单，每一步还剩多少。",
+  strategy: "本周期打哪个市场、要达成什么。",
+  adminOpportunity: "商机的阶段、原因与类型设置。",
+  adminDivision: "销售区域的划分。",
+  adminOrg: "公司的组织架构。",
+  adminReminder: "多久没跟进、多久到期时开始提醒。",
+  adminRoles: "角色，以及各自拥有的权限。",
+  adminRoleGroups: "把角色归成组，便于管理。",
+  adminScope: "成员能看到哪些数据。",
+  adminProduct: "公司可售产品的维护。",
+  adminAudit: "谁在什么时候做了什么。",
+  adminPermissions: "每一项权限归哪些角色。",
+  adminDiagnostics: "系统连接与运行状态。",
+  adminIndustry: "行业、客户类型与规模的可选项。",
+  adminMembers: "团队成员及其角色。",
+  adminMigration: "还没有入口指向的页面。",
+};
+
+/** The tag after the title on pages whose count is not already a roster's. */
+export const PAGE_TAG = {
+  checksOk: (ok: number, total: number) => `${ok}/${total} 项连通`,
+  options: (n: number) => `${n} 项可选`,
+  stages: (n: number) => `${n} 个阶段`,
+  products: (n: number) => `${n} 个产品`,
+  rules: (n: number) => `${n} 条规则`,
+  attained: (pct: number) => `目标已完成 ${pct}%`,
+};
+
 /** Domain navigation labels, keyed by the nav entry key. */
 export const DOMAIN_LABEL: Record<string, string> = {
   national: "销售大屏",
@@ -214,7 +267,7 @@ export const NAMED_ACCOUNT_TEXT = {
 
 export const ROUTING_TEXT = {
   title: "线索分派",
-  why: "先按区域，再按负载（owner 裁定 2026-08-30）。区域决定谁有资格接，负载决定这几个人里该谁接——顺序反过来，闲着的人会拿到他从没打过的地盘。",
+  why: "先按区域，再按负载：区域决定谁有资格接，负载决定这几个人里该谁接。",
   none: "没有待分派的线索",
   noneWhy: "已转化和已判负的线索不在此列——它们的归属已经定了。",
   colLead: "线索",
@@ -452,7 +505,7 @@ export const ATTAINMENT_TEXT = {
 
 export const AUTONOMY_TEXT = {
   title: "智能助手授权",
-  why: "这个助手在没有问你之前，可以做到哪一步。改的是「哪些决定还要一条条过你的手」，不是「它能不能提议」——它始终只提议，采纳才动数据（ADR-003）。",
+  why: "助手在问你之前可以做到哪一步。它始终只提议，你采纳了才会改数据。",
   modeLabel: "授权档位",
   modes: {
     ask_high_risk: "高风险问我",
@@ -5433,6 +5486,8 @@ export const DELIVERY_TEXT = {
   overviewEmpty: "没有未收的钱，这一块暂时不用看。",
   collectedRate: "回款达成",
   collectedOf: (got: string, promised: string) => `已收 ${got} / 承诺 ${promised}`,
+  byStatusTitle: "回款状态",
+  byStatusWhy: "钱现在停在哪一步：已到账、已开票、计划中、逾期。已到账按实收，其余按计划。",
   ageingTitle: "账龄分布",
   ageingWhy: "按逾期天数分档。未到期是健康的那一档，留着才看得出尾巴是例外还是常态。",
   byProjectTitle: "未收集中度",

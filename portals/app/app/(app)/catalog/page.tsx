@@ -43,9 +43,7 @@ export default async function ProductsPage() {
         return (
           <>
             <ModuleHeadline
-              divider={false}
               moduleKey="catalog"
-              description={CATALOG_TEXT.description}
               tags={
                 <>
                   <StatusBadge tone="success">

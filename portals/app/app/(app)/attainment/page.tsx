@@ -66,6 +66,7 @@ export default async function AttainmentPage() {
     BOARD_TEXT,
     ATTAINMENT_TEXT,
     FORECAST_LABEL,
+    PAGE_TAG,
   } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -171,7 +172,16 @@ export default async function AttainmentPage() {
       {/* NO FOLD: the card directly below IS the decomposition - target,
           achieved, the gap - so a strip above it would explain the same number
           twice, and the coarser one would be on top. */}
-      <ModuleHeadline moduleKey="attainment" description={ATTAINMENT_TEXT.why} />
+      <ModuleHeadline
+        moduleKey="attainment"
+        tags={
+          pct !== null ? (
+            <StatusBadge tone={pct >= 100 ? "success" : pct >= 50 ? "info" : "warning"}>
+              {PAGE_TAG.attained(pct)}
+            </StatusBadge>
+          ) : undefined
+        }
+      />
       <Card className="p-lg">
         <div className="flex flex-col gap-md">
           {wsTarget && measured && pct !== null ? (

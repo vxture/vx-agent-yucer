@@ -136,7 +136,6 @@ export default async function FunnelPage() {
     <ViewLayout>
       <ModuleHeadline
         moduleKey="funnel"
-        description={FUNNEL_TEXT.moduleWhy}
         tags={
           <>
             <StatusBadge tone="success">{FUNNEL_TEXT.tagEntered(reading.entered)}</StatusBadge>

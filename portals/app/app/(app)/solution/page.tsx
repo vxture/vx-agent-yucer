@@ -51,9 +51,7 @@ export default async function SolutionPage() {
         return (
           <>
             <ModuleHeadline
-              divider={false}
               moduleKey="solution"
-              description={CATALOG_TEXT.solutionsWhy}
               tags={
                 <>
                   <StatusBadge tone="success">

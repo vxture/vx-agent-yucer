@@ -18,7 +18,7 @@ import { offeredPeriods, resolvePeriod } from "../lib/periods";
 import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
 import { ForecastRoster, type ForecastRow } from "../components/forecast-roster";
 import { ForecastAnalysis } from "../components/forecast-analysis";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
 import { forecastStats } from "../../domains/pipeline/lib/forecast-stats";
 import { applySuggestedCategory } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
@@ -99,15 +99,6 @@ export default async function ForecastPage({
 
   const stats = forecastStats(rows);
   const disputed = stats.optimistic.count + stats.conservative.count;
-  // THE BREAKDOWN IS THE FORECAST ITSELF - how much sits at each category -
-  // which is the question this page's readers arrive with. Which deal is what
-  // the list below answers, row by row.
-  const stats$: HeadlineStat[] = stats.byCategory.map((b) => ({
-    key: b.key,
-    name: FORECAST_LABEL[b.key as keyof typeof FORECAST_LABEL] ?? b.key,
-    value: b.amount,
-    note: FORECAST_RULE_TEXT.forecastStatCount(b.count),
-  }));
 
   const canApply = can(
     session.authz,
@@ -120,8 +111,7 @@ export default async function ForecastPage({
     <ViewLayout>
       <ModuleHeadline
         moduleKey="forecastRule"
-        action={<PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} />}
-        description={FORECAST_RULE_TEXT.why}
+        brief="forecast"
         tags={
           <>
             {disputed > 0 ? (
@@ -136,9 +126,12 @@ export default async function ForecastPage({
             ) : null}
           </>
         }
-        stats={stats$}
-        emptyNote={FORECAST_RULE_TEXT.forecastStatEmpty}
       />
+      {/* The period is a filter on the whole page, not the header's one
+          button: it sits under the header, on the right. */}
+      <div className="flex justify-end">
+        <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} />
+      </div>
 
       {unverified ? (
         <ForecastUnverified

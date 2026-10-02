@@ -22,7 +22,7 @@ import { PermissionTree } from "../../components/permission-tree";
 export const dynamic = "force-dynamic";
 
 export default async function PermissionsPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, PERMISSION_TREE_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PERMISSION_TREE_TEXT, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -69,9 +69,10 @@ export default async function PermissionsPage() {
           the third still turns to a warning when an operation nobody holds
           exists - a real audit signal, not a filler. */}
       <ViewHeader
+        divider={false}
         icon="key"
         title={PERMISSION_TREE_TEXT.title}
-        description={PERMISSION_TREE_TEXT.why}
+        description={PAGE_BRIEF.adminPermissions}
         secondary={
           <span className="gap-xs flex flex-wrap items-center">
             <Tag>{PERMISSION_TREE_TEXT.tagOperations(totalActions)}</Tag>

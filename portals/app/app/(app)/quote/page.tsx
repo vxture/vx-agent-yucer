@@ -139,7 +139,6 @@ export default async function QuotePage() {
           table below carries it per row. */}
       <ModuleHeadline
         moduleKey="quote"
-        description={QUOTE_TEXT.why}
         tags={<StatusBadge tone="success">{QUOTE_TEXT.tagCount(rows.length)}</StatusBadge>}
       />
       <QuoteTable rows={rows} stageDefinitions={stageDefinitions} />

@@ -31,7 +31,7 @@ interface PendingRoute {
 }
 
 export default async function PendingMigrationPage() {
-  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, DOMAIN_LABEL } = await getMessages();
+  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, DOMAIN_LABEL, PAGE_BRIEF } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -52,9 +52,10 @@ export default async function PendingMigrationPage() {
         current={DOMAIN_LABEL.pendingMigration}
       />
       <ViewHeader
+        divider={false}
         icon="archive"
         title={ADMIN_PAGE_TEXT.pendingMigrationTitle}
-        description={ADMIN_PAGE_TEXT.pendingMigrationWhy}
+        description={PAGE_BRIEF.adminMigration}
         secondary={<StatusBadge tone="warning">{ADMIN_PAGE_TEXT.pendingMigrationCount(routes.length)}</StatusBadge>}
       />
       {routes.length === 0 ? (

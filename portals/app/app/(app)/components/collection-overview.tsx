@@ -26,7 +26,14 @@ import type { CollectionStats } from "../../domains/delivery/lib/collection-stat
 // belongs beside them - and with the cells directly under it, the bar needs
 // neither a title nor figures of its own.
 
-export function CollectionOverview({ stats }: { readonly stats: CollectionStats }) {
+export function CollectionOverview({
+  stats,
+  byStatus,
+}: {
+  readonly stats: CollectionStats;
+  /** Money by stage, already labelled - the cut the header used to fold. */
+  readonly byStatus: readonly { key: string; label: string; value: number }[];
+}) {
   const { DELIVERY_TEXT } = useMessages();
 
   const locale = useLocale();
@@ -76,6 +83,11 @@ export function CollectionOverview({ stats }: { readonly stats: CollectionStats 
       title={DELIVERY_TEXT.overviewTitle}
       description={DELIVERY_TEXT.overviewWhy}
       tabs={[
+        {
+          key: "status",
+          label: DELIVERY_TEXT.byStatusTitle,
+          content: chart(byStatus, DELIVERY_TEXT.byStatusWhy),
+        },
         {
           key: "ageing",
           label: DELIVERY_TEXT.ageingTitle,

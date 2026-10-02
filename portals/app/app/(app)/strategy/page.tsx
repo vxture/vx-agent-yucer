@@ -4,7 +4,7 @@ import { getStrategyStore } from "../../domains/shared/registry";
 import { listCampaigns, listPlans } from "../../domains/strategy/service";
 import { can } from "../../authz/decide";
 import { PlanRoster, type PlanRow } from "../components/plan-roster";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
 import { movePlan } from "./actions";
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
@@ -83,15 +83,6 @@ export default async function StrategyPage() {
 
   const running = rows.filter((r) => r.status === "active");
   const settled = rows.filter((r) => r.status === "closed" || r.status === "archived");
-  // One cell per RUNNING plan, its campaign count as the number: the breakdown
-  // decomposes the headline the way every other module's does, and a running
-  // plan with a zero is the finding the dock then explains.
-  const stats: HeadlineStat[] = running.map((r) => ({
-    key: r.id,
-    name: r.name,
-    value: r.campaignCount ?? 0,
-    note: STRATEGY_TEXT.planStatCampaigns(r.period),
-  }));
 
   const canEdit = can(session.authz, session.entitlement, "strategy.plan.update", "ui").allowed;
   const canApprove = can(session.authz, session.entitlement, "strategy.plan.approve", "ui")
@@ -101,7 +92,6 @@ export default async function StrategyPage() {
     <ViewLayout>
       <ModuleHeadline
         moduleKey="strategy"
-        description={STRATEGY_TEXT.description}
         tags={
           <>
             <StatusBadge tone="success">
@@ -118,10 +108,6 @@ export default async function StrategyPage() {
               </StatusBadge>
             ) : null}
           </>
-        }
-        stats={stats}
-        emptyNote={
-          campaigns.ok ? STRATEGY_TEXT.planStatEmpty : STRATEGY_TEXT.leadNoCampaignRead
         }
       />
       <PlanRoster

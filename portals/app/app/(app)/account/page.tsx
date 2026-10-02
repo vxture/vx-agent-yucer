@@ -136,7 +136,6 @@ export default async function AccountPage() {
             <NewEntryLink href="/account/new" label={ACCOUNT_BASICS_TEXT.createButton} />
           ) : null
         }
-        description={ACCOUNT_TEXT.leadOrder}
         tags={
           <>
             <StatusBadge tone="success">

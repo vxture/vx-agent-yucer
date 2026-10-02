@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
@@ -39,7 +40,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function ProductSettingsPage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PAGE_BRIEF, PAGE_TAG } = await getMessages();
   return (
     <CatalogPage
       render={({ products, types, statuses, units, authz, entitlement }) => {
@@ -53,9 +54,11 @@ export default async function ProductSettingsPage() {
               current={DOMAIN_LABEL.product}
             />
             <ViewHeader
+              divider={false}
               icon="cube"
               title={DOMAIN_LABEL.product}
-              description={ADMIN_TEXT.entryHint.product}
+              description={PAGE_BRIEF.adminProduct}
+        secondary={<Tag tone="info">{PAGE_TAG.products(products.length)}</Tag>}
             />
             <CatalogTypeConfig
               types={types}

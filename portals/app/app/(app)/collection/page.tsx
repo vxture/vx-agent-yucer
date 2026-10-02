@@ -8,7 +8,7 @@ import {
   CollectionRoster,
   type CollectionRow,
 } from "../components/collection-roster";
-import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { ModuleHeadline } from "../components/module-headline";
 import { CollectionOverview } from "../components/collection-overview";
 import { collectionStats } from "../../domains/delivery/lib/collection-stats";
 import { moveInstalment } from "../delivery/actions";
@@ -102,62 +102,19 @@ export default async function CollectionPage({
   const short = rows.filter(
     (r) => r.status === "settled" && r.actualAmount !== null && r.actualAmount < r.plannedAmount,
   ).length;
-  // THE BREAKDOWN IS THE COLLECTION PROCESS, not the project list (owner,
-  // 2026-09-06). This page is about where the money has got to on its way in:
-  // planned, invoiced, late, arrived, given up on. A per-project breakdown
-  // answered "who owes us", which the table below already lists row by row,
-  // and said nothing about the stage a receivable is stuck at - which is the
-  // question a collections review opens with.
-  //
-  // SETTLED IS COUNTED AT WHAT ARRIVED, everything else at what was promised.
-  // Summing the planned figure for money that is already in would report a
-  // number nobody received, and short payment is normal enough here that the
-  // schedule tracks it separately from invoicing.
-  // THE MANAGEMENT ORDER, not the lifecycle order (owner, 2026-09-06). A
-  // manager reads this bar as attainment: what is IN, what is in TROUBLE, what
-  // is promised soon, what is further out, what is gone. The lifecycle order -
-  // planned first, collected fourth - is how an instalment travels, which is
-  // the schedule's business and not the question this strip answers.
+  // The money by where it stands - one bar per stage, the other cut of the
+  // same rows the ageing chart and the schedule come from. Zero stages are
+  // left out: an empty bar says nothing.
   const STAGES = ["settled", "overdue", "invoiced", "planned", "written_off"] as const;
-  // THE COLOUR IS THE STAGE'S MEANING, not a palette position: overdue is the
-  // product's danger, settled its success, a write-off is muted because it is
-  // over. The dot beside the number and that stage's share of the bar above
-  // are the same colour, which is what lets the two readings be one reading.
-  // DEPTH IS CERTAINTY, deepest first: money in the bank, then money late,
-  // then money invoiced, then money merely planned. 坏账 takes the lightest
-  // step - it is certain, but it is no longer part of the receivable, and on a
-  // one-hue ramp the palest end is the only place left for "not counting".
-  //
-  // THE LIGHT END OF THE RAMP. This strip is above the fold on every visit, so
-  // it should not be the heaviest thing on the page (owner, 2026-09-06, twice).
-  // Levels 3 down to 0 - the deepest fill is now a mid blue rather than the
-  // ramp's darkest, and the shades still separate.
-  const STAGE_DEPTH = {
-    settled: 3,
-    overdue: 2,
-    invoiced: 2,
-    // 计划中 CAME BACK UP A STEP: at the palest wash it stopped reading as a
-    // stage at all (owner, 2026-09-06). The wash is left to 坏账, which is the
-    // one row that genuinely is not part of the receivable.
-    planned: 1,
-    written_off: 0,
-  } as const;
-  const stats: HeadlineStat[] = STAGES.map((stage) => {
+  const byStatus = STAGES.map((stage) => {
     const at = rows.filter((r) => r.status === stage);
-    const amount = at.reduce(
-      (sum, r) => sum + (stage === "settled" ? (r.actualAmount ?? 0) : r.plannedAmount),
-      0,
-    );
     return {
-      key: stage,
-      name: REVENUE_STATUS_LABEL[stage] ?? stage,
-      value: amount,
-      note: DELIVERY_TEXT.collectStatCount(at.length),
-      depth: STAGE_DEPTH[stage],
-      // 逾期 IS THE EXCEPTION, so it leaves the ramp: money that is late is
-      // not a further step along the same road, it is the thing that went
-      // wrong, and it should be found without comparing shades of blue.
-      ...(stage === "overdue" ? { tone: "warning" as const } : {}),
+      key: stage as string,
+      label: REVENUE_STATUS_LABEL[stage] ?? stage,
+      value: at.reduce(
+        (sum, r) => sum + (stage === "settled" ? (r.actualAmount ?? 0) : r.plannedAmount),
+        0,
+      ),
     };
   }).filter((cell) => cell.value > 0);
 
@@ -165,7 +122,6 @@ export default async function CollectionPage({
     <ViewLayout>
       <ModuleHeadline
         moduleKey="collection"
-        description={DELIVERY_TEXT.collectionsWhy}
         tags={
           <>
             <StatusBadge tone="success">{DELIVERY_TEXT.tagCollectDue(open.length)}</StatusBadge>
@@ -177,9 +133,6 @@ export default async function CollectionPage({
             ) : null}
           </>
         }
-        stats={stats}
-        share
-        emptyNote={DELIVERY_TEXT.collectStatEmpty}
       />
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - so the shape comes
           first and the schedule reads as its detail. Both are computed from
@@ -191,6 +144,7 @@ export default async function CollectionPage({
         </p>
       ) : null}
       <CollectionOverview
+        byStatus={byStatus}
         stats={collectionStats(rows, new Date(), cutoffs.ok ? cutoffs.value : undefined)}
       />
       <CollectionRoster
