@@ -54,6 +54,8 @@ export default async function AccountDeck({
       data={bundle.agent}
       canRecord={bundle.canRecord}
       canAsk={bundle.canAsk}
+      // No 敌情 here: a customer's own page is not where a competitor is met.
+      recon={false}
       // The question goes to the copilot about THIS customer.
       askAnchor={detail.ok ? { accountId: id } : undefined}
       // Anchored: a note captured while reading this account belongs to it, and

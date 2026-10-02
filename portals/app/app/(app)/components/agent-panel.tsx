@@ -62,6 +62,13 @@ export interface AgentPanelProps {
    * Default on - the deal and account decks are scoped to their object.
    */
   readonly decisions?: boolean;
+  /**
+   * 敌情, the competitor placeholder. Kept where competition belongs to the
+   * page (a deal: who it is being won against) and dropped where it does not
+   * (a customer's own page) - a placeholder is only worth its space beside the
+   * thing it will one day be about (owner, 2026-10-02: 与页面适配和关联才保留).
+   */
+  readonly recon?: boolean;
 }
 
 export function AgentPanel({
@@ -75,6 +82,7 @@ export function AgentPanel({
   onBuildBrief,
   advisor,
   decisions = true,
+  recon = true,
 }: AgentPanelProps) {
   const { BOARD_TEXT } = useMessages();
 
@@ -108,24 +116,28 @@ export function AgentPanel({
         link: { label: BOARD_TEXT.openThread, href: "/copilot" },
       })),
     },
-    {
-      id: "recon",
-      title: BOARD_TEXT.reconTitle,
-      // THE ENEMY, and the honest state of it: there is no structured
-      // competitor data in this product - competitors appear only inside raw
-      // follow-up notes. A war room that invents its enemies is worse than
-      // one that admits it cannot see them.
-      empty: BOARD_TEXT.reconEmpty,
-      items: [],
-      footer: (
-        <span className="flex flex-col gap-xs">
-          <Button size="sm" variant="outline" disabled>
-            {BOARD_TEXT.reconCta}
-          </Button>
-          <span className="text-muted-foreground text-body-sm">{BOARD_TEXT.analysisNote}</span>
-        </span>
-      ),
-    },
+    ...(recon
+      ? [
+        {
+          id: "recon",
+          title: BOARD_TEXT.reconTitle,
+          // THE ENEMY, and the honest state of it: there is no structured
+          // competitor data in this product - competitors appear only inside raw
+          // follow-up notes. A war room that invents its enemies is worse than
+          // one that admits it cannot see them.
+          empty: BOARD_TEXT.reconEmpty,
+          items: [],
+          footer: (
+            <span className="flex flex-col gap-xs">
+              <Button size="sm" variant="outline" disabled>
+                {BOARD_TEXT.reconCta}
+              </Button>
+              <span className="text-muted-foreground text-body-sm">{BOARD_TEXT.analysisNote}</span>
+            </span>
+          ),
+        },
+        ]
+      : []),
   ];
 
   return (
