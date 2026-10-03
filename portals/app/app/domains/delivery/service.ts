@@ -7,6 +7,8 @@
 // returns the DERIVED health, and says when it downgraded a report and why.
 
 import { changeMilestone, planMilestone, type MilestoneDraft } from "./lib/milestone";
+import { planMilestoneRemoval } from "./lib/milestone-removal";
+import { planInstalmentRemoval, planNewInstalment, type NewInstalmentDraft } from "./lib/instalment";
 import {
   planNewProject,
   planProjectCancel,
@@ -277,6 +279,93 @@ export async function upsertMilestone(
 }
 
 
+
+/**
+ * Take a milestone off a project's plan - only one that was never completed or
+ * accepted, never moved after it was committed, and that no instalment waits on.
+ * Found by sequence, the way the form and the upsert identify a gate.
+ */
+export async function removeMilestone(
+  ctx: DeliveryContext,
+  projectId: string,
+  sequence: number,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.milestone.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const project = await ctx.store.getProject(ctx.workspaceId, projectId);
+  if (!project) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
+  const held = (await ctx.store.listMilestones(ctx.workspaceId, projectId)).find((m) => m.sequence === sequence);
+  if (!held) return fail(violation("not_found", `milestone ${sequence} was not found`, "sequence"));
+  const [changes, instalments] = await Promise.all([
+    ctx.store.listMilestoneChanges(ctx.workspaceId, projectId),
+    ctx.store.listInstalments(ctx.workspaceId, projectId),
+  ]);
+  const plan = planMilestoneRemoval(held, {
+    changes: changes.filter((c) => c.milestoneId === held.id).length,
+    instalments: instalments.filter((i) => i.milestoneId === held.id).length,
+  });
+  if (!plan.ok) return plan as RuleResult<{ removed: true }>;
+  await ctx.store.removeMilestone(ctx.workspaceId, held.id);
+  return ok({ removed: true });
+}
+
+/**
+ * Add an instalment to a project's collection plan. It starts as a plan, takes
+ * the next sequence, and names a milestone OF THIS PROJECT that releases it.
+ */
+export async function createInstalment(
+  ctx: DeliveryContext,
+  input: NewInstalmentDraft,
+): Promise<RuleResult<InstalmentRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.revenue.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const project = await ctx.store.getProject(ctx.workspaceId, input.projectId);
+  if (!project) return fail(violation("not_found", `project ${input.projectId} was not found`, "projectId"));
+  const [milestones, instalments] = await Promise.all([
+    ctx.store.listMilestones(ctx.workspaceId, input.projectId),
+    ctx.store.listInstalments(ctx.workspaceId, input.projectId),
+  ]);
+  const plan = planNewInstalment(input, {
+    projectStatus: project.status,
+    gateFound: milestones.some((m) => m.id === input.milestoneId),
+    nextSequence: instalments.reduce((n, i) => Math.max(n, i.sequence), 0) + 1,
+  });
+  if (!plan.ok) return plan as RuleResult<InstalmentRecord>;
+  try {
+    return ok(
+      await ctx.store.createInstalment(ctx.workspaceId, {
+        projectId: input.projectId,
+        milestoneId: input.milestoneId,
+        sequence: plan.value.sequence,
+        plannedAmount: money(plan.value.plannedAmount, plan.value.currency),
+        dueAt: plan.value.dueAt,
+      }),
+    );
+  } catch (e) {
+    // Two people adding at once took the same next sequence: say so, and the
+    // retry reads the new maximum.
+    if (isUniqueViolation(e)) {
+      return fail(violation("instalment_conflict", "someone just added an instalment - try again", "sequence"));
+    }
+    throw e;
+  }
+}
+
+/** Take a mistaken, still-planned instalment off the plan. */
+export async function removeInstalment(
+  ctx: DeliveryContext,
+  projectId: string,
+  instalmentId: string,
+): Promise<RuleResult<{ removed: true }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.revenue.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const held = (await ctx.store.listInstalments(ctx.workspaceId, projectId)).find((i) => i.id === instalmentId);
+  if (!held) return fail(violation("not_found", `instalment ${instalmentId} was not found`, "instalmentId"));
+  const plan = planInstalmentRemoval(held);
+  if (!plan.ok) return plan as RuleResult<{ removed: true }>;
+  await ctx.store.removeInstalment(ctx.workspaceId, instalmentId);
+  return ok({ removed: true });
+}
 
 export async function transitionInstalment(
   ctx: DeliveryContext,

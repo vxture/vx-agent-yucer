@@ -70,6 +70,8 @@ export interface CollectionRosterProps {
     actualAmount?: number;
     currency?: string;
   }) => Promise<{ ok: boolean; status?: string; error?: string }>;
+  /** Take a still-planned instalment off the plan. Present = offered. */
+  readonly onDelete?: (projectId: string, instalmentId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
@@ -80,10 +82,11 @@ const SORT_ON = {
   actual: (r: CollectionRow) => r.actualAmount,
 };
 
-export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterProps) {
+export function CollectionRoster({ rows, canWrite, onMove, onDelete }: CollectionRosterProps) {
   const {
     DELIVERY_TEXT,
     DATA_TABLE_LABELS,
+    DS_LABELS,
     REVENUE_ERROR,
     REVENUE_STATUS_LABEL,
     TABLE_TOOLBAR_TEXT,
@@ -264,18 +267,48 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
       items={
         !canWrite
           ? []
-          : allowedRevenueMoves(row.status).map((to) => ({
-              id: to,
-              label: `${DELIVERY_TEXT.moveTo} ${REVENUE_STATUS_LABEL[to] ?? to}`,
-              onSelect: () => {
-                if (to === "settled") {
-                  setAmount(String(row.plannedAmount));
-                  setSettling(row);
-                  return;
-                }
-                move(row, to);
-              },
-            }))
+          : [
+              ...allowedRevenueMoves(row.status).map((to) => ({
+                id: to,
+                label: `${DELIVERY_TEXT.moveTo} ${REVENUE_STATUS_LABEL[to] ?? to}`,
+                onSelect: () => {
+                  if (to === "settled") {
+                    setAmount(String(row.plannedAmount));
+                    setSettling(row);
+                    return;
+                  }
+                  move(row, to);
+                },
+              })),
+              // A mistaken row that was only ever a plan can be taken off it.
+              ...(onDelete && row.status === "planned"
+                ? [
+                    {
+                      id: "delete",
+                      label: DELIVERY_TEXT.instalmentDelete,
+                      icon: "trash" as const,
+                      danger: true as const,
+                      separatorBefore: true,
+                      confirm: {
+                        verb: DELIVERY_TEXT.instalmentDelete,
+                        target: `${row.projectName} #${row.sequence}`,
+                        consequence: DELIVERY_TEXT.instalmentDeleteConsequence,
+                        titleTemplate: DS_LABELS.confirmTitleTemplate,
+                        cancelLabel: DS_LABELS.confirmCancel,
+                        pendingLabel: DS_LABELS.confirmPending,
+                        onConfirm: () =>
+                          start(() => {
+                            void onDelete(row.projectId, row.id).then((r) => {
+                              if (!r.ok) {
+                                toast({ tone: "danger", title: REVENUE_ERROR[r.error ?? "denied"] ?? REVENUE_ERROR.denied ?? "" });
+                              }
+                            });
+                          }),
+                      },
+                    },
+                  ]
+                : []),
+            ]
       }
         />
       </span>

@@ -1159,8 +1159,20 @@ export const en: Dictionary = {
     paginationPageSizeOptionTemplate: "{size} per page",
   },
 
+  INSTALMENT_FORM_ERROR: {
+    ...GATE_ERROR,
+    project_closed: "A closed or cancelled project takes no new instalments",
+    instalment_amount_invalid: "The amount must be above zero",
+    instalment_currency_required: "Enter a currency",
+    instalment_gate_not_found: "The chosen milestone is not on this project's plan - reload and pick again",
+    instalment_conflict: "Someone just added an instalment too - try again",
+    invalid_date: "That date is not valid",
+    not_found: "That project is gone - reload and try again",
+  },
+
   REVENUE_ERROR: {
     ...GATE_ERROR,
+    instalment_not_planned: "Only an instalment that is still a plan can be deleted; one that was invoiced, collected or written off stays",
     actual_amount_required: "Settling requires the amount actually received",
     amount_negative: "The amount cannot be negative",
     currency_mismatch: "The currency does not match the plan",
@@ -2687,6 +2699,9 @@ export const en: Dictionary = {
     name_required: "A milestone needs a name",
     sequence_invalid: "Sequence is a whole number from zero",
     unknown_status: "Unknown milestone status",
+    milestone_not_pending: "A completed or accepted milestone is a record and cannot be deleted",
+    milestone_moved: "This milestone's date was moved after it was committed - that history stays, so it cannot be deleted",
+    milestone_has_instalments: "Collection instalments wait on this milestone, so it cannot be deleted",
     done_needs_completion: "A milestone marked done must say when it was done",
     completion_needs_done:
       "A completion time belongs to a milestone that is done - a missed one did not happen",
@@ -4557,6 +4572,20 @@ export const en: Dictionary = {
 
   DELIVERY_TEXT: {
     newProject: "New project",
+    newInstalment: "Add instalment",
+    instalmentWhy: "Schedule money to collect on a project: which project, which milestone releases it, how much, and when it falls due. A new instalment starts as a plan.",
+    instalmentHint: "Every instalment names a milestone - it is released when that milestone is done. Milestones are added in the project's plan.",
+    instalmentProject: "Project",
+    instalmentPickProject: "Choose a project",
+    instalmentGate: "Releasing milestone",
+    instalmentPickGate: "Choose a milestone",
+    instalmentAmount: "Planned amount",
+    instalmentDue: "Due date",
+    instalmentCreate: "Add to collection plan",
+    instalmentDelete: "Delete this instalment",
+    instalmentDeleteConsequence: "This instalment is removed from the collection plan for good. Only one that is still a plan can be deleted; to call off one already invoiced, write it off.",
+    milestoneDelete: "Delete this milestone",
+    milestoneDeleteConsequence: "This milestone is removed from the plan for good. Only one that is not completed, never had its date moved and that no instalment waits on can be deleted.",
     newProjectTitle: "New project",
     newProjectWhy: "A project is the unit of delivery once a contract is signed. A new one starts in planning; add milestones and the collection plan on their own pages.",
     editProjectTitle: "Edit project",

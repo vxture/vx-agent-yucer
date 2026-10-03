@@ -9,9 +9,10 @@ import {
   type CollectionRow,
 } from "../components/collection-roster";
 import { ModuleHeadline } from "../components/module-headline";
+import { NewEntryLink } from "../components/form-page";
 import { CollectionOverview } from "../components/collection-overview";
 import { collectionStats } from "../../domains/delivery/lib/collection-stats";
-import { moveInstalment } from "../delivery/actions";
+import { deleteInstalment, moveInstalment } from "../delivery/actions";
 import { loadFailureText } from "../lib/load-failure";
 import Link from "next/link";
 import { getAccountDetail } from "../../domains/account/service";
@@ -122,6 +123,11 @@ export default async function CollectionPage({
     <ViewLayout>
       <ModuleHeadline
         moduleKey="collection"
+        action={
+          can(session.authz, session.entitlement, "delivery.revenue.upsert", "ui").allowed ? (
+            <NewEntryLink href="/collection/instalment" label={DELIVERY_TEXT.newInstalment} />
+          ) : null
+        }
         tags={
           <>
             <StatusBadge tone="success">{DELIVERY_TEXT.tagCollectDue(open.length)}</StatusBadge>
@@ -158,6 +164,7 @@ export default async function CollectionPage({
           ).allowed
         }
         onMove={moveInstalment}
+        onDelete={deleteInstalment}
       />
     </ViewLayout>
   );

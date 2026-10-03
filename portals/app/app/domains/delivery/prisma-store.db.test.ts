@@ -87,6 +87,60 @@ async function store() {
   return new PrismaDeliveryStore();
 }
 
+test("removeMilestone deletes one gate in its own workspace; the database refuses one an instalment waits on", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seedWithGate);
+    const s = await store();
+    assert.equal(await s.removeMilestone("eeeeeeee-0000-0000-0000-000000000999", SEED_GATE), false);
+
+    // An instalment waits on the gate: the service refuses first, and the
+    // foreign key (ON DELETE RESTRICT, incr/0032) would refuse anyway.
+    await withPg(async (c) => {
+      await c.query(
+        `INSERT INTO yucer_delivery.revenue_schedule (workspace_id, project_id, milestone_id, sequence, planned_amount, currency, status)
+         VALUES ($1, $2, $3, 1, 100, 'CNY', 'planned')`,
+        [WS, PROJ, SEED_GATE],
+      );
+    });
+    await assert.rejects(s.removeMilestone(WS, SEED_GATE), /foreign key|violates|restrict/i);
+
+    await withPg(async (c) => {
+      await c.query(`DELETE FROM yucer_delivery.revenue_schedule WHERE workspace_id = $1`, [WS]);
+    });
+    assert.equal(await s.removeMilestone(WS, SEED_GATE), true);
+    assert.equal(await s.removeMilestone(WS, SEED_GATE), false);
+    assert.equal((await s.listMilestones(WS, PROJ)).length, 0);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("createInstalment writes a planned row on the gate, refuses a repeated sequence, and removeInstalment deletes it", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seedWithGate);
+    const s = await store();
+    const made = await s.createInstalment(WS, {
+      projectId: PROJ, milestoneId: SEED_GATE, sequence: 1, plannedAmount: { amount: 40_000, currency: "CNY" }, dueAt: new Date("2026-12-01T00:00:00Z"),
+    });
+    assert.equal(made.status, "planned");
+    assert.equal(made.plannedAmount.amount, 40_000);
+    assert.equal(made.milestoneId, SEED_GATE);
+    // (project, sequence) is unique: two people taking the same next number.
+    await assert.rejects(
+      s.createInstalment(WS, { projectId: PROJ, milestoneId: SEED_GATE, sequence: 1, plannedAmount: { amount: 1, currency: "CNY" }, dueAt: null }),
+      /unique|duplicate/i,
+    );
+    assert.equal(await s.removeInstalment("eeeeeeee-0000-0000-0000-000000000999", made.id), false);
+    assert.equal(await s.removeInstalment(WS, made.id), true);
+    assert.equal(await s.removeInstalment(WS, made.id), false);
+    assert.equal((await s.listInstalments(WS, PROJ)).length, 0);
+  } finally {
+    await cleanup();
+  }
+});
+
 // --- Projects ------------------------------------------------------------------
 
 test("listProjects filters by status and account, newest first", { skip }, async () => {

@@ -1131,7 +1131,19 @@ export const LOAD_ERROR: Record<string, string> = {
   unknown: "数据加载失败，请稍后重试",
 };
 
+export const INSTALMENT_FORM_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  project_closed: "已关闭或已取消的项目不再收新的款",
+  instalment_amount_invalid: "金额要大于零",
+  instalment_currency_required: "请填写币种",
+  instalment_gate_not_found: "选的里程碑不在这个项目的计划里，刷新后再选",
+  instalment_conflict: "刚好有人也加了一期，再点一次",
+  invalid_date: "日期格式不对",
+  not_found: "项目不存在，刷新后再试",
+};
+
 export const REVENUE_ERROR: Record<string, string> = {
+  instalment_not_planned: "只有还是计划状态的期次能删除；开过票、回过款或已核销的要留着",
   ...GATE_ERROR,
   actual_amount_required: "标记为已回款必须写明实际收到多少",
   amount_negative: "金额不能为负",
@@ -5361,6 +5373,20 @@ export const OUTCOME_TEXT = {
 
 export const DELIVERY_TEXT = {
   newProject: "新建项目",
+  newInstalment: "新增回款期次",
+  instalmentWhy: "把一笔要收的钱排进项目的回款计划：哪个项目、由哪个里程碑放行、多少钱、哪天到期。新增的一期先是计划状态。",
+  instalmentHint: "每一期都要挂一个里程碑——里程碑完成才放行这笔钱。里程碑在项目的计划里加。",
+  instalmentProject: "项目",
+  instalmentPickProject: "选择项目",
+  instalmentGate: "放行的里程碑",
+  instalmentPickGate: "选择里程碑",
+  instalmentAmount: "计划金额",
+  instalmentDue: "到期日",
+  instalmentCreate: "加入回款计划",
+  instalmentDelete: "删除这一期",
+  instalmentDeleteConsequence: "这一期会从回款计划里删掉，不可恢复。只有还是计划状态的能删；要作废一期已开票的，用“核销”。",
+  milestoneDelete: "删除这个里程碑",
+  milestoneDeleteConsequence: "这个里程碑会从计划里删掉，不可恢复。只有没完成、没改过日期、没有回款期次依赖它的才能删。",
   newProjectTitle: "新建项目",
   newProjectWhy: "项目是合同签下之后的交付单元。新建的项目先在筹备中；里程碑、回款计划随后在各自的页面里加。",
   editProjectTitle: "编辑项目",
@@ -6799,6 +6825,9 @@ export const MILESTONE_ERROR: Record<string, string> = {
   name_required: "里程碑需要一个名称",
   sequence_invalid: "序号是从零开始的整数",
   unknown_status: "未知的里程碑状态",
+  milestone_not_pending: "已完成或已验收的里程碑是记录，不能删除",
+  milestone_moved: "这个里程碑的日期在承诺之后改过，那段历史要留着，不能删除",
+  milestone_has_instalments: "有回款期次在等这个里程碑放行，不能删除",
   done_needs_completion: "标记为已完成的里程碑必须写明何时完成",
   completion_needs_done:
     "实际完成时间只属于已完成的里程碑——错过的那个并没有发生",

@@ -7,7 +7,7 @@ import { can } from "../../../authz/decide";
 import { getDeliveryStore } from "../../../domains/shared/registry";
 import { listProjects, projectView } from "../../../domains/delivery/service";
 import { MilestoneForm } from "../../components/milestone-form";
-import { saveMilestone } from "../actions";
+import { deleteMilestone, saveMilestone } from "../actions";
 
 // 录入里程碑 - a page since 2026-09-05 (owner ruling; see /catalog/new for the
 // shape and why the gate redirects). Milestones are read per project through
@@ -90,6 +90,7 @@ export default async function NewMilestonePage({
         milestones={milestones}
         projects={rows.map((p) => ({ id: p.id, name: p.name, status: p.status }))}
         onSave={saveMilestone}
+        onDelete={deleteMilestone}
       />
     </ViewLayout>
   );

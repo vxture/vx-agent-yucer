@@ -7,6 +7,8 @@ import {
   reconcileProjectHealth,
   transitionInstalment,
   upsertMilestone,
+  removeInstalment,
+  removeMilestone,
 } from "../../domains/delivery/service";
 import { money } from "../../domains/shared/money";
 import {
@@ -194,5 +196,52 @@ export async function saveMilestone(
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
   revalidatePath("/delivery");
+  return { ok: true };
+}
+
+/** Take a gate off a project's plan - the rule refuses one that was completed, moved or relied on. */
+export async function deleteMilestone(
+  projectId: string,
+  sequence: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await removeMilestone(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getDeliveryStore(),
+    },
+    projectId,
+    sequence,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/delivery");
+  return { ok: true };
+}
+
+/** Take a mistaken, still-planned instalment off the collection plan. */
+export async function deleteInstalment(
+  projectId: string,
+  instalmentId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await removeInstalment(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getDeliveryStore(),
+    },
+    projectId,
+    instalmentId,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/delivery");
+  revalidatePath("/collection");
   return { ok: true };
 }
