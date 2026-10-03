@@ -11,6 +11,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { ConfirmDestructive } from "./confirm-destructive";
 import {
   AssistPanel,
   FormFields,
@@ -44,6 +45,7 @@ export function MilestoneForm({
   projects,
   initialProjectId,
   onSave,
+  onDelete,
 }: {
   /** Pre-selects the project. The form is reached from a project ROW (owner,
    * 2026-09-06), so arriving with an empty picker would ask again for
@@ -67,6 +69,8 @@ export function MilestoneForm({
     readonly name: string;
     readonly status: string;
   }[];
+  /** Only offered for a gate that exists; the rule layer refuses one that is completed, moved or relied on. */
+  readonly onDelete: (projectId: string, sequence: number) => Promise<Saved>;
   readonly onSave: (
     projectId: string,
     input: {
@@ -84,6 +88,7 @@ export function MilestoneForm({
   const { DELIVERY_TEXT, MILESTONE_ERROR, ASSIST_TEXT } = useMessages();
   const [form, setForm] = useState({ ...BLANK, projectId: initialProjectId ?? "" });
   const submit = useFormSubmit("/delivery");
+  const [confirming, setConfirming] = useState(false);
 
   const unchecked = useMemo(
     () => projectsWithoutMilestones(projects, milestones),
@@ -305,7 +310,29 @@ export function MilestoneForm({
               >
                 {DELIVERY_TEXT.milestoneSave}
               </Button>
+              {held ? (
+                <Button variant="ghost" disabled={submit.pending} onClick={() => setConfirming(true)}>
+                  {DELIVERY_TEXT.milestoneDelete}
+                </Button>
+              ) : null}
               {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
+              {confirming && held ? (
+                <ConfirmDestructive
+                  open={confirming}
+                  onOpenChange={(o) => {
+                    if (!o && !submit.pending) setConfirming(false);
+                  }}
+                  verb={DELIVERY_TEXT.milestoneDelete}
+                  target={held.name}
+                  consequence={DELIVERY_TEXT.milestoneDeleteConsequence}
+                  onConfirm={() =>
+                    submit.run(
+                      () => onDelete(form.projectId, held.sequence),
+                      (c) => MILESTONE_ERROR[c] ?? MILESTONE_ERROR.denied,
+                    )
+                  }
+                />
+              ) : null}
             </div>
           </div>
         </Section>

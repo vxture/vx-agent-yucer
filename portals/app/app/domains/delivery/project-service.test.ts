@@ -5,7 +5,7 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { money } from "../shared/money";
 import { InMemoryDeliveryStore, type ProjectRecord } from "./store";
-import { cancelProject, createProject, editProject, type DeliveryContext } from "./service";
+import { cancelProject, createInstalment, createProject, editProject, removeInstalment, removeMilestone, type DeliveryContext } from "./service";
 import type { NewProjectDraft } from "./lib/project";
 
 // Creating, editing and calling off a project. None of the three existed in the
@@ -106,4 +106,81 @@ test("a project is cancelled from planning, active or on hold - not when money h
   assert.equal(code(await cancelProject(c, "prj_paid")), "project_has_receipts");
   assert.equal((await store.getProject(WS, "prj_paid"))?.status, "active", "a refused cancel changes nothing");
   assert.equal(code(await cancelProject(c, "prj_zz")), "not_found");
+});
+
+// --- Taking a milestone off a plan ---------------------------------------------
+
+test("a gate nobody relies on can be removed; a completed, moved or relied-on one cannot", async () => {
+  const store = new InMemoryDeliveryStore();
+  const gate = (id: string, sequence: number, status: "pending" | "done" = "pending") => ({
+    id, projectId: "prj_a", workspaceId: WS, name: id, sequence, status, dueAt: null,
+    completedAt: status === "done" ? new Date("2026-01-01T00:00:00Z") : null, baselineDueAt: null, acceptance: null,
+  });
+  store.seed({
+    projects: [project({ id: "prj_a" })],
+    milestones: [gate("m_free", 1), gate("m_done", 2, "done"), gate("m_moved", 3), gate("m_rel", 4)],
+    instalments: [
+      { id: "i1", workspaceId: WS, projectId: "prj_a", milestoneId: "m_rel", sequence: 1, status: "planned",
+        plannedAmount: money(10, "CNY"), actualAmount: null, dueAt: null, settledAt: null },
+    ],
+  });
+  await store.appendMilestoneChanges(WS, "m_moved", [
+    { field: "due_at", fromValue: "2026-01-01", toValue: "2026-02-01", reason: "customer asked", changedBySub: "usr_me" },
+  ]);
+  const c = ctx("delivery_manager", "business", store);
+
+  unwrap(await removeMilestone(c, "prj_a", 1));
+  assert.equal((await store.listMilestones(WS, "prj_a")).some((m) => m.id === "m_free"), false);
+  assert.equal(code(await removeMilestone(c, "prj_a", 2)), "milestone_not_pending");
+  assert.equal(code(await removeMilestone(c, "prj_a", 3)), "milestone_moved");
+  assert.equal(code(await removeMilestone(c, "prj_a", 4)), "milestone_has_instalments");
+  assert.equal(code(await removeMilestone(c, "prj_a", 9)), "not_found");
+  assert.equal(code(await removeMilestone(c, "prj_zz", 1)), "not_found");
+  assert.equal(code(await removeMilestone(ctx("viewer", "business", store), "prj_a", 4)), "permission_denied");
+  assert.equal((await store.listMilestones(WS, "prj_a")).length, 3, "every refusal left the plan whole");
+});
+
+// --- The collection plan: adding an instalment, and taking a mistaken one off ----
+
+test("an instalment is added as a plan, on the next sequence, released by a gate of the same project", async () => {
+  const store = new InMemoryDeliveryStore();
+  const gate = (id: string, projectId: string) => ({
+    id, projectId, workspaceId: WS, name: id, sequence: 1, status: "pending" as const, dueAt: null,
+    completedAt: null, baselineDueAt: null, acceptance: null,
+  });
+  store.seed({
+    projects: [project({ id: "prj_a" }), project({ id: "prj_b", projectNo: "PRJ-2" }), project({ id: "prj_x", projectNo: "PRJ-3", status: "closed" })],
+    milestones: [gate("m_a", "prj_a"), gate("m_b", "prj_b"), gate("m_x", "prj_x")],
+  });
+  const c = ctx("delivery_manager", "business", store);
+  const draft = { projectId: "prj_a", milestoneId: "m_a", plannedAmount: 50_000, currency: "CNY", dueAt: new Date("2026-12-01T00:00:00Z") };
+
+  const first = unwrap(await createInstalment(c, draft));
+  assert.equal(first.status, "planned", "the status is not an argument");
+  assert.equal(first.sequence, 1);
+  assert.equal(unwrap(await createInstalment(c, draft)).sequence, 2, "the next sequence, not a reused one");
+
+  assert.equal(code(await createInstalment(c, { ...draft, plannedAmount: 0 })), "instalment_amount_invalid");
+  assert.equal(code(await createInstalment(c, { ...draft, currency: " " })), "instalment_currency_required");
+  assert.equal(code(await createInstalment(c, { ...draft, milestoneId: "m_zz" })), "instalment_gate_not_found");
+  // Another project's gate is simply not on THIS project's plan.
+  assert.equal(code(await createInstalment(c, { ...draft, milestoneId: "m_b" })), "instalment_gate_not_found");
+  assert.equal(code(await createInstalment(c, { ...draft, projectId: "prj_x", milestoneId: "m_x" })), "project_closed");
+  assert.equal(code(await createInstalment(c, { ...draft, projectId: "prj_zz" })), "not_found");
+  assert.equal(code(await createInstalment(ctx("viewer", "business", store), draft)), "permission_denied");
+});
+
+test("only an instalment that is still a plan can be taken off it", async () => {
+  const store = new InMemoryDeliveryStore();
+  const inst = (id: string, sequence: number, status: "planned" | "invoiced") => ({
+    id, workspaceId: WS, projectId: "prj_a", milestoneId: "m1", sequence, status,
+    plannedAmount: money(10, "CNY"), actualAmount: null, dueAt: null, settledAt: null,
+  });
+  store.seed({ projects: [project({ id: "prj_a" })], instalments: [inst("i_plan", 1, "planned"), inst("i_inv", 2, "invoiced")] });
+  const c = ctx("delivery_manager", "business", store);
+  unwrap(await removeInstalment(c, "prj_a", "i_plan"));
+  assert.equal((await store.listInstalments(WS, "prj_a")).some((i) => i.id === "i_plan"), false);
+  assert.equal(code(await removeInstalment(c, "prj_a", "i_inv")), "instalment_not_planned");
+  assert.equal(code(await removeInstalment(c, "prj_a", "i_zz")), "not_found");
+  assert.equal((await store.listInstalments(WS, "prj_a")).length, 1, "the invoiced one stays");
 });

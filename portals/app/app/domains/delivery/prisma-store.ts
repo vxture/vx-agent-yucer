@@ -134,6 +134,12 @@ export class PrismaDeliveryStore implements DeliveryStore {
     return rows.map((r: Record<string, unknown>) => toMilestone(r));
   }
 
+  async removeMilestone(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const res = await p.projectMilestone.deleteMany({ where: { id, workspaceId } });
+    return res.count > 0;
+  }
+
   async upsertMilestone(
     workspaceId: string,
     projectId: string,
@@ -229,6 +235,44 @@ export class PrismaDeliveryStore implements DeliveryStore {
       reason: String(r.reason),
       changedAt: r.changedAt as Date,
     }));
+  }
+
+  async createInstalment(
+    workspaceId: string,
+    input: { projectId: string; milestoneId: string; sequence: number; plannedAmount: Money; dueAt: Date | null },
+  ): Promise<InstalmentRecord> {
+    const p = await getPrismaClient();
+    const row = await p.revenueSchedule.create({
+      data: {
+        workspaceId,
+        projectId: input.projectId,
+        milestoneId: input.milestoneId,
+        sequence: input.sequence,
+        plannedAmount: input.plannedAmount.amount,
+        currency: input.plannedAmount.currency,
+        dueAt: input.dueAt,
+        // Not from the caller: an instalment starts as a plan.
+        status: "planned",
+      },
+    });
+    const currency = String(row.currency);
+    return {
+      id: String(row.id),
+      projectId: String(row.projectId),
+      milestoneId: String(row.milestoneId),
+      sequence: Number(row.sequence),
+      status: row.status as RevenueStatus,
+      plannedAmount: money(Number(String(row.plannedAmount)), currency),
+      actualAmount: null,
+      dueAt: (row.dueAt as Date | null) ?? null,
+      settledAt: null,
+    };
+  }
+
+  async removeInstalment(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const res = await p.revenueSchedule.deleteMany({ where: { id, workspaceId } });
+    return res.count > 0;
   }
 
   async listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]> {

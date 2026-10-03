@@ -198,7 +198,16 @@ export interface DeliveryStore {
    * page issue a query per card to render a line of text on each.
    */
   listMilestoneChanges(workspaceId: string, projectId: string): Promise<MilestoneChangeRecord[]>;
+  /** Hard delete of one gate. The service only asks for one nothing relies on. */
+  removeMilestone(workspaceId: string, id: string): Promise<boolean>;
   listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]>;
+  /** The sequence is chosen by the service; (project, sequence) is unique. */
+  createInstalment(
+    workspaceId: string,
+    input: { projectId: string; milestoneId: string; sequence: number; plannedAmount: Money; dueAt: Date | null },
+  ): Promise<InstalmentRecord>;
+  /** Hard delete of one instalment. The service only asks for one still planned. */
+  removeInstalment(workspaceId: string, id: string): Promise<boolean>;
 
   /** Whitelisted columns only; `sequence` is deliberately not among them. */
   updateInstalment(
@@ -383,6 +392,13 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     }
   }
 
+  async removeMilestone(workspaceId: string, id: string): Promise<boolean> {
+    const at = this.milestones.findIndex((m) => m.workspaceId === workspaceId && m.id === id);
+    if (at < 0) return false;
+    this.milestones.splice(at, 1);
+    return true;
+  }
+
   async listMilestoneChanges(
     workspaceId: string,
     projectId: string,
@@ -399,6 +415,34 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     return this.milestones
       .filter((m) => m.workspaceId === workspaceId && m.projectId === projectId)
       .sort((a, b) => a.sequence - b.sequence);
+  }
+
+  async createInstalment(
+    workspaceId: string,
+    input: { projectId: string; milestoneId: string; sequence: number; plannedAmount: Money; dueAt: Date | null },
+  ): Promise<InstalmentRecord> {
+    const row: InstalmentRecord & { workspaceId: string } = {
+      id: `ins_${++this.seq}`,
+      workspaceId,
+      projectId: input.projectId,
+      milestoneId: input.milestoneId,
+      sequence: input.sequence,
+      // Not from the caller: an instalment starts as a plan.
+      status: "planned",
+      plannedAmount: input.plannedAmount,
+      actualAmount: null,
+      dueAt: input.dueAt,
+      settledAt: null,
+    };
+    this.instalments.push(row);
+    return { ...row };
+  }
+
+  async removeInstalment(workspaceId: string, id: string): Promise<boolean> {
+    const at = this.instalments.findIndex((i) => i.id === id && i.workspaceId === workspaceId);
+    if (at < 0) return false;
+    this.instalments.splice(at, 1);
+    return true;
   }
 
   async listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]> {
