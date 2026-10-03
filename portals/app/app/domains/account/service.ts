@@ -39,6 +39,7 @@ import type { DeliveryStore } from "../delivery/store";
 import type { SignalStore } from "../signal/store";
 import type { FieldStore } from "./field-store";
 import { isEmptyShell, type Footprint } from "./lib/footprint";
+import { planPlanClose, planPlanReopen } from "./lib/plan-lifecycle";
 import { contractPhase } from "../delivery/lib/contract";
 import { deriveAccountStatus, RUNNING_PROJECT_STATUSES, type AccountStatusFacts } from "./lib/status";
 import type { PlanningStore } from "../planning/store";
@@ -64,6 +65,7 @@ import {
 import type { Stage } from "../pipeline/lib/stage";
 import type {
   AccountFilter,
+  AccountPlanRecord,
   AccountRecord,
   IndustryRecord,
   CustomerTypeRecord,
@@ -1745,6 +1747,58 @@ export async function accountStatuses(
   };
   return ok(new Map(accountIds.map((id) => [id, deriveAccountStatus(facts.get(id) ?? empty, now)])));
 }
+/** The customer's newest plan in any status - what the drawer shows and acts on. */
+export async function accountPlanState(
+  ctx: AccountContext,
+  accountId: string,
+): Promise<RuleResult<AccountPlanRecord | null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!(await ctx.store.getAccount(ctx.workspaceId, accountId))) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  return ok(await ctx.store.latestAccountPlan(ctx.workspaceId, accountId));
+}
+
+/** Close a customer's live plan, with an optional reason. The customer must be one the member can see. */
+export async function closeAccountPlan(
+  ctx: AccountContext,
+  accountId: string,
+  reason?: string | null,
+): Promise<RuleResult<{ period: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!(await ctx.store.getAccount(ctx.workspaceId, accountId))) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  const latest = await ctx.store.latestAccountPlan(ctx.workspaceId, accountId);
+  const active = await ctx.store.getAccountPlan(ctx.workspaceId, accountId);
+  const plan = planPlanClose(latest, active, reason);
+  if (!plan.ok) return plan as RuleResult<{ period: string }>;
+  const { id: _id, workspaceId: _ws, ...rest } = active!;
+  await ctx.store.upsertAccountPlan(ctx.workspaceId, { ...rest, status: "closed", closeReason: plan.value.reason });
+  return ok({ period: active!.period });
+}
+
+/** Bring a closed plan back - only when the customer has no live plan. */
+export async function reopenAccountPlan(
+  ctx: AccountContext,
+  accountId: string,
+): Promise<RuleResult<{ period: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!(await ctx.store.getAccount(ctx.workspaceId, accountId))) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  const latest = await ctx.store.latestAccountPlan(ctx.workspaceId, accountId);
+  const active = await ctx.store.getAccountPlan(ctx.workspaceId, accountId);
+  const plan = planPlanReopen(latest, active);
+  if (!plan.ok) return plan as RuleResult<{ period: string }>;
+  const { id: _id, workspaceId: _ws, ...rest } = latest!;
+  await ctx.store.upsertAccountPlan(ctx.workspaceId, { ...rest, status: "active", closeReason: null });
+  return ok({ period: latest!.period });
+}
+
 /**
  * Every derivable gap across every customer this member can see, in one pass.
  *

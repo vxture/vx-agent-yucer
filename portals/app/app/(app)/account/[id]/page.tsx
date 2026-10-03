@@ -20,6 +20,7 @@ import {
   accountRelations,
   accountStatuses,
   decisionChainsByOpportunity,
+  accountPlanState,
   getAccountDetail,
   healthHistory,
   listAccounts,
@@ -119,6 +120,7 @@ import { TheatrePlan, type PlanReview } from "../../components/theatre-plan";
 import { AccountHeaderMenu } from "../../components/account-header-menu";
 import { AccountEditDrawers, AccountEditProvider } from "../../components/account-edit-context";
 import { defaultPeriod } from "../../lib/periods";
+import { closeAccountPlanAction, reopenAccountPlanAction } from "../plan-actions";
 import {
   designateAccountTier,
   linkAccountContacts,
@@ -243,6 +245,11 @@ export default async function AccountDetailPage({
   // a URL becomes a way around the entitlement gate that the hidden nav entry
   // only appeared to enforce.
   const detail = await getAccountDetail(ctx, id);
+  // The newest plan in any status: the 定级 drawer closes and reopens it.
+  const planRead = await accountPlanState(ctx, id);
+  const planState = planRead.ok && planRead.value
+    ? { status: planRead.value.status, period: planRead.value.period, closeReason: planRead.value.closeReason ?? null }
+    : null;
   if (!detail.ok) {
     // The shell hands this route its whole body row (lib/sidebar-slot.ts),
     // so even the refusal sits in the centre pane rather than bare in the row.
@@ -1347,6 +1354,9 @@ export default async function AccountDetailPage({
                 tier: detail.value.account.tier,
                 period: defaultPeriod(),
                 onDesignate: designateAccountTier,
+                plan: planState,
+                onClosePlan: closeAccountPlanAction,
+                onReopenPlan: reopenAccountPlanAction,
               }}
               basics={{
                 accountId: id,
