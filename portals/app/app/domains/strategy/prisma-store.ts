@@ -12,7 +12,9 @@ import type {
   SegmentCriteria,
   SegmentStatus,
 } from "./lib/lifecycle";
+import type { NewCampaignDraft } from "./lib/campaign";
 import type {
+  CampaignPatch,
   CampaignRecord,
   ExecutionRecord,
   PlanRecord,
@@ -138,10 +140,36 @@ export class PrismaStrategyStore implements StrategyStore {
     return row ? toCampaign(row as Record<string, unknown>) : null;
   }
 
+  async createCampaign(workspaceId: string, input: NewCampaignDraft): Promise<CampaignRecord | null> {
+    const p = await getPrismaClient();
+    // findFirst before create, as createPlan does: the service turns null into
+    // "that number is taken" without guessing which constraint fired.
+    const taken = await p.campaign.findFirst({ where: { workspaceId, campaignNo: input.campaignNo }, select: { id: true } });
+    if (taken) return null;
+    const row = await p.campaign.create({
+      data: {
+        workspaceId,
+        campaignNo: input.campaignNo,
+        name: input.name,
+        planId: input.planId,
+        segmentId: input.segmentId,
+        channel: input.channel,
+        budgetAmount: input.budgetAmount,
+        currency: input.currency,
+        ownerSub: input.ownerSub,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        // Not from the caller: a campaign starts as a draft.
+        status: "draft",
+      },
+    });
+    return toCampaign(row as Record<string, unknown>);
+  }
+
   async updateCampaign(
     workspaceId: string,
     id: string,
-    patch: { status?: CampaignStatus; name?: string; startsAt?: Date | null; endsAt?: Date | null },
+    patch: CampaignPatch,
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const data: Record<string, unknown> = { ...patch, updatedAt: new Date() };

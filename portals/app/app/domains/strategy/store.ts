@@ -11,7 +11,7 @@
 // a record that stops being current keeps existing. Downstream data is
 // accomplished fact and a tidy-up upstream must not erase it.
 
-import type { Money } from "../shared/money";
+import { money, type Money } from "../shared/money";
 import type {
   CampaignStatus,
   ExecutionActionType,
@@ -23,6 +23,7 @@ import type {
   SegmentDraft,
   SegmentStatus,
 } from "./lib/lifecycle";
+import type { NewCampaignDraft } from "./lib/campaign";
 import { asc, by, desc } from "../shared/order";
 
 export interface PlanRecord {
@@ -35,6 +36,20 @@ export interface PlanRecord {
   ownerSub: string | null;
   status: PlanStatus;
   approvedAt: Date | null;
+}
+
+/** What updateCampaign may move - exactly the columns 98_column_locks grants. */
+export interface CampaignPatch {
+  status?: CampaignStatus;
+  name?: string;
+  planId?: string | null;
+  segmentId?: string | null;
+  channel?: string | null;
+  budgetAmount?: number | null;
+  currency?: string;
+  ownerSub?: string | null;
+  startsAt?: Date | null;
+  endsAt?: Date | null;
 }
 
 export interface CampaignRecord {
@@ -131,10 +146,12 @@ export interface StrategyStore {
     filter?: { planId?: string; status?: CampaignStatus },
   ): Promise<CampaignRecord[]>;
   getCampaign(workspaceId: string, id: string): Promise<CampaignRecord | null>;
+  /** Null when the number is taken - the service says so by name. */
+  createCampaign(workspaceId: string, input: NewCampaignDraft): Promise<CampaignRecord | null>;
   updateCampaign(
     workspaceId: string,
     id: string,
-    patch: { status?: CampaignStatus; name?: string; startsAt?: Date | null; endsAt?: Date | null },
+    patch: CampaignPatch,
   ): Promise<boolean>;
 
   listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]>;
@@ -282,14 +299,39 @@ export class InMemoryStrategyStore implements StrategyStore {
     return c && c.workspaceId === workspaceId ? { ...c } : null;
   }
 
-  async updateCampaign(
-    workspaceId: string,
-    id: string,
-    patch: Partial<CampaignRecord>,
-  ): Promise<boolean> {
+  async createCampaign(workspaceId: string, input: NewCampaignDraft): Promise<CampaignRecord | null> {
+    const taken = [...this.campaigns.values()].some(
+      (c) => c.workspaceId === workspaceId && c.campaignNo === input.campaignNo,
+    );
+    if (taken) return null;
+    const created: CampaignRecord = {
+      id: `camp_${++this.seq}`,
+      workspaceId,
+      campaignNo: input.campaignNo,
+      name: input.name,
+      planId: input.planId,
+      segmentId: input.segmentId,
+      channel: input.channel,
+      budgetAmount: input.budgetAmount === null ? null : money(input.budgetAmount, input.currency),
+      ownerSub: input.ownerSub,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      // Not from the caller: every move after this belongs to the transition.
+      status: "draft",
+      currency: input.currency,
+    };
+    this.campaigns.set(created.id, created);
+    return { ...created };
+  }
+
+  async updateCampaign(workspaceId: string, id: string, patch: CampaignPatch): Promise<boolean> {
     const c = this.campaigns.get(id);
     if (!c || c.workspaceId !== workspaceId) return false;
-    Object.assign(c, patch);
+    const { budgetAmount, ...rest } = patch;
+    Object.assign(c, rest);
+    if (budgetAmount !== undefined) {
+      c.budgetAmount = budgetAmount === null ? null : money(budgetAmount, patch.currency ?? c.currency);
+    }
     return true;
   }
 

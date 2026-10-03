@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Button,
   DataTable,
   EmptyState,
   Section,
@@ -82,6 +83,13 @@ export function ExecutionPanel({
       icon="list-checks"
       title={CAMPAIGN_TEXT.executionsTitle}
       description={CAMPAIGN_TEXT.executionsWhy}
+      action={
+        canEdit ? (
+          <Button asChild variant="secondary" size="sm">
+            <a href="/campaign/new">{CAMPAIGN_TEXT.newExecution}</a>
+          </Button>
+        ) : undefined
+      }
     >
       {rows.length === 0 ? (
         <EmptyState

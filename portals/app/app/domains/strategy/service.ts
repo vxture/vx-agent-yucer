@@ -31,6 +31,7 @@ import {
   planSegmentRemoval,
   type SegmentStatus,
 } from "./lib/lifecycle";
+import { checkCampaignLinks, planCampaignEdit, planNewCampaign, type CampaignDraft, type NewCampaignDraft } from "./lib/campaign";
 import type {
   CampaignRecord,
   ExecutionRecord,
@@ -260,6 +261,55 @@ export async function upsertExecution(
     return fail(violation("not_found", `execution ${input.id} is not on this campaign`, "id"));
   }
   return ok(written);
+}
+
+/** What the link rule needs to know, read in this workspace only. */
+async function campaignLinkFacts(ctx: StrategyContext, input: { planId: string | null }) {
+  return {
+    plan: input.planId ? await ctx.store.getPlan(ctx.workspaceId, input.planId) : null,
+    segmentIds: (await ctx.store.listSegments(ctx.workspaceId)).map((x) => x.id),
+  };
+}
+
+/**
+ * Create a campaign. A new campaign is always a draft; the number is the anchor
+ * attribution quotes, so a taken number is refused by name.
+ */
+export async function createCampaign(
+  ctx: StrategyContext,
+  input: NewCampaignDraft,
+): Promise<RuleResult<CampaignRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "campaign.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const plan = planNewCampaign(input);
+  if (!plan.ok) return plan as RuleResult<CampaignRecord>;
+  const links = checkCampaignLinks(plan.value, await campaignLinkFacts(ctx, plan.value));
+  if (!links.ok) return links as RuleResult<CampaignRecord>;
+  const created = await ctx.store.createCampaign(ctx.workspaceId, plan.value);
+  if (!created) {
+    return fail(violation("campaign_no_taken", `campaign ${plan.value.campaignNo} already exists`, "campaignNo"));
+  }
+  return ok(created);
+}
+
+/** Edit a campaign that has not settled. The number and the status do not move here. */
+export async function editCampaign(
+  ctx: StrategyContext,
+  id: string,
+  input: CampaignDraft,
+): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "campaign.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getCampaign(ctx.workspaceId, id);
+  if (!current) return fail(violation("not_found", `campaign ${id} was not found`, "id"));
+  const plan = planCampaignEdit(current, input);
+  if (!plan.ok) return plan as RuleResult<{ id: string }>;
+  // The plan it already hangs under is kept even if that plan has since moved on.
+  const links = checkCampaignLinks(plan.value, await campaignLinkFacts(ctx, plan.value), { planId: current.planId });
+  if (!links.ok) return links as RuleResult<{ id: string }>;
+  const applied = await ctx.store.updateCampaign(ctx.workspaceId, id, plan.value);
+  if (!applied) return fail(violation("not_found", `campaign ${id} was not found`, "id"));
+  return ok({ id });
 }
 
 /**
