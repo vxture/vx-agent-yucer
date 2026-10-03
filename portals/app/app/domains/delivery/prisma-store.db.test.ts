@@ -151,6 +151,37 @@ test("updateProject writes the contract amount and currency together, and getPro
   }
 });
 
+test("createProject writes a planning project, refuses a taken number, and updateProject moves the granted columns", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const made = await s.createProject(WS, {
+      projectNo: "PRJ-NEW", name: "Created here", accountId: ACC, opportunityId: null, managerSub: "usr_pm",
+      contractAmount: 80_000, currency: "CNY", endsAt: new Date("2027-01-31T00:00:00Z"), engagementType: "subscription",
+    });
+    assert.ok(made);
+    assert.equal(made!.status, "planning");
+    assert.equal(made!.health, "green");
+    assert.equal(made!.contractAmount?.amount, 80_000);
+    assert.equal(made!.engagementType, "subscription");
+    assert.equal(await s.createProject(WS, { projectNo: "PRJ-NEW", name: "dup", accountId: ACC, opportunityId: null, managerSub: null, contractAmount: null, currency: "CNY", endsAt: null, engagementType: "one_off" }), null);
+
+    assert.equal(
+      await s.updateProject(WS, made!.id, { name: "Renamed", managerSub: null, endsAt: new Date("2027-06-30T00:00:00Z"), engagementType: "one_off", status: "cancelled" }),
+      true,
+    );
+    const after = await s.getProject(WS, made!.id);
+    assert.equal(after?.name, "Renamed");
+    assert.equal(after?.managerSub, null);
+    assert.equal(after?.engagementType, "one_off");
+    assert.equal(after?.status, "cancelled");
+    assert.equal(after?.projectNo, "PRJ-NEW", "the anchor did not move");
+  } finally {
+    await cleanup();
+  }
+});
+
 test("updateProject returns false when nothing matched", { skip }, async () => {
   await cleanup();
   try {
