@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DataTable,
   EmptyState,
@@ -46,6 +47,8 @@ export interface CampaignRow {
 export interface CampaignTableProps {
   readonly rows: readonly CampaignRow[];
   readonly canMove: boolean;
+  /** campaign.upsert: 编辑 in the row menu. */
+  readonly canEdit?: boolean;
   readonly onMove: (
     id: string,
     to: string,
@@ -60,9 +63,10 @@ const SORT_ON = {
     budget: (r: CampaignRow) => r.budget,
   };
 
-export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
+export function CampaignTable({ rows, canMove, canEdit = false, onMove }: CampaignTableProps) {
   const { DATA_TABLE_LABELS, DS_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } =
     useMessages();
+  const router = useRouter();
   const [view, setView] = useState<FilterBarView>("list");
   const sorted = useTableSort(rows, SORT_ON);
 
@@ -142,6 +146,18 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
       options={nextCampaignStatuses(row.status as CampaignStatus)}
       label={CAMPAIGN_STATUS_LABEL}
       canChange={canMove}
+      extraItems={
+        canEdit
+          ? [
+              {
+                id: "edit",
+                label: CAMPAIGN_TEXT.editCampaign,
+                icon: "edit",
+                onSelect: () => router.push(`/campaign/create?no=${encodeURIComponent(row.campaignNo)}`),
+              },
+            ]
+          : undefined
+      }
       onChange={onMove}
     />
     );

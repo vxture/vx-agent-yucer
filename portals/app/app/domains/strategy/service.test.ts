@@ -12,6 +12,8 @@ import {
   listSegments,
   strategyDiagnosticSnapshots,
   upsertSegment,
+  createCampaign,
+  editCampaign,
   removeExecution,
   upsertExecution,
   listPlans,
@@ -542,4 +544,70 @@ test("战略诊断 snapshots: read through the store, newest first, behind strat
   assert.equal(unwrap(await strategyDiagnosticSnapshots(ctx("sales_leader", "business", store), 1)).segments.length, 1, "the limit holds");
   // The same two gates as the plan list: a tier without the feature is refused.
   assert.equal((await strategyDiagnosticSnapshots(ctx("sales_leader", "pro", store))).ok, false);
+});
+
+// --- Creating and editing a campaign -----------------------------------------
+
+const DRAFT = {
+  campaignNo: "CAMP-9",
+  name: "Autumn webinar",
+  planId: "plan_1",
+  segmentId: null,
+  channel: "webinar",
+  budgetAmount: 30_000,
+  currency: "CNY",
+  ownerSub: "usr_mkt",
+  startsAt: AT,
+  endsAt: new Date("2026-10-15T00:00:00Z"),
+} as const;
+
+test("a campaign is created as a draft, under an active plan, with a number nobody holds", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ status: "active" })] });
+  const c = ctx("marketing_manager", "business", store);
+
+  const made = unwrap(await createCampaign(c, { ...DRAFT }));
+  assert.equal(made.status, "draft", "the status is not an argument");
+  assert.equal(made.budgetAmount?.amount, 30_000);
+
+  const taken = await createCampaign(c, { ...DRAFT });
+  assert.equal(taken.ok === false && taken.violations[0]!.code, "campaign_no_taken");
+  const noName = await createCampaign(c, { ...DRAFT, campaignNo: "CAMP-10", name: "  " });
+  assert.equal(noName.ok === false && noName.violations[0]!.code, "name_required");
+  const inverted = await createCampaign(c, { ...DRAFT, campaignNo: "CAMP-11", endsAt: new Date("2026-07-01T00:00:00Z") });
+  assert.equal(inverted.ok === false && inverted.violations[0]!.code, "window_inverted");
+  const broke = await createCampaign(c, { ...DRAFT, campaignNo: "CAMP-12", budgetAmount: -1 });
+  assert.equal(broke.ok === false && broke.violations[0]!.code, "budget_negative");
+});
+
+test("only an active plan takes a new campaign, and an id from nowhere is not a link", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ status: "draft" })] });
+  const c = ctx("marketing_manager", "business", store);
+  const early = await createCampaign(c, { ...DRAFT });
+  assert.equal(early.ok === false && early.violations[0]!.code, "plan_not_accepting");
+  const ghost = await createCampaign(c, { ...DRAFT, planId: "plan_x" });
+  assert.equal(ghost.ok === false && ghost.violations[0]!.code, "plan_not_found");
+  const seg = await createCampaign(c, { ...DRAFT, planId: null, segmentId: "seg_x" });
+  assert.equal(seg.ok === false && seg.violations[0]!.code, "segment_not_found");
+});
+
+test("a campaign is edited while it lives - and not once it completed or was cancelled", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({
+    plans: [plan({ status: "closed" })],
+    campaigns: [campaign({ id: "camp_a", status: "running" }), campaign({ id: "camp_b", campaignNo: "CAMP-2", status: "completed" })],
+  });
+  const c = ctx("marketing_manager", "business", store);
+  const { campaignNo: _no, ...fields } = DRAFT;
+  // It keeps the plan it already hangs under even though that plan has closed.
+  unwrap(await editCampaign(c, "camp_a", { ...fields, name: "Renamed", planId: "plan_1" }));
+  assert.equal((await store.getCampaign(WS, "camp_a"))?.name, "Renamed");
+  assert.equal((await store.getCampaign(WS, "camp_a"))?.campaignNo, "CAMP-1", "the number never moves");
+  const settled = await editCampaign(c, "camp_b", { ...fields });
+  assert.equal(settled.ok === false && settled.violations[0]!.code, "campaign_settled");
+  const missing = await editCampaign(c, "camp_zz", { ...fields });
+  assert.equal(missing.ok === false && missing.violations[0]!.code, "not_found");
+  const viewer = await editCampaign(ctx("viewer", "business", store), "camp_a", { ...fields });
+  assert.equal(viewer.ok === false && viewer.violations[0]!.code, "permission_denied");
 });
