@@ -318,6 +318,32 @@ function execution(overrides: Record<string, unknown> = {}) {
   };
 }
 
+test("createCampaign writes a draft, refuses a taken number, and updateCampaign moves the granted columns", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seedCampaigns);
+    const s = await store();
+    const made = await s.createCampaign(WS, {
+      campaignNo: "CMP-NEW", name: "Created here", planId: null, segmentId: null, channel: "event",
+      budgetAmount: 12_000, currency: "CNY", ownerSub: "usr_a", startsAt: null, endsAt: null,
+    });
+    assert.ok(made);
+    assert.equal(made!.status, "draft");
+    assert.equal(made!.budgetAmount?.amount, 12_000);
+    assert.equal(await s.createCampaign(WS, { campaignNo: "CMP-NEW", name: "dup", planId: null, segmentId: null, channel: null, budgetAmount: null, currency: "CNY", ownerSub: null, startsAt: null, endsAt: null }), null);
+
+    assert.equal(await s.updateCampaign(WS, made!.id, { name: "Renamed", channel: "webinar", budgetAmount: 15_000, currency: "CNY", ownerSub: null, startsAt: new Date("2026-11-01T00:00:00Z") }), true);
+    const after = await s.getCampaign(WS, made!.id);
+    assert.equal(after?.name, "Renamed");
+    assert.equal(after?.channel, "webinar");
+    assert.equal(after?.budgetAmount?.amount, 15_000);
+    assert.equal(after?.ownerSub, null);
+    assert.equal(after?.campaignNo, "CMP-NEW", "the anchor did not move");
+  } finally {
+    await cleanup();
+  }
+});
+
 test("removeExecution deletes within its own campaign only", { skip }, async () => {
   await cleanup();
   try {

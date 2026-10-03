@@ -156,8 +156,8 @@ export default async function CampaignPage() {
       <ModuleHeadline
         moduleKey="campaign"
         action={
-          can(session.authz, session.entitlement, "campaign.execution.upsert", "ui")
-            .allowed ? <NewEntryLink href="/campaign/new" /> : null
+          can(session.authz, session.entitlement, "campaign.upsert", "ui")
+            .allowed ? <NewEntryLink href="/campaign/create" label={CAMPAIGN_TEXT.newCampaign} /> : null
         }
         tags={
           <>
@@ -176,7 +176,7 @@ export default async function CampaignPage() {
           sentence twice on one screen makes a reader check whether the two
           agree instead of reading either. */}
       <Section icon="target" title={CAMPAIGN_TEXT.title}>
-        <CampaignTable rows={rows} canMove={canMove} onMove={moveCampaign} />
+        <CampaignTable rows={rows} canMove={canMove} canEdit={canMove} onMove={moveCampaign} />
       </Section>
 
       {/* BELOW the table, because the table is where a campaign is completed

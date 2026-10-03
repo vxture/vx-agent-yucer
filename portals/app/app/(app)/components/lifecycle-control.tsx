@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { ActionMenu, useToast } from "@vxture/design-ui";
+import { ActionMenu, useToast, type ActionMenuItem } from "@vxture/design-ui";
 
 import { useMessages } from "../lib/i18n/provider";
 // Moving a plan or a campaign through its lifecycle.
@@ -34,6 +34,8 @@ export interface LifecycleControlProps {
   readonly options: readonly string[];
   readonly label: Record<string, string>;
   readonly canChange: boolean;
+  /** Row operations that are not status moves (编辑), placed first in the same menu. */
+  readonly extraItems?: readonly ActionMenuItem[];
   readonly onChange: (
     id: string,
     to: string,
@@ -45,19 +47,21 @@ export function LifecycleControl({
   options,
   label,
   canChange,
+  extraItems,
   onChange,
 }: LifecycleControlProps) {
   const { LIFECYCLE_ERROR, LIFECYCLE_TEXT } = useMessages();
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  if (!canChange || options.length === 0) return null;
+  const moves = canChange ? options : [];
+  if (moves.length === 0 && !(extraItems && extraItems.length > 0)) return null;
 
   return (
     <ActionMenu
       label={LIFECYCLE_TEXT.moveTo}
       disabled={pending}
-      items={options.map((to) => ({
+      items={[...(extraItems ?? []), ...moves.map((to) => ({
         id: to,
         label: label[to] ?? to,
         onSelect: () =>
@@ -73,7 +77,7 @@ export function LifecycleControl({
               });
             });
           }),
-      }))}
+      }))]}
     />
   );
 }

@@ -6089,6 +6089,27 @@ export const PLAN_STATUS_LABEL: Record<string, string> = {
 };
 
 export const CAMPAIGN_TEXT = {
+  newCampaign: "新建战役",
+  newExecution: "新增执行项",
+  editCampaign: "编辑战役",
+  newCampaignTitle: "新建战役",
+  newCampaignWhy: "战役是线索和商机归因的锚点：线索来自哪场战役，这里说了算。新建的战役先是草稿，之后在列表里排期、开始或取消。",
+  editCampaignWhy: "改名称、归属计划和细分、渠道、预算、负责人、起止日。编号和状态不在这里改。",
+  formNo: "战役编号",
+  formNoFixed: "编号登记后不能改",
+  formName: "战役名称",
+  formPlan: "所属战略计划",
+  formSegment: "目标细分市场",
+  formChannel: "渠道",
+  formOwner: "负责人",
+  formBudget: "预算",
+  formCurrency: "币种",
+  formStarts: "开始日",
+  formEnds: "结束日",
+  formNone: "不指定",
+  formAnchor: "编号是线索和商机归因引用的锚点，登记后不能再改，请先想好。",
+  formCreate: "创建战役",
+  formSave: "保存修改",
   tagCount: (n: number) => `${n} 个战役`,
   tagSpend: (budget: string, won: string) => `投入 ${budget} · 赢回 ${won}`,
   executionsTitle: "战役执行项",
@@ -6685,6 +6706,22 @@ export const SEGMENT_ERROR: Record<string, string> = {
   segment_in_use: "仍有活动指向它、或仍有客户挂着这个码，不能删除——请改用退役",
   move_at_edge: "已经在清单的这一端了",
   not_movable: "这一行不在可排序的清单里",
+};
+
+export const CAMPAIGN_FORM_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  campaign_no_required: "战役需要一个编号",
+  campaign_no_taken: "这个战役编号已被占用，换一个",
+  name_required: "战役需要一个名称",
+  budget_negative: "预算不能为负",
+  window_inverted: "结束日不能早于开始日",
+  currency_required: "请填写币种",
+  invalid_date: "日期格式不对",
+  plan_not_found: "选的战略计划不存在，刷新后再选",
+  plan_not_accepting: "只有执行中的战略计划能挂新战役",
+  segment_not_found: "选的细分市场不存在，刷新后再选",
+  campaign_settled: "已完成或已取消的战役是记录，不能再改",
+  not_found: "这场战役已不存在，刷新后再试",
 };
 
 export const PLAN_ERROR: Record<string, string> = {
