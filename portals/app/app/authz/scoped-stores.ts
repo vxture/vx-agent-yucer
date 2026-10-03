@@ -259,6 +259,7 @@ class ScopedAccountStore implements AccountStore {
   // relation and a health input all name an accountId, and the caller reached
   // that id through the two scoped reads above.
   getAccountPlan: AccountStore["getAccountPlan"] = (...a) => this.inner.getAccountPlan(...a);
+  latestAccountPlan: AccountStore["latestAccountPlan"] = (...a) => this.inner.latestAccountPlan(...a);
   upsertAccountPlan: AccountStore["upsertAccountPlan"] = (...a) => this.inner.upsertAccountPlan(...a);
   listContacts: AccountStore["listContacts"] = (...a) => this.inner.listContacts(...a);
   upsertContact: AccountStore["upsertContact"] = (...a) => this.inner.upsertContact(...a);

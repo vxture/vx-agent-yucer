@@ -1192,6 +1192,10 @@ export const CONTRACT_ERROR: Record<string, string> = {
 };
 
 export const ACCOUNT_ERROR: Record<string, string> = {
+  plan_none: "这家客户还没有计划",
+  plan_already_closed: "这份计划已经关闭了",
+  plan_already_active: "这家客户已经有进行中的计划",
+  plan_reason_too_long: "原因最多 500 个字",
   ...GATE_ERROR,
   plan_required:
     "战略客户必须配计划——节奏规则读的是它，没有计划这次定级什么都不改变",
@@ -6993,6 +6997,16 @@ export function healthReasonText(r: {
  * that becomes a second untended TODO list (ADR-003).
  */
 export const POSITION_TEXT = {
+  planTitle: "客户计划",
+  planActive: (period: string) => `${period} 的计划进行中`,
+  planClosedAt: (period: string) => `${period} 的计划已关闭`,
+  planReasonLabel: "关闭原因（选填）",
+  planClose: "关闭计划",
+  planReopen: "重开计划",
+  planClosed: "计划已关闭",
+  planReopened: "计划已重开",
+  planCloseHint: "关闭后节奏规则不再盯这家客户；以后可以重开。",
+  planReason: (text: string) => `关闭原因：${text}`,
   // 档位带「级」，模块名不带（owner, 2026-09-17：模块改名为「战略客户」）。
   // 三档是 account.tier 的显示名，模块是收两档的名册——同一屏上两者都会
   // 出现（商机详情页的档位标 + 左栏的模块名），词面必须分得开，否则

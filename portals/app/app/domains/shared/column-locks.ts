@@ -412,7 +412,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "target_amount", "currency",
     "contact_cadence_days", "exec_cadence_days",
     "owner_sub", "presales_sub", "delivery_sub",
-    "chain_goal", "target_lines", "status", "updated_at",
+    "chain_goal", "target_lines", "status", "close_reason", "updated_at",
   ],
 };
 

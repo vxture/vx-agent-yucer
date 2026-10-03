@@ -1387,20 +1387,16 @@ export class PrismaAccountStore implements AccountStore {
       where: { workspaceId, accountId, status: "active" },
       orderBy: { period: "desc" },
     })) as Record<string, unknown> | null;
-    if (!r) return null;
-    return {
-      id: String(r.id),
-      workspaceId: String(r.workspaceId),
-      accountId: String(r.accountId),
-      period: String(r.period),
-      targetAmount: r.targetAmount === null ? null : Number(r.targetAmount),
-      contactCadenceDays: Number(r.contactCadenceDays),
-      execCadenceDays: Number(r.execCadenceDays),
-      ownerSub: (r.ownerSub as string | null) ?? null,
-      presalesSub: (r.presalesSub as string | null) ?? null,
-      deliverySub: (r.deliverySub as string | null) ?? null,
-      status: r.status as "active" | "closed",
-    };
+    return r ? toAccountPlan(r) : null;
+  }
+
+  async latestAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
+    const p = await this.client();
+    const r = (await p.accountPlan.findFirst({
+      where: { workspaceId, accountId },
+      orderBy: { period: "desc" },
+    })) as Record<string, unknown> | null;
+    return r ? toAccountPlan(r) : null;
   }
 
   async upsertAccountPlan(
@@ -1416,6 +1412,8 @@ export class PrismaAccountStore implements AccountStore {
       presalesSub: plan.presalesSub,
       deliverySub: plan.deliverySub,
       status: plan.status,
+      // Active carries no reason: designating or reopening clears one.
+      closeReason: plan.status === "closed" ? (plan.closeReason ?? null) : null,
       updatedAt: new Date(),
     };
     // The update half only. account_id and period are the identity that was
@@ -1438,20 +1436,25 @@ export class PrismaAccountStore implements AccountStore {
       update: data,
       create: { workspaceId, accountId: plan.accountId, period: plan.period, ...data },
     })) as Record<string, unknown>;
-    return {
-      id: String(row.id),
-      workspaceId: String(row.workspaceId),
-      accountId: String(row.accountId),
-      period: String(row.period),
-      targetAmount: row.targetAmount === null ? null : Number(row.targetAmount),
-      contactCadenceDays: Number(row.contactCadenceDays),
-      execCadenceDays: Number(row.execCadenceDays),
-      ownerSub: (row.ownerSub as string | null) ?? null,
-      presalesSub: (row.presalesSub as string | null) ?? null,
-      deliverySub: (row.deliverySub as string | null) ?? null,
-      status: row.status as "active" | "closed",
-    };
+    return toAccountPlan(row);
   }
+}
+
+function toAccountPlan(r: Record<string, unknown>): AccountPlanRecord {
+  return {
+    id: String(r.id),
+    workspaceId: String(r.workspaceId),
+    accountId: String(r.accountId),
+    period: String(r.period),
+    targetAmount: r.targetAmount === null ? null : Number(r.targetAmount),
+    contactCadenceDays: Number(r.contactCadenceDays),
+    execCadenceDays: Number(r.execCadenceDays),
+    ownerSub: (r.ownerSub as string | null) ?? null,
+    presalesSub: (r.presalesSub as string | null) ?? null,
+    deliverySub: (r.deliverySub as string | null) ?? null,
+    status: r.status as "active" | "closed",
+    closeReason: (r.closeReason as string | null | undefined) ?? null,
+  };
 }
 
 function toAccount(
