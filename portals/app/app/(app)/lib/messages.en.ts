@@ -2636,6 +2636,24 @@ export const en: Dictionary = {
       "A closed or archived plan is not rewritten - its period is spent, and downstream records were measured against what it said at the time",
   },
 
+  PROJECT_FORM_ERROR: {
+    ...GATE_ERROR,
+    project_no_required: "A project needs a number",
+    project_no_taken: "That project number is taken - pick another",
+    name_required: "A project needs a name",
+    amount_negative: "A contract value cannot be negative",
+    currency_required: "Enter a currency",
+    unknown_engagement: "Unknown engagement type",
+    invalid_date: "That date is not valid",
+    account_not_found: "The chosen customer does not exist, or you cannot see it",
+    opportunity_not_found: "The chosen deal does not exist, or you cannot see it",
+    opportunity_other_account: "That deal belongs to another customer",
+    project_settled: "A delivered, closed or cancelled project is a record and cannot be edited",
+    illegal_transition: "Only a project in planning, active or on hold can be cancelled",
+    project_has_receipts: "Money has been invoiced or received on this project, so it cannot be cancelled",
+    not_found: "That project is gone - reload and try again",
+  },
+
   PROJECT_ERROR: {
     ...GATE_ERROR,
     not_found: "That project does not exist, or is not in this workspace",
@@ -2643,6 +2661,7 @@ export const en: Dictionary = {
     unknown_status: "Unknown project status",
     // The same sentence LIFECYCLE_ERROR gives this code.
     illegal_transition: "This status cannot move directly to that one",
+    project_has_receipts: "Money has been invoiced or received on this project, so it cannot be cancelled",
     sequence_immutable:
       "An instalment's sequence is that row's identity - reordering means writing a new row, not editing this one",
     sequence_invalid: "That is not a valid instalment sequence",
@@ -4500,6 +4519,32 @@ export const en: Dictionary = {
   // --- /delivery ----------------------------------------------------------
 
   DELIVERY_TEXT: {
+    newProject: "New project",
+    newProjectTitle: "New project",
+    newProjectWhy: "A project is the unit of delivery once a contract is signed. A new one starts in planning; add milestones and the collection plan on their own pages.",
+    editProjectTitle: "Edit project",
+    editProjectWhy: "Change the name, manager, contract value, end date and engagement type. The number, customer and linked deal are not changed here.",
+    editProject: "Edit project",
+    cancelProject: "Cancel project",
+    cancelProjectConsequence: "The project is marked cancelled and moves to the closed list. A project with invoiced or received money cannot be cancelled.",
+    projectCancelled: "Project cancelled",
+    formProjectNo: "Project number",
+    formProjectNoFixed: "The number cannot change once recorded",
+    formProjectName: "Project name",
+    formAccount: "Customer",
+    formPickAccount: "Choose a customer",
+    formDeal: "Linked deal",
+    formNone: "None",
+    formManager: "Project manager",
+    formAmount: "Contract value",
+    formCurrency: "Currency",
+    formEnds: "End date",
+    formEngagement: "Engagement",
+    engagementOneOff: "One-off delivery",
+    engagementSubscription: "Subscription (renews at the end)",
+    projectAnchor: "The number is the project's anchor and cannot change once recorded - decide it first.",
+    projectCreate: "Create project",
+    projectSave: "Save changes",
     collections: "Collections",
     collectionsWhy:
       "The chain does not end at the win, it ends when the money arrives. Instalments follow the transition map; settled and written-off are terminal - money that arrived did arrive, and a write-off is corrected by a new schedule, not by editing this row.",

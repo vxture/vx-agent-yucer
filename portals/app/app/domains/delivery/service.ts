@@ -7,6 +7,14 @@
 // returns the DERIVED health, and says when it downgraded a report and why.
 
 import { changeMilestone, planMilestone, type MilestoneDraft } from "./lib/milestone";
+import {
+  planNewProject,
+  planProjectCancel,
+  planProjectEdit,
+  type NewProjectDraft,
+  type ProjectDraft,
+  type ProjectLinkFacts,
+} from "./lib/project";
 import { planAgeingCutoffs } from "./lib/collection-stats";
 import {
   contractRenewalAnchor,
@@ -43,7 +51,7 @@ import {
   type RevenueStatus,
   type HealthOverride,
 } from "./lib/revenue";
-import type { Money } from "../shared/money";
+import { money, type Money } from "../shared/money";
 import type {
   ContractLineRecord,
   ContractRecord,
@@ -294,6 +302,64 @@ export async function transitionInstalment(
     return fail(violation("not_found", `instalment ${input.instalmentId} was not found`, "instalmentId"));
   }
   return ok({ status: plan.value.status });
+}
+
+/**
+ * Create a project. It starts in planning and reported healthy - the status and
+ * the health are not arguments - and the number is the anchor, so a taken one is
+ * refused by name. The caller reads the customer and the deal in this workspace
+ * and passes what it found; a deal must belong to the same customer.
+ */
+export async function createProject(
+  ctx: DeliveryContext,
+  input: NewProjectDraft,
+  facts: ProjectLinkFacts,
+): Promise<RuleResult<ProjectRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.project.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const plan = planNewProject(input, facts);
+  if (!plan.ok) return plan as RuleResult<ProjectRecord>;
+  const created = await ctx.store.createProject(ctx.workspaceId, plan.value);
+  if (!created) {
+    return fail(violation("project_no_taken", `project ${plan.value.projectNo} already exists`, "projectNo"));
+  }
+  return ok(created);
+}
+
+/** Edit a project that has not settled. Number, customer, deal and status do not move here. */
+export async function editProject(
+  ctx: DeliveryContext,
+  id: string,
+  input: ProjectDraft,
+): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.project.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getProject(ctx.workspaceId, id);
+  if (!current) return fail(violation("not_found", `project ${id} was not found`, "id"));
+  const plan = planProjectEdit(current, input);
+  if (!plan.ok) return plan as RuleResult<{ id: string }>;
+  const { contractAmount, currency, ...rest } = plan.value;
+  const applied = await ctx.store.updateProject(ctx.workspaceId, id, {
+    ...rest,
+    contractAmount: contractAmount === null ? null : money(contractAmount, currency),
+  });
+  if (!applied) return fail(violation("not_found", `project ${id} was not found`, "id"));
+  return ok({ id });
+}
+
+/** Call a project off - never one that has invoiced or received money (see planProjectCancel). */
+export async function cancelProject(
+  ctx: DeliveryContext,
+  id: string,
+): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.project.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getProject(ctx.workspaceId, id);
+  if (!current) return fail(violation("not_found", `project ${id} was not found`, "id"));
+  const plan = planProjectCancel(current, await ctx.store.listInstalments(ctx.workspaceId, id));
+  if (!plan.ok) return plan as RuleResult<{ id: string }>;
+  await ctx.store.updateProject(ctx.workspaceId, id, { status: plan.value.status });
+  return ok({ id });
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { MemberName, useMemberName } from "../lib/member-names";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
   DataTable,
@@ -135,6 +136,8 @@ export interface DeliveryRosterProps {
   readonly onReconcile: (
     id: string,
   ) => Promise<{ ok: boolean; changed?: boolean; error?: string }>;
+  /** Call a project off. Present = offered; the rule layer refuses the rest. */
+  readonly onCancel?: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
@@ -144,16 +147,18 @@ const SORT_ON = {
   contract: (r: DeliveryRow) => r.contractAmount,
 };
 
-export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: DeliveryRosterProps) {
+export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel }: DeliveryRosterProps) {
   const {
     DELIVERY_TEXT,
     DATA_TABLE_LABELS,
+    DS_LABELS,
     PROJECT_ERROR,
     PROJECT_STATUS_LABEL,
     HEALTH_LABEL,
     TABLE_TOOLBAR_TEXT,
   } = useMessages();
   const { toast } = useToast();
+  const router = useRouter();
   const sorted = useTableSort<DeliveryRow>([], SORT_ON);
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
@@ -305,6 +310,16 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
             ? []
             : [
               {
+                id: "edit",
+                separatorBefore: canPlan,
+                label: DELIVERY_TEXT.editProject,
+                icon: "edit" as const,
+                disabled: ["delivered", "closed", "cancelled"].includes(row.status),
+                onSelect: () => {
+                  window.location.href = `/delivery/project?id=${encodeURIComponent(row.id)}`;
+                },
+              },
+              {
                 id: "reconcile",
                 separatorBefore: canPlan,
                 label: DELIVERY_TEXT.reconcile,
@@ -333,6 +348,36 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
                     });
                   }),
               },
+              ...(onCancel && ["planning", "active", "on_hold"].includes(row.status)
+                ? [
+                    {
+                      id: "cancel",
+                      label: DELIVERY_TEXT.cancelProject,
+                      icon: "x" as const,
+                      danger: true as const,
+                      separatorBefore: true,
+                      confirm: {
+                        verb: DELIVERY_TEXT.cancelProject,
+                        target: row.name,
+                        consequence: DELIVERY_TEXT.cancelProjectConsequence,
+                        titleTemplate: DS_LABELS.confirmTitleTemplate,
+                        cancelLabel: DS_LABELS.confirmCancel,
+                        pendingLabel: DS_LABELS.confirmPending,
+                        onConfirm: () =>
+                          start(() => {
+                            void onCancel(row.id).then((r) => {
+                              toast(
+                                r.ok
+                                  ? { tone: "success", title: DELIVERY_TEXT.projectCancelled }
+                                  : { tone: "danger", title: PROJECT_ERROR[r.error ?? "denied"] ?? PROJECT_ERROR.denied ?? "" },
+                              );
+                              if (r.ok) router.refresh();
+                            });
+                          }),
+                      },
+                    },
+                  ]
+                : []),
             ]),
         ]
       }

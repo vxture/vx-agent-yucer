@@ -5360,6 +5360,32 @@ export const OUTCOME_TEXT = {
 } as const;
 
 export const DELIVERY_TEXT = {
+  newProject: "新建项目",
+  newProjectTitle: "新建项目",
+  newProjectWhy: "项目是合同签下之后的交付单元。新建的项目先在筹备中；里程碑、回款计划随后在各自的页面里加。",
+  editProjectTitle: "编辑项目",
+  editProjectWhy: "改名称、项目经理、合同额、到期日和续约类型。编号、客户和关联商机不在这里改。",
+  editProject: "编辑项目",
+  cancelProject: "取消项目",
+  cancelProjectConsequence: "项目会标记为已取消，留在结题清单里。已开票或已回款的项目不能取消。",
+  projectCancelled: "项目已取消",
+  formProjectNo: "项目编号",
+  formProjectNoFixed: "编号登记后不能改",
+  formProjectName: "项目名称",
+  formAccount: "客户",
+  formPickAccount: "选择客户",
+  formDeal: "关联商机",
+  formNone: "不关联",
+  formManager: "项目经理",
+  formAmount: "合同额",
+  formCurrency: "币种",
+  formEnds: "到期日",
+  formEngagement: "交付类型",
+  engagementOneOff: "一次性交付",
+  engagementSubscription: "订阅制（到期要续约）",
+  projectAnchor: "编号是项目的锚点，登记后不能再改，请先想好。",
+  projectCreate: "创建项目",
+  projectSave: "保存修改",
   title: "项目交付",
   description: "链路终点不是赢单，是钱到账。逾期回款的项目不允许显示为健康。",
   // The headline. This page's central claim is the DOWNGRADE RULE, and it lived
@@ -6702,12 +6728,31 @@ export const PLAN_ERROR: Record<string, string> = {
 /**
  * 项目健康度重算。`delivery-table` 的行操作 toast 此前直接显示 `error`。
  */
+export const PROJECT_FORM_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  project_no_required: "项目需要一个编号",
+  project_no_taken: "这个项目编号已被占用，换一个",
+  name_required: "项目需要一个名称",
+  amount_negative: "合同额不能为负",
+  currency_required: "请填写币种",
+  unknown_engagement: "未知的交付类型",
+  invalid_date: "日期格式不对",
+  account_not_found: "选的客户不存在，或你看不到它",
+  opportunity_not_found: "选的商机不存在，或你看不到它",
+  opportunity_other_account: "这个商机属于另一家客户",
+  project_settled: "已交付、已关闭或已取消的项目是记录，不能再改",
+  illegal_transition: "只有筹备中、进行中或已暂停的项目能取消",
+  project_has_receipts: "这个项目已经开过票或回过款，不能取消",
+  not_found: "项目不存在，刷新后再试",
+};
+
 export const PROJECT_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "项目不存在，或不属于当前工作区",
   name_required: "项目需要一个名称",
   unknown_status: "未知的项目状态",
   illegal_transition: "当前状态不能这样变更",
+  project_has_receipts: "这个项目已经开过票或回过款，不能取消",
   sequence_immutable: "分期的序号是这一行的身份，调序意味着写新行而不是改旧行",
   sequence_invalid: "分期序号不合法",
 };

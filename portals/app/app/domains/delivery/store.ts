@@ -11,7 +11,8 @@
 //     caller can see that a green report was downgraded and why, rather than
 //     silently receiving a different colour than the delivery team submitted.
 
-import type { Money } from "../shared/money";
+import { money, type Money } from "../shared/money";
+import type { NewProjectDraft } from "./lib/project";
 import { DEFAULT_RENEWAL_POLICY, type EngagementType, type RenewalPolicy } from "./lib/renewal";
 import type {
   MilestoneAcceptance,
@@ -152,10 +153,12 @@ export interface ProjectFilter {
 export interface DeliveryStore {
   listProjects(workspaceId: string, filter?: ProjectFilter): Promise<ProjectRecord[]>;
   getProject(workspaceId: string, id: string): Promise<ProjectRecord | null>;
+  /** Null when the number is taken - the service says so by name. */
+  createProject(workspaceId: string, input: NewProjectDraft): Promise<ProjectRecord | null>;
   updateProject(
     workspaceId: string,
     id: string,
-    patch: Partial<Pick<ProjectRecord, "name" | "managerSub" | "contractAmount" | "health" | "status">>,
+    patch: Partial<Pick<ProjectRecord, "name" | "managerSub" | "contractAmount" | "health" | "status" | "endsAt" | "engagementType">>,
   ): Promise<boolean>;
 
   listMilestones(workspaceId: string, projectId: string): Promise<MilestoneRecord[]>;
@@ -297,6 +300,32 @@ export class InMemoryDeliveryStore implements DeliveryStore {
   async getProject(workspaceId: string, id: string): Promise<ProjectRecord | null> {
     const p = this.projects.get(id);
     return p && p.workspaceId === workspaceId ? { ...p } : null;
+  }
+
+  async createProject(workspaceId: string, input: NewProjectDraft): Promise<ProjectRecord | null> {
+    const taken = [...this.projects.values()].some(
+      (p) => p.workspaceId === workspaceId && p.projectNo === input.projectNo,
+    );
+    if (taken) return null;
+    const created: ProjectRecord = {
+      id: `prj_${++this.seq}`,
+      workspaceId,
+      projectNo: input.projectNo,
+      name: input.name,
+      opportunityId: input.opportunityId,
+      accountId: input.accountId,
+      managerSub: input.managerSub,
+      contractAmount: input.contractAmount === null ? null : money(input.contractAmount, input.currency),
+      // Not from the caller: a project starts in planning, reported healthy.
+      health: "green",
+      status: "planning",
+      currency: input.currency,
+      endsAt: input.endsAt,
+      engagementType: input.engagementType,
+      contractId: null,
+    };
+    this.projects.set(created.id, created);
+    return { ...created };
   }
 
   async updateProject(

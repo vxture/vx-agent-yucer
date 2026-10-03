@@ -3,6 +3,7 @@ import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { MilestoneStatus, ProjectHealth, RevenueStatus } from "./lib/revenue";
 import type { MilestoneChangeDraft, MilestoneDraft } from "./lib/milestone";
+import type { NewProjectDraft } from "./lib/project";
 import { DEFAULT_RENEWAL_POLICY, type EngagementType, type RenewalPolicy } from "./lib/renewal";
 import type { ContractDraft, ContractStatus, PlannedContractLine, RenewalEventType } from "./lib/contract";
 import type {
@@ -71,6 +72,30 @@ export class PrismaDeliveryStore implements DeliveryStore {
     return row ? toProject(row as Record<string, unknown>) : null;
   }
 
+  async createProject(workspaceId: string, input: NewProjectDraft): Promise<ProjectRecord | null> {
+    const p = await getPrismaClient();
+    const taken = await p.project.findFirst({ where: { workspaceId, projectNo: input.projectNo }, select: { id: true } });
+    if (taken) return null;
+    const row = await p.project.create({
+      data: {
+        workspaceId,
+        projectNo: input.projectNo,
+        name: input.name,
+        opportunityId: input.opportunityId,
+        accountId: input.accountId,
+        managerSub: input.managerSub,
+        contractAmount: input.contractAmount,
+        currency: input.currency,
+        endsAt: input.endsAt,
+        engagementType: input.engagementType,
+        // Not from the caller: a project starts in planning, reported healthy.
+        status: "planning",
+        health: "green",
+      },
+    });
+    return toProject(row as Record<string, unknown>);
+  }
+
   async updateProject(
     workspaceId: string,
     id: string,
@@ -82,6 +107,8 @@ export class PrismaDeliveryStore implements DeliveryStore {
     if (patch.managerSub !== undefined) data.managerSub = patch.managerSub;
     if (patch.health !== undefined) data.health = patch.health;
     if (patch.status !== undefined) data.status = patch.status;
+    if (patch.endsAt !== undefined) data.endsAt = patch.endsAt;
+    if (patch.engagementType !== undefined) data.engagementType = patch.engagementType;
     if (patch.contractAmount !== undefined) {
       data.contractAmount = patch.contractAmount?.amount ?? null;
       data.currency = patch.contractAmount?.currency;
