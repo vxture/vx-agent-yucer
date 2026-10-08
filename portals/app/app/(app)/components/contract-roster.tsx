@@ -229,10 +229,10 @@ export function ContractRoster(props: ContractRosterProps) {
     toast({ tone: "danger", title: CONTRACT_ERROR[error ?? "denied"] ?? CONTRACT_ERROR.denied });
 
   if (props.read.kind === "refused") {
-    return <p className="text-muted-foreground text-body-sm">{props.read.text}</p>;
+    return <p className="text-muted-foreground text-body-small">{props.read.text}</p>;
   }
   if (props.read.kind === "failed") {
-    return <p className="text-destructive-text text-body-sm">{CONTRACT_TEXT.readFailed}</p>;
+    return <p className="text-destructive-text text-body-small">{CONTRACT_TEXT.readFailed}</p>;
   }
 
   const remove = (target: { contract: ContractRow; line: ContractLineRow }) =>
@@ -273,7 +273,7 @@ export function ContractRoster(props: ContractRosterProps) {
 
       {props.contracts.length === 0 ? (
         <div className="flex flex-col gap-md">
-          <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.empty}</p>
+          <p className="text-muted-foreground text-body-small">{CONTRACT_TEXT.empty}</p>
           {/* No contract yet, but deals in play may carry a budget - the 在谈
               half of 商机占比 does not wait for a signature. */}
           {props.wallet && props.wallet.withBudget > 0 ? <WalletRollupBlock rollup={props.wallet} /> : null}
@@ -282,25 +282,25 @@ export function ContractRoster(props: ContractRosterProps) {
         <>
           <PanelCard title={CONTRACT_TEXT.revenueTitle} description={CONTRACT_TEXT.revenueHint}>
             {props.revenue.rows.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.revenueNone}</p>
+              <p className="text-muted-foreground text-body-small">{CONTRACT_TEXT.revenueNone}</p>
             ) : (
               <PanelList>
                 {props.revenue.rows.flatMap((r) => [
                   <PanelItem
                     key={`${r.currency}-annualized`}
-                    main={<span className="text-foreground text-body-sm">{CONTRACT_TEXT.revenueAnnualized(r.inForce)}</span>}
-                    trail={<span className="text-body-sm tabular-nums">{formatMoney(r.annualized, r.currency, locale)}</span>}
+                    main={<span className="text-foreground text-body-small">{CONTRACT_TEXT.revenueAnnualized(r.inForce)}</span>}
+                    trail={<span className="text-body-small tabular-nums">{formatMoney(r.annualized, r.currency, locale)}</span>}
                   />,
                   <PanelItem
                     key={`${r.currency}-lifetime`}
-                    main={<span className="text-foreground text-body-sm">{CONTRACT_TEXT.revenueLifetime(r.signed)}</span>}
-                    trail={<span className="text-body-sm tabular-nums">{formatMoney(r.lifetime, r.currency, locale)}</span>}
+                    main={<span className="text-foreground text-body-small">{CONTRACT_TEXT.revenueLifetime(r.signed)}</span>}
+                    trail={<span className="text-body-small tabular-nums">{formatMoney(r.lifetime, r.currency, locale)}</span>}
                   />,
                 ])}
               </PanelList>
             )}
             {props.revenue.unpriced > 0 ? (
-              <p className="mt-xs text-muted-foreground text-body-sm">{CONTRACT_TEXT.revenueUnpriced(props.revenue.unpriced)}</p>
+              <p className="mt-xs text-muted-foreground text-body-small">{CONTRACT_TEXT.revenueUnpriced(props.revenue.unpriced)}</p>
             ) : null}
             {props.wallet ? (
               <div className="mt-md">
@@ -311,15 +311,15 @@ export function ContractRoster(props: ContractRosterProps) {
 
           <PanelCard title={CONTRACT_TEXT.ownedTitle} description={CONTRACT_TEXT.ownedHint}>
             {props.owned.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.ownedEmpty}</p>
+              <p className="text-muted-foreground text-body-small">{CONTRACT_TEXT.ownedEmpty}</p>
             ) : (
               <PanelList>
                 {props.owned.map((o) => (
                   <PanelItem
                     key={o.productId}
-                    main={<span className="text-foreground text-body-sm">{productName(o.productName)}</span>}
+                    main={<span className="text-foreground text-body-small">{productName(o.productName)}</span>}
                     trail={
-                      <span className="flex items-center gap-xs text-body-sm tabular-nums">
+                      <span className="flex items-center gap-xs text-body-small tabular-nums">
                         <span>{CONTRACT_TEXT.qty(String(o.quantity))}</span>
                         {o.runsUntil ? <Tag>{CONTRACT_TEXT.lineUntil(o.runsUntil)}</Tag> : null}
                       </span>
@@ -333,9 +333,9 @@ export function ContractRoster(props: ContractRosterProps) {
           {props.whitespace ? (
             <PanelCard title={CONTRACT_TEXT.whitespaceTitle} description={CONTRACT_TEXT.whitespaceHint}>
               {props.whitespace.state === "unknown" ? (
-                <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.whitespaceUnknown}</p>
+                <p className="text-muted-foreground text-body-small">{CONTRACT_TEXT.whitespaceUnknown}</p>
               ) : props.whitespace.items.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">{CONTRACT_TEXT.whitespaceNone}</p>
+                <p className="text-muted-foreground text-body-small">{CONTRACT_TEXT.whitespaceNone}</p>
               ) : (
                 <div className="flex flex-wrap gap-xs">
                   {props.whitespace.items.map((p) => (
@@ -353,7 +353,7 @@ export function ContractRoster(props: ContractRosterProps) {
               title={
                 <span className="inline-flex items-center gap-xs">
                   <span>{c.name}</span>
-                  <span className="text-muted-foreground text-body-sm font-normal">{c.contractNo}</span>
+                  <span className="text-muted-foreground text-body-small font-normal">{c.contractNo}</span>
                 </span>
               }
               action={
@@ -382,7 +382,7 @@ export function ContractRoster(props: ContractRosterProps) {
                 </span>
               }
             >
-              <div className="flex flex-wrap items-center gap-sm text-body-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
                 <span>
                   {c.termStart && c.termEnd ? CONTRACT_TEXT.term(c.termStart, c.termEnd) : CONTRACT_TEXT.termOpen}
                 </span>
@@ -410,7 +410,7 @@ export function ContractRoster(props: ContractRosterProps) {
               {/* 续约风险 (YC-021 L4): the level, and every point it rests on one
                   click away - a native <details>, closed by default. */}
               {c.renewalRisk ? (
-                <details className="group/d mt-xs text-body-sm">
+                <details className="group/d mt-xs text-body-small">
                   <summary className="cursor-pointer flex list-none items-center gap-2xs [&::-webkit-details-marker]:hidden">
                     <Icon name="chevron-right" size="xs" className="text-muted-foreground shrink-0 transition-transform group-open/d:rotate-90" />
                     <Tag tone={RISK_TONE[c.renewalRisk.level]}>{CONTRACT_TEXT.renewalRisk(c.renewalRisk.level)}</Tag>
@@ -429,7 +429,7 @@ export function ContractRoster(props: ContractRosterProps) {
 
               {/* 续约记录 - append-only, so there is no edit or remove here. */}
               {c.events.length > 0 ? (
-                <ul className="mt-xs flex flex-col gap-3xs text-body-sm text-muted-foreground">
+                <ul className="mt-xs flex flex-col gap-3xs text-body-small text-muted-foreground">
                   {c.events.map((e) => (
                     <li key={e.id}>
                       <span className="tabular-nums">{e.occurredAt}</span> {eventText(e)}
@@ -441,16 +441,16 @@ export function ContractRoster(props: ContractRosterProps) {
               ) : null}
 
               {/* 明细 heading: the lines were the only unlabelled block on the card. */}
-              <p className="text-muted-foreground mt-sm text-label-sm font-bold">{CONTRACT_TEXT.linesHeading}</p>
+              <p className="text-muted-foreground mt-sm text-label-small font-bold">{CONTRACT_TEXT.linesHeading}</p>
               {c.lines.length === 0 ? (
-                <p className="mt-xs text-muted-foreground text-body-sm">{CONTRACT_TEXT.noLines}</p>
+                <p className="mt-xs text-muted-foreground text-body-small">{CONTRACT_TEXT.noLines}</p>
               ) : (
                 <PanelList>
                   {c.lines.map((l) => (
                     <PanelItem
                       key={l.id}
                       main={
-                        <span className="text-foreground text-body-sm">
+                        <span className="text-foreground text-body-small">
                           {productName(l.productName)}{" "}
                           <span className="text-muted-foreground">
                             {CONTRACT_TEXT.qty(String(l.quantity))} · {formatMoney(l.unitPrice, l.currency, locale)}
@@ -460,7 +460,7 @@ export function ContractRoster(props: ContractRosterProps) {
                       trail={
                         <span className="flex items-center gap-xs">
                           {l.termEnd ? <Tag>{CONTRACT_TEXT.lineUntil(l.termEnd)}</Tag> : null}
-                          <span className="text-foreground text-body-sm tabular-nums whitespace-nowrap">
+                          <span className="text-foreground text-body-small tabular-nums whitespace-nowrap">
                             {formatMoney(l.amount, l.currency, locale)}
                           </span>
                           {props.canWrite && c.status !== "terminated" ? (
@@ -482,7 +482,7 @@ export function ContractRoster(props: ContractRosterProps) {
 
               <div className="mt-xs flex items-center justify-between">
                 {c.lineTotal !== null && c.lines.length > 0 ? (
-                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                  <span className="text-muted-foreground text-body-small tabular-nums">
                     {CONTRACT_TEXT.lineTotal} {formatMoney(c.lineTotal, c.currency, locale)}
                   </span>
                 ) : (

@@ -67,10 +67,10 @@ export function AgentCapture({
         <Avatar className="size-6">
           <AvatarFallback>{BOARD_TEXT.agent.slice(0, 1)}</AvatarFallback>
         </Avatar>
-        <span className="text-label-md text-foreground">
+        <span className="text-label text-foreground">
           {BOARD_TEXT.agent}
         </span>
-        <span className="text-muted-foreground ml-auto text-body-sm tabular-nums">
+        <span className="text-muted-foreground ml-auto text-body-small tabular-nums">
           {BOARD_TEXT.agentScope(data.scanned)}
         </span>
 
@@ -103,13 +103,13 @@ export function AgentCapture({
           {/* Guidance beside the field, never inside it: appended to the
                 placeholder it rendered as a paragraph someone had already
                 typed. */}
-          <p className="text-muted-foreground mt-xs text-body-sm leading-relaxed">
+          <p className="text-muted-foreground mt-xs text-body-small leading-relaxed">
             {BOARD_TEXT.captureHelp}
           </p>
           {/* Said where the reader is looking, not only in a tooltip: the
               question is longer than the copilot page will take. */}
           {canAsk && over > 0 ? (
-            <p className="text-warning mt-xs text-body-sm leading-relaxed" role="status">
+            <p className="text-warning mt-xs text-body-small leading-relaxed" role="status">
               {BOARD_TEXT.askTooLong(over)}
             </p>
           ) : null}

@@ -283,7 +283,7 @@ export function DivisionPanel(
           description={PLANNING_TEXT.divisionEmptyWhy}
         />
       ) : filtered.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionFilterEmpty}</p>
+        <p className="text-muted-foreground text-body-small">{PLANNING_TEXT.divisionFilterEmpty}</p>
       ) : view === "cards" ? (
         <ListCardGrid>
           {pagination.pageRows.map((r) => (
@@ -297,7 +297,7 @@ export function DivisionPanel(
               actions={actionsFor(r)}
               meta={
                 <div className="gap-xs flex flex-wrap items-center">
-                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                  <span className="text-muted-foreground text-body-small tabular-nums">
                     {PLANNING_TEXT.divisionMemberCount(noun)}: {r.members.length}
                   </span>
                   {r.members.map((m) => <Tag key={m.key}>{m.label}</Tag>)}
@@ -427,12 +427,12 @@ export function DivisionPanel(
           line says so in one sentence and stops. */}
       <div className="border-border gap-2xs mt-md flex flex-col border-t pt-md">
         {unassigned.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">
+          <p className="text-muted-foreground text-body-small">
             {PLANNING_TEXT.divisionAllPlaced(noun)}
           </p>
         ) : (
           <div className="gap-sm flex flex-wrap items-center">
-            <span className="text-body-sm">
+            <span className="text-body-small">
               {PLANNING_TEXT.divisionUnplacedLead(unassigned.length, noun)}
             </span>
             {unassigned.map((m) => (
@@ -487,13 +487,13 @@ export function DivisionPanel(
           <div className="mt-lg">
             <Section title={PLANNING_TEXT.divisionCoveredBy(details.coveredBy.length)}>
               {details.coveredBy.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionCoveredNone}</p>
+                <p className="text-muted-foreground text-body-small">{PLANNING_TEXT.divisionCoveredNone}</p>
               ) : (
                 <ul className="gap-xs flex flex-col">
                   {details.coveredBy.map((t) => (
                     <li key={t.name} className="gap-xs flex items-center">
-                      <span className="text-body-md">{t.name}</span>
-                      <span className="text-muted-foreground text-body-sm">
+                      <span className="text-body">{t.name}</span>
+                      <span className="text-muted-foreground text-body-small">
                         {t.units.length > 0 ? PLANNING_TEXT.divisionCoveredUnits(t.units.join(" / ")) : PLANNING_TEXT.divisionCoveredNoUnits}
                       </span>
                     </li>

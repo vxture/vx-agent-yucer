@@ -40,17 +40,17 @@ export async function ForecastUnverified({
               {T.headline(labels[b.category] ?? b.category, wan(b.total), wan(b.unverified))}
             </p>
             {b.deals.length === 0 ? (
-              <p className="text-muted-foreground mt-2xs text-body-sm">{T.none}</p>
+              <p className="text-muted-foreground mt-2xs text-body-small">{T.none}</p>
             ) : (
               // 点开是哪几单 (YC-069 section 11): the figure leads, the deals
               // are one click away rather than a wall under it.
               <details className="mt-2xs">
-                <summary className="text-primary cursor-pointer text-body-sm">{T.showDeals(b.deals.length)}</summary>
+                <summary className="text-primary cursor-pointer text-body-small">{T.showDeals(b.deals.length)}</summary>
               <ol className="mt-sm flex flex-col">
                 {b.deals.map((d) => (
                   <li
                     key={d.id}
-                    className="border-border grid grid-cols-[minmax(0,1fr)_auto] items-start gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
+                    className="border-border grid grid-cols-[minmax(0,1fr)_auto] items-start gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
                   >
                     <div className="min-w-0">
                       <Link href={`/pipeline/${d.id}`} className="text-foreground hover:underline">

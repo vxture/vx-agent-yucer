@@ -170,7 +170,7 @@ export default async function AdminHomePage() {
                   description={ADMIN_TEXT.entryHint[e.key] ?? ""}
                 >
                   <span className="flex items-center justify-between gap-md">
-                    <span className="text-muted-foreground text-body-sm">
+                    <span className="text-muted-foreground text-body-small">
                       {FACTS[e.key] ?? ""}
                     </span>
                     <Icon name="arrow-right" size="xs" />

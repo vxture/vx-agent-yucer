@@ -292,15 +292,15 @@ export function ProposalQueue({
             </Badge>
             {subject ? (
               <>
-                <Link href={subject.href} className="text-body-sm hover:underline">
+                <Link href={subject.href} className="text-body-small hover:underline">
                   {subject.name}
                 </Link>
                 {subject.context ? (
-                  <span className="text-muted-foreground text-body-sm">{subject.context}</span>
+                  <span className="text-muted-foreground text-body-small">{subject.context}</span>
                 ) : null}
               </>
             ) : (
-              <span className="text-muted-foreground font-mono text-body-sm">
+              <span className="text-muted-foreground font-mono text-body-small">
                 {row.subjectId}
               </span>
             )}
@@ -358,9 +358,9 @@ export function ProposalQueue({
               </StatusBadge>
             ) : row.decidedBySub ? (
               deciderNames[row.decidedBySub] ? (
-                <span className="text-muted-foreground text-body-sm">{deciderNames[row.decidedBySub]}</span>
+                <span className="text-muted-foreground text-body-small">{deciderNames[row.decidedBySub]}</span>
               ) : (
-                <span className="text-muted-foreground font-mono text-body-sm">{row.decidedBySub}</span>
+                <span className="text-muted-foreground font-mono text-body-small">{row.decidedBySub}</span>
               )
             ) : null
           }
@@ -548,7 +548,7 @@ export function ProposalQueue({
                   ) : (
                     <span className="flex flex-col gap-3xs">
                       {Object.entries(row.payload).map(([k, v]) => (
-                        <span key={k} className="font-mono text-body-sm">
+                        <span key={k} className="font-mono text-body-small">
                           {k}: {typeof v === "string" ? v : JSON.stringify(v)}
                         </span>
                       ))}

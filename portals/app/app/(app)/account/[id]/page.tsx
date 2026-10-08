@@ -1087,7 +1087,7 @@ export default async function AccountDetailPage({
   const ownerName = ownerRead.ok ? ownerRead.value : null;
   const ownerRow =
     ownerName || collaboratorNames.length > 0 ? (
-      <span className="flex flex-col gap-2xs text-body-sm">
+      <span className="flex flex-col gap-2xs text-body-small">
         {ownerName ? <span>{ACCOUNT_TEXT.headerOwner(ownerName)}</span> : null}
         {collaboratorNames.length > 0 ? (
           <span className="text-muted-foreground">{ACCOUNT_TEXT.collaboratorsLine(collaboratorNames)}</span>
@@ -1537,7 +1537,7 @@ export default async function AccountDetailPage({
                 count: rosterProjects.length,
                 content: <>
                   {rosterProjects.length === 0 ? (
-                    <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.rosterNoProjects}</p>
+                    <p className="text-muted-foreground text-body-small">{ACCOUNT_TEXT.rosterNoProjects}</p>
                   ) : (
                     <div className="flex flex-col gap-md">
                       {rosterProjects.map((pr) => (

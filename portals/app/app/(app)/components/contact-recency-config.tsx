@@ -93,7 +93,7 @@ export function ContactRecencyConfig({
                   aria-invalid={quietInvalid}
                   onChange={(e) => onFormChange((f) => ({ ...f, quietDays: e.target.value }))}
                 />
-                <span className="text-body-sm text-muted-foreground">{CONTACT_RECENCY_TEXT.days}</span>
+                <span className="text-body-small text-muted-foreground">{CONTACT_RECENCY_TEXT.days}</span>
               </div>
               <FieldDescription>{CONTACT_RECENCY_TEXT.quietHint}</FieldDescription>
             </Field>
@@ -110,7 +110,7 @@ export function ContactRecencyConfig({
                   aria-invalid={staleInvalid}
                   onChange={(e) => onFormChange((f) => ({ ...f, staleDays: e.target.value }))}
                 />
-                <span className="text-body-sm text-muted-foreground">{CONTACT_RECENCY_TEXT.days}</span>
+                <span className="text-body-small text-muted-foreground">{CONTACT_RECENCY_TEXT.days}</span>
               </div>
               <FieldDescription>{CONTACT_RECENCY_TEXT.staleHint}</FieldDescription>
             </Field>
@@ -127,7 +127,7 @@ export function ContactRecencyConfig({
                   aria-invalid={chainWarmInvalid}
                   onChange={(e) => onFormChange((f) => ({ ...f, chainWarmDays: e.target.value }))}
                 />
-                <span className="text-body-sm text-muted-foreground">{CONTACT_RECENCY_TEXT.days}</span>
+                <span className="text-body-small text-muted-foreground">{CONTACT_RECENCY_TEXT.days}</span>
               </div>
               <FieldDescription>{CONTACT_RECENCY_TEXT.chainWarmHint}</FieldDescription>
             </Field>

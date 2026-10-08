@@ -167,11 +167,11 @@ export function DesignateAccount({
             <Field>
               <FieldLabel>{POSITION_TEXT.planTitle}</FieldLabel>
               <div className="gap-xs flex flex-col">
-                <p className="text-body-sm">
+                <p className="text-body-small">
                   {plan.status === "active" ? POSITION_TEXT.planActive(plan.period) : POSITION_TEXT.planClosedAt(plan.period)}
                 </p>
                 {plan.status === "closed" && plan.closeReason ? (
-                  <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planReason(plan.closeReason)}</p>
+                  <p className="text-muted-foreground text-body-small">{POSITION_TEXT.planReason(plan.closeReason)}</p>
                 ) : null}
                 {plan.status === "active" && onClosePlan ? (
                   <>
@@ -182,7 +182,7 @@ export function DesignateAccount({
                       onChange={(ev) => setCloseReason(ev.target.value)}
                       disabled={pending}
                     />
-                    <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planCloseHint}</p>
+                    <p className="text-muted-foreground text-body-small">{POSITION_TEXT.planCloseHint}</p>
                     <div>
                       <Button
                         variant="secondary"
@@ -228,8 +228,8 @@ export function DesignateAccount({
                 >
                   <img src={TIER_ICON_SRC[k as AccountTier]} alt="" className="h-[2.875rem] w-10 flex-none" />
                   <div className="min-w-0">
-                    <div className="text-body-sm font-bold">{label}</div>
-                    <div className="text-muted-foreground text-body-sm">{desc}</div>
+                    <div className="text-body-small font-bold">{label}</div>
+                    <div className="text-muted-foreground text-body-small">{desc}</div>
                   </div>
                 </button>
               ))}
@@ -272,7 +272,7 @@ export function DesignateAccount({
                   rule will reject a plan-less strategic account either way;
                   telling them first is the difference between a product that
                   explains itself and one that argues. */}
-              <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planRequired}</p>
+              <p className="text-muted-foreground text-body-small">{POSITION_TEXT.planRequired}</p>
             </>
           ) : null}
       </div>

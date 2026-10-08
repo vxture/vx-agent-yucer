@@ -103,7 +103,7 @@ export function OrgMemberPickerDrawer({
               onChange={(e) => setQuery(e.target.value)}
             />
             {filtered.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{ORG_TEXT.membersSearchEmpty}</p>
+              <p className="text-muted-foreground text-body-small">{ORG_TEXT.membersSearchEmpty}</p>
             ) : (
               <ul className="gap-2xs flex flex-col">
                 {filtered.map((m) => (
@@ -111,7 +111,7 @@ export function OrgMemberPickerDrawer({
                     <label className="gap-sm hover:bg-muted flex items-center justify-between rounded-sm px-2xs py-2xs">
                       <span className="gap-sm flex items-center">
                         <input type="checkbox" checked={selected.has(m.sub)} onChange={() => toggle(m.sub)} />
-                        <span className="text-body-sm">{m.name}</span>
+                        <span className="text-body-small">{m.name}</span>
                       </span>
                       <NameOverflowTag names={m.roleNames} empty={ORG_TEXT.noRole} />
                     </label>
@@ -119,7 +119,7 @@ export function OrgMemberPickerDrawer({
                 ))}
               </ul>
             )}
-            <p className="text-muted-foreground text-body-sm">{ORG_TEXT.addMembersCount(selected.size)}</p>
+            <p className="text-muted-foreground text-body-small">{ORG_TEXT.addMembersCount(selected.size)}</p>
           </>
         )}
       </div>

@@ -266,7 +266,7 @@ export function CommitmentList({
       <div className="flex flex-col">
         {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
         {items.length === 0 ? (
-          <p className="text-muted-foreground py-xs text-body-sm">
+          <p className="text-muted-foreground py-xs text-body-small">
             {FIELD_TEXT.commitEmpty}
             {canWrite ? (
               <>
@@ -284,7 +284,7 @@ export function CommitmentList({
           const days = Math.floor(Math.abs(at.getTime() - c.dueAt.getTime()) / DAY);
           return (
             <div key={c.id} className="border-border flex flex-col gap-xs border-b border-dashed py-xs last:border-b-0">
-              <div className="grid grid-cols-[3.25rem_2.75rem_minmax(0,1fr)_auto_auto] items-center gap-sm text-body-sm">
+              <div className="grid grid-cols-[3.25rem_2.75rem_minmax(0,1fr)_auto_auto] items-center gap-sm text-body-small">
                 <time className="text-muted-foreground font-mono tabular-nums" dateTime={c.dueAt.toISOString()} title={c.dueAt.toISOString().slice(0, 10)}>
                   {c.dueAt.toISOString().slice(5, 10)}
                 </time>
@@ -317,7 +317,7 @@ export function CommitmentList({
           );
         })}
         {canWrite && items.length > 0 ? (
-          <a href={captureHref} className="text-primary mt-2xs self-start text-body-sm hover:underline">
+          <a href={captureHref} className="text-primary mt-2xs self-start text-body-small hover:underline">
             {FIELD_TEXT.commitCreate}
           </a>
         ) : null}
@@ -354,7 +354,7 @@ export function CommitmentList({
           <div key={c.id} className="border-border flex flex-col gap-xs border-b py-xs last:border-b-0">
             <div className="flex items-center gap-xs">
               <PartyBadge direction={c.direction} text={FIELD_TEXT} />
-              <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-sm" />
+              <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-small" />
               <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
                 {overdue
                   ? FIELD_TEXT.commitDaysOverdue(days)
@@ -380,7 +380,7 @@ export function CommitmentList({
       {settled.map((c) => (
         <div key={c.id} className="border-border flex items-center gap-xs border-b py-xs last:border-b-0">
           <PartyBadge direction={c.direction} text={FIELD_TEXT} />
-          <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-sm" />
+          <TruncatedText text={c.statement} className="text-foreground min-w-0 flex-1 truncate text-body-small" />
           <Tag
             tone={
               c.status === "met"
@@ -419,7 +419,7 @@ function PartyBadge({
   const isTheirs = direction === "they_owe";
   return (
     <span
-      className="text-label-sm inline-flex flex-none items-center whitespace-nowrap rounded px-sm py-3xs font-bold"
+      className="text-label-small inline-flex flex-none items-center whitespace-nowrap rounded px-sm py-3xs font-bold"
       style={{
         background: isTheirs ? "var(--muted)" : "var(--accent)",
         color: isTheirs ? "var(--muted-foreground)" : "var(--primary)",
@@ -459,7 +459,7 @@ function ComplianceStats({
   if (theyTotal === 0 && weTotal === 0) return null;
 
   return (
-    <div className="border-border text-muted-foreground flex flex-wrap items-center gap-lg border-t pt-sm text-body-sm">
+    <div className="border-border text-muted-foreground flex flex-wrap items-center gap-lg border-t pt-sm text-body-small">
       {theyTotal > 0 ? (
         <span>
           {text.commitComplianceRate}

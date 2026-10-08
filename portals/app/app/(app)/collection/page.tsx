@@ -144,7 +144,7 @@ export default async function CollectionPage({
           first and the schedule reads as its detail. Both are computed from
           the SAME rows, so the block and the list cannot disagree. */}
       {onlyAccount ? (
-        <p className="text-muted-foreground text-body-sm">
+        <p className="text-muted-foreground text-body-small">
           {DELIVERY_TEXT.collectOnlyAccount(onlyAccount.name)}{" "}
           <Link href="/collection" className="text-primary hover:underline">{DELIVERY_TEXT.collectShowAll}</Link>
         </p>

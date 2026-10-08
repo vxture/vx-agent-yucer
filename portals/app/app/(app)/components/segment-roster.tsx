@@ -109,7 +109,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       cell: (r: SegmentRow) => {
         const parts = [...r.criteria.industries, ...(r.criteria.sizes ?? []), ...r.criteria.regions];
         return (
-          <span className="flex min-w-0 flex-col gap-3xs text-body-sm">
+          <span className="flex min-w-0 flex-col gap-3xs text-body-small">
             {parts.length === 0 ? (
               <span className="text-(color:--warning-text)">{STRATEGY_TEXT.segmentNoCriteriaYet}</span>
             ) : (
@@ -135,7 +135,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       
       cell: (r: SegmentRow) => (
         <span
-          className={`tabular-nums whitespace-nowrap text-body-sm ${
+          className={`tabular-nums whitespace-nowrap text-body-small ${
             r.accountCount === r.matchedCount ? "" : "text-(color:--warning-text)"
           }`}
         >

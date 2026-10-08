@@ -145,12 +145,12 @@ async function Row({ row: r, days }: { row: OverdueRow; days: number }) {
             </Tag>
             <Link
               href={`/account/${r.accountId}`}
-              className="text-foreground min-w-0 truncate text-body-md hover:underline"
+              className="text-foreground min-w-0 truncate text-body hover:underline"
             >
               {r.accountName}
             </Link>
           </span>
-          <span className="text-muted-foreground shrink-0 text-body-sm tabular-nums">
+          <span className="text-muted-foreground shrink-0 text-body-small tabular-nums">
             {FIELD_TEXT.commitDueOn(r.dueAt.toISOString().slice(0, 10))}
           </span>
         </div>
@@ -158,13 +158,13 @@ async function Row({ row: r, days }: { row: OverdueRow; days: number }) {
         {/* L2 - what was actually promised. This is the sentence someone wrote
             down in the field, so it wraps rather than truncating: a promise cut
             off mid-clause is not checkable, and checkable is the whole point. */}
-        <p className="text-muted-foreground max-w-(--vx-container-2xl) text-body-sm">
+        <p className="text-muted-foreground max-w-(--vx-container-2xl) text-body-small">
           {r.statement}
         </p>
 
         {/* L3 - who owns it | where to go. */}
         <div className="flex min-w-0 items-start justify-between gap-md">
-          <p className="text-muted-foreground min-w-0 truncate text-body-sm">
+          <p className="text-muted-foreground min-w-0 truncate text-body-small">
             {r.ownerSub
               ? <>{FIELD_TEXT.commitOwner("")}<MemberName sub={r.ownerSub} /></>
               : FIELD_TEXT.commitOwnerNone}

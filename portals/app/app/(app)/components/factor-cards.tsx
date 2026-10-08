@@ -48,12 +48,12 @@ export function FactorCards({ items }: { readonly items: readonly FactorCardItem
           href={it.href}
           className={`flex min-w-0 items-center gap-sm rounded-md border border-t-2 border-border bg-card/60 px-sm py-xs ${EDGE[it.tone]} ${it.href ? "hover:bg-accent transition-colors" : ""}`}
         >
-          <span className={`text-heading-4 shrink-0 ${INK[it.tone]}`}>
+          <span className={`shrink-0 ${INK[it.tone]}`}>
             {it.value}
             {it.unit ? <span className="text-muted-foreground text-[0.6875rem] font-normal">{it.unit}</span> : null}
           </span>
           <span className="flex min-w-0 flex-col">
-            <TruncatedText text={it.label} className="text-foreground truncate text-body-sm font-medium" />
+            <TruncatedText text={it.label} className="text-foreground truncate text-body-small font-medium" />
             <TruncatedText text={it.note} className="text-muted-foreground truncate text-[0.6875rem] leading-tight" />
           </span>
         </Tag>

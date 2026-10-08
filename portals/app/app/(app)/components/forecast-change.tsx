@@ -48,7 +48,7 @@ export async function ForecastChange({
               <p className="text-foreground text-body font-semibold tabular-nums">
                 {T.headline(labels[key] ?? key, signed(c.total))}
               </p>
-              <p className="text-muted-foreground mt-2xs flex flex-wrap gap-x-md gap-y-2xs text-body-sm tabular-nums">
+              <p className="text-muted-foreground mt-2xs flex flex-wrap gap-x-md gap-y-2xs text-body-small tabular-nums">
                 {(Object.entries(c.byKind) as [ChangeKind, number][])
                   .filter(([, v]) => v !== 0)
                   .map(([k, v]) => (
@@ -68,7 +68,7 @@ export async function ForecastChange({
                   {c.deals.map((d) => (
                     <li
                       key={d.opportunityId}
-                      className="border-border grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
+                      className="border-border grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
                     >
                       <Tag tone={KIND_TONE[d.kind]}>{T.kind[d.kind]}</Tag>
                       <Link href={`/pipeline/${d.opportunityId}`} className="text-foreground truncate hover:underline">

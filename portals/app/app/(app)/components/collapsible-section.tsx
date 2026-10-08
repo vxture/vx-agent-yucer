@@ -149,7 +149,7 @@ export function CollapsibleSection({
         // 信息没有对齐, 没有留白间距): the icon's holder is a flex box, not an
         // inline span - inline, the svg sat on the text baseline and read low -
         // and the gap is gap-xs, the step every other icon+text pair here uses.
-        <div className="text-muted-foreground text-body-sm flex min-w-0 items-center gap-xs">
+        <div className="text-muted-foreground text-body-small flex min-w-0 items-center gap-xs">
           <span className="text-primary-text flex shrink-0 items-center" title={COLLAPSE_TEXT.aiHint}>
             <Icon name="sparkles" size="xs" />
           </span>

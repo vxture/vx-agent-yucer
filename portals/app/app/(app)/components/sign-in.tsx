@@ -51,7 +51,7 @@ export function SignIn({ resume = false }: { readonly resume?: boolean }) {
         <GateHeading title={SIGNIN_TEXT.title} description={SIGNIN_TEXT.description} />
 
         {resume ? (
-          <p className="text-muted-foreground text-body-md" role="status">
+          <p className="text-muted-foreground text-body" role="status">
             {SIGNIN_TEXT.resuming}
           </p>
         ) : (

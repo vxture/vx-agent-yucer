@@ -141,7 +141,7 @@ export function ChainSummaryList({
   return (
     <CollapsibleSection summary={unreachedSummary} menu={chainMenu} tone="raised" icon="graph" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={CHAIN_TEXT.title}>
       {rollup ? (
-        <div className="border-border bg-muted/40 mb-sm flex flex-col gap-2xs rounded-md border p-sm text-body-sm">
+        <div className="border-border bg-muted/40 mb-sm flex flex-col gap-2xs rounded-md border p-sm text-body-small">
           <span className="font-bold">{CHAIN_TEXT.rollupTitle(rollup.deals, rollup.people)}</span>
           <span className="gap-xs flex flex-wrap items-center">
             <span className="text-muted-foreground">{CHAIN_TEXT.rollupCovered}</span>
@@ -178,12 +178,12 @@ export function ChainSummaryList({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-sm">
-                  <span className="text-body-sm truncate font-bold">{c.title}</span>
-                  <span className="text-muted-foreground text-body-sm whitespace-nowrap">
+                  <span className="text-body-small truncate font-bold">{c.title}</span>
+                  <span className="text-muted-foreground text-body-small whitespace-nowrap">
                     {c.coveredCount}/{c.totalRoles}
                   </span>
                 </div>
-                <div className="text-muted-foreground truncate text-body-sm">
+                <div className="text-muted-foreground truncate text-body-small">
                   {reachSummary}
                   {suffix}
                 </div>

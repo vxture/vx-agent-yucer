@@ -93,7 +93,7 @@ export function DealScoreConfig({
                   <div
                     key={f}
                     style={{ width: `${(100 * parsed.weights[f]) / Math.max(sum, 1)}%` }}
-                    className={`border-border text-label-sm flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap last:border-r-0 ${SHARE_TONES[i]}`}
+                    className={`border-border text-label-small flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap last:border-r-0 ${SHARE_TONES[i]}`}
                     title={`${DEAL_SCORE_TEXT.factor[f]} ${parsed.weights[f]}`}
                   >
                     {DEAL_SCORE_TEXT.factor[f]}
@@ -104,7 +104,7 @@ export function DealScoreConfig({
             <div className="mt-sm grid grid-cols-2 gap-sm sm:grid-cols-4 xl:grid-cols-5">
               {DEAL_DIMENSIONS.map((f) => (
                 <label key={f} className="flex flex-col gap-2xs">
-                  <span className="text-muted-foreground text-body-sm">{DEAL_SCORE_TEXT.factor[f]}</span>
+                  <span className="text-muted-foreground text-body-small">{DEAL_SCORE_TEXT.factor[f]}</span>
                   <Input
                     type="number"
                     inputMode="numeric"
@@ -145,7 +145,7 @@ export function DealScoreConfig({
               <Button size="sm" variant="ghost" disabled={pending} onClick={() => setForm(toForm(DEFAULT_DEAL_SCORE_WEIGHTS))}>
                 {DEAL_SCORE_TEXT.reset}
               </Button>
-              <span className="text-muted-foreground text-body-sm">{DEAL_SCORE_TEXT.formula}</span>
+              <span className="text-muted-foreground text-body-small">{DEAL_SCORE_TEXT.formula}</span>
             </div>
           ) : null}
         </div>

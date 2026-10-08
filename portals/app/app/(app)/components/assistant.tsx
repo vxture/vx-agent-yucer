@@ -135,24 +135,24 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
           carry mt-sm - together a ~50px blank band under every title. */}
       <div>
       <div className="flex items-center gap-xs">
-        <span className="text-label-md text-foreground">{section.title}</span>
+        <span className="text-label text-foreground">{section.title}</span>
         {section.scope ? (
-          <span className="text-muted-foreground ml-auto text-body-sm">{section.scope}</span>
+          <span className="text-muted-foreground ml-auto text-body-small">{section.scope}</span>
         ) : null}
       </div>
 
       {shown.length === 0 ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">{section.empty}</p>
+        <p className="text-muted-foreground mt-sm text-body-small">{section.empty}</p>
       ) : (
         <div className="mt-sm flex flex-col gap-sm">
           {shown.map((item) => (
             <div key={item.id} className="border-border rounded-md border p-sm">
-              <p className={`text-body-sm ${TONE_TEXT[item.tone ?? "info"]}`}>{item.text}</p>
+              <p className={`text-body-small ${TONE_TEXT[item.tone ?? "info"]}`}>{item.text}</p>
               {item.evidence ? (
-                <p className="text-muted-foreground mt-xs text-body-sm">{item.evidence}</p>
+                <p className="text-muted-foreground mt-xs text-body-small">{item.evidence}</p>
               ) : null}
               {item.trail ? (
-                <p className="text-muted-foreground mt-xs text-body-sm">{item.trail}</p>
+                <p className="text-muted-foreground mt-xs text-body-small">{item.trail}</p>
               ) : null}
 
               {item.act || item.link || item.ignorable || item.more?.length ? (

@@ -148,7 +148,7 @@ export function AuditRoster({ rows }: { readonly rows: readonly AuditRow[] }) {
               header: AUDIT_TEXT.colTime,
               sortable: true,
               cell: (r: AuditRow) => (
-                <span className="tabular-nums text-body-sm">
+                <span className="tabular-nums text-body-small">
                   {r.occurredAt.toISOString().slice(0, 16).replace("T", " ")}
                 </span>
               ),
@@ -171,7 +171,7 @@ export function AuditRoster({ rows }: { readonly rows: readonly AuditRow[] }) {
               id: "object",
               header: AUDIT_TEXT.colObject,
               cell: (r: AuditRow) => (
-                <span className="text-body-sm">
+                <span className="text-body-small">
                   {r.objectType} · <span className="text-muted-foreground">{r.objectId}</span>
                 </span>
               ),

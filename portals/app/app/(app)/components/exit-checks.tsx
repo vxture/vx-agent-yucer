@@ -17,7 +17,7 @@ export async function ExitChecks({
   readonly filledSlots: ReadonlySet<string>;
 }) {
   const { DEAL_PAGE_TEXT, DECISION_ROLE_LABEL, RISK_TEXT } = await getMessages();
-  if (check.total === 0) return <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.exitNone}</p>;
+  if (check.total === 0) return <p className="text-muted-foreground text-body-small">{DEAL_PAGE_TEXT.exitNone}</p>;
   const roles = (r: readonly string[]) =>
     r.length === 0 ? DEAL_PAGE_TEXT.exitAnyone : r.map((x) => DECISION_ROLE_LABEL[x] ?? x).join(" / ");
   const why = (d: CheckDetail): { text: string; href?: string } => {
@@ -66,7 +66,7 @@ export async function ExitChecks({
         return (
           <li
             key={c.criterion.id}
-            className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-sm text-body-sm ${TONED_ROW} ${ROW_EDGE[tone]}`}
+            className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-sm text-body-small ${TONED_ROW} ${ROW_EDGE[tone]}`}
           >
             <span className={SOURCE_CHIP}>{RISK_TEXT.source.rule}</span>
             <span className="flex min-w-0 flex-col">

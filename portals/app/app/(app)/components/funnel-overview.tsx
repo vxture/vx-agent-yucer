@@ -81,10 +81,10 @@ export function FunnelOverview({
         {reading.stages.map((s) => (
           <Card key={s.stage} className="flex flex-col gap-sm p-lg">
             <div className="flex flex-wrap items-baseline justify-between gap-sm">
-              <span className="text-foreground text-label-lg">
+              <span className="text-foreground text-label">
                 {FUNNEL_TEXT.stage[s.stage] ?? s.stage}
               </span>
-              <span className="text-muted-foreground tabular-nums text-body-sm">
+              <span className="text-muted-foreground tabular-nums text-body-small">
                 {/* NULL IS NOT ZERO. Nothing reached this stage is a different
                     statement from everything that reached it died, and one
                     number cannot carry both. */}
@@ -112,7 +112,7 @@ export function FunnelOverview({
 
             <div className="flex flex-wrap gap-md">
               {(["advanced", "open", "exited"] as const).map((k) => (
-                <span key={k} className="text-muted-foreground text-body-sm">
+                <span key={k} className="text-muted-foreground text-body-small">
                   <span className="text-foreground tabular-nums">{s[k]}</span> {FUNNEL_TEXT.part[k]}
                 </span>
               ))}
@@ -135,7 +135,7 @@ export function FunnelOverview({
               // QUIET, NOT ALARMING. It is a gap worth closing, not something
               // to drop everything for - and the same argument that took the
               // warning colour off 已终止 applies here.
-              <span className="text-muted-foreground text-body-sm">
+              <span className="text-muted-foreground text-body-small">
                 {FUNNEL_TEXT.unexplained(s.unexplained)}
               </span>
             ) : null}

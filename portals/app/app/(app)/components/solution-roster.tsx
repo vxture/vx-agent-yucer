@@ -177,7 +177,7 @@ export function SolutionRoster({
       // The combination AND its customisation in one cell: how much of this
       // is the answer, and how much is tailored per deal.
       cell: (r: SolutionView) => (
-        <span className="text-body-sm tabular-nums">
+        <span className="text-body-small tabular-nums">
           {CATALOG_TEXT.compositionCount(
             r.items.filter((i) => !i.optional).length,
             r.items.filter((i) => i.optional).length,
@@ -206,9 +206,9 @@ export function SolutionRoster({
       width: "lg" as const,
       cell: (r: SolutionView) =>
         r.solution.scenario ? (
-          <TruncatedText text={r.solution.scenario} className="text-muted-foreground line-clamp-2 text-body-sm" />
+          <TruncatedText text={r.solution.scenario} className="text-muted-foreground line-clamp-2 text-body-small" />
         ) : (
-          <span className="text-(color:--warning-text) text-body-sm">
+          <span className="text-(color:--warning-text) text-body-small">
             {CATALOG_TEXT.noScenario}
           </span>
         ),
@@ -455,7 +455,7 @@ function CoveredTypes({
   // Each name WHOLE, wrapping between names rather than inside one - a narrow
   // column broke 实施服务 into 实 / 施服务 (seen 2026-09-29).
   return (
-    <span className="flex flex-wrap gap-x-xs text-body-sm">
+    <span className="flex flex-wrap gap-x-xs text-body-small">
       {ids.map((id) => (
         <span key={id} className="whitespace-nowrap">
           {names.get(id) ?? ""}

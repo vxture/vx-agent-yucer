@@ -136,25 +136,25 @@ export function OwnerEditor({
       >
         <div className="flex flex-col gap-sm">
           <div className="gap-sm border-border flex items-center border-b py-sm">
-            <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
+            <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
               {(ownerName ?? ACCOUNT_TEXT.ownerNone).charAt(0)}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="text-body-sm truncate font-bold">{ownerName ?? ACCOUNT_TEXT.ownerNone}</div>
-              <div className="text-muted-foreground text-body-sm">{COLLABORATOR_TEXT.primary}</div>
+              <div className="text-body-small truncate font-bold">{ownerName ?? ACCOUNT_TEXT.ownerNone}</div>
+              <div className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.primary}</div>
             </div>
           </div>
           {collaborators.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">{COLLABORATOR_TEXT.none}</p>
+            <p className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.none}</p>
           ) : (
             collaborators.map((c) => (
               <div key={c.memberSub} className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
-                <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
+                <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
                   {(c.displayName ?? c.memberSub).charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-body-sm truncate font-bold">{c.displayName ?? c.memberSub}</div>
-                  <div className="text-muted-foreground text-body-sm">{COLLABORATOR_TEXT.tag}</div>
+                  <div className="text-body-small truncate font-bold">{c.displayName ?? c.memberSub}</div>
+                  <div className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.tag}</div>
                 </div>
                 <Button
                   variant="ghost"
@@ -201,9 +201,9 @@ export function OwnerEditor({
           </Field>
           <div className="flex flex-col gap-sm">
             {query.trim().length < 2 ? (
-              <p className="text-muted-foreground text-body-sm">{COLLABORATOR_TEXT.hint}</p>
+              <p className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.hint}</p>
             ) : searching ? null : results.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{COLLABORATOR_TEXT.empty}</p>
+              <p className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.empty}</p>
             ) : (
               results.map((r) => (
                 <button
@@ -214,10 +214,10 @@ export function OwnerEditor({
                     picked === r.sub ? "border-primary bg-primary-muted" : "bg-card"
                   }`}
                 >
-                  <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
+                  <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
                     {(r.displayName ?? r.sub).charAt(0)}
                   </span>
-                  <span className="text-body-sm font-bold">{r.displayName ?? r.sub}</span>
+                  <span className="text-body-small font-bold">{r.displayName ?? r.sub}</span>
                 </button>
               ))
             )}

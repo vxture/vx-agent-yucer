@@ -96,7 +96,7 @@ export function ProjectForm({
                 <FieldLabel>{DELIVERY_TEXT.formProjectNo}</FieldLabel>
                 {initial ? (
                   <>
-                    <p className="text-foreground mono text-body-md">{initial.projectNo}</p>
+                    <p className="text-foreground mono text-body">{initial.projectNo}</p>
                     <FieldDescription>{DELIVERY_TEXT.formProjectNoFixed}</FieldDescription>
                   </>
                 ) : (
@@ -110,7 +110,7 @@ export function ProjectForm({
               <Field>
                 <FieldLabel>{DELIVERY_TEXT.formAccount}</FieldLabel>
                 {initial ? (
-                  <p className="text-foreground text-body-md">{initial.accountName}</p>
+                  <p className="text-foreground text-body">{initial.accountName}</p>
                 ) : (
                   <NativeSelect
                     value={accountId}
@@ -165,7 +165,7 @@ export function ProjectForm({
                 </NativeSelect>
               </Field>
             </FormFields>
-            {initial ? null : <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.projectAnchor}</p>}
+            {initial ? null : <p className="text-muted-foreground text-body-small">{DELIVERY_TEXT.projectAnchor}</p>}
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

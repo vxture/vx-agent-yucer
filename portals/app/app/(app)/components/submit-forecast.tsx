@@ -102,8 +102,8 @@ export function SubmitForecast({ period, scopeKey, canSubmit, computed = [], onS
           {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
           {computed.length > 0 ? (
             <div>
-              <p className="text-muted-foreground text-body-sm">{PIPELINE_TEXT.snapshotComputed}</p>
-              <dl className="mt-2xs grid grid-cols-2 gap-x-md gap-y-2xs text-body-sm">
+              <p className="text-muted-foreground text-body-small">{PIPELINE_TEXT.snapshotComputed}</p>
+              <dl className="mt-2xs grid grid-cols-2 gap-x-md gap-y-2xs text-body-small">
                 {computed.map((c) => (
                   <div key={c.key} className="flex items-baseline justify-between gap-sm">
                     <dt className="text-muted-foreground">{c.label}</dt>

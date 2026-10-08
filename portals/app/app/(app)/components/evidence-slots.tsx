@@ -103,13 +103,13 @@ export function EvidenceSlots({
     <div className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
       {rows.map((row) => (
         <div key={row.slot} className="flex flex-col gap-2xs py-xs">
-          <div className="flex items-start gap-sm text-body-sm">
+          <div className="flex items-start gap-sm text-body-small">
             {marks?.[row.slot] ? <MarkDot mark={marks[row.slot]!} /> : null}
             {hideLabel ? null : <span className="text-foreground w-[5.5rem] flex-none font-bold">{label(row.slot)}</span>}
             <span className={`min-w-0 flex-1 whitespace-pre-wrap ${row.statement ? "text-foreground" : "text-muted-foreground"}`}>
               {row.statement ?? DEAL_PAGE_TEXT.evidenceEmpty}
               {marks?.[row.slot]?.work ? (
-                <span className={`ml-sm text-body-sm ${MARK_INK[marks[row.slot]!.tone]}`}>{marks[row.slot]!.work}</span>
+                <span className={`ml-sm text-body-small ${MARK_INK[marks[row.slot]!.tone]}`}>{marks[row.slot]!.work}</span>
               ) : null}
               {/* AN EMPTY SLOT THAT COSTS NOTHING SAYS SO (owner 2026-09-26:
                   对照客户详情页 - the customer page's 0-point factor still
@@ -118,7 +118,7 @@ export function EvidenceSlots({
                   work - it was a third identical 未写明 with no explanation of
                   why it was not asking for anything. */}
               {!row.statement && marks?.[row.slot]?.tone === "good" ? (
-                <span className="text-muted-foreground ml-sm text-body-sm">{DEAL_PAGE_TEXT.evidenceNoPenalty}</span>
+                <span className="text-muted-foreground ml-sm text-body-small">{DEAL_PAGE_TEXT.evidenceNoPenalty}</span>
               ) : null}
             </span>
             {!compact && row.statement ? <SlotMarks row={row} /> : null}
@@ -136,14 +136,14 @@ export function EvidenceSlots({
           {row.pending ? <div className={compact ? "" : indent}>{row.pending}</div> : null}
           {row.history.length > 0 ? (
             <Collapsible>
-              <CollapsibleTrigger className={`text-muted-foreground hover:text-foreground flex items-center gap-2xs ${indent} text-body-sm`}>
+              <CollapsibleTrigger className={`text-muted-foreground hover:text-foreground flex items-center gap-2xs ${indent} text-body-small`}>
                 <Icon name="chevron-right" size="xs" />
                 {DEAL_PAGE_TEXT.evidenceHistory(row.history.length)}
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <ol className={`mt-2xs flex flex-col gap-2xs ${indent}`}>
                   {row.history.map((h) => (
-                    <li key={h.id} className="text-muted-foreground text-body-sm">
+                    <li key={h.id} className="text-muted-foreground text-body-small">
                       <span className="line-through decoration-muted-foreground/40">{h.statement || DEAL_PAGE_TEXT.evidenceCleared}</span>
                       <span> · {h.meta}</span>
                     </li>
@@ -197,7 +197,7 @@ export function EvidenceSlots({
 function SlotMarks({ row }: { readonly row: EvidenceRow }) {
   const { DEAL_PAGE_TEXT } = useMessages();
   return (
-    <span className="text-muted-foreground flex flex-none flex-wrap items-center gap-xs text-body-sm">
+    <span className="text-muted-foreground flex flex-none flex-wrap items-center gap-xs text-body-small">
       <span title={row.cite ?? undefined}>
         <Tag tone={row.grounded ? "success" : "neutral"}>{row.grounded ? DEAL_PAGE_TEXT.evidenceGrounded : DEAL_PAGE_TEXT.evidenceSaid}</Tag>
       </span>

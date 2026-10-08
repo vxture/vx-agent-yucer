@@ -110,7 +110,7 @@ export function WinLossReasonConfig({
               disabled={disabled}
               onCheckedChange={(c) => set({ ...v, forWon: c === true })}
             />
-            <span className="text-body-sm">{WINLOSS_TEXT.appliesWon}</span>
+            <span className="text-body-small">{WINLOSS_TEXT.appliesWon}</span>
           </label>
           <label className="gap-sm flex items-center">
             <Checkbox
@@ -118,7 +118,7 @@ export function WinLossReasonConfig({
               disabled={disabled}
               onCheckedChange={(c) => set({ ...v, forLost: c === true })}
             />
-            <span className="text-body-sm">{WINLOSS_TEXT.appliesLost}</span>
+            <span className="text-body-small">{WINLOSS_TEXT.appliesLost}</span>
           </label>
           <FieldDescription>{WINLOSS_TEXT.appliesHint}</FieldDescription>
         </Field>

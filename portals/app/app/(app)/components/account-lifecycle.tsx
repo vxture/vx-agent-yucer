@@ -31,7 +31,7 @@ function InsightBox({
   readonly source: "rule" | "model";
 }) {
   return (
-    <div className={`mt-2xs flex items-start gap-xs rounded-lg border p-xs text-body-sm ${INSIGHT_TONE[tone]}`}>
+    <div className={`mt-2xs flex items-start gap-xs rounded-lg border p-xs text-body-small ${INSIGHT_TONE[tone]}`}>
       <Icon name="warning" size="xs" className="mt-3xs shrink-0" />
       <span className="min-w-0 flex-1">{claim}</span>
       <SourceMark source={source} />
@@ -120,7 +120,7 @@ export function DealLifecyclePanel({
   const { setActiveId } = useChainView();
 
   if (deals.length === 0) {
-    return <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.rosterNoDeals}</p>;
+    return <p className="text-muted-foreground text-body-small">{ACCOUNT_TEXT.rosterNoDeals}</p>;
   }
 
   return (
@@ -138,20 +138,20 @@ export function DealLifecyclePanel({
           <div className="flex flex-col gap-2xs rounded-[10px] border border-border bg-card p-xs">
             <div className="flex items-start justify-between gap-sm">
               <div className="flex min-w-0 flex-col gap-2xs">
-                <Link href={`/pipeline/${d.id}`} className="text-foreground min-w-0 truncate text-body-sm font-bold hover:text-primary">
+                <Link href={`/pipeline/${d.id}`} className="text-foreground min-w-0 truncate text-body-small font-bold hover:text-primary">
                   {d.name}
                 </Link>
                 <span className="text-muted-foreground text-[11px]">
                   {[d.opportunityNo, d.stageLabel, d.ownerName ? ACCOUNT_TEXT.headerOwner(d.ownerName) : null].filter(Boolean).join(" · ")}
                 </span>
               </div>
-              <span className="text-foreground shrink-0 text-body-sm font-extrabold tabular-nums whitespace-nowrap">
+              <span className="text-foreground shrink-0 text-body-small font-extrabold tabular-nums whitespace-nowrap">
                 {d.amount != null ? formatMoney(d.amount, d.currency, locale) : "-"}
               </span>
             </div>
             {d.stagePosition ? <StageTrack index={d.stagePosition.index} total={d.stagePosition.total} /> : null}
             {d.daysInStage != null ? (
-              <span className={`text-body-sm ${d.insight?.tone === "danger" ? "font-bold text-destructive" : "text-muted-foreground"}`}>
+              <span className={`text-body-small ${d.insight?.tone === "danger" ? "font-bold text-destructive" : "text-muted-foreground"}`}>
                 {ACCOUNT_TEXT.lifecycleStalledDays(d.daysInStage)}
               </span>
             ) : null}
@@ -207,20 +207,20 @@ export function ProjectLifecyclePanel({
       action={<Tag tone={healthTone}>{healthLabel}</Tag>}
     >
       {milestones === null ? (
-        <p className="text-destructive-text text-body-sm">{ACCOUNT_TEXT.lifecycleMilestonesFailed}</p>
+        <p className="text-destructive-text text-body-small">{ACCOUNT_TEXT.lifecycleMilestonesFailed}</p>
       ) : milestones.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleNoMilestones}</p>
+        <p className="text-muted-foreground text-body-small">{ACCOUNT_TEXT.lifecycleNoMilestones}</p>
       ) : (
         <PanelList>
           {milestones.map((m) => (
             <PanelItem
               key={m.id}
-              main={<span className="text-foreground text-body-sm">{m.name}</span>}
+              main={<span className="text-foreground text-body-small">{m.name}</span>}
               trail={
                 <span className="flex items-center gap-xs">
                   {m.overdue ? <StatusBadge tone="danger">{m.dueAt}</StatusBadge> : <Tag>{m.dueAt ?? m.statusLabel}</Tag>}
                   {m.amount != null ? (
-                    <span className="text-foreground text-body-sm tabular-nums whitespace-nowrap">
+                    <span className="text-foreground text-body-small tabular-nums whitespace-nowrap">
                       {formatMoney(m.amount, m.currency, locale)}
                     </span>
                   ) : null}
@@ -264,7 +264,7 @@ export function RevenueLifecyclePanel({
   const { ACCOUNT_TEXT, DELIVERY_TEXT } = useMessages();
   const locale = useLocale();
   if (rows.length === 0) {
-    return <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleNoInstalments}</p>;
+    return <p className="text-muted-foreground text-body-small">{ACCOUNT_TEXT.lifecycleNoInstalments}</p>;
   }
   // 逾期笔数与金额 (YC-021 L3: 逾期笔数与金额一致，币种不混加). Summed per
   // currency in minor units, from the same rows the list marks red - so the
@@ -292,7 +292,7 @@ export function RevenueLifecyclePanel({
       {rows.map((r) => (
         <PanelItem
           key={r.id}
-          main={<span className="text-foreground text-body-sm">{r.milestoneName}</span>}
+          main={<span className="text-foreground text-body-small">{r.milestoneName}</span>}
           trail={
             <span className="flex items-center gap-xs">
               {/* The status always, the date beside it - a row with a due date
@@ -301,7 +301,7 @@ export function RevenueLifecyclePanel({
               {r.dueAt ? (
                 r.overdue ? <StatusBadge tone="danger">{r.dueAt}</StatusBadge> : <Tag>{r.dueAt}</Tag>
               ) : null}
-              <span className="text-foreground text-body-sm tabular-nums whitespace-nowrap">
+              <span className="text-foreground text-body-small tabular-nums whitespace-nowrap">
                 {formatMoney(r.amount, r.currency, locale)}
               </span>
             </span>
@@ -323,10 +323,10 @@ export function RevenueLifecyclePanel({
       title={ACCOUNT_TEXT.lifecycleRevenueOverview}
       action={
         <span className="flex items-center gap-xs">
-          <span className="text-foreground text-body-md font-bold tabular-nums">
+          <span className="text-foreground text-body font-bold tabular-nums">
             {formatMoney(outstanding.amount, outstanding.currency, locale)}
           </span>
-          <span className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.rosterOpen}</span>
+          <span className="text-muted-foreground text-body-small">{DELIVERY_TEXT.rosterOpen}</span>
         </span>
       }
     >

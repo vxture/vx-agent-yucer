@@ -64,13 +64,13 @@ export function DealImportanceDrawer({
           <label className="gap-sm flex items-start" key={o.id} htmlFor={`importance-${o.id}`}>
             <RadioGroupItem id={`importance-${o.id}`} value={o.id} disabled={pending} className="mt-2xs" />
             <span className="gap-2xs flex flex-col">
-              <span className="text-body-md font-semibold">
+              <span className="text-body font-semibold">
                 {o.name}
-                <span className="text-muted-foreground ml-xs text-body-sm font-normal">
+                <span className="text-muted-foreground ml-xs text-body-small font-normal">
                   {DEAL_PAGE_TEXT.importancePriority(o.priority)}
                 </span>
               </span>
-              {o.description ? <span className="text-muted-foreground text-body-sm">{o.description}</span> : null}
+              {o.description ? <span className="text-muted-foreground text-body-small">{o.description}</span> : null}
             </span>
           </label>
         ))}

@@ -99,7 +99,7 @@ export function ScoreRing({ score, tone, label, size = DEFAULT_SIZE }: ScoreRing
           label-sm clear the 26px inner diameter, and putting them outside
           would cost the rail its fixed width. */}
       <span
-        className={`absolute inset-0 flex items-center justify-center text-label-sm tabular-nums ${
+        className={`absolute inset-0 flex items-center justify-center text-label-small tabular-nums ${
           score === null ? "text-muted-foreground" : arc
         }`}
         aria-hidden="true"

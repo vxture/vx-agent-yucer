@@ -79,11 +79,11 @@ export function LeadForm({
                   unmatched lead has no region, so 智能分配 cannot place it,
                   and it cannot convert. Both are fixable later from the row's
                   own 匹配客户. */}
-              <p className="text-muted-foreground text-body-sm">{LEAD_TEXT.formAccountWhy}</p>
+              <p className="text-muted-foreground text-body-small">{LEAD_TEXT.formAccountWhy}</p>
             </Field>
             </FormFields>
 
-            <p className="text-muted-foreground text-body-sm">{LEAD_TEXT.formOwnerNote}</p>
+            <p className="text-muted-foreground text-body-small">{LEAD_TEXT.formOwnerNote}</p>
 
             <div className="flex items-center gap-md">
               <Button

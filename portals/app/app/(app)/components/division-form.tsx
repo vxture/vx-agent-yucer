@@ -489,7 +489,7 @@ export function DivisionForm({
           {presetPool.map((p) => (
             <label className="gap-sm flex items-center" key={`${p.key}:${p.code}`} htmlFor={`preset-${p.key}-${p.code}`}>
               <RadioGroupItem id={`preset-${p.key}-${p.code}`} value={`${p.key}:${p.code}`} />
-              <span className="text-body-md">{PLANNING_TEXT.presetOption(p.from, p.name)}</span>
+              <span className="text-body">{PLANNING_TEXT.presetOption(p.from, p.name)}</span>
             </label>
           ))}
         </RadioGroup>
@@ -504,7 +504,7 @@ export function DivisionForm({
         closeLabel={PLANNING_TEXT.divisionPickDone}
         footer={
           <div className="gap-sm flex items-center justify-between">
-            <span className="text-muted-foreground text-body-sm">
+            <span className="text-muted-foreground text-body-small">
               {PLANNING_TEXT.divisionChosen(chosenList.length, noun)}
             </span>
             <div className="gap-sm flex items-center">
@@ -527,7 +527,7 @@ export function DivisionForm({
             onChange={(e) => setQuery(e.target.value)}
           />
           {matches.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">
+            <p className="text-muted-foreground text-body-small">
               {PLANNING_TEXT.divisionPickNone(noun)}
             </p>
           ) : null}
@@ -546,11 +546,11 @@ export function DivisionForm({
                   />
                   {/* THE LABEL IS THE TAG: `JS 江苏`, or `西安`. The province's
                       letters lead so the names line up down the list. */}
-                  <span className="text-body-sm grow font-medium">
+                  <span className="text-body-small grow font-medium">
                     {o.label}
                   </span>
                   {/* 后缀: what each standard carve of this frame says about it. */}
-                  <span className="text-muted-foreground text-body-sm shrink-0">
+                  <span className="text-muted-foreground text-body-small shrink-0">
                     {o.hint}
                   </span>
                   {/* Held elsewhere: a warning-toned tag, the DS's own shape

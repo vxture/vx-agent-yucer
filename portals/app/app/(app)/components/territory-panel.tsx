@@ -128,7 +128,7 @@ export function TerritoryPanel({
               header: PLANNING_TEXT.territoryUnits,
               cell: (r: TerritoryRow) =>
                 r.units.length === 0
-                  ? <span className="text-muted-foreground text-body-sm">{PLANNING_TEXT.territoryNoUnit}</span>
+                  ? <span className="text-muted-foreground text-body-small">{PLANNING_TEXT.territoryNoUnit}</span>
                   : r.units.join(" / "),
             },
             {

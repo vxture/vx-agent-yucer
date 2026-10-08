@@ -434,14 +434,14 @@ function Row({
                 {SIGNAL_TEXT.unmatchedAccount}
               </StatusBadge>
             ) : null}
-            <p className="text-foreground min-w-0 flex-1 truncate text-body-md">
+            <p className="text-foreground min-w-0 flex-1 truncate text-body">
               {r.subject}
             </p>
           </span>
           {/* shrink-0: when the row runs out of width the SUBJECT gives way,
               not the numbers. A truncated sentence still reads; a truncated
               measurement is a wrong one. */}
-          <span className="text-muted-foreground shrink-0 text-body-sm tabular-nums">
+          <span className="text-muted-foreground shrink-0 text-body-small tabular-nums">
             {readings(s, SIGNAL_TEXT, locale).join(" \u00b7 ")}
           </span>
         </div>
@@ -460,7 +460,7 @@ function Row({
             aliasing Tailwind's name, so the variable is empty and the width
             collapsed to 40px - eight characters wrapped over three lines. */}
         <p
-          className={`max-w-(--vx-container-2xl) text-body-sm ${
+          className={`max-w-(--vx-container-2xl) text-body-small ${
             brief === null
               ? "text-muted-foreground/70 italic"
               : "text-muted-foreground"
@@ -477,7 +477,7 @@ function Row({
             Aligning to the top makes the three sections sit on one rhythm,
             which is what a reader is actually judging. */}
         <div className="flex min-w-0 items-start justify-between gap-md">
-          <p className="text-muted-foreground min-w-0 truncate text-body-sm">
+          <p className="text-muted-foreground min-w-0 truncate text-body-small">
             {SIGNAL_TEXT.detectedOn(
               r.detectedAt.toISOString().slice(0, 10),
               // Where it came from, READABLE (polish, 2026-09-24): the raw ref
@@ -568,10 +568,10 @@ function Row({
                   remark about the method, so putting it under the score column
                   as well would attach it to a number it is not about. */}
               <div className="border-border min-w-0 flex-1 border-l pl-lg">
-                <p className="text-foreground text-label-md">
+                <p className="text-foreground text-label">
                   {SIGNAL_TEXT.scoreMethod}
                 </p>
-                <p className="text-muted-foreground mt-2xs text-body-sm">
+                <p className="text-muted-foreground mt-2xs text-body-small">
                   {SIGNAL_TEXT.scoreExplain(s.baseWeight, s.decay, s.bonus)}
                 </p>
                 <div className="mt-sm grid grid-cols-2 gap-x-lg gap-y-sm">
@@ -607,7 +607,7 @@ function Row({
                 {s.recomputed !== null &&
                 r.score !== null &&
                 Math.abs(s.recomputed - r.score) >= 5 ? (
-                  <p className="border-border mt-sm border-t pt-sm text-body-sm text-(color:--warning-muted-foreground)">
+                  <p className="border-border mt-sm border-t pt-sm text-body-small text-(color:--warning-muted-foreground)">
                     {SIGNAL_TEXT.staleWhy(r.score, s.recomputed)}
                   </p>
                 ) : null}

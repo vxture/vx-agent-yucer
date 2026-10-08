@@ -309,8 +309,8 @@ function Engagement({
               <b
                 className={[
                   /^[0-9]/.test(f.value)
-                    ? "text-label-lg tabular-nums"
-                    : "text-body-sm",
+                    ? "text-label tabular-nums"
+                    : "text-body-small",
                   f.tone === "danger"
                     ? TONE_INK.danger
                     : f.tone === "warning"
@@ -322,7 +322,7 @@ function Engagement({
               >
                 {f.value}
               </b>
-              <span className="text-muted-foreground text-body-sm">{f.label}</span>
+              <span className="text-muted-foreground text-body-small">{f.label}</span>
             </span>
           ))}
 
@@ -373,7 +373,7 @@ function Engagement({
 
             {j.series && j.series.length > 1 ? (
               <section className="bg-muted/40 border-border rounded-md border p-sm">
-                <SectionHeader level={4} title={HOME_TEXT.secSeries} />
+                <SectionHeader level={3} title={HOME_TEXT.secSeries} />
                 {/* A series compares a quantity against its OWN past, so the bars
                   share one baseline and the latest is the emphasised one. In
                   the metric row these six weeks read as six unrelated numbers. */}
@@ -387,7 +387,7 @@ function Engagement({
                       >
                         <span
                           className={[
-                            "text-body-sm tabular-nums",
+                            "text-body-small tabular-nums",
                             last
                               ? "text-foreground font-semibold"
                               : "text-muted-foreground",
@@ -402,7 +402,7 @@ function Engagement({
                           ].join(" ")}
                           style={{ height: `${Math.max(4, pt.percent)}px` }}
                         />
-                        <span className="text-muted-foreground text-body-sm tabular-nums">
+                        <span className="text-muted-foreground text-body-small tabular-nums">
                           {pt.label}
                         </span>
                       </div>
@@ -414,11 +414,11 @@ function Engagement({
 
             {j.rule ? (
               <section className="bg-muted/40 border-border rounded-md border p-sm">
-                <SectionHeader level={4} title={HOME_TEXT.secRule} />
+                <SectionHeader level={3} title={HOME_TEXT.secRule} />
                 {/* Shown so a reader can disagree with the arithmetic rather than
                   with the conclusion. A rule that hides its condition is an
                   opinion wearing a formula's clothes. */}
-                <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-body-sm">
+                <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-body-small">
                   {j.rule}
                 </code>
               </section>

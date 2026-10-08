@@ -284,7 +284,7 @@ export function StageControl({
           {exitReasonOwed ? (
             <div className="flex flex-col gap-2xs">
               <StatusBadge tone="warning">{OPPORTUNITY_TEXT.advanceExitUnmet(exitUnmet.length)}</StatusBadge>
-              <ul className="text-muted-foreground list-disc pl-lg text-body-sm">
+              <ul className="text-muted-foreground list-disc pl-lg text-body-small">
                 {exitUnmet.map((n) => (
                   <li key={n}>{n}</li>
                 ))}

@@ -82,11 +82,11 @@ export function MeetingBriefButton({ accountId, contacts, onBuild }: MeetingBrie
           </div>
         }
       >
-        {error ? <p className="text-destructive-text text-body-sm mb-sm">{error}</p> : null}
+        {error ? <p className="text-destructive-text text-body-small mb-sm">{error}</p> : null}
         {brief ? (
           <BriefBody brief={brief} />
         ) : contacts.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{MEETING_TEXT.noContacts}</p>
+          <p className="text-muted-foreground text-body-small">{MEETING_TEXT.noContacts}</p>
         ) : (
           <div className="flex flex-col gap-2xs">
             {contacts.map((c) => (
@@ -101,8 +101,8 @@ export function MeetingBriefButton({ accountId, contacts, onBuild }: MeetingBrie
                   onCheckedChange={() => toggle(c.id)}
                   disabled={pending}
                 />
-                <span className="text-body-sm grow font-medium">{c.name}</span>
-                {c.title ? <span className="text-muted-foreground text-body-sm">{c.title}</span> : null}
+                <span className="text-body-small grow font-medium">{c.name}</span>
+                {c.title ? <span className="text-muted-foreground text-body-small">{c.title}</span> : null}
               </label>
             ))}
           </div>
@@ -125,7 +125,7 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
 
   // Refused and failed are two different sentences, and neither is "none".
   const unavailable = (state: "refused" | "failed") => (
-    <p className={state === "failed" ? "text-destructive-text text-body-sm" : "text-muted-foreground text-body-sm"}>
+    <p className={state === "failed" ? "text-destructive-text text-body-small" : "text-muted-foreground text-body-small"}>
       {state === "failed" ? MEETING_TEXT.partFailed : MEETING_TEXT.partRefused}
     </p>
   );
@@ -133,9 +133,9 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
   return (
     <div className="flex flex-col gap-lg">
       <section className="flex flex-col gap-2xs">
-        <SectionHeader level={4} title={MEETING_TEXT.attendees} />
+        <SectionHeader level={3} title={MEETING_TEXT.attendees} />
         {brief.attendees.map((a) => (
-          <div key={a.contactId} className="text-body-sm">
+          <div key={a.contactId} className="text-body-small">
             <span className="font-medium">{a.name}</span>
             {a.title ? <span className="text-muted-foreground"> · {a.title}</span> : null}
             {a.roles.length === 0 ? (
@@ -153,14 +153,14 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
       </section>
 
       <section className="flex flex-col gap-2xs">
-        <SectionHeader level={4} title={MEETING_TEXT.commitments} />
+        <SectionHeader level={3} title={MEETING_TEXT.commitments} />
         {brief.commitments.state !== "ok" ? (
           unavailable(brief.commitments.state)
         ) : brief.commitments.items.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{MEETING_TEXT.commitmentsNone}</p>
+          <p className="text-muted-foreground text-body-small">{MEETING_TEXT.commitmentsNone}</p>
         ) : (
           brief.commitments.items.map((c) => (
-            <p key={c.id} className="text-body-sm">
+            <p key={c.id} className="text-body-small">
               <StatusBadge tone={c.urgency === "soon" ? "warning" : "danger"}>
                 {c.urgency === "missed"
                   ? MEETING_TEXT.missed
@@ -175,14 +175,14 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
       </section>
 
       <section className="flex flex-col gap-2xs">
-        <SectionHeader level={4} title={MEETING_TEXT.money} />
+        <SectionHeader level={3} title={MEETING_TEXT.money} />
         {brief.money.state !== "ok" ? (
           unavailable(brief.money.state)
         ) : brief.money.items.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{MEETING_TEXT.moneyNone}</p>
+          <p className="text-muted-foreground text-body-small">{MEETING_TEXT.moneyNone}</p>
         ) : (
           brief.money.items.map((i) => (
-            <p key={i.id} className="text-body-sm flex items-center gap-xs">
+            <p key={i.id} className="text-body-small flex items-center gap-xs">
               <StatusBadge tone={i.overdue ? "danger" : "warning"}>
                 {i.overdue ? MEETING_TEXT.moneyOverdue : MEETING_TEXT.dueIn(i.daysToDue ?? 0)}
               </StatusBadge>
@@ -194,13 +194,13 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
       </section>
 
       <section className="flex flex-col gap-2xs">
-        <SectionHeader level={4} title={MEETING_TEXT.conclusion} />
+        <SectionHeader level={3} title={MEETING_TEXT.conclusion} />
         {brief.conclusion.state !== "ok" ? (
           unavailable(brief.conclusion.state)
         ) : (
           <>
             {brief.conclusion.health ? (
-              <p className="text-body-sm">
+              <p className="text-body-small">
                 {MEETING_TEXT.health(brief.conclusion.health.score)}
                 {brief.conclusion.health.concernCode
                   ? ` · ${healthReasonText({
@@ -211,13 +211,13 @@ function BriefBody({ brief }: { readonly brief: SerializedBrief }) {
                   : ""}
               </p>
             ) : (
-              <p className="text-muted-foreground text-body-sm">{MEETING_TEXT.healthUnavailable}</p>
+              <p className="text-muted-foreground text-body-small">{MEETING_TEXT.healthUnavailable}</p>
             )}
             {brief.conclusion.items.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{MEETING_TEXT.proposalsNone}</p>
+              <p className="text-muted-foreground text-body-small">{MEETING_TEXT.proposalsNone}</p>
             ) : (
               brief.conclusion.items.map((p) => (
-                <p key={p.id} className="text-body-sm">
+                <p key={p.id} className="text-body-small">
                   <span className="font-medium">{AGENT_ACTION_LABEL[p.title] ?? p.title}</span>
                   {p.rationale ? <span className="text-muted-foreground"> · {p.rationale}</span> : null}
                 </p>

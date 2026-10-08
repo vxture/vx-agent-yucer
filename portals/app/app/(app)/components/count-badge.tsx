@@ -9,7 +9,7 @@ import { cn } from "@vxture/design-ui";
 // and 颜色没有警示效果.
 //
 // The size fault was structural rather than cosmetic. `Badge` is fixed at
-// `h-control-2xs` with `px-sm`, so a SINGLE DIGIT rendered 30x20 - very nearly
+// a 20px control height with `px-sm`, so a SINGLE DIGIT rendered 30x20 - very nearly
 // as wide as the 32px button it hangs on, which is why it read as a second
 // control rather than as a mark on the first.
 //
@@ -63,7 +63,7 @@ export function CountBadge({ count, className }: CountBadgeProps) {
         // bubble is a pale dot that reads as decoration.
         "bg-destructive text-destructive-foreground",
         // 10px, semibold, tabular. Below the DS's smallest label step on
-        // purpose - `text-label-sm` is 12px and does not fit a 16px bubble that
+        // purpose - `text-label-small` is 12px and does not fit a 16px bubble that
         // also carries padding. Tabular figures stop "11" and "48" rendering at
         // different widths and making the badge twitch as the count moves.
         "text-[0.625rem] font-semibold leading-none tabular-nums",

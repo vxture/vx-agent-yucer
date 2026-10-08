@@ -86,7 +86,7 @@ export function CompetitorConfig({
             header: COMPETITOR_TEXT.colAliases,
             cell: (r) =>
               r.aliases.length > 0 ? (
-                <span className="text-body-sm">{r.aliases.join(" / ")}</span>
+                <span className="text-body-small">{r.aliases.join(" / ")}</span>
               ) : (
                 <span className="text-muted-foreground">-</span>
               ),

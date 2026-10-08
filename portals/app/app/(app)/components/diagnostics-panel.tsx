@@ -54,10 +54,10 @@ function ProbeCard({ title, probe }: { readonly title: string; readonly probe: P
   return (
     <Card className="p-md">
       <div className="flex items-start justify-between gap-sm">
-        <p className="text-body-sm font-medium">{title}</p>
+        <p className="text-body-small font-medium">{title}</p>
         <Tag tone={tone}>{label}</Tag>
       </div>
-      <p className="text-muted-foreground mt-xs text-body-sm break-words whitespace-pre-line">{probe.detail}</p>
+      <p className="text-muted-foreground mt-xs text-body-small break-words whitespace-pre-line">{probe.detail}</p>
     </Card>
   );
 }
@@ -103,10 +103,10 @@ function SpendingProbeCard({
     <Card className="border-dashed p-md">
       <div className="flex flex-wrap items-start justify-between gap-md">
         <div className="min-w-0 flex-1">
-          <p className="text-body-sm font-medium">{title}</p>
-          <p className="text-muted-foreground mt-2xs max-w-prose text-body-sm">{hint}</p>
+          <p className="text-body-small font-medium">{title}</p>
+          <p className="text-muted-foreground mt-2xs max-w-prose text-body-small">{hint}</p>
           <p
-            className={`mt-sm text-body-sm break-words whitespace-pre-line ${result ? TONE_INK[result.probeOk ? "success" : "danger"] : "text-muted-foreground"}`}
+            className={`mt-sm text-body-small break-words whitespace-pre-line ${result ? TONE_INK[result.probeOk ? "success" : "danger"] : "text-muted-foreground"}`}
           >
             {result ? result.detail : currentDetail}
           </p>
@@ -184,7 +184,7 @@ export function DiagnosticsPanel({
   return (
     <div className="flex flex-col gap-lg">
       <div className="flex items-center justify-between gap-md">
-        <p className="text-muted-foreground text-body-sm">{DIAGNOSTICS_TEXT.probedAt(check.time)}</p>
+        <p className="text-muted-foreground text-body-small">{DIAGNOSTICS_TEXT.probedAt(check.time)}</p>
         <Button variant="secondary" size="sm" disabled={refreshing} onClick={handleRefresh}>
           {DIAGNOSTICS_TEXT.refresh}
         </Button>
@@ -196,7 +196,7 @@ export function DiagnosticsPanel({
         title={DIAGNOSTICS_TEXT.sectionPlatform}
         description={DIAGNOSTICS_TEXT.sectionPlatformHint}
       >
-        <p className="text-muted-foreground mb-sm text-body-sm">{DIAGNOSTICS_TEXT.readOnlyNote}</p>
+        <p className="text-muted-foreground mb-sm text-body-small">{DIAGNOSTICS_TEXT.readOnlyNote}</p>
         <div className="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-3">
           <ProbeCard title={DIAGNOSTICS_TEXT.probe.c1} probe={check.c1} />
           <ProbeCard title={DIAGNOSTICS_TEXT.probe.tokenMint} probe={check.tokenMint} />

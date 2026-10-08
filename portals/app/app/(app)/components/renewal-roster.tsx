@@ -122,7 +122,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
 
   const endsCell = (r: RenewalRow) =>
     r.daysToEnd === null ? (
-      <span className="text-muted-foreground text-body-sm">{RENEWAL_TEXT.noEndDate}</span>
+      <span className="text-muted-foreground text-body-small">{RENEWAL_TEXT.noEndDate}</span>
     ) : r.daysToEnd < 0 ? (
       // A LAPSED TERM IS NOT "-12 days left". Saying it the other way round
       // is what makes it read as the most urgent row rather than the
@@ -132,13 +132,13 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       // content box and spilled into the amount beside it; what carries
       // the urgency is the wording and the red, not the chrome around
       // them, so the chrome is what goes (measured 2026-09-06).
-      <span className="text-destructive-text text-body-sm font-semibold tabular-nums">
+      <span className="text-destructive-text text-body-small font-semibold tabular-nums">
         {/* A contract's date is its NOTICE deadline: past it, the term is
           still running - "lapsed" would say the contract ended. */}
         {r.anchorContractNo ? RENEWAL_TEXT.noticePassed(-r.daysToEnd) : RENEWAL_TEXT.lapsed(-r.daysToEnd)}
       </span>
     ) : (
-      <span className="text-foreground text-body-sm tabular-nums">
+      <span className="text-foreground text-body-small tabular-nums">
         {r.anchorContractNo ? RENEWAL_TEXT.noticeIn(r.daysToEnd) : RENEWAL_TEXT.dueIn(r.daysToEnd)}
       </span>
     );
@@ -166,7 +166,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
           {/* WHERE THE DATE CAME FROM (§9.1). A contract's date is its notice
               deadline, a project's is its end - the same number means two
               different things, so it never appears without its source. */}
-          <span className="text-muted-foreground text-body-sm whitespace-nowrap">
+          <span className="text-muted-foreground text-body-small whitespace-nowrap">
             {r.anchorContractNo ? RENEWAL_TEXT.anchorContract(r.anchorContractNo) : RENEWAL_TEXT.anchorProject}
           </span>
         </span>
@@ -185,7 +185,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       sortable: true,
       align: "money" as const,
       cell: (r: RenewalRow) => (
-        <span className="text-foreground text-body-sm">{formatMoney(r.amount, r.currency)}</span>
+        <span className="text-foreground text-body-small">{formatMoney(r.amount, r.currency)}</span>
       ),
     },
   ];
@@ -213,7 +213,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
     // reading, so the chrome is what goes.
     cell: (r: RenewalRow) => (
       <span
-        className={`text-body-sm ${
+        className={`text-body-small ${
           r.risk === "watch" ? "text-(color:--warning-text) font-semibold" : "text-muted-foreground"
         }`}
       >
@@ -235,7 +235,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
     header: RENEWAL_TEXT.colVerdict,
     cell: (r: RenewalRow) =>
       r.notDueReason ? (
-        <span className="text-muted-foreground text-body-sm">
+        <span className="text-muted-foreground text-body-small">
           {RENEWAL_TEXT.notDue[r.notDueReason] ?? r.notDueReason}
         </span>
       ) : (
@@ -426,7 +426,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
           true,
         )}
         {!canOpen ? (
-          <p className="text-muted-foreground mt-sm text-body-sm">{RENEWAL_TEXT.denied}</p>
+          <p className="text-muted-foreground mt-sm text-body-small">{RENEWAL_TEXT.denied}</p>
         ) : null}
       </Section>
 

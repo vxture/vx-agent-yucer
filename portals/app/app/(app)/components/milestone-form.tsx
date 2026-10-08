@@ -279,7 +279,7 @@ export function MilestoneForm({
                   placeholder={DELIVERY_TEXT.milestoneChangeReasonHint}
                   onChange={(e) => setForm({ ...form, reason: e.target.value })}
                 />
-                <p className="text-muted-foreground text-body-sm">
+                <p className="text-muted-foreground text-body-small">
                   {DELIVERY_TEXT.milestoneChangeWhy}
                 </p>
               </Field>
@@ -287,7 +287,7 @@ export function MilestoneForm({
             </FormFields>
             {/* Said out loud, because it is the reason this form is not
                 bookkeeping: a missed milestone overrides a reported green. */}
-            <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.milestoneAffectsHealth}</p>
+            <p className="text-muted-foreground text-body-small">{DELIVERY_TEXT.milestoneAffectsHealth}</p>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

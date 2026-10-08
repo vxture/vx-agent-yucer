@@ -41,7 +41,7 @@ export function NextActionTrigger({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (pending) return <p className="text-muted-foreground text-body-sm">{T.thinking}</p>;
-  if (error) return <p className="text-muted-foreground text-body-sm">{T.failed(error)}</p>;
+  if (pending) return <p className="text-muted-foreground text-body-small">{T.thinking}</p>;
+  if (error) return <p className="text-muted-foreground text-body-small">{T.failed(error)}</p>;
   return null;
 }

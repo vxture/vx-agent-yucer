@@ -72,12 +72,12 @@ export function RoleMembersDrawer({
               onChange={(e) => setQuery(e.target.value)}
             />
             {filtered.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{ROLE_TEXT.membersSearchEmpty}</p>
+              <p className="text-muted-foreground text-body-small">{ROLE_TEXT.membersSearchEmpty}</p>
             ) : (
               <ul className="gap-2xs flex flex-col">
                 {filtered.map((m) => (
                   <li key={m.sub} className="gap-sm flex items-center justify-between rounded-sm px-2xs py-2xs">
-                    <span className="text-body-sm">{m.name}</span>
+                    <span className="text-body-small">{m.name}</span>
                     <NameOverflowTag names={m.orgUnitNames} empty={ROLE_TEXT.ungrouped} />
                   </li>
                 ))}

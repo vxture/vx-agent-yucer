@@ -32,10 +32,10 @@ export function GateHeading({
 }) {
   return (
     <div className="gap-sm flex flex-col items-center text-center">
-      <h1 className="text-heading-2 text-balance">{title}</h1>
+      <h1 className="text-display-xs text-balance">{title}</h1>
 
       {(badge || description) && (
-        <p className="gap-sm text-body-md text-muted-foreground flex flex-wrap items-center justify-center">
+        <p className="gap-sm text-body text-muted-foreground flex flex-wrap items-center justify-center">
           {badge && (
             <StatusBadge tone="info" icon={badgeIcon}>
               {badge}

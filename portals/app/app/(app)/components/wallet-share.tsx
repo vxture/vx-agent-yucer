@@ -60,18 +60,18 @@ export function DealWalletLine({
         </span>
       </TooltipTrigger>
       <TooltipContent>
-        <div className="text-body-sm">
+        <div className="text-body-small">
           {WALLET_TEXT.dealDetail(
             WALLET_TEXT.basis[share.basis],
             formatMoneyCompact(share.ours, currency, locale),
             formatMoneyCompact(share.budget, currency, locale),
           )}
         </div>
-        <div className="text-body-sm opacity-80">
+        <div className="text-body-small opacity-80">
           {RISK_TEXT.source.manual}
           {byName && at ? ` · ${WALLET_TEXT.by(byName, at)}` : ""}
         </div>
-        {share.exceeds ? <div className="text-body-sm">{WALLET_TEXT.exceeds}</div> : null}
+        {share.exceeds ? <div className="text-body-small">{WALLET_TEXT.exceeds}</div> : null}
       </TooltipContent>
     </Tooltip>
   );
@@ -81,7 +81,7 @@ function RollupRow({ label, line }: { readonly label: string; readonly line: Wal
   const { WALLET_TEXT } = useMessages();
   const locale = useLocale();
   return (
-    <div className="flex items-center justify-between gap-sm text-body-sm">
+    <div className="flex items-center justify-between gap-sm text-body-small">
       <span className="text-foreground flex min-w-0 items-center gap-sm">
         <span className="truncate">{label}</span>
         <ManualTag />
@@ -104,7 +104,7 @@ export function WalletRollupBlock({ rollup }: { readonly rollup: WalletRollup })
   const known = rollup.committed.length + rollup.quoted.length > 0;
   return (
     <div className="flex flex-col gap-xs">
-      <span className="text-muted-foreground text-label-sm font-bold" title={WALLET_TEXT.hint}>
+      <span className="text-muted-foreground text-label-small font-bold" title={WALLET_TEXT.hint}>
         {WALLET_TEXT.title}
       </span>
       {rollup.committed.map((l) => (

@@ -352,7 +352,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
           if (r.kind === "unit" && r.unplaced) return null;
           const list = r.territories;
           return list.length === 0 ? (
-            <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.orgTerritoriesNone}</span>
+            <span className="text-muted-foreground text-body-small">{MEMBER_TEXT.orgTerritoriesNone}</span>
           ) : (
             <span className="gap-2xs flex flex-wrap">
               {list.map((t) => <Tag key={t}>{t}</Tag>)}
@@ -365,7 +365,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
         id: "scope",
         header: MEMBER_TEXT.orgColScope,
         cell: (r: OrgViewRow) =>
-          r.kind === "person" ? <span className="text-body-md">{MEMBER_TEXT.scopeLabels[r.scope] ?? r.scope}</span> : null,
+          r.kind === "person" ? <span className="text-body">{MEMBER_TEXT.scopeLabels[r.scope] ?? r.scope}</span> : null,
       },
       {
         /* THE ROLES (point 4), on the person rows. */
@@ -404,7 +404,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
       <div className="gap-sm flex items-center justify-between">
         <div className="gap-sm flex items-center">
           <MemberViewSwitch value={viewValue} onChange={onViewChange} ariaLabel={MEMBER_TEXT.viewAria} labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }} />
-          <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.orgExpandTo}</span>
+          <span className="text-muted-foreground text-body-small">{MEMBER_TEXT.orgExpandTo}</span>
           <ButtonGroup>
             {levels.map((lvl) => (
               <Button key={lvl} variant="secondary" size="sm" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
@@ -475,7 +475,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
       {inactive.length > 0 ? (
         <Collapsible open={showInactive} onOpenChange={setShowInactive}>
           <Section
-            level={4}
+            level={3}
             title={MEMBER_TEXT.orgInactiveTitle(inactive.length)}
             description={MEMBER_TEXT.orgInactiveWhy}
             action={
@@ -548,13 +548,13 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             </Field>
           ) : null}
           {candidates.length === 0 ? (
-            <p className="text-muted-foreground text-body-md">{MEMBER_TEXT.orgAddNone}</p>
+            <p className="text-muted-foreground text-body">{MEMBER_TEXT.orgAddNone}</p>
           ) : (
             <div className="gap-2xs md:grid-cols-2 grid grid-cols-1">
               {candidates.map((m) => (
                 <label className="gap-2xs flex items-center" key={m.sub} htmlFor={`place-${m.sub}`}>
                   <Checkbox id={`place-${m.sub}`} checked={ticked.has(m.sub)} disabled={pending} onCheckedChange={() => tick(m.sub)} />
-                  <span className="text-body-md">{m.name}</span>
+                  <span className="text-body">{m.name}</span>
                 </label>
               ))}
             </div>
@@ -616,13 +616,13 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
               <Field>
                 <FieldLabel>{MEMBER_TEXT.unitField}</FieldLabel>
                 {open_.length === 0 ? (
-                  <p className="text-muted-foreground text-body-md">{MEMBER_TEXT.orgAddToNoUnit}</p>
+                  <p className="text-muted-foreground text-body">{MEMBER_TEXT.orgAddToNoUnit}</p>
                 ) : (
                   <div className="gap-2xs md:grid-cols-2 grid grid-cols-1">
                     {open_.map((u) => (
                       <label className="gap-2xs flex items-center" key={u.id} htmlFor={`addto-${u.id}`}>
                         <Checkbox id={`addto-${u.id}`} checked={ticked.has(u.id)} disabled={pending} onCheckedChange={() => tick(u.id)} />
-                        <span className="text-body-md whitespace-pre">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
+                        <span className="text-body whitespace-pre">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
                       </label>
                     ))}
                   </div>
@@ -634,7 +634,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
                   {roleOptions.filter((x) => !held.has(x.code)).map((x) => (
                     <label className="gap-2xs flex items-center" key={x.code} htmlFor={`addrole-${x.code}`}>
                       <Checkbox id={`addrole-${x.code}`} checked={tickedRoles.has(x.code)} disabled={pending} onCheckedChange={() => tickRole(x.code)} />
-                      <span className="text-body-md">{x.name}</span>
+                      <span className="text-body">{x.name}</span>
                       {x.admin ? <Tag tone="info">{MEMBER_TEXT.adminBadge}</Tag> : null}
                     </label>
                   ))}

@@ -294,11 +294,11 @@ export function AccountTable({
       // given the second-widest column on the table.
       cell: (row) =>
         row.ownerSub ? (
-          <span className="text-body-sm">
+          <span className="text-body-small">
             <MemberName sub={row.ownerSub} />
           </span>
         ) : (
-          <span className="text-muted-foreground text-body-sm">
+          <span className="text-muted-foreground text-body-small">
             {ACCOUNT_TEXT.ownerNone}
           </span>
         ),

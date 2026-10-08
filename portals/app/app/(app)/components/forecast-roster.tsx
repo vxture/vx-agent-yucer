@@ -139,7 +139,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
       cell: (r: ForecastRow) =>
         r.suggested === null || r.agrees ? (
           // Saying "agrees" beats repeating the badge already one column left.
-          <span className="text-muted-foreground text-body-sm">{FORECAST_RULE_TEXT.agrees}</span>
+          <span className="text-muted-foreground text-body-small">{FORECAST_RULE_TEXT.agrees}</span>
         ) : (
           <span className="flex flex-col items-center gap-3xs">
             <Tag tone={FORECAST_TONE[r.suggested]}>
@@ -150,7 +150,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
                 filing less sure hides work that is going well. They are
                 different problems and the badge alone does not tell them
                 apart. */}
-            <span className="text-muted-foreground text-body-sm">
+            <span className="text-muted-foreground text-body-small">
               {moreOptimistic(r.filed, r.suggested)
                 ? FORECAST_RULE_TEXT.filedOptimistic
                 : FORECAST_RULE_TEXT.filedConservative}
@@ -163,13 +163,13 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
       header: FORECAST_RULE_TEXT.colBasis,
       cell: (r: ForecastRow) => (
         <span className="flex flex-col items-center gap-3xs">
-          <span className="text-muted-foreground text-body-sm">
+          <span className="text-muted-foreground text-body-small">
             {r.probabilityIsHuman
               ? FORECAST_RULE_TEXT.basisHuman(r.probability)
               : FORECAST_RULE_TEXT.basisDefault(r.probability)}
           </span>
           {r.caps.map((c) => (
-            <span key={c} className="text-muted-foreground text-body-sm">
+            <span key={c} className="text-muted-foreground text-body-small">
               {FORECAST_RULE_TEXT.cap[c] ?? c}
             </span>
           ))}
@@ -184,11 +184,11 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
           // UNKNOWN, not zero. A deal older than the journal has no history,
           // and printing "0 days" would read as "it just moved" about
           // something nobody knows.
-          <span className="text-muted-foreground text-body-sm">
+          <span className="text-muted-foreground text-body-small">
             {FORECAST_RULE_TEXT.neverMoved}
           </span>
         ) : (
-          <span className="text-muted-foreground tabular-nums text-body-sm">
+          <span className="text-muted-foreground tabular-nums text-body-small">
             {FORECAST_RULE_TEXT.stalledFor(r.daysAtStage)}
           </span>
         ),
@@ -321,7 +321,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
           ),
         )}
         {!canApply ? (
-          <p className="text-muted-foreground mt-sm text-body-sm">{FORECAST_RULE_TEXT.denied}</p>
+          <p className="text-muted-foreground mt-sm text-body-small">{FORECAST_RULE_TEXT.denied}</p>
         ) : null}
       </Section>
 

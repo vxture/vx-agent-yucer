@@ -61,9 +61,9 @@ export function DeliveryAnalysis({
 
   const chart = (data: readonly { key: string; label: string; value: number }[], why: string) => (
     <Card className="flex flex-col gap-sm p-lg">
-      <span className="text-muted-foreground text-body-sm">{why}</span>
+      <span className="text-muted-foreground text-body-small">{why}</span>
       {data.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.analysisEmpty}</p>
+        <p className="text-muted-foreground text-body-small">{DELIVERY_TEXT.analysisEmpty}</p>
       ) : (
         <BarChart data={[...data]} formatValue={money} peakLabel={DELIVERY_TEXT.chartPeak} />
       )}
@@ -92,15 +92,15 @@ export function DeliveryAnalysis({
           content: (
             <Card className="flex flex-col gap-sm p-lg">
               <div className="flex items-baseline justify-between gap-sm">
-                <span className="text-muted-foreground text-body-sm">
+                <span className="text-muted-foreground text-body-small">
                   {DELIVERY_TEXT.byProjectWhyDelivery}
                 </span>
-                <span className="text-muted-foreground tabular-nums text-body-sm">
+                <span className="text-muted-foreground tabular-nums text-body-small">
                   {DELIVERY_TEXT.contractTotal(money(stats.contractTotal), currency)}
                 </span>
               </div>
               {byProject.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">
+                <p className="text-muted-foreground text-body-small">
                   {DELIVERY_TEXT.analysisEmpty}
                 </p>
               ) : (

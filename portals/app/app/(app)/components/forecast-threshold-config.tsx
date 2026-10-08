@@ -100,19 +100,19 @@ export function ForecastThresholdConfig({
                   <>
                     <div
                       style={{ width: `${parsed.bestCaseAt}%` }}
-                      className={`border-border text-label-sm flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${FORECAST_BAND_TONES[0]}`}
+                      className={`border-border text-label-small flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${FORECAST_BAND_TONES[0]}`}
                     >
                       {FORECAST_LABEL.pipeline}
                     </div>
                     <div
                       style={{ width: `${parsed.commitAt - parsed.bestCaseAt}%` }}
-                      className={`border-border text-label-sm flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${FORECAST_BAND_TONES[1]}`}
+                      className={`border-border text-label-small flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${FORECAST_BAND_TONES[1]}`}
                     >
                       {FORECAST_LABEL.best_case}
                     </div>
                     <div
                       style={{ width: `${100 - parsed.commitAt}%` }}
-                      className={`text-label-sm flex shrink-0 items-center justify-center overflow-hidden px-2xs whitespace-nowrap ${FORECAST_BAND_TONES[2]}`}
+                      className={`text-label-small flex shrink-0 items-center justify-center overflow-hidden px-2xs whitespace-nowrap ${FORECAST_BAND_TONES[2]}`}
                     >
                       {FORECAST_LABEL.commit}
                     </div>
@@ -169,7 +169,7 @@ export function ForecastThresholdConfig({
                 aria-invalid={!(Number.isInteger(parsed.stallDays) && parsed.stallDays >= 1 && parsed.stallDays <= 365)}
                 onChange={(e) => onFormChange((f) => ({ ...f, stallDays: e.target.value }))}
               />
-              <span className="text-body-sm text-muted-foreground">{FORECAST_PARAM_TEXT.days}</span>
+              <span className="text-body-small text-muted-foreground">{FORECAST_PARAM_TEXT.days}</span>
             </div>
             <FieldDescription>{FORECAST_PARAM_TEXT.stallHint}</FieldDescription>
           </Field>

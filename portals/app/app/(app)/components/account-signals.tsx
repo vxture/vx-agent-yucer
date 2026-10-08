@@ -72,10 +72,10 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
           <div key={r.id} className="border-border bg-card/60 flex min-w-0 flex-col gap-xs rounded-md border p-sm">
             <div className="flex items-center justify-between gap-xs">
               <Tag>{r.typeLabel}</Tag>
-              <span className="text-muted-foreground text-body-sm tabular-nums">{SIGNAL_PANEL_TEXT.when(r.daysAgo)}</span>
+              <span className="text-muted-foreground text-body-small tabular-nums">{SIGNAL_PANEL_TEXT.when(r.daysAgo)}</span>
             </div>
-            <TruncatedText text={r.subject} className="text-foreground line-clamp-2 text-body-sm font-medium" />
-            <div className="text-muted-foreground mt-auto flex flex-wrap items-center justify-between gap-x-sm gap-y-2xs text-body-sm">
+            <TruncatedText text={r.subject} className="text-foreground line-clamp-2 text-body-small font-medium" />
+            <div className="text-muted-foreground mt-auto flex flex-wrap items-center justify-between gap-x-sm gap-y-2xs text-body-small">
               <TruncatedText text={SIGNAL_PANEL_TEXT.source(sourceName(r.source))} className="min-w-0 truncate" />
               <span className="flex items-center gap-sm">
                 {r.href ? (

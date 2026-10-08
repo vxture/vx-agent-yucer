@@ -53,7 +53,7 @@ export function JudgementNote({
         <span className="shrink-0">
           <SourceMark source={judgement.source} />
         </span>
-        <span className={`min-w-0 flex-1 text-body-sm font-medium ${open ? "" : "truncate"}`}>{judgement.claim}</span>
+        <span className={`min-w-0 flex-1 text-body-small font-medium ${open ? "" : "truncate"}`}>{judgement.claim}</span>
         {judgement.freshness?.stale ? (
           <span className="shrink-0">
             <StaleMark freshness={judgement.freshness} />
@@ -63,7 +63,7 @@ export function JudgementNote({
       {actions ? <span className="flex flex-none items-center gap-2xs">{actions}</span> : null}
       </div>
       {open && judgement.rule ? (
-        <p className="text-muted-foreground mt-xs ps-lg text-body-sm">{judgement.rule}</p>
+        <p className="text-muted-foreground mt-xs ps-lg text-body-small">{judgement.rule}</p>
       ) : null}
       {open && citations.length > 0 ? (
         <div className="mt-sm ps-lg">

@@ -79,7 +79,7 @@ export function CatalogStatusConfig({
           id: "description",
           header: CATALOG_TEXT.colStatusDesc,
           width: "lg",
-          cell: (r) => <span className="text-muted-foreground text-body-sm">{r.description ?? ""}</span>,
+          cell: (r) => <span className="text-muted-foreground text-body-small">{r.description ?? ""}</span>,
         },
       ]}
       sortOn={{ linked: (r) => inUse(r.id) }}

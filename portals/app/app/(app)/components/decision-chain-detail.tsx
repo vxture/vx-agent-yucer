@@ -285,7 +285,7 @@ export function DecisionChainDetail({
               find that person. */}
           {coverage.missing.length > 0 ? (
             <div className="gap-xs flex flex-wrap items-center">
-              <span className="text-muted-foreground text-body-sm">{CHAIN_TEXT.missing}</span>
+              <span className="text-muted-foreground text-body-small">{CHAIN_TEXT.missing}</span>
               {coverage.missing.map((role) => (
                 <StatusBadge key={role} tone="warning">
                   {DECISION_ROLE_LABEL[role] ?? role}
@@ -325,12 +325,12 @@ export function DecisionChainDetail({
                           可达 column fell off the card. */}
                       <TableCell className="min-w-[9rem]">
                         <div className="gap-sm flex items-center">
-                          <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
+                          <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
                             {nameOf(p.id).charAt(0)}
                           </span>
                           <div className="min-w-0">
                             <div className="gap-xs flex items-center">
-                              <span className="text-body-sm font-bold whitespace-nowrap">{nameOf(p.id)}</span>
+                              <span className="text-body-small font-bold whitespace-nowrap">{nameOf(p.id)}</span>
                               {/* 关键人异动: someone who left stays visible - the
                                   reachability verdict above has already stopped
                                   counting them, and the row says why. */}
@@ -339,7 +339,7 @@ export function DecisionChainDetail({
                               ) : null}
                             </div>
                             {titleOf(p.id) ? (
-                              <div className="text-muted-foreground text-body-sm whitespace-nowrap">{titleOf(p.id)}</div>
+                              <div className="text-muted-foreground text-body-small whitespace-nowrap">{titleOf(p.id)}</div>
                             ) : null}
                           </div>
                         </div>
@@ -364,7 +364,7 @@ export function DecisionChainDetail({
                               {STANCE_LABEL[p.stance] ?? p.stance}
                             </Tag>
                           ) : (
-                            <span className="text-muted-foreground text-body-sm">—</span>
+                            <span className="text-muted-foreground text-body-small">—</span>
                           )}
                           {tier ? (
                             <Tag tone={TIER_TONE[tier]}>
@@ -377,13 +377,13 @@ export function DecisionChainDetail({
                         {theirRelations.length > 0 ? (
                           <div className="flex flex-col gap-2xs">
                             {theirRelations.map((r, i) => (
-                              <span key={i} className="text-body-sm whitespace-nowrap">
+                              <span key={i} className="text-body-small whitespace-nowrap">
                                 {r.label} {r.toName}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-muted-foreground text-body-sm">—</span>
+                          <span className="text-muted-foreground text-body-small">—</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -405,7 +405,7 @@ export function DecisionChainDetail({
                             </StatusBadge>
                           )
                         ) : (
-                          <span className="text-muted-foreground text-body-sm">—</span>
+                          <span className="text-muted-foreground text-body-small">—</span>
                         )}
                       </TableCell>
                     </TableRow>

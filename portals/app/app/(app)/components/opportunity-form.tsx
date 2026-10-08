@@ -164,7 +164,7 @@ export function OpportunityForm({
                 placeholder={PIPELINE_TEXT.newRequirementHint}
                 onChange={(e) => setRequirement(e.target.value)}
               />
-              <p className="text-muted-foreground text-body-sm">
+              <p className="text-muted-foreground text-body-small">
                 {PIPELINE_TEXT.newRequirementWhy}
               </p>
             </Field>
@@ -185,7 +185,7 @@ export function OpportunityForm({
             </FormFields>
             {/* Frozen the moment the button is pressed: campaign_id has no
                 UPDATE grant, so a deal entered here is self-sourced forever. */}
-            <p className="text-muted-foreground text-body-sm">{PIPELINE_TEXT.newSelfSourced}</p>
+            <p className="text-muted-foreground text-body-small">{PIPELINE_TEXT.newSelfSourced}</p>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

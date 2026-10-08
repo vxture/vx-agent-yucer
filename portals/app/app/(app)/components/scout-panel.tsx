@@ -70,11 +70,11 @@ export function ScoutPanel({
 
   return (
     <Card className="flex flex-col gap-sm p-lg">
-      <span className="text-foreground text-label-lg">{SIGNAL_TEXT.scoutTitle}</span>
+      <span className="text-foreground text-label">{SIGNAL_TEXT.scoutTitle}</span>
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {quiet ? (
-        <p className="text-muted-foreground text-body-sm">{SIGNAL_TEXT.scoutQuiet}</p>
+        <p className="text-muted-foreground text-body-small">{SIGNAL_TEXT.scoutQuiet}</p>
       ) : null}
 
       {dupes.map((d) => (
@@ -82,8 +82,8 @@ export function ScoutPanel({
           key={d.duplicateId}
           className="border-border flex flex-col gap-2xs rounded-md border p-sm"
         >
-          <span className="text-foreground truncate text-body-sm">{d.subject}</span>
-          <span className="text-muted-foreground text-body-sm">
+          <span className="text-foreground truncate text-body-small">{d.subject}</span>
+          <span className="text-muted-foreground text-body-small">
             {SIGNAL_TEXT.scoutDuplicate(d.daysApart)}
           </span>
           {canTriage ? (
@@ -98,8 +98,8 @@ export function ScoutPanel({
 
       {unmatched.map((m) => (
         <div key={m.signalId} className="border-border flex flex-col gap-2xs rounded-md border p-sm">
-          <span className="text-foreground truncate text-body-sm">{m.subject}</span>
-          <span className="text-muted-foreground truncate text-body-sm">
+          <span className="text-foreground truncate text-body-small">{m.subject}</span>
+          <span className="text-muted-foreground truncate text-body-small">
             {SIGNAL_TEXT.scoutMatch(m.accountName)}
           </span>
           {canTriage ? (
@@ -118,12 +118,12 @@ export function ScoutPanel({
 
       {clusters.length > 0 ? (
         <div className="flex flex-col gap-2xs">
-          <span className="text-muted-foreground text-label-sm">{SIGNAL_TEXT.scoutClusters}</span>
+          <span className="text-muted-foreground text-label-small">{SIGNAL_TEXT.scoutClusters}</span>
           {clusters.map((c) => (
             // NO BUTTON. A cluster is not an act - it is the observation that
             // these rows are one story, and what to do about it is exactly the
             // judgement the reader is here to make.
-            <span key={c.key} className="text-muted-foreground text-body-sm">
+            <span key={c.key} className="text-muted-foreground text-body-small">
               {SIGNAL_TEXT.scoutCluster(
                 (c.accountId && accountNames.get(c.accountId)) || c.subject,
                 c.signalIds.length,

@@ -166,7 +166,7 @@ export function RecordFollowUp({
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          <p className="text-muted-foreground text-body-sm">{FIELD_TEXT.recordWhoHint}</p>
+          <p className="text-muted-foreground text-body-small">{FIELD_TEXT.recordWhoHint}</p>
         </>
       ) : null}
 

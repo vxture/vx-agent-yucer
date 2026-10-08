@@ -25,7 +25,7 @@ export function DimensionStat({
       </TooltipTrigger>
       <TooltipContent>
         <div className="text-[0.65rem] font-bold tracking-wide uppercase opacity-70">{label}</div>
-        <div className="text-body-sm">{value}</div>
+        <div className="text-body-small">{value}</div>
       </TooltipContent>
     </Tooltip>
   );
@@ -149,12 +149,12 @@ export function DealsSummaryBadge({
       </TooltipTrigger>
       <TooltipContent>
         <div className="text-[0.65rem] font-bold tracking-wide uppercase opacity-70">{countLabel}</div>
-        <div className="text-body-sm">{count}</div>
+        <div className="text-body-small">{count}</div>
         {amountFullText ? (
           <>
             <div className="text-[0.65rem] font-bold tracking-wide uppercase opacity-70 mt-2xs">{amountLabel}</div>
-            <div className="text-body-sm">{amountFullText}</div>
-            {amountUnitText ? <div className="text-body-sm opacity-80">{amountUnitText}</div> : null}
+            <div className="text-body-small">{amountFullText}</div>
+            {amountUnitText ? <div className="text-body-small opacity-80">{amountUnitText}</div> : null}
           </>
         ) : null}
       </TooltipContent>

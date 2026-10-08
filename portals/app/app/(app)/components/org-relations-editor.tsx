@@ -110,7 +110,7 @@ export function OrgRelationsEditor({
 
   return (
     <div className="flex flex-col gap-sm">
-      <SectionHeader level={4} title={ACCOUNT_PARENT_TEXT.sectionTitle} />
+      <SectionHeader level={3} title={ACCOUNT_PARENT_TEXT.sectionTitle} />
 
       <Field>
         <FieldLabel>{ACCOUNT_PARENT_TEXT.field}</FieldLabel>
@@ -137,12 +137,12 @@ export function OrgRelationsEditor({
       </Field>
 
       <div className="flex flex-col gap-2xs">
-        <span className="text-muted-foreground text-body-sm">
+        <span className="text-muted-foreground text-body-small">
           {ACCOUNT_TEXT.orgUnitChildren(children.length)}
         </span>
         {children.map((c) => (
           <div key={c.id} className="gap-sm border-border flex items-center border-b py-2xs last:border-b-0">
-            <span className="min-w-0 flex-1 truncate text-body-sm">{c.name}</span>
+            <span className="min-w-0 flex-1 truncate text-body-small">{c.name}</span>
             <Button
               variant="ghost"
               size="icon-sm"

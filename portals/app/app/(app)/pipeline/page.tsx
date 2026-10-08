@@ -259,10 +259,10 @@ export default async function PipelinePage({
         awaiting={awaiting}
         headline={
           <div className="min-w-0">
-            <p className="text-heading-2 text-foreground tabular-nums">
+            <p className="text-display-xs text-foreground tabular-nums">
               {PIPELINE_TEXT.lead(BOARD_TEXT.wan(commit))}
             </p>
-            <p className="text-muted-foreground mt-2xs text-body-sm">
+            <p className="text-muted-foreground mt-2xs text-body-small">
               {/* The forecast itself - trajectory, scope, accuracy, the
                   snapshot - is /forecast's (batch 9a); this line leads there. */}
               {points.length < 2

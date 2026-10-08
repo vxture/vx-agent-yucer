@@ -21,7 +21,7 @@ export function CitationList({
   if (citations.length === 0) return null;
   return (
     <section className="bg-muted/40 border-border rounded-md border p-sm">
-      <SectionHeader level={4} title={HOME_TEXT.secEvidenceCount(citations.length)} />
+      <SectionHeader level={3} title={HOME_TEXT.secEvidenceCount(citations.length)} />
       <Stack gap="sm" className="mt-xs">
         {citations.map((c, i) => (
           <blockquote key={i} className="border-primary/40 max-w-[62ch] border-l-2 pl-sm">
@@ -35,7 +35,7 @@ export function CitationList({
               and is marked as one, because a machine string dressed as a
               person is how a UUID ends up in front of someone. */}
             {c.daysAgo !== undefined ? (
-              <cite className="text-muted-foreground flex flex-wrap items-center gap-xs text-body-sm not-italic tabular-nums">
+              <cite className="text-muted-foreground flex flex-wrap items-center gap-xs text-body-small not-italic tabular-nums">
                 <span>
                   {HOME_TEXT.citedBy(
                     c.daysAgo,
@@ -49,7 +49,7 @@ export function CitationList({
                 ) : null}
               </cite>
             ) : null}
-            <p className="text-muted-foreground text-body-sm leading-relaxed">{c.text}</p>
+            <p className="text-muted-foreground text-body-small leading-relaxed">{c.text}</p>
           </blockquote>
         ))}
       </Stack>

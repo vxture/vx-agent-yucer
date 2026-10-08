@@ -65,7 +65,7 @@ export function RenewalPolicyConfig({
                   aria-invalid={invalid}
                   onChange={(e) => onWindowDaysChange(e.target.value)}
                 />
-                <span className="text-body-sm text-muted-foreground">{RENEWAL_POLICY_TEXT.days}</span>
+                <span className="text-body-small text-muted-foreground">{RENEWAL_POLICY_TEXT.days}</span>
               </div>
               <FieldDescription>{RENEWAL_POLICY_TEXT.windowHint}</FieldDescription>
             </Field>

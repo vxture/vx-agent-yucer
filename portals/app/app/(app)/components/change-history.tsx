@@ -72,13 +72,13 @@ export async function ChangeHistory({
   return (
     <div className="flex flex-col">
       {rows.length === 0 ? (
-        <p className="text-muted-foreground mt-xs text-body-sm">{DEAL_PAGE_TEXT.historyEmpty}</p>
+        <p className="text-muted-foreground mt-xs text-body-small">{DEAL_PAGE_TEXT.historyEmpty}</p>
       ) : (
         <ol className="mt-2xs flex flex-col">
           {rows.map((r) => (
             <li
               key={r.id}
-              className="border-border grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
+              className="border-border grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
             >
               <time
                 className="text-muted-foreground font-mono tabular-nums"

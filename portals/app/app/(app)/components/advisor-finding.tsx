@@ -66,7 +66,7 @@ export function AdvisorFinding({
         // line in 栏2's wide column, wrapped under the text in 栏1's narrow one.
         <div
           key={i.id}
-          className="border-primary/40 bg-card flex flex-wrap items-center gap-x-sm gap-y-2xs rounded-md border border-dashed px-sm py-xs text-body-sm"
+          className="border-primary/40 bg-card flex flex-wrap items-center gap-x-sm gap-y-2xs rounded-md border border-dashed px-sm py-xs text-body-small"
         >
           <span className={SOURCE_CHIP_MODEL}>{DEAL_PAGE_TEXT.findingSource}</span>
           <div className="min-w-0 flex-[1_1_200px]">

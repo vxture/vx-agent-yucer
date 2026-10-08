@@ -126,7 +126,7 @@ export function MemberForm({
             <Field>
               <FieldLabel>{MEMBER_TEXT.rolesField}</FieldLabel>
               {roles.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">{MEMBER_TEXT.rolesNone}</p>
+                <p className="text-muted-foreground text-body-small">{MEMBER_TEXT.rolesNone}</p>
               ) : (
                 <div className="gap-2xs md:grid-cols-3 grid grid-cols-2">
                   {roles.map((r) => {
@@ -140,9 +140,9 @@ export function MemberForm({
                           disabled={pending || locked}
                           onCheckedChange={() => toggleRole(r.code)}
                         />
-                        <span className="text-body-sm">{r.name}</span>
+                        <span className="text-body-small">{r.name}</span>
                         {r.admin ? <Tag tone="info">{MEMBER_TEXT.adminBadge}</Tag> : null}
-                        {locked ? <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.lastAdminHint}</span> : null}
+                        {locked ? <span className="text-muted-foreground text-body-small">{MEMBER_TEXT.lastAdminHint}</span> : null}
                       </label>
                     );
                   })}
@@ -161,7 +161,7 @@ export function MemberForm({
                 </Button>
               </div>
               {units.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">{MEMBER_TEXT.unitsNone}</p>
+                <p className="text-muted-foreground text-body-small">{MEMBER_TEXT.unitsNone}</p>
               ) : (
                 /* A set, like the roles: one box per unit, indented to the
                    tree's depth so a team reads under its region. */
@@ -169,7 +169,7 @@ export function MemberForm({
                   {units.map((u) => (
                     <label className="gap-2xs flex items-center" key={u.id} htmlFor={`unit-${u.id}`}>
                       <Checkbox id={`unit-${u.id}`} checked={chosenUnits.has(u.id)} disabled={pending} onCheckedChange={() => toggleUnit(u.id)} />
-                      <span className="text-body-sm whitespace-pre">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
+                      <span className="text-body-small whitespace-pre">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
                     </label>
                   ))}
                 </div>
@@ -195,13 +195,13 @@ export function MemberForm({
               <Field>
                 <FieldLabel>{MEMBER_TEXT.territoriesField}</FieldLabel>
                 {territories.length === 0 ? (
-                  <p className="text-muted-foreground text-body-sm">{MEMBER_TEXT.territoriesNone}</p>
+                  <p className="text-muted-foreground text-body-small">{MEMBER_TEXT.territoriesNone}</p>
                 ) : (
                   <div className="gap-2xs md:grid-cols-3 grid grid-cols-2">
                     {territories.map((t) => (
                       <label className="gap-2xs flex items-center" key={t.id} htmlFor={`terr-${t.id}`}>
                         <Checkbox id={`terr-${t.id}`} checked={terr.has(t.id)} disabled={pending} onCheckedChange={() => toggleTerr(t.id)} />
-                        <span className="text-body-sm">{t.name}</span>
+                        <span className="text-body-small">{t.name}</span>
                       </label>
                     ))}
                   </div>

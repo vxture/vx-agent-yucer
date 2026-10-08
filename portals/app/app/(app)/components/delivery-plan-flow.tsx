@@ -151,12 +151,12 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
                   上线" - not a separate fact stacked above it. */}
               <div className="flex min-w-0 items-center gap-2xs">
                 <span
-                  className={`flex size-control-2xs shrink-0 items-center justify-center rounded-full border text-label-sm tabular-nums ${look.marker}`}
+                  className={`flex size-control-sm shrink-0 items-center justify-center rounded-full border text-label-small tabular-nums ${look.marker}`}
                   title={DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
                 >
                   {look.icon ? <Icon name={look.icon} size="sm" /> : n.sequence}
                 </span>
-                <span className="text-foreground truncate text-body-sm" title={n.name}>
+                <span className="text-foreground truncate text-body-small" title={n.name}>
                   {n.name}
                 </span>
               </div>
@@ -166,7 +166,7 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
                   read: what state it is in, whether it has moved from what was
                   committed, and whether the customer has actually signed. */}
               <span className="flex min-w-0 flex-wrap items-center gap-2xs">
-                <span className={`truncate text-body-sm ${look.text}`}>
+                <span className={`truncate text-body-small ${look.text}`}>
                   {DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
                 </span>
                 {/* SLIPPAGE, AND ONLY LATE SLIPPAGE IS A WARNING. A gate that
@@ -188,7 +188,7 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
                   it read as settled business. */}
               {n.status === "done" ? (
                 <span
-                  className={`truncate text-body-sm ${n.acceptedBy ? "text-(color:--success-text)" : "text-muted-foreground"}`}
+                  className={`truncate text-body-small ${n.acceptedBy ? "text-(color:--success-text)" : "text-muted-foreground"}`}
                 >
                   {n.acceptedBy
                     ? DELIVERY_TEXT.milestoneAcceptedByName(n.acceptedBy)
@@ -202,7 +202,7 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
                   show, so an untouched gate stays quiet. */}
               {n.changeCount > 0 ? (
                 <span
-                  className="text-muted-foreground truncate text-body-sm"
+                  className="text-muted-foreground truncate text-body-small"
                   title={n.lastChangeReason ?? undefined}
                 >
                   {DELIVERY_TEXT.milestoneChanged(n.changeCount)}
@@ -213,7 +213,7 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
                   when it landed, an open one when it is due. */}
               {/* THE TIMESTAMP SITS AT THE FOOT, quietest of the three bands:
                   a date is what you check after you have read what happened. */}
-              <span className="text-muted-foreground truncate text-body-sm tabular-nums">
+              <span className="text-muted-foreground truncate text-body-small tabular-nums">
                 {(n.status === "done" ? n.completedAt : n.dueAt) ?? DELIVERY_TEXT.milestoneNoDate}
               </span>
             </li>
