@@ -1840,7 +1840,7 @@ export default async function OpportunityDetailPage({
                   limit={5}
                   rows
                   currentSub={session.user.sub}
-                  onDelete={(iid) => deleteFollowUp(opportunity.accountId, iid, id)}
+                  onDelete={deleteFollowUp.bind(null, opportunity.accountId, id)}
                 />
               ) : (
                 <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />

@@ -226,8 +226,13 @@ export async function settleCommitment(
  */
 export async function deleteFollowUp(
   accountId: string,
+  // BEFORE the id, so a page can hand the client `deleteFollowUp.bind(null,
+  // accountId, opportunityId)` and the client supplies only the id. A server
+  // component cannot pass an inline arrow to a client component - only a server
+  // action (or one bound with .bind) - and this used to be one: the deal page
+  // answered 500.
+  opportunityId: string | undefined,
   id: string,
-  opportunityId?: string,
 ): Promise<FieldResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

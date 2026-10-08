@@ -82,3 +82,24 @@ test("KNOWN_UNBOUND names no action that is now referenced", () => {
   );
   assert.deepEqual(stale, [], `these are referenced now - remove them: ${stale.join(", ")}`);
 });
+
+// A server component cannot hand a client component a function it just wrote.
+//
+// `onDelete={(iid) => deleteFollowUp(id, iid)}` in two server pages compiled,
+// type-checked, passed 2,700 unit tests, and made the deal page answer 500 in
+// production ("Event handlers cannot be passed to Client Component props"). Only
+// a server action reference - directly, or bound with .bind - may cross.
+//
+// The scan: in a file that is neither "use client" nor "use server", no JSX prop
+// named on<Capital>... may be an inline arrow or function expression.
+test("no server component passes an inline function as an event-handler prop", () => {
+  const INLINE = /\bon[A-Z]\w*=\{\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|\w+\s*=>)/;
+  const offenders: string[] = [];
+  for (const f of FILES) {
+    if (f.text.includes('"use client"') || f.text.includes('"use server"')) continue;
+    f.text.split("\n").forEach((line, i) => {
+      if (INLINE.test(line)) offenders.push(`${f.path.replace(UI, "")}:${i + 1}  ${line.trim().slice(0, 100)}`);
+    });
+  }
+  assert.deepEqual(offenders, [], `a server component cannot pass these to a client component:\n${offenders.join("\n")}`);
+});
