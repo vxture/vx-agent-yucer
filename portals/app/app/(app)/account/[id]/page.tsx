@@ -1642,7 +1642,7 @@ export default async function AccountDetailPage({
                       items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null, participantNames: participantsByInteraction.get(i.id) }))}
                       limit={20} hideDescription hideTitle
                       currentSub={session.user.sub}
-                      onDelete={(iid) => deleteFollowUp(id, iid)}
+                      onDelete={deleteFollowUp.bind(null, id, undefined)}
                       action={
                         canRecord || canCheckConsistency ? (
                           <span className="flex flex-col items-end gap-xs">
