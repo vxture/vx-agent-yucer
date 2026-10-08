@@ -379,6 +379,14 @@ so violating them fails at runtime rather than at review:
   "DS 14 batch N". Batches 0-5 done 2026-09-27; what the DS still lacks is
   filed upstream as vxture/vxture-design#111 and each stopgap is a TD entry
   pointing at it.
+  2026-10-08: design-system 15.0.0 / design-ui 12.0.0 / design-tokens 4.0.0
+  (typography roles renamed, `title` family and heading level 4 removed, single-
+  line controls shrunk to a stable 16/20/24/28/32px ladder). Owner decided to
+  accept the smaller type and controls in full. A removed Tailwind class compiles
+  to NOTHING and the text silently inherits, so `ds-typography.test.ts` bans the
+  old names (text-body-sm/md, text-label-*, text-title-*, text-heading-4,
+  control-2xs/3xs). The 18 `SectionHeader level={4}` became level 3. The DS added
+  no component that closes an item of vxture-design#111.
 
 ## Product vocabulary (2026-08-26)
 
