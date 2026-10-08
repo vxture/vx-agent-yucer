@@ -146,6 +146,8 @@ export interface AccountPlanRecord {
   presalesSub: string | null;
   deliverySub: string | null;
   status: "active" | "closed";
+  /** incr/0105. Why it was closed; optional, and null while it is active. */
+  closeReason?: string | null;
 }
 
 /**
@@ -368,6 +370,8 @@ export interface AccountStore {
   ): Promise<OpportunityContactRecord | null>;
   /** The live plan for one account, or null when it has none. */
   getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null>;
+  /** The newest plan in ANY status - what a close or a reopen acts on. */
+  latestAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null>;
   getAccount(workspaceId: string, id: string): Promise<AccountRecord | null>;
   /** Whitelisted columns only; the adapter checks against the column-lock mirror. */
   updateAccount(
@@ -734,12 +738,19 @@ export class InMemoryAccountStore implements AccountStore {
     return p && p.status === "active" ? p : null;
   }
 
+  async latestAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
+    return this.plans.get(`${workspaceId}|${accountId}`) ?? null;
+  }
+
   /** Demo/seed entry point; the real write path is the planning service. */
   async upsertAccountPlan(
     workspaceId: string,
     plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
   ): Promise<AccountPlanRecord> {
-    const key = `${workspaceId}:${plan.accountId}`;
+    // ONE KEY, the one getAccountPlan reads. This wrote under a colon while every
+    // read used a bar, so an upsert in memory never changed what a read returned
+    // - invisible until something upserted a plan that already existed.
+    const key = `${workspaceId}|${plan.accountId}`;
     const existing = this.plans.get(key);
     const row: AccountPlanRecord = {
       id: existing?.id ?? `apl_${this.plans.size + 1}`,

@@ -291,6 +291,44 @@ test("getAccountPlan ignores a closed plan even when it is the newest", { skip }
   }
 });
 
+test("latestAccountPlan reads any status; closing keeps the reason and reopening clears it (incr/0105)", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(async (c) => {
+      await seed(c);
+      await c.query(
+        `INSERT INTO yucer_core.account_plan (workspace_id, account_id, period, status, contact_cadence_days, exec_cadence_days)
+         VALUES ($1, $2, '2026Q1', 'active', 30, 90), ($1, $2, '2026Q4', 'closed', 14, 60)`,
+        [WS, ACC],
+      );
+    });
+    const s = await store();
+    // The NEWEST plan is the closed Q4; the LIVE one is the older Q1.
+    assert.equal((await s.latestAccountPlan(WS, ACC))?.period, "2026Q4");
+    const live = (await s.getAccountPlan(WS, ACC))!;
+    assert.equal(live.period, "2026Q1");
+
+    const { id: _id, workspaceId: _ws, ...rest } = live;
+    await s.upsertAccountPlan(WS, { ...rest, status: "closed", closeReason: "customer froze its budget" });
+    assert.equal(await s.getAccountPlan(WS, ACC), null, "nothing live is left");
+    const closed = (await s.latestAccountPlan(WS, ACC))!;
+    assert.equal(closed.period, "2026Q4", "latest is still by period");
+    // The reason is on the plan that was closed (Q1), and read back exactly.
+    await withPg(async (c) => {
+      const r = await c.query(`SELECT status, close_reason FROM yucer_core.account_plan WHERE workspace_id = $1 AND period = '2026Q1'`, [WS]);
+      assert.deepEqual(r.rows[0], { status: "closed", close_reason: "customer froze its budget" });
+    });
+
+    await s.upsertAccountPlan(WS, { ...rest, status: "active", closeReason: null });
+    await withPg(async (c) => {
+      const r = await c.query(`SELECT status, close_reason FROM yucer_core.account_plan WHERE workspace_id = $1 AND period = '2026Q1'`, [WS]);
+      assert.deepEqual(r.rows[0], { status: "active", close_reason: null }, "reopening cleared the reason");
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
 test("getAccountPlan takes the latest period among the active ones", { skip }, async () => {
   await cleanup();
   try {

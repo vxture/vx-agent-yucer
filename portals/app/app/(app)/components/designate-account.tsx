@@ -48,6 +48,10 @@ export interface DesignateAccountProps {
       execCadenceDays: number;
     };
   }) => Promise<{ ok: boolean; tier?: string; error?: string }>;
+  /** The customer's newest plan in any status; null = none yet. */
+  readonly plan?: { readonly status: "active" | "closed"; readonly period: string; readonly closeReason: string | null } | null;
+  readonly onClosePlan?: (accountId: string, reason: string | null) => Promise<{ ok: boolean; error?: string }>;
+  readonly onReopenPlan?: (accountId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function DesignateAccount({
@@ -57,12 +61,16 @@ export function DesignateAccount({
   open,
   onOpenChange,
   onDesignate,
+  plan,
+  onClosePlan,
+  onReopenPlan,
 }: DesignateAccountProps) {
   const { ACCOUNT_ERROR, DS_LABELS, POSITION_TEXT } = useMessages();
   const [next, setNext] = useState(tier);
   const [target, setTarget] = useState("");
   const [contact, setContact] = useState("30");
   const [exec, setExec] = useState("90");
+  const [closeReason, setCloseReason] = useState("");
   const [pending, start] = useTransition();
   const { toast } = useToast();
 
@@ -91,8 +99,20 @@ export function DesignateAccount({
     setTarget("");
     setContact("30");
     setExec("90");
+    setCloseReason("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const runPlan = (op: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
+    start(async () => {
+      const r = await op();
+      if (!r.ok) {
+        toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error });
+        return;
+      }
+      toast({ tone: "success", title: done });
+      onOpenChange(false);
+    });
 
   const submit = () =>
     start(async () => {
@@ -143,6 +163,52 @@ export function DesignateAccount({
       }
     >
       <div className="gap-lg flex flex-col">
+          {plan && (onClosePlan || onReopenPlan) ? (
+            <Field>
+              <FieldLabel>{POSITION_TEXT.planTitle}</FieldLabel>
+              <div className="gap-xs flex flex-col">
+                <p className="text-body-sm">
+                  {plan.status === "active" ? POSITION_TEXT.planActive(plan.period) : POSITION_TEXT.planClosedAt(plan.period)}
+                </p>
+                {plan.status === "closed" && plan.closeReason ? (
+                  <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planReason(plan.closeReason)}</p>
+                ) : null}
+                {plan.status === "active" && onClosePlan ? (
+                  <>
+                    <Input
+                      placeholder={POSITION_TEXT.planReasonLabel}
+                      aria-label={POSITION_TEXT.planReasonLabel}
+                      value={closeReason}
+                      onChange={(ev) => setCloseReason(ev.target.value)}
+                      disabled={pending}
+                    />
+                    <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planCloseHint}</p>
+                    <div>
+                      <Button
+                        variant="secondary"
+                        disabled={pending}
+                        onClick={() =>
+                          runPlan(
+                            () => onClosePlan(accountId, closeReason.trim() === "" ? null : closeReason.trim()),
+                            POSITION_TEXT.planClosed,
+                          )
+                        }
+                      >
+                        {POSITION_TEXT.planClose}
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
+                {plan.status === "closed" && onReopenPlan ? (
+                  <div>
+                    <Button variant="secondary" disabled={pending} onClick={() => runPlan(() => onReopenPlan(accountId), POSITION_TEXT.planReopened)}>
+                      {POSITION_TEXT.planReopen}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            </Field>
+          ) : null}
           <Field>
             <FieldLabel>{POSITION_TEXT.designate}</FieldLabel>
             {/* 三张奖牌卡, 不是下拉框 (owner, 2026-09-20: mockup - 企业定级需要

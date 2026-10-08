@@ -1183,6 +1183,10 @@ export const en: Dictionary = {
   },
 
   ACCOUNT_ERROR: {
+    plan_none: "This customer has no plan yet",
+    plan_already_closed: "This plan is already closed",
+    plan_already_active: "This customer already has a live plan",
+    plan_reason_too_long: "A reason is at most 500 characters",
     ...GATE_ERROR,
     account_not_empty: "This customer already has records on it - only an unused customer created by mistake can be deleted",
     credit_code_taken:
@@ -3228,6 +3232,16 @@ export const en: Dictionary = {
   },
 
   POSITION_TEXT: {
+    planTitle: "Customer plan",
+    planActive: (period: string) => `The ${period} plan is running`,
+    planClosedAt: (period: string) => `The ${period} plan is closed`,
+    planReasonLabel: "Reason for closing (optional)",
+    planClose: "Close plan",
+    planReopen: "Reopen plan",
+    planClosed: "Plan closed",
+    planReopened: "Plan reopened",
+    planCloseHint: "Once closed, the cadence rule stops watching this customer; you can reopen it later.",
+    planReason: (text: string) => `Reason: ${text}`,
     designate: "Set tier",
     designateMenu: "Tier / plan",
     designateWhy:
