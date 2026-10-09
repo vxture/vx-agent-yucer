@@ -170,7 +170,7 @@ function Chain({ label, stops }: { readonly label: string; readonly stops: reado
       <ol className="gap-x-xs gap-y-sm pt-xl flex flex-wrap items-center justify-center">
         {stops.map((stop, i) => (
           <li key={stop} className="gap-x-xs flex items-center">
-            <span className="text-label-sm border-primary/15 bg-card/70 px-sm py-2xs rounded-full border">
+            <span className="text-label-small border-primary/15 bg-card/70 px-sm py-2xs rounded-full border">
               {stop}
             </span>
             {/* AFTER its own stop, not before the next one. Leading it meant a

@@ -210,7 +210,7 @@ export function OrgUnitPanel({
               <TooltipContent>{title}</TooltipContent>
             </Tooltip>
           </span>
-          <span className="text-muted-foreground text-body-sm font-normal">{accountNo}</span>
+          <span className="text-muted-foreground text-body-small font-normal">{accountNo}</span>
         </span>
       }
       style={CARD_VEIL_STYLE}
@@ -241,7 +241,7 @@ export function OrgUnitPanel({
           </div>
         ) : null}
         <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-sm">
+          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-small">
             <Icon name={moreOpen ? "chevron-down" : "chevron-right"} size="xs" />
             {ACCOUNT_TEXT.orgUnitMore}
           </CollapsibleTrigger>
@@ -295,14 +295,14 @@ export function OrgUnitPanel({
             {/* 下级单位 too - only 上级单位 of the hierarchy stays outside. */}
             {children.length > 0 ? (
               <div className="mt-sm flex flex-col gap-2xs">
-                <span className="text-muted-foreground text-body-sm">
+                <span className="text-muted-foreground text-body-small">
                   {ACCOUNT_TEXT.orgUnitChildren(children.length)}
                 </span>
                 {children.map((c) => (
                   <Link
                     key={c.id}
                     href={`/account/${c.id}`}
-                    className="text-body-sm hover:underline"
+                    className="text-body-small hover:underline"
                   >
                     {c.name}
                   </Link>

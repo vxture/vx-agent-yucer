@@ -132,7 +132,7 @@ export function DecisionChainGraph({
           图例, 不是靠颜色自己说明). 只列这条链实际出现的角色 (owner,
           2026-09-21: 有四个角色，视图中合并成了三个，应该拆开) - 不是固定
           写死 3 条, 每个真实出现的角色一个颜色、一条图例, 跟节点一一对应。 */}
-      <div className="gap-md text-muted-foreground mb-sm flex flex-wrap text-body-sm">
+      <div className="gap-md text-muted-foreground mb-sm flex flex-wrap text-body-small">
         {nodes.map((n) => (
           <span key={n.role} className="gap-2xs inline-flex items-center">
             <span

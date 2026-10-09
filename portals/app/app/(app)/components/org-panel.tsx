@@ -411,7 +411,7 @@ export function OrgPanel({
           }}
           scope={
             <span className="gap-sm flex items-center">
-              <span className="text-muted-foreground text-body-sm">{ORG_TEXT.expandTo}</span>
+              <span className="text-muted-foreground text-body-small">{ORG_TEXT.expandTo}</span>
               <ButtonGroup>
                 {levels.map((lvl) => (
                   <Button key={lvl} variant="secondary" size="sm" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
@@ -493,13 +493,13 @@ export function OrgPanel({
               meta={
                 <div className="gap-xs flex flex-wrap items-center">
                   {r.kindName ? <Tag>{r.kindName}</Tag> : null}
-                  <span className="text-muted-foreground text-body-sm">
+                  <span className="text-muted-foreground text-body-small">
                     {r.leaderName ?? ORG_TEXT.leaderNone}
                   </span>
                   {/* 圆圈{直属人数}, tag {icon 总人数} - same reading as the
                       list view's own 成员数 column, see its comment there. */}
                   {r.totalMembers === 0 ? (
-                    <span className="text-muted-foreground text-body-sm">{ORG_TEXT.noMember}</span>
+                    <span className="text-muted-foreground text-body-small">{ORG_TEXT.noMember}</span>
                   ) : (
                     <span className="gap-2xs inline-flex items-center" title={ORG_TEXT.directMembersTooltip(r.members)}>
                       <CountCircle count={r.members} />
@@ -595,19 +595,19 @@ export function OrgPanel({
                 header: ORG_TEXT.colChildren,
                 align: "center" as const,
                 cell: (r: OrgUnitRow) =>
-                  r.children > 0 ? <span className="text-body-sm tabular-nums">{r.children}</span> : <span className="text-muted-foreground">—</span>,
+                  r.children > 0 ? <span className="text-body-small tabular-nums">{r.children}</span> : <span className="text-muted-foreground">—</span>,
               },
               {
                 id: "kind",
                 header: ORG_TEXT.colKind,
                 cell: (r: OrgUnitRow) =>
-                  r.kindName ? <Tag>{r.kindName}</Tag> : <span className="text-muted-foreground text-body-sm">{ORG_TEXT.kindNone}</span>,
+                  r.kindName ? <Tag>{r.kindName}</Tag> : <span className="text-muted-foreground text-body-small">{ORG_TEXT.kindNone}</span>,
               },
               {
                 id: "leader",
                 header: ORG_TEXT.colLeader,
                 cell: (r: OrgUnitRow) =>
-                  r.leaderName ? <span className="text-body-md">{r.leaderName}</span> : <span className="text-muted-foreground text-body-sm">{ORG_TEXT.leaderNone}</span>,
+                  r.leaderName ? <span className="text-body">{r.leaderName}</span> : <span className="text-muted-foreground text-body-small">{ORG_TEXT.leaderNone}</span>,
               },
               {
                 /* 圆圈{直属人数}, tag {icon 总人数} (owner, 2026-09-13: 成员数
@@ -721,19 +721,19 @@ export function OrgPanel({
               guess where an inherited list came from. */}
           <Section title={ORG_TEXT.detailsTerritories(details?.territories.length ?? 0)}>
             {details?.scope === "full" ? (
-              <p className="text-body-sm text-success">{ORG_TEXT.fullTerritoryHint}</p>
+              <p className="text-body-small text-success">{ORG_TEXT.fullTerritoryHint}</p>
             ) : details?.scope === "inherited" ? (
-              <p className="text-info text-body-sm">{ORG_TEXT.inheritedTerritoryHint(details.inheritedFromName ?? "")}</p>
+              <p className="text-info text-body-small">{ORG_TEXT.inheritedTerritoryHint(details.inheritedFromName ?? "")}</p>
             ) : null}
             {!details || details.territories.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{ORG_TEXT.detailsNoTerritories}</p>
+              <p className="text-muted-foreground text-body-small">{ORG_TEXT.detailsNoTerritories}</p>
             ) : (
               <ul className="gap-xs flex flex-col">
                 {details.territories.map((t) => (
                   <li key={t.code} className="gap-xs flex items-center">
-                    <span className="text-body-md">{t.name}</span>
-                    <span className="text-muted-foreground text-body-sm">{t.code}</span>
-                    <span className="text-muted-foreground text-body-sm">
+                    <span className="text-body">{t.name}</span>
+                    <span className="text-muted-foreground text-body-small">{t.code}</span>
+                    <span className="text-muted-foreground text-body-small">
                       {t.regions.length > 0 ? ORG_TEXT.territoryCovers(t.regions.join(" / ")) : ORG_TEXT.territoryCoversNone}
                     </span>
                   </li>
@@ -743,19 +743,19 @@ export function OrgPanel({
           </Section>
           <Section title={ORG_TEXT.detailsChildren(children.length)}>
             {children.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{ORG_TEXT.detailsNoChildren}</p>
+              <p className="text-muted-foreground text-body-small">{ORG_TEXT.detailsNoChildren}</p>
             ) : (
               <ul className="gap-xs flex flex-col">
                 {children.map((c) => (
                   <li key={c.id} className="gap-xs flex items-center">
-                    <span className="text-body-md">{c.name}</span>
+                    <span className="text-body">{c.name}</span>
                     {c.kindName ? <Tag>{c.kindName}</Tag> : null}
                     {/* totalMembers, not members - the same 递归 fix as the
                         list/cards views' own 成员数, just without room here
                         for the circle+tag pair; the title attr carries the
                         same "includes units below" note the tag's tooltip
                         gives elsewhere. */}
-                    <span className="text-muted-foreground text-body-sm" title={ORG_TEXT.totalMembersTooltip(c.totalMembers)}>
+                    <span className="text-muted-foreground text-body-small" title={ORG_TEXT.totalMembersTooltip(c.totalMembers)}>
                       {ORG_TEXT.members(c.totalMembers)}
                     </span>
                   </li>

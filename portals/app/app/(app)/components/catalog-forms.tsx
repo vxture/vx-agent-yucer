@@ -145,7 +145,7 @@ export function NewProductForm({
            line above the fields. */
         <Section>
           <div className="gap-xl flex flex-col">
-            <p className="text-muted-foreground text-body-sm">{editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}</p>
+            <p className="text-muted-foreground text-body-small">{editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}</p>
             <FormFields>
             <Field>
               <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
@@ -218,7 +218,7 @@ export function NewProductForm({
                     </option>
                   ))}
                 </NativeSelect>
-                <p className="text-muted-foreground text-body-sm">{CATALOG_TEXT.newStatusWhy}</p>
+                <p className="text-muted-foreground text-body-small">{CATALOG_TEXT.newStatusWhy}</p>
               </Field>
             ) : null}
             </FormFields>

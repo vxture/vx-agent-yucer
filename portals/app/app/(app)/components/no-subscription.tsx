@@ -57,7 +57,7 @@ export function NoSubscription({
         {/* grid-cols-2, not a flex-wrap guess: read directly off tenderforge's
             own live page for the same identity (owner, 2026-09-16: "两个页面
             都打开了，你照抄") - this is its exact card shape. A rigid 50/50
-            split was never the problem; text-title-lg's size was. */}
+            split was never the problem; the old title size was. */}
         <Card surface="soft" className="gap-md p-lg grid w-full grid-cols-2 text-left">
           <PersonSummary
             label={NO_SUBSCRIPTION_TEXT.identityLabel}

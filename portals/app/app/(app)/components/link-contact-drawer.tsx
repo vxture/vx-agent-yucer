@@ -125,9 +125,9 @@ export function LinkContactDrawer({ accountId, onSearch, onLink, openSignal }: L
           </Field>
           <div className="flex flex-col gap-sm">
             {query.trim().length < 2 ? (
-              <p className="text-muted-foreground text-body-sm">{LINK_CONTACT_TEXT.hint}</p>
+              <p className="text-muted-foreground text-body-small">{LINK_CONTACT_TEXT.hint}</p>
             ) : searching ? null : results.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{LINK_CONTACT_TEXT.empty}</p>
+              <p className="text-muted-foreground text-body-small">{LINK_CONTACT_TEXT.empty}</p>
             ) : (
               results.map((r) => (
                 <button
@@ -138,12 +138,12 @@ export function LinkContactDrawer({ accountId, onSearch, onLink, openSignal }: L
                     picked === r.id ? "border-primary bg-primary-muted" : "bg-card"
                   }`}
                 >
-                  <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
+                  <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
                     {r.name.charAt(0)}
                   </span>
                   <div className="min-w-0">
-                    <div className="text-body-sm font-bold">{r.name}</div>
-                    <div className="text-muted-foreground text-body-sm">
+                    <div className="text-body-small font-bold">{r.name}</div>
+                    <div className="text-muted-foreground text-body-small">
                       {r.affiliations.length > 0
                         ? LINK_CONTACT_TEXT.alsoAt(r.affiliations[0]!.accountName, r.affiliations[0]!.title)
                         : LINK_CONTACT_TEXT.unaffiliated}

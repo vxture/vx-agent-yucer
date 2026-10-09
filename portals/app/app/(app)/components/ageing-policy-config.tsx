@@ -328,7 +328,7 @@ export function AgeingPolicyConfig({
               >
                 <div
                   style={{ width: `${RULER_NOT_DUE_SHARE * 100}%` }}
-                  className="border-border bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap"
+                  className="border-border bg-muted text-label-small text-muted-foreground flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap"
                 >
                   {DELIVERY_TEXT.ageingBand.not_due}
                 </div>
@@ -337,7 +337,7 @@ export function AgeingPolicyConfig({
                       <div
                         key={s.key}
                         style={{ width: `${s.widthPct}%` }}
-                        className={`border-border text-label-sm flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${RULER_BAND_TONES[i % RULER_BAND_TONES.length]}`}
+                        className={`border-border text-label-small flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${RULER_BAND_TONES[i % RULER_BAND_TONES.length]}`}
                       >
                         {DELIVERY_TEXT.ageingBetween(s.from, s.to)}
                       </div>
@@ -345,7 +345,7 @@ export function AgeingPolicyConfig({
                   : <div style={{ width: `${boundedShare * 100}%` }} className="border-border bg-muted shrink-0 border-r" />}
                 <div
                   style={{ width: `${RULER_OPEN_SHARE * 100}%` }}
-                  className="bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center gap-2xs overflow-hidden px-2xs whitespace-nowrap"
+                  className="bg-muted text-label-small text-muted-foreground flex shrink-0 items-center justify-center gap-2xs overflow-hidden px-2xs whitespace-nowrap"
                 >
                   {allValid ? DELIVERY_TEXT.ageingOver(parsed[parsed.length - 1]) : AGEING_TEXT.bandPlaceholder}
                   <Icon name="arrow-right" size="xs" />
@@ -400,7 +400,7 @@ export function AgeingPolicyConfig({
                     className={`pointer-events-none absolute top-0 z-10 flex -translate-x-1/2 items-center ${pendingAction ? "" : "opacity-70"}`}
                     style={{ left: `${posPct(ghostInsertValue)}%` }}
                   >
-                    <span className="bg-background border-border shadow-raised text-label-xs text-foreground rounded-sm border px-2xs py-2xs tabular-nums">
+                    <span className="bg-background border-border shadow-raised text-label-micro text-foreground rounded-sm border px-2xs py-2xs tabular-nums">
                       {ghostInsertValue}
                     </span>
                   </div>
@@ -419,7 +419,7 @@ export function AgeingPolicyConfig({
             <FieldDescription>{AGEING_TEXT.cutoffsHint}</FieldDescription>
             {pendingAction ? (
               <div className="gap-sm border-border bg-card mt-xs flex items-center rounded-md border border-dashed p-sm">
-                <span className="text-body-sm">
+                <span className="text-body-small">
                   {pendingAction.kind === "insert"
                     ? AGEING_TEXT.confirmAdd(pendingAction.value)
                     : AGEING_TEXT.confirmRemove(pendingAction.value || "?")}

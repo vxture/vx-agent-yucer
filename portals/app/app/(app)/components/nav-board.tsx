@@ -69,7 +69,7 @@ export function NavBoard({
           {/* The section names itself once, above its modules. Not a card: it
               labels the cards under it, and giving it one would make the domain
               look like a sixth module. */}
-          <span className="text-muted-foreground flex items-center gap-2xs px-2xs pt-sm text-body-sm">
+          <span className="text-muted-foreground flex items-center gap-2xs px-2xs pt-sm text-body-small">
             <Icon name={domain.icon} size="sm" />
             {DOMAIN_GROUP_LABEL[domain.key] ?? domain.key}
           </span>
@@ -115,7 +115,7 @@ function QueueCard({
         <Link
           href={section.href}
           className={[
-            "min-w-0 truncate text-body-sm font-semibold tracking-wide",
+            "min-w-0 truncate text-body-small font-semibold tracking-wide",
             active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           ].join(" ")}
         >
@@ -207,13 +207,13 @@ function ModuleFigures({
       <div className="flex items-baseline gap-2xs">
         <span
           className={[
-            "text-heading-4 tabular-nums",
+            "tabular-nums",
             m.tone ? LEVEL_INK[m.tone] : "text-foreground",
           ].join(" ")}
         >
           {m.value}
         </span>
-        <span className="text-muted-foreground truncate text-body-sm">{m.label}</span>
+        <span className="text-muted-foreground truncate text-body-small">{m.label}</span>
       </div>
     );
   }
@@ -224,13 +224,13 @@ function ModuleFigures({
         <span key={m.label} className="flex items-baseline gap-2xs">
           <span
             className={[
-              "text-label-md font-semibold tabular-nums",
+              "text-label font-semibold tabular-nums",
               m.tone ? LEVEL_INK[m.tone] : "text-foreground",
             ].join(" ")}
           >
             {m.value}
           </span>
-          <span className="text-muted-foreground text-body-sm">{m.label}</span>
+          <span className="text-muted-foreground text-body-small">{m.label}</span>
         </span>
       ))}
     </div>

@@ -462,7 +462,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
                     columns.length > 0 ? (
                       <div className="gap-xs flex flex-wrap items-center">
                         {columns.map((c) => (
-                          <span key={c.id} className="text-muted-foreground text-body-sm">
+                          <span key={c.id} className="text-muted-foreground text-body-small">
                             {c.cell(r)}
                           </span>
                         ))}

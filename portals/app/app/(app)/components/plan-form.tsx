@@ -125,7 +125,7 @@ export function NewPlanForm({
               <FieldLabel>{STRATEGY_TEXT.newPlanNo}</FieldLabel>
               {initial ? (
                 <>
-                  <p className="text-foreground mono text-body-md">{initial.planNo}</p>
+                  <p className="text-foreground mono text-body">{initial.planNo}</p>
                   <FieldDescription>{STRATEGY_TEXT.planNoFixed}</FieldDescription>
                 </>
               ) : (
@@ -152,7 +152,7 @@ export function NewPlanForm({
             {/* The number is the anchor: workspace-unique, no UPDATE grant, so
                 it cannot be corrected later. Said before the first attempt. */}
             {initial ? null : (
-              <p className="text-muted-foreground text-body-sm">{STRATEGY_TEXT.newPlanAnchor}</p>
+              <p className="text-muted-foreground text-body-small">{STRATEGY_TEXT.newPlanAnchor}</p>
             )}
             <div className="flex items-center gap-md">
               <Button

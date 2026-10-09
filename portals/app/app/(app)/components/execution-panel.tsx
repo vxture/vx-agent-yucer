@@ -132,7 +132,7 @@ export function ExecutionPanel({
           )}
         />
       )}
-      <p className="text-muted-foreground mt-sm text-body-sm">{CAMPAIGN_TEXT.executionBlocks}</p>
+      <p className="text-muted-foreground mt-sm text-body-small">{CAMPAIGN_TEXT.executionBlocks}</p>
     </Section>
   );
 }

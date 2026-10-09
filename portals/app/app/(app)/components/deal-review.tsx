@@ -140,7 +140,7 @@ export function DealReview({
       {exitReason ? <Tag>{WINLOSS_TEXT.dealReviewExit(exitReason)}</Tag> : null}
 
       {review && !editing ? (
-        <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-md gap-y-xs text-body-sm">
+        <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-md gap-y-xs text-body-small">
           <dt className="text-muted-foreground">{WINLOSS_TEXT.reasonLabel}</dt>
           <dd>{reasonName}</dd>
           <dt className="text-muted-foreground">{WINLOSS_TEXT.competitorLabel}</dt>

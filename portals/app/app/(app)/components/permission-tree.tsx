@@ -320,7 +320,7 @@ export function PermissionTree({
         count={shown === total ? T.toolbarCount(total) : T.toolbarFilteredCount(shown, total)}
         scope={
           <span className="gap-sm flex items-center">
-            <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
+            <span className="text-muted-foreground text-body-small">{T.expandTo}</span>
             <ButtonGroup>
               {(["module", "page", "action"] as const).map((lvl) => (
                 <Button key={lvl} variant="secondary" size="sm" onClick={() => { setExpanded(keysDownTo(tree, lvl)); pagination.resetPage(); }}>
@@ -371,7 +371,7 @@ export function PermissionTree({
       </FilterBar>
 
       {filtered.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{T.filterEmpty}</p>
+        <p className="text-muted-foreground text-body-small">{T.filterEmpty}</p>
       ) : (
       <>
       <div
@@ -439,7 +439,7 @@ export function PermissionTree({
               id: "path",
               header: "#",
               align: "center" as const,
-              cell: (r: PermissionRow) => <span className="text-body-sm tabular-nums">{r.path}</span>,
+              cell: (r: PermissionRow) => <span className="text-body-small tabular-nums">{r.path}</span>,
             },
             {
               id: "point",
@@ -513,7 +513,7 @@ export function PermissionTree({
               align: "center" as const,
               cell: (r: PermissionRow) =>
                 r.node.children.length > 0 ? (
-                  <span className="text-body-sm tabular-nums">{r.node.children.length}</span>
+                  <span className="text-body-small tabular-nums">{r.node.children.length}</span>
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 ),
@@ -567,15 +567,15 @@ export function PermissionTree({
                     <HoverCardContent align="start" className="w-auto min-w-[16rem] max-w-[28rem]">
                       <div className="gap-sm flex flex-col">
                         <SectionHeader
-                          level={4}
+                          level={3}
                           title={n.permission ? T.holdersTitle(title(n), list.length) : T.holdersTitleBranch(title(n), list.length)}
                         />
                         <ul className="gap-2xs flex flex-col">
                           {list.map((x, i) => (
                             <li key={x.code} className="gap-sm flex items-baseline">
-                              <span className="text-muted-foreground text-label-md w-5 shrink-0 text-right tabular-nums">{i + 1}</span>
-                              <span className="text-body-md">{x.name}</span>
-                              {x.group ? <span className="text-muted-foreground text-label-md">{x.group}</span> : null}
+                              <span className="text-muted-foreground text-label w-5 shrink-0 text-right tabular-nums">{i + 1}</span>
+                              <span className="text-body">{x.name}</span>
+                              {x.group ? <span className="text-muted-foreground text-label">{x.group}</span> : null}
                             </li>
                           ))}
                         </ul>
@@ -652,7 +652,7 @@ export function PermissionTreeTable({
           expand-to buttons on the left, the 滑块式 view switch on the right. */}
       <div className="gap-sm flex flex-wrap items-center justify-between">
         <div className="gap-sm flex items-center">
-          <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
+          <span className="text-muted-foreground text-body-small">{T.expandTo}</span>
           <ButtonGroup>
             {/* Keys from the FULL tree, so switching 只看可执行 / 显示全部 keeps
                 the same level open rather than showing the newly revealed

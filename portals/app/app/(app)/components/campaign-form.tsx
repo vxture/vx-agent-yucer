@@ -103,7 +103,7 @@ export function CampaignForm({
                 <FieldLabel>{CAMPAIGN_TEXT.formNo}</FieldLabel>
                 {initial ? (
                   <>
-                    <p className="text-foreground mono text-body-md">{initial.campaignNo}</p>
+                    <p className="text-foreground mono text-body">{initial.campaignNo}</p>
                     <FieldDescription>{CAMPAIGN_TEXT.formNoFixed}</FieldDescription>
                   </>
                 ) : (
@@ -171,7 +171,7 @@ export function CampaignForm({
                 <Input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
               </Field>
             </FormFields>
-            {initial ? null : <p className="text-muted-foreground text-body-sm">{CAMPAIGN_TEXT.formAnchor}</p>}
+            {initial ? null : <p className="text-muted-foreground text-body-small">{CAMPAIGN_TEXT.formAnchor}</p>}
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

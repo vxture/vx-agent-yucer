@@ -432,8 +432,8 @@ export function RoleForm({
             <label className="gap-sm flex items-start" key={p.code} htmlFor={`preset-${p.code}`}>
               <RadioGroupItem id={`preset-${p.code}`} value={p.code} className="mt-2xs" />
               <span className="gap-3xs flex flex-col">
-                <span className="text-body-md">{ROLE_TEXT.presetOption(p.name, p.permissions.length)}</span>
-                <span className="text-muted-foreground text-body-sm">{p.description}</span>
+                <span className="text-body">{ROLE_TEXT.presetOption(p.name, p.permissions.length)}</span>
+                <span className="text-muted-foreground text-body-small">{p.description}</span>
               </span>
             </label>
           ))}
@@ -449,7 +449,7 @@ export function RoleForm({
         closeLabel={ROLE_TEXT.pickDone}
         footer={
           <div className="gap-sm flex items-center justify-between">
-            <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.chosen(chosenList.length)}</span>
+            <span className="text-muted-foreground text-body-small">{ROLE_TEXT.chosen(chosenList.length)}</span>
             <div className="gap-sm flex items-center">
               <Button variant="secondary" onClick={() => setChosen(new Set())}>
                 {ROLE_TEXT.pickClear}
@@ -462,12 +462,12 @@ export function RoleForm({
         <div className="gap-md flex flex-col">
           <Input value={query} placeholder={ROLE_TEXT.search} onChange={(e) => setQuery(e.target.value)} />
           {modules.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">{ROLE_TEXT.pickNone}</p>
+            <p className="text-muted-foreground text-body-small">{ROLE_TEXT.pickNone}</p>
           ) : null}
           {modules.map((m) => (
             <div key={m.module} className="gap-2xs flex flex-col">
               {/* THE MODULE IS THE GROUP: the same word the sidebar uses. */}
-              <span className="text-label-sm text-muted-foreground uppercase">{m.label}</span>
+              <span className="text-label-small text-muted-foreground uppercase">{m.label}</span>
               <ul className="gap-2xs flex flex-col">
                 {m.items.map((o) => (
                   <li key={o.code}>
@@ -481,8 +481,8 @@ export function RoleForm({
                         onCheckedChange={() => toggle(o.code)}
                       />
                       <span className="gap-3xs flex min-w-0 grow flex-col">
-                        <span className="text-body-sm font-medium">{o.label}</span>
-                        <span className="text-muted-foreground text-label-sm">{o.code}</span>
+                        <span className="text-body-small font-medium">{o.label}</span>
+                        <span className="text-muted-foreground text-label-small">{o.code}</span>
                       </span>
                       {/* 后缀: how many operations this one permission unlocks. */}
                       <Tag>{ROLE_TEXT.unlocks(o.unlocks)}</Tag>

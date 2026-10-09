@@ -229,7 +229,7 @@ export default async function AttainmentPage() {
                 emphasis
               />
               <span className="flex items-baseline gap-2xs">
-                <span className="text-label-md text-foreground font-semibold tabular-nums">
+                <span className="text-label text-foreground font-semibold tabular-nums">
                   {BOARD_TEXT.coverageOf(
                     Math.round(
                       (quarterWorth / (cover.gap * cover.floor)) * 100,
@@ -280,7 +280,7 @@ export default async function AttainmentPage() {
             <SectionHeader level={2} title={ATTAINMENT_TEXT.composition} description={ATTAINMENT_TEXT.compositionWhy} />
           </div>
           {split.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">
+            <p className="text-muted-foreground text-body-small">
               {ATTAINMENT_TEXT.noComposition}
             </p>
           ) : (
@@ -315,12 +315,15 @@ function Figure({
       <span
         className={[
           "text-foreground tabular-nums",
-          emphasis ? "text-heading-2" : "text-heading-4",
+          // The emphasised figure keeps its 30px as display-xs (heading-2 is 16px
+          // since design-ui 12). The plain one never had a size: the class it used
+          // did not exist in any DS version, so it inherited - and still does.
+          emphasis ? "text-display-xs" : "",
         ].join(" ")}
       >
         {value}
       </span>
-      <span className="text-muted-foreground text-body-sm">{label}</span>
+      <span className="text-muted-foreground text-body-small">{label}</span>
     </span>
   );
 }
@@ -343,7 +346,7 @@ function Bar({
 }) {
   return (
     <div className="flex items-center gap-sm">
-      <span className="text-muted-foreground w-24 shrink-0 truncate text-body-sm">
+      <span className="text-muted-foreground w-24 shrink-0 truncate text-body-small">
         {label}
       </span>
       <span className="bg-muted h-2xs min-w-0 flex-1 overflow-hidden rounded-full">
@@ -352,7 +355,7 @@ function Bar({
           style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
         />
       </span>
-      <span className="text-foreground w-20 shrink-0 text-right text-body-sm tabular-nums">
+      <span className="text-foreground w-20 shrink-0 text-right text-body-small tabular-nums">
         {value}
       </span>
     </div>

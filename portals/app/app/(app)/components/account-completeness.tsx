@@ -130,7 +130,7 @@ export function AccountCompleteness({
               {g.suggestion}
             </span>
             {/* THE BASIS, always. See the header. */}
-            <span className="text-muted-foreground text-body-sm">{g.basis ? COMPLETENESS_TEXT.basis(g.basis) : null}</span>
+            <span className="text-muted-foreground text-body-small">{g.basis ? COMPLETENESS_TEXT.basis(g.basis) : null}</span>
           </span>
           {canFill ? (
             <Button
@@ -162,7 +162,7 @@ export function AccountCompleteness({
           disappears. The model route stays below for when nobody knows. */}
       {askable.map((g) => (
         <div key={`fill-${g.field}`} className="flex items-center justify-between gap-md">
-          <span className="text-foreground text-body-sm">
+          <span className="text-foreground text-body-small">
             {COMPLETENESS_TEXT.notFilled(COMPLETENESS_TEXT.fields[g.field] ?? g.field)}
           </span>
           {edit?.canWrite ? (
@@ -175,7 +175,7 @@ export function AccountCompleteness({
 
       {askable.length > 0 ? (
         <div className="flex items-start justify-between gap-md">
-          <p className="text-muted-foreground text-body-sm">
+          <p className="text-muted-foreground text-body-small">
             {COMPLETENESS_TEXT.askable(
               COMPLETENESS_TEXT.joinFields(
                 askable.map((g) => COMPLETENESS_TEXT.fields[g.field] ?? g.field),
@@ -221,7 +221,7 @@ export function AccountCompleteness({
           {/* The fix is not on this record - the sentence says so - so the
               action goes where it is: the territory map. */}
           {COMPLETENESS_TEXT.structuralFixHref[g.field] ? (
-            <Link href={COMPLETENESS_TEXT.structuralFixHref[g.field]} className="text-primary text-body-sm hover:underline">
+            <Link href={COMPLETENESS_TEXT.structuralFixHref[g.field]} className="text-primary text-body-small hover:underline">
               {COMPLETENESS_TEXT.structuralFix}
             </Link>
           ) : null}

@@ -363,7 +363,7 @@ export function RolePanel({
       {rows.length === 0 ? (
         <EmptyState title={ROLE_TEXT.emptyTitle} description={ROLE_TEXT.emptyWhy} />
       ) : filtered.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{ROLE_TEXT.filterEmpty}</p>
+        <p className="text-muted-foreground text-body-small">{ROLE_TEXT.filterEmpty}</p>
       ) : view === "cards" ? (
         <ListCardGrid>
           {pagination.pageRows.map((r) => (
@@ -376,12 +376,12 @@ export function RolePanel({
               actions={actionsFor(r)}
               meta={
                 <div className="gap-xs flex flex-wrap items-center">
-                  {r.line ? <Tag>{r.line.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>}
-                  {r.rank ? <Tag>{r.rank.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>}
-                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                  {r.line ? <Tag>{r.line.name}</Tag> : <span className="text-muted-foreground text-body-small">{ROLE_TEXT.ungrouped}</span>}
+                  {r.rank ? <Tag>{r.rank.name}</Tag> : <span className="text-muted-foreground text-body-small">{ROLE_TEXT.ungrouped}</span>}
+                  <span className="text-muted-foreground text-body-small tabular-nums">
                     {r.members === 0 ? ROLE_TEXT.noMember : ROLE_TEXT.members(r.members)}
                   </span>
-                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                  <span className="text-muted-foreground text-body-small tabular-nums">
                     {ROLE_TEXT.permCount(r.permissions.length, total)}
                   </span>
                 </div>
@@ -461,13 +461,13 @@ export function RolePanel({
                 id: "line",
                 header: ROLE_TEXT.colLine,
                 cell: (r: RoleRow) =>
-                  r.line ? <Tag>{r.line.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>,
+                  r.line ? <Tag>{r.line.name}</Tag> : <span className="text-muted-foreground text-body-small">{ROLE_TEXT.ungrouped}</span>,
               },
               {
                 id: "rank",
                 header: ROLE_TEXT.colRank,
                 cell: (r: RoleRow) =>
-                  r.rank ? <Tag>{r.rank.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>,
+                  r.rank ? <Tag>{r.rank.name}</Tag> : <span className="text-muted-foreground text-body-small">{ROLE_TEXT.ungrouped}</span>,
               },
               {
                 id: "members",
@@ -499,9 +499,9 @@ export function RolePanel({
                 header: ROLE_TEXT.colDescription,
                 cell: (r: RoleRow) =>
                   r.description ? (
-                    <span className="text-body-sm">{r.description}</span>
+                    <span className="text-body-small">{r.description}</span>
                   ) : (
-                    <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.noDescription}</span>
+                    <span className="text-muted-foreground text-body-small">{ROLE_TEXT.noDescription}</span>
                   ),
               },
             ]}

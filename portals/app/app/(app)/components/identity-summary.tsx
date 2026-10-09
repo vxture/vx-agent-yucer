@@ -14,14 +14,14 @@ import { formatPhone } from "../lib/format-phone";
 //
 // SIZED AND STRUCTURED AGAINST TENDERFORGE'S OWN LIVE PAGE (2026-09-16,
 // owner: "两个页面都打开了，你照抄"), read directly off its DOM rather than
-// guessed from the screenshot alone: `text-body-md` (14px) for BOTH lines -
+// guessed from the screenshot alone: `text-body` (14px) for BOTH lines -
 // `font-medium` for the name/org line, `text-muted-foreground` (no extra
 // weight) for the phone/workspace line beneath it - inside a plain
 // `flex items-center gap-sm` cell with `min-w-0` on the text column and
 // `break-words` on both spans. No caption above either cell - the avatar and
 // the building icon are the label. The first version of this file used
-// `text-title-lg font-bold` (LabeledValue's own value size) and later
-// `text-label-lg` with `whitespace-nowrap` - both still too large or too
+// the title size plus bold (LabeledValue's own value size) and later
+// `text-label` with `whitespace-nowrap` - both still too large or too
 // eager to hold a real name/company name on one line; tenderforge's own
 // choice is smaller than either and never forces single-line at the cost of
 // cutting a genuinely long name, it just rarely needs to wrap at 14px inside
@@ -46,8 +46,8 @@ export function PersonSummary({
     <div className="flex min-w-0 items-center gap-sm" aria-label={label}>
       <UserAvatar src={picture} alt={name} className="size-10 shrink-0" />
       <div className="min-w-0">
-        <p className="text-body-md font-medium break-words">{name}</p>
-        {phone && <p className="text-body-md text-muted-foreground break-words">{formatPhone(phone)}</p>}
+        <p className="text-body font-medium break-words">{name}</p>
+        {phone && <p className="text-body text-muted-foreground break-words">{formatPhone(phone)}</p>}
       </div>
     </div>
   );
@@ -72,8 +72,8 @@ export function TenantSummary({
         <Icon name="building-library" size="sm" />
       </span>
       <div className="min-w-0">
-        <p className="text-body-md font-medium break-words">{orgLabel ?? orgFallback}</p>
-        <p className="text-body-md text-muted-foreground break-words">{workspaceLabel}</p>
+        <p className="text-body font-medium break-words">{orgLabel ?? orgFallback}</p>
+        <p className="text-body text-muted-foreground break-words">{workspaceLabel}</p>
       </div>
     </div>
   );

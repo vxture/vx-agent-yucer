@@ -57,12 +57,12 @@ export function UpgradePage({
             {copy.points.map((p) => (
               <div key={p.title} className="border-border flex flex-col gap-xs rounded-md border p-md">
                 <span className="text-foreground text-body font-medium">{p.title}</span>
-                <span className="text-muted-foreground text-body-sm leading-relaxed">{p.body}</span>
+                <span className="text-muted-foreground text-body-small leading-relaxed">{p.body}</span>
               </div>
             ))}
           </div>
           {copy.advisor ? (
-            <p className="bg-muted/40 text-body-sm flex items-start gap-xs rounded-md px-md py-sm">
+            <p className="bg-muted/40 text-body-small flex items-start gap-xs rounded-md px-md py-sm">
               <Icon name="sparkles" size="sm" className="text-primary mt-3xs shrink-0" />
               <span>
                 <span className="text-foreground font-medium">
@@ -90,7 +90,7 @@ export function UpgradePage({
                 {required}
               </StatusBadge>
             </span>
-            <span className="text-muted-foreground text-body-sm">
+            <span className="text-muted-foreground text-body-small">
               {also.length > 0 ? `${T.alsoUnlocks(required)}${also.join(T.sep)}` : T.onlyThis(required)}
             </span>
           </div>

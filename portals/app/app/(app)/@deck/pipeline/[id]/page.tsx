@@ -145,7 +145,7 @@ export default async function DealDeck({
     <>
       {/* 对话锚定本单 / 预演 (batch 11b/11c) beside 会前包 - all three are
           about this one deal. */}
-      <div className="flex flex-wrap items-center justify-end gap-sm text-body-sm">
+      <div className="flex flex-wrap items-center justify-end gap-sm text-body-small">
         <Link href={`/copilot?opportunity=${encodeURIComponent(id)}`} className="text-primary hover:underline">
           {ASK_ABOUT_TEXT.linkFromDeal}
         </Link>

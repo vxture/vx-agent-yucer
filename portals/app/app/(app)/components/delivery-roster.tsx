@@ -59,7 +59,7 @@ function ProgressCell({ row }: { readonly row: DeliveryRow }) {
 
   if (p.unplanned && p.percent === 0) {
     return (
-      <span className="text-(color:--warning-text) text-body-sm">
+      <span className="text-(color:--warning-text) text-body-small">
         {DELIVERY_TEXT.progressNoPlan}
       </span>
     );
@@ -73,12 +73,12 @@ function ProgressCell({ row }: { readonly row: DeliveryRow }) {
           something the milestones deny. The second case is a record-keeping
           gap, and showing it is how it gets closed. */}
       <span
-        className={`truncate text-body-sm ${p.planComplete ? "text-foreground" : "text-muted-foreground"}`}
+        className={`truncate text-body-small ${p.planComplete ? "text-foreground" : "text-muted-foreground"}`}
       >
         {p.currentName ??
           (p.planComplete ? DELIVERY_TEXT.progressPlanDone : DELIVERY_TEXT.progressPlanOpen)}
       </span>
-      <span className="text-muted-foreground tabular-nums text-body-sm">{p.percent}%</span>
+      <span className="text-muted-foreground tabular-nums text-body-small">{p.percent}%</span>
     </span>
   );
 }
@@ -237,9 +237,9 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
       // is how a UUID ends up in front of someone who then does not chase it.
       cell: (r: DeliveryRow) =>
         r.managerSub ? (
-          <span className="text-muted-foreground truncate text-body-sm"><MemberName sub={r.managerSub} /></span>
+          <span className="text-muted-foreground truncate text-body-small"><MemberName sub={r.managerSub} /></span>
         ) : (
-          <span className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.managerNone}</span>
+          <span className="text-muted-foreground text-body-small">{DELIVERY_TEXT.managerNone}</span>
         ),
     },
     {
@@ -251,11 +251,11 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
             {HEALTH_LABEL[r.derived] ?? r.derived}
           </StatusBadge>
           {worseThan(r.derived, r.reported) ? (
-            <span className="text-(color:--warning-text) text-body-sm">
+            <span className="text-(color:--warning-text) text-body-small">
               {DELIVERY_TEXT.reportedAs(HEALTH_LABEL[r.reported] ?? r.reported)}
             </span>
           ) : (
-            <span className="text-muted-foreground text-body-sm">
+            <span className="text-muted-foreground text-body-small">
               {PROJECT_STATUS_LABEL[r.status] ?? r.status}
             </span>
           )}

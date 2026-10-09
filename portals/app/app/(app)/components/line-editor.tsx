@@ -277,13 +277,13 @@ export function LineEditor({
           panel's own "⋮" 编辑, greyed with its reason there - this line read
           "no permission" to every member, including those who have it. */}
       {!canEdit && hideTitle ? null : !canEdit ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">
+        <p className="text-muted-foreground mt-sm text-body-small">
           {OPPORTUNITY_TEXT.lineDenied}
         </p>
       ) : closed ? (
         // Absent, not disabled. The rule refuses every patch on a closed deal,
         // and a greyed editor invites a fight nobody can win.
-        <p className="text-muted-foreground mt-sm text-body-sm">
+        <p className="text-muted-foreground mt-sm text-body-small">
           {OPPORTUNITY_TEXT.lineClosedHint}
         </p>
       ) : (
@@ -340,7 +340,7 @@ export function LineEditor({
                 }
               />
               {/* The line's own subtotal, as it will be saved. */}
-              <span className="text-muted-foreground w-28 text-right text-body-sm tabular-nums" aria-live="polite">
+              <span className="text-muted-foreground w-28 text-right text-body-small tabular-nums" aria-live="polite">
                 {Number.isFinite(Number(d.quantity) * Number(d.unitPrice))
                   ? formatMoney(Number(d.quantity) * Number(d.unitPrice), currency)
                   : "-"}
@@ -421,7 +421,7 @@ export function LineEditor({
             {/* The running total, shown while they type. It is what the header
                 will BECOME - so the reader sees the consequence before they
                 commit to it rather than discovering it afterwards. */}
-            <span className="text-muted-foreground text-body-sm tabular-nums">
+            <span className="text-muted-foreground text-body-small tabular-nums">
               {OPPORTUNITY_TEXT.lineAmount} {formatMoney(total, currency)}
             </span>
             {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}

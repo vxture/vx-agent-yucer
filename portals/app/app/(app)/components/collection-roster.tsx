@@ -216,15 +216,15 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
             : Math.floor((Date.now() - Date.parse(`${r.dueAt}T00:00:00Z`)) / 86_400_000);
         const clock =
           r.dueAt === null ? (
-            <span className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.noDueDate}</span>
+            <span className="text-muted-foreground text-body-small">{DELIVERY_TEXT.noDueDate}</span>
           ) : settledRow ? (
-            <span className="text-muted-foreground tabular-nums text-body-sm">{r.dueAt}</span>
+            <span className="text-muted-foreground tabular-nums text-body-small">{r.dueAt}</span>
           ) : (late ?? 0) > 0 ? (
-            <span className="text-destructive-text font-semibold tabular-nums text-body-sm">
+            <span className="text-destructive-text font-semibold tabular-nums text-body-small">
               {DELIVERY_TEXT.overdueBy(late ?? 0)}
             </span>
           ) : (
-            <span className="text-foreground tabular-nums text-body-sm">
+            <span className="text-foreground tabular-nums text-body-small">
               {DELIVERY_TEXT.dueIn(-(late ?? 0))}
             </span>
           );

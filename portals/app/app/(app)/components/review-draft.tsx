@@ -35,7 +35,7 @@ export function ReviewDraftSections({
   const [error, setError] = useState<string | null>(null);
   const field = (f: string) => T.field[f] ?? f;
   return (
-    <div className="border-border flex flex-col gap-2xs border-t pt-sm text-body-sm">
+    <div className="border-border flex flex-col gap-2xs border-t pt-sm text-body-small">
       <p className="text-foreground font-medium">{T.title}</p>
       <Part
         title={T.slipTitle}

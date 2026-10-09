@@ -83,12 +83,12 @@ export function ConsistencyCheck({
           <Icon name="search" size="xs" />
           {busy ? CONSISTENCY_TEXT.checking : CONSISTENCY_TEXT.button}
         </Button>
-        <span className={failed ? "text-destructive-text text-body-sm" : "text-muted-foreground text-body-sm"}>
+        <span className={failed ? "text-destructive-text text-body-small" : "text-muted-foreground text-body-small"}>
           {status}
         </span>
       </div>
       {pending.map((c) => (
-        <div key={c.id} className="border-border flex flex-col gap-3xs rounded-md border p-xs text-body-sm">
+        <div key={c.id} className="border-border flex flex-col gap-3xs rounded-md border p-xs text-body-small">
           <span className="flex flex-wrap items-center gap-xs">
             <span title={CONSISTENCY_TEXT.modelHint}>
               <Tag tone="info">{CONSISTENCY_TEXT.modelMark}</Tag>
@@ -100,7 +100,7 @@ export function ConsistencyCheck({
               <span className="text-muted-foreground tabular-nums">{side.date ?? ""}</span> {CONSISTENCY_TEXT.quote(side.quote)}
             </span>
           ))}
-          <Link href="/copilot" className="text-body-sm underline">
+          <Link href="/copilot" className="text-body-small underline">
             {CONSISTENCY_TEXT.decide}
           </Link>
         </div>

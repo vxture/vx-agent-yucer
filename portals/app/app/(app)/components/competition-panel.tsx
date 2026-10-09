@@ -132,13 +132,13 @@ export function CompetitionPanel({
         {T.rivalsTitle}
       </PanelSub>
       {rivals.length === 0 ? (
-        <p className="text-muted-foreground py-xs text-body-sm">{onlyUs ? T.onlyUsState : T.noRivals}</p>
+        <p className="text-muted-foreground py-xs text-body-small">{onlyUs ? T.onlyUsState : T.noRivals}</p>
       ) : (
         <ol className="flex flex-col">
           {rivals.map((r) => (
             <li
               key={r.competitorId}
-              className="border-border grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
+              className="border-border grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
             >
               <span className="flex min-w-0 items-center gap-xs">
                 <span className="text-foreground truncate font-medium">{r.name}</span>
@@ -169,7 +169,7 @@ export function CompetitionPanel({
           ))}
         </ol>
       )}
-      {outNames.length > 0 ? <p className="text-muted-foreground pt-2xs text-body-sm">{T.outList(outNames.join(T.sep))}</p> : null}
+      {outNames.length > 0 ? <p className="text-muted-foreground pt-2xs text-body-small">{T.outList(outNames.join(T.sep))}</p> : null}
 
       <PanelSub
         action={
@@ -183,13 +183,13 @@ export function CompetitionPanel({
         {T.criteriaTitle}
       </PanelSub>
       {criteria.length === 0 ? (
-        <p className="text-muted-foreground py-xs text-body-sm">{T.noCriteria}</p>
+        <p className="text-muted-foreground py-xs text-body-small">{T.noCriteria}</p>
       ) : (
         <ol className="flex flex-col">
           {criteria.map((c) => (
             <li
               key={c.id}
-              className="border-border grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
+              className="border-border grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
             >
               <span className="min-w-0">
                 <span className="text-foreground">{c.statement}</span>

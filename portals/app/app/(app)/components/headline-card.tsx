@@ -99,7 +99,7 @@ export function HeadlineCard({
           />
 
           {split.length === 0 ? (
-            <p className="text-muted-foreground mt-md text-body-sm">
+            <p className="text-muted-foreground mt-md text-body-small">
               {PIPELINE_TEXT.splitEmpty}
             </p>
           ) : (
@@ -114,10 +114,10 @@ export function HeadlineCard({
                      off its left edge, because first-of-row is still first. */
                   className="border-border min-w-0 flex-1 basis-0 px-md py-sm not-first:border-l"
                 >
-                  <div className="text-foreground truncate text-heading-4 tabular-nums">
+                  <div className="text-foreground truncate tabular-nums">
                     {BOARD_TEXT.wan(p.amount)}
                   </div>
-                  <div className="text-muted-foreground truncate text-body-sm">
+                  <div className="text-muted-foreground truncate text-body-small">
                     {p.name}
                   </div>
                 </li>

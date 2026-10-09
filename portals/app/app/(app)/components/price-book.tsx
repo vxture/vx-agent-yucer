@@ -243,7 +243,7 @@ export function PriceBook({
     ) : (
       <span className="flex flex-col tabular-nums leading-tight">
         <span>{at.toISOString().slice(0, 10)}</span>
-        <span className="text-muted-foreground text-body-sm">
+        <span className="text-muted-foreground text-body-small">
           {at.toISOString().slice(11, 19)}
         </span>
       </span>

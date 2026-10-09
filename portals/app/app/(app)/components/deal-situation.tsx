@@ -54,7 +54,7 @@ export function DealSituation({
   }, []);
 
   return (
-    <section className="bg-muted/40 border-border flex flex-col gap-sm rounded-md border p-sm text-body-sm">
+    <section className="bg-muted/40 border-border flex flex-col gap-sm rounded-md border p-sm text-body-small">
       <span className="text-foreground flex items-center gap-2xs font-medium">
         <Icon name="sparkles" size="xs" />
         {T.title}
@@ -144,7 +144,7 @@ function Cited({
         {notes.length > 0 ? (
           <button
             type="button"
-            className="text-primary ml-2xs align-super text-label-sm hover:underline"
+            className="text-primary ml-2xs align-super text-label-small hover:underline"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >

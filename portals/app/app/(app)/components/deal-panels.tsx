@@ -91,9 +91,10 @@ export function DealPanel({
 
 /** A small heading inside a panel (the prototype's `.sec`). */
 export function PanelSub({ children, action }: { readonly children: ReactNode; readonly action?: ReactNode }) {
-  // An in-panel sub-heading is the DS ladder's level 4 (design-ui 11: h4,
-  // title-sm, its own dashed underline) - no local type or colour.
-  return <SectionHeader level={4} title={children} action={action} className="mt-sm first:mt-0" />;
+  // An in-panel sub-heading is the DS ladder's level 3 (design-ui 12: h3,
+  // heading-3, its own dashed underline) - no local type or colour. Level 4 was
+  // removed in 12.0.0; the panel itself is a level-2 section, so 3 is its next.
+  return <SectionHeader level={3} title={children} action={action} className="mt-sm first:mt-0" />;
 }
 
 /** 栏1 · 交易档案 - the deal's OrgUnitPanel: name + number, 徽章区, the five
@@ -160,7 +161,7 @@ export function DealDossierPanel({
               <TooltipContent>{title}</TooltipContent>
             </Tooltip>
           </span>
-          <span className="text-muted-foreground text-body-sm font-normal">{opportunityNo}</span>
+          <span className="text-muted-foreground text-body-small font-normal">{opportunityNo}</span>
         </span>
       }
     >
@@ -244,16 +245,16 @@ export function DealSolutionPanel({
       menu={{ view: "expand", edit: editHref ? { href: editHref } : { hint: editHint } }}
     >
       {rows.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.solutionNone}</p>
+        <p className="text-muted-foreground text-body-small">{DEAL_PAGE_TEXT.solutionNone}</p>
       ) : (
         <div className="flex flex-col gap-sm">
-          <div className="text-muted-foreground text-body-sm">
+          <div className="text-muted-foreground text-body-small">
             {source ? DEAL_PAGE_TEXT.solutionFrom(source) : DEAL_PAGE_TEXT.solutionCustom}
             {scenario ? <span className="block">{DEAL_PAGE_TEXT.solutionScenario(scenario)}</span> : null}
           </div>
           <div className="divide-primary/10 dark:divide-primary/20 flex flex-col divide-y divide-dashed">
             {rows.map((r) => (
-              <div key={r.id} className="flex items-center gap-sm py-2xs text-body-sm">
+              <div key={r.id} className="flex items-center gap-sm py-2xs text-body-small">
                 <span className="min-w-0 flex-1 truncate" title={r.product}>
                   {r.product}
                 </span>
@@ -268,16 +269,16 @@ export function DealSolutionPanel({
           </div>
           {customised.length > 0 ? (
             <div className="flex flex-col gap-2xs">
-              <span className="text-muted-foreground text-body-sm font-medium">{DEAL_PAGE_TEXT.solutionCustomisations}</span>
+              <span className="text-muted-foreground text-body-small font-medium">{DEAL_PAGE_TEXT.solutionCustomisations}</span>
               {customised.map((r) => (
-                <p key={r.id} className="text-body-sm">
+                <p key={r.id} className="text-body-small">
                   {r.customNote}
                   <span className="text-muted-foreground"> · {DEAL_PAGE_TEXT.customOn(r.product)}</span>
                 </p>
               ))}
             </div>
           ) : null}
-          <span className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.solutionPriceElsewhere}</span>
+          <span className="text-muted-foreground text-body-small">{DEAL_PAGE_TEXT.solutionPriceElsewhere}</span>
         </div>
       )}
     </CollapsibleSection>
@@ -338,7 +339,7 @@ export function DealDecisionPanel({
           </span>
         ) : null}
         {people.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.decisionEmpty}</p>
+          <p className="text-muted-foreground text-body-small">{DEAL_PAGE_TEXT.decisionEmpty}</p>
         ) : (
           <div className="flex flex-col">
           {people.map((p) => (
@@ -395,8 +396,8 @@ export function ProcessTitles({
           <div className="flex items-center justify-between gap-sm">
             <span className="flex min-w-0 items-center gap-xs">
               {r.mark ? <span className={`size-2 flex-none rounded-full ${CHECK_DOT[r.mark.tone]}`} title={r.mark.verdict} /> : null}
-              <span className="text-foreground text-body-sm font-bold">{r.label}</span>
-              {r.mark?.work ? <span className={`truncate text-body-sm ${CHECK_INK[r.mark.tone]}`}>{r.mark.work}</span> : null}
+              <span className="text-foreground text-body-small font-bold">{r.label}</span>
+              {r.mark?.work ? <span className={`truncate text-body-small ${CHECK_INK[r.mark.tone]}`}>{r.mark.work}</span> : null}
             </span>
             <Button size="xs" variant="outline" aria-expanded={open.has(r.slot)} onClick={() => toggle(r.slot)}>
               {open.has(r.slot) ? DEAL_PAGE_TEXT.processCollapse : DEAL_PAGE_TEXT.processExpand}
@@ -457,7 +458,7 @@ export function DealCustomerPanel({
           ))}
         </dl>
         {accountLevel ? (
-          <Link href={accountLevel.href} className="text-primary text-body-sm hover:underline">
+          <Link href={accountLevel.href} className="text-primary text-body-small hover:underline">
             {accountLevel.label}
           </Link>
         ) : null}
@@ -507,11 +508,11 @@ export function DimensionChecks({
   return (
     <ul className="divide-primary/10 dark:divide-primary/20 grid grid-cols-1 gap-x-lg divide-y divide-dashed sm:grid-cols-2 sm:divide-y-0">
       {rows.map((r) => (
-        <li key={r.key} className="grid grid-cols-[0.5rem_5.5rem_2.5rem_minmax(0,1fr)] items-center gap-xs py-2xs text-body-sm">
+        <li key={r.key} className="grid grid-cols-[0.5rem_5.5rem_2.5rem_minmax(0,1fr)] items-center gap-xs py-2xs text-body-small">
           <span className={`size-2 rounded-full ${dot[r.tone]}`} aria-hidden />
           <span className="text-foreground truncate font-medium">{r.label}</span>
           <span className={`text-[11.5px] font-bold ${ink[r.tone]}`}>{r.verdict}</span>
-          <span className="text-muted-foreground truncate text-body-sm" title={r.work ?? undefined}>
+          <span className="text-muted-foreground truncate text-body-small" title={r.work ?? undefined}>
             {r.work ?? ""}
           </span>
         </li>

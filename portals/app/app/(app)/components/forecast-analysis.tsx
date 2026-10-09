@@ -61,9 +61,9 @@ export function ForecastAnalysis({ stats }: { readonly stats: ForecastStats }) {
     hideAxis = false,
   ) => (
     <Card className="flex flex-col gap-sm p-lg">
-      <span className="text-muted-foreground text-body-sm">{why}</span>
+      <span className="text-muted-foreground text-body-small">{why}</span>
       {data.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{empty}</p>
+        <p className="text-muted-foreground text-body-small">{empty}</p>
       ) : (
         <BarChart data={[...data]} formatValue={money} peakLabel={FORECAST_RULE_TEXT.chartPeak} hideAxis={hideAxis} />
       )}
@@ -78,15 +78,15 @@ export function ForecastAnalysis({ stats }: { readonly stats: ForecastStats }) {
       summary={
         <Card className="flex flex-col gap-sm p-lg">
           <div className="flex items-baseline justify-between gap-sm">
-            <span className="text-label-md text-foreground">
+            <span className="text-label text-foreground">
               {FORECAST_RULE_TEXT.agreementRate}
             </span>
-            <span className="text-muted-foreground tabular-nums text-body-sm">
+            <span className="text-muted-foreground tabular-nums text-body-small">
               {FORECAST_RULE_TEXT.agreementOf(stats.agreed.count, stats.total)}
             </span>
           </div>
           <Progress value={rate} />
-          <span className="text-muted-foreground text-body-sm">
+          <span className="text-muted-foreground text-body-small">
             {disputed === 0
               ? FORECAST_RULE_TEXT.agreementClear
               : FORECAST_RULE_TEXT.agreementWhy(disputed)}

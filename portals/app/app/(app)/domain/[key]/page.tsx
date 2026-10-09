@@ -119,11 +119,11 @@ export default async function DomainHomePage({
                 href={f.href}
                 className="hover:border-primary flex flex-col gap-2xs rounded-md border p-md"
               >
-                <span className="text-muted-foreground text-body-sm">
+                <span className="text-muted-foreground text-body-small">
                   {DOMAIN_FACT_LABEL[f.key] ?? f.key}
                 </span>
                 <span className="flex items-baseline gap-xs">
-                  <span className="text-heading-3 text-foreground tabular-nums">
+                  <span className="text-2xl text-foreground tabular-nums">
                     {f.value}
                   </span>
                   {/* Only a backlog earns the badge. An inventory figure is a
@@ -154,7 +154,7 @@ export default async function DomainHomePage({
                 className="text-muted-foreground flex flex-col gap-2xs rounded-md border border-dashed p-md"
               >
                 <span>{moduleLabel(m)}</span>
-                <span className="text-body-sm">{LAUNCHER_TEXT.planned}</span>
+                <span className="text-body-small">{LAUNCHER_TEXT.planned}</span>
               </div>
             ) : (
               <Link
@@ -163,7 +163,7 @@ export default async function DomainHomePage({
                 className="hover:border-primary flex flex-col gap-2xs rounded-md border p-md"
               >
                 <span className="text-foreground">{moduleLabel(m)}</span>
-                <span className="text-muted-foreground text-body-sm">
+                <span className="text-muted-foreground text-body-small">
                   {m.kind === "section"
                     ? LAUNCHER_TEXT.section
                     : m.state === "locked"

@@ -41,7 +41,7 @@ export function ConcessionSheet({
   const { CONCESSION_TEXT: T } = useMessages();
   const money = (n: number | null) => (n === null ? "—" : formatMoney(n, currency));
   return (
-    <div className="flex flex-col gap-sm text-body-sm">
+    <div className="flex flex-col gap-sm text-body-small">
       <table className="w-full tabular-nums">
         <thead className="text-muted-foreground">
           <tr className="border-border border-b">

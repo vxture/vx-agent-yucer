@@ -230,7 +230,7 @@ export function ExecutionForm({
               </NativeSelect>
             </Field>
             </FormFields>
-            <p className="text-muted-foreground text-body-sm">{CAMPAIGN_TEXT.executionBlocks}</p>
+            <p className="text-muted-foreground text-body-small">{CAMPAIGN_TEXT.executionBlocks}</p>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

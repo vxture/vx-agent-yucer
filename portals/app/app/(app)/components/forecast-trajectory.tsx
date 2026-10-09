@@ -252,7 +252,7 @@ export async function ForecastTrajectory({
                       />
                     ) : null}
                   </div>
-                  <span className="text-muted-foreground truncate text-body-sm tabular-nums">
+                  <span className="text-muted-foreground truncate text-body-small tabular-nums">
                     {p.at}
                   </span>
                 </div>
@@ -270,10 +270,10 @@ export async function ForecastTrajectory({
                     className={`size-2 shrink-0 rounded-sm ${s.cls}`}
                     aria-hidden
                   />
-                  <span className="text-muted-foreground text-body-sm">
+                  <span className="text-muted-foreground text-body-small">
                     {s.label}
                   </span>
-                  <span className="text-foreground text-body-sm font-semibold tabular-nums">
+                  <span className="text-foreground text-body-small font-semibold tabular-nums">
                     {wan(shown[shown.length - 1]![s.key])}
                   </span>
                 </li>
@@ -281,11 +281,11 @@ export async function ForecastTrajectory({
               {lastCall !== null ? (
                 <li className="flex items-baseline gap-xs">
                   <span className={`size-2 shrink-0 rounded-sm ${CALL.cls}`} aria-hidden />
-                  <span className="text-muted-foreground text-body-sm">{CALL.label}</span>
-                  <span className="text-foreground text-body-sm font-semibold tabular-nums">{wan(lastCall)}</span>
+                  <span className="text-muted-foreground text-body-small">{CALL.label}</span>
+                  <span className="text-foreground text-body-small font-semibold tabular-nums">{wan(lastCall)}</span>
                   {/* Not the newest snapshot's own: say it is the last one given. */}
                   {lastCallIndex < shown.length - 1 ? (
-                    <span className="text-muted-foreground text-body-sm">{PIPELINE_TEXT.callPrevious}</span>
+                    <span className="text-muted-foreground text-body-small">{PIPELINE_TEXT.callPrevious}</span>
                   ) : null}
                 </li>
               ) : null}

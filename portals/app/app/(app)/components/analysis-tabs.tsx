@@ -102,7 +102,7 @@ export function AnalysisTabs({
           <TabsTrigger key={t.key} value={t.key} className="group/tab flex-1 gap-2xs">
             {t.label}
             {t.count !== undefined ? (
-              <span className="bg-muted text-muted-foreground group-data-[state=active]/tab:bg-primary group-data-[state=active]/tab:text-primary-foreground rounded-full px-2xs text-label-sm leading-snug tabular-nums">
+              <span className="bg-muted text-muted-foreground group-data-[state=active]/tab:bg-primary group-data-[state=active]/tab:text-primary-foreground rounded-full px-2xs text-label-small leading-snug tabular-nums">
                 {t.count}
               </span>
             ) : null}

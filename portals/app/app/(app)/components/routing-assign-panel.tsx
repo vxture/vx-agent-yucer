@@ -107,16 +107,16 @@ export function RoutingAssignPanel({
   return (
     <Card className="flex flex-col gap-sm p-lg">
       <div className="flex items-baseline justify-between gap-sm">
-        <span className="text-foreground text-label-lg">{ROUTING_TEXT.assignTitle}</span>
+        <span className="text-foreground text-label">{ROUTING_TEXT.assignTitle}</span>
         {state.kind === "done" ? (
-          <span className="text-muted-foreground tabular-nums text-body-sm">
+          <span className="text-muted-foreground tabular-nums text-body-small">
             {ROUTING_TEXT.assignFound(state.proposals.length)}
           </span>
         ) : null}
       </div>
 
       {state.kind === "idle" ? (
-        <p className="text-muted-foreground text-body-sm">{ROUTING_TEXT.assignIdle}</p>
+        <p className="text-muted-foreground text-body-small">{ROUTING_TEXT.assignIdle}</p>
       ) : null}
       {state.kind === "failed" ? (
         <StatusBadge tone="danger">
@@ -125,7 +125,7 @@ export function RoutingAssignPanel({
       ) : null}
 
       {state.kind === "done" && left.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">
+        <p className="text-muted-foreground text-body-small">
           {/* NOTHING TO MOVE IS AN ANSWER, and a different one from "not run
               yet". Saying so is what stops somebody pressing again to check. */}
           {accepted.length > 0 ? ROUTING_TEXT.assignAllDone : ROUTING_TEXT.assignNone}
@@ -134,14 +134,14 @@ export function RoutingAssignPanel({
 
       {left.map((p) => (
         <div key={p.leadId} className="border-border flex flex-col gap-2xs rounded-md border p-sm">
-          <span className="text-foreground truncate text-body-sm">{p.companyName}</span>
-          <span className="text-muted-foreground truncate text-body-sm">
+          <span className="text-foreground truncate text-body-small">{p.companyName}</span>
+          <span className="text-muted-foreground truncate text-body-small">
             {ROUTING_TEXT.assignMove(nameOf(p.currentOwner) ?? ROUTING_TEXT.unowned, nameOf(p.suggestedOwner) ?? p.suggestedOwner)}
           </span>
           {/* THE REASON TRAVELS WITH THE PROPOSAL. "Why them" is the question a
               router is actually asked, and a suggestion that cannot answer it
               gets overridden by hand until nobody trusts it. */}
-          <span className="text-muted-foreground truncate text-body-sm">
+          <span className="text-muted-foreground truncate text-body-small">
             {p.contenders === 1
               ? ROUTING_TEXT.basisSole(p.region, p.territoryName)
               : ROUTING_TEXT.basisTie(p.region, p.contenders, p.territoryName, p.load)}
@@ -178,11 +178,11 @@ export function RoutingAssignPanel({
           jobs. */}
       {state.kind === "done" && state.findings.length > 0 ? (
         <div className="flex flex-col gap-2xs">
-          <span className="text-muted-foreground text-label-sm">
+          <span className="text-muted-foreground text-label-small">
             {ROUTING_TEXT.blockedTitle}
           </span>
           {state.findings.map((f) => (
-            <span key={f.id} className="text-muted-foreground text-body-sm">
+            <span key={f.id} className="text-muted-foreground text-body-small">
               {f.kind === "no_region"
                 ? ROUTING_TEXT.adviceNoRegion(f.count)
                 : f.kind === "no_territory"
@@ -217,7 +217,7 @@ export function RoutingAssignPanel({
       </div>
 
       {!canAssign ? (
-        <p className="text-muted-foreground text-body-sm">{ROUTING_TEXT.denied}</p>
+        <p className="text-muted-foreground text-body-small">{ROUTING_TEXT.denied}</p>
       ) : null}
     </Card>
   );

@@ -132,7 +132,7 @@ export function AgentPanel({
               <Button size="sm" variant="outline" disabled>
                 {BOARD_TEXT.reconCta}
               </Button>
-              <span className="text-muted-foreground text-body-sm">{BOARD_TEXT.analysisNote}</span>
+              <span className="text-muted-foreground text-body-small">{BOARD_TEXT.analysisNote}</span>
             </span>
           ),
         },

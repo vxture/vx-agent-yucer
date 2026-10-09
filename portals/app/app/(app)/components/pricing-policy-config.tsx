@@ -90,7 +90,7 @@ export function PricingPolicyConfig({
                           actual right edge. */}
                       <span className="flex w-40 items-center justify-between gap-sm">
                         <span className="font-medium">{code}</span>
-                        <span className="text-muted-foreground text-body-sm">{CURRENCY_LABEL[code]}</span>
+                        <span className="text-muted-foreground text-body-small">{CURRENCY_LABEL[code]}</span>
                       </span>
                     </SelectItem>
                   ))}

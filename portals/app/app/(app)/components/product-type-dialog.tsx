@@ -119,7 +119,7 @@ export function ProductTypeDialog({
     : l1.name || CATALOG_TEXT.typeLevel1;
 
   const labelCell = (text: string) => (
-    <span className="text-muted-foreground w-[3.5rem] shrink-0 text-body-sm">{text}</span>
+    <span className="text-muted-foreground w-[3.5rem] shrink-0 text-body-small">{text}</span>
   );
   /** Keeps the number and name columns aligned whether or not a line has the picker. */
   const pickerSlot = editingTop ? null : <span className="w-[9rem] shrink-0" aria-hidden />;
@@ -225,17 +225,17 @@ export function ProductTypeDialog({
             disabled={pending}
             onCheckedChange={(v) => setCustomizable(v === true)}
           />
-          <label htmlFor="type-customizable" className="text-foreground text-body-sm">
+          <label htmlFor="type-customizable" className="text-foreground text-body-small">
             {CATALOG_TEXT.typeCustomizableLabel}
           </label>
-          <span className="text-muted-foreground text-body-sm">{CATALOG_TEXT.typeCustomizableHint}</span>
+          <span className="text-muted-foreground text-body-small">{CATALOG_TEXT.typeCustomizableHint}</span>
         </div>
-        <p className="text-muted-foreground pl-[4.25rem] text-body-sm">{CATALOG_TEXT.typeLevel2Hint}</p>
+        <p className="text-muted-foreground pl-[4.25rem] text-body-small">{CATALOG_TEXT.typeLevel2Hint}</p>
 
         <div className="flex items-center gap-sm border-border border-t pt-sm">
           {labelCell(CATALOG_TEXT.typePreview)}
           <Tag>{previewNo}</Tag>
-          <span className="text-foreground text-body-md">{previewName}</span>
+          <span className="text-foreground text-body">{previewName}</span>
         </div>
         {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       </div>

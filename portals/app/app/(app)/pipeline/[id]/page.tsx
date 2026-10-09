@@ -1002,7 +1002,7 @@ export default async function OpportunityDetailPage({
     `/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(JUDGEMENT_ACTION_TEXT.reanalyseQuestion(opportunity.name, what))}`;
   const judgementEvidence = (j: (typeof problems)[number]) => (
     <div className="flex flex-col gap-xs">
-      {j.rule ? <p className="text-muted-foreground text-body-sm">{j.rule}</p> : null}
+      {j.rule ? <p className="text-muted-foreground text-body-small">{j.rule}</p> : null}
       {(j.citations?.length ?? 0) > 0 ? <CitationList citations={j.citations!} /> : null}
     </div>
   );
@@ -1595,7 +1595,7 @@ export default async function OpportunityDetailPage({
                 }
               >
                 {actionItems.length === 0 ? (
-                  <p className="text-muted-foreground text-body-sm">{JUDGEMENT_ACTION_TEXT.empty}</p>
+                  <p className="text-muted-foreground text-body-small">{JUDGEMENT_ACTION_TEXT.empty}</p>
                 ) : (
                   <FoldedList items={actionItems.map((x) => x.node)} />
                 )}
@@ -1651,7 +1651,7 @@ export default async function OpportunityDetailPage({
                   the slots below are the EVIDENCE for it. Two kinds of thing,
                   so the slots get their own heading rather than reading as
                   three more rows of the sentence above. */}
-              <p className={`text-body-sm whitespace-pre-wrap ${requirement ? "text-foreground" : "text-muted-foreground"}`}>
+              <p className={`text-body-small whitespace-pre-wrap ${requirement ? "text-foreground" : "text-muted-foreground"}`}>
                 <span className="text-muted-foreground">{DEAL_PAGE_TEXT.requirement}：</span>
                 {requirement ?? DEAL_PAGE_TEXT.requirementNone}
               </p>
@@ -1720,7 +1720,7 @@ export default async function OpportunityDetailPage({
                 moves={history.ok ? history.value : []}
                 current={exitCheck}
               />
-              <div className="text-muted-foreground flex flex-wrap items-center gap-x-md gap-y-2xs text-body-sm">
+              <div className="text-muted-foreground flex flex-wrap items-center gap-x-md gap-y-2xs text-body-small">
                 <Tag tone={FORECAST_TONE[opportunity.forecastCategory as ForecastCategory]}>
                   {FORECAST_LABEL[opportunity.forecastCategory as ForecastCategory]}
                 </Tag>

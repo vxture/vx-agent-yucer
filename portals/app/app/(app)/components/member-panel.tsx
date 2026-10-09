@@ -320,7 +320,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                 // Several units read as tags, in tree order (0053).
                 cell: (r: MemberRow) =>
                   r.units.length === 0 ? (
-                    <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.unitNone}</span>
+                    <span className="text-muted-foreground text-body-small">{MEMBER_TEXT.unitNone}</span>
                   ) : (
                     <span className="gap-2xs flex flex-wrap">
                       {r.units.map((u) => <Tag key={u.id}>{u.name}</Tag>)}
@@ -332,9 +332,9 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                 header: MEMBER_TEXT.columnScope,
                 cell: (r: MemberRow) => (
                   <span className="gap-3xs flex flex-col">
-                    <span className="text-body-sm">{scopeLabel(r)}</span>
+                    <span className="text-body-small">{scopeLabel(r)}</span>
                     {r.scope === "unit" && r.units.length === 0 ? (
-                      <span className="text-warning text-body-sm">{MEMBER_TEXT.scopeUnitUnplaced}</span>
+                      <span className="text-warning text-body-small">{MEMBER_TEXT.scopeUnitUnplaced}</span>
                     ) : null}
                   </span>
                 ),
@@ -372,9 +372,9 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
       >
         {details ? (
           <dl className="gap-md grid grid-cols-[8rem_minmax(0,1fr)]">
-            <dt className="text-muted-foreground text-body-sm">{MEMBER_TEXT.columnLifecycle}</dt>
+            <dt className="text-muted-foreground text-body-small">{MEMBER_TEXT.columnLifecycle}</dt>
             <dd>{details.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : <StatusBadge tone="success">{MEMBER_TEXT.active}</StatusBadge>}</dd>
-            <dt className="text-muted-foreground text-body-sm">{MEMBER_TEXT.columnRoles}</dt>
+            <dt className="text-muted-foreground text-body-small">{MEMBER_TEXT.columnRoles}</dt>
             <dd>
               {details.roles.length === 0 ? (
                 <StatusBadge tone="warning" dot>{MEMBER_TEXT.noRoles}</StatusBadge>
@@ -384,26 +384,26 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                 </span>
               )}
             </dd>
-            <dt className="text-muted-foreground text-body-sm">{MEMBER_TEXT.columnUnit}</dt>
+            <dt className="text-muted-foreground text-body-small">{MEMBER_TEXT.columnUnit}</dt>
             <dd>
               {details.units.length === 0 ? (
-                <span className="text-muted-foreground text-body-md">{MEMBER_TEXT.unitNone}</span>
+                <span className="text-muted-foreground text-body">{MEMBER_TEXT.unitNone}</span>
               ) : (
                 <span className="gap-2xs flex flex-wrap">
                   {details.units.map((u) => <Tag key={u.id}>{u.name}</Tag>)}
                 </span>
               )}
             </dd>
-            <dt className="text-muted-foreground text-body-sm">{MEMBER_TEXT.columnScope}</dt>
+            <dt className="text-muted-foreground text-body-small">{MEMBER_TEXT.columnScope}</dt>
             <dd className="gap-3xs flex flex-col">
-              <span className="text-body-md">{scopeLabel(details)}</span>
+              <span className="text-body">{scopeLabel(details)}</span>
               {details.scope === "territory" ? (
-                <span className="text-muted-foreground text-body-sm">
+                <span className="text-muted-foreground text-body-small">
                   {details.territories.length > 0 ? details.territories.join(" / ") : MEMBER_TEXT.territoriesNone}
                 </span>
               ) : null}
               {details.scope === "unit" && details.units.length === 0 ? (
-                <span className="text-warning text-body-sm">{MEMBER_TEXT.scopeUnitUnplaced}</span>
+                <span className="text-warning text-body-small">{MEMBER_TEXT.scopeUnitUnplaced}</span>
               ) : null}
             </dd>
           </dl>
@@ -421,7 +421,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         onSubmit={(e) => { e.preventDefault(); handover(); }}
       >
         {heirs.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{MEMBER_TEXT.handoverNoHeir}</p>
+          <p className="text-muted-foreground text-body-small">{MEMBER_TEXT.handoverNoHeir}</p>
         ) : (
           <NativeSelect aria-label={MEMBER_TEXT.handoverTo} value={heir} onChange={(e) => setHeir(e.target.value)}>
             <option value="">{MEMBER_TEXT.handoverTo}</option>

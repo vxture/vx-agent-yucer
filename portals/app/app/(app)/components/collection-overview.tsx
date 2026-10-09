@@ -68,9 +68,9 @@ export function CollectionOverview({
     why: string,
   ) => (
     <Card className="flex flex-col gap-sm p-lg">
-      <span className="text-muted-foreground text-body-sm">{why}</span>
+      <span className="text-muted-foreground text-body-small">{why}</span>
       {data.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.overviewEmpty}</p>
+        <p className="text-muted-foreground text-body-small">{DELIVERY_TEXT.overviewEmpty}</p>
       ) : (
         <BarChart data={[...data]} formatValue={money} peakLabel={DELIVERY_TEXT.chartPeak} />
       )}

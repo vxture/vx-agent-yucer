@@ -94,7 +94,7 @@ export function InstalmentForm({
                 <Input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
               </Field>
             </FormFields>
-            <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.instalmentHint}</p>
+            <p className="text-muted-foreground text-body-small">{DELIVERY_TEXT.instalmentHint}</p>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

@@ -24,7 +24,7 @@ import { JudgementNote, type Judgement } from "./judgement-note";
 export async function DealJudgements({ problems }: { readonly problems: readonly (Judgement & { readonly id: string })[] }) {
   const { POSITION_TEXT } = await getMessages();
   if (problems.length === 0) {
-    return <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.noProblems}</p>;
+    return <p className="text-muted-foreground text-body-small">{POSITION_TEXT.noProblems}</p>;
   }
   return (
     <div className="flex flex-col gap-sm">
@@ -53,7 +53,7 @@ export async function RivalMentions({
           a description - with no mentions there are no rows, and the line is
           the only thing the card can say. */}
       {mentions.length === 0 ? (
-        <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.competitionNoMention}</p>
+        <p className="text-muted-foreground text-body-small">{POSITION_TEXT.competitionNoMention}</p>
       ) : null}
       {/* Dated rows like 沟通记录 (YC-072 .lg): the words are a quote, so
           they stay muted and verbatim. */}
@@ -61,7 +61,7 @@ export async function RivalMentions({
         {mentions.map((m) => (
           <li
             key={m.id}
-            className="border-border grid grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
+            className="border-border grid grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
           >
             <span className="text-muted-foreground font-mono tabular-nums">{m.when}</span>
             <q className="text-muted-foreground">{m.text}</q>

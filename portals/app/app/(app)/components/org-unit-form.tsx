@@ -441,14 +441,14 @@ export function OrgUnitForm({
                 </span>
                 <div className="min-w-0 flex-1 flex flex-col gap-2xs">
                   {!chosen ? (
-                    <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formDivisionUnset}</p>
+                    <p className="text-muted-foreground text-body-small">{ORG_TEXT.formDivisionUnset}</p>
                   ) : divisionMode === "manual" ? (
                     <>
                       {/* 已选择 (owner, 2026-09-11) - the label for the one
                           mode that is a real pick, not an automatic
                           resolution; the chips right under it already are
                           the answer to "which ones". */}
-                      <p className="text-body-sm text-foreground">{ORG_TEXT.divisionChosenLabel}</p>
+                      <p className="text-body-small text-foreground">{ORG_TEXT.divisionChosenLabel}</p>
                       {chips.length > 0 ? (
                         <ul className="gap-2xs flex flex-wrap">
                           {chips.map((did) => {
@@ -457,7 +457,7 @@ export function OrgUnitForm({
                           })}
                         </ul>
                       ) : (
-                        <p className="text-muted-foreground text-body-sm">{ORG_TEXT.noTerritory}</p>
+                        <p className="text-muted-foreground text-body-small">{ORG_TEXT.noTerritory}</p>
                       )}
                     </>
                   ) : (
@@ -469,7 +469,7 @@ export function OrgUnitForm({
                           for aggregate/inherited, or 无范围 for 无区域 (same
                           word both places there, since that mode's setting
                           and its result are the same fact). */}
-                      <p className="text-body-sm text-foreground">
+                      <p className="text-body-small text-foreground">
                         {ORG_TEXT.divisionSetLabel(
                           divisionMode === "aggregate"
                             ? ORG_TEXT.divisionModeAggregate
@@ -485,7 +485,7 @@ export function OrgUnitForm({
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-muted-foreground text-body-sm">{ORG_TEXT.noTerritory}</p>
+                        <p className="text-muted-foreground text-body-small">{ORG_TEXT.noTerritory}</p>
                       )}
                     </>
                   )}
@@ -538,15 +538,15 @@ export function OrgUnitForm({
         }
       >
         {divisionOptions.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formDivisionDrawerEmpty}</p>
+          <p className="text-muted-foreground text-body-small">{ORG_TEXT.formDivisionDrawerEmpty}</p>
         ) : (
           <ul className="gap-2xs flex flex-col">
             {divisionOptions.map((d) => (
               <li key={d.id}>
                 <label className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs">
                   <input type="checkbox" checked={divisionSelection.includes(d.id)} onChange={() => toggleDivision(d.id)} />
-                  <span className="text-body-sm">{d.name}</span>
-                  <span className="text-muted-foreground text-body-sm">{d.code}</span>
+                  <span className="text-body-small">{d.name}</span>
+                  <span className="text-muted-foreground text-body-small">{d.code}</span>
                 </label>
               </li>
             ))}

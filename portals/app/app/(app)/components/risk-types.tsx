@@ -96,7 +96,7 @@ export function RiskTypes({ risks }: { readonly risks: readonly LaneRisk[] }) {
   return (
     <div className="flex flex-col gap-xs">
       <span className="flex items-center gap-sm">
-        <span className="text-muted-foreground text-label-sm font-bold">{RISK_TEXT.title}</span>
+        <span className="text-muted-foreground text-label-small font-bold">{RISK_TEXT.title}</span>
         {dueToday.length > 0 ? (
           <Tag tone="danger">{RISK_TEXT.today(dueToday.map((r) => RISK_TEXT.type[r.type]).join(RISK_TEXT.lanesJoin))}</Tag>
         ) : null}
@@ -111,7 +111,7 @@ export function RiskTypes({ risks }: { readonly risks: readonly LaneRisk[] }) {
         return (
           <div
             key={r.type}
-            className={`grid grid-cols-[7.5rem_minmax(0,1fr)_auto] items-start gap-x-lg rounded-e-md border-s-[3px] bg-muted/30 px-md py-sm text-body-sm ${LEVEL_EDGE[r.level]}`}
+            className={`grid grid-cols-[7.5rem_minmax(0,1fr)_auto] items-start gap-x-lg rounded-e-md border-s-[3px] bg-muted/30 px-md py-sm text-body-small ${LEVEL_EDGE[r.level]}`}
           >
             <span className="flex items-center gap-sm">
               <span className="font-bold">{RISK_TEXT.type[r.type]}</span>
@@ -133,7 +133,7 @@ export function RiskTypes({ risks }: { readonly risks: readonly LaneRisk[] }) {
               {acting ? (
                 <>
                   <span className="text-foreground font-bold">{r.who.name ?? RISK_TEXT.whoUnassigned}</span>
-                  <span className="text-muted-foreground text-label-sm">{RISK_TEXT.role[r.who.role]}</span>
+                  <span className="text-muted-foreground text-label-small">{RISK_TEXT.role[r.who.role]}</span>
                 </>
               ) : (
                 <span className="text-muted-foreground">—</span>

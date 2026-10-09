@@ -81,7 +81,7 @@ export function NameOverflowTag({
   readonly names: readonly string[];
   readonly empty: ReactNode;
 }) {
-  if (names.length === 0) return <span className="text-muted-foreground text-body-sm">{empty}</span>;
+  if (names.length === 0) return <span className="text-muted-foreground text-body-small">{empty}</span>;
   if (names.length === 1) return <Tag>{names[0]}</Tag>;
   return (
     <Tooltip>

@@ -186,7 +186,7 @@ export function TerritoryForm({
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryRegions}</FieldLabel>
               {divisions.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">
+                <p className="text-muted-foreground text-body-small">
                   {PLANNING_TEXT.territoryRegionsNone}
                 </p>
               ) : (
@@ -198,12 +198,12 @@ export function TerritoryForm({
                         checked={inField.has(d.id)}
                         onChange={() => toggleDivision(d.id)}
                       />
-                      <span className="text-body-sm">{d.name}</span>
+                      <span className="text-body-small">{d.name}</span>
                     </label>
                   ))}
                 </div>
               )}
-              <span className="text-muted-foreground text-body-sm">
+              <span className="text-muted-foreground text-body-small">
                 {PLANNING_TEXT.territoryRegionsHint}
               </span>
             </Field>
@@ -214,7 +214,7 @@ export function TerritoryForm({
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryUnits}</FieldLabel>
               {units.length === 0 ? (
-                <p className="text-muted-foreground text-body-sm">
+                <p className="text-muted-foreground text-body-small">
                   {PLANNING_TEXT.territoryUnitsNone}
                 </p>
               ) : (
@@ -226,12 +226,12 @@ export function TerritoryForm({
                         checked={unitIds.includes(u.id)}
                         onChange={() => toggleUnit(u.id)}
                       />
-                      <span className="text-body-sm">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
+                      <span className="text-body-small">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
                     </label>
                   ))}
                 </div>
               )}
-              <span className="text-muted-foreground text-body-sm">
+              <span className="text-muted-foreground text-body-small">
                 {PLANNING_TEXT.territoryUnitsHint}
               </span>
             </Field>

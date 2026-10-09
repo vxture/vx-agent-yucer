@@ -98,7 +98,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
       header: STRATEGY_TEXT.columnPeriod,
       width: "sm" as const,
       cell: (r: PlanRow) => (
-        <span className="text-muted-foreground tabular-nums text-body-sm">{r.period}</span>
+        <span className="text-muted-foreground tabular-nums text-body-small">{r.period}</span>
       ),
     },
     {
@@ -107,9 +107,9 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
       // A raw subject, marked as one - the same call every other list here makes.
       cell: (r: PlanRow) =>
         r.ownerSub ? (
-          <span className="text-muted-foreground truncate text-body-sm"><MemberName sub={r.ownerSub} /></span>
+          <span className="text-muted-foreground truncate text-body-small"><MemberName sub={r.ownerSub} /></span>
         ) : (
-          <span className="text-muted-foreground text-body-sm">{STRATEGY_TEXT.ownerNone}</span>
+          <span className="text-muted-foreground text-body-small">{STRATEGY_TEXT.ownerNone}</span>
         ),
     },
     {
@@ -125,7 +125,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
           <span className="text-muted-foreground">-</span>
         ) : (
           <span
-            className={`tabular-nums text-body-sm ${
+            className={`tabular-nums text-body-small ${
               r.campaignCount === 0 && r.status === "active" ? "text-(color:--warning-text)" : ""
             }`}
           >

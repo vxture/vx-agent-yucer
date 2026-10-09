@@ -156,16 +156,16 @@ export function ExitCriterionConfig({
               }
             >
               {s.isTerminal ? (
-                <p className="text-muted-foreground text-body-sm">{EXIT_CONFIG_TEXT.endNote}</p>
+                <p className="text-muted-foreground text-body-small">{EXIT_CONFIG_TEXT.endNote}</p>
               ) : (
-                <PanelList empty={<p className="text-muted-foreground text-body-sm">{DEAL_PAGE_TEXT.exitNone}</p>}>
+                <PanelList empty={<p className="text-muted-foreground text-body-small">{DEAL_PAGE_TEXT.exitNone}</p>}>
                   {mine.map((c, n) => (
                     <PanelItem
                       key={c.id}
                       lead={<span className="text-muted-foreground tabular-nums">{n + 1}</span>}
                       main={
                         <span className="flex min-w-0 flex-col items-start gap-2xs">
-                          <span className="text-foreground text-body-sm">{c.name}</span>
+                          <span className="text-foreground text-body-small">{c.name}</span>
                           {/* The rule behind the sentence - skipped when it IS the
                               sentence, which the factory criteria often are. */}
                           {describe(c) !== c.name ? <Tag>{describe(c)}</Tag> : null}

@@ -78,11 +78,11 @@ function OutcomeReviews({ reviews }: { readonly reviews: readonly PlanReview[] }
   if (reviews.length === 0) return null;
   return (
     <div className="border-border flex flex-col gap-xs border-t pt-sm">
-      <p className="text-muted-foreground text-label-sm font-bold">{OUTCOME_TEXT.title}</p>
-      <p className="text-muted-foreground text-body-sm">{OUTCOME_TEXT.notCausation}</p>
+      <p className="text-muted-foreground text-label-small font-bold">{OUTCOME_TEXT.title}</p>
+      <p className="text-muted-foreground text-body-small">{OUTCOME_TEXT.notCausation}</p>
       {reviews.map((r) => (
         <details key={r.id} className="group/d border-border rounded-md border p-xs">
-          <summary className="cursor-pointer flex list-none items-center gap-2xs [&::-webkit-details-marker]:hidden text-body-sm">
+          <summary className="cursor-pointer flex list-none items-center gap-2xs [&::-webkit-details-marker]:hidden text-body-small">
             <Icon name="chevron-right" size="xs" className="text-muted-foreground shrink-0 transition-transform group-open/d:rotate-90" />
             <span className="text-foreground font-bold">{r.title}</span>
             {r.subjectName ? <span className="text-muted-foreground"> · {r.subjectName}</span> : null}
@@ -92,7 +92,7 @@ function OutcomeReviews({ reviews }: { readonly reviews: readonly PlanReview[] }
               {r.windowClosed ? "" : ` · ${OUTCOME_TEXT.windowOpen(r.windowEnd)}`}
             </span>
           </summary>
-          <div className="mt-xs flex flex-col gap-2xs text-body-sm">
+          <div className="mt-xs flex flex-col gap-2xs text-body-small">
             {/* The recorded score either side of the decision - read from the
                 snapshots, never re-derived (see outcome-review.ts). */}
             {r.health ? <p className="text-muted-foreground">{OUTCOME_TEXT.health(r.health.before, r.health.after)}</p> : null}
@@ -173,19 +173,19 @@ export function TheatrePlan({
   // purple that said nothing. The ones with proposals show; the silent ones
   // fold into one line that opens on demand.
   const CHIP =
-    "text-label-sm inline-flex items-center gap-3xs rounded-[4px] border border-[#7c3aed20] bg-[linear-gradient(135deg,#7c3aed10,#6d28d910)] px-sm py-3xs font-extrabold tracking-wider text-[#7c3aed] dark:border-[#7c3aed30] dark:bg-[linear-gradient(135deg,#7c3aed18,#6d28d918)] dark:text-[#a78bfa]";
+    "text-label-small inline-flex items-center gap-3xs rounded-[4px] border border-[#7c3aed20] bg-[linear-gradient(135deg,#7c3aed10,#6d28d910)] px-sm py-3xs font-extrabold tracking-wider text-[#7c3aed] dark:border-[#7c3aed30] dark:bg-[linear-gradient(135deg,#7c3aed18,#6d28d918)] dark:text-[#a78bfa]";
   const active = CAPABILITIES.filter((cap) => (capCounts.get(cap) ?? 0) > 0);
   const silent = CAPABILITIES.filter((cap) => (capCounts.get(cap) ?? 0) === 0);
   const counselorSummary = (
     <div className="flex flex-col gap-xs">
-      <p className="text-muted-foreground text-label-sm font-bold">
+      <p className="text-muted-foreground text-label-small font-bold">
         {ACCOUNT_TEXT.planCounselorOverview}
       </p>
       <div className="flex flex-wrap items-center gap-xs">
         {active.map((cap) => (
           <span key={cap} className={CHIP}>
             {BOARD_TEXT.capabilityLabels[cap] ?? cap}{" "}
-            <span className="font-mono text-label-sm">{capCounts.get(cap)}</span>
+            <span className="font-mono text-label-small">{capCounts.get(cap)}</span>
           </span>
         ))}
         {silent.length > 0 ? (
@@ -193,7 +193,7 @@ export function TheatrePlan({
             type="button"
             onClick={() => setShowSilent((v) => !v)}
             aria-expanded={showSilent}
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2xs text-body-sm"
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2xs text-body-small"
           >
             <Icon name={showSilent ? "chevron-down" : "chevron-right"} size="xs" />
             {ACCOUNT_TEXT.planSilentCaps(silent.length)}
@@ -209,7 +209,7 @@ export function TheatrePlan({
           ))}
         </div>
       ) : null}
-      <p className="text-muted-foreground text-body-sm">
+      <p className="text-muted-foreground text-body-small">
         {ACCOUNT_TEXT.planProposalSummary(proposals.length)}
       </p>
     </div>
@@ -239,7 +239,7 @@ export function TheatrePlan({
           description={ACCOUNT_TEXT.planEmptyWhy}
         />
         <div className="border-border border-t pt-sm">
-          <p className="text-muted-foreground text-label-sm mb-xs font-bold">
+          <p className="text-muted-foreground text-label-small mb-xs font-bold">
             {ACCOUNT_TEXT.planMemo}
           </p>
           <Textarea
@@ -275,7 +275,7 @@ export function TheatrePlan({
 
       {groups.map((g) => (
         <div key={g} className="flex flex-col gap-sm">
-          <p className="text-muted-foreground text-label-md">{g}</p>
+          <p className="text-muted-foreground text-label">{g}</p>
           {proposals
             .filter((p) => p.group === g)
             .map((p) => (
@@ -284,7 +284,7 @@ export function TheatrePlan({
                 className="border-border flex min-w-0 flex-col gap-2xs rounded-md border p-md"
               >
                 <div className="flex min-w-0 items-center justify-between gap-md">
-                  <span className="text-foreground min-w-0 truncate text-body-md">
+                  <span className="text-foreground min-w-0 truncate text-body">
                     {p.title}
                   </span>
                   <Tag tone={confidenceTone(p.confidence)}>
@@ -296,7 +296,7 @@ export function TheatrePlan({
                 {/* The reasoning is always on the row, never behind a click: a
                     decision made without reading it is not human-in-the-loop. */}
                 {p.rationale ? (
-                  <p className="text-muted-foreground text-body-sm">{p.rationale}</p>
+                  <p className="text-muted-foreground text-body-small">{p.rationale}</p>
                 ) : null}
                 {/* NEITHER LINK WRITES. Both land on /copilot, where the real
                     accept/reject queue and the full conversation live -
@@ -305,14 +305,14 @@ export function TheatrePlan({
                 <div className="mt-2xs flex items-center gap-md">
                   <Link
                     href={`/copilot?account=${accountId}`}
-                    className="text-primary text-body-sm font-medium hover:underline"
+                    className="text-primary text-body-small font-medium hover:underline"
                   >
                     {PROPOSAL_TEXT.viewInQueue}
                   </Link>
                   {p.rationale ? (
                     <Link
                       href={`/copilot?account=${accountId}&ask=${encodeURIComponent(PROPOSAL_TEXT.analyzeQuestion(p.title, p.rationale))}`}
-                      className="text-primary text-body-sm font-medium hover:underline"
+                      className="text-primary text-body-small font-medium hover:underline"
                     >
                       {PROPOSAL_TEXT.analyze}
                     </Link>
@@ -324,7 +324,7 @@ export function TheatrePlan({
       ))}
 
       <div className="border-border border-t pt-sm">
-        <p className="text-muted-foreground text-label-sm mb-xs font-bold">
+        <p className="text-muted-foreground text-label-small mb-xs font-bold">
           {ACCOUNT_TEXT.planMemo}
         </p>
         <Textarea

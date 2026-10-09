@@ -61,7 +61,7 @@ export function ForecastBriefPanel({
     >
       {error ? <StatusBadge tone="warning">{error}</StatusBadge> : null}
       {result ? (
-        <Card className="flex flex-col gap-sm p-md text-body-sm">
+        <Card className="flex flex-col gap-sm p-md text-body-small">
           {result.summary.length > 0 ? (
             <div className="flex flex-col gap-2xs">
               {result.summary.map((s) => (

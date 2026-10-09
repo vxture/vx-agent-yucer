@@ -311,9 +311,9 @@ export function LeadList({
       cell: (row: LeadRecord) => {
         const region = row.accountId ? (regionOf.get(row.accountId) ?? null) : null;
         return region ? (
-          <span className="text-body-sm">{region}</span>
+          <span className="text-body-small">{region}</span>
         ) : (
-          <span className="text-(color:--warning-text) text-body-sm">
+          <span className="text-(color:--warning-text) text-body-small">
             {LEAD_TEXT.noRegion}
           </span>
         );
@@ -340,7 +340,7 @@ export function LeadList({
             </Tag>
             {exit ? (
               <span
-                className="text-muted-foreground truncate text-body-sm"
+                className="text-muted-foreground truncate text-body-small"
                 title={exit.note ?? undefined}
               >
                 {EXIT_REASON_LABEL[exit.reasonCode] ?? exit.reasonCode}
@@ -710,7 +710,7 @@ export function LeadList({
               placeholder={LEAD_TEXT.convertRequirementHint}
               onChange={(e) => setRequirement(e.target.value)}
             />
-            <p className="text-muted-foreground text-body-sm">
+            <p className="text-muted-foreground text-body-small">
               {LEAD_TEXT.convertRequirementWhy}
             </p>
           </Field>

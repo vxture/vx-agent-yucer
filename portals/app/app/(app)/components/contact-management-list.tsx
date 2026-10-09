@@ -77,7 +77,7 @@ export function ContactManagementList({
   return (
     <div className="flex flex-col gap-sm">
       <SectionHeader
-        level={4}
+        level={3}
         title={ACCOUNT_TEXT.contactsTitle}
         action={
           canEdit ? (
@@ -134,7 +134,7 @@ export function ContactManagementList({
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
+        <p className="text-muted-foreground text-body-small">{ACCOUNT_TEXT.contactsDenied}</p>
       ) : null}
     </div>
   );

@@ -137,14 +137,14 @@ export function InteractionTimeline({
     ) : null;
 
   if (rows) {
-    if (items.length === 0) return <p className="text-muted-foreground text-body-sm">{FIELD_TEXT.recordEmpty}</p>;
+    if (items.length === 0) return <p className="text-muted-foreground text-body-small">{FIELD_TEXT.recordEmpty}</p>;
     return (
       <div className="flex flex-col">
         <ol className="flex flex-col">
           {shown.map((i) => (
             <li
               key={i.id}
-              className="border-border grid grid-cols-[3.25rem_3.5rem_minmax(0,1fr)_auto] items-baseline gap-sm border-b border-dashed py-xs text-body-sm last:border-b-0"
+              className="border-border grid grid-cols-[3.25rem_3.5rem_minmax(0,1fr)_auto] items-baseline gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
             >
               <time
                 className="text-muted-foreground font-mono tabular-nums"
@@ -231,7 +231,7 @@ export function InteractionTimeline({
                   </StatusBadge>
                 ) : null}
               </div>
-              <p className="text-foreground mt-2xs text-body-sm leading-relaxed">{i.rawNote}</p>
+              <p className="text-foreground mt-2xs text-body-small leading-relaxed">{i.rawNote}</p>
             </div>
             {mine(i) ? (
               <Button variant="ghost" size="sm" disabled={pending} onClick={() => setRemoving(i)}>

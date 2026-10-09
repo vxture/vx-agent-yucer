@@ -83,11 +83,11 @@ export function DealMeetingButton({
           </div>
         }
       >
-        {error ? <p className="text-destructive-text text-body-sm mb-sm">{error}</p> : null}
+        {error ? <p className="text-destructive-text text-body-small mb-sm">{error}</p> : null}
         {result ? (
-          <div className="flex flex-col gap-lg text-body-sm">
+          <div className="flex flex-col gap-lg text-body-small">
             <section className="flex flex-col gap-2xs">
-              <SectionHeader level={4} title={T.goal} />
+              <SectionHeader level={3} title={T.goal} />
               {result.pack.goal ? (
                 <p>
                   {result.pack.goal.criterion}{" "}
@@ -103,7 +103,7 @@ export function DealMeetingButton({
               )}
             </section>
             <section className="flex flex-col gap-2xs">
-              <SectionHeader level={4} title={T.attendees} />
+              <SectionHeader level={3} title={T.attendees} />
               {result.pack.attendees.map((a) => (
                 <div key={a.contactId}>
                   <Link href={`/pipeline/${opportunityId}#buying-roles-panel`} className="text-foreground font-medium hover:underline">
@@ -119,7 +119,7 @@ export function DealMeetingButton({
               ))}
             </section>
             <section className="flex flex-col gap-2xs">
-              <SectionHeader level={4} title={T.promises} />
+              <SectionHeader level={3} title={T.promises} />
               {result.pack.promises.length === 0 ? (
                 <p className="text-muted-foreground">{T.promisesNone}</p>
               ) : (
@@ -164,14 +164,14 @@ export function DealMeetingButton({
             </section>
           </div>
         ) : people.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{T.noPeople}</p>
+          <p className="text-muted-foreground text-body-small">{T.noPeople}</p>
         ) : (
           <div className="flex flex-col gap-2xs">
             {people.map((c) => (
               <label key={c.id} htmlFor={`deal-attendee-${c.id}`} className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs">
                 <Checkbox id={`deal-attendee-${c.id}`} checked={chosen.has(c.id)} onCheckedChange={() => toggle(c.id)} disabled={pending} />
-                <span className="text-body-sm grow font-medium">{c.name}</span>
-                {c.title ? <span className="text-muted-foreground text-body-sm">{c.title}</span> : null}
+                <span className="text-body-small grow font-medium">{c.name}</span>
+                {c.title ? <span className="text-muted-foreground text-body-small">{c.title}</span> : null}
               </label>
             ))}
           </div>

@@ -141,7 +141,7 @@ export function BatchCompleteness({
       // from, and centred prose is read by hunting for each line's start.
       align: "left" as const,
       cell: (row) => (
-        <span className="text-muted-foreground text-body-sm">{row.basis}</span>
+        <span className="text-muted-foreground text-body-small">{row.basis}</span>
       ),
     },
   ];

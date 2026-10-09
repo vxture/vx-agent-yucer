@@ -89,7 +89,7 @@ export async function PlaybookCatalog({
               neutral grey every other paragraph on the page uses. Workspace
               prose that looks clickable is worse than prose that is merely
               hard to find. */}
-          <p className="text-body-md text-foreground">{p.content}</p>
+          <p className="text-body text-foreground">{p.content}</p>
         </PanelCard>
       ))}
     </Section>

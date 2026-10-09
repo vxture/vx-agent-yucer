@@ -139,7 +139,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
       >
         <div className="gap-lg flex flex-col">
           <div className="gap-sm flex flex-col">
-            <SectionHeader level={4} title={ORG_TEXT.templateOrgLabel} />
+            <SectionHeader level={3} title={ORG_TEXT.templateOrgLabel} />
             {/* 三选一，描述句偏长 (owner, 2026-09-10: 每套模版的说明), 一行放
                 不下 - 这一组仍然纵向排，横向铺的是下面短得多的区域选项。 */}
             <RadioGroup value={chosen} onValueChange={chooseOrg} className="gap-md flex flex-col">
@@ -148,10 +148,10 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
                   <RadioGroupItem id={`org-template-${t.key}`} value={t.key} className="mt-2xs" />
                   <span className="gap-2xs flex flex-col">
                     <span className="gap-xs flex items-center">
-                      <span className="text-body-md font-semibold">{ORG_TEXT.templateOption(t.name, t.units)}</span>
+                      <span className="text-body font-semibold">{ORG_TEXT.templateOption(t.name, t.units)}</span>
                       {t.isDefault ? <Tag>{ORG_TEXT.templateDefault}</Tag> : null}
                     </span>
-                    <span className="text-muted-foreground text-body-sm">{t.description}</span>
+                    <span className="text-muted-foreground text-body-small">{t.description}</span>
                   </span>
                 </label>
               ))}
@@ -160,7 +160,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
           {divisionTemplates.length > 0 ? (
             <div className="gap-sm flex flex-col">
               <SectionHeader
-                level={4}
+                level={3}
                 title={ORG_TEXT.templateDivisionLabel}
                 description={orgIsRegionAware ? ORG_TEXT.templateDivisionWhy : ORG_TEXT.templateDivisionUnavailable}
               />
@@ -174,7 +174,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
                   htmlFor="division-template-none"
                 >
                   <RadioGroupItem id="division-template-none" value="" disabled={!orgIsRegionAware} />
-                  <span className="text-body-md">{ORG_TEXT.templateDivisionNone}</span>
+                  <span className="text-body">{ORG_TEXT.templateDivisionNone}</span>
                 </label>
                 {divisionTemplates.map((t) => (
                   <label
@@ -183,7 +183,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
                     htmlFor={`division-template-${t.key}`}
                   >
                     <RadioGroupItem id={`division-template-${t.key}`} value={t.key} disabled={!orgIsRegionAware} />
-                    <span className="text-body-md">{ORG_TEXT.templateDivisionOption(t.name, t.divisions)}</span>
+                    <span className="text-body">{ORG_TEXT.templateDivisionOption(t.name, t.divisions)}</span>
                   </label>
                 ))}
               </RadioGroup>
@@ -195,7 +195,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
                仍然靠区域设置模版是否选了"不同步"来决定能不能勾 - 没有新建的
                销售区域，没有什么可关联的。 */
             <div className="gap-sm flex flex-col">
-              <SectionHeader level={4} title={ORG_TEXT.templateAssociateLabel} />
+              <SectionHeader level={3} title={ORG_TEXT.templateAssociateLabel} />
               <label className="gap-sm flex items-start">
                 <Checkbox
                   checked={autoAssociate}
@@ -204,8 +204,8 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
                   className="mt-2xs"
                 />
                 <span className="gap-2xs flex flex-col">
-                  <span className="text-body-md">{ORG_TEXT.templateAutoAssociate}</span>
-                  <span className="text-muted-foreground text-body-sm">
+                  <span className="text-body">{ORG_TEXT.templateAutoAssociate}</span>
+                  <span className="text-muted-foreground text-body-small">
                     {divisionChosen === "" ? ORG_TEXT.templateAutoAssociateDisabled : ORG_TEXT.templateAutoAssociateHint}
                   </span>
                 </span>

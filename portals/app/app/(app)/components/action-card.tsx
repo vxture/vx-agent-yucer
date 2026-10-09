@@ -55,7 +55,7 @@ export function ActionCard({
         {meta ? <span className="text-muted-foreground text-[11px]">{meta}</span> : null}
         {children ? <span className="ml-auto flex flex-none items-center gap-2xs">{children}</span> : null}
       </div>
-      <p className="text-muted-foreground mt-3xs text-body-sm leading-relaxed">
+      <p className="text-muted-foreground mt-3xs text-body-small leading-relaxed">
         {reason}
         {evidence ? (
           <button

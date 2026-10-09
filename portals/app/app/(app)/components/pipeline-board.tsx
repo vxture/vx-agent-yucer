@@ -311,7 +311,7 @@ export function PipelineBoard({
           {/* 预计成交 under the stage (DS 14 batch 4, owner: 压缩到放得下): when
               it closes is the third half of "where it stands", and as a column
               of its own it pushed the table past the 776px middle column. */}
-          <span className="text-muted-foreground text-body-sm tabular-nums">
+          <span className="text-muted-foreground text-body-small tabular-nums">
             {row.expectedCloseAt ? row.expectedCloseAt.toISOString().slice(0, 10) : "-"}
           </span>
         </Stack>
@@ -365,7 +365,7 @@ export function PipelineBoard({
         />
       ) : null}
       {undated > 0 ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">
+        <p className="text-muted-foreground mt-sm text-body-small">
           {PIPELINE_TEXT.undatedExcluded(undated)}
         </p>
       ) : null}
@@ -572,8 +572,8 @@ function PriorityTag({ row }: { readonly row: PipelineRow }) {
 function ProbabilityLine({ row, stageDefinitions }: { readonly row: PipelineRow; readonly stageDefinitions: readonly StageDefinition[] }) {
   const { PIPELINE_TEXT } = useMessages();
   const p = probabilityDisplay(row, stageDefinitions);
-  if (p.value == null) return <span className="text-muted-foreground text-body-sm">-</span>;
-  if (!p.overridden) return <span className="text-muted-foreground text-body-sm tabular-nums">{PIPELINE_TEXT.probabilityLine(p.value)}</span>;
+  if (p.value == null) return <span className="text-muted-foreground text-body-small">-</span>;
+  if (!p.overridden) return <span className="text-muted-foreground text-body-small tabular-nums">{PIPELINE_TEXT.probabilityLine(p.value)}</span>;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
