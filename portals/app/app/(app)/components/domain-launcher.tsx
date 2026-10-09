@@ -308,11 +308,9 @@ export function DomainLauncher({
       <PopoverTrigger asChild>
         <ShellIconButton
           icon="app-grid"
-          /* 24px through the token, not a literal: size-icon-lg IS 24.
-             ShellIconButton hardcodes Icon size="sm" (16px) and merges
-             iconClassName after it, so the later size-* utility is the one
-             that survives tailwind-merge. */
-          iconClassName="size-icon-lg"
+          /* DEFAULT ICON SIZE (16px), like every other header button. This
+             forced size-icon-lg (24px) when the DS icon button was 32px tall;
+             since design-ui 12 it is 24px and a 24px icon filled the button. */
           label={LAUNCHER_TEXT.buttonLabel}
         />
       </PopoverTrigger>

@@ -63,8 +63,10 @@ export function WorkspaceScope({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
+        {/* NO ICON: design-system 03 section 7.1 draws the tenant button as the
+            name and its caret only (Figma Header_console_tenant has none). The
+            panel it opens keeps its icon lead - that is a header, not a button. */}
         <ShellScopeButton
-          icon="building-library"
           label={workspaceLabel}
           ariaLabel={HEADER_TEXT.workspaceAria}
           active={open}

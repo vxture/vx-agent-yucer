@@ -2012,3 +2012,37 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 **缺失元素**：一个 11px 左右的 caption 档（元信息、徽标、时间戳一类），以及 13px
 的强调正文档。**收回条件**：DS 给出这两档后逐处换成 DS 类，删掉本条。待在批次 5
 随 DS 缺口清单一并上报。
+
+### TD-037 - DS 15 顶栏有三处没跟上新档位：产品名、工具箱、头像
+
+**发现于**：DS 15 升级（2026-10-08）上线后，owner 看顶栏：字体明显大、右侧图标太大。
+对照 `design-system 15.0.0` 源码与 03-patterns-guide section 7.1 逐件量过。
+
+**根因**：DS 15 把单行控件收成 16/20/24/28/32px、排版收成 `heading-1/2/3` 与
+`body` / `label` 角色，但顶栏里三个件仍是旧尺寸：
+
+| 件 | DS 里写死的 | 同一顶栏里其余控件 |
+|----|-------------|--------------------|
+| `ShellProductTitle`（名称 / 类型） | `text-xl font-semibold`（20px） | 同族 `ShellHeaderTitle` 是 `text-heading-3`（14px） |
+| `ShellToolbox`（帮助 / 消息 / 设置） | 20px 图标、28px 点击区 | `ShellIconButton` 24px 按钮、16px 图标 |
+| `ShellUserMenu` 的头像 | `size-icon-xl`（32px），放在 24px 的按钮里，溢出 | 按钮 24px |
+
+`ShellLauncher`（DS 自带）同样把 `Icon size="lg"`（24px）塞进 24px 的按钮；yucer 用的是自己的
+`DomainLauncher`，那处 24px 是我们当年为旧大按钮强加的，已在本次删掉，不属于 DS 缺口。
+
+**已收回的部分（我们自己的用法）**：等级标签从 `StatusBadge size="sm"`（20px）改为
+`xs`（16px，DS 12 起这才是"标题旁短角标"）；租户按钮去掉图标（03 section 7.1 与 Figma
+都不带）；九宫格图标回到默认 16px。注意 03 section 7.1 与 13.5 的更新记录仍写"等级用
+`size="sm"`"，那是 `sm` 还是 16px 时写的，现已过期。
+
+**仍在的垫片（点名）**：
+- `app-shell.tsx`：`ShellProductTitle className="[&_span.text-xl]:text-heading-3"`；
+  `ShellUserMenu triggerClassName="[&_.size-icon-xl]:size-icon-lg"`。
+- `header-tools.tsx`：`ShellHeaderTools className` 把 `shell-toolbox-*` 的盒子与图标收到
+  `size-icon-sm`（16px，加自身 4px 内距即 24px）。
+
+三处都只改尺寸，不改颜色、间距或结构；owner 2026-09-24 允许为打磨写自有样式，前提是点名。
+
+**缺失**：DS 应把这三件按新档位重画（产品名 `heading-3`、工具箱 24px / 16px 图标、头像
+跟随按钮 24px），并更正 03 section 7.1 里等级徽标的写法。**收回条件**：DS 发布后删掉三处
+覆盖与本条。待随 DS 缺口清单上报（vxture/vxture-design#111）。

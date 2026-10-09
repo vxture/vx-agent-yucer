@@ -55,6 +55,13 @@ export function HeaderTools({
   // three of them - help, messages (a side drawer), settings.
   return (
     <ShellHeaderTools
+      /* NAMED OVERRIDE (owner allows local CSS where the DS stops, 2026-09-24;
+         DS gap - see TD-037). The DS toolbox still draws 20px icons in 28px
+         hit areas (its 13.3 spec) while every other header control is on the
+         24px / 16px-icon ladder. Brought to the ladder: a 16px box plus its
+         own 4px padding is 24px, and the icon is the 16px step. Remove when
+         ShellToolbox follows the ladder. */
+      className="[&_[data-slot^=shell-toolbox-]]:size-icon-sm [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm"
       label={HEADER_TEXT.toolsAria}
       linkComponent={Link}
       help={{ label: HEADER_TEXT.help, href: HELP_URL }}
