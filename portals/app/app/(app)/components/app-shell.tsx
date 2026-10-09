@@ -427,12 +427,21 @@ export function AppShell({
               <ShellHeaderMark href="/" src={BRAND_MARK_SRC} alt={HEADER_TEXT.logoAlt} />
               <ShellHeaderDivider />
               <ShellProductTitle
+                /* NAMED OVERRIDE (owner allows local CSS where the DS stops,
+                   2026-09-24; DS gap - see TD-037). design-system 15 hard-codes
+                   this lockup at `text-xl font-semibold` (20px) while its sibling
+                   ShellHeaderTitle follows the new heading ladder (heading-3,
+                   14px). Both spans are put on heading-3 so the product name
+                   reads at the ladder's size. Remove when the DS does. */
+                className="[&_span.text-xl]:text-heading-3"
                 logoSrc={PRODUCT_MARK_SRC}
                 name={SHELL_TEXT.brandMark}
                 type={SHELL_TEXT.brandTagline}
                 tier={
-                  // The DS's compact tier badge (13.5: StatusBadge size sm).
-                  <StatusBadge size="sm" tone={tier ? "brand" : "warning"} aria-label={HEADER_TEXT.subscriptionAria}>
+                  // The DS's title-side corner badge is `xs` (16px) since design-ui
+                  // 12; `sm` is the 20px default and read as a second name. The
+                  // DS guide still says sm - it predates the five-step ladder.
+                  <StatusBadge size="xs" tone={tier ? "brand" : "warning"} aria-label={HEADER_TEXT.subscriptionAria}>
                     {tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
                   </StatusBadge>
                 }
@@ -525,6 +534,10 @@ export function AppShell({
                   claimed the token "carries no picture claim" (it can, rarely -
                   only when the platform has a custom avatar on file). */}
               <ShellUserMenu
+                /* NAMED OVERRIDE (DS gap - see TD-037): the DS draws the avatar
+                   at a fixed 32px inside a 24px icon button, so it overflowed
+                   it. Brought to the button's own 24px. */
+                triggerClassName="[&_.size-icon-xl]:size-icon-lg"
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
                   displayName: userName,
