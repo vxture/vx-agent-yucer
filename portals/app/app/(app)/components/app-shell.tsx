@@ -33,6 +33,7 @@ import { NavBoard } from "./nav-board";
 import { AdminNav } from "./admin-nav";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
+import { AVATAR_ON_LADDER, PRODUCT_TITLE_ON_LADDER } from "./header-ladder";
 import { WorkspaceScope } from "./workspace-scope";
 import type { BoardModuleCard, BoardSection } from "../lib/board";
 // NOT a static import of the Chinese constants any more. This component is
@@ -433,7 +434,7 @@ export function AppShell({
                    ShellHeaderTitle follows the new heading ladder (heading-3,
                    14px). Both spans are put on heading-3 so the product name
                    reads at the ladder's size. Remove when the DS does. */
-                className="[&_span.text-xl]:text-heading-3"
+                className={PRODUCT_TITLE_ON_LADDER}
                 logoSrc={PRODUCT_MARK_SRC}
                 name={SHELL_TEXT.brandMark}
                 type={SHELL_TEXT.brandTagline}
@@ -537,7 +538,7 @@ export function AppShell({
                 /* NAMED OVERRIDE (DS gap - see TD-037): the DS draws the avatar
                    at a fixed 32px inside a 24px icon button, so it overflowed
                    it. Brought to the button's own 24px. */
-                triggerClassName="[&_.size-icon-xl]:size-icon-lg"
+                triggerClassName={AVATAR_ON_LADDER}
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
                   displayName: userName,

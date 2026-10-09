@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShellHeaderTools } from "@vxture/design-system";
 import { Badge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { TOOLBOX_ON_LADDER } from "./header-ladder";
 
 /** The platform documentation site (owner decision, 2026-08-30). */
 const HELP_URL = "https://docs.vxture.com";
@@ -61,7 +62,7 @@ export function HeaderTools({
          24px / 16px-icon ladder. Brought to the ladder: a 16px box plus its
          own 4px padding is 24px, and the icon is the 16px step. Remove when
          ShellToolbox follows the ladder. */
-      className="[&_[data-slot^=shell-toolbox-]]:size-icon-sm [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm"
+      className={TOOLBOX_ON_LADDER}
       label={HEADER_TEXT.toolsAria}
       linkComponent={Link}
       help={{ label: HEADER_TEXT.help, href: HELP_URL }}

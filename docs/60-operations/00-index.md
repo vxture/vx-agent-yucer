@@ -2035,11 +2035,13 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 都不带）；九宫格图标回到默认 16px。注意 03 section 7.1 与 13.5 的更新记录仍写"等级用
 `size="sm"`"，那是 `sm` 还是 16px 时写的，现已过期。
 
-**仍在的垫片（点名）**：
-- `app-shell.tsx`：`ShellProductTitle className="[&_span.text-xl]:text-heading-3"`；
-  `ShellUserMenu triggerClassName="[&_.size-icon-xl]:size-icon-lg"`。
-- `header-tools.tsx`：`ShellHeaderTools className` 把 `shell-toolbox-*` 的盒子与图标收到
+**仍在的垫片（点名）**：三条覆盖集中在 `components/header-ladder.ts` 一处，登录态外壳
+（`app-shell.tsx`、`header-tools.tsx`）与四个门屏（`gate-frame.tsx`：登录、已退出、
+未订阅、无角色）共用，`header-ladder.test.ts` 防止两边各写一份而漂移。
+- `PRODUCT_TITLE_ON_LADDER`：`ShellProductTitle` 的名称与类型收到 `heading-3`。
+- `TOOLBOX_ON_LADDER`：`ShellHeaderTools` 把 `shell-toolbox-*` 的盒子与图标收到
   `size-icon-sm`（16px，加自身 4px 内距即 24px）。
+- `AVATAR_ON_LADDER`：`ShellUserMenu` 头像收到 24px（门屏没有头像）。
 
 三处都只改尺寸，不改颜色、间距或结构；owner 2026-09-24 允许为打磨写自有样式，前提是点名。
 

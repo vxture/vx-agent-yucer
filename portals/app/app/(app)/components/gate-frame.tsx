@@ -13,6 +13,7 @@ import { BRAND_MARK_SRC, BRAND_WORDMARK, PRODUCT_MARK_SRC } from "../lib/brand-a
 import { useMessages } from "../lib/i18n/provider";
 import { useHeaderToolConfig } from "../lib/header-tool-config";
 import { websiteUrl } from "../lib/website-url";
+import { PRODUCT_TITLE_ON_LADDER, TOOLBOX_ON_LADDER } from "./header-ladder";
 
 // The frame the four gate screens share.
 //
@@ -87,7 +88,12 @@ export function GateFrame({
             <ShellHeaderMark href="/" src={BRAND_MARK_SRC} alt={BRAND_WORDMARK} />
             <ShellHeaderTitle>{BRAND_WORDMARK}</ShellHeaderTitle>
             <ShellHeaderDivider />
-            <ShellProductTitle logoSrc={PRODUCT_MARK_SRC} name={SHELL_TEXT.brandMark} type={SHELL_TEXT.brandTagline} />
+            <ShellProductTitle
+              className={PRODUCT_TITLE_ON_LADDER}
+              logoSrc={PRODUCT_MARK_SRC}
+              name={SHELL_TEXT.brandMark}
+              type={SHELL_TEXT.brandTagline}
+            />
           </>
         }
         trailing={
@@ -95,6 +101,7 @@ export function GateFrame({
             {/* The visitor's set of the DS's standard tools (13.6): theme,
                 language, fullscreen - in the DS's order. */}
             <ShellHeaderTools
+              className={TOOLBOX_ON_LADDER}
               label={HEADER_TEXT.prefTitle}
               theme={tools.theme}
               locale={tools.locale}
