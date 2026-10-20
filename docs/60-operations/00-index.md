@@ -2028,11 +2028,11 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 | `ShellUserMenu` 的头像 | `size-icon-xl`（32px），放在 24px 的按钮里，溢出 | 按钮 24px |
 
 `ShellLauncher`（DS 自带）同样把 `Icon size="lg"`（24px）塞进 24px 的按钮；yucer 用的是自己的
-`DomainLauncher`，那处 24px 是我们当年为旧大按钮强加的，已在本次删掉，不属于 DS 缺口。
+`DomainLauncher`。2026-10-20 owner 要求恢复协调的 launcher 尺寸，核对 DS `ShellLauncher` 源码后，改为同样显式使用 `Icon size="lg"`（24px）；不再沿用通用按钮默认的 16px。
 
 **已收回的部分（我们自己的用法）**：等级标签从 `StatusBadge size="sm"`（20px）改为
 `xs`（16px，DS 12 起这才是"标题旁短角标"）；租户按钮去掉图标（03 section 7.1 与 Figma
-都不带）；九宫格图标回到默认 16px。注意 03 section 7.1 与 13.5 的更新记录仍写"等级用
+都不带）；九宫格图标当时回到默认 16px（2026-10-20 已按 DS 专用 launcher 恢复 24px，见上）。注意 03 section 7.1 与 13.5 的更新记录仍写"等级用
 `size="sm"`"，那是 `sm` 还是 16px 时写的，现已过期。
 
 **仍在的垫片（点名）**：三条覆盖集中在 `components/header-ladder.ts` 一处，登录态外壳
