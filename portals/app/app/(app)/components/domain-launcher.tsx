@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Icon,
+  StatusBadge,
   Popover,
   PopoverTrigger,
   Tooltip,
@@ -161,10 +162,7 @@ export function DomainLauncher({
       // there is nothing to click. Locked means this workspace has not bought
       // it - which is a thing they can act on, and the row is where they act.
       //
-      // AND IT NAMES THE TIER. "需升级" says you cannot have it without saying
-      // what would change that, which is an upsell nobody can act on. The
-      // required tier has always been derivable (`minTierFor`); until now
-      // nothing carried it to a surface.
+      // Show the plan as a compact badge; the row remains an upgrade link.
       //
       // IT OPENS THE MODULE'S UPGRADE PAGE, in this app (owner 2026-09-28):
       // what the module is for, what else the tier brings, and 【升级】 -
@@ -177,11 +175,12 @@ export function DomainLauncher({
         label={DOMAIN_LABEL[m.key] ?? m.key}
         value={
           m.requiredTier
-            ? LAUNCHER_TEXT.locked(TIER_LABEL[m.requiredTier] ?? m.requiredTier)
+            ? <StatusBadge size="xs" tone="neutral" icon={false}>{(TIER_LABEL[m.requiredTier] ?? m.requiredTier).toLowerCase()}</StatusBadge>
             : LAUNCHER_TEXT.lockedNoTier
         }
         href={`/upgrade/${m.key}`}
         linkComponent={Link}
+        chevron={false}
       />
     ) : m.key === "national" || m.key === "enablement" || m.key === "strategyDiag" ? (
       // 销售大屏 / 赋能分析 / 战略诊断 OPEN IN A NEW TAB (owner, 2026-09-13;
@@ -333,7 +332,7 @@ export function DomainLauncher({
       <ShellPanelContent
         align="start"
         aria-label={LAUNCHER_TEXT.panelLabel}
-        className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width)"
+        className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width) bg-muted"
       >
         {/* TWO GRIDS, ONE COLUMN TEMPLATE, and that is the whole alignment
             story: the crosscutting row and the domain blocks declare the same
@@ -355,7 +354,7 @@ export function DomainLauncher({
             else on the line. */}
         <div className="flex flex-col gap-lg">
           {crosscutting.length > 0 ? (
-            <ShellPanelSection divided={false}>
+            <ShellPanelSection divided={false} className="gap-md">
               <div className={COLUMNS}>
                 {crosscutting.map((m, i) => (
                   <div
@@ -380,8 +379,8 @@ export function DomainLauncher({
                     same component now, so the gap is the only thing saying
                     "these five belong under that one" - at the section's own
                     spacing the domain name read as the first of six rows. */}
-                <div className="mt-sm">
-                  <ShellPanelSection divided={false}>
+                <div className="mt-md">
+                  <ShellPanelSection divided={false} className="gap-md">
                     {d.modules.map(row)}
                   </ShellPanelSection>
                 </div>
