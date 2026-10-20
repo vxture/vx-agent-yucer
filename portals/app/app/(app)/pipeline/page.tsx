@@ -4,8 +4,6 @@ import Link from "next/link";
 import { ModuleHeadline } from "../components/module-headline";
 import { createDeal } from "./stage-action";
 import { PeriodTabs } from "../components/period-tabs";
-import { HeadlineCard } from "../components/headline-card";
-import { byProduct } from "../../domains/catalog/lib/pricing";
 import { PipelineBoard, type PipelineRow } from "../components/pipeline-board";
 import {
   getAccountStore,
@@ -16,7 +14,6 @@ import { importanceScheme, listAccounts } from "../../domains/account/service";
 import { dealPriorityOf } from "../../domains/account/lib/importance";
 import { NewEntryLink } from "../components/form-page";
 import {
-  forecastHistory,
   listPipeline,
   listStageDefinitions,
 } from "../../domains/pipeline/service";
@@ -29,8 +26,6 @@ import { getMessages } from "../lib/i18n/server";
 import { cachedFeed } from "../lib/board";
 import { offeredPeriods, resolvePeriod } from "../lib/periods";
 import {
-  listOpportunityLines,
-  listProducts as listCatalogProducts,
   pricingPolicy,
 } from "../../domains/catalog/service";
 import { loadFailureText } from "../lib/load-failure";
@@ -49,7 +44,7 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
+  const { ATTAINMENT_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
     await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);
@@ -74,24 +69,13 @@ export default async function PipelinePage({
   const policy = await pricingPolicy(catalogCtx);
   const currency = policy.ok ? policy.value.defaultCurrency : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [result, history, lines, products, accounts, feed, stageRows] =
+  const [result, accounts, feed, stageRows] =
     await Promise.all([
       // includeClosed, or the "closed" tile reports zero on a workspace that has
       // closed 2.7M - the same false zero that hit the quota card, in a third
       // place. The board rolls all four categories from this one list, and a
       // closed deal is precisely what the closed category counts.
       listPipeline(ctx, { includeClosed: true }),
-      // The series, not the latest point. See forecastHistory: this read is the
-      // only thing that makes forecast_snapshot's immutability pay for itself.
-      // The workspace's series for the one line the headline keeps; the
-      // trajectory, scope, accuracy and submit are /forecast's (batch 9a).
-      forecastHistory(ctx, period, { scopeType: "workspace", territoryId: null, ownerSub: null }),
-      // THROUGH THE SERVICE, not the store handle. Both of these used to call
-      // getCatalogStore() straight from the page, which skips BOTH gates - the
-      // same defect PR #26 fixed on the account detail page. The catalogue read
-      // service exists now, so there is no reason left to reach past it.
-      listOpportunityLines(catalogCtx),
-      listCatalogProducts(catalogCtx),
       // Two cross-domain reads, for the new-deal form's two pickers. Through the
       // services, so both gates run - a page reaching a store handle directly is
       // the defect PR #26 fixed on the account page.
@@ -176,46 +160,6 @@ export default async function PipelinePage({
     ),
   }));
 
-  // What the page opens with. The number alone is a label; what it MEANS this
-  // week is the delta against the last time anyone forecast - which is exactly
-  // what the trajectory is for and what a single tile cannot say.
-  const points = history.ok ? history.value : [];
-  const last = points[points.length - 1];
-  const prev = points[points.length - 2];
-  const commit = last?.commitAmount.amount ?? 0;
-  const delta = last && prev ? commit - prev.commitAmount.amount : 0;
-  const sinceDays =
-    last && prev
-      ? Math.max(
-          1,
-          Math.round(
-            (last.snapshotAt.getTime() - prev.snapshotAt.getTime()) /
-              86_400_000,
-          ),
-        )
-      : 0;
-
-  const openIds = new Set(
-    result.value.filter((o) => o.status === "open").map((o) => o.id),
-  );
-  // The two catalogue reads are gated now, so they return a RuleResult. A
-  // refusal degrades to an empty split rather than failing the page: the
-  // product breakdown is a decomposition OF the totals above it, and a reader
-  // who may see the totals but not the lines should still get the totals.
-  const lineRows = lines.ok ? lines.value : [];
-  const productRows = products.ok ? products.value : [];
-  const openLines = lineRows.filter((l) => openIds.has(l.opportunityId));
-  const split = [...byProduct(openLines)]
-    .sort((a, b) => b[1].amount - a[1].amount)
-    .map(([id, agg]) => ({
-      name: productRows.find((p) => p.id === id)?.name ?? id,
-      amount: agg.amount,
-    }));
-  // Signed-off lines are not awaiting anything. A badge that never clears is a
-  // badge people stop reading.
-  const awaiting = openLines.filter(
-    (l) => l.needsApproval && !l.approved,
-  ).length;
 
   return (
     <ViewLayout>
@@ -254,43 +198,10 @@ export default async function PipelinePage({
           NOT an <h1> any more: the module header above owns that, and two of them on
           one page is a document with two subjects. It keeps the size, because
           its weight on the page was never coming from the tag. */}
-      <HeadlineCard
-        split={split}
-        awaiting={awaiting}
-        headline={
-          <div className="min-w-0">
-            <p className="text-display-xs text-foreground tabular-nums">
-              {PIPELINE_TEXT.lead(BOARD_TEXT.wan(commit))}
-            </p>
-            <p className="text-muted-foreground mt-2xs text-body-small">
-              {/* The forecast itself - trajectory, scope, accuracy, the
-                  snapshot - is /forecast's (batch 9a); this line leads there. */}
-              {points.length < 2
-                ? PIPELINE_TEXT.leadNoHistory
-                : delta === 0
-                  ? PIPELINE_TEXT.leadFlat
-                  : PIPELINE_TEXT.leadDelta(
-                      `${delta > 0 ? "+" : "-"}${BOARD_TEXT.wan(Math.abs(delta))}`,
-                      sinceDays,
-                    )}
-              {" · "}
-              <Link href={`/forecast?period=${encodeURIComponent(period)}`} className="text-primary hover:underline">
-                {PIPELINE_TEXT.toForecast}
-              </Link>
-            </p>
-          </div>
-        }
-        /* The page's top-level filter. It governs every figure below, so it
-           stays visible in the collapsed state - the fold hides the
-           decomposition, not the controls. */
-        filter={
-          <PeriodTabs
-            value={period}
-            periods={offeredPeriods().quarters}
-            yearLabel={offeredPeriods().year}
-          />
-        }
-      />
+      <div className="flex flex-wrap items-center justify-between gap-md">
+        <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} />
+        <Link href={`/attainment?period=${encodeURIComponent(period)}`} className="text-primary text-body-small hover:underline">{ATTAINMENT_TEXT.toAttainment}</Link>
+      </div>
 
       {/* The gate, not the raw permission. Reading permissions.has() directly
           skips the ENTITLEMENT half entirely, so a workspace whose subscription

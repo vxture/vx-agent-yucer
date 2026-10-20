@@ -94,7 +94,7 @@ export async function OverdueCommitments({
        tone="danger" paints the top edge only. Every row in here is already
        late; the block says so once at its edge rather than making each row
        shout it. */
-    <Collapsible defaultOpen>
+    <Collapsible>
       <PanelCard
         icon="warning"
         tone="danger"

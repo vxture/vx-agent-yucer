@@ -1,10 +1,12 @@
+import Link from "next/link";
+import { PeriodTabs } from "../components/period-tabs";
+import { offeredPeriods, resolvePeriod } from "../lib/periods";
 import { Card, EmptyState, Progress, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import {
   getCatalogStore,
-  getPipelineStore,
   getPlanningStore,
 } from "../../domains/shared/registry";
 import { listPipeline } from "../../domains/pipeline/service";
@@ -59,7 +61,10 @@ import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy
 
 export const dynamic = "force-dynamic";
 
-export default async function AttainmentPage() {
+export default async function AttainmentPage({ searchParams }: { searchParams: Promise<{ scope?: string; period?: string }> }) {
+  const params = await searchParams;
+  const personal = params.scope === "personal";
+  const period = resolvePeriod(params.period);
   const {
     SHELL_TEXT,
     LOAD_ERROR,
@@ -97,14 +102,15 @@ export default async function AttainmentPage() {
     );
   }
 
-  const open = deals.value.filter((d) => d.closedAt === null);
+  const open = deals.value.filter((d) => d.closedAt === null && (!personal || d.ownerSub === session.user.sub));
 
   // The MONEY target, via the shared rule - the same selection the board and
   // the planning page make. A committed new-logo target picked up here would
   // render "10 customers" as 10 wan and divide a pipeline by it (TD-013).
-  const wsTarget = targets.ok
-    ? (summaryTarget(targets.value) ?? undefined)
-    : undefined;
+  const periodTargets = targets.ok ? targets.value.filter((t) => t.period === period) : [];
+  const wsTarget = personal
+    ? periodTargets.find((t) => t.scopeType === "owner" && t.ownerSub === session.user.sub && t.status === "committed" && t.metric === "revenue")
+    : (summaryTarget(periodTargets.filter((t) => t.metric === "revenue")) ?? undefined);
   const rows = wsTarget
     ? await attainment({ ...base, store: getPlanningStore() }, wsTarget.period)
     : null;
@@ -136,20 +142,17 @@ export default async function AttainmentPage() {
   );
 
   const cover =
-    wsTarget && wsRow
+    wsTarget && measured
       ? coverage(
           quarterWorth,
           wsTarget.targetValue.amount,
-          wsRow.measurement.kind === "measured"
-            ? wsRow.measurement.achieved.amount
-            : 0,
+          measured.achieved.amount,
           resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
         )
       : null;
 
-  // The composition claims no period and must not acquire one: it answers
-  // "what is this money made of", over the open book.
-  const openIds = new Set(open.map((o) => o.id));
+  // Composition uses the same period and owner scope as the resource pool.
+  const openIds = new Set(quarterOpen.map((o) => o.id));
   const lines = lineResult.ok
     ? lineResult.value.filter((l) => openIds.has(l.opportunityId))
     : [];
@@ -182,6 +185,12 @@ export default async function AttainmentPage() {
           ) : undefined
         }
       />
+      <div className="flex flex-wrap items-center gap-md">
+        <Link href={`/attainment?scope=team&period=${period}`} aria-current={!personal ? "page" : undefined} className="text-primary hover:underline">{ATTAINMENT_TEXT.team}</Link>
+        <Link href={`/attainment?scope=personal&period=${period}`} aria-current={personal ? "page" : undefined} className="text-primary hover:underline">{ATTAINMENT_TEXT.personal}</Link>
+        <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} />
+      </div>
+      <p className="text-muted-foreground text-body-small">{personal ? ATTAINMENT_TEXT.personalWhy : ATTAINMENT_TEXT.teamWhy}</p>
       <Card className="p-lg">
         <div className="flex flex-col gap-md">
           {wsTarget && measured && pct !== null ? (
@@ -200,6 +209,7 @@ export default async function AttainmentPage() {
                   value={BOARD_TEXT.wan(wsTarget.targetValue.amount)}
                   label={ATTAINMENT_TEXT.target}
                 />
+                <Figure value={BOARD_TEXT.wan(Math.max(0, wsTarget.targetValue.amount - measured.achieved.amount))} label={ATTAINMENT_TEXT.gap} />
               </div>
               {/* Bare track. The percentage it represents is the figure above
                   it, so a caption here would print the same number twice. */}
@@ -207,8 +217,8 @@ export default async function AttainmentPage() {
             </div>
           ) : (
             <EmptyState
-              title={ATTAINMENT_TEXT.noTarget}
-              description={ATTAINMENT_TEXT.noTargetWhy}
+              title={wsTarget ? ATTAINMENT_TEXT.noMeasurement : ATTAINMENT_TEXT.noTarget}
+              description={wsTarget ? ATTAINMENT_TEXT.noMeasurementWhy : ATTAINMENT_TEXT.noTargetWhy}
             />
           )}
         </div>

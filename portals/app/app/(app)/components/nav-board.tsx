@@ -146,7 +146,7 @@ function ModuleCard({
   card: BoardModuleCard | undefined;
   active: boolean;
 }) {
-  const { DOMAIN_LABEL, PLANNED_MODULE_LABEL, LAUNCHER_TEXT } = useMessages();
+  const { DOMAIN_LABEL, PLANNED_MODULE_LABEL, LAUNCHER_TEXT, ATTAINMENT_TEXT } = useMessages();
 
   if (m.kind === "planned") {
     return (
@@ -175,8 +175,8 @@ function ModuleCard({
           <span className="min-w-0 truncate">{label}</span>
         </Link>
         {metrics.length > 0 ? (
-          <ModuleFigures metrics={metrics} chart={card?.chart} />
-        ) : null}
+          <ModuleFigures metrics={metrics} />
+        ) : m.key === "attainment" ? <p className="text-muted-foreground truncate text-body-small">{ATTAINMENT_TEXT.progress}</p> : null}
       </div>
     </Card>
   );
@@ -219,9 +219,9 @@ function ModuleFigures({
   }
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-md gap-y-2xs">
+    <div className="flex min-w-0 items-baseline gap-sm overflow-hidden">
       {metrics.map((m) => (
-        <span key={m.label} className="flex items-baseline gap-2xs">
+        <span key={m.label} className="flex min-w-0 items-baseline gap-2xs whitespace-nowrap">
           <span
             className={[
               "text-label font-semibold tabular-nums",
@@ -230,7 +230,7 @@ function ModuleFigures({
           >
             {m.value}
           </span>
-          <span className="text-muted-foreground text-body-small">{m.label}</span>
+          <span className="text-muted-foreground truncate text-body-small">{m.label}</span>
         </span>
       ))}
     </div>

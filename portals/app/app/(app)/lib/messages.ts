@@ -483,12 +483,21 @@ export const FORECAST_RULE_TEXT = {
 } as const;
 
 export const ATTAINMENT_TEXT = {
+  team: "\u56e2\u961f\u627f\u8bfa",
+  personal: "\u4e2a\u4eba\u627f\u8bfa\u8fbe\u6210",
+  teamWhy: "\u5de5\u4f5c\u533a\u56e2\u961f\u9500\u552e\u76ee\u6807\u3001\u8fbe\u6210\u8fdb\u5c55\u4e0e\u652f\u6491\u5546\u673a\u3002",
+  personalWhy: "\u6211\u7684\u9500\u552e\u76ee\u6807\u3001\u8fbe\u6210\u8fdb\u5c55\u4e0e\u672c\u4eba\u8d1f\u8d23\u7684\u5546\u673a\u3002",
+  gap: "\u5269\u4f59\u7f3a\u53e3",
+  noMeasurement: "\u6682\u65e0\u6cd5\u8ba1\u7b97\u8fbe\u6210\u8fdb\u5c55",
+  noMeasurementWhy: "\u5df2\u6709\u76ee\u6807\uff0c\u5c1a\u7f3a\u53ef\u7528\u4e8e\u8ba1\u7b97\u7684\u540c\u8303\u56f4\u3001\u540c\u5468\u671f\u9884\u6d4b\u5feb\u7167\u3002",
+  toAttainment: "\u67e5\u770b\u627f\u8bfa\u8fbe\u6210",
+  progress: "\u8fdb\u5c55\u6682\u4e0d\u53ef\u7528",
   title: "承诺达成",
   why: "本期承诺了多少、已经落了多少、后面还有多少接得住——三件事放在一起才是一句话。它们此前分散在导航板上，各自是一张不属于任何模块的卡。",
   attained: "达成",
   won: "已成交",
   target: "目标",
-  noTarget: "本期没有已承诺的工作区目标",
+  noTarget: "当前视角与周期没有已承诺的销售目标",
   noTargetWhy:
     "没有目标就没有分母。达成率不是零，是算不出来——把它显示成 0% 会把「还没定目标」说成「一件没做成」。",
   pool: (period: string) => `${period} 资源池`,
