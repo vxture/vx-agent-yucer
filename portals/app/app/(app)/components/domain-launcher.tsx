@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Icon,
   Popover,
   PopoverTrigger,
   Tooltip,
@@ -308,11 +309,11 @@ export function DomainLauncher({
       <PopoverTrigger asChild>
         <ShellIconButton
           icon="app-grid"
-          /* DEFAULT ICON SIZE (16px), like every other header button. This
-             forced size-icon-lg (24px) when the DS icon button was 32px tall;
-             since design-ui 12 it is 24px and a 24px icon filled the button. */
           label={LAUNCHER_TEXT.buttonLabel}
-        />
+        >
+          {/* Match the DS ShellLauncher trigger: app-grid uses lg (24px). */}
+          <Icon name="app-grid" size="lg" />
+        </ShellIconButton>
       </PopoverTrigger>
 
       {/* WIDER THAN THE DEFAULT, on the DS's own instruction. ShellPanelContent
