@@ -13,7 +13,6 @@ import {
   ListCard,
   ListCardGrid,
   NativeSelect,
-  Stack,
   StatusBadge,
   TableTitleCell,
   useListPagination,
@@ -273,14 +272,14 @@ export function AccountTable({
       id: "industry",
       header: ACCOUNT_TEXT.columnIndustrySegment,
       cell: (row) => (
-        <Stack gap="sm">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           <span>{row.industry ?? "-"}</span>
           <span className="text-muted-foreground">
             {row.segmentCode
               ? (segmentNames?.get(row.segmentCode) ?? row.segmentCode)
               : "-"}
           </span>
-        </Stack>
+        </span>
       ),
     },
     {
@@ -306,12 +305,11 @@ export function AccountTable({
     {
       // HEALTH OVER STATUS: both are the customer's CONDITION - one derived and
       // one declared - and a score means something different above "churned"
-      // than above "active". Side by side they were two columns asking the
-      // reader to pair them; stacked, they are already paired.
+      // than above "active". Keep the short readings paired on one line.
       id: "health",
       header: ACCOUNT_TEXT.columnHealthStatus,
       cell: (row) => (
-        <Stack gap="sm" className="items-center">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           {row.healthScore == null ? (
             <Tag>{ACCOUNT_TEXT.unscored}</Tag>
           ) : (
@@ -320,7 +318,7 @@ export function AccountTable({
             </Tag>
           )}
           {statusTag(row.id)}
-        </Stack>
+        </span>
       ),
     },
   ];

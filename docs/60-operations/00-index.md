@@ -1967,6 +1967,12 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 正文容器）之后，删掉 `COLLAPSED_CLASS`（DS 若同时提供标题行对齐选项，一并删掉 `HEADER_ALIGN_CLASS`），改用 DS 自己的能力；`CollapsibleSection`
 其余部分（切换按钮、收起时的摘要行、默认展开）不受影响。
 
+**2026-10-20 全平台面板补充**：`PanelCard` 同样固定绘制标题虚线与正文容器。
+`lib/collapsed-panel.ts` 的 `COLLAPSED_PANEL_CLASS` 共用于逾期承诺与信号分组：
+仅当正文的直接 `CollapsibleContent` 关闭时隐藏正文容器、去掉标题虚线和下内距、
+去掉卡内段间距。展开时恢复 DS 原样。判断工作台含始终可见的操作区，不应用
+整块正文隐藏。DS 提供原生收起态后撤除该垫片。
+
 ### TD-035 - 放行仍在产品内按配额池判断，与「配额归平台」的裁定不符
 
 **发现于**：deal batch 0b（2026-09-25）实现 `yucer.advisor.runs` 时。owner 2026-09-24 裁定

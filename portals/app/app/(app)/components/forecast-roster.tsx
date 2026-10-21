@@ -141,7 +141,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
           // Saying "agrees" beats repeating the badge already one column left.
           <span className="text-muted-foreground text-body-small">{FORECAST_RULE_TEXT.agrees}</span>
         ) : (
-          <span className="flex flex-col items-center gap-3xs">
+          <span className="inline-flex items-center gap-sm whitespace-nowrap">
             <Tag tone={FORECAST_TONE[r.suggested]}>
               {FORECAST_LABEL[r.suggested]}
             </Tag>
@@ -162,7 +162,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
       id: "basis",
       header: FORECAST_RULE_TEXT.colBasis,
       cell: (r: ForecastRow) => (
-        <span className="flex flex-col items-center gap-3xs">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           <span className="text-muted-foreground text-body-small">
             {r.probabilityIsHuman
               ? FORECAST_RULE_TEXT.basisHuman(r.probability)

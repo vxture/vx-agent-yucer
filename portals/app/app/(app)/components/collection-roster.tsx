@@ -229,7 +229,7 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
             </span>
           );
         return (
-          <span className="flex flex-col items-center gap-3xs">
+          <span className="inline-flex items-center gap-sm whitespace-nowrap">
             {clock}
             <StatusBadge tone={tone(r.status)}>
               {REVENUE_STATUS_LABEL[r.status] ?? r.status}

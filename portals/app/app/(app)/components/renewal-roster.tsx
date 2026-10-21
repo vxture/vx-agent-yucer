@@ -161,7 +161,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       header: RENEWAL_TEXT.colEnds,
       width: "sm" as const,
       cell: (r: RenewalRow) => (
-        <span className="flex flex-col">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           {endsCell(r)}
           {/* WHERE THE DATE CAME FROM (§9.1). A contract's date is its notice
               deadline, a project's is its end - the same number means two

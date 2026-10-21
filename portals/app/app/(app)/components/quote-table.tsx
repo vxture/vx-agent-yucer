@@ -203,7 +203,7 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
       sortable: true,
       align: "money",
       cell: (r) => (
-        <span className="inline-flex flex-col items-end gap-3xs">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           <span>{money(r.amount, r)}</span>
           {r.awaitingSignature > 0 ? signature(r) : null}
         </span>

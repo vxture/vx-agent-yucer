@@ -1,3 +1,4 @@
+import { COLLAPSED_PANEL_CLASS } from "../lib/collapsed-panel";
 import Link from "next/link";
 import { MemberName, useMemberName } from "../lib/member-names";
 import {
@@ -96,6 +97,7 @@ export async function OverdueCommitments({
        shout it. */
     <Collapsible>
       <PanelCard
+              className={COLLAPSED_PANEL_CLASS}
         icon="warning"
         tone="danger"
         title={FIELD_TEXT.commitOverdueTitle}
