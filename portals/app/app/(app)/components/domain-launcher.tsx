@@ -332,7 +332,7 @@ export function DomainLauncher({
       <ShellPanelContent
         align="start"
         aria-label={LAUNCHER_TEXT.panelLabel}
-        className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width) bg-muted"
+        className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width) bg-gradient-to-b from-gradient-card-from to-gradient-card-to"
       >
         {/* TWO GRIDS, ONE COLUMN TEMPLATE, and that is the whole alignment
             story: the crosscutting row and the domain blocks declare the same
