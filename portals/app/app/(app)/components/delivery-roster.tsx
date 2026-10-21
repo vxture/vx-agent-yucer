@@ -66,7 +66,7 @@ function ProgressCell({ row }: { readonly row: DeliveryRow }) {
   }
 
   return (
-    <span className="flex flex-col items-center gap-3xs">
+    <span className="inline-flex items-center gap-sm whitespace-nowrap">
       {/* NO CURRENT MILESTONE HAS TWO CAUSES AND THEY ARE NOT THE SAME CLAIM.
           Either the plan was walked through, or the project closed with gates
           still open - in which case saying the plan is complete would assert
@@ -246,7 +246,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
       id: "health",
       header: DELIVERY_TEXT.columnHealthStatus,
       cell: (r: DeliveryRow) => (
-        <span className="flex flex-col items-center gap-3xs">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           <StatusBadge tone={tone(r.derived)}>
             {HEALTH_LABEL[r.derived] ?? r.derived}
           </StatusBadge>

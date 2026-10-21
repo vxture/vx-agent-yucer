@@ -1,5 +1,7 @@
 "use client";
 
+import { COLLAPSED_PANEL_CLASS } from "../lib/collapsed-panel";
+
 import { useState, useTransition, useEffect } from "react";
 import {
   ActionMenu,
@@ -306,6 +308,7 @@ export function SignalQueue({
              other two away, so the control exists - it just starts open. */
           <Collapsible key={g.key} defaultOpen>
             <PanelCard
+              className={COLLAPSED_PANEL_CLASS}
               title={g.title}
               description={g.why}
               action={

@@ -299,7 +299,7 @@ export function PipelineBoard({
       id: "stage",
       header: PIPELINE_TEXT.columnStageForecastClose,
       cell: (row) => (
-        <Stack gap="sm">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           <Tag tone={STAGE_TONE[row.stage as Stage]} dot>
             {stageLabelFor(row.stage, stageDefinitions, STAGE_LABEL)}
           </Tag>
@@ -314,7 +314,7 @@ export function PipelineBoard({
           <span className="text-muted-foreground text-body-small tabular-nums">
             {row.expectedCloseAt ? row.expectedCloseAt.toISOString().slice(0, 10) : "-"}
           </span>
-        </Stack>
+        </span>
       ),
     },
     {
@@ -328,7 +328,7 @@ export function PipelineBoard({
       sortable: true,
       align: "money",
       cell: (row) => (
-        <span className="inline-flex flex-col items-end gap-3xs">
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
           <span>{formatMoney(row.amount?.amount ?? null, row.currency, locale)}</span>
           <ProbabilityLine row={row} stageDefinitions={stageDefinitions} />
         </span>

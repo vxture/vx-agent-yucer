@@ -60,7 +60,7 @@ export function HeadlineCard({
       <Collapsible
         open={open}
         onOpenChange={setOpen}
-        className="flex flex-col gap-md"
+        className="flex flex-col gap-md data-[state=closed]:gap-0"
       >
         <div className="flex flex-wrap items-end justify-between gap-md">
           {headline}
