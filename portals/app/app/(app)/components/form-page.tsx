@@ -143,10 +143,10 @@ export function FormFieldWide({ children }: { readonly children: ReactNode }) {
  * has nothing left to do.
  */
 
-export function NewEntryLink({ href, label }: { readonly href: string; readonly label?: string }) {
+export function NewEntryLink({ href, label, primary = false }: { readonly href: string; readonly label?: string; readonly primary?: boolean }) {
   const { ASSIST_TEXT } = useMessages();
   return (
-    <Button asChild variant="secondary">
+    <Button asChild variant={primary ? "default" : "secondary"}>
       <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
     </Button>
   );

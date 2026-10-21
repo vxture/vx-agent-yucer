@@ -11,10 +11,9 @@ import {
   Input,
   ListCard,
   ListCardGrid,
-  MetricGrid,
+  Card,
   NativeSelect,
   Section,
-  Stack,
   StatusBadge,
   TableTitleCell,
   Tooltip,
@@ -60,6 +59,7 @@ export interface PipelineRow extends ForecastableOpportunity {
   opportunityNo: string;
   name: string;
   accountName: string;
+  accountId?: string | null;
   ownerSub: string | null;
   probability: number | null;
   expectedCloseAt: Date | null;
@@ -231,98 +231,23 @@ export function PipelineBoard({
 
   const columns: readonly DataTableColumn<PipelineRow>[] = [
     {
-      // THE DEAL, and only the deal (owner, 2026-09-04). This cell used to
-      // carry four things - name, number, customer, and the unreachable badge -
-      // which broke the rule the rest of this table now follows: a column holds
-      // ONE dimension. The customer is a different entity and one a reader
-      // filters by, so it has its own column below; the number belongs on the
-      // detail page, where an identifier is what you came for.
-      //
-      // A link, not a row-click handler: navigable, middle-clickable and
-      // shareable in a way a click handler is not. Same reasoning as the
-      // account list - and design-ui 2.0 dropped onRowClick entirely, which
-      // only removed a second, worse way to reach the same page.
+      // Opportunity identity with its linked customer subtitle.
       id: "name",
   sortable: true,
       header: PIPELINE_TEXT.columnOpportunity,
-      // A FLOOR, because auto-layout gives a column what its content demands
-      // and this cell no longer demands anything: with the number and the
-      // customer moved out it is one short link, so the table handed it 57px
-      // and broke 智能仓储升级 down four lines. The row identity is the one
-      // column that should never be the narrowest.
+      // Keep the opportunity and customer names readable.
       width: "md",
       cell: (row) => (
         <TableTitleCell
           title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
           tooltip={row.name}
+          description={row.accountId ? <Link href={`/account/${row.accountId}`} className="hover:underline">{row.accountName}</Link> : row.accountName}
+          titleSuffix={row.buyerUnreachable ? <StatusBadge tone="warning" size="xs">{PIPELINE_TEXT.buyerUnreachable}</StatusBadge> : undefined}
         />
       ),
     },
     {
-      // 优先级 (R11): one tag, the cross on hover. Sorting here is 按优先级 -
-      // P1 first, the same P by amount, 未定级 last.
-      id: "priority",
-      header: PIPELINE_TEXT.columnPriority,
-      sortable: true,
-      cell: (row) => <PriorityTag row={row} />,
-    },
-    {
-      // THE CUSTOMER, main over sub - the same two-line shape delivery uses,
-      // with the same gap, so a stacked cell reads the same wherever it
-      // appears. The second line is where this deal stands with the people who
-      // decide it: today that is the unreachable warning, which is the only
-      // chain fact this page is given. Naming the decision-maker and counting
-      // the rest needs contacts for MANY accounts at once, and the domain has
-      // only a per-account read - see the PR.
-      id: "account",
-      header: PIPELINE_TEXT.columnAccount,
-      cell: (row) => (
-        <Stack gap="sm">
-          <span>{row.accountName}</span>
-          {row.buyerUnreachable ? (
-            <span>
-              <StatusBadge tone="warning">{PIPELINE_TEXT.buyerUnreachable}</StatusBadge>
-            </span>
-          ) : null}
-        </Stack>
-      ),
-    },
-    {
-      // STAGE AND FORECAST CATEGORY, STACKED, and they belong together: one
-      // says where the deal has got to, the other says what we are calling it,
-      // and a review reads them as a pair - "negotiation, and we are committing
-      // it" is a different sentence from either half.
-      //
-      // Two lines cost no height. The opportunity cell beside it is already two
-      // lines (name, then number and account), so the row was that tall before
-      // this and is that tall after.
-      id: "stage",
-      header: PIPELINE_TEXT.columnStageForecastClose,
-      cell: (row) => (
-        <span className="inline-flex items-center gap-sm whitespace-nowrap">
-          <Tag tone={STAGE_TONE[row.stage as Stage]} dot>
-            {stageLabelFor(row.stage, stageDefinitions, STAGE_LABEL)}
-          </Tag>
-          <Tag
-            tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
-          >
-            {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
-          </Tag>
-          {/* 预计成交 under the stage (DS 14 batch 4, owner: 压缩到放得下): when
-              it closes is the third half of "where it stands", and as a column
-              of its own it pushed the table past the 776px middle column. */}
-          <span className="text-muted-foreground text-body-small tabular-nums">
-            {row.expectedCloseAt ? row.expectedCloseAt.toISOString().slice(0, 10) : "-"}
-          </span>
-        </span>
-      ),
-    },
-    {
-      // 金额 with 赢率 beneath (DS 14 batch 4, owner: 压缩到放得下). Two scales
-      // in one cell was refused on 2026-09-04 while there was room for both;
-      // in the 776px middle column the choice is a stacked cell or a table
-      // that scrolls its figures away. Stacked, each keeps its own line and
-      // format, and 金额 keeps its sort.
+      // Amount and win probability immediately follow the identity.
       id: "amount",
       header: PIPELINE_TEXT.columnAmountProbability,
       sortable: true,
@@ -334,6 +259,38 @@ export function PipelineBoard({
         </span>
       ),
     },
+    {
+      // 优先级 (R11): one tag, the cross on hover. Sorting here is 按优先级 -
+      // P1 first, the same P by amount, 未定级 last.
+      id: "priority",
+      header: PIPELINE_TEXT.columnPriority,
+      sortable: true,
+      cell: (row) => <PriorityTag row={row} />,
+    },
+    {
+      // Short stage and forecast tags share one line.
+      id: "stage",
+      header: PIPELINE_TEXT.columnStageForecast,
+      cell: (row) => (
+        <span className="inline-flex items-center gap-sm whitespace-nowrap">
+          <Tag tone={STAGE_TONE[row.stage as Stage]} dot>
+            {stageLabelFor(row.stage, stageDefinitions, STAGE_LABEL)}
+          </Tag>
+          <Tag
+            tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
+          >
+            {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
+          </Tag>
+
+        </span>
+      ),
+    },
+    {
+      id: "expectedCloseAt",
+      header: PIPELINE_TEXT.columnCloseDate,
+      cell: (row) => <span className="whitespace-nowrap text-body-small tabular-nums">{row.expectedCloseAt?.toISOString().slice(0, 10) ?? "-"}</span>,
+    },
+
   ];
 
   return (
@@ -348,21 +305,12 @@ export function PipelineBoard({
       description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : undefined}
     >
       {totals.ok ? (
-        <MetricGrid
-          items={metrics}
-          /* TWO COLUMNS, NOT FOUR, and the reason is that the DS's breakpoints
-             are on the VIEWPORT while this grid lives in a fixed-width pane.
-             At a 1600px window `lg:` applies and forces four cards into a
-             488px pane: 102px each, of which 48px is the card's own padding,
-             leaving 54px for a value that needs 92. The number was clipped, and
-             a clipped figure is not a smaller number - it is a wrong one that
-             looks exact.
-
-             Four headline metrics read perfectly well as 2x2, and this is the
-             only lever the component offers; a container query is what the case
-             actually calls for, and the DS does not have one. */
-          columns={2}
-        />
+        <div className="grid grid-cols-4 gap-xs overflow-x-auto">
+          {metrics.map((m) => <Card key={m.id} className="min-w-0 gap-2xs p-sm">
+            <span className="text-muted-foreground text-body-small whitespace-nowrap">{m.label}</span>
+            <span className="text-label font-semibold tabular-nums whitespace-nowrap">{m.value}</span>
+          </Card>)}
+        </div>
       ) : null}
       {undated > 0 ? (
         <p className="text-muted-foreground mt-sm text-body-small">

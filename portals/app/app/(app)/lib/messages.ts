@@ -2932,6 +2932,10 @@ export const STRATEGY_DIAG_TEXT = {
 
 
 export const PIPELINE_TEXT = {
+    columnCloseDate: "\u9884\u8ba1\u6210\u4ea4",
+    periodAll: "\u5168\u90e8",
+    accountUnavailable: "\u5ba2\u6237\u4fe1\u606f\u6682\u4e0d\u53ef\u7528",
+
   tagOpen: (n: number) => `${n} 个在推进`,
   tagNoDate: (n: number) => `${n} 个没有预计成交日`,
   tagUnowned: (n: number) => `${n} 个无负责人`,
