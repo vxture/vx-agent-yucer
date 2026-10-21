@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PeriodTabs } from "../components/period-tabs";
 import { offeredPeriods, resolvePeriod } from "../lib/periods";
-import { Card, EmptyState, Progress, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, Card, EmptyState, Progress, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
@@ -177,6 +177,20 @@ export default async function AttainmentPage({ searchParams }: { searchParams: P
           twice, and the coarser one would be on top. */}
       <ModuleHeadline
         moduleKey="attainment"
+        description={personal ? ATTAINMENT_TEXT.personalWhy : ATTAINMENT_TEXT.teamWhy}
+        action={
+          <div className="flex flex-wrap items-center gap-sm">
+            <div className="flex items-center gap-2xs" role="group" aria-label={ATTAINMENT_TEXT.title}>
+              <Button asChild size="sm" variant={!personal ? "secondary" : "ghost"}>
+                <Link href={`/attainment?scope=team&period=${period}`} aria-current={!personal ? "page" : undefined}>{ATTAINMENT_TEXT.team}</Link>
+              </Button>
+              <Button asChild size="sm" variant={personal ? "secondary" : "ghost"}>
+                <Link href={`/attainment?scope=personal&period=${period}`} aria-current={personal ? "page" : undefined}>{ATTAINMENT_TEXT.personal}</Link>
+              </Button>
+            </div>
+            <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact />
+          </div>
+        }
         tags={
           pct !== null ? (
             <StatusBadge tone={pct >= 100 ? "success" : pct >= 50 ? "info" : "warning"}>
@@ -185,31 +199,22 @@ export default async function AttainmentPage({ searchParams }: { searchParams: P
           ) : undefined
         }
       />
-      <div className="flex flex-wrap items-center gap-md">
-        <Link href={`/attainment?scope=team&period=${period}`} aria-current={!personal ? "page" : undefined} className="text-primary hover:underline">{ATTAINMENT_TEXT.team}</Link>
-        <Link href={`/attainment?scope=personal&period=${period}`} aria-current={personal ? "page" : undefined} className="text-primary hover:underline">{ATTAINMENT_TEXT.personal}</Link>
-        <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} />
-      </div>
-      <p className="text-muted-foreground text-body-small">{personal ? ATTAINMENT_TEXT.personalWhy : ATTAINMENT_TEXT.teamWhy}</p>
-      <Card className="p-lg">
+      <Card className="p-md">
         <div className="flex flex-col gap-md">
           {wsTarget && measured && pct !== null ? (
             <div className="flex flex-col gap-sm">
-              <div className="flex flex-wrap items-baseline gap-x-xl gap-y-xs">
-                <Figure
-                  value={`${pct}%`}
-                  label={ATTAINMENT_TEXT.attained}
-                  emphasis
-                />
-                <Figure
-                  value={BOARD_TEXT.wan(measured.achieved.amount)}
-                  label={ATTAINMENT_TEXT.won}
-                />
-                <Figure
-                  value={BOARD_TEXT.wan(wsTarget.targetValue.amount)}
-                  label={ATTAINMENT_TEXT.target}
-                />
-                <Figure value={BOARD_TEXT.wan(Math.max(0, wsTarget.targetValue.amount - measured.achieved.amount))} label={ATTAINMENT_TEXT.gap} />
+              <div className="grid grid-cols-4 gap-xs overflow-x-auto">
+                {[
+                  { label: ATTAINMENT_TEXT.attained, value: `${Math.round((measured.ratio ?? 0) * 100)}%` },
+                  { label: ATTAINMENT_TEXT.won, value: BOARD_TEXT.wan(measured.achieved.amount) },
+                  { label: ATTAINMENT_TEXT.target, value: BOARD_TEXT.wan(wsTarget.targetValue.amount) },
+                  { label: ATTAINMENT_TEXT.gap, value: BOARD_TEXT.wan(Math.max(0, wsTarget.targetValue.amount - measured.achieved.amount)) },
+                ].map((metric) => (
+                  <Card key={metric.label} className="min-w-0 gap-2xs p-sm">
+                    <span className="text-muted-foreground whitespace-nowrap text-body-small">{metric.label}</span>
+                    <span className="text-foreground whitespace-nowrap text-label font-semibold tabular-nums">{metric.value}</span>
+                  </Card>
+                ))}
               </div>
               {/* Bare track. The percentage it represents is the figure above
                   it, so a caption here would print the same number twice. */}
@@ -228,7 +233,7 @@ export default async function AttainmentPage({ searchParams }: { searchParams: P
           is null when the target is already met - there is no coverage question
           left, and Infinity would render. */}
       {wsTarget && cover && cover.ratio !== null && totals ? (
-        <Card className="p-lg">
+        <Card className="p-md">
           <div className="flex flex-col gap-md">
             <SectionHeader level={2} title={ATTAINMENT_TEXT.pool(wsTarget.period)} description={ATTAINMENT_TEXT.poolWhy} />
 
@@ -284,7 +289,7 @@ export default async function AttainmentPage({ searchParams }: { searchParams: P
         </Card>
       ) : null}
 
-      <Card className="p-lg">
+      <Card className="p-md">
         <div className="flex flex-col gap-md">
           <div>
             <SectionHeader level={2} title={ATTAINMENT_TEXT.composition} description={ATTAINMENT_TEXT.compositionWhy} />
@@ -328,7 +333,7 @@ function Figure({
           // The emphasised figure keeps its 30px as display-xs (heading-2 is 16px
           // since design-ui 12). The plain one never had a size: the class it used
           // did not exist in any DS version, so it inherited - and still does.
-          emphasis ? "text-display-xs" : "",
+          emphasis ? "text-heading-2 font-semibold" : "text-label",
         ].join(" ")}
       >
         {value}
