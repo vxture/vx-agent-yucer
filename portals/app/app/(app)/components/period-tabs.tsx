@@ -47,7 +47,7 @@ export function PeriodTabs({ value, periods, yearLabel, compact = false, allLabe
   return (
     <Tabs value={value} onValueChange={select}>
       <TabsList aria-label={PIPELINE_TEXT.periodLabel}>
-        {(allLabel ? ["all", yearLabel, ...periods] : [...periods, yearLabel]).map((p) => (
+        {(allLabel ? ["all", yearLabel, ...periods] : compact ? [yearLabel, ...periods] : [...periods, yearLabel]).map((p) => (
           <TabsTrigger key={p} value={p} disabled={pending} className={compact ? "text-body-small px-xs" : undefined}>
             {p === "all" ? allLabel : compact && p.includes("Q") ? p.slice(-2) : p}
           </TabsTrigger>
