@@ -28,9 +28,11 @@ export interface PeriodTabsProps {
   /** Quarters, then the year. Passed in so the surface does not own the calendar. */
   readonly periods: readonly string[];
   readonly yearLabel: string;
+  readonly compact?: boolean;
+  readonly allLabel?: string;
 }
 
-export function PeriodTabs({ value, periods, yearLabel }: PeriodTabsProps) {
+export function PeriodTabs({ value, periods, yearLabel, compact = false, allLabel }: PeriodTabsProps) {
   const { PIPELINE_TEXT } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
@@ -45,9 +47,9 @@ export function PeriodTabs({ value, periods, yearLabel }: PeriodTabsProps) {
   return (
     <Tabs value={value} onValueChange={select}>
       <TabsList aria-label={PIPELINE_TEXT.periodLabel}>
-        {[...periods, yearLabel].map((p) => (
-          <TabsTrigger key={p} value={p} disabled={pending}>
-            {p}
+        {(allLabel ? ["all", yearLabel, ...periods] : [...periods, yearLabel]).map((p) => (
+          <TabsTrigger key={p} value={p} disabled={pending} className={compact ? "text-body-small px-xs" : undefined}>
+            {p === "all" ? allLabel : compact && p.includes("Q") ? p.slice(-2) : p}
           </TabsTrigger>
         ))}
       </TabsList>

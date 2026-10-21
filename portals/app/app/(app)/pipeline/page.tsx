@@ -47,7 +47,7 @@ export default async function PipelinePage({
   const { ATTAINMENT_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
     await getMessages();
   const params = await searchParams;
-  const period = resolvePeriod(params.period);
+  const period = params.period === "all" || !params.period ? "all" : resolvePeriod(params.period);
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -114,7 +114,7 @@ export default async function PipelinePage({
   // ever returns a label the control offers, so the null branch is unreachable here
   // - it is written as a fallback to the unfiltered list rather than a throw,
   // because a page that cannot filter should still render the deals.
-  const window = inPeriod(result.value, period);
+  const window = period === "all" ? null : inPeriod(result.value, period);
   const inWindow = window ? window.kept : result.value;
   const undated = window?.undated ?? 0;
 
@@ -153,8 +153,7 @@ export default async function PipelinePage({
       };
     })(),
     accountName:
-      (o as (typeof result.value)[number]).accountName ??
-      (o as (typeof result.value)[number]).accountId,
+      (o.accountId ? accountById.get(o.accountId)?.name : undefined) ?? (o as (typeof result.value)[number]).accountName ?? PIPELINE_TEXT.accountUnavailable,
     buyerUnreachable: unreachable.has(
       (o as (typeof result.value)[number]).accountId,
     ),
@@ -175,8 +174,10 @@ export default async function PipelinePage({
       <ModuleHeadline
         moduleKey="pipeline"
         action={
-          can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui")
-            .allowed ? <NewEntryLink href="/pipeline/new" /> : null
+          <div className="flex flex-wrap items-center gap-sm">
+            <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact allLabel={PIPELINE_TEXT.periodAll} />
+            {can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui").allowed ? <NewEntryLink href="/pipeline/new" primary /> : null}
+          </div>
         }
         tags={
           <>
@@ -199,8 +200,7 @@ export default async function PipelinePage({
           one page is a document with two subjects. It keeps the size, because
           its weight on the page was never coming from the tag. */}
       <div className="flex flex-wrap items-center justify-between gap-md">
-        <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} />
-        <Link href={`/attainment?period=${encodeURIComponent(period)}`} className="text-primary text-body-small hover:underline">{ATTAINMENT_TEXT.toAttainment}</Link>
+        <Link href={`/attainment?period=${encodeURIComponent(period === "all" ? resolvePeriod(undefined) : period)}`} className="text-primary text-body-small hover:underline">{ATTAINMENT_TEXT.toAttainment}</Link>
       </div>
 
       {/* The gate, not the raw permission. Reading permissions.has() directly

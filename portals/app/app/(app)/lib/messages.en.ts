@@ -3927,6 +3927,10 @@ export const en: Dictionary = {
   // --- /pipeline ----------------------------------------------------------
 
   PIPELINE_TEXT: {
+    columnCloseDate: "Expected close",
+    periodAll: "All",
+    accountUnavailable: "Customer unavailable",
+
     tagOpen: (n: number) => `${n} open`,
     tagNoDate: (n: number) => `${n} with no close date`,
     tagUnowned: (n: number) => `${n} unowned`,
