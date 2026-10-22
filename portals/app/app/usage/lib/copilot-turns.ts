@@ -1,12 +1,9 @@
-import { isUnlimited, poolFor } from "../../entitlement/quota";
 import type { Entitlement } from "../../entitlement/types";
 import { recordUsage } from "./buffer";
 import type { UsageStore } from "./store";
 
-// yucer's one consumable metric (owner, 2026-09-14: one metric, the copilot
-// conversation turn; reaffirmed 2026-09-15 after the metricKey review - no
-// second counter and no limits{} keys; the review's judgements are recorded
-// in the metering section of docs/20-specs/40-capability-matrix.md).
+// One of yucer's two business counters: a member's copilot conversation turn.
+// The other is an independent advisor run; neither adds a limits{} key.
 //
 // The METRIC is the copilot turn. The ACTION POINTS are runCopilotTurn() and
 // streamCopilotTurn() - the only two places a question reaches the model. In
@@ -24,38 +21,18 @@ import type { UsageStore } from "./store";
 // event. A UUID minted per call made every retry a fresh charge - the
 // opposite of what the key exists for.
 //
-// ADMISSION reads the C2 envelope's quota pool for the metric. No pool means
-// the platform sold no quota for it - the sales axis decides, not this code -
-// so the turn is not gated. A pool with nothing left refuses with the fleet
-// code QUOTA_EXCEEDED (X-1: the four refusal codes are copied, never
-// invented), and the caller answers 409 (the callee section: 409 is quota).
-//
-// The metric must be REGISTERED on the platform before consume accepts it
-// (unknown_metric otherwise); until then the events stay buffered, which the
-// reference calls out as the normal, non-breaking state.
+// Owner decision, 2026-10-22 (#329): these two independent business counts
+// are zero_cost / pool / divisible, monthly reset, with soft limits. Model
+// token costs remain Atlas ai.credit. Never deny these actions from a local
+// balance; permission and feature gates still apply at their existing callers.
 
 export const COPILOT_TURN_METRIC = "yucer.copilot.turns";
 
 export type TurnAdmission = { ok: true } | { ok: false; remaining: number };
 
-/**
- * Admission for one metric, read off the C2 envelope's pool. Shared by both
- * metrics (yucer.copilot.turns, yucer.advisor.runs).
- *
- * TD-035: this still reads `remaining` and decides locally. The owner's ruling
- * (2026-09-24, YC-042) is that the platform sends the admit result and the
- * product holds no quota numbers; C2 carries no such field yet, so the pool
- * read stays until the platform names one - then this function becomes a
- * read of that field and nothing else.
- */
-export function admitMetric(e: Entitlement, metric: string): TurnAdmission {
-  const pool = poolFor(e, metric);
-  if (!pool) return { ok: true };
-  // -1 = unlimited (same convention as limits{}, checked the same way withinCap
-  // checks it) - a naive `remaining > 0` would read an unlimited pool's -1 as
-  // exhausted, denying a workspace that was never supposed to be gated at all.
-  if (isUnlimited(pool.limit)) return { ok: true };
-  return pool.remaining > 0 ? { ok: true } : { ok: false, remaining: pool.remaining };
+/** Soft business counts are reported, without a local quota decision. */
+export function admitMetric(_e: Entitlement, _metric: string): TurnAdmission {
+  return { ok: true };
 }
 
 export function admitTurn(e: Entitlement): TurnAdmission {

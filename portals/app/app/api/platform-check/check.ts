@@ -33,7 +33,7 @@ import { makePlatformConsume } from "../../usage/lib/flush";
 //   c1        OIDC discovery reachable, issuer matches, JWKS has keys
 //   c2        one live entitlement fetch for the signed-in workspace, with the
 //             Cache-Control the platform actually sends (the 45s the client honors)
-//   c3Up      consume target configured (always-200 contract) + buffered rows
+//   c3Up      consume target configured (report receipt contract) + buffered rows
 //   c3Down    verifier self-test (sign as the platform signs, verify, tamper must
 //             fail) + the most recent recorded deliveries
 //   tokenMint S2S exchange configured, and whether a session is here to mint
@@ -99,7 +99,7 @@ async function checkC1(): Promise<ProbeResult> {
 /** Direct fetch (not the cached resolver) so the probe also reports the Cache-Control the platform sends. */
 async function checkC2(workspaceId: string | null): Promise<ProbeResult> {
   const cfg = getPlatformClientConfig();
-  if (!cfg) return notConfigured("PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN");
+  if (!cfg) return notConfigured("PLATFORM_API_URL + OIDC/S2S client credentials");
   if (!workspaceId) return { configured: true, ok: false, detail: "sign in to resolve your workspace's entitlement" };
   try {
     const url = assertInternalTarget(
@@ -107,7 +107,7 @@ async function checkC2(workspaceId: string | null): Promise<ProbeResult> {
         `?workspace_id=${encodeURIComponent(workspaceId)}&product=${encodeURIComponent(cfg.product)}`,
     );
     const res = await fetch(url, {
-      headers: { "x-vxture-internal-auth": cfg.authToken, accept: "application/json" },
+      headers: { authorization: `Bearer ${await cfg.accessToken(workspaceId)}`, accept: "application/json" },
       cache: "no-store",
     });
     if (!res.ok) return { configured: true, ok: false, detail: `entitlement endpoint ${res.status}` };
@@ -127,14 +127,14 @@ async function checkC2(workspaceId: string | null): Promise<ProbeResult> {
 
 async function checkC3Up(): Promise<ProbeResult> {
   const cfg = getPlatformClientConfig();
-  if (!cfg) return notConfigured("PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN");
+  if (!cfg) return notConfigured("PLATFORM_API_URL + OIDC/S2S client credentials");
   try {
     const pending = (await getUsageStore().unflushed(50)).length;
     return {
       configured: true,
       ok: true,
       detail:
-        `consume target configured (always-200 contract, x-request-id attached); ${pending} buffered row(s) awaiting flush; ` +
+        `consume target configured (report receipt contract, x-request-id attached); ${pending} buffered row(s) awaiting flush; ` +
         `metric ${COPILOT_TURN_METRIC} is recorded at the copilot turn action point (must be registered on the platform)`,
     };
   } catch (err) {
@@ -213,7 +213,7 @@ export async function runC3ReplayProbe(
   second: Record<string, unknown>;
 }> {
   const cfg = getPlatformClientConfig();
-  if (!cfg) throw new Error("PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN are not set");
+  if (!cfg) throw new Error("PLATFORM_API_URL + OIDC/S2S client credentials are not set");
   const day = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const row = {
     workspaceId,
@@ -365,7 +365,7 @@ async function rerankProbe(client: AtlasClient, ctx: AtlasContext): Promise<stri
 
 function c3ReplayDescription(): ProbeResult {
   const cfg = getPlatformClientConfig();
-  if (!cfg) return notConfigured("PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN");
+  if (!cfg) return notConfigured("PLATFORM_API_URL + OIDC/S2S client credentials");
   return {
     configured: true,
     ok: false,

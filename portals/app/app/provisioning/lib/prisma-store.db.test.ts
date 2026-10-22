@@ -197,3 +197,37 @@ test("recentDeliveries lists the newest deliveries first, with their type and re
     await cleanup();
   }
 });
+
+
+test("workspace transition rolls back state, seq and delivery together on failure", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await assert.rejects(s.withWorkspaceLock(WS, PRODUCT, async (tx) => {
+      await tx.upsertInstance(WS, PRODUCT, "provisioned");
+      await tx.setSeq(WS, PRODUCT, 7);
+      await tx.markDelivered("test-prov-atomic");
+      throw new Error("simulated interruption");
+    }), /simulated interruption/);
+    assert.equal(await s.getLastSeq(WS, PRODUCT), -1);
+    assert.equal(await s.isDelivered("test-prov-atomic"), false);
+    const rows = await withPg((c) => c.query(`SELECT count(*)::int n FROM vx_provision.app_instance WHERE workspace_id=$1`, [WS]));
+    assert.equal(rows.rows[0].n, 0);
+  } finally { await cleanup(); }
+});
+
+test("real concurrent webhook and poll transitions serialize before reading seq", { skip }, async () => {
+  await cleanup();
+  try {
+    const { handleProvisioning } = await import("./handler");
+    const s = await store();
+    const handler = { store: s, product: PRODUCT };
+    await Promise.all([9, 3, 7, 2].map((seq) => handleProvisioning({
+      id: `test-prov-concurrent-${seq}`, type: seq === 9 ? "tenant.deprovisioned" : "tenant.provisioned",
+      seq, workspace_id: WS, application: PRODUCT,
+    }, handler)));
+    assert.equal(await s.getLastSeq(WS, PRODUCT), 9);
+    const rows = await withPg((c) => c.query(`SELECT status FROM vx_provision.app_instance WHERE workspace_id=$1`, [WS]));
+    assert.equal(rows.rows[0].status, "deprovisioned");
+  } finally { await cleanup(); }
+});

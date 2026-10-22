@@ -16,7 +16,7 @@ import type { Entitlement } from "./types";
 
 const CFG: PlatformClientConfig = {
   baseUrl: "https://platform.internal",
-  authToken: "tok",
+  accessToken: async () => "tok",
   product: "yucer",
 };
 

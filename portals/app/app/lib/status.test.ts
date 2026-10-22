@@ -94,3 +94,9 @@ test("the three planes report configuration and identifiers, never credentials",
   assert.equal(empty.planes.atlas.configured, false);
   assert.equal(empty.planes.arda.configured, false);
 });
+
+
+test("legacy shared credential does not report a functioning platform resolver", () => {
+  const s = buildStatus({ PLATFORM_API_URL: "https://platform.internal", PLATFORM_INTERNAL_AUTH_TOKEN: "retired" }, "t");
+  assert.equal(s.c2.resolver, "mock"); assert.equal(s.c2.authTokenConfigured, false);
+});

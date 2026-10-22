@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { ProvisioningStore, DeliveryMeta, RecentDelivery } from "./store";
 import { getPrismaClient } from "../../lib/db";
 
@@ -5,26 +6,38 @@ import { getPrismaClient } from "../../lib/db";
 // DATABASE_URL is set; @prisma/client loads lazily via getPrismaClient().
 
 export class PrismaProvisioningStore implements ProvisioningStore {
-  async isDelivered(id: string): Promise<boolean> {
+  constructor(private readonly transaction?: Prisma.TransactionClient) {}
+
+  async withWorkspaceLock<T>(workspaceId: string, product: string, run: (store: ProvisioningStore) => Promise<T>): Promise<T> {
     const p = await getPrismaClient();
+    return p.$transaction(async (tx) => {
+      // Shared by webhook and poller across every replica. The lock and all
+      // three writes (state, delivery, seq) share this transaction.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${workspaceId}), hashtext(${product}))::text`;
+      return run(new PrismaProvisioningStore(tx));
+    }, { maxWait: 10_000, timeout: 30_000 });
+  }
+
+  async isDelivered(id: string): Promise<boolean> {
+    const p = this.transaction ?? await getPrismaClient();
     return (await p.webhookDelivery.count({ where: { deliveryId: id } })) > 0;
   }
 
   async markDelivered(id: string, meta?: DeliveryMeta): Promise<void> {
-    const p = await getPrismaClient();
+    const p = this.transaction ?? await getPrismaClient();
     await p.webhookDelivery.create({
       data: { deliveryId: id, type: meta?.type ?? "unknown", result: meta?.result ?? "processed" },
     });
   }
 
   async recentDeliveries(limit: number): Promise<RecentDelivery[]> {
-    const p = await getPrismaClient();
+    const p = this.transaction ?? await getPrismaClient();
     const rows = await p.webhookDelivery.findMany({ orderBy: { createdAt: "desc" }, take: limit });
     return rows.map((r) => ({ deliveryId: r.deliveryId, type: r.type, result: r.result, receivedAt: r.createdAt }));
   }
 
   async getLastSeq(workspaceId: string, product: string): Promise<number> {
-    const p = await getPrismaClient();
+    const p = this.transaction ?? await getPrismaClient();
     const row = await p.provisionSeq.findUnique({
       where: { workspaceId_productCode: { workspaceId, productCode: product } },
     });
@@ -32,7 +45,7 @@ export class PrismaProvisioningStore implements ProvisioningStore {
   }
 
   async setSeq(workspaceId: string, product: string, seq: number): Promise<void> {
-    const p = await getPrismaClient();
+    const p = this.transaction ?? await getPrismaClient();
     await p.provisionSeq.upsert({
       where: { workspaceId_productCode: { workspaceId, productCode: product } },
       create: { workspaceId, productCode: product, lastSeq: BigInt(seq) },
@@ -41,7 +54,7 @@ export class PrismaProvisioningStore implements ProvisioningStore {
   }
 
   async upsertInstance(workspaceId: string, product: string, status: string): Promise<void> {
-    const p = await getPrismaClient();
+    const p = this.transaction ?? await getPrismaClient();
     await p.appInstance.upsert({
       where: { workspaceId_productCode: { workspaceId, productCode: product } },
       create: { workspaceId, productCode: product, status },

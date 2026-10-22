@@ -47,38 +47,38 @@ Concrete values below are the ones derived at instantiation
       **Registered (2026-09-14): `https://yucer.vxture.com/api/webhooks/vxture`**
       - the public edge, not a tailnet address; the edge proxies every path but
       `/api/usage/flush` to the app. As with the callback, the registered path
-      is not the contract path (`/provisioning/webhook`, product_200 section
-      4): `app/api/webhooks/vxture/route.ts` re-exports the canonical handler.
+      is the canonical path; the previous `/provisioning/webhook` alias has
+      been retired after the coordinated migration.
 - [x] Add `YUCER_PROVISION_WEBHOOK_SECRET` to the platform env; the owner
       hand-transports the secret value to this repo's GitHub secrets.
       Transported 2026-09-14; it goes into the production stack's `.env` as
       `PROVISION_WEBHOOK_SECRET` (and into `ENV_FILE_BASE64`), never into the
       repo.
 
-## Not in the 2026-09-14 handoff (still open)
+## #329 current reconciliation (2026-10-22)
 
-- [ ] C2 entitlement: `PLATFORM_API_URL` (internal-network base) and
-      `PLATFORM_INTERNAL_AUTH_TOKEN`. Without both the resolver stays `mock`,
-      every workspace resolves to no tier, and a signed-in member sees the
-      "not subscribed" lockout on every page - login alone does not make the
-      product usable. **Requested 2026-09-14**:
-      [vxture-platform/vxture-platform#329](https://github.com/vxture-platform/vxture-platform/issues/329)
-      (base URL, the channel credential the rules never named, a webhook
-      test-delivery, the token-exchange body shape). Until answered a deployed
-      stage runs only with `ALLOW_MOCK_ON_DEPLOY=on`, loudly. When the values
-      land, `https://yucer.vxture.com/platform-check` is the handshake surface:
-      every channel re-verified live, no screenshots.
-- [ ] C3 upstream metric `yucer.copilot.turns` (owner, 2026-09-14: 参谋对话轮次)
-      is recorded at the copilot turn action point and must be REGISTERED on the
-      platform as a counter metric before consume accepts it - asked on #329.
-      Until then the events stay buffered (the normal state) and the replay
-      probe on /platform-check cannot pass.
-- [ ] C3 upstream metric `yucer.advisor.runs` (owner, 2026-09-24, YC-042 §04:
-      one advisor run that reached the model; cache hits are not charged) is
-      recorded at `runAdvisor()`, keyed `yucer.advisor.runs:<run id>`. Same shape
-      as the turns metric - counter, pool, monthly reset, unit 次 - and must be
-      REGISTERED (product_metrics) before consume accepts it. Until then its
-      events stay buffered, the normal state.
+- [x] Platform address and confidential production client were delivered on
+      2026-09-14. Read-only production acceptance verified a product-scoped
+      provisioning reader (two pages/two relations), workspace service exchange,
+      C2 own-product 200/max-age=45 and cross-product 403. No usage write was
+      performed during that acceptance.
+- [ ] Release and verify this product's Bearer migration for C2, C3 reporting,
+      and provisioning ACK. It reuses OIDC/S2S credentials and never falls back
+      to the retired shared header. `/platform-check` uses the same caller.
+- [ ] Release and verify startup/periodic full provisioning scans. The existing
+      scheduler/Redis lock calls the existing ordered handler; seq/state/delivery
+      writes share a transaction and workspace lock with webhooks. Every scan
+      starts at page one; missing rows do not delete; pending is not provisioned.
+- [ ] Register `yucer.copilot.turns` and `yucer.advisor.runs` with the owner's
+      2026-10-22 ruling: `zero_cost`, `pool/divisible`, monthly reset, units turn
+      and 次. No prices, plan quotas or quota pools are introduced. Unknown
+      metrics currently may be recorded, so the old `unknown_metric` claim was
+      incorrect. Facts do not by themselves prove billing.
+- [ ] Verify real-workspace reporting/replay after deployment; both business
+      counters remain soft, feature/permission gates stay intact, and Atlas
+      token costs remain separate. Preserve buffered keys on every failed or
+      malformed response; do not fabricate historical facts or resend webhooks
+      just to mark this list complete.
 - [x] Recurring jobs: ADR-033 (2026-09-14) - the container keeps its own clock;
       `commitment-sweep` and `usage-flush` run from `instrumentation.ts` on a
       deployed stage, one run per period via a Redis lock, reported on

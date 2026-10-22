@@ -72,12 +72,13 @@ test("a correctly-signed delivery at the registered path is processed and acked 
 test("tenant.provisioned sends the C3 ack (delivery id as idempotency key) - route wiring, not just the handler or ack.ts in isolation", async () => {
   const store = new InMemoryProvisioningStore();
   setProvisioningStore(store);
-  const savedEnv = { url: process.env.PLATFORM_API_URL, token: process.env.PLATFORM_INTERNAL_AUTH_TOKEN };
+  const savedEnv = { url: process.env.PLATFORM_API_URL, token: process.env.OIDC_CLIENT_SECRET };
   process.env.PLATFORM_API_URL = "https://platform.internal";
-  process.env.PLATFORM_INTERNAL_AUTH_TOKEN = "tok_internal";
+  process.env.OIDC_CLIENT_SECRET = "tok_internal";
   const originalFetch = globalThis.fetch;
   const acked: { url?: string; body?: Record<string, unknown> } = {};
   globalThis.fetch = (async (url: string, init: RequestInit) => {
+    if (String(url).endsWith("/oidc/token")) return new Response(JSON.stringify({ access_token: "channel-token", token_type: "Bearer", expires_in: 300 }));
     acked.url = String(url);
     acked.body = JSON.parse(init.body as string);
     return new Response(JSON.stringify({ workspace_id: "w1", product: "yucer", acked_at: "now", replayed: false }), {
@@ -120,7 +121,7 @@ test("tenant.provisioned sends the C3 ack (delivery id as idempotency key) - rou
     setProvisioningStore(null);
     if (savedEnv.url === undefined) delete process.env.PLATFORM_API_URL;
     else process.env.PLATFORM_API_URL = savedEnv.url;
-    if (savedEnv.token === undefined) delete process.env.PLATFORM_INTERNAL_AUTH_TOKEN;
-    else process.env.PLATFORM_INTERNAL_AUTH_TOKEN = savedEnv.token;
+    if (savedEnv.token === undefined) delete process.env.OIDC_CLIENT_SECRET;
+    else process.env.OIDC_CLIENT_SECRET = savedEnv.token;
   }
 });

@@ -12,7 +12,7 @@ test("the metric is its own literal, keyed by the run", () => {
   assert.equal(advisorRunKey("run_1"), "yucer.advisor.runs:run_1");
 });
 
-test("admission reads this metric's pool only - the turn pool says nothing about runs", () => {
+test("soft advisor counts admit even with an exhausted pool", () => {
   const pool = (metric: string, remaining: number) => ({ metric, limit: 10, remaining, priority: 0 });
   assert.deepEqual(admitAdvisorRun(makeEntitlement(WS, "yucer", { tier: "free" })), { ok: true });
   assert.deepEqual(
@@ -21,7 +21,7 @@ test("admission reads this metric's pool only - the turn pool says nothing about
   );
   assert.deepEqual(
     admitAdvisorRun(makeEntitlement(WS, "yucer", { tier: "free", quota_pools: [pool(ADVISOR_RUN_METRIC, 0)] })),
-    { ok: false, remaining: 0 },
+    { ok: true },
   );
 });
 

@@ -43,7 +43,7 @@ export async function POST(req: Request): Promise<Response> {
     return errorResponse(400, "PLATFORM_CHECK_UNKNOWN_PROBE", "the only spending probe is c3-replay", { field: "probe" });
   }
   const cfg = getPlatformClientConfig();
-  if (!cfg) return errorResponse(503, "PLATFORM_CHECK_NOT_CONFIGURED", "PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN are not set");
+  if (!cfg) return errorResponse(503, "PLATFORM_CHECK_NOT_CONFIGURED", "PLATFORM_API_URL + OIDC/S2S client credentials are not set");
   const workspaceId = await resolveWorkspace();
   if (!workspaceId) return errorResponse(401, "PLATFORM_CHECK_NOT_AUTHENTICATED", "sign in - the probe consumes against your workspace");
 

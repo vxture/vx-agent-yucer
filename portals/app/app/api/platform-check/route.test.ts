@@ -9,8 +9,8 @@ import { liveIdentityFrom, runPlatformCheck } from "./check";
 // exercised on the deployed stack, not here.
 
 const KEYS = [
-  "STATUS_PAGE", "OIDC_RP_ENABLED", "PLATFORM_API_URL", "PLATFORM_INTERNAL_AUTH_TOKEN",
-  "PROVISION_WEBHOOK_SECRET", "PROVISION_WEBHOOK_SECRET_NEXT", "OIDC_CLIENT_SECRET", "S2S_CLIENT_SECRET",
+  "STATUS_PAGE", "OIDC_RP_ENABLED", "PLATFORM_API_URL", "OIDC_CLIENT_SECRET",
+  "PROVISION_WEBHOOK_SECRET", "PROVISION_WEBHOOK_SECRET_NEXT", "S2S_CLIENT_SECRET",
   "ATLAS_BASE_URL", "RUNOS_BASE_URL", "ARDA_BASE_URL",
 ] as const;
 const saved: Record<string, string | undefined> = {};
@@ -70,7 +70,7 @@ test("the C3-down self-test runs offline once a secret is present, and rejects a
 test("the C2 probe asks for a session rather than guessing a workspace", async () => {
   bare();
   process.env.PLATFORM_API_URL = "https://platform.internal";
-  process.env.PLATFORM_INTERNAL_AUTH_TOKEN = "t";
+  process.env.OIDC_CLIENT_SECRET = "t";
   const check = await runPlatformCheck(null);
   assert.equal(check.c2.configured, true);
   assert.equal(check.c2.ok, false);

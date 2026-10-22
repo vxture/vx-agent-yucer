@@ -3,6 +3,7 @@ import { runCommitmentSweep } from "../domains/account/commitment-sweep";
 import { runStrategySnapshots } from "../domains/strategy/snapshot-job";
 import { runHealthSweep } from "../domains/account/health-sweep";
 import { runUpsellSweep } from "../domains/delivery/upsell-sweep";
+import { pollProvisioning } from "../provisioning/lib/poll";
 import { flushUsage } from "../usage/lib/flush";
 import { listActiveWorkspaces } from "./workspaces";
 import { acquireJobLock, type LockOutcome } from "./lock";
@@ -127,6 +128,11 @@ export function defaultJobs(env: Record<string, string | undefined> = process.en
       everyMs: intervalFrom(env, "JOBS_INTERVAL_HEALTH_MS", 24 * 60 * 60_000),
       run: async () => runHealthSweep({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
     },
+    {
+      name: "provisioning-poll",
+      everyMs: intervalFrom(env, "JOBS_INTERVAL_PROVISIONING_MS", 5 * 60_000),
+      run: () => pollProvisioning(),
+    },
   ];
 }
 
@@ -226,7 +232,7 @@ export function startJobScheduler(deps: SchedulerDeps = {}): JobsSnapshot {
   if (enabled) {
     const initial = deps.initialDelayMs ?? 30_000;
     const stagger = deps.staggerMs ?? 10_000;
-    s.jobs.forEach((job, i) => schedule(job, initial + i * stagger));
+    s.jobs.forEach((job, i) => schedule(job, job.name === "provisioning-poll" ? initial : initial + i * stagger));
     activeDeps.log(`[jobs] scheduler on (${reason}): ${s.jobs.map((j) => `${j.name}/${j.everyMs}ms`).join(", ")}`);
   } else {
     activeDeps.log(`[jobs] scheduler off (${reason})`);

@@ -168,8 +168,7 @@ NEXT_PUBLIC_APP_URL=https://${code}.vxture.com
 # --- C2 entitlement / platform client ---
 # internal-network base; unset -> Mock resolver
 PLATFORM_API_URL=
-# procure: shared internal-auth secret (S2S)
-PLATFORM_INTERNAL_AUTH_TOKEN=
+# Uses the existing confidential OIDC/S2S client for scoped Bearer tickets.
 NEXT_PUBLIC_CONSOLE_URL=https://console.vxture.com
 
 # --- C3 provisioning webhook / usage ---

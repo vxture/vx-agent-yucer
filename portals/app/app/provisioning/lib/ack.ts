@@ -12,12 +12,7 @@ import { assertInternalTarget } from "../../lib/internal-target";
 // fail on this side; "failed" from the rules doc's request shape exists for
 // products that DO have a real space-build step, not for yucer).
 //
-// SAME AUTH AS C2 / C3-UP, DELIBERATELY NOT THE OIDC S2S EXCHANGE
-// (platform/s2s.ts): the rules doc calls this "S2S 鉴权，同 C2 / C3", and this
-// product's own C2/C3-up calls already authenticate with the internal tailnet
-// token (PLATFORM_INTERNAL_AUTH_TOKEN), not a minted OIDC token - that
-// exchange is reserved for calling OUT to Atlas/Runos. Matching the sibling
-// calls' own auth is the "same as C2/C3" the doc asks for.
+// Uses the same workspace-scoped product service Bearer ticket as C2/C3-up.
 //
 // BEST-EFFORT, NEVER FAILS THE WEBHOOK. An ack is a courtesy signal on top of
 // an already-successful delivery, not a condition of it - a platform outage on
@@ -45,7 +40,7 @@ export function makeProvisioningAck(cfg: PlatformClientConfig): ProvisioningAckF
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-vxture-internal-auth": cfg.authToken,
+        authorization: `Bearer ${await cfg.accessToken(input.workspaceId)}`,
       },
       body: JSON.stringify({
         workspace_id: input.workspaceId,
@@ -54,7 +49,7 @@ export function makeProvisioningAck(cfg: PlatformClientConfig): ProvisioningAckF
         ...(input.deliveryId ? { delivery_id: input.deliveryId } : {}),
         ...(input.detail ? { detail: input.detail } : {}),
       }),
-      cache: "no-store",
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10_000),
     });
     let body: ProvisioningAckResult["body"];
     try {

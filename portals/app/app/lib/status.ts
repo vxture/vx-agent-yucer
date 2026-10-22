@@ -1,3 +1,4 @@
+import { getS2SConfig } from "../platform/s2s";
 import { BRAND } from "@yucer/shared/brand";
 import type { JobsSnapshot } from "../jobs/scheduler";
 import type { AuthDropSnapshot } from "../auth/lib/auth-failures";
@@ -128,9 +129,9 @@ export function buildStatus(env: Env, now: string): IntegrationStatus {
       clientSecretConfigured: Boolean(env.OIDC_CLIENT_SECRET),
     },
     c2: {
-      resolver: env.PLATFORM_API_URL && env.PLATFORM_INTERNAL_AUTH_TOKEN ? "platform" : "mock",
+      resolver: env.PLATFORM_API_URL && getS2SConfig(env).enabled ? "platform" : "mock",
       platformApiConfigured: Boolean(env.PLATFORM_API_URL),
-      authTokenConfigured: Boolean(env.PLATFORM_INTERNAL_AUTH_TOKEN),
+      authTokenConfigured: getS2SConfig(env).enabled,
       consoleUrl: env.NEXT_PUBLIC_CONSOLE_URL ?? null,
       // The documented default fetchEntitlement falls back to, not a guarantee
       // every cached entry currently holds this exact value - each entry's real

@@ -13,10 +13,10 @@ test("no pool for the metric means the platform sold no quota for it: not gated"
   assert.deepEqual(admitTurn(makeEntitlement(WS, "yucer", { tier: "pro", status: "active" })), { ok: true });
 });
 
-test("a pool with turns left admits; one with nothing left refuses and reports the remainder", () => {
+test("a pool with turns left admits; soft exhausted pools also admit", () => {
   const pool = (remaining: number) => ({ metric: COPILOT_TURN_METRIC, limit: 100, remaining, priority: 0 });
   assert.deepEqual(admitTurn(makeEntitlement(WS, "yucer", { tier: "pro", quota_pools: [pool(3)] })), { ok: true });
-  assert.deepEqual(admitTurn(makeEntitlement(WS, "yucer", { tier: "pro", quota_pools: [pool(0)] })), { ok: false, remaining: 0 });
+  assert.deepEqual(admitTurn(makeEntitlement(WS, "yucer", { tier: "pro", quota_pools: [pool(0)] })), { ok: true });
   // Another metric's pool says nothing about this one.
   assert.deepEqual(admitTurn(makeEntitlement(WS, "yucer", { tier: "pro", quota_pools: [{ ...pool(0), metric: "other" }] })), { ok: true });
 });

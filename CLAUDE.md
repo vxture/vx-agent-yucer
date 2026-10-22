@@ -436,13 +436,14 @@ being applied.
   statements. Two mirrors agreeing says nothing about whether either is true.
 - `lib/deploy-stage.ts` - on a deployed stage (DEPLOY_STAGE=production|beta,
   injected at image build) the entitlement resolver factory REFUSES to fall
-  back to the mock while PLATFORM_API_URL / PLATFORM_INTERNAL_AUTH_TOKEN are
+  back to the mock while PLATFORM_API_URL / OIDC or S2S client credentials are
   unset; ALLOW_MOCK_ON_DEPLOY=on is the loud override and /api/status reports
   it (deployStage, mockOverride). Mirrors the reference implementation
   (vx-agent-vxtpl). Production ran the mock silently from 2026-09-10 to
-  2026-09-14 before this existed. The platform channels' credential itself is
-  the platform line's to name (vxture-platform/vxture-platform#329); do not
-  invent an S2S replacement for it inside this repo.
+  2026-09-14 before this existed. The platform channels use supported
+  workspace-scoped product service Bearer tickets minted with the existing
+  confidential OIDC/S2S client (#329); provisioning reads use their dedicated
+  reader scope, never a workspace ticket.
 
 ## Violation messages are keys, not copy
 
