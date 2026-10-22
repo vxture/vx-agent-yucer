@@ -62,9 +62,13 @@ import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy
 export const dynamic = "force-dynamic";
 
 export default async function AttainmentPage({ searchParams }: { searchParams: Promise<{ scope?: string; period?: string }> }) {
+  return renderAttainment(searchParams);
+}
+
+async function renderAttainment(searchParams: Promise<{ scope?: string; period?: string }>, embedded = false) {
   const params = await searchParams;
   const personal = params.scope === "personal";
-  const period = resolvePeriod(params.period);
+  const period = params.period === "all" || !params.period ? "all" : embedded ? params.period : resolvePeriod(params.period);
   const {
     SHELL_TEXT,
     LOAD_ERROR,
@@ -72,6 +76,7 @@ export default async function AttainmentPage({ searchParams }: { searchParams: P
     ATTAINMENT_TEXT,
     FORECAST_LABEL,
     PAGE_TAG,
+    PIPELINE_TEXT,
   } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -170,12 +175,8 @@ export default async function AttainmentPage({ searchParams }: { searchParams: P
       ? Math.max(0, Math.min(100, Math.round((measured.ratio ?? 0) * 100)))
       : null;
 
-  return (
-    <ViewLayout>
-      {/* NO FOLD: the card directly below IS the decomposition - target,
-          achieved, the gap - so a strip above it would explain the same number
-          twice, and the coarser one would be on top. */}
-      <ModuleHeadline
+  const header = (
+<ModuleHeadline
         moduleKey="attainment"
         description={personal ? ATTAINMENT_TEXT.personalWhy : ATTAINMENT_TEXT.teamWhy}
         action={
@@ -188,17 +189,39 @@ export default async function AttainmentPage({ searchParams }: { searchParams: P
                 <Link href={`/attainment?scope=personal&period=${period}`} aria-current={personal ? "page" : undefined}>{ATTAINMENT_TEXT.personal}</Link>
               </Button>
             </div>
-            <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact />
+            <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact allLabel={PIPELINE_TEXT.periodAll} />
           </div>
         }
         tags={
-          pct !== null ? (
+          period !== "all" && pct !== null ? (
             <StatusBadge tone={pct >= 100 ? "success" : pct >= 50 ? "info" : "warning"}>
               {PAGE_TAG.attained(pct)}
             </StatusBadge>
           ) : undefined
         }
       />
+  );
+
+  if (period === "all") {
+    const periods = targets.ok ? [...new Set(targets.value.filter((t) =>
+      t.status === "committed" && t.metric === "revenue" &&
+      (personal ? t.scopeType === "owner" && t.ownerSub === session.user.sub : t.scopeType === "workspace")
+    ).map((t) => t.period))].sort().reverse() : [];
+    return <ViewLayout>
+      {header}
+      {!targets.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(targets.violations, LOAD_ERROR)} /> : periods.length === 0 ? <EmptyState title={ATTAINMENT_TEXT.noTarget} description={ATTAINMENT_TEXT.noTargetWhy} /> : await Promise.all(periods.map(async (p) => <div key={p} className="flex flex-col gap-md">
+        <SectionHeader level={2} title={p} divider={false} />
+        {await renderAttainment(Promise.resolve({ scope: params.scope, period: p }), true)}
+      </div>))}
+    </ViewLayout>;
+  }
+
+  return (
+    <ViewLayout>
+      {/* NO FOLD: the card directly below IS the decomposition - target,
+          achieved, the gap - so a strip above it would explain the same number
+          twice, and the coarser one would be on top. */}
+      {!embedded ? header : null}
       <Card className="p-md">
         <div className="flex flex-col gap-md">
           {wsTarget && measured && pct !== null ? (
