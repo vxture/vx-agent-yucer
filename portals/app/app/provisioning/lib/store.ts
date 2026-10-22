@@ -19,6 +19,8 @@ export interface RecentDelivery {
 }
 
 export interface ProvisioningStore {
+  /** Serialize a workspace transition; database implementations also commit atomically. */
+  withWorkspaceLock<T>(workspaceId: string, product: string, run: (store: ProvisioningStore) => Promise<T>): Promise<T>;
   isDelivered(deliveryId: string): Promise<boolean>;
   markDelivered(deliveryId: string, meta?: DeliveryMeta): Promise<void>;
   getLastSeq(workspaceId: string, product: string): Promise<number>;
@@ -29,6 +31,19 @@ export interface ProvisioningStore {
 }
 
 export class InMemoryProvisioningStore implements ProvisioningStore {
+  private locks = new Map<string, Promise<void>>();
+
+  async withWorkspaceLock<T>(workspaceId: string, product: string, run: (store: ProvisioningStore) => Promise<T>): Promise<T> {
+    const key = this.seqKey(workspaceId, product);
+    const prior = this.locks.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    this.locks.set(key, held);
+    await prior;
+    try { return await run(this); }
+    finally { release(); if (this.locks.get(key) === held) this.locks.delete(key); }
+  }
+
   private delivered = new Set<string>();
   private log: RecentDelivery[] = [];
   private seq = new Map<string, number>();

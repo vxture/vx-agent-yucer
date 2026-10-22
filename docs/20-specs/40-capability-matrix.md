@@ -118,12 +118,16 @@ yucer 有**两个**消耗型指标（YC-042 §04）。不定义任何 `limits{}`
   同一份工作不以两个名字各收一次。
 - 按参谋能力拆分模型用量走 Atlas：每次调用带 `featureId`（能力键；会话为 `copilot.chat`）与
   `businessId`（run id 或用户消息 id）。C3 上报体不加维度字段。
-- 放行目前仍按 C2 信封的配额池在产品内判断——与 owner 裁定不符，登记为 **TD-035**，待平台给出
-  放行字段后替换。
-
-- 准入读 C2 信封里该指标的 `quota_pools`：**没有池 = 平台没卖这个配额，不门控**（销售轴决定，不是代码决定）；有池且 `remaining <= 0` → 舰队码 `QUOTA_EXCEEDED`，HTTP 409；流式路径则以首个事件 `error` / `quota_exceeded` 拒绝，不开会话。
-- **幂等键 = 指标 + 业务对象 id**：`yucer.copilot.turns:<用户消息 id>`（tenderforge 范本的规矩）。所以扣费等问题行落库之后才记——重试的冲洗、重复提交、重放的请求都指向同一条消息，平台折叠为一个事件。2026-09-15 之前用的是每次调用新生成的 UUID，等于每次重试都是一笔新费，已改。
-- 上报走既有的缓冲 + 冲洗（`POST /usage/consume`，永远 200，`gated` 在体内）。指标须先在平台**登记**，否则 consume 返 `unknown_metric`，事件留在缓冲表重试——这是正常态。
+- **2026-10-22 owner 裁定（平台 #329）**：两个指标作为独立业务计数，均为
+  `zero_cost / pool / divisible`、月重置、软限；单位分别为 turn（轮）与次。
+  本轮不新增价格、套餐额度或配额池。产品不按本地 `remaining` 拒绝这两个动作，
+  既有功能与权限两道门保留；模型 token 成本继续由 Atlas → `ai.credit` 单独核算。
+- **幂等键 = 指标 + 业务对象 id**：保留 `yucer.copilot.turns:<用户消息 id>` 与
+  `yucer.advisor.runs:<run id>`，重试不生成新键。
+- C3 使用工作区作用域产品 Bearer 票，显式 `intent=report`。报告成功为 200 并带
+  `event_id`；鉴权、校验、网络错误或不完整回执均保留缓冲，用原键重试。
+  当前平台未登记指标也可能按 divisible 记录，不能把未登记等同于 `unknown_metric`。
+  登记仍须明确成本分类，事实入账不等同扣费已验证。
 - 模型平面自己的用量由 Atlas 统一上报（通则「谁执行谁上报」的例外），本指标**不是**模型 token，两者不重复。
 - 平台侧登记请求：[vxture-platform/vxture-platform#329](https://github.com/vxture-platform/vxture-platform/issues/329) 第 6 项。
 

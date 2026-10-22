@@ -41,7 +41,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
 | TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | **closed 2026-09-22**（26 项权限、31 个预置角色、420 条授权，逐条核对 catalog.ts 镜像） |
 | TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（**半项已还 2026-09-26**：标题行对齐由 design-ui 11 的 grid 表头解决，覆盖已删；`Section` 仍不转发 `divider`，收起态垫片保留；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
-| TD-035 | 放行仍在产品内按配额池判断，与「配额归平台」的裁定不符 | 2026-09-25 | open（需平台在 C2 给出放行字段） |
+| TD-035 | 放行仍在产品内按配额池判断，与「配额归平台」的裁定不符 | 2026-09-25 | 已修复，待发布验收（2026-10-22 owner 明确两指标软限） |
 | TD-036 | DS 字号最小档 12px，mockup 的 10.5–11.5px 次级字没有档 | 2026-09-26 | open（本地 `text-[11px]` 等 32 处，全部点名；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
@@ -1978,14 +1978,12 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 **发现于**：deal batch 0b（2026-09-25）实现 `yucer.advisor.runs` 时。owner 2026-09-24 裁定
 （YC-042 §04）：「计量归你，上报；你不做配额管理，你也不知道配额是多少。配额和用量是平台下发的。」
 
-**现状**：`usage/lib/copilot-turns.ts` 的 `admitMetric()` 读 C2 信封里该指标的 `quota_pools`，
-按 `remaining` 自己判断放不放行——两个指标（turns、advisor.runs）都走它。这是产品在算剩余。
+**2026-10-22 裁定与修复**：owner 在平台 #329 明确两个独立业务计数均为
+`zero_cost / pool / divisible`、月重置、软限，不新增价格或配额池。
+`admitMetric()` 不再读取余额拒绝；既有功能、权限门及 Atlas 模型成本不变。
+既有 `report` 上报契约已够用，无需为该债务新增 C2 放行字段。
 
-**为什么暂留**：C2 目前没有下发「放行 / 不放行」的结果字段，只有配额池。去掉判断就等于
-永远放行，平台卖出的配额形同虚设。
-
-**收回条件**：平台在 C2 给出放行结果字段（或 consume 的 `gated` 成为准入依据）后，
-`admitMetric()` 改成只读该字段，产品内不再出现 `remaining` 的比较。需向平台提出（经 liaison）。
+**验收边界**：代码与回归待本次 PR/CI、生产发布验收后闭环；当前不声称已在产。
 
 ## 2026-09-27：「已上报 DS」的更正
 

@@ -1,23 +1,24 @@
+import { getS2SConfig } from "../platform/s2s";
+import { mintChannelToken } from "../platform/channel-token";
 import { BRAND } from "@yucer/shared/brand";
 import { assertInternalTarget } from "../lib/internal-target";
 import { EMPTY_ENTITLEMENT, type Entitlement, type QuotaPool } from "./types";
 
 // C2 caller (product_200 section 3, product_220 section 3). Calls the platform
-// entitlement endpoint over the internal network with the shared internal-auth
-// header, and parses the envelope tolerantly (unknown added fields ignored,
+// entitlement endpoint with a workspace-scoped product service Bearer ticket, and parses the envelope tolerantly (unknown added fields ignored,
 // missing fields defaulted). Never sends the secret to the browser.
 
 export interface PlatformClientConfig {
   baseUrl: string;
-  authToken: string;
+  accessToken: (workspaceId: string | null) => Promise<string>;
   product: string;
 }
 
-export function getPlatformClientConfig(): PlatformClientConfig | null {
-  const baseUrl = process.env.PLATFORM_API_URL;
-  const authToken = process.env.PLATFORM_INTERNAL_AUTH_TOKEN;
-  if (!baseUrl || !authToken) return null; // -> Mock resolver
-  return { baseUrl, authToken, product: BRAND.productCode };
+export function getPlatformClientConfig(env: Record<string, string | undefined> = process.env): PlatformClientConfig | null {
+  const baseUrl = env.PLATFORM_API_URL?.trim();
+  const config = getS2SConfig(env);
+  if (!baseUrl || !config.enabled) return null; // Deployed resolver fails closed.
+  return { baseUrl, accessToken: (workspaceId) => mintChannelToken(workspaceId, { config }), product: BRAND.productCode };
 }
 
 function num(v: unknown, fallback = 0): number {
@@ -98,8 +99,8 @@ export async function fetchEntitlement(
       `?workspace_id=${encodeURIComponent(workspaceId)}&product=${encodeURIComponent(cfg.product)}`,
   );
   const res = await fetch(url, {
-    headers: { "x-vxture-internal-auth": cfg.authToken, accept: "application/json" },
-    cache: "no-store",
+    headers: { authorization: `Bearer ${await cfg.accessToken(workspaceId)}`, accept: "application/json" },
+    cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error(`entitlement endpoint ${res.status}`);
   const entitlement = parseEntitlementEnvelope(workspaceId, cfg.product, await res.json());

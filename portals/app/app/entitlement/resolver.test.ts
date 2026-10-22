@@ -7,7 +7,7 @@ import { PlatformEntitlementResolver } from "./platform-resolver";
 // mock is a local-dev convenience; on a deployed stage it is a misconfiguration
 // the factory must refuse, not a fallback it may take quietly.
 
-const KEYS = ["DEPLOY_STAGE", "ALLOW_MOCK_ON_DEPLOY", "PLATFORM_API_URL", "PLATFORM_INTERNAL_AUTH_TOKEN"] as const;
+const KEYS = ["DEPLOY_STAGE", "ALLOW_MOCK_ON_DEPLOY", "PLATFORM_API_URL", "OIDC_CLIENT_SECRET"] as const;
 const saved: Record<string, string | undefined> = {};
 for (const k of KEYS) saved[k] = process.env[k];
 
@@ -48,7 +48,7 @@ test("ALLOW_MOCK_ON_DEPLOY=on is the loud override on a deployed stage", () => {
 });
 
 test("platform config wins on any stage, override or not", () => {
-  env({ DEPLOY_STAGE: "production", PLATFORM_API_URL: "https://platform.internal", PLATFORM_INTERNAL_AUTH_TOKEN: "t" });
+  env({ DEPLOY_STAGE: "production", PLATFORM_API_URL: "https://platform.internal", OIDC_CLIENT_SECRET: "t" });
   resetResolver();
   assert.ok(getEntitlementResolver() instanceof PlatformEntitlementResolver);
 });

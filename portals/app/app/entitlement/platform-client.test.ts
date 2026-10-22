@@ -64,7 +64,7 @@ test("fetchEntitlement reads ttlMs from the response's own Cache-Control max-age
   });
   try {
     const { entitlement, ttlMs } = await fetchEntitlement(
-      { baseUrl: platform.baseUrl, authToken: "tok", product: "yucer" },
+      { baseUrl: platform.baseUrl, accessToken: async () => "tok", product: "yucer" },
       "ws_1",
     );
     assert.equal(entitlement.tier, "pro");
@@ -84,7 +84,7 @@ test("fetchEntitlement falls back to the documented default when Cache-Control i
     });
     try {
       const { ttlMs } = await fetchEntitlement(
-        { baseUrl: platform.baseUrl, authToken: "tok", product: "yucer" },
+        { baseUrl: platform.baseUrl, accessToken: async () => "tok", product: "yucer" },
         "ws_1",
       );
       assert.equal(ttlMs, DEFAULT_CACHE_TTL_MS, `for Cache-Control: ${cacheControl}`);
@@ -92,4 +92,11 @@ test("fetchEntitlement falls back to the documented default when Cache-Control i
       await platform.close();
     }
   }
+});
+
+
+test("shared token alone cannot configure C2; existing confidential credentials can", async () => {
+  const { getPlatformClientConfig } = await import("./platform-client");
+  assert.equal(getPlatformClientConfig({ PLATFORM_API_URL: "https://platform.internal", PLATFORM_INTERNAL_AUTH_TOKEN: "retired" }), null);
+  assert.ok(getPlatformClientConfig({ PLATFORM_API_URL: "https://platform.internal", OIDC_CLIENT_ID: "yucer", OIDC_CLIENT_SECRET: "existing-secret" }));
 });

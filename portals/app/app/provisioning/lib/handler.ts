@@ -44,6 +44,12 @@ export async function handleProvisioning(
   event: ProvisioningEvent,
   deps: HandlerDeps,
 ): Promise<HandleResult> {
+  if (event.application !== deps.product) return { ok: true, handled: false, reason: "wrong-product" };
+  return deps.store.withWorkspaceLock(event.workspace_id, deps.product, (store) =>
+    handleLocked(event, { ...deps, store }));
+}
+
+async function handleLocked(event: ProvisioningEvent, deps: HandlerDeps): Promise<HandleResult> {
   // Reject events addressed to another product.
   if (event.application !== deps.product) {
     return { ok: true, handled: false, reason: "wrong-product" };

@@ -6,8 +6,8 @@ import { assertInternalTarget } from "../../lib/internal-target";
 // Async flush job (product_200 section 4.1): drain buffered counter usage and
 // report to the platform consume service (the single writer).
 //
-// THE CONSUME SERVICE ANSWERS 200 ALWAYS - it keeps the ledger, it does not
-// judge (product integration rules, C3 upstream, 2026-09-13). A quota that did
+// VALID REPORTS ANSWER 200; authentication/validation failures still use 4xx.
+// Reserve's 409 is a pre-action refusal, not this reporting loop's contract. A quota that did
 // not cover the call comes back as `gated: true` IN THE BODY: the row is
 // reported and done, and the entitlement may have changed, so the C2 cache is
 // evicted. What to do about `gated` is the product's decision at the action
@@ -97,7 +97,7 @@ export function makePlatformConsume(cfg: PlatformClientConfig): ConsumeFn {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-vxture-internal-auth": cfg.authToken,
+        authorization: `Bearer ${await cfg.accessToken(row.workspaceId)}`,
         // Lands next to the usage event on the platform side; the idempotency
         // key is the one id both sides already share, so reconciliation needs
         // no second one.
@@ -109,18 +109,23 @@ export function makePlatformConsume(cfg: PlatformClientConfig): ConsumeFn {
         metric: row.metric,
         amount: row.amount,
         idempotency_key: row.idempotencyKey,
+        intent: "report",
       }),
-      cache: "no-store",
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10_000),
     });
     let gated = false;
     let body: Record<string, unknown> | undefined;
     if (res.status === 200) {
       try {
         const parsed = (await res.json()) as Record<string, unknown> | null;
-        if (parsed && typeof parsed === "object") body = parsed;
-        gated = body?.gated === true;
+        if (!parsed || typeof parsed !== "object" || typeof parsed.event_id !== "string" || !parsed.event_id) {
+          throw new Error("Platform consume receipt missing event_id");
+        }
+        body = parsed;
+        gated = body.gated === true;
       } catch {
-        // A 200 without a JSON body is still a 200: reported, not gated.
+        // An unconfirmed receipt must be retried under the SAME business key.
+        throw new Error("Invalid platform consume receipt");
       }
     }
     return { status: res.status, gated, body };

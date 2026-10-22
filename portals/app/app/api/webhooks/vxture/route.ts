@@ -24,7 +24,7 @@ import { sendProvisioningAck } from "../../../provisioning/lib/ack";
 export const dynamic = "force-dynamic";
 
 function productCode(): string {
-  return process.env.OIDC_CLIENT_ID ?? BRAND.productCode;
+  return BRAND.productCode;
 }
 
 export async function POST(req: Request): Promise<Response> {

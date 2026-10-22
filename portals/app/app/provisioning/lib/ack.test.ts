@@ -5,7 +5,7 @@ import type { PlatformClientConfig } from "../../entitlement/platform-client";
 
 const CFG: PlatformClientConfig = {
   baseUrl: "https://platform.internal",
-  authToken: "tok_internal",
+  accessToken: async () => "tok_internal",
   product: "yucer",
 };
 
@@ -28,7 +28,7 @@ test("makeProvisioningAck posts the documented shape and auth header", async () 
     assert.equal(result.body?.replayed, false);
     assert.equal(captured.url, "https://platform.internal/provisioning/ack");
     assert.equal(captured.init?.method, "POST");
-    assert.equal((captured.init?.headers as Record<string, string>)["x-vxture-internal-auth"], "tok_internal");
+    assert.equal((captured.init?.headers as Record<string, string>)["authorization"], "Bearer tok_internal");
     const body = JSON.parse(captured.init?.body as string);
     assert.deepEqual(body, {
       workspace_id: "ws_1",
@@ -57,7 +57,7 @@ test("a repeated delivery_id comes back replayed:true with the original acked_at
 });
 
 test("sendProvisioningAck is a silent no-op when the platform is not configured", async () => {
-  // No PLATFORM_API_URL / PLATFORM_INTERNAL_AUTH_TOKEN in this test process -
+  // No PLATFORM_API_URL / OIDC_CLIENT_SECRET in this test process -
   // getPlatformClientConfig() returns null, same offline posture C2 and
   // C3-up's own callers already have.
   const result = await sendProvisioningAck({ workspaceId: "ws_1", status: "ready" });
@@ -67,7 +67,7 @@ test("sendProvisioningAck is a silent no-op when the platform is not configured"
 test("sendProvisioningAck swallows a transport failure rather than throwing", async () => {
   const originalEnv = { ...process.env };
   process.env.PLATFORM_API_URL = "https://platform.internal";
-  process.env.PLATFORM_INTERNAL_AUTH_TOKEN = "tok_internal";
+  process.env.OIDC_CLIENT_SECRET = "tok_internal";
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => {
     throw new Error("ECONNREFUSED");

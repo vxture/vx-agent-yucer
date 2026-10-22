@@ -1,3 +1,4 @@
+import { BRAND } from "@yucer/shared/brand";
 import { EMPTY_ENTITLEMENT, type Entitlement, type SubscriptionStatus, type Tier } from "./types";
 import { getPlatformClientConfig } from "./platform-client";
 import { PlatformEntitlementResolver } from "./platform-resolver";
@@ -51,14 +52,14 @@ export function getEntitlementResolver(): EntitlementResolver {
   // deny access on the strength of an env var. Mirrors the reference
   // implementation (vx-agent-vxtpl); production ran the mock silently from
   // 2026-09-10 to 2026-09-14 before this line existed.
-  assertMockAllowed("entitlement (C2)", "PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN");
+  assertMockAllowed("entitlement (C2)", "PLATFORM_API_URL + OIDC/S2S client credentials");
   singleton = new MockEntitlementResolver(productCode());
   return singleton;
 }
 
 function productCode(): string {
-  // Mirrors platform-client's product; kept here so the Mock needs no platform cfg.
-  return process.env.OIDC_CLIENT_ID ?? "yucer";
+  // Client ids vary by environment; the registered product code does not.
+  return BRAND.productCode;
 }
 
 // For tests: reset the memoized resolver.

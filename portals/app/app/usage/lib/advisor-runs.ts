@@ -17,11 +17,8 @@ import type { UsageStore } from "./store";
 // concurrent save, a daily re-check - names the same run, and the platform
 // collapses it into one event.
 //
-// The metric name is a literal, never configuration: it must hit the
-// platform's registry, and a configurable name could report to a key that does
-// not exist - accepted, never billed. Until the platform registers it,
-// consume answers unknown_metric and the events stay buffered (the normal
-// state, 10-platform-registration-checklist).
+// This independent business count is soft and zero_cost (owner, 2026-10-22).
+// Model token costs remain separate; reporting retries retain the same key.
 
 export const ADVISOR_RUN_METRIC = "yucer.advisor.runs";
 

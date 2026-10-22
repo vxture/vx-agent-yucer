@@ -52,7 +52,8 @@ test("stage decides: deployed on by default, dev off by default, JOBS_SCHEDULER 
 
 test("the default jobs are the sweep, the flush, strategy snapshots, the upsell and health sweeps, with sane periods and a floor on overrides", () => {
   const jobs = defaultJobs({});
-  assert.deepEqual(jobs.map((j) => j.name), ["commitment-sweep", "usage-flush", "strategy-snapshots", "upsell-sweep", "health-sweep"]);
+  assert.deepEqual(jobs.map((j) => j.name), ["commitment-sweep", "usage-flush", "strategy-snapshots", "upsell-sweep", "health-sweep", "provisioning-poll"]);
+  assert.equal(jobs[5].everyMs, 5 * 60_000);
   assert.equal(jobs[0].everyMs, 15 * 60_000);
   assert.equal(jobs[1].everyMs, 5 * 60_000);
   assert.equal(jobs[2].everyMs, 60 * 60_000);
