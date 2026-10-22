@@ -62,13 +62,13 @@ import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy
 export const dynamic = "force-dynamic";
 
 export default async function AttainmentPage({ searchParams }: { searchParams: Promise<{ scope?: string; period?: string }> }) {
-  return renderAttainment(searchParams);
+  return <AttainmentView params={await searchParams} />;
 }
 
-async function renderAttainment(searchParams: Promise<{ scope?: string; period?: string }>, embedded = false) {
-  const params = await searchParams;
+async function loadAttainment({ params, embedded = false }: { params: { scope?: string; period?: string }; embedded?: boolean }) {
   const personal = params.scope === "personal";
-  const period = params.period === "all" || !params.period ? "all" : embedded ? params.period : resolvePeriod(params.period);
+  let period = "all";
+  if (params.period && params.period !== "all") period = embedded ? params.period : resolvePeriod(params.period);
   const {
     SHELL_TEXT,
     LOAD_ERROR,
@@ -175,6 +175,17 @@ async function renderAttainment(searchParams: Promise<{ scope?: string; period?:
       ? Math.max(0, Math.min(100, Math.round((measured.ratio ?? 0) * 100)))
       : null;
 
+  return { personal, period, embedded, session, targets, wsTarget, measured, pct, cover, totals, quarterWorth, split, splitTotal, SHELL_TEXT, LOAD_ERROR, BOARD_TEXT, ATTAINMENT_TEXT, FORECAST_LABEL, PAGE_TAG, PIPELINE_TEXT };
+}
+
+type AttainmentData = Exclude<Awaited<ReturnType<typeof loadAttainment>>, import("react").ReactElement | null>;
+async function AttainmentView(props: Parameters<typeof loadAttainment>[0]) {
+  const result = await loadAttainment(props);
+  if (!result || !("personal" in result)) return result;
+  return renderAttainment(result);
+}
+
+function renderAttainment({ personal, period, embedded, session, targets, wsTarget, measured, pct, cover, totals, quarterWorth, split, splitTotal, SHELL_TEXT, LOAD_ERROR, BOARD_TEXT, ATTAINMENT_TEXT, FORECAST_LABEL, PAGE_TAG, PIPELINE_TEXT }: AttainmentData) {
   const header = (
 <ModuleHeadline
         moduleKey="attainment"
@@ -202,19 +213,7 @@ async function renderAttainment(searchParams: Promise<{ scope?: string; period?:
       />
   );
 
-  if (period === "all") {
-    const periods = targets.ok ? [...new Set(targets.value.filter((t) =>
-      t.status === "committed" && t.metric === "revenue" &&
-      (personal ? t.scopeType === "owner" && t.ownerSub === session.user.sub : t.scopeType === "workspace")
-    ).map((t) => t.period))].sort().reverse() : [];
-    return <ViewLayout>
-      {header}
-      {!targets.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(targets.violations, LOAD_ERROR)} /> : periods.length === 0 ? <EmptyState title={ATTAINMENT_TEXT.noTarget} description={ATTAINMENT_TEXT.noTargetWhy} /> : await Promise.all(periods.map(async (p) => <div key={p} className="flex flex-col gap-md">
-        <SectionHeader level={2} title={p} divider={false} />
-        {await renderAttainment(Promise.resolve({ scope: params.scope, period: p }), true)}
-      </div>))}
-    </ViewLayout>;
-  }
+  if (period === "all") return <AllAttainment header={header} targets={targets} personal={personal} sub={session.user.sub} scope={personal ? "personal" : "team"} />;
 
   return (
     <ViewLayout>
@@ -337,6 +336,24 @@ async function renderAttainment(searchParams: Promise<{ scope?: string; period?:
       </Card>
     </ViewLayout>
   );
+}
+
+async function AllAttainment({ header, targets, personal, sub, scope }: {
+  header: import("react").ReactNode;
+  targets: Awaited<ReturnType<typeof listTargets>>;
+  personal: boolean;
+  sub: string;
+  scope?: string;
+}) {
+  const { SHELL_TEXT, LOAD_ERROR, ATTAINMENT_TEXT } = await getMessages();
+  if (!targets.ok) return <ViewLayout>{header}<EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(targets.violations, LOAD_ERROR)} /></ViewLayout>;
+  const scoped = targets.value.filter((t) => t.status === "committed" && t.metric === "revenue");
+  const selected = personal ? scoped.filter((t) => t.scopeType === "owner" && t.ownerSub === sub) : scoped.filter((t) => t.scopeType === "workspace");
+  const periods = [...new Set(selected.map((t) => t.period))].sort((a, b) => b.localeCompare(a));
+  return <ViewLayout>{header}{periods.length === 0 ? <EmptyState title={ATTAINMENT_TEXT.noTarget} description={ATTAINMENT_TEXT.noTargetWhy} /> : await Promise.all(periods.map(async (period) => <div key={period} className="flex flex-col gap-md">
+    <SectionHeader level={2} title={period} divider={false} />
+    <AttainmentView params={{ scope, period }} embedded />
+  </div>))}</ViewLayout>;
 }
 
 function Figure({
