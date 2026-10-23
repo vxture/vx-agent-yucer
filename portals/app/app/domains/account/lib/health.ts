@@ -345,7 +345,7 @@ export function placeRelations(
   const placed: PlacedRelation[] = [];
   for (const e of relations) {
     const pair = SYMMETRIC_RELATIONS.has(e.relationType)
-      ? [e.fromContactId, e.toContactId].sort().join("|")
+      ? [e.fromContactId, e.toContactId].sort((a, b) => a.localeCompare(b)).join("|")
       : `${e.fromContactId}>${e.toContactId}`;
     const key = `${e.relationType}:${pair}`;
     if (seen.has(key)) continue;
