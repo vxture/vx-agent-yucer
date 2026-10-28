@@ -1006,12 +1006,12 @@ export const en: Dictionary = {
   },
   AUTONOMY_TEXT: {
     title: "Assistant authority",
-    why: "How far the assistant may go before it asks you. It only proposes; data changes when you accept.",
-    modeLabel: "Authority",
+    why: "Workspace authority determines which proposals require individual confirmation. Permissions and supported execution capabilities still apply.",
+    modeLabel: "Assistant mode",
     modes: {
-      ask_high_risk: "Ask me about the risky ones",
-      ask_always: "Ask me about everything",
-      autonomous: "Run unattended",
+      ask_high_risk: "Routine authority",
+      ask_always: "Confirm every action",
+      autonomous: "Full authority",
     } as Record<string, string>,
     modeWhy: {
       ask_high_risk:
@@ -1019,7 +1019,7 @@ export const en: Dictionary = {
       ask_always:
         "Every proposal waits for you. This is where a workspace that has never opened this setting stands: not set is not authorised.",
       autonomous:
-        "Everything runs, outreach included. The record says nobody signed.",
+        "Authorize all supported operations without individual confirmation. Permissions, subscription and execution gates still apply; unsupported operations require manual handling.",
     } as Record<string, string>,
     risk: {
       irreversible: "cannot be taken back",

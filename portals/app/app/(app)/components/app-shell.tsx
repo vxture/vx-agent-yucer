@@ -754,7 +754,7 @@ export function AppShell({
             the left flank - this pane scrolls independently too, so it needs
             its own copy of the safe area rather than inheriting the centre's. */}
         {deckVisible ? (
-          <aside className="w-(--vx-pane-action) min-h-0 shrink-0 overflow-y-auto pb-2xl">
+          <aside className="w-(--vx-pane-action) h-full min-h-0 shrink-0 overflow-hidden">
             {deck}
           </aside>
         ) : null}

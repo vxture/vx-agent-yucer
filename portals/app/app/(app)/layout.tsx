@@ -13,6 +13,7 @@ import { boardSections, agentPanel } from "./lib/board";
 import { ADMIN_NAV_ENTRIES } from "./lib/admin-nav";
 import { can } from "../authz/decide";
 import { consoleUrl } from "./lib/console-url";
+import { AssistantDock } from "./components/assistant-dock";
 import { AppShell } from "./components/app-shell";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
@@ -289,7 +290,7 @@ export default async function AppLayout({
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
         board={board.sections}
         boardModules={board.modules}
-        deck={deck}
+        deck={<AssistantDock>{deck}</AssistantDock>}
         deckCount={agent.pending.length}
         notificationsTotal={notificationTotal(bellItems)}
         notificationItems={bellItems}

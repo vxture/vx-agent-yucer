@@ -163,6 +163,6 @@ export async function changeAutonomy(input: {
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/copilot");
+  revalidatePath("/", "layout");
   return { ok: true };
 }

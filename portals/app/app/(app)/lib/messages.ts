@@ -512,12 +512,12 @@ export const ATTAINMENT_TEXT = {
 
 export const AUTONOMY_TEXT = {
   title: "智能助手授权",
-  why: "助手在问你之前可以做到哪一步。它始终只提议，你采纳了才会改数据。",
-  modeLabel: "授权档位",
+  why: "\u5de5\u4f5c\u533a\u7ea7\u6388\u6743\uff0c\u51b3\u5b9a\u54ea\u4e9b\u5efa\u8bae\u9700\u8981\u9010\u9879\u786e\u8ba4\u3002\u6267\u884c\u4ecd\u53d7\u6743\u9650\u548c\u5df2\u63a5\u901a\u80fd\u529b\u9650\u5236\u3002",
+  modeLabel: "\u667a\u80fd\u6a21\u5f0f",
   modes: {
-    ask_high_risk: "高风险问我",
-    ask_always: "每条都问我",
-    autonomous: "全自动值守",
+    ask_high_risk: "\u5e38\u89c4\u6388\u6743",
+    ask_always: "\u9010\u9879\u786e\u8ba4",
+    autonomous: "\u5168\u6743\u6388\u6743",
   } as Record<string, string>,
   modeWhy: {
     // 这一句原来自己数了一遍能自动执行的动作（还写着「信号升级为线索」，而它
@@ -527,7 +527,7 @@ export const AUTONOMY_TEXT = {
       "能走回头路的它自己做；收不回的和它自己都没把握的，仍然问你。",
     ask_always:
       "每一条都等你裁决。没有设置过的工作区就是这一档——没设置不等于已授权。",
-    autonomous: "包括对外触达在内，全部自动执行。记录里会写明「无人签字」。",
+    autonomous: "\u6388\u6743\u6240\u6709\u5df2\u63a5\u901a\u7684\u64cd\u4f5c\u65e0\u9700\u9010\u9879\u786e\u8ba4\u3002\u4ecd\u53d7\u6743\u9650\u3001\u8ba2\u9605\u548c\u6267\u884c\u95e8\u7981\u9650\u5236\uff0c\u672a\u63a5\u901a\u7684\u64cd\u4f5c\u4ecd\u9700\u4eba\u5de5\u5904\u7406\u3002",
   } as Record<string, string>,
   // 风险的两条理由，界面上要分开说：把「不可逆」显示成「置信度低」会让人以为
   // 调高置信度就能放行。

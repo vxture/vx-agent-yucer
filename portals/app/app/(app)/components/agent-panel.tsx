@@ -143,7 +143,7 @@ export function AgentPanel({
   return (
     <AssistantDeck
       capture={
-        <>
+        <div className="flex min-h-72 flex-1 flex-col gap-sm">
           {/* KEYED BY WHAT THE DECK IS BESIDE. The deck persists across
               navigation, so a draft typed beside deal A came along to the
               list, where 记一笔 filed it with no deal - a note written for one
@@ -157,8 +157,8 @@ export function AgentPanel({
             onRecord={onRecord}
             onAttach={onAttach}
           />
-          {advisor}
-        </>
+          {advisor ? <div className="max-h-[45%] shrink-0 overflow-y-auto">{advisor}</div> : null}
+        </div>
       }
       sections={sections}
     />

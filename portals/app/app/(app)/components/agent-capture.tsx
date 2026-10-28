@@ -62,7 +62,8 @@ export function AgentCapture({
   // what the answer will be based on.
   return (
     <>
-    <Card className="p-sm">
+    <Card className="min-h-64 flex-1 p-sm">
+      <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-xs">
         <Avatar className="size-6">
           <AvatarFallback>{BOARD_TEXT.agent.slice(0, 1)}</AvatarFallback>
@@ -92,9 +93,9 @@ export function AgentCapture({
       </div>
 
       {canRecord || canAsk ? (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col">
           <Textarea
-            className="mt-sm min-h-24 resize-none"
+            className="mt-sm min-h-24 flex-1 resize-none"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={BOARD_TEXT.capturePlaceholder}
@@ -172,8 +173,9 @@ export function AgentCapture({
               </Button> : null}
             </div>
           </div>
-        </>
+        </div>
       ) : null}
+      </div>
     </Card>
     {/* 智能填写 of the form on screen, if any (form-assist-slot.tsx). */}
     <FormAssistSlot />
