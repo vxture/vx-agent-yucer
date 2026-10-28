@@ -1,4 +1,5 @@
-import { Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import Link from "next/link";
+import { Button, Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { listLeads } from "../../domains/signal/service";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
@@ -41,10 +42,10 @@ export const dynamic = "force-dynamic";
 export default async function CopilotPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; ask?: string; opportunity?: string; mode?: string }>;
+  searchParams: Promise<{ account?: string; ask?: string; opportunity?: string; mode?: string; thread?: string }>;
 }) {
-  const { PROPOSAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
-  const { account: accountId, ask, opportunity: opportunityId, mode } = await searchParams;
+  const { COPILOT_TEXT, PROPOSAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { account: accountId, ask, opportunity: opportunityId, mode, thread } = await searchParams;
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -60,7 +61,7 @@ export default async function CopilotPage({
   };
 
   // Resolved server-side through the account service, so an id in the URL that
-  // the member may not read simply does not anchor the conversation. The client
+  // the member may not read disables the composer. The client
   // never supplies the name.
   const anchored = accountId
     ? await getAccountDetail(
@@ -73,8 +74,7 @@ export default async function CopilotPage({
       ? { id: anchored.value.account.id, name: anchored.value.account.name }
       : undefined;
   // 对话锚定本单 / 预演 (deal batch 11b/11c): the deal is re-read through its
-  // own gate, like the account above - an id the member may not read simply
-  // does not anchor anything.
+  // own gate, like the account above. An unreadable requested anchor blocks asking.
   const dealRead = opportunityId
     ? await getOpportunityDetail({ ...ctx, store: session.stores.pipeline() }, opportunityId).catch(() => null)
     : null;
@@ -101,14 +101,7 @@ export default async function CopilotPage({
     getAutonomy(ctx),
   ]);
 
-  if (!proposals.ok) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.loadFailed}
-        description={loadFailureText(proposals.violations, LOAD_ERROR)}
-      />
-    );
-  }
+  const proposalActions = proposals.ok ? proposals.value : [];
 
   // WHAT EACH PROPOSAL IS ABOUT, BY NAME, AND WHERE ITS CONTEXT LIVES (YC-021
   // L6 进裁决队列: decide in full context, not on a summary row). The queue
@@ -117,7 +110,7 @@ export default async function CopilotPage({
   // here through the member's SCOPED stores, so a subject they may not see
   // stays an id: the queue must not become a way to read names past the scope.
   // Only accounts and deals have a page to open; other kinds keep their id.
-  const needs = (t: string) => proposals.value.some((a) => a.subjectType === t);
+  const needs = (t: string) => proposalActions.some((a) => a.subjectType === t);
   const [subjectAccounts, subjectDeals, members, subjectLeads] = await Promise.all([
     needs("account") || needs("opportunity")
       ? listAccounts({ ...ctx, store: session.stores.account() })
@@ -149,7 +142,12 @@ export default async function CopilotPage({
   // Resume the most recent session rather than opening a new one on every page
   // load: a copilot that forgets the last exchange every time you navigate is
   // not a copilot.
-  const latest = sessions.find((s) => isMemberConversation(s.title)) ?? null;
+  const conversations = sessions.filter((s) =>
+    isMemberConversation(s.title) &&
+    s.subjectType === (deal ? "opportunity" : account ? "account" : null) &&
+    s.subjectId === (deal?.id ?? account?.id ?? null)
+  );
+  const latest = (thread ? conversations.find((s) => s.id === thread) : conversations[0]) ?? null;
   const history = latest
     ? await ctx.store.listMessages(session.workspaceId, latest.id)
     : [];
@@ -161,7 +159,7 @@ export default async function CopilotPage({
   // shape and it was stated only in a section subtitle BELOW a chat box - a
   // reader scrolling onto a queue of confident-looking percentages should
   // already know that none of them has happened yet.
-  const awaiting = proposals.value.filter((a) => a.status === "proposed");
+  const awaiting = proposalActions.filter((a) => a.status === "proposed");
   const lowConfidence = awaiting.filter(
     (a) => a.confidence != null && a.confidence < 60,
   ).length;
@@ -193,7 +191,22 @@ export default async function CopilotPage({
         }
       />
 
+      {conversations.length > 0 && !rehearsal ? (
+        <nav className="flex flex-wrap gap-xs" aria-label={COPILOT_TEXT.history}>
+          {conversations.slice(0, 8).map((conversation) => {
+            const params = new URLSearchParams();
+            if (deal) params.set("opportunity", deal.id);
+            else if (account) params.set("account", account.id);
+            params.set("thread", conversation.id);
+            return <Button key={conversation.id} asChild variant={latest?.id === conversation.id ? "secondary" : "ghost"} size="sm">
+              <Link href={`/copilot?${params}`} aria-current={latest?.id === conversation.id ? "page" : undefined}>{conversation.title}</Link>
+            </Button>;
+          })}
+        </nav>
+      ) : null}
+      {(opportunityId && !deal) || (accountId && !account) ? <StatusBadge tone="warning">{COPILOT_TEXT.contextUnavailable}</StatusBadge> : null}
       <CopilotChat
+        key={`${deal?.id ?? account?.id ?? "general"}:${rehearsal}:${thread ?? "latest"}:${ask ?? ""}`}
         // A rehearsal starts its own conversation: it must not continue, or
         // be continued by, a real one.
         initialMessages={rehearsal ? [] : initialMessages}
@@ -201,7 +214,7 @@ export default async function CopilotPage({
         deal={deal}
         rehearsal={rehearsal}
         canAsk={
-          can(session.authz, session.entitlement, "copilot.ask", "ui").allowed
+          !(opportunityId && !deal) && !(accountId && !account) && can(session.authz, session.entitlement, "copilot.ask", "ui").allowed
         }
         account={account}
         // Composed by the page that sent the person here (the war room's
@@ -210,13 +223,15 @@ export default async function CopilotPage({
         initialDraft={typeof ask === "string" ? ask.slice(0, 500) : undefined}
         onAsk={askCopilot}
       />
+      {!proposals.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(proposals.violations, LOAD_ERROR)} /> : null}
+      <div id="copilot-proposals" />
       <ProposalQueue
-        actions={proposals.value}
+        actions={proposalActions}
         canDecide={
           can(session.authz, session.entitlement, "copilot.action.decide", "ui")
             .allowed
         }
-        undecidable={proposals.value
+        undecidable={proposalActions
           .filter((a) => !canDecideProposal(session.authz, session.entitlement, a.capability, "ui").allowed)
           .map((a) => a.id)}
         onDecide={adjudicateProposals}

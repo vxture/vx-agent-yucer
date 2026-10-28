@@ -54,9 +54,8 @@ export async function askCopilot(
   const tenantId = tenantIdOf(session);
   if (!tenantId) return { ok: false, error: "no_active_tenant" };
 
-  // Assembled through the account domain's own gate. A denial is not an error
-  // here: the conversation continues without the grounding, because a member
-  // who cannot read the account can still ask the copilot general questions.
+  // Requested grounding is mandatory: an inaccessible anchor must not silently
+  // become a general conversation with the same apparent business context.
   let evidence: EvidenceGrounding | undefined;
   let subject: { type: "account" | "opportunity"; id: string; summary?: string } | undefined;
   let framing: string | undefined;
@@ -68,6 +67,7 @@ export async function askCopilot(
       entitlement: session.entitlement,
     };
     const deal = await getOpportunityDetail({ ...base, store: session.stores.pipeline() }, anchor.opportunityId);
+    if (!deal.ok) return { ok: false, error: "not_found" };
     if (deal.ok) {
       subject = { type: "opportunity", id: deal.value.id, summary: deal.value.name };
       const account = await getAccountDetail({ ...base, store: session.stores.account() }, deal.value.accountId);
@@ -89,6 +89,7 @@ export async function askCopilot(
       store: session.stores.account(),
     };
     const detail = await getAccountDetail(accountCtx, accountId);
+    if (!detail.ok) return { ok: false, error: "not_found" };
     if (detail.ok) {
       subject = { type: "account", id: accountId, summary: detail.value.account.name };
       const built = await evidenceForPrompt(

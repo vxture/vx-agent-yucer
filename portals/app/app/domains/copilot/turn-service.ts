@@ -178,6 +178,15 @@ export async function runCopilotTurn(
       });
   if (!session) return fail(violation("not_found", `session ${input.sessionId} was not found`, "sessionId"));
 
+  // Workspace membership alone does not grant access to another member's thread.
+  if (session.actorSub !== ctx.sub) {
+    return fail(violation("not_found", "session not found", "sessionId"));
+  }
+  if (session.subjectType !== (input.subject?.type ?? null) ||
+      session.subjectId !== (input.subject?.id ?? null)) {
+    return fail(violation("invalid_input", "session context changed; start a new conversation", "sessionId"));
+  }
+
   const asked = await ctx.store.appendMessage(ctx.workspaceId, {
     sessionId: session.id,
     role: "user",

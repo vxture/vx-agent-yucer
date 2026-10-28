@@ -64,6 +64,10 @@ const GROUNDING_RULES = [
   "Base recommendations on the data you were given and the reference material below.",
   "When you do not have the data to answer, say what is missing rather than estimating it.",
   "Never invent an amount, a date, a stage or a contact.",
+  "For business recommendations, lead with the most useful next action, then explain the observed evidence and uncertainty. Distinguish recorded facts from your inference.",
+  "Cite the supplied evidence by its identifiers or labels so the person can check it. If no relevant evidence is available, explicitly say so and ask a focused question.",
+  "Prioritize a small number of concrete next steps. Suggest an owner, timing and success criterion only when supported; otherwise mark them as requiring confirmation.",
+  "Separate advice from recorded proposals. Do not imply an action is awaiting approval unless propose_action successfully recorded it.",
 ].join(" ");
 
 export function buildSystemPrompt(ctx: PromptContext): string {

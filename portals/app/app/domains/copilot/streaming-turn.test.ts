@@ -362,3 +362,18 @@ test("a gate refusal never consults the meter on the streamed path either", asyn
   assert.equal(m.admits(), 0);
   assert.deepEqual(m.recorded, []);
 });
+
+test("streaming refuses another member's thread and an anchored thread", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_rep", "free", store);
+  for (const input of [
+    { actorSub: "another_member", title: "private" },
+    { actorSub: c.sub, subjectType: "account" as const, subjectId: "account-one", title: "grounded" },
+  ]) {
+    const session = await store.createSession(WS, input);
+    const events = await collect(streamCopilotTurn(c, { question: "continue", tenantId: TENANT, sessionId: session.id }, { atlasClient: atlas([]) }));
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type === "error" && events[0].code, "not_found");
+    assert.deepEqual(await store.listMessages(WS, session.id), []);
+  }
+});
