@@ -5507,6 +5507,11 @@ export const en: Dictionary = {
     errorTimeout: "The model took too long and was stopped; try again shortly",
     errorGeneric: "Try again shortly; if it keeps failing, contact operations",
     newSession: "New conversation",
+    contextUnavailable: "This account or opportunity is unavailable. Return to its detail page and reopen the assistant.",
+    history: "Conversation history",
+    you: "You",
+    assistant: "Assistant",
+    starters: ["Analyze current risks and missing information using recorded evidence", "Suggest the three highest priority next actions and explain the evidence", "Help me prepare questions for the next customer conversation"],
   },
 
   PLAYBOOK_TEXT: {

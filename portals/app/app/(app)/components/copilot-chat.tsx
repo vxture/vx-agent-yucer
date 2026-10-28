@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Section, StatusBadge, Textarea } from "@vxture/design-ui";
 
 import { useMessages } from "../lib/i18n/provider";
@@ -78,6 +79,7 @@ export function CopilotChat({
   rehearsal = false,
   onAsk,
 }: CopilotChatProps) {
+  const router = useRouter();
   const { ASK_ABOUT_TEXT, COPILOT_TEXT } = useMessages();
   const [messages, setMessages] = useState<ChatMessageView[]>([
     ...initialMessages,
@@ -86,11 +88,15 @@ export function CopilotChat({
   const [draft, setDraft] = useState(initialDraft ?? "");
   const [outcome, setOutcome] = useState<TurnOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const transcriptEnd = useRef<HTMLDivElement>(null);
+  useEffect(() => { transcriptEnd.current?.scrollIntoView({ block: "nearest" }); }, [messages]);
+  const inFlight = useRef(false);
   const [pending, startTransition] = useTransition();
 
   function submit(value: string) {
     const question = value.trim();
-    if (!question || pending) return;
+    if (!question || inFlight.current || !canAsk) return;
+    inFlight.current = true;
 
     // The question is shown immediately. It is also persisted server-side before
     // the model is called, so what the user sees here and what survives a
@@ -100,19 +106,29 @@ export function CopilotChat({
     setError(null);
     setOutcome(null);
 
-    startTransition(() => {
-      void onAsk(question, session, account?.id, deal ? { opportunityId: deal.id, rehearsal } : undefined).then((result) => {
+    startTransition(async () => {
+      try {
+        const result = await onAsk(question, session, account?.id, deal ? { opportunityId: deal.id, rehearsal } : undefined);
         if (!result.ok) {
           setError(explainModelPlaneError(result.error, COPILOT_TEXT));
+          setDraft(question);
+          setMessages((prev) => prev.slice(0, -1));
           return;
         }
         setSession(result.sessionId);
         setOutcome(result.outcome);
+        router.refresh();
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: result.outcome.answer },
         ]);
-      });
+      } catch {
+        setMessages((prev) => prev.slice(0, -1));
+        setError(COPILOT_TEXT.errorGeneric);
+        setDraft(question);
+      } finally {
+        inFlight.current = false;
+      }
     });
   }
 
@@ -137,6 +153,9 @@ export function CopilotChat({
         </>
       ) : null}
 
+      <Button variant="ghost" size="sm" disabled={pending} onClick={() => {
+        setSession(null); setMessages([]); setOutcome(null); setError(null);
+      }}>{COPILOT_TEXT.newSession}</Button>
       {/* NO EMPTY STATE, and this is a deliberate subtraction. An EmptyState
           announces an absence, which is worth 146px when a reader might
           otherwise wonder whether something failed to load. Here the control
@@ -150,12 +169,14 @@ export function CopilotChat({
 
           The composer IS the empty state. */}
       {messages.length > 0 || pending ? (
-        <div>
+        <div role="log" aria-live="polite" aria-busy={pending} className="my-md max-h-[60vh] space-y-md overflow-y-auto">
           {messages.map((m, i) => (
-            <div key={i} data-role={m.role}>
+            <div key={i} data-role={m.role} className={`whitespace-pre-wrap rounded-lg p-md text-body-small leading-relaxed ${m.role === "user" ? "ml-lg bg-muted" : "mr-lg border border-border bg-card"}`}>
+              <p className="mb-xs text-label text-muted-foreground">{m.role === "user" ? COPILOT_TEXT.you : COPILOT_TEXT.assistant}</p>
               {m.content}
             </div>
           ))}
+          <div ref={transcriptEnd} />
           {pending ? (
             <div data-role="assistant">{COPILOT_TEXT.thinking}</div>
           ) : null}
@@ -172,9 +193,9 @@ export function CopilotChat({
       {outcome && outcome.proposalCount > 0 ? (
         // A count and a pointer - never an inline accept. Approving a change
         // from inside a chat bubble is how the human step becomes a formality.
-        <StatusBadge tone="warning">
+        <a href="#copilot-proposals"><StatusBadge tone="warning">
           {COPILOT_TEXT.proposalsFromTurn(outcome.proposalCount)}
-        </StatusBadge>
+        </StatusBadge></a>
       ) : null}
 
       {outcome && outcome.droppedProposals > 0 ? (
@@ -195,6 +216,9 @@ export function CopilotChat({
         <StatusBadge tone="warning">{COPILOT_TEXT.truncated}</StatusBadge>
       ) : null}
 
+      {messages.length === 0 && !rehearsal ? <div className="my-sm flex flex-wrap gap-xs">
+        {COPILOT_TEXT.starters.map((question) => <Button key={question} variant="outline" size="sm" disabled={!canAsk || pending} onClick={() => setDraft(question)}>{question}</Button>)}
+      </div> : null}
       <form
         onSubmit={(event) => {
           event.preventDefault();

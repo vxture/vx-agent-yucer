@@ -85,13 +85,13 @@ export function AgentCapture({
               to. Without this the page is orphaned, which is what
               functional-domains.test.ts asserts against. */}
         <Button asChild variant="ghost" size="sm" className="-mr-xs">
-          <Link href="/copilot" aria-label={BOARD_TEXT.openThread}>
+          <Link href={askAnchor?.opportunityId ? `/copilot?opportunity=${encodeURIComponent(askAnchor.opportunityId)}` : askAnchor?.accountId ? `/copilot?account=${encodeURIComponent(askAnchor.accountId)}` : "/copilot"} aria-label={BOARD_TEXT.openThread}>
             <Icon name="chat-circle" size="xs" />
           </Link>
         </Button>
       </div>
 
-      {canRecord ? (
+      {canRecord || canAsk ? (
         <>
           <Textarea
             className="mt-sm min-h-24 resize-none"
@@ -120,16 +120,16 @@ export function AgentCapture({
                 say what it is - which is the order the thought actually
                 arrives in. */}
           <div className="mt-sm flex items-center gap-xs">
-            <Button
+            {onAttach ? <Button
               variant="ghost"
               size="sm"
               aria-label={BOARD_TEXT.attach}
-              title={onAttach ? BOARD_TEXT.attach : BOARD_TEXT.notWired}
-              disabled={!onAttach || pendingSave}
+              title={BOARD_TEXT.attach}
+              disabled={pendingSave}
               onClick={() => onAttach?.()}
             >
               <Icon name="paperclip" size="xs" />
-            </Button>
+            </Button> : null}
 
             <div className="ml-auto flex items-center gap-xs">
               {/* 问参谋 takes the question to the copilot page (lib/agent-ask.ts).
@@ -154,7 +154,7 @@ export function AgentCapture({
                   {BOARD_TEXT.ask}
                 </Button>
               ) : null}
-              <Button
+              {canRecord ? <Button
                 size="sm"
                 disabled={pendingSave || text.trim() === "" || !onRecord}
                 onClick={() =>
@@ -169,7 +169,7 @@ export function AgentCapture({
                 }
               >
                 {BOARD_TEXT.capture}
-              </Button>
+              </Button> : null}
             </div>
           </div>
         </>

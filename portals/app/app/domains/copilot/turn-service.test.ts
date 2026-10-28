@@ -472,3 +472,32 @@ test("the profile reaches the model client: judgement for deal.price, drafting f
   assert.deepEqual(await run({}), ["dialogue"]);
   assert.deepEqual(await run({ profile: "drafting" }), ["drafting"]);
 });
+
+test("another member cannot continue a workspace peer's session", async () => {
+  const store = new InMemoryCopilotStore();
+  const original = await store.createSession(WS, { actorSub: "another_member", title: "private" });
+  const r = await runCopilotTurn(ctx("sales_rep", "pro", store), { question: "read it", sessionId: original.id, tenantId: TENANT }, deps().d);
+  assert.equal(r.ok === false && r.violations[0].code, "not_found");
+  assert.deepEqual(await store.listMessages(WS, original.id), []);
+});
+
+test("a conversation cannot silently switch customer or lose its grounding", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_rep", "pro", store);
+  const original = await store.createSession(WS, { actorSub: c.sub, subjectType: "account", subjectId: "account-one", title: "account one" });
+  for (const subject of [undefined, { type: "account" as const, id: "account-two" }]) {
+    const r = await runCopilotTurn(c, { question: "next step", sessionId: original.id, tenantId: TENANT, subject }, deps().d);
+    assert.equal(r.ok === false && r.violations[0].code, "invalid_input");
+  }
+  assert.deepEqual(await store.listMessages(WS, original.id), []);
+});
+
+test("an anchored conversation continues with the same subject", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_rep", "pro", store);
+  const subject = { type: "account" as const, id: "account-one" };
+  const original = await store.createSession(WS, { actorSub: c.sub, subjectType: subject.type, subjectId: subject.id, title: "account one" });
+  const result = unwrap(await runCopilotTurn(c, { question: "next step", sessionId: original.id, tenantId: TENANT, subject }, deps().d));
+  assert.equal(result.session.id, original.id);
+  assert.equal((await store.listMessages(WS, original.id)).length, 2);
+});
