@@ -21,7 +21,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | **closed 2026-08-29**（可达性守卫上线，全部可达 code 有句子） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
-| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | 修复验证中（2026-11-06：组织 Dependabot secret `NODE_AUTH_TOKEN` 覆盖全部仓库，原配置误引用不存在的 `VXTURE_PACKAGES_READ_TOKEN`；已改引用，待 npm 任务验证） |
+| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | 修复验证中（2026-11-06：组织 Dependabot secret `NODE_AUTH_TOKEN` 覆盖全部仓库，原配置误引用不存在的 `VXTURE_PACKAGES_READ_TOKEN`；已改引用；任务 42206861477 另暴露公共包默认源错误，补充 npmjs 默认源后复验） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
@@ -37,7 +37,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
 | TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)；DS 14 复核 2026-09-26：仍缺） |
-| TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | 修复待 CI：按基准提交拒绝修改/删除/重命名已有 SQL；允许新增增量 |
+| TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | 已关闭（2026-11-06，#582）：基准 SHA 守卫及真实 Git 回归测试通过全部 CI；拒绝修改/删除/重命名已有 SQL，允许新增 |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
 | TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | **closed 2026-09-22**（26 项权限、31 个预置角色、420 条授权，逐条核对 catalog.ts 镜像） |
 | TD-034 | DS `Section` 没有收起态：收起后仍留标题分隔线与空正文区 | 2026-09-23 | open（**半项已还 2026-09-26**：标题行对齐由 design-ui 11 的 grid 表头解决，覆盖已删；`Section` 仍不转发 `divider`，收起态垫片保留；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
@@ -1813,6 +1813,7 @@ owner 复核后仍然否了，理由反过来：太素，没有实际身份感�
 基准，否则失败，不静默跳过。对已有 SQL 的注释修改、删除、重命名均拒绝；
 新增 SQL 允许。独立临时 Git 仓测试覆盖上述正反例，测试也在 CI 执行。
 不改历史 DDL、不修改部署账本、不放宽已有 grant/Prisma 检查。
+PR #582 已合并，六项必需检查、SonarCloud 与 CodeQL 均通过，本条收回条件已满足。
 
 ### TD-029 - `next dev` 自 v0.1.6 起全站 500，生产不受影响
 
