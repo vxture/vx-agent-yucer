@@ -273,12 +273,10 @@ export async function runAtlasProbe(
     // 422 OUTPUT_BUDGET_EXHAUSTED - a false alarm about a healthy plane.
     "dialogue",
     { messages: [{ role: "user", content: "ping" }], maxTokens: 8 },
-    // applicationId is a UUID on Atlas's side (its grant lookup casts it): a
-    // label like "yucer-diagnostics" failed the probe with a Prisma cast
-    // error (2026-09-28). The business paths send a session or run id.
-    { workspaceId, tenantId, taskId, applicationId: randomUUID(), requestId: taskId },
+    // Diagnostics use product-level grants. Do not invent an application UUID.
+    { workspaceId, tenantId, taskId, requestId: randomUUID() },
   );
-  const rerank = await rerankProbe(client, { workspaceId, tenantId, taskId, applicationId: randomUUID(), requestId: `${taskId}-rerank` });
+  const rerank = await rerankProbe(client, { workspaceId, tenantId, taskId, requestId: randomUUID() });
   return {
     ok: true,
     // One fact per line: this is read by a person on the diagnostics page,
@@ -432,7 +430,7 @@ async function liveAtlas(id: LiveIdentity): Promise<ProbeResult> {
   const cfg = getAtlasConfig();
   if (!cfg.enabled) return notConfigured("ATLAS_BASE_URL");
   const client = new AtlasClient(cfg);
-  const ctx = (tag: string) => ({ ...id, taskId: `diag-${tag}-${Date.now()}`, applicationId: randomUUID(), requestId: `diag-${tag}-${Date.now()}` });
+  const ctx = (tag: string) => ({ ...id, taskId: `diag-${tag}-${Date.now()}`, requestId: randomUUID() });
   let models: string;
   try {
     const list = (await client.models(ctx("models"))) as { data?: unknown[]; models?: unknown[] } | unknown[];
