@@ -92,3 +92,12 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 GitHub Packages 解析，只找到旧版本而失败。显式设置 .npmrc 默认 registry 为 npmjs，
 私有 registry 声明 replaces-base=false；保留 @vxture 的 scoped registry。
 等待修正后的实际 npm 任务通过，再关闭 TD-012。
+
+
+## Dependabot 恢复验收完成（2026-11-06）
+
+#583/#586 已合并。npm 更新任务 42209048119 成功，生成 #587–#596；
+主干 CI 42209042178 成功。TD-012 正式关闭，连同 TD-028 后，原 19 项剩 17 项
+open / 半关。更新 PR 中有 Next 16、ioredis 6、TypeScript 7 等主版本升级，
+不能为 PR 数量归零而跳过兼容性检查；这 10 条是恢复自动更新后产生的新工作。
+生产仍为 v0.1.76，本轮无生产部署。

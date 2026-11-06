@@ -21,7 +21,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | **closed 2026-08-29**（可达性守卫上线，全部可达 code 有句子） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
-| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | 修复验证中（2026-11-06：组织 Dependabot secret `NODE_AUTH_TOKEN` 覆盖全部仓库，原配置误引用不存在的 `VXTURE_PACKAGES_READ_TOKEN`；已改引用；任务 42206861477 另暴露公共包默认源错误，补充 npmjs 默认源后复验） |
+| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | 已关闭（2026-11-06，#583/#586）：引用组织 NODE_AUTH_TOKEN 并显式保留 npmjs 默认源；npm 任务 42209048119 成功，生成 10 条更新 PR；sca-watch 已成功运行 |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
@@ -2069,3 +2069,12 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 Secret Not Found；修复为引用现有组织 NODE_AUTH_TOKEN，不读取或复制秘密内容。
 这是 Dependabot 命名空间中的 secret，并非假定 Actions secret 可以自动共用。
 配置落地后仍需实际 npm 更新任务验证读取私有包成功，尚不提前宣布完全核销。
+
+
+### TD-012 - 2026-11-06 运行验收完成
+
+PR #583 修正组织 secret 引用，#586 显式保留 npmjs 默认源与 @vxture scoped registry。
+Dependabot npm 任务 [42209048119](https://github.com/vxture/vx-agent-yucer/actions/runs/42209048119)
+成功，生成 #587–#596 共 10 条更新 PR，达到配置上限。私有包读取 HTTP 200；
+主干 CI 42209042178 成功。配合此前成功的日频 sca-watch 42195782176，
+本条两条扫描链路均已恢复，关闭。新依赖升级仍需独立兼容性验收，不能视为已合并。
