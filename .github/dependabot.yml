@@ -65,6 +65,9 @@ updates:
         patterns:
           - '@vxture/*'
     ignore:
+      # Types follow the Node 22 runtime in CI and the production image.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
       # @vxture/* moves on its own release cadence from a different repo -
       # bump it deliberately, not via an automated PR. This governs what gets
       # PROPOSED; the registry above is what makes resolution possible at all.
