@@ -4350,8 +4350,8 @@ export const NEXT_ACTION_TEXT = {
 
 /** 下一步最佳动作的失败回执 (deal batch 8c)。 */
 export const NEXT_ACTION_ERROR: Record<string, string> = {
-  invalid_retry: "Refresh this conversation before retrying.",
-  turn_in_progress: "Wait for the current conversation turn to finish.",
+  invalid_retry: "\u8bf7\u5237\u65b0\u5bf9\u8bdd\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u8bf7\u7b49\u5f85\u5f53\u524d\u5bf9\u8bdd\u5904\u7406\u5b8c\u6210\u3002",
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   no_active_tenant: "当前工作区没有接入平台租户",
