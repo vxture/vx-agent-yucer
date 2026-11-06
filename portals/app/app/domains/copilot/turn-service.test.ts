@@ -487,7 +487,7 @@ test("a conversation cannot silently switch customer or lose its grounding", asy
   const original = await store.createSession(WS, { actorSub: c.sub, subjectType: "account", subjectId: "account-one", title: "account one" });
   for (const subject of [undefined, { type: "account" as const, id: "account-two" }]) {
     const r = await runCopilotTurn(c, { question: "next step", sessionId: original.id, tenantId: TENANT, subject }, deps().d);
-    assert.equal(r.ok === false && r.violations[0].code, "invalid_input");
+    assert.equal(r.ok === false && r.violations[0].code, "not_found");
   }
   assert.deepEqual(await store.listMessages(WS, original.id), []);
 });

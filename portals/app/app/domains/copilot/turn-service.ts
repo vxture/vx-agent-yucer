@@ -184,7 +184,7 @@ export async function runCopilotTurn(
   }
   if (session.subjectType !== (input.subject?.type ?? null) ||
       session.subjectId !== (input.subject?.id ?? null)) {
-    return fail(violation("invalid_input", "session context changed; start a new conversation", "sessionId"));
+    return fail(violation("not_found", "session context changed; start a new conversation", "sessionId"));
   }
 
   const asked = await ctx.store.appendMessage(ctx.workspaceId, {
