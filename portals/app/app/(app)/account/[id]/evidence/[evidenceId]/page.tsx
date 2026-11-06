@@ -1,3 +1,5 @@
+import { PageCrumbs } from "../../../../components/page-crumbs";
+import { getMessages } from "../../../../lib/i18n/server";
 import { notFound } from "next/navigation";
 import { ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../../../../lib/session";
@@ -10,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function EvidencePage({ params }: { params: Promise<{ id: string; evidenceId: string }> }) {
   const { id, evidenceId } = await params;
+  const { FIELD_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   const ctx = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
@@ -20,5 +23,5 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   const evidence = records.value.find((record) => record.id === evidenceId);
   if (!evidence) notFound();
   // Verbatim evidence, scoped again on every visit; no model-generated content.
-  return <ViewLayout><InteractionTimeline items={[evidence]} hideDescription /></ViewLayout>;
+  return <ViewLayout><PageCrumbs trail={[{ label: account.value.account.name, href: `/account/${encodeURIComponent(id)}` }]} current={FIELD_TEXT.timelineTitle} /><InteractionTimeline items={[evidence]} hideDescription /></ViewLayout>;
 }

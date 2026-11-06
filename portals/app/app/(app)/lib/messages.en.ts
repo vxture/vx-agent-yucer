@@ -71,6 +71,9 @@ export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
 
   COMPLETENESS_ERROR: {
+    invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
+    turn_in_progress: "This conversation is still processing. Wait for it to finish.",
+
     ...GATE_ERROR,
     province_unknown:
       "The province must be one of the 34 provincial-level divisions - pick one from the list",
@@ -670,6 +673,9 @@ export const en: Dictionary = {
     noPeople: "No one on this deal's decision chain yet - add people there first",
   },
   DEAL_MEETING_ERROR: {
+    invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
+    turn_in_progress: "This conversation is still processing. Wait for it to finish.",
+
     ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     attendees_required: "Choose at least one attendee",
@@ -698,6 +704,9 @@ export const en: Dictionary = {
     dropped: (n: number) => `${n} more were not shown: a figure not from this deal, or a citation that did not match`,
   },
   DEAL_SITUATION_ERROR: {
+    invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
+    turn_in_progress: "This conversation is still processing. Wait for it to finish.",
+
     ...GATE_ERROR,
     not_found: "Not found, closed, or not in this workspace.",
     no_active_tenant: "This workspace is not connected to a platform tenant, so the brief cannot be written",
@@ -865,6 +874,8 @@ export const en: Dictionary = {
     why: (goal: string, rationale: string | null) => (rationale ? `For "${goal}": ${rationale}` : `For "${goal}"`),
   },
   NEXT_ACTION_ERROR: {
+  invalid_retry: "Refresh this conversation before retrying.",
+  turn_in_progress: "Wait for the current conversation turn to finish.",
     ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     no_active_tenant: "This workspace is not connected to a platform tenant",
@@ -885,6 +896,9 @@ export const en: Dictionary = {
     cached: "Same input as last time - the earlier briefing, not charged again",
   },
   FORECAST_BRIEF_ERROR: {
+    invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
+    turn_in_progress: "This conversation is still processing. Wait for it to finish.",
+
     ...GATE_ERROR,
     no_active_tenant: "This workspace is not connected to a platform tenant, so the model cannot be called",
     tenant_required: "This workspace is not connected to a platform tenant, so the model cannot be called",
@@ -2602,6 +2616,9 @@ export const en: Dictionary = {
       "The assistant could not answer this time. Nothing on this record changed.",
   },
   REVIEW_ERROR: {
+    invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
+    turn_in_progress: "This conversation is still processing. Wait for it to finish.",
+
     reason_not_found: "That reason no longer exists - refresh and choose again",
     reason_in_use: "Reviews cite this reason - it cannot be deleted",
     move_at_edge: "Already at that end",
@@ -4113,6 +4130,9 @@ export const en: Dictionary = {
   },
 
   CONSISTENCY_ERROR: {
+    invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
+    turn_in_progress: "This conversation is still processing. Wait for it to finish.",
+
     ...GATE_ERROR,
     advisor_not_admitted: "The platform has not admitted advisor runs for this workspace, so nothing was checked",
     no_active_tenant: "This workspace has no platform tenant yet, so the model cannot be called",

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { citationsForAnswer } from "../../domains/copilot/lib/citations";
 import { listInteractions } from "../../domains/account/field-service";
-import { getFieldStore } from "../../domains/shared/registry";
 import { Button, Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { listLeads } from "../../domains/signal/service";
 import { ModuleHeadline } from "../components/module-headline";
@@ -9,6 +8,7 @@ import { resolveAppSession } from "../lib/session";
 import {
   getAccountStore,
   getCopilotStore,
+  getFieldStore,
 } from "../../domains/shared/registry";
 import { getAccountDetail, listAccounts } from "../../domains/account/service";
 import { getOpportunityDetail, listPipeline } from "../../domains/pipeline/service";

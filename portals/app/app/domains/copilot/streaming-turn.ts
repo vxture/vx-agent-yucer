@@ -86,7 +86,7 @@ export async function* streamCopilotTurn(
     return;
   }
   const owned = await ctx.store.getSession(ctx.workspaceId, input.sessionId);
-  if (!owned || owned.actorSub !== ctx.sub || owned.subjectType !== (input.subject?.type ?? null) || owned.subjectId !== (input.subject?.id ?? null)) {
+  if (!owned || owned.actorSub !== ctx.sub || owned.subjectType !== null || owned.subjectId !== null) {
     yield { type: "error", code: "not_found", message: "session not found", retryable: false };
     return;
   }
