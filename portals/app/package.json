@@ -24,7 +24,7 @@
     "@vxture/design-ui": "latest",
     "@vxture/shared": "^2.0.0",
     "@yucer/shared": "workspace:*",
-    "ioredis": "^5.4.0",
+    "ioredis": "^6.0.0",
     "jose": "^5.9.0",
     "next": "^15.5.28",
     "next-themes": "^0.4.6",
