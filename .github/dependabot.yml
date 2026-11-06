@@ -22,14 +22,15 @@ version: 2
 # output, the resolver governs the input.
 #
 # The credential is a Dependabot secret, which is a DIFFERENT NAMESPACE from
-# Actions secrets - the repo's existing NODE_AUTH_TOKEN is invisible here. It
+# Actions secrets. The org separately supplies NODE_AUTH_TOKEN to Dependabot
+# with visibility all (verified 2026-11-06). It
 # must be a CLASSIC PAT with `read:packages`; the GitHub Packages npm registry
 # does not accept fine-grained tokens.
 registries:
   vxture-github-packages:
     type: npm-registry
     url: https://npm.pkg.github.com
-    token: ${{secrets.VXTURE_PACKAGES_READ_TOKEN}}
+    token: ${{secrets.NODE_AUTH_TOKEN}}
 
 updates:
   # pnpm workspace root (repo root - pnpm-lock.yaml lives here, covering
