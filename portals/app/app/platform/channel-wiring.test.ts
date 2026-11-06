@@ -21,6 +21,7 @@ import { InMemoryProvisioningStore } from "../provisioning/lib/store";
 test("real HTTP uses scoped Bearer for C2/C3/ack and a separate reader; malformed receipt retries same key", async () => {
   resetChannelTokens(); let mint = 0, reports = 0; const keys: string[] = [];
   const ws = "11111111-1111-4111-8111-111111111111";
+  const serverErrors: unknown[] = [];
   const server = createServer(async (req, res) => {
     try {
       let raw = ""; for await (const part of req) raw += part;
@@ -42,7 +43,7 @@ test("real HTTP uses scoped Bearer for C2/C3/ack and a separate reader; malforme
       } else if (req.url === "/provisioning/ack") res.end(JSON.stringify({ replayed: false }));
       else if (req.url?.startsWith("/platform/provisioning")) res.end(JSON.stringify({ items: [], nextCursor: null }));
       else { res.statusCode = 404; res.end("{}"); }
-    } catch (e) { res.statusCode = 500; res.end(JSON.stringify({ testFailure: String(e) })); }
+    } catch (e) { serverErrors.push(e); res.statusCode = 500; res.end(JSON.stringify({ testFailure: "test assertion failed" })); }
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -60,5 +61,6 @@ test("real HTTP uses scoped Bearer for C2/C3/ack and a separate reader; malforme
     assert.equal((await makeProvisioningAck(cfg)({ workspaceId: ws, status: "ready" })).status, 200);
     assert.equal((await pollProvisioning({ config: cfg, handler: { store: new InMemoryProvisioningStore(), product: "yucer" } })).pages, 1);
     assert.equal(mint, 2);
+    assert.deepEqual(serverErrors, []);
   } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
 });
