@@ -131,7 +131,7 @@ export async function* streamCopilotTurn(
         actorSub: ctx.sub,
         title: question.slice(0, 120),
       });
-  if (!session) {
+  if (!session || session.actorSub !== ctx.sub || session.subjectId !== null) {
     yield { type: "error", code: "not_found", message: "session not found", retryable: false };
     return;
   }
