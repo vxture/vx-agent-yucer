@@ -14,7 +14,8 @@ let warned = false;
 function redis(): Redis | null {
   const url = process.env.REDIS_URL;
   if (!url) return null;
-  if (!client) client = new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+  // Keep the scheduler lock on RESP2 when upgrading ioredis; it only uses SET NX PX.
+  if (!client) client = new Redis(url, { protocol: 2, maxRetriesPerRequest: 2, lazyConnect: false });
   return client;
 }
 

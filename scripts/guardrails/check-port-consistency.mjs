@@ -30,7 +30,7 @@ const CARRIERS = [
   {
     file: "portals/app/package.json",
     label: "dev script fallback",
-    re: /"dev"\s*:\s*"next dev -p \$\{PORT:-(\d+)\}"/,
+    re: /"dev"\s*:\s*"next dev(?: --webpack)? -p \$\{PORT:-(\d+)\}"/,
   },
   {
     file: "portals/app/Dockerfile",
