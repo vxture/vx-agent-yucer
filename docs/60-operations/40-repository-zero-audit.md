@@ -69,3 +69,15 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 优先顺序：代码扫描修复进入主干并复扫；修复 Dependabot 凭据链；
 为 DDL 不可变建立守卫；逐项核对上游 DS 能力并撤回垫片；最后核销业务验收。
 涉及治理标准的新增或缺口，先按 AGENTS/CLAUDE 在平台权威仓处理，再镜像。
+
+## 2026-11-06 后续修复进展
+
+- TD-028 已按登记表原有收回条件实现比较基准的 CI 守卫和真实临时仓回归测试，待 CI/合并核销。
+- TD-012 已请求由持有人在 Dependabot 专用 secret 配置 read:packages classic PAT；
+  不从 keyring 导出 OAuth 登录 token，也不在对话/日志中接收或打印凭据。
+- 本地已安装 design-ui 12.0.0 包含 BarChart，TD-008 的“没有任何图表”已过期；
+  但 board-chart 仍含堆叠比例/覆盖率 Gauge，不能把有 BarChart 等同于这些形态全部可替换。
+- FilterBar 当前发布 API 仍不透传视图 labels；ViewModeSwitch 仍无自定义图标参数。
+  TD-024/026 尚无可直接迁移的对等接口，不复制组件绕过上游缺口。
+- 当前环境无法读取治理权威仓 vxture/vxture（404）；本轮不新增治理标准，
+  只执行 TD-028 已登记的验收条件。新增通用机制仍需在权威仓接通后处理。
