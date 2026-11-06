@@ -9,14 +9,14 @@ import { getOidcConfig } from "./app/auth/lib/config";
  * platform lands on the page they opened instead of the front door. Nobody
  * signed in sees one invisible round trip and then the door, as before.
  *
- * A CHEAP check on purpose - the presence of a cookie, nothing more. The edge
- * runtime has no session store, and this is not a security boundary: the
+ * A CHEAP check on purpose - the presence of a cookie, nothing more. The proxy
+ * does not resolve the session store and is not a security boundary: the
  * layout still resolves the session properly, and a forged cookie only buys
  * the visitor the front door.
  */
 
-export function middleware(req: NextRequest): NextResponse {
-  // config.ts imports nothing, so it is edge-safe - and reading it here keeps
+export function proxy(req: NextRequest): NextResponse {
+  // config.ts imports nothing, so it is safe here - and reading it here keeps
   // the cookie name and the origin from drifting away from the routes'.
   const cfg = getOidcConfig();
   const cookieName = cfg.cookieName;
@@ -29,7 +29,7 @@ export function middleware(req: NextRequest): NextResponse {
     triedRecently: req.cookies.has(markerName),
     justSignedOut: req.cookies.get(SIGNED_OUT_COOKIE)?.value === "1",
     fetchMode: req.headers.get("sec-fetch-mode"),
-    // Next strips its own RSC headers before middleware, so a browser fetch is
+    // Next strips its own RSC headers before the proxy, so a browser fetch is
     // excluded by Sec-Fetch-Mode above; these catch whatever still carries them.
     isRscOrPrefetch: req.headers.has("rsc") || req.headers.has("next-router-prefetch") || req.headers.get("purpose") === "prefetch",
   });

@@ -45,6 +45,21 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # Keep runtime/tooling pairs on compatible versions in the same PR.
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+      prisma:
+        patterns:
+          - prisma
+          - "@prisma/*"
+      tailwind:
+        patterns:
+          - tailwindcss
+          - "@tailwindcss/*"
       # @vxture/* is org-internal and needs a deliberate look, not batched.
       vxture-packages:
         patterns:

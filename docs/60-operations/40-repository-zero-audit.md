@@ -101,3 +101,14 @@ GitHub Packages 解析，只找到旧版本而失败。显式设置 .npmrc 默�
 open / 半关。更新 PR 中有 Next 16、ioredis 6、TypeScript 7 等主版本升级，
 不能为 PR 数量归零而跳过兼容性检查；这 10 条是恢复自动更新后产生的新工作。
 生产仍为 v0.1.76，本轮无生产部署。
+
+
+## 恢复后的依赖更新整合
+
+将 #587–#596 关联更新统一验收：React/DOM/类型 19.3、Prisma CLI/client/adapter
+7.10.1、Tailwind/PostCSS 4.3.4、pg 8.23.1、ioredis 6、TypeScript 7、Next 16。
+显式保留 Webpack 构建及开发，CSS 类型声明适配 TS7；SSO 入口迁移 proxy.ts。
+Next 16 严格路由检查揭示 @deck catch-all 覆盖独立大屏/演示页；用逐工作台页面
+兜底替换，覆盖测试要求每个工作台页面都能清除上个对象侧栏，又不捕获外组。
+ioredis 显式保留 RESP2；后续 Dependabot 将 React、Prisma、Tailwind 分别成组。
+本轮须通过完整 CI、SonarCloud、CodeQL 及数据库契约后合并；未发布生产。
