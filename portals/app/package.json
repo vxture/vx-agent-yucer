@@ -19,7 +19,7 @@
     "@fontsource/inter": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "^7.10.1",
     "@vxture/design-system": "latest",
     "@vxture/design-ui": "latest",
     "@vxture/shared": "^2.0.0",
