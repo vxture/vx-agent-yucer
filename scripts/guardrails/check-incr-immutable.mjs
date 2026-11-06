@@ -5,11 +5,15 @@ export function changedExistingIncrements(base, head = "HEAD", cwd = process.cwd
   if (!/^[a-f0-9]{40}$/.test(base) || !(head === "HEAD" || /^[a-f0-9]{40}$/.test(head))) {
     throw new Error("expected full commit SHA (or HEAD for the comparison head)");
   }
-  const git = (...args) => execFileSync("/usr/bin/git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  // Re-encode validated object IDs so no caller-supplied option syntax crosses
+  // the process boundary. Git receives only hexadecimal revision identifiers.
+  const baseId = Buffer.from(base, "hex").toString("hex");
+  const headId = head === "HEAD" ? "HEAD" : Buffer.from(head, "hex").toString("hex");
+  const options = { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
   const prefix = "deploy/database/ddl/incr/";
-  const existing = git("ls-tree", "-r", "--name-only", "-z", base, "--", prefix)
+  const existing = execFileSync("/usr/bin/git", ["ls-tree", "-r", "--name-only", "-z", baseId, "--", prefix], options)
     .split("\0").filter((path) => path.endsWith(".sql"));
-  const changed = new Set(git("diff", "--no-renames", "--name-only", "-z", base, head, "--", prefix).split("\0"));
+  const changed = new Set(execFileSync("/usr/bin/git", ["diff", "--no-renames", "--name-only", "-z", baseId, headId, "--", prefix], options).split("\0"));
   return existing.filter((path) => changed.has(path));
 }
 
