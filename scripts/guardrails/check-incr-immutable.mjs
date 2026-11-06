@@ -17,12 +17,17 @@ export function changedExistingIncrements(base, head = "HEAD", cwd = process.cwd
   return existing.filter((path) => changed.has(path));
 }
 
-if (process.argv[1]?.endsWith("check-incr-immutable.mjs")) {
-  const base = process.argv[2];
+export function checkIncrementHistory(base, cwd = process.cwd()) {
   if (!base) throw new Error("base revision required; refusing to skip increment immutability");
-  const changed = changedExistingIncrements(base);
+  const changed = changedExistingIncrements(base, "HEAD", cwd);
   if (changed.length) {
-    console.error("[incr-immutable] Existing increments changed; add a new increment instead:\n" + changed.join("\n"));
-    process.exitCode = 1;
-  } else console.log("[incr-immutable] OK - existing SQL increments unchanged.");
+    return { ok: false, message: "[incr-immutable] Existing increments changed; add a new increment instead:\n" + changed.join("\n") };
+  }
+  return { ok: true, message: "[incr-immutable] OK - existing SQL increments unchanged." };
+}
+
+if (process.argv[1]?.endsWith("check-incr-immutable.mjs")) {
+  const result = checkIncrementHistory(process.argv[2]);
+  console.log(result.message);
+  process.exitCode = result.ok ? 0 : 1;
 }
