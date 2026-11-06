@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 interface TurnBody {
+  retryMessageId?: unknown;
   question?: unknown;
   sessionId?: unknown;
   subjectType?: unknown;
@@ -70,6 +71,7 @@ export async function POST(request: Request): Promise<Response> {
     {
       question,
       sessionId: typeof body.sessionId === "string" ? body.sessionId : undefined,
+      retryMessageId: typeof body.retryMessageId === "string" ? body.retryMessageId : undefined,
       subject:
         subjectType && subjectId
           ? { type: subjectType as SubjectType, id: subjectId }
@@ -97,6 +99,7 @@ export async function POST(request: Request): Promise<Response> {
       ...violationEnvelope(code, first?.message ?? "the copilot refused", "COPILOT", first?.retryable),
       // The full list stays, because one code cannot carry four field errors.
       violations: result.violations,
+      recovery: result.recovery,
     });
   }
 

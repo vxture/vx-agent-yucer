@@ -377,3 +377,22 @@ test("streaming refuses another member's thread and an anchored thread", async (
     assert.deepEqual(await store.listMessages(WS, session.id), []);
   }
 });
+
+test("an existing session shares its turn lease with retries and releases it on stream cancellation", async () => {
+  const store = new InMemoryCopilotStore();
+  const session = await store.createSession(WS, { actorSub: "usr_me" });
+  const input = { question: "q", tenantId: TENANT, sessionId: session.id };
+  const release = await store.acquireSessionTurn(WS, session.id);
+  assert.ok(release);
+  const blocked = await collect(streamCopilotTurn(ctx("sales_rep", "free", store), input, { atlasClient: atlas([]) }));
+  assert.ok(blocked.some((event) => event.type === "error" && event.code === "turn_in_progress"));
+  assert.equal((await store.listMessages(WS, session.id)).length, 0);
+  await release();
+  const stream = streamCopilotTurn(ctx("sales_rep", "free", store), input, { atlasClient: atlas([{ type: "text", delta: "partial" }]) });
+  await stream.next();
+  assert.equal(await store.acquireSessionTurn(WS, session.id), null);
+  await stream.return();
+  const after = await store.acquireSessionTurn(WS, session.id);
+  assert.ok(after);
+  await after();
+});

@@ -86,6 +86,8 @@ export interface ProposalFilter {
 }
 
 export interface CopilotStore {
+  /** Nonblocking, cross-replica turn lease; release in finally. */
+  acquireSessionTurn(workspaceId: string, sessionId: string): Promise<(() => Promise<void>) | null>;
   createSession(
     workspaceId: string,
     input: { actorSub: string; subjectType?: SubjectType | null; subjectId?: string | null; title?: string | null },
@@ -195,6 +197,15 @@ export interface CopilotStore {
 }
 
 export class InMemoryCopilotStore implements CopilotStore {
+  private activeTurns = new Set<string>();
+
+  async acquireSessionTurn(workspaceId: string, sessionId: string): Promise<(() => Promise<void>) | null> {
+    const key = `${workspaceId}:${sessionId}`;
+    if (this.activeTurns.has(key)) return null;
+    this.activeTurns.add(key);
+    return async () => { this.activeTurns.delete(key); };
+  }
+
   private snoozes = new Map<string, { urgency: string; until: Date }>();
   private sessions = new Map<string, SessionRecord>();
   private messages: Array<MessageRecord & { workspaceId: string }> = [];

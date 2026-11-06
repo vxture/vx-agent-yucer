@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { citationsForAnswer } from "../../domains/copilot/lib/citations";
+import { listInteractions } from "../../domains/account/field-service";
 import { Button, Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { listLeads } from "../../domains/signal/service";
 import { ModuleHeadline } from "../components/module-headline";
@@ -6,6 +8,7 @@ import { resolveAppSession } from "../lib/session";
 import {
   getAccountStore,
   getCopilotStore,
+  getFieldStore,
 } from "../../domains/shared/registry";
 import { getAccountDetail, listAccounts } from "../../domains/account/service";
 import { getOpportunityDetail, listPipeline } from "../../domains/pipeline/service";
@@ -151,9 +154,13 @@ export default async function CopilotPage({
   const history = latest
     ? await ctx.store.listMessages(session.workspaceId, latest.id)
     : [];
+  const sourceAccountId = dealRead?.ok ? dealRead.value.accountId : account?.id;
+  const evidenceRead = sourceAccountId && history.some((m) => m.role === "assistant")
+    ? await listInteractions({ ...ctx, store: getFieldStore() }, { accountId: sourceAccountId, ...(deal ? { opportunityId: deal.id } : {}) })
+    : null;
   const initialMessages: ChatMessageView[] = history
     .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content, id: m.id, citations: m.role === "assistant" && sourceAccountId && evidenceRead?.ok ? citationsForAnswer(m.content, sourceAccountId, evidenceRead.value) : [] }));
 
   // Counted here so the headline can say it. ADR-003 is this page's whole
   // shape and it was stated only in a section subtitle BELOW a chat box - a

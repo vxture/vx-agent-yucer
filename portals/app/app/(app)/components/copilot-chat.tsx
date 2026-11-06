@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { EvidenceCitation } from "../../domains/copilot/lib/citations";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Section, StatusBadge, Textarea } from "@vxture/design-ui";
@@ -26,10 +28,13 @@ import { Tag } from "./tag";
 export interface ChatMessageView {
   role: "user" | "assistant";
   content: string;
+  id?: string;
+  citations?: EvidenceCitation[];
 }
 
 export interface TurnOutcome {
   answer: string;
+  citations?: EvidenceCitation[];
   proposalCount: number;
   droppedProposals: number;
   capabilitiesUsed: string[];
@@ -62,10 +67,10 @@ export interface CopilotChatProps {
     question: string,
     sessionId: string | null,
     accountId?: string,
-    anchor?: { opportunityId?: string; rehearsal?: boolean },
+    anchor?: { opportunityId?: string; rehearsal?: boolean; retryMessageId?: string },
   ) => Promise<
     | { ok: true; sessionId: string; outcome: TurnOutcome }
-    | { ok: false; error: string }
+    | { ok: false; error: string; recovery?: { sessionId: string; messageId: string } }
   >;
 }
 
@@ -85,11 +90,13 @@ export function CopilotChat({
     ...initialMessages,
   ]);
   const [session, setSession] = useState<string | null>(sessionId);
-  const [draft, setDraft] = useState(initialDraft ?? "");
+  const unfinished = initialMessages.at(-1);
+  const [draft, setDraft] = useState(initialDraft ?? (unfinished?.role === "user" ? unfinished.content : ""));
   const [outcome, setOutcome] = useState<TurnOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
   const transcriptEnd = useRef<HTMLDivElement>(null);
   useEffect(() => { transcriptEnd.current?.scrollIntoView({ block: "nearest" }); }, [messages]);
+  const recovery = useRef<{ question: string; messageId: string } | null>(unfinished?.role === "user" && unfinished.id ? { question: unfinished.content, messageId: unfinished.id } : null);
   const inFlight = useRef(false);
   const [pending, startTransition] = useTransition();
 
@@ -101,29 +108,35 @@ export function CopilotChat({
     // The question is shown immediately. It is also persisted server-side before
     // the model is called, so what the user sees here and what survives a
     // model-plane failure are the same thing.
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
+    const alreadyShown = recovery.current?.question === question && messages.at(-1)?.role === "user" && messages.at(-1)?.content === question;
+    if (!alreadyShown) setMessages((prev) => [...prev, { role: "user", content: question }]);
     setDraft("");
     setError(null);
     setOutcome(null);
 
     startTransition(async () => {
       try {
-        const result = await onAsk(question, session, account?.id, deal ? { opportunityId: deal.id, rehearsal } : undefined);
+        const result = await onAsk(question, session, account?.id, { opportunityId: deal?.id, rehearsal, retryMessageId: recovery.current?.question === question ? recovery.current.messageId : undefined });
         if (!result.ok) {
+          if (result.recovery) {
+            setSession(result.recovery.sessionId);
+            recovery.current = { question, messageId: result.recovery.messageId };
+          }
           setError(explainModelPlaneError(result.error, COPILOT_TEXT));
           setDraft(question);
-          setMessages((prev) => prev.slice(0, -1));
+          if (!alreadyShown) setMessages((prev) => prev.slice(0, -1));
           return;
         }
+        recovery.current = null;
         setSession(result.sessionId);
         setOutcome(result.outcome);
         router.refresh();
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: result.outcome.answer },
+          { role: "assistant", content: result.outcome.answer, citations: result.outcome.citations },
         ]);
       } catch {
-        setMessages((prev) => prev.slice(0, -1));
+        if (!alreadyShown) setMessages((prev) => prev.slice(0, -1));
         setError(COPILOT_TEXT.errorGeneric);
         setDraft(question);
       } finally {
@@ -154,7 +167,7 @@ export function CopilotChat({
       ) : null}
 
       <Button variant="ghost" size="sm" disabled={pending} onClick={() => {
-        setSession(null); setMessages([]); setOutcome(null); setError(null);
+        recovery.current = null; setSession(null); setMessages([]); setOutcome(null); setError(null);
       }}>{COPILOT_TEXT.newSession}</Button>
       {/* NO EMPTY STATE, and this is a deliberate subtraction. An EmptyState
           announces an absence, which is worth 146px when a reader might
@@ -174,6 +187,7 @@ export function CopilotChat({
             <div key={i} data-role={m.role} className={`whitespace-pre-wrap rounded-lg p-md text-body-small leading-relaxed ${m.role === "user" ? "ml-lg bg-muted" : "mr-lg border border-border bg-card"}`}>
               <p className="mb-xs text-label text-muted-foreground">{m.role === "user" ? COPILOT_TEXT.you : COPILOT_TEXT.assistant}</p>
               {m.content}
+              {m.citations?.length ? <div className="mt-sm flex flex-wrap gap-xs">{m.citations.map((citation) => <Button key={citation.id} variant="outline" size="sm" asChild><Link href={citation.href}>{citation.label}</Link></Button>)}</div> : null}
             </div>
           ))}
           <div ref={transcriptEnd} />
@@ -189,6 +203,8 @@ export function CopilotChat({
           {error}
         </StatusBadge>
       ) : null}
+
+      {error && recovery.current ? <p className="text-body-small text-muted-foreground">{COPILOT_TEXT.recoveryHint}</p> : null}
 
       {outcome && outcome.proposalCount > 0 ? (
         // A count and a pointer - never an inline accept. Approving a change

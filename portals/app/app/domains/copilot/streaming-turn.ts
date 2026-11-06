@@ -81,6 +81,29 @@ export async function* streamCopilotTurn(
   input: StreamTurnInput,
   deps: StreamDeps,
 ): AsyncGenerator<StreamEvent, void, void> {
+  if (!input.sessionId || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) {
+    yield* streamUnlockedTurn(ctx, input, deps);
+    return;
+  }
+  const owned = await ctx.store.getSession(ctx.workspaceId, input.sessionId);
+  if (!owned || owned.actorSub !== ctx.sub || owned.subjectType !== null || owned.subjectId !== null) {
+    yield { type: "error", code: "not_found", message: "session not found", retryable: false };
+    return;
+  }
+  const release = await ctx.store.acquireSessionTurn(ctx.workspaceId, input.sessionId);
+  if (!release) {
+    yield { type: "error", code: "turn_in_progress", message: "a turn is already running in this session", retryable: true };
+    return;
+  }
+  try { yield* streamUnlockedTurn(ctx, input, deps); }
+  finally { await release(); }
+}
+
+async function* streamUnlockedTurn(
+  ctx: CopilotContext,
+  input: StreamTurnInput,
+  deps: StreamDeps,
+): AsyncGenerator<StreamEvent, void, void> {
   const gate = can(ctx.holder, ctx.entitlement, "copilot.ask", "data");
   if (!gate.allowed) {
     // L1 X-3: same denial record the non-streamed path writes - see

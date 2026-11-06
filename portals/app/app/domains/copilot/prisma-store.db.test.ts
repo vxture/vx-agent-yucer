@@ -606,3 +606,20 @@ test("a briefing is kept once per fingerprint; the service role may evict it but
     await cleanup();
   }
 });
+
+test("session turn leases exclude other replicas and release on connection close", { skip }, async () => {
+  const { PrismaCopilotStore } = await import("./prisma-store");
+  const first = new PrismaCopilotStore();
+  const second = new PrismaCopilotStore();
+  const release = await first.acquireSessionTurn(WS, "recovery-turn-test");
+  assert.ok(release);
+  try {
+    assert.equal(await second.acquireSessionTurn(WS, "recovery-turn-test"), null);
+    const other = await second.acquireSessionTurn(WS, "independent-turn-test");
+    assert.ok(other);
+    await other();
+  } finally { await release(); }
+  const again = await second.acquireSessionTurn(WS, "recovery-turn-test");
+  assert.ok(again);
+  await again();
+});

@@ -10,6 +10,8 @@ const TEXT = {
   errorTooMuch: "too much",
   errorTimeout: "timeout",
   errorGeneric: "generic",
+  errorInProgress: "in progress",
+  errorInvalidRetry: "invalid retry",
 } as never;
 
 test("anything the model plane produced is recognised, whatever it is called", () => {
@@ -59,4 +61,10 @@ test("too much input and too long a wait each get their own advice", () => {
   for (const c of ["DEADLINE_EXCEEDED", "LOCAL_DEADLINE", "BODY_TIMEOUT", "STREAM_IDLE_TIMEOUT"]) {
     assert.equal(explainModelPlaneError(`atlas_${c}`, TEXT), "timeout", c);
   }
+});
+
+
+test("recovery errors explain waiting or refreshing rather than exposing service codes", () => {
+  assert.equal(explainModelPlaneError("turn_in_progress", TEXT), "in progress");
+  assert.equal(explainModelPlaneError("invalid_retry", TEXT), "invalid retry");
 });

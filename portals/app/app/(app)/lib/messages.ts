@@ -1402,6 +1402,9 @@ export const PROPOSAL_ERROR: Record<string, string> = {
 
 /** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
 export const REVIEW_ERROR: Record<string, string> = {
+  invalid_retry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002",
+
   // 0039: the reason is a vocabulary row now, so a review can fail on the row
   // rather than on the deal.
   reason_not_found: "找不到这个原因，可能刚被删掉，刷新后重选",
@@ -2072,6 +2075,9 @@ export const MEMBER_ERROR: Record<string, string> = {
 // 客户信息补齐（2026-09-01 owner 提出）。分两组，因为它们的代价不同：
 // 数据已经知道的（免费、确定、一键），和只有模型能答的（一次 turn，走提案队列）。
 export const COMPLETENESS_ERROR: Record<string, string> = {
+  invalid_retry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002",
+
   ...GATE_ERROR,
   /* incr/0035 CHECK-constrains this column, so an unknown province fails at
      the database with an error nobody can act on. Said in the product's own
@@ -4121,6 +4127,9 @@ export const DEAL_MEETING_TEXT = {
 
 /** 商机会前包的失败回执 (deal batch 11a)。 */
 export const DEAL_MEETING_ERROR: Record<string, string> = {
+  invalid_retry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002",
+
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   attendees_required: "至少选一个到场的人",
@@ -4153,6 +4162,9 @@ export const DEAL_SITUATION_TEXT = {
 
 /** 局势简报的失败回执 (deal batch 8b)。 */
 export const DEAL_SITUATION_ERROR: Record<string, string> = {
+  invalid_retry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002",
+
   ...GATE_ERROR,
   not_found: "商机不存在、已关闭，或不属于当前工作区",
   no_active_tenant: "当前工作区没有接入平台租户，局势简报暂时不能生成",
@@ -4338,6 +4350,8 @@ export const NEXT_ACTION_TEXT = {
 
 /** 下一步最佳动作的失败回执 (deal batch 8c)。 */
 export const NEXT_ACTION_ERROR: Record<string, string> = {
+  invalid_retry: "\u8bf7\u5237\u65b0\u5bf9\u8bdd\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u8bf7\u7b49\u5f85\u5f53\u524d\u5bf9\u8bdd\u5904\u7406\u5b8c\u6210\u3002",
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   no_active_tenant: "当前工作区没有接入平台租户",
@@ -4362,6 +4376,9 @@ export const FORECAST_BRIEF_TEXT = {
 
 /** 预测会简报的失败回执 (deal batch 9e)。 */
 export const FORECAST_BRIEF_ERROR: Record<string, string> = {
+  invalid_retry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002",
+
   ...GATE_ERROR,
   no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
   tenant_required: "当前工作区没有接入平台租户，暂时不能调用模型",
@@ -4889,6 +4906,9 @@ export const COPILOT_TEXT = {
   errorTooMuch: "这次要读的材料超出了模型一次能处理的量，缩小范围后再试",
   errorTimeout: "模型这次用时过长，已停止生成，请稍后重试",
   errorGeneric: "请稍后重试；持续失败请联系运营",
+  errorInProgress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u540e\u518d\u8bd5\u3002",
+  errorInvalidRetry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u67e5\u770b\u8bb0\u5f55\u6216\u5f00\u542f\u65b0\u5bf9\u8bdd\u3002",
+  recoveryHint: "\u95ee\u9898\u5df2\u4fdd\u5b58\u3002\u539f\u6587\u91cd\u8bd5\u4f1a\u7ee7\u7eed\u5f53\u524d\u95ee\u9898\uff1b\u6a21\u578b\u91cd\u8bd5\u4ecd\u53ef\u80fd\u4ea7\u751f\u7528\u91cf\u3002",
   newSession: "新对话",
   contextUnavailable: "\u5f53\u524d\u5ba2\u6237\u6216\u5546\u673a\u4e0d\u53ef\u8bbf\u95ee\uff0c\u8bf7\u8fd4\u56de\u8be6\u60c5\u9875\u91cd\u65b0\u6253\u5f00\u52a9\u624b",
   history: "\u5386\u53f2\u5bf9\u8bdd",
@@ -5318,6 +5338,9 @@ export const CONSISTENCY_TEXT = {
 } as const;
 
 export const CONSISTENCY_ERROR: Record<string, string> = {
+  invalid_retry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
+  turn_in_progress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002",
+
   ...GATE_ERROR,
   no_active_tenant: "当前工作区没有接入平台租户，暂时不能调用模型",
   not_found: "客户不存在，或不属于当前工作区",

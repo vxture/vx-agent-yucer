@@ -1,5 +1,6 @@
 "use server";
 
+import { citationsForAnswer } from "../../domains/copilot/lib/citations";
 import { revalidatePath } from "next/cache";
 import { AtlasClient } from "../../agent/atlas/client";
 import { RunosClient } from "../../agent/runos/client";
@@ -27,7 +28,7 @@ import type { TurnOutcome } from "../components/copilot-chat";
 
 export type AskResult =
   | { ok: true; sessionId: string; outcome: TurnOutcome }
-  | { ok: false; error: string };
+  | { ok: false; error: string; recovery?: { sessionId: string; messageId: string } };
 
 export async function askCopilot(
   question: string,
@@ -46,7 +47,7 @@ export async function askCopilot(
    * as evidence - re-read here behind the deal's own gate. `rehearsal` makes
    * the turn a 预演: framed as role-play, and no proposal is admitted.
    */
-  anchor?: { opportunityId?: string; rehearsal?: boolean },
+  anchor?: { opportunityId?: string; rehearsal?: boolean; retryMessageId?: string },
 ): Promise<AskResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -59,6 +60,7 @@ export async function askCopilot(
   let evidence: EvidenceGrounding | undefined;
   let subject: { type: "account" | "opportunity"; id: string; summary?: string } | undefined;
   let framing: string | undefined;
+  let evidenceAccountId: string | undefined;
   if (anchor?.opportunityId) {
     const base = {
       workspaceId: session.workspaceId,
@@ -70,6 +72,7 @@ export async function askCopilot(
     if (!deal.ok) return { ok: false, error: "not_found" };
     if (deal.ok) {
       subject = { type: "opportunity", id: deal.value.id, summary: deal.value.name };
+      evidenceAccountId = deal.value.accountId;
       const account = await getAccountDetail({ ...base, store: session.stores.account() }, deal.value.accountId);
       const built = await evidenceForPrompt(
         { ...base, store: getFieldStore() },
@@ -81,6 +84,7 @@ export async function askCopilot(
       if (anchor.rehearsal) framing = rehearsalFrame(deal.value.name);
     }
   } else if (accountId) {
+    evidenceAccountId = accountId;
     const accountCtx = {
       workspaceId: session.workspaceId,
       sub: session.user.sub,
@@ -113,6 +117,7 @@ export async function askCopilot(
     {
       question,
       sessionId: sessionId ?? undefined,
+      retryMessageId: anchor?.retryMessageId,
       tenantId,
       subject,
       evidence,
@@ -137,7 +142,7 @@ export async function askCopilot(
   );
 
   if (!result.ok) {
-    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+    return { ok: false, error: result.violations[0]?.code ?? "denied", recovery: result.recovery };
   }
 
   // The proposal queue on the same page is now stale.
@@ -148,6 +153,7 @@ export async function askCopilot(
     sessionId: result.value.session.id,
     outcome: {
       answer: result.value.answer,
+      citations: evidenceAccountId && evidence ? citationsForAnswer(result.value.answer, evidenceAccountId, evidence.notes) : [],
       proposalCount: result.value.proposals.length,
       droppedProposals: result.value.droppedProposals,
       capabilitiesUsed: result.value.invocations.filter((i) => i.ok).map((i) => i.capabilityId),
