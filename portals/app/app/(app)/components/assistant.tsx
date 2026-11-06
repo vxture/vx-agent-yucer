@@ -226,10 +226,10 @@ export function AssistantDeck({
   readonly sections: readonly AssistantSection[];
 }) {
   return (
-    <div className="flex flex-col gap-sm">
+    <div className="flex h-full min-h-0 flex-col gap-sm overflow-y-auto">
       {capture}
-      {sections.map((s) => (
-        <AssistantSection key={s.id} section={s} />
+      {sections.filter((s) => s.items.length > 0 || s.footer).map((s) => (
+        <div key={s.id} className="shrink-0"><AssistantSection section={s} /></div>
       ))}
     </div>
   );
