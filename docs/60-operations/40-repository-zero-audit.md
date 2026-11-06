@@ -15,9 +15,9 @@ PR / issue 数量为零不等于工程欠账为零。可归零的是已经验证
 | 生产 | deploy 42180163989 成功；健康接口 v0.1.76 / aaf01d41 | 后续 #579/#580 尚未发布，不与部署失败混淆 |
 | OSV | 主干 sca-watch 42195782176 成功 | 当前扫描无发现，不等于永远无漏洞 |
 | Dependabot | 开放 #14–#25 共 12 条；API 中 Next 告警仍引用 15.5.21 | 逐条核对锁文件已修复，按 inaccurate 附版本证据处置 |
-| 代码扫描 #53 | channel-wiring.test.ts 的本机测试服务器向 HTTP 返回异常文本 | 修正为固定响应，异常只在测试进程断言；须待主干 CodeQL 验证关闭 |
+| 代码扫描 #53 | channel-wiring.test.ts 的本机测试服务器向 HTTP 返回异常文本 | PR #581 已合并；主干 CodeQL 确认 fixed，当前开放代码扫描告警 0 |
 | 密钥扫描 | 开放告警 0；secret scanning 与 push protection enabled | 告警为零，但不替代 TD-017 的实际阻断证明 |
-| Dependabot npm 凭据 | gh secret list --app dependabot 返回空 | TD-012 未解决；需要合法 read:packages 凭据，不能伪造或复用未知权限的登录 token |
+| Dependabot npm 凭据 | 组织 API 确认 NODE_AUTH_TOKEN，visibility=all | #583 已修正错误 secret 名字；实际 npm 任务 42206861477 验证中 |
 
 ## 依赖告警逐项版本证据
 
@@ -36,7 +36,7 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 ## 技术债逐项分流
 
 以下为登记表状态核对，不声称本次重新实现或逐页视觉验证了全部 DS 垫片。
-上游 vxture-design#111 本次 API 核对仍为 OPEN。共 19 项 open / 半关。
+上游 vxture-design#111 本次 API 核对仍为 OPEN。原核对共 19 项 open / 半关；TD-028 验收完成后剩 18 项，包含验证中的 TD-012。
 
 | ID | 归零所需证据/动作 | 本次处理 |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 | TD-007 | DS 正文 measure token 并替换本地尺寸 | 保留，需上游核对 |
 | TD-008 | DS 数据可视化元件并替换图表 | 保留，需上游核对 |
 | TD-009 | DS 环形进度元件并替换本地实现 | 保留，需上游核对 |
-| TD-012 | 配置 Dependabot 私有包凭据并证明 npm 更新任务成功 | 确认 secret 为空，未解决 |
+| TD-012 | 配置 Dependabot 私有包凭据并证明 npm 更新任务成功 | 组织 secret 存在；#583 修正引用，等待实际 npm 任务结果 |
 | TD-017 | 不泄露真密钥的 push protection 拦截证明 | 启用状态已确认，实证仍缺 |
 | TD-021 | 陈旧漏洞告警复评机制 | 本轮 12 条清理，机制仍未解决 |
 | TD-022 | DS 表格宽度契约与产品替换验证 | 保留部分关闭状态 |
@@ -56,7 +56,7 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 | TD-025 | DS 大屏元件与连续色阶 | 保留，需上游核对 |
 | TD-026 | DS 清单/树图标可配置并迁移 | 保留，需上游核对 |
 | TD-027 | DS role 图标修复并撤回替代 | 保留，需上游核对 |
-| TD-028 | 已应用 DDL 不可变校验，覆盖增量修改的失败用例 | 保留，真实工程缺口 |
+| TD-028 | 已应用 DDL 不可变校验，覆盖增量修改的失败用例 | 已关闭：#582 守卫及真实 Git 回归测试通过六项必需检查、SonarCloud 和 CodeQL |
 | TD-034 | DS 收起态与本地垫片撤回验证 | 保留；平台视觉修正不代表上游缺口消失 |
 | TD-036 | DS 字号档位支持并撤回点名本地值 | 保留，需上游核对 |
 
@@ -72,8 +72,8 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 
 ## 2026-11-06 后续修复进展
 
-- TD-028 已按登记表原有收回条件实现比较基准的 CI 守卫和真实临时仓回归测试，待 CI/合并核销。
-- TD-012 已请求由持有人在 Dependabot 专用 secret 配置 read:packages classic PAT；
+- TD-028 已按登记表原有收回条件实现比较基准的 CI 守卫和真实临时仓回归测试，PR #582 已通过完整 CI 并合并，核销。
+- TD-012 已通过组织 API 确认已有 Dependabot secret，无需用户重复创建；
   不从 keyring 导出 OAuth 登录 token，也不在对话/日志中接收或打印凭据。
 - 本地已安装 design-ui 12.0.0 包含 BarChart，TD-008 的“没有任何图表”已过期；
   但 board-chart 仍含堆叠比例/覆盖率 Gauge，不能把有 BarChart 等同于这些形态全部可替换。
