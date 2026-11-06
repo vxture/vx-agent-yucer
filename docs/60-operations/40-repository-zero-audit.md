@@ -17,7 +17,7 @@ PR / issue 数量为零不等于工程欠账为零。可归零的是已经验证
 | Dependabot | 开放 #14–#25 共 12 条；API 中 Next 告警仍引用 15.5.21 | 逐条核对锁文件已修复，按 inaccurate 附版本证据处置 |
 | 代码扫描 #53 | channel-wiring.test.ts 的本机测试服务器向 HTTP 返回异常文本 | PR #581 已合并；主干 CodeQL 确认 fixed，当前开放代码扫描告警 0 |
 | 密钥扫描 | 开放告警 0；secret scanning 与 push protection enabled | 告警为零，但不替代 TD-017 的实际阻断证明 |
-| Dependabot npm 凭据 | 组织 API 确认 NODE_AUTH_TOKEN，visibility=all | #583 已修正错误 secret 名字；实际 npm 任务 42206861477 验证中 |
+| Dependabot npm 凭据 | 组织 API 确认 NODE_AUTH_TOKEN，visibility=all | #583 已修正错误 secret 名字；任务 42206861477 已越过 secret 错误，但公共包被导向 GitHub Packages；补充显式 npmjs 默认源及 replaces-base=false 后复验 |
 
 ## 依赖告警逐项版本证据
 
@@ -47,7 +47,7 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 | TD-007 | DS 正文 measure token 并替换本地尺寸 | 保留，需上游核对 |
 | TD-008 | DS 数据可视化元件并替换图表 | 保留，需上游核对 |
 | TD-009 | DS 环形进度元件并替换本地实现 | 保留，需上游核对 |
-| TD-012 | 配置 Dependabot 私有包凭据并证明 npm 更新任务成功 | 组织 secret 存在；#583 修正引用，等待实际 npm 任务结果 |
+| TD-012 | 配置 Dependabot 私有包凭据并证明 npm 更新任务成功 | 组织 secret 存在；#583 修正引用，修正公共包默认源后等待新任务结果 |
 | TD-017 | 不泄露真密钥的 push protection 拦截证明 | 启用状态已确认，实证仍缺 |
 | TD-021 | 陈旧漏洞告警复评机制 | 本轮 12 条清理，机制仍未解决 |
 | TD-022 | DS 表格宽度契约与产品替换验证 | 保留部分关闭状态 |
@@ -88,4 +88,7 @@ main 的 pnpm-lock.yaml 是核对依据，不能用 package.json 范围代替解
 此前“缺少 Dependabot 凭据”的结论仅基于仓库级查询，范围不足，应撤回。
 组织级 API 已确认 NODE_AUTH_TOKEN 存在且覆盖全部仓库；真正缺陷是配置引用了
 不存在的 VXTURE_PACKAGES_READ_TOKEN。修复改用组织已有名字，未导出秘密值。
-等待主干配置生效后的 npm 任务验证，再关闭 TD-012。
+任务 42206861477 未再报告 Secret Not Found，但公共包 @types/react-dom 被从
+GitHub Packages 解析，只找到旧版本而失败。显式设置 .npmrc 默认 registry 为 npmjs，
+私有 registry 声明 replaces-base=false；保留 @vxture 的 scoped registry。
+等待修正后的实际 npm 任务通过，再关闭 TD-012。

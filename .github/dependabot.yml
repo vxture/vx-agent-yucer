@@ -31,6 +31,7 @@ registries:
     type: npm-registry
     url: https://npm.pkg.github.com
     token: ${{secrets.NODE_AUTH_TOKEN}}
+    replaces-base: false
 
 updates:
   # pnpm workspace root (repo root - pnpm-lock.yaml lives here, covering
