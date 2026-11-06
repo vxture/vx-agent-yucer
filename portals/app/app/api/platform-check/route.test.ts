@@ -225,7 +225,7 @@ test("a session mints only with an access token and an active tenant", () => {
   assert.equal(liveIdentityFrom({ workspaceId: "w", tenantId: "t", accessToken: null }), null);
 });
 
-test("the Atlas live-call probe sends a UUID applicationId - Atlas casts it for its grant lookup", async () => {
+test("Atlas diagnostics use product grants and distinct request identities", async () => {
   bare();
   resetS2SCache();
   process.env.OIDC_CLIENT_SECRET = "s";
@@ -245,7 +245,12 @@ test("the Atlas live-call probe sends a UUID applicationId - Atlas casts it for 
     const r = await runAtlasProbe("ws_live", "org_live");
     assert.equal(r.ok, true);
     const sent = JSON.parse(net.bodies.find((b) => b.url.endsWith("/v1/chat"))!.body);
-    assert.match(sent.applicationId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    assert.equal(sent.applicationId, undefined);
+    assert.match(sent.requestId, /^[0-9a-f-]{36}$/);
+    await runAtlasProbe("ws_live", "org_live");
+    const calls = net.bodies.filter((b) => b.url.endsWith("/v1/chat")).map((b) => JSON.parse(b.body));
+    assert.equal(calls.length, 2);
+    assert.notEqual(calls[0].requestId, calls[1].requestId);
   } finally {
     net.restore();
   }
