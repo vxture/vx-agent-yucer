@@ -106,7 +106,6 @@ jobs:
           DDL_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           git fetch --no-tags origin "$DDL_BASE"
-          node --test scripts/guardrails/check-incr-immutable.test.mjs
           node scripts/guardrails/check-incr-immutable.mjs "$DDL_BASE"
 
       - name: Increment grant guardrail (a new table must grant on itself)

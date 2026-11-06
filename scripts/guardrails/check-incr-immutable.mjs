@@ -2,7 +2,10 @@
 import { execFileSync } from "node:child_process";
 
 export function changedExistingIncrements(base, head = "HEAD", cwd = process.cwd()) {
-  const git = (...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  if (!/^[a-f0-9]{40}$/.test(base) || !(head === "HEAD" || /^[a-f0-9]{40}$/.test(head))) {
+    throw new Error("expected full commit SHA (or HEAD for the comparison head)");
+  }
+  const git = (...args) => execFileSync("/usr/bin/git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   const prefix = "deploy/database/ddl/incr/";
   const existing = git("ls-tree", "-r", "--name-only", "-z", base, "--", prefix)
     .split("\0").filter((path) => path.endsWith(".sql"));

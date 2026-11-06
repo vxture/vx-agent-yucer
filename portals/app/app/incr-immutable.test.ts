@@ -4,11 +4,11 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, renameSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { changedExistingIncrements } from "./check-incr-immutable.mjs";
+import { changedExistingIncrements } from "../../../scripts/guardrails/check-incr-immutable.mjs";
 
 test("allows new increments but rejects edits, deletions and renames of existing SQL", () => {
   const cwd = mkdtempSync(join(tmpdir(), "yucer-ddl-"));
-  const git = (...args) => execFileSync("git", args, { cwd, stdio: "pipe" }).toString().trim();
+  const git = (...args: string[]) => execFileSync("/usr/bin/git", args, { cwd, stdio: "pipe" }).toString().trim();
   try {
     git("init"); git("config", "user.name", "test"); git("config", "user.email", "test@example.invalid");
     const prefix = "deploy/database/ddl/incr/";
