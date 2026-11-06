@@ -3,7 +3,6 @@ import {
   decodeJwt,
   jwtVerify,
   type JWTPayload,
-  type KeyLike,
   type JWTVerifyGetKey,
 } from "jose";
 import type { OidcConfig } from "./config";
@@ -30,7 +29,7 @@ function getJwks(cfg: OidcConfig) {
 
 // A verification key: raw key material (tests inject a local public key) or the
 // remote JWKS resolver function.
-export type KeyResolver = KeyLike | Uint8Array | JWTVerifyGetKey;
+export type KeyResolver = CryptoKey | Uint8Array | JWTVerifyGetKey;
 
 export async function verifyToken(
   token: string,
