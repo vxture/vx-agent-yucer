@@ -25,6 +25,8 @@ export function explainModelPlaneError(
   code: string,
   COPILOT_TEXT: Dictionary["COPILOT_TEXT"],
 ): string {
+  if (code === "turn_in_progress") return COPILOT_TEXT.errorInProgress;
+  if (code === "invalid_retry") return COPILOT_TEXT.errorInvalidRetry;
   if (
     code === "atlas_ATLAS_NOT_CONFIGURED" ||
     code === "no_active_tenant" ||

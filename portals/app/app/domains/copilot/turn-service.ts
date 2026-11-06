@@ -15,6 +15,7 @@
 //      no proposals - the model may still emit them, and they are dropped here
 //      rather than written.
 
+import { randomUUID } from "node:crypto";
 import { defaultTurnMeter, type TurnMeter } from "../../usage/lib/copilot-turns";
 import { featureKeysFor } from "../../entitlement/capability";
 import { can, type PermissionHolder } from "../../authz/decide";
@@ -41,6 +42,8 @@ export interface TurnInput {
   question: string;
   /** Continue an existing session, or omit to open a new one. */
   sessionId?: string;
+  /** Retry only the latest unanswered question in this owned session. */
+  retryMessageId?: string;
   subject?: { type: SubjectType; id: string; summary?: string };
   /** The member's access token, so downstream audits name a person. */
   subjectToken?: string;
@@ -120,7 +123,26 @@ export async function runCopilotTurn(
   ctx: CopilotContext,
   input: TurnInput,
   deps: TurnDeps,
-): Promise<RuleResult<TurnOutput>> {
+): Promise<RuleResult<TurnOutput> & { recovery?: { sessionId: string; messageId: string } }> {
+  // Gate denials keep the existing audited path and never acquire a lease.
+  if (!input.sessionId || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) {
+    return runUnlockedTurn(ctx, input, deps);
+  }
+  const owned = await ctx.store.getSession(ctx.workspaceId, input.sessionId);
+  if (!owned || owned.actorSub !== ctx.sub || owned.subjectType !== (input.subject?.type ?? null) || owned.subjectId !== (input.subject?.id ?? null)) {
+    return fail(violation("not_found", "session not found", "sessionId"));
+  }
+  const release = await ctx.store.acquireSessionTurn(ctx.workspaceId, input.sessionId);
+  if (!release) return fail(violation("turn_in_progress", "a turn is already running in this session", "sessionId", true));
+  try { return await runUnlockedTurn(ctx, input, deps); }
+  finally { await release(); }
+}
+
+async function runUnlockedTurn(
+  ctx: CopilotContext,
+  input: TurnInput,
+  deps: TurnDeps,
+): Promise<RuleResult<TurnOutput> & { recovery?: { sessionId: string; messageId: string } }> {
   // 1. Gate before spending anything. Atlas meters every request.
   const gate = can(ctx.holder, ctx.entitlement, "copilot.ask", "data");
   if (!gate.allowed) {
@@ -164,6 +186,8 @@ export async function runCopilotTurn(
     return fail(violation("quota_exceeded", "this workspace's copilot turn quota is used up", "question"));
   }
 
+  if (input.retryMessageId && !input.sessionId) return fail(violation("invalid_retry", "a retry requires its session", "sessionId"));
+
   // 2. Session and question first, so a model failure cannot lose the question.
   const session = input.sessionId
     ? await ctx.store.getSession(ctx.workspaceId, input.sessionId)
@@ -187,7 +211,13 @@ export async function runCopilotTurn(
     return fail(violation("not_found", "session context changed; start a new conversation", "sessionId"));
   }
 
-  const asked = await ctx.store.appendMessage(ctx.workspaceId, {
+  const previous = input.retryMessageId ? await ctx.store.listMessages(ctx.workspaceId, session.id) : [];
+  const retry = previous.at(-1);
+  if (input.retryMessageId && (!input.sessionId || !retry || retry.id !== input.retryMessageId || retry.role !== "user" || retry.content !== question)) {
+    return fail(violation("invalid_retry", "only the latest unanswered question can be retried", "retryMessageId"));
+  }
+
+  const asked = input.retryMessageId && retry ? retry : await ctx.store.appendMessage(ctx.workspaceId, {
     sessionId: session.id,
     role: "user",
     content: question,
@@ -231,7 +261,7 @@ export async function runCopilotTurn(
     subjectToken: input.subjectToken,
     // An advisor run groups under its run id; a member's turn under the session.
     applicationId: input.advisorRun?.runId ?? session.id,
-    requestId: `${session.id}:${history.length}`,
+    requestId: randomUUID(),
     taskId,
     featureId: input.advisorRun?.featureId ?? COPILOT_CHAT_FEATURE,
     businessId: input.advisorRun?.runId ?? asked.id,
@@ -275,9 +305,9 @@ export async function runCopilotTurn(
     if (e instanceof AtlasError) {
       // .retry, not .retryable directly - it already applies the fallback
       // table when Atlas sent no verdict of its own (see retryPolicyFor).
-      return fail(violation(`atlas_${e.code}`, e.message, "model", e.retry.kind !== "no"));
+      return { ...fail<TurnOutput>(violation(`atlas_${e.code}`, e.message, "model", e.retry.kind !== "no")), recovery: { sessionId: session.id, messageId: asked.id } };
     }
-    return fail(violation("turn_failed", String(e), "model"));
+    return { ...fail<TurnOutput>(violation("turn_failed", "the model turn failed", "model")), recovery: { sessionId: session.id, messageId: asked.id } };
   }
 
   await ctx.store.appendMessage(ctx.workspaceId, {

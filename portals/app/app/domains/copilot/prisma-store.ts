@@ -42,6 +42,25 @@ function toAction(r: Record<string, unknown>): AgentAction {
 }
 
 export class PrismaCopilotStore implements CopilotStore {
+  async acquireSessionTurn(workspaceId: string, sessionId: string): Promise<(() => Promise<void>) | null> {
+    // A dedicated connection owns the session advisory lock while model calls run.
+    // Do not keep a database transaction or Prisma pool transaction open for AI.
+    const { Client } = await import("pg");
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+    try {
+      const result = await client.query<{ acquired: boolean }>(
+        "SELECT pg_try_advisory_lock($1::int, hashtext($2)) AS acquired",
+        [lockKey("agent_session_turn"), `${workspaceId}:${sessionId}`],
+      );
+      if (!result.rows[0].acquired) { await client.end(); return null; }
+      return async () => { await client.end(); };
+    } catch (error) {
+      await client.end();
+      throw error;
+    }
+  }
+
   async createSession(
     workspaceId: string,
     input: { actorSub: string; subjectType?: SubjectType | null; subjectId?: string | null; title?: string | null },

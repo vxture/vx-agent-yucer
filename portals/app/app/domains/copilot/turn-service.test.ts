@@ -501,3 +501,69 @@ test("an anchored conversation continues with the same subject", async () => {
   assert.equal(result.session.id, original.id);
   assert.equal((await store.listMessages(WS, original.id)).length, 2);
 });
+
+test("a failed first turn returns recovery and a retry reuses its question and metering key", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_rep", "pro", store);
+  const meter = meterSpy(true);
+  const failed = await runCopilotTurn(c, { question: "what next?", tenantId: TENANT }, { ...deps({ replies: [], atlasThrows: new Error("unavailable") }).d, meter: meter.meter });
+  assert.equal(failed.ok, false);
+  assert.ok(failed.recovery);
+  const recovery = failed.recovery!;
+  const retried = await runCopilotTurn(c, { question: "what next?", tenantId: TENANT, sessionId: recovery.sessionId, retryMessageId: recovery.messageId }, { ...deps({ replies: [{ content: "check the sponsor" }] }).d, meter: meter.meter });
+  assert.ok(retried.ok);
+  const messages = await store.listMessages(WS, recovery.sessionId);
+  assert.deepEqual(messages.map((m) => m.role), ["user", "assistant"]);
+  assert.equal(messages[0].id, recovery.messageId);
+  assert.equal(meter.recorded.length, 2);
+  assert.deepEqual(meter.recorded[0], meter.recorded[1], "retries report the same business object, not a new turn");
+  const duplicate = deps({ replies: [] });
+  const replay = await runCopilotTurn(c, { question: "what next?", tenantId: TENANT, sessionId: recovery.sessionId, retryMessageId: recovery.messageId }, duplicate.d);
+  assert.equal(replay.ok, false);
+  assert.equal(duplicate.calls.length, 0, "an answered question cannot be retried");
+});
+
+test("recovery refuses changed questions, foreign sessions and missing session ids before model calls", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_rep", "pro", store);
+  const failed = await runCopilotTurn(c, { question: "original", tenantId: TENANT }, deps({ replies: [], atlasThrows: new Error("offline") }).d);
+  const recovery = failed.recovery!;
+  for (const [actor, input] of [
+    [c, { question: "changed", sessionId: recovery.sessionId }],
+    [{ ...c, sub: "another" }, { question: "original", sessionId: recovery.sessionId }],
+    [c, { question: "original" }],
+  ] as const) {
+    const h = deps({ replies: [] });
+    const result = await runCopilotTurn(actor, { ...input, retryMessageId: recovery.messageId, tenantId: TENANT }, h.d);
+    assert.equal(result.ok, false);
+    assert.equal(h.calls.length, 0);
+  }
+  assert.equal((await store.listMessages(WS, recovery.sessionId)).length, 1);
+});
+
+test("a concurrent retry is refused while the original recovery turn holds its session lease", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_rep", "pro", store);
+  const failure = await runCopilotTurn(c, { question: "q", tenantId: TENANT }, deps({ replies: [], atlasThrows: new Error("offline") }).d);
+  const recovery = failure.recovery!;
+  let resume!: () => void;
+  const held = new Promise<void>((resolve) => { resume = resolve; });
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  const slow = deps({ replies: [{ content: "done" }] });
+  const chat = slow.d.atlasClient.chat.bind(slow.d.atlasClient);
+  slow.d.atlasClient.chat = async (...args: Parameters<AtlasClient["chat"]>) => { entered(); await held; return chat(...args); };
+  const input = { question: "q", tenantId: TENANT, sessionId: recovery.sessionId, retryMessageId: recovery.messageId };
+  const running = runCopilotTurn(c, input, slow.d);
+  await started;
+  const duplicate = deps({ replies: [] });
+  const refused = await runCopilotTurn(c, input, duplicate.d);
+  assert.equal(refused.ok, false);
+  if (!refused.ok) assert.equal(refused.violations[0].code, "turn_in_progress");
+  assert.equal(duplicate.calls.length, 0);
+  resume();
+  assert.ok((await running).ok);
+  const release = await store.acquireSessionTurn(WS, recovery.sessionId);
+  assert.ok(release, "lease released after completion");
+  await release();
+});
