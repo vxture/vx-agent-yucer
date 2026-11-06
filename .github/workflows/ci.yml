@@ -101,6 +101,13 @@ jobs:
       - name: Docs numbering guardrail (strict)
         run: node scripts/guardrails/check-docs-numbering.mjs --strict
 
+      - name: Existing increments are immutable (TD-028)
+        env:
+          DDL_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git fetch --no-tags origin "$DDL_BASE"
+          node scripts/guardrails/check-incr-immutable.mjs "$DDL_BASE"
+
       - name: Increment grant guardrail (a new table must grant on itself)
         run: node scripts/guardrails/check-incr-grants.mjs --strict
 
