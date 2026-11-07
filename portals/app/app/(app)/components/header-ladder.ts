@@ -7,19 +7,20 @@
 // both (2026-10-08), and two copies of a selector string would drift.
 //
 // NAMED OVERRIDES (owner allows local CSS where the DS stops, 2026-09-24). Each
-// only sets a size, never a colour, spacing or structure, and each is removed
+// sets header size and spacing, never colours, and each is removed
 // when the DS follows the ladder (TD-037).
 
 /** ShellProductTitle hard-codes `text-xl font-semibold` (20px) on the name and
  *  the type; its sibling ShellHeaderTitle is heading-3 (14px). */
 export const PRODUCT_TITLE_ON_LADDER = "[&_span.text-xl]:text-heading-3";
 
-/** Header icon controls: DS control-xl (32px), icon-lg (24px). */
-export const HEADER_ICON_CONTROL = "size-control-xl [&_svg]:size-icon-lg";
+/** A 32px hit area does not dictate the glyph size. */
+export const HEADER_ICON_CONTROL = "size-control-xl";
+export const HEADER_LARGE_ICON = "[&_svg]:size-icon-lg";
 
 /** ShellToolbox uses content-box and padding, so normalize its outer box. */
 export const TOOLBOX_ON_LADDER =
-  "[&_[data-slot^=shell-toolbox-]]:box-border [&_[data-slot^=shell-toolbox-]]:size-control-xl [&_[data-slot^=shell-toolbox-]_svg]:size-icon-lg";
+  "gap-0 p-0 [&_[data-slot^=shell-toolbox-]]:m-0 [&_[data-slot^=shell-toolbox-]]:box-border [&_[data-slot^=shell-toolbox-]]:size-control-xl [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm";
 
 /** Keep the native 32px avatar inside a matching 32px trigger. */
 export const AVATAR_ON_LADDER = "size-control-xl";

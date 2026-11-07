@@ -378,6 +378,7 @@ export function AppShell({
           // 单产品视角 (design-system 03 section 7.1, 13.5+): full width, the page
           // background, the DS's default workspace height (md, 48px).
           surface="background"
+          className="gap-md"
           leading={
             <>
               {/* (1) THE BOARD TOGGLE - restored (owner, 2026-09-21: 恢复侧边栏
@@ -485,15 +486,8 @@ export function AppShell({
             />
           }
           trailing={
-            /* THE DS'S OWN trailing WRAPPER USES gap-2xs (4px) - fine for the
-               icons INSIDE one control cluster (HeaderTools' own
-               ShellIconGroup), too tight between three separate clusters
-               (deck handle / tools / user menu), which is what read as
-               crowded (owner, 2026-09-14). ShellHeader takes no prop for that
-               gap, so this div is the one place it can be widened - it
-               becomes the WRAPPER's only child, so the DS's own gap-2xs
-               governs nothing once there is only one item to space. */
-            <div className="flex items-center gap-lg">
+            /* Search-to-tools and cluster gaps use the same 16px token. */
+            <div className="flex items-center gap-md">
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
               <AgentDockButton
