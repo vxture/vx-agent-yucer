@@ -160,6 +160,18 @@ jobs:
           done
           find probe/types -name "*.d.ts" | sort
 
+      # Carry the exact published tarballs back to local development without
+      # exporting the organization registry credential.
+      - name: Collect published design packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        run: |
+          mkdir -p probe/packages
+          for p in design-system design-ui design-tokens; do
+            version=$(find node_modules/.pnpm -maxdepth 5 -path "*/@vxture/$p/package.json" -print -quit | xargs node -p 'require("./"+process.argv[1]).version')
+            npm pack "@vxture/$p@$version" --ignore-scripts --pack-destination probe/packages
+          done
+
       - name: Upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

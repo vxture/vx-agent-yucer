@@ -1,6 +1,6 @@
 "use client";
 
-import { HEADER_ICON_CONTROL } from "./header-ladder";
+import { HEADER_ICON_CONTROL, HEADER_LARGE_ICON } from "./header-ladder";
 
 import { ShellIconButton } from "@vxture/design-system";
 import { useMessages } from "../lib/i18n/provider";
@@ -59,7 +59,7 @@ export function AgentDockButton({
 
   return (
     <span className="relative inline-flex">
-      <ShellIconButton className={HEADER_ICON_CONTROL} icon="sparkles" label={label} onClick={onToggle} />
+      <ShellIconButton className={`${HEADER_ICON_CONTROL} ${HEADER_LARGE_ICON}`} icon="sparkles" label={label} onClick={onToggle} />
 
       {count > 0 ? (
         // aria-hidden because the count is already in the button's label; a

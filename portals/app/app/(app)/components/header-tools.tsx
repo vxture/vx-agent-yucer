@@ -56,7 +56,7 @@ export function HeaderTools({
   // three of them - help, messages (a side drawer), settings.
   return (
     <ShellHeaderTools
-      /* Shared 32px controls and 24px icons (TD-037). */
+      /* 32px controls, 16px glyphs and 4px internal gaps (TD-037). */
       className={TOOLBOX_ON_LADDER}
       label={HEADER_TEXT.toolsAria}
       linkComponent={Link}

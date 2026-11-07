@@ -2555,7 +2555,12 @@ export const HEADER_TEXT = {
   tenantUnknown: "未标识",
   close: "关闭",
   subscriptionLabel: "订阅",
-  tenantConsole: "租户控制台",
+  tenantConsole: "\u7ec4\u7ec7\u4fe1\u606f",
+  personalScope: "\u4e2a\u4eba",
+  organizationScope: "\u7ec4\u7ec7",
+  applicationCentre: "\u5e94\u7528\u4e2d\u5fc3",
+  applicationCentreDescription: "\u8bbf\u95ee\u5168\u90e8\u667a\u80fd\u4f53\u5e94\u7528\uff0c\u8fdb\u5165\u4e2a\u4eba\u95e8\u6237",
+  organizationInfoDescription: "\u67e5\u770b\u7ec4\u7ec7\u4e0e\u7a7a\u95f4\u4fe1\u606f\uff0c\u524d\u5f80\u63a7\u5236\u53f0\u7ba1\u7406",
 
   // The four tools. Grouped because they are the same KIND of thing - they act
   // on the shell, not on the data - and a reader who has found one has found
@@ -2575,6 +2580,13 @@ export const HEADER_TEXT = {
   settings: "设置",
 
   adminAria: "管理",
+  userMedalIdentity: "\u5b9e\u540d",
+  userMedalSecurity: "\u5b89\u5168",
+  userMedalMembership: "\u4f1a\u5458",
+  userMedalContribution: "\u8d21\u732e",
+  userMedalBenefits: "\u6743\u76ca",
+  userLevel: "\u7528\u6237\u7b49\u7ea7",
+  userLevelUnavailable: "\u6682\u65e0\u7b49\u7ea7\u4fe1\u606f",
   userMenuOpen: "打开用户菜单",
   // The user panel (DS complete panel, owner 2026-09-10).
   accountStatus: (status: string | null) =>

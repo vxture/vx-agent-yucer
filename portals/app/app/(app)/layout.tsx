@@ -295,6 +295,7 @@ export default async function AppLayout({
         notificationsTotal={notificationTotal(bellItems)}
         notificationItems={bellItems}
         orgLabel={session.user.activeOrgName}
+        activeOrgType={session.user.activeOrgType}
         locale={locale}
         /* NEXT_PUBLIC_APP_ENV, not a guess from the version string's shape.
          Beta ships a `beta-YYYYMMDD.N` tag and production ships `vX.Y.Z`, so
@@ -315,6 +316,7 @@ export default async function AppLayout({
         admin={admin}
         userName={session.user.displayName}
         userPhone={session.user.phone}
+        userEmail={session.user.email}
         userPicture={session.user.picture}
         accountStatus={session.user.accountStatus}
         consoleUrl={consoleUrl()}

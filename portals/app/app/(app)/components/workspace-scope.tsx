@@ -1,6 +1,6 @@
 "use client";
 
-import { HEADER_TEXT_CONTROL } from "./header-ladder";
+import { HEADER_SCOPE_CONTROL } from "./header-ladder";
 
 import {
   ShellPanelContent,
@@ -9,29 +9,11 @@ import {
   ShellPanelSection,
   ShellScopeButton,
 } from "@vxture/design-system";
-import { Popover, PopoverTrigger } from "@vxture/design-ui";
+import { Popover, PopoverTrigger, StatusBadge } from "@vxture/design-ui";
 import { useState } from "react";
 import { useMessages } from "../lib/i18n/provider";
 
-// The workspace and the tenant it belongs to.
-//
-// IT IS A PANEL, NOT A SWITCHER, and that is forced by the data rather than
-// chosen. The token carries exactly one `activeWorkspace` and one `activeOrg`;
-// both were decided upstream at sign-in, and this repo has no endpoint that
-// could enumerate alternatives - the platform contract surface here is C1 (OIDC
-// RP), C2 (entitlement) and C3 (provisioning), and none of them lists a
-// member's workspaces. Drawing a caret over a list of one would promise a
-// choice that does not exist, so the panel says where you are and how to
-// change it instead.
-//
-// The caret stays, because the control DOES open something. What it opens is
-// an explanation rather than a menu.
-//
-// Every string arrives from the caller. The DS's own fallbacks are English as
-// of design-ui 5.0, and its changelog is explicit that a default appearing in a
-// production interface means someone forgot to pass one - not a supported
-// configuration. Passing them all is also what makes the locale switch a real
-// switch rather than a half-translated page.
+// Current scope comes from the token. Other memberships are managed in console.
 
 export interface WorkspaceScopeProps {
   readonly workspaceLabel: string;
@@ -39,65 +21,69 @@ export interface WorkspaceScopeProps {
    *  rules revision) - a raw org id here was the same class of defect as the
    *  fallback workspace label: neither is a fact a reader can act on. */
   readonly orgLabel: string | null;
-  /** The subscription tier's display label, or 未订阅. */
-  readonly tierLabel: string;
   /** The platform console - where the tenant is managed. Null hides the row. */
   readonly consoleUrl: string | null;
+  readonly activeOrgType: string | null;
 }
 
 export function WorkspaceScope({
   workspaceLabel,
   orgLabel,
-  tierLabel,
   consoleUrl,
+  activeOrgType,
 }: WorkspaceScopeProps) {
   const { HEADER_TEXT } = useMessages();
-  /* THE DS'S STRUCTURE (design-system 12.x, owner 2026-09-10: hover 放宽，
-     内部没有适配). ShellScopeButton widens to the panel's width on hover AND
-     while open, and it takes `active` for the open half - so it has to BE
-     the trigger (it forwards its ref) and be told when the panel is open.
-     The old shape wrapped it in a span and never passed `active`: the hover
-     widened, the click did not, and the button snapped back to 192px the
-     moment the pointer left, with the 320px panel hanging off a narrow
-     control. ShellPanelContent IS the DS's PopoverContent, so it is the
-     content directly; a PopoverContent around it was a popover in a popover. */
   const [open, setOpen] = useState(false);
+  const scopeType = activeOrgType?.toLowerCase();
+  const typeLabel = scopeType === "personal" ? HEADER_TEXT.personalScope
+    : scopeType === "organization" || scopeType === "team" ? HEADER_TEXT.organizationScope : null;
+  const tenantLabel = orgLabel ?? HEADER_TEXT.tenantUnknown;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        {/* NO ICON: design-system 03 section 7.1 draws the tenant button as the
-            name and its caret only (Figma Header_console_tenant has none). The
-            panel it opens keeps its icon lead - that is a header, not a button. */}
         <ShellScopeButton
-          className={HEADER_TEXT_CONTROL}
-          label={workspaceLabel}
-          ariaLabel={HEADER_TEXT.workspaceAria}
+          className={HEADER_SCOPE_CONTROL}
+          icon="building"
+          label={(
+            <span className="flex items-center gap-2xs whitespace-nowrap">
+              <span className="text-label text-foreground">{tenantLabel}</span>
+              <span aria-hidden="true" className="text-muted-foreground">·</span>
+              <span className="text-label-small text-muted-foreground">{workspaceLabel}</span>
+            </span>
+          )}
+          ariaLabel={`${HEADER_TEXT.workspaceAria}: ${tenantLabel} · ${workspaceLabel}`}
           active={open}
           caret
         />
       </PopoverTrigger>
-      {/* THE DS'S TENANT PANEL (design-system 12.20-12.23; owner 2026-09-26:
-          tenantpanel 已更新): the tenant as the panel's header (icon lead, not
-          an avatar - an organisation is not a person), then its facts as
-          panel rows - workspace, subscription tier - and the way to manage it
-          in the platform console. Still only facts this product holds: no
-          balance or quota rows it would have to invent. */}
-      <ShellPanelContent align="start">
+      <ShellPanelContent align="start" className="gap-lg">
         <ShellPanelHeader
           lead="icon"
-          icon="building-library"
-          title={orgLabel ?? HEADER_TEXT.tenantUnknown}
-          metaRows={[{ key: "tenant", content: HEADER_TEXT.tenantLabel }]}
+          icon="building"
+          title={tenantLabel}
+          titleAside={typeLabel ? <StatusBadge size="xs" tone="neutral" icon={false}>{typeLabel}</StatusBadge> : undefined}
+          metaRows={[{ key: "workspace", icon: "workspace", content: workspaceLabel }]}
         />
-        <ShellPanelSection>
-          <ShellPanelRow icon="workspace" label={HEADER_TEXT.workspaceLabel} value={workspaceLabel} />
-          <ShellPanelRow icon="seal-check" label={HEADER_TEXT.subscriptionLabel} value={tierLabel} valueTone="strong" />
+        <ShellPanelSection className="gap-md">
+          <ShellPanelRow
+            icon="squares-four"
+            label={HEADER_TEXT.applicationCentre}
+            description={HEADER_TEXT.applicationCentreDescription}
+            href="https://ruyin.work"
+            newTab
+            trailingIcon="external-link"
+          />
+          {consoleUrl ? (
+            <ShellPanelRow
+              icon="building"
+              label={HEADER_TEXT.tenantConsole}
+              description={HEADER_TEXT.organizationInfoDescription}
+              href={consoleUrl}
+              newTab
+              trailingIcon="external-link"
+            />
+          ) : null}
         </ShellPanelSection>
-        {consoleUrl ? (
-          <ShellPanelSection>
-            <ShellPanelRow icon="settings" label={HEADER_TEXT.tenantConsole} href={consoleUrl} newTab chevron />
-          </ShellPanelSection>
-        ) : null}
       </ShellPanelContent>
     </Popover>
   );

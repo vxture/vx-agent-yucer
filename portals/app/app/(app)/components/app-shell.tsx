@@ -9,6 +9,7 @@ import {
   ShellProductTitle,
   ShellPreferencePanel,
   ShellSearchBox,
+  ShellPanelSlots,
   ShellUserMenu,
   useTheme,
 } from "@vxture/design-system";
@@ -139,6 +140,7 @@ export interface AppShellProps {
   /** access_token's `phone` - the identity line under the name. Null when the
    *  member never set one; the popover simply has one fewer line then. */
   readonly userPhone: string | null;
+  readonly userEmail: string | null;
   /** access_token's `picture` - only present when the platform has a custom
    *  avatar on file (rare). Null falls back to the product's own default face. */
   readonly userPicture: string | null;
@@ -155,6 +157,7 @@ export interface AppShellProps {
    * so rather than printing an empty row or a raw org id.
    */
   readonly orgLabel: string | null;
+  readonly activeOrgType: string | null;
   /** Resolved on the server so the first paint is already in this language. */
   readonly locale: Locale;
   /** What search can reach. Assembled on the server so it obeys both gates. */
@@ -190,12 +193,14 @@ export function AppShell({
   admin,
   userName,
   userPhone,
+  userEmail,
   userPicture,
   accountStatus,
   consoleUrl,
   workspaceLabel,
   tier,
   orgLabel,
+  activeOrgType,
   locale,
   searchable,
   boardOpen,
@@ -204,7 +209,7 @@ export function AppShell({
 }: AppShellProps) {
   const [query, setQuery] = useState("");
   const router = useRouter();
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, density, setDensity, fontSize, setFontSize } = useTheme();
   const { DOMAIN_LABEL, HEADER_TEXT, SHELL_TEXT } = useMessages();
 
   // The first path segment IS the domain key: the routes are named for the
@@ -378,6 +383,7 @@ export function AppShell({
           // 单产品视角 (design-system 03 section 7.1, 13.5+): full width, the page
           // background, the DS's default workspace height (md, 48px).
           surface="background"
+          className="gap-md"
           leading={
             <>
               {/* (1) THE BOARD TOGGLE - restored (owner, 2026-09-21: 恢复侧边栏
@@ -429,12 +435,7 @@ export function AppShell({
               <ShellHeaderMark href="/" src={BRAND_MARK_SRC} alt={HEADER_TEXT.logoAlt} />
               <ShellHeaderDivider />
               <ShellProductTitle
-                /* NAMED OVERRIDE (owner allows local CSS where the DS stops,
-                   2026-09-24; DS gap - see TD-037). design-system 15 hard-codes
-                   this lockup at `text-xl font-semibold` (20px) while its sibling
-                   ShellHeaderTitle follows the new heading ladder (heading-3,
-                   14px). Both spans are put on heading-3 so the product name
-                   reads at the ladder's size. Remove when the DS does. */
+                /* Shared name/descriptor sizing and centered tier (TD-037). */
                 className={PRODUCT_TITLE_ON_LADDER}
                 logoSrc={PRODUCT_MARK_SRC}
                 name={SHELL_TEXT.brandMark}
@@ -455,7 +456,7 @@ export function AppShell({
               <WorkspaceScope
                 workspaceLabel={workspaceLabel}
                 orgLabel={orgLabel}
-                tierLabel={tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
+                activeOrgType={activeOrgType}
                 consoleUrl={consoleUrl}
               />
             </>
@@ -485,15 +486,8 @@ export function AppShell({
             />
           }
           trailing={
-            /* THE DS'S OWN trailing WRAPPER USES gap-2xs (4px) - fine for the
-               icons INSIDE one control cluster (HeaderTools' own
-               ShellIconGroup), too tight between three separate clusters
-               (deck handle / tools / user menu), which is what read as
-               crowded (owner, 2026-09-14). ShellHeader takes no prop for that
-               gap, so this div is the one place it can be widened - it
-               becomes the WRAPPER's only child, so the DS's own gap-2xs
-               governs nothing once there is only one item to space. */
-            <div className="flex items-center gap-lg">
+            /* Search-to-tools and cluster gaps use the same 16px token. */
+            <div className="flex items-center gap-md">
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
               <AgentDockButton
@@ -513,29 +507,8 @@ export function AppShell({
               {/* openLabel, or the trigger announces itself as "User menu" -
                   the DS's English fallback, and the one outlet the header audit
                   caught still defaulting. */}
-              {/* THE DS'S COMPLETE PANEL, as its preview page draws it (owner,
-                  2026-09-10: 按 DS 设计修正 header avatar 弹出的用户面板，有完整
-                  组件面板): the header with the name, the account-status tag and
-                  two meta lines (who the platform says you are; where you are),
-                  the USER'S POINTS / LEVEL badges (the preview's Lv.4 - not
-                  roles, and not the subscription tier either; both were the
-                  owner's corrections), the account centre as a link, the
-                  preferences, then the action pair 切换用户 above 退出登录, the
-                  latter the one danger row.
-
-                  The badge bar is EMPTY for now (owner, 2026-09-10: 先留空，等
-                  平台提供). Points and level belong to the platform user
-                  account, and nothing yucer holds carries them: the token
-                  claims stop at sub / account_status, and the entitlement
-                  contract is workspace tier and quota, not a person. An empty
-                  array leaves no blank row (DS: badges 是空数组时不留空行).
-
-                  displayName / uniqueLine (phone) / meta (org · workspace) /
-                  avatarSrc all read from the access_token now (2026-09-16 rules
-                  revision) - until then this panel showed the bare sub and a
-                  static "unknown workspace" string, and the avatar comment
-                  claimed the token "carries no picture claim" (it can, rarely -
-                  only when the platform has a custom avatar on file). */}
+              {/* DS identity, account link, preferences and session actions.
+                  Organization context belongs to WorkspaceScope. */}
               <ShellUserMenu
                 /* Match the native avatar with a 32px trigger (TD-037). */
                 triggerClassName={AVATAR_ON_LADDER}
@@ -544,15 +517,30 @@ export function AppShell({
                   displayName: userName,
                   // No +86, 3-4-4 - the same as every other phone shown here.
                   uniqueLine: userPhone ? formatPhone(userPhone) : undefined,
-                  meta: `${workspaceLabel} · ${orgLabel ?? HEADER_TEXT.tenantUnknown}`,
-                  avatarSrc: userPicture ?? "/assets/icons/avatar-default.svg",
+                  meta: userEmail || undefined,
+                  avatarSrc: userPicture?.trim() || undefined,
                   avatarAlt: userName,
                   statusTag: {
                     label: HEADER_TEXT.accountStatus(accountStatus),
-                    verified: accountStatus === "active",
+                    // Account status is not an identity-verification claim.
+                    verified: false,
                   },
                   badges: [],
                 }}
+                extras={
+                  <ShellPanelSlots
+                    label={HEADER_TEXT.userLevel}
+                    lead="identity"
+                    leadIcon="seal-check"
+                    slots={[
+                      { key: "identity", icon: "seal-check", label: HEADER_TEXT.userMedalIdentity },
+                      { key: "security", icon: "shield", label: HEADER_TEXT.userMedalSecurity },
+                      { key: "membership", icon: "star", label: HEADER_TEXT.userMedalMembership },
+                      { key: "contribution", icon: "medal", label: HEADER_TEXT.userMedalContribution },
+                      { key: "benefits", icon: "gift", label: HEADER_TEXT.userMedalBenefits },
+                    ]}
+                  />
+                }
                 links={
                   consoleUrl
                     ? [{ key: "console", label: HEADER_TEXT.accountCentre, href: consoleUrl, icon: "user-circle", newTab: true }]
@@ -602,7 +590,9 @@ export function AppShell({
                       nativeName: LOCALE_CONFIGS[l].nativeName,
                       flag: LOCALE_CONFIGS[l].flag,
                     }))}
-                    theme={mode === "dark" ? "dark" : "light"}
+                    theme={mode}
+                    density={density}
+                    fontSize={fontSize}
                     labels={{
                       title: HEADER_TEXT.prefTitle,
                       locale: HEADER_TEXT.prefLocale,
@@ -638,7 +628,9 @@ export function AppShell({
                       writeLocale(next as Locale);
                       router.refresh();
                     }}
-                    onThemeChange={(next) => setMode(next as "light" | "dark")}
+                    onThemeChange={setMode}
+                    onDensityChange={setDensity}
+                    onFontSizeChange={setFontSize}
                   />
                 }
               />

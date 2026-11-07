@@ -2047,18 +2047,26 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 `size="sm"`"，那是 `sm` 还是 16px 时写的，现已过期。
 
 **当前垫片（2026-11-06 owner 更新尺寸）**：Header 所有交互控件统一 32px；图标按钮为
-32px，图标 24px（包含 launcher）。Header 本身高度保持 DS 默认。尺寸使用 DS 的
-`control-xl` 与 `icon-lg` token；产品名排版与标题旁等级角标保留原规范。
+32px；launcher 与 AI 图标为 24px，侧栏开关及工具组图标为 16px。Header 本身高度保持 DS 默认。尺寸使用 DS 的
+`control-xl`、`icon-lg` 与 `icon-sm` token；产品名 18px、销售智能体说明 16px，名称、说明与档位均垂直居中；档位角标尺寸保留原规范。
 集中在 `components/header-ladder.ts`，登录态与门屏共用：
-- `PRODUCT_TITLE_ON_LADDER`：名称与类型为 `heading-3`。
-- `HEADER_ICON_CONTROL`：侧栏、launcher、智能助手按钮为 32px / 24px 图标。
-- `TOOLBOX_ON_LADDER`：工具箱改为 border-box 32px，避免旧 content-box 内距叠加；图标 24px。
+- `PRODUCT_TITLE_ON_LADDER`：名称 `text-lg`（18px）、类型 `text-base`（16px），档位包装器 `items-center`，与文字垂直居中。
+- `HEADER_ICON_CONTROL`：所有图标按钮外容器 32px；launcher 显式 lg 图标，AI 通过 `HEADER_LARGE_ICON` 为 24px；侧栏保留 DS 默认 16px。
+- `TOOLBOX_ON_LADDER`：工具箱 border-box 32px、图标 16px；组内 `gap-2xs`（4px），外内距与负外距清零，保留 DS 整组悬停效果。
 - `AVATAR_ON_LADDER`：触发按钮 32px，恢复 DS 原生 32px 头像。
 - `HEADER_TEXT_CONTROL`、`HEADER_SEARCH_CONTROL`：租户按钮、搜索框为 32px。
 
-只改尺寸，不改颜色或结构。**收回条件**：DS 组件支持上述统一尺寸后删除对应垫片；
+右侧搜索 / AI / 工具组 / 头像各组间用 `gap-md`（16px），左侧组内沿用 DS `gap-xs`（8px）。
+只改尺寸与布局间距，不改颜色或结构。**收回条件**：DS 组件支持上述统一尺寸后删除对应垫片；
 既有 DS 缺口追踪 vxture/vxture-design#111，产品尺寸要求以本次 owner 指令为准。
 
+
+**2026-11-07 用户面板回归 DS**：已在上游 vxture/vxture-design#113 修复并发布
+`design-system 15.0.1`（UI 12.0.0 / tokens 4.0.0）。单行操作与偏好控件统一
+32px，偏好行间距 8px，奖章容器 24px、图标 16px；未获得奖章仍显示中性图标，
+不再额外降低透明度。产品直接使用 `ShellUserMenu`、`ShellPanelSlots` 和
+`ShellPreferencePanel`，移除用户面板内部 CSS 垫片。五个奖章位不虚构已获得状态；
+姓名、电话、邮箱由真实登录资料提供，缺失字段不伪造。此修复不核销其余顶栏尺寸垫片。
 
 ### TD-012 - 2026-11-06 组织凭据复核更正
 
