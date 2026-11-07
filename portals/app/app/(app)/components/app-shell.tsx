@@ -430,12 +430,7 @@ export function AppShell({
               <ShellHeaderMark href="/" src={BRAND_MARK_SRC} alt={HEADER_TEXT.logoAlt} />
               <ShellHeaderDivider />
               <ShellProductTitle
-                /* NAMED OVERRIDE (owner allows local CSS where the DS stops,
-                   2026-09-24; DS gap - see TD-037). design-system 15 hard-codes
-                   this lockup at `text-xl font-semibold` (20px) while its sibling
-                   ShellHeaderTitle follows the new heading ladder (heading-3,
-                   14px). Both spans are put on heading-3 so the product name
-                   reads at the ladder's size. Remove when the DS does. */
+                /* Shared name/descriptor sizing and centered tier (TD-037). */
                 className={PRODUCT_TITLE_ON_LADDER}
                 logoSrc={PRODUCT_MARK_SRC}
                 name={SHELL_TEXT.brandMark}

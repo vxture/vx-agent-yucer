@@ -2048,9 +2048,9 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 
 **当前垫片（2026-11-06 owner 更新尺寸）**：Header 所有交互控件统一 32px；图标按钮为
 32px；launcher 与 AI 图标为 24px，侧栏开关及工具组图标为 16px。Header 本身高度保持 DS 默认。尺寸使用 DS 的
-`control-xl`、`icon-lg` 与 `icon-sm` token；产品名排版与标题旁等级角标保留原规范。
+`control-xl`、`icon-lg` 与 `icon-sm` token；产品名 18px、销售智能体说明 16px，名称、说明与档位均垂直居中；档位角标尺寸保留原规范。
 集中在 `components/header-ladder.ts`，登录态与门屏共用：
-- `PRODUCT_TITLE_ON_LADDER`：名称与类型为 `heading-3`。
+- `PRODUCT_TITLE_ON_LADDER`：名称 `text-lg`（18px）、类型 `text-base`（16px），档位包装器 `items-center`，与文字垂直居中。
 - `HEADER_ICON_CONTROL`：所有图标按钮外容器 32px；launcher 显式 lg 图标，AI 通过 `HEADER_LARGE_ICON` 为 24px；侧栏保留 DS 默认 16px。
 - `TOOLBOX_ON_LADDER`：工具箱 border-box 32px、图标 16px；组内 `gap-2xs`（4px），外内距与负外距清零，保留 DS 整组悬停效果。
 - `AVATAR_ON_LADDER`：触发按钮 32px，恢复 DS 原生 32px 头像。

@@ -10,9 +10,9 @@
 // sets header size and spacing, never colours, and each is removed
 // when the DS follows the ladder (TD-037).
 
-/** ShellProductTitle hard-codes `text-xl font-semibold` (20px) on the name and
- *  the type; its sibling ShellHeaderTitle is heading-3 (14px). */
-export const PRODUCT_TITLE_ON_LADDER = "[&_span.text-xl]:text-heading-3";
+/** Product name 18px, descriptor 16px; tier shares their vertical center. */
+export const PRODUCT_TITLE_ON_LADDER =
+  "[&>span.font-brand]:text-lg [&>span.text-xl:not(.font-brand)]:text-base [&>[data-slot=header-superscript]]:items-center";
 
 /** A 32px hit area does not dictate the glyph size. */
 export const HEADER_ICON_CONTROL = "size-control-xl";
