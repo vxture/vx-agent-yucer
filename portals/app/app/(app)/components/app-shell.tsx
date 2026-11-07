@@ -9,7 +9,7 @@ import {
   ShellProductTitle,
   ShellPreferencePanel,
   ShellSearchBox,
-  ShellPanelRow,
+  ShellPanelSlots,
   ShellUserMenu,
   useTheme,
 } from "@vxture/design-system";
@@ -140,6 +140,7 @@ export interface AppShellProps {
   /** access_token's `phone` - the identity line under the name. Null when the
    *  member never set one; the popover simply has one fewer line then. */
   readonly userPhone: string | null;
+  readonly userEmail: string | null;
   /** access_token's `picture` - only present when the platform has a custom
    *  avatar on file (rare). Null falls back to the product's own default face. */
   readonly userPicture: string | null;
@@ -192,6 +193,7 @@ export function AppShell({
   admin,
   userName,
   userPhone,
+  userEmail,
   userPicture,
   accountStatus,
   consoleUrl,
@@ -516,6 +518,7 @@ export function AppShell({
                   displayName: userName,
                   // No +86, 3-4-4 - the same as every other phone shown here.
                   uniqueLine: userPhone ? formatPhone(userPhone) : undefined,
+                  meta: userEmail || undefined,
                   avatarSrc: userPicture?.trim() || undefined,
                   avatarAlt: userName,
                   statusTag: {
@@ -525,7 +528,20 @@ export function AppShell({
                   },
                   badges: [],
                 }}
-                extras={<ShellPanelRow icon="medal" label={HEADER_TEXT.userLevel} value={HEADER_TEXT.userLevelUnavailable} />}
+                extras={
+                  <ShellPanelSlots
+                    label={HEADER_TEXT.userLevel}
+                    lead="identity"
+                    leadIcon="seal-check"
+                    slots={[
+                      { key: "identity", icon: "seal-check", label: HEADER_TEXT.userMedalIdentity },
+                      { key: "security", icon: "shield", label: HEADER_TEXT.userMedalSecurity },
+                      { key: "membership", icon: "star", label: HEADER_TEXT.userMedalMembership },
+                      { key: "contribution", icon: "medal", label: HEADER_TEXT.userMedalContribution },
+                      { key: "benefits", icon: "gift", label: HEADER_TEXT.userMedalBenefits },
+                    ]}
+                  />
+                }
                 links={
                   consoleUrl
                     ? [{ key: "console", label: HEADER_TEXT.accountCentre, href: consoleUrl, icon: "user-circle", newTab: true }]

@@ -316,6 +316,7 @@ export default async function AppLayout({
         admin={admin}
         userName={session.user.displayName}
         userPhone={session.user.phone}
+        userEmail={session.user.email}
         userPicture={session.user.picture}
         accountStatus={session.user.accountStatus}
         consoleUrl={consoleUrl()}

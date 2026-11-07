@@ -2580,6 +2580,11 @@ export const HEADER_TEXT = {
   settings: "设置",
 
   adminAria: "管理",
+  userMedalIdentity: "\u5b9e\u540d",
+  userMedalSecurity: "\u5b89\u5168",
+  userMedalMembership: "\u4f1a\u5458",
+  userMedalContribution: "\u8d21\u732e",
+  userMedalBenefits: "\u6743\u76ca",
   userLevel: "\u7528\u6237\u7b49\u7ea7",
   userLevelUnavailable: "\u6682\u65e0\u7b49\u7ea7\u4fe1\u606f",
   userMenuOpen: "打开用户菜单",
