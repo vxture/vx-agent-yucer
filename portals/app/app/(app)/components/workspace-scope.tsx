@@ -21,7 +21,6 @@ export interface WorkspaceScopeProps {
    *  rules revision) - a raw org id here was the same class of defect as the
    *  fallback workspace label: neither is a fact a reader can act on. */
   readonly orgLabel: string | null;
-  /** The subscription tier's display label, or 未订阅. */
   /** The platform console - where the tenant is managed. Null hides the row. */
   readonly consoleUrl: string | null;
   readonly activeOrgType: string | null;
@@ -57,7 +56,7 @@ export function WorkspaceScope({
           caret
         />
       </PopoverTrigger>
-      <ShellPanelContent align="start">
+      <ShellPanelContent align="start" className="gap-lg">
         <ShellPanelHeader
           lead="icon"
           icon="building"
@@ -65,15 +64,26 @@ export function WorkspaceScope({
           titleAside={typeLabel ? <StatusBadge size="xs" tone="neutral" icon={false}>{typeLabel}</StatusBadge> : undefined}
           metaRows={[{ key: "workspace", icon: "workspace", content: workspaceLabel }]}
         />
-        <ShellPanelSection>
-          <ShellPanelRow icon="squares-four" label={HEADER_TEXT.applicationCentre} href="https://ruyin.work" newTab chevron />
-          {consoleUrl ? <ShellPanelRow icon="building" label={HEADER_TEXT.tenantConsole} href={consoleUrl} newTab chevron /> : null}
+        <ShellPanelSection className="gap-md">
+          <ShellPanelRow
+            icon="squares-four"
+            label={HEADER_TEXT.applicationCentre}
+            description={HEADER_TEXT.applicationCentreDescription}
+            href="https://ruyin.work"
+            newTab
+            trailingIcon="external-link"
+          />
+          {consoleUrl ? (
+            <ShellPanelRow
+              icon="building"
+              label={HEADER_TEXT.tenantConsole}
+              description={HEADER_TEXT.organizationInfoDescription}
+              href={consoleUrl}
+              newTab
+              trailingIcon="external-link"
+            />
+          ) : null}
         </ShellPanelSection>
-        {consoleUrl ? (
-          <ShellPanelSection>
-            <ShellPanelRow icon="arrow-left-right" label={HEADER_TEXT.switchOrganization} href={consoleUrl} newTab chevron />
-          </ShellPanelSection>
-        ) : null}
       </ShellPanelContent>
     </Popover>
   );
