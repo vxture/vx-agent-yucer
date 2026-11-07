@@ -25,6 +25,7 @@ export interface WorkspaceScopeProps {
   readonly tierLabel: string;
   /** The platform console - where the tenant is managed. Null hides the row. */
   readonly consoleUrl: string | null;
+  readonly activeOrgType: string | null;
 }
 
 export function WorkspaceScope({
@@ -32,6 +33,7 @@ export function WorkspaceScope({
   orgLabel,
   tierLabel,
   consoleUrl,
+  activeOrgType,
 }: WorkspaceScopeProps) {
   const { HEADER_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
@@ -57,15 +59,15 @@ export function WorkspaceScope({
       <ShellPanelContent align="start">
         <ShellPanelHeader
           lead="icon"
-          icon="building"
+          icon={activeOrgType === "personal" ? "user-circle" : "building"}
           title={tenantLabel}
-          metaRows={[{ key: "workspace", icon: "workspace", content: workspaceLabel }]}
+          metaRows={[{ key: "workspace", icon: "workspace", content: `${activeOrgType === "personal" ? HEADER_TEXT.personalScope : HEADER_TEXT.organizationScope} · ${workspaceLabel}` }]}
         />
-        {consoleUrl ? (
-          <ShellPanelSection>
-            <ShellPanelRow icon="settings" label={HEADER_TEXT.tenantConsole} href={consoleUrl} newTab chevron />
-          </ShellPanelSection>
-        ) : null}
+        <ShellPanelSection>
+          <ShellPanelRow icon="squares-four" label={HEADER_TEXT.applicationCentre} href="https://ruyin.work" newTab chevron />
+          {consoleUrl ? <ShellPanelRow icon="building" label={HEADER_TEXT.tenantConsole} href={consoleUrl} newTab chevron /> : null}
+          {consoleUrl ? <ShellPanelRow icon="arrow-left-right" label={HEADER_TEXT.switchOrganization} href={consoleUrl} newTab chevron /> : null}
+        </ShellPanelSection>
       </ShellPanelContent>
     </Popover>
   );

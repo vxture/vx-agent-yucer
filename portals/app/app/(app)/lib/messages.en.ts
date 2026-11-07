@@ -3500,7 +3500,11 @@ export const en: Dictionary = {
     workspaceLabel: "Workspace",
     tenantLabel: "Tenant",
     subscriptionLabel: "Subscription",
-    tenantConsole: "Tenant console",
+    applicationCentre: "Application centre",
+  switchOrganization: "Switch organization",
+  personalScope: "Personal",
+  organizationScope: "Organization",
+  tenantConsole: "Organization information",
     close: "Close",
     tenantUnknown: "Not identified",
 

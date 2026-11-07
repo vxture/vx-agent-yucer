@@ -2555,7 +2555,11 @@ export const HEADER_TEXT = {
   tenantUnknown: "未标识",
   close: "关闭",
   subscriptionLabel: "订阅",
-  tenantConsole: "租户控制台",
+  tenantConsole: "\u7ec4\u7ec7\u4fe1\u606f",
+  personalScope: "\u4e2a\u4eba",
+  organizationScope: "\u7ec4\u7ec7",
+  applicationCentre: "\u5e94\u7528\u4e2d\u5fc3",
+  switchOrganization: "\u5207\u6362\u7ec4\u7ec7",
 
   // The four tools. Grouped because they are the same KIND of thing - they act
   // on the shell, not on the data - and a reader who has found one has found
