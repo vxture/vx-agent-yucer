@@ -20,7 +20,7 @@ export const HEADER_LARGE_ICON = "[&_svg]:size-icon-lg";
 
 /** ShellToolbox uses content-box and padding, so normalize its outer box. */
 export const TOOLBOX_ON_LADDER =
-  "gap-0 p-0 [&_[data-slot^=shell-toolbox-]]:m-0 [&_[data-slot^=shell-toolbox-]]:box-border [&_[data-slot^=shell-toolbox-]]:size-control-xl [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm";
+  "gap-2xs p-0 [&_[data-slot^=shell-toolbox-]]:m-0 [&_[data-slot^=shell-toolbox-]]:box-border [&_[data-slot^=shell-toolbox-]]:size-control-xl [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm";
 
 /** Keep the native 32px avatar inside a matching 32px trigger. */
 export const AVATAR_ON_LADDER = "size-control-xl";

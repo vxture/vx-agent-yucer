@@ -2052,7 +2052,7 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 集中在 `components/header-ladder.ts`，登录态与门屏共用：
 - `PRODUCT_TITLE_ON_LADDER`：名称与类型为 `heading-3`。
 - `HEADER_ICON_CONTROL`：所有图标按钮外容器 32px；launcher 显式 lg 图标，AI 通过 `HEADER_LARGE_ICON` 为 24px；侧栏保留 DS 默认 16px。
-- `TOOLBOX_ON_LADDER`：工具箱 border-box 32px、图标 16px；组内 gap、外内距与负外距清零，保留 DS 整组悬停效果。
+- `TOOLBOX_ON_LADDER`：工具箱 border-box 32px、图标 16px；组内 `gap-2xs`（4px），外内距与负外距清零，保留 DS 整组悬停效果。
 - `AVATAR_ON_LADDER`：触发按钮 32px，恢复 DS 原生 32px 头像。
 - `HEADER_TEXT_CONTROL`、`HEADER_SEARCH_CONTROL`：租户按钮、搜索框为 32px。
 
