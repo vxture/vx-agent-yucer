@@ -2580,6 +2580,8 @@ export const HEADER_TEXT = {
   settings: "设置",
 
   adminAria: "管理",
+  userLevel: "\u7528\u6237\u7b49\u7ea7",
+  userLevelUnavailable: "\u6682\u65e0\u7b49\u7ea7\u4fe1\u606f",
   userMenuOpen: "打开用户菜单",
   // The user panel (DS complete panel, owner 2026-09-10).
   accountStatus: (status: string | null) =>

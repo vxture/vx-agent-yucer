@@ -32,3 +32,6 @@ export const HEADER_SEARCH_CONTROL = "[&_.h-control-md]:h-control-xl";
 /** Scope identity stays fully visible, with no hover/open width jump. */
 export const HEADER_SCOPE_CONTROL =
   "h-control-xl w-auto max-w-none shrink-0 hover:w-auto aria-expanded:w-auto [&>span]:overflow-visible [&>span]:text-clip";
+
+/** User actions and preference controls share one 32px row rhythm. */
+export const USER_PANEL_ON_LADDER = "[&_.h-control-md]:h-control-xl";
