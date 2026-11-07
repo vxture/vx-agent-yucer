@@ -2061,6 +2061,13 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 既有 DS 缺口追踪 vxture/vxture-design#111，产品尺寸要求以本次 owner 指令为准。
 
 
+**2026-11-07 用户面板回归 DS**：已在上游 vxture/vxture-design#113 修复并发布
+`design-system 15.0.1`（UI 12.0.0 / tokens 4.0.0）。单行操作与偏好控件统一
+32px，偏好行间距 8px，奖章容器 24px、图标 16px；未获得奖章仍显示中性图标，
+不再额外降低透明度。产品直接使用 `ShellUserMenu`、`ShellPanelSlots` 和
+`ShellPreferencePanel`，移除用户面板内部 CSS 垫片。五个奖章位不虚构已获得状态；
+姓名、电话、邮箱由真实登录资料提供，缺失字段不伪造。此修复不核销其余顶栏尺寸垫片。
+
 ### TD-012 - 2026-11-06 组织凭据复核更正
 
 补充 admin:org 权限后，组织 Dependabot secrets API 确认 `NODE_AUTH_TOKEN`
