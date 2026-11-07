@@ -1,5 +1,7 @@
 "use client";
 
+import { HEADER_TEXT_CONTROL } from "./header-ladder";
+
 import {
   ShellPanelContent,
   ShellPanelHeader,
@@ -67,6 +69,7 @@ export function WorkspaceScope({
             name and its caret only (Figma Header_console_tenant has none). The
             panel it opens keeps its icon lead - that is a header, not a button. */}
         <ShellScopeButton
+          className={HEADER_TEXT_CONTROL}
           label={workspaceLabel}
           ariaLabel={HEADER_TEXT.workspaceAria}
           active={open}

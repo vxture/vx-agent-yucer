@@ -33,7 +33,7 @@ import { NavBoard } from "./nav-board";
 import { AdminNav } from "./admin-nav";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
-import { AVATAR_ON_LADDER, PRODUCT_TITLE_ON_LADDER } from "./header-ladder";
+import { AVATAR_ON_LADDER, HEADER_ICON_CONTROL, HEADER_SEARCH_CONTROL, PRODUCT_TITLE_ON_LADDER } from "./header-ladder";
 import { WorkspaceScope } from "./workspace-scope";
 import type { BoardModuleCard, BoardSection } from "../lib/board";
 // NOT a static import of the Chinese constants any more. This component is
@@ -396,6 +396,7 @@ export function AppShell({
                   这样更好一些, 现在可以去掉 sidebar 顶部的区域), 不是被
                   这次改动顺带清理的意外产物。 */}
               <ShellIconButton
+                className={HEADER_ICON_CONTROL}
                 icon="sidebar"
                 label={showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen}
                 onClick={toggleBoard}
@@ -467,6 +468,7 @@ export function AppShell({
           centerAlign="end"
           center={
             <ShellSearchBox
+              className={HEADER_SEARCH_CONTROL}
               query={query}
               onQueryChange={setQuery}
               groups={searchGroups}
@@ -535,9 +537,7 @@ export function AppShell({
                   claimed the token "carries no picture claim" (it can, rarely -
                   only when the platform has a custom avatar on file). */}
               <ShellUserMenu
-                /* NAMED OVERRIDE (DS gap - see TD-037): the DS draws the avatar
-                   at a fixed 32px inside a 24px icon button, so it overflowed
-                   it. Brought to the button's own 24px. */
+                /* Match the native avatar with a 32px trigger (TD-037). */
                 triggerClassName={AVATAR_ON_LADDER}
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
