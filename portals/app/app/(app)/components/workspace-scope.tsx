@@ -42,7 +42,13 @@ export function WorkspaceScope({
         <ShellScopeButton
           className={HEADER_TEXT_CONTROL}
           icon="building"
-          label={`${tenantLabel} · ${workspaceLabel}`}
+          label={(
+            <span className="flex min-w-0 items-center gap-2xs">
+              <span className="truncate text-label text-foreground">{tenantLabel}</span>
+              <span aria-hidden="true" className="text-muted-foreground">·</span>
+              <span className="truncate text-label-small text-muted-foreground">{workspaceLabel}</span>
+            </span>
+          )}
           ariaLabel={`${HEADER_TEXT.workspaceAria}: ${tenantLabel} · ${workspaceLabel}`}
           active={open}
           caret
