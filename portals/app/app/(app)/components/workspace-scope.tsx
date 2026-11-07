@@ -41,8 +41,9 @@ export function WorkspaceScope({
       <PopoverTrigger asChild>
         <ShellScopeButton
           className={HEADER_TEXT_CONTROL}
-          label={tenantLabel}
-          ariaLabel={`${HEADER_TEXT.workspaceAria}: ${tenantLabel}`}
+          icon="building"
+          label={`${tenantLabel} · ${workspaceLabel}`}
+          ariaLabel={`${HEADER_TEXT.workspaceAria}: ${tenantLabel} · ${workspaceLabel}`}
           active={open}
           caret
         />
