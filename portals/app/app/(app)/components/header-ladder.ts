@@ -14,10 +14,16 @@
  *  the type; its sibling ShellHeaderTitle is heading-3 (14px). */
 export const PRODUCT_TITLE_ON_LADDER = "[&_span.text-xl]:text-heading-3";
 
-/** ShellToolbox draws 20px icons in 28px areas; every other header control is
- *  24px with a 16px icon. A 16px box plus its own 4px padding is 24px. */
-export const TOOLBOX_ON_LADDER =
-  "[&_[data-slot^=shell-toolbox-]]:size-icon-sm [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm";
+/** Header icon controls: DS control-xl (32px), icon-lg (24px). */
+export const HEADER_ICON_CONTROL = "size-control-xl [&_svg]:size-icon-lg";
 
-/** ShellUserMenu draws the avatar at a fixed 32px inside a 24px icon button. */
-export const AVATAR_ON_LADDER = "[&_.size-icon-xl]:size-icon-lg";
+/** ShellToolbox uses content-box and padding, so normalize its outer box. */
+export const TOOLBOX_ON_LADDER =
+  "[&_[data-slot^=shell-toolbox-]]:box-border [&_[data-slot^=shell-toolbox-]]:size-control-xl [&_[data-slot^=shell-toolbox-]_svg]:size-icon-lg";
+
+/** Keep the native 32px avatar inside a matching 32px trigger. */
+export const AVATAR_ON_LADDER = "size-control-xl";
+
+/** Text controls share the same 32px height as the icon controls. */
+export const HEADER_TEXT_CONTROL = "h-control-xl";
+export const HEADER_SEARCH_CONTROL = "[&_.h-control-md]:h-control-xl";

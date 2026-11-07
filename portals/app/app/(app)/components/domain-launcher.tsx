@@ -1,5 +1,7 @@
 "use client";
 
+import { HEADER_ICON_CONTROL } from "./header-ladder";
+
 import Link from "next/link";
 import {
   Icon,
@@ -307,6 +309,7 @@ export function DomainLauncher({
     <Popover>
       <PopoverTrigger asChild>
         <ShellIconButton
+          className={HEADER_ICON_CONTROL}
           icon="app-grid"
           label={LAUNCHER_TEXT.buttonLabel}
         >

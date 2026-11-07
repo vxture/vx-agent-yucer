@@ -2046,19 +2046,18 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 都不带）；九宫格图标当时回到默认 16px（2026-10-20 已按 DS 专用 launcher 恢复 24px，见上）。注意 03 section 7.1 与 13.5 的更新记录仍写"等级用
 `size="sm"`"，那是 `sm` 还是 16px 时写的，现已过期。
 
-**仍在的垫片（点名）**：三条覆盖集中在 `components/header-ladder.ts` 一处，登录态外壳
-（`app-shell.tsx`、`header-tools.tsx`）与四个门屏（`gate-frame.tsx`：登录、已退出、
-未订阅、无角色）共用，`header-ladder.test.ts` 防止两边各写一份而漂移。
-- `PRODUCT_TITLE_ON_LADDER`：`ShellProductTitle` 的名称与类型收到 `heading-3`。
-- `TOOLBOX_ON_LADDER`：`ShellHeaderTools` 把 `shell-toolbox-*` 的盒子与图标收到
-  `size-icon-sm`（16px，加自身 4px 内距即 24px）。
-- `AVATAR_ON_LADDER`：`ShellUserMenu` 头像收到 24px（门屏没有头像）。
+**当前垫片（2026-11-06 owner 更新尺寸）**：Header 所有交互控件统一 32px；图标按钮为
+32px，图标 24px（包含 launcher）。Header 本身高度保持 DS 默认。尺寸使用 DS 的
+`control-xl` 与 `icon-lg` token；产品名排版与标题旁等级角标保留原规范。
+集中在 `components/header-ladder.ts`，登录态与门屏共用：
+- `PRODUCT_TITLE_ON_LADDER`：名称与类型为 `heading-3`。
+- `HEADER_ICON_CONTROL`：侧栏、launcher、智能助手按钮为 32px / 24px 图标。
+- `TOOLBOX_ON_LADDER`：工具箱改为 border-box 32px，避免旧 content-box 内距叠加；图标 24px。
+- `AVATAR_ON_LADDER`：触发按钮 32px，恢复 DS 原生 32px 头像。
+- `HEADER_TEXT_CONTROL`、`HEADER_SEARCH_CONTROL`：租户按钮、搜索框为 32px。
 
-三处都只改尺寸，不改颜色、间距或结构；owner 2026-09-24 允许为打磨写自有样式，前提是点名。
-
-**缺失**：DS 应把这三件按新档位重画（产品名 `heading-3`、工具箱 24px / 16px 图标、头像
-跟随按钮 24px），并更正 03 section 7.1 里等级徽标的写法。**收回条件**：DS 发布后删掉三处
-覆盖与本条。待随 DS 缺口清单上报（vxture/vxture-design#111）。
+只改尺寸，不改颜色或结构。**收回条件**：DS 组件支持上述统一尺寸后删除对应垫片；
+既有 DS 缺口追踪 vxture/vxture-design#111，产品尺寸要求以本次 owner 指令为准。
 
 
 ### TD-012 - 2026-11-06 组织凭据复核更正

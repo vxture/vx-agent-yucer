@@ -1,5 +1,7 @@
 "use client";
 
+import { HEADER_ICON_CONTROL } from "./header-ladder";
+
 import { ShellIconButton } from "@vxture/design-system";
 import { useMessages } from "../lib/i18n/provider";
 import { CountBadge } from "./count-badge";
@@ -25,8 +27,8 @@ import { CountBadge } from "./count-badge";
 //
 // COMPOSITION, not restyling. The badge is a sibling of the DS button inside a
 // relative wrapper rather than a replacement for its children, so the button
-// keeps its own icon, sizing and focus ring exactly as the DS draws them, and
-// nothing here overrides a DS class.
+// keeps its own icon and focus ring. Shared header sizing is registered in
+// header-ladder.ts (TD-037).
 //
 // It is NOT the solid-red bubble that was asked for, and that is not an
 // oversight - see TD-006. The DS has no compact count badge, and its nearest
@@ -57,7 +59,7 @@ export function AgentDockButton({
 
   return (
     <span className="relative inline-flex">
-      <ShellIconButton icon="sparkles" label={label} onClick={onToggle} />
+      <ShellIconButton className={HEADER_ICON_CONTROL} icon="sparkles" label={label} onClick={onToggle} />
 
       {count > 0 ? (
         // aria-hidden because the count is already in the button's label; a
