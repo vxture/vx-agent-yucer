@@ -28,3 +28,7 @@ export const AVATAR_ON_LADDER = "size-control-xl";
 /** Text controls share the same 32px height as the icon controls. */
 export const HEADER_TEXT_CONTROL = "h-control-xl";
 export const HEADER_SEARCH_CONTROL = "[&_.h-control-md]:h-control-xl";
+
+/** Scope identity stays fully visible, with no hover/open width jump. */
+export const HEADER_SCOPE_CONTROL =
+  "h-control-xl w-auto max-w-none shrink-0 hover:w-auto aria-expanded:w-auto [&>span]:overflow-visible [&>span]:text-clip";
