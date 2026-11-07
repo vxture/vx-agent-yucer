@@ -34,7 +34,7 @@ import { NavBoard } from "./nav-board";
 import { AdminNav } from "./admin-nav";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
-import { AVATAR_ON_LADDER, HEADER_ICON_CONTROL, HEADER_SEARCH_CONTROL, PRODUCT_TITLE_ON_LADDER, USER_PANEL_ON_LADDER } from "./header-ladder";
+import { AVATAR_ON_LADDER, HEADER_ICON_CONTROL, HEADER_SEARCH_CONTROL, PRODUCT_TITLE_ON_LADDER } from "./header-ladder";
 import { WorkspaceScope } from "./workspace-scope";
 import type { BoardModuleCard, BoardSection } from "../lib/board";
 // NOT a static import of the Chinese constants any more. This component is
@@ -512,7 +512,6 @@ export function AppShell({
               <ShellUserMenu
                 /* Match the native avatar with a 32px trigger (TD-037). */
                 triggerClassName={AVATAR_ON_LADDER}
-                contentClassName={USER_PANEL_ON_LADDER}
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
                   displayName: userName,
@@ -584,7 +583,6 @@ export function AppShell({
                    the header too. */
                 settings={
                   <ShellPreferencePanel
-                    className="gap-xs"
                     locale={locale}
                     localeOptions={SUPPORTED_LOCALES.map((l) => ({
                       locale: l,
