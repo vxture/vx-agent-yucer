@@ -50,7 +50,7 @@ export function WorkspaceScope({
       <ShellPanelContent align="start">
         <ShellPanelHeader
           lead="icon"
-          icon="building-library"
+          icon="building"
           title={tenantLabel}
           metaRows={[{ key: "workspace", icon: "workspace", content: workspaceLabel }]}
         />
