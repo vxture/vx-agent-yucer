@@ -454,7 +454,6 @@ export function AppShell({
                 workspaceLabel={workspaceLabel}
                 orgLabel={orgLabel}
                 activeOrgType={activeOrgType}
-                tierLabel={tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
                 consoleUrl={consoleUrl}
               />
             </>

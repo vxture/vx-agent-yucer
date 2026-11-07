@@ -9,7 +9,7 @@ import {
   ShellPanelSection,
   ShellScopeButton,
 } from "@vxture/design-system";
-import { Popover, PopoverTrigger } from "@vxture/design-ui";
+import { Popover, PopoverTrigger, StatusBadge } from "@vxture/design-ui";
 import { useState } from "react";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -22,7 +22,6 @@ export interface WorkspaceScopeProps {
    *  fallback workspace label: neither is a fact a reader can act on. */
   readonly orgLabel: string | null;
   /** The subscription tier's display label, or 未订阅. */
-  readonly tierLabel: string;
   /** The platform console - where the tenant is managed. Null hides the row. */
   readonly consoleUrl: string | null;
   readonly activeOrgType: string | null;
@@ -31,12 +30,14 @@ export interface WorkspaceScopeProps {
 export function WorkspaceScope({
   workspaceLabel,
   orgLabel,
-  tierLabel,
   consoleUrl,
   activeOrgType,
 }: WorkspaceScopeProps) {
   const { HEADER_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
+  const scopeType = activeOrgType?.toLowerCase();
+  const typeLabel = scopeType === "personal" ? HEADER_TEXT.personalScope
+    : scopeType === "organization" || scopeType === "team" ? HEADER_TEXT.organizationScope : null;
   const tenantLabel = orgLabel ?? HEADER_TEXT.tenantUnknown;
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,15 +60,20 @@ export function WorkspaceScope({
       <ShellPanelContent align="start">
         <ShellPanelHeader
           lead="icon"
-          icon={activeOrgType === "personal" ? "user-circle" : "building"}
+          icon="building"
           title={tenantLabel}
-          metaRows={[{ key: "workspace", icon: "workspace", content: `${activeOrgType === "personal" ? HEADER_TEXT.personalScope : HEADER_TEXT.organizationScope} · ${workspaceLabel}` }]}
+          titleAside={typeLabel ? <StatusBadge size="xs" tone="neutral" icon={false}>{typeLabel}</StatusBadge> : undefined}
+          metaRows={[{ key: "workspace", icon: "workspace", content: workspaceLabel }]}
         />
         <ShellPanelSection>
           <ShellPanelRow icon="squares-four" label={HEADER_TEXT.applicationCentre} href="https://ruyin.work" newTab chevron />
           {consoleUrl ? <ShellPanelRow icon="building" label={HEADER_TEXT.tenantConsole} href={consoleUrl} newTab chevron /> : null}
-          {consoleUrl ? <ShellPanelRow icon="arrow-left-right" label={HEADER_TEXT.switchOrganization} href={consoleUrl} newTab chevron /> : null}
         </ShellPanelSection>
+        {consoleUrl ? (
+          <ShellPanelSection>
+            <ShellPanelRow icon="arrow-left-right" label={HEADER_TEXT.switchOrganization} href={consoleUrl} newTab chevron />
+          </ShellPanelSection>
+        ) : null}
       </ShellPanelContent>
     </Popover>
   );
