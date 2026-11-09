@@ -1,0 +1,22 @@
+/* Product-requested header interactions; all colors use shared DS semantics. */
+.tools:hover,
+.tools:focus-within { background: transparent; }
+.tools [data-slot^="shell-toolbox-"] {
+  border-radius: 8px;
+  background: transparent;
+}
+.tools [data-slot^="shell-toolbox-"]:hover,
+.tools [data-slot^="shell-toolbox-"]:focus-visible,
+.tools [data-slot^="shell-toolbox-"][aria-pressed="true"] {
+  color: var(--accent-foreground);
+  background: var(--accent);
+}
+.search { min-width: 0; container-type: inline-size; position: relative; display: flex; width: 100%; max-width: var(--container-panel-sm); }
+.search kbd:not(.shortcut) { display: none; }
+.search:has(.shortcut) input { padding-inline-end: 72px; }
+.shortcut { position: absolute; inset-inline-end: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; white-space: nowrap; }
+
+@container (max-width: 200px) {
+  .shortcut { display: none; }
+  .search:has(.shortcut) input { padding-inline-end: 0; }
+}

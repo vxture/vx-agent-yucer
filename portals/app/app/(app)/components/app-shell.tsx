@@ -4,11 +4,9 @@ import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ShellHeaderDivider,
-  ShellHeaderMark,
   ShellIconButton,
   ShellProductTitle,
   ShellPreferencePanel,
-  ShellSearchBox,
   ShellPanelSlots,
   ShellUserMenu,
   useTheme,
@@ -34,6 +32,7 @@ import { NavBoard } from "./nav-board";
 import { AdminNav } from "./admin-nav";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
+import { HeaderSearch } from "./header-search";
 import { AVATAR_ON_LADDER, HEADER_ICON_CONTROL, HEADER_SEARCH_CONTROL, PRODUCT_TITLE_ON_LADDER } from "./header-ladder";
 import { WorkspaceScope } from "./workspace-scope";
 import type { BoardModuleCard, BoardSection } from "../lib/board";
@@ -43,7 +42,7 @@ import type { BoardModuleCard, BoardSection } from "../lib/board";
 import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
-import { BRAND_MARK_SRC, PRODUCT_MARK_SRC } from "../lib/brand-assets";
+import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
 import { FormAssistSlotProvider } from "./form-assist-slot";
 
@@ -146,7 +145,7 @@ export interface AppShellProps {
   readonly userPicture: string | null;
   /** The token's account_status; "active" reads as verified. Null when absent. */
   readonly accountStatus: string | null;
-  /** The console's account centre; null hides the link. */
+  /** Organization console; null hides the organization link. */
   readonly consoleUrl: string | null;
   readonly workspaceLabel: string;
   /** The tier itself, not its display label - null when unsubscribed. */
@@ -157,6 +156,8 @@ export interface AppShellProps {
    * so rather than printing an empty row or a raw org id.
    */
   readonly orgLabel: string | null;
+  readonly orgDisplayName: string | null;
+  readonly orgLogoUrl: string | null;
   readonly activeOrgType: string | null;
   /** Resolved on the server so the first paint is already in this language. */
   readonly locale: Locale;
@@ -200,6 +201,8 @@ export function AppShell({
   workspaceLabel,
   tier,
   orgLabel,
+  orgDisplayName,
+  orgLogoUrl,
   activeOrgType,
   locale,
   searchable,
@@ -426,14 +429,7 @@ export function AppShell({
                 activeKey={activeKey}
               />
 
-              {/* (3)-(6) THE DS'S 单产品视角 HEADER (design-system 13.4, 03 §7.1;
-                  owner 2026-09-26: DS 已更新，header 需要适配): platform mark |
-                  product title group | current domain. ShellProductTitle
-                  carries the product mark, name, type and tier itself - the
-                  hand-built lockup (a second logo inside ShellBrand's label, a
-                  separate Tag for the tier) is gone. */}
-              <ShellHeaderMark href="/" src={BRAND_MARK_SRC} alt={HEADER_TEXT.logoAlt} />
-              <ShellHeaderDivider />
+              {/* The signed-in workspace carries only the product identity. */}
               <ShellProductTitle
                 /* Shared name/descriptor sizing and centered tier (TD-037). */
                 className={PRODUCT_TITLE_ON_LADDER}
@@ -456,6 +452,8 @@ export function AppShell({
               <WorkspaceScope
                 workspaceLabel={workspaceLabel}
                 orgLabel={orgLabel}
+                orgDisplayName={orgDisplayName}
+                orgLogoUrl={orgLogoUrl}
                 activeOrgType={activeOrgType}
                 consoleUrl={consoleUrl}
               />
@@ -468,7 +466,7 @@ export function AppShell({
            pole competing with both. */
           centerAlign="end"
           center={
-            <ShellSearchBox
+            <HeaderSearch
               className={HEADER_SEARCH_CONTROL}
               query={query}
               onQueryChange={setQuery}
@@ -541,11 +539,9 @@ export function AppShell({
                     ]}
                   />
                 }
-                links={
-                  consoleUrl
-                    ? [{ key: "console", label: HEADER_TEXT.accountCentre, href: consoleUrl, icon: "user-circle", newTab: true }]
-                    : []
-                }
+                links={[
+                  { key: "account", label: HEADER_TEXT.accountCentre, href: "https://accounts.vxture.com/account", icon: "user-circle", newTab: true },
+                ]}
                 actions={[
                   {
                     key: "switch",

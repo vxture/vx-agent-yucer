@@ -6,6 +6,7 @@ import { ShellHeaderTools } from "@vxture/design-system";
 import { Badge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { TOOLBOX_ON_LADDER } from "./header-ladder";
+import styles from "./header-controls.module.css";
 
 /** The platform documentation site (owner decision, 2026-08-30). */
 const HELP_URL = "https://docs.vxture.com";
@@ -57,7 +58,7 @@ export function HeaderTools({
   return (
     <ShellHeaderTools
       /* 32px controls, 16px glyphs and 4px internal gaps (TD-037). */
-      className={TOOLBOX_ON_LADDER}
+      className={`${TOOLBOX_ON_LADDER} ${styles.tools}`}
       label={HEADER_TEXT.toolsAria}
       linkComponent={Link}
       help={{ label: HEADER_TEXT.help, href: HELP_URL }}

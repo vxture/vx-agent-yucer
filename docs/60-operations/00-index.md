@@ -2087,6 +2087,45 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 `ShellPreferencePanel`，移除用户面板内部 CSS 垫片。五个奖章位不虚构已获得状态；
 姓名、电话、邮箱由真实登录资料提供，缺失字段不伪造。此修复不核销其余顶栏尺寸垫片。
 
+**2026-11-09 signed-in header follow-up**
+
+Owner requested the public-header interaction treatment for the signed-in tools:
+transparent group and button surfaces at rest; DS `accent` / `accent-foreground`
+for hover, focus and pressed states. `components/header-controls.module.css`
+scopes this adjustment to the existing `ShellHeaderTools`; sizes and tool
+behavior stay with the DS. This extends the previous size-only exception.
+
+DS 15.0.1 `ShellSearchBox` concatenates the modifier and key without a separator
+and provides no display-label slot. `components/header-search.tsx` keeps that
+component and its keyboard handling, hides only its original key hint, and
+composes a DS `Kbd` with `Ctrl + K` or `Command + K` (rendered with the Mac
+command symbol). Remove the wrapper when the DS offers formatted shortcut labels.
+
+Organization identity source verified in `vxture-platform/vxture-platform`:
+`GET /api/me/organization` returns the official `tenantName`, the short
+`displayName`, and `logoHash`. `GET /api/me/tenants/:tenantId/logo?v=:hash`
+serves member-visible custom logos. The Console `AuthMiddleware` accepts only
+its own RP session (cookie or `X-Vxture-Session`), not a product access token.
+These APIs and data exist; exposing a bounded product read requires platform
+integration work, not locally guessed claims or a cross-product session copy.
+
+The trigger keeps the fixed `buildings` icon. The panel imports the platform's
+DS `tenant-default.png` directly (the old local copy differs), using the square
+organization shape and platform `TenantAvatar` failure icons: `building-office`
+for personal scope and `buildings` for organization scope.
+
+Platform follow-up: [vxture-platform#638](https://github.com/vxture-platform/vxture-platform/issues/638)
+requests the supported product presentation channel. Per the owner's fallback
+scope, Yucer now consumes the proposed optional `active_org_display_name` and
+`active_org_logo_url` from verified claims when present. These are explicitly
+pending platform confirmation, not claims advertised by today's IdP. Missing or
+blank short names fall back to `active_org_name`; the expanded panel retains the
+full name. Missing/invalid logo URLs use the platform DS default. No extra API
+call, Console credential, or direct platform database access is introduced.
+The local-only dev session accepts `YUCER_DEV_ORG_DISPLAY_NAME` for reviewing
+short-name/full-name differences. Production tokens currently use the fallbacks
+until the platform releases the presentation fields.
+
 ### TD-012 - 2026-11-06 组织凭据复核更正
 
 补充 admin:org 权限后，组织 Dependabot secrets API 确认 `NODE_AUTH_TOKEN`

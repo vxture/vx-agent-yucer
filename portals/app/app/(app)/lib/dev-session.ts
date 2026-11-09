@@ -84,6 +84,8 @@ export async function resolveDevSession(
     activeOrg: "org_dev",
     activeOrgType: "organization",
     activeOrgName: DEV_ORG_NAME,
+    activeOrgDisplayName: env.YUCER_DEV_ORG_DISPLAY_NAME?.trim() || null,
+    activeOrgLogoUrl: null,
     activeWorkspace: workspaceId,
     activeWorkspaceName: DEV_WORKSPACE_NAME,
     roles: [],
