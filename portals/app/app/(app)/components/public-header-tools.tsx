@@ -5,15 +5,15 @@ import { ShellLocaleSwitcher, ShellThemeToggle, useTheme } from "@vxture/design-
 import { Button, Icon, useFullscreen } from "@vxture/design-ui";
 import { useHeaderToolConfig } from "../lib/header-tool-config";
 import { useMessages } from "../lib/i18n/provider";
-import styles from "./login-home.module.css";
+import styles from "./public-page.module.css";
 
 /** Public-family tools use target-theme and diagonal fullscreen icons. */
-export function LoginHeaderTools() {
+export function PublicHeaderTools() {
   const tools = useHeaderToolConfig();
   const { theme } = useTheme();
   const { HEADER_TEXT, SHELL_TEXT } = useMessages();
   const { isTargetFullscreen, toggle } = useFullscreen();
-  const active = isTargetFullscreen("login-home");
+  const active = isTargetFullscreen("public-page-root");
   const FullscreenIcon = active ? ArrowsInSimple : ArrowsOutSimple;
   return (
     <div className={styles.tools} role="group" aria-label={HEADER_TEXT.prefTitle}>
@@ -26,7 +26,7 @@ export function LoginHeaderTools() {
       <Button variant="ghost" size="icon-xl" className={styles.toolButton}
         aria-label={active ? HEADER_TEXT.fullscreenExit : HEADER_TEXT.fullscreen}
         aria-pressed={active}
-        onClick={() => toggle("login-home", document.documentElement, { mode: "native" })}>
+        onClick={() => toggle("public-page-root", document.documentElement, { mode: "native" })}>
         <FullscreenIcon size={16} weight="regular" aria-hidden="true" />
       </Button>
       <Button asChild variant="ghost" size="icon-xl" className={styles.toolButton}>

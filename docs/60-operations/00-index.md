@@ -94,8 +94,10 @@ here. This register restarts its numbering for `yucer`.
 收敛时以工具类重建」。也就是说认证形态的样式当前处于收敛中间态，没有可组合的成品。
 
 **2026-11-09 Ruyin 家族登录首页**：按 owner 明确布局规范，登录入口改用
-`components/login-home.tsx` 和 `login-home.module.css`；拒绝访问等门屏仍沿用
-`gate-frame.tsx`。轴测背景及路径动效已按 owner 反馈移除；登录入口与其他门屏
+`components/login-home.tsx`。2026-11-09 统一所有非业务门屏：
+`public-page-frame.tsx` / `public-page.module.css` / `public-header-tools.tsx`
+承载唯一 Header、Footer、背景和底部介绍区，登录与恢复登录直接组合此框架，
+已退出、未订阅、未分配角色通过 `gate-frame.tsx` 组合；认证和权限分支不变。轴测背景及路径动效已按 owner 反馈移除；登录入口与其他门屏
 共用 `gate-ambience.tsx` 的原有顶部浅蓝渐变和底部柔和曲线，
 408px / 12% card / 3px blur 的组合和响应式布局由本次规范明确授权。
 所有颜色继续取 DS 语义 token；按钮、图标与主题/语言/全屏控件仍直接使用 DS。

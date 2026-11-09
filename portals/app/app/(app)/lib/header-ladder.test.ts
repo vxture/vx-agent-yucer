@@ -3,12 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// The signed-in shell and the four gate screens (sign-in, signed-out, no
-// subscription, no roles) are two headers over the same DS parts, and design-
-// system 15 left three of those parts on the old sizes (TD-037). The owner asked
-// for the same sizes on both (2026-10-08). The size-only overrides live in ONE
-// module, and this keeps both headers on it: a header that writes its own
-// selector string, or forgets one, drifts from the other without any test seeing.
+// Business header size overrides and shared public-frame regression checks.
 
 const C = join(import.meta.dirname, "..", "components");
 const read = (f: string) => readFileSync(join(C, f), "utf8");
@@ -17,7 +12,6 @@ test("every header that draws these DS parts applies the shared size overrides",
   const need: ReadonlyArray<readonly [string, string[]]> = [
     ["app-shell.tsx", ["PRODUCT_TITLE_ON_LADDER", "AVATAR_ON_LADDER"]],
     ["header-tools.tsx", ["TOOLBOX_ON_LADDER"]],
-    ["gate-frame.tsx", ["PRODUCT_TITLE_ON_LADDER", "TOOLBOX_ON_LADDER"]],
   ];
   for (const [file, names] of need) {
     const src = read(file);
@@ -36,10 +30,26 @@ test("no header writes its own copy of an override selector", () => {
   }
 });
 
-test("each ShellProductTitle and ShellHeaderTools in a header is given its override", () => {
-  const gate = read("gate-frame.tsx");
-  assert.match(gate, /<ShellProductTitle\s+className=\{PRODUCT_TITLE_ON_LADDER\}/);
-  assert.match(gate, /<ShellHeaderTools\s+className=\{TOOLBOX_ON_LADDER\}/);
+test("the business header retains its product title override", () => {
   const shell = read("app-shell.tsx");
   assert.match(shell, /className=\{PRODUCT_TITLE_ON_LADDER\}/);
+});
+
+// Regression: fixing public chrome must reach every session/access state.
+test("all public states share one header, footer and backdrop", () => {
+  for (const name of ["login-home.tsx", "gate-frame.tsx"]) {
+    const src = read(name);
+    assert.match(src, /<PublicPageFrame>/);
+    assert.doesNotMatch(src, /<(?:header|footer|main)\b/);
+  }
+  for (const name of ["no-roles.tsx", "no-subscription.tsx", "signed-out.tsx"]) {
+    assert.match(read(name), /<GateFrame\b/);
+  }
+  const frame = read("public-page-frame.tsx");
+  for (const element of ["header", "main", "footer"]) {
+    assert.equal((frame.match(new RegExp(`<${element}\\b`, "g")) ?? []).length, 1);
+  }
+  assert.match(frame, /<GateAmbience/);
+  assert.match(frame, /<PublicHeaderTools/);
+  assert.match(read("sign-in.tsx"), /<LoginHome href=\{href\} resume=\{resume\}/);
 });

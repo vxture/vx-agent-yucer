@@ -2334,6 +2334,7 @@ export const NO_ROLES_TEXT = {
 export const GATE_PREVIEW_TEXT = {
   ariaLabel: "选择要预览的页面",
   signIn: "未登录引导页",
+  resuming: "恢复登录",
   noSubscription: "未订阅",
   noRoles: "无角色",
   signedOut: "已退出",
