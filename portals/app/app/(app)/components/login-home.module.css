@@ -1,0 +1,66 @@
+/* Owner-specified Ruyin public-page composition. Colors remain DS semantic tokens. */
+.root {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow-x: clip;
+  color: var(--foreground);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--primary) 6%, var(--card)), var(--card) 65%);
+  font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.root p { margin: 0; }
+.chrome { box-sizing: border-box; width: 100%; max-width: 1536px; margin-inline: auto; padding-inline: 48px; display: flex; align-items: center; justify-content: space-between; }
+.header { flex: 0 0 64px; display: flex; }
+.brand { display: flex; align-items: center; height: 32px; color: var(--foreground); text-decoration: none; font-family: "Funnel Display", Inter, "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 600; line-height: 24px; white-space: nowrap; }
+.brandPart { display: flex; align-items: center; gap: 8px; }
+.brandPart img { flex-shrink: 0; }
+.wordmark { color: var(--primary-text); }
+.divider { width: 1px; height: 20px; margin-inline: 16px; background: var(--border); }
+.tools { display: flex; align-items: center; gap: 4px; }
+.homeButton { width: 32px; height: 32px; min-width: 32px; border-radius: 8px; color: var(--muted-foreground); background: transparent; }
+.homeButton:hover { background: var(--accent); }
+.main { box-sizing: border-box; flex: 1; display: flex; align-items: center; width: calc(100% - 96px); max-width: 1440px; margin-inline: auto; padding-block: 48px; }
+.inner { width: 100%; max-width: 1280px; margin-inline: auto; display: flex; flex-direction: column; align-items: center; gap: 32px; }
+.eyebrow { color: var(--primary-text); font-size: 12px; font-weight: 500; letter-spacing: .12em; text-align: center; }
+.card { box-sizing: border-box; display: flex; flex-direction: column; gap: 72px; width: 408px; max-width: 100%; padding: 40px; border: 1px solid var(--primary-border-soft); border-radius: 14px; background: color-mix(in srgb, var(--card) 12%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 8%, transparent); }
+.heading { text-align: center; }
+.heading p { color: var(--muted-foreground); font-size: 12px; font-weight: 500; line-height: 1.58; }
+.heading h1 { margin: 16px 0 0; font-family: "Funnel Display", Inter, "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 600; line-height: 38px; }
+.actions { display: flex; flex-direction: column; gap: 40px; }
+.account { display: flex; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--primary-border-soft); border-radius: 8px; background: color-mix(in srgb, var(--primary-muted) 45%, transparent); }
+.account > svg { color: var(--primary-text); flex-shrink: 0; }
+.account strong { display: block; font-size: 14px; font-weight: 500; line-height: 1.58; }
+.account p { margin-top: 4px; font-size: 12px; line-height: 1.58; color: var(--muted-foreground); }
+.cta { width: 100%; height: 48px; min-height: 48px; border-radius: 8px; background: var(--primary); color: var(--primary-foreground); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 500; }
+.cta:hover { background: var(--primary-hover); }
+.security { border-top: 1px solid var(--primary-border-soft); padding-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; line-height: 1.58; }
+.security svg { flex-shrink: 0; }
+.message { text-align: center; }
+.message p { font-size: 14px; line-height: 1.58; }
+.message p + p { margin-top: 8px; color: var(--muted-foreground); font-size: 12px; letter-spacing: .08em; }
+.resuming { text-align: center; color: var(--muted-foreground); font-size: 14px; }
+.footer { background: color-mix(in srgb, var(--background) 60%, transparent); border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; }
+.footer .chrome { min-height: 48px; padding-block: 16px; gap: 16px; flex-wrap: wrap; }
+.footer nav { display: flex; flex-wrap: wrap; gap: 16px; }
+.footer a:hover { color: var(--primary-text); }
+.backdrop { position: absolute; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; }
+.backdrop svg { width: 100%; height: 100%; color: var(--primary); }
+.scene { fill: none; stroke: currentColor; stroke-width: .8; stroke-linejoin: round; opacity: .18; }
+.route { stroke-dasharray: 4 10; animation: route-travel 32s linear infinite; }
+@keyframes route-travel { to { stroke-dashoffset: -140; } }
+@media (prefers-reduced-motion: reduce) { .route { animation: none; } }
+@media (max-width: 699px) {
+  .chrome { padding-inline: 24px; }
+  .header { flex-basis: auto; min-height: 64px; }
+  .header .chrome { flex-wrap: wrap; gap: 12px; padding-block: 16px; }
+  .main { width: calc(100% - 48px); padding-block: 32px; }
+  .card { padding: 32px 24px; gap: 48px; }
+  .footer .chrome { gap: 8px; }
+}
+@media (min-width: 380px) and (max-width: 699px) {
+  .header { flex: 0 0 64px; height: 64px; }
+  .header .chrome { flex-wrap: nowrap; gap: 4px; padding-block: 0; }
+  .divider { margin-inline: 8px; }
+}

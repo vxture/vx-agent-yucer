@@ -1931,6 +1931,18 @@ export const en: Dictionary = {
   },
 
   SIGNIN_TEXT: {
+    welcome: "WELCOME TO YUCER",
+    productTitle: "Sales Intelligence Agent",
+    accountTitle: "One platform account",
+    accountDescription: "Your account, organization and workspace, connected",
+    continueLabel: "Continue to sign in",
+    security: "Sign in securely with your platform account",
+    eyebrow: "SALES INTELLIGENCE",
+    tagline: "From strategy to cash, every step traceable",
+    taglineEnglish: "FROM STRATEGY TO CASH. EVERY STEP TRACEABLE.",
+    terms: "Terms of service",
+    privacy: "Privacy policy",
+    copyright: "Copyright",
     cta: "Sign in",
     resuming: "Restoring your sign-in...",
     ariaLabel: "Sign in",
