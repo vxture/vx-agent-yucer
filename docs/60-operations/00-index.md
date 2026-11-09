@@ -101,7 +101,9 @@ here. This register restarts its numbering for `yucer`.
 所有颜色继续取 DS 语义 token；按钮、图标与主题/语言/全屏控件仍直接使用 DS。
 此局部 composition 在 DS 提供同等 Ruyin 家族公共登录模板后收回。
 2026-11-09 对照实页复核：Footer 改用 12% card 底色，使全页背景在页脚继续可见；
-桌面卡片上移 8px，对齐参考页。访客工具直接组合 DS `ShellThemeToggle`、
+已撤回桌面卡片上移 8px 的补偿；根因是底部介绍区缺少 16px 顶部留白，
+中英文行间距应为 10px。恢复主内容上下对称 40px，介绍区按自然内容高度布局，
+移动端区块间距为 24px。访客工具直接组合 DS `ShellThemeToggle`、
 `ShellLocaleSwitcher` 和 Button；主题图标表示目标主题，全屏采用同款 Phosphor
 Regular `ArrowsOutSimple` / `ArrowsInSimple`，行为仍由 DS fullscreen provider 管理。
 

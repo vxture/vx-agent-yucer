@@ -21,7 +21,7 @@
 .tools { display: flex; align-items: center; gap: 4px; }
 .toolButton { width: 32px; height: 32px; min-width: 32px; border-radius: 8px; color: var(--muted-foreground); background: transparent; }
 .toolButton:hover { background: var(--accent); }
-.main { box-sizing: border-box; flex: 1; display: flex; align-items: center; width: calc(100% - 96px); max-width: 1440px; margin-inline: auto; padding-block: 40px 56px; }
+.main { box-sizing: border-box; flex: 1; display: flex; align-items: center; width: calc(100% - 96px); max-width: 1440px; margin-inline: auto; padding-block: 40px; }
 .inner { width: 100%; max-width: 1280px; margin-inline: auto; display: flex; flex-direction: column; align-items: center; gap: 32px; }
 .eyebrow { color: var(--primary-text); font-size: 12px; font-weight: 500; letter-spacing: .12em; text-align: center; }
 .card { box-sizing: border-box; display: flex; flex-direction: column; gap: 72px; width: 408px; max-width: 100%; padding: 40px; border: 1px solid var(--primary-border-soft); border-radius: 14px; background: color-mix(in srgb, var(--card) 12%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 8%, transparent); }
@@ -37,9 +37,9 @@
 .cta:hover { background: var(--primary-hover); }
 .security { border-top: 1px solid var(--primary-border-soft); padding-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; line-height: 1.58; }
 .security svg { flex-shrink: 0; }
-.message { text-align: center; }
-.message p { font-size: 14px; line-height: 1.58; }
-.message p + p { margin-top: 8px; color: var(--muted-foreground); font-size: 12px; letter-spacing: .08em; }
+.message { padding-top: 16px; text-align: center; }
+.message p { font-size: 14px; line-height: 1.57857; }
+.message p + p { margin-top: 10px; color: var(--muted-foreground); font-size: 12px; letter-spacing: .08em; }
 .resuming { text-align: center; color: var(--muted-foreground); font-size: 14px; }
 .footer { background: color-mix(in srgb, var(--card) 12%, transparent); border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent); color: var(--muted-foreground); font-size: 12px; }
 .footer .chrome { min-height: 48px; padding-block: 16px; gap: 16px; flex-wrap: wrap; }
@@ -51,6 +51,7 @@
   .header { flex-basis: auto; min-height: 64px; }
   .header .chrome { flex-wrap: wrap; gap: 12px; padding-block: 16px; }
   .main { width: calc(100% - 48px); padding-block: 32px; }
+  .inner { gap: 24px; }
   .card { padding: 32px 24px; gap: 48px; }
   .footer .chrome { gap: 8px; }
 }
