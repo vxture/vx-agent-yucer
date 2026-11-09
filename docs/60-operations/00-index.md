@@ -93,6 +93,13 @@ here. This register restarts its numbering for `yucer`.
 写明「原 8 个 auth-* 模块整体引用遗留 token，随其一并退役；认证页样式在 accounts
 收敛时以工具类重建」。也就是说认证形态的样式当前处于收敛中间态，没有可组合的成品。
 
+**2026-11-09 Ruyin 家族登录首页**：按 owner 明确布局规范，登录入口改用
+`components/login-home.tsx` 和 `login-home.module.css`；拒绝访问等门屏仍沿用
+`gate-frame.tsx`。新增轴测背景及 32s 虚线路径动效（支持 reduced-motion），
+408px / 12% card / 3px blur 的组合和响应式布局由本次规范明确授权。
+所有颜色继续取 DS 语义 token；按钮、图标与主题/语言/全屏控件仍直接使用 DS。
+此局部 composition 在 DS 提供同等 Ruyin 家族公共登录模板后收回。
+
 **权宜位置**：`portals/app/app/(app)/components/gate-frame.tsx` 的 `Ambience()`。
 （2026-09-15 从 `sign-in.tsx` 迁入：三张门禁页——引导页、未订阅、已退出——共用同一个
 框架，权宜实现因此只有一份，而不是跟着页面复制三份。）

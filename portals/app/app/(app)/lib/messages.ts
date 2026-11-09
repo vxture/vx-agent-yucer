@@ -2227,6 +2227,18 @@ export const SHELL_TEXT = {
  * rather than only reporting a missing session.
  */
 export const SIGNIN_TEXT = {
+  welcome: "WELCOME TO YUCER",
+  productTitle: "销售智能体",
+  accountTitle: "全局统一账号",
+  accountDescription: "账号、单位与工作空间，一处连接",
+  continueLabel: "继续登录",
+  security: "使用平台账号安全登录",
+  eyebrow: "SALES INTELLIGENCE",
+  tagline: "从战略到回款　每一步皆可追溯",
+  taglineEnglish: "FROM STRATEGY TO CASH. EVERY STEP TRACEABLE.",
+  terms: "服务条款",
+  privacy: "隐私政策",
+  copyright: "版权声明",
   cta: "登录",
   /** Said while the door is quietly trying the IdP's existing session. */
   resuming: "正在恢复登录……",
