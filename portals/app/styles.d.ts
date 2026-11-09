@@ -4,3 +4,9 @@ declare module "*.css" {
   const classes: { readonly [key: string]: string };
   export default classes;
 }
+
+// DS static assets must also type-check before Next generates next-env.d.ts.
+declare module "@vxture/design-system/assets/icons/tenant-default.png" {
+  const image: import("next/image").StaticImageData;
+  export default image;
+}
