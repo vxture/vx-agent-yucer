@@ -2228,7 +2228,7 @@ export const SHELL_TEXT = {
  */
 export const SIGNIN_TEXT = {
   welcome: "WELCOME TO YUCER",
-  productTitle: "销售智能体",
+  productTitle: "聿策 · 销售智能体",
   accountTitle: "全局统一账号",
   accountDescription: "账号、单位与工作空间，一处连接",
   continueLabel: "继续登录",
