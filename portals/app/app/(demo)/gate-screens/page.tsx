@@ -12,10 +12,11 @@ import { NoRoles } from "../../(app)/components/no-roles";
 import { pricingUrl } from "../../entitlement/deeplink";
 import { GATE_PREVIEW_TEXT } from "../../(app)/lib/messages";
 
-// The three gate screens, side by side, with no session and no platform.
+// Five public display states, with no session and no platform.
 //
-// WHY A PREVIEW ROUTE AT ALL. Each of the four answers a DIFFERENT absence -
-// no session, no subscription, no role, a session just ended - so seeing them
+// WHY A PREVIEW ROUTE AT ALL. Each gate answers a DIFFERENT absence -
+// no session, no subscription, no role, a session just ended; recovery is an
+// additional presentation state. Seeing them
 // in the product means arranging four states that are mutually exclusive by
 // construction. Locally two of them also need the dev-session switch in
 // opposite positions, which is a server restart between screens.

@@ -1,10 +1,8 @@
 // The header pieces design-system 15 did not carry to the new size ladder, and
 // the size-only overrides that bring them there (TD-037).
 //
-// ONE PLACE, because two headers use them - the signed-in shell (app-shell.tsx,
-// header-tools.tsx) and the four gate screens (gate-frame.tsx: sign-in,
-// signed-out, no subscription, no roles). The owner asked for the same sizes on
-// both (2026-10-08), and two copies of a selector string would drift.
+// Shared business-shell sizing stays here. Public session/access pages use
+// public-page-frame.tsx and its family layout instead of these overrides.
 //
 // NAMED OVERRIDES (owner allows local CSS where the DS stops, 2026-09-24). Each
 // sets header size and spacing, never colours, and each is removed
