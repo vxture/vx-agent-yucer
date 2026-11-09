@@ -1971,6 +1971,7 @@ export const en: Dictionary = {
   },
 
   GATE_PREVIEW_TEXT: {
+    resuming: "Restoring sign-in",
     ariaLabel: "Choose a screen to preview",
     signIn: "Front door",
     noSubscription: "No subscription",

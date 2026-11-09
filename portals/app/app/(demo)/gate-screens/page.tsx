@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SegmentedControl } from "@vxture/design-ui";
 import { DEFAULT_LOCALE, LOCALE_CONSTANTS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
 import { MessagesProvider } from "../../(app)/lib/i18n/provider";
+import { LoginHome } from "../../(app)/components/login-home";
 import { SignIn } from "../../(app)/components/sign-in";
 import { SignedOut } from "../../(app)/components/signed-out";
 import { NoSubscription } from "../../(app)/components/no-subscription";
@@ -26,7 +27,7 @@ import { GATE_PREVIEW_TEXT } from "../../(app)/lib/messages";
 
 export const dynamic = "force-static";
 
-type Screen = "sign-in" | "no-subscription" | "no-roles" | "signed-out";
+type Screen = "sign-in" | "resuming" | "no-subscription" | "no-roles" | "signed-out";
 
 export default function GateScreensPreview() {
   const [screen, setScreen] = useState<Screen>("sign-in");
@@ -65,6 +66,7 @@ export default function GateScreensPreview() {
             onChange={setScreen}
             items={[
               { value: "sign-in", label: GATE_PREVIEW_TEXT.signIn },
+              { value: "resuming", label: GATE_PREVIEW_TEXT.resuming },
               { value: "no-subscription", label: GATE_PREVIEW_TEXT.noSubscription },
               { value: "no-roles", label: GATE_PREVIEW_TEXT.noRoles },
               { value: "signed-out", label: GATE_PREVIEW_TEXT.signedOut },
@@ -74,6 +76,8 @@ export default function GateScreensPreview() {
       </div>
 
       {screen === "sign-in" && <SignIn />}
+      {/* Presentation only: do not start an IdP navigation from the preview. */}
+      {screen === "resuming" && <LoginHome href="/auth/login" resume />}
       {screen === "no-subscription" && (
         <NoSubscription
           // The intent a never-subscribed workspace calls for, from the same
