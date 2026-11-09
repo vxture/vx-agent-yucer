@@ -1,18 +1,15 @@
 "use client";
 
 import { Button, Icon } from "@vxture/design-ui";
-import { ShellHeaderTools } from "@vxture/design-system";
+import { LoginHeaderTools } from "./login-header-tools";
 import { BRAND_MARK_SRC, PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { useMessages } from "../lib/i18n/provider";
-import { useHeaderToolConfig } from "../lib/header-tool-config";
-import { TOOLBOX_ON_LADDER } from "./header-ladder";
 import styles from "./login-home.module.css";
 import { GateAmbience } from "./gate-ambience";
 
 /** Ruyin family public entry; authentication stays in the shared login route. */
 export function LoginHome({ href, resume }: { readonly href: string; readonly resume: boolean }) {
-  const { SIGNIN_TEXT: t, SHELL_TEXT, HEADER_TEXT } = useMessages();
-  const tools = useHeaderToolConfig();
+  const { SIGNIN_TEXT: t, SHELL_TEXT } = useMessages();
   return (
     <div id="login-home" className={styles.root}>
       <div className={styles.backdrop} aria-hidden="true"><GateAmbience /></div>
@@ -23,12 +20,7 @@ export function LoginHome({ href, resume }: { readonly href: string; readonly re
             <span className={styles.divider} aria-hidden="true" />
             <span className={styles.brandPart}><img src={PRODUCT_MARK_SRC} width={28} height={28} alt="" /><span>{SHELL_TEXT.brandMark}</span></span>
           </a>
-          <div className={styles.tools}>
-            <ShellHeaderTools className={TOOLBOX_ON_LADDER} label={HEADER_TEXT.prefTitle} theme={tools.theme} locale={tools.locale} fullscreen={{ enterLabel: HEADER_TEXT.fullscreen, exitLabel: HEADER_TEXT.fullscreenExit, targetId: "login-home" }} />
-            <Button asChild variant="ghost" size="icon-xl" className={styles.homeButton}>
-              <a href="https://ruyin.work" aria-label={SHELL_TEXT.website}><Icon name="home" size={16} /></a>
-            </Button>
-          </div>
+          <LoginHeaderTools />
         </div>
       </header>
       <main className={styles.main}>
