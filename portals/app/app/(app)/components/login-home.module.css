@@ -62,5 +62,6 @@
 @media (min-width: 380px) and (max-width: 699px) {
   .header { flex: 0 0 64px; height: 64px; }
   .header .chrome { flex-wrap: nowrap; gap: 4px; padding-block: 0; }
-  .divider { margin-inline: 8px; }
+  .divider { margin-inline: 0; }
+  .brandPart { gap: 4px; }
 }
