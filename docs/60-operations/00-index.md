@@ -2101,11 +2101,19 @@ component and its keyboard handling, hides only its original key hint, and
 composes a DS `Kbd` with `Ctrl + K` or `Command + K` (rendered with the Mac
 command symbol). Remove the wrapper when the DS offers formatted shortcut labels.
 
-Organization identity dependency: the live accounts OIDC discovery document
-still advertises only `active_org_name`, without an organization short name or
-logo claim. The trigger uses the fixed DS `buildings` icon; short-name and
-custom-logo binding require a documented organization-profile source. Do not
-truncate legal names or guess asset URLs to simulate the missing data.
+Organization identity source verified in `vxture-platform/vxture-platform`:
+`GET /api/me/organization` returns the official `tenantName`, the short
+`displayName`, and `logoHash`. `GET /api/me/tenants/:tenantId/logo?v=:hash`
+serves member-visible custom logos. The Console `AuthMiddleware` accepts only
+its own RP session (cookie or `X-Vxture-Session`), not a product access token.
+These APIs and data exist; exposing a bounded product read requires platform
+integration work, not locally guessed claims or a cross-product session copy.
+
+The trigger keeps the fixed `buildings` icon. The panel imports the platform's
+DS `tenant-default.png` directly (the old local copy differs), using the square
+organization shape and platform `TenantAvatar` failure icons: `building-office`
+for personal scope and `buildings` for organization scope. Custom-logo and short
+name binding remain pending the supported product read path.
 
 ### TD-012 - 2026-11-06 组织凭据复核更正
 

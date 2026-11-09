@@ -1,6 +1,7 @@
 "use client";
 
 import { HEADER_SCOPE_CONTROL } from "./header-ladder";
+import tenantDefaultLogo from "@vxture/design-system/assets/icons/tenant-default.png";
 
 import {
   ShellPanelContent,
@@ -9,7 +10,7 @@ import {
   ShellPanelSection,
   ShellScopeButton,
 } from "@vxture/design-system";
-import { Popover, PopoverTrigger, StatusBadge } from "@vxture/design-ui";
+import { Icon, Popover, PopoverTrigger, StatusBadge } from "@vxture/design-ui";
 import { useState } from "react";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -38,6 +39,8 @@ export function WorkspaceScope({
   const typeLabel = scopeType === "personal" ? HEADER_TEXT.personalScope
     : scopeType === "organization" || scopeType === "team" ? HEADER_TEXT.organizationScope : null;
   const tenantLabel = orgLabel ?? HEADER_TEXT.tenantUnknown;
+  // Platform TenantAvatar policy: default DS image, then the type icon if it fails.
+  const tenantIcon = scopeType === "personal" ? "building-office" : "buildings";
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -58,8 +61,11 @@ export function WorkspaceScope({
       </PopoverTrigger>
       <ShellPanelContent align="start" className="gap-lg">
         <ShellPanelHeader
-          lead="icon"
-          icon="buildings"
+          lead="avatar"
+          avatarSrc={tenantDefaultLogo.src}
+          avatarAlt={tenantLabel}
+          avatarFallback={<Icon name={tenantIcon} size="sm" />}
+          className="[&>span]:rounded-md [&>span>span]:rounded-md"
           title={tenantLabel}
           titleAside={typeLabel ? <StatusBadge size="xs" tone="neutral" icon={false}>{typeLabel}</StatusBadge> : undefined}
           metaRows={[{ key: "workspace", icon: "workspace", content: workspaceLabel }]}
