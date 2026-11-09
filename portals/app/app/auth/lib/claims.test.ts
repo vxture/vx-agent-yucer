@@ -90,6 +90,8 @@ test("toAuthUser tolerates missing roles/context", () => {
   assert.equal(user.activeWorkspace, null);
   assert.equal(user.activeWorkspaceName, null);
   assert.equal(user.activeOrgName, null);
+  assert.equal(user.activeOrgDisplayName, null);
+  assert.equal(user.activeOrgLogoUrl, null);
   assert.equal(user.email, null);
   assert.equal(user.phone, null);
   assert.equal(user.picture, null);
@@ -107,4 +109,24 @@ test("displayName: real name wins, then preferred_username, then sub as the last
 test("picture is read only when present - never a guessed URL", () => {
   assert.equal(toAuthUser({ sub: "usr_1", picture: "https://cdn.example.test/a.png" }).picture, "https://cdn.example.test/a.png");
   assert.equal(toAuthUser({ sub: "usr_1" }).picture, null);
+});
+
+test("optional platform organization presentation preserves the full name", () => {
+  const user = toAuthUser({
+    sub: "usr_1", active_org_name: "Acme Holdings Limited",
+    active_org_display_name: " Acme ",
+    active_org_logo_url: "https://accounts.example.test/org-logo?v=version",
+  });
+  assert.equal(user.activeOrgName, "Acme Holdings Limited");
+  assert.equal(user.activeOrgDisplayName, "Acme");
+  assert.equal(user.activeOrgLogoUrl, "https://accounts.example.test/org-logo?v=version");
+});
+
+test("empty presentation fields and unusable image URLs retain the default path", () => {
+  for (const logo of [undefined, "", " ", "not-a-url", "/guessed-logo", "data:image/png;base64,x", "javascript:void(0)", "https://user:password@example.test/logo"]) {
+    const user = toAuthUser({ sub: "usr_1", active_org_name: "Acme", active_org_display_name: " ", active_org_logo_url: logo });
+    assert.equal(user.activeOrgName, "Acme");
+    assert.equal(user.activeOrgDisplayName, null);
+    assert.equal(user.activeOrgLogoUrl, null);
+  }
 });

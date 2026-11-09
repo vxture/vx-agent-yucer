@@ -2112,8 +2112,19 @@ integration work, not locally guessed claims or a cross-product session copy.
 The trigger keeps the fixed `buildings` icon. The panel imports the platform's
 DS `tenant-default.png` directly (the old local copy differs), using the square
 organization shape and platform `TenantAvatar` failure icons: `building-office`
-for personal scope and `buildings` for organization scope. Custom-logo and short
-name binding remain pending the supported product read path.
+for personal scope and `buildings` for organization scope.
+
+Platform follow-up: [vxture-platform#638](https://github.com/vxture-platform/vxture-platform/issues/638)
+requests the supported product presentation channel. Per the owner's fallback
+scope, Yucer now consumes the proposed optional `active_org_display_name` and
+`active_org_logo_url` from verified claims when present. These are explicitly
+pending platform confirmation, not claims advertised by today's IdP. Missing or
+blank short names fall back to `active_org_name`; the expanded panel retains the
+full name. Missing/invalid logo URLs use the platform DS default. No extra API
+call, Console credential, or direct platform database access is introduced.
+The local-only dev session accepts `YUCER_DEV_ORG_DISPLAY_NAME` for reviewing
+short-name/full-name differences. Production tokens currently use the fallbacks
+until the platform releases the presentation fields.
 
 ### TD-012 - 2026-11-06 组织凭据复核更正
 

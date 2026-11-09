@@ -295,6 +295,8 @@ export default async function AppLayout({
         notificationsTotal={notificationTotal(bellItems)}
         notificationItems={bellItems}
         orgLabel={session.user.activeOrgName}
+        orgDisplayName={session.user.activeOrgDisplayName}
+        orgLogoUrl={session.user.activeOrgLogoUrl}
         activeOrgType={session.user.activeOrgType}
         locale={locale}
         /* NEXT_PUBLIC_APP_ENV, not a guess from the version string's shape.

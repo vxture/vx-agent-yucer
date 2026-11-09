@@ -71,6 +71,9 @@ export interface AccessClaims {
   active_org?: string;
   active_org_type?: string;
   active_org_name?: string;
+  /** Optional presentation extension proposed in platform#638; not yet issued. */
+  active_org_display_name?: string;
+  active_org_logo_url?: string;
   active_workspace?: string;
   active_workspace_name?: string;
   roles?: string[];
@@ -90,6 +93,8 @@ export interface AuthUser {
   activeOrg: string | null;
   activeOrgType: string | null; // "personal" | "organization"
   activeOrgName: string | null;
+  activeOrgDisplayName: string | null;
+  activeOrgLogoUrl: string | null;
   activeWorkspace: string | null;
   activeWorkspaceName: string | null;
   roles: string[]; // raw scope-prefixed, as issued
@@ -112,13 +117,32 @@ export interface AuthUser {
   userNo: string | null;
 }
 
+function optionalText(value: unknown): string | null {
+  return typeof value === "string" ? value.trim() || null : null;
+}
+
+/** Accept only explicit platform image URLs; never construct one from an org id. */
+function optionalImageUrl(value: unknown): string | null {
+  const text = optionalText(value);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password
+      ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 export function toAuthUser(claims: AccessClaims): AuthUser {
   const roles = Array.isArray(claims.roles) ? claims.roles : [];
   return {
     sub: claims.sub,
     activeOrg: claims.active_org ?? null,
     activeOrgType: claims.active_org_type ?? null,
-    activeOrgName: claims.active_org_name ?? null,
+    activeOrgName: optionalText(claims.active_org_name),
+    activeOrgDisplayName: optionalText(claims.active_org_display_name),
+    activeOrgLogoUrl: optionalImageUrl(claims.active_org_logo_url),
     activeWorkspace: claims.active_workspace ?? null,
     activeWorkspaceName: claims.active_workspace_name ?? null,
     roles,

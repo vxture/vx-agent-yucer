@@ -156,6 +156,8 @@ export interface AppShellProps {
    * so rather than printing an empty row or a raw org id.
    */
   readonly orgLabel: string | null;
+  readonly orgDisplayName: string | null;
+  readonly orgLogoUrl: string | null;
   readonly activeOrgType: string | null;
   /** Resolved on the server so the first paint is already in this language. */
   readonly locale: Locale;
@@ -199,6 +201,8 @@ export function AppShell({
   workspaceLabel,
   tier,
   orgLabel,
+  orgDisplayName,
+  orgLogoUrl,
   activeOrgType,
   locale,
   searchable,
@@ -448,6 +452,8 @@ export function AppShell({
               <WorkspaceScope
                 workspaceLabel={workspaceLabel}
                 orgLabel={orgLabel}
+                orgDisplayName={orgDisplayName}
+                orgLogoUrl={orgLogoUrl}
                 activeOrgType={activeOrgType}
                 consoleUrl={consoleUrl}
               />
