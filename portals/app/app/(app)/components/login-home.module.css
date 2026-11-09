@@ -12,16 +12,16 @@
 }
 .root p { margin: 0; }
 .chrome { box-sizing: border-box; width: 100%; max-width: 1536px; margin-inline: auto; padding-inline: 48px; display: flex; align-items: center; justify-content: space-between; }
-.header { flex: 0 0 64px; display: flex; }
+.header { flex: 0 0 64px; display: flex; background: transparent; }
 .brand { display: flex; align-items: center; height: 32px; color: var(--foreground); text-decoration: none; font-family: "Funnel Display", Inter, "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 600; line-height: 24px; white-space: nowrap; }
 .brandPart { display: flex; align-items: center; gap: 8px; }
 .brandPart img { flex-shrink: 0; }
 .wordmark { color: var(--primary-text); }
 .divider { width: 1px; height: 20px; margin-inline: 16px; background: var(--border); }
 .tools { display: flex; align-items: center; gap: 4px; }
-.homeButton { width: 32px; height: 32px; min-width: 32px; border-radius: 8px; color: var(--muted-foreground); background: transparent; }
-.homeButton:hover { background: var(--accent); }
-.main { box-sizing: border-box; flex: 1; display: flex; align-items: center; width: calc(100% - 96px); max-width: 1440px; margin-inline: auto; padding-block: 48px; }
+.toolButton { width: 32px; height: 32px; min-width: 32px; border-radius: 8px; color: var(--muted-foreground); background: transparent; }
+.toolButton:hover { background: var(--accent); }
+.main { box-sizing: border-box; flex: 1; display: flex; align-items: center; width: calc(100% - 96px); max-width: 1440px; margin-inline: auto; padding-block: 40px 56px; }
 .inner { width: 100%; max-width: 1280px; margin-inline: auto; display: flex; flex-direction: column; align-items: center; gap: 32px; }
 .eyebrow { color: var(--primary-text); font-size: 12px; font-weight: 500; letter-spacing: .12em; text-align: center; }
 .card { box-sizing: border-box; display: flex; flex-direction: column; gap: 72px; width: 408px; max-width: 100%; padding: 40px; border: 1px solid var(--primary-border-soft); border-radius: 14px; background: color-mix(in srgb, var(--card) 12%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 8%, transparent); }
@@ -41,7 +41,7 @@
 .message p { font-size: 14px; line-height: 1.58; }
 .message p + p { margin-top: 8px; color: var(--muted-foreground); font-size: 12px; letter-spacing: .08em; }
 .resuming { text-align: center; color: var(--muted-foreground); font-size: 14px; }
-.footer { background: color-mix(in srgb, var(--background) 60%, transparent); border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; }
+.footer { background: color-mix(in srgb, var(--card) 12%, transparent); border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent); color: var(--muted-foreground); font-size: 12px; }
 .footer .chrome { min-height: 48px; padding-block: 16px; gap: 16px; flex-wrap: wrap; }
 .footer nav { display: flex; flex-wrap: wrap; gap: 16px; }
 .footer a:hover { color: var(--primary-text); }
