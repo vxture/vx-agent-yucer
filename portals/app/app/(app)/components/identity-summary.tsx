@@ -1,31 +1,11 @@
 "use client";
 
+import styles from "./public-page.module.css";
 import { Icon, UserAvatar } from "@vxture/design-ui";
 import { formatPhone } from "../lib/format-phone";
 
-// The two cells the gate screens' identity card shows: who is signed in, and
-// which tenant/workspace they are in - shared so the two screens that carry
-// this card (no-subscription, no-roles) never drift apart.
-//
-// NOT LabeledValue: its value slot is `truncate` by design (a short reading,
-// one line, ellipsis past it) - exactly the "读数框" the rules revision warns
-// against for a name, which cuts a real person's name to a few characters and
-// a workspace name off the back half of a shared line.
-//
-// SIZED AND STRUCTURED AGAINST TENDERFORGE'S OWN LIVE PAGE (2026-09-16,
-// owner: "两个页面都打开了，你照抄"), read directly off its DOM rather than
-// guessed from the screenshot alone: `text-body` (14px) for BOTH lines -
-// `font-medium` for the name/org line, `text-muted-foreground` (no extra
-// weight) for the phone/workspace line beneath it - inside a plain
-// `flex items-center gap-sm` cell with `min-w-0` on the text column and
-// `break-words` on both spans. No caption above either cell - the avatar and
-// the building icon are the label. The first version of this file used
-// the title size plus bold (LabeledValue's own value size) and later
-// `text-label` with `whitespace-nowrap` - both still too large or too
-// eager to hold a real name/company name on one line; tenderforge's own
-// choice is smaller than either and never forces single-line at the cost of
-// cutting a genuinely long name, it just rarely needs to wrap at 14px inside
-// this card's own width.
+// Shared public-gate identity cells. Keep full names and workspace labels
+// readable; the container stacks these cells on small screens.
 
 export function PersonSummary({
   label,
@@ -43,11 +23,11 @@ export function PersonSummary({
   readonly picture: string | null;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-sm" aria-label={label}>
-      <UserAvatar src={picture} alt={name} className="size-10 shrink-0" />
+    <div className={styles.identityCell} aria-label={label}>
+      <UserAvatar src={picture} alt={name} className={styles.identityAvatar} />
       <div className="min-w-0">
-        <p className="text-body font-medium break-words">{name}</p>
-        {phone && <p className="text-body text-muted-foreground break-words">{formatPhone(phone)}</p>}
+        <p className={styles.identityName}>{name}</p>
+        {phone && <p className={styles.identityMeta}>{formatPhone(phone)}</p>}
       </div>
     </div>
   );
@@ -67,13 +47,13 @@ export function TenantSummary({
   readonly workspaceLabel: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-sm" aria-label={label}>
-      <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full">
+    <div className={styles.identityCell} aria-label={label}>
+      <span className={styles.identityIcon}>
         <Icon name="building-library" size="sm" />
       </span>
       <div className="min-w-0">
-        <p className="text-body font-medium break-words">{orgLabel ?? orgFallback}</p>
-        <p className="text-body text-muted-foreground break-words">{workspaceLabel}</p>
+        <p className={styles.identityName}>{orgLabel ?? orgFallback}</p>
+        <p className={styles.identityMeta}>{workspaceLabel}</p>
       </div>
     </div>
   );

@@ -97,7 +97,10 @@ here. This register restarts its numbering for `yucer`.
 `components/login-home.tsx`。2026-11-09 统一所有非业务门屏：
 `public-page-frame.tsx` / `public-page.module.css` / `public-header-tools.tsx`
 承载唯一 Header、Footer、背景和底部介绍区，登录与恢复登录直接组合此框架，
-已退出、未订阅、未分配角色通过 `gate-frame.tsx` 组合；认证和权限分支不变。轴测背景及路径动效已按 owner 反馈移除；登录入口与其他门屏
+已退出、未订阅、未分配角色通过 `gate-frame.tsx` 组合；认证和权限分支不变。
+内容区复核：统一 408px 卡片、24px 标题和 48px 操作按钮；门屏内容分组
+间距 40px、双按钮间距 12px。身份卡片复用 `gate-identity.tsx`，小屏纵向排列。
+恢复登录状态保留 48px 操作区高度并显示 DS spinner，避免切换时卡片跳动。轴测背景及路径动效已按 owner 反馈移除；登录入口与其他门屏
 共用 `gate-ambience.tsx` 的原有顶部浅蓝渐变和底部柔和曲线，
 408px / 12% card / 3px blur 的组合和响应式布局由本次规范明确授权。
 所有颜色继续取 DS 语义 token；按钮、图标与主题/语言/全屏控件仍直接使用 DS。

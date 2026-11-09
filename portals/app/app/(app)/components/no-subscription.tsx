@@ -1,11 +1,12 @@
 "use client";
 
-import { Card, Stack } from "@vxture/design-ui";
+
 import { useMessages } from "../lib/i18n/provider";
 import { GateActions, GatePrimary, GateSignOut } from "./gate-actions";
 import { GateFrame } from "./gate-frame";
+import styles from "./public-page.module.css";
 import { GateHeading } from "./gate-heading";
-import { PersonSummary, TenantSummary } from "./identity-summary";
+import { GateIdentity } from "./gate-identity";
 
 // A member who is signed in, in a workspace that has not subscribed.
 //
@@ -46,7 +47,7 @@ export function NoSubscription({
 
   return (
     <GateFrame ariaLabel={NO_SUBSCRIPTION_TEXT.ariaLabel} width="narrow">
-      <Stack gap="lg" className="items-center">
+      <div className={styles.gateBody}>
         <GateHeading
           badge={NO_SUBSCRIPTION_TEXT.badge}
           badgeIcon="credit-card"
@@ -54,30 +55,19 @@ export function NoSubscription({
           description={NO_SUBSCRIPTION_TEXT.description}
         />
 
-        {/* grid-cols-2, not a flex-wrap guess: read directly off tenderforge's
-            own live page for the same identity (owner, 2026-09-16: "两个页面
-            都打开了，你照抄") - this is its exact card shape. A rigid 50/50
-            split was never the problem; the old title size was. */}
-        <Card surface="soft" className="gap-md p-lg grid w-full grid-cols-2 text-left">
-          <PersonSummary
-            label={NO_SUBSCRIPTION_TEXT.identityLabel}
-            name={userName}
-            phone={userPhone}
-            picture={userPicture}
-          />
-          <TenantSummary
-            label={NO_SUBSCRIPTION_TEXT.workspaceLabel}
-            orgLabel={orgLabel}
-            orgFallback={HEADER_TEXT.tenantUnknown}
-            workspaceLabel={workspaceLabel}
-          />
-        </Card>
+        <GateIdentity
+          personLabel={NO_SUBSCRIPTION_TEXT.identityLabel}
+          tenantLabel={NO_SUBSCRIPTION_TEXT.workspaceLabel}
+          name={userName} phone={userPhone} picture={userPicture}
+          orgLabel={orgLabel} orgFallback={HEADER_TEXT.tenantUnknown}
+          workspaceLabel={workspaceLabel}
+        />
 
         <GateActions
           primary={<GatePrimary href={subscribeHref}>{SHELL_TEXT.subscribeCta}</GatePrimary>}
           secondary={<GateSignOut>{NO_SUBSCRIPTION_TEXT.signOut}</GateSignOut>}
         />
-      </Stack>
+      </div>
     </GateFrame>
   );
 }

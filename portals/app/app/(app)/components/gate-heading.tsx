@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import styles from "./public-page.module.css";
 import { StatusBadge, type IconName } from "@vxture/design-ui";
 
 // The heading every gate screen's middle band opens with.
@@ -31,13 +32,13 @@ export function GateHeading({
   readonly description?: ReactNode;
 }) {
   return (
-    <div className="gap-sm flex flex-col items-center text-center">
-      <h1 className="text-display-xs text-balance">{title}</h1>
+    <div className={styles.stateHeading}>
+      <h1 >{title}</h1>
 
       {(badge || description) && (
-        <p className="gap-sm text-body text-muted-foreground flex flex-wrap items-center justify-center">
+        <p className={styles.stateDescription}>
           {badge && (
-            <StatusBadge tone="info" icon={badgeIcon}>
+            <StatusBadge tone="info" size="xs" icon={badgeIcon}>
               {badge}
             </StatusBadge>
           )}

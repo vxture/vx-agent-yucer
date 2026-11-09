@@ -1,11 +1,12 @@
 "use client";
 
-import { Card, Stack } from "@vxture/design-ui";
+
 import { useMessages } from "../lib/i18n/provider";
 import { GateActions, GatePrimary, GateSignOut } from "./gate-actions";
 import { GateFrame } from "./gate-frame";
+import styles from "./public-page.module.css";
 import { GateHeading } from "./gate-heading";
-import { PersonSummary, TenantSummary } from "./identity-summary";
+import { GateIdentity } from "./gate-identity";
 
 // A member with no role, in a workspace that HAS subscribed.
 //
@@ -47,7 +48,7 @@ export function NoRoles({
 
   return (
     <GateFrame ariaLabel={NO_ROLES_TEXT.ariaLabel} width="narrow">
-      <Stack gap="lg" className="items-center">
+      <div className={styles.gateBody}>
         {/* A key, because the subject is access: the workspace is paid for and
             the door is real, this member has not been handed what opens it. */}
         <GateHeading
@@ -57,22 +58,13 @@ export function NoRoles({
           description={SHELL_TEXT.noRolesDescription}
         />
 
-        {/* grid-cols-2 read directly off tenderforge's own live page - see
-            no-subscription.tsx's identical card for why. */}
-        <Card surface="soft" className="gap-md p-lg grid w-full grid-cols-2 text-left">
-          <PersonSummary
-            label={NO_ROLES_TEXT.identityLabel}
-            name={userName}
-            phone={userPhone}
-            picture={userPicture}
-          />
-          <TenantSummary
-            label={NO_ROLES_TEXT.workspaceLabel}
-            orgLabel={orgLabel}
-            orgFallback={HEADER_TEXT.tenantUnknown}
-            workspaceLabel={workspaceLabel}
-          />
-        </Card>
+        <GateIdentity
+          personLabel={NO_ROLES_TEXT.identityLabel}
+          tenantLabel={NO_ROLES_TEXT.workspaceLabel}
+          name={userName} phone={userPhone} picture={userPicture}
+          orgLabel={orgLabel} orgFallback={HEADER_TEXT.tenantUnknown}
+          workspaceLabel={workspaceLabel}
+        />
 
         {/* The primary is a plain reload. The role arrives from somewhere else
             entirely - an administrator in another session - so there is nothing
@@ -82,7 +74,7 @@ export function NoRoles({
           primary={<GatePrimary href="/">{NO_ROLES_TEXT.recheck}</GatePrimary>}
           secondary={<GateSignOut>{NO_ROLES_TEXT.signOut}</GateSignOut>}
         />
-      </Stack>
+      </div>
     </GateFrame>
   );
 }
