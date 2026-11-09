@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { Stack } from "@vxture/design-ui";
+
 import { SIGNED_OUT_COOKIE } from "../../auth/lib/signed-out-marker";
 import { useMessages } from "../lib/i18n/provider";
 import { GateActions, GatePrimary, GateSecondary } from "./gate-actions";
 import { GateFrame } from "./gate-frame";
+import styles from "./public-page.module.css";
 import { GateHeading } from "./gate-heading";
 
 // After signing out.
@@ -37,7 +38,7 @@ export function SignedOut({ consoleHref }: { readonly consoleHref: string | null
 
   return (
     <GateFrame ariaLabel={SIGNED_OUT_TEXT.ariaLabel} width="narrow">
-      <Stack gap="lg" className="items-center">
+      <div className={styles.gateBody}>
         <GateHeading
           title={SIGNED_OUT_TEXT.title}
           description={SIGNED_OUT_TEXT.description}
@@ -58,7 +59,7 @@ export function SignedOut({ consoleHref }: { readonly consoleHref: string | null
             ) : undefined
           }
         />
-      </Stack>
+      </div>
     </GateFrame>
   );
 }

@@ -25,7 +25,7 @@
 .inner { width: 100%; max-width: 1280px; margin-inline: auto; display: flex; flex-direction: column; align-items: center; gap: 32px; }
 .eyebrow { color: var(--primary-text); font-size: 12px; font-weight: 500; letter-spacing: .12em; text-align: center; }
 .card { box-sizing: border-box; display: flex; flex-direction: column; gap: 72px; width: 408px; max-width: 100%; padding: 40px; border: 1px solid var(--primary-border-soft); border-radius: 14px; background: color-mix(in srgb, var(--card) 12%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 8%, transparent); }
-.gate { width: 452px; }
+.gate { width: 408px; }
 .wideGate { width: 760px; }
 .heading { text-align: center; }
 .heading p { color: var(--muted-foreground); font-size: 12px; font-weight: 500; line-height: 1.58; }
@@ -42,7 +42,7 @@
 .message { padding-top: 16px; text-align: center; }
 .message p { font-size: 14px; line-height: 1.57857; }
 .message p + p { margin-top: 10px; color: var(--muted-foreground); font-size: 12px; letter-spacing: .08em; }
-.resuming { text-align: center; color: var(--muted-foreground); font-size: 14px; }
+.resuming { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted-foreground); font-size: 14px; }
 .footer { background: color-mix(in srgb, var(--card) 12%, transparent); border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent); color: var(--muted-foreground); font-size: 12px; }
 .footer .chrome { min-height: 48px; padding-block: 16px; gap: 16px; flex-wrap: wrap; }
 .footer nav { display: flex; flex-wrap: wrap; gap: 16px; }
@@ -63,3 +63,18 @@
   .divider { margin-inline: 0; }
   .brandPart { gap: 4px; }
 }
+
+.gateBody { display: flex; flex-direction: column; gap: 40px; width: 100%; }
+.stateHeading { display: flex; flex-direction: column; gap: 16px; text-align: center; }
+.stateHeading h1 { margin: 0; font-family: "Funnel Display", Inter, "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 600; line-height: 38px; text-wrap: balance; }
+.stateDescription { text-wrap: balance; color: var(--muted-foreground); font-size: 14px; line-height: 1.58; }
+.stateDescription > span { margin-inline-end: 8px; vertical-align: middle; }
+.gateActions { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.gateButton { width: 100%; min-height: 48px; height: 48px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+.identityCard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px; width: 100%; border: 1px solid var(--primary-border-soft); border-radius: 8px; background: color-mix(in srgb, var(--primary-muted) 45%, transparent); box-shadow: none; }
+.identityCell { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; }
+.identityAvatar, .identityIcon { width: 32px; height: 32px; flex-shrink: 0; }
+.identityIcon { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--muted); color: var(--muted-foreground); }
+.identityName { font-size: 14px; font-weight: 500; line-height: 1.58; overflow-wrap: anywhere; }
+.root .identityMeta { margin-top: 4px; font-size: 12px; line-height: 1.58; color: var(--muted-foreground); overflow-wrap: anywhere; }
+@media (max-width: 699px) { .identityCard { grid-template-columns: minmax(0, 1fr); } }

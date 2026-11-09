@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import styles from "./public-page.module.css";
 import { Button } from "@vxture/design-ui";
 
 // The action block the three refusal screens share.
@@ -23,7 +24,7 @@ export function GateActions({
   readonly secondary?: ReactNode;
 }) {
   return (
-    <div className="gap-sm flex w-full flex-col">
+    <div className={styles.gateActions}>
       {primary}
       {secondary}
     </div>
@@ -33,7 +34,7 @@ export function GateActions({
 /** The primary act of the screen. One per screen, always. */
 export function GatePrimary({ href, children }: { readonly href: string; readonly children: ReactNode }) {
   return (
-    <Button asChild size="lg" className="w-full">
+    <Button asChild size="lg" className={styles.gateButton}>
       <a href={href}>{children}</a>
     </Button>
   );
@@ -42,7 +43,7 @@ export function GatePrimary({ href, children }: { readonly href: string; readonl
 /** The way out, or the other door. Same size and weight on every screen. */
 export function GateSecondary({ href, children }: { readonly href: string; readonly children: ReactNode }) {
   return (
-    <Button asChild variant="outline" size="lg" className="w-full">
+    <Button asChild variant="outline" size="lg" className={styles.gateButton}>
       <a href={href}>{children}</a>
     </Button>
   );
@@ -59,7 +60,7 @@ export function GateSecondary({ href, children }: { readonly href: string; reado
 export function GateSignOut({ children }: { readonly children: ReactNode }) {
   return (
     <form method="post" action="/auth/logout" className="w-full">
-      <Button type="submit" variant="outline" size="lg" className="w-full">
+      <Button type="submit" variant="outline" size="lg" className={styles.gateButton}>
         {children}
       </Button>
     </form>
