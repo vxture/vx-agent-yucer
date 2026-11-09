@@ -146,8 +146,9 @@
    * hidden bars - verified after this change, gutter still 0 on both.
    *
    * No dimension is set. `thin` is the platform's own measure (11px here), and
-   * the webkit half returns to `auto` rather than naming a height - this file
-   * may not invent spacing values, and a scrollbar's thickness is the one the
+   * the webkit half uses `revert` to restore the native display rather than
+   * naming a height - this file may not invent spacing values, and a
+   * scrollbar's thickness is the one the
    * OS already chose.
    */
   [class*="overflow-x-auto"],
@@ -157,7 +158,7 @@
 
   [class*="overflow-x-auto"]::-webkit-scrollbar,
   [class*="overflow-x-scroll"]::-webkit-scrollbar {
-    display: auto;
+    display: revert;
   }
 }
 
