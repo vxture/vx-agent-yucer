@@ -2087,6 +2087,26 @@ mockup 的数字是承重的（owner 2026-09 判：改成近似档即篡改设�
 `ShellPreferencePanel`，移除用户面板内部 CSS 垫片。五个奖章位不虚构已获得状态；
 姓名、电话、邮箱由真实登录资料提供，缺失字段不伪造。此修复不核销其余顶栏尺寸垫片。
 
+**2026-11-09 signed-in header follow-up**
+
+Owner requested the public-header interaction treatment for the signed-in tools:
+transparent group and button surfaces at rest; DS `accent` / `accent-foreground`
+for hover, focus and pressed states. `components/header-controls.module.css`
+scopes this adjustment to the existing `ShellHeaderTools`; sizes and tool
+behavior stay with the DS. This extends the previous size-only exception.
+
+DS 15.0.1 `ShellSearchBox` concatenates the modifier and key without a separator
+and provides no display-label slot. `components/header-search.tsx` keeps that
+component and its keyboard handling, hides only its original key hint, and
+composes a DS `Kbd` with `Ctrl + K` or `Command + K` (rendered with the Mac
+command symbol). Remove the wrapper when the DS offers formatted shortcut labels.
+
+Organization identity dependency: the live accounts OIDC discovery document
+still advertises only `active_org_name`, without an organization short name or
+logo claim. The trigger uses the fixed DS `buildings` icon; short-name and
+custom-logo binding require a documented organization-profile source. Do not
+truncate legal names or guess asset URLs to simulate the missing data.
+
 ### TD-012 - 2026-11-06 组织凭据复核更正
 
 补充 admin:org 权限后，组织 Dependabot secrets API 确认 `NODE_AUTH_TOKEN`

@@ -29,7 +29,7 @@ export function consoleMembersUrl(): string | null {
 }
 
 /**
- * The console itself - the account centre the user panel links to. The same
+ * The organization console linked from the workspace panel. The same
  * default the entitlement deep link uses, so the two never point at two
  * consoles. Null only when explicitly emptied; unset means the default.
  */

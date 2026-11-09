@@ -43,7 +43,7 @@ export function WorkspaceScope({
       <PopoverTrigger asChild>
         <ShellScopeButton
           className={HEADER_SCOPE_CONTROL}
-          icon="building"
+          icon="buildings"
           label={(
             <span className="flex items-center gap-2xs whitespace-nowrap">
               <span className="text-label text-foreground">{tenantLabel}</span>
@@ -59,7 +59,7 @@ export function WorkspaceScope({
       <ShellPanelContent align="start" className="gap-lg">
         <ShellPanelHeader
           lead="icon"
-          icon="building"
+          icon="buildings"
           title={tenantLabel}
           titleAside={typeLabel ? <StatusBadge size="xs" tone="neutral" icon={false}>{typeLabel}</StatusBadge> : undefined}
           metaRows={[{ key: "workspace", icon: "workspace", content: workspaceLabel }]}
@@ -75,7 +75,7 @@ export function WorkspaceScope({
           />
           {consoleUrl ? (
             <ShellPanelRow
-              icon="building"
+              icon="buildings"
               label={HEADER_TEXT.tenantConsole}
               description={HEADER_TEXT.organizationInfoDescription}
               href={consoleUrl}

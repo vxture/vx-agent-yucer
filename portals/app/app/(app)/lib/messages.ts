@@ -2604,7 +2604,7 @@ export const HEADER_TEXT = {
   // The user panel (DS complete panel, owner 2026-09-10).
   accountStatus: (status: string | null) =>
     status === null ? "状态未知" : (LOGIN_ACCOUNT_STATUS_LABEL[status] ?? status),
-  accountCentre: "账户中心",
+  accountCentre: "账号中心",
   switchUser: "切换用户",
   logout: "退出登录",
   // The two flank toggles. Named for what the flank IS, not for the direction it
