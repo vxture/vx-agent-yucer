@@ -7,7 +7,7 @@
   min-height: 100dvh;
   overflow-x: clip;
   color: var(--foreground);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--primary) 6%, var(--card)), var(--card) 65%);
+  background: var(--background);
   font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 .root p { margin: 0; }
@@ -46,11 +46,6 @@
 .footer nav { display: flex; flex-wrap: wrap; gap: 16px; }
 .footer a:hover { color: var(--primary-text); }
 .backdrop { position: absolute; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; }
-.backdrop svg { width: 100%; height: 100%; color: var(--primary); }
-.scene { fill: none; stroke: currentColor; stroke-width: .8; stroke-linejoin: round; opacity: .18; }
-.route { stroke-dasharray: 4 10; animation: route-travel 32s linear infinite; }
-@keyframes route-travel { to { stroke-dashoffset: -140; } }
-@media (prefers-reduced-motion: reduce) { .route { animation: none; } }
 @media (max-width: 699px) {
   .chrome { padding-inline: 24px; }
   .header { flex-basis: auto; min-height: 64px; }

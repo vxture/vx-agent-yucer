@@ -95,12 +95,13 @@ here. This register restarts its numbering for `yucer`.
 
 **2026-11-09 Ruyin 家族登录首页**：按 owner 明确布局规范，登录入口改用
 `components/login-home.tsx` 和 `login-home.module.css`；拒绝访问等门屏仍沿用
-`gate-frame.tsx`。新增轴测背景及 32s 虚线路径动效（支持 reduced-motion），
+`gate-frame.tsx`。轴测背景及路径动效已按 owner 反馈移除；登录入口与其他门屏
+共用 `gate-ambience.tsx` 的原有顶部浅蓝渐变和底部柔和曲线，
 408px / 12% card / 3px blur 的组合和响应式布局由本次规范明确授权。
 所有颜色继续取 DS 语义 token；按钮、图标与主题/语言/全屏控件仍直接使用 DS。
 此局部 composition 在 DS 提供同等 Ruyin 家族公共登录模板后收回。
 
-**权宜位置**：`portals/app/app/(app)/components/gate-frame.tsx` 的 `Ambience()`。
+**权宜位置**：`portals/app/app/(app)/components/gate-ambience.tsx` 的 `GateAmbience()`。
 （2026-09-15 从 `sign-in.tsx` 迁入：三张门禁页——引导页、未订阅、已退出——共用同一个
 框架，权宜实现因此只有一份，而不是跟着页面复制三份。）
 

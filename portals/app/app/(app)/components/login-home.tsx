@@ -7,6 +7,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { useHeaderToolConfig } from "../lib/header-tool-config";
 import { TOOLBOX_ON_LADDER } from "./header-ladder";
 import styles from "./login-home.module.css";
+import { GateAmbience } from "./gate-ambience";
 
 /** Ruyin family public entry; authentication stays in the shared login route. */
 export function LoginHome({ href, resume }: { readonly href: string; readonly resume: boolean }) {
@@ -14,7 +15,7 @@ export function LoginHome({ href, resume }: { readonly href: string; readonly re
   const tools = useHeaderToolConfig();
   return (
     <div id="login-home" className={styles.root}>
-      <SpatialBackdrop />
+      <div className={styles.backdrop} aria-hidden="true"><GateAmbience /></div>
       <header className={styles.header}>
         <div className={styles.chrome}>
           <a href="/" className={styles.brand} aria-label={`Ruyin ${SHELL_TEXT.brandMark}`}>
@@ -50,25 +51,4 @@ export function LoginHome({ href, resume }: { readonly href: string; readonly re
       </div></footer>
     </div>
   );
-}
-
-/** Decorative vector scene: semantic DS colors and no downloaded bitmap. */
-function SpatialBackdrop() {
-  return <div className={styles.backdrop} aria-hidden="true">
-    <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <pattern id="login-grid" width="100" height="58" patternUnits="userSpaceOnUse"><path d="M0 29 50 0 100 29 50 58Z" fill="none" stroke="currentColor" strokeWidth=".6" /></pattern>
-        <g id="login-building"><path d="M0 0 70-40 140 0 70 40Z" fill="currentColor" fillOpacity=".035"/><path d="M0 0V100L70 140 140 100V0M70 40V140M0 100 70 60 140 100"/><path d="M16 24v52m18-42v52m18-42v52m36-52v52m18-62v52m18-62v52" strokeOpacity=".45" /></g>
-        <g id="login-device"><path d="m0 0 32-18 32 18v44L32 62 0 44Zm0 0 32 18L64 0M32 18v44"/><path d="m10 0 22-12L54 0 32 12Z" fill="currentColor" fillOpacity=".07"/></g>
-      </defs>
-      <g className={styles.scene}>
-        <path d="M-200 340H1800V1150H-200Z" fill="url(#login-grid)" stroke="none" opacity=".35" />
-        <path d="m-100 760 760-440 1020 590M-100 820 660 380 1680 970M120 1060 760 690 1500 260M180 1100 820 730 1560 300" strokeWidth="2" opacity=".45" />
-        <use href="#login-building" transform="translate(100 380) scale(1.4)"/><use href="#login-building" transform="translate(340 250) scale(.9)"/><use href="#login-building" transform="translate(1170 320) scale(1.5)"/><use href="#login-building" transform="translate(1390 560) scale(.85)"/><use href="#login-building" transform="translate(290 730) scale(1.15)"/><use href="#login-building" transform="translate(1030 800) scale(.8)"/>
-        <use href="#login-device" transform="translate(500 550)"/><use href="#login-device" transform="translate(1080 600)"/><use href="#login-device" transform="translate(190 660)"/><use href="#login-device" transform="translate(1380 810)"/>
-        <path className={styles.route} d="m-80 620 420 244 730-422 580 336M220 220l800 464 520-300" />
-        {[ [340,864], [1070,442], [1020,684], [520,550], [1110,600] ].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="4" fill="currentColor" />)}
-      </g>
-    </svg>
-  </div>;
 }
