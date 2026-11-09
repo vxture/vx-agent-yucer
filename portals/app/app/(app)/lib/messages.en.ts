@@ -1932,7 +1932,7 @@ export const en: Dictionary = {
 
   SIGNIN_TEXT: {
     welcome: "WELCOME TO YUCER",
-    productTitle: "Sales Intelligence Agent",
+    productTitle: "Yucer · Sales Intelligence Agent",
     accountTitle: "One platform account",
     accountDescription: "Your account, organization and workspace, connected",
     continueLabel: "Continue to sign in",

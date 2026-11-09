@@ -17,7 +17,7 @@
 .brandPart { display: flex; align-items: center; gap: 8px; }
 .brandPart img { flex-shrink: 0; }
 .wordmark { color: var(--primary-text); }
-.divider { width: 1px; height: 20px; margin-inline: 16px; background: var(--border); }
+.divider { flex-shrink: 0; width: 1px; height: 20px; margin-inline: 16px; background: color-mix(in srgb, var(--muted-foreground) 55%, var(--border)); }
 .tools { display: flex; align-items: center; gap: 4px; }
 .toolButton { width: 32px; height: 32px; min-width: 32px; border-radius: 8px; color: var(--muted-foreground); background: transparent; }
 .toolButton:hover { background: var(--accent); }
