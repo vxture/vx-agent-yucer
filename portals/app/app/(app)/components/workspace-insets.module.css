@@ -1,0 +1,27 @@
+/* Exposed canvas edges use page spacing; adjacent panes use section spacing. */
+.workspace {
+  --yucer-content-edge: var(--space-page-inset);
+  --yucer-content-inset-start: var(--yucer-content-edge);
+  --yucer-content-inset-end: var(--yucer-content-edge);
+}
+
+@media (min-width: 80rem) {
+  .workspace {
+    --yucer-content-edge: var(--space-3xl);
+  }
+}
+
+.withDock {
+  --yucer-content-inset-end: var(--space-lg);
+}
+
+.withNavigation,
+.body:has(> aside) {
+  --yucer-content-inset-start: var(--space-lg);
+}
+
+/* Keep the DS page container's width and vertical spacing in administration. */
+.adminContent {
+  padding-inline-start: var(--yucer-content-inset-start);
+  padding-inline-end: var(--yucer-content-inset-end);
+}
