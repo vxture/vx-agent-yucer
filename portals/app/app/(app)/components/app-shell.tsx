@@ -44,6 +44,7 @@ import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { CENTRE_PANE_CLASS, ASSISTANT_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
 import { FormAssistSlotProvider } from "./form-assist-slot";
+import workspaceInsets from "./workspace-insets.module.css";
 
 // Launcher switches business modules. Business pages use the available content
 // width; only object dossiers and administration have a local left pane.
@@ -245,6 +246,11 @@ export function AppShell({
   return (
     <FormAssistSlotProvider>
     <ShellViewport
+      className={[
+        workspaceInsets.workspace,
+        isAdmin ? workspaceInsets.withNavigation : "",
+        !isAdmin && deckVisible ? workspaceInsets.withDock : "",
+      ].filter(Boolean).join(" ")}
       // Administration uses the DS navigation slot. Business pages keep their
       // content and assistant in the body; object details also supply a dossier.
       sidebar={
@@ -483,13 +489,13 @@ export function AppShell({
       }
     >
       {isAdmin ? (
-        <div id={SHELL_BODY_ID} className="flex h-full min-h-0">
+        <div id={SHELL_BODY_ID} className={`flex h-full min-h-0 ${workspaceInsets.body}`}>
           <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <ShellPageContainer width="wide-2xl">{children}</ShellPageContainer>
+            <ShellPageContainer width="wide-2xl" className={workspaceInsets.adminContent}>{children}</ShellPageContainer>
           </div>
         </div>
       ) : (
-        <div id={SHELL_BODY_ID} className="flex h-full min-h-0">
+        <div id={SHELL_BODY_ID} className={`flex h-full min-h-0 ${workspaceInsets.body}`}>
           {isDossierPage ? children : <div className={CENTRE_PANE_CLASS}>{children}</div>}
         </div>
       )}

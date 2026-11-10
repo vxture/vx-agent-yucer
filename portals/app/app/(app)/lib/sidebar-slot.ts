@@ -5,12 +5,13 @@
 export const BOARD_PANE_CLASS =
   "w-(--vx-pane-nav) h-full min-h-0 shrink-0 overflow-y-auto border-r border-border px-lg pt-lg pb-2xl";
 
-/** The centre pane. See app-shell.tsx for why its padding is a measure. */
-export const CENTRE_PANE_CLASS = "h-full min-h-0 min-w-0 flex-1 overflow-y-auto px-lg pt-lg pb-2xl";
+/** AppShell supplies each edge inset according to the adjacent visible pane. */
+export const CENTRE_PANE_CLASS =
+  "h-full min-h-0 min-w-0 flex-1 overflow-y-auto ps-(--yucer-content-inset-start) pe-(--yucer-content-inset-end) pt-lg pb-2xl";
 
 /** DS viewport dock: independently padded and separated from the work area. */
 export const ASSISTANT_PANE_CLASS =
-  "w-(--vx-pane-action) h-full min-h-0 shrink-0 overflow-hidden border-l border-border px-md pt-lg pb-md";
+  "w-(--vx-pane-action) h-full min-h-0 shrink-0 overflow-hidden border-l border-border px-lg pt-lg pb-md";
 
 /** The routes whose page renders the board and centre panes itself: an
  *  object's detail page, where 栏1 is that object's own dossier instead of
