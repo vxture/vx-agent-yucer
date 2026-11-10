@@ -3,6 +3,7 @@
 import { HEADER_ICON_CONTROL } from "./header-ladder";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   Icon,
   StatusBadge,
@@ -121,6 +122,8 @@ export function DomainLauncher({
   activeKey,
   modules,
 }: DomainLauncherProps) {
+  const [open, setOpen] = useState(false);
+  const closePanel = () => setOpen(false);
   const {
     DOMAIN_LABEL,
     DOMAIN_GROUP_LABEL,
@@ -165,6 +168,7 @@ export function DomainLauncher({
         value={LAUNCHER_TEXT.section}
         href={m.href}
         linkComponent={Link}
+        onClick={closePanel}
         chevron={false}
       />
     ) : m.state === "locked" ? (
@@ -191,6 +195,7 @@ export function DomainLauncher({
         }
         href={`/upgrade/${m.key}`}
         linkComponent={Link}
+        onClick={closePanel}
         chevron={false}
       />
     ) : m.key === "national" || m.key === "enablement" || m.key === "strategyDiag" ? (
@@ -209,6 +214,7 @@ export function DomainLauncher({
         label={DOMAIN_LABEL[m.key] ?? m.key}
         href={m.href}
         linkComponent={Link}
+        onClick={closePanel}
         active={m.key === activeKey}
         newTab
         trailingIcon="external-link"
@@ -226,6 +232,7 @@ export function DomainLauncher({
         label={DOMAIN_LABEL[m.key] ?? m.key}
         href={m.href}
         linkComponent={Link}
+        onClick={closePanel}
         active={m.key === activeKey}
         description={moduleSummary(m.key)}
         chevron={false}
@@ -286,7 +293,7 @@ export function DomainLauncher({
             <TooltipContent>{question}</TooltipContent>
           </Tooltip>
         }
-        {...(href ? { href, linkComponent: Link } : {})}
+        {...(href ? { href, linkComponent: Link, onClick: closePanel } : {})}
         active={d.key === here}
         chevron={false}
         /* GRAY, NOT THE BRAND COLOUR (owner, 2026-09-16: five domain names in
@@ -316,7 +323,7 @@ export function DomainLauncher({
   };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <ShellIconButton
           className={HEADER_ICON_CONTROL}
