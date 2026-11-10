@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PeriodTabs } from "../components/period-tabs";
 import { offeredPeriods, resolvePeriod } from "../lib/periods";
-import { Button, Card, EmptyState, Progress, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, Progress, Section, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
@@ -221,21 +221,21 @@ function renderAttainment({ personal, period, embedded, session, targets, wsTarg
           achieved, the gap - so a strip above it would explain the same number
           twice, and the coarser one would be on top. */}
       {!embedded ? header : null}
-      <Card className="p-md">
+      <Section>
         <div className="flex flex-col gap-md">
           {wsTarget && measured && pct !== null ? (
             <div className="flex flex-col gap-sm">
-              <div className="grid grid-cols-4 gap-xs overflow-x-auto">
+              <div className="grid grid-cols-2 gap-x-xl gap-y-md sm:grid-cols-4">
                 {[
                   { label: ATTAINMENT_TEXT.attained, value: `${Math.round((measured.ratio ?? 0) * 100)}%` },
                   { label: ATTAINMENT_TEXT.won, value: BOARD_TEXT.wan(measured.achieved.amount) },
                   { label: ATTAINMENT_TEXT.target, value: BOARD_TEXT.wan(wsTarget.targetValue.amount) },
                   { label: ATTAINMENT_TEXT.gap, value: BOARD_TEXT.wan(Math.max(0, wsTarget.targetValue.amount - measured.achieved.amount)) },
                 ].map((metric) => (
-                  <Card key={metric.label} className="min-w-0 gap-2xs p-sm">
+                  <div key={metric.label} className="flex min-w-0 flex-col gap-2xs">
                     <span className="text-muted-foreground whitespace-nowrap text-body-small">{metric.label}</span>
                     <span className="text-foreground whitespace-nowrap text-label font-semibold tabular-nums">{metric.value}</span>
-                  </Card>
+                  </div>
                 ))}
               </div>
               {/* Bare track. The percentage it represents is the figure above
@@ -249,13 +249,13 @@ function renderAttainment({ personal, period, embedded, session, targets, wsTarg
             />
           )}
         </div>
-      </Card>
+      </Section>
 
       {/* THE POOL, and it only appears with a ratio behind it. `cover.ratio`
           is null when the target is already met - there is no coverage question
           left, and Infinity would render. */}
       {wsTarget && cover && cover.ratio !== null && totals ? (
-        <Card className="p-md">
+        <Section>
           <div className="flex flex-col gap-md">
             <SectionHeader level={2} title={ATTAINMENT_TEXT.pool(wsTarget.period)} description={ATTAINMENT_TEXT.poolWhy} />
 
@@ -308,10 +308,10 @@ function renderAttainment({ personal, period, embedded, session, targets, wsTarg
               ))}
             </div>
           </div>
-        </Card>
+        </Section>
       ) : null}
 
-      <Card className="p-md">
+      <Section>
         <div className="flex flex-col gap-md">
           <div>
             <SectionHeader level={2} title={ATTAINMENT_TEXT.composition} description={ATTAINMENT_TEXT.compositionWhy} />
@@ -333,7 +333,7 @@ function renderAttainment({ personal, period, embedded, session, targets, wsTarg
             </div>
           )}
         </div>
-      </Card>
+      </Section>
     </ViewLayout>
   );
 }

@@ -162,18 +162,8 @@ export default async function AppLayout({
     );
   }
 
-  // The sidebar's sections and their real numbers.
-  //
-  // Gathered here rather than in the page because the board belongs to the
-  // SHELL - it is on screen for every route, so every route pays for it. That
-  // cost is real and deliberate: a board that only knew the numbers on the home
-  // screen would go stale the moment you navigated, which is worse than not
-  // showing numbers at all.
-  //
-  // The judgement feed inside it is memoised per request (board.ts), so the
-  // home page reusing it does not compute the most expensive read twice.
-  // Administration still comes from the gate resolver, not the board: it is
-  // setup rather than work, and it lives as a header icon.
+  // Module summaries feed the launcher through the same gated reads as before.
+  // Administration uses its own resolved function menu below.
   /* THE PLANE'S ENTRIES, from the registry rather than a hand-listed pair.
      It read `key === "admin" || key === "adoption"`, which was fine while the
      plane was two items and silently wrong the moment it became seven: the
@@ -286,9 +276,8 @@ export default async function AppLayout({
           to AppShell as a prop and renders outside `children`. */}
       <MemberNamesProvider names={memberNames}>
       <AppShell
-        boardOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
+        adminNavOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
-        board={board.sections}
         boardModules={board.modules}
         deck={<AssistantDock>{deck}</AssistantDock>}
         deckCount={agent.pending.length}

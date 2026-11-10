@@ -270,6 +270,7 @@ export default function ProductPreviewPage() {
         <DomainLauncher
           nav={nav}
           activeKey="pipeline"
+          modules={{}}
         />
 
         <Separator />

@@ -11,7 +11,6 @@ import {
   Input,
   ListCard,
   ListCardGrid,
-  Card,
   NativeSelect,
   Section,
   StatusBadge,
@@ -305,11 +304,11 @@ export function PipelineBoard({
       description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : undefined}
     >
       {totals.ok ? (
-        <div className="grid grid-cols-4 gap-xs overflow-x-auto">
-          {metrics.map((m) => <Card key={m.id} className="min-w-0 gap-2xs p-sm">
+        <div className="grid grid-cols-2 gap-x-xl gap-y-md sm:grid-cols-4">
+          {metrics.map((m) => <div key={m.id} className="flex min-w-0 flex-col gap-2xs">
             <span className="text-muted-foreground text-body-small whitespace-nowrap">{m.label}</span>
             <span className="text-label font-semibold tabular-nums whitespace-nowrap">{m.value}</span>
-          </Card>)}
+          </div>)}
         </div>
       ) : null}
       {undated > 0 ? (

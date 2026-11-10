@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Card, ViewHeader } from "@vxture/design-ui";
+import { ViewHeader } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -41,18 +41,17 @@ export function ModuleHeadline({
   const { DOMAIN_LABEL, PAGE_BRIEF } = useMessages();
   // NAMED OVERRIDE (owner allows local CSS where the DS stops, 2026-09-24):
   // ViewHeader keeps its pb-lg with `divider={false}` - padding that holds the
-  // rule off the text, left behind as blank card once the rule is gone. DS
+  // rule off the text, left behind as blank space once the rule is gone. DS
   // gap: ViewHeader should drop the padding with the rule.
   return (
-    <Card className="p-lg [&>section]:pb-0">
-      <ViewHeader
-        icon={moduleIcon(moduleKey)}
-        title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
-        description={description ?? PAGE_BRIEF[brief ?? moduleKey] ?? ""}
-        secondary={tags ? <span className="flex items-center gap-xs">{tags}</span> : undefined}
-        divider={false}
-        action={action}
-      />
-    </Card>
+    <ViewHeader
+      className="pb-0"
+      icon={moduleIcon(moduleKey)}
+      title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
+      description={description ?? PAGE_BRIEF[brief ?? moduleKey] ?? ""}
+      secondary={tags ? <span className="flex flex-wrap items-center gap-xs">{tags}</span> : undefined}
+      divider={false}
+      action={action}
+    />
   );
 }
