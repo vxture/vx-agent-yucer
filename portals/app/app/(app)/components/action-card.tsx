@@ -75,4 +75,4 @@ export function ActionCard({
 }
 
 /** A secondary action beside the primary: text only, muted, no frame. */
-export const LIGHT_BUTTON = "text-muted-foreground hover:text-foreground h-auto px-xs py-0 font-normal";
+export const LIGHT_BUTTON = "text-muted-foreground hover:text-foreground px-xs py-0 font-normal";

@@ -334,7 +334,7 @@ export function ContactRoster({
             size="md"
             // Quiet (owner, 2026-09-24): regular weight, muted colour - a way
             // to see more, not an action competing with the names above.
-            className="text-muted-foreground hover:text-foreground h-auto w-full justify-center py-2xs font-normal"
+            className="text-muted-foreground hover:text-foreground w-full justify-center py-0 font-normal"
             onClick={() => setExpanded((v) => !v)}
           >
             {expanded ? ACCOUNT_TEXT.contactsCollapse : ACCOUNT_TEXT.contactsShowAll(contacts.length)}
