@@ -1,12 +1,13 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DataTable,
   EmptyState,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,

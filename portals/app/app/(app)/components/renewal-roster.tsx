@@ -1,11 +1,12 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
   DataTable,
   EmptyState,
-  FilterBar,
   Input,
   NativeSelect,
   Section,
@@ -261,7 +262,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       <span className="flex items-center justify-end gap-2xs">
         {openable ? (
           <Button
-            size="xs"
+            size="md"
             variant="secondary"
             disabled={pending}
             onClick={() => run(onOpen({ projectId: row.projectId }))}

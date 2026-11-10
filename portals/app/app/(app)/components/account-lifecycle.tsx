@@ -159,8 +159,8 @@ export function DealLifecyclePanel({
             {d.hasChain ? (
               <Button
                 variant="link"
-                size="sm"
-                className="h-auto self-start p-0"
+                size="md"
+                className="self-start p-0"
                 onClick={() => setActiveId(d.id)}
               >
                 {ACCOUNT_TEXT.lifecycleViewChain}

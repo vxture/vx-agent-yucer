@@ -149,7 +149,7 @@ export function RoutingAssignPanel({
           {canAssign ? (
             <div>
               <Button
-                size="sm"
+                size="md"
                 disabled={pending}
                 onClick={() =>
                   start(async () => {
@@ -196,14 +196,14 @@ export function RoutingAssignPanel({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-xs">
-        <Button size="sm" variant="secondary" disabled={pending} onClick={analyse}>
+        <Button size="md" variant="secondary" disabled={pending} onClick={analyse}>
           {/* The panel arrives with an answer, so this button is almost always
               "take the numbers again" rather than "produce some". */}
           {state.kind === "idle" ? ROUTING_TEXT.assignRun : ROUTING_TEXT.assignAgain}
         </Button>
         {state.kind === "done" || state.kind === "failed" ? (
           <Button
-            size="sm"
+            size="md"
             variant="ghost"
             disabled={pending}
             onClick={() => {

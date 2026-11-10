@@ -1,11 +1,12 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useMemo, useState } from "react";
 import {
   Button,
   ButtonGroup,
   DataTable,
-  FilterBar,
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
@@ -323,11 +324,11 @@ export function PermissionTree({
             <span className="text-muted-foreground text-body-small">{T.expandTo}</span>
             <ButtonGroup>
               {(["module", "page", "action"] as const).map((lvl) => (
-                <Button key={lvl} variant="secondary" size="sm" onClick={() => { setExpanded(keysDownTo(tree, lvl)); pagination.resetPage(); }}>
+                <Button key={lvl} variant="secondary" size="md" onClick={() => { setExpanded(keysDownTo(tree, lvl)); pagination.resetPage(); }}>
                   {T.levelLabel[lvl]}
                 </Button>
               ))}
-              <Button variant="secondary" size="sm" onClick={() => { setExpanded(new Set()); pagination.resetPage(); }}>
+              <Button variant="secondary" size="md" onClick={() => { setExpanded(new Set()); pagination.resetPage(); }}>
                 {T.collapseAll}
               </Button>
             </ButtonGroup>
@@ -658,11 +659,11 @@ export function PermissionTreeTable({
                 the same level open rather than showing the newly revealed
                 branches folded. */}
             {(["module", "page", "action"] as const).map((lvl) => (
-              <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
+              <Button key={lvl} variant="secondary" size="md" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
                 {T.levelLabel[lvl]}
               </Button>
             ))}
-            <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
+            <Button variant="secondary" size="md" onClick={() => setExpanded(new Set())}>
               {T.collapseAll}
             </Button>
           </ButtonGroup>

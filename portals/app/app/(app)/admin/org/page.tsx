@@ -1,4 +1,5 @@
-import { Button, EmptyState, Tooltip, TooltipContent, TooltipTrigger, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { Button, EmptyState, Tooltip, TooltipContent, TooltipTrigger, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -146,7 +147,7 @@ export default async function OrgPage() {
     <ViewLayout>
       <PageCrumbs trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]} current={DOMAIN_LABEL.orgUnit} />
       <ViewHeader
-        divider={false}
+        divider
         icon="tree-structure"
         title={ORG_TEXT.title}
         description={PAGE_BRIEF.adminOrg}

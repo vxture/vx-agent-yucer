@@ -84,20 +84,8 @@ export interface BoardMetric {
   readonly weight?: number;
 }
 
-/**
- * One module's card in the navigation.
- *
- * THE NAVIGATION IS THE BOARD NOW (2026-08-31). Until this batch the left pane
- * carried two stacked structures: a module list, which was names and icons and
- * nothing else, and a set of board cards keyed by ROUTE. A reader had to hold
- * both to answer "what is in this domain and where does it stand", and the two
- * disagreed about what a domain contains - the module list came from the
- * launcher, the cards from whatever board.ts happened to compute.
- *
- * One card per module, in the launcher's own order, each carrying the one
- * figure that is a reason to open it. `metrics` empty is the honest state for a
- * module whose gate refused: no number, never a zero.
- */
+/** A gated module summary for the launcher. Empty metrics means no readable
+ *  data, not a measured zero. Values retain their domain-specific units. */
 export interface BoardModuleCard {
   readonly metrics: readonly BoardMetric[];
   /** Same meaning as on a section - see the note there. */

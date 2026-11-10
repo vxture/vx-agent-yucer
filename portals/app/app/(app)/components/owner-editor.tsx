@@ -129,7 +129,7 @@ export function OwnerEditor({
         width="sm"
         title={COLLABORATOR_TEXT.title}
         footer={
-          <Button variant="ghost" size="sm" onClick={openLinkDrawer}>
+          <Button variant="ghost" size="md" onClick={openLinkDrawer}>
             {COLLABORATOR_TEXT.linkButton}
           </Button>
         }
@@ -158,7 +158,7 @@ export function OwnerEditor({
                 </div>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon-md"
                   disabled={saving}
                   aria-label={COLLABORATOR_TEXT.remove}
                   title={COLLABORATOR_TEXT.remove}

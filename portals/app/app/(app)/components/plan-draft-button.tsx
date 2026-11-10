@@ -23,7 +23,7 @@ export function PlanDraftButton({
   const [pending, start] = useTransition();
   return (
     <Button
-      size="sm"
+      size="md"
       variant="ghost"
       disabled={pending}
       onClick={() =>

@@ -175,7 +175,7 @@ export default async function CampaignPage() {
       {/* No description here: the header above carries it, and the same
           sentence twice on one screen makes a reader check whether the two
           agree instead of reading either. */}
-      <Section icon="target" title={CAMPAIGN_TEXT.title}>
+      <Section>
         <CampaignTable rows={rows} canMove={canMove} canEdit={canMove} onMove={moveCampaign} />
       </Section>
 

@@ -77,7 +77,7 @@ export function DealPanel({
       summary={summary}
       action={
         primary && edit?.can[primary.editor] ? (
-          <Button size="sm" onClick={() => edit.open(primary.editor)}>
+          <Button size="md" onClick={() => edit.open(primary.editor)}>
             {primary.label}
           </Button>
         ) : undefined
@@ -188,7 +188,7 @@ export function DealDossierPanel({
           </dl>
         ) : null}
         {more.length > 0 ? (
-          <Button size="xs" variant="ghost" className="self-start" aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
+          <Button size="md" variant="ghost" className="self-start" aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
             {/* One name in both states (owner 2026-09-26: 都是"更多XX"，不是"收起"
                 这种无意义名词) - the chevron says open or shut. */}
             {ACCOUNT_TEXT.orgUnitMore}
@@ -399,7 +399,7 @@ export function ProcessTitles({
               <span className="text-foreground text-body-small font-bold">{r.label}</span>
               {r.mark?.work ? <span className={`truncate text-body-small ${CHECK_INK[r.mark.tone]}`}>{r.mark.work}</span> : null}
             </span>
-            <Button size="xs" variant="outline" aria-expanded={open.has(r.slot)} onClick={() => toggle(r.slot)}>
+            <Button size="md" variant="outline" aria-expanded={open.has(r.slot)} onClick={() => toggle(r.slot)}>
               {open.has(r.slot) ? DEAL_PAGE_TEXT.processCollapse : DEAL_PAGE_TEXT.processExpand}
               <Icon name={open.has(r.slot) ? "chevron-up" : "chevron-down"} size="xs" />
             </Button>
@@ -551,7 +551,7 @@ export function FoldedList({
     <>
       {open || rest <= 0 ? items : items.slice(0, visible)}
       {rest > 0 ? (
-        <Button size="xs" variant="ghost" className="self-start" onClick={() => setOpen(!open)}>
+        <Button size="md" variant="ghost" className="self-start" onClick={() => setOpen(!open)}>
           {/* The same name open or shut; the chevron says which. */}
           {DEAL_PAGE_TEXT.foldMore(rest)}
           <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />

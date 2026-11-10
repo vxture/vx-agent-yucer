@@ -101,7 +101,7 @@ export function CollapsibleSection({
   const toggle = (
     <Button
       variant="ghost"
-      size="icon-sm"
+      size="icon-md"
       aria-expanded={expanded}
       aria-label={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}
       title={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}

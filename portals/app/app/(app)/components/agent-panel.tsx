@@ -129,7 +129,7 @@ export function AgentPanel({
           items: [],
           footer: (
             <span className="flex flex-col gap-xs">
-              <Button size="sm" variant="outline" disabled>
+              <Button size="md" variant="outline" disabled>
                 {BOARD_TEXT.reconCta}
               </Button>
               <span className="text-muted-foreground text-body-small">{BOARD_TEXT.analysisNote}</span>

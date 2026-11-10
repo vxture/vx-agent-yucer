@@ -1,10 +1,10 @@
+import { ViewHeader } from "../../components/business-controls";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   EmptyState,
   Section,
   StatusBadge,
-  ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";

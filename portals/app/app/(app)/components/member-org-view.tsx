@@ -407,17 +407,17 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
           <span className="text-muted-foreground text-body-small">{MEMBER_TEXT.orgExpandTo}</span>
           <ButtonGroup>
             {levels.map((lvl) => (
-              <Button key={lvl} variant="secondary" size="sm" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
+              <Button key={lvl} variant="secondary" size="md" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
                 {MEMBER_TEXT.orgLevelLabel(lvl)}
               </Button>
             ))}
-            <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
+            <Button variant="secondary" size="md" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
               {MEMBER_TEXT.orgCollapseAll}
             </Button>
           </ButtonGroup>
         </div>
         {canManage ? (
-          <Button size="sm" onClick={() => open({ kind: "place", unitId: units[0]?.id ?? null, mode: "add", unitName: "" })}>{MEMBER_TEXT.orgAdd}</Button>
+          <Button size="md" onClick={() => open({ kind: "place", unitId: units[0]?.id ?? null, mode: "add", unitName: "" })}>{MEMBER_TEXT.orgAdd}</Button>
         ) : null}
       </div>
       {canManage ? (
@@ -482,7 +482,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
               <CollapsibleTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="md"
                   aria-label={showInactive ? MEMBER_TEXT.orgCollapse(MEMBER_TEXT.orgInactiveTitle(inactive.length)) : MEMBER_TEXT.orgExpand(MEMBER_TEXT.orgInactiveTitle(inactive.length))}
                 >
                   <Icon name={showInactive ? "chevron-down" : "chevron-right"} size="xs" />

@@ -361,7 +361,7 @@ export function AgeingPolicyConfig({
                     <Input
                       type="number"
                       inputMode="numeric"
-                      className="h-control-xs w-16 text-center [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+                      className="h-control-md w-16 text-center [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
                       value={r.value}
                       disabled={pending || !canWrite}
                       aria-invalid={rowInvalid[i]}
@@ -371,7 +371,7 @@ export function AgeingPolicyConfig({
                     <Button
                       type="button"
                       variant="outline"
-                      size="icon-xs"
+                      size="icon-md"
                       onClick={() => stageRemoval(r.id, r.value)}
                       aria-label={AGEING_TEXT.cutoffRemove}
                       disabled={!canWrite || pending || rows.length <= 1}
@@ -424,10 +424,10 @@ export function AgeingPolicyConfig({
                     ? AGEING_TEXT.confirmAdd(pendingAction.value)
                     : AGEING_TEXT.confirmRemove(pendingAction.value || "?")}
                 </span>
-                <Button size="sm" onClick={confirmPendingAction}>
+                <Button size="md" onClick={confirmPendingAction}>
                   {AGEING_TEXT.confirmYes}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={cancelPendingAction}>
+                <Button size="md" variant="ghost" onClick={cancelPendingAction}>
                   {AGEING_TEXT.confirmNo}
                 </Button>
               </div>

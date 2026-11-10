@@ -185,7 +185,7 @@ export function CommitmentList({
                     </NativeSelect>
                   </span>
                   <Button
-                    size="sm"
+                    size="md"
                     disabled={pending || chosen === ""}
                     onClick={() =>
                       run(() =>
@@ -203,7 +203,7 @@ export function CommitmentList({
                   {overdue ? (
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="md"
                       disabled={pending}
                       onClick={() =>
                         run(() =>
@@ -232,7 +232,7 @@ export function CommitmentList({
                   </span>
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="md"
                     disabled={pending || !(reason[c.id] ?? "").trim()}
                     onClick={() =>
                       run(() =>
@@ -250,7 +250,7 @@ export function CommitmentList({
                 {/* ADR-037: the author may take back an open promise. */}
                 {onDelete && currentSub && items.find((x) => x.id === c.id)?.createdBySub === currentSub ? (
                   <div className="flex justify-end">
-                    <Button variant="ghost" size="sm" disabled={pending} onClick={() => setDeleting(c.id)}>
+                    <Button variant="ghost" size="md" disabled={pending} onClick={() => setDeleting(c.id)}>
                       {FIELD_TEXT.commitDelete}
                     </Button>
                   </div>
@@ -305,7 +305,7 @@ export function CommitmentList({
                     : (COMMIT_STATUS_LABEL[c.status] ?? c.status)}
                 </span>
                 {canWrite && isOpen ? (
-                  <Button size="xs" variant="ghost" aria-expanded={handling === c.id} onClick={() => setHandling(handling === c.id ? null : c.id)}>
+                  <Button size="md" variant="ghost" aria-expanded={handling === c.id} onClick={() => setHandling(handling === c.id ? null : c.id)}>
                     {handling === c.id ? FIELD_TEXT.commitHandleClose : FIELD_TEXT.commitHandle}
                   </Button>
                 ) : (
@@ -362,7 +362,7 @@ export function CommitmentList({
               </Tag>
               {canWrite ? (
                 <Button
-                  size="sm"
+                  size="md"
                   variant="ghost"
                   aria-expanded={handling === c.id}
                   onClick={() => setHandling(handling === c.id ? null : c.id)}
@@ -399,7 +399,7 @@ export function CommitmentList({
 
       {canWrite ? (
         <div className="mt-sm">
-          <Button asChild size="sm" variant="secondary">
+          <Button asChild size="md" variant="secondary">
             <a href={captureHref}>{FIELD_TEXT.commitCreate}</a>
           </Button>
         </div>

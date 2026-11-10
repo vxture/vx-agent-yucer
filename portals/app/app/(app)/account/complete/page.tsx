@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { can } from "../../../authz/decide";
 import { resolveAppSession } from "../../lib/session";

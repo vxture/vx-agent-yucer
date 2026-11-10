@@ -3,6 +3,7 @@
 import { HEADER_ICON_CONTROL } from "./header-ladder";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   Icon,
   StatusBadge,
@@ -26,16 +27,14 @@ import {
   type ResolvedDomain,
   type ResolvedModule,
 } from "../lib/functional-domains";
+import type { BoardModuleCard } from "../lib/board";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
 // The functional-domain launcher - the app grid in the header.
 //
-// It is the ONLY way into the eight domain pages. The left flank is the board
-// (how things stand), the right is the deck (what the copilot wants decided);
-// neither is a menu. Before this existed the domain routes were reachable only
-// by typing the URL, which is why the nine-dot button being inert was a
-// functional gap and not a missing decoration.
+// The launcher holds module switching and gated numerical summaries. Pages
+// reserve local navigation for functions within the current module.
 //
 // NOT ShellLauncher, and the DS is the reason rather than a preference.
 // ShellLauncher takes a FLAT item list and calls back with a key - it models
@@ -63,6 +62,7 @@ export interface DomainLauncherProps {
   readonly nav: readonly ResolvedNavEntry[];
   /** The nav key of the route on screen, so its row and domain read as active. */
   readonly activeKey: string;
+  readonly modules: Readonly<Record<string, BoardModuleCard>>;
 }
 
 /**
@@ -120,7 +120,10 @@ export const CROSSCUTTING_RULE =
 export function DomainLauncher({
   nav,
   activeKey,
+  modules,
 }: DomainLauncherProps) {
+  const [open, setOpen] = useState(false);
+  const closePanel = () => setOpen(false);
   const {
     DOMAIN_LABEL,
     DOMAIN_GROUP_LABEL,
@@ -128,11 +131,20 @@ export function DomainLauncher({
     PLANNED_MODULE_LABEL,
     LAUNCHER_TEXT,
     TIER_LABEL,
+    ATTAINMENT_TEXT,
   } = useMessages();
 
   const domains = resolveFunctionalDomains(nav);
   const crosscutting = resolveCrosscutting(nav);
   const here = activeDomainKey(activeKey);
+
+  const moduleSummary = (key: string) => {
+    const summary = modules[key]?.metrics
+      .map((metric) => `${metric.value} ${metric.label}`)
+      .join(" \u00b7 ");
+    if (summary) return <span title={summary}>{summary}</span>;
+    return key === "attainment" ? ATTAINMENT_TEXT.progress : undefined;
+  };
 
   const row = (m: ResolvedModule) =>
     m.kind === "planned" ? (
@@ -156,6 +168,7 @@ export function DomainLauncher({
         value={LAUNCHER_TEXT.section}
         href={m.href}
         linkComponent={Link}
+        onClick={closePanel}
         chevron={false}
       />
     ) : m.state === "locked" ? (
@@ -182,6 +195,7 @@ export function DomainLauncher({
         }
         href={`/upgrade/${m.key}`}
         linkComponent={Link}
+        onClick={closePanel}
         chevron={false}
       />
     ) : m.key === "national" || m.key === "enablement" || m.key === "strategyDiag" ? (
@@ -200,6 +214,7 @@ export function DomainLauncher({
         label={DOMAIN_LABEL[m.key] ?? m.key}
         href={m.href}
         linkComponent={Link}
+        onClick={closePanel}
         active={m.key === activeKey}
         newTab
         trailingIcon="external-link"
@@ -217,7 +232,9 @@ export function DomainLauncher({
         label={DOMAIN_LABEL[m.key] ?? m.key}
         href={m.href}
         linkComponent={Link}
+        onClick={closePanel}
         active={m.key === activeKey}
+        description={moduleSummary(m.key)}
         chevron={false}
       />
     );
@@ -276,7 +293,7 @@ export function DomainLauncher({
             <TooltipContent>{question}</TooltipContent>
           </Tooltip>
         }
-        {...(href ? { href, linkComponent: Link } : {})}
+        {...(href ? { href, linkComponent: Link, onClick: closePanel } : {})}
         active={d.key === here}
         chevron={false}
         /* GRAY, NOT THE BRAND COLOUR (owner, 2026-09-16: five domain names in
@@ -306,7 +323,7 @@ export function DomainLauncher({
   };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <ShellIconButton
           className={HEADER_ICON_CONTROL}

@@ -37,7 +37,7 @@ export function MemberViewSwitch({ value, onChange, ariaLabel, labels }: {
   return (
     <ToggleGroup
       type="single"
-      size="icon-md"
+      size="icon-xl"
       aria-label={ariaLabel}
       value={value}
       onValueChange={(next) => {

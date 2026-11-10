@@ -104,7 +104,7 @@ export async function OverdueCommitments({
         description={FIELD_TEXT.commitOverdueDescription}
         action={
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="md">
               {FIELD_TEXT.commitCount(rows.length)}
               <Icon name="chevron-down" size="xs" />
             </Button>
@@ -171,7 +171,7 @@ async function Row({ row: r, days }: { row: OverdueRow; days: number }) {
               ? <>{FIELD_TEXT.commitOwner("")}<MemberName sub={r.ownerSub} /></>
               : FIELD_TEXT.commitOwnerNone}
           </p>
-          <Button size="sm" asChild>
+          <Button size="md" asChild>
             <Link
               href={`/account/${r.accountId}`}
               title={FIELD_TEXT.commitGoSettleHint(r.accountName)}

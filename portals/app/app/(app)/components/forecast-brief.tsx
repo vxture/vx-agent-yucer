@@ -35,7 +35,7 @@ export function ForecastBriefPanel({
       description={T.why}
       action={
         <Button
-          size="sm"
+          size="md"
           variant="outline"
           disabled={pending}
           onClick={() =>

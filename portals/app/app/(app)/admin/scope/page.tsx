@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -65,7 +66,7 @@ export default async function ScopePage() {
         current={DOMAIN_LABEL.scope}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="eye"
         title={ADMIN_PAGE_TEXT.scopeTitle}
         description={PAGE_BRIEF.adminScope}

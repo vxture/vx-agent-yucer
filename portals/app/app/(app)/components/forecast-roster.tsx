@@ -1,10 +1,11 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useState, useTransition, type ReactNode } from "react";
 import {
   DataTable,
   EmptyState,
-  FilterBar,
   Input,
   NativeSelect,
   Section,

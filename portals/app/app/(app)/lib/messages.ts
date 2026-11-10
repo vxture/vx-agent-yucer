@@ -5731,6 +5731,7 @@ export const PLANNING_TEXT = {
   tagUnforecast: (n: number) => `${n} 个未预测`,
   tagTerritories: (n: number) => `${n} 个区域`,
   tagNoOwner: (n: number) => `${n} 个没有负责人`,
+  targetRoster: "销售目标",
   title: "销售规划",
   description:
     "目标由本域设定，达成由商机域的预测快照计算——两个域不互相写对方的数据。",

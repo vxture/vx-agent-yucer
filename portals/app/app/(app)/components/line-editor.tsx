@@ -361,7 +361,7 @@ export function LineEditor({
               />
               <Button
                 variant="ghost"
-                size="sm"
+                size="md"
                 aria-label={OPPORTUNITY_TEXT.lineRemove}
                 onClick={() =>
                   setDrafts((prev) => prev.filter((_, j) => j !== i))
@@ -375,7 +375,7 @@ export function LineEditor({
           <div className="flex flex-wrap items-center gap-xs">
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={() =>
                 setDrafts((prev) => [
                   ...prev,

@@ -1,4 +1,5 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
@@ -69,7 +70,7 @@ export default async function PermissionsPage() {
           the third still turns to a warning when an operation nobody holds
           exists - a real audit signal, not a filler. */}
       <ViewHeader
-        divider={false}
+        divider
         icon="key"
         title={PERMISSION_TREE_TEXT.title}
         description={PAGE_BRIEF.adminPermissions}

@@ -1,9 +1,10 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import {
   DataTable,
   EmptyState,
-  FilterBar,
   Input,
   NativeSelect,
   StatusBadge,

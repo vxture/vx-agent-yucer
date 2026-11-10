@@ -1,5 +1,7 @@
 "use client";
 
+import { ViewHeader } from "./business-controls";
+
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
@@ -15,7 +17,6 @@ import {
   SegmentedControl,
   Stack,
   StatusBadge,
-  ViewHeader,
 } from "@vxture/design-ui";
 import { dismissJudgement } from "../judgement-actions";
 import { StaleMark } from "./stale-mark";
@@ -272,7 +273,7 @@ function Engagement({
         description={j.claim}
         action={
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" aria-expanded={open}>
+            <Button variant="ghost" size="md" aria-expanded={open}>
               {open ? HOME_TEXT.collapse : HOME_TEXT.expand}
               <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
             </Button>
@@ -331,7 +332,7 @@ function Engagement({
               checking the reasoning needs the drawer. `ml-auto` is what holds
               the right edge when the facts are short. */}
           <Stack gap="xs" className="ml-auto flex-row flex-wrap items-center">
-            <Button size="sm" asChild>
+            <Button size="md" asChild>
               {/* The team judgement is not an account, so it does not open a
               position - and its own reading has no page any more (使用分析
               was deleted, owner 2026-09-17). It falls back to home rather
@@ -344,12 +345,12 @@ function Engagement({
               </Link>
             </Button>
             {j.analyses.map((a) => (
-              <Button key={a} size="sm" variant="outline">
+              <Button key={a} size="md" variant="outline">
                 {analysisLabels(HOME_TEXT)[a]}
               </Button>
             ))}
             <Button
-              size="sm"
+              size="md"
               variant="ghost"
               disabled={pendingDismiss}
               title={HOME_TEXT.actDismissHint}

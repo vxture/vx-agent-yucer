@@ -1,4 +1,5 @@
-import { ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../../components/business-controls";
+import { ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";

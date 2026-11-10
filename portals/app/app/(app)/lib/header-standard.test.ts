@@ -6,8 +6,8 @@ import { PAGE_BRIEF } from "./messages";
 import { en as enMessages } from "./messages.en";
 
 // The page header is 4 + 1 (owner, 2026-10-02): icon, title, one short line,
-// the tags after the title - and, on demand, ONE button bottom-right. No rule
-// under it and no fold: what used to fold was a statistic (it lives in the
+// the tags after the title - and, on demand, ONE button bottom-right. The DS rule
+// separates the open title from its content, with no fold: what used to fold was a statistic (it lives in the
 // page's own analysis block) or a duplicate of one.
 
 const APP = join(import.meta.dirname, "..");
@@ -22,11 +22,11 @@ function pages(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-test("ModuleHeadline has no fold and no rule", () => {
+test("ModuleHeadline keeps the DS divider and has no fold", () => {
   const src = read("components", "module-headline.tsx");
   assert.ok(!/Collapsible/.test(src), "the header folds again");
   assert.ok(!/useState/.test(src), "the header holds state again");
-  assert.match(src, /divider=\{false\}/);
+  assert.match(src, /\sdivider(?:\s|>)/);
   // It reads useMessages(); without this every module page answers 500.
   assert.ok(src.startsWith('"use client"'), "ModuleHeadline lost its use-client directive");
 });
@@ -87,11 +87,11 @@ test("every module key resolves to a brief", () => {
 
 const ADMIN_LISTS = ["opportunity", "division", "org", "reminder", "roles", "roles/groups", "scope", "product", "audit", "permissions", "diagnostics", "industry", "members", "migration"];
 
-test("the admin list headers carry no rule either", () => {
+test("the admin list headers use the same DS divider", () => {
   for (const d of ADMIN_LISTS) {
     const src = read("admin", d, "page.tsx");
     const at = src.indexOf("<ViewHeader");
     assert.ok(at >= 0, d);
-    assert.ok(src.slice(at, at + 400).includes("divider={false}"), `admin/${d}: header keeps its rule`);
+    assert.ok(src.slice(at, at + 400).includes("divider\n"), `admin/${d}: header lost its divider`);
   }
 });

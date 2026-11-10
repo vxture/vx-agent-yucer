@@ -417,7 +417,7 @@ export function DivisionForm({
                       <TableCell className="text-center">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="md"
                           disabled={pending}
                           onClick={() => toggle(o.key)}
                         >

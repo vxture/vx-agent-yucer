@@ -1,4 +1,5 @@
-import { ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../../components/business-controls";
+import { ViewLayout } from "@vxture/design-ui";
 import { redirect } from "next/navigation";
 import { PageCrumbs } from "../../../components/page-crumbs";
 import { resolveAppSession } from "../../../lib/session";
@@ -46,7 +47,7 @@ export default async function RoleGroupsPage() {
         current={ROLE_GROUP_TEXT.pageTitle}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="user-circle"
         title={ROLE_GROUP_TEXT.pageTitle}
         description={PAGE_BRIEF.adminRoleGroups}

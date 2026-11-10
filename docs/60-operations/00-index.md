@@ -2143,3 +2143,14 @@ Dependabot npm 任务 [42209048119](https://github.com/vxture/vx-agent-yucer/act
 成功，生成 #587–#596 共 10 条更新 PR，达到配置上限。私有包读取 HTTP 200；
 主干 CI 42209042178 成功。配合此前成功的日频 sca-watch 42195782176，
 本条两条扫描链路均已恢复，关闭。新依赖升级仍需独立兼容性验收，不能视为已合并。
+
+
+### TD-038 - DS 组合操作行缺少统一尺寸参数
+
+**状态：临时绑定，待 DS 补齐。** 2026-11-10，owner 要求业务操作统一为 32px / 24px，同一操作行同高。
+
+DS 15.0.1 的 `FilterBar` 内置 32px `ViewModeSwitch`，但输入框、原生筛选和重置按钮为 24px；它没有统一 size 参数。`TabsList` 固定 28px，内部标签减去 padding 后为 20px。单个 Button 的 `size` 已提供需要的 `xl`/`md`，无需改造。
+
+临时位置：`components/business-controls.tsx` 与 `business-controls.module.css`。组合操作行只通过 DS `--space-control-xl` 绑定高度；图标重置按钮宽度同步。同一包装中的 `ViewHeader` 使用原生 divider/padding，页级动作绑定 32px。`TabsList` 选 DS `h-control-xl`，内标签自然为 24px。颜色、圆角、阴影、交互与字阶不改。业务内显式的小档按钮直接迁移到 DS `md`，页级新建/保存等使用 `xl`。
+
+退出条件：DS `FilterBar` 支持共享尺寸并向输入/筛选/重置/视图切换传递，`TabsList` 支持组高尺寸，`ViewHeader` 支持动作尺寸。届时删除局部尺寸 CSS，包装只保留语义默认值。本条不声明上游已提供上述参数。

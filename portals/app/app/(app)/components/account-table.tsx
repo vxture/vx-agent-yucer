@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
@@ -8,7 +10,6 @@ import {
   ActionMenu,
   DataTable,
   EmptyState,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,

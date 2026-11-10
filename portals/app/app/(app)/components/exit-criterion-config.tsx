@@ -149,7 +149,7 @@ export function ExitCriterionConfig({
               description={`${s.stageCode} · ${EXIT_CONFIG_TEXT.winRate(s.defaultProbability)}`}
               action={
                 editable && !s.isTerminal ? (
-                  <Button size="sm" variant="ghost" onClick={() => { setError(null); setDraft(blank(s.stageCode)); }}>
+                  <Button size="md" variant="ghost" onClick={() => { setError(null); setDraft(blank(s.stageCode)); }}>
                     {EXIT_CONFIG_TEXT.add}
                   </Button>
                 ) : undefined

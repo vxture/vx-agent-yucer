@@ -118,11 +118,11 @@ export function CompetitionPanel({
           canRecord ? (
             <span className="flex items-center gap-2xs">
               {rivals.length === 0 && !onlyUs ? (
-                <Button variant="ghost" size="sm" className={LIGHT_BUTTON} disabled={pending} onClick={() => run(onRecord(opportunityId, { competitorId: null }))}>
+                <Button variant="ghost" size="md" className={LIGHT_BUTTON} disabled={pending} onClick={() => run(onRecord(opportunityId, { competitorId: null }))}>
                   {T.onlyUs}
                 </Button>
               ) : null}
-              <Button variant="ghost" size="sm" className={LIGHT_BUTTON} disabled={pending} onClick={() => { setName(""); setIncumbent(false); setAdding(true); }}>
+              <Button variant="ghost" size="md" className={LIGHT_BUTTON} disabled={pending} onClick={() => { setName(""); setIncumbent(false); setAdding(true); }}>
                 {T.addRival}
               </Button>
             </span>
@@ -174,7 +174,7 @@ export function CompetitionPanel({
       <PanelSub
         action={
           canRecord ? (
-            <Button variant="ghost" size="sm" className={LIGHT_BUTTON} disabled={pending} onClick={() => openCriterion("new")}>
+            <Button variant="ghost" size="md" className={LIGHT_BUTTON} disabled={pending} onClick={() => openCriterion("new")}>
               {T.addCriterion}
             </Button>
           ) : undefined

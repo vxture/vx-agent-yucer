@@ -28,14 +28,13 @@ import { formatPhone } from "../lib/format-phone";
 import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
-import { NavBoard } from "./nav-board";
 import { AdminNav } from "./admin-nav";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { HeaderSearch } from "./header-search";
 import { AVATAR_ON_LADDER, HEADER_ICON_CONTROL, HEADER_SEARCH_CONTROL, PRODUCT_TITLE_ON_LADDER } from "./header-ladder";
 import { WorkspaceScope } from "./workspace-scope";
-import type { BoardModuleCard, BoardSection } from "../lib/board";
+import type { BoardModuleCard } from "../lib/board";
 // NOT a static import of the Chinese constants any more. This component is
 // the shell - it renders on every page, in whatever language the request
 // resolved to - so it reads the dictionary rather than one locale's copy of it.
@@ -43,49 +42,15 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
+import { CENTRE_PANE_CLASS, ASSISTANT_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
 import { FormAssistSlotProvider } from "./form-assist-slot";
 
-// The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
-// route-keyed board cards - which ones stay open, which collapse - and the pane
-// no longer has that stack: it has the queue and this domain's modules, and
-// every one of those is worth a card. See nav-board.tsx.
-
-// yucer's application shell: a command console, in three zones.
-//
-//   LEFT   - ours. Where things stand for our own side: quota, resource,
-//            allies, the other fronts. NOT a menu; navigation is what these
-//            cards happen to also do when clicked.
-//   CENTRE - the engagement. One thing at a time, because deciding is done one
-//            thing at a time.
-//   RIGHT  - the agent, and what it is looking at.
-//
-// The header is a fourth, permanent thing, and its return is a correction.
-//
-// The previous shell dissolved the header into the two flanks - identity rode
-// the own-forces panel, the tools rode the agent's - reasoning that a full-width
-// bar reads as "document with a toolbar" rather than as a console. That holds
-// for identity. It does not hold for the tools, because it made them CONDITIONAL
-// ON A FLANK: the right flank was display:none below 1536px, so on a laptop the
-// search box, the theme toggle, the administration door and the user menu were
-// simply not on screen, with no control anywhere that could bring them back.
-// Signing out required a wider monitor.
-//
-// So the tools now sit in a bar that is always there, and each flank holds only
-// what it is about. That also gives the flanks somewhere to collapse TO: a panel
-// you can shut but not reopen is a panel you can lose, so both toggles live
-// outside the things they toggle.
-//
-// The two gate states render differently, and that asymmetry is deliberate:
-// an ENTITLEMENT gap is advertised with the tier that would unlock it, because
-// a feature nobody can see is a feature nobody buys. A PERMISSION gap is
-// silent - resolveNavigation drops those entries before they reach here, so
-// nobody is teased with a door only their colleague can open.
+// Launcher switches business modules. Business pages use the available content
+// width; only object dossiers and administration have a local left pane.
+// The assistant remains a separate contextual surface on the right.
 
 export interface AppShellProps {
-  /** The sections and their real numbers, gathered server-side in board.ts. */
-  readonly board: readonly BoardSection[];
-  /** One card per module key, for the domain's navigation. See board.ts. */
+  /** Gated module summaries displayed in the launcher. See board.ts. */
   readonly boardModules: Record<string, BoardModuleCard>;
   /**
    * The right deck, as a SLOT rather than data.
@@ -178,13 +143,12 @@ export interface AppShellProps {
    * contract lives in @vxture/shared rather than in the DS: a server layout has
    * to read it before rendering anything.
    */
-  readonly boardOpen: boolean;
+  readonly adminNavOpen: boolean;
   readonly dockOpen: boolean;
   readonly children: ReactNode;
 }
 
 export function AppShell({
-  board,
   boardModules,
   deck,
   deckCount,
@@ -206,7 +170,7 @@ export function AppShell({
   activeOrgType,
   locale,
   searchable,
-  boardOpen,
+  adminNavOpen,
   dockOpen,
   children,
 }: AppShellProps) {
@@ -221,48 +185,17 @@ export function AppShell({
   const segments = pathname.split("/").filter(Boolean);
   const activeKey = segments[0] ?? "home";
 
-  // THE SHELL HAS ONE MODE (owner, 2026-09-24: 整个产品中, 不能存在横跨2栏,
-  // 3栏的板块, 除了header). There used to be a "detail" mode that dropped the
-  // board on /pipeline/<id> so the deal page could take 栏1's width - the same
-  // defect the account detail page had until 2026-09-20. A page may put its own
-  // content into 栏1 (the account dossier does), but no page removes a column.
-  /** 栏1 取代通用模块导航, 不是并排加一个 (owner, 2026-09-20: 死死记住这次的
-   *  要求 - "整体页面是三栏，不是内容区还是两栏"). 客户详情路由下, 这一侧的
-   *  <aside> 还是同一个(宽度/独立滚动都不变, 见下面 boardVisible 的渲染),
-   *  只是内容从 NavBoard 换成这个客户自己的档案 - account-sidebar-portal.tsx
-   *  把 page.tsx 已经建好的栏1内容传送到这里, 不重新发起一次数据读。 */
+  // Object details own a dossier pane. It is content, not a module menu,
+  // so the retired business-board preference must never hide it.
   const isDossierPage = isDossierRoute(segments);
-
-  // Seeded from the server-read cookie, then owned by the client. The cookie is
-  // written on each toggle rather than on unload, so the next full page load is
-  // right even if this tab is killed.
-  const [showBoard, setShowBoard] = useState(boardOpen);
+  const [adminNavExpanded, setAdminNavExpanded] = useState(adminNavOpen);
   const [showDock, setShowDock] = useState(dockOpen);
 
-  /** The board is shown when the member wants it AND the page has room for the
-   *  question it answers. */
-  // THE HOME SCREEN HAS NO NAVIGATION (owner ruling, 2026-08-31). It is the
-  // list of what needs deciding today, spread across the full width - and a
-  // menu beside it would be offering somewhere else to go to a person who has
-  // just been handed the reason they opened the product. You choose a domain
-  // from the launcher; the nav exists once you are inside one.
-  const isHome = segments.length === 0;
-
-  /* 配置管理 IS A PLANE OF ITS OWN (owner, 2026-09-08), and the body below
-     branches on it rather than filtering pieces out of one row: inside it the
-     business board is replaced by the plane's own menu, the copilot deck does
-     not render at all, and the spacing is the plane's own (2026-09-09). A deck
-     pushing today's deals beside a permission matrix is noise, and the board
-     would be a second answer to "where am I".
-
-     The two flags below are therefore about the BUSINESS body only - the admin
-     branch renders neither flank, so neither flag needs to name it. */
   const isAdmin = segments[0] === "admin";
-  const boardVisible = showBoard && !isHome;
   const deckVisible = showDock;
 
-  const toggleBoard = () =>
-    setShowBoard((prev) => {
+  const toggleAdminNav = () =>
+    setAdminNavExpanded((prev) => {
       // The cookie stores COLLAPSED, so the value written is the state being
       // left behind, which is the one that is about to become "collapsed".
       writeNavCollapsed(BOARD_COOKIE_PREFIX, prev);
@@ -310,77 +243,24 @@ export function AppShell({
           }));
 
   return (
-    /* FOUR SURFACES, EACH OWNING ITS OWN SCROLL.
-
-       ShellViewport is the DS's own shell and does three of the four things
-       asked for by construction: h-dvh so the page itself never scrolls, the
-       header shrink-0 inside it so it never leaves, and `main` with its own
-       overflow-y-auto. Hand-rolling that would have duplicated a DS component
-       to gain nothing.
-
-       What it does NOT do is scroll the flanks independently or let a zone
-       carry its own padding, so both of those ride on wrappers inside its
-       slots - composition, not modification.
-
-       PADDING IS PER ZONE. The top and the two outer sides sit at lg (24px),
-       and the centre's top matches the flanks' or its first line starts above
-       theirs, which reads as a misalignment rather than as a margin.
-
-       THE BOTTOM SAFE AREA BELONGS INSIDE THE SCROLLING ELEMENT, ON EVERY
-       ZONE THAT SCROLLS (corrected 2026-09-17: the nav flank had none - the
-       centre's own pb-2xl below is the reference this followed). The point of
-       the padding is that scrolling to the end still reaches the true bottom,
-       with the last row landing a safe distance short of the viewport edge -
-       not a shorter scrollable box. Padding on a wrapper OUTSIDE the
-       overflow-y-auto element does the opposite: it shrinks how far the zone
-       can scroll, which reads as the list being cut off before its own end.
-       Each zone owns its own scroll, so each needs its own copy of this -  a
-       safe area on the page would not help a flank that scrolls independently
-       of it.
-
-       Each flank is flush on the side facing the centre, so its cards reach the
-       boundary of their own zone instead of stopping short of it. The standoff
-       between a flank and the centre's text therefore comes entirely from the
-       CENTRE's px-page-inset: one source, rather than two paddings meeting in
-       the middle and summing to something neither intended. That gutter stays
-       fluid (clamp(lg, 3.2vw, 3xl)) - it is a different measurement from the
-       body inset and answers a different question.
-
-       The scrollbars land where they belong as a consequence - inside each
-       zone, against the gutter - instead of one bar at the window's edge
-       governing everything at once. */
     <FormAssistSlotProvider>
     <ShellViewport
-      /* THE DS SLOTS ARE NOT USED FOR THE FLANKS, and that is a considered
-         departure. ShellSidebarFrame hardcodes w-sidebar-expanded (256px) and
-         ShellViewport forwards it no className, so the nav pane could not be
-         280 through that path - and the row it lays out carries no gap, so the
-         32px between panes had to come from somewhere anyway. Both flanks are
-         ordinary panes in `children` now; the viewport keeps what it is good
-         at, which is the header and the h-dvh frame.
-
-         The consequence to know: the collapse TRANSITION on the sidebar frame
-         is gone. The flanks still collapse - they unmount - they just no longer
-         animate their width. That is the price of the two widths and the gap.
-
-         配置管理 IS THE EXCEPTION, and it goes through the slot (2026-09-08).
-         Its menu is the DS's own ShellSidebarNav, built for exactly this
-         placement: flush to the viewport edge, full height, its own width and
-         collapse transition. Rendering it as a pane inside the padded row
-         instead put 24px of our padding and a 32px gap around a component that
-         already carries its own - a frame nobody asked for, and the nav pushed
-         off the edge it is meant to sit on. */
+      // Administration uses the DS navigation slot. Business pages keep their
+      // content and assistant in the body; object details also supply a dossier.
       sidebar={
         isAdmin ? (
           <AdminNav
             nav={admin}
             pathname={pathname}
-            collapsed={!showBoard}
-            onToggleCollapsed={toggleBoard}
+            collapsed={!adminNavExpanded}
+            onToggleCollapsed={toggleAdminNav}
           />
         ) : null
       }
-      sidebarMode={isAdmin ? (showBoard ? "expanded" : "collapsed") : "hidden"}
+      sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed") : "hidden"}
+      dock={!isAdmin && deckVisible ? (
+        <aside className={ASSISTANT_PANE_CLASS}>{deck}</aside>
+      ) : null}
       header={
         <ShellHeader
           // 单产品视角 (design-system 03 section 7.1, 13.5+): full width, the page
@@ -389,44 +269,11 @@ export function AppShell({
           className="gap-md"
           leading={
             <>
-              {/* (1) THE BOARD TOGGLE - restored (owner, 2026-09-21: 恢复侧边栏
-                  展开收起按钮 - 这是"整体页面 header"里的那一个, 不是账户详情页
-                  侧栏自己顶部的功能条那个, 两者管的是不同的开关). 一度在
-                  2026-09-14(#309) 被撤掉, 理由是"detail 页面根本没有 board,
-                  一个切换不存在东西的按钮是死按钮" - 那时 account detail 也在
-                  DETAIL_ROOTS 里, isDetail 对它是 true。2026-09-20 account 从
-                  DETAIL_ROOTS 移出后, 账户详情页恢复了跟其他一级页面一样的
-                  三栏布局(自己的 board), 撤掉这个按钮的前提已经不成立 - 这里
-                  是把它按原样放回来, 而不是发明一个新控件。
-                  账户详情页曾经在这个 aside 顶部另开过一条本地收起/展开
-                  (accountSidebarCollapsed) - 这个全局开关一恢复, "要不要看
-                  这块地方"就只需要一个开关了, 那条本地状态在 2026-09-21
-                  跟着它自己的功能条一起撤掉(owner: 聚焦客户全景图页面 -
-                  这样更好一些, 现在可以去掉 sidebar 顶部的区域), 不是被
-                  这次改动顺带清理的意外产物。 */}
-              <ShellIconButton
-                className={HEADER_ICON_CONTROL}
-                icon="sidebar"
-                label={showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen}
-                onClick={toggleBoard}
-              />
-
-              {/* (2) The functional domain: NINE DOTS, no label, no fill.
-
-                An app grid is a universal idiom and it does not need a word
-                beside it; the 110px of text it used to carry made the second
-                control in the header wider than the brand it sits before.
-                The current domain is not lost - it moves to the panel, where
-                the active row is marked, and that is a better place for it
-                than a label that could only ever name one of the five.
-
-                NOW LIVE. It is the only entrance to the eight domain pages -
-                the left flank is the board and the right is the deck, neither
-                of which is a menu - so while this was inert those routes were
-                reachable only by typing the URL. */}
+              {/* Module switching and its key figures live in one place. */}
               <DomainLauncher
                 nav={nav}
                 activeKey={activeKey}
+                modules={boardModules}
               />
 
               {/* The signed-in workspace carries only the product identity. */}
@@ -635,118 +482,16 @@ export function AppShell({
         />
       }
     >
-      {/* THE SHELL BODY: one inset, three panes, one gap.
-
-          p-lg is the 24px inset on all four sides. The panes themselves carry
-          NO padding - their cards reach their own edges - so the only
-          horizontal space in here is the gap and the centre's own measure.
-
-          gap-xl is 32px. Each pane owns its scroll, which is why the inset is
-          on this row and not inside them: a pane that padded itself would
-          scroll its own bottom padding away, and the safe area at the foot of
-          a long list would vanish exactly when the list got long enough to
-          need it. */}
       {isAdmin ? (
-        /* 配置管理'S OWN BODY: three zones, and only the middle one has
-           anything in it today (owner, 2026-09-09).
-
-           LEFT is the DS sidebar, which is not in here at all - it goes
-           through ShellViewport's own slot, flush to the viewport edge.
-           MIDDLE is the content. RIGHT is held for the agent and renders
-           nothing yet; it is a named slot rather than a comment so that
-           filling it later is one line and not a re-layout.
-
-           THE MIDDLE'S SPACING IS TWO MEASUREMENTS, not one, and only one of
-           them is ours. The INSET - the breathing room inside the content, and
-           the safe area under it - is ShellPageContainer's, which is the DS
-           component for exactly this: px/pt-page-inset (a clamp that tops out
-           at 48px and moves continuously as the window is dragged, rather than
-           stepping at a breakpoint), pb-6xl (80px) so the last row of a
-           scrolled list does not sit on the fold, and a capped, centred measure
-           so a 4K monitor does not hand a table 2,000px of line. Its own
-           documentation gives the same reason the owner did: 用断点切档会在拖
-           窗口时阵变一两次，正好最显眼.
-
-           What is OURS is the MARGIN outside it: --vx-shell-gutter, the
-           standoff between the three zones, fluid to 64px. It is a wrapper
-           rather than a className on the container because the container's
-           mx-auto is what centres it once the measure caps - merging a margin
-           into that class would drop the centring.
-
-           NO gap, NO p-lg on the row: every horizontal measurement in this
-           plane is one of those two, so there is one place to change each. */
         <div id={SHELL_BODY_ID} className="flex h-full min-h-0">
           <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <div className="mx-(--vx-shell-gutter)">
-              {/* wide-2xl NAMED RATHER THAN INHERITED: it is the DS's current
-                  default, and this plane is tables - the tier the DS itself
-                  labels 数据密集型面板 - so the choice should survive a change
-                  of default. */}
-              <ShellPageContainer width="wide-2xl">{children}</ShellPageContainer>
-            </div>
+            <ShellPageContainer width="wide-2xl">{children}</ShellPageContainer>
           </div>
-          {/* RIGHT - held for the agent. Deliberately empty: a zone reserved
-              with a width would spend it on nothing, and this product has
-              already removed three controls that did nothing. */}
         </div>
       ) : (
-      <div
-        id={SHELL_BODY_ID}
-        // group/body + data-board: the account page renders its own board
-        // pane (below) and hides it through this, since it cannot read the
-        // toggle's client state itself.
-        className="group/body flex h-full min-h-0 gap-xl p-lg"
-        data-board={boardVisible ? "shown" : "hidden"}
-      >
-        {/* LEFT - ours. Cards that state where things stand; opening one
-            navigates, but that is a consequence of the card, not its purpose.
-            pb-2xl MIRRORS THE CENTRE'S OWN (owner, 2026-09-17 fix): this pane
-            was scrolling with none, so its last card sat flush against the
-            zone's bottom edge - reading as cut off rather than as the end of
-            the list. The padding lives on this overflow-y-auto element, not
-            on a wrapper around it, so it scrolls INTO view as trailing space
-            rather than shrinking how far the pane can scroll. */}
-        {isDossierPage ? (
-          /* 客户 / 商机详情页: the page renders BOTH the board pane and the centre
-             pane itself (lib/sidebar-slot.ts says why - a portal cannot run on
-             the server, and the left pane went blank on every hard refresh). */
-          children
-        ) : (
-        <>
-        {boardVisible ? (
-          <aside className={BOARD_PANE_CLASS}>
-            <NavBoard
-              sections={board}
-              modules={boardModules}
-              activeKey={activeKey}
-              pathname={pathname}
-              nav={nav}
-            />
-          </aside>
-        ) : null}
-
-        {/* CENTRE - the engagement. Its 16px is the only horizontal padding
-            in the body, and it is here rather than on the row because it is a
-            MEASURE, not an inset: it keeps prose off the pane edge at any
-            window width. pb-2xl is the scroll runway (owner, 2026-09-05):
-            content that ends flush at the container's bottom edge reads as
-            cut off, and the last table's rows sat on the fold with nothing
-            below them. */}
-        <div className={CENTRE_PANE_CLASS}>
-          {children}
+        <div id={SHELL_BODY_ID} className="flex h-full min-h-0">
+          {isDossierPage ? children : <div className={CENTRE_PANE_CLASS}>{children}</div>}
         </div>
-        </>
-        )}
-
-        {/* RIGHT - the agent, and what it is looking at. Same pb-2xl fix as
-            the left flank - this pane scrolls independently too, so it needs
-            its own copy of the safe area rather than inheriting the centre's. */}
-        {deckVisible ? (
-          <aside className="w-(--vx-pane-action) h-full min-h-0 shrink-0 overflow-hidden">
-            {deck}
-          </aside>
-        ) : null}
-      </div>
       )}
     </ShellViewport>
     </FormAssistSlotProvider>

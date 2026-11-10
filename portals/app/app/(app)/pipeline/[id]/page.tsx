@@ -1579,7 +1579,7 @@ export default async function OpportunityDetailPage({
                 actionsLabel={
                   <PanelSub
                     action={
-                      <Button size="xs" variant="ghost" className={LIGHT_BUTTON} asChild>
+                      <Button size="md" variant="ghost" className={LIGHT_BUTTON} asChild>
                         <Link
                           href={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
                             WAR_ROOM_TEXT.analyseQuestion(opportunity.name, findings),

@@ -30,12 +30,12 @@ export function PriceAnalysisBar() {
 
   return (
     <div className="flex items-center gap-sm">
-      <Button asChild size="sm" variant="secondary" title={CATALOG_TEXT.analyzeSelectedHint}>
+      <Button asChild size="md" variant="secondary" title={CATALOG_TEXT.analyzeSelectedHint}>
         <Link href={`/pricebook?${next.toString()}`} scroll={false}>
           {CATALOG_TEXT.assessSelected}
         </Link>
       </Button>
-      <Button size="sm" variant="secondary" disabled title={CATALOG_TEXT.priceTrendSoon}>
+      <Button size="md" variant="secondary" disabled title={CATALOG_TEXT.priceTrendSoon}>
         {CATALOG_TEXT.priceTrend}
       </Button>
     </div>

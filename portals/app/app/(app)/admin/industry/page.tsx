@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
@@ -148,7 +149,7 @@ export default async function IndustryPage() {
         current={DOMAIN_LABEL.industry}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="buildings"
         title={DOMAIN_LABEL.industry}
         description={PAGE_BRIEF.adminIndustry}

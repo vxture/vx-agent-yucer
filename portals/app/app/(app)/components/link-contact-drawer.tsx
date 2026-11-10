@@ -92,7 +92,7 @@ export function LinkContactDrawer({ accountId, onSearch, onLink, openSignal }: L
   return (
     <>
       {openSignal === undefined ? (
-        <Button variant="ghost" size="sm" onClick={openDrawer}>
+        <Button variant="ghost" size="md" onClick={openDrawer}>
           {LINK_CONTACT_TEXT.linkButton}
         </Button>
       ) : null}

@@ -1,11 +1,12 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useState, useTransition } from "react";
 import {
   Button,
   DataTable,
   EmptyState,
-  FilterBar,
   Icon,
   Input,
   ListCard,
@@ -296,7 +297,7 @@ export function ProductRoster({
       <span className="flex items-center gap-xs">
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-md"
           aria-label={CATALOG_TEXT.opUp}
           title={CATALOG_TEXT.opUp}
           disabled={pending || rowIndex === 0}
@@ -306,7 +307,7 @@ export function ProductRoster({
         </Button>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-md"
           aria-label={CATALOG_TEXT.opDown}
           title={CATALOG_TEXT.opDown}
           disabled={pending || rowIndex === live.length - 1}

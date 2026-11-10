@@ -82,7 +82,7 @@ export function ContactManagementList({
         action={
           canEdit ? (
             <span className="flex items-center gap-xs">
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="md">
                 <a href={editHref}>{ACCOUNT_TEXT.contactAddButton}</a>
               </Button>
               {linkForm}

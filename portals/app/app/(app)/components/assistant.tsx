@@ -158,18 +158,18 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
               {item.act || item.link || item.ignorable || item.more?.length ? (
                 <div className="mt-sm flex flex-wrap items-center gap-xs">
                   {item.act ? (
-                    <Button size="sm" disabled={pending} onClick={() => act(item)}>
+                    <Button size="md" disabled={pending} onClick={() => act(item)}>
                       {item.act.label}
                     </Button>
                   ) : null}
                   {item.link ? (
-                    <Button asChild size="sm" variant={item.act ? "secondary" : "default"}>
+                    <Button asChild size="md" variant={item.act ? "secondary" : "default"}>
                       <a href={item.link.href}>{item.link.label}</a>
                     </Button>
                   ) : null}
                   {item.ignorable !== false ? (
                     <Button
-                      size="sm"
+                      size="md"
                       variant="ghost"
                       disabled={pending}
                       onClick={() => setIgnored((x) => [...x, item.id])}

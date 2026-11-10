@@ -146,7 +146,7 @@ export function FormFieldWide({ children }: { readonly children: ReactNode }) {
 export function NewEntryLink({ href, label, primary = false }: { readonly href: string; readonly label?: string; readonly primary?: boolean }) {
   const { ASSIST_TEXT } = useMessages();
   return (
-    <Button asChild variant={primary ? "default" : "secondary"}>
+    <Button asChild size="xl" variant={primary ? "default" : "secondary"}>
       <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
     </Button>
   );
@@ -199,14 +199,14 @@ export function FormActions({
     <div className="border-border flex flex-col gap-md border-t pt-md">
       <div className="gap-sm flex items-center justify-end">
         {destructive ? (
-          <DestructiveButton className="mr-auto" disabled={pending || destructive.disabled} confirm={destructive.confirm}>
+          <DestructiveButton size="xl" className="mr-auto" disabled={pending || destructive.disabled} confirm={destructive.confirm}>
             {destructive.label}
           </DestructiveButton>
         ) : null}
-        <Button variant="secondary" disabled={pending} onClick={onDiscard}>
+        <Button size="xl" variant="secondary" disabled={pending} onClick={onDiscard}>
           {discardLabel}
         </Button>
-        <Button onClick={onSave} disabled={pending}>
+        <Button size="xl" onClick={onSave} disabled={pending}>
           {saveLabel}
         </Button>
       </div>

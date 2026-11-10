@@ -97,7 +97,7 @@ export function ReviewDraftSections({
               {T.narrativeTitle}
             </span>
             <Button
-              size="sm"
+              size="md"
               variant="outline"
               disabled={pending}
               onClick={() =>
@@ -129,7 +129,7 @@ export function ReviewDraftSections({
                 <p className="flex flex-wrap items-center gap-xs">
                   <span className="text-muted-foreground">{T.suggested(reasonName.get(told.reasonId) ?? told.reasonId)}</span>
                   {onAdoptReason ? (
-                    <Button size="sm" variant="ghost" onClick={() => onAdoptReason(told.reasonId!)}>
+                    <Button size="md" variant="ghost" onClick={() => onAdoptReason(told.reasonId!)}>
                       {T.adoptReason}
                     </Button>
                   ) : null}

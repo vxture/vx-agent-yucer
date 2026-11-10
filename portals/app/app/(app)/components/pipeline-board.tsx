@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -7,11 +9,9 @@ import {
   ActionMenu,
   DataTable,
   EmptyState,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,
-  Card,
   NativeSelect,
   Section,
   StatusBadge,
@@ -294,22 +294,14 @@ export function PipelineBoard({
   ];
 
   return (
-    <Section
-      icon="table"
-      title={PIPELINE_TEXT.title}
-      // ONLY THE READ-ONLY LINE. The module header above carries the ordinary
-      // description, and the same sentence twice on one screen makes a reader
-      // check whether the two agree instead of reading either. The read-only
-      // variant stays because it says something the header does not: that this
-      // particular reader cannot move a deal.
-      description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : undefined}
-    >
+    <Section>
+      {readOnly ? <p className="text-muted-foreground text-body-small">{PIPELINE_TEXT.descriptionReadOnly}</p> : null}
       {totals.ok ? (
-        <div className="grid grid-cols-4 gap-xs overflow-x-auto">
-          {metrics.map((m) => <Card key={m.id} className="min-w-0 gap-2xs p-sm">
+        <div className="grid grid-cols-2 gap-x-xl gap-y-md sm:grid-cols-4">
+          {metrics.map((m) => <div key={m.id} className="flex min-w-0 flex-col gap-2xs">
             <span className="text-muted-foreground text-body-small whitespace-nowrap">{m.label}</span>
             <span className="text-label font-semibold tabular-nums whitespace-nowrap">{m.value}</span>
-          </Card>)}
+          </div>)}
         </div>
       ) : null}
       {undated > 0 ? (

@@ -313,7 +313,7 @@ export function SignalQueue({
               description={g.why}
               action={
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="md">
                     {SIGNAL_TEXT.groupCount(g.items.length)}
                     <Icon name="chevron-down" size="xs" />
                   </Button>
@@ -503,7 +503,7 @@ function Row({
                 who cannot see the icon. */}
             <Button
               variant="secondary"
-              size="icon-sm"
+              size="icon-md"
               aria-expanded={open}
               onClick={onToggle}
               title={SIGNAL_STATUS_LABEL[r.status] ?? r.status}
@@ -520,14 +520,14 @@ function Row({
                 the menu is not an outcome: judging a duplicate or re-running
                 the score are corrections to the record, not verdicts on it. */}
             <Button
-              size="sm"
+              size="md"
               disabled={!canTriage || busy}
               onClick={() => onAct(r.id, "promote")}
             >
               {SIGNAL_TEXT.promote}
             </Button>
             <Button
-              size="sm"
+              size="md"
               variant="outline"
               disabled={!canTriage || busy}
               onClick={() => onAskDismiss(r.id)}

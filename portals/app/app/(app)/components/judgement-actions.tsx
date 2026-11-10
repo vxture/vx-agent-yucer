@@ -98,24 +98,24 @@ export function JudgementActions({
   return (
     <>
       {primaryHref ? (
-        <Button size="xs" asChild>
+        <Button size="md" asChild>
           <Link href={primaryHref}>{JUDGEMENT_ACTION_TEXT.go}</Link>
         </Button>
       ) : (
-        <Button size="xs" disabled={pending} onClick={openAdopt}>
+        <Button size="md" disabled={pending} onClick={openAdopt}>
           {JUDGEMENT_ACTION_TEXT.toPlan}
         </Button>
       )}
       {primaryHref ? (
-        <Button size="xs" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={openAdopt}>
+        <Button size="md" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={openAdopt}>
           {JUDGEMENT_ACTION_TEXT.toPlan}
         </Button>
       ) : null}
-      <Button size="xs" variant="ghost" className={LIGHT_BUTTON} asChild>
+      <Button size="md" variant="ghost" className={LIGHT_BUTTON} asChild>
         <Link href={askHref}>{JUDGEMENT_ACTION_TEXT.ask}</Link>
       </Button>
       {judgementId ? (
-        <Button size="xs" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={dismiss}>
+        <Button size="md" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={dismiss}>
           {JUDGEMENT_ACTION_TEXT.ignore}
         </Button>
       ) : null}

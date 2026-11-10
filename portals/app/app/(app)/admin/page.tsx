@@ -1,3 +1,4 @@
+import { ViewHeader } from "../components/business-controls";
 import Link from "next/link";
 import {
   EmptyState,
@@ -5,7 +6,6 @@ import {
   PanelCard,
   Section,
   StatusBadge,
-  ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";

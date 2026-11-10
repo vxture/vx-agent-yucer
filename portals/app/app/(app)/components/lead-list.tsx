@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState, useTransition } from "react";
 import {
@@ -9,7 +11,6 @@ import {
   EmptyState,
   Field,
   FieldLabel,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,
@@ -592,50 +593,47 @@ export function LeadList({
   // paging cannot make it tick a different lead.
   const select = rowClickSelection();
 
-  return (
-    <Section
-      icon="lightbulb"
-      title={LEAD_TEXT.title}
-      description={LEAD_TEXT.description}
-      action={
-        <span className="flex items-center gap-xs">
-          {/* 表格级操作 (owner, 2026-09-06). 添加线索 is always offered - a lead
-              from a stand or a phone call has no signal behind it, and before
-              this the only way one could exist was for the machine to find it.
-              删除 acts on the SELECTION, so it appears only when there is one:
-              a destructive control with nothing to destroy is a trap. */}
-          {canTriage ? (
-            <Button size="sm" variant="secondary" onClick={() => (window.location.href = "/lead/new")}>
-              {LEAD_TEXT.addLead}
-            </Button>
-          ) : null}
-          {canTriage && selected.length > 0 ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  // ONE AT A TIME, and the loop is here rather than in the
-                  // action: each row has its own rule (a converted lead is
-                  // refused), so one round trip would report one outcome for
-                  // many different answers.
-                  let refused = 0;
-                  for (const id of selected) {
-                    const r = await onRemove(id);
-                    if (!r.ok) refused += 1;
-                  }
-                  setSelected([]);
-                  setError(refused > 0 ? LEAD_TEXT.bulkRefused(refused) : null);
-                })
+  const listActions = (
+    <span className="flex items-center gap-xs">
+      {/* 表格级操作 (owner, 2026-09-06). 添加线索 is always offered - a lead
+          from a stand or a phone call has no signal behind it, and before
+          this the only way one could exist was for the machine to find it.
+          删除 acts on the SELECTION, so it appears only when there is one:
+          a destructive control with nothing to destroy is a trap. */}
+      {canTriage ? (
+        <Button size="md" variant="secondary" onClick={() => (window.location.href = "/lead/new")}>
+          {LEAD_TEXT.addLead}
+        </Button>
+      ) : null}
+      {canTriage && selected.length > 0 ? (
+        <Button
+          size="md"
+          variant="ghost"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              // ONE AT A TIME, and the loop is here rather than in the
+              // action: each row has its own rule (a converted lead is
+              // refused), so one round trip would report one outcome for
+              // many different answers.
+              let refused = 0;
+              for (const id of selected) {
+                const r = await onRemove(id);
+                if (!r.ok) refused += 1;
               }
-            >
-              {LEAD_TEXT.deleteSelected(selected.length)}
-            </Button>
-          ) : null}
-        </span>
-      }
-    >
+              setSelected([]);
+              setError(refused > 0 ? LEAD_TEXT.bulkRefused(refused) : null);
+            })
+          }
+        >
+          {LEAD_TEXT.deleteSelected(selected.length)}
+        </Button>
+      ) : null}
+    </span>
+  );
+
+  return (
+    <Section>
       {matching ? (
         <DialogForm
           open
@@ -789,8 +787,8 @@ export function LeadList({
           spacing. One row that compresses the search box before it wraps,
           which is behaviour the component owns rather than measurements I
           have to keep re-taking. */}
-      {leads.length > 0 ? (
         <FilterBar
+          actions={listActions}
           view={view}
           onViewChange={setView}
           count={
@@ -859,7 +857,6 @@ export function LeadList({
             </NativeSelect>
           </FilterSlot>
         </FilterBar>
-      ) : null}
 
       {leads.length === 0 ? (
         <EmptyState

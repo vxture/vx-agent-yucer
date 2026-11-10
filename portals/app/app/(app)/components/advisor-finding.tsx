@@ -75,10 +75,10 @@ export function AdvisorFinding({
           </div>
           {i.decidable ? (
             <span className="ml-auto flex flex-none items-center gap-2xs">
-              <Button size="xs" variant="outline" disabled={pending} onClick={() => decide(i.id, "reject")}>
+              <Button size="md" variant="outline" disabled={pending} onClick={() => decide(i.id, "reject")}>
                 {DEAL_PAGE_TEXT.findingIgnore}
               </Button>
-              <Button size="xs" disabled={pending} onClick={() => decide(i.id, "accept")}>
+              <Button size="md" disabled={pending} onClick={() => decide(i.id, "accept")}>
                 {DEAL_PAGE_TEXT.findingAccept}
               </Button>
             </span>
