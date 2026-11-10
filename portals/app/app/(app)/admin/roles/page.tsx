@@ -1,4 +1,5 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -86,7 +87,7 @@ export default async function RolesPage() {
         current={DOMAIN_LABEL.roles}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="user-circle"
         title={ROLE_TEXT.title}
         description={PAGE_BRIEF.adminRoles}

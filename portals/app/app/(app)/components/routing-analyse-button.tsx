@@ -16,7 +16,7 @@ export function RoutingAnalyseButton() {
   const { ROUTING_TEXT } = useMessages();
   return (
     <Button
-      size="sm"
+      size="md"
       onClick={() => window.dispatchEvent(new CustomEvent(ROUTING_ANALYSE_EVENT))}
     >
       {ROUTING_TEXT.assignRun}

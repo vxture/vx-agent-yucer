@@ -166,7 +166,7 @@ export function CopilotChat({
         </>
       ) : null}
 
-      <Button variant="ghost" size="sm" disabled={pending} onClick={() => {
+      <Button variant="ghost" size="md" disabled={pending} onClick={() => {
         recovery.current = null; setSession(null); setMessages([]); setOutcome(null); setError(null);
       }}>{COPILOT_TEXT.newSession}</Button>
       {/* NO EMPTY STATE, and this is a deliberate subtraction. An EmptyState
@@ -187,7 +187,7 @@ export function CopilotChat({
             <div key={i} data-role={m.role} className={`whitespace-pre-wrap rounded-lg p-md text-body-small leading-relaxed ${m.role === "user" ? "ml-lg bg-muted" : "mr-lg border border-border bg-card"}`}>
               <p className="mb-xs text-label text-muted-foreground">{m.role === "user" ? COPILOT_TEXT.you : COPILOT_TEXT.assistant}</p>
               {m.content}
-              {m.citations?.length ? <div className="mt-sm flex flex-wrap gap-xs">{m.citations.map((citation) => <Button key={citation.id} variant="outline" size="sm" asChild><Link href={citation.href}>{citation.label}</Link></Button>)}</div> : null}
+              {m.citations?.length ? <div className="mt-sm flex flex-wrap gap-xs">{m.citations.map((citation) => <Button key={citation.id} variant="outline" size="md" asChild><Link href={citation.href}>{citation.label}</Link></Button>)}</div> : null}
             </div>
           ))}
           <div ref={transcriptEnd} />
@@ -233,7 +233,7 @@ export function CopilotChat({
       ) : null}
 
       {messages.length === 0 && !rehearsal ? <div className="my-sm flex flex-wrap gap-xs">
-        {COPILOT_TEXT.starters.map((question) => <Button key={question} variant="outline" size="sm" disabled={!canAsk || pending} onClick={() => setDraft(question)}>{question}</Button>)}
+        {COPILOT_TEXT.starters.map((question) => <Button key={question} variant="outline" size="md" disabled={!canAsk || pending} onClick={() => setDraft(question)}>{question}</Button>)}
       </div> : null}
       <form
         onSubmit={(event) => {

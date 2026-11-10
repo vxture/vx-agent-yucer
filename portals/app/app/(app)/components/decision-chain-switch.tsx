@@ -193,7 +193,7 @@ export function ChainSummaryList({
         })}
       </div>
       {chains.length > CAP ? (
-        <Button variant="ghost" size="sm" className="w-full" onClick={() => setExpanded((v) => !v)}>
+        <Button variant="ghost" size="md" className="w-full" onClick={() => setExpanded((v) => !v)}>
           {expanded ? CHAIN_TEXT.collapseChains : CHAIN_TEXT.showAllChains(chains.length)}
         </Button>
       ) : null}
@@ -234,7 +234,7 @@ export function ChainCrumbs({
     <div className="gap-2xs flex items-center">
       <Button
         variant="ghost"
-        size="icon-sm"
+        size="icon-md"
         aria-label={CHAIN_TEXT.detailBack}
         onClick={() => setActiveId(null)}
       >

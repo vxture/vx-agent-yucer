@@ -154,7 +154,7 @@ export function RecordFollowUp({
             id="fu-who"
             type="multiple"
             variant="outline"
-            size="sm"
+            size="md"
             className="flex-wrap justify-start"
             value={present}
             onValueChange={setPresent}

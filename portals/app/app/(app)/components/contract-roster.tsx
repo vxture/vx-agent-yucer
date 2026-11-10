@@ -265,7 +265,7 @@ export function ContractRoster(props: ContractRosterProps) {
     <div className="flex flex-col gap-md">
       {props.canWrite ? (
         <div className="flex justify-end">
-          <Button size="sm" variant="secondary" onClick={() => setEditing({ mode: "new" })}>
+          <Button size="md" variant="secondary" onClick={() => setEditing({ mode: "new" })}>
             {CONTRACT_TEXT.add}
           </Button>
         </div>
@@ -360,22 +360,22 @@ export function ContractRoster(props: ContractRosterProps) {
                 <span className="flex items-center gap-xs">
                   <StatusBadge tone={PHASE_TONE[c.phase]}>{phaseLabel[c.phase]}</StatusBadge>
                   {props.canRenew && c.status === "active" && !c.renewedByNo ? (
-                    <Button size="sm" variant="ghost" onClick={() => setEditing({ mode: "renew", row: c })}>
+                    <Button size="md" variant="ghost" onClick={() => setEditing({ mode: "renew", row: c })}>
                       {CONTRACT_TEXT.renew}
                     </Button>
                   ) : null}
                   {props.canRenew && c.status !== "draft" ? (
-                    <Button size="sm" variant="ghost" onClick={() => setOutcomeFor(c)}>
+                    <Button size="md" variant="ghost" onClick={() => setOutcomeFor(c)}>
                       {CONTRACT_TEXT.recordOutcome}
                     </Button>
                   ) : null}
                   {props.canWrite ? (
-                    <Button size="sm" variant="ghost" onClick={() => setEditing({ mode: "edit", row: c })}>
+                    <Button size="md" variant="ghost" onClick={() => setEditing({ mode: "edit", row: c })}>
                       {CONTRACT_TEXT.edit}
                     </Button>
                   ) : null}
                   {props.canWrite && c.status === "draft" ? (
-                    <Button size="sm" variant="ghost" onClick={() => setRemovingContract(c)}>
+                    <Button size="md" variant="ghost" onClick={() => setRemovingContract(c)}>
                       {CONTRACT_TEXT.removeContract}
                     </Button>
                   ) : null}
@@ -465,10 +465,10 @@ export function ContractRoster(props: ContractRosterProps) {
                           </span>
                           {props.canWrite && c.status !== "terminated" ? (
                             <>
-                              <Button size="sm" variant="ghost" onClick={() => setLineFor({ contract: c, line: l })}>
+                              <Button size="md" variant="ghost" onClick={() => setLineFor({ contract: c, line: l })}>
                                 {CONTRACT_TEXT.edit}
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => setRemoving({ contract: c, line: l })}>
+                              <Button size="md" variant="ghost" onClick={() => setRemoving({ contract: c, line: l })}>
                                 {CONTRACT_TEXT.removeLine}
                               </Button>
                             </>
@@ -489,7 +489,7 @@ export function ContractRoster(props: ContractRosterProps) {
                   <span />
                 )}
                 {props.canWrite && c.status !== "terminated" ? (
-                  <Button size="sm" variant="secondary" onClick={() => setLineFor({ contract: c, line: null })}>
+                  <Button size="md" variant="secondary" onClick={() => setLineFor({ contract: c, line: null })}>
                     {CONTRACT_TEXT.addLine}
                   </Button>
                 ) : null}

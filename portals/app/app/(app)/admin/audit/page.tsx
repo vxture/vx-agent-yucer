@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -96,7 +97,7 @@ export default async function AuditPage() {
         current={DOMAIN_LABEL.audit}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="clipboard"
         title={AUDIT_TEXT.title}
         description={PAGE_BRIEF.adminAudit}

@@ -1,4 +1,5 @@
-import { ViewHeader } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+
 import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { getMessages } from "../../lib/i18n/server";

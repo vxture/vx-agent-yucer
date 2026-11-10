@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import {
   BulkActionBar,
   Button,
@@ -9,7 +11,6 @@ import {
   EmptyState,
   Field,
   FieldLabel,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,
@@ -414,11 +415,11 @@ export function OrgPanel({
               <span className="text-muted-foreground text-body-small">{ORG_TEXT.expandTo}</span>
               <ButtonGroup>
                 {levels.map((lvl) => (
-                  <Button key={lvl} variant="secondary" size="sm" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
+                  <Button key={lvl} variant="secondary" size="md" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
                     {ORG_TEXT.levelLabel(lvl)}
                   </Button>
                 ))}
-                <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
+                <Button variant="secondary" size="md" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
                   {ORG_TEXT.collapseAll}
                 </Button>
               </ButtonGroup>

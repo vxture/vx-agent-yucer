@@ -108,7 +108,7 @@ export function PriceAdvicePanel({
         // way back from a narrowed selection to everything in force (review,
         // 2026-09-05). It belongs to the panel, not to whoever mounts it.
         footer: (
-          <Button asChild size="sm" variant="secondary">
+          <Button asChild size="md" variant="secondary">
             <Link href="/pricebook?analyze=all">{CATALOG_TEXT.adviceRunAll}</Link>
           </Button>
         ),

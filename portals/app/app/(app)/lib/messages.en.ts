@@ -5225,6 +5225,7 @@ export const en: Dictionary = {
     statusDraft: "Draft",
     statusCommitted: "Committed",
     statusClosed: "Closed",
+    targetRoster: "Sales targets",
     title: "Sales planning",
     description:
       "Targets are set by this domain; attainment is computed from the pipeline domain's forecast snapshots. Neither writes the other's data.",

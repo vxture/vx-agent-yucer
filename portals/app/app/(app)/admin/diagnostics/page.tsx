@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
@@ -52,7 +53,7 @@ export default async function DiagnosticsPage() {
         current={DOMAIN_LABEL.diagnostics}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="plugs-connected"
         title={DIAGNOSTICS_TEXT.title}
         description={PAGE_BRIEF.adminDiagnostics}

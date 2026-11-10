@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useMemo, useState, useTransition } from "react";
 import {
   ActionMenu,
@@ -7,7 +9,6 @@ import {
   EmptyState,
   Field,
   FieldLabel,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,

@@ -47,7 +47,7 @@ export function SubmitForecast({ period, scopeKey, canSubmit, computed = [], onS
 
   if (!canSubmit) {
     return (
-      <Button size="sm" variant="outline" disabled title={PIPELINE_TEXT.snapshotDenied}>
+      <Button size="md" variant="outline" disabled title={PIPELINE_TEXT.snapshotDenied}>
         {PIPELINE_TEXT.snapshot}
       </Button>
     );
@@ -73,7 +73,7 @@ export function SubmitForecast({ period, scopeKey, canSubmit, computed = [], onS
     <div className="flex items-center gap-xs">
       {done && !error ? <StatusBadge tone="success">{PIPELINE_TEXT.snapshotTaken}</StatusBadge> : null}
       <Button
-        size="sm"
+        size="md"
         variant="outline"
         disabled={pending}
         onClick={() => {

@@ -111,7 +111,7 @@ export function DealSituation({
       ) : error ? (
         <div className="flex flex-wrap items-center gap-sm">
           <p className="text-muted-foreground">{error}</p>
-          <Button size="sm" variant="ghost" onClick={run}>
+          <Button size="md" variant="ghost" onClick={run}>
             {T.retry}
           </Button>
         </div>

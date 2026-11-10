@@ -58,7 +58,7 @@ export function MeetingBriefButton({ accountId, contacts, onBuild }: MeetingBrie
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="md" variant="outline" onClick={() => setOpen(true)}>
         {MEETING_TEXT.open}
       </Button>
       <Drawer

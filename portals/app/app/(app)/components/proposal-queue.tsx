@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,7 +13,6 @@ import {
   DetailList,
   DetailRow,
   EmptyState,
-  FilterBar,
   Input,
   NativeSelect,
   Section,

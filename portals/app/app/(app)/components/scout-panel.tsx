@@ -88,7 +88,7 @@ export function ScoutPanel({
           </span>
           {canTriage ? (
             <div>
-              <Button size="sm" disabled={pending} onClick={() => run(d.duplicateId, () => onMarkDuplicate(d.duplicateId))}>
+              <Button size="md" disabled={pending} onClick={() => run(d.duplicateId, () => onMarkDuplicate(d.duplicateId))}>
                 {SIGNAL_TEXT.markDuplicate}
               </Button>
             </div>
@@ -105,7 +105,7 @@ export function ScoutPanel({
           {canTriage ? (
             <div>
               <Button
-                size="sm"
+                size="md"
                 disabled={pending}
                 onClick={() => run(m.signalId, () => onMatch(m.signalId, m.accountId))}
               >

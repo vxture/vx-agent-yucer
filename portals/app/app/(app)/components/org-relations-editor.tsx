@@ -127,7 +127,7 @@ export function OrgRelationsEditor({
           </NativeSelect>
           <Button
             variant="secondary"
-            size="sm"
+            size="md"
             disabled={parentPending || parentValue === (parentId ?? "")}
             onClick={applyParent}
           >
@@ -145,7 +145,7 @@ export function OrgRelationsEditor({
             <span className="min-w-0 flex-1 truncate text-body-small">{c.name}</span>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon-md"
               aria-label={ACCOUNT_PARENT_TEXT.removeChild}
               title={ACCOUNT_PARENT_TEXT.removeChild}
               onClick={() => setRemoving(c)}
@@ -154,7 +154,7 @@ export function OrgRelationsEditor({
             </Button>
           </div>
         ))}
-        <Button variant="secondary" size="sm" className="self-start" onClick={() => setAddOpen(true)}>
+        <Button variant="secondary" size="md" className="self-start" onClick={() => setAddOpen(true)}>
           {ACCOUNT_PARENT_TEXT.addChild}
         </Button>
       </div>

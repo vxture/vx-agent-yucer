@@ -331,7 +331,7 @@ export function ContactRoster({
         {contacts.length > CAP ? (
           <Button
             variant="ghost"
-            size="sm"
+            size="md"
             // Quiet (owner, 2026-09-24): regular weight, muted colour - a way
             // to see more, not an action competing with the names above.
             className="text-muted-foreground hover:text-foreground h-auto w-full justify-center py-2xs font-normal"

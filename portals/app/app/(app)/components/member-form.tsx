@@ -156,7 +156,7 @@ export function MemberForm({
             <Field>
               <div className="gap-sm flex items-center justify-between">
                 <FieldLabel>{MEMBER_TEXT.unitField}</FieldLabel>
-                <Button asChild variant="secondary" size="sm" className="shrink-0">
+                <Button asChild variant="secondary" size="md" className="shrink-0">
                   <a href="/admin/org">{MEMBER_TEXT.unitConfigure}</a>
                 </Button>
               </div>

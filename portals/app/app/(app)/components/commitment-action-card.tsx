@@ -56,10 +56,10 @@ export function CommitmentActionCard({
         <StatusBadge tone="success">{WAR_ROOM_TEXT.settled}</StatusBadge>
       ) : (
         <>
-          <Button size="xs" disabled={pending} onClick={() => settle("met")}>
+          <Button size="md" disabled={pending} onClick={() => settle("met")}>
             {WAR_ROOM_TEXT.settleMet}
           </Button>
-          <Button size="xs" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={() => settle("missed")}>
+          <Button size="md" variant="ghost" className={LIGHT_BUTTON} disabled={pending} onClick={() => settle("missed")}>
             {WAR_ROOM_TEXT.settleMissed}
           </Button>
         </>

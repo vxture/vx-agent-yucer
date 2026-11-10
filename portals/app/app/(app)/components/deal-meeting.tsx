@@ -59,7 +59,7 @@ export function DealMeetingButton({
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="md" variant="outline" onClick={() => setOpen(true)}>
         {T.open}
       </Button>
       <Drawer

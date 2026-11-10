@@ -193,10 +193,10 @@ function renderAttainment({ personal, period, embedded, session, targets, wsTarg
         action={
           <div className="flex flex-wrap items-center gap-sm">
             <div className="flex items-center gap-2xs" role="group" aria-label={ATTAINMENT_TEXT.title}>
-              <Button asChild size="sm" variant={!personal ? "secondary" : "ghost"}>
+              <Button asChild size="md" variant={!personal ? "secondary" : "ghost"}>
                 <Link href={`/attainment?scope=team&period=${period}`} aria-current={!personal ? "page" : undefined}>{ATTAINMENT_TEXT.team}</Link>
               </Button>
-              <Button asChild size="sm" variant={personal ? "secondary" : "ghost"}>
+              <Button asChild size="md" variant={personal ? "secondary" : "ghost"}>
                 <Link href={`/attainment?scope=personal&period=${period}`} aria-current={personal ? "page" : undefined}>{ATTAINMENT_TEXT.personal}</Link>
               </Button>
             </div>

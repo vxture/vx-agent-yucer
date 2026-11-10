@@ -48,7 +48,7 @@ export function PasteNotesButton({ accountId, onPaste }: PasteNotesButtonProps) 
     <>
       <Button
         variant="secondary"
-        size="sm"
+        size="md"
         onClick={() => setOpen(true)}
       >
         <Icon name="clipboard" size="xs" />

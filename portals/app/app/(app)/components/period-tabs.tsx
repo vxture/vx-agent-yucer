@@ -1,8 +1,10 @@
 "use client";
 
+import { TabsList } from "./business-controls";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { Tabs, TabsList, TabsTrigger } from "@vxture/design-ui";
+import { Tabs, TabsTrigger } from "@vxture/design-ui";
 
 import { useMessages } from "../lib/i18n/provider";
 // The page's top-level filter: which period everything below is reported for.

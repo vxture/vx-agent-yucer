@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState } from "react";
 import {
@@ -9,7 +11,6 @@ import {
   Field,
   FieldDescription,
   FieldLabel,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,

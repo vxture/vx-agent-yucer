@@ -272,7 +272,7 @@ export function DecisionChainDetail({
             />
             {/* 编辑入口跳回具体商机 (YC-021 L2): roles are written on the deal. */}
             {editHref ? (
-              <Button asChild size="sm" variant="ghost">
+              <Button asChild size="md" variant="ghost">
                 <Link href={editHref}>{CHAIN_TEXT.editOnDeal}</Link>
               </Button>
             ) : null}

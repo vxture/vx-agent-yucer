@@ -1,7 +1,9 @@
 "use client";
 
+import { ViewHeader } from "./business-controls";
+
 import type { ReactNode } from "react";
-import { ViewHeader } from "@vxture/design-ui";
+
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -12,10 +14,8 @@ import { useMessages } from "../lib/i18n/provider";
 // THAT IS THERE ON DEMAND - the action button, bottom-right, on the
 // description's line (the DS ViewHeader's own self-end).
 //
-// NOTHING ELSE. No rule under it, no fold. What used to fold here was either a
-// statistic - it moved to the page's own "xx分析" block - or a duplicate of one
-// the page already had, and it is gone. A header that can open is a header
-// that can hold anything, and it did.
+// The DS divider and its bottom padding separate the open title from content.
+// The page's ViewLayout supplies the space below the rule.
 
 export function ModuleHeadline({
   moduleKey,
@@ -39,18 +39,13 @@ export function ModuleHeadline({
   readonly action?: ReactNode;
 }) {
   const { DOMAIN_LABEL, PAGE_BRIEF } = useMessages();
-  // NAMED OVERRIDE (owner allows local CSS where the DS stops, 2026-09-24):
-  // ViewHeader keeps its pb-lg with `divider={false}` - padding that holds the
-  // rule off the text, left behind as blank space once the rule is gone. DS
-  // gap: ViewHeader should drop the padding with the rule.
   return (
     <ViewHeader
-      className="pb-0"
       icon={moduleIcon(moduleKey)}
       title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
       description={description ?? PAGE_BRIEF[brief ?? moduleKey] ?? ""}
       secondary={tags ? <span className="flex flex-wrap items-center gap-xs">{tags}</span> : undefined}
-      divider={false}
+      divider
       action={action}
     />
   );

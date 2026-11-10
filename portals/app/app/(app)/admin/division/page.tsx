@@ -1,4 +1,5 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -111,7 +112,7 @@ export default async function DivisionPage() {
         current={DOMAIN_LABEL.division}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="map-pin"
         title={DOMAIN_LABEL.division}
         description={PAGE_BRIEF.adminDivision}

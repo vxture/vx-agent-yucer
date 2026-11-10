@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -10,7 +12,6 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,

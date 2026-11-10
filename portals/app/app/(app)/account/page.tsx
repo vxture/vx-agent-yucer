@@ -175,11 +175,7 @@ export default async function AccountPage() {
         />
       ) : null}
 
-      <Section
-        icon="user"
-        title={ACCOUNT_TEXT.title}
-        description={ACCOUNT_TEXT.description}
-      >
+      <Section>
         {/* Decides which menu item renders ENABLED, nothing more. The server
             action re-runs the same gate on `account.upsert` before it writes,
             so a stale flag costs a refused request rather than an unguarded

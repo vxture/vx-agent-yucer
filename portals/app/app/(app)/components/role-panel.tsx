@@ -1,11 +1,12 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import {
   BulkActionBar,
   Button,
   DataTable,
   EmptyState,
-  FilterBar,
   Input,
   ListCard,
   ListCardGrid,

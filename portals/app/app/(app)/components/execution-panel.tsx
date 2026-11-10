@@ -85,7 +85,7 @@ export function ExecutionPanel({
       description={CAMPAIGN_TEXT.executionsWhy}
       action={
         canEdit ? (
-          <Button asChild variant="secondary" size="sm">
+          <Button asChild variant="secondary" size="md">
             <a href="/campaign/new">{CAMPAIGN_TEXT.newExecution}</a>
           </Button>
         ) : undefined

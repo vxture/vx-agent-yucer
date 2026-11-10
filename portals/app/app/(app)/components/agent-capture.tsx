@@ -85,7 +85,7 @@ export function AgentCapture({
               talking to, not in a list of business domains it does not belong
               to. Without this the page is orphaned, which is what
               functional-domains.test.ts asserts against. */}
-        <Button asChild variant="ghost" size="sm" className="-mr-xs">
+        <Button asChild variant="ghost" size="md" className="-mr-xs">
           <Link href={askAnchor?.opportunityId ? `/copilot?opportunity=${encodeURIComponent(askAnchor.opportunityId)}` : askAnchor?.accountId ? `/copilot?account=${encodeURIComponent(askAnchor.accountId)}` : "/copilot"} aria-label={BOARD_TEXT.openThread}>
             <Icon name="chat-circle" size="xs" />
           </Link>
@@ -123,7 +123,7 @@ export function AgentCapture({
           <div className="mt-sm flex items-center gap-xs">
             {onAttach ? <Button
               variant="ghost"
-              size="sm"
+              size="md"
               aria-label={BOARD_TEXT.attach}
               title={BOARD_TEXT.attach}
               disabled={pendingSave}
@@ -139,7 +139,7 @@ export function AgentCapture({
               {canAsk ? (
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="md"
                   disabled={pendingSave || href === null}
                   title={over > 0 ? BOARD_TEXT.askTooLong(over) : BOARD_TEXT.askHint}
                   onClick={() => {
@@ -156,7 +156,7 @@ export function AgentCapture({
                 </Button>
               ) : null}
               {canRecord ? <Button
-                size="sm"
+                size="md"
                 disabled={pendingSave || text.trim() === "" || !onRecord}
                 onClick={() =>
                   start(() => {

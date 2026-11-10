@@ -108,7 +108,7 @@ export function DealScoreConfig({
                   <Input
                     type="number"
                     inputMode="numeric"
-                    className="h-control-xs"
+                    className="h-control-md"
                     value={form[f]}
                     disabled={disabled}
                     aria-invalid={!(Number.isInteger(parsed.weights[f]) && parsed.weights[f] >= 0 && parsed.weights[f] <= 100)}
@@ -139,10 +139,10 @@ export function DealScoreConfig({
           </div>
           {editable ? (
             <div className="flex items-center gap-sm">
-              <Button size="sm" disabled={!dirty || pending} onClick={save}>
+              <Button size="md" disabled={!dirty || pending} onClick={save}>
                 {DEAL_SCORE_TEXT.save}
               </Button>
-              <Button size="sm" variant="ghost" disabled={pending} onClick={() => setForm(toForm(DEFAULT_DEAL_SCORE_WEIGHTS))}>
+              <Button size="md" variant="ghost" disabled={pending} onClick={() => setForm(toForm(DEFAULT_DEAL_SCORE_WEIGHTS))}>
                 {DEAL_SCORE_TEXT.reset}
               </Button>
               <span className="text-muted-foreground text-body-small">{DEAL_SCORE_TEXT.formula}</span>

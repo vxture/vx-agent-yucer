@@ -66,7 +66,7 @@ export function PageCrumbs({
   return (
     <div className="gap-2xs flex items-center">
       {up ? (
-        <Button asChild variant="ghost" size="icon-sm" aria-label={SHELL_TEXT.backUp}>
+        <Button asChild variant="ghost" size="icon-md" aria-label={SHELL_TEXT.backUp}>
           <Link href={up.href}>
             <Icon name="arrow-left" size="sm" />
           </Link>

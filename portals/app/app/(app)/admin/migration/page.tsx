@@ -1,5 +1,6 @@
+import { ViewHeader } from "../../components/business-controls";
 import Link from "next/link";
-import { EmptyState, Icon, PanelCard, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Icon, PanelCard, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -52,7 +53,7 @@ export default async function PendingMigrationPage() {
         current={DOMAIN_LABEL.pendingMigration}
       />
       <ViewHeader
-        divider={false}
+        divider
         icon="archive"
         title={ADMIN_PAGE_TEXT.pendingMigrationTitle}
         description={PAGE_BRIEF.adminMigration}

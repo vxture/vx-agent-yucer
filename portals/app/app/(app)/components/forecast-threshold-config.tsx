@@ -129,7 +129,7 @@ export function ForecastThresholdConfig({
                   <Input
                     type="number"
                     inputMode="numeric"
-                    className="h-control-xs w-16 text-center [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+                    className="h-control-md w-16 text-center [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
                     value={form.bestCaseAt}
                     disabled={pending || !canWrite}
                     aria-invalid={bestCaseInvalid}
@@ -144,7 +144,7 @@ export function ForecastThresholdConfig({
                   <Input
                     type="number"
                     inputMode="numeric"
-                    className="h-control-xs w-16 text-center [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+                    className="h-control-md w-16 text-center [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
                     value={form.commitAt}
                     disabled={pending || !canWrite}
                     aria-invalid={commitInvalid}

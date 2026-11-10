@@ -123,7 +123,7 @@ export function EvidenceSlots({
             </span>
             {!compact && row.statement ? <SlotMarks row={row} /> : null}
             {canRecord ? (
-              <Button variant="ghost" size="xs" className="text-muted-foreground h-auto flex-none py-0" onClick={() => open(row)}>
+              <Button variant="ghost" size="md" className="text-muted-foreground h-auto flex-none py-0" onClick={() => open(row)}>
                 {row.statement ? DEAL_PAGE_TEXT.evidenceEdit : DEAL_PAGE_TEXT.evidenceFill}
               </Button>
             ) : null}

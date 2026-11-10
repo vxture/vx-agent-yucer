@@ -59,7 +59,7 @@ export function AccountSignals({ rows }: { readonly rows: readonly AccountSignal
       // leaving this page.
       action={
         // Quiet, like 联系人's 查看全部 (owner, 2026-09-24: 不要加粗, 颜色淡一些).
-        <Button asChild size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground font-normal">
+        <Button asChild size="md" variant="ghost" className="text-muted-foreground hover:text-foreground font-normal">
           <a href="/signal" {...external} title={SIGNAL_PANEL_TEXT.viewAll(rows.length)}>
             {SIGNAL_PANEL_TEXT.inboxButton}
             <Icon name="external-link" size="xs" />

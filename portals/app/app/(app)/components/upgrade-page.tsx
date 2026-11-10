@@ -95,7 +95,7 @@ export function UpgradePage({
             </span>
           </div>
           {canUpgrade ? (
-            <Button asChild size="lg" className="shrink-0">
+            <Button asChild size="md" className="shrink-0">
               <a href={pricingHref} target="_blank" rel="noopener noreferrer">
                 {T.upgrade}
                 <Icon name="external-link" size="sm" />

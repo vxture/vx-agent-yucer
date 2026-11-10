@@ -79,7 +79,7 @@ export function ConsistencyCheck({
   return (
     <div className="flex flex-col gap-xs">
       <div className="flex flex-wrap items-center gap-xs">
-        <Button variant="secondary" size="sm" onClick={run} disabled={busy}>
+        <Button variant="secondary" size="md" onClick={run} disabled={busy}>
           <Icon name="search" size="xs" />
           {busy ? CONSISTENCY_TEXT.checking : CONSISTENCY_TEXT.button}
         </Button>

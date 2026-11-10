@@ -1,0 +1,17 @@
+/* TD-038: size only, using DS tokens. States, colour and type stay in the DS. */
+.toolbar :is([data-slot="input"], [data-slot="input-group-input"], [data-slot="native-select"], [data-slot="button"], [role="combobox"]),
+.primary :is([data-slot="button"], [role="combobox"]) {
+  height: var(--space-control-xl);
+}
+
+.toolbar [data-size^="icon-"],
+.primary [data-size^="icon-"] {
+  width: var(--space-control-xl);
+}
+
+.primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}

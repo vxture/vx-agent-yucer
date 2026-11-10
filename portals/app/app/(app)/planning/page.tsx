@@ -185,7 +185,7 @@ export default async function PlanningPage() {
 
       <Section
         icon="target"
-        title={PLANNING_TEXT.title}
+        title={PLANNING_TEXT.targetRoster}
         description={leadLine}
         action={
           can(session.authz, session.entitlement, "planning.target.create", "ui")

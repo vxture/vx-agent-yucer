@@ -120,7 +120,7 @@ export function InteractionTimeline({
 
   const expandButton =
     limit !== undefined && items.length > limit ? (
-      <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
+      <Button variant="ghost" size="md" onClick={() => setOpen(!open)}>
         {open
           ? FIELD_TEXT.timelineCollapse
           : FIELD_TEXT.timelineShown(limit, items.length)}
@@ -163,7 +163,7 @@ export function InteractionTimeline({
               <span className="text-muted-foreground flex items-center gap-2xs text-[11px] whitespace-nowrap">
                 {i.actorName ?? nameOf(i.actorSub)}
                 {mine(i) ? (
-                  <Button variant="ghost" size="sm" disabled={pending} onClick={() => setRemoving(i)}>
+                  <Button variant="ghost" size="md" disabled={pending} onClick={() => setRemoving(i)}>
                     {FIELD_TEXT.timelineDelete}
                   </Button>
                 ) : null}
@@ -234,7 +234,7 @@ export function InteractionTimeline({
               <p className="text-foreground mt-2xs text-body-small leading-relaxed">{i.rawNote}</p>
             </div>
             {mine(i) ? (
-              <Button variant="ghost" size="sm" disabled={pending} onClick={() => setRemoving(i)}>
+              <Button variant="ghost" size="md" disabled={pending} onClick={() => setRemoving(i)}>
                 {FIELD_TEXT.timelineDelete}
               </Button>
             ) : null}

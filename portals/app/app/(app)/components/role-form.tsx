@@ -364,7 +364,7 @@ export function RoleForm({
                         <TableCell>{o.label}</TableCell>
                         <TableCell className="text-center tabular-nums">{ROLE_TEXT.unlocks(o.unlocks)}</TableCell>
                         <TableCell className="text-center">
-                          <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(o.code)}>
+                          <Button variant="ghost" size="md" disabled={pending} onClick={() => toggle(o.code)}>
                             {ROLE_TEXT.removePerm}
                           </Button>
                         </TableCell>

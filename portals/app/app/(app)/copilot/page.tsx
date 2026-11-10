@@ -205,7 +205,7 @@ export default async function CopilotPage({
             if (deal) params.set("opportunity", deal.id);
             else if (account) params.set("account", account.id);
             params.set("thread", conversation.id);
-            return <Button key={conversation.id} asChild variant={latest?.id === conversation.id ? "secondary" : "ghost"} size="sm">
+            return <Button key={conversation.id} asChild variant={latest?.id === conversation.id ? "secondary" : "ghost"} size="md">
               <Link href={`/copilot?${params}`} aria-current={latest?.id === conversation.id ? "page" : undefined}>{conversation.title}</Link>
             </Button>;
           })}

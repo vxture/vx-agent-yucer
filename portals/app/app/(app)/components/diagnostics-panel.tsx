@@ -114,7 +114,7 @@ function SpendingProbeCard({
         {canRun ? (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="secondary" size="sm" disabled={running}>
+              <Button variant="secondary" size="md" disabled={running}>
                 {running ? runningLabel : runLabel}
               </Button>
             </AlertDialogTrigger>
@@ -185,7 +185,7 @@ export function DiagnosticsPanel({
     <div className="flex flex-col gap-lg">
       <div className="flex items-center justify-between gap-md">
         <p className="text-muted-foreground text-body-small">{DIAGNOSTICS_TEXT.probedAt(check.time)}</p>
-        <Button variant="secondary" size="sm" disabled={refreshing} onClick={handleRefresh}>
+        <Button variant="secondary" size="md" disabled={refreshing} onClick={handleRefresh}>
           {DIAGNOSTICS_TEXT.refresh}
         </Button>
       </div>

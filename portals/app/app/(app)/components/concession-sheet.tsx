@@ -112,7 +112,7 @@ function PriceAdvisor({
           {A.title}
         </span>
         <Button
-          size="sm"
+          size="md"
           variant="outline"
           disabled={pending}
           onClick={() =>

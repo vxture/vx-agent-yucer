@@ -30,7 +30,7 @@ export function LinkActionCard({
 }) {
   return (
     <ActionCard severity={severity} title={title} reason={reason} source={source}>
-      <Button asChild size="xs">
+      <Button asChild size="md">
         <a href={href}>{cta}</a>
       </Button>
     </ActionCard>

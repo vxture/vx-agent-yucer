@@ -1,5 +1,6 @@
+import { ViewHeader } from "../../components/business-controls";
 import { redirect } from "next/navigation";
-import { ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewLayout } from "@vxture/design-ui";
 import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { getMessages } from "../../lib/i18n/server";
@@ -54,7 +55,7 @@ export default async function ProductSettingsPage() {
               current={DOMAIN_LABEL.product}
             />
             <ViewHeader
-              divider={false}
+              divider
               icon="cube"
               title={DOMAIN_LABEL.product}
               description={PAGE_BRIEF.adminProduct}

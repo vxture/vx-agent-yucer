@@ -134,7 +134,7 @@ export function AccountCompleteness({
           </span>
           {canFill ? (
             <Button
-              size="sm"
+              size="md"
               disabled={pending && busy === g.field}
               onClick={() => {
                 setBusy(g.field);
@@ -166,7 +166,7 @@ export function AccountCompleteness({
             {COMPLETENESS_TEXT.notFilled(COMPLETENESS_TEXT.fields[g.field] ?? g.field)}
           </span>
           {edit?.canWrite ? (
-            <Button size="sm" variant="ghost" onClick={() => edit.open("basics")}>
+            <Button size="md" variant="ghost" onClick={() => edit.open("basics")}>
               {COMPLETENESS_TEXT.goFill}
             </Button>
           ) : null}
@@ -190,7 +190,7 @@ export function AccountCompleteness({
               <StatusBadge tone="info">{COMPLETENESS_TEXT.askedNote}</StatusBadge>
             ) : (
               <Button
-                size="sm"
+                size="md"
                 variant="secondary"
                 disabled={pending && busy === "ask"}
                 onClick={() => {

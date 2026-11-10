@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterBar } from "./business-controls";
+
 import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
@@ -8,7 +10,6 @@ import {
   Field,
   FieldDescription,
   FieldLabel,
-  FilterBar,
   Input,
   NativeSelect,
   Section,
@@ -251,7 +252,7 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
       <span className="flex items-center justify-end gap-2xs">
         {canSettle ? (
           <Button
-            size="xs"
+            size="md"
             variant="secondary"
             disabled={pending}
             onClick={() => {

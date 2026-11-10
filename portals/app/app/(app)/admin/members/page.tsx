@@ -1,4 +1,5 @@
-import { Button, EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader } from "../../components/business-controls";
+import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
@@ -82,7 +83,7 @@ export default async function MembersPage() {
     <ViewLayout>
       <PageCrumbs trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]} current={DOMAIN_LABEL.members} />
       <ViewHeader
-        divider={false}
+        divider
         icon="users"
         title={DOMAIN_LABEL.members}
         description={PAGE_BRIEF.adminMembers}
