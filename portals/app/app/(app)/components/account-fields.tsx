@@ -1,6 +1,6 @@
 "use client";
 
-import { Field, FieldLabel, Input, NativeSelect } from "@vxture/design-ui";
+import { Field, FieldDescription, FieldLabel, Input, NativeSelect } from "@vxture/design-ui";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -32,6 +32,8 @@ export interface AccountFieldValues {
 }
 
 export interface AccountFieldVocab {
+  /** Values remain geographic names, matching account.region and routing. */
+  readonly regions: readonly VocabOption[];
   readonly industries: readonly VocabOption[];
   /** id = segmentCode itself - account.segment_code stores the code. */
   readonly segments: readonly VocabOption[];
@@ -136,8 +138,14 @@ export function AccountFields({
       </Field>
 
       <Field>
-        <FieldLabel>{ACCOUNT_BASICS_TEXT.region}</FieldLabel>
-        <Input value={values.region} onChange={(ev) => set("region")(ev.target.value)} disabled={pending} />
+        <FieldLabel htmlFor="account-sales-region">{ACCOUNT_BASICS_TEXT.region}</FieldLabel>
+        <NativeSelect id="account-sales-region" value={values.region} onChange={(ev) => set("region")(ev.target.value)} disabled={pending}>
+          <option value="">{ACCOUNT_BASICS_TEXT.regionPick}</option>
+          {values.region && !vocab.regions.some((r) => r.name === values.region)
+            ? <option value={values.region}>{ACCOUNT_BASICS_TEXT.regionLegacy(values.region)}</option> : null}
+          {vocab.regions.map((r) => <option key={r.id} value={r.name}>{r.name}</option>)}
+        </NativeSelect>
+        {vocab.regions.length === 0 ? <FieldDescription>{ACCOUNT_BASICS_TEXT.regionNone}</FieldDescription> : null}
       </Field>
 
       {select(

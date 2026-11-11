@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { InMemoryAccountStore, nextAccountNo } from "./store";
-import { createAccount, type AccountContext } from "./service";
+import { createAccount, updateAccountBasics, type AccountContext } from "./service";
 
 // 新建客户 (owner, 2026-09-23). Before this the product could not create a
 // customer at all.
@@ -66,4 +66,33 @@ test("createAccount: one company, one record - a credit code already in use is r
 test("createAccount: needs account.upsert", async () => {
   const r = await createAccount(ctx("viewer"), { ...blank, name: "x" });
   assert.equal(r.ok, false);
+});
+
+
+test("sales region selection uses configuration, rejects departments, and is workspace scoped", async () => {
+  const c = ctx();
+  const divisions = await c.store.listMarketDivisions(WS);
+  const create = (region: string) => createAccount(c, { ...blank, name: "Regional customer", region });
+  const valid = await create(divisions[0]!.name);
+  assert.equal(valid.ok && valid.value.region, divisions[0]!.name);
+  const department = await create("Direct sales department");
+  assert.equal(!department.ok && department.violations[0].code, "region_unknown");
+  await c.store.upsertMarketDivision("other_workspace", { code: "CHINA-OTHER", name: "Other workspace region" });
+  const other = await create("Other workspace region");
+  assert.equal(!other.ok && other.violations[0].code, "region_unknown");
+  assert.equal((await c.store.listAccounts(WS)).length, 1);
+});
+
+test("editing keeps an unchanged historical region, but replacement must be configured", async () => {
+  const c = ctx();
+  const account = await c.store.createAccount(WS, { ...blank, name: "Historical customer", region: "Legacy region", ownerSub: c.sub });
+  const preserve = await updateAccountBasics(c, account.id, { name: "Updated name", region: "Legacy region" });
+  assert.equal(preserve.ok && preserve.value.region, "Legacy region");
+  const invalid = await updateAccountBasics(c, account.id, { region: "Sales department" });
+  assert.equal(!invalid.ok && invalid.violations[0].code, "region_unknown");
+  const region = (await c.store.listMarketDivisions(WS))[0]!.name;
+  const valid = await updateAccountBasics(c, account.id, { region });
+  assert.equal(valid.ok && valid.value.region, region);
+  const clear = await updateAccountBasics(c, account.id, { region: null });
+  assert.equal(clear.ok && clear.value.region, null);
 });

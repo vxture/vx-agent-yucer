@@ -1342,6 +1342,7 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   not_movable: "这一条不能移动",
   // 基础信息表单 (owner, 2026-09-20)。
   name_required: "客户名称不能为空",
+  region_unknown: "请选择「区域设置」中的销售区域。",
   province_unknown: "不是有效的省级行政区划",
   employee_count_invalid: "员工数必须是不小于 0 的整数",
   account_not_empty: "这家客户已经有业务记录了，只能删除建错、还没用过的空壳客户",
@@ -4169,6 +4170,7 @@ export const TERRITORY_ERROR: Record<string, string> = {
  * 于是屏幕上出现的是规则层的英文自述。TD-010。
  */
 export const TARGET_ERROR: Record<string, string> = {
+  region_unknown: "请选择「区域设置」中当前有效的销售区域。",
   ...GATE_ERROR,
   name_required: "目标需要一个名称",
   period_required: "目标必须写明周期",
@@ -6094,16 +6096,16 @@ export const PLANNING_TEXT = {
   divisionUnplacedLead: (n: number, noun: string) => `${n} 个${noun}未归入任何区域：`,
   // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
-    "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",
+    "按配置中的地理区域分解销售目标；负责部门可跨区域、多部门协作。",
   territoryNone: "还没有销售区域",
   territoryNoneWhy: "到「配置管理 → 区域设置」新建区域或应用模板。",
   // 两个入口同处一页（区域名册 + 指标表），所以各自说清楚建的是什么。
   territoryNewEntry: "新建区域",
   targetNew: "新建目标",
-  territoryRegions: "覆盖大区",
+  territoryRegions: "地域范围",
   // 所属单位（incr/0052）：一个区域可挂多个单位。
-  territoryUnits: "所属单位",
-  territoryNoUnit: "未挂单位",
+  territoryUnits: "负责部门",
+  territoryNoUnit: "未关联部门",
   territoryName: "名称",
   territoryParent: "上级区域",
   territoryOwner: "负责人",
@@ -7436,7 +7438,10 @@ export const ACCOUNT_BASICS_TEXT = {
   createSubmit: "创建",
   createCancel: "取消",
   createButton: "新建客户",
-  region: "销售大区",
+  region: "销售区域",
+  regionPick: "请选择销售区域（可暂不选择）",
+  regionNone: "暂无可选区域，请在「配置管理 → 区域设置」中配置。",
+  regionLegacy: (name: string) => `${name}（历史值，未在当前区域设置中）`,
   province: "省份",
   provincePick: "未标注",
   industry: "行业",

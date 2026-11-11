@@ -10,43 +10,46 @@ import {
 } from "../../domains/planning/service";
 import { importDivisionTemplate, listCarves, listMarketDivisions, type AccountContext } from "../../domains/account/service";
 import { can } from "../../authz/decide";
+import { salesRegionCode } from "./sales-regions";
 
-/** Complete a missing automatic roster from the current carve, without reapplying an org template. */
+/** Synchronize geographic target identities independently of the organization tree. */
 export async function ensureSalesTerritories(
   planningCtx: PlanningContext,
   accountCtx: AccountContext,
 ): Promise<void> {
   if (!can(planningCtx.holder, planningCtx.entitlement, "planning.territory.upsert", "data").allowed) return;
-  const existing = await listTerritories(planningCtx, { includeRetired: true });
-  if (!existing.ok) return;
-  // Custom rosters and deliberate retirements belong to the administrator.
-  if (existing.value.some((t) => !t.territoryCode.startsWith("AUTO-") || t.status !== "active")) return;
-  const divisions = await listMarketDivisions(accountCtx);
-  if (!divisions.ok) return;
-  const codes = new Set(existing.value.map((t) => t.territoryCode));
-  const covered = new Set(existing.value.flatMap((t) => [...t.divisionIds]));
-  const missing = divisions.value.filter((d) => !codes.has(`AUTO-${d.code}`) && !covered.has(d.id));
-  if (missing.length === 0) return;
-  const [units, links] = await Promise.all([
-    listOrgUnits(planningCtx),
-    listUnitDivisionLinks(planningCtx),
+  const [existing, divisions] = await Promise.all([
+    listTerritories(planningCtx, { includeRetired: true }),
+    listMarketDivisions(accountCtx),
   ]);
+  if (!existing.ok || !divisions.ok) return;
+  const byCode = new Map(existing.value.map((t) => [t.territoryCode, t]));
   const knownDivisionIds = new Set(divisions.value.map((d) => d.id));
-  for (const d of missing) {
-    const linked = links.ok ? links.value.find((link) => link.id === d.id)?.unitIds : undefined;
-    const unitIds = linked?.length
-      ? linked
-      : units.ok ? units.value.filter((u) => u.name.includes(d.name)).map((u) => u.id) : [];
+  // These are explicit many-to-many assignments. Never infer them from names
+  // or seed an organization merely to make geographic scopes available.
+  const links = await listUnitDivisionLinks(planningCtx);
+  for (const d of divisions.value) {
+    const code = salesRegionCode(d.code);
+    const held = byCode.get(code);
+    const unitIds = links.ok
+      ? links.value.find((link) => link.id === d.id)?.unitIds ?? []
+      : held?.unitIds ?? [];
+    if (held && held.name === d.name && held.status === "active"
+      && held.divisionIds.length === 1 && held.divisionIds[0] === d.id
+      && held.unitIds.length === unitIds.length && held.unitIds.every((id) => unitIds.includes(id))) continue;
     await upsertTerritory(planningCtx, {
-      territoryCode: `AUTO-${d.code}`,
+      territoryCode: code,
       name: d.name,
-      parentId: null,
-      ownerSub: null,
+      parentId: held?.parentId ?? null,
+      ownerSub: held?.ownerSub ?? null,
       status: "active",
       divisionIds: [d.id],
       unitIds,
     }, knownDivisionIds);
   }
+  // Retain IDs for historical targets and opportunities. Legacy custom team
+  // territories stay intact; only obsolete configuration mirrors retire.
+  await retireOrphanedAutoTerritories(planningCtx, new Set(divisions.value.map((d) => salesRegionCode(d.code))));
 }
 
 /**

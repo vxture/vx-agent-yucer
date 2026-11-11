@@ -10,6 +10,7 @@ import {
   listCustomerSizes,
   listCustomerTypes,
   listIndustries,
+  listMarketDivisions,
 } from "../../../domains/account/service";
 import { listSegments } from "../../../domains/strategy/service";
 import { getStrategyStore } from "../../../domains/shared/registry";
@@ -38,12 +39,13 @@ export default async function NewAccountPage({ searchParams }: { searchParams: P
     entitlement: session.entitlement,
     store: session.stores.account(),
   };
-  const [industries, types, sizes, natures, segments] = await Promise.all([
+  const [industries, types, sizes, natures, segments, regions] = await Promise.all([
     listIndustries(ctx),
     listCustomerTypes(ctx),
     listCustomerSizes(ctx),
     listCustomerNatures(ctx),
     listSegments({ ...ctx, store: getStrategyStore() }),
+    listMarketDivisions(ctx),
   ]);
   const opts = <T extends { id: string; name: string }>(r: { ok: boolean; value?: readonly T[] }) =>
     r.ok && r.value ? r.value.map((x) => ({ id: x.id, name: x.name })) : [];
@@ -55,6 +57,7 @@ export default async function NewAccountPage({ searchParams }: { searchParams: P
       <AccountCreateForm
         initialTier={initialTier}
         vocab={{
+          regions: opts(regions),
           industries: opts(industries),
           customerTypes: opts(types),
           customerSizes: opts(sizes),

@@ -29,6 +29,7 @@ import {
   listCustomerSizes,
   listCustomerTypes,
   listIndustries,
+  listMarketDivisions,
   recomputeHealth,
   resolveAccountOwner,
 } from "../../../domains/account/service";
@@ -332,7 +333,7 @@ export default async function AccountDetailPage({
     }
   }
 
-  const [health, relations, industriesRead, customerTypesRead, customerSizesRead, customerNaturesRead, segmentsRead, historyRead] =
+  const [health, relations, industriesRead, customerTypesRead, customerSizesRead, customerNaturesRead, segmentsRead, historyRead, regionsRead] =
     await Promise.all([
       // persist:false - a READ, so every member who can see the customer sees
       // the score WITH its factors (YC-021 L5: 分数始终与因子拆解同时出现);
@@ -363,6 +364,7 @@ export default async function AccountDetailPage({
       // 健康分快照 (incr/0079): what 变化归因 and 采纳后回看 read. A failed read
       // is no history - the panel then simply has no "why it changed" line.
       healthHistory(ctx, id, { limit: 100 }).catch(() => null),
+      canWrite ? listMarketDivisions(ctx) : Promise.resolve(null),
     ]);
 
   // THE POSITIONS ON THIS THEATRE, and the theatre-level plan over them.
@@ -1384,6 +1386,7 @@ export default async function AccountDetailPage({
                 creditCode: account.creditCode,
                 website: account.website,
                 employeeCount: account.employeeCount,
+                regions: regionsRead?.ok ? regionsRead.value.map((r) => ({ id: r.id, name: r.name })) : [],
                 industries: industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : [],
                 segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : [],
                 customerTypes: customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : [],

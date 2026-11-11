@@ -89,7 +89,7 @@ export interface AppSession {
  * an earlier partial initialization left their automatic territory roster
  * incomplete, repair only that roster through the gated domain services.
  * Never reapply the destructive org template to an existing organization.
- * Custom rosters and retired territories are not repaired automatically.
+ * Geographic scope mirrors are independent of custom team territories.
  * The development/demo branch below bypasses this real-workspace initializer.
  */
 async function ensureStartupPreset(workspaceId: string, sub: string, authz: AuthzContext, entitlement: Entitlement) {
@@ -148,6 +148,10 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
   const dev = await resolveDevSession();
   if (dev) {
     ensureDemoData(dev.workspaceId);
+    await ensureSalesTerritories(
+      { workspaceId: dev.workspaceId, sub: dev.user.sub, holder: dev.authz, entitlement: dev.entitlement, store: getPlanningStore() },
+      { workspaceId: dev.workspaceId, sub: dev.user.sub, holder: dev.authz, entitlement: dev.entitlement, store: getAccountStore() },
+    );
     // The demo seed must exist before the scope is resolved: `own` reads the
     // member's book, and an empty store would resolve to seeing nothing on the
     // first render and everything on the second.

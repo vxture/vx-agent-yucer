@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
-import { createTarget, removeTarget, updateTarget } from "../../domains/planning/service";
+import { createTarget, removeTarget, updateTarget, listTerritories } from "../../domains/planning/service";
+import { listMarketDivisions } from "../../domains/account/service";
+import { salesRegionTerritories } from "../lib/sales-regions";
 import {
   TARGET_METRICS,
   TARGET_STATUSES,
@@ -50,6 +52,19 @@ export async function createSalesTarget(input: {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
   if (!isMetric(input.metric)) return { ok: false, error: "unknown_metric" };
+
+  if (input.scopeType === "territory") {
+    const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+    const [territories, divisions] = await Promise.all([
+      listTerritories({ ...base, store: getPlanningStore() }),
+      listMarketDivisions({ ...base, store: session.stores.account() }),
+    ]);
+    if (!territories.ok) return { ok: false, error: territories.violations[0]?.code ?? "denied" };
+    if (!divisions.ok) return { ok: false, error: divisions.violations[0]?.code ?? "denied" };
+    if (!salesRegionTerritories(divisions.value, territories.value).some((t) => t.id === input.territoryId)) {
+      return { ok: false, error: "region_unknown" };
+    }
+  }
 
   const result = await createTarget(
     {

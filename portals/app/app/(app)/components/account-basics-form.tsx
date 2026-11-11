@@ -56,6 +56,7 @@ export interface AccountBasicsFormProps {
   readonly creditCode: string | null;
   readonly website: string | null;
   readonly employeeCount: number | null;
+  readonly regions: readonly VocabOption[];
   readonly industries: readonly VocabOption[];
   /** id = segmentCode itself - account.segment_code stores the code, not a
    *  uuid join (see SegmentRecord vs. IndustryRecord/CustomerTypeRecord). */
@@ -114,6 +115,7 @@ export function AccountBasicsForm({
   creditCode,
   website,
   employeeCount,
+  regions,
   industries,
   segments,
   customerTypes,
@@ -192,7 +194,7 @@ export function AccountBasicsForm({
           <AccountFields
             values={values}
             onChange={setValues}
-            vocab={{ industries, segments, customerTypes, customerSizes, customerNatures }}
+            vocab={{ regions, industries, segments, customerTypes, customerSizes, customerNatures }}
             pending={pending}
             accountNo={accountNo}
           />

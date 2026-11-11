@@ -1443,6 +1443,14 @@ function basicsViolation(patch: AccountBasicsPatch): Violation | null {
   return null;
 }
 
+/** A selected region must be configured; unchanged historical names remain editable. */
+async function accountRegionViolation(ctx: AccountContext, region: string | null | undefined, current?: string | null): Promise<Violation | null> {
+  if (region == null || region === current) return null;
+  const divisions = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  return divisions.some((d) => d.name === region)
+    ? null : violation("region_unknown", "select a configured geographic sales region", "region");
+}
+
 /**
  * 新建客户 (owner, 2026-09-23: 独立页面全字段表单). Until this there was NO
  * way to create a customer in the product - only the demo seed and test SQL
@@ -1463,6 +1471,8 @@ export async function createAccount(
   const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
+  const regionError = await accountRegionViolation(ctx, input.region);
+  if (regionError) return fail(regionError);
   const tier = input.tier ?? "standard";
   if (!(ACCOUNT_TIERS as readonly string[]).includes(tier)) return fail(violation("unknown_tier", "unknown customer tier", "tier"));
   const planError = accountPlanViolation(tier, input.plan);
@@ -1501,6 +1511,9 @@ export async function updateAccountBasics(
   if (!current) {
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
+
+  const regionError = await accountRegionViolation(ctx, patch.region, current.region);
+  if (regionError) return fail(regionError);
 
   const write: Partial<AccountRecord> = {};
   if (patch.name !== undefined) write.name = patch.name.trim();

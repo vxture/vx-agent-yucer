@@ -9,21 +9,19 @@ import {
 } from "@vxture/design-ui";
 import { RowActions, useTableSort } from "./table-fittings";
 import { useRouter } from "next/navigation";
+import { Tag } from "./tag";
+import type { MarketMember } from "../../domains/shared/market-division";
 import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
-import { Tag } from "./tag";
 
-// Sales planning reads the territory roster; region management lives in configuration.
+// The roster is geographic configuration; departments are optional assignments.
 
 export interface TerritoryRow {
   readonly id: string;
-  readonly territoryCode: string;
+  readonly code: string;
   readonly name: string;
-  readonly parentId: string | null;
   readonly ownerSub: string | null;
-  readonly status: string;
-  readonly regions: readonly string[];
-  /** The units that work it (0052), by name; empty reads as 未挂单位. */
+  readonly members: readonly MarketMember[];
   readonly units: readonly string[];
 }
 
@@ -48,7 +46,6 @@ export function TerritoryPanel({
   const memberName = useMemberName();
   const sorted = useTableSort<TerritoryRow>([], SORT_ON);
   const router = useRouter();
-  const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   return (
     <Section id="territories" icon="map-pin" title={DOMAIN_LABEL.territory} action={action}>
       {rows.length === 0 ? (
@@ -89,14 +86,18 @@ export function TerritoryPanel({
               header: PLANNING_TEXT.territoryName,
               sortable: true,
               cell: (r: TerritoryRow) => (
-                <TableTitleCell title={r.name} description={r.territoryCode} tooltip={r.name} />
+                <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
               ),
             },
             {
-              // Routing uses these configured region names as coverage.
+              // The geographic members from configuration, not team scopes.
               id: "regions",
               header: PLANNING_TEXT.territoryRegions,
-              cell: (r: TerritoryRow) => r.regions.join(" / "),
+              cell: (r: TerritoryRow) => (
+                <span className="gap-2xs flex flex-wrap justify-center">
+                  {r.members.map((m) => <Tag key={m.key}>{m.label}</Tag>)}
+                </span>
+              ),
             },
             {
               /* 所属单位 (0052): the organisation's side of the joint, beside
@@ -105,33 +106,14 @@ export function TerritoryPanel({
               header: PLANNING_TEXT.territoryUnits,
               cell: (r: TerritoryRow) =>
                 r.units.length === 0
-                  ? <span className="text-muted-foreground text-body-small">{PLANNING_TEXT.territoryNoUnit}</span>
+                  ? <span className="text-muted-foreground text-body-small whitespace-nowrap">{PLANNING_TEXT.territoryNoUnit}</span>
                   : r.units.join(" / "),
-            },
-            {
-              id: "parent",
-              header: PLANNING_TEXT.territoryParent,
-              // Blank, not "-", for a top-level region: most rows are top level
-              // and a column of dashes reads as missing data rather than as the
-              // ordinary case.
-              cell: (r: TerritoryRow) =>
-                r.parentId ? (nameOf.get(r.parentId) ?? r.parentId) : "",
             },
             {
               id: "owner",
               header: PLANNING_TEXT.territoryOwner,
               cell: (r: TerritoryRow) =>
                 memberName(r.ownerSub) ?? PLANNING_TEXT.territoryNoOwner,
-            },
-            {
-              id: "status",
-              header: PLANNING_TEXT.territoryStatus,
-              cell: (r: TerritoryRow) =>
-                r.status === "active" ? null : (
-                  <Tag>
-                    {PLANNING_TEXT.territoryRetired}
-                  </Tag>
-                ),
             },
           ]}
         />

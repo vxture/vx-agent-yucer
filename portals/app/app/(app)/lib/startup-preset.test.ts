@@ -3,9 +3,11 @@ import { test } from "node:test";
 import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
 import { permissionsForRoles } from "../../authz/catalog";
 import { InMemoryPlanningStore } from "../../domains/planning/store";
-import { listOrgUnits } from "../../domains/planning/service";
+import { listOrgUnits, createTarget } from "../../domains/planning/service";
 import { InMemoryAccountStore } from "../../domains/account/store";
 import { MARKET_DIVISIONS } from "../../domains/shared/market-division";
+import { salesRegionTerritories } from "./sales-regions";
+import { InMemoryCatalogStore } from "../../domains/catalog/store";
 import { applyStartupPreset, ensureSalesTerritories } from "./startup-preset";
 
 // 新租户预置 (owner, 2026-09-12: 全国性大公司 + 5 分区) - the whole
@@ -115,7 +117,7 @@ test("existing organization and configured carve recover a missing sales roster 
   assert.deepEqual(await planningCtx.store.listTerritories(WS), roster);
 });
 
-test("repair resumes a partial automatic roster and preserves edited existing rows", async () => {
+test("repair resumes a partial geographic roster, preserving its identity and owner", async () => {
   const planningCtx = ctxOf(new InMemoryPlanningStore());
   const accountCtx = ctxOf(new InMemoryAccountStore());
   const divisions = await accountCtx.store.listMarketDivisions(WS);
@@ -128,7 +130,7 @@ test("repair resumes a partial automatic roster and preserves edited existing ro
   await ensureSalesTerritories(planningCtx, accountCtx);
   const rows = await planningCtx.store.listTerritories(WS);
   assert.equal(rows.length, divisions.length);
-  assert.deepEqual(rows.find((t) => t.id === original.id), original);
+  assert.deepEqual(rows.find((t) => t.id === original.id), { ...original, name: first.name });
   assert.equal((await planningCtx.store.listTerritories("other_workspace")).length, 0);
 });
 
@@ -148,19 +150,78 @@ test("repair uses the workspace's provincial carve rather than the national defa
   assert.deepEqual(await accountCtx.store.listMarketDivisions(WS), [division]);
 });
 
-for (const [code, status] of [["CUSTOM", "active"], ["AUTO-north", "retired"]] as const) {
-  test(`repair preserves administrator roster ${code}/${status}`, async () => {
-    const planningCtx = ctxOf(new InMemoryPlanningStore());
-    const accountCtx = ctxOf(new InMemoryAccountStore());
-    await planningCtx.store.upsertTerritory(WS, {
-      territoryCode: code, name: "Deliberate territory", parentId: null,
-      ownerSub: null, status, divisionIds: [], unitIds: [],
-    });
-    const before = await planningCtx.store.listTerritories(WS, { includeRetired: true });
-    await ensureSalesTerritories(planningCtx, accountCtx);
-    assert.deepEqual(await planningCtx.store.listTerritories(WS, { includeRetired: true }), before);
+test("legacy department scopes do not hide or redefine configured geographic regions", async () => {
+  const planningCtx = ctxOf(new InMemoryPlanningStore());
+  const accountCtx = ctxOf(new InMemoryAccountStore());
+  const divisions = await accountCtx.store.listMarketDivisions(WS);
+  const legacy = await planningCtx.store.upsertTerritory(WS, {
+    territoryCode: "DIRECT", name: "Direct sales department", parentId: null,
+    ownerSub: "usr_owner", status: "active", divisionIds: divisions.slice(0, 2).map((d) => d.id), unitIds: [],
   });
-}
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  const all = await planningCtx.store.listTerritories(WS, { includeRetired: true });
+  assert.deepEqual(all.find((t) => t.id === legacy.id), legacy);
+  const geographic = salesRegionTerritories(divisions, all);
+  assert.deepEqual(geographic.map((t) => t.name), divisions.map((d) => d.name));
+  assert.equal(geographic.length, 5);
+  assert.ok(!geographic.some((t) => t.id === legacy.id));
+});
+
+test("five regional targets exist with no departments or department-name matching", async () => {
+  const planningCtx = ctxOf(new InMemoryPlanningStore());
+  const accountCtx = ctxOf(new InMemoryAccountStore());
+  const divisions = await accountCtx.store.listMarketDivisions(WS);
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  const rows = salesRegionTerritories(divisions, await planningCtx.store.listTerritories(WS));
+  assert.equal(rows.length, 5);
+  assert.equal((await planningCtx.store.listOrgKinds(WS)).length, 0);
+  assert.equal((await planningCtx.store.listOrgUnits(WS)).length, 0);
+  for (const [i, t] of rows.entries()) {
+    assert.deepEqual(t.unitIds, []);
+    unwrap(await createTarget({ ...planningCtx, catalog: new InMemoryCatalogStore() }, {
+      scope: { period: "Y2026", scopeType: "territory", territoryId: t.id, ownerSub: null, metric: "revenue" },
+      amount: (i + 1) * 100000,
+    }));
+  }
+  assert.equal((await planningCtx.store.listTargets(WS)).length, 5);
+});
+
+test("two departments can share a region, each department can work all five regions", async () => {
+  const planningCtx = ctxOf(new InMemoryPlanningStore());
+  const accountCtx = ctxOf(new InMemoryAccountStore());
+  const units = unwrap(await listOrgUnits(planningCtx)).slice(0, 2);
+  const divisions = await accountCtx.store.listMarketDivisions(WS);
+  for (const u of units) await planningCtx.store.setUnitDivisions(WS, u.id, divisions.map((d) => d.id));
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  const original = await planningCtx.store.listTerritories(WS);
+  assert.equal(original.length, 5);
+  for (const t of original) assert.deepEqual([...t.unitIds].sort(), units.map((u) => u.id).sort());
+  await planningCtx.store.setUnitDivisions(WS, units[0]!.id, [divisions[0]!.id]);
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  const updated = await planningCtx.store.listTerritories(WS);
+  assert.deepEqual(updated.map((t) => t.id), original.map((t) => t.id));
+  assert.deepEqual(updated.find((t) => t.divisionIds[0] === divisions[1]!.id)?.unitIds, [units[1]!.id]);
+});
+
+test("renaming and removing configuration preserves target identities and retires only stale mirrors", async () => {
+  const planningCtx = ctxOf(new InMemoryPlanningStore());
+  const accountCtx = ctxOf(new InMemoryAccountStore());
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  const divisions = await accountCtx.store.listMarketDivisions(WS);
+  const first = divisions[0]!;
+  const original = (await planningCtx.store.listTerritories(WS)).find((t) => t.divisionIds[0] === first.id)!;
+  await accountCtx.store.upsertMarketDivision(WS, { code: first.code, name: "Renamed region" });
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  const renamed = (await planningCtx.store.listTerritories(WS)).find((t) => t.id === original.id)!;
+  assert.equal(renamed.name, "Renamed region");
+  await accountCtx.store.removeMarketDivision(WS, first.code);
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  const retired = (await planningCtx.store.listTerritories(WS, { includeRetired: true })).find((t) => t.id === original.id)!;
+  assert.equal(retired.status, "retired");
+  assert.deepEqual(retired.divisionIds, []);
+  await ensureSalesTerritories(planningCtx, accountCtx);
+  assert.equal((await planningCtx.store.listTerritories(WS)).length, 4);
+});
 
 test("a reader and an unentitled workspace cannot seed territories", async () => {
   for (const restricted of [
