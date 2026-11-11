@@ -507,9 +507,10 @@ test("the tier named is the LOWEST that unlocks the module, not the current one"
   // to buy what they have.
   const byKey = new Map(builtModules("free").map((m) => [m.key, m]));
 
-  const forecast = byKey.get("forecastRule");
+  assert.equal(byKey.has("forecastRule"), false, "forecast review belongs inside attainment");
+  const forecast = lockedNav("free").find((entry) => entry.key === "forecastRule");
   assert.equal(forecast?.state, "locked", "pipeline.forecast is not a free-tier feature");
-  assert.equal(forecast?.requiredTier, "pro");
+  assert.equal(forecast?.decision.requiredTier, "pro");
 
   // And a module the free tier already has names nothing to buy.
   assert.equal(byKey.get("account")?.state, "visible");

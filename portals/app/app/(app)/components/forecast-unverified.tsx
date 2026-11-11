@@ -53,7 +53,7 @@ export async function ForecastUnverified({
                     className="border-border grid grid-cols-[minmax(0,1fr)_auto] items-start gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
                   >
                     <div className="min-w-0">
-                      <Link href={`/pipeline/${d.id}`} className="text-foreground hover:underline">
+                      <Link href={`/pipeline/${d.id}`} className="text-foreground no-underline transition-colors hover:text-primary-text">
                         {d.name}
                       </Link>
                       <div className="mt-2xs flex flex-wrap gap-2xs">

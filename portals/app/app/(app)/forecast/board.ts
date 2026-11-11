@@ -67,6 +67,7 @@ export async function forecastBoard(session: AppSession, period: string, scope: 
     inView,
     ownerOptions,
     territoryOptions,
+    history,
     points: history.ok ? history.value : [],
     score,
     change,

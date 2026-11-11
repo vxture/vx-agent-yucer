@@ -83,7 +83,7 @@ export const GROUP_ORDER: readonly string[] = [
  *  not filed under any of the five). */
 export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   armory: ["strategy", "segment", "solution", "catalog"],
-  deployment: ["namedAccount", "planning", "forecastRule"],
+  deployment: ["namedAccount", "planning"],
   recon: ["campaign", "signal", "lead", "funnel"],
   position: ["attainment", "account", "pipeline", "quote", "winLossReview"],
   settlement: ["delivery", "collection", "renewal", "contract"],
@@ -103,7 +103,7 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
  *  anything of its own; they render here as an honest, permanently-empty
  *  pair rather than as something still being built toward). */
 export const PLACEHOLDER_MODULES: ReadonlySet<string> = new Set([
-  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "home", "national", "enablement", "strategyDiag",
+  "namedAccount", "funnel", "quote", "renewal", "home", "national", "enablement", "strategyDiag",
 ]);
 
 /** `(domain, page)` -> the 业务/模块/页面 it now renders under. Page "" is
@@ -151,7 +151,7 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   // 阶段退出核验 (incr/0087) is read on the deal page.
   "pipeline/exitcheck": { group: "position", module: "pipeline", page: "pipeline.opportunity" },
   "pipeline/discount": { group: "position", module: "pipeline", page: "pipeline.discount" },
-  "pipeline/forecast": { group: "position", module: "pipeline", page: "pipeline.forecast" },
+  "pipeline/forecast": { group: "position", module: "attainment", page: "pipeline.forecast" },
   "pipeline/winloss": { group: "position", module: "winLossReview", page: "pipeline.winloss" },
   // incr/0057-0059: the stage catalog is pipeline configuration, same module
   // as pipeline.opportunity/pipeline.discount/pipeline.forecast - not its own

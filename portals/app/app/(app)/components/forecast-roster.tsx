@@ -1,6 +1,8 @@
 "use client";
 
 import { FilterBar } from "./business-controls";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useState, useTransition, type ReactNode } from "react";
 import {
@@ -73,6 +75,7 @@ const SORT_ON = {
 };
 
 export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps) {
+  const router = useRouter();
   const {
     DATA_TABLE_LABELS,
     FORECAST_RULE_TEXT,
@@ -120,7 +123,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
       header: FORECAST_RULE_TEXT.colDeal,
       cell: (r: ForecastRow) => (
         <TableTitleCell
-          title={r.dealName}
+          title={<Link href={`/pipeline/${encodeURIComponent(r.opportunityId)}`} className="text-foreground no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text">{r.dealName}</Link>}
           description={r.opportunityNo}
           tooltip={r.dealName}
         />
@@ -206,8 +209,9 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
                 id: "apply",
                 label: FORECAST_RULE_TEXT.apply,
                 onSelect: () =>
-                  start(() => {
-                    void onApply({ opportunityId: row.opportunityId }).then((r) => {
+                  start(async () => {
+                    try {
+                      const r = await onApply({ opportunityId: row.opportunityId });
                       toast(
                         r.ok
                           ? { tone: "success", title: FORECAST_RULE_TEXT.applied }
@@ -218,7 +222,10 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
                                 FORECAST_RULE_ERROR.denied,
                             },
                       );
-                    });
+                      if (r.ok) router.refresh();
+                    } catch {
+                      toast({ tone: "danger", title: FORECAST_RULE_ERROR.denied });
+                    }
                   }),
               },
             ]

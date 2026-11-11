@@ -290,6 +290,7 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   //   - the PERMISSION half still lets a rep in, because seeing that the rule
   //     disagrees with them is the point. Applying it needs
   //     `pipeline.forecast.categorize`, which the page puts on the button alone.
+  // Internal entitlement/upgrade target; /forecast redirects into attainment.
   { key: "forecastRule", href: "/forecast", icon: "trend-up", action: "pipeline.forecast.view" },
   // 承诺达成 (owner ruling, 2026-08-31). The three readings that used to float
   // on the board as cards belonging to no module - the quarter's commitment

@@ -18,6 +18,7 @@ Domain documents use the strict org underscore family `{kind}_{domain}_{NNN}_{sl
 | `design_yucer_170_copilot-experience.md` | 智能助手审计、上下文隔离、对话闭环与后续验收 |
 | `design_yucer_180_workspace-layout.md` | 开放式工作区：入口与内部导航分离、按任务分配栏位、卡片保留准则 |
 | `design_yucer_190_opportunity-progression.md` | 商机推进设计建议：跟进策划、拜访准备、反馈分析与下次行动的闭环归属 |
+| `design_yucer_195_attainment-workspace.md` | 承诺达成工作区：目标、实时商机、预测检视、提交与历史复盘的业务重构 |
 | `data_yucer_200_domain-schemas.md` | 产品域数据模型：表清单、命名与类型约定、不可变约束、变更通道（**数字已陈旧**，见文件内注） |
 
 ## Subdirectories

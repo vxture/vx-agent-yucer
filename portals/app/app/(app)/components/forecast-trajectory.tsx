@@ -17,6 +17,7 @@ import { Tag } from "./tag";
 
 export interface TrajectoryPoint {
   readonly at: string;
+  readonly snapshotKey?: string;
   readonly commit: number;
   readonly bestCase: number;
   readonly pipeline: number;
@@ -227,7 +228,7 @@ export async function ForecastTrajectory({
             <div className="flex items-end gap-md">
               {shown.map((p) => (
                 <div
-                  key={p.at}
+                  key={p.snapshotKey ?? p.at}
                   className="flex min-w-0 flex-1 flex-col items-center gap-xs"
                 >
                   <div className="flex h-28 items-end gap-2xs">

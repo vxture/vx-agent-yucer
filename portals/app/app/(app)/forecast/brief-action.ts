@@ -18,7 +18,7 @@ import { getAuthzStore } from "../../authz/store";
 import { ADVISOR_RUN_TURN_METER } from "../../usage/lib/copilot-turns";
 import { resolveAppSession, tenantIdOf } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
-import { resolvePeriod } from "../lib/periods";
+import { periodRange } from "../../domains/shared/period";
 import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
 import { forecastBoard } from "./board";
 
@@ -49,7 +49,8 @@ export async function briefForecast(periodRaw: string, scopeRaw: string): Promis
   if (!tenantId) return { ok: false, error: "no_active_tenant" };
 
   const { POSITION_TEXT, FORECAST_UNVERIFIED_TEXT: U } = await getMessages();
-  const period = resolvePeriod(periodRaw);
+  if (!periodRange(periodRaw)) return { ok: false, error: "period_unparsed" };
+  const period = periodRaw;
   const scope = parseForecastScope(scopeRaw);
   const board = await forecastBoard(session, period, scope, POSITION_TEXT.rivalWords);
   if (!board.ok) return { ok: false, error: board.violations[0]?.code ?? "denied" };

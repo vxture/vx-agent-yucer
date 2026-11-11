@@ -71,7 +71,7 @@ export async function ForecastChange({
                       className="border-border grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-sm border-b border-dashed py-xs text-body-small last:border-b-0"
                     >
                       <Tag tone={KIND_TONE[d.kind]}>{T.kind[d.kind]}</Tag>
-                      <Link href={`/pipeline/${d.opportunityId}`} className="text-foreground truncate hover:underline">
+                      <Link href={`/pipeline/${d.opportunityId}`} className="text-foreground truncate no-underline transition-colors hover:text-primary-text">
                         {d.name}
                       </Link>
                       <span className="text-foreground tabular-nums">{signed(d.delta)}</span>
