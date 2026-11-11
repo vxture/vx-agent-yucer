@@ -145,6 +145,14 @@ export function DomainLauncher({
         <span className="truncate" title={label}>
           {label}
         </span>
+        {primary?.value ? (
+          <span
+            className="shrink-0 text-body-small font-normal text-muted-foreground tabular-nums"
+            title={summary}
+          >
+            {primary.value}
+          </span>
+        ) : null}
         {FEATURED_MODULE_KEYS.has(key) ? (
           <img
             src="/assets/icons/fire.png"
@@ -155,14 +163,6 @@ export function DomainLauncher({
             alt={LAUNCHER_TEXT.featured}
             title={LAUNCHER_TEXT.featured}
           />
-        ) : null}
-        {primary?.value ? (
-          <span
-            className="shrink-0 text-body-small font-normal text-muted-foreground tabular-nums"
-            title={summary}
-          >
-            {primary.value}
-          </span>
         ) : null}
       </span>
     );
@@ -175,6 +175,7 @@ export function DomainLauncher({
       // A row that is absent instead would answer "does this product do
       // quoting" with "no" rather than "yes, not yet".
       <ShellPanelRow
+        className="h-control-2xl"
         key={`planned-${m.key}`}
         icon={m.icon}
         label={PLANNED_MODULE_LABEL[m.key] ?? m.key}
@@ -184,6 +185,7 @@ export function DomainLauncher({
     ) : m.kind === "section" ? (
       // A LIVE LINK, not a greyed row. It is built; it simply shares a page.
       <ShellPanelRow
+        className="h-control-2xl"
         key={`section-${m.key}`}
         icon={m.icon}
         label={PLANNED_MODULE_LABEL[m.key] ?? m.key}
@@ -207,6 +209,7 @@ export function DomainLauncher({
       // destination. navigation.ts's rule still holds: an entitlement gap is
       // shown "with an upgrade path".
       <ShellPanelRow
+        className="h-control-2xl"
         key={m.key}
         icon={m.icon}
         label={moduleLabel(m.key)}
@@ -237,6 +240,7 @@ export function DomainLauncher({
       // destination differs from every other row in the panel is the one row
       // worth marking.
       <ShellPanelRow
+        className="h-control-2xl"
         key={m.key}
         icon={m.icon}
         label={moduleLabel(m.key, true)}
@@ -255,6 +259,7 @@ export function DomainLauncher({
       // takes the width the module names need. Turned off through the DS prop
       // rather than hidden with CSS.
       <ShellPanelRow
+        className="h-control-2xl"
         key={m.key}
         icon={m.icon}
         label={moduleLabel(m.key, true)}
@@ -281,7 +286,7 @@ export function DomainLauncher({
         {...(href ? { href, linkComponent: Link, onClick: closePanel } : {})}
         active={d.key === here}
         chevron={false}
-        className="text-muted-foreground [&_svg]:text-muted-foreground"
+        className="h-control-2xl text-muted-foreground [&_svg]:text-muted-foreground"
       />
     );
   };
@@ -310,13 +315,12 @@ export function DomainLauncher({
           not 3xl because English module names run half again as long as the
           Chinese - three columns of 48rem truncated every one of them.
 
-          Only the width and the layout of the columns are set here. Padding,
-          gaps, hairlines, row metrics and the no-autofocus behaviour all stay
-          the DS's. */}
+          The panel keeps DS spacing and control tokens, with 40px rows and
+          extra bottom inset. Hairlines and no-autofocus behaviour stay the DS's. */}
       <ShellPanelContent
         align="start"
         aria-label={LAUNCHER_TEXT.panelLabel}
-        className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width) bg-gradient-to-b from-gradient-card-from to-gradient-card-to"
+        className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width) pb-xl bg-gradient-to-b from-gradient-card-from to-gradient-card-to"
       >
         {/* TWO GRIDS, ONE COLUMN TEMPLATE, and that is the whole alignment
             story: the crosscutting row and the domain blocks declare the same
