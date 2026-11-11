@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Icon, type IconName } from "@vxture/design-ui";
 import { useMessages } from "../../(app)/lib/i18n/provider";
-import { Ring, TitleDot } from "./screen-charts";
+import { TitleDot } from "./screen-charts";
 import { ScreenHex } from "./screen-hex";
 import { carryForward, carriedPath, railX } from "../lib/carried";
 import "./national-screen.css";
@@ -61,17 +62,19 @@ const num = (v: number) => Math.round(v).toLocaleString("en-US");
 
 function Mod({
   step,
+  icon,
   title,
   children,
 }: {
   step: string;
+  icon: IconName;
   title: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="mod sd-panel">
       <div className="mod-hd">
-        <Ring />
+        <span className="mod-mark" aria-hidden><Icon name={icon} size="sm" /></span>
         <h2>{title}</h2>
         <span className="step">{step}</span>
         <span className="rule" />
@@ -163,7 +166,7 @@ export function StrategyDiagScreen({
 
       <div className="screen-deck sd-grid">
         {/* Panel 01: Segment coverage trend ranking */}
-        <Mod step="01" title={T.panelSegmentCoverage}>
+        <Mod step="01" icon="chart-line" title={T.panelSegmentCoverage}>
           <p className="sd-why">{T.panelSegmentCoverageWhy}</p>
           {segments.length === 0 ? (
             <div className="sd-empty">{T.noSegments}</div>
@@ -190,7 +193,7 @@ export function StrategyDiagScreen({
         </Mod>
 
         {/* Panel 02: Territory attainment comparison */}
-        <Mod step="02" title={T.panelAttainment}>
+        <Mod step="02" icon="chart-bar" title={T.panelAttainment}>
           <p className="sd-why">{T.panelAttainmentWhy}</p>
           {territories.length === 0 ? (
             <div className="sd-empty">{T.noTerritories}</div>
@@ -225,7 +228,7 @@ export function StrategyDiagScreen({
         </Mod>
 
         {/* Panel 03: False fat warnings */}
-        <Mod step="03" title={T.panelFalseFat}>
+        <Mod step="03" icon="warning" title={T.panelFalseFat}>
           <p className="sd-why">{T.panelFalseFatWhy}</p>
           {falseFatSegments.length === 0 ? (
             <div className="sd-empty">{T.noFalseFat}</div>

@@ -12,6 +12,9 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
+import { ProductPriceValues } from "./product-price-values";
+import { solutionPricingFacts } from "../lib/solution-prices";
+import type { PriceValues } from "../lib/product-prices";
 import { useMessages } from "../lib/i18n/provider";
 import { AssistPanel, FormFields, FormPage, type AssistSuggestion } from "./form-page";
 import { suggestNextCode } from "../../domains/shared/suggest";
@@ -258,11 +261,15 @@ export function NewProductForm({
 export function NewSolutionForm({
   products,
   statuses,
+  currentPrices,
+  currency,
   initial,
   onSave,
 }: {
   readonly products: readonly ProductRecord[];
   readonly statuses: readonly ProductStatusRecord[];
+  readonly currentPrices: Readonly<Record<string, PriceValues>>;
+  readonly currency: string;
   /** Present = EDIT mode (?code= on the page): the anchor locks and the
    * composition arrives filled in. */
   readonly initial?: {
@@ -343,6 +350,10 @@ export function NewSolutionForm({
       optional: it.optional,
       note: it.note.trim() === "" ? null : it.note.trim(),
     }));
+  const totals = solutionPricingFacts(
+    parsed.filter((it) => Number.isFinite(it.quantity) && it.quantity > 0),
+    new Map(), [], new Map(Object.entries(currentPrices)),
+  );
   const ready =
     code.trim() !== "" &&
     name.trim() !== "" &&
@@ -400,9 +411,11 @@ export function NewSolutionForm({
                  `items`. */
               <div key={i} className="border-border flex flex-col gap-sm rounded-md border p-md">
                 <div className="flex flex-wrap items-end gap-md">
-                  <Field className="min-w-48 flex-1">
-                    <FieldLabel>{CATALOG_TEXT.solutionProduct}</FieldLabel>
+                  <Field className="min-w-0 basis-48 flex-1">
+                    <FieldLabel htmlFor={`sol-product-${i}`}>{CATALOG_TEXT.solutionProduct}</FieldLabel>
                     <NativeSelect
+                      id={`sol-product-${i}`}
+                      className="h-control-xl"
                       value={it.productId}
                       onChange={(e) => patch(i, { productId: e.target.value })}
                     >
@@ -424,8 +437,10 @@ export function NewSolutionForm({
                     </NativeSelect>
                   </Field>
                   <Field className="w-28">
-                    <FieldLabel>{CATALOG_TEXT.solutionQuantity}</FieldLabel>
+                    <FieldLabel htmlFor={`sol-quantity-${i}`}>{CATALOG_TEXT.solutionQuantity}</FieldLabel>
                     <Input
+                      id={`sol-quantity-${i}`}
+                      className="h-control-xl"
                       type="number"
                       min={1}
                       value={it.quantity}
@@ -433,8 +448,10 @@ export function NewSolutionForm({
                     />
                   </Field>
                   <Field className="w-32">
-                    <FieldLabel>{CATALOG_TEXT.colOptional}</FieldLabel>
+                    <FieldLabel htmlFor={`sol-optional-${i}`}>{CATALOG_TEXT.colOptional}</FieldLabel>
                     <NativeSelect
+                      id={`sol-optional-${i}`}
+                      className="h-control-xl"
                       value={it.optional ? "optional" : "standard"}
                       onChange={(e) => patch(i, { optional: e.target.value === "optional" })}
                     >
@@ -444,6 +461,7 @@ export function NewSolutionForm({
                   </Field>
                   {items.length > 1 ? (
                     <Button
+                      size="md"
                       variant="ghost"
                       onClick={() => setItems(items.filter((_, j) => j !== i))}
                     >
@@ -451,16 +469,32 @@ export function NewSolutionForm({
                     </Button>
                   ) : null}
                 </div>
+                {it.productId ? (
+                  <div className="flex flex-col gap-xs max-w-(--vx-container-sm)">
+                    <p className="text-body-small text-muted-foreground">{CATALOG_TEXT.solutionUnitPrices} / {currency}</p>
+                    <ProductPriceValues price={currentPrices[it.productId]} currency={currency} />
+                  </div>
+                ) : null}
                 <Field>
-                  <FieldLabel>{CATALOG_TEXT.colItemNote}</FieldLabel>
-                  <Input value={it.note} onChange={(e) => patch(i, { note: e.target.value })} />
+                  <FieldLabel htmlFor={`sol-note-${i}`}>{CATALOG_TEXT.colItemNote}</FieldLabel>
+                  <Input id={`sol-note-${i}`} className="h-control-xl" value={it.note} onChange={(e) => patch(i, { note: e.target.value })} />
                   <FieldDescription>{CATALOG_TEXT.itemNoteHint}</FieldDescription>
                 </Field>
               </div>
             ))}
 
+            <Section id="solution-price-preview" title={`${CATALOG_TEXT.solutionPrices} / ${currency}`}
+              description={CATALOG_TEXT.solutionPricesHint}
+              action={<Button asChild variant="ghost" size="md">
+                <a href="/catalog" target="_blank" rel="noopener noreferrer">{CATALOG_TEXT.manageProductPrices}</a>
+              </Button>}>
+              <div className="max-w-(--vx-container-sm)" aria-live="polite">
+                <ProductPriceValues price={totals.prices} missing={totals.missing} currency={currency} />
+              </div>
+            </Section>
             <div className="flex flex-wrap items-center gap-md">
               <Button
+                size="xl"
                 variant="secondary"
                 onClick={() =>
                   setItems([...items, { productId: "", quantity: "1", optional: false, note: "" }])
@@ -469,6 +503,7 @@ export function NewSolutionForm({
                 {CATALOG_TEXT.addItem}
               </Button>
               <Button
+                size="xl"
                 disabled={submit.pending || !ready}
                 onClick={() =>
                   submit.run(

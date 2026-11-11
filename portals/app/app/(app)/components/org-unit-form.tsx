@@ -296,7 +296,7 @@ export function OrgUnitForm({
       <FormPage
         form={
           <div className="gap-xl flex flex-col">
-            <Section icon="tree-structure" title={ORG_TEXT.formTitle} description={ORG_TEXT.formSectionWhy}>
+            <Section icon="building-office" title={ORG_TEXT.formTitle} description={ORG_TEXT.formSectionWhy}>
               <div className="gap-lg flex">
                 <span className="invisible shrink-0" aria-hidden="true">
                   <Icon name="tree-structure" size="lg" />

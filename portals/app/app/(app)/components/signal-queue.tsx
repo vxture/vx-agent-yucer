@@ -236,7 +236,7 @@ export function SignalQueue({
        of grouped cards, so the page went from its headline straight into three
        unlabelled panels - the reader had to infer what they were a list OF. */
     <Section
-      icon="lightbulb"
+      icon="newspaper"
       title={SIGNAL_TEXT.title}
       /* NO DESCRIPTION HERE ANY MORE. The module header above carries it, and
          printing the same sentence twice on one screen makes a reader check

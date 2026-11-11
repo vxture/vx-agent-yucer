@@ -29,7 +29,7 @@ import {
 } from "../../domains/pipeline/lib/exit-criteria";
 import { EVIDENCE_SLOTS } from "../../domains/pipeline/lib/evidence";
 import { stageRoles } from "../../domains/pipeline/lib/stage-vocab";
-import { STAGE_ROLE_ICON, STAGE_ROLE_TONE } from "../lib/stage-role";
+import { STAGE_ROLE_TONE } from "../lib/stage-role";
 
 // 阶段推进标准 - configuration (incr/0087, YC-065 R1; renamed from 阶段退出条件
 // 2026-09-30, owner). One CARD per stage, in the line's own order: the start,
@@ -142,7 +142,6 @@ export function ExitCriterionConfig({
           return (
             <PanelCard
               key={s.stageCode}
-              icon={STAGE_ROLE_ICON[role]}
               tone={STAGE_ROLE_TONE[role] === "neutral" ? "brand" : STAGE_ROLE_TONE[role]}
               title={s.name}
               titleSuffix={<Tag tone={STAGE_ROLE_TONE[role]}>{EXIT_CONFIG_TEXT.position[role]}</Tag>}

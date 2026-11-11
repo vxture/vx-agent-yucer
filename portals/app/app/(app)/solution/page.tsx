@@ -3,8 +3,9 @@ import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
 import { ModuleHeadline } from "../components/module-headline";
-import { inForceByProduct, solutionListFacts } from "../../domains/catalog/lib/pricing";
+import { inForceByProduct } from "../../domains/catalog/lib/pricing";
 import { typesInOrder } from "../../domains/catalog/lib/type-vocab";
+import { solutionPricingFacts } from "../lib/solution-prices";
 import { SolutionRoster } from "../components/solution-roster";
 import { changeSolutionStatus, deleteSolution, moveSolutionRow } from "../catalog/actions";
 import { Tag } from "../components/tag";
@@ -33,18 +34,14 @@ export default async function SolutionPage() {
 
         const live = solutions.filter((s) => s.solution.status !== "retired");
 
-        // 涵盖产品类型 + 标准价合计 (owner, 2026-09-29), derived here on the
-        // server: "in force" reads a clock, and a clock read again during
-        // hydration is a different clock.
-        const listPrice = new Map(
-          [...inForceByProduct(prices, policy.defaultCurrency, Date.now())].map(([id, e]) => [id, e.listPrice]),
-        );
+        // Resolve the currency and clock once, then sum actual product prices.
+        const currentPrices = inForceByProduct(prices, policy.defaultCurrency, Date.now());
         const productType = new Map(products.map((p) => [p.id, p.typeId]));
         const typeOrder = typesInOrder(types).map((t) => t.id);
         const facts = Object.fromEntries(
           solutions.map((s) => [
             s.solution.id,
-            solutionListFacts(s.items, productType, typeOrder, listPrice),
+            solutionPricingFacts(s.items, productType, typeOrder, currentPrices),
           ]),
         );
 
@@ -68,8 +65,10 @@ export default async function SolutionPage() {
 
             <SolutionRoster
               solutions={solutions}
+              products={products}
               facts={facts}
               types={types}
+              currency={policy.defaultCurrency}
               canWrite={canWrite}
               onMove={moveSolutionRow}
               onStatus={changeSolutionStatus}

@@ -63,6 +63,17 @@ test("the levels are 业务 / 模块 / 页面 / 操作, a page never sits empty,
   assert.equal(new Set(keys).size, keys.length);
 });
 
+test("pricing operations live under the unified catalog and retain their own permission", () => {
+  const armory = buildPermissionTree().find((group) => group.name === "armory")!;
+  assert.equal(armory.children.some((module) => module.name === "pricebook"), false);
+  const catalog = armory.children.find((module) => module.name === "catalog")!;
+  const pricing = catalog.children.find((page) => page.name === "catalog.pricebook")!;
+  assert.ok(pricing.children.length > 0);
+  for (const action of pricing.children) {
+    assert.equal(action.permission, ACTIONS[action.action!].permission);
+  }
+});
+
 test("GROUP_MODULES agrees with FUNCTIONAL_DOMAINS - every nav module sits under the business group the nav lists it in", () => {
   /* The second tier used to be the ACTIONS catalogue's own nine domains,
      cross-checked against the nav; it IS the nav's 20 modules now

@@ -879,9 +879,11 @@ export const CATALOG_TEXT = {
   byTypeEmpty: "还没有产品，分类统计从第一个产品开始",
   typeStat: (active: number, dev: number) =>
     dev > 0 ? `${active} 在售 · ${dev} 研发` : `${active} 在售`,
-  rosterLive: "产品清单",
-  rosterLiveWhy: "在售与在研。顺序即门面——客户看到的目录顺序在这里决定。",
+  rosterLive: "当前产品",
+  noCurrentProducts: "暂无当前产品",
+  rosterLiveWhy: "包括在售、在研及其他未退役状态的产品。",
   rosterRetired: "退役产品",
+  noRetiredProducts: "暂无退役产品",
   rosterRetiredWhy:
     "退役是搁置，不是删除：被报价行或方案引用过的产品不能删，退到这里历史仍然可读。",
   colType: "产品类型",
@@ -977,12 +979,21 @@ export const CATALOG_TEXT = {
   solutionStat: (inSolution: number, outside: number) =>
     outside > 0 ? `${inSolution} 已入方案 · ${outside} 未入` : `${inSolution} 已入方案`,
   solutionStatEmpty: "还没有在售产品，方案覆盖统计从第一个产品开始",
-  rosterSolution: "方案清单",
+  rosterSolution: "在用方案",
   rosterSolutionWhy:
-    "一个方案 = 产品组合 + 业务定制。顺序即门面；组合与定制在方案自己的页面里改。",
-  rosterSolutionRetired: "已停用方案",
+    "可用于报价的产品组合与业务定制方案。",
+  rosterSolutionRetired: "停用方案",
+  noRetiredSolutions: "暂无停用方案",
   rosterSolutionRetiredWhy: "停用的方案不再用于报价，但它记录着过去是怎么卖的，所以保留。",
   colSolutionName: "方案名称",
+  solutionContents: "方案内容",
+  solutionUnit: "套",
+  solutionUnitHint: "每份完整标配组合的参考价格，不含可选项；各产品保留原计价单位。",
+  solutionDetailsHint: "查看适用场景与产品组合",
+  solutionPrices: "标配价格合计",
+  solutionPricesHint: "按当前产品单价与数量汇总，不含可选项；缺价时仅合计已定价项。",
+  solutionUnitPrices: "当前产品单价",
+  manageProductPrices: "维护产品价格",
   colComposition: "产品组合",
   colScenario: "适用场景",
   compositionCount: (standard: number, optional: number) =>
@@ -1017,7 +1028,7 @@ export const CATALOG_TEXT = {
   noSolutions: "还没有解决方案",
   emptyBundle: "一个不装产品的方案只是个名字",
 
-  pricebookLink: "前往产品定价",
+  pricebookLink: "前往产品目录",
   pricebookWhy:
     "审批价是这张表存在的理由：低于它的报价需要签字。价格只追加不改写——被取代的那一行解释了今天这个数字是怎么来的。",
   // 定价模块页（owner 裁定 2026-09-05：全面按产品目录的模式与布局）
@@ -1028,8 +1039,8 @@ export const CATALOG_TEXT = {
   priceStatEmpty: "还没有产品，定价统计从第一个产品开始",
   priceCurrent: "现行基准价目",
   priceCurrentWhy: "每个产品此刻生效的那一行。低于审批价的报价需要签字，低于保底价的报价直接拒绝。",
-  priceHistory: "历史价目",
-  priceHistoryWhy: "被取代的价格。它们解释了今天这个数字是怎么来的，所以保留而不删除。",
+  priceHistory: "价格记录",
+  priceHistoryWhy: "查看当前生效、待生效及历史价格。",
   reprice: "重新定价",
   repriceWhy: "价格只追加不改写：保存后成为该产品的当前价目，旧价目转入历史。",
   colProduct: "产品",
@@ -1054,7 +1065,7 @@ export const CATALOG_TEXT = {
   adviceNoNumberWhy: "需要人来定标准价与审批价，分析只能指出缺口",
   adviceNeedsMinPrice: "这条价目还没有保底价，先在价目里重新定价补上，才能一键采纳",
   adviceOpenCatalogue: "前往产品目录",
-  adviceOpenHistory: "查看历史价目",
+  adviceOpenHistory: "查看价格记录",
   // 两件不同的事，名字分开（owner 裁定 2026-09-05）：
   // 「智能定价评估」按规则给出建议并可一键采纳；
   // 「定价变化分析」看价格随时间怎么走，开发中——incr/0030 的继承链就是它的数据基础。
@@ -1067,6 +1078,13 @@ export const CATALOG_TEXT = {
   listHint: "对外报出的价格",
   floorHint: "报价低于它需要签字审批。审批价等于标准价表示此产品不打折。",
   minHint: "报价的硬下限：低于它的报价直接拒绝，谁签字都不行。必填，且不能高于审批价。",
+  productPrices: "价格",
+  priceStateCurrent: "生效中",
+  priceStateScheduled: "待生效",
+  priceStateHistorical: "历史价格",
+  defaultPriceDiscounts: "审批价默认 -30%　保底价默认 -50%　四舍五入取整，可手动修改",
+  resetPriceDiscounts: "恢复默认折扣",
+  priceOrderHint: "请满足：0 ≤ 保底价 ≤ 审批价 ≤ 标准价。",
   colList: "标准价",
   colFloor: "审批价",
   colMin: "保底价",

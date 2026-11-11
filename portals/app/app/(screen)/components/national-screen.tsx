@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Icon, type IconName } from "@vxture/design-ui";
 import { useMessages } from "../../(app)/lib/i18n/provider";
 import { CHINA } from "../lib/china-geometry";
 import {
@@ -19,7 +20,7 @@ import { anchorOf, periodsFor, type PeriodKey } from "../lib/period";
 import type { EntryKey } from "../lib/entry";
 import { shortProvince } from "../../domains/shared/provinces";
 import {
-  AdoptionTrend, Bars, CashChart, HealthDonut, Ring, StageChart, TitleDot,
+  AdoptionTrend, Bars, CashChart, HealthDonut, StageChart, TitleDot,
 } from "./screen-charts";
 import { ScreenHex } from "./screen-hex";
 import { ScreenTools } from "./screen-tools";
@@ -158,14 +159,14 @@ function frameFor(level: Level, scope: readonly ProvinceRollup[]) {
 }
 
 /* --- 板块 - the design's module, exactly ------------------------------------
-   A header of four parts (ring, title, step, rule), then a body that holds a
+   A header of four parts (icon, title, step, rule), then a body that holds a
    row of cells and a chart which takes the space that is left. The right rail
    reverses the header, so the rule always runs toward the map. */
 
 function Mod(
-  { step, title, right, href, enterLabel, children }:
+  { step, icon, title, right, href, enterLabel, children }:
   {
-    step: string; title: string; right?: boolean;
+    step: string; icon: IconName; title: string; right?: boolean;
     href?: string | null; enterLabel: string;
     children: React.ReactNode;
   },
@@ -173,7 +174,7 @@ function Mod(
   return (
     <section className="mod">
       <div className={`mod-hd${right ? " rev" : ""}`}>
-        <Ring />
+        <span className="mod-mark" aria-hidden><Icon name={icon} size="sm" /></span>
         <h2>{title}</h2>
         <span className="step">{step}</span>
         <span className="rule" />
@@ -673,7 +674,7 @@ export function NationalScreen(
       <div className="screen-deck">
         <aside className={`rail rail-left${railsFolded ? " folded" : ""}`}>
           <div className="rail__body">
-            <Mod step="01" title={SCREEN_TEXT.panelLeads} href={enter.leads} enterLabel={SCREEN_TEXT.enter}>
+            <Mod step="01" icon="filter" title={SCREEN_TEXT.panelLeads} href={enter.leads} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellLeadsNew} v={num(total.leadsNew)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellLeadsUnclaimed} v={num(total.leadsUnclaimed)} tone="amber" />
@@ -688,7 +689,7 @@ export function NationalScreen(
               />
             </Mod>
 
-            <Mod step="02" title={SCREEN_TEXT.panelPipeline} href={enter.pipeline} enterLabel={SCREEN_TEXT.enter}>
+            <Mod step="02" icon="kanban" title={SCREEN_TEXT.panelPipeline} href={enter.pipeline} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellPipelineValue} {...moneyCell(total.pipelineValue)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellOpenDeals} v={num(total.openDeals)} />
@@ -701,7 +702,7 @@ export function NationalScreen(
               />
             </Mod>
 
-            <Mod step="03" title={SCREEN_TEXT.panelContract} href={enter.contract} enterLabel={SCREEN_TEXT.enter}>
+            <Mod step="03" icon="file-text" title={SCREEN_TEXT.panelContract} href={enter.contract} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellContractValue} {...moneyCell(total.contractValue)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellWonDeals} v={num(total.wonDeals)} />
@@ -1005,7 +1006,7 @@ export function NationalScreen(
                 so the two collided into a single dense band at the boundary. The
                 three figures now sit together at the top and the panel closes on
                 the chart, which gives the next panel's numbers a quiet edge. */}
-            <Mod step="AI" title={SCREEN_TEXT.panelCopilot} right href={enter.copilot} enterLabel={SCREEN_TEXT.enter}>
+            <Mod step="AI" icon="sparkles" title={SCREEN_TEXT.panelCopilot} right href={enter.copilot} enterLabel={SCREEN_TEXT.enter}>
               <div className="hero">
                 <div className="hero-v">
                   {total.adoption === null ? SCREEN_TEXT.noReading : (total.adoption * 100).toFixed(1)}
@@ -1039,7 +1040,7 @@ export function NationalScreen(
               <AdoptionTrend series={total.adoptionSeries} label={SCREEN_TEXT.chartAdoption} />
             </Mod>
 
-            <Mod step="04" title={SCREEN_TEXT.panelDelivery} right href={enter.delivery} enterLabel={SCREEN_TEXT.enter}>
+            <Mod step="04" icon="package" title={SCREEN_TEXT.panelDelivery} right href={enter.delivery} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellInDelivery} {...moneyCell(total.inDelivery)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellProjectsLive} v={num(total.projectsLive)} />
@@ -1052,7 +1053,7 @@ export function NationalScreen(
               />
             </Mod>
 
-            <Mod step="05" title={SCREEN_TEXT.panelCollection} right href={enter.collection} enterLabel={SCREEN_TEXT.enter}>
+            <Mod step="05" icon="coins" title={SCREEN_TEXT.panelCollection} right href={enter.collection} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellCollected} {...moneyCell(total.collected)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellReceivable} {...moneyCell(total.receivable)} />

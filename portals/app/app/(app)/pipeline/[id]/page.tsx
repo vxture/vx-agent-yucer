@@ -1856,7 +1856,7 @@ export default async function OpportunityDetailPage({
                 list is /quote (#468). */}
             <AnalysisTabs
               id="deal-roster"
-              icon="stack"
+              icon="table"
               title={DEAL_PAGE_TEXT.rosterTitle}
               collapsible={{
                 summary: DEAL_PAGE_TEXT.rosterSummary(

@@ -4,7 +4,7 @@ import { StatusBadge } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
 import { inForceByProduct } from "../../domains/catalog/lib/pricing";
 import { ProductRoster } from "../components/product-roster";
-import { changeProductStatus, deleteProduct, moveProductRow } from "./actions";
+import { changeProductStatus, deleteProduct, moveProductRow, savePrice, deletePriceEntry } from "./actions";
 import { getMessages } from "../lib/i18n/server";
 
 // D9 products - the catalogue module page, rebuilt to the owner's 2026-09-05
@@ -36,9 +36,11 @@ export default async function ProductsPage() {
         // 标准价 column (owner, 2026-09-29): the list price IN FORCE, computed
         // here on the server - "in force" reads a clock, and a clock read
         // again during hydration is a different clock.
-        const listPrices = Object.fromEntries(
-          [...inForceByProduct(prices, policy.defaultCurrency, Date.now())].map(([id, e]) => [id, e.listPrice]),
-        );
+        const now = Date.now();
+        const currentPrices = inForceByProduct(prices, policy.defaultCurrency, now);
+        const sellable = live.filter((p) => p.statusId === activeId);
+        const priced = sellable.filter((p) => currentPrices.has(p.id)).length;
+        const canPrice = can(authz, entitlement, "catalog.pricebook.upsert", "ui").allowed;
 
         return (
           <>
@@ -54,6 +56,10 @@ export default async function ProductsPage() {
                       {CATALOG_TEXT.tagDev(live.filter((p) => p.statusId === devId).length)}
                     </StatusBadge>
                   ) : null}
+                  <StatusBadge tone="success">{CATALOG_TEXT.tagPriced(priced)}</StatusBadge>
+                  {sellable.length > priced ? (
+                    <StatusBadge tone="warning">{CATALOG_TEXT.tagUnpriced(sellable.length - priced)}</StatusBadge>
+                  ) : null}
                 </>
               }
             />
@@ -63,7 +69,8 @@ export default async function ProductsPage() {
               types={types}
               statuses={statuses}
               units={units}
-              listPrices={listPrices}
+              pricing={{ prices, currency: policy.defaultCurrency, now, canPrice,
+                onSave: savePrice, onDelete: deletePriceEntry }}
               canWrite={canWrite}
               onMove={moveProductRow}
               onStatus={changeProductStatus}

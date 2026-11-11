@@ -228,7 +228,6 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     // which it does not - that section renders read-only for this role).
     "opportunityConfig",
     "pipeline",
-    "pricebook",
     /* 产品配置 rides catalog.product.view, exactly as /catalog does - it edits
        the same three vocabularies the catalogue displays, and its ACTIONS
        carry catalog.product.upsert. It appears at every tier for the same

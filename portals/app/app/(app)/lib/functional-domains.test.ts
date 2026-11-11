@@ -281,10 +281,7 @@ const SHIPPED_AS: Record<string, string> = {
   // existed. It is SegmentRoster, and naming it here is what makes the guard
   // able to tell.
   segment: "SegmentRoster",
-  // /pricebook's section became PriceBook on 2026-09-05, when the price book
-  // took the catalogue module page's pattern: two rosters (in force, and
-  // superseded) with the pricing dialog on the row.
-  pricebook: "PriceBook",
+
 };
 
 /**

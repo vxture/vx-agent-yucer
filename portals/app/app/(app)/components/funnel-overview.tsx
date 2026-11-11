@@ -65,7 +65,7 @@ export function FunnelOverview({
     /* The module header above carries the page's name and its description;
        this section names what the list IS. Printing the same title twice makes
        a reader check whether the two agree instead of reading either. */
-    <Section id="funnel" icon="chart-bar" title={FUNNEL_TEXT.byStage} description={FUNNEL_TEXT.why}>
+    <Section id="funnel" icon="kanban" title={FUNNEL_TEXT.byStage} description={FUNNEL_TEXT.why}>
       {blind.length > 0 ? (
         <StatusBadge tone="warning">
           {/* The separator is copy too - it differs by language, and a literal

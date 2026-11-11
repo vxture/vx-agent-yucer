@@ -15,7 +15,6 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import { formatMoney } from "../lib/view-model";
-import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
@@ -366,7 +365,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
     <>
       <Section
         id="renewal"
-        icon={moduleIcon("renewal")}
+        icon="calendar"
         title={RENEWAL_TEXT.rosterDue}
         description={RENEWAL_TEXT.rosterDueWhy}
       >

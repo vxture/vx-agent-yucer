@@ -1,4 +1,4 @@
-import type { IconName, StatusBadgeTone } from "@vxture/design-ui";
+import type { StatusBadgeTone } from "@vxture/design-ui";
 import type { StageRole } from "../../domains/pipeline/lib/stage-vocab";
 
 // How a stage's place in the line looks (owner, 2026-09-30: 起点 / 过程 / 终点).
@@ -10,11 +10,4 @@ export const STAGE_ROLE_TONE: Record<StageRole, StatusBadgeTone> = {
   process: "neutral",
   won: "success",
   lost: "danger",
-};
-
-export const STAGE_ROLE_ICON: Record<StageRole, IconName> = {
-  start: "play",
-  process: "circle-dashed",
-  won: "check-circle",
-  lost: "stop",
 };

@@ -31,7 +31,7 @@ export function PriceAnalysisBar() {
   return (
     <div className="flex items-center gap-sm">
       <Button asChild size="md" variant="secondary" title={CATALOG_TEXT.analyzeSelectedHint}>
-        <Link href={`/pricebook?${next.toString()}`} scroll={false}>
+        <Link href={`/catalog?${next.toString()}`} scroll={false}>
           {CATALOG_TEXT.assessSelected}
         </Link>
       </Button>

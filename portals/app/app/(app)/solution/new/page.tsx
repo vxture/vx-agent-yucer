@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { CatalogPage } from "../../catalog/shell";
+import { inForceByProduct } from "../../../domains/catalog/lib/pricing";
 import { NewSolutionForm } from "../../components/catalog-forms";
 import { saveSolution } from "../../catalog/actions";
 
@@ -27,7 +28,7 @@ export default async function NewSolutionPage({
   const { code } = await searchParams;
   return (
     <CatalogPage
-      render={({ products, solutions, statuses, authz, entitlement }) => {
+      render={({ products, prices, policy, solutions, statuses, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.solution.upsert", "ui").allowed) {
           redirect("/solution");
         }
@@ -48,6 +49,8 @@ export default async function NewSolutionPage({
               key={found?.solution.id ?? "new"}
               products={products}
               statuses={statuses}
+              currentPrices={Object.fromEntries(inForceByProduct(prices, policy.defaultCurrency, Date.now()))}
+              currency={policy.defaultCurrency}
               initial={found}
               onSave={saveSolution}
             />

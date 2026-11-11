@@ -90,7 +90,7 @@ export function PriceAdvicePanel({
         : undefined,
       more: [
         { id: "catalogue", label: CATALOG_TEXT.adviceOpenCatalogue, href: "/catalog" },
-        { id: "history", label: CATALOG_TEXT.adviceOpenHistory, href: "/pricebook#price-history" },
+        { id: "history", label: CATALOG_TEXT.adviceOpenHistory, href: `/catalog?priceHistory=${encodeURIComponent(a.productId)}` },
       ],
     };
   });
@@ -109,7 +109,7 @@ export function PriceAdvicePanel({
         // 2026-09-05). It belongs to the panel, not to whoever mounts it.
         footer: (
           <Button asChild size="md" variant="secondary">
-            <Link href="/pricebook?analyze=all">{CATALOG_TEXT.adviceRunAll}</Link>
+            <Link href="/catalog?analyze=all">{CATALOG_TEXT.adviceRunAll}</Link>
           </Button>
         ),
       }}
