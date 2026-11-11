@@ -155,7 +155,12 @@ export async function designateAccountTier(input: {
     {
       accountId: input.accountId,
       tier: input.tier as AccountTier,
-      ...(input.plan ? { plan: input.plan } : {}),
+      ...(input.plan ? { plan: {
+        period: input.plan.period,
+        targetAmount: input.plan.targetAmount,
+        contactCadenceDays: input.plan.contactCadenceDays,
+        execCadenceDays: input.plan.execCadenceDays,
+      } } : {}),
     },
   );
 
