@@ -271,7 +271,7 @@ export function DomainLauncher({
       />
     );
 
-  // Keep domain titles aligned with module labels using the shared DS row inset.
+  // Hide the empty DS lead slot so domain titles align with module icons.
   // Domain names use a smaller, muted label without an icon or description.
   const domainHeading = (d: ResolvedDomain) => {
     const href = primaryHref(d);
@@ -285,7 +285,7 @@ export function DomainLauncher({
         {...(href ? { href, linkComponent: Link, onClick: closePanel } : {})}
         active={d.key === here}
         chevron={false}
-        className="h-control-2xl text-muted-foreground"
+        className="h-control-2xl text-muted-foreground [&>span[aria-hidden=true]:empty]:hidden"
       />
     );
   };
