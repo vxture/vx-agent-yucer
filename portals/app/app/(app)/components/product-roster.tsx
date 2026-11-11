@@ -146,8 +146,6 @@ export function ProductRoster({
   const narrowed = query.trim() !== "" || typeFilter !== "";
 
   const isRetired = (p: ProductRecord) => codeOf(p) === "retired";
-  const liveTotal = products.filter((p) => !isRetired(p)).length;
-  const retiredTotal = products.filter(isRetired).length;
 
   const shown = products.filter(match);
   const live = shown.filter((p) => !isRetired(p));
@@ -319,7 +317,7 @@ export function ProductRoster({
     ),
   };
 
-  const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn) => {
+  const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn, retiredGroup = false) => {
     const select = click(rows);
     return (
     /* The config tables' geometry, applied here too (owner ruling; TD-022):
@@ -353,7 +351,10 @@ export function ProductRoster({
               description={TABLE_TOOLBAR_TEXT.noMatchWhy}
             />
           ) : (
-            <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+            <EmptyState
+              title={retiredGroup ? CATALOG_TEXT.noRetiredProducts : CATALOG_TEXT.noCurrentProducts}
+              description={retiredGroup ? undefined : CATALOG_TEXT.byTypeEmpty}
+            />
           )
         }
       />
@@ -371,66 +372,66 @@ export function ProductRoster({
 
   return (
     <>
+      {/* ONE TOOL ROW FOR BOTH ROSTERS. A catalogue is looked up by name or
+          code, and the person looking does not necessarily know the product
+          has been retired - that is often the answer they came for. The
+          retired roster below says on its own heading that the same control
+          is narrowing it. */}
+      {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
+          【新建产品】. The create button moved here from the section header;
+          without the permission it stays, disabled - FilterBar's contract. */}
+      <FilterBar
+        view={view}
+        onViewChange={setView}
+        actions={
+          canWrite ? (
+            <Button asChild>
+              <a href="/catalog/new">{CATALOG_TEXT.newProduct}</a>
+            </Button>
+          ) : (
+            <Button disabled>{CATALOG_TEXT.newProduct}</Button>
+          )
+        }
+        count={
+          narrowed
+            ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, products.length)
+            : CATALOG_TEXT.productCount(products.length)
+        }
+        search={
+          <SearchSlot>
+            <Input
+              type="search"
+              className="w-full"
+              value={query}
+              placeholder={CATALOG_TEXT.productSearchHint}
+              aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </SearchSlot>
+        }
+        onReset={
+          narrowed
+            ? () => {
+                setQuery("");
+                setTypeFilter("");
+              }
+            : undefined
+        }
+        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+      >
+        <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
+      </FilterBar>
+
       <Section
         id="products"
-        icon="stack"
+        icon="list-checks"
         title={CATALOG_TEXT.rosterLive}
         description={CATALOG_TEXT.rosterLiveWhy}
       >
-        {/* ONE TOOL ROW FOR BOTH ROSTERS. A catalogue is looked up by name or
-            code, and the person looking does not necessarily know the product
-            has been retired - that is often the answer they came for. The
-            retired roster below says on its own heading that the same control
-            is narrowing it. */}
-        {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
-            【新建产品】. The create button moved here from the section header;
-            without the permission it stays, disabled - FilterBar's contract. */}
-        <FilterBar
-          view={view}
-          onViewChange={setView}
-          actions={
-            canWrite ? (
-              <Button asChild>
-                <a href="/catalog/new">{CATALOG_TEXT.newProduct}</a>
-              </Button>
-            ) : (
-              <Button disabled>{CATALOG_TEXT.newProduct}</Button>
-            )
-          }
-          count={
-            narrowed
-              ? TABLE_TOOLBAR_TEXT.filteredCount(live.length, liveTotal)
-              : CATALOG_TEXT.productCount(live.length)
-          }
-          search={
-            <SearchSlot>
-              <Input
-                type="search"
-                className="w-full"
-                value={query}
-                placeholder={CATALOG_TEXT.productSearchHint}
-                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </SearchSlot>
-          }
-          onReset={
-            narrowed
-              ? () => {
-                  setQuery("");
-                  setTypeFilter("");
-                }
-              : undefined
-          }
-          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
-        >
-          <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
-        </FilterBar>
-
         {view === "list" ? (
           table(live)
         ) : live.length === 0 ? (
-          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noCurrentProducts} description={CATALOG_TEXT.byTypeEmpty} />
         ) : (
           /* The same row as a card (DS ListCard): name and code, status and
              the row menu top right, type / unit / 标准价 as the meta line. */
@@ -467,23 +468,20 @@ export function ProductRoster({
         )}
       </Section>
 
-      {/* Holds its place while narrowed - a section that vanishes under a
-          keyword takes its own explanation with it. */}
-      {retired.length > 0 || (narrowed && retiredTotal > 0) ? (
-        <Section
-          id="retired"
-          icon="package"
-          title={CATALOG_TEXT.rosterRetired}
-          description={CATALOG_TEXT.rosterRetiredWhy}
-          action={
-            narrowed ? (
-              <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
-            ) : undefined
-          }
-        >
-          {table(retired)}
-        </Section>
-      ) : null}
+      {/* The archive remains visible even when empty or filtered out. */}
+      <Section
+        id="retired"
+        icon="archive"
+        title={CATALOG_TEXT.rosterRetired}
+        description={CATALOG_TEXT.rosterRetiredWhy}
+        action={
+          narrowed ? (
+            <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
+          ) : undefined
+        }
+      >
+        {table(retired, undefined, true)}
+      </Section>
     </>
   );
 }

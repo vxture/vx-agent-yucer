@@ -879,9 +879,11 @@ export const CATALOG_TEXT = {
   byTypeEmpty: "还没有产品，分类统计从第一个产品开始",
   typeStat: (active: number, dev: number) =>
     dev > 0 ? `${active} 在售 · ${dev} 研发` : `${active} 在售`,
-  rosterLive: "产品清单",
-  rosterLiveWhy: "在售与在研。顺序即门面——客户看到的目录顺序在这里决定。",
+  rosterLive: "当前产品",
+  noCurrentProducts: "暂无当前产品",
+  rosterLiveWhy: "包括在售、在研及其他未退役状态的产品。",
   rosterRetired: "退役产品",
+  noRetiredProducts: "暂无退役产品",
   rosterRetiredWhy:
     "退役是搁置，不是删除：被报价行或方案引用过的产品不能删，退到这里历史仍然可读。",
   colType: "产品类型",
@@ -977,10 +979,11 @@ export const CATALOG_TEXT = {
   solutionStat: (inSolution: number, outside: number) =>
     outside > 0 ? `${inSolution} 已入方案 · ${outside} 未入` : `${inSolution} 已入方案`,
   solutionStatEmpty: "还没有在售产品，方案覆盖统计从第一个产品开始",
-  rosterSolution: "方案清单",
+  rosterSolution: "在用方案",
   rosterSolutionWhy:
-    "一个方案 = 产品组合 + 业务定制。顺序即门面；组合与定制在方案自己的页面里改。",
-  rosterSolutionRetired: "已停用方案",
+    "可用于报价的产品组合与业务定制方案。",
+  rosterSolutionRetired: "停用方案",
+  noRetiredSolutions: "暂无停用方案",
   rosterSolutionRetiredWhy: "停用的方案不再用于报价，但它记录着过去是怎么卖的，所以保留。",
   colSolutionName: "方案名称",
   colComposition: "产品组合",

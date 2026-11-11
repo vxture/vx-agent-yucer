@@ -1402,9 +1402,11 @@ export const en: Dictionary = {
     byTypeEmpty: "No products yet - the breakdown starts with the first one",
     typeStat: (active: number, dev: number) =>
       dev > 0 ? `${active} on sale · ${dev} in development` : `${active} on sale`,
-    rosterLive: "Products",
-    rosterLiveWhy: "On sale and in development. The order is the storefront - what customers see is decided here.",
+    rosterLive: "Current products",
+    noCurrentProducts: "No current products",
+    rosterLiveWhy: "Products on sale, in development or in another non-retired status.",
     rosterRetired: "Retired products",
+    noRetiredProducts: "No retired products",
     rosterRetiredWhy:
       "Retirement is shelving, not deletion: a product referenced by quote lines or solutions cannot be deleted, and its history stays readable here.",
     colType: "Type",
@@ -1485,10 +1487,11 @@ export const en: Dictionary = {
     solutionStat: (inSolution: number, outside: number) =>
       outside > 0 ? `${inSolution} in a solution · ${outside} not` : `${inSolution} in a solution`,
     solutionStatEmpty: "No products on sale yet - coverage starts with the first one",
-    rosterSolution: "Solutions",
+    rosterSolution: "Active solutions",
     rosterSolutionWhy:
-      "A solution is a product combination plus its customisation. The order is the storefront; the combination is edited on the solution's own page.",
-    rosterSolutionRetired: "Retired solutions",
+      "Product combinations and business customisations available for quoting.",
+    rosterSolutionRetired: "Inactive solutions",
+    noRetiredSolutions: "No inactive solutions",
     rosterSolutionRetiredWhy:
       "A retired solution is no longer quoted from, but it records how something used to be sold, so it is kept.",
     colSolutionName: "Solution",

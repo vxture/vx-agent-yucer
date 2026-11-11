@@ -139,8 +139,6 @@ export function SolutionRoster({
     );
   };
 
-  const liveTotal = solutions.filter((s) => s.solution.status !== "retired").length;
-  const retiredTotal = solutions.filter((s) => s.solution.status === "retired").length;
 
   const shown = solutions.filter(match);
   const live = shown.filter((s) => s.solution.status !== "retired");
@@ -287,7 +285,7 @@ export function SolutionRoster({
 
   /* The catalogue rosters' geometry (TD-022): fixed layout, edge columns on
      the DS token, and the name column taking the remainder. */
-  const table = (rows: readonly SolutionView[]) => (
+  const table = (rows: readonly SolutionView[], retiredGroup = false) => (
     /* COUNTED FROM THE LEFT, and every leading column is now unconditional:
        选择 | 序号 come first for every reader, so the business columns start
        at nth-child(3) and nothing to their left can disappear.
@@ -321,8 +319,8 @@ export function SolutionRoster({
             />
           ) : (
             <EmptyState
-              title={CATALOG_TEXT.noSolutions}
-              description={CATALOG_TEXT.rosterSolutionWhy}
+              title={retiredGroup ? CATALOG_TEXT.noRetiredSolutions : CATALOG_TEXT.noSolutions}
+              description={retiredGroup ? undefined : CATALOG_TEXT.rosterSolutionWhy}
             />
           )
         }
@@ -332,54 +330,59 @@ export function SolutionRoster({
 
   return (
     <>
-      <div id="solutions" className="flex flex-col gap-lg">
-        {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
-            【新建方案】, one row for both rosters - the retired list says on
-            its own heading that this control is narrowing it. The create
-            button moved here from the section header; disabled, not hidden,
-            without the permission. */}
-        <FilterBar
-          view={view}
-          onViewChange={setView}
-          actions={
-            canWrite ? (
-              <Button asChild>
-                <a href="/solution/new">{CATALOG_TEXT.newSolutionEntry}</a>
-              </Button>
-            ) : (
-              <Button disabled>{CATALOG_TEXT.newSolutionEntry}</Button>
-            )
-          }
-          count={
-            narrowed
-              ? TABLE_TOOLBAR_TEXT.filteredCount(live.length, liveTotal)
-              : CATALOG_TEXT.solutionCount(live.length)
-          }
-          search={
-            <SearchSlot>
-              <Input
-                type="search"
-                className="w-full"
-                value={query}
-                placeholder={CATALOG_TEXT.solutionSearchHint}
-                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </SearchSlot>
-          }
-          onReset={
-            narrowed
-              ? () => {
-                  setQuery("");
-                  setTypeFilter("");
-                }
-              : undefined
-          }
-          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
-        >
-          <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
-        </FilterBar>
+      {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
+          【新建方案】, one row for both rosters - the retired list says on
+          its own heading that this control is narrowing it. The create
+          button moved here from the section header; disabled, not hidden,
+          without the permission. */}
+      <FilterBar
+        view={view}
+        onViewChange={setView}
+        actions={
+          canWrite ? (
+            <Button asChild>
+              <a href="/solution/new">{CATALOG_TEXT.newSolutionEntry}</a>
+            </Button>
+          ) : (
+            <Button disabled>{CATALOG_TEXT.newSolutionEntry}</Button>
+          )
+        }
+        count={
+          narrowed
+            ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, solutions.length)
+            : CATALOG_TEXT.solutionCount(solutions.length)
+        }
+        search={
+          <SearchSlot>
+            <Input
+              type="search"
+              className="w-full"
+              value={query}
+              placeholder={CATALOG_TEXT.solutionSearchHint}
+              aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </SearchSlot>
+        }
+        onReset={
+          narrowed
+            ? () => {
+                setQuery("");
+                setTypeFilter("");
+              }
+            : undefined
+        }
+        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+      >
+        <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
+      </FilterBar>
 
+      <Section
+        id="solutions"
+        icon="list-checks"
+        title={CATALOG_TEXT.rosterSolution}
+        description={CATALOG_TEXT.rosterSolutionWhy}
+      >
         {view === "list" ? (
           table(live)
         ) : live.length === 0 ? (
@@ -415,25 +418,22 @@ export function SolutionRoster({
             ))}
           </ListCardGrid>
         )}
-      </div>
+      </Section>
 
-      {/* Holds its place while narrowed rather than vanishing under a keyword
-          and taking its own explanation with it. */}
-      {retired.length > 0 || (narrowed && retiredTotal > 0) ? (
-        <Section
-          id="solutions-retired"
-          icon="file-text"
-          title={CATALOG_TEXT.rosterSolutionRetired}
-          description={CATALOG_TEXT.rosterSolutionRetiredWhy}
-          action={
-            narrowed ? (
-              <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
-            ) : undefined
-          }
-        >
-          {table(retired)}
-        </Section>
-      ) : null}
+      {/* The archive remains visible even when empty or filtered out. */}
+      <Section
+        id="solutions-retired"
+        icon="archive"
+        title={CATALOG_TEXT.rosterSolutionRetired}
+        description={CATALOG_TEXT.rosterSolutionRetiredWhy}
+        action={
+          narrowed ? (
+            <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
+          ) : undefined
+        }
+      >
+        {table(retired, true)}
+      </Section>
     </>
   );
 }
