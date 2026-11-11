@@ -37,7 +37,7 @@ import { lockedPage } from "../components/locked-page";
 export const dynamic = "force-dynamic";
 
 export default async function PlanningPage() {
-  const { PLANNING_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { PLANNING_TEXT, DOMAIN_LABEL, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Not bought: the upgrade template in place of the page (owner 2026-09-28).
@@ -162,26 +162,33 @@ export default async function PlanningPage() {
           in a row under it - this page owns two tables, and a create button
           floating between them belongs to neither. NAMED for the same reason:
           two bare 新建 on one page would make the reader guess which. */}
-      <TerritoryPanel
-        canEdit={can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed}
-        rows={
-          territories.ok
-            ? territories.value.map((t) => ({
-                ...t,
-                units: t.unitIds.map((id) => unitName.get(id)).filter((x): x is string => Boolean(x)),
-              }))
-            : []
-        }
-        action={
-          can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
-            .allowed ? (
-            <NewEntryLink
-              href="/planning/territory/new"
-              label={PLANNING_TEXT.territoryNewEntry}
-            />
-          ) : null
-        }
-      />
+      {!territories.ok ? (
+        <Section id="territories" icon="map-pin" title={DOMAIN_LABEL.territory}>
+          <EmptyState
+            title={SHELL_TEXT.loadFailed}
+            description={loadFailureText(territories.violations, LOAD_ERROR)}
+          />
+        </Section>
+      ) : (
+        <TerritoryPanel
+          canEdit={can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed}
+          rows={
+            territories.value.map((t) => ({
+              ...t,
+              units: t.unitIds.map((id) => unitName.get(id)).filter((x): x is string => Boolean(x)),
+            }))
+          }
+          action={
+            can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
+              .allowed ? (
+              <NewEntryLink
+                href="/planning/territory/new"
+                label={PLANNING_TEXT.territoryNewEntry}
+              />
+            ) : null
+          }
+        />
+      )}
 
       <Section
         icon="target"
