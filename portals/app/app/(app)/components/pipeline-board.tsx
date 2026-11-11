@@ -239,9 +239,9 @@ export function PipelineBoard({
       width: "md",
       cell: (row) => (
         <TableTitleCell
-          title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
+          title={<Link href={`/pipeline/${row.id}`} className="rounded-sm text-foreground no-underline transition-colors hover:text-primary-text hover:no-underline focus-visible:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{row.name}</Link>}
           tooltip={row.name}
-          description={row.accountId ? <Link href={`/account/${row.accountId}`} className="hover:underline">{row.accountName}</Link> : row.accountName}
+          description={row.accountId ? <Link href={`/account/${row.accountId}`} className="rounded-sm no-underline transition-colors hover:text-primary-text hover:no-underline focus-visible:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{row.accountName}</Link> : row.accountName}
           titleSuffix={row.buyerUnreachable ? <StatusBadge tone="warning" size="xs">{PIPELINE_TEXT.buyerUnreachable}</StatusBadge> : undefined}
         />
       ),
@@ -424,7 +424,7 @@ export function PipelineBoard({
                 {pagination.pageRows.map((row) => (
                   <ListCard
                     key={row.id}
-                    title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
+                    title={<Link href={`/pipeline/${row.id}`} className="rounded-sm text-foreground no-underline transition-colors hover:text-primary-text hover:no-underline focus-visible:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{row.name}</Link>}
                     description={
                       row.buyerUnreachable
                         ? `${row.opportunityNo} / ${row.accountName} · ${PIPELINE_TEXT.buyerUnreachable}`
