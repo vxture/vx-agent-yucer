@@ -2,7 +2,6 @@
 
 import { FilterBar } from "./business-controls";
 
-import { TruncatedText } from "./truncated-text";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -14,11 +13,15 @@ import {
   Section,
   StatusBadge,
   TableTitleCell,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   useToast,
   type FilterBarView,
 } from "@vxture/design-ui";
 import type {
   ProductTypeRecord,
+  ProductRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "../../domains/catalog/store";
@@ -30,6 +33,7 @@ import {
   moveItems,
 } from "./table-fittings";
 import { Tag } from "./tag";
+import { SolutionDetails } from "./solution-details";
 import { ProductPriceValues } from "./product-price-values";
 import type { SolutionFacts } from "../lib/solution-prices";
 import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
@@ -57,6 +61,7 @@ export interface SolutionView {
 
 export interface SolutionRosterProps {
   readonly solutions: readonly SolutionView[];
+  readonly products: readonly ProductRecord[];
   /** Keyed by solution id. */
   readonly facts: Readonly<Record<string, SolutionFacts>>;
   /** The catalogue's type vocabulary - the 产品类型 filter and column. */
@@ -84,6 +89,7 @@ const EMPTY_FACTS: SolutionFacts = {
 
 export function SolutionRoster({
   solutions,
+  products,
   facts,
   types,
   currency,
@@ -95,6 +101,8 @@ export function SolutionRoster({
   const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = solutions.find((row) => row.solution.id === detailId);
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
   // state across both rosters: the keys are ids, so a selection is of the
   // things themselves, not of the half of the page they appeared in.
@@ -155,67 +163,42 @@ export function SolutionRoster({
     {
       id: "name",
       sortable: true,
-      header: CATALOG_TEXT.colSolutionName,
+      header: CATALOG_TEXT.colName,
       cell: (r: SolutionView) => (
         <TableTitleCell
           title={r.solution.name}
           description={r.solution.solutionCode}
-          tooltip={r.solution.name}
+          tooltip={`${r.solution.name} - ${CATALOG_TEXT.solutionDetailsHint}`}
+          onTitleClick={() => setDetailId(r.solution.id)}
         />
       ),
     },
     {
+      id: "types",
+      header: CATALOG_TEXT.colType,
+      cell: (r: SolutionView) => <CoveredTypes ids={factsOf(r).typeIds} names={typeName} />,
+    },
+    {
+      id: "unit",
+      header: CATALOG_TEXT.colUnitPrice,
+      cell: () => (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={0}>{CATALOG_TEXT.solutionNoun}</span>
+          </TooltipTrigger>
+          <TooltipContent>{CATALOG_TEXT.solutionUnitHint}</TooltipContent>
+        </Tooltip>
+      ),
+    },
+    {
       id: "total",
-      header: `${CATALOG_TEXT.solutionPrices} / ${currency}`,
+      header: `${CATALOG_TEXT.productPrices} (${currency})`,
       align: "center" as const,
       sortable: true,
       width: "md" as const,
       cell: (r: SolutionView) => (
         <ProductPriceValues price={factsOf(r).prices} missing={factsOf(r).missing} currency={currency} />
       ),
-    },
-    {
-      id: "composition",
-      header: CATALOG_TEXT.colComposition,
-      width: "sm" as const,
-      // The combination AND its customisation in one cell: how much of this
-      // is the answer, and how much is tailored per deal.
-      cell: (r: SolutionView) => (
-        <span className="text-body-small tabular-nums">
-          {CATALOG_TEXT.compositionCount(
-            r.items.filter((i) => !i.optional).length,
-            r.items.filter((i) => i.optional).length,
-          )}
-        </span>
-      ),
-    },
-    {
-      id: "types",
-      header: CATALOG_TEXT.colCoveredTypes,
-      align: "left" as const,
-      cell: (r: SolutionView) => <CoveredTypes ids={factsOf(r).typeIds} names={typeName} />,
-    },
-    {
-      id: "scenario",
-      header: CATALOG_TEXT.colScenario,
-      // LEFT, against the new default. design-ui 8.0.0 centres every non-first
-      // column, which is right for codes, badges and dates - but 场景 is free
-      // text by design (incr/0031: a sentence a salesperson says to a
-      // customer), and centred prose has a ragged left edge the eye has to
-      // re-find on every row.
-      align: "left" as const,
-      // A width floor and two lines at most (polish, 2026-09-24): with no
-      // width this column lost the auto-layout fight to the name and wrapped
-      // a sentence down seven lines. The whole sentence is the hover title.
-      width: "lg" as const,
-      cell: (r: SolutionView) =>
-        r.solution.scenario ? (
-          <TruncatedText text={r.solution.scenario} className="text-muted-foreground line-clamp-2 text-body-small" />
-        ) : (
-          <span className="text-(color:--warning-text) text-body-small">
-            {CATALOG_TEXT.noScenario}
-          </span>
-        ),
     },
     {
       id: "status",
@@ -230,18 +213,16 @@ export function SolutionRoster({
     },
   ];
 
-  /* ALWAYS rendered (fittings ruling, 2026-09-06): a reader with no write
-     permission gets the column with an empty, disabled trigger rather than a
-     table one column narrower than a colleague's. */
+  // Every reader can open details; write actions retain their original gate.
   const rowActions = (row: SolutionView, rowIndex: number) => {
     const list = row.solution.status === "retired" ? retired : live;
     return (
       <RowActions
         disabled={pending}
-        items={
-          !canWrite
-            ? []
-            : [
+        items={[
+          { id: "details", label: ROW_OPS.details(CATALOG_TEXT.solutionNoun),
+            onSelect: () => setDetailId(row.solution.id) },
+          ...(canWrite ? [
               {
                 id: "edit",
                 label: ROW_OPS.configure(CATALOG_TEXT.solutionNoun),
@@ -276,15 +257,15 @@ export function SolutionRoster({
                   onConfirm: () => run(onDelete(row.solution.id)),
                 },
               },
-              ]
-        }
+          ] : []),
+        ]}
       />
     );
   };
 
   // Use the DS table's own horizontal scroll when the pane is narrow.
   const table = (rows: readonly SolutionView[], retiredGroup = false) => (
-    <div className="[&_table]:min-w-(--vx-container-4xl) [&_thead_th:nth-child(3)]:w-[20%]">
+    <div className="[&_table]:min-w-(--vx-container-4xl) [&_thead_th:nth-child(3)]:w-[34%]">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
@@ -315,6 +296,8 @@ export function SolutionRoster({
 
   return (
     <>
+      {detail ? <SolutionDetails view={detail} products={products} facts={factsOf(detail)} currency={currency}
+        onClose={() => setDetailId(null)} /> : null}
       {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
           【新建方案】, one row for both rosters - the retired list says on
           its own heading that this control is narrowing it. The create
@@ -381,6 +364,7 @@ export function SolutionRoster({
               <ListCard
                 key={row.solution.id}
                 title={row.solution.name}
+                onTitleClick={() => setDetailId(row.solution.id)}
                 description={row.solution.solutionCode}
                 status={<StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
                 actions={rowActions(row, i)}
@@ -435,7 +419,7 @@ function CoveredTypes({
   // Each name WHOLE, wrapping between names rather than inside one - a narrow
   // column broke 实施服务 into 实 / 施服务 (seen 2026-09-29).
   return (
-    <span className="flex flex-wrap gap-x-xs text-body-small">
+    <span className="flex flex-wrap justify-center gap-x-xs text-body-small">
       {ids.map((id) => (
         <span key={id} className="whitespace-nowrap">
           {names.get(id) ?? ""}

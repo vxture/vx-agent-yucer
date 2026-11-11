@@ -65,6 +65,7 @@ export default async function SolutionPage() {
 
             <SolutionRoster
               solutions={solutions}
+              products={products}
               facts={facts}
               types={types}
               currency={policy.defaultCurrency}
