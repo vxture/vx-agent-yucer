@@ -11,6 +11,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { DialogForm } from "./dialog-form";
 import { ProductPriceValues } from "./product-price-values";
 import { RowActions } from "./table-fittings";
+import { Tag } from "./tag";
 
 export interface ProductPricing {
   readonly prices: readonly PriceEntryRecord[];
@@ -94,8 +95,10 @@ export function ProductPricePanel({ product, products, pricing, current, mode, o
               <span className="text-muted-foreground">{row.effectiveAt.toISOString().slice(11, 19)} UTC</span>
             </span>
           ) },
-          { id: "state", header: T.colStatus, cell: (row) => (
-            <StatusBadge tone={row.state === "current" ? "success" : row.state === "scheduled" ? "info" : "neutral"}>
+          { id: "state", header: T.colStatus, cell: (row) => row.state === "historical" ? (
+            <Tag>{stateLabel[row.state]}</Tag>
+          ) : (
+            <StatusBadge tone={row.state === "current" ? "success" : "info"}>
               {stateLabel[row.state]}
             </StatusBadge>
           ) },

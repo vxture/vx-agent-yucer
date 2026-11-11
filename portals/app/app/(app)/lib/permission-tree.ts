@@ -82,7 +82,7 @@ export const GROUP_ORDER: readonly string[] = [
  *  (`home` / `national` are `CROSSCUTTING_MODULES` instead - reachable, but
  *  not filed under any of the five). */
 export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
-  armory: ["strategy", "segment", "solution", "catalog", "pricebook"],
+  armory: ["strategy", "segment", "solution", "catalog"],
   deployment: ["namedAccount", "planning", "forecastRule"],
   recon: ["campaign", "signal", "lead", "funnel"],
   position: ["attainment", "account", "pipeline", "quote", "winLossReview"],
@@ -119,7 +119,7 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "strategy/segment": { group: "armory", module: "segment", page: "strategy.segment" },
   "catalog/product": { group: "armory", module: "catalog", page: "catalog.product" },
   "catalog/solution": { group: "armory", module: "solution", page: "catalog.solution" },
-  "catalog/pricebook": { group: "armory", module: "pricebook", page: "catalog.pricebook" },
+  "catalog/pricebook": { group: "armory", module: "catalog", page: "catalog.pricebook" },
 
   "planning/territory": { group: "deployment", module: "planning", page: "planning.territory" },
   "planning/target": { group: "deployment", module: "planning", page: "planning.target" },

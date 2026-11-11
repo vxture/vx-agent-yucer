@@ -1495,6 +1495,10 @@ export const en: Dictionary = {
     rosterSolutionRetiredWhy:
       "A retired solution is no longer quoted from, but it records how something used to be sold, so it is kept.",
     colSolutionName: "Solution",
+    solutionPrices: "Standard item totals",
+    solutionPricesHint: "Current product prices times quantity, excluding optional items. Missing prices are excluded and flagged.",
+    solutionUnitPrices: "Current unit prices",
+    manageProductPrices: "Manage product prices",
     colComposition: "Combination",
     colScenario: "Scenario",
     compositionCount: (standard: number, optional: number) =>

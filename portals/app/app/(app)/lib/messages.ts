@@ -986,6 +986,10 @@ export const CATALOG_TEXT = {
   noRetiredSolutions: "暂无停用方案",
   rosterSolutionRetiredWhy: "停用的方案不再用于报价，但它记录着过去是怎么卖的，所以保留。",
   colSolutionName: "方案名称",
+  solutionPrices: "标配价格合计",
+  solutionPricesHint: "按当前产品单价与数量汇总，不含可选项；缺价时仅合计已定价项。",
+  solutionUnitPrices: "当前产品单价",
+  manageProductPrices: "维护产品价格",
   colComposition: "产品组合",
   colScenario: "适用场景",
   compositionCount: (standard: number, optional: number) =>

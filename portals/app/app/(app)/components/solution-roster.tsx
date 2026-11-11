@@ -30,6 +30,8 @@ import {
   moveItems,
 } from "./table-fittings";
 import { Tag } from "./tag";
+import { ProductPriceValues } from "./product-price-values";
+import type { SolutionFacts } from "../lib/solution-prices";
 import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
 import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -53,23 +55,13 @@ export interface SolutionView {
   readonly items: readonly SolutionItemRecord[];
 }
 
-/** What the page derives per solution on the server (owner, 2026-09-29):
- * which product types it covers, and what its STANDARD lines cost at 标准价.
- * Optional lines are left out of the total - they are the per-deal menu, not
- * the package. `unpriced` counts standard lines with no price in force, which
- * the total cannot include and must not hide. */
-export interface SolutionFacts {
-  readonly typeIds: readonly string[];
-  readonly listTotal: number;
-  readonly unpriced: number;
-}
-
 export interface SolutionRosterProps {
   readonly solutions: readonly SolutionView[];
   /** Keyed by solution id. */
   readonly facts: Readonly<Record<string, SolutionFacts>>;
   /** The catalogue's type vocabulary - the 产品类型 filter and column. */
   readonly types: readonly ProductTypeRecord[];
+  readonly currency: string;
   readonly canWrite: boolean;
   readonly onMove: (id: string, direction: MoveDirection) => Promise<{ ok: boolean; error?: string }>;
   readonly onStatus: (
@@ -85,12 +77,16 @@ const SORT_ON = {
   name: (r: SolutionView) => r.solution.name,
 };
 
-const EMPTY_FACTS: SolutionFacts = { typeIds: [], listTotal: 0, unpriced: 0 };
+const EMPTY_FACTS: SolutionFacts = {
+  typeIds: [], listTotal: 0, unpriced: 0, prices: {},
+  missing: { listPrice: 0, floorPrice: 0, minPrice: 0 },
+};
 
 export function SolutionRoster({
   solutions,
   facts,
   types,
+  currency,
   canWrite,
   onMove,
   onStatus,
@@ -106,7 +102,7 @@ export function SolutionRoster({
   const factsOf = (r: SolutionView) => facts[r.solution.id] ?? EMPTY_FACTS;
   const sorted = useTableSort<SolutionView>([], {
     ...SORT_ON,
-    total: (r: SolutionView) => factsOf(r).listTotal,
+    total: (r: SolutionView) => factsOf(r).prices.listPrice ?? null,
   });
   const [view, setView] = useState<FilterBarView>("list");
   // Full names, 软件产品-基础软件 (incr/0100).
@@ -158,7 +154,7 @@ export function SolutionRoster({
   const columns = [
     {
       id: "name",
-  sortable: true,
+      sortable: true,
       header: CATALOG_TEXT.colSolutionName,
       cell: (r: SolutionView) => (
         <TableTitleCell
@@ -166,6 +162,15 @@ export function SolutionRoster({
           description={r.solution.solutionCode}
           tooltip={r.solution.name}
         />
+      ),
+    },
+    {
+      id: "total",
+      header: `${CATALOG_TEXT.solutionPrices} / ${currency}`,
+      sortable: true,
+      width: "md" as const,
+      cell: (r: SolutionView) => (
+        <ProductPriceValues price={factsOf(r).prices} missing={factsOf(r).missing} />
       ),
     },
     {
@@ -210,13 +215,6 @@ export function SolutionRoster({
             {CATALOG_TEXT.noScenario}
           </span>
         ),
-    },
-    {
-      id: "total",
-      header: CATALOG_TEXT.colListTotal,
-      sortable: true,
-      align: "money" as const,
-      cell: (r: SolutionView) => <ListTotal facts={factsOf(r)} />,
     },
     {
       id: "status",
@@ -283,23 +281,9 @@ export function SolutionRoster({
     );
   };
 
-  /* The catalogue rosters' geometry (TD-022): fixed layout, edge columns on
-     the DS token, and the name column taking the remainder. */
+  // Use the DS table's own horizontal scroll when the pane is narrow.
   const table = (rows: readonly SolutionView[], retiredGroup = false) => (
-    /* COUNTED FROM THE LEFT, and every leading column is now unconditional:
-       选择 | 序号 come first for every reader, so the business columns start
-       at nth-child(3) and nothing to their left can disappear.
-         A MIN-WIDTH so the shell can be narrow without crushing the text
-       columns: with the fittings ruling's selection column added, the two
-       flexible columns here were splitting what the fixed ones left and
-       collapsing to an unreadable 56-72px. The DS wrapper is overflow-x-auto,
-       so past this width the table scrolls - which is the honest failure for
-       a table too wide for its container.
-     Order (owner, 2026-09-29): 选择 | # | name | composition | 涵盖产品类型 |
-     scenario | 标准价合计 | status | 操作 - status is the 8th header cell. */
-    // Status pinned (polish, 2026-09-24): under table-fixed the min-width
-    // tiers are inert and the 生效中 badge was cut at the column edge.
-    <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[20%] [&_thead_th:nth-child(4)]:w-[5rem] [&_thead_th:nth-child(8)]:w-[6rem]`}>
+    <div className="[&_table]:min-w-(--vx-container-4xl) [&_thead_th:nth-child(3)]:w-[20%]">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
@@ -307,8 +291,8 @@ export function SolutionRoster({
         onSelectionChange={setSelected}
         rowKey={(r: SolutionView) => r.solution.id}
         rows={[...sorted.sortRows(rows)]}
-          sort={sorted.sort}
-          onSortChange={sorted.onSortChange}
+        sort={sorted.sort}
+        onSortChange={sorted.onSortChange}
         columns={columns}
         rowActions={rowActions}
         empty={
@@ -381,15 +365,15 @@ export function SolutionRoster({
         id="solutions"
         icon="list-checks"
         title={CATALOG_TEXT.rosterSolution}
-        description={CATALOG_TEXT.rosterSolutionWhy}
+        description={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`}
       >
         {view === "list" ? (
           table(live)
         ) : live.length === 0 ? (
-          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noSolutions} description={CATALOG_TEXT.rosterSolutionWhy} />
+          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noSolutions} description={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`} />
         ) : (
           /* The same row as a card (DS ListCard): name and code, status and
-             the row menu top right; composition, covered types and 标准价合计
+             the row menu top right; composition, covered types and all three price totals
              as the meta line. */
           <ListCardGrid className="p-md">
             {live.map((row, i) => (
@@ -408,10 +392,10 @@ export function SolutionRoster({
                       )}
                     </span>
                     <CoveredTypes ids={factsOf(row).typeIds} names={typeName} />
-                    <span className="flex items-center gap-2xs">
-                      {CATALOG_TEXT.colListTotal}
-                      <ListTotal facts={factsOf(row)} />
-                    </span>
+                    <div className="flex flex-col gap-xs">
+                      <span>{CATALOG_TEXT.solutionPrices} / {currency}</span>
+                      <ProductPriceValues price={factsOf(row).prices} missing={factsOf(row).missing} />
+                    </div>
                   </>
                 }
               />
@@ -456,22 +440,6 @@ function CoveredTypes({
           {names.get(id) ?? ""}
         </span>
       ))}
-    </span>
-  );
-}
-
-/** 标准价合计 of the standard lines. When some standard line has no price in
- * force the sum is PARTIAL, and says so beside the number - a total that
- * quietly left a product out reads as the package's price when it is not. */
-function ListTotal({ facts }: { readonly facts: SolutionFacts }) {
-  const { CATALOG_TEXT } = useMessages();
-  if (facts.listTotal === 0 && facts.unpriced > 0) {
-    return <span className="text-muted-foreground">{CATALOG_TEXT.unpricedShort}</span>;
-  }
-  return (
-    <span className="inline-flex items-center justify-end gap-xs whitespace-nowrap">
-      {facts.unpriced > 0 ? <Tag tone="warning">{CATALOG_TEXT.listTotalPartial(facts.unpriced)}</Tag> : null}
-      <span className="tabular-nums">{facts.listTotal.toLocaleString()}</span>
     </span>
   );
 }
