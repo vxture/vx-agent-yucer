@@ -344,14 +344,10 @@
 }
 /* 20, against the title's 16px. The mark is the panel's identity and reads
    from three metres; at 18 it sat smaller than the words it introduces. */
-.screen .mod-hd .mod-mark{ flex: none; width: 20px; height: 20px; display: block; }
+.screen .mod-hd .mod-mark{ flex: none; width: 20px; height: 20px; display: block; color: var(--screen-warn); }
 .screen .mod-hd .mod-mark svg{ display: block; width: 100%; height: 100%; overflow: visible; }
 
-/* STATIC, AND DELIBERATELY SO. The mark used to breathe, back when it was a
-   ring around a core - two parts that could pulse against each other. It is one
-   solid piece now, and a solid shape that throbs reads as a glitch rather than
-   as life. The screen keeps one breathing element, the title's dot, which is
-   enough to say it is live. */
+/* Keep heading icons static; the title dot remains the live indicator. */
 .screen .mod-hd h2{
   margin: 0; font-size: 16px; font-weight: 700; letter-spacing: 0.15em;
   color: var(--screen-ink); white-space: nowrap;

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Icon, type IconName } from "@vxture/design-ui";
 import { useMessages } from "../../(app)/lib/i18n/provider";
-import { HealthDonut, Ring, TitleDot } from "./screen-charts";
+import { HealthDonut, TitleDot } from "./screen-charts";
 import { ScreenHex } from "./screen-hex";
 import "./national-screen.css";
 import "./enablement-screen.css";
@@ -83,17 +84,19 @@ function RankList({
 
 function Mod({
   step,
+  icon,
   title,
   children,
 }: {
   step: string;
+  icon: IconName;
   title: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="mod enablement-panel">
       <div className="mod-hd">
-        <Ring />
+        <span className="mod-mark" aria-hidden><Icon name={icon} size="sm" /></span>
         <h2>{title}</h2>
         <span className="step">{step}</span>
         <span className="rule" />
@@ -157,7 +160,7 @@ export function EnablementScreen({ rows, windowDays, totals }: EnablementScreenP
       </header>
 
       <div className="screen-deck enablement-grid">
-        <Mod step="01" title={T.panelExecuted}>
+        <Mod step="01" icon="chart-line" title={T.panelExecuted}>
           <p className="enablement-why">{T.panelExecutedWhy}</p>
           <RankList
             rows={byExecuted.map((r) => ({ key: r.sub, label: r.name, value: r.executed }))}
@@ -166,7 +169,7 @@ export function EnablementScreen({ rows, windowDays, totals }: EnablementScreenP
           />
         </Mod>
 
-        <Mod step="02" title={T.panelAdoption}>
+        <Mod step="02" icon="check-circle" title={T.panelAdoption}>
           <p className="enablement-why">{T.panelAdoptionWhy}</p>
           {byAdopted.length === 0 ? (
             <div className="rank-empty">{T.noAdoption}</div>
@@ -197,7 +200,7 @@ export function EnablementScreen({ rows, windowDays, totals }: EnablementScreenP
           )}
         </Mod>
 
-        <Mod step="03" title={T.donutTitle}>
+        <Mod step="03" icon="chart-pie" title={T.donutTitle}>
           {decided === 0 ? (
             <div className="rank-empty">{T.noAdoption}</div>
           ) : (
