@@ -167,6 +167,7 @@ export function SolutionRoster({
     {
       id: "total",
       header: `${CATALOG_TEXT.solutionPrices} / ${currency}`,
+      align: "center" as const,
       sortable: true,
       width: "md" as const,
       cell: (r: SolutionView) => (

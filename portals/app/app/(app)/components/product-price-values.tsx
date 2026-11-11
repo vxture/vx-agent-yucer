@@ -36,7 +36,7 @@ export function ProductPriceValues({ price, missing, currency }: {
     <Tooltip>
       <TooltipTrigger asChild>
         <span tabIndex={0} role="group" aria-label={keys.map(detail).join("; ")}
-          className="inline-flex flex-col items-start gap-2xs tabular-nums">
+          className="inline-flex flex-col items-center gap-2xs tabular-nums">
           {keys.includes("listPrice") ? (
             <span className="text-body font-medium text-foreground">{value("listPrice")}</span>
           ) : null}

@@ -229,7 +229,7 @@ export function ProductRoster({
       header: `${CATALOG_TEXT.productPrices} (${pricing.currency})`,
       width: "md" as const,
       sortable: true,
-      align: "money" as const,
+      align: "center" as const,
       cell: (row: ProductRecord) => <ProductPriceValues price={priceByProduct.get(row.id)} currency={pricing.currency} />,
     }] : []),
     {

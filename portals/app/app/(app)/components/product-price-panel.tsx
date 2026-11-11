@@ -87,7 +87,7 @@ export function ProductPricePanel({ product, products, pricing, current, mode, o
         columns={[
           ...(!product ? [{ id: "product", header: T.colProduct,
             cell: (row: (typeof versions)[number]) => names.get(row.productId) ?? T.noCategory }] : []),
-          { id: "prices", header: T.productPrices, width: "md", cell: (row) => <ProductPriceValues price={row} currency={row.currency} /> },
+          { id: "prices", header: T.productPrices, width: "md", align: "center", cell: (row) => <ProductPriceValues price={row} currency={row.currency} /> },
           { id: "currency", header: T.colCurrency, cell: (row) => row.currency },
           { id: "effective", header: T.colEffective, cell: (row) => (
             <span className="flex flex-col gap-2xs tabular-nums text-body-small">
