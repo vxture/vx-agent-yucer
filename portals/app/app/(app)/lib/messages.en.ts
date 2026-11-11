@@ -1134,6 +1134,7 @@ export const en: Dictionary = {
   PLANNED_MODULE_LABEL: {},
 
   LAUNCHER_TEXT: {
+    featured: "Recommended feature",
     locked: (tier: string) => `${tier} plan`,
     lockedNoTier: "unavailable",
     buttonLabel: "Switch domain",

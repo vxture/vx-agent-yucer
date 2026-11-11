@@ -80,6 +80,9 @@ export interface DomainLauncherProps {
  */
 const COLUMNS = "grid grid-cols-2 gap-x-lg md:grid-cols-3 xl:grid-cols-5";
 
+// Editorial recommendations, independent of usage counts and access gates.
+const FEATURED_MODULE_KEYS = new Set(["signal", "pipeline"]);
+
 /**
  * The dashed rule between domain columns.
  *
@@ -138,6 +141,24 @@ export function DomainLauncher({
   const crosscutting = resolveCrosscutting(nav);
   const here = activeDomainKey(activeKey);
 
+  const moduleLabel = (key: string) => {
+    const label = DOMAIN_LABEL[key] ?? key;
+    return FEATURED_MODULE_KEYS.has(key) ? (
+      <span className="inline-flex min-w-0 max-w-full items-center gap-xs">
+        <span className="truncate">{label}</span>
+        <img
+          src="/assets/icons/fire.png"
+          srcSet="/assets/icons/fire@2x.png 2x, /assets/icons/fire@3x.png 3x"
+          width={16}
+          height={16}
+          className="size-4 shrink-0"
+          alt={LAUNCHER_TEXT.featured}
+          title={LAUNCHER_TEXT.featured}
+        />
+      </span>
+    ) : label;
+  };
+
   const moduleSummary = (key: string) => {
     const summary = modules[key]?.metrics
       .map((metric) => `${metric.value} ${metric.label}`)
@@ -187,7 +208,7 @@ export function DomainLauncher({
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
-        label={DOMAIN_LABEL[m.key] ?? m.key}
+        label={moduleLabel(m.key)}
         value={
           m.requiredTier
             ? <StatusBadge size="xs" tone="neutral" icon={false}>{(TIER_LABEL[m.requiredTier] ?? m.requiredTier).toLowerCase()}</StatusBadge>
@@ -211,7 +232,7 @@ export function DomainLauncher({
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
-        label={DOMAIN_LABEL[m.key] ?? m.key}
+        label={moduleLabel(m.key)}
         href={m.href}
         linkComponent={Link}
         onClick={closePanel}
@@ -229,7 +250,7 @@ export function DomainLauncher({
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
-        label={DOMAIN_LABEL[m.key] ?? m.key}
+        label={moduleLabel(m.key)}
         href={m.href}
         linkComponent={Link}
         onClick={closePanel}

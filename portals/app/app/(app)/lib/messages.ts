@@ -658,6 +658,7 @@ export const PLANNED_MODULE_LABEL: Record<string, string> = {};
 export const LAUNCHER_TEXT = {
   buttonLabel: "切换功能域",
   panelLabel: "功能域",
+  featured: "推荐功能",
   crosscutting: "贯穿全局",
   /** On a module whose page is not built yet. */
   planned: "开发中",
