@@ -6,7 +6,6 @@ import { resolveDealWorkspace } from "../../lib/deal-workspace";
 import { DealMeetingButton } from "../../components/deal-meeting";
 import { buildDealMeetingPackAction } from "../meeting-pack-action";
 import { RecordFollowUp } from "../../components/record-follow-up";
-import { captureFollowUp } from "../../account/field-actions";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -122,7 +121,7 @@ import {
   listCommitments,
   listInteractions,
 } from "../../../domains/account/field-service";
-import { deleteCommitment, deleteFollowUp, settleCommitment } from "../../account/field-actions";
+import { captureFollowUp, deleteCommitment, deleteFollowUp, settleCommitment } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
 import { AmountCoin, DimensionStat, HealthCoin, ImportanceCoin } from "../../components/dimension-stat";
