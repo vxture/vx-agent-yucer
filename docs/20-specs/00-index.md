@@ -12,6 +12,7 @@ yucer 的产品定义落在这一层。yucer 是面向企业市场销售的超�
 | `10-product-definition.md` | 产品定义、目标用户、核心价值主张、非目标 |
 | `20-capability-domains.md` | 八个能力分区（D1-D8）的边界与交接契约 |
 | `30-business-rules.md` | 全链路业务规则：阶段机、评分、预测、归因、人机边界 |
+| `35-sales-planning.md` | 区域销售规划：阶梯目标、客户/团队支撑、整版发布、调整与历史口径（模型确定，待实施） |
 | `40-capability-matrix.md` | 商业档位 x 能力（tier -> feature key），与 `capability.ts` 一一对应 |
 | `50-role-permission-catalog.md` | 产品角色/权限目录，与 `local_authz` 种子数据一一对应 |
 | `60-metering-capability-inventory.md` | 计量能力盘点（能测什么），给平台侧的对接输入，不等同于 `40-capability-matrix.md` 的计量裁定 |
