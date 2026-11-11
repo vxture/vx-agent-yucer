@@ -3,7 +3,9 @@ import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
-import { attainment, listTerritories, listOrgUnits } from "../../domains/planning/service";
+import { attainment, listTerritories, listOrgUnits, listUnitDivisionLinks } from "../../domains/planning/service";
+import { listMarketDivisions } from "../../domains/account/service";
+import { salesRegionCode, salesRegionTerritories } from "../lib/sales-regions";
 import { PlanningTable } from "../components/planning-table";
 import { TerritoryPanel } from "../components/territory-panel";
 import { NewEntryLink } from "../components/form-page";
@@ -15,29 +17,13 @@ import { summaryTarget } from "../../domains/planning/lib/target";
 import { currentPeriod } from "../../domains/shared/period";
 import { loadFailureText } from "../lib/load-failure";
 import { lockedPage } from "../components/locked-page";
-// D2 planning: 规划团队 -> 划定区域 -> 明确指标 (owner, 2026-09-08).
-//
-// ONE FLOW, ONE PAGE. 销售区域 was a module of its own from 2026-08-30, which
-// put the three steps of one act behind two menu entries: you drew the ground
-// on one page and set the number it carries on another, and the page that
-// needed a territory to exist could only tell you so in a sentence. The roster
-// is here now, above the targets, in the order the work happens - and a reader
-// who finds the scope selector empty is looking at the reason.
-//
-// WHAT DID NOT COME WITH IT: 大区. That is how the market is CARVED, not who
-// works it - configuration, read by every figure the situation screen groups,
-// changed rarely - so it sits behind the gear at /admin/division. Two
-// dimensions, two places; they were one page and kept being read as one thing.
-//
-// The column that matters is attainment, and the thing it must never do is
-// render "no snapshot yet" as 0%. Those are different facts - one means nobody
-// has forecast this scope this period, the other means the period is going
-// badly - and collapsing them reports an unforecast quarter as a failed one.
+// Geographic regions come from configuration. Organization units only assign
+// responsibility; their count and names never define the regional target scopes.
 
 export const dynamic = "force-dynamic";
 
 export default async function PlanningPage() {
-  const { PLANNING_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { PLANNING_TEXT, DOMAIN_LABEL, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Not bought: the upgrade template in place of the page (owner 2026-09-28).
@@ -57,23 +43,20 @@ export default async function PlanningPage() {
   };
   const result = await attainment(ctx, period);
 
-  // Territory names, so the scope column reads as a place and not as a code.
-  // Through the gated service, so a member who may read targets but not the
-  // territory registry simply gets codes back rather than the page refusing -
-  // planning.territory.view is a separate permission from the one above.
-  // RETIRED ONES INCLUDED: the roster below has to show a wound-down region -
-  // it still holds its code, and un-retiring it is done from that row. The
-  // scope selector that must NOT offer one lives on /planning/new and narrows
-  // the list itself; the filtered copy stayed here after the form moved out,
-  // computed for nobody.
-  const territories = await listTerritories(ctx, { includeRetired: true });
-  // The units' names for the roster's 所属单位 column (0052); a reader without
-  // admin.member.view sees the column say 未挂单位, not a wrong name.
-  const orgUnits = await listOrgUnits(ctx);
+  const [territories, divisions, orgUnits, unitLinks] = await Promise.all([
+    listTerritories(ctx, { includeRetired: true }),
+    listMarketDivisions({ ...ctx, store: session.stores.account() }),
+    listOrgUnits(ctx),
+    listUnitDivisionLinks(ctx),
+  ]);
+  const geographicTerritories = territories.ok && divisions.ok
+    ? salesRegionTerritories(divisions.value, territories.value) : [];
+  const byCode = new Map(geographicTerritories.map((t) => [t.territoryCode, t]));
   const unitName = new Map((orgUnits.ok ? orgUnits.value : []).map((u) => [u.id, u.name]));
-  const territoryNames = new Map(
-    territories.ok ? territories.value.map((t) => [t.id, t.name]) : [],
-  );
+  const territoryNames = new Map([
+    ...(territories.ok ? territories.value.map((t) => [t.id, t.name] as const) : []),
+    ...geographicTerritories.map((t) => [t.id, t.name] as const),
+  ]);
 
   if (!result.ok) {
     return (
@@ -154,34 +137,26 @@ export default async function PlanningPage() {
         }
       />
 
-      {/* 划定区域, FIRST - a territory is a precondition for a regional
-          target, and this page used to say that in a sentence while the
-          roster lived elsewhere. RETIRED ONES INCLUDED: a wound-down region
-          still holds its code, and un-retiring it is done from its row. */}
-      {/* THE ACTION SITS IN THE PANEL'S OWN HEADER (DS Section `action`), not
-          in a row under it - this page owns two tables, and a create button
-          floating between them belongs to neither. NAMED for the same reason:
-          two bare 新建 on one page would make the reader guess which. */}
-      <TerritoryPanel
-        canEdit={can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed}
-        rows={
-          territories.ok
-            ? territories.value.map((t) => ({
-                ...t,
-                units: t.unitIds.map((id) => unitName.get(id)).filter((x): x is string => Boolean(x)),
-              }))
-            : []
-        }
-        action={
-          can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
-            .allowed ? (
-            <NewEntryLink
-              href="/planning/territory/new"
-              label={PLANNING_TEXT.territoryNewEntry}
-            />
-          ) : null
-        }
-      />
+      {divisions.ok && territories.ok ? (
+        <TerritoryPanel
+          canConfigure={can(session.authz, session.entitlement, "planning.division.view", "ui").allowed}
+          rows={divisions.value.map((d) => ({
+            id: d.id,
+            code: d.code,
+            name: d.name,
+            members: d.members,
+            ownerSub: byCode.get(salesRegionCode(d.code))?.ownerSub ?? null,
+            units: (unitLinks.ok ? unitLinks.value.find((link) => link.id === d.id)?.unitIds ?? [] : [])
+              .map((id) => unitName.get(id)).filter((x): x is string => Boolean(x)),
+          }))}
+          action={can(session.authz, session.entitlement, "planning.division.upsert", "ui").allowed
+            ? <NewEntryLink href="/admin/division" label={PLANNING_TEXT.territoryNewEntry} /> : null}
+        />
+      ) : (
+        <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(
+          !divisions.ok ? divisions.violations : !territories.ok ? territories.violations : [], LOAD_ERROR,
+        )} />
+      )}
 
       <Section
         icon="target"

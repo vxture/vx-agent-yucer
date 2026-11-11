@@ -1,12 +1,56 @@
 import {
   applyOrgTemplate,
   listOrgUnits,
+  listTerritories,
+  listUnitDivisionLinks,
   setUnitDivisions,
   retireOrphanedAutoTerritories,
   upsertTerritory,
   type PlanningContext,
 } from "../../domains/planning/service";
 import { importDivisionTemplate, listCarves, listMarketDivisions, type AccountContext } from "../../domains/account/service";
+import { can } from "../../authz/decide";
+import { salesRegionCode } from "./sales-regions";
+
+/** Synchronize geographic target identities independently of the organization tree. */
+export async function ensureSalesTerritories(
+  planningCtx: PlanningContext,
+  accountCtx: AccountContext,
+): Promise<void> {
+  if (!can(planningCtx.holder, planningCtx.entitlement, "planning.territory.upsert", "data").allowed) return;
+  const [existing, divisions] = await Promise.all([
+    listTerritories(planningCtx, { includeRetired: true }),
+    listMarketDivisions(accountCtx),
+  ]);
+  if (!existing.ok || !divisions.ok) return;
+  const byCode = new Map(existing.value.map((t) => [t.territoryCode, t]));
+  const knownDivisionIds = new Set(divisions.value.map((d) => d.id));
+  // These are explicit many-to-many assignments. Never infer them from names
+  // or seed an organization merely to make geographic scopes available.
+  const links = await listUnitDivisionLinks(planningCtx);
+  for (const d of divisions.value) {
+    const code = salesRegionCode(d.code);
+    const held = byCode.get(code);
+    const unitIds = links.ok
+      ? links.value.find((link) => link.id === d.id)?.unitIds ?? []
+      : held?.unitIds ?? [];
+    if (held && held.name === d.name && held.status === "active"
+      && held.divisionIds.length === 1 && held.divisionIds[0] === d.id
+      && held.unitIds.length === unitIds.length && held.unitIds.every((id) => unitIds.includes(id))) continue;
+    await upsertTerritory(planningCtx, {
+      territoryCode: code,
+      name: d.name,
+      parentId: held?.parentId ?? null,
+      ownerSub: held?.ownerSub ?? null,
+      status: "active",
+      divisionIds: [d.id],
+      unitIds,
+    }, knownDivisionIds);
+  }
+  // Retain IDs for historical targets and opportunities. Legacy custom team
+  // territories stay intact; only obsolete configuration mirrors retire.
+  await retireOrphanedAutoTerritories(planningCtx, new Set(divisions.value.map((d) => salesRegionCode(d.code))));
+}
 
 /**
  * 应用模版 - the whole 组织架构 + 区域设置 + 销售区域 orchestration, pulled out

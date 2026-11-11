@@ -10,6 +10,7 @@
 //   - It returns the CONTRIBUTIONS alongside the number. A red account whose
 //     only explanation is "the model said so" is an account nobody acts on.
 
+import { accountPlanViolation } from "./lib/account-plan";
 import type { ImportanceLevel, ImportanceScheme } from "./lib/importance";
 import { DEFAULT_IMPORTANCE_LEVELS, DEFAULT_PRIORITY_MATRIX } from "./lib/importance-vocab";
 import { recordHealthReading } from "./health-record";
@@ -63,20 +64,22 @@ import {
   deriveHealth,
 } from "./lib/health";
 import type { Stage } from "../pipeline/lib/stage";
-import type {
-  AccountFilter,
-  AccountPlanRecord,
-  AccountRecord,
-  IndustryRecord,
-  CustomerTypeRecord,
-  CustomerSizeRecord,
-  CustomerNatureRecord,
-  MarketDivisionRecord,
-  AccountStore,
-  AccountTier,
-  ContactRecord,
-  OpportunityContactRecord,
-  NewAccount,
+import {
+  ACCOUNT_TIERS,
+  type AccountFilter,
+  type AccountPlanRecord,
+  type AccountPlanDraft,
+  type AccountRecord,
+  type IndustryRecord,
+  type CustomerTypeRecord,
+  type CustomerSizeRecord,
+  type CustomerNatureRecord,
+  type MarketDivisionRecord,
+  type AccountStore,
+  type AccountTier,
+  type ContactRecord,
+  type OpportunityContactRecord,
+  type NewAccount,
 } from "./store";
 import { planContact, type ContactDraft } from "./lib/contact";
 import {
@@ -1440,6 +1443,14 @@ function basicsViolation(patch: AccountBasicsPatch): Violation | null {
   return null;
 }
 
+/** A selected region must be configured; unchanged historical names remain editable. */
+async function accountRegionViolation(ctx: AccountContext, region: string | null | undefined, current?: string | null): Promise<Violation | null> {
+  if (region == null || region === current) return null;
+  const divisions = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  return divisions.some((d) => d.name === region)
+    ? null : violation("region_unknown", "select a configured geographic sales region", "region");
+}
+
 /**
  * 新建客户 (owner, 2026-09-23: 独立页面全字段表单). Until this there was NO
  * way to create a customer in the product - only the demo seed and test SQL
@@ -1447,23 +1458,36 @@ function basicsViolation(patch: AccountBasicsPatch): Violation | null {
  *
  * Same gate and the same checks as editing the basics. The number is the
  * store's to allocate (ACC-NNNN, under a lock); the owner is the person
- * creating it - it is theirs until somebody reassigns it; the tier is left to
- * D1's designation (ADR-013) and the status is derived, never stored (§5.1).
+ * creating it - it is theirs until somebody reassigns it. The shared create
+ * page may also submit a tier and its operating plan; they commit together.
+ * The status is derived, never stored (§5.1).
  */
+export type AccountCreateInput = Omit<NewAccount, "ownerSub" | "plan"> & { plan?: AccountPlanDraft };
+
 export async function createAccount(
   ctx: AccountContext,
-  input: Omit<NewAccount, "ownerSub">,
+  input: AccountCreateInput,
 ): Promise<RuleResult<AccountRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
+  const regionError = await accountRegionViolation(ctx, input.region);
+  if (regionError) return fail(regionError);
+  const tier = input.tier ?? "standard";
+  if (!(ACCOUNT_TIERS as readonly string[]).includes(tier)) return fail(violation("unknown_tier", "unknown customer tier", "tier"));
+  const planError = accountPlanViolation(tier, input.plan);
+  if (planError) return fail(planError);
   const name = input.name.trim();
   const invalid = basicsViolation({ ...input, name });
   if (invalid) return fail(invalid);
   if (!name) return fail(violation("name_required", "an account needs a name", "name"));
 
   try {
-    return ok(await ctx.store.createAccount(ctx.workspaceId, { ...input, name, ownerSub: ctx.sub }));
+    const { plan, ...basics } = input;
+    return ok(await ctx.store.createAccount(ctx.workspaceId, {
+      ...basics, name, tier, ownerSub: ctx.sub,
+      ...(plan ? { plan: { ...plan, period: plan.period.trim(), ownerSub: ctx.sub, presalesSub: null, deliverySub: null, status: "active" as const } } : {}),
+    }));
   } catch (e) {
     if (e instanceof Error && e.message === "credit_code_taken") {
       return fail(violation("credit_code_taken", "another customer already has this credit code", "creditCode"));
@@ -1487,6 +1511,9 @@ export async function updateAccountBasics(
   if (!current) {
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
+
+  const regionError = await accountRegionViolation(ctx, patch.region, current.region);
+  if (regionError) return fail(regionError);
 
   const write: Partial<AccountRecord> = {};
   if (patch.name !== undefined) write.name = patch.name.trim();
@@ -1872,65 +1899,34 @@ export async function designateAccount(
   input: {
     accountId: string;
     tier: AccountTier;
-    plan?: {
-      period: string;
-      targetAmount: number | null;
-      contactCadenceDays: number;
-      execCadenceDays: number;
-      ownerSub: string | null;
-      presalesSub: string | null;
-      deliverySub: string | null;
+    plan?: AccountPlanDraft & {
+      ownerSub?: string | null;
+      presalesSub?: string | null;
+      deliverySub?: string | null;
     };
   },
 ): Promise<RuleResult<{ tier: AccountTier; planned: boolean }>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
   if (!gate.allowed) return denied(gate);
-
-  if (input.tier === "strategic" && !input.plan) {
-    return fail(
-      violation(
-        "plan_required",
-        "a strategic account needs a plan - the cadence rule reads it, and without one the designation changes nothing",
-        "plan",
-      ),
-    );
-  }
-  if (input.plan) {
-    if (!input.plan.period.trim()) {
-      return fail(violation("period_required", "a plan must name its period", "period"));
-    }
-    for (const [field, days] of [
-      ["contactCadenceDays", input.plan.contactCadenceDays],
-      ["execCadenceDays", input.plan.execCadenceDays],
-    ] as const) {
-      if (!Number.isInteger(days) || days <= 0) {
-        return fail(
-          violation("cadence_positive", "a cadence of zero days is not a cadence", field),
-        );
-      }
-    }
-  }
-
-  const moved = await ctx.store.updateAccount(ctx.workspaceId, input.accountId, {
-    tier: input.tier,
-  });
-  if (!moved) {
-    return fail(violation("not_found", `account ${input.accountId} was not found`, "accountId"));
-  }
-
-  if (input.plan) {
-    await ctx.store.upsertAccountPlan(ctx.workspaceId, {
-      accountId: input.accountId,
-      period: input.plan.period.trim(),
-      targetAmount: input.plan.targetAmount,
-      contactCadenceDays: input.plan.contactCadenceDays,
-      execCadenceDays: input.plan.execCadenceDays,
-      ownerSub: input.plan.ownerSub,
-      presalesSub: input.plan.presalesSub,
-      deliverySub: input.plan.deliverySub,
-      status: "active",
-    });
-  }
+  if (!(ACCOUNT_TIERS as readonly string[]).includes(input.tier)) return fail(violation("unknown_tier", "unknown customer tier", "tier"));
+  const invalid = accountPlanViolation(input.tier, input.plan);
+  if (invalid) return fail(invalid);
+  // Read through the scoped store before writing: a guessed id is not access.
+  const account = await ctx.store.getAccount(ctx.workspaceId, input.accountId);
+  if (!account) return fail(violation("not_found", "customer was not found", "accountId"));
+  const previous = await ctx.store.latestAccountPlan(ctx.workspaceId, input.accountId);
+  const samePeriod = previous?.period === input.plan?.period.trim();
+  const plan = input.plan ? {
+    ...input.plan,
+    period: input.plan.period.trim(),
+    ownerSub: input.plan.ownerSub !== undefined ? input.plan.ownerSub : (previous?.ownerSub ?? account.ownerSub ?? ctx.sub),
+    presalesSub: input.plan.presalesSub !== undefined ? input.plan.presalesSub : (previous?.presalesSub ?? null),
+    deliverySub: input.plan.deliverySub !== undefined ? input.plan.deliverySub : (previous?.deliverySub ?? null),
+    status: samePeriod ? previous!.status : "active" as const,
+    closeReason: samePeriod ? previous!.closeReason : null,
+  } : undefined;
+  const moved = await ctx.store.saveAccountDesignation(ctx.workspaceId, input.accountId, input.tier, plan);
+  if (!moved) return fail(violation("not_found", "customer was not found", "accountId"));
   return ok({ tier: input.tier, planned: input.plan != null });
 }
 

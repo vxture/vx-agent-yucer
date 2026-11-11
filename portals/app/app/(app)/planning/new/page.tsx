@@ -1,5 +1,5 @@
 import { ViewHeader } from "../../components/business-controls";
-import { ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
@@ -7,6 +7,9 @@ import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listTargets, listTerritories } from "../../../domains/planning/service";
+import { listMarketDivisions } from "../../../domains/account/service";
+import { loadFailureText } from "../../lib/load-failure";
+import { salesRegionTerritories } from "../../lib/sales-regions";
 import { currentPeriod } from "../../../domains/shared/period";
 import { TargetForm } from "../../components/target-form";
 import { createSalesTarget } from "../actions";
@@ -20,7 +23,7 @@ import { createSalesTarget } from "../actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewTargetPage() {
-  const { DOMAIN_LABEL, PLANNING_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -38,10 +41,14 @@ export default async function NewTargetPage() {
     entitlement: session.entitlement,
     store: getPlanningStore(),
   };
-  const [territories, targets] = await Promise.all([
+  const [territories, targets, divisions] = await Promise.all([
     listTerritories(ctx, { includeRetired: false }),
     listTargets(ctx, { period }),
+    listMarketDivisions({ ...ctx, store: session.stores.account() }),
   ]);
+
+  const failure = !divisions.ok ? divisions : !territories.ok ? territories : !targets.ok ? targets : null;
+  if (failure) return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(failure.violations, LOAD_ERROR)} />;
 
   return (
     <ViewLayout>
@@ -52,7 +59,7 @@ export default async function NewTargetPage() {
       <ViewHeader title={PLANNING_TEXT.setTarget} description={PLANNING_TEXT.setTargetWhy} />
       <TargetForm
         period={period}
-        territories={territories.ok ? territories.value : []}
+        territories={territories.ok && divisions.ok ? salesRegionTerritories(divisions.value, territories.value) : []}
         existingTargets={targets.ok ? targets.value : []}
         metricLabel={{
           revenue: PLANNING_TEXT.metricRevenue,

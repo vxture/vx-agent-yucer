@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { resolveAppSession } from "../../lib/session";
+import { getPlanningStore } from "../../../domains/shared/registry";
+import { ensureSalesTerritories } from "../../lib/startup-preset";
+import { resolveAppSession, type AppSession } from "../../lib/session";
 import {
   importDivisionTemplate,
   moveMarketDivision,
@@ -27,6 +29,18 @@ export type SaveDivisionResult =
   | { ok: true; code: string; moved: { member: MarketMember; from: string }[] }
   | { ok: false; error: string };
 
+async function refreshRegionViews(session: AppSession): Promise<void> {
+  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  await ensureSalesTerritories(
+    { ...base, store: getPlanningStore() },
+    { ...base, store: session.stores.account() },
+  );
+  revalidatePath("/admin/division", "layout");
+  revalidatePath("/national");
+  revalidatePath("/planning", "layout");
+  revalidatePath("/account", "layout");
+}
+
 /** Create or rename a 大区 and state which members it holds. */
 export async function saveDivision(input: {
   code: string;
@@ -47,8 +61,7 @@ export async function saveDivision(input: {
     input,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/division");
-  revalidatePath("/national");
+  await refreshRegionViews(session);
   return { ok: true, code: result.value.code, moved: result.value.moved };
 }
 
@@ -69,8 +82,7 @@ export async function removeDivisionAction(code: string): Promise<RemoveDivision
     code,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/division");
-  revalidatePath("/national");
+  await refreshRegionViews(session);
   return { ok: true };
 }
 
@@ -92,8 +104,7 @@ export async function moveDivisionAction(
     { code, direction },
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/division");
-  revalidatePath("/national");
+  await refreshRegionViews(session);
   return { ok: true };
 }
 
@@ -114,8 +125,7 @@ export async function setMarketScopeAction(
     input,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/division");
-  revalidatePath("/national");
+  await refreshRegionViews(session);
   return { ok: true };
 }
 
@@ -139,7 +149,6 @@ export async function importTemplate(key: string): Promise<ImportTemplateResult>
     key,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/division");
-  revalidatePath("/national");
+  await refreshRegionViews(session);
   return { ok: true, divisions: result.value.divisions, replaced: result.value.replaced };
 }

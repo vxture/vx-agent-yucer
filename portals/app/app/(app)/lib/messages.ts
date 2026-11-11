@@ -255,6 +255,25 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
  */
 /** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
 export const NAMED_ACCOUNT_TEXT = {
+  create: "新建客户",
+  link: "关联客户",
+  linkTitle: "关联战略客户",
+  linkWhy: "检索并选择已有客户，补齐经营信息后设为战略级。",
+  search: "检索客户",
+  searchPlaceholder: "客户名称或客户编号",
+  noMatches: "没有匹配的客户",
+  selected: "已选择",
+  change: "更换客户",
+  select: "选择",
+  included: "已纳入",
+  confirm: "确认关联",
+  linked: "已纳入战略客户",
+  planLoadFailed: "经营信息加载失败，请重试",
+  loading: "正在加载经营信息…",
+  retry: "重试",
+  customer: "客户",
+  owner: "负责人",
+
   // 模块叫「战略客户」，收的却是战略级 + 关键级两档（page.tsx 的过滤是
   // tier !== "standard"）。所以这里的文案一律说「已分级」而不是复述模块名：
   // 名册里躺着两档，只报最高那一档的名字会让计数与内容对不上。
@@ -262,7 +281,16 @@ export const NAMED_ACCOUNT_TEXT = {
   tagNamed: (n: number) => `${n} 家已分级`,
   none: "还没有分级过的客户",
   noneWhy:
-    "在客户详情页把一家标为战略级或关键级，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
+    "新建客户，或从已有客户中选择并纳入战略经营。战略级与关键级客户将在这里集中展示。",
+} as const;
+
+export const ACCOUNT_OPERATING_TEXT = {
+  title: "经营信息",
+  tier: "客户级别",
+  required: "战略级客户必须填写经营周期、目标金额和两项跟进间隔。",
+  optional: "普通级与关键级客户可暂不填写，也可提前完善经营信息。",
+  enable: "填写经营信息",
+  save: "保存级别与经营信息",
 } as const;
 
 export const ROUTING_TEXT = {
@@ -877,8 +905,6 @@ export const ASSIST_TEXT = {
   regionKnown: (v: string) => `客户里有的地区：${v}`,
   criteriaWhy: "细分是对真实市场的切分——条件用客户实际携带的值，切出来的才不是空集。",
   // 部署域（#185 批次）
-  uncoveredRegion: (region: string, n: number) => `${region} 有 ${n} 家客户，尚无区域覆盖`,
-  uncoveredRegionWhy: "线索按区域路由（先区域后负载）。没有区域覆盖的地面，每一条线索都无处可派。",
   metricUnset: (label: string) => `本期还没有「${label}」的全工作区目标`,
   metricUnsetWhy: "没有目标的口径，承诺达成页无从判断——分母缺席。",
   territoryUnset: (name: string) => `${name} 本期还没有任何目标`,
@@ -1300,10 +1326,12 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   plan_already_active: "这家客户已经有进行中的计划",
   plan_reason_too_long: "原因最多 500 个字",
   ...GATE_ERROR,
+  plan_target_required: "战略级客户必须填写目标金额",
+  plan_target_invalid: "目标金额必须是有效的非负数",
   plan_required:
     "战略客户必须配计划——节奏规则读的是它，没有计划这次定级什么都不改变",
-  period_required: "计划必须写明周期",
-  cadence_positive: "零天的节奏不是节奏",
+  period_required: "请填写不超过16个字符的经营周期",
+  cadence_positive: "跟进间隔必须是有效的正整数天数",
   unknown_tier: "未知的客户分级",
   not_found: "客户不存在，或不属于当前工作区",
   parent_self: "上级公司不能是它自己",
@@ -1314,6 +1342,7 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   not_movable: "这一条不能移动",
   // 基础信息表单 (owner, 2026-09-20)。
   name_required: "客户名称不能为空",
+  region_unknown: "请选择「区域设置」中的销售区域。",
   province_unknown: "不是有效的省级行政区划",
   employee_count_invalid: "员工数必须是不小于 0 的整数",
   account_not_empty: "这家客户已经有业务记录了，只能删除建错、还没用过的空壳客户",
@@ -4141,6 +4170,7 @@ export const TERRITORY_ERROR: Record<string, string> = {
  * 于是屏幕上出现的是规则层的英文自述。TD-010。
  */
 export const TARGET_ERROR: Record<string, string> = {
+  region_unknown: "请选择「区域设置」中当前有效的销售区域。",
   ...GATE_ERROR,
   name_required: "目标需要一个名称",
   period_required: "目标必须写明周期",
@@ -6066,42 +6096,22 @@ export const PLANNING_TEXT = {
   divisionUnplacedLead: (n: number, noun: string) => `${n} 个${noun}未归入任何区域：`,
   // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
-    "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",
-  // 表单页读的那句。「代码是身份」讲的是这张表单的行为，名册页上没有表单，
-  // 却跟着显示了这句话，是页面拆分时留下的。
-  territoryFormWhy:
-    "区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。先选覆盖的大区，路由才认得它。",
+    "按配置中的地理区域分解销售目标；负责部门可跨区域、多部门协作。",
   territoryNone: "还没有销售区域",
-  territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
+  territoryNoneWhy: "到「配置管理 → 区域设置」新建区域或应用模板。",
   // 两个入口同处一页（区域名册 + 指标表），所以各自说清楚建的是什么。
   territoryNewEntry: "新建区域",
-  territoryEdit: "编辑区域",
-  territoryEditDenied: "你没有编辑销售区域的权限",
   targetNew: "新建目标",
-  territoryFormTitle: "新建 / 编辑销售区域",
-  territoryEditing: "编辑已有区域",
-  territoryNew: "新建一个区域",
-  territoryRegions: "覆盖大区",
-  territoryRegionsHint: "勾选这个区域负责的大区。一个大区可以由多个区域共同负责；不勾选任何一个，路由就当它谁也不覆盖。",
-  territoryRegionsNone: "这个工作区还没有大区。先去「新建大区」建一个，或引用一套预置划分。",
-  territoryRegionGone: "已不在当前划分中",
+  territoryRegions: "地域范围",
   // 所属单位（incr/0052）：一个区域可挂多个单位。
-  territoryUnits: "所属单位",
-  territoryUnitsHint: "勾选负责这块区域的单位。一个区域可以由多个单位共同负责；不勾选，就只是一块没人负责的地。",
-  territoryUnitsNone: "还没有单位。先到组织架构里建单位。",
-  territoryNoUnit: "未挂单位",
-  territoryCode: "区域代码",
+  territoryUnits: "负责部门",
+  territoryNoUnit: "未关联部门",
   territoryName: "名称",
   territoryParent: "上级区域",
-  territoryNoParent: "顶级区域",
   territoryOwner: "负责人",
   territoryNoOwner: "未指派",
   territoryStatus: "状态",
-  territoryActive: "在用",
   territoryRetired: "已停用",
-  territorySave: "保存区域",
-  territorySaved: "已保存",
-  territoryDenied: "你没有维护销售区域的权限",
   setAmount: "目标金额",
   setCount: "目标客户数",
   // The unit a count target is measured in. Money gets a currency symbol from
@@ -7424,11 +7434,14 @@ export const ACCOUNT_BASICS_TEXT = {
   accountNoOnSave: "保存后自动生成",
   createCrumb: "新建客户",
   createTitle: "新建客户",
-  createWhy: "只有名称必填。其余能填就填，不知道的留空——建好后客户页的「档案完整度」会列出还缺什么，随时补。你是这家客户的负责人，之后可以转给别人。",
+  createWhy: "基础资料中只有客户名称必填；战略级客户还需完善经营信息。其余资料可以之后补充，你是新客户的负责人，之后可以移交。",
   createSubmit: "创建",
   createCancel: "取消",
   createButton: "新建客户",
-  region: "销售大区",
+  region: "销售区域",
+  regionPick: "请选择销售区域（可暂不选择）",
+  regionNone: "暂无可选区域，请在「配置管理 → 区域设置」中配置。",
+  regionLegacy: (name: string) => `${name}（历史值，未在当前区域设置中）`,
   province: "省份",
   provincePick: "未标注",
   industry: "行业",

@@ -1,5 +1,7 @@
 "use client";
 
+import { AccountOperatingFields } from "./account-operating-fields";
+import { operatingValues, operatingPlan, operatingError } from "../lib/account-plan-form";
 import { useEffect, useState, useTransition } from "react";
 import {
   Button,
@@ -11,26 +13,10 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { TIER_ICON_SRC } from "./tag";
-import type { AccountTier } from "../../domains/account/store";
+import type { AccountTier, AccountPlanDraft } from "../../domains/account/store";
 
-// Designating an account's tier, with the plan a strategic one requires.
-//
-// THE PLAN FIELDS APPEAR ONLY FOR `strategic`, and the rule layer refuses
-// without them. That is not a form convenience: ADR-013's whole point is that
-// the cadence rule is the ONLY rule that can fire for an account with no open
-// deal, and it reads the plan. A strategic designation with no plan is a label
-// on a customer that changes which rules run - to none.
-//
-// CONTROLLED, NOT SELF-TRIGGERING (owner, 2026-09-20: 死死记住设计文件 -
-// mockup 原话: "定级: a BADGE the same visual weight as 健康评估's ring...
-// not a button - modifying it moved to the ··· menu (owner: 三个点操作可以
-// 来修改定级、编辑等等)... rather than each one being its own header
-// button"). This used to render its own header Button (a second, redundant
-// "定级 · 普通级" control beside the read-only medal DimensionStat that
-// already states the same fact) - that predates this exact mockup section
-// and contradicts it directly. account-header-menu.tsx is the one shared
-// "···" trigger now; this component is just the Drawer, opened/closed from
-// outside.
+// The existing designation drawer also edits operating information without a
+// tier change. Creation and association reuse the same domain fields and rule.
 
 export interface DesignateAccountProps {
   readonly accountId: string;
@@ -49,7 +35,7 @@ export interface DesignateAccountProps {
     };
   }) => Promise<{ ok: boolean; tier?: string; error?: string }>;
   /** The customer's newest plan in any status; null = none yet. */
-  readonly plan?: { readonly status: "active" | "closed"; readonly period: string; readonly closeReason: string | null } | null;
+  readonly plan?: AccountPlanDraft & { readonly status: "active" | "closed"; readonly closeReason: string | null } | null;
   readonly onClosePlan?: (accountId: string, reason: string | null) => Promise<{ ok: boolean; error?: string }>;
   readonly onReopenPlan?: (accountId: string) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -65,11 +51,9 @@ export function DesignateAccount({
   onClosePlan,
   onReopenPlan,
 }: DesignateAccountProps) {
-  const { ACCOUNT_ERROR, DS_LABELS, POSITION_TEXT } = useMessages();
-  const [next, setNext] = useState(tier);
-  const [target, setTarget] = useState("");
-  const [contact, setContact] = useState("30");
-  const [exec, setExec] = useState("90");
+  const { ACCOUNT_ERROR, DS_LABELS, POSITION_TEXT, ACCOUNT_OPERATING_TEXT } = useMessages();
+  const [next, setNext] = useState<AccountTier>(tier as AccountTier);
+  const [operating, setOperating] = useState(() => operatingValues(period, plan));
   const [closeReason, setCloseReason] = useState("");
   const [pending, start] = useTransition();
   const { toast } = useToast();
@@ -80,25 +64,12 @@ export function DesignateAccount({
     ["strategic", POSITION_TEXT.tierStrategic, POSITION_TEXT.tierStrategicDesc],
   ] as const;
 
-  const strategic = next === "strategic";
-  const c = Number(contact);
-  const e = Number(exec);
-  const ready =
-    !strategic ||
-    (Number.isInteger(c) &&
-      c > 0 &&
-      Number.isInteger(e) &&
-      e > 0 &&
-      period.trim() !== "");
-
   // Reset to the current fact every time the drawer opens, same as the old
   // openDrawer() did on click - just triggered by the controlling prop now.
   useEffect(() => {
     if (!open) return;
-    setNext(tier);
-    setTarget("");
-    setContact("30");
-    setExec("90");
+    setNext(tier as AccountTier);
+    setOperating(operatingValues(period, plan));
     setCloseReason("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -116,20 +87,12 @@ export function DesignateAccount({
 
   const submit = () =>
     start(async () => {
-      const r = await onDesignate({
-        accountId,
-        tier: next,
-        ...(strategic
-          ? {
-              plan: {
-                period,
-                targetAmount: target.trim() === "" ? null : Number(target),
-                contactCadenceDays: c,
-                execCadenceDays: e,
-              },
-            }
-          : {}),
-      });
+      const invalid = operatingError(next, operating);
+      if (invalid) {
+        toast({ tone: "danger", title: ACCOUNT_ERROR[invalid] ?? ACCOUNT_ERROR.denied });
+        return;
+      }
+      const r = await onDesignate({ accountId, tier: next, plan: operatingPlan(next, operating) });
       if (!r.ok) {
         toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error });
         return;
@@ -156,8 +119,8 @@ export function DesignateAccount({
           <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
             {DS_LABELS.confirmCancel}
           </Button>
-          <Button disabled={!ready || pending || next === tier} onClick={submit}>
-            {POSITION_TEXT.designateSubmit}
+          <Button disabled={pending} onClick={submit}>
+            {ACCOUNT_OPERATING_TEXT.save}
           </Button>
         </div>
       }
@@ -236,45 +199,7 @@ export function DesignateAccount({
             </div>
           </Field>
 
-          {strategic ? (
-            <>
-              <Field>
-                <FieldLabel>{POSITION_TEXT.planTarget}</FieldLabel>
-                <Input
-                  type="number"
-                  min="0"
-                  value={target}
-                  onChange={(ev) => setTarget(ev.target.value)}
-                  disabled={pending}
-                />
-              </Field>
-              <Field>
-                <FieldLabel>{POSITION_TEXT.cadenceContact}</FieldLabel>
-                <Input
-                  type="number"
-                  min="1"
-                  value={contact}
-                  onChange={(ev) => setContact(ev.target.value)}
-                  disabled={pending}
-                />
-              </Field>
-              <Field>
-                <FieldLabel>{POSITION_TEXT.cadenceExec}</FieldLabel>
-                <Input
-                  type="number"
-                  min="1"
-                  value={exec}
-                  onChange={(ev) => setExec(ev.target.value)}
-                  disabled={pending}
-                />
-              </Field>
-              {/* Said while they are choosing, not after they are refused. The
-                  rule will reject a plan-less strategic account either way;
-                  telling them first is the difference between a product that
-                  explains itself and one that argues. */}
-              <p className="text-muted-foreground text-body-small">{POSITION_TEXT.planRequired}</p>
-            </>
-          ) : null}
+          <AccountOperatingFields tier={next} values={operating} onChange={setOperating} disabled={pending} />
       </div>
     </Drawer>
   );

@@ -10,6 +10,7 @@ import {
   listCustomerSizes,
   listCustomerTypes,
   listIndustries,
+  listMarketDivisions,
 } from "../../../domains/account/service";
 import { listSegments } from "../../../domains/strategy/service";
 import { getStrategyStore } from "../../../domains/shared/registry";
@@ -23,7 +24,8 @@ import { createAccountAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewAccountPage() {
+export default async function NewAccountPage({ searchParams }: { searchParams: Promise<{ tier?: string }> }) {
+  const initialTier = (await searchParams).tier === "strategic" ? "strategic" : "standard";
   const { ACCOUNT_BASICS_TEXT, DOMAIN_LABEL } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -37,12 +39,13 @@ export default async function NewAccountPage() {
     entitlement: session.entitlement,
     store: session.stores.account(),
   };
-  const [industries, types, sizes, natures, segments] = await Promise.all([
+  const [industries, types, sizes, natures, segments, regions] = await Promise.all([
     listIndustries(ctx),
     listCustomerTypes(ctx),
     listCustomerSizes(ctx),
     listCustomerNatures(ctx),
     listSegments({ ...ctx, store: getStrategyStore() }),
+    listMarketDivisions(ctx),
   ]);
   const opts = <T extends { id: string; name: string }>(r: { ok: boolean; value?: readonly T[] }) =>
     r.ok && r.value ? r.value.map((x) => ({ id: x.id, name: x.name })) : [];
@@ -52,7 +55,9 @@ export default async function NewAccountPage() {
       <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={ACCOUNT_BASICS_TEXT.createCrumb} />
       <ViewHeader title={ACCOUNT_BASICS_TEXT.createTitle} description={ACCOUNT_BASICS_TEXT.createWhy} />
       <AccountCreateForm
+        initialTier={initialTier}
         vocab={{
+          regions: opts(regions),
           industries: opts(industries),
           customerTypes: opts(types),
           customerSizes: opts(sizes),
