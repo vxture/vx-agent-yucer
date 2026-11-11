@@ -192,7 +192,7 @@ export function DiagnosticsPanel({
 
       <Section
         id="platform-integration"
-        icon="plugs-connected"
+        icon="server"
         title={DIAGNOSTICS_TEXT.sectionPlatform}
         description={DIAGNOSTICS_TEXT.sectionPlatformHint}
       >

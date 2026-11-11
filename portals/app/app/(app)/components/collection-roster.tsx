@@ -18,7 +18,6 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import { DialogForm } from "./dialog-form";
-import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
@@ -349,7 +348,7 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
     <>
       <Section
         id="collections"
-        icon={moduleIcon("collection")}
+        icon="coins"
         title={DELIVERY_TEXT.rosterOpen}
         description={DELIVERY_TEXT.rosterOpenWhy}
         action={

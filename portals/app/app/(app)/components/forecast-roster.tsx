@@ -14,7 +14,6 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import { FORECAST_TONE } from "../lib/view-model";
-import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
@@ -257,7 +256,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
     <>
       <Section
         id="forecast-disputed"
-        icon={moduleIcon("forecastRule")}
+        icon="scales"
         title={FORECAST_RULE_TEXT.rosterDisputed}
         description={FORECAST_RULE_TEXT.rosterDisputedWhy}
       >

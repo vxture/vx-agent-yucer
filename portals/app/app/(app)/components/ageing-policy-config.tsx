@@ -290,7 +290,7 @@ export function AgeingPolicyConfig({
 
   return (
     <Section
-      icon="clock-counter-clockwise"
+      icon="timer"
       title={AGEING_TEXT.title}
       description={AGEING_TEXT.why}
       action={<Tag>{AGEING_TEXT.bandCount(cutoffs.length + 1)}</Tag>}
@@ -302,7 +302,7 @@ export function AgeingPolicyConfig({
           edge, so every stacked block on this page reads at the same level. */}
       <div className="gap-lg flex">
         <span className="invisible shrink-0" aria-hidden="true">
-          <Icon name="clock-counter-clockwise" size="lg" />
+          <Icon name="timer" size="lg" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-md">
           <Field>

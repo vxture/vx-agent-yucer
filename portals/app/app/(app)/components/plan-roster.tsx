@@ -11,7 +11,6 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import { nextPlanStatuses, type PlanStatus } from "../../domains/strategy/lib/lifecycle";
-import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   RowActions,
@@ -224,7 +223,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
     <>
       <Section
         id="plans"
-        icon={moduleIcon("strategy")}
+        icon="flag"
         title={STRATEGY_TEXT.rosterPlan}
         description={STRATEGY_TEXT.rosterPlanWhy}
         action={

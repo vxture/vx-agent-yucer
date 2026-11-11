@@ -12,7 +12,6 @@ import {
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
-import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   RowActions,
@@ -255,7 +254,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
     <>
       <Section
         id="segments"
-        icon={moduleIcon("segment")}
+        icon="target"
         title={STRATEGY_TEXT.rosterSegment}
         description={STRATEGY_TEXT.rosterSegmentWhy}
         action={

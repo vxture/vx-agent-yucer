@@ -17,7 +17,6 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import { formatMoney } from "../lib/view-model";
-import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
@@ -438,7 +437,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
     <>
       <Section
         id="delivery"
-        icon={moduleIcon("delivery")}
+        icon="package"
         title={DELIVERY_TEXT.rosterRunning}
         description={DELIVERY_TEXT.rosterRunningWhy}
       >

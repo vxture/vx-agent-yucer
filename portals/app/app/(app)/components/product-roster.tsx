@@ -385,7 +385,7 @@ export function ProductRoster({
 
   if (variant === "sort") {
     return (
-      <Section icon="stack" title={CATALOG_TEXT.sortTitle} description={CATALOG_TEXT.sortWhy}>
+      <Section icon="sort-ascending" title={CATALOG_TEXT.sortTitle} description={CATALOG_TEXT.sortWhy}>
         {table(live, canWrite ? arrowColumn : undefined)}
       </Section>
     );
