@@ -271,13 +271,12 @@ export function DomainLauncher({
       />
     );
 
-  // Shared DS rows keep the domain icon and label aligned with module rows.
-  // Domain names use the smaller, muted label role without a description.
+  // Keep domain titles aligned with module labels using the shared DS row inset.
+  // Domain names use a smaller, muted label without an icon or description.
   const domainHeading = (d: ResolvedDomain) => {
     const href = primaryHref(d);
     return (
       <ShellPanelRow
-        icon={d.icon}
         label={
           <span className="text-label-small">
             {DOMAIN_GROUP_LABEL[d.key] ?? d.key}
@@ -286,7 +285,7 @@ export function DomainLauncher({
         {...(href ? { href, linkComponent: Link, onClick: closePanel } : {})}
         active={d.key === here}
         chevron={false}
-        className="h-control-2xl text-muted-foreground [&_svg]:text-muted-foreground"
+        className="h-control-2xl text-muted-foreground"
       />
     );
   };
