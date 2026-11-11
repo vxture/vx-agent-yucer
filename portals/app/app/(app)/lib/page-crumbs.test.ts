@@ -25,8 +25,8 @@ const APP = join(import.meta.dirname, "..");
 /**
  * Nested routes that deliberately carry no crumb, with the reason.
  *
- * Empty, and that is the point of writing it down: the next entry has to
- * argue for itself in this file rather than being an omission nobody sees.
+ * Each entry has to argue for itself in this file rather than being an
+ * omission nobody sees.
  */
 const NO_CRUMB: Record<string, string> = {
   // owner 2026-09-28: the upgrade page STANDS IN for a first-level module
@@ -34,6 +34,8 @@ const NO_CRUMB: Record<string, string> = {
   // locked - and its headline names that module. There is no parent to name:
   // a crumb above it would point at a functional domain, which is not a page.
   "upgrade/[module]": "stands in for a first-level module page",
+  // Legacy bookmarks redirect to configuration without rendering a page.
+  "planning/territory/new": "redirects to /admin/division; renders no content",
 };
 
 /**
