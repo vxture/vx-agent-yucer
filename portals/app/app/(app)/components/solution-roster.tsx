@@ -22,7 +22,6 @@ import type {
   SolutionItemRecord,
   SolutionRecord,
 } from "../../domains/catalog/store";
-import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   RowActions,
@@ -333,12 +332,7 @@ export function SolutionRoster({
 
   return (
     <>
-      <Section
-        id="solutions"
-        icon={moduleIcon("solution")}
-        title={CATALOG_TEXT.rosterSolution}
-        description={CATALOG_TEXT.rosterSolutionWhy}
-      >
+      <div id="solutions" className="flex flex-col gap-lg">
         {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
             【新建方案】, one row for both rosters - the retired list says on
             its own heading that this control is narrowing it. The create
@@ -421,7 +415,7 @@ export function SolutionRoster({
             ))}
           </ListCardGrid>
         )}
-      </Section>
+      </div>
 
       {/* Holds its place while narrowed rather than vanishing under a keyword
           and taking its own explanation with it. */}
