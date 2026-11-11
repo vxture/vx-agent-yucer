@@ -472,7 +472,7 @@ export function NewSolutionForm({
                 {it.productId ? (
                   <div className="flex flex-col gap-xs max-w-(--vx-container-sm)">
                     <p className="text-body-small text-muted-foreground">{CATALOG_TEXT.solutionUnitPrices} / {currency}</p>
-                    <ProductPriceValues price={currentPrices[it.productId]} />
+                    <ProductPriceValues price={currentPrices[it.productId]} currency={currency} />
                   </div>
                 ) : null}
                 <Field>
@@ -489,7 +489,7 @@ export function NewSolutionForm({
                 <a href="/catalog" target="_blank" rel="noopener noreferrer">{CATALOG_TEXT.manageProductPrices}</a>
               </Button>}>
               <div className="max-w-(--vx-container-sm)" aria-live="polite">
-                <ProductPriceValues price={totals.prices} missing={totals.missing} />
+                <ProductPriceValues price={totals.prices} missing={totals.missing} currency={currency} />
               </div>
             </Section>
             <div className="flex flex-wrap items-center gap-md">

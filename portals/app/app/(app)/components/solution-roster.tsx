@@ -170,7 +170,7 @@ export function SolutionRoster({
       sortable: true,
       width: "md" as const,
       cell: (r: SolutionView) => (
-        <ProductPriceValues price={factsOf(r).prices} missing={factsOf(r).missing} />
+        <ProductPriceValues price={factsOf(r).prices} missing={factsOf(r).missing} currency={currency} />
       ),
     },
     {
@@ -394,7 +394,7 @@ export function SolutionRoster({
                     <CoveredTypes ids={factsOf(row).typeIds} names={typeName} />
                     <div className="flex flex-col gap-xs">
                       <span>{CATALOG_TEXT.solutionPrices} / {currency}</span>
-                      <ProductPriceValues price={factsOf(row).prices} missing={factsOf(row).missing} />
+                      <ProductPriceValues price={factsOf(row).prices} missing={factsOf(row).missing} currency={currency} />
                     </div>
                   </>
                 }

@@ -209,14 +209,6 @@ export function ProductRoster({
         <TableTitleCell title={r.name} description={r.productCode} tooltip={r.name} />
       ),
     },
-    ...(pricing ? [{
-      id: "list",
-      header: `${CATALOG_TEXT.productPrices} (${pricing.currency})`,
-      width: "md" as const,
-      sortable: true,
-      align: "money" as const,
-      cell: (row: ProductRecord) => <ProductPriceValues price={priceByProduct.get(row.id)} />,
-    }] : []),
     {
       id: "type",
       header: CATALOG_TEXT.colType,
@@ -232,6 +224,14 @@ export function ProductRoster({
          the fallback is for a partial read, not for a real state. */
       cell: (r: ProductRecord) => unitName.get(r.unitId) ?? "",
     },
+    ...(pricing ? [{
+      id: "list",
+      header: `${CATALOG_TEXT.productPrices} (${pricing.currency})`,
+      width: "md" as const,
+      sortable: true,
+      align: "money" as const,
+      cell: (row: ProductRecord) => <ProductPriceValues price={priceByProduct.get(row.id)} currency={pricing.currency} />,
+    }] : []),
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
@@ -472,7 +472,7 @@ export function ProductRoster({
                         {typeNameOf(row.typeId)}
                       </span>
                       <span>{unitName.get(row.unitId) ?? ""}</span>
-                      {pricing ? <ProductPriceValues price={priceByProduct.get(row.id)} /> : null}
+                      {pricing ? <ProductPriceValues price={priceByProduct.get(row.id)} currency={pricing.currency} /> : null}
                     </>
                   }
                 />
