@@ -256,7 +256,7 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
 /** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
 export const NAMED_ACCOUNT_TEXT = {
   create: "新建客户",
-  link: "关联已有客户",
+  link: "关联客户",
   linkTitle: "关联战略客户",
   linkWhy: "检索并选择已有客户，补齐经营信息后设为战略级。",
   search: "检索客户",
@@ -266,7 +266,7 @@ export const NAMED_ACCOUNT_TEXT = {
   change: "更换客户",
   select: "选择",
   included: "已纳入",
-  confirm: "设为战略客户",
+  confirm: "确认关联",
   linked: "已纳入战略客户",
   planLoadFailed: "经营信息加载失败，请重试",
   loading: "正在加载经营信息…",

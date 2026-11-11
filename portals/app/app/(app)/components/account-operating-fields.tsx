@@ -1,5 +1,6 @@
 "use client";
 
+import { FormFields } from "./form-page";
 import { useId } from "react";
 import { Checkbox, Field, FieldLabel, Input, NativeSelect } from "@vxture/design-ui";
 import type { AccountTier } from "../../domains/account/store";
@@ -36,14 +37,16 @@ export function AccountOperatingFields({ tier, values, onChange, onTierChange, d
   return (
     <div className="flex flex-col gap-md">
       {onTierChange ? (
-        <Field>
-          <FieldLabel htmlFor={`${id}-tier`}>{text.tier}</FieldLabel>
-          <NativeSelect id={`${id}-tier`} value={tier} disabled={disabled} onChange={(ev) => onTierChange(ev.target.value as AccountTier)}>
-            <option value="standard">{POSITION_TEXT.tierStandard}</option>
-            <option value="key">{POSITION_TEXT.tierKey}</option>
-            <option value="strategic">{POSITION_TEXT.tierStrategic}</option>
-          </NativeSelect>
-        </Field>
+        <FormFields>
+          <Field>
+            <FieldLabel htmlFor={`${id}-tier`}>{text.tier}</FieldLabel>
+            <NativeSelect id={`${id}-tier`} value={tier} disabled={disabled} onChange={(ev) => onTierChange(ev.target.value as AccountTier)}>
+              <option value="standard">{POSITION_TEXT.tierStandard}</option>
+              <option value="key">{POSITION_TEXT.tierKey}</option>
+              <option value="strategic">{POSITION_TEXT.tierStrategic}</option>
+            </NativeSelect>
+          </Field>
+        </FormFields>
       ) : null}
       <div className="flex flex-col gap-xs">
         <p className="text-label-medium font-medium">{text.title}</p>
@@ -56,12 +59,12 @@ export function AccountOperatingFields({ tier, values, onChange, onTierChange, d
         </div>
       ) : null}
       {strategic || values.enabled ? (
-        <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
+        <FormFields>
           {field("period", POSITION_TEXT.planPeriod, strategic)}
           {field("targetAmount", POSITION_TEXT.planTarget, strategic)}
           {field("contactCadenceDays", POSITION_TEXT.cadenceContact, strategic)}
           {field("execCadenceDays", POSITION_TEXT.cadenceExec, strategic)}
-        </div>
+        </FormFields>
       ) : null}
     </div>
   );

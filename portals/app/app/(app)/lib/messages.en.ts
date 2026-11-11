@@ -351,7 +351,7 @@ export const en: Dictionary = {
   },
   NAMED_ACCOUNT_TEXT: {
     create: "New account",
-    link: "Link existing account",
+    link: "Link account",
     linkTitle: "Link strategic account",
     linkWhy: "Find an existing account and complete its operating information to designate it strategic.",
     search: "Find account",
@@ -361,7 +361,7 @@ export const en: Dictionary = {
     change: "Choose another account",
     select: "Select",
     included: "Already included",
-    confirm: "Make strategic",
+    confirm: "Confirm link",
     linked: "Added to strategic accounts",
     planLoadFailed: "Could not load operating information. Please retry.",
     loading: "Loading operating information...",

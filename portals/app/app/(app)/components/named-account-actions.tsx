@@ -86,15 +86,10 @@ export function NamedAccountActions({ accounts }: { readonly accounts: readonly 
   return (
     <>
       <div className="flex flex-wrap items-center gap-sm">
-        <Button asChild size="xl"><a href="/account/new?tier=strategic" target="_blank" rel="noopener noreferrer">{text.create}</a></Button>
-        <Button variant="secondary" size="xl" onClick={() => { setQuery(""); setPicked(null); pagination.resetPage(); setOpen(true); }}>{text.link}</Button>
+        <Button size="xl" onClick={() => { setQuery(""); setPicked(null); pagination.resetPage(); setOpen(true); }}>{text.link}</Button>
+        <Button asChild variant="secondary" size="xl"><a href="/account/new?tier=strategic" target="_blank" rel="noopener noreferrer">{text.create}</a></Button>
       </div>
-      <Drawer open={open} onClose={() => { if (!pending) setOpen(false); }} width="lg" title={text.linkTitle} description={text.linkWhy} closeLabel={DS_LABELS.confirmCancel}
-        footer={<div className="flex items-center justify-end gap-sm">
-          <Button variant="secondary" disabled={pending} onClick={() => setOpen(false)}>{DS_LABELS.confirmCancel}</Button>
-          <Button disabled={!selected || selected.tier === "strategic" || pending || loading || loadError || loadedId !== picked} onClick={submit}>{text.confirm}</Button>
-        </div>}
-      >
+      <Drawer open={open} onClose={() => { if (!pending) setOpen(false); }} width="md" title={text.linkTitle} description={text.linkWhy} closeLabel={DS_LABELS.confirmCancel}>
         <div className="flex flex-col gap-lg">
           {!selected ? <>
           <Field>
@@ -104,10 +99,8 @@ export function NamedAccountActions({ accounts }: { readonly accounts: readonly 
           <DataTable leadingSpacer indexStart={pagination.indexStart} rows={pagination.pageRows} rowKey={(a) => a.id} labels={DATA_TABLE_LABELS} empty={text.noMatches}
             rowActions={(a: NamedCandidate) => a.tier === "strategic" ? <span className="text-body-small text-muted-foreground">{text.included}</span> : <Button size="md" variant="secondary" disabled={pending} onClick={() => setPicked(a.id)}>{text.select}</Button>}
             columns={[
-              { id: "name", header: text.customer, cell: (a: NamedCandidate) => <TableTitleCell title={<Link href={`/account/${a.id}`} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-primary">{a.name}</Link>} description={a.accountNo} /> },
+              { id: "name", header: text.customer, cell: (a: NamedCandidate) => <TableTitleCell title={<Link href={`/account/${a.id}`} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-primary">{a.name}</Link>} description={<>{a.accountNo} / <MemberName sub={a.ownerSub} /></>} /> },
               { id: "tier", header: POSITION_TEXT.designate, cell: (a: NamedCandidate) => <Tag>{a.levelName ?? tierName(a.tier)}</Tag> },
-              { id: "owner", header: text.owner, cell: (a: NamedCandidate) => <MemberName sub={a.ownerSub} /> },
-
             ]}
           />
           <PaginationFooter pagination={pagination} total={accounts.length} filteredTotal={q ? filtered.length : undefined} />
@@ -118,6 +111,11 @@ export function NamedAccountActions({ accounts }: { readonly accounts: readonly 
             </div>
             <Separator />
             {loading ? <p className="text-body-small text-muted-foreground" role="status">{text.loading}</p> : loadError ? <div className="flex items-center gap-sm"><p role="alert">{text.planLoadFailed}</p><Button variant="secondary" onClick={() => setRetry((v) => v + 1)}>{text.retry}</Button></div> : loadedId === picked ? <AccountOperatingFields tier="strategic" values={operating} onChange={setOperating} disabled={pending} /> : null}
+            {loadedId === picked && !loading && !loadError ? (
+              <div className="flex justify-end">
+                <Button disabled={pending} onClick={submit}>{text.confirm}</Button>
+              </div>
+            ) : null}
           </>}
         </div>
       </Drawer>
