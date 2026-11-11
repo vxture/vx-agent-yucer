@@ -416,6 +416,7 @@ test("the domain is found from a HOME path, not only from a module route", () =>
   // segment, which is "domain" on /domain/position - so the module strip
   // vanished on exactly the page that IS the domain.
   assert.equal(activeDomainFromPath("/account"), "position");
+  assert.equal(activeDomainFromPath("/attainment"), "deployment");
   assert.equal(activeDomainFromPath("/domain/position"), "position");
   assert.equal(activeDomainFromPath("/domain/armory"), "armory");
   // Every domain has a home now; a key that is not a domain still has none.

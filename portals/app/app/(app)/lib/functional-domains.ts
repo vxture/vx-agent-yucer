@@ -139,6 +139,8 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       built("namedAccount"),
       built("planning"),
       // Forecast review is an internal view of attainment, not a second module.
+      // Targets, commitments and forecast review share the deployment workflow.
+      built("attainment"),
     ],
   },
   {
@@ -163,12 +165,6 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     key: "position",
     icon: "flag",
     modules: [
-      // FIRST, and the order is the ruling (owner, 2026-08-31): the objective
-      // comes before the ground. What the quarter promised and how much of it
-      // has landed is what a person is being measured on; accounts and deals
-      // are how it gets done. A menu that opened with the inventory and buried
-      // the objective had the sales motion backwards.
-      built("attainment"),
       built("account"),
       built("pipeline"),
       built("quote"),

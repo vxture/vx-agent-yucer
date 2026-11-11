@@ -76,8 +76,9 @@ test("pricing operations live under the unified catalog and retain their own per
 
 test("forecast operations belong to attainment and retain their existing permissions", () => {
   const tree = buildPermissionTree();
-  const position = tree.find((group) => group.name === "position")!;
-  const attainment = position.children.find((module) => module.name === "attainment")!;
+  const deployment = tree.find((group) => group.name === "deployment")!;
+  const attainment = deployment.children.find((module) => module.name === "attainment")!;
+  assert.ok(attainment.children.some((page) => page.name === "planning.attainment"));
   const forecast = attainment.children.find((page) => page.name === "pipeline.forecast")!;
   assert.ok(forecast.children.length > 0);
   for (const action of forecast.children) assert.equal(action.permission, ACTIONS[action.action!].permission);
