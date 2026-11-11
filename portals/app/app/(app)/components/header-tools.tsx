@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ComponentProps } from "react";
 
 import { ShellHeaderTools } from "@vxture/design-system";
 import { Badge } from "@vxture/design-ui";
@@ -10,6 +11,12 @@ import styles from "./header-controls.module.css";
 
 /** The platform documentation site (owner decision, 2026-08-30). */
 const HELP_URL = "https://docs.vxture.com";
+
+// ShellHeaderTools does not yet expose newTab for settings; adapt its link slot.
+function HeaderToolLink(props: ComponentProps<typeof Link>) {
+  const settings = props.href === "/admin";
+  return <Link {...props} {...(settings ? { target: "_blank", rel: "noopener noreferrer" } : {})} />;
+}
 
 /**
  * The shell body's id. It used to be what the header's fullscreen toggle
@@ -60,7 +67,7 @@ export function HeaderTools({
       /* 32px controls, 16px glyphs and 4px internal gaps (TD-037). */
       className={`${TOOLBOX_ON_LADDER} ${styles.tools}`}
       label={HEADER_TEXT.toolsAria}
-      linkComponent={Link}
+      linkComponent={HeaderToolLink}
       help={{ label: HEADER_TEXT.help, href: HELP_URL }}
       notifications={{
         label: notifications > 0 ? HEADER_TEXT.notificationsWithCount(notifications) : HEADER_TEXT.notifications,

@@ -13,7 +13,7 @@ import {
   getPlanningStore,
   getSignalStore,
 } from "../../domains/shared/registry";
-import { applyStartupPreset } from "./startup-preset";
+import { applyStartupPreset, ensureSalesTerritories } from "./startup-preset";
 import { getAuthzStore } from "../../authz/store";
 import type { DataScope } from "../../authz/scope";
 import {
@@ -84,46 +84,22 @@ export interface AppSession {
 }
 
 /**
- * 新租户预置：总部 + 5 分区 (owner, 2026-09-12: 任何新开通业务的租户有这个
- * 演示数据). REAL WORKSPACES ONLY - the identical orchestration
- * `applyStartupTemplateAction` already runs from a manual "应用模版" button
- * (`admin/org/actions.ts`), just triggered here automatically instead, the
- * first time a real person opens the app in a workspace that has never had
- * any org structure at all.
- *
- * NO MEMBER, ACCOUNT OR OPPORTUNITY ROWS - deliberately. `member` is a real
- * login identity (a `sub`), and `tenant.provisioned` carries none (no person
- * event exists on that webhook at all); seeding people nobody can log in as
- * would be worse than seeding nothing. `Opportunity.ownerSub` is NOT NULL
- * (incr/0034) so opportunities are blocked by the same absence. Both wait on
- * a "placeholder member" feature that does not exist yet.
- *
- * THE GUARD IS THE SAME EMPTY-CHECK `ensureOrgSeeded`/`seedOrgDefaults`
- * (`domains/planning/service.ts`) ALREADY USES for its own default-template
- * lazy seed - `org_unit_kind` count for the workspace. `resolveAppSession`
- * is the one function every real page calls before any page-specific domain
- * read, so this always resolves before a page's own `ensureOrgSeeded` could
- * possibly fire in the same request and seed the STATIC 7-region default
- * instead of this 5-region one.
- *
- * PERMISSION-GATED LIKE THE MANUAL BUTTON IS, ON PURPOSE - `applyOrgTemplate`/
- * `importDivisionTemplate`/`upsertTerritory`/`setUnitDivisions` all check
- * `admin.org.upsert`/`planning.territory.upsert` internally, same as a real
- * admin clicking "应用模版" would need. The common case (the workspace OWNER
- * is virtually always the first real login) already holds every permission
- * (`OWNER_BOOTSTRAP_ROLE = sales_leader`, 25/25 grants) the moment
- * `resolveAuthzContext` runs above, a few lines up. The rare case - someone
- * else logs in first - fails the gate silently and the empty-check simply
- * tries again on the next real login, which is the same self-healing shape
- * every other lazy seed in this file already has; forking an ungated path
- * just for this one caller was not worth carrying two versions of the same
- * orchestration.
+ * A new real workspace gets the shared organization/market/territory preset.
+ * Existing workspaces keep their organization and current market carve. If
+ * an earlier partial initialization left their automatic territory roster
+ * incomplete, repair only that roster through the gated domain services.
+ * Never reapply the destructive org template to an existing organization.
+ * Custom rosters and retired territories are not repaired automatically.
+ * The development/demo branch below bypasses this real-workspace initializer.
  */
 async function ensureStartupPreset(workspaceId: string, sub: string, authz: AuthzContext, entitlement: Entitlement) {
   const planningStore = getPlanningStore();
-  if ((await planningStore.listOrgKinds(workspaceId)).length > 0) return;
   const planningCtx = { workspaceId, sub, holder: authz, entitlement, store: planningStore };
   const accountCtx = { workspaceId, sub, holder: authz, entitlement, store: getAccountStore() };
+  if ((await planningStore.listOrgKinds(workspaceId)).length > 0) {
+    await ensureSalesTerritories(planningCtx, accountCtx);
+    return;
+  }
   await applyStartupPreset(planningCtx, accountCtx, {
     orgKey: "national_medium",
     divisionKey: DEFAULT_DIVISION_CARVE_KEY,

@@ -1,12 +1,53 @@
 import {
   applyOrgTemplate,
   listOrgUnits,
+  listTerritories,
+  listUnitDivisionLinks,
   setUnitDivisions,
   retireOrphanedAutoTerritories,
   upsertTerritory,
   type PlanningContext,
 } from "../../domains/planning/service";
 import { importDivisionTemplate, listCarves, listMarketDivisions, type AccountContext } from "../../domains/account/service";
+import { can } from "../../authz/decide";
+
+/** Complete a missing automatic roster from the current carve, without reapplying an org template. */
+export async function ensureSalesTerritories(
+  planningCtx: PlanningContext,
+  accountCtx: AccountContext,
+): Promise<void> {
+  if (!can(planningCtx.holder, planningCtx.entitlement, "planning.territory.upsert", "data").allowed) return;
+  const existing = await listTerritories(planningCtx, { includeRetired: true });
+  if (!existing.ok) return;
+  // Custom rosters and deliberate retirements belong to the administrator.
+  if (existing.value.some((t) => !t.territoryCode.startsWith("AUTO-") || t.status !== "active")) return;
+  const divisions = await listMarketDivisions(accountCtx);
+  if (!divisions.ok) return;
+  const codes = new Set(existing.value.map((t) => t.territoryCode));
+  const covered = new Set(existing.value.flatMap((t) => [...t.divisionIds]));
+  const missing = divisions.value.filter((d) => !codes.has(`AUTO-${d.code}`) && !covered.has(d.id));
+  if (missing.length === 0) return;
+  const [units, links] = await Promise.all([
+    listOrgUnits(planningCtx),
+    listUnitDivisionLinks(planningCtx),
+  ]);
+  const knownDivisionIds = new Set(divisions.value.map((d) => d.id));
+  for (const d of missing) {
+    const linked = links.ok ? links.value.find((link) => link.id === d.id)?.unitIds : undefined;
+    const unitIds = linked?.length
+      ? linked
+      : units.ok ? units.value.filter((u) => u.name.includes(d.name)).map((u) => u.id) : [];
+    await upsertTerritory(planningCtx, {
+      territoryCode: `AUTO-${d.code}`,
+      name: d.name,
+      parentId: null,
+      ownerSub: null,
+      status: "active",
+      divisionIds: [d.id],
+      unitIds,
+    }, knownDivisionIds);
+  }
+}
 
 /**
  * 应用模版 - the whole 组织架构 + 区域设置 + 销售区域 orchestration, pulled out
