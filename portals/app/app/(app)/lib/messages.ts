@@ -877,8 +877,6 @@ export const ASSIST_TEXT = {
   regionKnown: (v: string) => `客户里有的地区：${v}`,
   criteriaWhy: "细分是对真实市场的切分——条件用客户实际携带的值，切出来的才不是空集。",
   // 部署域（#185 批次）
-  uncoveredRegion: (region: string, n: number) => `${region} 有 ${n} 家客户，尚无区域覆盖`,
-  uncoveredRegionWhy: "线索按区域路由（先区域后负载）。没有区域覆盖的地面，每一条线索都无处可派。",
   metricUnset: (label: string) => `本期还没有「${label}」的全工作区目标`,
   metricUnsetWhy: "没有目标的口径，承诺达成页无从判断——分母缺席。",
   territoryUnset: (name: string) => `${name} 本期还没有任何目标`,
@@ -6067,41 +6065,21 @@ export const PLANNING_TEXT = {
   // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
     "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",
-  // 表单页读的那句。「代码是身份」讲的是这张表单的行为，名册页上没有表单，
-  // 却跟着显示了这句话，是页面拆分时留下的。
-  territoryFormWhy:
-    "区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。先选覆盖的大区，路由才认得它。",
   territoryNone: "还没有销售区域",
-  territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
+  territoryNoneWhy: "到「配置管理 → 区域设置」新建区域或应用模板。",
   // 两个入口同处一页（区域名册 + 指标表），所以各自说清楚建的是什么。
   territoryNewEntry: "新建区域",
-  territoryEdit: "编辑区域",
-  territoryEditDenied: "你没有编辑销售区域的权限",
   targetNew: "新建目标",
-  territoryFormTitle: "新建 / 编辑销售区域",
-  territoryEditing: "编辑已有区域",
-  territoryNew: "新建一个区域",
   territoryRegions: "覆盖大区",
-  territoryRegionsHint: "勾选这个区域负责的大区。一个大区可以由多个区域共同负责；不勾选任何一个，路由就当它谁也不覆盖。",
-  territoryRegionsNone: "这个工作区还没有大区。先去「新建大区」建一个，或引用一套预置划分。",
-  territoryRegionGone: "已不在当前划分中",
   // 所属单位（incr/0052）：一个区域可挂多个单位。
   territoryUnits: "所属单位",
-  territoryUnitsHint: "勾选负责这块区域的单位。一个区域可以由多个单位共同负责；不勾选，就只是一块没人负责的地。",
-  territoryUnitsNone: "还没有单位。先到组织架构里建单位。",
   territoryNoUnit: "未挂单位",
-  territoryCode: "区域代码",
   territoryName: "名称",
   territoryParent: "上级区域",
-  territoryNoParent: "顶级区域",
   territoryOwner: "负责人",
   territoryNoOwner: "未指派",
   territoryStatus: "状态",
-  territoryActive: "在用",
   territoryRetired: "已停用",
-  territorySave: "保存区域",
-  territorySaved: "已保存",
-  territoryDenied: "你没有维护销售区域的权限",
   setAmount: "目标金额",
   setCount: "目标客户数",
   // The unit a count target is measured in. Money gets a currency symbol from
