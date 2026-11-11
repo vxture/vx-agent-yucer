@@ -59,7 +59,7 @@ export function DealMeetingButton({
 
   return (
     <>
-      <Button size="md" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="xl" variant="outline" onClick={() => setOpen(true)}>
         {T.open}
       </Button>
       <Drawer
@@ -72,11 +72,11 @@ export function DealMeetingButton({
         footer={
           <div className="gap-sm flex items-center justify-end">
             {result ? (
-              <Button variant="secondary" onClick={() => setResult(null)}>
+              <Button size="xl" variant="secondary" onClick={() => setResult(null)}>
                 {T.repick}
               </Button>
             ) : (
-              <Button disabled={pending || chosen.size === 0} onClick={build}>
+              <Button size="xl" disabled={pending || chosen.size === 0} onClick={build}>
                 {pending ? T.building : T.build}
               </Button>
             )}
@@ -94,7 +94,7 @@ export function DealMeetingButton({
                   <span className="text-muted-foreground">
                     {result.pack.goal.from === "current" ? T.goalCurrent(result.pack.goal.stage) : T.goalNext(result.pack.goal.stage)}
                   </span>{" "}
-                  <Link href={`/pipeline/${opportunityId}#progress`} className="text-primary hover:underline">
+                  <Link href={`/pipeline/${opportunityId}#progress`} className="text-primary no-underline transition-colors hover:text-primary-text">
                     {T.goalLink}
                   </Link>
                 </p>
@@ -106,7 +106,7 @@ export function DealMeetingButton({
               <SectionHeader level={3} title={T.attendees} />
               {result.pack.attendees.map((a) => (
                 <div key={a.contactId}>
-                  <Link href={`/pipeline/${opportunityId}#buying-roles-panel`} className="text-foreground font-medium hover:underline">
+                  <Link href={`/pipeline/${opportunityId}#buying-roles-panel`} className="text-foreground font-medium no-underline transition-colors hover:text-primary-text">
                     {a.name}
                   </Link>
                   {a.title ? <span className="text-muted-foreground"> · {a.title}</span> : null}

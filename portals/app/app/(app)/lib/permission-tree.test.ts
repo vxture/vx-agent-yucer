@@ -74,6 +74,17 @@ test("pricing operations live under the unified catalog and retain their own per
   }
 });
 
+test("forecast operations belong to attainment and retain their existing permissions", () => {
+  const tree = buildPermissionTree();
+  const deployment = tree.find((group) => group.name === "deployment")!;
+  const attainment = deployment.children.find((module) => module.name === "attainment")!;
+  assert.ok(attainment.children.some((page) => page.name === "planning.attainment"));
+  const forecast = attainment.children.find((page) => page.name === "pipeline.forecast")!;
+  assert.ok(forecast.children.length > 0);
+  for (const action of forecast.children) assert.equal(action.permission, ACTIONS[action.action!].permission);
+  assert.equal(tree.flatMap((group) => group.children).some((module) => module.name === "forecastRule"), false);
+});
+
 test("GROUP_MODULES agrees with FUNCTIONAL_DOMAINS - every nav module sits under the business group the nav lists it in", () => {
   /* The second tier used to be the ACTIONS catalogue's own nine domains,
      cross-checked against the nav; it IS the nav's 20 modules now

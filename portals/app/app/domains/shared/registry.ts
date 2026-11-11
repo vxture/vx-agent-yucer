@@ -179,6 +179,12 @@ export function getPlanningStore(): PlanningStore {
          be built in either order. */
       : new InMemoryPlanningStore({
           divisions: (ws) => getAccountStore().listMarketDivisions(ws).then((rows) => rows.map((d) => ({ id: d.id, name: d.name }))),
+          published: async (ws, scope) => {
+            const rows = await getPipelineStore().listForecastSnapshots(ws, { period: scope.period, scopeType: scope.scopeType });
+            const latest = rows.filter((row) => row.territoryId === scope.territoryId && row.ownerSub === scope.ownerSub)
+              .sort((a, b) => b.snapshotAt.getTime() - a.snapshotAt.getTime())[0];
+            return latest ? { closedAmount: latest.closedAmount, pipelineAmount: latest.pipelineAmount, newLogoCount: latest.newLogoCount } : null;
+          },
         });
   }
   return memo.planning as PlanningStore;

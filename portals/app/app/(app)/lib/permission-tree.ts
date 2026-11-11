@@ -19,11 +19,9 @@ import type { PermCode } from "../../authz/catalog";
  * longer be derived, is REGROUP: which new 模块 (and which 业务) each
  * `(domain, page)` pair now lands under - segment used to be a page of the
  * `strategy` capability partition and is now its own module in 战略武备域;
- * planning/attainment crosses all the way from `planning`'s own domain
- * (作战部署域) into 阵地经营域, because that is where 承诺达成 sits in the
- * nav (the objective is read as part of the ground it is fought over, not
- * as part of how it was set). A domain/page pair not in REGROUP is a build
- * error, not a silently-dropped row - the same contract the old
+ * planning/attainment and pipeline/forecast share the attainment module in
+ * deployment, following the target-to-forecast workflow. A domain/page pair
+ * not in REGROUP is a build error, not a silently-dropped row - the old
  * ACTION_DOMAIN_GROUP carried.
  *
  * EVERY MODULE HOLDS AT LEAST ONE PAGE (owner, 2026-09-11: 合成占位页面，
@@ -83,9 +81,9 @@ export const GROUP_ORDER: readonly string[] = [
  *  not filed under any of the five). */
 export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   armory: ["strategy", "segment", "solution", "catalog"],
-  deployment: ["namedAccount", "planning", "forecastRule"],
+  deployment: ["namedAccount", "planning", "attainment"],
   recon: ["campaign", "signal", "lead", "funnel"],
-  position: ["attainment", "account", "pipeline", "quote", "winLossReview"],
+  position: ["account", "pipeline", "quote", "winLossReview"],
   settlement: ["delivery", "collection", "renewal", "contract"],
   copilot: ["copilot"],
   admin: ["admin"],
@@ -103,7 +101,7 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
  *  anything of its own; they render here as an honest, permanently-empty
  *  pair rather than as something still being built toward). */
 export const PLACEHOLDER_MODULES: ReadonlySet<string> = new Set([
-  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "home", "national", "enablement", "strategyDiag",
+  "namedAccount", "funnel", "quote", "renewal", "home", "national", "enablement", "strategyDiag",
 ]);
 
 /** `(domain, page)` -> the 业务/模块/页面 it now renders under. Page "" is
@@ -123,10 +121,8 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
 
   "planning/territory": { group: "deployment", module: "planning", page: "planning.territory" },
   "planning/target": { group: "deployment", module: "planning", page: "planning.target" },
-  // Crosses out of planning's own domain into 阵地经营域 - 承诺达成 reads as
-  // the outcome check on the ground, not as part of how the target was set
-  // (see FUNCTIONAL_DOMAINS' own "objective before the ground" ruling).
-  "planning/attainment": { group: "position", module: "attainment", page: "planning.attainment" },
+  // Target progress and forecast review sit together after sales planning.
+  "planning/attainment": { group: "deployment", module: "attainment", page: "planning.attainment" },
 
   "campaign/": { group: "recon", module: "campaign", page: "campaign.base" },
   "campaign/execution": { group: "recon", module: "campaign", page: "campaign.execution" },
@@ -151,7 +147,7 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   // 阶段退出核验 (incr/0087) is read on the deal page.
   "pipeline/exitcheck": { group: "position", module: "pipeline", page: "pipeline.opportunity" },
   "pipeline/discount": { group: "position", module: "pipeline", page: "pipeline.discount" },
-  "pipeline/forecast": { group: "position", module: "pipeline", page: "pipeline.forecast" },
+  "pipeline/forecast": { group: "deployment", module: "attainment", page: "pipeline.forecast" },
   "pipeline/winloss": { group: "position", module: "winLossReview", page: "pipeline.winloss" },
   // incr/0057-0059: the stage catalog is pipeline configuration, same module
   // as pipeline.opportunity/pipeline.discount/pipeline.forecast - not its own

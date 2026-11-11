@@ -82,3 +82,36 @@ test("an override wins, and clearing it restores the default", () => {
   }
   for (const [, , set] of FACTORIES) set(null);
 });
+
+test("memory planning reads the latest submitted D6 snapshot for the exact workspace and scope", async () => {
+  const saved = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  setPlanningStore(null);
+  const pipeline = new InMemoryPipelineStore();
+  setPipelineStore(pipeline);
+  try {
+    const planning = getPlanningStore();
+    const scope = { period: "2026Q4", scopeType: "workspace", territoryId: null, ownerSub: null, metric: "revenue" } as const;
+    assert.equal(await planning.publishedTotalsFor("ws", scope), null);
+    const row = (at: string, closed: number, extra = {}) => ({
+      ...scope, ...extra, currency: "CNY", snapshotAt: new Date(at), submittedBySub: "manager",
+      commitAmount: { amount: 50, currency: "CNY" }, bestCaseAmount: { amount: 20, currency: "CNY" },
+      pipelineAmount: { amount: 10, currency: "CNY" }, closedAmount: { amount: closed, currency: "CNY" },
+      newLogoCount: 2, callAmount: null, callNote: null,
+    });
+    await pipeline.appendForecastSnapshot("ws", row("2026-11-02", 200));
+    await pipeline.appendForecastSnapshot("ws", row("2026-11-01", 100));
+    await pipeline.appendForecastSnapshot("other", row("2026-11-03", 999));
+    await pipeline.appendForecastSnapshot("ws", row("2026-11-03", 300, { scopeType: "owner", ownerSub: "rep" }));
+    await pipeline.appendForecastSnapshot("ws", row("2026-11-04", 400, { period: "2026Q3" }));
+    assert.equal((await planning.publishedTotalsFor("ws", scope))?.closedAmount.amount, 200);
+    assert.equal((await planning.publishedTotalsFor("ws", { ...scope, scopeType: "owner", ownerSub: "rep" }))?.closedAmount.amount, 300);
+    assert.equal(await planning.publishedTotalsFor("ws", { ...scope, scopeType: "territory", territoryId: "east" }), null);
+    await pipeline.appendForecastSnapshot("ws", row("2026-11-05", 500));
+    assert.equal((await planning.publishedTotalsFor("ws", scope))?.closedAmount.amount, 500);
+  } finally {
+    if (saved !== undefined) process.env.DATABASE_URL = saved;
+    setPlanningStore(null);
+    setPipelineStore(null);
+  }
+});

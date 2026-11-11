@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ROW_EDGE, ROW_TEXT, SOURCE_CHIP, TONED_ROW } from "./deal-tone";
 import { getMessages } from "../lib/i18n/server";
 import type { CheckDetail, StageCheck } from "../../domains/pipeline/lib/exit-criteria";
@@ -11,8 +12,10 @@ const REASON_SLOTS = new Set(["pain", "metrics", "status_quo"]);
 export async function ExitChecks({
   check,
   filledSlots,
+  hrefPrefix = "",
 }: {
   readonly check: StageCheck;
+  readonly hrefPrefix?: string;
   /** Which slots are written - a met slot criterion says so, an unmet one points at its panel. */
   readonly filledSlots: ReadonlySet<string>;
 }) {
@@ -72,9 +75,9 @@ export async function ExitChecks({
             <span className="flex min-w-0 flex-col">
               <span className="text-foreground truncate">{c.criterion.name}</span>
               {w.href ? (
-                <a href={w.href} className="text-primary truncate text-[11px] hover:underline">
+                <Link href={`${hrefPrefix}${w.href}`} className="text-primary truncate text-[11px] no-underline transition-colors hover:text-primary-text focus-visible:ring-2 focus-visible:ring-ring">
                   {w.text}
-                </a>
+                </Link>
               ) : (
                 <span className="text-muted-foreground truncate text-[11px]">{w.text}</span>
               )}

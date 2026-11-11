@@ -23,6 +23,7 @@ export function ModuleHeadline({
   description,
   tags,
   action,
+  className,
 }: {
   /** The nav entry this page IS. Its icon and its NAME both come from the
    * registries - a page that spelled its own name drifted from the menu the
@@ -37,10 +38,12 @@ export function ModuleHeadline({
   readonly tags?: ReactNode;
   /** The one button this page's header may carry. */
   readonly action?: ReactNode;
+  readonly className?: string;
 }) {
   const { DOMAIN_LABEL, PAGE_BRIEF } = useMessages();
   return (
     <ViewHeader
+      className={className}
       icon={moduleIcon(moduleKey)}
       title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
       description={description ?? PAGE_BRIEF[brief ?? moduleKey] ?? ""}

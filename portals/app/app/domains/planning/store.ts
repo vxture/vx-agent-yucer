@@ -178,7 +178,11 @@ export class InMemoryPlanningStore implements PlanningStore {
    * they are, which is the pre-0052 behaviour and what the old fixtures
    * still speak.
    */
-  constructor(private readonly opts: { readonly divisions?: (workspaceId: string) => Promise<readonly DivisionName[]> } = {}) {}
+  constructor(private readonly opts: {
+    readonly divisions?: (workspaceId: string) => Promise<readonly DivisionName[]>;
+    /** Read D6's latest submitted snapshot, as the database adapter does. */
+    readonly published?: (workspaceId: string, scope: TargetScope) => Promise<PublishedTotals | null>;
+  } = {}) {}
 
   private orgKinds: OrgKindRecord[] = [];
   private orgUnits: OrgUnitRecord[] = [];
@@ -476,6 +480,8 @@ export class InMemoryPlanningStore implements PlanningStore {
   }
 
   async publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null> {
+    const latest = await this.opts.published?.(workspaceId, scope);
+    if (latest) return latest;
     return (
       this.published.get(
         [workspaceId, scope.period, scope.scopeType, scope.territoryId ?? "", scope.ownerSub ?? ""].join("|"),

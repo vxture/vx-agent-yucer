@@ -416,6 +416,7 @@ test("the domain is found from a HOME path, not only from a module route", () =>
   // segment, which is "domain" on /domain/position - so the module strip
   // vanished on exactly the page that IS the domain.
   assert.equal(activeDomainFromPath("/account"), "position");
+  assert.equal(activeDomainFromPath("/attainment"), "deployment");
   assert.equal(activeDomainFromPath("/domain/position"), "position");
   assert.equal(activeDomainFromPath("/domain/armory"), "armory");
   // Every domain has a home now; a key that is not a domain still has none.
@@ -507,9 +508,10 @@ test("the tier named is the LOWEST that unlocks the module, not the current one"
   // to buy what they have.
   const byKey = new Map(builtModules("free").map((m) => [m.key, m]));
 
-  const forecast = byKey.get("forecastRule");
+  assert.equal(byKey.has("forecastRule"), false, "forecast review belongs inside attainment");
+  const forecast = lockedNav("free").find((entry) => entry.key === "forecastRule");
   assert.equal(forecast?.state, "locked", "pipeline.forecast is not a free-tier feature");
-  assert.equal(forecast?.requiredTier, "pro");
+  assert.equal(forecast?.decision.requiredTier, "pro");
 
   // And a module the free tier already has names nothing to buy.
   assert.equal(byKey.get("account")?.state, "visible");

@@ -73,5 +73,6 @@ export async function submitForecastSnapshot(
   // page renders.
   revalidatePath("/pipeline");
   revalidatePath("/forecast");
+  revalidatePath("/attainment");
   return { ok: true, period: result.value.period };
 }

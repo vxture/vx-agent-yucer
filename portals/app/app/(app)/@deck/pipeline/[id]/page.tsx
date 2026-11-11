@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getCopilotStore } from "../../../../domains/shared/registry";
 import { getOpportunityDetail } from "../../../../domains/pipeline/service";
 import { listProposals } from "../../../../domains/copilot/service";
@@ -11,8 +10,6 @@ import { proposalGroup } from "../../../lib/proposal-group";
 import { resolveAppSession } from "../../../lib/session";
 import { AgentPanel } from "../../../components/agent-panel";
 import { DealAdvisor } from "../../../components/deal-advisor";
-import { DealMeetingButton } from "../../../components/deal-meeting";
-import { buildDealMeetingPackAction } from "../../../pipeline/meeting-pack-action";
 import { DealSituation } from "../../../components/deal-situation";
 import { briefDealSituation } from "../../../pipeline/deal-situation-action";
 import { citedNotes, peekSituation, situationFrameFor } from "../../../pipeline/deal-situation-data";
@@ -21,7 +18,6 @@ import { NEXT_ACTION_CAPABILITY } from "../../../../domains/copilot/lib/next-act
 import { NextActionTrigger } from "../../../components/next-action-trigger";
 import { proposeNextAction } from "../../../pipeline/next-action-action";
 import { nextActionDue, nextActionFrameFor } from "../../../pipeline/next-action-data";
-import { decisionChainsByOpportunity, getAccountDetail } from "../../../../domains/account/service";
 import { deckBundle, recordAction } from "../../deck-data";
 
 // The deck beside one deal.
@@ -54,7 +50,7 @@ export default async function DealDeck({
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) return null;
-  const { POSITION_TEXT, RATIONALE_TEXT, ASK_ABOUT_TEXT, NEXT_ACTION_TEXT } = await getMessages();
+  const { POSITION_TEXT, RATIONALE_TEXT, NEXT_ACTION_TEXT } = await getMessages();
 
   const base = {
     workspaceId: session.workspaceId,
@@ -95,22 +91,8 @@ export default async function DealDeck({
       decidable: canDecideProposal(session.authz, session.entitlement, a.capability, "ui").allowed,
     }));
 
-  // Built here, not inline in AgentPanel's props: reachable-codes.test binds
-  // an action to the nearest tag opened before it.
-  // 商机会前包 (batch 11a): the people to choose from are this deal's chain,
-  // named from the customer's contacts - both through their gated verbs.
-  const accountCtx = { ...base, store: session.stores.account() };
-  const [accountRead, chainRead] = detail.ok
-    ? await Promise.all([
-        getAccountDetail(accountCtx, detail.value.accountId).catch(() => null),
-        decisionChainsByOpportunity(accountCtx, detail.value.accountId, [{ id, name: detail.value.name }]).catch(() => null),
-      ])
-    : [null, null];
-  const onDeal = new Set(chainRead?.ok ? (chainRead.value[0]?.people ?? []).filter((p) => p.status === "active").map((p) => p.id) : []);
-  const meetingPeople = (accountRead?.ok ? accountRead.value.contacts : [])
-    .filter((c) => onDeal.has(c.id))
-    .map((c) => ({ id: c.id, name: c.name, title: c.title ?? null }));
-  const meeting = detail.ok ? <DealMeetingButton opportunityId={id} people={meetingPeople} onBuild={buildDealMeetingPackAction} /> : null;
+  // Preparation and rehearsal are in the deal's follow-up workspace. The
+  // deck retains conversation, situation and proposal decisions for this deal.
   // 局势简报 (batch 8b): on an open deal whose workspace may run it. What is
   // already written for the data as it stands comes with the page; nothing
   // written means the card writes it and says it is updating.
@@ -143,17 +125,6 @@ export default async function DealDeck({
   ) : null;
   const advisor = detail.ok ? (
     <>
-      {/* 对话锚定本单 / 预演 (batch 11b/11c) beside 会前包 - all three are
-          about this one deal. */}
-      <div className="flex flex-wrap items-center justify-end gap-sm text-body-small">
-        <Link href={`/copilot?opportunity=${encodeURIComponent(id)}`} className="text-primary hover:underline">
-          {ASK_ABOUT_TEXT.linkFromDeal}
-        </Link>
-        <Link href={`/copilot?opportunity=${encodeURIComponent(id)}&mode=rehearsal`} className="text-primary hover:underline">
-          {ASK_ABOUT_TEXT.linkRehearsal}
-        </Link>
-        {meeting}
-      </div>
       {situation}
       {nextAction}
       {proposalsBlock}

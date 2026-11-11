@@ -50,6 +50,8 @@ export interface TimelineItem {
 
 export interface InteractionTimelineProps {
   readonly items: readonly TimelineItem[];
+  /** Show the verbatim note in the focused follow-up history. */
+  readonly fullNotes?: boolean;
   /**
    * How many to show before the fold. Absent = all of them.
    *
@@ -83,6 +85,7 @@ export function InteractionTimeline({
   hideTitle,
   action: externalAction,
   rows,
+  fullNotes = false,
   currentSub,
   onDelete,
 }: InteractionTimelineProps) {
@@ -154,7 +157,7 @@ export function InteractionTimeline({
                 {i.occurredAt.toISOString().slice(5, 10)}
               </time>
               <span className="text-muted-foreground truncate">{CHANNEL_LABEL[i.channel] ?? i.channel}</span>
-              <span className="text-foreground line-clamp-2 min-w-0" title={i.rawNote}>
+              <span className={`text-foreground min-w-0 ${fullNotes ? "whitespace-pre-wrap break-words" : "line-clamp-2"}`} title={i.rawNote}>
                 {i.correctsInteractionId ? (
                   <StatusBadge tone="warning">{FIELD_TEXT.timelineCorrects}</StatusBadge>
                 ) : null}{" "}
