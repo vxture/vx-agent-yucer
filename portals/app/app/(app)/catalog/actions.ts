@@ -321,6 +321,6 @@ export async function deletePriceEntry(priceId: string): Promise<CatalogResult> 
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await removePrice(ctx, { priceId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/pricebook");
+  revalidatePath("/catalog");
   return { ok: true };
 }

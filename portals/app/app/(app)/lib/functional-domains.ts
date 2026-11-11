@@ -116,10 +116,9 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       // in it is just a name - so the old order put the parts before the
       // whole. A seller proposes the solution and then looks at what is in
       // it, which makes the column run abstract to concrete: the strategy,
-      // who it aims at, what we propose, what is in it, what it costs.
+      // who it aims at, what we propose, and products with their prices.
       built("solution"),
       built("catalog"),
-      built("pricebook"),
     ],
   },
   {

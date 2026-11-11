@@ -48,7 +48,6 @@ export function SolutionAdvicePanel({ advice }: { readonly advice: readonly Solu
       : { label: CATALOG_TEXT.solutionAdviceOpenCatalogue, href: "/catalog" },
     more: [
       { id: "catalogue", label: CATALOG_TEXT.solutionAdviceOpenCatalogue, href: "/catalog" },
-      { id: "pricebook", label: CATALOG_TEXT.pricebookLink, href: "/pricebook" },
     ],
   }));
 

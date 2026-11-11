@@ -1,117 +1,16 @@
-import { StatusBadge } from "@vxture/design-ui";
-import { getMessages } from "../lib/i18n/server";
-import { can } from "../../authz/decide";
-import { CatalogPage } from "../catalog/shell";
-import { ModuleHeadline } from "../components/module-headline";
-import { PriceBook } from "../components/price-book";
-import { deletePriceEntry, savePrice } from "../catalog/actions";
+import { redirect } from "next/navigation";
 
-// D9 price book - the catalogue module page's pattern and layout, applied
-// here on the owner's 2026-09-05 ruling, then trimmed on 2026-09-29: the
-// header card keeps its title and roster tags but NO fold - the per-type
-// breakdown it used to open onto is gone, divider and space with it
-// (ModuleHeadline without `stats`). The rosters follow.
-//
-// It carries the FLOOR, which the discount-signature rule reads (ADR-019), so
-// it is the one catalogue surface whose numbers decide whether a sale needs a
-// signature. Products load alongside because a price entry names one, and a
-// price book listing ids would be unreadable.
-//
-// No gear: the price book has no vocabulary to configure - what it needs from
-// the catalogue's config (types, statuses) it reads.
-
-export const dynamic = "force-dynamic";
-
-export default async function PricebookPage() {
-  const { CATALOG_TEXT } = await getMessages();
-  return (
-    <CatalogPage
-      render={({ products, prices, types, statuses, policy, authz, entitlement }) => {
-        const canPrice = can(authz, entitlement, "catalog.pricebook.upsert", "ui").allowed;
-
-        // Only what can actually be sold is expected to carry a price: a
-        // product in development or on the shelf is not a pricing gap, and
-        // counting it as one would teach people the number means nothing.
-        const activeId = statuses.find((r) => r.statusCode === "active")?.id;
-        const sellable = products.filter((p) => p.statusId === activeId);
-        const priced = new Set(prices.map((e) => e.productId));
-
-        const pricedCount = sellable.filter((p) => priced.has(p.id)).length;
-        const unpricedCount = sellable.length - pricedCount;
-
-        // IN FORCE = the newest entry per product+currency that has taken
-        // effect. Computed HERE, on the server: it reads a clock, and a clock
-        // read again during hydration is a different clock from the one that
-        // rendered the HTML. A future-dated price is a decision already made
-        // and not yet in force - it stays in the superseded table, dated,
-        // where somebody can see it coming.
-        const now = Date.now();
-        const byKey = new Map<string, (typeof prices)[number]>();
-        for (const e of prices) {
-          if (e.effectiveAt.getTime() > now) continue;
-          const key = `${e.productId}::${e.currency}`;
-          const held = byKey.get(key);
-          if (!held || held.effectiveAt.getTime() < e.effectiveAt.getTime()) byKey.set(key, e);
-        }
-        const name = new Map(products.map((p) => [p.id, p.name]));
-        const inForce = new Set([...byKey.values()].map((e) => e.id));
-        const current = [...byKey.values()].sort((a, b) =>
-          (name.get(a.productId) ?? "").localeCompare(name.get(b.productId) ?? ""),
-        );
-        // WHEN A PRICE STOPPED APPLYING is when its successor took effect -
-        // and since incr/0030 the successor is ASSERTED (supersedesId) rather
-        // than guessed from the dates. The date fallback stays for rows
-        // written before that increment: they have no pointer, and the order
-        // they were entered in is the only evidence there is.
-        const successor = new Map<string, (typeof prices)[number]>();
-        for (const e of prices) {
-          if (e.supersedesId) successor.set(e.supersedesId, e);
-        }
-        const superseded = prices
-          .filter((e) => !inForce.has(e.id))
-          .map((e) => {
-            const next =
-              successor.get(e.id) ??
-              prices
-                .filter(
-                  (o) =>
-                    o.productId === e.productId &&
-                    o.currency === e.currency &&
-                    o.effectiveAt.getTime() > e.effectiveAt.getTime(),
-                )
-                .sort((a, b) => a.effectiveAt.getTime() - b.effectiveAt.getTime())[0];
-            return { ...e, supersededAt: next?.effectiveAt ?? null };
-          });
-
-        return (
-          <>
-            <ModuleHeadline
-              moduleKey="pricebook"
-              tags={
-                <>
-                  <StatusBadge tone="success">{CATALOG_TEXT.tagPriced(pricedCount)}</StatusBadge>
-                  {unpricedCount > 0 ? (
-                    <StatusBadge tone="warning">
-                      {CATALOG_TEXT.tagUnpriced(unpricedCount)}
-                    </StatusBadge>
-                  ) : null}
-                </>
-              }
-            />
-
-            <PriceBook
-              currency={policy.defaultCurrency}
-              products={products}
-              types={types}
-              current={current}
-              superseded={superseded}
-              canPrice={canPrice}
-              onSave={savePrice}
-              onDelete={deletePriceEntry}
-            />
-          </>
-        );
-      }}
-    />
-  );
+// Product and current pricing now share the catalogue. Preserve analysis and
+// selection links from bookmarks while keeping a single product roster.
+export default async function PricebookPage({ searchParams }: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
+      next.append(key, item);
+    }
+  }
+  redirect(`/catalog${next.size ? `?${next}` : ""}`);
 }

@@ -3,6 +3,10 @@
 import { FilterBar } from "./business-controls";
 
 import { useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { inForceByProduct } from "../../domains/catalog/lib/pricing";
+import { ProductPriceValues } from "./product-price-values";
+import { ProductPricePanel, type ProductPricing } from "./product-price-panel";
 import {
   Button,
   DataTable,
@@ -40,10 +44,9 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
 // row is where the operations live, locked to the right.
 //
-// Columns exactly as ruled: 序号 | 名称(主)+编码(副) | 类型 | 状态 | 计价单位 |
-// 操作. Two rosters: the live one (on sale + in development, in catalogue
-// order) and the retired one below it - retirement is shelving, so the shelf
-// is visible but secondary.
+// Products and their current prices share one roster. The price column holds
+// up to three labelled amounts; unpriced products remain visible. Current and
+// retired groups keep lifecycle context, and price records open per product.
 //
 // ROW OPERATIONS live in ONE ActionMenu per row: the DS row-action column is
 // fixed at 64px and holds a single trigger by design, so a row of buttons is
@@ -67,10 +70,7 @@ export interface ProductRosterProps {
    *  render the roster without it and print an empty 单位 column, which is
    *  exactly the kind of miss a type can catch and a default cannot. */
   readonly units: readonly ProductUnitRecord[];
-  /** 标准价 in force per product id (owner, 2026-09-29), computed by the page
-   * on the server. Absent = this surface shows no price column (the sort
-   * page); a product missing from it is 未定价, not zero. */
-  readonly listPrices?: Readonly<Record<string, number>>;
+  readonly pricing?: ProductPricing;
   readonly canWrite: boolean;
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
@@ -86,18 +86,12 @@ const SORT_ON = {
   name: (r: ProductRecord) => r.name,
 };
 
-/** 标准价 sorts on the amount; an unpriced product sorts below every price. */
-const priceSort = (listPrices: Readonly<Record<string, number>>) => ({
-  ...SORT_ON,
-  list: (r: ProductRecord) => listPrices[r.id] ?? -1,
-});
-
 export function ProductRoster({
   units,
   products,
   types,
   statuses,
-  listPrices,
+  pricing,
   canWrite,
   variant = "full",
   onMove,
@@ -106,12 +100,30 @@ export function ProductRoster({
 }: ProductRosterProps) {
   const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
     useMessages();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [editingPrice, setEditingPrice] = useState<string | null>(null);
+  const historyId = params.get("priceHistory");
+  const historyProduct = products.find((p) => p.id === historyId);
+  const showHistory = historyId === "all" || historyProduct !== undefined;
+  const priceByProduct = inForceByProduct(pricing?.prices ?? [], pricing?.currency ?? "", pricing?.now ?? 0);
+  const openHistory = (productId: string | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (productId) next.set("priceHistory", productId);
+    else next.delete("priceHistory");
+    router.replace(`${pathname}${next.size ? `?${next}` : ""}`, { scroll: false });
+  };
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). Held
   // across BOTH rosters because the keys are product ids: a selection is of
   // products, not of whichever half of the page they were shown in.
-  const [selected, setSelected] = useState<readonly string[]>([]);
-  const sorted = useTableSort<ProductRecord>([], listPrices ? priceSort(listPrices) : SORT_ON);
+  const [selected, setSelected] = useState<readonly string[]>(() =>
+    (params.get("sel")?.split(",") ?? []).filter((id) => products.some((p) => p.id === id)));
+  const sorted = useTableSort<ProductRecord>([], {
+    ...SORT_ON,
+    ...(pricing ? { list: (row: ProductRecord) => priceByProduct.get(row.id)?.listPrice ?? -1 } : {}),
+  });
   const [view, setView] = useState<FilterBarView>("list");
   // Clicking the row toggles it - the checkbox is too small a target
   // (owner, 2026-09-06). Bound per table because each has its own row order.
@@ -197,6 +209,14 @@ export function ProductRoster({
         <TableTitleCell title={r.name} description={r.productCode} tooltip={r.name} />
       ),
     },
+    ...(pricing ? [{
+      id: "list",
+      header: `${CATALOG_TEXT.productPrices} (${pricing.currency})`,
+      width: "md" as const,
+      sortable: true,
+      align: "money" as const,
+      cell: (row: ProductRecord) => <ProductPriceValues price={priceByProduct.get(row.id)} />,
+    }] : []),
     {
       id: "type",
       header: CATALOG_TEXT.colType,
@@ -212,23 +232,6 @@ export function ProductRoster({
          the fallback is for a partial read, not for a real state. */
       cell: (r: ProductRecord) => unitName.get(r.unitId) ?? "",
     },
-    ...(listPrices
-      ? [
-          {
-            id: "list",
-            header: CATALOG_TEXT.colList,
-            sortable: true,
-            align: "money" as const,
-            // 未定价 is a state, not a zero: a 0 here would read as "free".
-            cell: (r: ProductRecord) =>
-              listPrices[r.id] === undefined ? (
-                <span className="text-muted-foreground">{CATALOG_TEXT.unpricedShort}</span>
-              ) : (
-                listPrices[r.id].toLocaleString()
-              ),
-          },
-        ]
-      : []),
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
@@ -252,9 +255,8 @@ export function ProductRoster({
       <RowActions
         disabled={pending}
         items={
-          !canWrite
-            ? []
-            : [
+          [
+            ...(canWrite ? [
               {
                 id: "edit",
                 label: ROW_OPS.configure(CATALOG_TEXT.productNoun),
@@ -280,7 +282,17 @@ export function ProductRoster({
                   onConfirm: () => run(onDelete(row.id)),
                 },
               },
-              ]
+              ] : []),
+            ...(pricing ? [{
+              id: "price-history", label: CATALOG_TEXT.priceHistory,
+              onSelect: () => openHistory(row.id),
+            }] : []),
+            ...(pricing?.canPrice && codeOf(row) !== "retired" ? [{
+              id: "price-edit",
+              label: priceByProduct.has(row.id) ? CATALOG_TEXT.reprice : CATALOG_TEXT.newPrice,
+              onSelect: () => setEditingPrice(row.id),
+            }] : []),
+          ]
         }
       />
     );
@@ -321,21 +333,30 @@ export function ProductRoster({
     const select = click(rows);
     return (
     /* The config tables' geometry, applied here too (owner ruling; TD-022):
-       table-fixed so the live and retired rosters align column for column
-       regardless of content, the name column takes the lion's share, and the
+       the pricing roster uses native automatic columns and a DS width floor
+       so three prices stay readable in narrow panes; the sort variant stays
+       fixed. The name column takes the lion's share, and the
        trailing column is token-fixed - the DS edge token for the single-
        trigger action slot, a wider fixed box for the sort page's two arrows.
        Counted FROM THE LEFT, and the leading pair is now 选择 | 序号, so the
        first business column is nth-child(3) rather than (2). */
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ""}`}
+      className={`${pricing ? "[&_table]:min-w-(--vx-container-4xl)" : "[&_table]:table-fixed"} [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ""}`}
     >
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
         selectedKeys={selected}
-        onSelectionChange={setSelected}
+        onSelectionChange={(keys) => {
+          setSelected(keys);
+          if (!pricing) return;
+          const next = new URLSearchParams(params.toString());
+          const ids = keys.filter((id) => live.some((row) => row.id === id));
+          if (ids.length) next.set("sel", ids.join(","));
+          else next.delete("sel");
+          router.replace(`${pathname}${next.size ? `?${next}` : ""}`, { scroll: false });
+        }}
         rowKey={(r: ProductRecord) => r.id}
         rows={[...sorted.sortRows(rows)]}
           sort={sorted.sort}
@@ -451,14 +472,7 @@ export function ProductRoster({
                         {typeNameOf(row.typeId)}
                       </span>
                       <span>{unitName.get(row.unitId) ?? ""}</span>
-                      {listPrices ? (
-                        <span className="tabular-nums">
-                          {CATALOG_TEXT.colList}{" "}
-                          {listPrices[row.id] === undefined
-                            ? CATALOG_TEXT.unpricedShort
-                            : listPrices[row.id].toLocaleString()}
-                        </span>
-                      ) : null}
+                      {pricing ? <ProductPriceValues price={priceByProduct.get(row.id)} /> : null}
                     </>
                   }
                 />
@@ -482,6 +496,15 @@ export function ProductRoster({
       >
         {table(retired, undefined, true)}
       </Section>
+      {pricing && editingPrice ? (
+        <ProductPricePanel key={`edit-${editingPrice}`} mode="edit" products={products}
+          product={products.find((p) => p.id === editingPrice)} pricing={pricing}
+          current={priceByProduct.get(editingPrice)} onClose={() => setEditingPrice(null)} />
+      ) : null}
+      {pricing && showHistory ? (
+        <ProductPricePanel key={`history-${historyId}`} mode="history" products={products}
+          product={historyProduct} pricing={pricing} onClose={() => openHistory(null)} />
+      ) : null}
     </>
   );
 }

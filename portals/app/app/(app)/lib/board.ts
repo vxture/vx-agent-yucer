@@ -35,7 +35,6 @@ import { listProjects, listRenewals } from "../../domains/delivery/service";
 import { listProposals } from "../../domains/copilot/service";
 import {
   listOpportunityLines,
-  listPrices,
   listProducts as listCatalogProducts,
   listSolutions,
 } from "../../domains/catalog/service";
@@ -299,7 +298,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     catalogueResult,
     segments,
     solutions,
-    prices,
     unreviewed,
     renewedIds,
     categories,
@@ -336,7 +334,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     // built on.
     listSegments({ ...base, store: getStrategyStore() }),
     listSolutions({ ...base, store: getCatalogStore() }),
-    listPrices({ ...base, store: getCatalogStore() }),
     listPendingReviews({ ...base, store: ctx.stores.pipeline() }),
     listRenewedProjectIds({ ...base, store: ctx.stores.pipeline() }),
     previewCategories({ ...base, store: ctx.stores.pipeline() }),
@@ -577,20 +574,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     segment: { metrics: count(segments, BOARD_TEXT.segments) },
     catalog: { metrics: count(catalogueResult, BOARD_TEXT.catalogProducts) },
     solution: { metrics: count(solutions, BOARD_TEXT.solutions) },
-    // PRODUCTS priced, not price ENTRIES: the entries are a history (a
-    // re-price appends a row), so counting them made the board read "7 已定价"
-    // beside a page showing five priced products. The label says products, so
-    // the number counts products.
-    pricebook: {
-      metrics: prices.ok
-        ? [
-            {
-              label: BOARD_TEXT.pricedProducts,
-              value: String(new Set(prices.value.map((e) => e.productId)).size),
-            },
-          ]
-        : [],
-    },
 
     // 作战部署域
     territory: { metrics: count(territories, BOARD_TEXT.territories) },
