@@ -262,3 +262,9 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 --
 -- The rule for any future increment that creates a table: carry its own grants
 -- and its own locks. check-incr-grants.mjs enforces the grants half.
+
+-- incr/0106 creates the planning aggregate tables after the baseline locks.
+-- sales_plan: lock_version only; sales_plan_revision: content/edit_token/state
+-- while draft. The controlled event function alone seals a version.
+-- sales_plan_event, sales_plan_legacy_target and forecast_target_basis have no
+-- UPDATE grant. Their DDL increment declares the grants and row guards.

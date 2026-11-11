@@ -129,6 +129,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_gtm.market_segment": ["name", "plan_id", "criteria", "priority", "status", "updated_at"],
   "yucer_gtm.territory": ["name", "parent_id", "owner_sub", "regions", "status", "updated_at"],
   // The scope tuple is the row identity; only the number and the state move.
+  "yucer_gtm.sales_plan": ["lock_version"],
+  "yucer_gtm.sales_plan_revision": ["content", "edit_token", "state"],
   "yucer_gtm.sales_target": ["plan_id", "target_amount", "currency", "status", "updated_at"],
   "yucer_gtm.campaign": [
     "name",
@@ -450,6 +452,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_core.account_relation",
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",
+  "yucer_gtm.sales_plan_event",
+  "yucer_gtm.sales_plan_legacy_target",
+  "yucer_pipeline.forecast_target_basis",
   "yucer_agent.agent_message",
   // incr/0012. A signature is a decision record: withdrawing an approval is a
   // superseded row, not a deleted one. Keyed by the price it authorised, so it

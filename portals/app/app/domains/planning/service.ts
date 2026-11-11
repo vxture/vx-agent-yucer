@@ -218,6 +218,7 @@ export async function createTarget(
 ): Promise<RuleResult<TargetRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.target.create", "data");
   if (!gate.allowed) return denied(gate);
+  if (await ctx.store.isManagedScope?.(ctx.workspaceId, input.scope)) return fail(violation("managed_by_sales_plan", "use a sales plan draft to add this target", "scope"));
   const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
 
   // The duplicate check is done against the scope tuple, so the caller gets
@@ -244,6 +245,7 @@ export async function updateTarget(
 
   const current = await ctx.store.getTarget(ctx.workspaceId, id);
   if (!current) return fail(violation("not_found", `target ${id} was not found`, "id"));
+  if (current.managedBySalesPlan) return fail(violation("managed_by_sales_plan", "this target is managed by a released sales plan", "id"));
 
   // The unit and the currency come from the target being edited, never from the
   // caller: changing either is what `planTargetUpdate` refuses outright.
@@ -284,6 +286,7 @@ export async function removeTarget(
 
   const current = await ctx.store.getTarget(ctx.workspaceId, id);
   if (!current) return fail(violation("not_found", `target ${id} was not found`, "id"));
+  if (current.managedBySalesPlan) return fail(violation("managed_by_sales_plan", "this target is managed by a released sales plan", "id"));
   if (current.status !== "draft") {
     return fail(violation("target_not_draft", "only a draft target can be deleted", "id"));
   }

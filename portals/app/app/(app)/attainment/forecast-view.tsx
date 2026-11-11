@@ -42,6 +42,7 @@ export async function AttainmentForecastView({
     SHELL_TEXT,
     LOAD_ERROR,
     PIPELINE_TEXT,
+    PLAN_VERSION_TEXT: VT,
   } = await getMessages();
   const locale = await resolveLocale();
   if (!board.ok)
@@ -177,6 +178,7 @@ export async function AttainmentForecastView({
                   T.publishedClosed,
                   T.managerCall,
                   T.callNote,
+                  VT.historyTarget,
                 ].map((label) => (
                   <TableHead key={label}>{label}</TableHead>
                 ))}
@@ -212,6 +214,15 @@ export async function AttainmentForecastView({
                       : "-"}
                   </TableCell>
                   <TableCell>{p.callNote ?? "-"}</TableCell>
+                  <TableCell className="text-body-small">
+                    {(() => {
+                      const b = p.targetBasis?.find((b) => b.metric === "revenue");
+                      if (!b) return <span className="text-muted-foreground">{VT.legacyBasis}</span>;
+                      if (b.sourceKind === "none" || b.target === null) return <span className="text-muted-foreground">{VT.noneBasis}</span>;
+                      const target = Number(b.target);
+                      return <><span>{b.sourceKind === "sales_plan" ? `V${b.version}` : VT.original} · {formatMoney(target, b.currency ?? p.currency, locale)}</span><p className="text-label-small text-muted-foreground">{target > 0 && b.currency === p.currency ? `${(p.closedAmount.amount / target * 100).toFixed(1)}%` : VT.notApplicable}</p></>;
+                    })()}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

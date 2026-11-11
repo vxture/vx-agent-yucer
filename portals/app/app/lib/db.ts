@@ -7,6 +7,18 @@ import type { PrismaClient } from "@prisma/client";
 
 let clientPromise: Promise<PrismaClient> | null = null;
 
+export function utcConnectionString(value: string): string {
+  const url = new URL(value);
+  const options = url.searchParams.get("options");
+  // adapter-pg normalizes timestamptz assuming the PG session returns UTC.
+  // Preserve deployment options while ensuring both reads and writes agree.
+  url.searchParams.set(
+    "options",
+    `${options ? `${options} ` : ""}-c timezone=UTC`,
+  );
+  return url.toString();
+}
+
 export function prismaEnabled(): boolean {
   return Boolean(process.env.DATABASE_URL);
 }
@@ -16,7 +28,9 @@ export async function getPrismaClient(): Promise<PrismaClient> {
     clientPromise = (async () => {
       const { PrismaClient } = await import("@prisma/client");
       const { PrismaPg } = await import("@prisma/adapter-pg");
-      const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+      const adapter = new PrismaPg({
+        connectionString: utcConnectionString(process.env.DATABASE_URL!),
+      });
       return new PrismaClient({ adapter });
     })();
   }
