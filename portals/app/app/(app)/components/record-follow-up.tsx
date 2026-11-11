@@ -97,15 +97,16 @@ export function RecordFollowUp({
   function submit() {
     setError(null);
     setSaved(false);
-    startTransition(() => {
-      void onRecord(accountId, {
-        channel,
-        occurredAt,
-        rawNote: note,
-        opportunityId,
-        commitments: promises.filter((p) => p.statement.trim() !== ""),
-        contactIds: present,
-      }).then((r) => {
+    startTransition(async () => {
+      try {
+        const r = await onRecord(accountId, {
+          channel,
+          occurredAt,
+          rawNote: note,
+          opportunityId,
+          commitments: promises.filter((p) => p.statement.trim() !== ""),
+          contactIds: present,
+        });
         if (!r.ok)
           setError(FIELD_ERROR[r.error ?? "denied"] ?? FIELD_ERROR.denied);
         else if (r.failedCommitments) {
@@ -117,6 +118,7 @@ export function RecordFollowUp({
           setNote("");
           setPromises([]);
           setPresent([]);
+          router.refresh();
         } else if (doneHref) {
           // A capture page is an errand: back to where the person came from.
           router.push(doneHref);
@@ -127,8 +129,11 @@ export function RecordFollowUp({
           setPromises([]);
           setPresent([]);
           setOccurredAt(localNow());
+          router.refresh();
         }
-      });
+      } catch {
+        setError(FIELD_ERROR.record_unconfirmed);
+      }
     });
   }
 
@@ -172,6 +177,7 @@ export function RecordFollowUp({
 
       <Label htmlFor="fu-channel">{FIELD_TEXT.recordChannel}</Label>
       <NativeSelect
+        className="h-control-xl"
         id="fu-channel"
         value={channel}
         onChange={(e) => setChannel(e.target.value)}
@@ -187,6 +193,7 @@ export function RecordFollowUp({
       <Label htmlFor="fu-when">{FIELD_TEXT.recordWhen}</Label>
       <Input
         id="fu-when"
+        className="h-control-xl"
         type="datetime-local"
         value={occurredAt}
         onChange={(e) => setOccurredAt(e.target.value)}
@@ -200,6 +207,7 @@ export function RecordFollowUp({
           <div className="min-w-[14rem] flex-1">
             <Label htmlFor={`cm-st-${i}`}>{FIELD_TEXT.commitStatement}</Label>
             <Input
+              className="h-control-xl"
               id={`cm-st-${i}`}
               value={p.statement}
               onChange={(e) =>
@@ -211,6 +219,7 @@ export function RecordFollowUp({
           <div>
             <Label htmlFor={`cm-dir-${i}`}>{FIELD_TEXT.commitDirection}</Label>
             <NativeSelect
+              className="h-control-xl"
               id={`cm-dir-${i}`}
               value={p.direction}
               onChange={(e) =>
@@ -225,6 +234,7 @@ export function RecordFollowUp({
           <div>
             <Label htmlFor={`cm-due-${i}`}>{FIELD_TEXT.commitDue}</Label>
             <Input
+              className="h-control-xl"
               id={`cm-due-${i}`}
               type="date"
               value={p.dueAt}
@@ -236,6 +246,7 @@ export function RecordFollowUp({
           </div>
           <Button
             variant="ghost"
+            size="md"
             onClick={() => setPromises(promises.filter((_, j) => j !== i))}
             disabled={pending}
           >
@@ -247,6 +258,7 @@ export function RecordFollowUp({
       <div className="flex flex-wrap items-center gap-sm">
         <Button
           variant="secondary"
+          size="xl"
           disabled={pending}
           onClick={() =>
             setPromises([...promises, { direction: "they_owe", statement: "", dueAt: "" }])
@@ -255,6 +267,7 @@ export function RecordFollowUp({
           {FIELD_TEXT.commitAdd}
         </Button>
         <Button
+          size="xl"
           onClick={submit}
           disabled={
             pending ||

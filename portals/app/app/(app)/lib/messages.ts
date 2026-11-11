@@ -3021,7 +3021,7 @@ export const PIPELINE_TEXT = {
   emptyDescription: "线索合格转化后会出现在这里。",
   rollupFailedTitle: "无法汇总",
   rowCount: (n: number) => `共 ${n} 条`,
-  openDeal: "打开阵地",
+  openDeal: "打开工作台",
   // The period filter. Quarters plus the year, because a forecast is read at
   // both cadences - the quarter is what gets committed, the year is what gets
   // planned against.
@@ -3264,6 +3264,7 @@ export const FIELD_TEXT = {
 } as const;
 
 export const FIELD_ERROR: Record<string, string> = {
+  record_unconfirmed: "未能确认保存结果，原文仍保留。请先检查跟进记录，再决定是否重试。",
   ...GATE_ERROR,
   // 统一录入的部分成功:笔记是证据、只追加,落了就不回滚;某条承诺被拒时如实说。
   commitment_partial: "跟进已记下,但有承诺没记上——到承诺列表补一条",
@@ -4150,7 +4151,7 @@ export const DEAL_MEETING_TEXT = {
   goalCurrent: (stage: string) => `（${stage}的推进标准，尚未满足）`,
   goalNext: (stage: string) => `（本阶段条件已满足，这是${stage}的第一条）`,
   goalLink: "看推进进程",
-  goalNone: "本阶段和下一阶段都没有设推进标准——会前包不替工作区编目标",
+  goalNone: "当前没有待满足的阶段推进目标，请结合本单沟通记录确认本次目标。",
   attendees: "到场的人",
   noRole: "未标注角色",
   lastContact: (days: number) => `${days} 天前最近一次出现在跟进里`,
@@ -7767,6 +7768,22 @@ export const ICP_TEXT = {
 /** 商机详情页 (deal batch 2, 2026-09-25): 栏1 档案 / 栏2 六板块, the same
  *  build as the customer page (owner: 这两个是同一级别的). */
 export const DEAL_PAGE_TEXT = {
+  workspace: {
+    views: "商机工作视图", analysis: "商机分析", progress: "跟进推进", steps: "跟进工作环节",
+    plan: "跟进策划", prepare: "拜访准备", feedback: "反馈记录", history: "跟进记录",
+    goalTitle: "本阶段要推进什么", goalHint: "结合阶段缺口、关键人和上次沟通，确定本次要核实的结果。",
+    criteriaNone: "本阶段还没有可用的核验条件，可结合已有记录与买方确认沟通目标。",
+    planTitle: "行动建议与约定", planHint: "现有建议采纳后会形成承诺；仅安排内部拜访时，请勿按对外承诺采纳。",
+    planEmpty: "还没有待确认的行动建议。可结合本阶段缺口，请助手提供建议。",
+    preparationTitle: "围绕本单准备沟通", preparationHint: "查看本单参与人、阶段目标与待兑现约定，再生成议程和逐人沟通重点。",
+    noPeople: "本单还没有可用的参与人，请先在左侧决策分析中补齐联系人与角色。",
+    promisesTitle: "沟通前需要核实的约定", promisesEmpty: "本单没有待兑现的约定。",
+    feedbackHint: "先保存沟通原文，明确约定可一并录入。助手据此提出建议，阶段、赢率和承诺状态仍需分别确认。",
+    feedbackAsk: "结合本单记录问助手", cannotRecord: "当前身份可查看本单跟进记录，尚无录入权限。",
+    historyHint: "本单原始沟通记录，与商机分析中的互动依据使用同一来源。",
+    closed: "本单已结束。可查看和补充事实记录，新的推进安排请在后续商机中处理。",
+    contextLink: "查看阶段分析", recentTitle: "最近沟通依据",
+  },
   // 栏1 · 交易档案
   factCustomer: "客户",
   factOwner: "负责人",

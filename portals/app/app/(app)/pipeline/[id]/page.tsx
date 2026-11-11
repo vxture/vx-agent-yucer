@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { DealWorkspace } from "../../components/deal-workspace";
+import { resolveDealWorkspace } from "../../lib/deal-workspace";
+import { DealMeetingButton } from "../../components/deal-meeting";
+import { buildDealMeetingPackAction } from "../meeting-pack-action";
+import { RecordFollowUp } from "../../components/record-follow-up";
+import { captureFollowUp } from "../../account/field-actions";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -165,8 +171,10 @@ export const dynamic = "force-dynamic";
 
 export default async function OpportunityDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string | string[]; step?: string | string[] }>;
 }) {
   const {
     FORECAST_LABEL,
@@ -193,8 +201,10 @@ export default async function OpportunityDetailPage({
     STANCE_LABEL,
     PANEL_MENU_TEXT,
     FIELD_TEXT,
+    ASK_ABOUT_TEXT,
   } = await getMessages();
   const { id } = await params;
+  const workspace = resolveDealWorkspace(await searchParams);
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -1413,6 +1423,58 @@ export default async function OpportunityDetailPage({
   );
   const ruleCategory = ruleVerdict.kind === "suggested" ? ruleVerdict.category : null;
 
+  const WX = DEAL_PAGE_TEXT.workspace;
+  const contactChoices = (account.ok ? account.value.contacts : [])
+    .filter((c) => c.status === "active")
+    .map((c) => ({ id: c.id, name: c.name, title: c.title ?? null }));
+  const meetingChoices = contactChoices.filter((c) => chainIds.has(c.id));
+  const workspaceTimeline = (fullNotes = false) => interactions.ok ? (
+    <InteractionTimeline
+      items={interactions.value.map((i) => ({ ...i, actorName: memberNameOf.get(i.actorSub) ?? null }))}
+      rows fullNotes={fullNotes} limit={fullNotes ? undefined : 3}
+      currentSub={session.user.sub}
+      onDelete={deleteFollowUp.bind(null, opportunity.accountId, id)}
+    />
+  ) : <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(interactions.violations, LOAD_ERROR)} />;
+  const workspacePlan = (
+    <>
+      {opportunity.status !== "open" ? <p className="text-body-small text-muted-foreground">{WX.closed}</p> : null}
+      <Section icon="flag" title={WX.goalTitle} description={WX.goalHint} action={<Link href={`/pipeline/${id}#progress`} className="text-label no-underline transition-colors hover:text-primary-text focus-visible:ring-2 focus-visible:ring-ring">{WX.contextLink}</Link>}>
+        <p className="text-label">{stageText}</p>
+        {exitCheck && exitCheck.total > 0 ? <ExitChecks check={exitCheck} filledSlots={filledSlots ?? new Set()} hrefPrefix={`/pipeline/${id}`} /> : <p className="text-body-small text-muted-foreground">{WX.criteriaNone}</p>}
+      </Section>
+      <Section icon="lightbulb" title={WX.planTitle} description={WX.planHint}
+        action={canDraftPlan ? <PlanDraftButton opportunityId={id} onGenerate={generatePlanAction} /> : undefined}>
+        {planItems.length > 0 && opportunity.status === "open" ? <AdvisorFinding items={planItems} onAdjudicate={adjudicateProposals} /> : <p className="text-body-small text-muted-foreground">{WX.planEmpty}</p>}
+      </Section>
+      <Section icon="book-open" title={WX.recentTitle}>{workspaceTimeline()}</Section>
+    </>
+  );
+  const workspacePreparation = (
+    <>
+      <Section icon="clipboard" title={WX.preparationTitle} description={WX.preparationHint}>
+        {!account.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(account.violations, LOAD_ERROR)} /> : !chain.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(chain.violations, LOAD_ERROR)} /> : opportunity.status === "open" ? <>
+          {meetingChoices.length > 0 ? <div className="flex flex-wrap items-center gap-sm">{meetingChoices.map((p) => <Tag key={p.id} tone="neutral">{p.name}{p.title ? ` / ${p.title}` : ""}</Tag>)}</div> : <p className="text-body-small text-muted-foreground">{WX.noPeople}</p>}
+          <div className="flex flex-wrap items-center gap-sm">
+            <DealMeetingButton opportunityId={id} people={meetingChoices} onBuild={buildDealMeetingPackAction} />
+            <Button size="xl" variant="outline" asChild><Link href={`/copilot?opportunity=${encodeURIComponent(id)}&mode=rehearsal`}>{ASK_ABOUT_TEXT.linkRehearsal}</Link></Button>
+          </div>
+        </> : <p className="text-body-small text-muted-foreground">{WX.closed}</p>}
+      </Section>
+      <Section icon="calendar" title={WX.promisesTitle}>
+        {!commitments.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(commitments.violations, LOAD_ERROR)} /> : openCommitments.length ? <div className="flex flex-col gap-sm">{openCommitments.map((c) => <div key={c.id} className="flex flex-wrap items-baseline justify-between gap-sm border-b border-dashed border-border pb-sm text-body-small"><span>{c.statement}</span><span className="text-muted-foreground">{DIRECTION_LABEL[c.direction]} / {c.dueAt.toISOString().slice(0, 10)}</span></div>)}</div> : <p className="text-body-small text-muted-foreground">{WX.promisesEmpty}</p>}
+      </Section>
+    </>
+  );
+  const workspaceFeedback = (
+    <>
+      <p className="text-body-small text-muted-foreground">{WX.feedbackHint}</p>
+      {!account.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(account.violations, LOAD_ERROR)} /> : can(session.authz, session.entitlement, "account.interaction.record", "ui").allowed ? <RecordFollowUp accountId={opportunity.accountId} opportunityId={id} canRecord onRecord={captureFollowUp} contacts={contactChoices} /> : <p className="text-body-small text-muted-foreground">{WX.cannotRecord}</p>}
+      <Button size="xl" variant="outline" asChild><Link href={`/copilot?opportunity=${encodeURIComponent(id)}`}>{WX.feedbackAsk}</Link></Button>
+    </>
+  );
+  const workspaceHistory = <Section icon="clock-counter-clockwise" title={WX.history} description={WX.historyHint}>{workspaceTimeline(true)}</Section>;
+
   return (
     // TWO PANES, BOTH SERVER-RENDERED - lib/sidebar-slot.ts. DealEditProvider
     // renders no DOM, so the aside and the centre stay direct children of the
@@ -1550,6 +1612,8 @@ export default async function OpportunityDetailPage({
               />
             </div>
 
+            <DealWorkspace key={id} opportunityId={id} initialView={workspace.view} initialStep={workspace.step}
+              plan={workspacePlan} prepare={workspacePreparation} feedback={workspaceFeedback} history={workspaceHistory}>
             {/* 态势判决 - 判决 → 建议 → 动作 (owner ruling 2026-09-05). The five
                 cells stand until batch 8's five-dimension cards; the judgements
                 and this deal's proposals sit under them, where the verdict is
@@ -1966,6 +2030,8 @@ export default async function OpportunityDetailPage({
                 },
               ]}
             />
+
+            </DealWorkspace>
 
           </div>
         </ViewLayout>

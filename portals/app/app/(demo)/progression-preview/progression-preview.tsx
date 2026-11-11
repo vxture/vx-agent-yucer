@@ -10,6 +10,7 @@ import {
 import { ShellBrand, ShellIconButton } from "@vxture/design-system";
 import { Tag } from "../../(app)/components/tag";
 import { PREVIEW_FIXTURES } from "../../(app)/lib/messages";
+import { PRODUCT_MARK_SRC } from "../../(app)/lib/brand-assets";
 import { TabsList, ViewHeader } from "../../(app)/components/business-controls";
 
 const T = PREVIEW_FIXTURES.progression;
@@ -125,7 +126,7 @@ export function ProgressionPreview() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-      <ShellHeader surface="background" leading={<ShellBrand logoSrc="/logo.svg" label={T.brand} tag={T.tagline} labelClassName="text-lg" />}
+      <ShellHeader surface="background" leading={<ShellBrand logoSrc={PRODUCT_MARK_SRC} label={T.brand} tag={T.tagline} labelClassName="text-lg" />}
         trailing={<div className="flex items-center gap-lg"><span className="hidden text-body-small text-muted-foreground sm:block">{T.preview}</span><Button size="md" variant="ghost" onClick={reset}>{T.reset}</Button><ShellIconButton className="xl:hidden" icon="sparkles" label={T.assistantToggle} onClick={() => setAssistant(true)} /></div>} />
       <div className="flex min-h-0 flex-1">
         {selected ? <aside className="hidden w-(--vx-pane-nav) shrink-0 overflow-y-auto border-r border-dashed border-border p-lg min-[1440px]:block">

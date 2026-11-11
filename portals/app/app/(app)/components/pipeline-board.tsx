@@ -1,6 +1,7 @@
 "use client";
 
 import { FilterBar } from "./business-controls";
+import { dealWorkspaceHref } from "../lib/deal-workspace";
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -413,7 +414,7 @@ export function PipelineBoard({
                         id: "open",
                         label: PIPELINE_TEXT.openDeal,
                         icon: "arrow-right",
-                        onSelect: () => router.push(`/pipeline/${row.id}`),
+                        onSelect: () => router.push(dealWorkspaceHref(row.id, "progress", row.status === "open" ? "plan" : "history")),
                       },
                     ]}
                   />
@@ -443,7 +444,7 @@ export function PipelineBoard({
                             id: "open",
                             label: PIPELINE_TEXT.openDeal,
                             icon: "arrow-right",
-                            onSelect: () => router.push(`/pipeline/${row.id}`),
+                            onSelect: () => router.push(dealWorkspaceHref(row.id, "progress", row.status === "open" ? "plan" : "history")),
                           },
                         ]}
                       />
