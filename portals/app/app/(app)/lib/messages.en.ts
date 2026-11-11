@@ -1495,6 +1495,7 @@ export const en: Dictionary = {
     rosterSolutionRetiredWhy:
       "A retired solution is no longer quoted from, but it records how something used to be sold, so it is kept.",
     colSolutionName: "Solution",
+    solutionUnit: "Set",
     solutionUnitHint: "Reference price per complete standard bundle, excluding optional items. Products retain their own units.",
     solutionDetailsHint: "View scenario and product composition",
     solutionPrices: "Standard item totals",

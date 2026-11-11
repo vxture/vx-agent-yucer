@@ -179,12 +179,25 @@ export function SolutionRoster({
       cell: (r: SolutionView) => <CoveredTypes ids={factsOf(r).typeIds} names={typeName} />,
     },
     {
+      id: "composition",
+      header: CATALOG_TEXT.colComposition,
+      width: "sm" as const,
+      cell: (r: SolutionView) => (
+        <span className="text-body-small tabular-nums whitespace-nowrap">
+          {CATALOG_TEXT.compositionCount(
+            r.items.filter((item) => !item.optional).length,
+            r.items.filter((item) => item.optional).length,
+          )}
+        </span>
+      ),
+    },
+    {
       id: "unit",
       header: CATALOG_TEXT.colUnitPrice,
       cell: () => (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span tabIndex={0}>{CATALOG_TEXT.solutionNoun}</span>
+            <span tabIndex={0}>{CATALOG_TEXT.solutionUnit}</span>
           </TooltipTrigger>
           <TooltipContent>{CATALOG_TEXT.solutionUnitHint}</TooltipContent>
         </Tooltip>
