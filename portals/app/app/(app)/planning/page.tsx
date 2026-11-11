@@ -171,7 +171,7 @@ export default async function PlanningPage() {
         </Section>
       ) : (
         <TerritoryPanel
-          canEdit={can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed}
+          canConfigure={can(session.authz, session.entitlement, "planning.division.view", "ui").allowed}
           rows={
             territories.value.map((t) => ({
               ...t,
@@ -179,10 +179,10 @@ export default async function PlanningPage() {
             }))
           }
           action={
-            can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
+            can(session.authz, session.entitlement, "planning.division.upsert", "ui")
               .allowed ? (
               <NewEntryLink
-                href="/planning/territory/new"
+                href="/admin/division"
                 label={PLANNING_TEXT.territoryNewEntry}
               />
             ) : null

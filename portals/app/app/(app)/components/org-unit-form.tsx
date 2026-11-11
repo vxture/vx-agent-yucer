@@ -271,9 +271,8 @@ export function OrgUnitForm({
   };
 
   /* FormPage - THE SHAPE EVERY DEDICATED FORM PAGE SHARES (owner ruling,
-     2026-09-05, form-page.tsx). No `assist`: there is nothing this form has
-     to suggest the way territory-form.tsx's uncovered-region assistant
-     does, and FormPage's aside is optional - dropping it also drops the
+     2026-09-05, form-page.tsx). No `assist`: this form has no suggestions.
+     FormPage's aside is optional - dropping it also drops the
      reserved 20rem second column (form-page.tsx), so this form gets the
      content-column constraint alone, at full width.
 

@@ -13,22 +13,7 @@ import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 
-// The territory roster: who carries which patch of the market.
-//
-// This module was `planned` in the launcher while its FEATURE KEY was already
-// being sold. `planning.territory` is one of the nineteen frozen keys, offered
-// from the PRO tier up, and the only half of it that existed was the read - so
-// a paying workspace could look at territories that nothing in the product
-// could create. A territory-scoped target needs a territory_id, so regional
-// targets were unreachable too.
-//
-// A SECTION ON /planning, not a route of its own. A section inherits its host's
-// nav entry and the host here is /planning, which IS one - the same test that
-// keeps 战略客户 planned, since its only host would be a detail page.
-//
-// DISPLAY ONLY since 2026-09-05: creating and editing left for
-// /planning/territory/new
-// (owner ruling), which also carries the regions field this panel never had.
+// Sales planning reads the territory roster; region management lives in configuration.
 
 export interface TerritoryRow {
   readonly id: string;
@@ -51,10 +36,10 @@ const SORT_ON = {
 export function TerritoryPanel({
   rows,
   action,
-  canEdit = false,
+  canConfigure = false,
 }: {
-  /** planning.territory.upsert - the same gate the editor page redirects on. */
-  readonly canEdit?: boolean;
+  /** Region configuration visibility, gated independently from sales targets. */
+  readonly canConfigure?: boolean;
   readonly rows: readonly TerritoryRow[];
   /** The panel's action, in the DS Section header slot - 新建区域 on /planning. */
   readonly action?: ReactNode;
@@ -79,25 +64,19 @@ export function TerritoryPanel({
           sort={sorted.sort}
           onSortChange={sorted.onSortChange}
           indexStart={1}
-          /* 编辑区域 opens the editor ON THIS TERRITORY (module rebuild,
-             2026-09-27). The editor already edits by code (saveTerritory
-             upserts on territory_code); only the way in from the row was
-             missing. Disabled with the reason without the right. */
-          rowActions={(r: TerritoryRow) => (
-            <RowActions
-              label={DS_LABELS.actionMenu}
-              items={[
-                {
-                  id: "edit",
-                  label: PLANNING_TEXT.territoryEdit,
-                  icon: "edit",
-                  disabled: !canEdit,
-                  hint: canEdit ? undefined : PLANNING_TEXT.territoryEditDenied,
-                  onSelect: () => router.push(`/planning/territory/new?territory=${encodeURIComponent(r.id)}`),
-                },
-              ]}
-            />
-          )}
+          rowActions={
+            canConfigure ? () => (
+              <RowActions
+                label={DS_LABELS.actionMenu}
+                items={[{
+                  id: "configure",
+                  label: DOMAIN_LABEL.division,
+                  icon: "settings",
+                  onSelect: () => router.push("/admin/division"),
+                }]}
+              />
+            ) : undefined
+          }
           columns={[
             {
               /* 编码与名称合成首列 (owner: 首列全部走 TableTitleCell). They were
@@ -114,9 +93,7 @@ export function TerritoryPanel({
               ),
             },
             {
-              // The regions column joined with the create page: the
-              // list is what routing matches against, so a blank here is the
-              // "dead ground" the form's assistant warns about.
+              // Routing uses these configured region names as coverage.
               id: "regions",
               header: PLANNING_TEXT.territoryRegions,
               cell: (r: TerritoryRow) => r.regions.join(" / "),

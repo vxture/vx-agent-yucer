@@ -1,35 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coveringTerritories, uncoveredRegions, unsetWorkspaceMetrics, untargetedTerritories } from "./suggest";
+import { coveringTerritories, unsetWorkspaceMetrics, untargetedTerritories } from "./suggest";
 
 // The planning assistant's data half. Same discipline as every suggestion
 // engine here: the refusals get the tests, because confident output with
 // nothing behind it is the failure mode.
-
-// --- uncoveredRegions -------------------------------------------------------
-
-test("a region with customers and no active coverage is a gap, counted", () => {
-  const out = uncoveredRegions(
-    ["华东", "华东", "西北", null, "  ", "华南"],
-    [{ regions: ["华南"], status: "active" }],
-  );
-  assert.deepEqual(out, [
-    { region: "华东", accounts: 2 },
-    { region: "西北", accounts: 1 },
-  ]);
-});
-
-test("a RETIRED territory's regions do not count as coverage", () => {
-  // A hole behind a tombstone is still a hole: routing only matches active
-  // territories, so history must not hide the gap.
-  const out = uncoveredRegions(["华东"], [{ regions: ["华东"], status: "retired" }]);
-  assert.deepEqual(out, [{ region: "华东", accounts: 1 }]);
-});
-
-test("full coverage means silence, not an empty-but-rendered list", () => {
-  assert.deepEqual(uncoveredRegions(["华东"], [{ regions: ["华东"], status: "active" }]), []);
-  assert.deepEqual(uncoveredRegions([], []), []);
-});
 
 // --- untargetedTerritories --------------------------------------------------
 

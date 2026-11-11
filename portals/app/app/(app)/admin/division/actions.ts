@@ -48,6 +48,7 @@ export async function saveDivision(input: {
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/division");
+  revalidatePath("/planning");
   revalidatePath("/national");
   return { ok: true, code: result.value.code, moved: result.value.moved };
 }
@@ -70,6 +71,7 @@ export async function removeDivisionAction(code: string): Promise<RemoveDivision
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/division");
+  revalidatePath("/planning");
   revalidatePath("/national");
   return { ok: true };
 }
@@ -93,6 +95,7 @@ export async function moveDivisionAction(
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/division");
+  revalidatePath("/planning");
   revalidatePath("/national");
   return { ok: true };
 }
@@ -115,6 +118,7 @@ export async function setMarketScopeAction(
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/division");
+  revalidatePath("/planning");
   revalidatePath("/national");
   return { ok: true };
 }
@@ -140,6 +144,7 @@ export async function importTemplate(key: string): Promise<ImportTemplateResult>
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/division");
+  revalidatePath("/planning");
   revalidatePath("/national");
   return { ok: true, divisions: result.value.divisions, replaced: result.value.replaced };
 }

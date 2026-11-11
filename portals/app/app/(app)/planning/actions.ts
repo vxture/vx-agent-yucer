@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
-import { createTarget, removeTarget, updateTarget, upsertTerritory } from "../../domains/planning/service";
-import { listMarketDivisions } from "../../domains/account/service";
+import { createTarget, removeTarget, updateTarget } from "../../domains/planning/service";
 import {
   TARGET_METRICS,
   TARGET_STATUSES,
@@ -12,10 +11,6 @@ import {
   type TargetScopeType,
   type TargetStatus,
 } from "../../domains/planning/lib/target";
-import {
-  TERRITORY_STATUSES,
-  type TerritoryStatus,
-} from "../../domains/planning/lib/territory";
 
 // Setting and adjusting a quota.
 //
@@ -146,66 +141,4 @@ export async function deleteSalesTarget(id: string): Promise<TargetResult> {
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/planning");
   return { ok: true };
-}
-
-/**
- * Creating or renaming a territory.
- *
- * The action key `planning.territory.upsert` has existed since batch 1, gating
- * a verb nobody had written. A workspace on PRO bought `planning.territory`
- * and got a read of rows the product could not create - and, because a
- * territory-scoped target needs a territory_id, no way to set a regional
- * target either.
- *
- * The code is the identity: sending an existing one edits that territory,
- * sending a new one creates it. That is the same shape the catalogue uses
- * (ADR-017) and it is what makes re-importing a regional structure safe.
- */
-export async function saveTerritory(input: {
-  regions?: readonly string[];
-  /** The 大区 it covers, by id (0052), and the units that work it. */
-  divisionIds?: readonly string[];
-  unitIds?: readonly string[];
-  territoryCode: string;
-  name: string;
-  parentId: string | null;
-  ownerSub: string | null;
-  status: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  const session = await resolveAppSession();
-  if (!session) return { ok: false, error: "not_authenticated" };
-
-  if (!isTerritoryStatus(input.status)) {
-    return { ok: false, error: "unknown_status" };
-  }
-
-  const base = {
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-  };
-  /* WHICH 大区 EXIST is the account domain's answer (0052), read here and
-     handed to the planning service so an id outside the workspace is refused
-     in the product's words rather than by the foreign key. */
-  const divisions = await listMarketDivisions({ ...base, store: session.stores.account() });
-  const known = divisions.ok ? new Set(divisions.value.map((d) => d.id)) : undefined;
-  const result = await upsertTerritory(
-    { ...base, store: getPlanningStore() },
-    { ...input, regions: input.regions ?? [], status: input.status },
-    known,
-  );
-
-  if (!result.ok) {
-    // The CODE, not the message. A rule-layer sentence is written for the rule
-    // layer's own reader and in English; the interface has its own dictionary
-    // (TD-010).
-    return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  }
-  revalidatePath("/planning");
-  return { ok: true };
-}
-
-function isTerritoryStatus(v: string): v is TerritoryStatus {
-  return (TERRITORY_STATUSES as readonly string[]).includes(v);
 }
