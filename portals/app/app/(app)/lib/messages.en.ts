@@ -341,7 +341,33 @@ export const en: Dictionary = {
     settlement: "Consolidation",
   },
 
+  ACCOUNT_OPERATING_TEXT: {
+    title: "Operating information",
+    tier: "Account tier",
+    required: "Strategic accounts require a period, target amount and both contact intervals.",
+    optional: "Standard and key accounts may leave this blank or complete it in advance.",
+    enable: "Add operating information",
+    save: "Save tier and operating information",
+  },
   NAMED_ACCOUNT_TEXT: {
+    create: "New account",
+    link: "Link existing account",
+    linkTitle: "Link strategic account",
+    linkWhy: "Find an existing account and complete its operating information to designate it strategic.",
+    search: "Find account",
+    searchPlaceholder: "Account name or number",
+    noMatches: "No matching accounts",
+    selected: "Selected",
+    change: "Choose another account",
+    select: "Select",
+    included: "Already included",
+    confirm: "Make strategic",
+    linked: "Added to strategic accounts",
+    planLoadFailed: "Could not load operating information. Please retry.",
+    loading: "Loading operating information...",
+    retry: "Retry",
+    customer: "Account",
+    owner: "Owner",
     // The module is "Strategic accounts" but the roster holds BOTH tiers above
     // standard, so the copy says "tiered" rather than repeating the module's
     // own name - naming only the top tier would make the count disagree with
@@ -350,7 +376,7 @@ export const en: Dictionary = {
     tagNamed: (n: number) => `${n} tiered`,
     none: "No account has been given a tier yet",
     noneWhy:
-      "Mark an account strategic or key tier on its own page and it appears here. The tier is set where the evidence for setting it is - health, decision chain and open deals are all on that page.",
+      "Create an account or select an existing one for strategic management. Strategic and key accounts appear here.",
   },
   ROUTING_TEXT: {
     title: "Lead routing",
@@ -1290,10 +1316,12 @@ export const en: Dictionary = {
     account_not_empty: "This customer already has records on it - only an unused customer created by mistake can be deleted",
     credit_code_taken:
       "This credit code already belongs to another customer - one company, one record; search the customer list first",
+    plan_target_required: "Strategic accounts require a target amount",
+    plan_target_invalid: "Enter a valid nonnegative target amount",
     plan_required:
       "A strategic account needs a plan - the cadence rule reads it, and without one this designation changes nothing",
-    period_required: "The plan must name its period",
-    cadence_positive: "A cadence of zero days is not a cadence",
+    period_required: "Enter an operating period of at most 16 characters",
+    cadence_positive: "Contact intervals must be valid positive whole days",
     unknown_tier: "Unknown account tier",
     not_found: "No such account, or it belongs to another workspace",
     parent_self: "A parent company cannot be itself",
@@ -3503,7 +3531,7 @@ export const en: Dictionary = {
     createCrumb: "New customer",
     createTitle: "New customer",
     createWhy:
-      "Only the name is required. Fill in what you know and leave the rest - the customer page's completeness card will list what is missing. You own the customer until you hand it over.",
+      "Only the name is required in the basic details. Strategic accounts also require operating information. Other details can be completed later. You own the new account until you hand it over.",
     createSubmit: "Create",
     createCancel: "Cancel",
     createButton: "New customer",

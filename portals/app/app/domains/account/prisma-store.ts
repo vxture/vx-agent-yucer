@@ -23,6 +23,7 @@ import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, Relation
 import {
   nextAccountNo,
   type NewAccount,
+  type AccountPlanWrite,
   type AccountFilter,
   type AccountPlanRecord,
   type AccountRecord,
@@ -361,6 +362,7 @@ export class PrismaAccountStore implements AccountStore {
   async createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord> {
     const p = await this.client();
     let id: string;
+    const { plan, tier = "standard", ...basics } = input;
     try {
       // account_no is human-facing and unique per workspace; the advisory lock
       // serialises allocation (READ COMMITTED alone lets two creates read the
@@ -368,14 +370,18 @@ export class PrismaAccountStore implements AccountStore {
       id = await p.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("account_no")}::int, hashtext(${workspaceId})::int)`;
         const taken = await tx.account.findMany({ where: { workspaceId }, select: { accountNo: true } });
+        const level = await tx.importanceLevel.findFirst({ where: { workspaceId, subject: "account", levelCode: tier } });
         const row = await tx.account.create({
           data: {
             workspaceId,
             accountNo: nextAccountNo(taken.map((r: { accountNo: string }) => r.accountNo)),
-            ...input,
+            ...basics,
+            tier,
+            ...(level ? { tierLevelId: level.id } : {}),
           },
           select: { id: true },
         });
+        if (plan) await this.writeAccountPlan(tx, workspaceId, { ...plan, accountId: row.id });
         return row.id as string;
       });
     } catch (e) {
@@ -1399,11 +1405,32 @@ export class PrismaAccountStore implements AccountStore {
     return r ? toAccountPlan(r) : null;
   }
 
+  async saveAccountDesignation(workspaceId: string, accountId: string, tier: AccountTier, plan?: AccountPlanWrite): Promise<boolean> {
+    const p = await this.client();
+    return p.$transaction(async (tx) => {
+      const level = await tx.importanceLevel.findFirst({ where: { workspaceId, subject: "account", levelCode: tier } });
+      const data = { tier, tierLevelId: level?.id ?? null, updatedAt: new Date() };
+      const guard = assertWritable(ACCOUNT_TABLE, data);
+      if (!guard.ok) throw new Error("refusing to write locked account designation columns");
+      const updated = await tx.account.updateMany({ where: { id: accountId, workspaceId, deletedAt: null }, data });
+      if (updated.count === 0) return false;
+      if (plan) await this.writeAccountPlan(tx, workspaceId, { ...plan, accountId });
+      return true;
+    });
+  }
+
   async upsertAccountPlan(
     workspaceId: string,
     plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
   ): Promise<AccountPlanRecord> {
-    const p = await this.client();
+    return this.writeAccountPlan(await this.client(), workspaceId, plan);
+  }
+
+  private async writeAccountPlan(
+    p: Pick<PrismaClient, "accountPlan">,
+    workspaceId: string,
+    plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
+  ): Promise<AccountPlanRecord> {
     const data = {
       targetAmount: plan.targetAmount,
       contactCadenceDays: plan.contactCadenceDays,

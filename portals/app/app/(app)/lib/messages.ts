@@ -255,6 +255,25 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
  */
 /** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
 export const NAMED_ACCOUNT_TEXT = {
+  create: "新建客户",
+  link: "关联已有客户",
+  linkTitle: "关联战略客户",
+  linkWhy: "检索并选择已有客户，补齐经营信息后设为战略级。",
+  search: "检索客户",
+  searchPlaceholder: "客户名称或客户编号",
+  noMatches: "没有匹配的客户",
+  selected: "已选择",
+  change: "更换客户",
+  select: "选择",
+  included: "已纳入",
+  confirm: "设为战略客户",
+  linked: "已纳入战略客户",
+  planLoadFailed: "经营信息加载失败，请重试",
+  loading: "正在加载经营信息…",
+  retry: "重试",
+  customer: "客户",
+  owner: "负责人",
+
   // 模块叫「战略客户」，收的却是战略级 + 关键级两档（page.tsx 的过滤是
   // tier !== "standard"）。所以这里的文案一律说「已分级」而不是复述模块名：
   // 名册里躺着两档，只报最高那一档的名字会让计数与内容对不上。
@@ -262,7 +281,16 @@ export const NAMED_ACCOUNT_TEXT = {
   tagNamed: (n: number) => `${n} 家已分级`,
   none: "还没有分级过的客户",
   noneWhy:
-    "在客户详情页把一家标为战略级或关键级，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
+    "新建客户，或从已有客户中选择并纳入战略经营。战略级与关键级客户将在这里集中展示。",
+} as const;
+
+export const ACCOUNT_OPERATING_TEXT = {
+  title: "经营信息",
+  tier: "客户级别",
+  required: "战略级客户必须填写经营周期、目标金额和两项跟进间隔。",
+  optional: "普通级与关键级客户可暂不填写，也可提前完善经营信息。",
+  enable: "填写经营信息",
+  save: "保存级别与经营信息",
 } as const;
 
 export const ROUTING_TEXT = {
@@ -1300,10 +1328,12 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   plan_already_active: "这家客户已经有进行中的计划",
   plan_reason_too_long: "原因最多 500 个字",
   ...GATE_ERROR,
+  plan_target_required: "战略级客户必须填写目标金额",
+  plan_target_invalid: "目标金额必须是有效的非负数",
   plan_required:
     "战略客户必须配计划——节奏规则读的是它，没有计划这次定级什么都不改变",
-  period_required: "计划必须写明周期",
-  cadence_positive: "零天的节奏不是节奏",
+  period_required: "请填写不超过16个字符的经营周期",
+  cadence_positive: "跟进间隔必须是有效的正整数天数",
   unknown_tier: "未知的客户分级",
   not_found: "客户不存在，或不属于当前工作区",
   parent_self: "上级公司不能是它自己",
@@ -7424,7 +7454,7 @@ export const ACCOUNT_BASICS_TEXT = {
   accountNoOnSave: "保存后自动生成",
   createCrumb: "新建客户",
   createTitle: "新建客户",
-  createWhy: "只有名称必填。其余能填就填，不知道的留空——建好后客户页的「档案完整度」会列出还缺什么，随时补。你是这家客户的负责人，之后可以转给别人。",
+  createWhy: "基础资料中只有客户名称必填；战略级客户还需完善经营信息。其余资料可以之后补充，你是新客户的负责人，之后可以移交。",
   createSubmit: "创建",
   createCancel: "取消",
   createButton: "新建客户",

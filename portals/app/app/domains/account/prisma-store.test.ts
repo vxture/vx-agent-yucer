@@ -462,7 +462,7 @@ function createFake(opts: { taken: string[]; fail?: unknown }) {
     }),
   };
   const empty = { findMany: async () => [] };
-  const tx = { $executeRaw: async () => { calls.raw += 1; return 1; }, account };
+  const tx = { $executeRaw: async () => { calls.raw += 1; return 1; }, account, importanceLevel: { findFirst: async () => null } };
   const client = {
     $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
     account,

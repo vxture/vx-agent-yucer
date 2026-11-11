@@ -248,7 +248,7 @@ export default async function AccountDetailPage({
   // The newest plan in any status: the 定级 drawer closes and reopens it.
   const planRead = await accountPlanState(ctx, id);
   const planState = planRead.ok && planRead.value
-    ? { status: planRead.value.status, period: planRead.value.period, closeReason: planRead.value.closeReason ?? null }
+    ? { ...planRead.value, closeReason: planRead.value.closeReason ?? null }
     : null;
   if (!detail.ok) {
     // The shell hands this route its whole body row (lib/sidebar-slot.ts),

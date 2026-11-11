@@ -1,9 +1,13 @@
 "use client";
 
+import { AccountOperatingFields } from "./account-operating-fields";
+import { operatingValues, operatingPlan, operatingError } from "../lib/account-plan-form";
+import { defaultPeriod } from "../lib/periods";
+import type { AccountPlanDraft, AccountTier } from "../../domains/account/store";
 import { FormFields } from "./form-page";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, useToast } from "@vxture/design-ui";
+import { Button, Card, Separator, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import {
   AccountFields,
@@ -20,19 +24,28 @@ import {
 export function AccountCreateForm({
   vocab,
   onCreate,
+  initialTier = "standard",
 }: {
+  readonly initialTier?: AccountTier;
   readonly vocab: AccountFieldVocab;
-  readonly onCreate: (input: AccountPatchShape) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
+  readonly onCreate: (input: AccountPatchShape & { tier?: AccountTier; plan?: AccountPlanDraft }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
 }) {
   const { ACCOUNT_BASICS_TEXT, ACCOUNT_ERROR } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
   const [pending, start] = useTransition();
   const [values, setValues] = useState(() => toAccountFieldValues());
+  const [tier, setTier] = useState<AccountTier>(initialTier);
+  const [operating, setOperating] = useState(() => operatingValues(defaultPeriod()));
 
   const submit = () =>
     start(async () => {
-      const r = await onCreate(toAccountPatch(values));
+      const invalid = operatingError(tier, operating);
+      if (invalid) {
+        toast({ tone: "danger", title: ACCOUNT_ERROR[invalid] ?? ACCOUNT_ERROR.denied });
+        return;
+      }
+      const r = await onCreate({ ...toAccountPatch(values), tier, plan: operatingPlan(tier, operating) });
       if (!r.ok) {
         toast({ tone: "danger", title: ACCOUNT_ERROR[r.error] ?? ACCOUNT_ERROR.denied ?? r.error });
         return;
@@ -49,6 +62,8 @@ export function AccountCreateForm({
       <FormFields>
         <AccountFields values={values} onChange={setValues} vocab={vocab} pending={pending} accountNo={null} />
       </FormFields>
+      <Separator />
+      <AccountOperatingFields tier={tier} onTierChange={setTier} values={operating} onChange={setOperating} disabled={pending} />
       <div className="flex justify-end gap-sm">
         <Button variant="secondary" disabled={pending} onClick={() => router.push("/account")}>
           {ACCOUNT_BASICS_TEXT.createCancel}

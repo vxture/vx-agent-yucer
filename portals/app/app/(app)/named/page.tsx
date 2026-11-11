@@ -3,28 +3,14 @@ import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { getAccountStore, getDeliveryStore } from "../../domains/shared/registry";
+import { getDeliveryStore } from "../../domains/shared/registry";
 import { accountStatuses, importanceScheme, listAccounts } from "../../domains/account/service";
 import { accountLevelBadges } from "../../domains/account/lib/importance";
+import { NamedAccountActions } from "../components/named-account-actions";
 import { AccountTable } from "../components/account-table";
 import { loadFailureText } from "../lib/load-failure";
 
-// D2 named accounts - the roster the write path never had.
-//
-// designateAccountTier shipped in 6c and lives on /account/[id]: it marks one
-// account strategic or key and attaches the plan the cadence rule reads. What
-// never existed was the ROSTER - who our named accounts ARE, together - and a
-// control on a detail page is not a surface. You could set the tier on an
-// account you had already found; you could not ask which accounts hold one.
-//
-// READ ONLY, deliberately. The tier is set where the evidence for setting it
-// is - the account's own page, beside its health, its chain and its deals.
-// A tier control on a list would invite ranking customers from a table, which
-// is the decision ADR-013 wants made in front of the account.
-//
-// Standard accounts are absent rather than greyed: this is the roster of the
-// named ones, and a list mostly full of unnamed accounts would be /account
-// with a column added.
+// Named accounts reuse the customer master and its shared creation/designation flows.
 
 export const dynamic = "force-dynamic";
 
@@ -61,17 +47,6 @@ export default async function NamedAccountPage() {
     .filter((a) => a.tier !== "standard")
     .sort((a, b) => (RANK[a.tier] ?? 9) - (RANK[b.tier] ?? 9));
 
-  if (named.length === 0) {
-    return (
-      <ViewLayout>
-        <EmptyState
-          title={NAMED_ACCOUNT_TEXT.none}
-          description={NAMED_ACCOUNT_TEXT.noneWhy}
-        />
-      </ViewLayout>
-    );
-  }
-
   // 客户级别 badges, from the same scheme as the customer page.
   const scheme = await importanceScheme({
     workspaceId: session.workspaceId,
@@ -80,6 +55,8 @@ export default async function NamedAccountPage() {
     entitlement: session.entitlement,
     store: session.stores.account(),
   });
+
+  const levelOf = scheme.ok ? accountLevelBadges(result.value, scheme.value.account) : undefined;
 
   // 状态标签, derived (YC-021 L5) - see account/page.tsx.
   const statusRead = await accountStatuses(
@@ -103,16 +80,17 @@ export default async function NamedAccountPage() {
         moduleKey="namedAccount"
         brief="named"
         tags={<StatusBadge tone="success">{NAMED_ACCOUNT_TEXT.tagNamed(named.length)}</StatusBadge>}
+        action={can(session.authz, session.entitlement, "account.upsert", "ui").allowed ? <NamedAccountActions accounts={result.value.map(({ id, name, accountNo, tier, ownerSub }) => ({ id, name, accountNo, tier, ownerSub, levelName: levelOf?.get(id)?.name }))} /> : undefined}
       />
-      <AccountTable
+      {named.length === 0 ? <EmptyState title={NAMED_ACCOUNT_TEXT.none} description={NAMED_ACCOUNT_TEXT.noneWhy} /> : <AccountTable
         rows={named}
-        levelOf={scheme.ok ? accountLevelBadges(named, scheme.value.account) : undefined}
+        levelOf={levelOf}
         statusOf={statusRead?.ok ? statusRead.value : null}
         canRecompute={
           can(session.authz, session.entitlement, "account.upsert", "ui")
             .allowed
         }
-      />
+      />}
     </ViewLayout>
   );
 }

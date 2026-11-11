@@ -101,6 +101,8 @@ export interface AccountRecord {
 /** What a new customer is created with (owner, 2026-09-23: 新建客户). The number
  *  is the store's to assign, the tier D1's (ADR-013), the status derived. */
 export interface NewAccount {
+  tier?: AccountTier;
+  plan?: AccountPlanWrite;
   name: string;
   region: string | null;
   province: string | null;
@@ -149,6 +151,11 @@ export interface AccountPlanRecord {
   /** incr/0105. Why it was closed; optional, and null while it is active. */
   closeReason?: string | null;
 }
+
+/** Shared operating fields on customer creation, designation and linking. */
+export type AccountPlanDraft = Pick<AccountPlanRecord,
+  "period" | "targetAmount" | "contactCadenceDays" | "execCadenceDays">;
+export type AccountPlanWrite = Omit<AccountPlanRecord, "id" | "workspaceId" | "accountId">;
 
 /**
  * A person at a customer: who they are, what they do there, how to reach them.
@@ -397,6 +404,14 @@ export interface AccountStore {
         | "status" | "tier" | "creditCode" | "website" | "employeeCount" | "parentId"
       >
     >,
+  ): Promise<boolean>;
+
+  /** Persist the level and operating plan together, or neither. */
+  saveAccountDesignation(
+    workspaceId: string,
+    accountId: string,
+    tier: AccountTier,
+    plan?: AccountPlanWrite,
   ): Promise<boolean>;
 
   /**
@@ -915,22 +930,49 @@ export class InMemoryAccountStore implements AccountStore {
     if (input.creditCode && mine.some((a) => a.creditCode === input.creditCode)) {
       throw new Error("credit_code_taken");
     }
+    const { plan, tier = "standard", ...basics } = input;
     const row: AccountRecord = {
       id: crypto.randomUUID(),
       workspaceId,
       accountNo: nextAccountNo(mine.map((a) => a.accountNo)),
-      ...input,
+      ...basics,
       industry: null,
       customerType: null,
       customerSize: null,
       customerNature: null,
       healthScore: null,
       status: "prospect",
-      tier: "standard",
+      tier,
+      tierLevelId: this.importanceLevels.find((l) => l.workspaceId === workspaceId && l.subject === "account" && l.levelCode === tier)?.id ?? null,
       parentId: null,
     };
     this.accounts.set(row.id, row);
+    try {
+      if (plan) await this.upsertAccountPlan(workspaceId, { ...plan, accountId: row.id });
+    } catch (error) {
+      this.accounts.delete(row.id);
+      this.plans.delete(`${workspaceId}|${row.id}`);
+      throw error;
+    }
     return this.hydrate(row);
+  }
+
+  async saveAccountDesignation(workspaceId: string, accountId: string, tier: AccountTier, plan?: AccountPlanWrite): Promise<boolean> {
+    const account = this.accounts.get(accountId);
+    if (!account || account.workspaceId !== workspaceId) return false;
+    // A failed write restores the previous plan and leaves the tier intact.
+    const key = `${workspaceId}|${accountId}`;
+    const previous = this.plans.get(key);
+    try {
+      if (plan) await this.upsertAccountPlan(workspaceId, { ...plan, accountId });
+    } catch (error) {
+      if (previous) this.plans.set(key, previous);
+      else this.plans.delete(key);
+      throw error;
+    }
+    const level = this.importanceLevels.find((l) => l.workspaceId === workspaceId && l.subject === "account" && l.levelCode === tier);
+    Object.assign(account, { tier, tierLevelId: level?.id ?? null });
+    return true;
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {

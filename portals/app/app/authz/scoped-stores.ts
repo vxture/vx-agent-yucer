@@ -274,6 +274,8 @@ class ScopedAccountStore implements AccountStore {
   softDeleteAccount: AccountStore["softDeleteAccount"] = (...a) => this.inner.softDeleteAccount(...a);
   // A new customer is its creator's (ownerSub = the session), so it is inside
   // every scope that could have created it; nothing to filter on the way in.
+  // The designation service first reads the customer through getAccount.
+  saveAccountDesignation: AccountStore["saveAccountDesignation"] = (...a) => this.inner.saveAccountDesignation(...a);
   createAccount: AccountStore["createAccount"] = (...a) => this.inner.createAccount(...a);
   listCollaboratedAccountIds: AccountStore["listCollaboratedAccountIds"] = (...a) =>
     this.inner.listCollaboratedAccountIds(...a);

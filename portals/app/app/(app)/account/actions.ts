@@ -6,6 +6,7 @@ import { getAccountStore, getDeliveryStore, getFieldStore } from "../../domains/
 import { getAuthzStore } from "../../authz/store";
 import {
   designateAccount,
+  accountPlanState,
   linkContacts,
   upsertContact,
   moveContact,
@@ -25,7 +26,7 @@ import {
   type FootprintContext,
 } from "../../domains/account/service";
 import type { Footprint } from "../../domains/account/lib/footprint";
-import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
+import { ACCOUNT_TIERS, type AccountTier, type AccountPlanDraft } from "../../domains/account/store";
 import { isRelationType } from "../../domains/account/lib/health";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
@@ -59,6 +60,7 @@ export async function recomputeAccountHealth(accountId: string): Promise<Recompu
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath(`/account/${accountId}`);
   revalidatePath("/account");
+  revalidatePath("/named");
   return { ok: true, score: result.value.score };
 }
 
@@ -153,19 +155,7 @@ export async function designateAccountTier(input: {
     {
       accountId: input.accountId,
       tier: input.tier as AccountTier,
-      ...(input.plan
-        ? {
-            plan: {
-              ...input.plan,
-              // The three roles default to the person doing the designating.
-              // A plan is a commitment about who works the account, and an
-              // unowned commitment is the thing the cadence rule cannot chase.
-              ownerSub: session.user.sub,
-              presalesSub: null,
-              deliverySub: null,
-            },
-          }
-        : {}),
+      ...(input.plan ? { plan: input.plan } : {}),
     },
   );
 
@@ -174,6 +164,7 @@ export async function designateAccountTier(input: {
   }
   revalidatePath(`/account/${input.accountId}`);
   revalidatePath("/account");
+  revalidatePath("/named");
   return { ok: true, tier: result.value.tier, planned: result.value.planned };
 }
 
@@ -297,6 +288,7 @@ export async function setAccountParentAction(
   }
   revalidatePath(`/account/${accountId}`);
   revalidatePath("/account");
+  revalidatePath("/named");
   return { ok: true };
 }
 
@@ -333,12 +325,13 @@ export async function updateAccountBasicsAction(
   }
   revalidatePath(`/account/${accountId}`);
   revalidatePath("/account");
+  revalidatePath("/named");
   return { ok: true };
 }
 
 /** 新建客户 (owner, 2026-09-23). Returns the new id so the page can land on it. */
 export async function createAccountAction(
-  input: Required<AccountBasicsPatch> & { name: string },
+  input: Required<AccountBasicsPatch> & { name: string; tier?: AccountTier; plan?: AccountPlanDraft },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -355,6 +348,7 @@ export async function createAccountAction(
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/account");
+  revalidatePath("/named");
   return { ok: true, id: result.value.id };
 }
 
@@ -545,5 +539,25 @@ export async function deleteAccountAction(accountId: string): Promise<{ ok: bool
   const r = await deleteEmptyAccount(ctx, accountId);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/account");
+  revalidatePath("/named");
   return { ok: true };
+}
+
+/** Read a visible customer's operating fields for the shared link drawer. */
+export async function loadAccountOperatingAction(accountId: string): Promise<
+  { ok: true; plan: (AccountPlanDraft & { status: "active" | "closed"; closeReason: string | null }) | null } |
+  { ok: false; error: string }
+> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await accountPlanState({
+    workspaceId: session.workspaceId, sub: session.user.sub,
+    holder: session.authz, entitlement: session.entitlement, store: session.stores.account(),
+  }, accountId);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  const plan = result.value;
+  return { ok: true, plan: plan ? {
+    period: plan.period, targetAmount: plan.targetAmount, contactCadenceDays: plan.contactCadenceDays,
+    execCadenceDays: plan.execCadenceDays, status: plan.status, closeReason: plan.closeReason ?? null,
+  } : null };
 }
