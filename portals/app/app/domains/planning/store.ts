@@ -13,6 +13,7 @@ import type { TerritoryDraft } from "./lib/territory";
 import { DEFAULT_ORG_KINDS, ORG_TEMPLATES, defaultOrgTemplate, type OrgTemplate, type OrgUnitDraft } from "./lib/org";
 
 export interface TargetRecord extends SalesTarget {
+  managedBySalesPlan?: boolean;
   id: string;
   workspaceId: string;
 }
@@ -68,6 +69,7 @@ export interface OrgUnitRecord {
 }
 
 export interface PlanningStore {
+  isManagedScope?(workspaceId: string, scope: TargetScope): Promise<boolean>;
   /* --- 组织结构 (incr/0051) --------------------------------------------------
      The unit tree, its kind vocabulary, who belongs where, and the shipped
      templates. Every write stays inside 0051's UPDATE whitelist: a code is

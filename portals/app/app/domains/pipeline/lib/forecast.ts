@@ -245,6 +245,7 @@ export function inScope<T extends Pick<ForecastableOpportunity, "territoryId" | 
 }
 
 export interface SnapshotRow extends ForecastTotals {
+  targetBasis?: import("../../planning/plan-service").TargetBasis[];
   /**
    * Open deals in this scope with no expected close date, excluded from every
    * total above. Not persisted - it describes the INPUT to a snapshot, not the

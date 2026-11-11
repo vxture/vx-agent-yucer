@@ -8,6 +8,9 @@
 // SERVER-ONLY, for the same reason authz/context.ts is: the Prisma adapters
 // reach the pg driver, which cannot be bundled for the browser.
 
+import { withSalesPlanTargets } from "../planning/effective-targets";
+import { InMemorySalesPlanStore, type SalesPlanStore } from "../planning/plan-store";
+import { PrismaSalesPlanStore } from "../planning/plan-prisma-store";
 import { prismaEnabled } from "../../lib/db";
 import { seedDemoWorkspace } from "./demo-seed";
 // domains -> authz is the allowed direction; authz must never import a domain.
@@ -171,7 +174,7 @@ export function getPlanningStore(): PlanningStore {
   if (planningOverride) return planningOverride;
   const memo = memoTable();
   if (!memo.planning) {
-    memo.planning = prismaEnabled()
+    memo.planning = withSalesPlanTargets(prismaEnabled()
       ? new PrismaPlanningStore()
       /* The memory store names a territory's coverage through the account
          store's 大区 rows (0052) - the same read-only reference the Prisma
@@ -185,7 +188,7 @@ export function getPlanningStore(): PlanningStore {
               .sort((a, b) => b.snapshotAt.getTime() - a.snapshotAt.getTime())[0];
             return latest ? { closedAmount: latest.closedAmount, pipelineAmount: latest.pipelineAmount, newLogoCount: latest.newLogoCount } : null;
           },
-        });
+        }), getSalesPlanStore());
   }
   return memo.planning as PlanningStore;
 }
@@ -315,4 +318,10 @@ export function ensureDemoData(workspaceId: string): boolean {
 /** Tests: forget what has been seeded. */
 export function resetDemoSeed(): void {
   seededSet().clear();
+}
+
+export function getSalesPlanStore(): SalesPlanStore {
+  const memo = memoTable();
+  if (!memo.salesPlan) memo.salesPlan = prismaEnabled() ? new PrismaSalesPlanStore() : new InMemorySalesPlanStore();
+  return memo.salesPlan as SalesPlanStore;
 }

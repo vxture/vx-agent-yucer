@@ -743,7 +743,8 @@ export class PrismaPipelineStore implements PipelineStore {
     // create, never upsert: forecast_snapshot has no UPDATE grant, and the whole
     // point is that history survives. A same-instant collision is the unique
     // index doing its job.
-    await p.forecastSnapshot.create({
+    await p.$transaction(async (tx) => {
+    const snapshot = await tx.forecastSnapshot.create({
       data: {
         workspaceId,
         period: row.period,
@@ -762,6 +763,8 @@ export class PrismaPipelineStore implements PipelineStore {
         callNote: row.callNote ?? null,
         submittedBySub: row.submittedBySub ?? null,
       },
+    });
+    if (row.targetBasis) for (const basis of row.targetBasis) await tx.forecastTargetBasis.create({ data: { workspaceId, forecastSnapshotId: snapshot.id, metric: basis.metric, sourceKind: basis.sourceKind, salesPlanId: basis.planId ?? null, revisionId: basis.revisionId, lineKey: basis.lineKey, legacyTargetRef: basis.legacyTargetId, targetSnapshot: JSON.parse(JSON.stringify(basis)), basisResolvedAt: new Date(basis.resolvedAt) } });
     });
   }
 
@@ -1334,7 +1337,8 @@ export class PrismaPipelineStore implements PipelineStore {
       where: { workspaceId, period: query.period, ...(query.scopeType ? { scopeType: query.scopeType } : {}) },
       orderBy: { snapshotAt: "asc" },
     });
-    return rows.map((r: Record<string, unknown>) => decimalSnapshot(r));
+    const bases = await p.forecastTargetBasis.findMany({ where: { workspaceId, forecastSnapshotId: { in: rows.map((r) => r.id) } } });
+    return rows.map((r: Record<string, unknown>) => ({ ...decimalSnapshot(r), ...(bases.some((b) => b.forecastSnapshotId === r.id) ? { targetBasis: bases.filter((b) => b.forecastSnapshotId === r.id).map((b) => b.targetSnapshot as unknown as import("../planning/plan-service").TargetBasis) } : {}) }));
   }
 }
 

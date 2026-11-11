@@ -1442,7 +1442,7 @@ export async function forecastHistory(
     scopeType: scope.scopeType,
   });
   return ok(
-    rows.filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub),
+    rows.filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub).map((r) => { if (can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed) return r; const { targetBasis: _basis, ...visible } = r; return visible; }),
   );
 }
 
@@ -1673,6 +1673,7 @@ export async function submitForecast(
     snapshotAt?: Date;
     /** 主管预估数 (incr/0096); omitted or null amount = no call. */
     call?: { amount?: number | null; note?: string | null };
+    targetBasis?: import("../planning/plan-service").TargetBasis[];
   },
 ): Promise<RuleResult<SnapshotRow>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.snapshot", "data");
@@ -1693,6 +1694,7 @@ export async function submitForecast(
   });
   if (!row.ok) return row;
 
+  if (input.targetBasis) row.value.targetBasis = input.targetBasis;
   await ctx.store.appendForecastSnapshot(ctx.workspaceId, row.value);
   return ok(row.value);
 }

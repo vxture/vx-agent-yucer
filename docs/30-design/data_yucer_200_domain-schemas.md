@@ -16,14 +16,18 @@
 | `contact` | 联系人（含决策角色、影响力） | - |
 | `account_relation` | 关系图谱有向边（只追加） | - |
 
-### yucer_gtm（11）
+### yucer_gtm（15）
 
 | 表 | 说明 | 业务号 |
 |----|------|-------|
 | `strategy_plan` | 战略规划 | `plan_no` |
 | `market_segment` | 细分市场（`criteria` 为 JSONB 过滤条件） | `segment_code` |
 | `territory` | 销售区域（自引用树） | `territory_code` |
-| `sales_target` | 目标/配额 | - |
+| `sales_target` | 旧目标/独立个人配额；显式接管后禁止旧写 | - |
+| `sales_plan` | 年度规划稳定身份，工作区/年份唯一（incr/0106） | - |
+| `sales_plan_revision` | 共享草稿及整份 JSONB 冻结版本 | 根内 V 编号 |
+| `sales_plan_event` | 草稿/保存/发布/取消/锁定/结案事件，只追加 | 根内 event_no |
+| `sales_plan_legacy_target` | 旧目标显式接管及来源快照，只追加 | - |
 | `campaign` | 市场战役 | `campaign_no` |
 | `campaign_execution` | 战役执行项 | - |
 | `org_unit_kind` | 单位类型词表，工作区自有（`incr/0051`，ADR-029） | `kind_code` |
@@ -35,7 +39,7 @@
 `yucer_ref.org_template` / `org_template_unit`（`incr/0051`）为三套预置组织模版，
 只读参考行；工作区首次接触时按默认模版物化，重置预置可整体替换。
 
-### yucer_pipeline（6）
+### yucer_pipeline（7）
 
 | 表 | 说明 | 业务号 |
 |----|------|-------|
@@ -44,6 +48,7 @@
 | `opportunity` | 商机 | `opportunity_no` |
 | `opportunity_stage_event` | 阶段流转（只追加） | - |
 | `forecast_snapshot` | 预测快照（只追加） | - |
+| `forecast_target_basis` | 预测提交采用的目标版本/金额，与快照同事务，只追加（incr/0106） | - |
 | `win_loss_review` | 赢丢复盘（每商机一条） | - |
 
 ### yucer_delivery（4）

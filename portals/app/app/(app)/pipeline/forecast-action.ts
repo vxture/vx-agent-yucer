@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import {
-  getCatalogStore,
+  getCatalogStore, getPlanningStore, getSalesPlanStore,
 } from "../../domains/shared/registry";
+import { resolveForecastTargetBasis } from "../../domains/planning/effective-targets";
 import { submitForecast } from "../../domains/pipeline/service";
 import { parseForecastScope } from "../lib/forecast-scope";
 
@@ -44,6 +45,7 @@ export async function submitForecastSnapshot(
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
+  const policy = await getCatalogStore().getPricingPolicy(session.workspaceId);
   const result = await submitForecast(
     {
       workspaceId: session.workspaceId,
@@ -55,12 +57,14 @@ export async function submitForecastSnapshot(
     },
     {
       period,
+      currency: policy.defaultCurrency,
       // parseForecastScope always yields exactly one of the three shapes, with
       // the other id null - validateScope rejects a scope that carries both,
       // which is why this goes through the parser rather than being assembled
       // from separate params that could disagree.
       scope: parseForecastScope(scopeKey),
       call,
+      targetBasis: await resolveForecastTargetBasis(getPlanningStore(), getSalesPlanStore(), session.workspaceId, { period, ...parseForecastScope(scopeKey) }, policy.defaultCurrency),
     },
   );
 

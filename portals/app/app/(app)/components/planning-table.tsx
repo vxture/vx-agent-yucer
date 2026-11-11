@@ -213,7 +213,7 @@ export function PlanningTable({
     // place with the DS's disabled trigger (表格三件标配 - the action column is
     // there even with nothing in it; DS 14 batch 4). It is frozen by rule -
     // planTargetUpdate refuses every patch - so no item is offered.
-    if (!canUpdate || !onUpdate || row.target.status === "closed") {
+    if (!canUpdate || !onUpdate || row.target.status === "closed" || row.target.managedBySalesPlan) {
       return <RowActions label={DS_LABELS.actionMenu} items={[]} />;
     }
     const label = scopeLabel(row, names, nameOf, PLANNING_TEXT);

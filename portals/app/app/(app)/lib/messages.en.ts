@@ -69,6 +69,40 @@ const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account
 
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
+  PLAN_VERSION_TEXT: {
+    ...zh.PLAN_VERSION_TEXT,
+    year: "Planning year",
+    version: "Plan version",
+    current: "Effective",
+    baseline: "Original baseline",
+    scheduled: "Scheduled",
+    draft: "Draft",
+    history: "Version history",
+    create: "Create draft",
+    adjust: "Adjust plan",
+    restore: "Restore as a new version",
+    save: "Save draft",
+    publish: "Publish plan",
+    company: "Company target",
+    regions: "Regional plans",
+    floor: "Floor",
+    target: "Target",
+    stretch: "Stretch",
+    customers: "Customer contribution",
+    team: "Team capacity",
+    actions: "Planned actions",
+    reason: "Reason for change",
+    before: "Before",
+    after: "After",
+    targetChange: "Target change",
+    noPercent: "Previous target is zero",
+    confirm: "Confirm",
+    cancel: "Cancel",
+  },
+  PLAN_VERSION_ERROR: {
+    ...zh.PLAN_VERSION_ERROR,
+    plan_save_failed: "The operation failed; your inputs are preserved. Please retry.",
+  },
 
   COMPLETENESS_ERROR: {
     invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
@@ -991,6 +1025,7 @@ export const en: Dictionary = {
     terminal_requires_closed: "A closed deal can only be forecast as closed",
   },
   TARGET_ERROR: {
+    managed_by_sales_plan: "This target is managed by a sales plan; adjust it through a new draft.",
     region_unknown: "Select a current geographic sales region from region settings.",
     target_not_draft: "Only a draft target can be deleted - a committed or closed one is a record of what was held to",
     ...GATE_ERROR,
