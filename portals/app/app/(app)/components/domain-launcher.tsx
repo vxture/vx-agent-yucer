@@ -4,15 +4,7 @@ import { HEADER_ICON_CONTROL } from "./header-ladder";
 
 import Link from "next/link";
 import { useState } from "react";
-import {
-  Icon,
-  StatusBadge,
-  Popover,
-  PopoverTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@vxture/design-ui";
+import { Icon, StatusBadge, Popover, PopoverTrigger } from "@vxture/design-ui";
 import {
   ShellIconButton,
   ShellPanelContent,
@@ -130,41 +122,50 @@ export function DomainLauncher({
   const {
     DOMAIN_LABEL,
     DOMAIN_GROUP_LABEL,
-    DOMAIN_GROUP_QUESTION,
     PLANNED_MODULE_LABEL,
     LAUNCHER_TEXT,
     TIER_LABEL,
-    ATTAINMENT_TEXT,
   } = useMessages();
 
   const domains = resolveFunctionalDomains(nav);
   const crosscutting = resolveCrosscutting(nav);
   const here = activeDomainKey(activeKey);
 
-  const moduleLabel = (key: string) => {
+  // One primary reading beside the title; secondary metrics stay in the hint.
+  // An empty gated result stays absent. A measured zero remains visible.
+  const moduleLabel = (key: string, showMetric = false) => {
     const label = DOMAIN_LABEL[key] ?? key;
-    return FEATURED_MODULE_KEYS.has(key) ? (
-      <span className="inline-flex min-w-0 max-w-full items-center gap-xs">
-        <span className="truncate">{label}</span>
-        <img
-          src="/assets/icons/fire.png"
-          srcSet="/assets/icons/fire@2x.png 2x, /assets/icons/fire@3x.png 3x"
-          width={16}
-          height={16}
-          className="size-4 shrink-0"
-          alt={LAUNCHER_TEXT.featured}
-          title={LAUNCHER_TEXT.featured}
-        />
-      </span>
-    ) : label;
-  };
-
-  const moduleSummary = (key: string) => {
-    const summary = modules[key]?.metrics
-      .map((metric) => `${metric.value} ${metric.label}`)
+    const metrics = showMetric ? modules[key]?.metrics : undefined;
+    const primary = metrics?.[0];
+    const summary = metrics
+      ?.map((metric) => `${metric.value} ${metric.label}`)
       .join(" \u00b7 ");
-    if (summary) return <span title={summary}>{summary}</span>;
-    return key === "attainment" ? ATTAINMENT_TEXT.progress : undefined;
+    return (
+      <span className="inline-flex min-w-0 max-w-full items-center gap-xs align-middle">
+        <span className="truncate" title={label}>
+          {label}
+        </span>
+        {FEATURED_MODULE_KEYS.has(key) ? (
+          <img
+            src="/assets/icons/fire.png"
+            srcSet="/assets/icons/fire@2x.png 2x, /assets/icons/fire@3x.png 3x"
+            width={16}
+            height={16}
+            className="size-4 shrink-0"
+            alt={LAUNCHER_TEXT.featured}
+            title={LAUNCHER_TEXT.featured}
+          />
+        ) : null}
+        {primary?.value ? (
+          <span
+            className="shrink-0 text-body-small font-normal text-muted-foreground tabular-nums"
+            title={summary}
+          >
+            {primary.value}
+          </span>
+        ) : null}
+      </span>
+    );
   };
 
   const row = (m: ResolvedModule) =>
@@ -210,16 +211,22 @@ export function DomainLauncher({
         icon={m.icon}
         label={moduleLabel(m.key)}
         value={
-          m.requiredTier
-            ? <StatusBadge size="xs" tone="neutral" icon={false}>{(TIER_LABEL[m.requiredTier] ?? m.requiredTier).toLowerCase()}</StatusBadge>
-            : LAUNCHER_TEXT.lockedNoTier
+          m.requiredTier ? (
+            <StatusBadge size="xs" tone="neutral" icon={false}>
+              {(TIER_LABEL[m.requiredTier] ?? m.requiredTier).toLowerCase()}
+            </StatusBadge>
+          ) : (
+            LAUNCHER_TEXT.lockedNoTier
+          )
         }
         href={`/upgrade/${m.key}`}
         linkComponent={Link}
         onClick={closePanel}
         chevron={false}
       />
-    ) : m.key === "national" || m.key === "enablement" || m.key === "strategyDiag" ? (
+    ) : m.key === "national" ||
+      m.key === "enablement" ||
+      m.key === "strategyDiag" ? (
       // 销售大屏 / 赋能分析 / 战略诊断 OPEN IN A NEW TAB (owner, 2026-09-13;
       // extended to 赋能分析 2026-09-17, 战略诊断 batch 11c - same (screen)
       // idiom, same reason). All three are meant to run on their own - not to
@@ -232,7 +239,7 @@ export function DomainLauncher({
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
-        label={moduleLabel(m.key)}
+        label={moduleLabel(m.key, true)}
         href={m.href}
         linkComponent={Link}
         onClick={closePanel}
@@ -250,94 +257,30 @@ export function DomainLauncher({
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
-        label={moduleLabel(m.key)}
+        label={moduleLabel(m.key, true)}
         href={m.href}
         linkComponent={Link}
         onClick={closePanel}
         active={m.key === activeKey}
-        description={moduleSummary(m.key)}
         chevron={false}
       />
     );
 
-  /**
-   * The domain heading: a ShellPanelRow, flat, with the question under it.
-   *
-   * NO IDENTITY BLOCK. A previous pass used ShellPanelHeader, whose mark is a
-   * `size-media-sm` Avatar - which gives the icon a PERMANENT BACKGROUND, and
-   * a background in this panel is meant to say hover or current, not "this is
-   * an icon". The row's Button variant already owns that: ghost until you
-   * point at it, secondary when it is where you are.
-   *
-   * It also fixes an alignment this file could not honestly fix. The Avatar
-   * centred a 32px glyph in a 48px block, so the domain icon sat 8px inside
-   * its own inset while a module icon started flush - two icon columns 7px
-   * apart, measured, with no spacing token in between (the scale steps by 4).
-   * Closing it needed a magic offset fighting a DS component's internals.
-   * Removing the block removes the problem: both levels are the same row on
-   * the same ROW_INSET, so the icons are one column by construction.
-   *
-   * THE COLOUR DIFFERENCE IS THE DS's. ROW_ICON_TONE is
-   * `text-muted-foreground` and the label is foreground - icon and title
-   * already differ, and nothing here restates a colour. What separates this
-   * row from the five under it is the description line, the gap below it, and
-   * the dashed rule between columns.
-   *
-   * WHERE IT GOES IS MEASURED, not uniform - see primaryHref. A domain holding
-   * two or more routes gets a home page, because no single page is that
-   * domain; a domain holding one route IS that page. Not a link at all when
-   * every built module was refused on permission and only planned rows keep
-   * the column alive: a heading that navigates nowhere is worse than one that
-   * does not offer to.
-   */
+  // Shared DS rows keep the domain icon and label aligned with module rows.
+  // Domain names use the smaller, muted label role without a description.
   const domainHeading = (d: ResolvedDomain) => {
     const href = primaryHref(d);
-    const question = DOMAIN_GROUP_QUESTION[d.key] ?? "";
     return (
       <ShellPanelRow
         icon={d.icon}
-        label={DOMAIN_GROUP_LABEL[d.key] ?? d.key}
-        description={
-          /* A TOOLTIP, BECAUSE THE LINE IS CLIPPED. The row's description is
-             `truncate`, which is right - a wrapped question would make five
-             columns different heights - but a clipped sentence with no way to
-             read the rest is text the product has taken away. Measured at
-             1700px none of the five actually clip; at the widths a real window
-             has, they do.
-
-             The DS's own Tooltip; the provider is mounted at the app layout,
-             and a DS Tooltip throws outside one. */
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="block w-full truncate">{question}</span>
-            </TooltipTrigger>
-            <TooltipContent>{question}</TooltipContent>
-          </Tooltip>
+        label={
+          <span className="text-label-small">
+            {DOMAIN_GROUP_LABEL[d.key] ?? d.key}
+          </span>
         }
         {...(href ? { href, linkComponent: Link, onClick: closePanel } : {})}
         active={d.key === here}
         chevron={false}
-        /* GRAY, NOT THE BRAND COLOUR (owner, 2026-09-16: five domain names in
-           text-primary read as too loud for what is just a grouping label -
-           these are not links to click on their own merit, they are section
-           headings). This reverts a pass that put the whole heading - mark
-           and name - in `text-primary` to solve "the heading wore the same
-           two colours as the five rows beneath it": that fix is still real
-           (a heading and its rows should not read as the same level), but the
-           panel already had other differentiators before that pass existed -
-           the description line, the gap below it, the dashed rule between
-           columns (see this function's own doc comment) - so brand colour was
-           solving a problem structure had already solved, at the cost of
-           making a mere grouping look like the panel's most important
-           control.
-
-           `text-muted-foreground` on both mark and name (rather than leaving
-           the icon to ROW_ICON_TONE's own default of the same token) keeps
-           the pairing explicit here rather than relying on a DS default this
-           file does not own staying what it is.
-
-           COLOUR TOKENS, NOT COLOURS. Still no background - that belongs to
-           hover and active. */
         className="text-muted-foreground [&_svg]:text-muted-foreground"
       />
     );
@@ -411,12 +354,9 @@ export function DomainLauncher({
 
           <div className={COLUMNS}>
             {domains.map((d, i) => (
-              <div
-                key={d.key}
-                className={i === 0 ? "xl:pr-md" : COLUMN_RULE}
-              >
+              <div key={d.key} className={i === 0 ? "xl:pr-md" : COLUMN_RULE}>
                 {domainHeading(d)}
-{/* AIR BETWEEN THE TWO LEVELS. The heading and the rows are the
+                {/* AIR BETWEEN THE TWO LEVELS. The heading and the rows are the
                     same component now, so the gap is the only thing saying
                     "these five belong under that one" - at the section's own
                     spacing the domain name read as the first of six rows. */}
