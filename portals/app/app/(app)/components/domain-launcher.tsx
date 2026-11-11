@@ -356,22 +356,27 @@ export function DomainLauncher({
             </ShellPanelSection>
           ) : null}
 
-          <div className={COLUMNS}>
-            {domains.map((d, i) => (
-              <div key={d.key} className={i === 0 ? "xl:pr-md" : COLUMN_RULE}>
-                {domainHeading(d)}
-                {/* AIR BETWEEN THE TWO LEVELS. The heading and the rows are the
-                    same component now, so the gap is the only thing saying
-                    "these five belong under that one" - at the section's own
-                    spacing the domain name read as the first of six rows. */}
-                <div className="mt-md">
-                  <ShellPanelSection divided={false} className="gap-md">
-                    {d.modules.map(row)}
-                  </ShellPanelSection>
+          <ShellPanelSection
+            divided={crosscutting.length > 0}
+            className={crosscutting.length > 0 ? "pt-lg" : undefined}
+          >
+            <div className={COLUMNS}>
+              {domains.map((d, i) => (
+                <div key={d.key} className={i === 0 ? "xl:pr-md" : COLUMN_RULE}>
+                  {domainHeading(d)}
+                  {/* AIR BETWEEN THE TWO LEVELS. The heading and the rows are the
+                      same component now, so the gap is the only thing saying
+                      "these five belong under that one" - at the section's own
+                      spacing the domain name read as the first of six rows. */}
+                  <div className="mt-md">
+                    <ShellPanelSection divided={false} className="gap-md">
+                      {d.modules.map(row)}
+                    </ShellPanelSection>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ShellPanelSection>
         </div>
       </ShellPanelContent>
     </Popover>
