@@ -175,7 +175,7 @@ export function SolutionRoster({
     },
     {
       id: "types",
-      header: CATALOG_TEXT.colType,
+      header: CATALOG_TEXT.solutionContents,
       cell: (r: SolutionView) => <CoveredTypes ids={factsOf(r).typeIds} names={typeName} />,
     },
     {
