@@ -48,6 +48,9 @@ next-env.d.ts
 
 # Test / coverage
 coverage/
+# Business routes named coverage are source, not test reports.
+!portals/app/app/(app)/attainment/coverage/
+!portals/app/app/(app)/@deck/attainment/coverage/
 .nyc_output/
 
 # OS / editor

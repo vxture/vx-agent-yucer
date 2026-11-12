@@ -4,21 +4,17 @@ import { can } from "../../authz/decide";
 import { canReadReportingScope } from "../../authz/forecast-scope";
 import { periodRange, within } from "../../domains/shared/period";
 import { getMessages } from "../lib/i18n/server";
-import { executionRow, scopePlanSupport } from "../lib/attainment-progress";
+import { executionRow, scopePlanSupport, unallocatedExecutionRow } from "../lib/attainment-progress";
 import {
   compareAttainmentPeriods,
   planningHref,
-  revenuePool,
   type resolveAttainmentQuery,
 } from "../lib/attainment-workspace";
 import { resolveLocale } from "../lib/i18n/locale";
-import { formatMoney } from "../lib/view-model";
 import { AttainmentTargets } from "../components/attainment-targets";
-import { AttainmentReport } from "../components/attainment-report";
 import {
   loadAttainmentBase,
   loadAttainmentPlan,
-  loadAttainmentReport,
 } from "./board";
 
 type Selection = ReturnType<typeof resolveAttainmentQuery>;
@@ -128,17 +124,40 @@ export async function AttainmentOverview({
       ),
     );
   };
+  const makeUnallocated = (
+    p: typeof plan,
+    rowPeriod: string,
+    ids: readonly string[],
+    includeEmpty = false,
+  ) => canReadSelection && scopeKey === "workspace"
+    ? unallocatedExecutionRow({
+        name: T.unallocated,
+        period: rowPeriod,
+        regionIds: ids,
+        deals: data.deals.ok ? data.deals.value : null,
+        defaultCurrency,
+        companyTarget: makeRow(p, "workspace", rowPeriod, T.company).target,
+        regionTargets: ids.flatMap((id) => {
+          const t = makeRow(p, `territory:${id}`, rowPeriod, regionName(id)).target;
+          return t ? [t] : [];
+        }),
+        includeEmpty,
+      })
+    : null;
   if (period === "all") {
     return (
       <>
         {plans.map((p) => {
           const nameOfRegion = (id: string) =>
             p.regions.find((r) => r.id === id)?.name ?? regionName(id);
+          const ids = visibleRegionIds(p, "all");
           const regionRows = selection.teamOverview
-            ? visibleRegionIds(p, "all").map((id) =>
+            ? ids.map((id) =>
                 makeRow(p, `territory:${id}`, `Y${p.year}`, nameOfRegion(id)),
               )
             : [];
+          const unallocated = makeUnallocated(p, `Y${p.year}`, ids);
+          if (unallocated && selection.teamOverview) regionRows.push(unallocated);
           const allRows = canReadSelection
             ? [
                 ...new Set(
@@ -163,13 +182,15 @@ export async function AttainmentOverview({
                     ...new Set(
                       p.targets
                         .filter(
-                          (t) => t.scope === r.scope && t.period !== r.period,
+                          (t) => t.scope === (r.scope === "unallocated" ? "workspace" : r.scope) && t.period !== r.period,
                         )
                         .map((t) => t.period),
                     ),
                   ]
                     .sort(compareAttainmentPeriods)
-                    .map((period) => makeRow(p, r.scope, period, r.name)),
+                    .map((period) => r.scope === "unallocated"
+                      ? makeUnallocated(p, period, ids, true)!
+                      : makeRow(p, r.scope, period, r.name)),
                 ]),
               )}
               plan={scopePlanSupport(p, scopeKey)}
@@ -218,29 +239,13 @@ export async function AttainmentOverview({
         : [],
     ]),
   );
-  const report = canReadSelection
-    ? await loadAttainmentReport(period, scopeKey)
-    : null;
-  const unallocated =
-    canReadSelection && scopeKey === "workspace" && data.deals.ok
-      ? revenuePool(
-          data.deals.value.filter(
-            (d) => !d.territoryId || !regionIds.includes(d.territoryId),
-          ),
-          period,
-          selection.scope,
-          row.currency,
-        )
-      : null;
-  const unallocatedClosed = unallocated?.totals.ok
-    ? unallocated.totals.value.closedAmount.amount
-    : null;
-  const canHistory = can(
-    data.session.authz,
-    data.session.entitlement,
-    "pipeline.forecast.view",
-    "ui",
-  ).allowed;
+  const unallocated = makeUnallocated(plan, period, regionIds);
+  if (unallocated) {
+    regions.push(unallocated);
+    regionPeriods[unallocated.scope] = periods.map((p) =>
+      makeUnallocated(plan, p.period, regionIds, true)!,
+    );
+  }
   return (
     <>
       {selection.planRevision &&
@@ -336,28 +341,7 @@ export async function AttainmentOverview({
                 )
             : null
         }
-        report={
-          canReadSelection ? (
-            <AttainmentReport
-              snapshot={report?.ok ? report.value : null}
-              error={!!report && !report.ok}
-              period={period}
-              scope={selection.selection}
-              currentRevision={row.target?.revision?.id ?? null}
-              canHistory={canHistory}
-              canPlan={canPlan}
-            />
-          ) : undefined
-        }
       />
-      {unallocatedClosed !== null && unallocatedClosed > 0 ? (
-        <p
-          className="text-body-small text-muted-foreground"
-          title={T.unallocatedHint}
-        >
-          {T.unallocated} {formatMoney(unallocatedClosed, row.currency, locale)}
-        </p>
-      ) : null}
     </>
   );
 }

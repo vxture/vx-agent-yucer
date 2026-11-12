@@ -146,7 +146,7 @@ export async function readAttainmentPlans(
       const boundary = (c: PlanContent | undefined) =>
         c?.regions
           .filter((r) => scope === "workspace" || scope === `territory:${r.id}`)
-          .map((r) => [r.id, [...r.provinces].sort()])
+          .map((r) => [r.id, [...r.provinces].sort((a, b) => a.localeCompare(b))])
           .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
       return [
         {

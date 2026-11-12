@@ -21,10 +21,10 @@ import { ForecastUnverified } from "../components/forecast-unverified";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
 import { ForecastChange } from "../components/forecast-change";
 import { forecastStats } from "../../domains/pipeline/lib/forecast-stats";
-import { attainmentReportPoint } from "../../domains/pipeline/lib/forecast";
+import { forecastSnapshotPoint } from "../../domains/pipeline/lib/forecast";
 import { applySuggestedCategory } from "../forecast/actions";
 import { loadForecastWorkspace } from "./board";
-import { AttainmentReport } from "../components/attainment-report";
+import { ForecastSnapshotBasis } from "../components/forecast-snapshot-basis";
 import { snapshotKey } from "../lib/attainment-progress";
 import { attainmentHref } from "../lib/attainment-workspace";
 import Link from "next/link";
@@ -124,14 +124,11 @@ export async function AttainmentForecastView({
   if (snapshot && !selected) return <EmptyState title={PT.historyMissing} />;
   return (
     <>
-      <AttainmentReport
+      <ForecastSnapshotBasis
         snapshot={
-          selected ? attainmentReportPoint(selected, canViewTarget) : null
+          selected ? forecastSnapshotPoint(selected, canViewTarget) : null
         }
         period={period}
-        scope={selectionScope}
-        historical
-        canHistory
         canPlan={canPlan}
       />
       <p className="text-body-small text-muted-foreground">{T.historyHint}</p>

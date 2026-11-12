@@ -44,6 +44,8 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-035 | 放行仍在产品内按配额池判断，与「配额归平台」的裁定不符 | 2026-09-25 | 已修复，待发布验收（2026-10-22 owner 明确两指标软限） |
 | TD-036 | DS 字号最小档 12px，mockup 的 10.5–11.5px 次级字没有档 | 2026-09-26 | open（本地 `text-[11px]` 等 32 处，全部点名；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 
+| TD-039 | DS Progress 缺少语义颜色和多档节点接口 | 2026-11-12 | open（承诺达成仅组合原生进度和 DS 颜色令牌） |
+
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
 on 2026-07-21 before this repo was instantiated. Their fixes are inherited in the
@@ -2172,3 +2174,14 @@ DS 15.0.1 的 `FilterBar` 内置 32px `ViewModeSwitch`，但输入框、原生�
 通过同一包装；原生 Table 的空表头与权限树自有编号表头直接清空。没有删去序号数据、
 选择框、折叠列或操作列。退出条件：DS 增加可空 index heading / label 参数后删除
 对应局部可见性 CSS，改用 DS 参数。本条是 owner 明确指定展示要求的暂行适配。
+
+
+### TD-039 - DS Progress 缺少语义颜色和多档节点接口
+
+2026-11-12 owner 要求区域进度区分保底、正式目标和挑战。当前 ProgressProps 仅继承
+Radix Root，指标填充固定 bg-primary，没有 tone / indicatorClassName / milestones。
+临时绑定位置为 `components/attainment-progress-bar.tsx`：保留原生 Progress 的轨道、
+填充、动画及无障碍，单处子元素选择器将业务档位映射到 DS warning / info / primary /
+success；刻度只按真实目标金额定位，分隔线与间距使用 DS token，不复制进度组件。
+退出条件：DS 提供指标语气与多档节点 API 后删除子元素选择器及本地节点组合，
+直接使用正式 API。本次未修改平台或 DS 源码，不声称上游已经提供这些接口。

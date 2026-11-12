@@ -13,7 +13,7 @@ import { resolveForecastTargetBasis } from "../../domains/planning/effective-tar
 import { submitForecast } from "../../domains/pipeline/service";
 import {
   planSnapshot,
-  reportedRevenueBasis,
+  snapshotRevenueBasis,
 } from "../../domains/pipeline/lib/forecast";
 import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
 import { normalizeAttainmentPeriod } from "../lib/attainment-workspace";
@@ -128,7 +128,7 @@ export async function prepareForecastSnapshot(
       "planning.target.view",
       "data",
     ).allowed
-      ? reportedRevenueBasis(basis)
+      ? snapshotRevenueBasis(basis)
       : null;
     return {
       ok: true,

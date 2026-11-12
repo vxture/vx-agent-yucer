@@ -67,7 +67,7 @@ test("personal and legacy team scopes resolve to one exact tuple", () => {
   );
 });
 
-test("all is a browsing state; repeated or invalid query values never select an arbitrary scope or step", () => {
+test("a valid annual period is the default; repeated or invalid query values never select an arbitrary scope", () => {
   const q = resolveAttainmentQuery(
     {
       period: ["2026Q4", "2026Q3"],
@@ -76,13 +76,13 @@ test("all is a browsing state; repeated or invalid query values never select an 
     },
     "rep_a",
   );
-  assert.equal(q.period, "all");
+  assert.equal(q.period, `Y${new Date().getUTCFullYear()}`);
   assert.equal(q.view, "progress");
   assert.deepEqual(q.scope, workspace);
   assert.equal(
     resolveAttainmentQuery({ period: "not-a-period", view: "bad" }, "rep_a")
       .period,
-    "all",
+    `Y${new Date().getUTCFullYear()}`,
   );
   assert.equal(
     resolveAttainmentQuery({ period: "2024Q3", view: "history" }, "rep_a")
@@ -268,4 +268,60 @@ test("team progress opens all authorized regions without granting company or oth
     "personal",
   );
   assert.equal(resolveAttainmentQuery({}, "rep_a").teamOverview, true);
+});
+
+test("all and missing periods open the current annual target across every internal view", () => {
+  const now = new Date("2027-01-01T00:01:00Z");
+  for (const view of ["progress", "review", "history"]) {
+    for (const period of [undefined, "all", "wrong"]) {
+      const q = resolveAttainmentQuery(
+        { view, period },
+        "me",
+        { kind: "workspace" },
+        now,
+      );
+      assert.equal(q.period, "Y2027");
+      assert.equal(q.invalid, false);
+    }
+  }
+  assert.equal(
+    resolveAttainmentQuery(
+      { period: "2026Q4", view: "history" },
+      "me",
+      { kind: "workspace" },
+      now,
+    ).period,
+    "2026Q4",
+  );
+});
+
+test("regional, organizational team and personal perspectives remain distinct", () => {
+  const team = resolveAttainmentQuery({ perspective: "team" }, "me");
+  assert.equal(team.perspective, "team");
+  assert.equal(team.scopeKey, "owner:me");
+  assert.equal(team.invalid, false);
+  assert.equal(
+    resolveAttainmentQuery({ perspective: "personal" }, "me").selection,
+    "personal",
+  );
+  for (const query of [
+    { perspective: "team", scope: "workspace" },
+    { perspective: "personal", scope: "owner:other" },
+    { perspective: ["team", "regions"] },
+    { perspective: "unknown" },
+  ]) {
+    assert.equal(resolveAttainmentQuery(query, "me").invalid, true);
+  }
+});
+
+
+test("coverage drilldown keeps the exact scope and period and returns to attainment", async () => {
+  const { attainmentCoverageHref } = await import("./attainment-workspace");
+  for (const scope of ["workspace", "territory:east", "personal", "owner:me"]) {
+    const url = new URL(attainmentCoverageHref({ period: "2026Q3", scope }), "https://example.test");
+    assert.equal(url.pathname, "/attainment/coverage");
+    assert.equal(url.searchParams.get("scope"), scope);
+    assert.equal(url.searchParams.get("period"), "2026Q3");
+    assert.equal(url.searchParams.get("view"), "progress");
+  }
 });

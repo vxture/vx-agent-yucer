@@ -244,29 +244,29 @@ export function inScope<T extends Pick<ForecastableOpportunity, "territoryId" | 
   return opportunities.filter((o) => o.ownerSub === scope.ownerSub);
 }
 
-export type ReportedRevenueBasis = Pick<
+export type SnapshotRevenueBasis = Pick<
   import("../../planning/plan-service").TargetBasis,
   "sourceKind" | "revisionId" | "version" | "target" | "currency"
 >;
 
-export function reportedRevenueBasis(
+export function snapshotRevenueBasis(
   bases: SnapshotRow["targetBasis"],
-): ReportedRevenueBasis | undefined {
+): SnapshotRevenueBasis | undefined {
   const basis = bases?.find((b) => b.metric === "revenue");
   if (!basis) return undefined;
   const { sourceKind, revisionId, version, target, currency } = basis;
   return { sourceKind, revisionId, version, target, currency };
 }
 
-export type AttainmentReportPoint = Pick<
+export type ForecastSnapshotPoint = Pick<
   SnapshotRow,
   "id" | "snapshotAt" | "territoryId" | "currency" | "closedAmount"
-> & { basis?: ReportedRevenueBasis | null };
+> & { basis?: SnapshotRevenueBasis | null };
 
-export function attainmentReportPoint(
+export function forecastSnapshotPoint(
   snapshot: SnapshotRow,
   canViewTarget: boolean,
-): AttainmentReportPoint {
+): ForecastSnapshotPoint {
   const { id, snapshotAt, territoryId, currency, closedAmount } = snapshot;
   return {
     id,
@@ -274,7 +274,7 @@ export function attainmentReportPoint(
     territoryId,
     currency,
     closedAmount,
-    basis: canViewTarget ? reportedRevenueBasis(snapshot.targetBasis) : null,
+    basis: canViewTarget ? snapshotRevenueBasis(snapshot.targetBasis) : null,
   };
 }
 

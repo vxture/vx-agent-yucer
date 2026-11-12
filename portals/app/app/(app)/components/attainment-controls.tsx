@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { Button, NativeSelect, Tabs, TabsTrigger } from "@vxture/design-ui";
+import { Button, Icon, NativeSelect, Tabs, TabsTrigger, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import { TabsList } from "./business-controls";
 import { PeriodTabs } from "./period-tabs";
 import { useMemberName } from "../lib/member-names";
@@ -17,117 +16,160 @@ import {
 export function AttainmentControls({
   period,
   selection,
+  perspective,
   view,
   year,
   quarters,
+  years,
   owners,
   territories,
   allowWorkspace = true,
+  selfSub,
 }: {
   readonly period: string;
   readonly selection: string;
+  readonly perspective: "regions" | "team" | "personal";
   readonly view: AttainmentView;
   readonly year: string;
   readonly quarters: readonly string[];
+  readonly years: readonly number[];
   readonly owners: readonly string[];
   readonly territories: readonly { id: string; name: string }[];
   readonly allowWorkspace?: boolean;
+  readonly selfSub: string;
 }) {
   const {
     ATTAINMENT_TEXT: { workspace: T },
+    ATTAINMENT_PLAN_TEXT: P,
     PIPELINE_TEXT,
   } = useMessages();
   const nameOf = useMemberName();
   const router = useRouter();
   const [pending, start] = useTransition();
-  const personal = selection === "personal";
-  const teamScope = allowWorkspace
+  const regionsScope = allowWorkspace
     ? "workspace"
-    : territories.length
-      ? view === "progress"
-        ? "team"
-        : `territory:${territories[0].id}`
-      : owners.length > 1
-        ? `owner:${owners[0]}`
+    : view === "progress"
+      ? "team"
+      : territories.length
+        ? `territory:${territories[0].id}`
         : null;
-  const historicalPeriod =
-    period !== "all" && period !== year && !quarters.includes(period);
   const select = (scope: string) =>
     start(() =>
-      router.push(attainmentHref({ period, scope, view }), { scroll: false }),
+      router.push(attainmentHref({ period, scope, view, perspective }), {
+        scroll: false,
+      }),
     );
   return (
     <div
       className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-sm"
       aria-busy={pending}
     >
-      <div
-        className="flex items-center gap-xs"
-        role="group"
-        aria-label={T.scope}
+      <Tabs
+        value={perspective}
+        onValueChange={(next) => {
+          const p = next as typeof perspective;
+          const scope =
+            p === "personal"
+              ? "personal"
+              : p === "team"
+                ? `owner:${selfSub}`
+                : regionsScope;
+          if (scope)
+            start(() =>
+              router.push(
+                attainmentHref({ period, scope, view, perspective: p }),
+                { scroll: false },
+              ),
+            );
+        }}
       >
-        {teamScope ? (
-          <Button asChild size="md" variant={personal ? "ghost" : "secondary"}>
-            <Link
-              href={attainmentHref({ period, scope: teamScope, view })}
-              aria-current={!personal ? "page" : undefined}
-            >
-              {T.team}
-            </Link>
-          </Button>
-        ) : null}
-        <Button asChild size="md" variant={personal ? "secondary" : "ghost"}>
-          <Link
-            href={attainmentHref({ period, scope: "personal", view })}
-            aria-current={personal ? "page" : undefined}
+        <TabsList aria-label={P.perspectiveLabel}>
+          <TabsTrigger className="text-body-small font-medium" value="regions" disabled={pending || !regionsScope}>
+            {P.regionsView}
+          </TabsTrigger>
+          <TabsTrigger className="text-body-small font-medium" value="team" disabled={pending}>
+            {P.teamView}
+          </TabsTrigger>
+          <TabsTrigger
+            className="text-body-small font-medium"
+            value="personal"
+            disabled={pending}
+            title={P.teamPersonalHint}
           >
-            {T.mine}
-          </Link>
-        </Button>
-      </div>
-      {!personal && view !== "progress" ? (
+            {P.mineView}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {perspective !== "personal" && view !== "progress" ? (
         <div className="w-44 max-w-full">
           <NativeSelect
-            className="h-control-xl"
+            className="h-control-xl text-body-small font-medium"
             value={selection}
             disabled={pending}
             aria-label={T.scope}
             onChange={(e) => select(e.target.value)}
           >
-            {allowWorkspace ? (
-              <option value="workspace">{T.wholeTeam}</option>
-            ) : null}
-            {selection !== "workspace" &&
-            !territories.some((t) => selection === `territory:${t.id}`) &&
-            !owners.some((sub) => selection === `owner:${sub}`) ? (
-              <option value={selection}>{T.scopeUnavailable}</option>
-            ) : null}
-            {territories.map((t) => (
-              <option key={t.id} value={`territory:${t.id}`}>
-                {PIPELINE_TEXT.scopeTerritory(t.name)}
-              </option>
-            ))}
-            {owners.map((sub) => (
-              <option key={sub} value={`owner:${sub}`}>
-                {PIPELINE_TEXT.scopeOwner(nameOf(sub) ?? T.scopeUnavailable)}
-              </option>
-            ))}
+            {perspective === "regions" ? (
+              <>
+                {allowWorkspace ? (
+                  <option value="workspace">{P.company}</option>
+                ) : null}
+                {territories.map((t) => (
+                  <option key={t.id} value={`territory:${t.id}`}>
+                    {t.name}
+                  </option>
+                ))}
+              </>
+            ) : (
+              owners.map((sub) => (
+                <option key={sub} value={`owner:${sub}`}>
+                  {nameOf(sub) ?? T.scopeUnavailable}
+                </option>
+              ))
+            )}
           </NativeSelect>
         </div>
       ) : null}
+      <div className="w-24">
+        <NativeSelect
+          className="h-control-xl text-body-small font-medium"
+          value={year.slice(1)}
+          disabled={pending}
+          aria-label={P.periodYear}
+          onChange={(e) =>
+            start(() =>
+              router.push(
+                attainmentHref({
+                  period: `Y${e.target.value}`,
+                  scope: selection,
+                  view,
+                  perspective,
+                }),
+                { scroll: false },
+              ),
+            )
+          }
+        >
+          {years.map((y) => (
+            <option key={y} value={y}>
+              Y{y}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
       <PeriodTabs
         value={period}
-        periods={historicalPeriod ? [...quarters, period] : quarters}
+        periods={quarters}
         yearLabel={year}
+        yearText={P.periodYear}
         compact
-        allLabel={PIPELINE_TEXT.periodAll}
         resetParams={["snapshot", "planRevision"]}
       />
     </div>
   );
 }
 
-export function AttainmentViewTabs({
+export function AttainmentViewActions({
   value,
   reportingScope = "workspace",
 }: {
@@ -140,35 +182,43 @@ export function AttainmentViewTabs({
   const router = useRouter();
   const params = useSearchParams();
   const [pending, start] = useTransition();
+  const selectView = (view: AttainmentView) => {
+    if (view === value) return;
+    const query = new URLSearchParams(params.toString());
+    query.set("view", view);
+    if (
+      view !== "progress" &&
+      (query.get("scope") === "team" ||
+        (!query.has("scope") && reportingScope !== "workspace"))
+    )
+      query.set("scope", reportingScope);
+    if (!query.get("period") || query.get("period") === "all")
+      query.set("period", `Y${new Date().getUTCFullYear()}`);
+    if (view !== "history") query.delete("snapshot");
+    start(() =>
+      router.push(`/attainment?${query.toString()}`, { scroll: false }),
+    );
+  };
+  const icons = { progress: "chart-bar", review: "list-checks", history: "archive" } as const;
   return (
-    <Tabs
-      value={value}
-      aria-busy={pending}
-      onValueChange={(view) => {
-        const query = new URLSearchParams(params.toString());
-        query.set("view", view);
-        if (
-          view !== "progress" &&
-          (query.get("scope") === "team" ||
-            (!query.has("scope") && reportingScope !== "workspace"))
-        )
-          query.set("scope", reportingScope);
-        if (view !== "history") query.delete("snapshot");
-        start(() =>
-          router.push(`/attainment?${query.toString()}`, { scroll: false }),
-        );
-      }}
-    >
-      <TabsList
-        aria-label={T.views}
-        className="max-w-full justify-start overflow-x-auto"
-      >
-        {ATTAINMENT_VIEWS.map((view) => (
-          <TabsTrigger value={view} key={view} disabled={pending}>
-            {T[view]}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+    <div className="flex shrink-0 items-center gap-2xs" role="group" aria-label={T.views} aria-busy={pending} data-attainment-view-actions>
+      {ATTAINMENT_VIEWS.map((view) => (
+        <Tooltip key={view}>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-xl"
+              variant={value === view ? "secondary" : "ghost"}
+              aria-label={T[view]}
+              aria-pressed={value === view}
+              disabled={pending}
+              onClick={() => selectView(view)}
+            >
+              <Icon name={icons[view]} size="md" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{T[view]}</TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
   );
 }

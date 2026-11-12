@@ -5,9 +5,15 @@ import {
 } from "../../domains/account/service";
 import {
   listPipeline,
-  latestAttainmentReport,
 } from "../../domains/pipeline/service";
-import { listTerritories } from "../../domains/planning/service";
+import { attainmentTeamMembers } from "../lib/attainment-team";
+import { getAuthzStore } from "../../authz/store";
+import { listWorkspaceMembers } from "../../authz/admin";
+import {
+  listOrgUnits,
+  listOrgMembers,
+  listTerritories,
+} from "../../domains/planning/service";
 import {
   listProducts,
   listOpportunityLines,
@@ -117,32 +123,6 @@ export const loadAttainmentPlan = cache(async (year: number) => {
   };
 });
 
-export const loadAttainmentReport = cache(
-  async (period: string, scopeKey: string) => {
-    const data = await loadAttainmentBase();
-    if (!data) return null;
-    const scope = parseForecastScope(scopeKey);
-    if (
-      !canReadReportingScope(data.session.scope, scope, data.session.user.sub)
-    )
-      return null;
-    try {
-      return await latestAttainmentReport(
-        { ...data.base, store: data.session.stores.pipeline() },
-        period,
-        scope,
-      );
-    } catch {
-      return {
-        ok: false as const,
-        violations: [
-          { code: "source_read_failed", message: "report read failed" },
-        ],
-      };
-    }
-  },
-);
-
 export const loadAttainmentComposition = cache(async () => {
   const data = await loadAttainmentBase();
   if (!data) return null;
@@ -168,3 +148,35 @@ export const loadForecastWorkspace = cache(
     );
   },
 );
+
+export const loadAttainmentTeam = cache(async () => {
+  const data = await loadAttainmentBase();
+  if (!data) return null;
+  const ctx = { ...data.base, store: getPlanningStore() };
+  const [units, placements, members] = await Promise.all([
+    listOrgUnits(ctx),
+    listOrgMembers(ctx),
+    listWorkspaceMembers({ ...data.base, store: getAuthzStore() }),
+  ]);
+  const self = {
+    sub: data.session.user.sub,
+    name: data.session.user.displayName ?? data.session.user.sub,
+    unit: "",
+  };
+  if (!units.ok || !placements.ok || !members.ok)
+    return { placed: false, restricted: true, members: [self] };
+  const team = attainmentTeamMembers({
+    sub: data.session.user.sub,
+    access: data.session.scope,
+    units: units.value,
+    placements: placements.value,
+    members: members.value,
+  });
+  return {
+    ...team,
+    restricted: data.session.scope.kind !== "workspace",
+    members: team.members.some((m) => m.sub === self.sub)
+      ? team.members
+      : [self, ...team.members],
+  };
+});

@@ -1,5 +1,5 @@
 // Repeatable current-year planning and execution fixtures. Memory stores only.
-import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
   emptyContent,
   digest,
@@ -30,21 +30,21 @@ export type PlanningDemoStores = {
   catalog: InMemoryCatalogStore;
   field: InMemoryFieldStore;
 };
+// Demo references stay stable within the memory-store process. Generate their
+// identity independently of workspace/member credentials rather than hashing them.
+const fixtureIds = new Map<string, Map<string, string>>();
 function id(workspace: string, value: string) {
-  const h = createHash("sha256")
-    .update(workspace + "|planning-demo|" + value)
-    .digest("hex");
-  return (
-    h.slice(0, 8) +
-    "-" +
-    h.slice(8, 12) +
-    "-4" +
-    h.slice(13, 16) +
-    "-a" +
-    h.slice(17, 20) +
-    "-" +
-    h.slice(20, 32)
-  );
+  let ids = fixtureIds.get(workspace);
+  if (!ids) {
+    ids = new Map();
+    fixtureIds.set(workspace, ids);
+  }
+  let key = ids.get(value);
+  if (!key) {
+    key = randomUUID();
+    ids.set(value, key);
+  }
+  return key;
 }
 const at = (start: number, end: number, fraction: number) =>
   new Date(start + Math.max(0, end - start) * fraction);
@@ -56,6 +56,13 @@ export async function seedPlanningDemo(
   now = new Date(),
 ): Promise<void> {
   const year = now.getUTCFullYear();
+  const units = await stores.planning.listOrgUnits(workspaceId);
+  const placements = await stores.planning.listOrgMembers(workspaceId);
+  const headquarters = units.find((u) => u.unitCode === "headquarters");
+  if (headquarters && !placements.get(reviewer.sub)?.length)
+    await stores.planning.setMemberUnits(workspaceId, reviewer.sub, [
+      headquarters.id,
+    ]);
   // Never replace a plan the reviewer has edited or published.
   if (await stores.plans.read(workspaceId, year)) return;
   const [
@@ -501,15 +508,17 @@ export async function seedPlanningDemo(
   });
   if (products.length)
     for (const [i, d] of deals.entries()) {
-      await stores.catalog.replaceLines(workspaceId, d.id, [{
-        productId: products[i % products.length].id,
-        solutionId: null,
-        quantity: 1,
-        unitPrice: d.amount!.amount,
-        amount: d.amount!.amount,
-        currency: "CNY",
-        needsApproval: false,
-        customNote: null,
-      }]);
+      await stores.catalog.replaceLines(workspaceId, d.id, [
+        {
+          productId: products[i % products.length].id,
+          solutionId: null,
+          quantity: 1,
+          unitPrice: d.amount!.amount,
+          amount: d.amount!.amount,
+          currency: "CNY",
+          needsApproval: false,
+          customNote: null,
+        },
+      ]);
     }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -9,7 +9,6 @@ import {
   EmptyState,
   Icon,
   MetricListCard,
-  Progress,
   Section,
   Table,
   TableBody,
@@ -19,118 +18,200 @@ import {
   TableRow,
   Grid,
   useMediaQuery,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
   type FilterBarView,
 } from "@vxture/design-ui";
 import type { AttainmentPlan } from "../../domains/planning/attainment-plan";
-import type { ExecutionRow, SupportDeal } from "../lib/attainment-progress";
-import { attainmentHref, planningHref } from "../lib/attainment-workspace";
+import { attainmentBalance, type ExecutionRow, type SupportDeal } from "../lib/attainment-progress";
+import { attainmentCoverageHref, attainmentHref, planningHref } from "../lib/attainment-workspace";
 import { useLocale, useMessages } from "../lib/i18n/provider";
-import { formatMoney } from "../lib/view-model";
+import { formatMoney, formatMoneyCompact } from "../lib/view-model";
 import { useMemberName } from "../lib/member-names";
 import { RowActions } from "./table-fittings";
-import { DataTable, FilterBar } from "./business-controls";
+import { FilterBar } from "./business-controls";
+import { AttainmentProgressBar } from "./attainment-progress-bar";
 import { periodRange, within } from "../../domains/shared/period";
 import { sumMoney } from "../../domains/shared/money";
 
 const LINK =
   "no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text";
 
+function Balance({
+  row,
+  label = false,
+  prefix = true,
+}: {
+  row: ExecutionRow;
+  label?: boolean;
+  prefix?: boolean;
+}) {
+  const { ATTAINMENT_PLAN_TEXT: T } = useMessages();
+  const locale = useLocale();
+  const balance = attainmentBalance(row);
+  return (
+    <span
+      className={`whitespace-nowrap tabular-nums ${balance.kind === "excess" ? "text-primary" : balance.amount ? "text-destructive-text" : "text-muted-foreground"}`}
+    >
+      {label
+        ? `${balance.kind === "excess" ? T.excess : T.currentGap} `
+        : balance.kind === "excess" && prefix
+          ? `${T.excess} `
+          : ""}
+      {balance.amount === null
+        ? "-"
+        : formatMoney(balance.amount, row.currency, locale)}
+    </span>
+  );
+}
+
+function CoverageNote({ row }: { row: ExecutionRow }) {
+  const { ATTAINMENT_PLAN_TEXT: T } = useMessages();
+  if (row.coverage === null || !row.gap) return null;
+  const multiple = row.coverage.toFixed(1);
+  const description = T.coveragePlain(multiple);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          aria-label={description}
+          className="text-body-small font-normal tabular-nums text-muted-foreground cursor-help"
+        >
+          {multiple}x
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{description}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+// The same three business columns are used by company, region and period rows.
+function ExecutionMetricCells({ row }: { row: ExecutionRow }) {
+  const { ATTAINMENT_PLAN_TEXT: T } = useMessages();
+  const locale = useLocale();
+  const money = (n: number | null) => formatMoney(n, row.currency, locale);
+  return (
+    <>
+      <TableCell data-execution-cell="progress">
+        <div className="flex min-w-0 flex-col gap-sm">
+          <span className="flex flex-wrap items-baseline justify-end gap-x-xs gap-y-2xs tabular-nums"
+            title={`${T.currentClosed} ${money(row.closed)} / ${T.currentTarget} ${row.target ? money(row.target.target) : T.noTarget}`}>
+            <span className="font-medium">{money(row.closed)}</span>
+            <span className="text-body-small text-muted-foreground">/ {row.target ? money(row.target.target) : T.noTarget}</span>
+          </span>
+          <AttainmentProgressBar row={row} />
+        </div>
+      </TableCell>
+      <TableCell data-execution-cell="reserve">
+        <div className="flex flex-col items-end gap-xs whitespace-nowrap tabular-nums">
+          <span className="font-medium">{money(row.open)}</span>
+          <span className="inline-flex items-baseline gap-xs text-body-small text-muted-foreground">
+            {T.coverageMultiple} {row.coverage === null ? row.gap === 0 ? T.met : "-" : <CoverageNote row={row} />}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell data-execution-cell="balance">
+        <div className="flex flex-col items-end gap-xs whitespace-nowrap tabular-nums">
+          <span className="inline-flex items-baseline gap-sm font-medium"><Balance row={row} label /><CoverageNote row={row} /></span>
+          <span className="text-body-small text-muted-foreground">{T.attainmentRatio} {row.ratio === null ? "-" : `${(row.ratio * 100).toFixed(1)}%`}</span>
+        </div>
+      </TableCell>
+    </>
+  );
+}
+
 export function ExecutionTable({
   rows,
   onSource,
   scope,
+  overallId,
 }: {
   rows: readonly ExecutionRow[];
   onSource?: (row: ExecutionRow) => void;
   scope?: string;
+  overallId?: string;
 }) {
   const {
     ATTAINMENT_PLAN_TEXT: T,
     ATTAINMENT_TEXT: { workspace: W },
-    DATA_TABLE_LABELS,
   } = useMessages();
-  const locale = useLocale();
   const router = useRouter();
-  const amount = (n: number | null, r: ExecutionRow) =>
-    n === null ? "-" : formatMoney(n, r.currency, locale);
   return (
-    <DataTable
-      leadingSpacer
-      indexStart={1}
-      rows={[...rows]}
-      labels={DATA_TABLE_LABELS}
-      rowKey={(r: ExecutionRow) => r.id}
-      rowActions={(r: ExecutionRow) => (
-        <RowActions
-          label={`${W.period} ${r.period}`}
-          items={[
-            {
-              id: "open",
-              label: W.progress,
-              onSelect: () =>
-                router.push(
-                  attainmentHref({ period: r.period, scope: scope ?? r.scope }),
-                ),
-            },
-            ...(onSource
-              ? [{ id: "source", label: T.source, onSelect: () => onSource(r) }]
-              : []),
-          ]}
-        />
-      )}
-      columns={[
-        {
-          id: "period",
-          header: W.period,
-          cell: (r: ExecutionRow) => (
-            <Link
-              className={LINK}
-              href={attainmentHref({
-                period: r.period,
-                scope: scope ?? r.scope,
-              })}
-            >
-              {r.period}
-            </Link>
-          ),
-        },
-        {
-          id: "target",
-          header: T.currentTarget,
-          cell: (r: ExecutionRow) => (
-            <div className="whitespace-nowrap">
-              <span className="font-medium tabular-nums">
-                {r.target ? amount(r.target.target, r) : T.noTarget}
-              </span>
-              <div className="text-body-small text-muted-foreground">
-                {r.target?.revision
-                  ? `V${r.target.revision.version}`
-                  : r.target
-                    ? T.legacy
-                    : "-"}
-              </div>
-            </div>
-          ),
-        },
-        {
-          id: "closed",
-          header: T.currentClosed,
-          cell: (r: ExecutionRow) => amount(r.closed, r),
-        },
-        {
-          id: "rate",
-          header: T.currentRate,
-          cell: (r: ExecutionRow) =>
-            r.ratio === null ? "-" : `${(r.ratio * 100).toFixed(1)}%`,
-        },
-        {
-          id: "gap",
-          header: T.currentGap,
-          cell: (r: ExecutionRow) => amount(r.gap, r),
-        },
-      ]}
-      empty={<EmptyState title={T.noPeriods} />}
-    />
+    <Table className="min-w-panel-lg" data-execution-table>
+      <colgroup>
+        <col className="w-table-col-fixed" />
+        <col />
+        <col className="w-2/5" />
+        <col />
+        <col />
+        <col className="w-table-col-fixed" />
+      </colgroup>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="text-center" />
+          <TableHead>{W.period}</TableHead>
+          <TableHead>{T.progressCard}</TableHead>
+          <TableHead className="text-right">{T.reserveCard}</TableHead>
+          <TableHead className="text-right">{T.balanceCard}</TableHead>
+          <TableHead className="text-center" />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r, i) => (
+          <TableRow
+            key={r.id}
+            data-execution-period={r.period}
+            title={`${r.period} \u00b7 ${r.target?.revision ? `V${r.target.revision.version}` : T.legacy} \u00b7 ${r.currency}`}
+            className="hover:bg-transparent"
+          >
+            <TableCell className="text-center text-muted-foreground">
+              {r.id === overallId ? "" : overallId ? i : i + 1}
+            </TableCell>
+            <TableCell>
+              {r.scope === "unallocated" ? <span>{r.period}</span> : <Link
+                className={`${LINK} whitespace-nowrap ${r.id === overallId ? "font-semibold" : ""}`}
+                href={attainmentHref({
+                  period: r.period,
+                  scope: scope ?? r.scope,
+                })}
+              >
+                {r.id === overallId ? T.periodOverall : r.period}
+              </Link>}
+            </TableCell>
+            <ExecutionMetricCells row={r} />
+            <TableCell className="text-center">
+              <RowActions
+                label={`${W.period} ${r.period}`}
+                items={r.scope === "unallocated" ? [] : [
+                  {
+                    id: "open",
+                    label: W.progress,
+                    onSelect: () =>
+                      router.push(
+                        attainmentHref({
+                          period: r.period,
+                          scope: scope ?? r.scope,
+                        }),
+                      ),
+                  },
+                  ...(onSource
+                    ? [
+                        {
+                          id: "source",
+                          label: T.source,
+                          onSelect: () => onSource(r),
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -182,10 +263,13 @@ export function ExecutionTargetCard({
     row.target?.revision?.id,
     row.target?.revision ? row.period : null,
   );
+  const coverageLink = attainmentCoverageHref({ period: row.period, scope: selectionScope === "personal" ? "personal" : row.scope });
+  const unallocated = row.scope === "unallocated";
+  const coverageNote = <CoverageNote row={row} />;
   const metrics = [
     {
       key: "target",
-      label: T.currentTarget,
+      label: unallocated ? T.unallocatedTarget : T.currentTarget,
       value: row.target ? amount(row.target.target) : T.notSet,
     },
     { key: "closed", label: T.currentClosed, value: amount(row.closed) },
@@ -194,18 +278,22 @@ export function ExecutionTargetCard({
       label: T.currentRate,
       value: row.ratio === null ? "-" : `${(row.ratio * 100).toFixed(1)}%`,
     },
-    { key: "gap", label: T.currentGap, value: amount(row.gap) },
+    {
+      key: "gap",
+      label: attainmentBalance(row).kind === "excess" ? T.excess : T.currentGap,
+      value: <Balance row={row} prefix={false} />,
+    },
   ];
   return (
     <MetricListCard
       title={
         <span className="flex min-h-control-xl items-center gap-sm">
           <Icon
-            name={compact ? "globe" : "flag"}
+            name={compact ? row.scope.startsWith("owner:") ? "user" : "globe" : "flag"}
             size="md"
             className="shrink-0 text-muted-foreground"
           />
-          {compact ? (
+          {compact && !unallocated ? (
             <Link
               className={LINK}
               href={attainmentHref({ period: row.period, scope: row.scope })}
@@ -220,7 +308,6 @@ export function ExecutionTargetCard({
           </span>
         </span>
       }
-      metrics={compact ? metrics : undefined}
       actions={
         <div className="flex items-center gap-sm">
           <span className="whitespace-nowrap text-body-small text-muted-foreground">
@@ -235,24 +322,30 @@ export function ExecutionTargetCard({
           <RowActions
             label={`${row.name} ${T.source}`}
             items={[
-              {
+              ...(!unallocated ? [{
                 id: "source",
                 label: T.source,
-                icon: "info",
+                icon: "info" as const,
                 onSelect: () => onPanel("source", row, plan),
               },
               {
                 id: "support",
                 label: T.support,
-                icon: "users",
+                icon: "users" as const,
                 onSelect: () => onPanel("support", row, plan),
               },
               {
                 id: "risk",
                 label: T.risk,
-                icon: "warning",
+                icon: "warning" as const,
                 onSelect: () => onPanel("risk", row, plan),
               },
+              {
+                id: "coverage",
+                label: T.coveragePage,
+                icon: "chart-bar" as const,
+                onSelect: () => router.push(coverageLink),
+              }] : []),
               ...(periods.length
                 ? [
                     {
@@ -263,7 +356,7 @@ export function ExecutionTargetCard({
                     },
                   ]
                 : []),
-              ...(compact
+              ...(compact && !unallocated
                 ? [
                     {
                       id: "region",
@@ -279,7 +372,7 @@ export function ExecutionTargetCard({
                     },
                   ]
                 : []),
-              ...(canPlan && !row.scope.startsWith("owner:")
+              ...(canPlan && !unallocated && !row.scope.startsWith("owner:")
                 ? [
                     {
                       id: "plan",
@@ -297,66 +390,63 @@ export function ExecutionTargetCard({
         <div className="@container flex w-full min-w-0 flex-col gap-md">
           {!compact ? (
             <div
-              className="grid grid-cols-2 gap-md @3xl:grid-cols-4"
+              className="grid grid-cols-1 gap-md @xl:grid-cols-2 @3xl:grid-cols-4"
               data-attainment-summary
             >
-              {metrics.map((m, index) => (
+              {metrics.map((m) => (
                 <MetricListCard
-                  key={m.label}
-                  title={m.label}
-                  note={
-                    <div className="flex flex-col gap-xs">
-                      <span
-                        className={`text-heading-2 font-semibold tabular-nums ${index === 0 ? "text-primary" : "text-foreground"}`}
-                      >
-                        {m.value}
-                      </span>
-                      {index === 0 &&
-                      row.target &&
-                      (row.target.floor !== null ||
-                        row.target.stretch !== null) ? (
-                        <span className="text-body-small text-muted-foreground">
-                          {T.floor} {amount(row.target.floor)}
-                          {" \u00b7 "}
-                          {T.stretch} {amount(row.target.stretch)}
+                  key={m.key}
+                  title={
+                    <span className="flex items-center gap-md">
+                      <Icon name={m.key === "target" ? "coins" : m.key === "closed" ? "chart-line" : m.key === "rate" ? "gauge" : "scales"} size="xl" className="shrink-0 text-muted-foreground" />
+                      <span className="flex min-w-0 flex-1 flex-col gap-sm">
+                        <span className="whitespace-nowrap">{m.label}</span>
+                        <span className={`inline-flex items-baseline gap-sm whitespace-nowrap text-heading-2 font-semibold tabular-nums ${m.key === "target" ? "text-primary" : "text-foreground"}`}>
+                          {m.value}{m.key === "gap" ? coverageNote : null}
                         </span>
-                      ) : null}
-                    </div>
+                        {m.key === "target" && row.target ? (
+                          <span className="text-body-small font-normal text-muted-foreground" title={`${T.floor} ${amount(row.target.floor)} / ${T.stretch} ${amount(row.target.stretch)}`}>
+                            {T.floor} {formatMoneyCompact(row.target.floor, row.currency, locale)}{" \u00b7 "}{T.stretch} {formatMoneyCompact(row.target.stretch, row.currency, locale)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </span>
                   }
                 />
               ))}
             </div>
           ) : (
-            <div className="flex flex-wrap gap-x-md gap-y-xs text-body-small text-muted-foreground">
-              {row.target &&
-              (row.target.floor !== null || row.target.stretch !== null) ? (
-                <span>
-                  {T.floor} {amount(row.target.floor)}
-                  {" \u00b7 "}
-                  {T.stretch} {amount(row.target.stretch)}
-                </span>
-              ) : null}
-              <span>
-                {T.commit} {amount(row.commit)}
-              </span>
-              <span>
-                {T.coverage}{" "}
-                {row.coverage === null
-                  ? row.gap === 0
-                    ? T.met
-                    : "-"
-                  : `${row.coverage.toFixed(1)}x`}
-              </span>
-            </div>
+            <>
+              <div
+                className="grid grid-cols-4 gap-sm px-lg"
+                data-region-metrics
+              >
+                {metrics.map((m) => (
+                  <div key={m.key} className="flex min-w-0 flex-col gap-xs">
+                    <span className="whitespace-nowrap font-semibold tabular-nums">
+                      {m.value}
+                    </span>
+                    <span className="inline-flex items-baseline gap-xs whitespace-nowrap text-body-small text-muted-foreground">
+                      {m.label}
+                      {m.key === "gap" ? coverageNote : null}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
-          {row.ratio !== null ? (
-            <Progress value={Math.min(100, Math.max(0, row.ratio * 100))} />
+          {compact ? <AttainmentProgressBar row={row} details /> : null}
+          {unallocated ? (
+            <p className="text-body-small text-muted-foreground">{T.unallocatedHint}</p>
+          ) : null}
+          {row.allocationExcess ? (
+            <p role="status" className="text-body-small text-danger-text">{T.allocationExcess} {amount(row.allocationExcess)}</p>
           ) : null}
           {row.error ? (
             <p role="alert" className="text-body-small text-danger-text">
               {row.currencyConflict ? T.currencyConflict : T.loadFailed}
             </p>
-          ) : !row.target ? (
+          ) : !row.target && !unallocated ? (
             <p className="text-body-small text-muted-foreground">
               {row.scope.startsWith("owner:")
                 ? `${T.noPersonal} \u00b7 ${T.noPersonalHint}`
@@ -368,12 +458,6 @@ export function ExecutionTargetCard({
           {!compact ? (
             <p className="text-body-small text-muted-foreground">
               {T.currentBasis}
-              {" \u00b7 "}
-              {T.asOf}{" "}
-              {new Date(plan.observedAt).toLocaleString(locale, {
-                timeZone: "UTC",
-              })}{" "}
-              UTC
             </p>
           ) : null}
           {periods.length ? (
@@ -400,7 +484,8 @@ export function ExecutionTargetCard({
               {open ? (
                 <div className="pt-sm">
                   <ExecutionTable
-                    rows={periods}
+                    rows={!compact ? [row, ...periods] : periods}
+                    overallId={!compact ? row.id : undefined}
                     scope={selectionScope}
                     onSource={(r) => onPanel("source", r, plan)}
                   />
@@ -424,9 +509,9 @@ export function AttainmentTargets({
   canPlan,
   allRows,
   selectionScope,
-  report,
   supportDeals = null,
   expandPeriods = false,
+  groupKind = "region",
 }: {
   row: ExecutionRow | null;
   periods: readonly ExecutionRow[];
@@ -437,25 +522,37 @@ export function AttainmentTargets({
   canPlan: boolean;
   allRows?: readonly ExecutionRow[];
   selectionScope: string;
-  report?: ReactNode;
   supportDeals?: readonly SupportDeal[] | null;
   expandPeriods?: boolean;
+  groupKind?: "region" | "member";
 }) {
   const {
     ATTAINMENT_PLAN_TEXT: T,
     DS_LABELS,
     ATTAINMENT_TEXT: { workspace: W },
   } = useMessages();
-  const locale = useLocale();
+  const router = useRouter();
   const wide = useMediaQuery("(min-width: 96rem)");
-  const [view, setView] = useState<FilterBarView>("cards");
+  const [view, setView] = useState<FilterBarView>(
+    groupKind === "member" ? "list" : "cards",
+  );
+  const [listExpanded, setListExpanded] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<string[]>([]);
   const isExpanded = (id: string) =>
-    expandPeriods ? !collapsed.includes(id) : expanded.includes(id);
+    view === "list"
+      ? listExpanded.includes(id)
+      : expandPeriods
+        ? !collapsed.includes(id)
+        : expanded.includes(id);
   const changeExpanded = (id: string, open: boolean) => {
-    const set = expandPeriods ? setCollapsed : setExpanded;
-    const present = expandPeriods ? !open : open;
+    const set =
+      view === "list"
+        ? setListExpanded
+        : expandPeriods
+          ? setCollapsed
+          : setExpanded;
+    const present = view === "cards" && expandPeriods ? !open : open;
     set((keys) =>
       present ? [...new Set([...keys, id])] : keys.filter((key) => key !== id),
     );
@@ -475,14 +572,12 @@ export function AttainmentTargets({
             plan.year === Number(r.period.replace(/^Y/, "").slice(0, 4)),
         ) ?? p,
     });
-  const amount = (n: number | null, currency: string) =>
-    n === null ? "-" : formatMoney(n, currency, locale);
   const toggle = (id: string) => changeExpanded(id, !isExpanded(id));
   const menu = (r: ExecutionRow) => (
     <RowActions
       label={`${r.name} ${DS_LABELS.actionMenu}`}
       items={[
-        {
+        ...(r.scope !== "unallocated" ? [{
           id: "source",
           label: T.source,
           onSelect: () => onPanel("source", r, plan),
@@ -493,6 +588,7 @@ export function AttainmentTargets({
           onSelect: () => onPanel("support", r, plan),
         },
         { id: "risk", label: T.risk, onSelect: () => onPanel("risk", r, plan) },
+        { id: "coverage", label: T.coveragePage, onSelect: () => router.push(attainmentCoverageHref({ period: r.period, scope: r.scope })) }] : []),
         {
           id: "periods",
           label: isExpanded(r.id) ? T.collapse : T.expand,
@@ -527,15 +623,40 @@ export function AttainmentTargets({
           initiallyOpen={expandPeriods}
         />
       ) : null}
-      {report}
       {regions.length ? (
-        <Section icon="map-pin" title={T.regions} description={T.regionsHint}>
-          <FilterBar view={view} onViewChange={setView} />
+        <Section
+          icon={groupKind === "member" ? "users" : "map-pin"}
+          title={groupKind === "member" ? T.teamTitle : T.regions}
+          description={groupKind === "member" ? T.teamHint : T.regionsHint}
+        >
+          <FilterBar
+            view={view}
+            onViewChange={setView}
+            actions={
+              view === "list" ? (
+                <div className="flex items-center gap-sm text-body-small text-muted-foreground">
+                  <span>
+                    {groupKind === "member"
+                      ? T.memberBasis
+                      : plan.current
+                        ? `V${plan.current.version}`
+                        : T.legacy}
+                    {" \u00b7 "}
+                    {regions[0]?.currency}
+                  </span>
+                  <RowActions
+                    label={groupKind === "member" ? T.teamTitle : T.regions}
+                    items={[]}
+                  />
+                </div>
+              ) : undefined
+            }
+          />
           {view === "cards" ? (
             <Grid columns={wide ? 2 : 1} gap="md" className="items-start">
               {regions.map((r) => (
+                <div key={r.id} data-execution-card={r.scope}>
                 <ExecutionTargetCard
-                  key={r.id}
                   compact
                   row={r}
                   periods={regionPeriods[r.scope] ?? []}
@@ -545,39 +666,27 @@ export function AttainmentTargets({
                   open={isExpanded(r.id)}
                   onOpenChange={(open) => changeExpanded(r.id, open)}
                 />
+                </div>
               ))}
             </Grid>
           ) : (
-            <Table>
+            <Table className="min-w-panel-lg" data-execution-regions>
               <colgroup>
                 <col className="w-table-col-fixed" />
                 <col />
-                <col />
-                <col />
-                <col />
+                <col className="w-2/5" />
                 <col />
                 <col />
                 <col className="w-table-col-fixed" />
               </colgroup>
               <TableHeader>
                 <TableRow>
-                  {[
-                    "",
-                    T.region,
-                    T.currentTarget,
-                    T.currentClosed,
-                    T.currentRate,
-                    T.currentGap,
-                    T.commit,
-                    "",
-                  ].map((h, i) => (
-                    <TableHead
-                      key={i}
-                      className={i === 0 || i === 7 ? "text-center" : ""}
-                    >
-                      {h}
-                    </TableHead>
-                  ))}
+                  <TableHead className="text-center" />
+                  <TableHead>{groupKind === "member" ? T.member : T.region}</TableHead>
+                  <TableHead>{T.progressCard}</TableHead>
+                  <TableHead className="text-right">{T.reserveCard}</TableHead>
+                  <TableHead className="text-right">{T.balanceCard}</TableHead>
+                  <TableHead className="text-center" />
                 </TableRow>
               </TableHeader>
               {regions.map((r, i) => (
@@ -607,7 +716,7 @@ export function AttainmentTargets({
                       {i + 1}
                     </TableCell>
                     <TableCell>
-                      <Link
+                      {r.scope === "unallocated" ? <span className="font-medium" title={T.unallocatedHint}>{r.name}</span> : <Link
                         className={`${LINK} font-medium`}
                         href={attainmentHref({
                           scope: r.scope,
@@ -615,32 +724,19 @@ export function AttainmentTargets({
                         })}
                       >
                         {r.name}
-                      </Link>
+                      </Link>}
+                      {r.subtitle ? (
+                        <p className="text-body-small text-muted-foreground">
+                          {r.subtitle}
+                        </p>
+                      ) : null}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {r.target
-                        ? amount(r.target.target, r.currency)
-                        : T.noTarget}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {amount(r.closed, r.currency)}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {r.ratio === null
-                        ? "-"
-                        : `${(r.ratio * 100).toFixed(1)}%`}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {amount(r.gap, r.currency)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {amount(r.commit, r.currency)}
-                    </TableCell>
+                    <ExecutionMetricCells row={r} />
                     <TableCell className="text-center">{menu(r)}</TableCell>
                   </TableRow>
                   {isExpanded(r.id) ? (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={8} className="px-lg py-md">
+                      <TableCell colSpan={6} className="px-lg py-md">
                         {regionPeriods[r.scope]?.length ? (
                           <ExecutionTable
                             rows={regionPeriods[r.scope]}

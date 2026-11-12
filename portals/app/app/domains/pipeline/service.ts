@@ -83,8 +83,6 @@ import {
   validateScope,
   planSnapshot,
   sameForecastTotals,
-  attainmentReportPoint,
-  type AttainmentReportPoint,
   type ForecastCategory,
   type ForecastTotals,
   type ForecastScope,
@@ -1453,23 +1451,6 @@ export async function forecastHistory(
       const { targetBasis: _basis, ...visible } = r;
       return visible;
     }));
-}
-
-// Basic attainment exposes its latest report, without granting advanced history.
-export async function latestAttainmentReport(
-  ctx: PipelineContext,
-  period: string,
-  scope: ForecastScope,
-): Promise<RuleResult<AttainmentReportPoint | null>> {
-  const gate = can(ctx.holder, ctx.entitlement, "planning.attainment.view", "data");
-  if (!gate.allowed) return denied(gate);
-  const check = validateScope(scope);
-  if (!check.ok) return check as RuleResult<null>;
-  const rows = await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType: scope.scopeType });
-  const latest = rows.filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub)
-    .sort((a, b) => b.snapshotAt.getTime() - a.snapshotAt.getTime())[0] ?? null;
-  const canViewTarget = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed;
-  return ok(latest ? attainmentReportPoint(latest, canViewTarget) : null);
 }
 
 export interface ForecastScorecard {

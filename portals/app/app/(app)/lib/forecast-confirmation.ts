@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   planCall,
   type ForecastTotals,
-  type ReportedRevenueBasis,
+  type SnapshotRevenueBasis,
   type SnapshotRow,
 } from "../../domains/pipeline/lib/forecast";
 import type { TargetBasis } from "../../domains/planning/plan-service";
@@ -25,7 +25,7 @@ export type ForecastConfirmation = {
 export type ForecastConfirmationView = Pick<
   ForecastConfirmation,
   "token" | "period" | "scopeKey" | "observedAt" | "currency" | "totals"
-> & { basis?: ReportedRevenueBasis | null };
+> & { basis?: SnapshotRevenueBasis | null };
 
 export function confirmationFingerprint(
   totals: ForecastTotals,

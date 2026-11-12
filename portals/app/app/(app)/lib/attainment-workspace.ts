@@ -15,6 +15,7 @@ export const ATTAINMENT_VIEWS = ["progress", "review", "history"] as const;
 export type AttainmentView = (typeof ATTAINMENT_VIEWS)[number];
 export type AttainmentQuery = {
   period?: string | string[];
+  perspective?: string | string[];
   scope?: string | string[];
   view?: string | string[];
   snapshot?: string | string[];
@@ -25,17 +26,30 @@ export function resolveAttainmentQuery(
   query: AttainmentQuery,
   sub: string,
   access: DataScope = { kind: "workspace" },
+  now: Date = new Date(),
 ) {
   const rawScope =
     typeof query.scope === "string"
       ? query.scope
-      : access.kind === "workspace"
-        ? "workspace"
-        : (!query.view || query.view === "progress") &&
-            access.kind !== "own" &&
-            access.territoryIds.length
+      : query.perspective === "team"
+        ? `owner:${sub}`
+        : query.perspective === "personal"
+          ? "personal"
+          : access.kind === "workspace"
+            ? "workspace"
+            : (!query.view || query.view === "progress") &&
+                access.kind !== "own" &&
+                access.territoryIds.length
+              ? "team"
+              : "personal";
+  const perspective: "regions" | "team" | "personal" =
+    query.perspective === "team"
+      ? "team"
+      : rawScope === "personal" || query.perspective === "personal"
+        ? "personal"
+        : rawScope.startsWith("owner:")
           ? "team"
-          : "personal";
+          : "regions";
   const personal = rawScope === "personal";
   const scope: ForecastScope = personal
     ? { scopeType: "owner", ownerSub: sub, territoryId: null }
@@ -43,7 +57,7 @@ export function resolveAttainmentQuery(
   const period =
     typeof query.period === "string" && periodRange(query.period)
       ? normalizeAttainmentPeriod(query.period)
-      : "all";
+      : `Y${now.getUTCFullYear()}`;
   const view = ATTAINMENT_VIEWS.includes(query.view as AttainmentView)
     ? (query.view as AttainmentView)
     : "progress";
@@ -56,6 +70,7 @@ export function resolveAttainmentQuery(
     (access.kind === "workspace" || access.territoryIds.length > 0);
   return {
     period,
+    perspective,
     view,
     teamOverview,
     scope,
@@ -77,28 +92,45 @@ export function resolveAttainmentQuery(
         !personal &&
         rawScope !== "team" &&
         query.scope !== forecastScopeKey(scope)) ||
+      Array.isArray(query.perspective) ||
+      (typeof query.perspective === "string" &&
+        !["regions", "team", "personal"].includes(query.perspective)) ||
+      (perspective === "team" && scope.scopeType !== "owner") ||
+      (perspective === "personal" && (!personal || scope.ownerSub !== sub)) ||
       Array.isArray(query.snapshot) ||
       Array.isArray(query.planRevision),
   };
 }
 
 export function attainmentHref({
-  period = "all",
+  period = `Y${new Date().getUTCFullYear()}`,
   scope = "workspace",
+  perspective,
   view = "progress",
   snapshot,
   planRevision,
 }: {
   period?: string;
+  perspective?: "regions" | "team" | "personal";
   scope?: string;
   view?: AttainmentView;
   snapshot?: string | null;
   planRevision?: string | null;
 } = {}) {
   const query = new URLSearchParams({ period, scope, view });
+  if (perspective) query.set("perspective", perspective);
   if (snapshot) query.set("snapshot", snapshot);
   if (planRevision) query.set("planRevision", planRevision);
   return `/attainment?${query.toString()}`;
+}
+
+export function attainmentCoverageHref(
+  options: Parameters<typeof attainmentHref>[0] = {},
+) {
+  return attainmentHref({ ...options, view: "progress" }).replace(
+    "/attainment?",
+    "/attainment/coverage?",
+  );
 }
 
 export function sameRevenueScope(

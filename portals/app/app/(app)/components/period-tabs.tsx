@@ -30,12 +30,21 @@ export interface PeriodTabsProps {
   /** Quarters, then the year. Passed in so the surface does not own the calendar. */
   readonly periods: readonly string[];
   readonly yearLabel: string;
+  readonly yearText?: string;
   readonly compact?: boolean;
   readonly allLabel?: string;
   readonly resetParams?: readonly string[];
 }
 
-export function PeriodTabs({ value, periods, yearLabel, compact = false, allLabel, resetParams = [] }: PeriodTabsProps) {
+export function PeriodTabs({
+  value,
+  periods,
+  yearLabel,
+  yearText,
+  compact = false,
+  allLabel,
+  resetParams = [],
+}: PeriodTabsProps) {
   const { PIPELINE_TEXT } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
@@ -51,9 +60,27 @@ export function PeriodTabs({ value, periods, yearLabel, compact = false, allLabe
   return (
     <Tabs value={value} onValueChange={select}>
       <TabsList aria-label={PIPELINE_TEXT.periodLabel}>
-        {(allLabel ? ["all", yearLabel, ...periods] : compact ? [yearLabel, ...periods] : [...periods, yearLabel]).map((p) => (
-          <TabsTrigger key={p} value={p} disabled={pending} className={compact ? "text-body-small px-xs" : undefined}>
-            {p === "all" ? allLabel : compact && p.startsWith(yearLabel.replace(/^Y/, "")) && p.includes("Q") ? p.slice(-2) : p}
+        {(allLabel
+          ? ["all", yearLabel, ...periods]
+          : compact
+            ? [yearLabel, ...periods]
+            : [...periods, yearLabel]
+        ).map((p) => (
+          <TabsTrigger
+            key={p}
+            value={p}
+            disabled={pending}
+            className={compact ? "text-body-small font-medium px-xs" : undefined}
+          >
+            {p === "all"
+              ? allLabel
+              : p === yearLabel && yearText
+                ? yearText
+                : compact &&
+                    p.startsWith(yearLabel.replace(/^Y/, "")) &&
+                    p.includes("Q")
+                  ? p.slice(-2)
+                  : p}
           </TabsTrigger>
         ))}
       </TabsList>
