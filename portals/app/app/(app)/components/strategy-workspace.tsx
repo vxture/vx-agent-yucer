@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, MetricListCard, NativeSelect, Section, SectionHeader, Tabs, TabsTrigger, ViewLayout, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, LabeledValue, NativeSelect, Section, Tabs, TabsTrigger, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar, TabsList, ViewHeader } from "./business-controls";
-import { FilterSlot, RowActions, SearchSlot } from "./table-fittings";
+import { RowActions, SearchSlot } from "./table-fittings";
 import { ModuleHeadline } from "./module-headline";
 import { PageCrumbs } from "./page-crumbs";
 import { MemberName } from "../lib/member-names";
@@ -33,6 +33,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     router.replace(`/strategy?${q}`,{scroll:false});
   };
   const [checks,setChecks]=useState(false);
+  const [basis,setBasis]=useState(false);
   const [historyOpen,setHistoryOpen]=useState(false);
   const [pending,start]=useTransition();
   const {toast}=useToast();
@@ -54,19 +55,49 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   ];
   const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
   const money=(n:number,currency:string)=>new Intl.NumberFormat(locale,{style:"currency",currency,maximumFractionDigits:0}).format(n);
-  const card=(p:StrategyView)=><MetricListCard key={p.id}
-    title={<Link href={`/strategy/${p.id}`} className="transition-colors hover:text-primary">{p.name}</Link>}
-    description={<span>{p.period} · {p.planNo}</span>}
-    badges={<div className="flex flex-wrap items-center gap-sm"><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag><span className="text-body-small text-muted-foreground">{T.owner} <MemberName sub={p.ownerSub} /></span></div>}
-    actions={<RowActions items={items(p)} disabled={pending}/>}
-    note={<div className="flex flex-col gap-sm"><p className="text-body-small text-muted-foreground">{T.direction}</p><p className="line-clamp-2 text-body" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p></div>}
-    metrics={[{key:"markets",label:T.marketCount,value:number(p.marketIds?.length)},{key:"customers",label:T.customerCount,value:number(p.customerCount)},{key:"campaigns",label:T.campaignCount,value:number(p.campaigns?.length)}]}
-    footer={<div className="flex flex-wrap items-center gap-xs text-body-small text-muted-foreground">{p.marketIds===null || (!data.canMarkets && p.marketIds.length>0)?T.unknown:p.marketIds.length ? data.markets?.filter(m=>p.marketIds!.includes(m.id)).map(m=><Link key={m.id} href={`/strategy?view=markets&market=${encodeURIComponent(m.id)}`} className="transition-colors hover:text-primary">{m.name}</Link>):T.noPlanMarkets}</div>}
-  />;
+  const marketLinks=(p:StrategyView)=>p.marketIds===null || (!data.canMarkets && p.marketIds.length>0)
+    ? T.unknown : p.marketIds.length ? data.markets?.filter(m=>p.marketIds!.includes(m.id)).map(m=>
+      <Button key={m.id} asChild size="md" variant="secondary"><Link href={`/strategy?view=markets&market=${encodeURIComponent(m.id)}`}>{m.name}</Link></Button>
+    ) : T.noPlanMarkets;
+  const card=(p:StrategyView)=><Card key={p.id} data-strategy-card>
+    <CardHeader>
+      <div className="flex min-w-0 items-start justify-between gap-lg">
+        <div className="flex min-w-0 flex-col gap-sm">
+          <div className="flex min-w-0 flex-wrap items-center gap-sm">
+            <CardTitle><Link href={`/strategy/${p.id}`} className="transition-colors hover:text-primary">{p.name}</Link></CardTitle>
+            <Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground">
+            <span title={p.planNo}>{p.period}</span>
+            <span>{T.owner} <MemberName sub={p.ownerSub}/></span>
+          </div>
+        </div>
+        <RowActions items={items(p)} disabled={pending}/>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="grid min-w-0 grid-cols-1 gap-xl @3xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-lg">
+          <div className="flex flex-col gap-xs">
+            <span className="text-body-small text-muted-foreground">{T.direction}</span>
+            <p className="line-clamp-2 text-body" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
+            <span>{T.currentMarkets}</span>{marketLinks(p)}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-lg" data-strategy-metrics>
+          <LabeledValue label={T.marketCount} value={number(p.marketIds?.length)}/>
+          <LabeledValue label={T.customerCount} value={number(p.customerCount)}/>
+          <LabeledValue label={T.campaignCount} value={number(p.campaigns?.length)}/>
+        </div>
+      </div>
+    </CardContent>
+  </Card>;
   const table=(rows:StrategyView[])=><DataTable leadingSpacer labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1}
     className="[&_table]:min-w-(--container-3xl)" columns={[
-      {id:"name",header:T.strategy,cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period} · {p.planNo}</span></div>},
-      {id:"direction",header:T.direction,cell:p=><span className="line-clamp-2 text-body-small" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
+      {id:"name",header:T.strategy,align:"left",width:"lg",cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period} · {p.planNo}</span></div>},
+      {id:"direction",header:T.direction,align:"left",width:"lg",cell:p=><span className="line-clamp-2 text-body-small" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
       {id:"markets",header:T.marketCount,cell:p=>number(p.marketIds?.length)},
       {id:"customers",header:T.customerCount,cell:p=>number(p.customerCount)},
       {id:"status",header:T.status,cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
@@ -75,61 +106,70 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   ;
   const current = plans.filter(p=>!["closed","archived"].includes(p.status));
   const history = plans.filter(p=>["closed","archived"].includes(p.status));
-  const cards = (rows:StrategyView[]) => <div className={rows.length > 1 ? "grid grid-cols-1 gap-lg md:grid-cols-2" : "grid grid-cols-1 gap-lg"}>{rows.map(card)}</div>;
+  const cards = (rows:StrategyView[]) => <div className="grid grid-cols-1 gap-lg">{rows.map(card)}</div>;
   const tabs = <Tabs value={view} onValueChange={switchView}><TabsList aria-label={T.strategy}>
     {data.canPlan?<TabsTrigger className="text-label-small" value="overview">{T.overview}</TabsTrigger>:null}
     {data.canMarkets?<TabsTrigger className="text-label-small" value="markets">{T.markets}</TabsTrigger>:null}
     {data.canPlan?<TabsTrigger className="text-label-small" value="validation">{T.validation}</TabsTrigger>:null}
   </TabsList></Tabs>;
   const checkButton = <Button size="md" variant="secondary" onClick={()=>setChecks(true)}>{T.checks}<span className="text-body-small text-muted-foreground tabular-nums">{(data.canPlan?data.planAdvice.length:0)+(data.canMarkets?data.segmentAdvice.length:0)}</span></Button>;
-  const periodFilter = <FilterSlot><NativeSelect aria-label={T.period} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{T.allPeriods}</option>{[...new Set(data.plans?.map(p=>p.period))].map(p=><option key={p}>{p}</option>)}</NativeSelect></FilterSlot>;
+  const periodFilter = <div className="w-36 max-w-full"><NativeSelect className="h-control-xl text-body-small font-medium" aria-label={T.period} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{T.allPeriods}</option>{[...new Set(data.plans?.map(p=>p.period))].map(p=><option key={p}>{p}</option>)}</NativeSelect></div>;
+  const layoutSwitch=<ViewModeSwitch value={layout} onChange={setLayout} ariaLabel={T.layout} labels={{list:T.listView,cards:T.cardsView}}/>;
+  const basisButton=<Tooltip><TooltipTrigger asChild><Button size="icon-xl" variant="ghost" aria-label={T.basis} onClick={()=>setBasis(true)}><Icon name="info" size="md"/></Button></TooltipTrigger><TooltipContent>{T.basis}</TooltipContent></Tooltip>;
   const overview=<>
-    <FilterBar view={layout} onViewChange={setLayout} scope={tabs} actions={checkButton}
-      search={<SearchSlot><Input aria-label={T.search} placeholder={T.search} value={query} onChange={e=>setQuery(e.target.value)}/></SearchSlot>}
+    <FilterBar scope={tabs} actions={<div className="flex items-center gap-sm">{layoutSwitch}{checkButton}</div>}
+      search={<SearchSlot><Input aria-label={T.searchPlans} placeholder={T.searchPlans} value={query} onChange={e=>setQuery(e.target.value)}/></SearchSlot>}
       onReset={query||period?()=>{setQuery("");setPeriod("");}:undefined}>
-      {periodFilter}
+      <div className="@3xl:hidden">{periodFilter}</div>
     </FilterBar>
     {!plans.length ? <EmptyState title={data.plans?.length?T.noMatches:T.noPlans} description={T.noPlansWhy}/> : <>
-      {current.length ? <Section icon="flag" title={T.live}>{layout==="cards" ? cards(current):table(current)}</Section> : null}
+      {current.length ? <div aria-label={T.live}>{layout==="cards" ? cards(current):table(current)}</div> : null}
       {history.length ? <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-        <SectionHeader divider={historyOpen} icon="archive" title={<span>{T.history} <span className="text-body-small text-muted-foreground">{history.length}</span></span>}
-          action={<CollapsibleTrigger asChild><Button size="md" variant="ghost"><Icon name={historyOpen?"chevron-up":"chevron-down"} size="sm"/>{historyOpen?T.collapse:T.expand}</Button></CollapsibleTrigger>}/>
-        <CollapsibleContent className="pt-lg">{layout==="cards"?cards(history):table(history)}</CollapsibleContent>
+        <CollapsibleTrigger asChild><Button size="md" variant="ghost" className="text-muted-foreground"><Icon name={historyOpen?"chevron-up":"chevron-down"} size="sm"/>{T.history}<span className="tabular-nums">{history.length}</span></Button></CollapsibleTrigger>
+        <CollapsibleContent className="pt-lg">{table(history)}</CollapsibleContent>
       </Collapsible>:null}
     </>}
   </>;
-  const results=(selected:readonly StrategyView[])=><Section title={T.results} icon="chart-line" description={T.validationWhy}>
-    <p className="mb-lg text-body-small text-muted-foreground">{T.validationScope}</p>
-    <div className="flex flex-col gap-xl">{selected.map(p=><Section key={p.id} title={<Link className="transition-colors hover:text-primary" href={`/strategy/${p.id}`}>{p.name}</Link>}>
-      {p.results===null?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:!p.results.length?<EmptyState title={T.noDeals} description={T.noDealsWhy}/>:<DataTable leadingSpacer labels={DATA_TABLE_LABELS} rows={p.results} rowKey={r=>r.currency} indexStart={1}
-        columns={[
-          {id:"currency",header:T.currency,cell:r=>r.currency},
-          {id:"pipeline",header:T.pipeline,align:"numeric",cell:r=>money(r.open,r.currency)},
-          {id:"won",header:T.won,align:"numeric",cell:r=>money(r.won,r.currency)},
-          {id:"rate",header:T.winRate,align:"numeric",cell:r=><div className="flex flex-col gap-xs"><span>{r.wonCount+r.lostCount>0?`${Math.round(r.wonCount/(r.wonCount+r.lostCount)*100)}%`:T.none}</span><span className="text-body-small text-muted-foreground" title={T.sample}>{r.wonCount} / {r.lostCount}</span></div>},
-        ]} rowActions={()=> <RowActions items={[]}/>}/>
-      }
-      {p.attributionIncomplete ? <p className="mt-md text-body-small text-muted-foreground">{T.attributionIncomplete}</p>:null}
-      {p.conflicts ? <p className="mt-md text-body-small text-(color:--warning-text)">{T.conflict} · {p.conflicts}</p>:null}
-      {p.results?.some(r=>r.unpriced > 0)?<p className="mt-md text-body-small text-muted-foreground">{p.results.reduce((n,r)=>n+r.unpriced,0)} {T.unpriced}</p>:null}
-    </Section>)}</div>
-  </Section>;
+  const results=(selected:readonly StrategyView[])=>{
+    const rows=selected.flatMap(p=>(p.results?.length?p.results:[null]).map(r=>({plan:p,result:r,empty:p.results===null?T.unknown:T.none,key:`${p.id}:${r?.currency ?? "empty"}`})));
+    return <div className="flex min-w-0 flex-col gap-md" data-strategy-results>
+      <DataTable leadingSpacer labels={DATA_TABLE_LABELS} rows={rows} rowKey={r=>r.key} indexStart={1}
+        className="[&_table]:min-w-(--container-3xl)" columns={[
+          ...(!detailId?[{id:"strategy",header:T.strategy,align:"left" as const,width:"lg" as const,cell:({plan:p}:typeof rows[number])=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period}</span></div>}]:[]),
+          {id:"currency",header:T.currency,width:"xs",cell:({result:r,empty})=>r?.currency ?? empty},
+          {id:"pipeline",header:T.pipeline,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.open,r.currency):empty},
+          {id:"won",header:T.won,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.won,r.currency):empty},
+          {id:"rate",header:T.winRate,align:"numeric",width:"sm",cell:({result:r,empty})=><span className="inline-flex flex-col gap-xs"><span>{r && r.wonCount+r.lostCount>0?`${Math.round(r.wonCount/(r.wonCount+r.lostCount)*100)}%`:empty}</span>{r?<span className="text-body-small text-muted-foreground" title={T.sample}>{r.wonCount} / {r.lostCount}</span>:null}</span>},
+        ]} rowActions={({plan:p})=><RowActions items={detailId?[]:[{id:"view",label:T.openPlan,onSelect:()=>router.push(`/strategy/${p.id}`)}]}/>}/>
+      {selected.some(p=>p.results===null)?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:null}
+      {selected.some(p=>p.attributionIncomplete || p.conflicts || p.results?.some(r=>r.unpriced>0))?<Button size="md" variant="ghost" className="self-start text-muted-foreground" onClick={()=>setBasis(true)}><Icon name="info" size="sm"/>{T.resultNotes}</Button>:null}
+    </div>;
+  };
   const detailContent=detail?<>
-    <DetailList columns={3}><DetailRow label={T.period}>{detail.period}</DetailRow><DetailRow label={T.owner}><MemberName sub={detail.ownerSub}/></DetailRow><DetailRow label={T.approvedAt}>{detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale):T.none}</DetailRow></DetailList>
     <Section title={T.direction} icon="flag"><p className="whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p></Section>
-    {!data.canMarkets || data.markets===null?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:<MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} planId={detail.id}/>}
+    {!data.canMarkets || data.markets===null?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:<Section title={T.currentMarkets} icon="target"><MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} planId={detail.id}/></Section>}
     <Section title={T.handoff} icon="workflow" description={T.handoffWhy}>
-      <DetailList columns={1}><DetailRow label={T.openPlanning} actions={<Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>}>{T.planningHint}</DetailRow>
+      <DetailList columns={1}><DetailRow label={T.planning} actions={<Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>}>{T.planningHint}</DetailRow>
       <DetailRow label={T.campaignCount} actions={<Button asChild variant="secondary" size="md"><Link href="/campaign">{T.openCampaigns}</Link></Button>}>{detail.campaigns?.length ? <div className="flex flex-wrap gap-sm">{detail.campaigns.map(c=><Tag key={c.id}>{c.name}</Tag>)}</div>:detail.campaigns===null?T.unknown:T.noCampaigns}</DetailRow></DetailList>
     </Section>
-    {results([detail])}
+    <Section title={T.results} icon="chart-line" action={basisButton}>{results([detail])}</Section>
   </>:null;
-  return <ViewLayout data-strategy-workspace>
+  return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/><ViewHeader icon="graph" title={detail.name} description={detail.planNo} divider secondary={<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>} action={<RowActions disabled={pending} items={items(detail)}/>}/></> : <ModuleHeadline moduleKey="strategy" description={T.brief}
-      action={view==="markets"?data.canWriteMarket?<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>:null:data.canCreate?<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>:null}/>}
-    {detail ? <FilterBar actions={checkButton}/> : view==="validation" ? <FilterBar scope={tabs} actions={checkButton}>{periodFilter}</FilterBar> : null}
+      action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm">{view!=="markets"?<div className="hidden @3xl:block">{periodFilter}</div>:null}{view==="markets"?data.canWriteMarket?<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>:null:data.canCreate?<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>:null}</div>}/>}
+    {detail ? <FilterBar scope={<div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small text-muted-foreground"><span>{T.period} {detail.period}</span><span>{T.owner} <MemberName sub={detail.ownerSub}/></span><span>{T.approvedAt} {detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale):T.none}</span></div>} actions={checkButton}/> : view==="validation" ? <FilterBar scope={tabs} actions={<div className="flex items-center gap-sm">{basisButton}{checkButton}</div>}><div className="@3xl:hidden">{periodFilter}</div></FilterBar> : null}
     {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:view==="markets"?data.markets?<MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} initialMarket={params.get("market") ?? undefined} scope={tabs} actions={checkButton}/>:<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={T.noPlans} description={T.noPlansWhy}/>):overview}
-    <footer className="mt-xl border-t border-dashed border-primary/10 pt-lg pb-xl text-body-small text-muted-foreground">{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
+    <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{view==="validation"?<p className="mb-sm">{T.validationScope}</p>:null}{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
+    <Drawer open={basis} onClose={()=>setBasis(false)} width="lg" title={T.basis} description={T.validationWhy} closeLabel={T.closed}>
+      <div className="flex flex-col gap-xl"><p className="text-body-small text-muted-foreground">{T.validationScope}</p>
+        {(detail?[detail]:plans).map(p=><div key={p.id} className="flex flex-col gap-sm"><h3 className="text-heading-3">{p.name}</h3>
+          {p.results===null?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:!p.results.length?<p className="text-body-small text-muted-foreground">{T.noDealsWhy}</p>:null}
+          {p.attributionIncomplete?<p className="text-body-small text-muted-foreground">{T.attributionIncomplete}</p>:null}
+          {p.conflicts?<p className="text-body-small text-(color:--warning-text)">{T.conflict} · {p.conflicts}</p>:null}
+          {p.results?.some(r=>r.unpriced>0)?<p className="text-body-small text-muted-foreground">{p.results.reduce((n,r)=>n+r.unpriced,0)} {T.unpriced}</p>:null}
+        </div>)}
+      </div>
+    </Drawer>
     <Drawer open={checks} onClose={()=>setChecks(false)} width="lg" title={T.checks} description={T.checkWhy} closeLabel={T.closed}>
       <div className="flex flex-col gap-xl">{data.plans===null||data.markets===null||data.markets.some(m=>m.customers===null)||data.plans.some(p=>p.campaigns===null)?<p className="text-body-small text-muted-foreground">{T.checkIncomplete}</p>:null}
         {data.canPlan && data.plans!==null?<PlanAdvicePanel advice={data.planAdvice.filter(a=>!detailId||a.planId===detailId)} canApprove={data.canApprove} onApprove={movePlan}/>:null}

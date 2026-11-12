@@ -10,9 +10,9 @@ import { useMessages } from "../lib/i18n/provider";
 import type { MarketView } from "../lib/market-strategy";
 import { changeSegmentStatus, deleteSegment, moveSegmentRow } from "../strategy/actions";
 
-export function MarketCriteria({ market }: { readonly market: MarketView }) {
+export function MarketCriteria({ market, columns = 1 }: { readonly market: MarketView; readonly columns?: 1 | 2 }) {
   const { MARKET_STRATEGY_TEXT: T } = useMessages();
-  return <DetailList columns={1}>
+  return <DetailList columns={columns}>
     <DetailRow label={T.industry}>{market.criteria.industries.join(" / ") || T.unlimited}</DetailRow>
     <DetailRow label={T.size}>{market.criteria.sizes?.join(" / ") || T.unlimited}</DetailRow>
     <DetailRow label={T.region}>{market.criteria.regions.join(" / ") || T.unlimited}</DetailRow>
@@ -33,7 +33,7 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
         <DetailRow label={T.status}>{STRATEGY_TEXT.segmentStatusLabel[market.status]}</DetailRow>
       </DetailList>
       <Section title={T.preview} icon="users" description={T.previewWhy}>
-        <FilterBar search={<SearchSlot><Input aria-label={T.search} placeholder={T.search} value={query} onChange={e => setQuery(e.target.value)} /></SearchSlot>}>
+        <FilterBar search={<SearchSlot><Input aria-label={T.searchCustomers} placeholder={T.searchCustomers} value={query} onChange={e => setQuery(e.target.value)} /></SearchSlot>}>
           <FilterSlot><NativeSelect aria-label={T.assessment} value={match} onChange={e => setMatch(e.target.value)}>
             <option value="">{T.allCustomers}</option><option value="match">{T.match}</option><option value="missing">{T.missing}</option><option value="miss">{T.miss}</option>
           </NativeSelect></FilterSlot>
@@ -41,8 +41,8 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
         {market.customers === null ? <p className="text-body-small text-muted-foreground">{T.unknown}</p> : <DataTable
           leadingSpacer labels={DATA_TABLE_LABELS} rows={pagination.pageRows} rowKey={a => a.id} indexStart={pagination.indexStart}
           columns={[
-            {id:"name",header:T.customerName,cell:a => <TableTitleCell title={<Link href={`/account/${a.id}`} className="transition-colors hover:text-primary">{a.name}</Link>} description={a.accountNo} />},
-            {id:"match",header:T.assessment,cell:a => <div className="flex flex-col gap-xs"><Tag tone={a.match === "match" ? "success" : a.match === "missing" ? "warning" : "neutral"}>{T[a.match]}</Tag><span className="text-body-small text-muted-foreground">{[a.industry,a.customerSize,a.region].filter(Boolean).join(" / ")}</span>{a.assigned ? <span className="text-body-small text-muted-foreground">{T.assigned}</span> : null}</div>},
+            {id:"name",header:T.customerName,align:"left",cell:a => <TableTitleCell title={<Link href={`/account/${a.id}`} className="transition-colors hover:text-primary">{a.name}</Link>} description={a.accountNo} />},
+            {id:"match",header:T.assessment,align:"left",cell:a => <div className="flex flex-col gap-xs"><Tag tone={a.match === "match" ? "success" : a.match === "missing" ? "warning" : "neutral"}>{T[a.match]}</Tag><span className="text-body-small text-muted-foreground">{[a.industry,a.customerSize,a.region].filter(Boolean).join(" / ")}</span>{a.assigned ? <span className="text-body-small text-muted-foreground">{T.assigned}</span> : null}</div>},
           ]} rowActions={a => <RowActions items={[{id:"open",label:T.readOnly,onSelect:() => { window.location.href = `/account/${a.id}`; }}]} />}
           empty={<EmptyState title={query || match ? T.noMatches : T.noCustomers} description={T.noCustomersWhy} />}
         />}
@@ -76,10 +76,11 @@ export function MarketLibrary({ markets, canWrite, initialMarket, planId, scope,
     rows={[...sorted.sortRows(rows)]} selectedKeys={selected} onSelectionChange={setSelected} sort={sorted.sort} onSortChange={sorted.onSortChange}
     className="[&_table]:min-w-(--container-3xl)"
     columns={[
-      {id:"name",header:T.marketName,sortable:true,cell:m=><TableTitleCell title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.segmentCode} />},
-      {id:"criteria",header:T.criteria,cell:m=><div className="flex flex-col gap-xs text-body-small"><span className="line-clamp-2" title={[...m.criteria.industries,...(m.criteria.sizes ?? []),...m.criteria.regions].join(" / ")}>{[...m.criteria.industries,...(m.criteria.sizes ?? []),...m.criteria.regions].join(" / ") || T.undefined}</span>{m.planName ? <Link className="text-muted-foreground transition-colors hover:text-primary" href={`/strategy/${m.planId}`}>{m.planName}</Link> : <span className="text-muted-foreground">{m.planId ? T.unknown : T.none}</span>}</div>},
-      {id:"customers",header:T.customers,sortable:true,cell:m=><div className="flex flex-col gap-xs whitespace-nowrap text-body-small tabular-nums"><span>{T.match} {m.matched ?? T.unknown}</span>{m.missing !== null && m.missing > 0 ? <span className="text-muted-foreground">{T.missing} {m.missing}</span> : null}</div>},
-      {id:"status",header:T.status,width:"sm",cell:m=><Tag tone={m.status === "active" ? "success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
+      {id:"name",header:T.marketName,align:"left",width:"md",sortable:true,cell:m=><TableTitleCell title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.segmentCode}/>},
+      {id:"criteria",header:T.criteria,align:"left",width:"md",cell:m=><span className="line-clamp-2 text-body-small" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>{[...m.criteria.industries,...(m.criteria.sizes ?? []),...m.criteria.regions].join(" / ") || T.undefined}</span>},
+      {id:"customers",header:T.customers,align:"left",sortable:true,width:"sm",cell:m=><div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs tabular-nums"><span className="font-medium">{m.matched ?? T.unknown}</span>{m.missing!==null && m.missing>0?<span className="whitespace-nowrap text-body-small text-muted-foreground">{T.missing} {m.missing}</span>:null}</div>},
+      ...(!planId?[{id:"plan",header:T.linkedPlan,align:"left" as const,width:"lg" as const,cell:(m:MarketView)=>m.planName?<Link className="block truncate text-body-small text-muted-foreground transition-colors hover:text-primary" title={m.planName} href={`/strategy/${m.planId}`}>{m.planName}</Link>:<span className="text-body-small text-muted-foreground">{m.planId?T.unknown:T.none}</span>}]:[]),
+      {id:"status",header:T.status,width:"xs",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
     ]}
     rowActions={(m) => <RowActions disabled={pending} items={[
       {id:"view",label:T.openMarket,onSelect:()=>setDetail(m.id)},
@@ -99,17 +100,17 @@ export function MarketLibrary({ markets, canWrite, initialMarket, planId, scope,
   />;
   const viewed = markets.find(m=>m.id===detail || m.segmentCode===detail);
   return <div className="flex min-w-0 flex-col gap-xl" data-market-library>
-    <FilterBar scope={scope} count={scope ? undefined : filtered.length} search={<SearchSlot><Input aria-label={T.search} placeholder={T.search} value={query} onChange={e=>setQuery(e.target.value)} /></SearchSlot>}
+    <FilterBar scope={scope} search={<SearchSlot><Input aria-label={T.searchMarkets} placeholder={T.searchMarkets} value={query} onChange={e=>setQuery(e.target.value)} /></SearchSlot>}
       onReset={query || status ? ()=>{setQuery("");setStatus("");}:undefined}
       actions={<div className="flex items-center gap-sm"><Button variant="secondary" size="md" disabled={chosen.length<2 || chosen.length>3} title={T.compareLimit} onClick={()=>setCompare(true)}>{T.compare}</Button>{actions}</div>}>
       <FilterSlot><NativeSelect aria-label={T.status} value={status} onChange={e=>setStatus(e.target.value)}><option value="">{T.allStates}</option>{Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</NativeSelect></FilterSlot>
     </FilterBar>
-    {live.length || !shelved.length ? <Section title={T.library} icon="target" description={T.libraryWhy}>{table(live)}</Section> : null}
+    {live.length || !shelved.length ? <div aria-label={T.library}>{table(live)}</div> : null}
     {shelved.length ? <Section title={T.shelvedMarkets} icon="archive">{table(shelved)}</Section>:null}
     <p className="text-body-small text-muted-foreground">{T.baseOnly}</p>
     {viewed ? <MarketDetails key={viewed.id} market={viewed} canWrite={canWrite} onClose={()=>setDetail(null)} />:null}
     <Drawer open={compare} onClose={()=>setCompare(false)} title={T.compare} description={T.compareWhy} width="lg" closeLabel={T.closed}>
-      <div className="grid grid-cols-1 gap-xl md:grid-cols-2">{chosen.map(m=><Section key={m.id} title={m.name} action={<Button variant="secondary" size="md" onClick={()=>{setCompare(false);setDetail(m.id);}}>{T.preview}</Button>}><MarketCriteria market={m}/><p className="mt-md text-body-small text-muted-foreground">{T.match} {m.matched ?? T.unknown} · {T.missing} {m.missing ?? T.unknown}</p></Section>)}</div>
+      <div className="grid grid-cols-1 gap-xl md:grid-cols-2">{chosen.map(m=><Section key={m.id} title={m.name} action={<Button variant="secondary" size="md" onClick={()=>{setCompare(false);setDetail(m.id);}}>{T.preview}</Button>}><MarketCriteria market={m} columns={2}/><p className="mt-md text-body-small text-muted-foreground">{T.match} {m.matched ?? T.unknown} · {T.missing} {m.missing ?? T.unknown}</p></Section>)}</div>
     </Drawer>
   </div>;
 }
