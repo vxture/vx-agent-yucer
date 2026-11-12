@@ -71,6 +71,13 @@ export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
   PLAN_VERSION_TEXT: {
     ...zh.PLAN_VERSION_TEXT,
+    annualTargets: "Annual targets",
+    targetLedger: "Annual and period targets",
+    periodTargets: "Period targets",
+    operations: "Actions",
+    collapsePeriods: "Collapse period targets",
+    splitPeriods: (n: number) => `Split into ${n} periods`,
+
     prerequisitesTooLong: "Planning prerequisites exceed the length limit. Shorten the items before saving.",
     checksInvalidHint: "Complete missing inputs and correct amount formats before checking again.",
     noQuarters: "No quarterly targets yet",

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Button,
   MetricListCard,
+  LabeledValue,
   Checkbox,
   Drawer,
   EmptyState,
@@ -543,60 +544,44 @@ export function PlanningVersionPanel({
                 disabled={pending}
                 summary={
                   !currentRegion ? (
-                    <>
-                      <MetricListCard
-                        title={T.regionalAllocation}
-                        description={`Y${year} · ${companyTarget?.currency ?? sources.currency}`}
-                        metrics={[
-                          {
-                            key: "allocated",
-                            label: T.allocated,
-                            value: format(String(allocated)),
-                          },
-                          {
-                            key: "remaining",
-                            label: T.allocation,
-                            value:
-                              companyTarget?.target != null
-                                ? format(
-                                    String(
-                                      Number(companyTarget.target) - allocated,
-                                    ),
-                                  )
-                                : "—",
-                          },
-                        ]}
+                    <div className="flex flex-wrap gap-x-xl gap-y-md">
+                      <LabeledValue
+                        label={`${T.allocated} · ${companyTarget?.currency ?? sources.currency}`}
+                        value={format(String(allocated))}
                       />
-                      <MetricListCard
-                        title={T.team}
-                        description={T.planningResources}
-                        metrics={[
-                          {
-                            key: "people",
-                            label: T.people,
-                            value: new Set(
-                              c.team
-                                .filter((t) => t.memberSub)
-                                .map((t) => t.memberSub),
-                            ).size,
-                          },
-                          {
-                            key: "needs",
-                            label: `${T.needs} · FTE`,
-                            value: format(
-                              String(
-                                c.team
-                                  .filter((t) => !t.memberSub)
-                                  .reduce(
-                                    (n, t) => n + Number(t.requestedFte),
-                                    0,
-                                  ),
-                              ),
-                            ),
-                          },
-                        ]}
+                      <LabeledValue
+                        label={T.allocation}
+                        value={
+                          companyTarget?.target != null
+                            ? format(
+                                String(
+                                  Number(companyTarget.target) - allocated,
+                                ),
+                              )
+                            : "—"
+                        }
                       />
-                    </>
+                      <LabeledValue
+                        label={T.people}
+                        value={
+                          new Set(
+                            c.team
+                              .filter((t) => t.memberSub)
+                              .map((t) => t.memberSub),
+                          ).size
+                        }
+                      />
+                      <LabeledValue
+                        label={`${T.needs} · FTE`}
+                        value={format(
+                          String(
+                            c.team
+                              .filter((t) => !t.memberSub)
+                              .reduce((n, t) => n + Number(t.requestedFte), 0),
+                          ),
+                        )}
+                      />
+                    </div>
                   ) : undefined
                 }
               />

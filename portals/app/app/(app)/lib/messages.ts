@@ -8453,6 +8453,13 @@ export const JUDGEMENT_ADOPT_ERROR: Record<string, string> = {
 };
 
 export const PLAN_VERSION_TEXT = {
+  annualTargets: "\u5e74\u5ea6\u76ee\u6807",
+  targetLedger: "\u5e74\u5ea6\u4e0e\u5468\u671f\u76ee\u6807",
+  periodTargets: "\u5468\u671f\u76ee\u6807",
+  operations: "\u64cd\u4f5c",
+  collapsePeriods: "\u6536\u8d77\u5468\u671f\u76ee\u6807",
+  splitPeriods: (n: number) => `\u5df2\u62c6\u5206 ${n} \u4e2a\u5468\u671f`,
+
   prerequisitesTooLong: "\u89c4\u5212\u524d\u63d0\u5df2\u8fbe\u957f\u5ea6\u4e0a\u9650\uff0c\u8bf7\u7cbe\u7b80\u6761\u76ee\u540e\u4fdd\u5b58\u3002",
   checksInvalidHint: "\u5f53\u524d\u8f93\u5165\u5c1a\u4e0d\u5b8c\u6574\u6216\u91d1\u989d\u683c\u5f0f\u4e0d\u6b63\u786e\uff0c\u8bf7\u5b8c\u5584\u540e\u91cd\u65b0\u68c0\u67e5\u3002",
   noQuarters: "\u5c1a\u672a\u8bbe\u7f6e\u5b63\u5ea6\u76ee\u6807",
