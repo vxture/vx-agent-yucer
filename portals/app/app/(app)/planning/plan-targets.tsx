@@ -301,7 +301,7 @@ export function PlanTargetLedger({
               </TableRow>
             </TableHeader>
           ) : null}
-          <TableBody>{ledgerAnnual.map(row)}</TableBody>
+          <TableBody>{ledgerAnnual.map((target, index) => row(target, index))}</TableBody>
           <TableBody className="border-t border-dashed border-border">
             <TableRow
               className="cursor-pointer hover:bg-transparent"
