@@ -1,11 +1,13 @@
 import { cache } from "react";
-import { listAccounts } from "../../domains/account/service";
-import { listPipeline } from "../../domains/pipeline/service";
 import {
-  attainment,
-  listTargets,
-  listTerritories,
-} from "../../domains/planning/service";
+  listAccounts,
+  listMarketDivisions,
+} from "../../domains/account/service";
+import {
+  listPipeline,
+  latestAttainmentReport,
+} from "../../domains/pipeline/service";
+import { listTerritories } from "../../domains/planning/service";
 import {
   listProducts,
   listOpportunityLines,
@@ -14,7 +16,11 @@ import {
 import {
   getCatalogStore,
   getPlanningStore,
+  getSalesPlanStore,
 } from "../../domains/shared/registry";
+import { readAttainmentPlans } from "../../domains/planning/attainment-plan";
+import { canReadReportingScope } from "../../authz/forecast-scope";
+import { salesRegionTerritories } from "../lib/sales-regions";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { forecastBoard } from "../forecast/board";
@@ -30,23 +36,112 @@ export const loadAttainmentBase = cache(async () => {
     holder: session.authz,
     entitlement: session.entitlement,
   };
-  const [deals, targets, territories, policy] = await Promise.all([
+  const observedAt = new Date().toISOString();
+  const [deals, territories, policy, divisions, plans] = await Promise.all([
     listPipeline(
       { ...base, store: session.stores.pipeline() },
       { includeClosed: true },
     ),
-    listTargets({ ...base, store: getPlanningStore() }),
-    listTerritories({ ...base, store: getPlanningStore() }),
+    listTerritories(
+      { ...base, store: getPlanningStore() },
+      { includeRetired: true },
+    ),
     pricingPolicy({ ...base, store: getCatalogStore() }),
+    listMarketDivisions({ ...base, store: session.stores.account() }),
+    readAttainmentPlans({
+      ...base,
+      scope: session.scope,
+      store: getSalesPlanStore(),
+      targets: getPlanningStore(),
+      now: () => new Date(observedAt),
+    }).catch(() => null),
   ]);
-  return { session, base, deals, targets, territories, policy };
+  return {
+    session,
+    base,
+    deals,
+    policy,
+    observedAt,
+    plans,
+    rawTerritories: territories.ok
+      ? {
+          ...territories,
+          value: territories.value.filter((t) =>
+            canReadReportingScope(
+              session.scope,
+              { scopeType: "territory", territoryId: t.id, ownerSub: null },
+              session.user.sub,
+            ),
+          ),
+        }
+      : territories,
+    territories:
+      territories.ok && divisions.ok
+        ? {
+            ...territories,
+            value: salesRegionTerritories(
+              divisions.value,
+              territories.value,
+            ).filter((t) =>
+              canReadReportingScope(
+                session.scope,
+                { scopeType: "territory", territoryId: t.id, ownerSub: null },
+                session.user.sub,
+              ),
+            ),
+          }
+        : !territories.ok
+          ? territories
+          : divisions,
+  };
 });
 
-export const loadPublishedAttainment = cache(async (period: string) => {
+export const loadAttainmentPlan = cache(async (year: number) => {
   const data = await loadAttainmentBase();
   if (!data) return null;
-  return attainment({ ...data.base, store: getPlanningStore() }, period);
+  if (!data.plans) return { ok: false as const };
+  return {
+    ok: true as const,
+    value: data.plans.find((p) => p.year === year) ?? {
+      year,
+      observedAt: data.observedAt,
+      current: null,
+      baseline: null,
+      scheduled: null,
+      historical: [],
+      targets: [],
+      regions: [],
+      support: { budgets: [], contributions: [], team: [], actions: [] },
+      supportRestricted: true,
+    },
+  };
 });
+
+export const loadAttainmentReport = cache(
+  async (period: string, scopeKey: string) => {
+    const data = await loadAttainmentBase();
+    if (!data) return null;
+    const scope = parseForecastScope(scopeKey);
+    if (
+      !canReadReportingScope(data.session.scope, scope, data.session.user.sub)
+    )
+      return null;
+    try {
+      return await latestAttainmentReport(
+        { ...data.base, store: data.session.stores.pipeline() },
+        period,
+        scope,
+      );
+    } catch {
+      return {
+        ok: false as const,
+        violations: [
+          { code: "source_read_failed", message: "report read failed" },
+        ],
+      };
+    }
+  },
+);
 
 export const loadAttainmentComposition = cache(async () => {
   const data = await loadAttainmentBase();

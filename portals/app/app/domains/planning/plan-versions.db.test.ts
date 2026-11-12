@@ -190,6 +190,7 @@ test(
       "CNY",
     );
     const row = {
+      id: randomUUID(),
       period: `Y${year}`,
       scopeType: "workspace" as const,
       territoryId: null,
@@ -204,6 +205,7 @@ test(
       targetBasis: basis,
     };
     await pipeline.appendForecastSnapshot(ctx.workspaceId, row);
+    await assert.rejects(pipeline.appendForecastSnapshot(ctx.workspaceId, { ...row, snapshotAt: new Date(row.snapshotAt.getTime() + 1) }), /Unique constraint|unique constraint/);
     plan = await changeSalesPlan(ctx, {
       year,
       expectedEventNo: plan.events.at(-1)!.no,
@@ -236,8 +238,9 @@ test(
       },
     });
     const history = await pipeline.listForecastSnapshots(ctx.workspaceId, {
-      period: `Y${year}`,
+      period: String(year),
     });
+    assert.equal(history[0]!.id, row.id);
     const adopted = history[0]!.targetBasis!.find(
       (b) => b.metric === "revenue",
     )!;
@@ -259,6 +262,7 @@ test(
     assert.equal(current.find((b) => b.metric === "revenue")!.target, "800");
     const invalid = {
       ...row,
+      id: randomUUID(),
       snapshotAt: new Date(row.snapshotAt.getTime() + 1),
       targetBasis: [...basis, basis[0]!],
     };

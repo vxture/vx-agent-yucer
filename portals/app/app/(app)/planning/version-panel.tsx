@@ -33,6 +33,7 @@ import {
   planningReleaseTimeError,
 } from "../lib/planning-operations";
 import { previewTargetDelta } from "../lib/planning-preview";
+import { attainmentHref } from "../lib/attainment-workspace";
 import { salesPlanCommandAction } from "./plan-actions";
 import {
   planVersions,
@@ -61,6 +62,9 @@ export function PlanningVersionPanel({
   canEdit,
   sources,
   legacyIds,
+  initialRevision,
+  initialRegion,
+  initialPeriod,
 }: {
   initialPlan: SalesPlan | null;
   initialNow: string;
@@ -69,6 +73,9 @@ export function PlanningVersionPanel({
   canEdit: boolean;
   sources: PlanSources;
   legacyIds: string[];
+  initialRevision?: string;
+  initialRegion?: string;
+  initialPeriod?: string;
 }) {
   const locale = useLocale();
   const {
@@ -114,7 +121,7 @@ export function PlanningVersionPanel({
     return () => clearTimeout(timer);
   }, [plan, state.scheduled, now, router]);
   // A saved draft is an explicit editing session, never the daily landing view.
-  const [view, setView] = useState("current");
+  const [view, setView] = useState(initialRevision ?? "current");
   const revision =
     view === "current"
       ? state.current
@@ -135,7 +142,7 @@ export function PlanningVersionPanel({
   const dirty =
     editing && JSON.stringify(c) !== JSON.stringify(state.draft?.content);
   const [diffSection, setDiffSection] = useState("all");
-  const [regionId, setRegionId] = useState<string | null>(null);
+  const [regionId, setRegionId] = useState<string | null>(initialRegion ?? null);
   const [reason, setReason] = useState("");
   const [effective, setEffective] = useState("");
   const [when, setWhen] = useState("immediate");
@@ -606,14 +613,15 @@ export function PlanningVersionPanel({
                   >
                     {T.back}
                   </Button>
-                ) : (
+                ) : null}
+                {!editing && revision?.state === "sealed" ? (
                   <Link
-                    href={`/attainment?period=Y${year}`}
+                    href={attainmentHref({ period: initialPeriod ?? `Y${year}`, scope: currentRegion ? `territory:${currentRegion.id}` : "workspace", planRevision: revision.id })}
                     className="text-body-small text-muted-foreground transition-colors hover:text-primary"
                   >
                     {T.actual}
                   </Link>
-                )}
+                ) : null}
                 <RowActions
                   label={`${currentRegion?.name ?? T.company} · ${T.version}`}
                   items={auxiliaryActions}
@@ -696,6 +704,7 @@ export function PlanningVersionPanel({
             {!currentRegion || currentRegion.included ? (
               <PlanTargets
                 key={currentRegion?.id ?? "workspace"}
+                initiallyOpen={!!initialPeriod && initialPeriod !== `Y${year}`}
                 content={c}
                 scope={
                   currentRegion ? `territory:${currentRegion.id}` : "workspace"
@@ -749,6 +758,7 @@ export function PlanningVersionPanel({
             <PlanRegions
               content={c}
               onSelect={setRegionId}
+              onAttainment={!editing ? (id) => router.push(attainmentHref({ period: `Y${year}`, scope: `territory:${id}`, planRevision: revision?.id })) : undefined}
               editing={editing}
               disabled={pending}
               lockedPeriods={lockedPeriods}

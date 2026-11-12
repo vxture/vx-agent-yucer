@@ -9,5 +9,5 @@ export const dynamic = "force-dynamic";
 export default async function ForecastPage({ searchParams }: { searchParams: Promise<AttainmentQuery> }) {
   const session = await resolveAppSession();
   if (!session) return null;
-  redirect(legacyForecastHref(await searchParams, session.user.sub, defaultPeriod()));
+  redirect(legacyForecastHref(await searchParams, session.user.sub, defaultPeriod(), session.scope));
 }

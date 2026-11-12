@@ -5,6 +5,7 @@ import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { readSalesPlan } from "../../domains/planning/plan-service";
 import { PlanError } from "../../domains/planning/plan-model";
+import { planVersions } from "../../domains/planning/plan-state";
 import { getPlanningStore } from "../../domains/shared/registry";
 import {
   checkPlanRead,
@@ -18,14 +19,36 @@ export const dynamic = "force-dynamic";
 export default async function PlanningPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string }>;
+  searchParams: Promise<{
+    year?: string | string[];
+    region?: string | string[];
+    revision?: string | string[];
+    period?: string | string[];
+  }>;
 }) {
   const session = await resolveAppSession();
   if (!session) return null;
   const locked = lockedPage(session, "planning");
   if (locked) return locked;
-  if (session.scope.kind !== "workspace") return <LegacyPlanningPage />;
-  const { year: suppliedYear } = await searchParams;
+  const { year: suppliedYear, region, revision, period } = await searchParams;
+  const {
+    PLAN_VERSION_ERROR: E,
+    SHELL_TEXT,
+    ATTAINMENT_PLAN_TEXT: AT,
+  } = await getMessages();
+  if (
+    Array.isArray(suppliedYear) ||
+    Array.isArray(region) ||
+    Array.isArray(revision) ||
+    Array.isArray(period)
+  )
+    return <EmptyState title={AT.contextMissing} />;
+  if (session.scope.kind !== "workspace")
+    return region || revision ? (
+      <EmptyState title={AT.contextMissing} />
+    ) : (
+      <LegacyPlanningPage />
+    );
   const year =
     suppliedYear &&
     /^\d{4}$/.test(suppliedYear) &&
@@ -33,7 +56,6 @@ export default async function PlanningPage({
     Number(suppliedYear) <= 2200
       ? Number(suppliedYear)
       : new Date().getUTCFullYear();
-  const { PLAN_VERSION_ERROR: E, SHELL_TEXT } = await getMessages();
   try {
     const [plan, sources, legacy] = await Promise.all([
       readSalesPlan(salesPlanContext(session), year),
@@ -41,6 +63,22 @@ export default async function PlanningPage({
       getPlanningStore().listTargets(session.workspaceId),
     ]);
     for (const r of plan?.revisions ?? []) checkPlanRead(session, r.content);
+    const selected = revision
+      ? plan?.revisions.find((r) => r.id === revision && r.state === "sealed")
+      : null;
+    if (revision && !selected) return <EmptyState title={AT.contextMissing} />;
+    const previewContent = freshPlan(year, sources);
+    const displayed =
+      selected?.content ??
+      (plan
+        ? planVersions(plan, new Date().toISOString()).current?.content
+        : null) ??
+      previewContent;
+    if (
+      (region && !displayed.regions.some((r) => r.id === region)) ||
+      (period && !displayed.periods.some((p) => p.key === period))
+    )
+      return <EmptyState title={AT.contextMissing} />;
     const legacyIds = legacy
       .filter(
         (t) =>
@@ -57,10 +95,13 @@ export default async function PlanningPage({
     return (
       <ViewLayout>
         <PlanningVersionPanel
-          key={year}
+          key={`${year}|${revision ?? "current"}|${region ?? "company"}|${period ?? ""}`}
+          initialRevision={revision}
+          initialRegion={region}
+          initialPeriod={period}
           initialPlan={plan}
           initialNow={new Date().toISOString()}
-          previewContent={freshPlan(year, sources)}
+          previewContent={previewContent}
           year={year}
           sources={sources}
           legacyIds={legacyIds}

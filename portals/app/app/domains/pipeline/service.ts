@@ -82,7 +82,11 @@ import {
   planCategoryChange,
   validateScope,
   planSnapshot,
+  sameForecastTotals,
+  attainmentReportPoint,
+  type AttainmentReportPoint,
   type ForecastCategory,
+  type ForecastTotals,
   type ForecastScope,
   type SnapshotRow,
 } from "./lib/forecast";
@@ -1441,9 +1445,31 @@ export async function forecastHistory(
     period,
     scopeType: scope.scopeType,
   });
-  return ok(
-    rows.filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub).map((r) => { if (can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed) return r; const { targetBasis: _basis, ...visible } = r; return visible; }),
-  );
+  const canViewTarget = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed;
+  return ok(rows
+    .filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub)
+    .map((r) => {
+      if (canViewTarget) return r;
+      const { targetBasis: _basis, ...visible } = r;
+      return visible;
+    }));
+}
+
+// Basic attainment exposes its latest report, without granting advanced history.
+export async function latestAttainmentReport(
+  ctx: PipelineContext,
+  period: string,
+  scope: ForecastScope,
+): Promise<RuleResult<AttainmentReportPoint | null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.attainment.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const check = validateScope(scope);
+  if (!check.ok) return check as RuleResult<null>;
+  const rows = await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType: scope.scopeType });
+  const latest = rows.filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub)
+    .sort((a, b) => b.snapshotAt.getTime() - a.snapshotAt.getTime())[0] ?? null;
+  const canViewTarget = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed;
+  return ok(latest ? attainmentReportPoint(latest, canViewTarget) : null);
 }
 
 export interface ForecastScorecard {
@@ -1674,6 +1700,8 @@ export async function submitForecast(
     /** 主管预估数 (incr/0096); omitted or null amount = no call. */
     call?: { amount?: number | null; note?: string | null };
     targetBasis?: import("../planning/plan-service").TargetBasis[];
+    snapshotId?: string;
+    confirmedTotals?: ForecastTotals;
   },
 ): Promise<RuleResult<SnapshotRow>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.snapshot", "data");
@@ -1694,7 +1722,9 @@ export async function submitForecast(
   });
   if (!row.ok) return row;
 
+  if (input.confirmedTotals && !sameForecastTotals(row.value, input.confirmedTotals)) return fail(violation("confirmation_changed", "review changed forecast totals before submission"));
   if (input.targetBasis) row.value.targetBasis = input.targetBasis;
+  if (input.snapshotId) row.value.id = input.snapshotId;
   await ctx.store.appendForecastSnapshot(ctx.workspaceId, row.value);
   return ok(row.value);
 }

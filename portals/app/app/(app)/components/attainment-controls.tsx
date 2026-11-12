@@ -22,6 +22,7 @@ export function AttainmentControls({
   quarters,
   owners,
   territories,
+  allowWorkspace = true,
 }: {
   readonly period: string;
   readonly selection: string;
@@ -30,6 +31,7 @@ export function AttainmentControls({
   readonly quarters: readonly string[];
   readonly owners: readonly string[];
   readonly territories: readonly { id: string; name: string }[];
+  readonly allowWorkspace?: boolean;
 }) {
   const {
     ATTAINMENT_TEXT: { workspace: T },
@@ -39,6 +41,13 @@ export function AttainmentControls({
   const router = useRouter();
   const [pending, start] = useTransition();
   const personal = selection === "personal";
+  const teamScope = allowWorkspace
+    ? "workspace"
+    : territories.length
+      ? `territory:${territories[0].id}`
+      : owners.length > 1
+        ? `owner:${owners[0]}`
+        : null;
   const historicalPeriod =
     period !== "all" && period !== year && !quarters.includes(period);
   const select = (scope: string) =>
@@ -55,14 +64,16 @@ export function AttainmentControls({
         role="group"
         aria-label={T.scope}
       >
-        <Button asChild size="md" variant={personal ? "ghost" : "secondary"}>
-          <Link
-            href={attainmentHref({ period, scope: "workspace", view })}
-            aria-current={!personal ? "page" : undefined}
-          >
-            {T.team}
-          </Link>
-        </Button>
+        {teamScope ? (
+          <Button asChild size="md" variant={personal ? "ghost" : "secondary"}>
+            <Link
+              href={attainmentHref({ period, scope: teamScope, view })}
+              aria-current={!personal ? "page" : undefined}
+            >
+              {T.team}
+            </Link>
+          </Button>
+        ) : null}
         <Button asChild size="md" variant={personal ? "secondary" : "ghost"}>
           <Link
             href={attainmentHref({ period, scope: "personal", view })}
@@ -81,7 +92,9 @@ export function AttainmentControls({
             aria-label={T.scope}
             onChange={(e) => select(e.target.value)}
           >
-            <option value="workspace">{T.wholeTeam}</option>
+            {allowWorkspace ? (
+              <option value="workspace">{T.wholeTeam}</option>
+            ) : null}
             {selection !== "workspace" &&
             !territories.some((t) => selection === `territory:${t.id}`) &&
             !owners.some((sub) => selection === `owner:${sub}`) ? (
@@ -94,7 +107,7 @@ export function AttainmentControls({
             ))}
             {owners.map((sub) => (
               <option key={sub} value={`owner:${sub}`}>
-                {PIPELINE_TEXT.scopeOwner(nameOf(sub) ?? sub)}
+                {PIPELINE_TEXT.scopeOwner(nameOf(sub) ?? T.scopeUnavailable)}
               </option>
             ))}
           </NativeSelect>
@@ -106,6 +119,7 @@ export function AttainmentControls({
         yearLabel={year}
         compact
         allLabel={PIPELINE_TEXT.periodAll}
+        resetParams={["snapshot", "planRevision"]}
       />
     </div>
   );
@@ -129,6 +143,7 @@ export function AttainmentViewTabs({
       onValueChange={(view) => {
         const query = new URLSearchParams(params.toString());
         query.set("view", view);
+        if (view !== "history") query.delete("snapshot");
         start(() =>
           router.push(`/attainment?${query.toString()}`, { scroll: false }),
         );

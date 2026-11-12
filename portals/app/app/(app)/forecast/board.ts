@@ -5,6 +5,8 @@ import { listTerritories } from "../../domains/planning/service";
 import { unverifiedAmounts } from "../../domains/pipeline/lib/unverified";
 import { assessDeals } from "../pipeline/deal-assessments";
 import type { AppSession } from "../lib/session";
+import { canReadReportingScope } from "../../authz/forecast-scope";
+import { violation } from "../../domains/shared/result";
 
 // Everything 预测检视台 computes for one period and scope, in one place
 // (deal batch 9e). The page renders it; 预测会简报 hands the same numbers to the
@@ -12,6 +14,7 @@ import type { AppSession } from "../lib/session";
 // ever repeat what the page shows.
 
 export async function forecastBoard(session: AppSession, period: string, scope: ForecastScope, rivalWords: readonly string[]) {
+  if (!canReadReportingScope(session.scope, scope, session.user.sub)) return { ok: false as const, violations: [violation("permission_denied", "reporting scope denied")] };
   const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,

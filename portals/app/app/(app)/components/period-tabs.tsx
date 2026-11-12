@@ -32,9 +32,10 @@ export interface PeriodTabsProps {
   readonly yearLabel: string;
   readonly compact?: boolean;
   readonly allLabel?: string;
+  readonly resetParams?: readonly string[];
 }
 
-export function PeriodTabs({ value, periods, yearLabel, compact = false, allLabel }: PeriodTabsProps) {
+export function PeriodTabs({ value, periods, yearLabel, compact = false, allLabel, resetParams = [] }: PeriodTabsProps) {
   const { PIPELINE_TEXT } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
@@ -42,6 +43,7 @@ export function PeriodTabs({ value, periods, yearLabel, compact = false, allLabe
 
   const select = (next: string) => {
     const q = new URLSearchParams(params.toString());
+    for (const name of resetParams) q.delete(name);
     q.set("period", next);
     startTransition(() => router.push(`?${q.toString()}`, { scroll: false }));
   };

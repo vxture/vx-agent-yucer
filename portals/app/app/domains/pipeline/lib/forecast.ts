@@ -244,7 +244,42 @@ export function inScope<T extends Pick<ForecastableOpportunity, "territoryId" | 
   return opportunities.filter((o) => o.ownerSub === scope.ownerSub);
 }
 
+export type ReportedRevenueBasis = Pick<
+  import("../../planning/plan-service").TargetBasis,
+  "sourceKind" | "revisionId" | "version" | "target" | "currency"
+>;
+
+export function reportedRevenueBasis(
+  bases: SnapshotRow["targetBasis"],
+): ReportedRevenueBasis | undefined {
+  const basis = bases?.find((b) => b.metric === "revenue");
+  if (!basis) return undefined;
+  const { sourceKind, revisionId, version, target, currency } = basis;
+  return { sourceKind, revisionId, version, target, currency };
+}
+
+export type AttainmentReportPoint = Pick<
+  SnapshotRow,
+  "id" | "snapshotAt" | "territoryId" | "currency" | "closedAmount"
+> & { basis?: ReportedRevenueBasis | null };
+
+export function attainmentReportPoint(
+  snapshot: SnapshotRow,
+  canViewTarget: boolean,
+): AttainmentReportPoint {
+  const { id, snapshotAt, territoryId, currency, closedAmount } = snapshot;
+  return {
+    id,
+    snapshotAt,
+    territoryId,
+    currency,
+    closedAmount,
+    basis: canViewTarget ? reportedRevenueBasis(snapshot.targetBasis) : null,
+  };
+}
+
 export interface SnapshotRow extends ForecastTotals {
+  id?: string;
   targetBasis?: import("../../planning/plan-service").TargetBasis[];
   /**
    * Open deals in this scope with no expected close date, excluded from every
@@ -268,6 +303,11 @@ export interface SnapshotRow extends ForecastTotals {
   callNote?: string | null;
   /** Who submitted the snapshot (0096). Null on older rows. */
   submittedBySub?: string | null;
+}
+
+export function sameForecastTotals(a: ForecastTotals, b: ForecastTotals) {
+  return (["commitAmount", "bestCaseAmount", "pipelineAmount", "closedAmount"] as const)
+    .every((key) => a[key].amount === b[key].amount && a[key].currency === b[key].currency) && a.newLogoCount === b.newLogoCount;
 }
 
 /** call_note has no column limit; the form holds it to a paragraph. */

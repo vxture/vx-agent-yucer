@@ -1,5 +1,6 @@
 import type { DataScope } from "./scope";
 import { canSeeRow, visibleRows } from "./visibility";
+import { canReadReportingScope } from "./forecast-scope";
 import type { AccountStore } from "../domains/account/store";
 import type { PipelineStore } from "../domains/pipeline/store";
 import type { SignalStore } from "../domains/signal/store";
@@ -31,8 +32,8 @@ import type { SignalStore } from "../domains/signal/store";
 // default configuration has no runtime footprint whatsoever.
 
 /** Wrap a store so every scoped read is narrowed. `workspace` returns as-is. */
-export function scopePipelineStore(store: PipelineStore, scope: DataScope): PipelineStore {
-  return scope.kind === "workspace" ? store : new ScopedPipelineStore(store, scope);
+export function scopePipelineStore(store: PipelineStore, scope: DataScope, sub = scope.kind === "own" ? scope.sub : ""): PipelineStore {
+  return scope.kind === "workspace" ? store : new ScopedPipelineStore(store, scope, sub);
 }
 
 export function scopeAccountStore(store: AccountStore, scope: DataScope): AccountStore {
@@ -47,6 +48,7 @@ class ScopedPipelineStore implements PipelineStore {
   constructor(
     private readonly inner: PipelineStore,
     private readonly scope: DataScope,
+    private readonly sub: string,
   ) {}
 
   // --- scoped reads ---------------------------------------------------------
@@ -76,8 +78,10 @@ class ScopedPipelineStore implements PipelineStore {
   latestDealExit: PipelineStore["latestDealExit"] = (...a) => this.inner.latestDealExit(...a);
   updateCommercialTerms: PipelineStore["updateCommercialTerms"] = (...a) =>
     this.inner.updateCommercialTerms(...a);
-  appendForecastSnapshot: PipelineStore["appendForecastSnapshot"] = (...a) =>
-    this.inner.appendForecastSnapshot(...a);
+  appendForecastSnapshot: PipelineStore["appendForecastSnapshot"] = (...a) => {
+    if (!canReadReportingScope(this.scope, a[1], this.sub)) return Promise.reject(new Error("reporting_scope_denied"));
+    return this.inner.appendForecastSnapshot(...a);
+  };
   saveWinLossReview: PipelineStore["saveWinLossReview"] = (...a) => this.inner.saveWinLossReview(...a);
 
   // Rows carrying no owner of their own. A stage event belongs to the deal, a
@@ -120,8 +124,8 @@ class ScopedPipelineStore implements PipelineStore {
   listCompetitorReviews: PipelineStore["listCompetitorReviews"] = (...a) => this.inner.listCompetitorReviews(...a);
   latestStageChangeAt: PipelineStore["latestStageChangeAt"] = (...a) =>
     this.inner.latestStageChangeAt(...a);
-  listForecastSnapshots: PipelineStore["listForecastSnapshots"] = (...a) =>
-    this.inner.listForecastSnapshots(...a);
+  listForecastSnapshots: PipelineStore["listForecastSnapshots"] = async (...a) =>
+    (await this.inner.listForecastSnapshots(...a)).filter((row) => canReadReportingScope(this.scope, row, this.sub));
   getWinLossReview: PipelineStore["getWinLossReview"] = (...a) => this.inner.getWinLossReview(...a);
   listRenewalSourceProjectIds: PipelineStore["listRenewalSourceProjectIds"] = (...a) =>
     this.inner.listRenewalSourceProjectIds(...a);

@@ -45,6 +45,7 @@ type Props = {
   headerInfo?: ReactNode;
   summaryTargetKey?: string;
   open?: boolean;
+  initiallyOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 const tiers = ["floor", "target", "stretch"] as const;
@@ -59,6 +60,7 @@ export function PlanTargetLedger({
   lockedPeriods = [],
   summaryTargetKey,
   open: controlledOpen,
+  initiallyOpen = false,
   onOpenChange,
 }: Props) {
   const locale = useLocale();
@@ -70,7 +72,7 @@ export function PlanTargetLedger({
   } = useMessages();
   const [selected, setSelected] = useState<PlanTarget | null>(null);
   const [error, setError] = useState("");
-  const [localOpen, setLocalOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(initiallyOpen);
   const open = controlledOpen ?? localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
   const labels = {

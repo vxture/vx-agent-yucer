@@ -33,12 +33,14 @@ export function PlanRegions({
   editing = false,
   disabled = false,
   lockedPeriods = [],
+  onAttainment,
 }: {
   content: PlanContent;
   onSelect: (id: string) => void;
   editing?: boolean;
   disabled?: boolean;
   lockedPeriods?: readonly string[];
+  onAttainment?: (id: string) => void;
 }) {
   const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P, DS_LABELS } = useMessages();
   const locale = useLocale();
@@ -112,6 +114,7 @@ export function PlanRegions({
       keys.includes(id) ? keys.filter((key) => key !== id) : [...keys, id],
     );
   const regionActions = (r: Region) => [
+    ...(onAttainment ? [{ id: "attainment", label: T.actual, icon: "chart-line" as const, onSelect: () => onAttainment(r.id) }] : []),
     {
       id: "open",
       label: editing ? T.editRegion : T.regionDetail,

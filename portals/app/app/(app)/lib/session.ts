@@ -114,7 +114,7 @@ function withStores(
   return {
     ...base,
     stores: {
-      pipeline: () => scopePipelineStore(getPipelineStore(), base.scope),
+      pipeline: () => scopePipelineStore(getPipelineStore(), base.scope, base.user.sub),
       account: () => scopeAccountStore(getAccountStore(), base.scope),
       signal: () => scopeSignalStore(getSignalStore(), base.scope),
     },

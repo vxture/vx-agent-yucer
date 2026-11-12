@@ -3,7 +3,13 @@ import { targetValue, type TargetScope } from "./lib/target";
 import type { PlanningStore, TargetFilter, TargetRecord } from "./store";
 import type { SalesPlanStore } from "./plan-store";
 import type { TargetBasis } from "./plan-service";
-const rawTargetStores = new WeakMap<PlanningStore, PlanningStore>();
+// The registry caches the proxy across server entry points and dev reloads.
+// A module-local WeakMap can lose its association while that proxy is live,
+// causing an already projected target to be mistaken for an unadopted legacy row.
+const rawTargetStoreKey = Symbol.for("yucer.planning.raw-target-store");
+function rawTargetStore(store: PlanningStore): PlanningStore {
+  return (Reflect.get(store, rawTargetStoreKey) as PlanningStore | undefined) ?? store;
+}
 const normalize = (p: string) =>
   /^Y?\d{4}$/.test(p) ? `Y${p.replace(/^Y/, "")}` : p;
 const matches = (a: TargetScope, b: TargetScope) =>
@@ -110,6 +116,7 @@ export function withSalesPlanTargets(
     );
   const wrapped = new Proxy(raw, {
     get(target, prop) {
+      if (prop === rawTargetStoreKey) return target;
       if (prop === "isManagedScope") return managed;
       if (prop === "listTargets")
         return async (ws: string, filter: TargetFilter = {}) =>
@@ -152,7 +159,6 @@ export function withSalesPlanTargets(
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-  rawTargetStores.set(wrapped, raw);
   return wrapped;
 }
 export async function resolveForecastTargetBasis(
@@ -167,9 +173,7 @@ export async function resolveForecastTargetBasis(
   // Derive targets from this exact immutable timeline snapshot. Re-entering
   // the wrapper here could observe a concurrent release and mix two baselines.
   const rows = effectiveTargets(
-    await (rawTargetStores.get(store) ?? store).listTargets(workspaceId, {
-      period: scope.period,
-    }),
+    (await rawTargetStore(store).listTargets(workspaceId)).filter((t) => normalize(t.period) === normalize(scope.period)),
     plans,
     at,
   );
@@ -177,7 +181,7 @@ export async function resolveForecastTargetBasis(
     const t = rows.find(
       (t) =>
         matches(t, { ...scope, metric: metric as TargetScope["metric"] }) &&
-        t.status !== "closed" &&
+        t.status === "committed" &&
         (!currency ||
           t.targetValue.unit === "count" ||
           t.targetValue.currency === currency),
@@ -220,4 +224,15 @@ export async function resolveForecastTargetBasis(
       resolvedAt: at,
     };
   });
+}
+
+export async function readEffectiveTargetSnapshot(
+  store: PlanningStore,
+  versions: SalesPlanStore,
+  workspaceId: string,
+  at: string,
+) {
+  const plans = await versions.list(workspaceId);
+  const legacy = await rawTargetStore(store).listTargets(workspaceId);
+  return { targets: effectiveTargets(legacy, plans, at), plans };
 }
