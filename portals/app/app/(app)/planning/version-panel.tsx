@@ -5,10 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  MetricListCard,
   Checkbox,
   Drawer,
   EmptyState,
@@ -40,6 +37,12 @@ import type { PlanContent, SalesPlan } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
 import { PlanTargets } from "./plan-targets";
 import { PlanSupport } from "./plan-support";
+import { PlanRegions } from "./plan-regions";
+import { PlanAssumptions } from "./plan-assumptions";
+import {
+  prerequisiteGroups,
+  readPrerequisites,
+} from "../../domains/planning/plan-prerequisites";
 export function PlanningVersionPanel({
   initialPlan,
   initialNow,
@@ -133,7 +136,7 @@ export function PlanningVersionPanel({
   >(null);
   const [adopt, setAdopt] = useState(false);
   const [lockPeriod, setLockPeriod] = useState(`${year}Q1`);
-  const [viewMode, setViewMode] = useState("overview");
+  const [checksOpen, setChecksOpen] = useState(false);
   const requests = useRef(new Map<string, string>());
   const edit = editing
     ? (next: PlanContent) => {
@@ -196,7 +199,7 @@ export function PlanningVersionPanel({
     try {
       return c ? planningFindings(c) : [];
     } catch {
-      return [];
+      return null;
     }
   }, [c]);
   const diff = c ? comparePlanContents(state.current?.content ?? null, c) : [];
@@ -212,7 +215,7 @@ export function PlanningVersionPanel({
     allocationNote: T.allocationNote,
     capacityNote: T.capacityNote,
   };
-  const describe = (r: Record<string, unknown> | null) => {
+  const describe = (r: Record<string, unknown> | null, section: string) => {
     if (!r) return "—";
     if ("scope" in r)
       return `${r.scope === "workspace" ? T.company : (c?.regions.find((x) => `territory:${x.id}` === r.scope)?.name ?? "—")} · ${r.period} · ${metricName[String(r.metric)] ?? r.metric} · ${T.floor} ${format(r.floor as string)} / ${T.target} ${format(r.target as string)} / ${T.stretch} ${format(r.stretch as string)} ${r.currency ?? T.count}`;
@@ -223,6 +226,18 @@ export function PlanningVersionPanel({
       return `${c?.budgets.find((b) => b.key === r.budgetKey)?.name ?? T.customer} · ${format(r.amount as string)}`;
     if ("name" in r)
       return `${r.name}${r.amount ? ` · ${format(r.amount as string)}` : ""}${"included" in r ? ` · ${r.included ? T.included : T.excluded}` : ""}`;
+    if ("text" in r && section === "assumptions") {
+      const groups = readPrerequisites(String(r.text || ""));
+      return (
+        prerequisiteGroups
+          .filter((group) => groups[group].length)
+          .map(
+            (group) =>
+              `${T.prerequisiteLabels[group]}: ${groups[group].join("; ")}`,
+          )
+          .join(" / ") || "—"
+      );
+    }
     if ("text" in r) return String(r.text || "—");
     return `${r.key ?? ""} · ${r.start ?? ""} — ${r.end ?? ""}`;
   };
@@ -289,7 +304,7 @@ export function PlanningVersionPanel({
           </>
         }
         action={
-          <div className="flex flex-wrap items-center gap-sm">
+          <div className="flex w-64 flex-wrap items-center gap-sm sm:w-auto">
             <NativeSelect
               wrapperClassName="w-28"
               aria-label={T.year}
@@ -329,6 +344,15 @@ export function PlanningVersionPanel({
                   </option>
                 ))}
             </NativeSelect>
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={() => setChecksOpen(true)}
+              disabled={!c}
+            >
+              {T.insights}
+              {findings?.length ? ` · ${findings.length}` : ""}
+            </Button>
             {canEdit && !state.draft && !state.closed ? (
               <Button
                 size="lg"
@@ -428,50 +452,6 @@ export function PlanningVersionPanel({
               )
             }
           >
-            {!currentRegion ? (
-              <div className="mb-lg grid grid-cols-1 gap-lg sm:grid-cols-3">
-                <div>
-                  <p className="text-label-small text-muted-foreground">
-                    {T.target} · {companyTarget?.currency ?? sources.currency}
-                  </p>
-                  <p className="text-heading-1 tabular-nums">
-                    {format(companyTarget?.target)}
-                  </p>
-                  <p className="text-body-small text-muted-foreground">
-                    {T.floor} {format(companyTarget?.floor)} · {T.stretch}{" "}
-                    {format(companyTarget?.stretch)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-label-small text-muted-foreground">
-                    {T.allocation}
-                  </p>
-                  <p className="text-heading-2 tabular-nums">
-                    {companyTarget?.target
-                      ? format(String(Number(companyTarget.target) - allocated))
-                      : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-label-small text-muted-foreground">
-                    {T.people} / {T.needs}
-                  </p>
-                  <p className="text-heading-2 tabular-nums">
-                    {
-                      new Set(
-                        c.team
-                          .filter((t) => t.memberSub)
-                          .map((t) => t.memberSub),
-                      ).size
-                    }{" "}
-                    /{" "}
-                    {c.team
-                      .filter((t) => !t.memberSub)
-                      .reduce((n, t) => n + Number(t.requestedFte), 0)}
-                  </p>
-                </div>
-              </div>
-            ) : null}
             {currentRegion && edit ? (
               <div className="mb-lg flex flex-wrap items-end gap-md">
                 <Field>
@@ -554,12 +534,71 @@ export function PlanningVersionPanel({
             ) : null}
             {!currentRegion || currentRegion.included ? (
               <PlanTargets
+                key={currentRegion?.id ?? "workspace"}
                 content={c}
                 scope={
                   currentRegion ? `territory:${currentRegion.id}` : "workspace"
                 }
                 edit={edit}
                 disabled={pending}
+                summary={
+                  !currentRegion ? (
+                    <>
+                      <MetricListCard
+                        title={T.regionalAllocation}
+                        description={`Y${year} · ${companyTarget?.currency ?? sources.currency}`}
+                        metrics={[
+                          {
+                            key: "allocated",
+                            label: T.allocated,
+                            value: format(String(allocated)),
+                          },
+                          {
+                            key: "remaining",
+                            label: T.allocation,
+                            value:
+                              companyTarget?.target != null
+                                ? format(
+                                    String(
+                                      Number(companyTarget.target) - allocated,
+                                    ),
+                                  )
+                                : "—",
+                          },
+                        ]}
+                      />
+                      <MetricListCard
+                        title={T.team}
+                        description={T.planningResources}
+                        metrics={[
+                          {
+                            key: "people",
+                            label: T.people,
+                            value: new Set(
+                              c.team
+                                .filter((t) => t.memberSub)
+                                .map((t) => t.memberSub),
+                            ).size,
+                          },
+                          {
+                            key: "needs",
+                            label: `${T.needs} · FTE`,
+                            value: format(
+                              String(
+                                c.team
+                                  .filter((t) => !t.memberSub)
+                                  .reduce(
+                                    (n, t) => n + Number(t.requestedFte),
+                                    0,
+                                  ),
+                              ),
+                            ),
+                          },
+                        ]}
+                      />
+                    </>
+                  ) : undefined
+                }
               />
             ) : (
               <p className="text-body-small text-muted-foreground">
@@ -578,264 +617,9 @@ export function PlanningVersionPanel({
               />
             ) : null
           ) : (
-            <Section
-              icon="map-pin"
-              title={T.regions}
-              description={T.amountUnit}
-              action={
-                <div className="flex items-center gap-sm">
-                  <NativeSelect
-                    wrapperClassName="w-28"
-                    aria-label={T.filters}
-                    value={viewMode}
-                    onChange={(e) => setViewMode(e.target.value)}
-                  >
-                    <option value="overview">{T.overview}</option>
-                    <option value="list">{T.list}</option>
-                  </NativeSelect>
-                  <Link
-                    href="/admin/division"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="whitespace-nowrap text-body-small text-muted-foreground hover:text-primary"
-                  >
-                    {T.configure}
-                  </Link>
-                </div>
-              }
-            >
-              {viewMode === "list" ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {[
-                        T.regions,
-                        T.floor,
-                        T.target,
-                        T.stretch,
-                        T.customers,
-                        T.people,
-                      ].map((l) => (
-                        <TableHead key={l}>{l}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {c.regions.map((r) => {
-                      const t = c.targets.find(
-                        (t) =>
-                          t.scope === `territory:${r.id}` &&
-                          t.period === `Y${year}` &&
-                          t.metric === "revenue",
-                      );
-                      return (
-                        <TableRow key={r.id}>
-                          <TableCell>
-                            <button
-                              type="button"
-                              className="font-medium transition-colors hover:text-primary"
-                              onClick={() => setRegionId(r.id)}
-                            >
-                              {r.name}
-                            </button>
-                          </TableCell>
-                          {[t?.floor, t?.target, t?.stretch].map((v, i) => (
-                            <TableCell key={i} className="tabular-nums">
-                              {format(v)}
-                            </TableCell>
-                          ))}
-                          <TableCell>
-                            {
-                              new Set(
-                                c.contributions
-                                  .filter((x) => x.regionId === r.id)
-                                  .map((x) => x.budgetKey),
-                              ).size
-                            }
-                          </TableCell>
-                          <TableCell>
-                            {
-                              new Set(
-                                c.team
-                                  .filter(
-                                    (x) => x.regionId === r.id && x.memberSub,
-                                  )
-                                  .map((x) => x.memberSub),
-                              ).size
-                            }
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="grid grid-cols-1 gap-lg @4xl:grid-cols-2">
-                  {c.regions.map((r) => {
-                    const t = c.targets.find(
-                      (t) =>
-                        t.scope === `territory:${r.id}` &&
-                        t.period === `Y${year}` &&
-                        t.metric === "revenue",
-                    );
-                    const customers = new Set(
-                      c.contributions
-                        .filter((x) => x.regionId === r.id)
-                        .map((x) => x.budgetKey),
-                    ).size;
-                    const members = new Set(
-                      c.team
-                        .filter((x) => x.regionId === r.id && x.memberSub)
-                        .map((x) => x.memberSub),
-                    ).size;
-                    const contribution = c.contributions
-                      .filter((x) => x.regionId === r.id)
-                      .reduce((n, x) => n + Number(x.amount), 0);
-                    return (
-                      <Card key={r.id}>
-                        <CardHeader>
-                          <div className="flex items-center justify-between gap-md">
-                            <CardTitle>
-                              <button
-                                type="button"
-                                className="transition-colors hover:text-primary"
-                                onClick={() => setRegionId(r.id)}
-                              >
-                                {r.name}
-                              </button>
-                            </CardTitle>
-                            <Tag tone={r.included ? "info" : "neutral"}>
-                              {r.included ? T.included : T.excluded}
-                            </Tag>
-                          </div>
-                          <p className="text-label-small text-muted-foreground">
-                            {r.provinces.join(" · ")}
-                          </p>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-lg">
-                          <div className="grid grid-cols-3 gap-md">
-                            <div>
-                              <p className="text-label-small text-muted-foreground">
-                                {T.floor}
-                              </p>
-                              <p className="text-body tabular-nums">
-                                {format(t?.floor)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-label-small text-muted-foreground">
-                                {T.target} · {t?.currency ?? sources.currency}
-                              </p>
-                              <p className="text-heading-2 tabular-nums">
-                                {format(t?.target)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-label-small text-muted-foreground">
-                                {T.stretch}
-                              </p>
-                              <p className="text-body tabular-nums">
-                                {format(t?.stretch)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-x-lg gap-y-sm border-t border-dashed border-border pt-md text-body-small text-muted-foreground">
-                            <span>
-                              {T.customers} {customers} ·{" "}
-                              {format(String(contribution))}
-                            </span>
-                            <span>
-                              {T.people} {members}
-                            </span>
-                            <span>
-                              {T.actions}{" "}
-                              {
-                                c.actions.filter((a) => a.regionId === r.id)
-                                  .length
-                              }
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-              {c.regions.length === 0 ? (
-                <EmptyState title={T.noRegions} />
-              ) : null}
-            </Section>
+            <PlanRegions content={c} onSelect={setRegionId} />
           )}
-          {findings.length ? (
-            <Section
-              icon="lightbulb"
-              title={T.insights}
-              description={T.insightsHint}
-            >
-              <ul className="flex flex-col gap-sm">
-                {findings.map((f, i) => (
-                  <li
-                    key={`${f.kind}-${f.regionId}-${i}`}
-                    className="text-body-small text-muted-foreground"
-                  >
-                    <button
-                      type="button"
-                      className="text-left transition-colors hover:text-primary"
-                      onClick={() => {
-                        if (f.regionId) setRegionId(f.regionId);
-                      }}
-                    >
-                      {f.kind === "missing_target"
-                        ? T.checkMissingTarget(f.subject)
-                        : f.kind === "customer_gap"
-                          ? T.checkCustomerGap(
-                              f.subject,
-                              format(f.value),
-                              f.currency ?? "",
-                            )
-                          : f.kind === "team_gap"
-                            ? T.checkTeamGap(f.subject)
-                            : f.kind === "over_capacity"
-                              ? T.checkCapacity(f.subject, f.value ?? "")
-                              : T.checkConcentration(
-                                  f.subject,
-                                  format(f.value),
-                                  f.currency ?? "",
-                                )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
-          <Section icon="file-text" title={T.assumptions}>
-            <div className="grid grid-cols-1 gap-lg xl:grid-cols-3">
-              {(["assumptions", "allocationNote", "capacityNote"] as const).map(
-                (field) => (
-                  <Field key={field}>
-                    <FieldLabel htmlFor={`plan-${field}`}>
-                      {T[field]}
-                    </FieldLabel>
-                    {edit ? (
-                      <Textarea
-                        id={`plan-${field}`}
-                        value={c[field]}
-                        rows={3}
-                        disabled={pending}
-                        onChange={(e) =>
-                          edit({ ...c, [field]: e.target.value })
-                        }
-                      />
-                    ) : (
-                      <p className="whitespace-pre-wrap text-body-small text-muted-foreground">
-                        {c[field] || "—"}
-                      </p>
-                    )}
-                  </Field>
-                ),
-              )}
-            </div>
-          </Section>
+          <PlanAssumptions content={c} edit={edit} disabled={pending} />
           {editing ? (
             <Section
               icon="git-branch"
@@ -880,10 +664,10 @@ export function PlanningVersionPanel({
                         <TableRow key={`${d.section}-${d.key}`}>
                           <TableCell>{sectionLabel[d.section]}</TableCell>
                           <TableCell className="text-body-small text-muted-foreground">
-                            {describe(d.before)}
+                            {describe(d.before, d.section)}
                           </TableCell>
                           <TableCell className="text-body-small">
-                            {describe(d.after)}
+                            {describe(d.after, d.section)}
                           </TableCell>
                           <TableCell className="text-body-small whitespace-nowrap">
                             {(() => {
@@ -912,6 +696,62 @@ export function PlanningVersionPanel({
           ) : null}
         </>
       )}
+      <Drawer
+        open={checksOpen}
+        onClose={() => setChecksOpen(false)}
+        width="md"
+        title={T.insights}
+        description={T.insightsHint}
+        closeLabel={T.cancel}
+      >
+        {findings === null ? (
+          <EmptyState title={T.validation} description={T.checksInvalidHint} />
+        ) : findings.length ? (
+          <div className="flex flex-col gap-lg">
+            {findings.map((f, i) => (
+              <MetricListCard
+                key={`${f.kind}-${f.regionId}-${i}`}
+                title={f.subject}
+                note={
+                  f.kind === "missing_target"
+                    ? T.checkMissingTarget(f.subject)
+                    : f.kind === "customer_gap"
+                      ? T.checkCustomerGap(
+                          f.subject,
+                          format(f.value),
+                          f.currency ?? "",
+                        )
+                      : f.kind === "team_gap"
+                        ? T.checkTeamGap(f.subject)
+                        : f.kind === "over_capacity"
+                          ? T.checkCapacity(f.subject, f.value ?? "")
+                          : T.checkConcentration(
+                              f.subject,
+                              format(f.value),
+                              f.currency ?? "",
+                            )
+                }
+                footer={
+                  f.regionId ? (
+                    <Button
+                      size="md"
+                      variant="secondary"
+                      onClick={() => {
+                        setRegionId(f.regionId);
+                        setChecksOpen(false);
+                      }}
+                    >
+                      {T.regionDetail}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title={T.checksEmpty} description={T.checksEmptyHint} />
+        )}
+      </Drawer>
       {canEdit &&
       !state.closed &&
       (state.draft || state.current || state.scheduled) ? (
