@@ -2154,3 +2154,21 @@ DS 15.0.1 的 `FilterBar` 内置 32px `ViewModeSwitch`，但输入框、原生�
 临时位置：`components/business-controls.tsx` 与 `business-controls.module.css`。组合操作行只通过 DS `--space-control-xl` 绑定高度；图标重置按钮宽度同步。同一包装中的 `ViewHeader` 使用原生 divider/padding，页级动作绑定 32px。`TabsList` 选 DS `h-control-xl`，内标签自然为 24px。颜色、圆角、阴影、交互与字阶不改。业务内显式的小档按钮直接迁移到 DS `md`，页级新建/保存等使用 `xl`。
 
 退出条件：DS `FilterBar` 支持共享尺寸并向输入/筛选/重置/视图切换传递，`TabsList` 支持组高尺寸，`ViewHeader` 支持动作尺寸。届时删除局部尺寸 CSS，包装只保留语义默认值。本条不声明上游已提供上述参数。
+
+
+2026-11-11 补充（owner 明确要求全局三点操作统一）：`design-ui@12.0.0` 的
+`ActionMenu` 内置触发器固定为 `icon-md`（24px）/16px 图标，没有尺寸入口。
+复用同一处 `business-controls` 适配器，仅以 `--space-control-xl`（32px）和
+`--spacing-icon-md`（20px）绑定触发器和 SVG 的宽高；所有业务 `ActionMenu`
+与 `RowActions` 统一经过此入口。菜单项、弹层、焦点、禁用与危险操作二次确认均保留
+原 DS 行为。未修改平台或 DS 仓库。退出条件补充：DS `ActionMenu` 支持触发器和
+图标尺寸 token 后，删除对应 CSS，直接传 DS 参数。
+
+
+同日补充（owner 全平台去掉序号列头的 `#`）：DS `DataTable` 将该字符写死，
+`DataTableLabels` 暂无 index heading 入口。统一在 `business-controls.DataTable`
+保留原序号列与 64px 宽度，只隐藏该表自身的序号表头；位置由选择列、展开列、前导
+占位列的原生参数确定，使用直接子代选择器，避免影响嵌套子表。所有 32 个业务文件
+通过同一包装；原生 Table 的空表头与权限树自有编号表头直接清空。没有删去序号数据、
+选择框、折叠列或操作列。退出条件：DS 增加可空 index heading / label 参数后删除
+对应局部可见性 CSS，改用 DS 参数。本条是 owner 明确指定展示要求的暂行适配。

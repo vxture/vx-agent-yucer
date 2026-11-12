@@ -1,10 +1,9 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Button,
   Drawer,
-  EmptyState,
   Field,
   FieldLabel,
   Input,
@@ -16,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { RowActions } from "../components/table-fittings";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type {
   PlanContent,
@@ -24,6 +24,14 @@ import type {
   TeamAllocation,
   PlanAction,
 } from "../../domains/planning/plan-model";
+import { PlanError, minor } from "../../domains/planning/plan-values";
+import {
+  planningEntryLocked,
+  prunePlanningBudgets,
+  validatePlanningAction,
+  validatePlanningContribution,
+  validatePlanningTeam,
+} from "../lib/planning-operations";
 import { loadPlanningCustomerBudget } from "./plan-actions";
 import type { PlanSources } from "./plan-data";
 type Props = {
@@ -32,6 +40,7 @@ type Props = {
   sources: PlanSources;
   edit: ((c: PlanContent) => void) | null;
   disabled: boolean;
+  lockedPeriods?: readonly string[];
 };
 export function PlanSupport({
   content: c,
@@ -39,13 +48,20 @@ export function PlanSupport({
   sources,
   edit,
   disabled,
+  lockedPeriods = [],
 }: Props) {
   const locale = useLocale();
-  const { PLAN_VERSION_TEXT: T, PLAN_VERSION_ERROR: E } = useMessages();
+  const {
+    PLAN_VERSION_TEXT: T,
+    PLAN_VERSION_ERROR: E,
+    DS_LABELS,
+  } = useMessages();
   const [sourcePlanId, setSourcePlanId] = useState<string | null>(null);
   const sourceRequest = useRef(0);
   const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceMessage, setSourceMessage] = useState("");
   const [mode, setMode] = useState<"customer" | "team" | "action" | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [accountId, setAccountId] = useState("");
   const [budget, setBudget] = useState("");
@@ -64,15 +80,88 @@ export function PlanSupport({
   const [start, setStart] = useState(`${c.year}-01-01`);
   const [end, setEnd] = useState(`${c.year + 1}-01-01`);
   const [error, setError] = useState("");
-  const target = c.targets.find(
-    (t) =>
-      t.scope === `territory:${regionId}` &&
-      t.metric === "revenue" &&
-      t.period === `Y${c.year}`,
+  const heldContribution = c.contributions.find(
+    (item) => item.key === editingKey,
   );
-  const open = (m: typeof mode) => {
-    setMode(m);
+  const target =
+    c.targets.find((item) => item.key === heldContribution?.targetKey) ??
+    c.targets.find(
+      (t) =>
+        t.scope === `territory:${regionId}` &&
+        t.metric === "revenue" &&
+        t.period === `Y${c.year}`,
+    );
+  useEffect(
+    () => () => {
+      sourceRequest.current++;
+    },
+    [],
+  );
+  const close = () => {
+    sourceRequest.current++;
+    setSourceLoading(false);
+    setMode(null);
+  };
+  const readBudget = (id: string) => {
+    const request = ++sourceRequest.current;
+    setSourceLoading(true);
+    setSourceMessage("");
+    setError("");
+    void loadPlanningCustomerBudget(id, c.year)
+      .then((result) => {
+        if (request !== sourceRequest.current) return;
+        setSourceLoading(false);
+        if (!result.ok) setError(E[result.error] ?? E.source_read_failed!);
+        else if (
+          result.source &&
+          result.source.currency === target?.currency &&
+          result.source.period === target?.period
+        ) {
+          setBudget(result.source.amount);
+          setSourcePlanId(result.source.id);
+          setNote(`${T.customerBudget} · ${result.source.period}`);
+          setSourceMessage(T.budgetLoaded);
+        } else {
+          setSourcePlanId(null);
+          setSourceMessage(T.budgetManualHint);
+        }
+      })
+      .catch(() => {
+        if (request === sourceRequest.current) {
+          setSourceLoading(false);
+          setError(E.source_read_failed!);
+        }
+      });
+  };
+  const selectAccount = (id: string) => {
+    sourceRequest.current++;
+    setSourceLoading(false);
+    setAccountId(id);
     setSourcePlanId(null);
+    setSourceMessage("");
+    setBudget("");
+    setNote("");
+    setError("");
+    const prior = c.budgets.find(
+      (b) =>
+        b.accountId === id &&
+        b.period === target?.period &&
+        b.metric === target?.metric &&
+        b.currency === target?.currency,
+    );
+    if (prior) {
+      setBudget(prior.amount);
+      setNote(prior.note);
+      setSourcePlanId(prior.sourcePlanId);
+    } else if (id) readBudget(id);
+  };
+  const open = (m: NonNullable<typeof mode>, key: string | null = null) => {
+    sourceRequest.current++;
+    setSourceLoading(false);
+    setMode(m);
+    setEditingKey(key);
+    setSourcePlanId(null);
+    setSourceMessage("");
     setError("");
     setAccountId("");
     setBudget("");
@@ -80,105 +169,196 @@ export function PlanSupport({
     setNote("");
     setQuery("");
     setObjective("");
-  };
-  const add = () => {
-    if (!edit) return;
-    const next = structuredClone(c);
-    const key = crypto.randomUUID();
-    if (mode === "customer") {
-      const account = sources.accounts.find((a) => a.id === accountId);
-      if (!account || !target || !/^\d+(\.\d{1,2})?$/.test(contribution)) {
-        setError(E.invalid_contribution!);
-        return;
-      }
-      const prior = c.budgets.find(
-        (b) =>
-          b.accountId === account.id &&
-          b.period === target.period &&
-          b.metric === "revenue" &&
-          b.currency === target.currency,
-      );
-      if (!prior && (!/^\d+(\.\d{1,2})?$/.test(budget) || !note.trim())) {
-        setError(E.budget_basis_required!);
-        return;
-      }
-      const b: CustomerBudget = prior ?? {
-        key,
-        accountId: account.id,
-        name: account.name,
-        tier: account.tier,
-        period: target.period,
-        metric: "revenue",
-        currency: target.currency,
-        amount: budget,
-        sourcePlanId,
-        sourceReadAt: new Date().toISOString(),
-        note,
-      };
-      if (!prior) next.budgets.push(b);
-      const x: CustomerContribution = {
-        key: crypto.randomUUID(),
-        budgetKey: b.key,
-        targetKey: target.key,
-        regionId,
-        responsibility,
-        amount: contribution,
-      };
-      next.contributions.push(x);
-    } else if (mode === "team") {
-      if (!role.trim() || !/^\d+(\.\d{1,2})?$/.test(member ? percent : fte)) {
-        setError(E.invalid_resource!);
-        return;
-      }
-      const x: TeamAllocation = {
-        key,
-        regionId,
-        memberSub: member || null,
-        memberName: sources.members.find((m) => m.sub === member)?.name ?? "",
-        unitId: unit || null,
-        unitName: sources.units.find((u) => u.id === unit)?.name ?? "",
-        role,
-        start,
-        end,
-        percent: member ? Number(percent) : 0,
-        requestedFte: member ? null : fte,
-        note,
-      };
-      next.team.push(x);
-    } else if (mode === "action") {
-      if (!objective.trim() || !member) {
-        setError(E.invalid_action!);
-        return;
-      }
-      const x: PlanAction = {
-        key,
-        regionId,
-        targetKey: target?.key ?? null,
-        accountId: null,
-        objective,
-        ownerSub: member,
-        due,
-        evidenceRefs: [],
-      };
-      next.actions.push(x);
+    setMember("");
+    setRole(T.salesRole);
+    setPercent("100");
+    setFte("1");
+    setUnit("");
+    setResponsibility("primary");
+    setStart(`${c.year}-01-01`);
+    setEnd(`${c.year + 1}-01-01`);
+    setDue(`${c.year}-12-31`);
+    if (m === "customer" && key) {
+      const line = c.contributions.find((item) => item.key === key)!;
+      const held = c.budgets.find((item) => item.key === line.budgetKey)!;
+      setAccountId(held.accountId);
+      setBudget(held.amount);
+      setSourcePlanId(held.sourcePlanId);
+      setNote(held.note);
+      setContribution(line.amount);
+      setResponsibility(line.responsibility);
+    } else if (m === "team" && key) {
+      const held = c.team.find((item) => item.key === key)!;
+      setMember(held.memberSub ?? "");
+      setRole(held.role);
+      setPercent(String(held.percent));
+      setFte(held.requestedFte ?? "1");
+      setUnit(held.unitId ?? "");
+      setStart(held.start);
+      setEnd(held.end);
+      setNote(held.note);
+    } else if (m === "action" && key) {
+      const held = c.actions.find((item) => item.key === key)!;
+      setMember(held.ownerSub ?? "");
+      setObjective(held.objective);
+      setDue(held.due);
     }
-    edit(next);
-    setMode(null);
   };
-  const removeContribution = (key: string) => {
-    const next = structuredClone(c);
-    next.contributions = next.contributions.filter((x) => x.key !== key);
-    next.budgets = next.budgets.filter((b) =>
-      next.contributions.some((x) => x.budgetKey === b.key),
-    );
-    edit?.(next);
+  const apply = () => {
+    if (
+      !edit ||
+      disabled ||
+      sourceLoading ||
+      !mode ||
+      (mode === "customer" ? !sources.canCustomers : !sources.canTeam)
+    )
+      return;
+    try {
+      const next = structuredClone(c);
+      const key = editingKey ?? crypto.randomUUID();
+      if (mode === "customer") {
+        const account = sources.accounts.find((a) => a.id === accountId);
+        if (!account || !target) throw new PlanError("invalid_contribution");
+        minor(budget);
+        if (!sourcePlanId && !note.trim())
+          throw new PlanError("budget_basis_required");
+        const prior = c.budgets.find(
+          (b) =>
+            b.accountId === account.id &&
+            b.period === target.period &&
+            b.metric === target.metric &&
+            b.currency === target.currency,
+        );
+        const b: CustomerBudget = {
+          key: prior?.key ?? crypto.randomUUID(),
+          accountId: account.id,
+          name: account.name,
+          tier: account.tier,
+          period: target.period,
+          metric: target.metric,
+          currency: target.currency,
+          amount: budget,
+          sourcePlanId,
+          sourceReadAt: prior?.sourceReadAt ?? new Date().toISOString(),
+          note: note.trim(),
+        };
+        next.budgets = [
+          ...next.budgets.filter((item) => item.key !== b.key),
+          b,
+        ];
+        const x: CustomerContribution = {
+          key,
+          budgetKey: b.key,
+          targetKey: target.key,
+          regionId,
+          responsibility,
+          amount: contribution,
+        };
+        // A shared budget change must account for every other region as well.
+        if (planningEntryLocked(c, lockedPeriods, target))
+          throw new PlanError("closed_period_changed");
+        validatePlanningContribution(next, x);
+        next.contributions = [
+          ...next.contributions.filter((item) => item.key !== key),
+          x,
+        ];
+      } else if (mode === "team") {
+        if (
+          (member && !sources.members.some((item) => item.sub === member)) ||
+          (unit && !sources.units.some((item) => item.id === unit))
+        )
+          throw new PlanError("invalid_resource");
+        if (member) minor(percent);
+        const x: TeamAllocation = {
+          key,
+          regionId,
+          memberSub: member || null,
+          memberName: sources.members.find((m) => m.sub === member)?.name ?? "",
+          unitId: unit || null,
+          unitName: sources.units.find((u) => u.id === unit)?.name ?? "",
+          role: role.trim(),
+          start,
+          end,
+          percent: member ? Number(percent) : 0,
+          requestedFte: member ? null : fte,
+          note: note.trim(),
+        };
+        validatePlanningTeam(next, x);
+        if (planningEntryLocked(c, lockedPeriods, x))
+          throw new PlanError("closed_period_changed");
+        next.team = [...next.team.filter((item) => item.key !== key), x];
+      } else {
+        if (!sources.members.some((item) => item.sub === member))
+          throw new PlanError("member_unknown");
+        const prior = c.actions.find((item) => item.key === key);
+        const x: PlanAction = {
+          key,
+          regionId,
+          targetKey: prior ? prior.targetKey : (target?.key ?? null),
+          accountId: prior?.accountId ?? null,
+          objective: objective.trim(),
+          ownerSub: member,
+          due,
+          evidenceRefs: prior?.evidenceRefs ?? [],
+        };
+        validatePlanningAction(next, x);
+        if (planningEntryLocked(c, lockedPeriods, x))
+          throw new PlanError("closed_period_changed");
+        next.actions = [...next.actions.filter((item) => item.key !== key), x];
+      }
+      edit(prunePlanningBudgets(next, c));
+      close();
+    } catch (cause) {
+      setError(
+        cause instanceof PlanError
+          ? (E[cause.code] ?? E.invalid_plan!)
+          : E.invalid_plan!,
+      );
+    }
   };
-  const tableAction = (onClick: () => void) =>
-    edit ? (
-      <Button size="sm" variant="ghost" disabled={disabled} onClick={onClick}>
-        {T.remove}
-      </Button>
-    ) : null;
+  const rowActions = (
+    m: NonNullable<typeof mode>,
+    key: string,
+    label: string,
+    locked: boolean,
+    remove: () => void,
+  ) => (
+    <RowActions
+      label={`${T.operations} · ${label}`}
+      disabled={disabled}
+      items={
+        edit && (m === "customer" ? sources.canCustomers : sources.canTeam)
+          ? [
+              {
+                id: "edit",
+                label: T.editItem,
+                icon: "edit",
+                disabled: locked,
+                hint: locked ? T.lockedHint : undefined,
+                onSelect: () => open(m, key),
+              },
+              {
+                id: "remove",
+                label: T.remove,
+                icon: "trash",
+                danger: true,
+                disabled: locked,
+                hint: locked ? T.lockedHint : undefined,
+                confirm: {
+                  verb: T.remove,
+                  target: label,
+                  consequence: T.removeHint,
+                  titleTemplate: DS_LABELS.confirmTitleTemplate,
+                  cancelLabel: T.cancel,
+                  pendingLabel: DS_LABELS.confirmPending,
+                  onConfirm: remove,
+                },
+              },
+            ]
+          : []
+      }
+    />
+  );
   return (
     <div className="flex flex-col gap-xl">
       <div className="flex flex-col gap-md">
@@ -189,40 +369,59 @@ export function PlanSupport({
               {T.customerHint}
             </p>
           </div>
-          {edit && sources.canCustomers ? (
-            <Button
-              size="md"
-              variant="secondary"
-              disabled={disabled || !target}
-              onClick={() => open("customer")}
-            >
-              {T.addCustomer}
-            </Button>
-          ) : null}
+          <RowActions
+            label={T.addCustomer}
+            disabled={disabled || !target}
+            items={
+              edit && sources.canCustomers
+                ? [
+                    {
+                      id: "add",
+                      label: T.addCustomer,
+                      icon: "plus",
+                      onSelect: () => open("customer"),
+                    },
+                  ]
+                : []
+            }
+          />
         </div>
         {c.contributions.some((x) => x.regionId === regionId) ? (
-          <Table>
+          <Table className="table-fixed min-w-panel-lg">
             <TableHeader>
               <TableRow>
                 {[
+                  "",
                   T.customer,
                   T.customerBudget,
                   T.contribution,
                   T.responsibility,
                   T.note,
-                  ...(edit ? [T.remove] : []),
-                ].map((l) => (
-                  <TableHead key={l}>{l}</TableHead>
+                  "",
+                ].map((l, i, columns) => (
+                  <TableHead
+                    key={i}
+                    className={
+                      i === 0 || i === columns.length - 1
+                        ? "w-table-col-fixed text-center"
+                        : undefined
+                    }
+                  >
+                    {i === columns.length - 1 ? T.operations : l}
+                  </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {c.contributions
                 .filter((x) => x.regionId === regionId)
-                .map((x) => {
+                .map((x, index) => {
                   const b = c.budgets.find((b) => b.key === x.budgetKey)!;
                   return (
                     <TableRow key={x.key}>
+                      <TableCell className="w-table-col-fixed text-center text-muted-foreground">
+                        {index + 1}
+                      </TableCell>
                       <TableCell>
                         <Link
                           className="font-medium transition-colors hover:text-primary"
@@ -243,12 +442,33 @@ export function PlanSupport({
                       <TableCell>
                         {x.responsibility === "primary" ? T.primary : T.support}
                       </TableCell>
-                      <TableCell>{b.note}</TableCell>
-                      {edit ? (
-                        <TableCell>
-                          {tableAction(() => removeContribution(x.key))}
-                        </TableCell>
-                      ) : null}
+                      <TableCell className="truncate" title={b.note}>
+                        {b.note}
+                      </TableCell>
+                      <TableCell className="w-table-col-fixed text-center">
+                        {rowActions(
+                          "customer",
+                          x.key,
+                          b.name,
+                          c.targets.some(
+                            (line) =>
+                              line.key === x.targetKey &&
+                              planningEntryLocked(c, lockedPeriods, line),
+                          ),
+                          () =>
+                            edit?.(
+                              prunePlanningBudgets(
+                                {
+                                  ...c,
+                                  contributions: c.contributions.filter(
+                                    (item) => item.key !== x.key,
+                                  ),
+                                },
+                                c,
+                              ),
+                            ),
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -268,38 +488,51 @@ export function PlanSupport({
               {T.teamHint}
             </p>
           </div>
-          {edit && sources.canTeam ? (
-            <Button
-              size="md"
-              variant="secondary"
-              disabled={disabled}
-              onClick={() => open("team")}
-            >
-              {T.addMember}
-            </Button>
-          ) : null}
+          <RowActions
+            label={T.addMember}
+            disabled={disabled}
+            items={
+              edit && sources.canTeam
+                ? [
+                    {
+                      id: "add",
+                      label: T.addMember,
+                      icon: "plus",
+                      onSelect: () => open("team"),
+                    },
+                  ]
+                : []
+            }
+          />
         </div>
         {c.team.some((x) => x.regionId === regionId) ? (
-          <Table>
+          <Table className="table-fixed min-w-panel-lg">
             <TableHeader>
               <TableRow>
-                {[
-                  T.member,
-                  T.role,
-                  T.unit,
-                  T.percent,
-                  T.period,
-                  ...(edit ? [T.remove] : []),
-                ].map((l) => (
-                  <TableHead key={l}>{l}</TableHead>
-                ))}
+                {["", T.member, T.role, T.unit, T.percent, T.period, ""].map(
+                  (l, i, columns) => (
+                    <TableHead
+                      key={i}
+                      className={
+                        i === 0 || i === columns.length - 1
+                          ? "w-table-col-fixed text-center"
+                          : undefined
+                      }
+                    >
+                      {i === columns.length - 1 ? T.operations : l}
+                    </TableHead>
+                  ),
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {c.team
                 .filter((x) => x.regionId === regionId)
-                .map((x) => (
+                .map((x, index) => (
                   <TableRow key={x.key}>
+                    <TableCell className="w-table-col-fixed text-center text-muted-foreground">
+                      {index + 1}
+                    </TableCell>
                     <TableCell>
                       {x.memberSub ? x.memberName : T.demand}
                     </TableCell>
@@ -311,16 +544,19 @@ export function PlanSupport({
                     <TableCell className="whitespace-nowrap">
                       {x.start} — {x.end}
                     </TableCell>
-                    {edit ? (
-                      <TableCell>
-                        {tableAction(() =>
-                          edit({
+                    <TableCell className="w-table-col-fixed text-center">
+                      {rowActions(
+                        "team",
+                        x.key,
+                        x.memberName || T.demand,
+                        planningEntryLocked(c, lockedPeriods, x),
+                        () =>
+                          edit?.({
                             ...c,
-                            team: c.team.filter((y) => y.key !== x.key),
+                            team: c.team.filter((item) => item.key !== x.key),
                           }),
-                        )}
-                      </TableCell>
-                    ) : null}
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -339,49 +575,70 @@ export function PlanSupport({
               {T.actionHint}
             </p>
           </div>
-          {edit && sources.canTeam ? (
-            <Button
-              size="md"
-              variant="secondary"
-              disabled={disabled}
-              onClick={() => open("action")}
-            >
-              {T.addAction}
-            </Button>
-          ) : null}
+          <RowActions
+            label={T.addAction}
+            disabled={disabled}
+            items={
+              edit && sources.canTeam
+                ? [
+                    {
+                      id: "add",
+                      label: T.addAction,
+                      icon: "plus",
+                      onSelect: () => open("action"),
+                    },
+                  ]
+                : []
+            }
+          />
         </div>
         {c.actions.some((x) => x.regionId === regionId) ? (
-          <Table>
+          <Table className="table-fixed min-w-panel-lg">
             <TableHeader>
               <TableRow>
-                {[T.objective, T.owner, T.due, ...(edit ? [T.remove] : [])].map(
-                  (l) => (
-                    <TableHead key={l}>{l}</TableHead>
-                  ),
-                )}
+                {["", T.objective, T.owner, T.due, ""].map((l, i, columns) => (
+                  <TableHead
+                    key={i}
+                    className={
+                      i === 0 || i === columns.length - 1
+                        ? "w-table-col-fixed text-center"
+                        : undefined
+                    }
+                  >
+                    {i === columns.length - 1 ? T.operations : l}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {c.actions
                 .filter((x) => x.regionId === regionId)
-                .map((x) => (
+                .map((x, index) => (
                   <TableRow key={x.key}>
+                    <TableCell className="w-table-col-fixed text-center text-muted-foreground">
+                      {index + 1}
+                    </TableCell>
                     <TableCell>{x.objective}</TableCell>
                     <TableCell>
                       {sources.members.find((m) => m.sub === x.ownerSub)
                         ?.name ?? x.ownerSub}
                     </TableCell>
                     <TableCell>{x.due}</TableCell>
-                    {edit ? (
-                      <TableCell>
-                        {tableAction(() =>
-                          edit({
+                    <TableCell className="w-table-col-fixed text-center">
+                      {rowActions(
+                        "action",
+                        x.key,
+                        x.objective,
+                        planningEntryLocked(c, lockedPeriods, x),
+                        () =>
+                          edit?.({
                             ...c,
-                            actions: c.actions.filter((y) => y.key !== x.key),
+                            actions: c.actions.filter(
+                              (item) => item.key !== x.key,
+                            ),
                           }),
-                        )}
-                      </TableCell>
-                    ) : null}
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -394,14 +651,16 @@ export function PlanSupport({
       </div>
       <Drawer
         open={mode !== null}
-        onClose={() => setMode(null)}
+        onClose={close}
         width="md"
         title={
-          mode === "customer"
-            ? T.addCustomer
-            : mode === "team"
-              ? T.addMember
-              : T.addAction
+          editingKey
+            ? T.editItem
+            : mode === "customer"
+              ? T.addCustomer
+              : mode === "team"
+                ? T.addMember
+                : T.addAction
         }
         description={
           mode === "customer"
@@ -412,7 +671,10 @@ export function PlanSupport({
         }
         closeLabel={T.cancel}
       >
-        <div className="flex flex-col gap-lg">
+        <fieldset
+          disabled={disabled || !edit}
+          className="flex min-w-0 flex-col gap-lg"
+        >
           {mode === "customer" ? (
             <>
               <Field>
@@ -430,46 +692,14 @@ export function PlanSupport({
                 <NativeSelect
                   id="plan-account"
                   value={accountId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setAccountId(id);
-                    setSourcePlanId(null);
-                    setBudget("");
-                    setNote("");
-                    const request = ++sourceRequest.current;
-                    setSourceLoading(false);
-                    if (id) {
-                      setSourceLoading(true);
-                      void loadPlanningCustomerBudget(id, c.year)
-                        .then((result) => {
-                          if (request !== sourceRequest.current) return;
-                          setSourceLoading(false);
-                          if (!result.ok)
-                            setError(E[result.error] ?? E.source_read_failed!);
-                          else if (
-                            result.source &&
-                            result.source.currency === target?.currency
-                          ) {
-                            setBudget(result.source.amount);
-                            setSourcePlanId(result.source.id);
-                            setNote(
-                              `${T.customerBudget} · ${result.source.period}`,
-                            );
-                          }
-                        })
-                        .catch(() => {
-                          if (request === sourceRequest.current) {
-                            setSourceLoading(false);
-                            setError(E.source_read_failed!);
-                          }
-                        });
-                    }
-                  }}
+                  disabled={!!editingKey}
+                  onChange={(e) => selectAccount(e.target.value)}
                 >
                   <option value="">{T.select}</option>
                   {sources.accounts
                     .filter(
                       (a) =>
+                        a.id === accountId ||
                         !query ||
                         a.name
                           .toLocaleLowerCase()
@@ -482,52 +712,52 @@ export function PlanSupport({
                     ))}
                 </NativeSelect>
               </Field>
-              {c.budgets.some(
-                (b) =>
-                  b.accountId === accountId &&
-                  b.period === target?.period &&
-                  b.currency === target?.currency,
-              ) ? (
-                <p className="text-body-small text-muted-foreground">
-                  {T.customerBudget}:{" "}
-                  {
-                    c.budgets.find(
-                      (b) =>
-                        b.accountId === accountId &&
-                        b.period === target?.period &&
-                        b.currency === target?.currency,
-                    )?.amount
-                  }{" "}
-                  {target?.currency}
+              <p className="text-body-small text-muted-foreground">
+                {T.budgetSharedHint}
+              </p>
+              <Field>
+                <FieldLabel htmlFor="plan-budget">
+                  {T.customerBudget} · {target?.currency}
+                </FieldLabel>
+                <Input
+                  id="plan-budget"
+                  inputMode="decimal"
+                  value={budget}
+                  disabled={sourceLoading}
+                  onChange={(e) => {
+                    setBudget(e.target.value);
+                    setSourcePlanId(null);
+                  }}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="plan-budget-note">
+                  {T.budgetNote}
+                </FieldLabel>
+                <Input
+                  id="plan-budget-note"
+                  disabled={sourceLoading}
+                  value={note}
+                  maxLength={8000}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </Field>
+              <Button
+                size="md"
+                variant="secondary"
+                disabled={!accountId || sourceLoading}
+                onClick={() => readBudget(accountId)}
+              >
+                {sourceLoading ? T.budgetLoading : T.budgetRetry}
+              </Button>
+              {sourceMessage ? (
+                <p
+                  className="text-body-small text-muted-foreground"
+                  role="status"
+                >
+                  {sourceMessage}
                 </p>
-              ) : (
-                <>
-                  <Field>
-                    <FieldLabel htmlFor="plan-budget">
-                      {T.customerBudget}
-                    </FieldLabel>
-                    <Input
-                      id="plan-budget"
-                      inputMode="decimal"
-                      value={budget}
-                      onChange={(e) => {
-                        setBudget(e.target.value);
-                        setSourcePlanId(null);
-                      }}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="plan-budget-note">
-                      {T.budgetNote}
-                    </FieldLabel>
-                    <Input
-                      id="plan-budget-note"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                    />
-                  </Field>
-                </>
-              )}
+              ) : null}
               <Field>
                 <FieldLabel htmlFor="plan-contribution">
                   {T.contribution}
@@ -666,14 +896,18 @@ export function PlanSupport({
             </p>
           ) : null}
           <div className="flex justify-end gap-sm">
-            <Button size="md" variant="secondary" onClick={() => setMode(null)}>
+            <Button size="md" variant="secondary" onClick={close}>
               {T.cancel}
             </Button>
-            <Button size="md" disabled={sourceLoading} onClick={add}>
-              {T.confirm}
+            <Button
+              size="md"
+              disabled={disabled || sourceLoading || !edit}
+              onClick={apply}
+            >
+              {T.apply}
             </Button>
           </div>
-        </div>
+        </fieldset>
       </Drawer>
     </div>
   );

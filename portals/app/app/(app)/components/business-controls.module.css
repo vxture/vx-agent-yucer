@@ -1,5 +1,12 @@
-/* TD-038: size only, using DS tokens. States, colour and type stay in the DS. */
-.toolbar :is([data-slot="input"], [data-slot="input-group-input"], [data-slot="native-select"], [data-slot="button"], [role="combobox"]),
+/* TD-038: DS control dimensions use tokens; states, colour and type stay native. */
+.toolbar
+  :is(
+    [data-slot="input"],
+    [data-slot="input-group-input"],
+    [data-slot="native-select"],
+    [data-slot="button"],
+    [role="combobox"]
+  ),
 .primary :is([data-slot="button"], [role="combobox"]) {
   height: var(--space-control-xl);
 }
@@ -14,4 +21,27 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm);
+}
+
+.overflow {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.overflow > [data-slot="button"] {
+  width: var(--space-control-xl);
+  height: var(--space-control-xl);
+}
+
+.overflow > [data-slot="button"] > svg {
+  width: var(--spacing-icon-md);
+  height: var(--spacing-icon-md);
+}
+
+/* Keep the 64px index track; hide only its non-interactive heading glyph. */
+.indexFirst > div:first-child > table > thead > tr > th:nth-child(1),
+.indexSecond > div:first-child > table > thead > tr > th:nth-child(2),
+.indexThird > div:first-child > table > thead > tr > th:nth-child(3),
+.indexFourth > div:first-child > table > thead > tr > th:nth-child(4) {
+  visibility: hidden;
 }

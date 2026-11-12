@@ -1,13 +1,11 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar, ActionMenu } from "./business-controls";
 
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
-  DataTable,
   EmptyState,
   Field,
   FieldLabel,
@@ -21,6 +19,7 @@ import {
   useListPagination,
   type DataTableColumn,
 } from "@vxture/design-ui";
+
 import { DialogForm } from "./dialog-form";
 import {
   FilterSlot,

@@ -1,12 +1,11 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import { useMemo, useState } from "react";
 import {
   Button,
   ButtonGroup,
-  DataTable,
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
@@ -438,7 +437,7 @@ export function PermissionTree({
                  where among its siblings a row sits before the indent or
                  a single word of the title is read. */
               id: "path",
-              header: "#",
+              header: null,
               align: "center" as const,
               cell: (r: PermissionRow) => <span className="text-body-small tabular-nums">{r.path}</span>,
             },

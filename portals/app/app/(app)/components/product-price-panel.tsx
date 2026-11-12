@@ -1,8 +1,9 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import { useState, useTransition } from "react";
 import {
-  Button, DataTable, Drawer, EmptyState, Field, FieldDescription,
+  Button, Drawer, EmptyState, Field, FieldDescription,
   FieldGroup, FieldLabel, Input, StatusBadge, useToast,
 } from "@vxture/design-ui";
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";

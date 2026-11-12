@@ -1,8 +1,8 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import {
   Button,
-  DataTable,
   Drawer,
   EmptyState,
   NativeSelect,

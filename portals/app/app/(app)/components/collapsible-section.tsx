@@ -2,7 +2,8 @@
 
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ActionMenu, Button, Icon, Section, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import { Button, Icon, Section, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { useMessages } from "../lib/i18n/provider";
 
 // 可收起的板块 (owner, 2026-09-23: 给所有板块增加展开收起, 收起后彻底收起 +

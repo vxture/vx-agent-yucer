@@ -1,4 +1,5 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import {
   BulkActionBar,
@@ -8,7 +9,6 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  DataTable,
   Field,
   FieldLabel,
   Icon,

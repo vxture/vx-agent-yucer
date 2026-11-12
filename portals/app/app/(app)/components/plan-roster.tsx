@@ -1,10 +1,10 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useState, useTransition } from "react";
 import {
   Button,
-  DataTable,
   EmptyState,
   Section,
   TableTitleCell,

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { sortRowsBy } from "./table-fittings";
+import { sortRowsBy } from "../lib/table-sort";
 
 // 列排序的两条判断 - both are decisions rather than mechanics, and neither is
 // visible from the screen once the data happens to be tidy. The collections

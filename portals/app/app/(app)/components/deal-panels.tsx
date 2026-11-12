@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ActionMenu, Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, SectionHeader, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type IconName } from "@vxture/design-ui";
+import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, SectionHeader, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type IconName } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { useMessages } from "../lib/i18n/provider";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection, type PanelAction } from "./collapsible-section";

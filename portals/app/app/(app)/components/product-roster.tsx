@@ -1,6 +1,6 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +9,6 @@ import { ProductPriceValues } from "./product-price-values";
 import { ProductPricePanel, type ProductPricing } from "./product-price-panel";
 import {
   Button,
-  DataTable,
   EmptyState,
   Icon,
   Input,

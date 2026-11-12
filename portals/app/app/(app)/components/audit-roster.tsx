@@ -1,9 +1,8 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import {
-  DataTable,
   EmptyState,
   Input,
   NativeSelect,

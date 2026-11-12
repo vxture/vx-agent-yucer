@@ -1,9 +1,10 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button, DataTable, Drawer, Field, FieldLabel, Input, Separator, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
+import { Button, Drawer, Field, FieldLabel, Input, Separator, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
 import type { AccountRecord } from "../../domains/account/store";
 import { designateAccountTier, loadAccountOperatingAction } from "../account/actions";
 import { operatingValues, operatingPlan, operatingError } from "../lib/account-plan-form";

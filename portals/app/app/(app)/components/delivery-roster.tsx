@@ -1,13 +1,12 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import { MemberName, useMemberName } from "../lib/member-names";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
-  DataTable,
   EmptyState,
   Input,
   NativeSelect,

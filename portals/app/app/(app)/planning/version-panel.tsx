@@ -5,10 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  MetricListCard,
   Checkbox,
   Drawer,
   EmptyState,
@@ -26,20 +23,36 @@ import {
   TableRow,
   Textarea,
 } from "@vxture/design-ui";
+import { ConfirmDestructive } from "../components/confirm-destructive";
+import { RowActions } from "../components/table-fittings";
 import { Tag } from "../components/tag";
 import { ModuleHeadline } from "../components/module-headline";
 import { useLocale, useMessages } from "../lib/i18n/provider";
+import {
+  excludePlanningRegion,
+  planningReleaseTimeError,
+} from "../lib/planning-operations";
+import { previewTargetDelta } from "../lib/planning-preview";
 import { salesPlanCommandAction } from "./plan-actions";
 import {
   planVersions,
   comparePlanContents,
-  targetDelta,
 } from "../../domains/planning/plan-state";
 import type { PlanCommand } from "../../domains/planning/plan-service";
 import type { PlanContent, SalesPlan } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
+import {
+  CompanyTargetAllocation,
+  CompanyTargetSummary,
+} from "./company-target-summary";
 import { PlanTargets } from "./plan-targets";
 import { PlanSupport } from "./plan-support";
+import { PlanRegions } from "./plan-regions";
+import { PlanAssumptions } from "./plan-assumptions";
+import {
+  prerequisiteGroups,
+  readPrerequisites,
+} from "../../domains/planning/plan-prerequisites";
 export function PlanningVersionPanel({
   initialPlan,
   initialNow,
@@ -62,6 +75,7 @@ export function PlanningVersionPanel({
     PLAN_VERSION_TEXT: T,
     PLAN_VERSION_ERROR: E,
     PLANNING_TEXT: P,
+    DS_LABELS,
   } = useMessages();
   const router = useRouter();
   const [plan, setPlan] = useState(initialPlan);
@@ -99,9 +113,8 @@ export function PlanningVersionPanel({
     );
     return () => clearTimeout(timer);
   }, [plan, state.scheduled, now, router]);
-  const [view, setView] = useState(
-    initialPlan?.revisions.find((r) => r.state === "draft")?.id ?? "current",
-  );
+  // A saved draft is an explicit editing session, never the daily landing view.
+  const [view, setView] = useState("current");
   const revision =
     view === "current"
       ? state.current
@@ -129,11 +142,45 @@ export function PlanningVersionPanel({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [confirm, setConfirm] = useState<
-    "release" | "discard" | "close" | null
+    "release" | "discard" | "close" | "cancel" | "lock" | null
   >(null);
+  const [excludeId, setExcludeId] = useState<string | null>(null);
   const [adopt, setAdopt] = useState(false);
   const [lockPeriod, setLockPeriod] = useState(`${year}Q1`);
-  const [viewMode, setViewMode] = useState("overview");
+  const [checksOpen, setChecksOpen] = useState(false);
+  const [panel, setPanel] = useState<"diff" | "history" | "version" | null>(
+    null,
+  );
+  const lockedPeriods = (plan?.events ?? [])
+    .filter((event) => event.kind === "lock")
+    .map((event) => event.period!);
+  const lockablePeriods =
+    state.current?.content.periods.filter(
+      (period) => period.parent && period.end <= now.slice(0, 10),
+    ) ?? [];
+  const selectedLockPeriod = lockablePeriods.find(
+    (period) => period.key === lockPeriod,
+  );
+  const releaseTimeError =
+    when === "future"
+      ? planningReleaseTimeError(effective, year, Date.now())
+      : null;
+  useEffect(() => {
+    if (!lockablePeriods.some((period) => period.key === lockPeriod))
+      setLockPeriod(
+        lockablePeriods.find((period) => !lockedPeriods.includes(period.key))
+          ?.key ?? "",
+      );
+  }, [lockablePeriods.map((period) => period.key).join("|"), lockPeriod]);
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty]);
   const requests = useRef(new Map<string, string>());
   const edit = editing
     ? (next: PlanContent) => {
@@ -141,7 +188,7 @@ export function PlanningVersionPanel({
         setError("");
       }
     : null;
-  const run = (command: PlanCommand) =>
+  const run = (command: PlanCommand, afterSave?: "publish" | "browse") =>
     transition(async () => {
       setError("");
       setMessage("");
@@ -165,10 +212,18 @@ export function PlanningVersionPanel({
         setPlan(result.plan);
         setNow(new Date().toISOString());
         const s = planVersions(result.plan, new Date().toISOString());
-        setContent(s.draft?.content ?? null);
-        setView(s.draft?.id ?? "current");
+        if (command.kind !== "cancel" && command.kind !== "lock") {
+          setContent(s.draft?.content ?? null);
+          setView(
+            (command.kind === "draft" || command.kind === "save") &&
+              afterSave !== "browse"
+              ? (s.draft?.id ?? "current")
+              : "current",
+          );
+        }
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
+        setPanel(afterSave === "publish" ? "version" : null);
         router.refresh();
       } catch {
         setError(E.plan_save_failed!);
@@ -177,10 +232,13 @@ export function PlanningVersionPanel({
   const choose = (value: string) => {
     if (dirty) {
       setError(T.saveFirst);
-      return;
+      return false;
     }
     setView(value);
+    setError("");
+    setMessage("");
     setRegionId(null);
+    return true;
   };
   const metricName: Record<string, string> = {
     revenue: P.metricRevenue,
@@ -196,7 +254,7 @@ export function PlanningVersionPanel({
     try {
       return c ? planningFindings(c) : [];
     } catch {
-      return [];
+      return null;
     }
   }, [c]);
   const diff = c ? comparePlanContents(state.current?.content ?? null, c) : [];
@@ -212,7 +270,7 @@ export function PlanningVersionPanel({
     allocationNote: T.allocationNote,
     capacityNote: T.capacityNote,
   };
-  const describe = (r: Record<string, unknown> | null) => {
+  const describe = (r: Record<string, unknown> | null, section: string) => {
     if (!r) return "—";
     if ("scope" in r)
       return `${r.scope === "workspace" ? T.company : (c?.regions.find((x) => `territory:${x.id}` === r.scope)?.name ?? "—")} · ${r.period} · ${metricName[String(r.metric)] ?? r.metric} · ${T.floor} ${format(r.floor as string)} / ${T.target} ${format(r.target as string)} / ${T.stretch} ${format(r.stretch as string)} ${r.currency ?? T.count}`;
@@ -223,11 +281,23 @@ export function PlanningVersionPanel({
       return `${c?.budgets.find((b) => b.key === r.budgetKey)?.name ?? T.customer} · ${format(r.amount as string)}`;
     if ("name" in r)
       return `${r.name}${r.amount ? ` · ${format(r.amount as string)}` : ""}${"included" in r ? ` · ${r.included ? T.included : T.excluded}` : ""}`;
+    if ("text" in r && section === "assumptions") {
+      const groups = readPrerequisites(String(r.text || ""));
+      return (
+        prerequisiteGroups
+          .filter((group) => groups[group].length)
+          .map(
+            (group) =>
+              `${T.prerequisiteLabels[group]}: ${groups[group].join("; ")}`,
+          )
+          .join(" / ") || "—"
+      );
+    }
     if ("text" in r) return String(r.text || "—");
     return `${r.key ?? ""} · ${r.start ?? ""} — ${r.end ?? ""}`;
   };
   const refreshRegions = () => {
-    if (!c || !edit) return;
+    if (!c || !edit || pending || lockedPeriods.length) return;
     const next = structuredClone(c);
     for (const source of sources.regions) {
       const held = next.regions.find((r) => r.id === source.id);
@@ -250,17 +320,6 @@ export function PlanningVersionPanel({
       t.period === `Y${year}` &&
       t.metric === "revenue",
   );
-  const allocated =
-    c?.targets
-      .filter(
-        (t) =>
-          t.scope !== "workspace" &&
-          t.period === `Y${year}` &&
-          t.metric === "revenue" &&
-          t.currency === companyTarget?.currency &&
-          t.target !== null,
-      )
-      .reduce((n, t) => n + Number(t.target), 0) ?? 0;
   const needsSourceRefresh =
     c &&
     sources.regions.some((r) => {
@@ -271,6 +330,89 @@ export function PlanningVersionPanel({
         JSON.stringify(old.provinces) !== JSON.stringify(r.provinces)
       );
     });
+  const confirmVersion = (kind: NonNullable<typeof confirm>) => {
+    setError("");
+    if (kind === "release" && when === "future") {
+      const code = planningReleaseTimeError(effective, year, Date.now());
+      if (code) {
+        setError(E[code]!);
+        return;
+      }
+    }
+    setPanel(null);
+    setConfirm(kind);
+  };
+  const cancelConfirm = () => {
+    if (!pending) {
+      setConfirm(null);
+      setPanel("version");
+    }
+  };
+  const confirmLabel =
+    confirm === "release"
+      ? T.publish
+      : confirm === "discard"
+        ? T.discard
+        : confirm === "cancel"
+          ? T.cancelSchedule
+          : confirm === "lock"
+            ? T.lock
+            : T.close;
+  const auxiliaryActions = [
+    ...(editing
+      ? [
+          {
+            id: "browse",
+            label: T.browse,
+            icon: "eye" as const,
+            onSelect: () => {
+              if (dirty)
+                run(
+                  {
+                    kind: "save",
+                    revisionId: state.draft!.id,
+                    editToken: state.draft!.editToken,
+                    content: c!,
+                  },
+                  "browse",
+                );
+              else choose("current");
+            },
+          },
+        ]
+      : []),
+    ...(c
+      ? [
+          {
+            id: "diff",
+            label: T.diff,
+            icon: "git-branch" as const,
+            onSelect: () => {
+              setDiffSection("all");
+              setPanel("diff");
+            },
+          },
+        ]
+      : []),
+    {
+      id: "history",
+      label: T.history,
+      icon: "clock-counter-clockwise" as const,
+      onSelect: () => setPanel("history"),
+    },
+    ...(canEdit &&
+    !state.closed &&
+    (state.draft || state.current || state.scheduled)
+      ? [
+          {
+            id: "version",
+            label: T.version,
+            icon: "settings" as const,
+            onSelect: () => setPanel("version"),
+          },
+        ]
+      : []),
+  ];
   return (
     <div className="@container flex flex-col gap-xl">
       <ModuleHeadline
@@ -289,7 +431,7 @@ export function PlanningVersionPanel({
           </>
         }
         action={
-          <div className="flex flex-wrap items-center gap-sm">
+          <div className="flex w-64 flex-wrap items-center gap-sm sm:w-auto">
             <NativeSelect
               wrapperClassName="w-28"
               aria-label={T.year}
@@ -320,7 +462,11 @@ export function PlanningVersionPanel({
                 </option>
               ) : null}
               {plan?.revisions
-                .filter((r) => r.state !== "abandoned")
+                .filter(
+                  (r) =>
+                    r.state === "sealed" ||
+                    (editing && r.id === state.draft?.id),
+                )
                 .map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.state === "draft"
@@ -329,15 +475,26 @@ export function PlanningVersionPanel({
                   </option>
                 ))}
             </NativeSelect>
-            {canEdit && !state.draft && !state.closed ? (
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={() => setChecksOpen(true)}
+              disabled={!c || pending}
+            >
+              {T.insights}
+              {findings?.length ? ` · ${findings.length}` : ""}
+            </Button>
+            {canEdit && !editing && !state.closed ? (
               <Button
                 size="lg"
                 disabled={pending}
                 onClick={() =>
-                  run({ kind: "draft", content: {} as PlanContent })
+                  state.draft
+                    ? choose(state.draft.id)
+                    : run({ kind: "draft", content: {} as PlanContent })
                 }
               >
-                {state.current ? T.adjust : T.create}
+                {state.draft ? T.resume : state.current ? T.adjust : T.create}
               </Button>
             ) : null}
             {editing ? (
@@ -357,9 +514,38 @@ export function PlanningVersionPanel({
                 {T.save}
               </Button>
             ) : null}
+            {editing ? (
+              <Button
+                size="xl"
+                disabled={pending}
+                onClick={() => {
+                  if (dirty)
+                    run(
+                      {
+                        kind: "save",
+                        revisionId: state.draft!.id,
+                        editToken: state.draft!.editToken,
+                        content: c!,
+                      },
+                      "publish",
+                    );
+                  else setPanel("version");
+                }}
+              >
+                {T.publish}
+              </Button>
+            ) : null}
+            <RowActions
+              label={`${T.version} · Y${year}`}
+              items={auxiliaryActions}
+              disabled={pending}
+            />
           </div>
         }
       />
+      {editing ? (
+        <p className="text-body-small text-muted-foreground">{T.editHint}</p>
+      ) : null}
       {error ? (
         <p className="text-body-small text-destructive" role="alert">
           {error}
@@ -398,7 +584,8 @@ export function PlanningVersionPanel({
               <Button
                 size="md"
                 variant="secondary"
-                disabled={pending}
+                disabled={pending || !!lockedPeriods.length}
+                title={lockedPeriods.length ? T.lockedHint : undefined}
                 onClick={refreshRegions}
               >
                 {T.refreshSources}
@@ -410,68 +597,31 @@ export function PlanningVersionPanel({
             title={currentRegion ? currentRegion.name : T.company}
             description={T.targetHint}
             action={
-              currentRegion ? (
-                <Button
-                  size="md"
-                  variant="secondary"
-                  onClick={() => setRegionId(null)}
-                >
-                  {T.back}
-                </Button>
-              ) : (
-                <Link
-                  href={`/attainment?period=Y${year}`}
-                  className="text-body-small text-muted-foreground transition-colors hover:text-primary"
-                >
-                  {T.actual}
-                </Link>
-              )
+              <div className="flex items-center gap-md">
+                {currentRegion ? (
+                  <Button
+                    size="md"
+                    variant="secondary"
+                    onClick={() => setRegionId(null)}
+                  >
+                    {T.back}
+                  </Button>
+                ) : (
+                  <Link
+                    href={`/attainment?period=Y${year}`}
+                    className="text-body-small text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    {T.actual}
+                  </Link>
+                )}
+                <RowActions
+                  label={`${currentRegion?.name ?? T.company} · ${T.version}`}
+                  items={auxiliaryActions}
+                  disabled={pending}
+                />
+              </div>
             }
           >
-            {!currentRegion ? (
-              <div className="mb-lg grid grid-cols-1 gap-lg sm:grid-cols-3">
-                <div>
-                  <p className="text-label-small text-muted-foreground">
-                    {T.target} · {companyTarget?.currency ?? sources.currency}
-                  </p>
-                  <p className="text-heading-1 tabular-nums">
-                    {format(companyTarget?.target)}
-                  </p>
-                  <p className="text-body-small text-muted-foreground">
-                    {T.floor} {format(companyTarget?.floor)} · {T.stretch}{" "}
-                    {format(companyTarget?.stretch)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-label-small text-muted-foreground">
-                    {T.allocation}
-                  </p>
-                  <p className="text-heading-2 tabular-nums">
-                    {companyTarget?.target
-                      ? format(String(Number(companyTarget.target) - allocated))
-                      : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-label-small text-muted-foreground">
-                    {T.people} / {T.needs}
-                  </p>
-                  <p className="text-heading-2 tabular-nums">
-                    {
-                      new Set(
-                        c.team
-                          .filter((t) => t.memberSub)
-                          .map((t) => t.memberSub),
-                      ).size
-                    }{" "}
-                    /{" "}
-                    {c.team
-                      .filter((t) => !t.memberSub)
-                      .reduce((n, t) => n + Number(t.requestedFte), 0)}
-                  </p>
-                </div>
-              </div>
-            ) : null}
             {currentRegion && edit ? (
               <div className="mb-lg flex flex-wrap items-end gap-md">
                 <Field>
@@ -481,6 +631,8 @@ export function PlanningVersionPanel({
                   <NativeSelect
                     id="plan-region-participation"
                     value={currentRegion.included ? "yes" : "no"}
+                    disabled={pending || !!lockedPeriods.length}
+                    title={lockedPeriods.length ? T.lockedHint : undefined}
                     onChange={(e) => {
                       const included = e.target.value === "yes";
                       const next = structuredClone(c);
@@ -488,21 +640,8 @@ export function PlanningVersionPanel({
                         r.id === regionId ? { ...r, included } : r,
                       );
                       if (!included) {
-                        const removed = next.targets
-                          .filter((t) => t.scope === `territory:${regionId}`)
-                          .map((t) => t.key);
-                        next.targets = next.targets.filter(
-                          (t) => !removed.includes(t.key),
-                        );
-                        next.contributions = next.contributions.filter(
-                          (x) => x.regionId !== regionId,
-                        );
-                        next.team = next.team.filter(
-                          (x) => x.regionId !== regionId,
-                        );
-                        next.actions = next.actions.filter(
-                          (x) => x.regionId !== regionId,
-                        );
+                        setExcludeId(currentRegion.id);
+                        return;
                       } else if (
                         !next.targets.some(
                           (t) =>
@@ -537,6 +676,8 @@ export function PlanningVersionPanel({
                     <Input
                       id="plan-region-reason"
                       value={currentRegion.reason}
+                      disabled={pending || !!lockedPeriods.length}
+                      maxLength={8000}
                       onChange={(e) =>
                         edit({
                           ...c,
@@ -554,12 +695,37 @@ export function PlanningVersionPanel({
             ) : null}
             {!currentRegion || currentRegion.included ? (
               <PlanTargets
+                key={currentRegion?.id ?? "workspace"}
                 content={c}
                 scope={
                   currentRegion ? `territory:${currentRegion.id}` : "workspace"
                 }
                 edit={edit}
                 disabled={pending}
+                lockedPeriods={lockedPeriods}
+                headerInfo={
+                  !currentRegion ? (
+                    <CompanyTargetAllocation
+                      content={c}
+                      target={companyTarget}
+                      currency={sources.currency}
+                    />
+                  ) : undefined
+                }
+                summaryTargetKey={
+                  !currentRegion ? companyTarget?.key : undefined
+                }
+                summary={
+                  !currentRegion ? (
+                    <CompanyTargetSummary
+                      content={c}
+                      target={companyTarget}
+                      currency={sources.currency}
+                      edit={edit}
+                      disabled={pending}
+                    />
+                  ) : undefined
+                }
               />
             ) : (
               <p className="text-body-small text-muted-foreground">
@@ -570,352 +736,202 @@ export function PlanningVersionPanel({
           {currentRegion ? (
             currentRegion.included ? (
               <PlanSupport
+                key={currentRegion.id}
                 content={c}
                 regionId={currentRegion.id}
                 sources={sources}
+                lockedPeriods={lockedPeriods}
                 edit={edit}
                 disabled={pending}
               />
             ) : null
           ) : (
-            <Section
-              icon="map-pin"
-              title={T.regions}
-              description={T.amountUnit}
-              action={
-                <div className="flex items-center gap-sm">
-                  <NativeSelect
-                    wrapperClassName="w-28"
-                    aria-label={T.filters}
-                    value={viewMode}
-                    onChange={(e) => setViewMode(e.target.value)}
-                  >
-                    <option value="overview">{T.overview}</option>
-                    <option value="list">{T.list}</option>
-                  </NativeSelect>
-                  <Link
-                    href="/admin/division"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="whitespace-nowrap text-body-small text-muted-foreground hover:text-primary"
-                  >
-                    {T.configure}
-                  </Link>
-                </div>
-              }
-            >
-              {viewMode === "list" ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {[
-                        T.regions,
-                        T.floor,
-                        T.target,
-                        T.stretch,
-                        T.customers,
-                        T.people,
-                      ].map((l) => (
-                        <TableHead key={l}>{l}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {c.regions.map((r) => {
-                      const t = c.targets.find(
-                        (t) =>
-                          t.scope === `territory:${r.id}` &&
-                          t.period === `Y${year}` &&
-                          t.metric === "revenue",
-                      );
-                      return (
-                        <TableRow key={r.id}>
-                          <TableCell>
-                            <button
-                              type="button"
-                              className="font-medium transition-colors hover:text-primary"
-                              onClick={() => setRegionId(r.id)}
-                            >
-                              {r.name}
-                            </button>
-                          </TableCell>
-                          {[t?.floor, t?.target, t?.stretch].map((v, i) => (
-                            <TableCell key={i} className="tabular-nums">
-                              {format(v)}
-                            </TableCell>
-                          ))}
-                          <TableCell>
-                            {
-                              new Set(
-                                c.contributions
-                                  .filter((x) => x.regionId === r.id)
-                                  .map((x) => x.budgetKey),
-                              ).size
-                            }
-                          </TableCell>
-                          <TableCell>
-                            {
-                              new Set(
-                                c.team
-                                  .filter(
-                                    (x) => x.regionId === r.id && x.memberSub,
-                                  )
-                                  .map((x) => x.memberSub),
-                              ).size
-                            }
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="grid grid-cols-1 gap-lg @4xl:grid-cols-2">
-                  {c.regions.map((r) => {
-                    const t = c.targets.find(
-                      (t) =>
-                        t.scope === `territory:${r.id}` &&
-                        t.period === `Y${year}` &&
-                        t.metric === "revenue",
-                    );
-                    const customers = new Set(
-                      c.contributions
-                        .filter((x) => x.regionId === r.id)
-                        .map((x) => x.budgetKey),
-                    ).size;
-                    const members = new Set(
-                      c.team
-                        .filter((x) => x.regionId === r.id && x.memberSub)
-                        .map((x) => x.memberSub),
-                    ).size;
-                    const contribution = c.contributions
-                      .filter((x) => x.regionId === r.id)
-                      .reduce((n, x) => n + Number(x.amount), 0);
-                    return (
-                      <Card key={r.id}>
-                        <CardHeader>
-                          <div className="flex items-center justify-between gap-md">
-                            <CardTitle>
-                              <button
-                                type="button"
-                                className="transition-colors hover:text-primary"
-                                onClick={() => setRegionId(r.id)}
-                              >
-                                {r.name}
-                              </button>
-                            </CardTitle>
-                            <Tag tone={r.included ? "info" : "neutral"}>
-                              {r.included ? T.included : T.excluded}
-                            </Tag>
-                          </div>
-                          <p className="text-label-small text-muted-foreground">
-                            {r.provinces.join(" · ")}
-                          </p>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-lg">
-                          <div className="grid grid-cols-3 gap-md">
-                            <div>
-                              <p className="text-label-small text-muted-foreground">
-                                {T.floor}
-                              </p>
-                              <p className="text-body tabular-nums">
-                                {format(t?.floor)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-label-small text-muted-foreground">
-                                {T.target} · {t?.currency ?? sources.currency}
-                              </p>
-                              <p className="text-heading-2 tabular-nums">
-                                {format(t?.target)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-label-small text-muted-foreground">
-                                {T.stretch}
-                              </p>
-                              <p className="text-body tabular-nums">
-                                {format(t?.stretch)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-x-lg gap-y-sm border-t border-dashed border-border pt-md text-body-small text-muted-foreground">
-                            <span>
-                              {T.customers} {customers} ·{" "}
-                              {format(String(contribution))}
-                            </span>
-                            <span>
-                              {T.people} {members}
-                            </span>
-                            <span>
-                              {T.actions}{" "}
-                              {
-                                c.actions.filter((a) => a.regionId === r.id)
-                                  .length
-                              }
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-              {c.regions.length === 0 ? (
-                <EmptyState title={T.noRegions} />
-              ) : null}
-            </Section>
+            <PlanRegions
+              content={c}
+              onSelect={setRegionId}
+              editing={editing}
+              disabled={pending}
+              lockedPeriods={lockedPeriods}
+            />
           )}
-          {findings.length ? (
-            <Section
-              icon="lightbulb"
-              title={T.insights}
-              description={T.insightsHint}
-            >
-              <ul className="flex flex-col gap-sm">
-                {findings.map((f, i) => (
-                  <li
-                    key={`${f.kind}-${f.regionId}-${i}`}
-                    className="text-body-small text-muted-foreground"
-                  >
-                    <button
-                      type="button"
-                      className="text-left transition-colors hover:text-primary"
-                      onClick={() => {
-                        if (f.regionId) setRegionId(f.regionId);
-                      }}
-                    >
-                      {f.kind === "missing_target"
-                        ? T.checkMissingTarget(f.subject)
-                        : f.kind === "customer_gap"
-                          ? T.checkCustomerGap(
+          <PlanAssumptions
+            content={c}
+            edit={edit}
+            disabled={pending}
+            onReview={() => {
+              setDiffSection("assumptions");
+              setPanel("diff");
+            }}
+          />
+        </>
+      )}
+      <ConfirmDestructive
+        open={!!excludeId}
+        onOpenChange={(open) => {
+          if (!open) setExcludeId(null);
+        }}
+        verb={T.excludeRegion}
+        target={
+          c?.regions.find((region) => region.id === excludeId)?.name ??
+          T.regions
+        }
+        consequence={T.excludeRegionHint}
+        cancelLabel={T.cancel}
+        titleTemplate={DS_LABELS.confirmTitleTemplate}
+        onConfirm={() => {
+          if (edit && c && excludeId && !pending && !lockedPeriods.length)
+            edit(excludePlanningRegion(c, excludeId));
+          setExcludeId(null);
+        }}
+      />
+      <Drawer
+        open={panel === "diff"}
+        onClose={() => setPanel(null)}
+        width="lg"
+        title={T.diff}
+        description={T.publishHint}
+        closeLabel={T.cancel}
+      >
+        <div className="flex flex-col gap-lg">
+          <NativeSelect
+            wrapperClassName="w-40"
+            aria-label={T.diff}
+            value={diffSection}
+            onChange={(e) => setDiffSection(e.target.value)}
+          >
+            <option value="all">{T.overview}</option>
+            {Object.entries(sectionLabel).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="mb-md text-body-small text-muted-foreground">
+            {diff.length} {T.changes}
+            {dirty ? ` · ${T.saveFirst}` : ""}
+          </p>
+          {diff.some(
+            (item) => diffSection === "all" || item.section === diffSection,
+          ) ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {[T.item, T.before, T.after, T.targetChange].map((l) => (
+                    <TableHead key={l}>{l}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {diff
+                  .filter(
+                    (d) => diffSection === "all" || d.section === diffSection,
+                  )
+                  .map((d) => (
+                    <TableRow key={`${d.section}-${d.key}`}>
+                      <TableCell>{sectionLabel[d.section]}</TableCell>
+                      <TableCell className="text-body-small text-muted-foreground">
+                        {describe(d.before, d.section)}
+                      </TableCell>
+                      <TableCell className="text-body-small">
+                        {describe(d.after, d.section)}
+                      </TableCell>
+                      <TableCell className="text-body-small whitespace-nowrap">
+                        {(() => {
+                          const delta =
+                            d.section === "targets" && d.before && d.after
+                              ? previewTargetDelta(
+                                  d.before.target as string | null,
+                                  d.after.target as string | null,
+                                )
+                              : null;
+                          return delta
+                            ? `${delta.amount} ${d.after?.currency ?? T.count} · ${delta.percent ?? T.noPercent}`
+                            : "—";
+                        })()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-body-small text-muted-foreground">{T.noDiff}</p>
+          )}
+        </div>
+      </Drawer>
+      <Drawer
+        open={checksOpen}
+        onClose={() => setChecksOpen(false)}
+        width="md"
+        title={T.insights}
+        description={T.insightsHint}
+        closeLabel={T.cancel}
+      >
+        {findings === null ? (
+          <EmptyState title={T.validation} description={T.checksInvalidHint} />
+        ) : findings.length ? (
+          <div className="flex flex-col gap-lg">
+            {findings.map((f, i) => (
+              <MetricListCard
+                key={`${f.kind}-${f.regionId}-${i}`}
+                title={f.subject}
+                note={
+                  f.kind === "missing_target"
+                    ? T.checkMissingTarget(f.subject)
+                    : f.kind === "customer_gap"
+                      ? T.checkCustomerGap(
+                          f.subject,
+                          format(f.value),
+                          f.currency ?? "",
+                        )
+                      : f.kind === "team_gap"
+                        ? T.checkTeamGap(f.subject)
+                        : f.kind === "over_capacity"
+                          ? T.checkCapacity(f.subject, f.value ?? "")
+                          : T.checkConcentration(
                               f.subject,
                               format(f.value),
                               f.currency ?? "",
                             )
-                          : f.kind === "team_gap"
-                            ? T.checkTeamGap(f.subject)
-                            : f.kind === "over_capacity"
-                              ? T.checkCapacity(f.subject, f.value ?? "")
-                              : T.checkConcentration(
-                                  f.subject,
-                                  format(f.value),
-                                  f.currency ?? "",
-                                )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
-          <Section icon="file-text" title={T.assumptions}>
-            <div className="grid grid-cols-1 gap-lg xl:grid-cols-3">
-              {(["assumptions", "allocationNote", "capacityNote"] as const).map(
-                (field) => (
-                  <Field key={field}>
-                    <FieldLabel htmlFor={`plan-${field}`}>
-                      {T[field]}
-                    </FieldLabel>
-                    {edit ? (
-                      <Textarea
-                        id={`plan-${field}`}
-                        value={c[field]}
-                        rows={3}
-                        disabled={pending}
-                        onChange={(e) =>
-                          edit({ ...c, [field]: e.target.value })
-                        }
-                      />
-                    ) : (
-                      <p className="whitespace-pre-wrap text-body-small text-muted-foreground">
-                        {c[field] || "—"}
-                      </p>
-                    )}
-                  </Field>
-                ),
-              )}
-            </div>
-          </Section>
-          {editing ? (
-            <Section
-              icon="git-branch"
-              title={T.diff}
-              description={T.publishHint}
-              action={
-                <NativeSelect
-                  wrapperClassName="w-40"
-                  aria-label={T.diff}
-                  value={diffSection}
-                  onChange={(e) => setDiffSection(e.target.value)}
-                >
-                  <option value="all">{T.overview}</option>
-                  {Object.entries(sectionLabel).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </NativeSelect>
-              }
-            >
-              <p className="mb-md text-body-small text-muted-foreground">
-                {diff.length} {T.changes}
-                {dirty ? ` · ${T.saveFirst}` : ""}
-              </p>
-              {diff.length ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {[T.item, T.before, T.after, T.targetChange].map((l) => (
-                        <TableHead key={l}>{l}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {diff
-                      .filter(
-                        (d) =>
-                          diffSection === "all" || d.section === diffSection,
-                      )
-                      .map((d) => (
-                        <TableRow key={`${d.section}-${d.key}`}>
-                          <TableCell>{sectionLabel[d.section]}</TableCell>
-                          <TableCell className="text-body-small text-muted-foreground">
-                            {describe(d.before)}
-                          </TableCell>
-                          <TableCell className="text-body-small">
-                            {describe(d.after)}
-                          </TableCell>
-                          <TableCell className="text-body-small whitespace-nowrap">
-                            {(() => {
-                              const delta =
-                                d.section === "targets" && d.before && d.after
-                                  ? targetDelta(
-                                      d.before.target as string | null,
-                                      d.after.target as string | null,
-                                    )
-                                  : null;
-                              return delta
-                                ? `${delta.amount} ${d.after?.currency ?? T.count} · ${delta.percent ?? T.noPercent}`
-                                : "—";
-                            })()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-body-small text-muted-foreground">
-                  {T.noDiff}
-                </p>
-              )}
-            </Section>
-          ) : null}
-        </>
-      )}
+                }
+                footer={
+                  f.regionId ? (
+                    <Button
+                      size="md"
+                      variant="secondary"
+                      onClick={() => {
+                        setRegionId(f.regionId);
+                        setChecksOpen(false);
+                      }}
+                    >
+                      {T.regionDetail}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title={T.checksEmpty} description={T.checksEmptyHint} />
+        )}
+      </Drawer>
       {canEdit &&
       !state.closed &&
       (state.draft || state.current || state.scheduled) ? (
-        <Section icon="upload" title={T.version} description={T.reasonHint}>
+        <Drawer
+          open={panel === "version"}
+          onClose={() => {
+            if (!pending) setPanel(null);
+          }}
+          width="md"
+          title={T.version}
+          description={T.reasonHint}
+          closeLabel={T.cancel}
+        >
+          {error ? (
+            <p className="mb-md text-body-small text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
           <div className="flex flex-col gap-lg">
             <Field>
               <FieldLabel htmlFor="plan-change-reason">{T.reason}</FieldLabel>
@@ -937,6 +953,7 @@ export function PlanningVersionPanel({
                   <NativeSelect
                     id="plan-effective-kind"
                     value={when}
+                    disabled={pending}
                     onChange={(e) => setWhen(e.target.value)}
                   >
                     <option value="immediate">{T.immediate}</option>
@@ -952,6 +969,10 @@ export function PlanningVersionPanel({
                       type="datetime-local"
                       id="plan-effective-time"
                       value={effective}
+                      disabled={pending}
+                      aria-invalid={
+                        (!!effective && !!releaseTimeError) || undefined
+                      }
                       onChange={(e) => setEffective(e.target.value)}
                     />
                   </Field>
@@ -964,9 +985,9 @@ export function PlanningVersionPanel({
                     (plan?.revisions.some((r) => r.state === "sealed") &&
                       !reason.trim()) ||
                     !!state.scheduled ||
-                    (when === "future" && !effective)
+                    (when === "future" && !!releaseTimeError)
                   }
-                  onClick={() => setConfirm("release")}
+                  onClick={() => confirmVersion("release")}
                 >
                   {T.publish}
                 </Button>
@@ -974,18 +995,23 @@ export function PlanningVersionPanel({
                   size="md"
                   variant="ghost"
                   disabled={pending}
-                  onClick={() => setConfirm("discard")}
+                  onClick={() => confirmVersion("discard")}
                 >
                   {T.discard}
                 </Button>
               </div>
+            ) : null}
+            {editing && effective && releaseTimeError ? (
+              <p className="text-body-small text-destructive" role="alert">
+                {E[releaseTimeError]}
+              </p>
             ) : null}
             {state.scheduled ? (
               <Button
                 size="md"
                 variant="secondary"
                 disabled={pending || !reason.trim()}
-                onClick={() => run({ kind: "cancel", reason })}
+                onClick={() => confirmVersion("cancel")}
               >
                 {T.cancelSchedule}
               </Button>
@@ -1011,20 +1037,24 @@ export function PlanningVersionPanel({
                 <NativeSelect
                   aria-label={T.quarters}
                   value={lockPeriod}
+                  disabled={pending || !lockablePeriods.length}
                   onChange={(e) => setLockPeriod(e.target.value)}
                 >
-                  {state.current.content.periods
-                    .filter((p) => p.parent && p.end <= now.slice(0, 10))
-                    .map((p) => (
-                      <option key={p.key} value={p.key}>
-                        {p.key}
-                        {plan?.events.some(
-                          (e) => e.kind === "lock" && e.period === p.key,
-                        )
-                          ? ` · ${T.lockedPeriod}`
-                          : ""}
-                      </option>
-                    ))}
+                  {!lockablePeriods.length ? (
+                    <option value="">{T.noFinishedPeriods}</option>
+                  ) : null}
+                  {lockablePeriods.map((period) => (
+                    <option
+                      key={period.key}
+                      value={period.key}
+                      disabled={lockedPeriods.includes(period.key)}
+                    >
+                      {period.key}
+                      {lockedPeriods.includes(period.key)
+                        ? ` · ${T.lockedPeriod}`
+                        : ""}
+                    </option>
+                  ))}
                 </NativeSelect>
                 <Button
                   size="md"
@@ -1032,14 +1062,21 @@ export function PlanningVersionPanel({
                   disabled={
                     pending ||
                     !reason.trim() ||
+                    dirty ||
+                    !selectedLockPeriod ||
                     !!state.scheduled ||
                     plan?.events.some(
                       (e) => e.kind === "lock" && e.period === lockPeriod,
                     )
                   }
-                  onClick={() =>
-                    run({ kind: "lock", period: lockPeriod, reason })
+                  title={
+                    dirty
+                      ? T.saveFirst
+                      : !selectedLockPeriod
+                        ? T.noFinishedPeriods
+                        : undefined
                   }
+                  onClick={() => confirmVersion("lock")}
                 >
                   {T.lock}
                 </Button>
@@ -1047,107 +1084,149 @@ export function PlanningVersionPanel({
                   size="md"
                   variant="ghost"
                   disabled={pending || !reason.trim()}
-                  onClick={() => setConfirm("close")}
+                  onClick={() => confirmVersion("close")}
                 >
                   {T.close}
                 </Button>
               </div>
             ) : null}
           </div>
-        </Section>
-      ) : null}
-      {plan?.events.some((e) => e.kind !== "draft" && e.kind !== "save") ? (
-        <Section
-          icon="clock-counter-clockwise"
-          title={T.history}
-          description={T.baselineHint}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {[T.version, T.item, T.effectiveAt, T.owner, T.reason].map(
-                  (l) => (
-                    <TableHead key={l}>{l}</TableHead>
-                  ),
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...plan.events]
-                .filter((e) => e.kind !== "draft" && e.kind !== "save")
-                .reverse()
-                .map((e) => (
-                  <TableRow key={e.no}>
-                    <TableCell>
-                      {e.revisionId ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => choose(e.revisionId!)}
-                        >
-                          {plan.revisions.find((r) => r.id === e.revisionId)
-                            ?.version
-                            ? `V${plan.revisions.find((r) => r.id === e.revisionId)?.version}`
-                            : T.draft}
-                        </Button>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {
-                        {
-                          release: T.publish,
-                          cancel: T.canceled,
-                          draft: T.draft,
-                          save: T.save,
-                          discard: T.abandoned,
-                          lock: T.lockedPeriod,
-                          close: T.closed,
-                        }[e.kind]
-                      }
-                      {e.period ? ` · ${e.period}` : ""}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {new Date(e.effectiveAt).toLocaleString(locale, {
-                        timeZone: "UTC",
-                        hour12: false,
-                      })}{" "}
-                      UTC
-                    </TableCell>
-                    <TableCell>
-                      {sources.members.find((m) => m.sub === e.actor)?.name ??
-                        e.actor}
-                    </TableCell>
-                    <TableCell>{e.reason || "—"}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </Section>
+        </Drawer>
       ) : null}
       <Drawer
+        open={panel === "history"}
+        onClose={() => setPanel(null)}
+        width="lg"
+        title={T.history}
+        description={T.baselineHint}
+        closeLabel={T.cancel}
+      >
+        {error ? (
+          <p className="mb-md text-body-small text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {plan?.events.some((e) => e.kind !== "draft" && e.kind !== "save") ? (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {[T.version, T.item, T.effectiveAt, T.owner, T.reason].map(
+                    (l) => (
+                      <TableHead key={l}>{l}</TableHead>
+                    ),
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...(plan?.events ?? [])]
+                  .filter((e) => e.kind !== "draft" && e.kind !== "save")
+                  .reverse()
+                  .map((e) => (
+                    <TableRow key={e.no}>
+                      <TableCell>
+                        {e.revisionId &&
+                        plan.revisions.some(
+                          (r) => r.id === e.revisionId && r.state === "sealed",
+                        ) ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (choose(e.revisionId!)) setPanel(null);
+                            }}
+                          >
+                            {plan?.revisions.find((r) => r.id === e.revisionId)
+                              ?.version
+                              ? `V${plan?.revisions.find((r) => r.id === e.revisionId)?.version}`
+                              : T.draft}
+                          </Button>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {
+                          {
+                            release: T.publish,
+                            cancel: T.canceled,
+                            draft: T.draft,
+                            save: T.save,
+                            discard: T.abandoned,
+                            lock: T.lockedPeriod,
+                            close: T.closed,
+                          }[e.kind]
+                        }
+                        {e.period ? ` · ${e.period}` : ""}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {new Date(e.effectiveAt).toLocaleString(locale, {
+                          timeZone: "UTC",
+                          hour12: false,
+                        })}{" "}
+                        UTC
+                      </TableCell>
+                      <TableCell>
+                        {sources.members.find((m) => m.sub === e.actor)?.name ??
+                          e.actor}
+                      </TableCell>
+                      <TableCell>{e.reason || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </>
+        ) : (
+          <EmptyState title={T.empty} />
+        )}
+      </Drawer>
+      <Drawer
         open={!!confirm}
-        onClose={() => {
-          if (!pending) setConfirm(null);
-        }}
+        onClose={cancelConfirm}
         width="md"
         title={
           confirm === "release"
             ? T.publishConfirm
             : confirm === "discard"
               ? T.discardConfirm
-              : T.closeConfirm
+              : confirm === "cancel"
+                ? T.cancelSchedule
+                : confirm === "lock"
+                  ? T.lock
+                  : T.closeConfirm
         }
-        description={T.publishHint}
+        description={
+          confirm === "release"
+            ? T.publishHint
+            : confirm === "discard"
+              ? T.discardHint
+              : confirm === "cancel"
+                ? T.cancelScheduleHint
+                : confirm === "lock"
+                  ? T.lockHint
+                  : T.closeHint
+        }
         closeLabel={T.cancel}
       >
         <div className="flex flex-col gap-lg">
+          {error ? (
+            <p className="text-body-small text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
           <p className="text-body-small text-muted-foreground">
             {reason || T.baseline}
           </p>
+          {confirm === "lock" ? (
+            <p className="text-body-small">{lockPeriod}</p>
+          ) : null}
           {confirm === "release" ? (
             <>
+              <p className="text-body-small">
+                {when === "future"
+                  ? `${T.scheduled} · ${effective.replace("T", " ")}`
+                  : T.immediate}
+              </p>
               <p className="text-body-small">
                 {T.diff} · {diff.length} {T.changes}
               </p>
@@ -1160,6 +1239,7 @@ export function PlanningVersionPanel({
                   <label className="flex items-center gap-sm text-body-small">
                     <Checkbox
                       checked={adopt}
+                      disabled={pending}
                       onCheckedChange={(value) => setAdopt(value === true)}
                     />
                     {T.adopt} · {legacyIds.length}
@@ -1173,7 +1253,7 @@ export function PlanningVersionPanel({
               size="md"
               variant="secondary"
               disabled={pending}
-              onClick={() => setConfirm(null)}
+              onClick={cancelConfirm}
             >
               {T.cancel}
             </Button>
@@ -1187,7 +1267,18 @@ export function PlanningVersionPanel({
                   !adopt)
               }
               onClick={() => {
-                if (confirm === "release" && state.draft)
+                if (confirm === "release" && state.draft) {
+                  if (when === "future") {
+                    const code = planningReleaseTimeError(
+                      effective,
+                      year,
+                      Date.now(),
+                    );
+                    if (code) {
+                      setError(E[code]!);
+                      return;
+                    }
+                  }
                   run({
                     kind: "release",
                     revisionId: state.draft.id,
@@ -1205,16 +1296,19 @@ export function PlanningVersionPanel({
                         }
                       : {}),
                   });
-                else if (confirm === "discard" && state.draft)
+                } else if (confirm === "discard" && state.draft)
                   run({
                     kind: "discard",
                     revisionId: state.draft.id,
                     editToken: state.draft.editToken,
                   });
+                else if (confirm === "cancel") run({ kind: "cancel", reason });
+                else if (confirm === "lock" && selectedLockPeriod)
+                  run({ kind: "lock", period: lockPeriod, reason });
                 else if (confirm === "close") run({ kind: "close", reason });
               }}
             >
-              {T.confirm}
+              {confirmLabel}
             </Button>
           </div>
         </div>

@@ -4,7 +4,6 @@ import { COLLAPSED_PANEL_CLASS } from "../lib/collapsed-panel";
 
 import { useState, useTransition, useEffect } from "react";
 import {
-  ActionMenu,
   Button,
   Collapsible,
   CollapsibleContent,
@@ -20,6 +19,7 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { DialogForm } from "./dialog-form";
 import type { SignalRecord } from "../../domains/signal/store";
 import { SIGNAL_DISMISS_REASONS, type ExitReason } from "../../domains/shared/funnel-exit";

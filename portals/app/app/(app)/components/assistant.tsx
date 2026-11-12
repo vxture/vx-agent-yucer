@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import { ActionMenu, Button, Card, useToast } from "@vxture/design-ui";
+import { Button, Card, useToast } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 
