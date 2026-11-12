@@ -401,6 +401,14 @@ test("a segment can be created, and then read back", async () => {
   assert.deepEqual(rows.map((r) => r.segmentCode), ["ENTERPRISE"]);
 });
 
+test("size criteria survive the service boundary on create and edit", async () => {
+  const c = ctx("sales_leader", "business");
+  unwrap(await upsertSegment(c, { ...SEG, criteria: { industries: [], regions: [], sizes: [" large ", "large", ""] } }));
+  assert.deepEqual(unwrap(await listSegments(c))[0].criteria.sizes, ["large"]);
+  unwrap(await upsertSegment(c, { ...SEG, criteria: { industries: [], regions: [], sizes: ["small"] } }));
+  assert.deepEqual(unwrap(await listSegments(c))[0].criteria.sizes, ["small"]);
+});
+
 test("editing finds the row by its CODE and leaves the code alone", async () => {
   // The anchor accounts point at. A second upsert with the same code must edit
   // the row rather than add a second one, or every account carrying that string

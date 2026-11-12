@@ -57,7 +57,8 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -91,7 +92,8 @@ export async function createStrategyPlan(input: {
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -131,7 +133,8 @@ export async function savePlan(
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -175,7 +178,8 @@ export async function saveSegment(input: {
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -197,6 +201,7 @@ export async function changeSegmentStatus(
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/segment");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 
@@ -218,6 +223,7 @@ export async function moveSegmentRow(
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/segment");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 
@@ -258,5 +264,6 @@ export async function deleteSegment(
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/segment");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }

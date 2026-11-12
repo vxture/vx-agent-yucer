@@ -55,6 +55,7 @@ const NO_CRUMB: Record<string, string> = {
  */
 const CRUMB_VIA: Record<string, string> = {
   "account/[id]": "components/decision-chain-switch.tsx",
+  "strategy/[id]": "components/strategy-workspace.tsx",
 };
 
 function pages(dir: string, out: string[] = []): string[] {

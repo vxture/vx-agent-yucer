@@ -1,9 +1,10 @@
 import { ViewHeader } from "../../components/business-controls";
-import { ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
+import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
 import { getStrategyStore } from "../../../domains/shared/registry";
 import { listPlans } from "../../../domains/strategy/service";
@@ -19,8 +20,7 @@ import { createStrategyPlan, savePlan } from "../actions";
 // needs strategy.plan.update - so a member who may only edit reaches this page
 // with a number and is refused without one.
 //
-// An unknown number falls back to creation rather than showing an edit heading
-// over an empty form.
+// Unknown edit anchors return notFound; settled plans open their read view.
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ export default async function NewPlanPage({
 }: {
   readonly searchParams: Promise<{ no?: string }>;
 }) {
-  const { DOMAIN_LABEL, STRATEGY_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, STRATEGY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -43,10 +43,13 @@ export default async function NewPlanPage({
     entitlement: session.entitlement,
     store: getStrategyStore(),
   });
-  const rows = plans.ok ? plans.value : [];
+  if(!plans.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(plans.violations,LOAD_ERROR)}/>;
+  const rows = plans.value;
 
   const { no } = await searchParams;
   const found = no ? rows.find((p) => p.planNo === no) : undefined;
+  if(no && !found)notFound();
+  if(found && ["closed","archived"].includes(found.status))redirect(`/strategy/${found.id}`);
 
   // A settled plan is not editable - the service refuses it - so the form is
   // not offered for one either. Sending the reader back to the roster is the

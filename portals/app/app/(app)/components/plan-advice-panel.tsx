@@ -71,11 +71,11 @@ export function PlanAdvicePanel({
       : {}),
     link: {
       label: STRATEGY_TEXT.planAdviceOpen,
-      href: `/strategy/new?no=${encodeURIComponent(a.planNo)}`,
+      href: `/strategy/${encodeURIComponent(a.planId)}`,
     },
     more: [
       { id: "campaign", label: STRATEGY_TEXT.planAdviceOpenCampaigns, href: "/campaign" },
-      { id: "segment", label: STRATEGY_TEXT.planAdviceOpenSegments, href: "/segment" },
+      { id: "segment", label: STRATEGY_TEXT.planAdviceOpenSegments, href: "/strategy?view=markets" },
     ],
   }));
 

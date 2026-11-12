@@ -433,6 +433,9 @@ export function planSegment(
   const criteria: SegmentCriteria = {
     industries: [...new Set(input.criteria.industries.map((v) => v.trim()).filter(Boolean))],
     regions: [...new Set(input.criteria.regions.map((v) => v.trim()).filter(Boolean))],
+    ...(input.criteria.sizes === undefined ? {} : {
+      sizes: [...new Set(input.criteria.sizes.map((v) => v.trim()).filter(Boolean))],
+    }),
   };
 
   if (!segmentCode) {

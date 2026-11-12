@@ -41,6 +41,8 @@ type Saved = { ok: boolean; error?: string };
 
 export function SegmentForm({
   rows,
+  initialCode,
+  initialPlanId,
   plans,
   accountIndustries,
   accountRegions,
@@ -48,6 +50,8 @@ export function SegmentForm({
   onSave,
 }: {
   readonly rows: readonly SegmentFormRow[];
+  readonly initialCode?: string;
+  readonly initialPlanId?: string;
   readonly plans: readonly { readonly id: string; readonly name: string }[];
   /** What the customer base actually looks like - the criteria vocabulary. */
   readonly accountIndustries: readonly (string | null)[];
@@ -73,8 +77,14 @@ export function SegmentForm({
     regions: "",
     sizes: "",
   };
-  const [form, setForm] = useState(BLANK);
-  const submit = useFormSubmit("/segment");
+  const initial = rows.find(r => r.segmentCode === initialCode);
+  const values = (g: SegmentFormRow) => ({
+    segmentCode: g.segmentCode, name: g.name, planId: g.planId ?? "",
+    priority: String(g.priority), status: g.status,
+    industries: g.criteria.industries.join(", "), regions: g.criteria.regions.join(", "), sizes: (g.criteria.sizes ?? []).join(", "),
+  });
+  const [form, setForm] = useState(() => initial ? values(initial) : {...BLANK,planId:initialPlanId ?? ""});
+  const submit = useFormSubmit("/strategy?view=markets");
 
   const editing = form.segmentCode !== "" && rows.some((r) => r.segmentCode === form.segmentCode);
 
@@ -85,16 +95,7 @@ export function SegmentForm({
     if (code === "") return setForm(BLANK);
     const g = rows.find((r) => r.segmentCode === code);
     if (!g) return setForm(BLANK);
-    setForm({
-      segmentCode: g.segmentCode,
-      name: g.name,
-      planId: g.planId ?? "",
-      priority: String(g.priority),
-      status: g.status,
-      industries: g.criteria.industries.join(", "),
-      regions: g.criteria.regions.join(", "),
-      sizes: (g.criteria.sizes ?? []).join(", "),
-    });
+    setForm(values(g));
   }
 
   // The criteria vocabulary comes from the ACCOUNTS, not from other segments: a

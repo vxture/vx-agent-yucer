@@ -99,7 +99,7 @@ export function analyseSegments(input: SegmentAdviceInput): SegmentAdvice[] {
     // An empty definition matches nothing, so the two counts cannot be
     // compared - saying "nobody matches" would be blaming the data for a
     // definition that was never written.
-    if (s.criteria.industries.length === 0 && s.criteria.regions.length === 0) {
+    if (s.criteria.industries.length === 0 && s.criteria.regions.length === 0 && (s.criteria.sizes ?? []).length === 0) {
       out.push({ id: `criteria:${s.id}`, kind: "no_criteria", ...named });
     } else {
       if (gap.assignedNotMatching > 0) {

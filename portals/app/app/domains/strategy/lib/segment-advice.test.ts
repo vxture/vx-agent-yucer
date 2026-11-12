@@ -28,6 +28,10 @@ const run = (
 
 const kinds = (out: ReturnType<typeof analyseSegments>) => out.map((a) => a.kind);
 
+test("a size-only market is a defined market", () => {
+  assert.deepEqual(kinds(run([seg("SIZE", { criteria: { industries: [], regions: [], sizes: ["large"] } })])), []);
+});
+
 test("a code handed out against the definition is the loudest finding", () => {
   const out = run(
     [seg("A")],
