@@ -44,7 +44,9 @@ export function AttainmentControls({
   const teamScope = allowWorkspace
     ? "workspace"
     : territories.length
-      ? `territory:${territories[0].id}`
+      ? view === "progress"
+        ? "team"
+        : `territory:${territories[0].id}`
       : owners.length > 1
         ? `owner:${owners[0]}`
         : null;
@@ -83,7 +85,7 @@ export function AttainmentControls({
           </Link>
         </Button>
       </div>
-      {!personal ? (
+      {!personal && view !== "progress" ? (
         <div className="w-44 max-w-full">
           <NativeSelect
             className="h-control-xl"
@@ -127,8 +129,10 @@ export function AttainmentControls({
 
 export function AttainmentViewTabs({
   value,
+  reportingScope = "workspace",
 }: {
   readonly value: AttainmentView;
+  readonly reportingScope?: string;
 }) {
   const {
     ATTAINMENT_TEXT: { workspace: T },
@@ -143,6 +147,12 @@ export function AttainmentViewTabs({
       onValueChange={(view) => {
         const query = new URLSearchParams(params.toString());
         query.set("view", view);
+        if (
+          view !== "progress" &&
+          (query.get("scope") === "team" ||
+            (!query.has("scope") && reportingScope !== "workspace"))
+        )
+          query.set("scope", reportingScope);
         if (view !== "history") query.delete("snapshot");
         start(() =>
           router.push(`/attainment?${query.toString()}`, { scroll: false }),

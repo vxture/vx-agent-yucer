@@ -31,7 +31,11 @@ export function resolveAttainmentQuery(
       ? query.scope
       : access.kind === "workspace"
         ? "workspace"
-        : "personal";
+        : (!query.view || query.view === "progress") &&
+            access.kind !== "own" &&
+            access.territoryIds.length
+          ? "team"
+          : "personal";
   const personal = rawScope === "personal";
   const scope: ForecastScope = personal
     ? { scopeType: "owner", ownerSub: sub, territoryId: null }
@@ -43,18 +47,31 @@ export function resolveAttainmentQuery(
   const view = ATTAINMENT_VIEWS.includes(query.view as AttainmentView)
     ? (query.view as AttainmentView)
     : "progress";
+  const teamOverview =
+    view === "progress" && (rawScope === "team" || rawScope === "workspace");
+  // A restricted team overview is a collection of authorized regional rows,
+  // never a new reporting scope or permission to submit a company snapshot.
+  const visibleTeam =
+    access.kind !== "own" &&
+    (access.kind === "workspace" || access.territoryIds.length > 0);
   return {
     period,
     view,
+    teamOverview,
     scope,
     scopeKey: forecastScopeKey(scope),
-    selection: personal ? "personal" : forecastScopeKey(scope),
+    selection: personal
+      ? "personal"
+      : rawScope === "team" && teamOverview && access.kind !== "workspace"
+        ? "team"
+        : forecastScopeKey(scope),
     personal,
     snapshot: typeof query.snapshot === "string" ? query.snapshot : null,
     planRevision:
       typeof query.planRevision === "string" ? query.planRevision : null,
     invalid:
-      !canReadReportingScope(access, scope, sub) ||
+      (!(teamOverview && rawScope === "team" && visibleTeam) &&
+        !canReadReportingScope(access, scope, sub)) ||
       Array.isArray(query.scope) ||
       (typeof query.scope === "string" &&
         !personal &&

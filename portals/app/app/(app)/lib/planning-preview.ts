@@ -15,3 +15,23 @@ export function previewTargetDelta(
     throw error;
   }
 }
+
+/** Ratio to the formal target; an absent or zero denominator has no ratio. */
+export function planningTierPercent(
+  value: string | null | undefined,
+  target: string | null | undefined,
+  locale: string,
+): string | null {
+  if (
+    value == null ||
+    target == null ||
+    !Number.isFinite(Number(value)) ||
+    !Number.isFinite(Number(target)) ||
+    Number(target) <= 0
+  )
+    return null;
+  return (Number(value) / Number(target)).toLocaleString(locale, {
+    style: "percent",
+    maximumFractionDigits: 1,
+  });
+}

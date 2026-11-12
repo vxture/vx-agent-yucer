@@ -33,6 +33,7 @@ import {
   planningEntryLocked,
   removePlanningTarget,
 } from "../lib/planning-operations";
+import { planningTierPercent } from "../lib/planning-preview";
 import { minor, PlanError } from "../../domains/planning/plan-values";
 
 type Props = {
@@ -172,7 +173,7 @@ export function PlanTargetLedger({
               ? t.period
               : t.period.replace(String(content.year), "")
           }
-          description={`${labels[t.metric]} · ${t.currency ?? T.count}`}
+          description={t.metric === "revenue" ? undefined : labels[t.metric]}
           tooltip={`${t.period} · ${labels[t.metric]} · ${t.currency ?? T.count}`}
         />
       </TableCell>
@@ -295,6 +296,15 @@ export function PlanTargetLedger({
                 {tiers.map((tier) => (
                   <TableHead key={tier} className="text-right">
                     {T[tier]}
+                    {tier !== "target" && ledgerAnnual.length === 1 ? (
+                      <span className="ml-xs text-body-small font-normal text-muted-foreground">
+                        {planningTierPercent(
+                          ledgerAnnual[0][tier],
+                          ledgerAnnual[0].target,
+                          locale,
+                        )}
+                      </span>
+                    ) : null}
                   </TableHead>
                 ))}
                 <TableHead className="text-center last:pr-md">
@@ -303,7 +313,9 @@ export function PlanTargetLedger({
               </TableRow>
             </TableHeader>
           ) : null}
-          <TableBody>{ledgerAnnual.map((target, index) => row(target, index))}</TableBody>
+          <TableBody>
+            {ledgerAnnual.map((target, index) => row(target, index))}
+          </TableBody>
           <TableBody className="border-t border-dashed border-border">
             <TableRow
               className="cursor-pointer hover:bg-transparent"

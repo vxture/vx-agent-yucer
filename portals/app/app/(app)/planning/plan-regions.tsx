@@ -25,6 +25,7 @@ import { Tag } from "../components/tag";
 import { RowActions } from "../components/table-fittings";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type { PlanContent } from "../../domains/planning/plan-model";
+import { planningTierPercent } from "../lib/planning-preview";
 import { PlanTargetLedger } from "./plan-targets";
 
 export function PlanRegions({
@@ -114,7 +115,16 @@ export function PlanRegions({
       keys.includes(id) ? keys.filter((key) => key !== id) : [...keys, id],
     );
   const regionActions = (r: Region) => [
-    ...(onAttainment ? [{ id: "attainment", label: T.actual, icon: "chart-line" as const, onSelect: () => onAttainment(r.id) }] : []),
+    ...(onAttainment
+      ? [
+          {
+            id: "attainment",
+            label: T.actual,
+            icon: "chart-line" as const,
+            onSelect: () => onAttainment(r.id),
+          },
+        ]
+      : []),
     {
       id: "open",
       label: editing ? T.editRegion : T.regionDetail,
@@ -233,6 +243,15 @@ export function PlanRegions({
                         className="text-right tabular-nums font-semibold"
                       >
                         {format(r.target?.[tier])}
+                        {tier !== "target" ? (
+                          <span className="ml-xs text-body-small font-normal text-muted-foreground">
+                            {planningTierPercent(
+                              r.target?.[tier],
+                              r.target?.target,
+                              locale,
+                            )}
+                          </span>
+                        ) : null}
                       </TableCell>
                     ))}
                     <TableCell className="text-center">{status(r)}</TableCell>
@@ -261,7 +280,12 @@ export function PlanRegions({
                           <TableCell>
                             <TableTitleCell
                               title={t.period.replace(String(content.year), "")}
-                              description={`${metricLabels[t.metric]} · ${t.currency ?? T.count}`}
+                              description={
+                                t.metric === "revenue"
+                                  ? undefined
+                                  : metricLabels[t.metric]
+                              }
+                              tooltip={`${t.period} \u00b7 ${metricLabels[t.metric]} \u00b7 ${t.currency ?? T.count}`}
                             />
                           </TableCell>
                           {(["floor", "target", "stretch"] as const).map(

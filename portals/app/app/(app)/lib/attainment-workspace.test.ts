@@ -12,6 +12,7 @@ import {
   planSnapshot,
   type ForecastableOpportunity,
 } from "../../domains/pipeline/lib/forecast";
+import type { DataScope } from "../../authz/scope";
 import type { SalesTarget } from "../../domains/planning/lib/target";
 
 const workspace = {
@@ -217,4 +218,54 @@ test("undated deals are reported within the selected scope and mixed currencies 
     "CNY",
   );
   assert.equal(mixed?.totals.ok, false);
+});
+
+test("team progress opens all authorized regions without granting company or other scopes", () => {
+  const access: DataScope = {
+    kind: "territory",
+    territoryIds: ["east", "south"],
+    accountIds: [],
+    ownerSubs: [],
+    unplacedAccountIds: [],
+  };
+  for (const query of [{}, { scope: "team" }]) {
+    const result = resolveAttainmentQuery(query, "rep_a", access);
+    assert.equal(result.invalid, false);
+    assert.equal(result.teamOverview, true);
+    assert.equal(result.selection, "team");
+  }
+  for (const query of [
+    { scope: "workspace" },
+    { scope: "territory:west" },
+    { scope: "owner:rep_b" },
+    { scope: "team", view: "review" },
+    { scope: "team", view: "history" },
+  ])
+    assert.equal(resolveAttainmentQuery(query, "rep_a", access).invalid, true);
+  assert.equal(
+    resolveAttainmentQuery({ scope: "territory:east" }, "rep_a", access)
+      .invalid,
+    false,
+  );
+  assert.equal(
+    resolveAttainmentQuery({ view: "history" }, "rep_a", access).selection,
+    "personal",
+  );
+  assert.equal(
+    resolveAttainmentQuery({ scope: "team" }, "rep_a", {
+      kind: "own",
+      sub: "rep_a",
+      accountIds: [],
+    }).invalid,
+    true,
+  );
+  assert.equal(
+    resolveAttainmentQuery({}, "rep_a", {
+      kind: "own",
+      sub: "rep_a",
+      accountIds: [],
+    }).selection,
+    "personal",
+  );
+  assert.equal(resolveAttainmentQuery({}, "rep_a").teamOverview, true);
 });

@@ -120,7 +120,8 @@ export default async function AttainmentPage({
     forecastGate.allowed &&
     can(session.authz, session.entitlement, "pipeline.forecast.snapshot", "ui")
       .allowed &&
-    totals !== null;
+    totals !== null &&
+    canReadReportingScope(session.scope, selection.scope, session.user.sub);
   const submit =
     selection.period !== "all" && selection.view !== "history" && canSubmit ? (
       <SubmitForecast
@@ -161,7 +162,16 @@ export default async function AttainmentPage({
           </div>
         }
       />
-      <AttainmentViewTabs value={selection.view} />
+      <AttainmentViewTabs
+        value={selection.view}
+        reportingScope={
+          session.scope.kind === "workspace"
+            ? "workspace"
+            : territories.length
+              ? `territory:${territories[0].id}`
+              : "personal"
+        }
+      />
       {selection.view !== "history" &&
       (selection.period !== "all" || selection.view === "progress") ? (
         <AttainmentOverview selection={selection} />
@@ -171,7 +181,13 @@ export default async function AttainmentPage({
           <EmptyState title={T.choosePeriod} description={T.choosePeriodHint} />
         ) : null
       ) : selection.view === "progress" ? (
-        <AttainmentProgress selection={selection} />
+        canReadReportingScope(
+          session.scope,
+          selection.scope,
+          session.user.sub,
+        ) ? (
+          <AttainmentProgress selection={selection} />
+        ) : null
       ) : !forecastGate.allowed ? (
         (lockedPage(session, "forecastRule") ?? (
           <EmptyState title={T.unknownRead} />

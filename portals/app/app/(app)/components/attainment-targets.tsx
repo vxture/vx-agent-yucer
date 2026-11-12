@@ -146,6 +146,7 @@ type TargetProps = {
     plan: AttainmentPlan,
   ) => void;
   compact?: boolean;
+  initiallyOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
@@ -158,13 +159,14 @@ export function ExecutionTargetCard({
   canPlan,
   onPanel,
   compact = false,
+  initiallyOpen = false,
   open: controlledOpen,
   onOpenChange,
 }: TargetProps) {
   const { ATTAINMENT_PLAN_TEXT: T, PLAN_VERSION_TEXT: P } = useMessages();
   const locale = useLocale();
   const router = useRouter();
-  const [internalOpen, setInternalOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(initiallyOpen);
   const open = controlledOpen ?? internalOpen;
   const setOpen = (next: boolean) => {
     setInternalOpen(next);
@@ -424,6 +426,7 @@ export function AttainmentTargets({
   selectionScope,
   report,
   supportDeals = null,
+  expandPeriods = false,
 }: {
   row: ExecutionRow | null;
   periods: readonly ExecutionRow[];
@@ -436,6 +439,7 @@ export function AttainmentTargets({
   selectionScope: string;
   report?: ReactNode;
   supportDeals?: readonly SupportDeal[] | null;
+  expandPeriods?: boolean;
 }) {
   const {
     ATTAINMENT_PLAN_TEXT: T,
@@ -445,7 +449,17 @@ export function AttainmentTargets({
   const locale = useLocale();
   const wide = useMediaQuery("(min-width: 96rem)");
   const [view, setView] = useState<FilterBarView>("cards");
+  const [collapsed, setCollapsed] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<string[]>([]);
+  const isExpanded = (id: string) =>
+    expandPeriods ? !collapsed.includes(id) : expanded.includes(id);
+  const changeExpanded = (id: string, open: boolean) => {
+    const set = expandPeriods ? setCollapsed : setExpanded;
+    const present = expandPeriods ? !open : open;
+    set((keys) =>
+      present ? [...new Set([...keys, id])] : keys.filter((key) => key !== id),
+    );
+  };
   const [panel, setPanel] = useState<{
     kind: "source" | "support" | "risk";
     row: ExecutionRow;
@@ -463,10 +477,7 @@ export function AttainmentTargets({
     });
   const amount = (n: number | null, currency: string) =>
     n === null ? "-" : formatMoney(n, currency, locale);
-  const toggle = (id: string) =>
-    setExpanded((v) =>
-      v.includes(id) ? v.filter((x) => x !== id) : [...v, id],
-    );
+  const toggle = (id: string) => changeExpanded(id, !isExpanded(id));
   const menu = (r: ExecutionRow) => (
     <RowActions
       label={`${r.name} ${DS_LABELS.actionMenu}`}
@@ -484,7 +495,7 @@ export function AttainmentTargets({
         { id: "risk", label: T.risk, onSelect: () => onPanel("risk", r, plan) },
         {
           id: "periods",
-          label: expanded.includes(r.id) ? T.collapse : T.expand,
+          label: isExpanded(r.id) ? T.collapse : T.expand,
           onSelect: () => toggle(r.id),
         },
       ]}
@@ -493,7 +504,11 @@ export function AttainmentTargets({
   return (
     <>
       {allRows ? (
-        <Section icon="calendar" title={T.periods} description={T.allHint}>
+        <Section
+          icon="calendar"
+          title={`${allRows[0]?.name ?? T.periods} \u00b7 Y${plan.year}`}
+          description={T.allHint}
+        >
           <ExecutionTable
             rows={allRows}
             scope={selectionScope}
@@ -502,12 +517,14 @@ export function AttainmentTargets({
         </Section>
       ) : row ? (
         <ExecutionTargetCard
+          key={`${row.id}|${expandPeriods}`}
           row={row}
           selectionScope={selectionScope}
           periods={periods}
           plan={plan}
           canPlan={canPlan}
           onPanel={onPanel}
+          initiallyOpen={expandPeriods}
         />
       ) : null}
       {report}
@@ -525,14 +542,8 @@ export function AttainmentTargets({
                   plan={plan}
                   canPlan={canPlan}
                   onPanel={onPanel}
-                  open={expanded.includes(r.id)}
-                  onOpenChange={(open) =>
-                    setExpanded((v) =>
-                      open
-                        ? [...new Set([...v, r.id])]
-                        : v.filter((id) => id !== r.id),
-                    )
-                  }
+                  open={isExpanded(r.id)}
+                  onOpenChange={(open) => changeExpanded(r.id, open)}
                 />
               ))}
             </Grid>
@@ -572,9 +583,9 @@ export function AttainmentTargets({
               {regions.map((r, i) => (
                 <TableBody key={r.id}>
                   <TableRow
-                    className={`${expanded.includes(r.id) ? "bg-accent" : ""} cursor-pointer hover:bg-transparent`}
+                    className={`${isExpanded(r.id) ? "bg-accent" : ""} cursor-pointer hover:bg-transparent`}
                     tabIndex={0}
-                    aria-expanded={expanded.includes(r.id)}
+                    aria-expanded={isExpanded(r.id)}
                     onClick={(e) => {
                       if (
                         !(e.target as HTMLElement).closest("button,a") &&
@@ -627,7 +638,7 @@ export function AttainmentTargets({
                     </TableCell>
                     <TableCell className="text-center">{menu(r)}</TableCell>
                   </TableRow>
-                  {expanded.includes(r.id) ? (
+                  {isExpanded(r.id) ? (
                     <TableRow className="hover:bg-transparent">
                       <TableCell colSpan={8} className="px-lg py-md">
                         {regionPeriods[r.scope]?.length ? (

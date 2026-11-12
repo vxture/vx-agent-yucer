@@ -85,30 +85,104 @@ export async function AttainmentOverview({
       : selection.scope.scopeType === "owner"
         ? T.personal
         : regionName(selection.scope.territoryId);
-  if (period === "all")
-    return (
-      <AttainmentTargets
-        row={null}
-        periods={[]}
-        regions={[]}
-        regionPeriods={{}}
-        plan={scopePlanSupport(plan, scopeKey, false)}
-        plans={plans.map((p) => scopePlanSupport(p, scopeKey, false))}
-        canPlan={canPlan}
-        selectionScope={selection.selection}
-        allRows={plans.flatMap((p) =>
-          [
-            ...new Set(
-              p.targets
-                .filter((t) => t.scope === scopeKey)
-                .map((t) => t.period),
-            ),
-          ]
-            .sort(compareAttainmentPeriods)
-            .map((period) => makeRow(p, scopeKey, period, scopeName)),
-        )}
-      />
+  const canReadSelection = canReadReportingScope(
+    data.session.scope,
+    selection.scope,
+    data.session.user.sub,
+  );
+  const visibleRegionIds = (p: typeof plan, rowPeriod: string) => {
+    const geographicIds = new Set([
+      ...p.regions.map((r) => r.id),
+      ...(data.territories.ok ? data.territories.value.map((r) => r.id) : []),
+    ]);
+    const range = rowPeriod === "all" ? null : periodRange(rowPeriod);
+    return [
+      ...new Set([
+        ...p.regions.filter((r) => r.included).map((r) => r.id),
+        ...p.targets
+          .filter(
+            (t) =>
+              t.scope.startsWith("territory:") &&
+              (rowPeriod === "all" || t.period === rowPeriod) &&
+              geographicIds.has(t.scope.slice(10)),
+          )
+          .map((t) => t.scope.slice(10)),
+        ...(data.deals.ok
+          ? data.deals.value.flatMap((d) =>
+              d.territoryId &&
+              geographicIds.has(d.territoryId) &&
+              d.status === "won" &&
+              (range
+                ? within(range, d.closedAt)
+                : d.closedAt?.getUTCFullYear() === p.year)
+                ? [d.territoryId]
+                : [],
+            )
+          : []),
+      ]),
+    ].filter((id) =>
+      canReadReportingScope(
+        data.session.scope,
+        { scopeType: "territory", territoryId: id, ownerSub: null },
+        data.session.user.sub,
+      ),
     );
+  };
+  if (period === "all") {
+    return (
+      <>
+        {plans.map((p) => {
+          const nameOfRegion = (id: string) =>
+            p.regions.find((r) => r.id === id)?.name ?? regionName(id);
+          const regionRows = selection.teamOverview
+            ? visibleRegionIds(p, "all").map((id) =>
+                makeRow(p, `territory:${id}`, `Y${p.year}`, nameOfRegion(id)),
+              )
+            : [];
+          const allRows = canReadSelection
+            ? [
+                ...new Set(
+                  p.targets
+                    .filter((t) => t.scope === scopeKey)
+                    .map((t) => t.period),
+                ),
+              ]
+                .sort(compareAttainmentPeriods)
+                .map((period) => makeRow(p, scopeKey, period, scopeName))
+            : [];
+          return (
+            <AttainmentTargets
+              key={p.year}
+              row={null}
+              periods={[]}
+              regions={regionRows}
+              regionPeriods={Object.fromEntries(
+                regionRows.map((r) => [
+                  r.scope,
+                  [
+                    ...new Set(
+                      p.targets
+                        .filter(
+                          (t) => t.scope === r.scope && t.period !== r.period,
+                        )
+                        .map((t) => t.period),
+                    ),
+                  ]
+                    .sort(compareAttainmentPeriods)
+                    .map((period) => makeRow(p, r.scope, period, r.name)),
+                ]),
+              )}
+              plan={scopePlanSupport(p, scopeKey)}
+              canPlan={canPlan}
+              selectionScope={selection.selection}
+              allRows={allRows.length ? allRows : undefined}
+              expandPeriods={selection.teamOverview}
+            />
+          );
+        })}
+      </>
+    );
+  }
   const row = makeRow(plan, scopeKey, period, scopeName);
   const periods = /^Y\d{4}$/.test(period)
     ? [
@@ -121,47 +195,13 @@ export async function AttainmentOverview({
         .sort(compareAttainmentPeriods)
         .map((period) => makeRow(plan, scopeKey, period, scopeName))
     : [];
-  const geographicIds = new Set([
-    ...plan.regions.map((r) => r.id),
-    ...(data.territories.ok ? data.territories.value.map((r) => r.id) : []),
-  ]);
-  const range = periodRange(period);
   const regionIds =
     selection.scope.scopeType === "workspace"
-      ? [
-          ...new Set([
-            ...plan.regions.filter((r) => r.included).map((r) => r.id),
-            ...plan.targets
-              .filter(
-                (t) =>
-                  t.scope.startsWith("territory:") &&
-                  t.period === period &&
-                  geographicIds.has(t.scope.slice(10)),
-              )
-              .map((t) => t.scope.slice(10)),
-            ...(data.deals.ok
-              ? data.deals.value.flatMap((d) =>
-                  d.territoryId &&
-                  geographicIds.has(d.territoryId) &&
-                  d.status === "won" &&
-                  range &&
-                  within(range, d.closedAt)
-                    ? [d.territoryId]
-                    : [],
-                )
-              : []),
-          ]),
-        ]
+      ? visibleRegionIds(plan, period)
       : [];
-  const regions = regionIds
-    .filter((id) =>
-      canReadReportingScope(
-        data.session.scope,
-        { scopeType: "territory", territoryId: id, ownerSub: null },
-        data.session.user.sub,
-      ),
-    )
-    .map((id) => makeRow(plan, `territory:${id}`, period, regionName(id)));
+  const regions = regionIds.map((id) =>
+    makeRow(plan, `territory:${id}`, period, regionName(id)),
+  );
   const regionPeriods = Object.fromEntries(
     regions.map((r) => [
       r.scope,
@@ -178,9 +218,11 @@ export async function AttainmentOverview({
         : [],
     ]),
   );
-  const report = await loadAttainmentReport(period, scopeKey);
+  const report = canReadSelection
+    ? await loadAttainmentReport(period, scopeKey)
+    : null;
   const unallocated =
-    scopeKey === "workspace" && data.deals.ok
+    canReadSelection && scopeKey === "workspace" && data.deals.ok
       ? revenuePool(
           data.deals.value.filter(
             (d) => !d.territoryId || !regionIds.includes(d.territoryId),
@@ -228,7 +270,10 @@ export async function AttainmentOverview({
           ) : null}
         </p>
       ) : null}
-      {!row.target && canPlan && selection.scope.scopeType !== "owner" ? (
+      {canReadSelection &&
+      !row.target &&
+      canPlan &&
+      selection.scope.scopeType !== "owner" ? (
         <div className="flex items-center justify-between gap-md">
           <span className="text-body-small text-muted-foreground">
             {plan.scheduled
@@ -250,7 +295,8 @@ export async function AttainmentOverview({
         </div>
       ) : null}
       <AttainmentTargets
-        row={row}
+        row={canReadSelection ? row : null}
+        expandPeriods={selection.teamOverview}
         periods={periods}
         regions={regions}
         regionPeriods={regionPeriods}
@@ -291,15 +337,17 @@ export async function AttainmentOverview({
             : null
         }
         report={
-          <AttainmentReport
-            snapshot={report?.ok ? report.value : null}
-            error={!!report && !report.ok}
-            period={period}
-            scope={selection.selection}
-            currentRevision={row.target?.revision?.id ?? null}
-            canHistory={canHistory}
-            canPlan={canPlan}
-          />
+          canReadSelection ? (
+            <AttainmentReport
+              snapshot={report?.ok ? report.value : null}
+              error={!!report && !report.ok}
+              period={period}
+              scope={selection.selection}
+              currentRevision={row.target?.revision?.id ?? null}
+              canHistory={canHistory}
+              canPlan={canPlan}
+            />
+          ) : undefined
         }
       />
       {unallocatedClosed !== null && unallocatedClosed > 0 ? (
