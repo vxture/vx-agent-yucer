@@ -746,6 +746,7 @@ export class PrismaPipelineStore implements PipelineStore {
     await p.$transaction(async (tx) => {
     const snapshot = await tx.forecastSnapshot.create({
       data: {
+        ...(row.id ? { id: row.id } : {}),
         workspaceId,
         period: row.period,
         scopeType: row.scopeType,
@@ -1334,7 +1335,7 @@ export class PrismaPipelineStore implements PipelineStore {
   ): Promise<SnapshotRow[]> {
     const p = await getPrismaClient();
     const rows = await p.forecastSnapshot.findMany({
-      where: { workspaceId, period: query.period, ...(query.scopeType ? { scopeType: query.scopeType } : {}) },
+      where: { workspaceId, period: /^Y?\d{4}$/.test(query.period) ? { in: [query.period.replace(/^Y/, ""), `Y${query.period.replace(/^Y/, "")}`] } : query.period, ...(query.scopeType ? { scopeType: query.scopeType } : {}) },
       orderBy: { snapshotAt: "asc" },
     });
     const bases = await p.forecastTargetBasis.findMany({ where: { workspaceId, forecastSnapshotId: { in: rows.map((r) => r.id) } } });
@@ -1360,6 +1361,7 @@ function decimalSnapshot(r: Record<string, unknown>): SnapshotRow {
   const currency = String(r.currency);
   const num = (v: unknown): Money => money(Number(String(v)), currency);
   return {
+    id: String(r.id),
     period: String(r.period),
     scopeType: r.scopeType as ScopeType,
     territoryId: (r.territoryId as string | null) ?? null,

@@ -1019,7 +1019,8 @@ export class InMemoryPipelineStore implements PipelineStore {
   }
 
   async appendForecastSnapshot(workspaceId: string, row: SnapshotRow): Promise<void> {
-    this.snapshots.push({ ...row, workspaceId });
+    if (row.id && this.snapshots.some((s) => s.id === row.id)) throw new Error("duplicate_snapshot");
+    this.snapshots.push({ ...structuredClone(row), workspaceId });
   }
 
   async listWinLossReasons(workspaceId: string): Promise<WinLossReasonRecord[]> {
@@ -1332,7 +1333,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       .filter(
         (s) =>
           s.workspaceId === workspaceId &&
-          s.period === query.period &&
+          s.period.replace(/^Y(?=\d{4}$)/, "") === query.period.replace(/^Y(?=\d{4}$)/, "") &&
           (!query.scopeType || s.scopeType === query.scopeType),
       )
       .sort((a, b) => a.snapshotAt.getTime() - b.snapshotAt.getTime());

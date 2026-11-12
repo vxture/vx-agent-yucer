@@ -175,7 +175,10 @@ export function PlanAssumptions({
               </Field>
             ))}
         </FieldGroup>
-        <FieldGroup columns={2}>
+        <FieldGroup
+          columns={2}
+          className="border-t border-dashed border-border pt-lg"
+        >
           {(["allocationNote", "capacityNote"] as const).map((field) => (
             <Field key={field}>
               <FieldLabel htmlFor={`plan-${field}`}>{T[field]}</FieldLabel>

@@ -1,5 +1,6 @@
 "use client";
-import { Input, MetricListCard } from "@vxture/design-ui";
+import { Icon, Input, MetricListCard } from "@vxture/design-ui";
+import { planningTierPercent } from "../lib/planning-preview";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type {
   PlanContent,
@@ -41,51 +42,89 @@ export function CompanyTargetSummary({
           <MetricListCard
             key={tier}
             title={
-              <span className="flex items-center justify-between gap-sm">
-                <span>{T[tier]}</span>
-                <span className="text-body-small font-normal text-muted-foreground">
-                  {target?.currency ?? currency}
+              <span className="flex items-center gap-md">
+                <Icon
+                  name={
+                    tier === "floor"
+                      ? "shield-check"
+                      : tier === "target"
+                        ? "flag"
+                        : "trend-up"
+                  }
+                  size="xl"
+                  className="shrink-0 text-muted-foreground"
+                />
+                <span className="flex min-w-0 flex-1 flex-col gap-sm">
+                  <span className="flex items-baseline justify-between gap-sm">
+                    <span className="whitespace-nowrap">
+                      {T[tier]}
+                      {tier !== "target" ? (
+                        <span className="ml-xs text-body-small font-normal text-muted-foreground">
+                          {planningTierPercent(
+                            target?.[tier],
+                            target?.target,
+                            locale,
+                          )}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-body-small font-normal text-muted-foreground">
+                      {target?.currency ?? currency}
+                    </span>
+                  </span>
+                  {edit && target ? (
+                    <Input
+                      aria-label={`${target.period} ${P.metricRevenue} ${T[tier]}`}
+                      inputMode="decimal"
+                      value={target[tier] ?? ""}
+                      placeholder={"\u2014"}
+                      disabled={disabled}
+                      onChange={(event) =>
+                        edit({
+                          ...content,
+                          targets: content.targets.map((t) =>
+                            t.key === target.key
+                              ? {
+                                  ...t,
+                                  [tier]: event.target.value.trim() || null,
+                                }
+                              : t,
+                          ),
+                        })
+                      }
+                    />
+                  ) : (
+                    <span
+                      className={`text-heading-2 tabular-nums ${tier === "target" ? "text-primary" : "text-foreground"}`}
+                    >
+                      {format(target?.[tier])}
+                    </span>
+                  )}
                 </span>
               </span>
-            }
-            note={
-              edit && target ? (
-                <Input
-                  aria-label={`${target.period} ${P.metricRevenue} ${T[tier]}`}
-                  inputMode="decimal"
-                  value={target[tier] ?? ""}
-                  placeholder="—"
-                  disabled={disabled}
-                  onChange={(event) =>
-                    edit({
-                      ...content,
-                      targets: content.targets.map((t) =>
-                        t.key === target.key
-                          ? { ...t, [tier]: event.target.value.trim() || null }
-                          : t,
-                      ),
-                    })
-                  }
-                />
-              ) : (
-                <span
-                  className={`text-heading-2 tabular-nums ${tier === "target" ? "text-primary" : "text-foreground"}`}
-                >
-                  {format(target?.[tier])}
-                </span>
-              )
             }
           />
         ))}
         <MetricListCard
-          title={T.personnel}
-          note={
-            <span className="flex items-baseline gap-sm whitespace-nowrap">
-              <span className="text-heading-2 tabular-nums text-foreground">
-                {members}
-              </span>
-              <span>
-                {T.personUnit} · {T.staffingGap} {format(requested)} FTE
+          title={
+            <span className="flex items-center gap-md">
+              <Icon
+                name="users"
+                size="xl"
+                className="shrink-0 text-muted-foreground"
+              />
+              <span className="flex min-w-0 flex-col gap-sm">
+                <span>{T.personnel}</span>
+                <span className="flex items-baseline gap-xs whitespace-nowrap">
+                  <span className="text-heading-2 tabular-nums text-foreground">
+                    {members}
+                  </span>
+                  <span className="text-body-small font-normal text-muted-foreground">
+                    {T.personUnit}
+                    {" \u00b7 "}
+                    {T.staffingGap} {format(requested)} FTE
+                  </span>
+                </span>
               </span>
             </span>
           }

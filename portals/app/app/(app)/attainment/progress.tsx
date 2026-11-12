@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { Button, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  EmptyState,
+  Icon,
+  Section,
+  StatusBadge,
+} from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { resolveLocale } from "../lib/i18n/locale";
 import { formatMoney } from "../lib/view-model";
@@ -7,7 +16,6 @@ import { loadFailureText } from "../lib/load-failure";
 import {
   attainmentHref,
   revenuePool,
-  revenueTarget,
   type resolveAttainmentQuery,
 } from "../lib/attainment-workspace";
 import {
@@ -16,7 +24,11 @@ import {
 } from "../../domains/planning/lib/coverage";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { AttainmentDealTable } from "../components/attainment-tables";
-import { loadAttainmentBase, loadAttainmentComposition } from "./board";
+import {
+  loadAttainmentBase,
+  loadAttainmentComposition,
+  loadAttainmentPlan,
+} from "./board";
 
 export async function AttainmentProgress({
   selection,
@@ -30,6 +42,7 @@ export async function AttainmentProgress({
     ATTAINMENT_TEXT,
     SHELL_TEXT,
     LOAD_ERROR,
+    ATTAINMENT_PLAN_TEXT: PT,
   } = await getMessages();
   const locale = await resolveLocale();
   if (!data.deals.ok || !data.policy.ok)
@@ -56,12 +69,18 @@ export async function AttainmentProgress({
   const totals = slice.totals.ok ? slice.totals.value : null;
   const currency = data.policy.value.defaultCurrency;
   const money = (n: number) => formatMoney(n, currency, locale);
-  const target = data.targets.ok
-    ? revenueTarget(data.targets.value, selection.period, selection.scope)
+  const plan = await loadAttainmentPlan(
+    Number(selection.period.replace(/^Y/, "").slice(0, 4)),
+  );
+  const target = plan?.ok
+    ? plan.value.targets.find(
+        (t) =>
+          t.scope === selection.scopeKey &&
+          t.period === selection.period &&
+          t.currency === currency,
+      )
     : null;
-  const sameCurrency =
-    target?.targetValue.unit === "money" &&
-    target.targetValue.currency === currency;
+  const sameCurrency = target?.currency === currency;
   const openAmount = totals
     ? totals.commitAmount.amount +
       totals.bestCaseAmount.amount +
@@ -71,7 +90,7 @@ export async function AttainmentProgress({
     target && sameCurrency && totals && openAmount !== null
       ? coverage(
           openAmount,
-          target.targetValue.amount,
+          target.target,
           totals.closedAmount.amount,
           resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
         )
@@ -112,15 +131,15 @@ export async function AttainmentProgress({
       currency: d.currency,
       category: d.forecastCategory,
       expectedCloseAt: d.expectedCloseAt?.toISOString().slice(0, 10) ?? null,
+      ownerSub: d.ownerSub,
     }));
   return (
     <>
       <Section icon="chart-bar" title={T.liveTitle} description={T.liveHint}>
         {totals ? (
-          <div className="grid grid-cols-2 gap-x-xl gap-y-md lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-x-xl gap-y-md sm:grid-cols-3">
             {[
-              { label: T.liveClosed, value: totals.closedAmount.amount },
-              { label: T.commit, value: totals.commitAmount.amount },
+              { label: PT.commit, value: totals.commitAmount.amount },
               { label: T.bestCase, value: totals.bestCaseAmount.amount },
               { label: T.pipeline, value: totals.pipelineAmount.amount },
             ].map((m) => (
@@ -143,10 +162,6 @@ export async function AttainmentProgress({
         {totals ? (
           cover ? (
             <div className="flex flex-wrap items-baseline gap-x-lg gap-y-xs text-body-small">
-              <span>
-                {T.liveGap}{" "}
-                <strong className="tabular-nums">{money(cover.gap)}</strong>
-              </span>
               <span>
                 {T.openPool}{" "}
                 <strong className="tabular-nums">
@@ -202,50 +217,60 @@ export async function AttainmentProgress({
       <Section icon="folder" title={T.dealsTitle} description={T.dealsHint}>
         <AttainmentDealTable rows={rows} />
       </Section>
-      <Section
-        icon="package"
-        title={T.composition}
-        description={T.compositionHint}
-      >
-        {composition && !composition.lines.ok ? (
-          <EmptyState
-            title={SHELL_TEXT.loadFailed}
-            description={loadFailureText(
-              composition.lines.violations,
-              LOAD_ERROR,
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="xl">
+            <Icon name="package" size="sm" />
+            {T.composition}
+            <Icon name="chevron-down" size="sm" />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="flex flex-col gap-md pt-md">
+            <p className="text-body-small text-muted-foreground">
+              {T.compositionHint}
+            </p>
+            {composition && !composition.lines.ok ? (
+              <EmptyState
+                title={SHELL_TEXT.loadFailed}
+                description={loadFailureText(
+                  composition.lines.violations,
+                  LOAD_ERROR,
+                )}
+              />
+            ) : composition && !composition.products.ok ? (
+              <EmptyState
+                title={SHELL_TEXT.loadFailed}
+                description={loadFailureText(
+                  composition.products.violations,
+                  LOAD_ERROR,
+                )}
+              />
+            ) : lineCurrencies.size > 1 ||
+              (lineCurrencies.size === 1 && !lineCurrencies.has(currency)) ? (
+              <p className="text-body-small text-muted-foreground">
+                {T.currencyMismatch}
+              </p>
+            ) : split.length === 0 ? (
+              <p className="text-body-small text-muted-foreground">
+                {ATTAINMENT_TEXT.noComposition}
+              </p>
+            ) : (
+              <dl className="flex flex-col gap-sm">
+                {split.map(([id, value]) => (
+                  <div
+                    key={id}
+                    className="flex items-baseline justify-between gap-md border-b border-dashed border-border pb-xs text-body-small"
+                  >
+                    <dt>{products.find((p) => p.id === id)?.name ?? id}</dt>
+                    <dd className="tabular-nums">{money(value.amount)}</dd>
+                  </div>
+                ))}
+              </dl>
             )}
-          />
-        ) : composition && !composition.products.ok ? (
-          <EmptyState
-            title={SHELL_TEXT.loadFailed}
-            description={loadFailureText(
-              composition.products.violations,
-              LOAD_ERROR,
-            )}
-          />
-        ) : lineCurrencies.size > 1 ||
-          (lineCurrencies.size === 1 && !lineCurrencies.has(currency)) ? (
-          <p className="text-body-small text-muted-foreground">
-            {T.currencyMismatch}
-          </p>
-        ) : split.length === 0 ? (
-          <p className="text-body-small text-muted-foreground">
-            {ATTAINMENT_TEXT.noComposition}
-          </p>
-        ) : (
-          <dl className="flex flex-col gap-sm">
-            {split.map(([id, value]) => (
-              <div
-                key={id}
-                className="flex items-baseline justify-between gap-md border-b border-dashed border-border pb-xs text-body-small"
-              >
-                <dt>{products.find((p) => p.id === id)?.name ?? id}</dt>
-                <dd className="tabular-nums">{money(value.amount)}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </Section>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </>
   );
 }

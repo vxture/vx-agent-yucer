@@ -9,6 +9,7 @@
 // reach the pg driver, which cannot be bundled for the browser.
 
 import { withSalesPlanTargets } from "../planning/effective-targets";
+import { seedPlanningDemo } from "./demo-planning";
 import { InMemorySalesPlanStore, type SalesPlanStore } from "../planning/plan-store";
 import { PrismaSalesPlanStore } from "../planning/plan-prisma-store";
 import { prismaEnabled } from "../../lib/db";
@@ -324,4 +325,35 @@ export function getSalesPlanStore(): SalesPlanStore {
   const memo = memoTable();
   if (!memo.salesPlan) memo.salesPlan = prismaEnabled() ? new PrismaSalesPlanStore() : new InMemorySalesPlanStore();
   return memo.salesPlan as SalesPlanStore;
+}
+
+/** Await after geographic mirrors exist; shared across concurrent first renders. */
+export async function ensurePlanningDemoData(
+  workspaceId: string,
+  reviewer: { sub: string; name: string },
+): Promise<void> {
+  if (!demoDataEnabled()) return;
+  const memo = memoTable();
+  const runs = (memo.planningDemo ??= new Map<string, Promise<void>>()) as Map<
+    string, Promise<void>
+  >;
+  const key = workspaceId + "|" + new Date().getUTCFullYear();
+  if (!runs.has(key)) {
+    const stores = {
+      plans: getSalesPlanStore(),
+      planning: getPlanningStore(),
+      account: getAccountStore(),
+      pipeline: getPipelineStore(),
+      catalog: getCatalogStore(),
+      field: getFieldStore(),
+    };
+    if (!Object.values(stores).every((s) => s.constructor.name.startsWith("InMemory")))
+      return;
+    const run = seedPlanningDemo(
+      workspaceId, stores as Parameters<typeof seedPlanningDemo>[1], reviewer,
+    );
+    runs.set(key, run);
+    run.catch(() => runs.delete(key));
+  }
+  await runs.get(key);
 }

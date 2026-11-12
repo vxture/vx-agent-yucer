@@ -200,7 +200,7 @@ const PORTS: Array<{
     name: "PipelineStore",
     file: "../domains/pipeline/store.ts",
     wrap: scopePipelineStore as never,
-    scopedReads: { listOpportunities: [], getOpportunity: null },
+    scopedReads: { listOpportunities: [], getOpportunity: null, listForecastSnapshots: [] },
   },
   {
     name: "AccountStore",
@@ -234,7 +234,7 @@ for (const port of PORTS) {
       >;
       assert.equal(typeof wrapped[m], "function", `${port.name}.${m} is missing from the wrapper`);
 
-      const args = [WS, { marker: m }] as const;
+      const args: readonly [string, object] = [WS, m === "appendForecastSnapshot" ? { marker: m, scopeType: "owner", ownerSub: MINE.sub, territoryId: null } : { marker: m }];
       const returned = await wrapped[m](...args);
 
       assert.deepEqual(

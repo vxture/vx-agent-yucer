@@ -21,19 +21,32 @@ import { ForecastUnverified } from "../components/forecast-unverified";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
 import { ForecastChange } from "../components/forecast-change";
 import { forecastStats } from "../../domains/pipeline/lib/forecast-stats";
+import { forecastSnapshotPoint } from "../../domains/pipeline/lib/forecast";
 import { applySuggestedCategory } from "../forecast/actions";
 import { loadForecastWorkspace } from "./board";
+import { ForecastSnapshotBasis } from "../components/forecast-snapshot-basis";
+import { snapshotKey } from "../lib/attainment-progress";
+import { attainmentHref } from "../lib/attainment-workspace";
+import Link from "next/link";
 
 export async function AttainmentForecastView({
   period,
   scopeKey,
   view,
   canApply,
+  snapshot,
+  selectionScope,
+  canPlan,
+  canViewTarget,
 }: {
   readonly period: string;
   readonly scopeKey: string;
   readonly view: "review" | "history";
   readonly canApply: boolean;
+  readonly snapshot?: string | null;
+  readonly selectionScope: string;
+  readonly canPlan: boolean;
+  readonly canViewTarget: boolean;
 }) {
   const board = await loadForecastWorkspace(period, scopeKey);
   if (!board) return null;
@@ -43,6 +56,7 @@ export async function AttainmentForecastView({
     LOAD_ERROR,
     PIPELINE_TEXT,
     PLAN_VERSION_TEXT: VT,
+    ATTAINMENT_PLAN_TEXT: PT,
   } = await getMessages();
   const locale = await resolveLocale();
   if (!board.ok)
@@ -104,8 +118,19 @@ export async function AttainmentForecastView({
       </>
     );
   }
+  const selected = snapshot
+    ? board.points.find((p) => snapshotKey(p) === snapshot)
+    : board.points.at(-1);
+  if (snapshot && !selected) return <EmptyState title={PT.historyMissing} />;
   return (
     <>
+      <ForecastSnapshotBasis
+        snapshot={
+          selected ? forecastSnapshotPoint(selected, canViewTarget) : null
+        }
+        period={period}
+        canPlan={canPlan}
+      />
       <p className="text-body-small text-muted-foreground">{T.historyHint}</p>
       {!board.history.ok ? (
         <EmptyState
@@ -115,7 +140,7 @@ export async function AttainmentForecastView({
       ) : board.score.ok ? (
         <ForecastTrajectory
           points={board.points.map((p) => ({
-            snapshotKey: p.snapshotAt.toISOString(),
+            snapshotKey: snapshotKey(p),
             at: p.snapshotAt.toISOString().slice(0, 10),
             commit: p.commitAmount.amount,
             bestCase: p.bestCaseAmount.amount,
@@ -186,10 +211,27 @@ export async function AttainmentForecastView({
             </TableHeader>
             <TableBody>
               {[...board.points].reverse().map((p) => (
-                <TableRow key={p.snapshotAt.toISOString()}>
+                <TableRow
+                  key={snapshotKey(p)}
+                  className={
+                    selected && snapshotKey(selected) === snapshotKey(p)
+                      ? "bg-accent"
+                      : undefined
+                  }
+                >
                   <TableCell className="whitespace-nowrap tabular-nums">
-                    {p.snapshotAt.toLocaleString(locale, { timeZone: "UTC" })}{" "}
-                    UTC
+                    <Link
+                      className="no-underline transition-colors hover:text-primary-text"
+                      href={attainmentHref({
+                        period,
+                        scope: selectionScope,
+                        view: "history",
+                        snapshot: snapshotKey(p),
+                      })}
+                    >
+                      {p.snapshotAt.toLocaleString(locale, { timeZone: "UTC" })}{" "}
+                      UTC
+                    </Link>
                   </TableCell>
                   {[
                     p.commitAmount,
@@ -216,11 +258,42 @@ export async function AttainmentForecastView({
                   <TableCell>{p.callNote ?? "-"}</TableCell>
                   <TableCell className="text-body-small">
                     {(() => {
-                      const b = p.targetBasis?.find((b) => b.metric === "revenue");
-                      if (!b) return <span className="text-muted-foreground">{VT.legacyBasis}</span>;
-                      if (b.sourceKind === "none" || b.target === null) return <span className="text-muted-foreground">{VT.noneBasis}</span>;
+                      const b = p.targetBasis?.find(
+                        (b) => b.metric === "revenue",
+                      );
+                      if (!b)
+                        return (
+                          <span className="text-muted-foreground">
+                            {VT.legacyBasis}
+                          </span>
+                        );
+                      if (b.sourceKind === "none" || b.target === null)
+                        return (
+                          <span className="text-muted-foreground">
+                            {VT.noneBasis}
+                          </span>
+                        );
                       const target = Number(b.target);
-                      return <><span>{b.sourceKind === "sales_plan" ? `V${b.version}` : VT.original} · {formatMoney(target, b.currency ?? p.currency, locale)}</span><p className="text-label-small text-muted-foreground">{target > 0 && b.currency === p.currency ? `${(p.closedAmount.amount / target * 100).toFixed(1)}%` : VT.notApplicable}</p></>;
+                      return (
+                        <>
+                          <span>
+                            {b.sourceKind === "sales_plan"
+                              ? `V${b.version}`
+                              : VT.original}{" "}
+                            ·{" "}
+                            {formatMoney(
+                              target,
+                              b.currency ?? p.currency,
+                              locale,
+                            )}
+                          </span>
+                          <p className="text-label-small text-muted-foreground">
+                            {target > 0 && b.currency === p.currency
+                              ? `${((p.closedAmount.amount / target) * 100).toFixed(1)}%`
+                              : VT.notApplicable}
+                          </p>
+                        </>
+                      );
                     })()}
                   </TableCell>
                 </TableRow>

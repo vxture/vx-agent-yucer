@@ -8,6 +8,7 @@ import type { AuthUser } from "../../auth/lib/claims";
 import { resolveAuthzContext, type AuthzContext } from "../../authz/context";
 import {
   ensureDemoData,
+  ensurePlanningDemoData,
   getAccountStore,
   getPipelineStore,
   getPlanningStore,
@@ -114,7 +115,7 @@ function withStores(
   return {
     ...base,
     stores: {
-      pipeline: () => scopePipelineStore(getPipelineStore(), base.scope),
+      pipeline: () => scopePipelineStore(getPipelineStore(), base.scope, base.user.sub),
       account: () => scopeAccountStore(getAccountStore(), base.scope),
       signal: () => scopeSignalStore(getSignalStore(), base.scope),
     },
@@ -152,6 +153,9 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
       { workspaceId: dev.workspaceId, sub: dev.user.sub, holder: dev.authz, entitlement: dev.entitlement, store: getPlanningStore() },
       { workspaceId: dev.workspaceId, sub: dev.user.sub, holder: dev.authz, entitlement: dev.entitlement, store: getAccountStore() },
     );
+    await ensurePlanningDemoData(dev.workspaceId, {
+      sub: dev.user.sub, name: dev.user.displayName ?? "",
+    });
     // The demo seed must exist before the scope is resolved: `own` reads the
     // member's book, and an empty store would resolve to seeing nothing on the
     // first render and everything on the second.
@@ -194,6 +198,9 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
   // with codes `seedDemoPlacements()` can no longer find. See
   // `ensureStartupPreset`'s own comment for the rest of the reasoning.
   await ensureStartupPreset(workspaceId, user.sub, authz, entitlement);
+  await ensurePlanningDemoData(workspaceId, {
+    sub: user.sub, name: user.displayName ?? "",
+  });
 
   const scope = await resolveDataScope(workspaceId, user.sub, getAuthzStore());
   return withStores({ user, workspaceId, entitlement, authz, scope, accessToken });

@@ -82,7 +82,9 @@ import {
   planCategoryChange,
   validateScope,
   planSnapshot,
+  sameForecastTotals,
   type ForecastCategory,
+  type ForecastTotals,
   type ForecastScope,
   type SnapshotRow,
 } from "./lib/forecast";
@@ -1441,9 +1443,14 @@ export async function forecastHistory(
     period,
     scopeType: scope.scopeType,
   });
-  return ok(
-    rows.filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub).map((r) => { if (can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed) return r; const { targetBasis: _basis, ...visible } = r; return visible; }),
-  );
+  const canViewTarget = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed;
+  return ok(rows
+    .filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub)
+    .map((r) => {
+      if (canViewTarget) return r;
+      const { targetBasis: _basis, ...visible } = r;
+      return visible;
+    }));
 }
 
 export interface ForecastScorecard {
@@ -1674,6 +1681,8 @@ export async function submitForecast(
     /** 主管预估数 (incr/0096); omitted or null amount = no call. */
     call?: { amount?: number | null; note?: string | null };
     targetBasis?: import("../planning/plan-service").TargetBasis[];
+    snapshotId?: string;
+    confirmedTotals?: ForecastTotals;
   },
 ): Promise<RuleResult<SnapshotRow>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.snapshot", "data");
@@ -1694,7 +1703,9 @@ export async function submitForecast(
   });
   if (!row.ok) return row;
 
+  if (input.confirmedTotals && !sameForecastTotals(row.value, input.confirmedTotals)) return fail(violation("confirmation_changed", "review changed forecast totals before submission"));
   if (input.targetBasis) row.value.targetBasis = input.targetBasis;
+  if (input.snapshotId) row.value.id = input.snapshotId;
   await ctx.store.appendForecastSnapshot(ctx.workspaceId, row.value);
   return ok(row.value);
 }

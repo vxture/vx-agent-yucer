@@ -8,7 +8,7 @@ import { ForecastBriefPanel } from "../../components/forecast-brief";
 import { AgentPanel } from "../../components/agent-panel";
 import { applySuggestedCategory } from "../../forecast/actions";
 import { briefForecast } from "../../forecast/brief-action";
-import { loadForecastWorkspace } from "../../attainment/board";
+import { loadForecastWorkspace, loadAttainmentTeam } from "../../attainment/board";
 import { deckBundle, recordAction } from "../deck-data";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +16,12 @@ export const dynamic = "force-dynamic";
 export default async function AttainmentDeck({ searchParams }: { searchParams: Promise<AttainmentQuery> }) {
   const [session, bundle] = await Promise.all([resolveAppSession(), deckBundle()]);
   if (!session || !bundle) return null;
-  const selected = resolveAttainmentQuery(await searchParams, session.user.sub);
+  const selected = resolveAttainmentQuery(await searchParams, session.user.sub, session.scope);
+  const team = selected.perspective === "team" ? await loadAttainmentTeam() : null;
+  const validTeam = selected.perspective !== "team" ||
+    !!team?.members.some(m => m.sub === selected.scope.ownerSub);
   const canView = can(session.authz, session.entitlement, "pipeline.forecast.view", "ui").allowed;
-  const board = selected.period !== "all" && selected.view === "review" && canView ? await loadForecastWorkspace(selected.period, selected.scopeKey) : null;
+  const board = validTeam && !selected.invalid && selected.period !== "all" && selected.view === "review" && canView ? await loadForecastWorkspace(selected.period, selected.scopeKey) : null;
   const items = board?.ok ? board.inView.flatMap((p) => p.verdict.kind === "suggested" && !p.verdict.agrees ? [{
     opportunityId: p.opportunity.id, opportunityNo: p.opportunity.opportunityNo, dealName: p.opportunity.name,
     filed: p.opportunity.forecastCategory, suggested: p.verdict.category,

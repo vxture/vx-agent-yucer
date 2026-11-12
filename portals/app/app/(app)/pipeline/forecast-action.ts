@@ -1,82 +1,262 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { resolveAppSession } from "../lib/session";
+import { resolveAppSession, type AppSession } from "../lib/session";
+import { can } from "../../authz/decide";
+import { canReadReportingScope } from "../../authz/forecast-scope";
 import {
-  getCatalogStore, getPlanningStore, getSalesPlanStore,
+  getCatalogStore,
+  getPlanningStore,
+  getSalesPlanStore,
 } from "../../domains/shared/registry";
 import { resolveForecastTargetBasis } from "../../domains/planning/effective-targets";
 import { submitForecast } from "../../domains/pipeline/service";
-import { parseForecastScope } from "../lib/forecast-scope";
-
-// Submitting a forecast snapshot.
-//
-// `submitForecast` had existed with a full gate, a rule function and a store
-// port since batch 2 and had ZERO non-test callers - not even a comment saying
-// so, unlike the other unwired verbs. Nobody noticed because the surface it
-// feeds fails quietly: `forecast_snapshot` stayed empty, so the trajectory
-// rendered its empty state forever and `attainment()` had no numerator, and an
-// empty chart looks like a new workspace rather than like a broken product.
-// The demo seed hid it further by filling the table directly.
-//
-// ALL THREE SCOPES, since the owner's ruling of 2026-09-01. This comment used
-// to say workspace only, "for want of pickers that do not exist yet" - they
-// exist now, and the domain had supported the other two since batch 1.
-//
-// THE SCOPE ARRIVES AS THE URL'S STRING and is parsed here, on the server. A
-// client that could hand over a ForecastScope object could hand over one the
-// three-way validateScope rejects, or worse one it accepts and nobody meant -
-// a territory scope carrying an owner. Parsing a single opaque token into the
-// shape the domain demands keeps that impossible.
+import {
+  planSnapshot,
+  snapshotRevenueBasis,
+} from "../../domains/pipeline/lib/forecast";
+import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
+import { normalizeAttainmentPeriod } from "../lib/attainment-workspace";
+import {
+  confirmationFingerprint,
+  confirmationMatches,
+  createForecastConfirmation,
+  sameForecastCall,
+  type ForecastConfirmationView,
+} from "../lib/forecast-confirmation";
+import {
+  getForecastConfirmation,
+  putForecastConfirmation,
+} from "../lib/forecast-confirmation-store";
 
 export interface SubmitForecastResult {
   ok: boolean;
-  /** The period the snapshot was taken for, echoed so the toast can name it. */
   period?: string;
   error?: string;
 }
 
-export async function submitForecastSnapshot(
-  period: string,
-  scopeKey?: string,
-  /** 主管预估数 (incr/0096): the manager's call and its note; both optional. */
-  call?: { amount?: number | null; note?: string | null },
-): Promise<SubmitForecastResult> {
-  const session = await resolveAppSession();
-  if (!session) return { ok: false, error: "not_authenticated" };
+function allowed(session: AppSession, scopeKey: string) {
+  return (
+    forecastScopeKey(parseForecastScope(scopeKey)) === scopeKey &&
+    canReadReportingScope(
+      session.scope,
+      parseForecastScope(scopeKey),
+      session.user.sub,
+    ) &&
+    can(session.authz, session.entitlement, "pipeline.forecast.view", "data")
+      .allowed &&
+    can(
+      session.authz,
+      session.entitlement,
+      "pipeline.forecast.snapshot",
+      "data",
+    ).allowed
+  );
+}
 
+async function readSubmission(
+  session: AppSession,
+  period: string,
+  scopeKey: string,
+) {
+  const scope = parseForecastScope(scopeKey);
   const policy = await getCatalogStore().getPricingPolicy(session.workspaceId);
-  const result = await submitForecast(
-    {
+  const [opportunities, basis] = await Promise.all([
+    session.stores
+      .pipeline()
+      .listOpportunities(session.workspaceId, { includeClosed: true }),
+    resolveForecastTargetBasis(
+      getPlanningStore(),
+      getSalesPlanStore(),
+      session.workspaceId,
+      { period, ...scope },
+      policy.defaultCurrency,
+    ),
+  ]);
+  const snapshot = planSnapshot({
+    period,
+    scope,
+    currency: policy.defaultCurrency,
+    opportunities,
+  });
+  return { snapshot, basis, currency: policy.defaultCurrency };
+}
+
+export async function prepareForecastSnapshot(
+  period: string,
+  scopeKey: string,
+): Promise<
+  | { ok: true; confirmation: ForecastConfirmationView }
+  | { ok: false; error: string }
+> {
+  const session = await resolveAppSession();
+  if (!session || !allowed(session, scopeKey))
+    return { ok: false, error: "confirmation_denied" };
+  try {
+    period = normalizeAttainmentPeriod(period);
+    const { snapshot, basis, currency } = await readSubmission(
+      session,
+      period,
+      scopeKey,
+    );
+    if (!snapshot.ok)
+      return {
+        ok: false,
+        error: snapshot.violations[0]?.code ?? "confirmation_failed",
+      };
+    const totals = {
+      commitAmount: snapshot.value.commitAmount,
+      bestCaseAmount: snapshot.value.bestCaseAmount,
+      pipelineAmount: snapshot.value.pipelineAmount,
+      closedAmount: snapshot.value.closedAmount,
+      newLogoCount: snapshot.value.newLogoCount,
+    };
+    const confirmation = createForecastConfirmation({
       workspaceId: session.workspaceId,
       sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-      store: session.stores.pipeline(),
-      catalog: getCatalogStore(),
-    },
-    {
       period,
-      currency: policy.defaultCurrency,
-      // parseForecastScope always yields exactly one of the three shapes, with
-      // the other id null - validateScope rejects a scope that carries both,
-      // which is why this goes through the parser rather than being assembled
-      // from separate params that could disagree.
-      scope: parseForecastScope(scopeKey),
-      call,
-      targetBasis: await resolveForecastTargetBasis(getPlanningStore(), getSalesPlanStore(), session.workspaceId, { period, ...parseForecastScope(scopeKey) }, policy.defaultCurrency),
-    },
-  );
-
-  if (!result.ok) {
-    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+      scopeKey,
+      currency,
+      totals,
+      basis,
+      observedAt: snapshot.value.snapshotAt.toISOString(),
+    });
+    await putForecastConfirmation(confirmation);
+    const visibleBasis = can(
+      session.authz,
+      session.entitlement,
+      "planning.target.view",
+      "data",
+    ).allowed
+      ? snapshotRevenueBasis(basis)
+      : null;
+    return {
+      ok: true,
+      confirmation: {
+        token: confirmation.token,
+        period,
+        scopeKey,
+        observedAt: confirmation.observedAt,
+        currency,
+        totals,
+        basis: visibleBasis,
+      },
+    };
+  } catch {
+    return { ok: false, error: "confirmation_failed" };
   }
+}
 
-  // The snapshot is append-only, so the page must re-read rather than patch:
-  // what changed is that the series grew a point, and the series is what the
-  // page renders.
-  revalidatePath("/pipeline");
-  revalidatePath("/forecast");
-  revalidatePath("/attainment");
-  return { ok: true, period: result.value.period };
+export async function submitForecastSnapshot(
+  period: string,
+  scopeKey = "workspace",
+  call?: { amount?: number | null; note?: string | null },
+  token?: string,
+): Promise<SubmitForecastResult> {
+  const session = await resolveAppSession();
+  if (!session || !allowed(session, scopeKey))
+    return { ok: false, error: "confirmation_denied" };
+  if (
+    !token ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(
+      token,
+    )
+  )
+    return { ok: false, error: "confirmation_expired" };
+  period = normalizeAttainmentPeriod(period);
+  const scope = parseForecastScope(scopeKey);
+  const findExisting = async () =>
+    (
+      await session.stores
+        .pipeline()
+        .listForecastSnapshots(session.workspaceId, {
+          period,
+          scopeType: scope.scopeType,
+        })
+    ).find(
+      (s) =>
+        s.id === token &&
+        s.territoryId === scope.territoryId &&
+        s.ownerSub === scope.ownerSub &&
+        s.submittedBySub === session.user.sub,
+    );
+  const refresh = () => {
+    revalidatePath("/pipeline");
+    revalidatePath("/forecast");
+    revalidatePath("/attainment");
+  };
+  try {
+    // Check durable identity before expiry/current values: a lost response must
+    // still acknowledge its original write after targets or deals have changed.
+    const existing = await findExisting();
+    if (existing) {
+      if (!sameForecastCall(existing, call))
+        return { ok: false, error: "confirmation_conflict" };
+      refresh();
+      return { ok: true, period };
+    }
+    const confirmation = await getForecastConfirmation(token);
+    if (
+      !confirmation ||
+      !confirmationMatches(confirmation, {
+        workspaceId: session.workspaceId,
+        sub: session.user.sub,
+        period,
+        scopeKey,
+      })
+    )
+      return { ok: false, error: "confirmation_expired" };
+    const current = await readSubmission(session, period, scopeKey);
+    if (!current.snapshot.ok)
+      return {
+        ok: false,
+        error: current.snapshot.violations[0]?.code ?? "confirmation_failed",
+      };
+    if (
+      confirmationFingerprint(current.snapshot.value, current.basis) !==
+      confirmation.fingerprint
+    )
+      return { ok: false, error: "confirmation_changed" };
+    const result = await submitForecast(
+      {
+        workspaceId: session.workspaceId,
+        sub: session.user.sub,
+        holder: session.authz,
+        entitlement: session.entitlement,
+        store: session.stores.pipeline(),
+        catalog: getCatalogStore(),
+      },
+      {
+        period,
+        currency: confirmation.currency,
+        scope,
+        call,
+        snapshotId: token,
+        targetBasis: confirmation.basis,
+        confirmedTotals: confirmation.totals,
+      },
+    );
+    if (!result.ok)
+      return {
+        ok: false,
+        error: result.violations[0]?.code ?? "confirmation_failed",
+      };
+    refresh();
+    return { ok: true, period: result.value.period };
+  } catch {
+    // A concurrent retry may have committed first. The PK and target-basis
+    // transaction are the database guard; never turn this into an UPDATE.
+    try {
+      const existing = await findExisting();
+      if (existing) {
+        if (!sameForecastCall(existing, call))
+          return { ok: false, error: "confirmation_conflict" };
+        refresh();
+        return { ok: true, period };
+      }
+    } catch {
+      /* The original confirmation is retained for a safe retry. */
+    }
+    return { ok: false, error: "confirmation_failed" };
+  }
 }
