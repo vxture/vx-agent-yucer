@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable, FilterBar } from "./business-controls";
+import { DataTable, FilterBar, ActionMenu } from "./business-controls";
 
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState, useTransition } from "react";
@@ -19,7 +19,7 @@ import {
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
-import { ActionMenu } from "./business-controls";
+
 import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
 import { filterAccounts, type HealthBand } from "../lib/account-list-filter";
 import type { AccountRecord } from "../../domains/account/store";

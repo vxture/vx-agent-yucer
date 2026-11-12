@@ -1,6 +1,5 @@
 "use client";
 import {
-  Button,
   Field,
   FieldDescription,
   FieldError,
@@ -31,7 +30,7 @@ export function PlanAssumptions({
   disabled: boolean;
   onReview: () => void;
 }) {
-  const { PLAN_VERSION_TEXT: T } = useMessages();
+  const { PLAN_VERSION_TEXT: T, DS_LABELS } = useMessages();
   const groups = readPrerequisites(content.assumptions);
   const update = (group: PrerequisiteGroup, items: string[]) =>
     edit?.({
@@ -103,22 +102,34 @@ export function PlanAssumptions({
                               >
                                 {T.prerequisiteItem(i + 1)}
                               </FieldLabel>
-                              <Button
-                                size="md"
-                                variant="ghost"
+                              <RowActions
+                                label={`${T.operations} · ${T.prerequisiteLabels[group]} ${i + 1}`}
                                 disabled={disabled}
-                                aria-label={`${T.remove} ${T.prerequisiteLabels[group]} ${i + 1}`}
-                                onClick={() =>
-                                  update(
-                                    group,
-                                    groups[group].filter(
-                                      (_, index) => index !== i,
-                                    ),
-                                  )
-                                }
-                              >
-                                {T.remove}
-                              </Button>
+                                items={[
+                                  {
+                                    id: "remove",
+                                    label: T.remove,
+                                    icon: "trash",
+                                    danger: true,
+                                    confirm: {
+                                      verb: T.remove,
+                                      target: `${T.prerequisiteLabels[group]} ${i + 1}`,
+                                      consequence: T.removeHint,
+                                      titleTemplate:
+                                        DS_LABELS.confirmTitleTemplate,
+                                      cancelLabel: T.cancel,
+                                      pendingLabel: DS_LABELS.confirmPending,
+                                      onConfirm: () =>
+                                        update(
+                                          group,
+                                          groups[group].filter(
+                                            (_, index) => index !== i,
+                                          ),
+                                        ),
+                                    },
+                                  },
+                                ]}
+                              />
                             </div>
                             <Textarea
                               id={`prerequisite-${group}-${i}`}

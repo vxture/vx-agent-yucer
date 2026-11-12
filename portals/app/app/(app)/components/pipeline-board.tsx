@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable, FilterBar } from "./business-controls";
+import { DataTable, FilterBar, ActionMenu } from "./business-controls";
 import { dealWorkspaceHref } from "../lib/deal-workspace";
 
 import { useMemo, useState } from "react";
@@ -22,7 +22,7 @@ import {
   type DataTableColumn,
   type MetricGridItem,
 } from "@vxture/design-ui";
-import { ActionMenu } from "./business-controls";
+
 import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
 import {
   DEFAULT_STAGE_DEFINITIONS,

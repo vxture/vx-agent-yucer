@@ -23,10 +23,15 @@ import {
   TableRow,
   Textarea,
 } from "@vxture/design-ui";
+import { ConfirmDestructive } from "../components/confirm-destructive";
 import { RowActions } from "../components/table-fittings";
 import { Tag } from "../components/tag";
 import { ModuleHeadline } from "../components/module-headline";
 import { useLocale, useMessages } from "../lib/i18n/provider";
+import {
+  excludePlanningRegion,
+  planningReleaseTimeError,
+} from "../lib/planning-operations";
 import { previewTargetDelta } from "../lib/planning-preview";
 import { salesPlanCommandAction } from "./plan-actions";
 import {
@@ -70,6 +75,7 @@ export function PlanningVersionPanel({
     PLAN_VERSION_TEXT: T,
     PLAN_VERSION_ERROR: E,
     PLANNING_TEXT: P,
+    DS_LABELS,
   } = useMessages();
   const router = useRouter();
   const [plan, setPlan] = useState(initialPlan);
@@ -136,14 +142,45 @@ export function PlanningVersionPanel({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [confirm, setConfirm] = useState<
-    "release" | "discard" | "close" | null
+    "release" | "discard" | "close" | "cancel" | "lock" | null
   >(null);
+  const [excludeId, setExcludeId] = useState<string | null>(null);
   const [adopt, setAdopt] = useState(false);
   const [lockPeriod, setLockPeriod] = useState(`${year}Q1`);
   const [checksOpen, setChecksOpen] = useState(false);
   const [panel, setPanel] = useState<"diff" | "history" | "version" | null>(
     null,
   );
+  const lockedPeriods = (plan?.events ?? [])
+    .filter((event) => event.kind === "lock")
+    .map((event) => event.period!);
+  const lockablePeriods =
+    state.current?.content.periods.filter(
+      (period) => period.parent && period.end <= now.slice(0, 10),
+    ) ?? [];
+  const selectedLockPeriod = lockablePeriods.find(
+    (period) => period.key === lockPeriod,
+  );
+  const releaseTimeError =
+    when === "future"
+      ? planningReleaseTimeError(effective, year, Date.now())
+      : null;
+  useEffect(() => {
+    if (!lockablePeriods.some((period) => period.key === lockPeriod))
+      setLockPeriod(
+        lockablePeriods.find((period) => !lockedPeriods.includes(period.key))
+          ?.key ?? "",
+      );
+  }, [lockablePeriods.map((period) => period.key).join("|"), lockPeriod]);
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty]);
   const requests = useRef(new Map<string, string>());
   const edit = editing
     ? (next: PlanContent) => {
@@ -175,13 +212,15 @@ export function PlanningVersionPanel({
         setPlan(result.plan);
         setNow(new Date().toISOString());
         const s = planVersions(result.plan, new Date().toISOString());
-        setContent(s.draft?.content ?? null);
-        setView(
-          (command.kind === "draft" || command.kind === "save") &&
-            afterSave !== "browse"
-            ? (s.draft?.id ?? "current")
-            : "current",
-        );
+        if (command.kind !== "cancel" && command.kind !== "lock") {
+          setContent(s.draft?.content ?? null);
+          setView(
+            (command.kind === "draft" || command.kind === "save") &&
+              afterSave !== "browse"
+              ? (s.draft?.id ?? "current")
+              : "current",
+          );
+        }
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
         setPanel(afterSave === "publish" ? "version" : null);
@@ -196,6 +235,8 @@ export function PlanningVersionPanel({
       return false;
     }
     setView(value);
+    setError("");
+    setMessage("");
     setRegionId(null);
     return true;
   };
@@ -256,7 +297,7 @@ export function PlanningVersionPanel({
     return `${r.key ?? ""} · ${r.start ?? ""} — ${r.end ?? ""}`;
   };
   const refreshRegions = () => {
-    if (!c || !edit) return;
+    if (!c || !edit || pending || lockedPeriods.length) return;
     const next = structuredClone(c);
     for (const source of sources.regions) {
       const held = next.regions.find((r) => r.id === source.id);
@@ -289,6 +330,34 @@ export function PlanningVersionPanel({
         JSON.stringify(old.provinces) !== JSON.stringify(r.provinces)
       );
     });
+  const confirmVersion = (kind: NonNullable<typeof confirm>) => {
+    setError("");
+    if (kind === "release" && when === "future") {
+      const code = planningReleaseTimeError(effective, year, Date.now());
+      if (code) {
+        setError(E[code]!);
+        return;
+      }
+    }
+    setPanel(null);
+    setConfirm(kind);
+  };
+  const cancelConfirm = () => {
+    if (!pending) {
+      setConfirm(null);
+      setPanel("version");
+    }
+  };
+  const confirmLabel =
+    confirm === "release"
+      ? T.publish
+      : confirm === "discard"
+        ? T.discard
+        : confirm === "cancel"
+          ? T.cancelSchedule
+          : confirm === "lock"
+            ? T.lock
+            : T.close;
   const auxiliaryActions = [
     ...(editing
       ? [
@@ -318,7 +387,10 @@ export function PlanningVersionPanel({
             id: "diff",
             label: T.diff,
             icon: "git-branch" as const,
-            onSelect: () => setPanel("diff"),
+            onSelect: () => {
+              setDiffSection("all");
+              setPanel("diff");
+            },
           },
         ]
       : []),
@@ -407,7 +479,7 @@ export function PlanningVersionPanel({
               size="lg"
               variant="secondary"
               onClick={() => setChecksOpen(true)}
-              disabled={!c}
+              disabled={!c || pending}
             >
               {T.insights}
               {findings?.length ? ` · ${findings.length}` : ""}
@@ -512,7 +584,8 @@ export function PlanningVersionPanel({
               <Button
                 size="md"
                 variant="secondary"
-                disabled={pending}
+                disabled={pending || !!lockedPeriods.length}
+                title={lockedPeriods.length ? T.lockedHint : undefined}
                 onClick={refreshRegions}
               >
                 {T.refreshSources}
@@ -542,7 +615,7 @@ export function PlanningVersionPanel({
                   </Link>
                 )}
                 <RowActions
-                  label={`${T.company} · ${T.version}`}
+                  label={`${currentRegion?.name ?? T.company} · ${T.version}`}
                   items={auxiliaryActions}
                   disabled={pending}
                 />
@@ -558,6 +631,8 @@ export function PlanningVersionPanel({
                   <NativeSelect
                     id="plan-region-participation"
                     value={currentRegion.included ? "yes" : "no"}
+                    disabled={pending || !!lockedPeriods.length}
+                    title={lockedPeriods.length ? T.lockedHint : undefined}
                     onChange={(e) => {
                       const included = e.target.value === "yes";
                       const next = structuredClone(c);
@@ -565,21 +640,8 @@ export function PlanningVersionPanel({
                         r.id === regionId ? { ...r, included } : r,
                       );
                       if (!included) {
-                        const removed = next.targets
-                          .filter((t) => t.scope === `territory:${regionId}`)
-                          .map((t) => t.key);
-                        next.targets = next.targets.filter(
-                          (t) => !removed.includes(t.key),
-                        );
-                        next.contributions = next.contributions.filter(
-                          (x) => x.regionId !== regionId,
-                        );
-                        next.team = next.team.filter(
-                          (x) => x.regionId !== regionId,
-                        );
-                        next.actions = next.actions.filter(
-                          (x) => x.regionId !== regionId,
-                        );
+                        setExcludeId(currentRegion.id);
+                        return;
                       } else if (
                         !next.targets.some(
                           (t) =>
@@ -614,6 +676,8 @@ export function PlanningVersionPanel({
                     <Input
                       id="plan-region-reason"
                       value={currentRegion.reason}
+                      disabled={pending || !!lockedPeriods.length}
+                      maxLength={8000}
                       onChange={(e) =>
                         edit({
                           ...c,
@@ -638,6 +702,7 @@ export function PlanningVersionPanel({
                 }
                 edit={edit}
                 disabled={pending}
+                lockedPeriods={lockedPeriods}
                 headerInfo={
                   !currentRegion ? (
                     <CompanyTargetAllocation
@@ -671,15 +736,23 @@ export function PlanningVersionPanel({
           {currentRegion ? (
             currentRegion.included ? (
               <PlanSupport
+                key={currentRegion.id}
                 content={c}
                 regionId={currentRegion.id}
                 sources={sources}
+                lockedPeriods={lockedPeriods}
                 edit={edit}
                 disabled={pending}
               />
             ) : null
           ) : (
-            <PlanRegions content={c} onSelect={setRegionId} />
+            <PlanRegions
+              content={c}
+              onSelect={setRegionId}
+              editing={editing}
+              disabled={pending}
+              lockedPeriods={lockedPeriods}
+            />
           )}
           <PlanAssumptions
             content={c}
@@ -692,6 +765,25 @@ export function PlanningVersionPanel({
           />
         </>
       )}
+      <ConfirmDestructive
+        open={!!excludeId}
+        onOpenChange={(open) => {
+          if (!open) setExcludeId(null);
+        }}
+        verb={T.excludeRegion}
+        target={
+          c?.regions.find((region) => region.id === excludeId)?.name ??
+          T.regions
+        }
+        consequence={T.excludeRegionHint}
+        cancelLabel={T.cancel}
+        titleTemplate={DS_LABELS.confirmTitleTemplate}
+        onConfirm={() => {
+          if (edit && c && excludeId && !pending && !lockedPeriods.length)
+            edit(excludePlanningRegion(c, excludeId));
+          setExcludeId(null);
+        }}
+      />
       <Drawer
         open={panel === "diff"}
         onClose={() => setPanel(null)}
@@ -718,7 +810,9 @@ export function PlanningVersionPanel({
             {diff.length} {T.changes}
             {dirty ? ` · ${T.saveFirst}` : ""}
           </p>
-          {diff.length ? (
+          {diff.some(
+            (item) => diffSection === "all" || item.section === diffSection,
+          ) ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -859,6 +953,7 @@ export function PlanningVersionPanel({
                   <NativeSelect
                     id="plan-effective-kind"
                     value={when}
+                    disabled={pending}
                     onChange={(e) => setWhen(e.target.value)}
                   >
                     <option value="immediate">{T.immediate}</option>
@@ -874,6 +969,10 @@ export function PlanningVersionPanel({
                       type="datetime-local"
                       id="plan-effective-time"
                       value={effective}
+                      disabled={pending}
+                      aria-invalid={
+                        (!!effective && !!releaseTimeError) || undefined
+                      }
                       onChange={(e) => setEffective(e.target.value)}
                     />
                   </Field>
@@ -886,12 +985,9 @@ export function PlanningVersionPanel({
                     (plan?.revisions.some((r) => r.state === "sealed") &&
                       !reason.trim()) ||
                     !!state.scheduled ||
-                    (when === "future" && !effective)
+                    (when === "future" && !!releaseTimeError)
                   }
-                  onClick={() => {
-                    setPanel(null);
-                    setConfirm("release");
-                  }}
+                  onClick={() => confirmVersion("release")}
                 >
                   {T.publish}
                 </Button>
@@ -899,21 +995,23 @@ export function PlanningVersionPanel({
                   size="md"
                   variant="ghost"
                   disabled={pending}
-                  onClick={() => {
-                    setPanel(null);
-                    setConfirm("discard");
-                  }}
+                  onClick={() => confirmVersion("discard")}
                 >
                   {T.discard}
                 </Button>
               </div>
+            ) : null}
+            {editing && effective && releaseTimeError ? (
+              <p className="text-body-small text-destructive" role="alert">
+                {E[releaseTimeError]}
+              </p>
             ) : null}
             {state.scheduled ? (
               <Button
                 size="md"
                 variant="secondary"
                 disabled={pending || !reason.trim()}
-                onClick={() => run({ kind: "cancel", reason })}
+                onClick={() => confirmVersion("cancel")}
               >
                 {T.cancelSchedule}
               </Button>
@@ -939,20 +1037,24 @@ export function PlanningVersionPanel({
                 <NativeSelect
                   aria-label={T.quarters}
                   value={lockPeriod}
+                  disabled={pending || !lockablePeriods.length}
                   onChange={(e) => setLockPeriod(e.target.value)}
                 >
-                  {state.current.content.periods
-                    .filter((p) => p.parent && p.end <= now.slice(0, 10))
-                    .map((p) => (
-                      <option key={p.key} value={p.key}>
-                        {p.key}
-                        {plan?.events.some(
-                          (e) => e.kind === "lock" && e.period === p.key,
-                        )
-                          ? ` · ${T.lockedPeriod}`
-                          : ""}
-                      </option>
-                    ))}
+                  {!lockablePeriods.length ? (
+                    <option value="">{T.noFinishedPeriods}</option>
+                  ) : null}
+                  {lockablePeriods.map((period) => (
+                    <option
+                      key={period.key}
+                      value={period.key}
+                      disabled={lockedPeriods.includes(period.key)}
+                    >
+                      {period.key}
+                      {lockedPeriods.includes(period.key)
+                        ? ` · ${T.lockedPeriod}`
+                        : ""}
+                    </option>
+                  ))}
                 </NativeSelect>
                 <Button
                   size="md"
@@ -960,14 +1062,21 @@ export function PlanningVersionPanel({
                   disabled={
                     pending ||
                     !reason.trim() ||
+                    dirty ||
+                    !selectedLockPeriod ||
                     !!state.scheduled ||
                     plan?.events.some(
                       (e) => e.kind === "lock" && e.period === lockPeriod,
                     )
                   }
-                  onClick={() =>
-                    run({ kind: "lock", period: lockPeriod, reason })
+                  title={
+                    dirty
+                      ? T.saveFirst
+                      : !selectedLockPeriod
+                        ? T.noFinishedPeriods
+                        : undefined
                   }
+                  onClick={() => confirmVersion("lock")}
                 >
                   {T.lock}
                 </Button>
@@ -975,10 +1084,7 @@ export function PlanningVersionPanel({
                   size="md"
                   variant="ghost"
                   disabled={pending || !reason.trim()}
-                  onClick={() => {
-                    setPanel(null);
-                    setConfirm("close");
-                  }}
+                  onClick={() => confirmVersion("close")}
                 >
                   {T.close}
                 </Button>
@@ -1076,18 +1182,30 @@ export function PlanningVersionPanel({
       </Drawer>
       <Drawer
         open={!!confirm}
-        onClose={() => {
-          if (!pending) setConfirm(null);
-        }}
+        onClose={cancelConfirm}
         width="md"
         title={
           confirm === "release"
             ? T.publishConfirm
             : confirm === "discard"
               ? T.discardConfirm
-              : T.closeConfirm
+              : confirm === "cancel"
+                ? T.cancelSchedule
+                : confirm === "lock"
+                  ? T.lock
+                  : T.closeConfirm
         }
-        description={T.publishHint}
+        description={
+          confirm === "release"
+            ? T.publishHint
+            : confirm === "discard"
+              ? T.discardHint
+              : confirm === "cancel"
+                ? T.cancelScheduleHint
+                : confirm === "lock"
+                  ? T.lockHint
+                  : T.closeHint
+        }
         closeLabel={T.cancel}
       >
         <div className="flex flex-col gap-lg">
@@ -1099,8 +1217,16 @@ export function PlanningVersionPanel({
           <p className="text-body-small text-muted-foreground">
             {reason || T.baseline}
           </p>
+          {confirm === "lock" ? (
+            <p className="text-body-small">{lockPeriod}</p>
+          ) : null}
           {confirm === "release" ? (
             <>
+              <p className="text-body-small">
+                {when === "future"
+                  ? `${T.scheduled} · ${effective.replace("T", " ")}`
+                  : T.immediate}
+              </p>
               <p className="text-body-small">
                 {T.diff} · {diff.length} {T.changes}
               </p>
@@ -1113,6 +1239,7 @@ export function PlanningVersionPanel({
                   <label className="flex items-center gap-sm text-body-small">
                     <Checkbox
                       checked={adopt}
+                      disabled={pending}
                       onCheckedChange={(value) => setAdopt(value === true)}
                     />
                     {T.adopt} · {legacyIds.length}
@@ -1126,7 +1253,7 @@ export function PlanningVersionPanel({
               size="md"
               variant="secondary"
               disabled={pending}
-              onClick={() => setConfirm(null)}
+              onClick={cancelConfirm}
             >
               {T.cancel}
             </Button>
@@ -1140,7 +1267,18 @@ export function PlanningVersionPanel({
                   !adopt)
               }
               onClick={() => {
-                if (confirm === "release" && state.draft)
+                if (confirm === "release" && state.draft) {
+                  if (when === "future") {
+                    const code = planningReleaseTimeError(
+                      effective,
+                      year,
+                      Date.now(),
+                    );
+                    if (code) {
+                      setError(E[code]!);
+                      return;
+                    }
+                  }
                   run({
                     kind: "release",
                     revisionId: state.draft.id,
@@ -1158,16 +1296,19 @@ export function PlanningVersionPanel({
                         }
                       : {}),
                   });
-                else if (confirm === "discard" && state.draft)
+                } else if (confirm === "discard" && state.draft)
                   run({
                     kind: "discard",
                     revisionId: state.draft.id,
                     editToken: state.draft.editToken,
                   });
+                else if (confirm === "cancel") run({ kind: "cancel", reason });
+                else if (confirm === "lock" && selectedLockPeriod)
+                  run({ kind: "lock", period: lockPeriod, reason });
                 else if (confirm === "close") run({ kind: "close", reason });
               }}
             >
-              {T.confirm}
+              {confirmLabel}
             </Button>
           </div>
         </div>

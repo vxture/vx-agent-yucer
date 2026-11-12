@@ -6,6 +6,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   EmptyState,
+  Drawer,
+  Field,
+  FieldLabel,
+  Textarea,
   Icon,
   Input,
   MetricListCard,
@@ -24,11 +28,19 @@ import type {
   PlanTarget,
 } from "../../domains/planning/plan-model";
 
+import {
+  missingPlanningQuarters,
+  planningEntryLocked,
+  removePlanningTarget,
+} from "../lib/planning-operations";
+import { minor, PlanError } from "../../domains/planning/plan-values";
+
 type Props = {
   content: PlanContent;
   scope: string;
   edit: ((c: PlanContent) => void) | null;
   disabled: boolean;
+  lockedPeriods?: readonly string[];
   summary?: ReactNode;
   headerInfo?: ReactNode;
   summaryTargetKey?: string;
@@ -44,12 +56,20 @@ export function PlanTargetLedger({
   scope,
   edit,
   disabled,
+  lockedPeriods = [],
   summaryTargetKey,
   open: controlledOpen,
   onOpenChange,
 }: Props) {
   const locale = useLocale();
-  const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P, DS_LABELS } = useMessages();
+  const {
+    PLAN_VERSION_TEXT: T,
+    PLAN_VERSION_ERROR: E,
+    PLANNING_TEXT: P,
+    DS_LABELS,
+  } = useMessages();
+  const [selected, setSelected] = useState<PlanTarget | null>(null);
+  const [error, setError] = useState("");
   const [localOpen, setLocalOpen] = useState(false);
   const open = controlledOpen ?? localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
@@ -82,30 +102,56 @@ export function PlanTargetLedger({
         t.key === target.key ? { ...t, [tier]: value.trim() || null } : t,
       ),
     });
-  const addQuarters = () => {
-    const next = structuredClone(content);
-    for (const base of annual)
-      for (let q = 1; q <= 4; q++) {
-        const period = `${content.year}Q${q}`;
-        if (
-          !next.targets.some(
-            (t) =>
-              t.scope === scope &&
-              t.period === period &&
-              t.metric === base.metric &&
-              t.currency === base.currency,
-          )
-        )
-          next.targets.push({
-            ...base,
-            key: crypto.randomUUID(),
-            period,
-            floor: null,
-            target: null,
-            stretch: null,
-          });
-      }
-    edit?.(next);
+  const missingQuarters = missingPlanningQuarters(
+    content,
+    scope,
+    lockedPeriods,
+  );
+  const addQuarters = () =>
+    edit?.({
+      ...content,
+      targets: [
+        ...content.targets,
+        ...missingQuarters.map((line) => ({
+          ...line,
+          key: crypto.randomUUID(),
+        })),
+      ],
+    });
+  const applyTarget = () => {
+    if (
+      !selected ||
+      !edit ||
+      disabled ||
+      planningEntryLocked(content, lockedPeriods, selected)
+    )
+      return;
+    try {
+      const values = tiers
+        .map((tier) => selected[tier])
+        .filter((value): value is string => value !== null);
+      const amounts = values.map((value) => minor(value));
+      if (
+        selected.metric === "new_logo" &&
+        amounts.some((value) => value % 100n !== 0n)
+      )
+        throw new PlanError("count_integer");
+      if (amounts.some((value, i) => i > 0 && amounts[i - 1]! > value))
+        throw new PlanError("target_ladder");
+      edit({
+        ...content,
+        targets: content.targets.map((line) =>
+          line.key === selected.key ? selected : line,
+        ),
+      });
+      setSelected(null);
+    } catch (cause) {
+      setError(
+        cause instanceof PlanError
+          ? (E[cause.code] ?? E.invalid_target!)
+          : E.invalid_target!,
+      );
+    }
   };
   const ledgerAnnual = annual.filter((t) => t.key !== summaryTargetKey);
   const row = (t: PlanTarget, index: number) => (
@@ -140,7 +186,9 @@ export function PlanTargetLedger({
               inputMode="decimal"
               value={t[tier] ?? ""}
               placeholder="—"
-              disabled={disabled}
+              disabled={
+                disabled || planningEntryLocked(content, lockedPeriods, t)
+              }
               onChange={(e) => update(t, tier, e.target.value)}
             />
           ) : t[tier] === null ? (
@@ -163,21 +211,56 @@ export function PlanTargetLedger({
           label={`${DS_LABELS.actionMenu} · ${t.period} · ${labels[t.metric]}`}
           disabled={disabled}
           items={
-            edit && !(t.period === `Y${content.year}` && t.metric === "revenue")
+            edit
               ? [
                   {
-                    id: "remove",
-                    label: T.remove,
-                    icon: "trash",
-                    onSelect: () =>
-                      edit({
-                        ...content,
-                        targets: content.targets.filter((x) => x.key !== t.key),
-                        contributions: content.contributions.filter(
-                          (x) => x.targetKey !== t.key,
-                        ),
-                      }),
+                    id: "edit",
+                    label: T.editItem,
+                    icon: "edit",
+                    disabled: planningEntryLocked(content, lockedPeriods, t),
+                    hint: planningEntryLocked(content, lockedPeriods, t)
+                      ? T.lockedHint
+                      : undefined,
+                    onSelect: () => {
+                      setError("");
+                      setSelected(structuredClone(t));
+                    },
                   },
+                  ...(t.period === `Y${content.year}` && t.metric === "revenue"
+                    ? []
+                    : [
+                        {
+                          id: "remove",
+                          label: T.remove,
+                          icon: "trash" as const,
+                          danger: true as const,
+                          disabled:
+                            planningEntryLocked(content, lockedPeriods, t) ||
+                            (t.period === `Y${content.year}` &&
+                              content.targets.some(
+                                (line) =>
+                                  line.scope === t.scope &&
+                                  line.metric === t.metric &&
+                                  line.currency === t.currency &&
+                                  planningEntryLocked(
+                                    content,
+                                    lockedPeriods,
+                                    line,
+                                  ),
+                              )),
+                          hint: T.removeTargetHint,
+                          confirm: {
+                            verb: T.remove,
+                            target: `${t.period} · ${labels[t.metric]}`,
+                            consequence: T.removeTargetHint,
+                            titleTemplate: DS_LABELS.confirmTitleTemplate,
+                            cancelLabel: T.cancel,
+                            pendingLabel: DS_LABELS.confirmPending,
+                            onConfirm: () =>
+                              edit(removePlanningTarget(content, t)),
+                          },
+                        },
+                      ]),
                 ]
               : []
           }
@@ -186,125 +269,200 @@ export function PlanTargetLedger({
     </TableRow>
   );
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <Table className="table-fixed min-w-panel-md" aria-label={T.targetLedger}>
-        <colgroup>
-          <col className="w-table-col-fixed" />
-          <col />
-          <col className="w-1/5" />
-          <col className="w-1/5" />
-          <col className="w-1/5" />
-          <col className="w-table-col-fixed" />
-        </colgroup>
-        {ledgerAnnual.length ? (
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-center first:pl-md"></TableHead>
-              <TableHead>
-                {T.period} / {T.metric}
-              </TableHead>
-              {tiers.map((tier) => (
-                <TableHead key={tier} className="text-right">
-                  {T[tier]}
-                </TableHead>
-              ))}
-              <TableHead className="text-center last:pr-md">
-                {T.operations}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-        ) : null}
-        <TableBody>{ledgerAnnual.map(row)}</TableBody>
-        <TableBody className="border-t border-dashed border-border">
-          <TableRow
-            className="cursor-pointer hover:bg-transparent"
-            onClick={(event) => {
-              if (!(event.target as HTMLElement).closest("button"))
-                setOpen(!open);
-            }}
-          >
-            <TableCell colSpan={6} className="py-sm first:pl-0 last:pr-0">
-              <CollapsibleTrigger asChild>
-                <Button
-                  size="xl"
-                  variant="ghost"
-                  className={open ? "w-full bg-accent" : "w-full"}
-                >
-                  <span className="flex w-full items-center justify-between gap-md">
-                    <span
-                      className={
-                        open
-                          ? undefined
-                          : "text-body-small font-normal text-muted-foreground"
-                      }
-                    >
-                      {T.periodTargets}
-                    </span>
-                    <span className="flex items-center gap-sm">
-                      {!open ? (
-                        <span className="text-body-small font-normal text-muted-foreground">
-                          {T.splitPeriods(periodCount)}
-                        </span>
-                      ) : null}
-                      <Icon
-                        name={open ? "chevron-up" : "chevron-down"}
-                        size="sm"
-                      />
-                    </span>
-                  </span>
-                </Button>
-              </CollapsibleTrigger>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-        <CollapsibleContent asChild>
-          <TableBody>
-            {!ledgerAnnual.length ? (
-              <TableRow className="hover:bg-transparent">
-                <TableHead
-                  scope="col"
-                  className="text-center first:pl-md"
-                ></TableHead>
-                <TableHead scope="col">
+    <>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <Table
+          className="table-fixed min-w-panel-md"
+          aria-label={T.targetLedger}
+        >
+          <colgroup>
+            <col className="w-table-col-fixed" />
+            <col />
+            <col className="w-1/5" />
+            <col className="w-1/5" />
+            <col className="w-1/5" />
+            <col className="w-table-col-fixed" />
+          </colgroup>
+          {ledgerAnnual.length ? (
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-center first:pl-md"></TableHead>
+                <TableHead>
                   {T.period} / {T.metric}
                 </TableHead>
                 {tiers.map((tier) => (
-                  <TableHead scope="col" key={tier} className="text-right">
+                  <TableHead key={tier} className="text-right">
                     {T[tier]}
                   </TableHead>
                 ))}
-                <TableHead scope="col" className="text-center last:pr-md">
+                <TableHead className="text-center last:pr-md">
                   {T.operations}
                 </TableHead>
               </TableRow>
-            ) : null}
-            {periods.length ? (
-              periods.map((t, i) => row(t, ledgerAnnual.length + i))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6}>
-                  <EmptyState title={T.noQuarters} />
-                </TableCell>
-              </TableRow>
-            )}
-            {edit ? (
-              <TableRow>
-                <TableCell colSpan={6} className="first:pl-md last:pr-md">
+            </TableHeader>
+          ) : null}
+          <TableBody>{ledgerAnnual.map(row)}</TableBody>
+          <TableBody className="border-t border-dashed border-border">
+            <TableRow
+              className="cursor-pointer hover:bg-transparent"
+              onClick={(event) => {
+                if (!(event.target as HTMLElement).closest("button"))
+                  setOpen(!open);
+              }}
+            >
+              <TableCell colSpan={6} className="py-sm first:pl-0 last:pr-0">
+                <CollapsibleTrigger asChild>
                   <Button
-                    size="md"
-                    variant="secondary"
-                    disabled={disabled || !annual.length}
-                    onClick={addQuarters}
+                    size="xl"
+                    variant="ghost"
+                    className={open ? "w-full bg-accent" : "w-full"}
                   >
-                    {T.addQuarter}
+                    <span className="flex w-full items-center justify-between gap-md">
+                      <span
+                        className={
+                          open
+                            ? undefined
+                            : "text-body-small font-normal text-muted-foreground"
+                        }
+                      >
+                        {T.periodTargets}
+                      </span>
+                      <span className="flex items-center gap-sm">
+                        {!open ? (
+                          <span className="text-body-small font-normal text-muted-foreground">
+                            {T.splitPeriods(periodCount)}
+                          </span>
+                        ) : null}
+                        <Icon
+                          name={open ? "chevron-up" : "chevron-down"}
+                          size="sm"
+                        />
+                      </span>
+                    </span>
                   </Button>
-                </TableCell>
-              </TableRow>
-            ) : null}
+                </CollapsibleTrigger>
+              </TableCell>
+            </TableRow>
           </TableBody>
-        </CollapsibleContent>
-      </Table>
-    </Collapsible>
+          <CollapsibleContent asChild>
+            <TableBody>
+              {!ledgerAnnual.length ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableHead
+                    scope="col"
+                    className="text-center first:pl-md"
+                  ></TableHead>
+                  <TableHead scope="col">
+                    {T.period} / {T.metric}
+                  </TableHead>
+                  {tiers.map((tier) => (
+                    <TableHead scope="col" key={tier} className="text-right">
+                      {T[tier]}
+                    </TableHead>
+                  ))}
+                  <TableHead scope="col" className="text-center last:pr-md">
+                    {T.operations}
+                  </TableHead>
+                </TableRow>
+              ) : null}
+              {periods.length ? (
+                periods.map((t, i) => row(t, ledgerAnnual.length + i))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <EmptyState title={T.noQuarters} />
+                  </TableCell>
+                </TableRow>
+              )}
+              {edit ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="first:pl-md last:pr-md">
+                    <Button
+                      size="md"
+                      variant="secondary"
+                      disabled={disabled || !missingQuarters.length}
+                      onClick={addQuarters}
+                    >
+                      {missingQuarters.length
+                        ? T.addQuarter
+                        : T.allQuartersAdded}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </CollapsibleContent>
+        </Table>
+      </Collapsible>
+      <Drawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        width="md"
+        title={T.editItem}
+        description={
+          selected
+            ? `${selected.period} · ${labels[selected.metric]} · ${selected.currency ?? T.count}`
+            : undefined
+        }
+        closeLabel={T.cancel}
+      >
+        {selected ? (
+          <div className="flex flex-col gap-lg">
+            {tiers.map((tier) => (
+              <Field key={tier}>
+                <FieldLabel htmlFor={`plan-edit-${tier}`}>{T[tier]}</FieldLabel>
+                <Input
+                  id={`plan-edit-${tier}`}
+                  inputMode="decimal"
+                  disabled={disabled || !edit}
+                  value={selected[tier] ?? ""}
+                  onChange={(event) =>
+                    setSelected({
+                      ...selected,
+                      [tier]: event.target.value.trim() || null,
+                    })
+                  }
+                />
+              </Field>
+            ))}
+            <Field>
+              <FieldLabel htmlFor="plan-target-note">{T.note}</FieldLabel>
+              <Textarea
+                id="plan-target-note"
+                rows={3}
+                maxLength={8000}
+                value={selected.note}
+                disabled={disabled || !edit}
+                onChange={(event) =>
+                  setSelected({ ...selected, note: event.target.value })
+                }
+              />
+            </Field>
+            {error ? (
+              <p className="text-body-small text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-sm">
+              <Button
+                size="md"
+                variant="secondary"
+                onClick={() => setSelected(null)}
+              >
+                {T.cancel}
+              </Button>
+              <Button
+                size="md"
+                disabled={disabled || !edit}
+                onClick={applyTarget}
+              >
+                {T.apply}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Drawer>
+    </>
   );
 }
 

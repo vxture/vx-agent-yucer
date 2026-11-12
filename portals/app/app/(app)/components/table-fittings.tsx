@@ -8,6 +8,7 @@ import {
   type PageSizeChoice,
 } from "@vxture/design-ui";
 import { ActionMenu } from "./business-controls";
+import { sortRowsBy } from "../lib/table-sort";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
@@ -145,26 +146,7 @@ export function FilterSlot({
  * The comparator behind `useTableSort`, pulled out as a pure function so the
  * two judgements above are testable without rendering anything.
  */
-export function sortRowsBy<R>(
-  list: readonly R[],
-  read: (row: R) => string | number | null | undefined,
-  direction: "asc" | "desc",
-): readonly R[] {
-  const dir = direction === "asc" ? 1 : -1;
-  return [...list].sort((a, b) => {
-    const x = read(a), y = read(b);
-    const xEmpty = x === null || x === undefined || x === "";
-    const yEmpty = y === null || y === undefined || y === "";
-    // Rule 1, both halves: blanks sink whichever way the arrow points, so the
-    // comparison below never sees one.
-    if (xEmpty && yEmpty) return 0;
-    if (xEmpty) return 1;
-    if (yEmpty) return -1;
-    if (typeof x === "number" && typeof y === "number") return (x - y) * dir;
-    // Rule 2: pinyin order, not UTF-16 code units.
-    return String(x).localeCompare(String(y), "zh-CN") * dir;
-  });
-}
+export { sortRowsBy } from "../lib/table-sort";
 
 export function useTableSort<T>(
   rows: readonly T[],

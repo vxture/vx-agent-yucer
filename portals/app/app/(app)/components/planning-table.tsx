@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable, FilterBar } from "./business-controls";
+import { DataTable, FilterBar, ActionMenu } from "./business-controls";
 
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState } from "react";
@@ -20,7 +20,7 @@ import {
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
-import { ActionMenu } from "./business-controls";
+
 import { RowActions, useTableSort } from "./table-fittings";
 import { DialogForm } from "./dialog-form";
 import type { AttainmentRow } from "../../domains/planning/service";

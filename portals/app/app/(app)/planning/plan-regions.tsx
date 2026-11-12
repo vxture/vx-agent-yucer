@@ -21,6 +21,7 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import { FilterBar } from "../components/business-controls";
+import { Tag } from "../components/tag";
 import { RowActions } from "../components/table-fittings";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type { PlanContent } from "../../domains/planning/plan-model";
@@ -29,9 +30,15 @@ import { PlanTargetLedger } from "./plan-targets";
 export function PlanRegions({
   content,
   onSelect,
+  editing = false,
+  disabled = false,
+  lockedPeriods = [],
 }: {
   content: PlanContent;
   onSelect: (id: string) => void;
+  editing?: boolean;
+  disabled?: boolean;
+  lockedPeriods?: readonly string[];
 }) {
   const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P, DS_LABELS } = useMessages();
   const locale = useLocale();
@@ -80,11 +87,12 @@ export function PlanRegions({
     actions: content.actions.filter((x) => x.regionId === r.id).length,
   }));
   type Region = (typeof regions)[number];
-  const status = (r: Region) => (
-    <StatusBadge tone={r.included ? "info" : "neutral"}>
-      {r.included ? T.included : T.excluded}
-    </StatusBadge>
-  );
+  const status = (r: Region) =>
+    r.included ? (
+      <StatusBadge tone="info">{T.included}</StatusBadge>
+    ) : (
+      <Tag>{T.excluded}</Tag>
+    );
   const regionTitle = (r: Region) => (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -106,7 +114,7 @@ export function PlanRegions({
   const regionActions = (r: Region) => [
     {
       id: "open",
-      label: T.regionDetail,
+      label: editing ? T.editRegion : T.regionDetail,
       icon: "arrow-right" as const,
       onSelect: () => onSelect(r.id),
     },
@@ -229,6 +237,7 @@ export function PlanRegions({
                       <RowActions
                         label={`${DS_LABELS.actionMenu} · ${r.name}`}
                         items={regionActions(r)}
+                        disabled={disabled}
                       />
                     </TableCell>
                   </TableRow>
@@ -267,7 +276,17 @@ export function PlanRegions({
                           <TableCell className="text-center last:pr-md">
                             <RowActions
                               label={`${DS_LABELS.actionMenu} · ${r.name} · ${t.period}`}
-                              items={[]}
+                              disabled={disabled}
+                              items={[
+                                {
+                                  id: "open",
+                                  label: editing
+                                    ? T.editRegion
+                                    : T.regionDetail,
+                                  icon: "arrow-right",
+                                  onSelect: () => onSelect(r.id),
+                                },
+                              ]}
                             />
                           </TableCell>
                         </TableRow>
@@ -320,6 +339,7 @@ export function PlanRegions({
                     <RowActions
                       label={`${DS_LABELS.actionMenu} · ${r.name}`}
                       items={regionActions(r)}
+                      disabled={disabled}
                     />
                   </div>
                 }
@@ -331,7 +351,8 @@ export function PlanRegions({
                         content={content}
                         scope={`territory:${r.id}`}
                         edit={null}
-                        disabled={false}
+                        disabled={disabled}
+                        lockedPeriods={lockedPeriods}
                         open={expanded.includes(r.id)}
                         onOpenChange={(open) =>
                           setExpanded((keys) =>
