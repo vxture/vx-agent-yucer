@@ -1,6 +1,6 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -9,7 +9,6 @@ import {
   Badge,
   BulkActionBar,
   Button,
-  DataTable,
   DetailList,
   DetailRow,
   EmptyState,

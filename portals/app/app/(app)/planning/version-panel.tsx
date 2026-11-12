@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   Button,
   MetricListCard,
-  LabeledValue,
   Checkbox,
   Drawer,
   EmptyState,
@@ -37,6 +36,7 @@ import {
 import type { PlanCommand } from "../../domains/planning/plan-service";
 import type { PlanContent, SalesPlan } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
+import { CompanyTargetSummary } from "./company-target-summary";
 import { PlanTargets } from "./plan-targets";
 import { PlanSupport } from "./plan-support";
 import { PlanRegions } from "./plan-regions";
@@ -104,9 +104,8 @@ export function PlanningVersionPanel({
     );
     return () => clearTimeout(timer);
   }, [plan, state.scheduled, now, router]);
-  const [view, setView] = useState(
-    initialPlan?.revisions.find((r) => r.state === "draft")?.id ?? "current",
-  );
+  // A saved draft is an explicit editing session, never the daily landing view.
+  const [view, setView] = useState("current");
   const revision =
     view === "current"
       ? state.current
@@ -149,7 +148,7 @@ export function PlanningVersionPanel({
         setError("");
       }
     : null;
-  const run = (command: PlanCommand) =>
+  const run = (command: PlanCommand, afterSave?: "publish" | "browse") =>
     transition(async () => {
       setError("");
       setMessage("");
@@ -174,10 +173,15 @@ export function PlanningVersionPanel({
         setNow(new Date().toISOString());
         const s = planVersions(result.plan, new Date().toISOString());
         setContent(s.draft?.content ?? null);
-        setView(s.draft?.id ?? "current");
+        setView(
+          (command.kind === "draft" || command.kind === "save") &&
+            afterSave !== "browse"
+            ? (s.draft?.id ?? "current")
+            : "current",
+        );
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
-        setPanel(null);
+        setPanel(afterSave === "publish" ? "version" : null);
         router.refresh();
       } catch {
         setError(E.plan_save_failed!);
@@ -272,17 +276,6 @@ export function PlanningVersionPanel({
       t.period === `Y${year}` &&
       t.metric === "revenue",
   );
-  const allocated =
-    c?.targets
-      .filter(
-        (t) =>
-          t.scope !== "workspace" &&
-          t.period === `Y${year}` &&
-          t.metric === "revenue" &&
-          t.currency === companyTarget?.currency &&
-          t.target !== null,
-      )
-      .reduce((n, t) => n + Number(t.target), 0) ?? 0;
   const needsSourceRefresh =
     c &&
     sources.regions.some((r) => {
@@ -294,6 +287,28 @@ export function PlanningVersionPanel({
       );
     });
   const auxiliaryActions = [
+    ...(editing
+      ? [
+          {
+            id: "browse",
+            label: T.browse,
+            icon: "eye" as const,
+            onSelect: () => {
+              if (dirty)
+                run(
+                  {
+                    kind: "save",
+                    revisionId: state.draft!.id,
+                    editToken: state.draft!.editToken,
+                    content: c!,
+                  },
+                  "browse",
+                );
+              else choose("current");
+            },
+          },
+        ]
+      : []),
     ...(c
       ? [
           {
@@ -372,7 +387,11 @@ export function PlanningVersionPanel({
                 </option>
               ) : null}
               {plan?.revisions
-                .filter((r) => r.state !== "abandoned")
+                .filter(
+                  (r) =>
+                    r.state === "sealed" ||
+                    (editing && r.id === state.draft?.id),
+                )
                 .map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.state === "draft"
@@ -390,15 +409,17 @@ export function PlanningVersionPanel({
               {T.insights}
               {findings?.length ? ` · ${findings.length}` : ""}
             </Button>
-            {canEdit && !state.draft && !state.closed ? (
+            {canEdit && !editing && !state.closed ? (
               <Button
                 size="lg"
                 disabled={pending}
                 onClick={() =>
-                  run({ kind: "draft", content: {} as PlanContent })
+                  state.draft
+                    ? choose(state.draft.id)
+                    : run({ kind: "draft", content: {} as PlanContent })
                 }
               >
-                {state.current ? T.adjust : T.create}
+                {state.draft ? T.resume : state.current ? T.adjust : T.create}
               </Button>
             ) : null}
             {editing ? (
@@ -421,8 +442,20 @@ export function PlanningVersionPanel({
             {editing ? (
               <Button
                 size="xl"
-                disabled={pending || dirty}
-                onClick={() => setPanel("version")}
+                disabled={pending}
+                onClick={() => {
+                  if (dirty)
+                    run(
+                      {
+                        kind: "save",
+                        revisionId: state.draft!.id,
+                        editToken: state.draft!.editToken,
+                        content: c!,
+                      },
+                      "publish",
+                    );
+                  else setPanel("version");
+                }}
               >
                 {T.publish}
               </Button>
@@ -435,6 +468,9 @@ export function PlanningVersionPanel({
           </div>
         }
       />
+      {editing ? (
+        <p className="text-body-small text-muted-foreground">{T.editHint}</p>
+      ) : null}
       {error ? (
         <p className="text-body-small text-destructive" role="alert">
           {error}
@@ -599,46 +635,18 @@ export function PlanningVersionPanel({
                 }
                 edit={edit}
                 disabled={pending}
+                summaryTargetKey={
+                  !currentRegion ? companyTarget?.key : undefined
+                }
                 summary={
                   !currentRegion ? (
-                    <div className="grid grid-cols-2 gap-x-xl gap-y-lg py-md @3xl:grid-cols-4">
-                      <LabeledValue
-                        label={`${T.allocated} · ${companyTarget?.currency ?? sources.currency}`}
-                        value={format(String(allocated))}
-                      />
-                      <LabeledValue
-                        label={T.allocation}
-                        value={
-                          companyTarget?.target != null
-                            ? format(
-                                String(
-                                  Number(companyTarget.target) - allocated,
-                                ),
-                              )
-                            : "—"
-                        }
-                      />
-                      <LabeledValue
-                        label={T.people}
-                        value={
-                          new Set(
-                            c.team
-                              .filter((t) => t.memberSub)
-                              .map((t) => t.memberSub),
-                          ).size
-                        }
-                      />
-                      <LabeledValue
-                        label={`${T.needs} · FTE`}
-                        value={format(
-                          String(
-                            c.team
-                              .filter((t) => !t.memberSub)
-                              .reduce((n, t) => n + Number(t.requestedFte), 0),
-                          ),
-                        )}
-                      />
-                    </div>
+                    <CompanyTargetSummary
+                      content={c}
+                      target={companyTarget}
+                      currency={sources.currency}
+                      edit={edit}
+                      disabled={pending}
+                    />
                   ) : undefined
                 }
               />
@@ -999,7 +1007,10 @@ export function PlanningVersionPanel({
                   .map((e) => (
                     <TableRow key={e.no}>
                       <TableCell>
-                        {e.revisionId ? (
+                        {e.revisionId &&
+                        plan.revisions.some(
+                          (r) => r.id === e.revisionId && r.state === "sealed",
+                        ) ? (
                           <Button
                             size="sm"
                             variant="ghost"

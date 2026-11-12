@@ -1,8 +1,8 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import { useMemberName } from "../lib/member-names";
 import {
-  DataTable,
   EmptyState,
   Section,
   TableTitleCell,

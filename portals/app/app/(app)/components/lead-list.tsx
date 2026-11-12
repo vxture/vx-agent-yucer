@@ -1,12 +1,11 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState, useTransition } from "react";
 import {
   Button,
-  DataTable,
   EmptyState,
   Field,
   FieldLabel,

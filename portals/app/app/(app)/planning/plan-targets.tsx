@@ -30,15 +30,28 @@ type Props = {
   edit: ((c: PlanContent) => void) | null;
   disabled: boolean;
   summary?: ReactNode;
+  summaryTargetKey?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 const tiers = ["floor", "target", "stretch"] as const;
 
 // Annual and period rows share ONE physical table/colgroup. Separate tables
 // cannot guarantee tier alignment when labels, values or edit permissions vary.
-export function PlanTargetLedger({ content, scope, edit, disabled }: Props) {
+export function PlanTargetLedger({
+  content,
+  scope,
+  edit,
+  disabled,
+  summaryTargetKey,
+  open: controlledOpen,
+  onOpenChange,
+}: Props) {
   const locale = useLocale();
   const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P, DS_LABELS } = useMessages();
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
   const labels = {
     revenue: P.metricRevenue,
     new_logo: P.metricNewLogo,
@@ -93,6 +106,7 @@ export function PlanTargetLedger({ content, scope, edit, disabled }: Props) {
       }
     edit?.(next);
   };
+  const ledgerAnnual = annual.filter((t) => t.key !== summaryTargetKey);
   const row = (t: PlanTarget, index: number) => (
     <TableRow
       key={t.key}
@@ -181,23 +195,25 @@ export function PlanTargetLedger({ content, scope, edit, disabled }: Props) {
           <col className="w-1/5" />
           <col className="w-table-col-fixed" />
         </colgroup>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-center first:pl-md">#</TableHead>
-            <TableHead>
-              {T.period} / {T.metric}
-            </TableHead>
-            {tiers.map((tier) => (
-              <TableHead key={tier} className="text-right">
-                {T[tier]}
+        {ledgerAnnual.length ? (
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-center first:pl-md"></TableHead>
+              <TableHead>
+                {T.period} / {T.metric}
               </TableHead>
-            ))}
-            <TableHead className="text-center last:pr-md">
-              {T.operations}
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>{annual.map(row)}</TableBody>
+              {tiers.map((tier) => (
+                <TableHead key={tier} className="text-right">
+                  {T[tier]}
+                </TableHead>
+              ))}
+              <TableHead className="text-center last:pr-md">
+                {T.operations}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+        ) : null}
+        <TableBody>{ledgerAnnual.map(row)}</TableBody>
         <TableBody className="border-t border-dashed border-border">
           <TableRow
             className="cursor-pointer hover:bg-transparent"
@@ -234,8 +250,27 @@ export function PlanTargetLedger({ content, scope, edit, disabled }: Props) {
         </TableBody>
         <CollapsibleContent asChild>
           <TableBody>
+            {!ledgerAnnual.length ? (
+              <TableRow className="hover:bg-transparent">
+                <TableHead
+                  scope="col"
+                  className="text-center first:pl-md"
+                ></TableHead>
+                <TableHead scope="col">
+                  {T.period} / {T.metric}
+                </TableHead>
+                {tiers.map((tier) => (
+                  <TableHead scope="col" key={tier} className="text-right">
+                    {T[tier]}
+                  </TableHead>
+                ))}
+                <TableHead scope="col" className="text-center last:pr-md">
+                  {T.operations}
+                </TableHead>
+              </TableRow>
+            ) : null}
             {periods.length ? (
-              periods.map((t, i) => row(t, annual.length + i))
+              periods.map((t, i) => row(t, ledgerAnnual.length + i))
             ) : (
               <TableRow>
                 <TableCell colSpan={6}>

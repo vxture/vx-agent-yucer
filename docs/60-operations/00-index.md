@@ -2163,3 +2163,12 @@ DS 15.0.1 的 `FilterBar` 内置 32px `ViewModeSwitch`，但输入框、原生�
 与 `RowActions` 统一经过此入口。菜单项、弹层、焦点、禁用与危险操作二次确认均保留
 原 DS 行为。未修改平台或 DS 仓库。退出条件补充：DS `ActionMenu` 支持触发器和
 图标尺寸 token 后，删除对应 CSS，直接传 DS 参数。
+
+
+同日补充（owner 全平台去掉序号列头的 `#`）：DS `DataTable` 将该字符写死，
+`DataTableLabels` 暂无 index heading 入口。统一在 `business-controls.DataTable`
+保留原序号列与 64px 宽度，只隐藏该表自身的序号表头；位置由选择列、展开列、前导
+占位列的原生参数确定，使用直接子代选择器，避免影响嵌套子表。所有 32 个业务文件
+通过同一包装；原生 Table 的空表头与权限树自有编号表头直接清空。没有删去序号数据、
+选择框、折叠列或操作列。退出条件：DS 增加可空 index heading / label 参数后删除
+对应局部可见性 CSS，改用 DS 参数。本条是 owner 明确指定展示要求的暂行适配。

@@ -1,10 +1,10 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
-  DataTable,
   Dialog,
   DialogContent,
   DialogDescription,

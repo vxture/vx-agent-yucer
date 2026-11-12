@@ -8453,6 +8453,11 @@ export const JUDGEMENT_ADOPT_ERROR: Record<string, string> = {
 };
 
 export const PLAN_VERSION_TEXT = {
+  resources: "\u8d44\u6e90",
+  resume: "\u7ee7\u7eed\u7f16\u8f91",
+  browse: "\u8fd4\u56de\u6d4f\u89c8",
+  editHint: "\u5f53\u524d\u6b63\u5728\u7f16\u8f91\u8349\u7a3f\uff1b\u53d1\u5e03\u540e\u751f\u6210\u65b0\u7248\u672c\uff0c\u65e5\u5e38\u6d4f\u89c8\u4f7f\u7528\u5df2\u751f\u6548\u7248\u672c\u3002",
+
   annualTargets: "\u5e74\u5ea6\u76ee\u6807",
   targetLedger: "\u5e74\u5ea6\u4e0e\u5468\u671f\u76ee\u6807",
   periodTargets: "\u5468\u671f\u76ee\u6807",
@@ -8502,7 +8507,7 @@ export const PLAN_VERSION_TEXT = {
   history: "版本历史",
   noRelease: "尚未发布",
   noReleaseHint: "建立年度草稿，按区域完善阶梯目标、客户贡献、团队投入与行动安排。",
-  create: "建立草稿",
+  create: "\u65b0\u5efa\u89c4\u5212",
   adjust: "调整规划",
   restore: "基于此版恢复",
   save: "保存草稿",

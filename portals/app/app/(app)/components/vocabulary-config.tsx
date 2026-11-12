@@ -1,12 +1,11 @@
 "use client";
 
-import { FilterBar, ViewHeader } from "./business-controls";
+import { DataTable, FilterBar, ViewHeader } from "./business-controls";
 
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
-  DataTable,
   Icon,
   ListCard,
   ListCardGrid,

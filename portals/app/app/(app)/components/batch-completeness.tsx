@@ -1,9 +1,9 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import { useMemo, useState, useTransition } from "react";
 import {
   BulkActionBar,
-  DataTable,
   EmptyState,
   Section,
   StatusBadge,

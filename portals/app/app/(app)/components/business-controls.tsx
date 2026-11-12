@@ -3,6 +3,8 @@
 import type { ComponentProps } from "react";
 import {
   ActionMenu as DSActionMenu,
+  DataTable as DSDataTable,
+  type DataTableProps,
   FilterBar as DSFilterBar,
   TabsList as DSTabsList,
   ViewHeader as DSViewHeader,
@@ -49,5 +51,34 @@ export function ActionMenu(props: ComponentProps<typeof DSActionMenu>) {
     <span className={styles.overflow}>
       <DSActionMenu {...props} />
     </span>
+  );
+}
+
+// TD-038: the DS hard-codes its index heading as "#" with no label slot.
+// Preserve the native index/selection/expansion columns and their widths;
+// only the index heading is visually empty. Direct-child selectors cannot
+// affect a nested table rendered in an expanded row.
+export function DataTable<Row>({ className, ...props }: DataTableProps<Row>) {
+  const indexPosition =
+    Number(props.selectedKeys !== undefined) +
+    Number(
+      props.expandedContent !== undefined &&
+        props.onExpandedChange !== undefined,
+    ) +
+    Number(!!props.leadingSpacer);
+  const indexClasses = [
+    styles.indexFirst,
+    styles.indexSecond,
+    styles.indexThird,
+    styles.indexFourth,
+  ];
+  return (
+    <DSDataTable
+      {...props}
+      className={cn(
+        props.indexStart !== undefined && indexClasses[indexPosition],
+        className,
+      )}
+    />
   );
 }

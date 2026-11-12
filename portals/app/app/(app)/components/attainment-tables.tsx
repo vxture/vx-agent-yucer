@@ -1,9 +1,9 @@
 "use client";
+import { DataTable } from "./business-controls";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  DataTable,
   EmptyState,
   TableTitleCell,
   useListPagination,

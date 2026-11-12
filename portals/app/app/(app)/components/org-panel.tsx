@@ -1,12 +1,11 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import {
   BulkActionBar,
   Button,
   ButtonGroup,
-  DataTable,
   Drawer,
   EmptyState,
   Field,

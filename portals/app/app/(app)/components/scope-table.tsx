@@ -1,6 +1,7 @@
 "use client";
+import { DataTable } from "./business-controls";
 
-import { DataTable, StatusBadge, TableTitleCell, useListPagination } from "@vxture/design-ui";
+import { StatusBadge, TableTitleCell, useListPagination } from "@vxture/design-ui";
 import { PaginationFooter, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";

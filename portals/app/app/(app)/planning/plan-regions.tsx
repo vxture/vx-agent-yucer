@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import {
-  Button,
   Icon,
   Table,
   TableBody,
@@ -111,6 +110,18 @@ export function PlanRegions({
       icon: "arrow-right" as const,
       onSelect: () => onSelect(r.id),
     },
+    ...(r.included
+      ? [
+          {
+            id: "periods",
+            label: expanded.includes(r.id)
+              ? T.collapsePeriods
+              : T.periodTargets,
+            icon: "calendar" as const,
+            onSelect: () => togglePeriods(r.id),
+          },
+        ]
+      : []),
   ];
   return (
     <Section
@@ -151,7 +162,7 @@ export function PlanRegions({
             </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-center first:pl-md">#</TableHead>
+                <TableHead className="text-center first:pl-md"></TableHead>
                 <TableHead>{T.regions}</TableHead>
                 {(["floor", "target", "stretch"] as const).map((tier) => (
                   <TableHead key={tier} className="text-right">
@@ -170,6 +181,18 @@ export function PlanRegions({
                 <TableBody key={r.id}>
                   <TableRow
                     data-region-id={r.id}
+                    tabIndex={r.included ? 0 : undefined}
+                    aria-expanded={r.included ? open : undefined}
+                    onKeyDown={(event) => {
+                      if (
+                        event.target !== event.currentTarget ||
+                        !r.included ||
+                        !["Enter", " "].includes(event.key)
+                      )
+                        return;
+                      event.preventDefault();
+                      togglePeriods(r.id);
+                    }}
                     className={`${r.included ? "cursor-pointer " : ""}${open ? "bg-accent hover:bg-accent" : "hover:bg-transparent"}`}
                     onClick={(event) => {
                       if (
@@ -191,32 +214,6 @@ export function PlanRegions({
                         title={regionTitle(r)}
                         description={`${r.target?.currency ?? "—"} · ${T.customers} ${r.customers} · ${T.people} ${r.people} · ${T.actions} ${r.actions}`}
                       />
-                      {r.included ? (
-                        <Button
-                          size="xl"
-                          variant="ghost"
-                          className="mt-sm w-full justify-between"
-                          aria-expanded={open}
-                          aria-controls={
-                            open && r.periods.length
-                              ? `region-periods-${r.id}`
-                              : undefined
-                          }
-                          onClick={() => togglePeriods(r.id)}
-                        >
-                          <span className="text-body-small text-muted-foreground">
-                            {open
-                              ? T.collapsePeriods
-                              : T.splitPeriods(
-                                  new Set(r.periods.map((t) => t.period)).size,
-                                )}
-                          </span>
-                          <Icon
-                            name={open ? "chevron-up" : "chevron-down"}
-                            size="sm"
-                          />
-                        </Button>
-                      ) : null}
                     </TableCell>
                     {(["floor", "target", "stretch"] as const).map((tier) => (
                       <TableCell
@@ -301,7 +298,22 @@ export function PlanRegions({
             {regions.map((r) => (
               <MetricListCard
                 key={r.id}
-                title={regionTitle(r)}
+                title={
+                  <span className="flex h-control-xl min-w-0 items-center gap-sm">
+                    <Icon
+                      name="globe"
+                      size="md"
+                      className="shrink-0 text-muted-foreground"
+                    />
+                    {regionTitle(r)}
+                    {r.included ? (
+                      <span className="truncate text-body-small font-normal text-muted-foreground">
+                        {T.customers} {r.customers} · {T.people} {r.people} ·{" "}
+                        {T.actions} {r.actions}
+                      </span>
+                    ) : null}
+                  </span>
+                }
                 actions={
                   <div className="flex items-center gap-sm">
                     {status(r)}
@@ -311,23 +323,7 @@ export function PlanRegions({
                     />
                   </div>
                 }
-                note={
-                  r.included ? (
-                    <div className="flex flex-wrap gap-md">
-                      <span>
-                        {T.customers} {r.customers}
-                      </span>
-                      <span>
-                        {T.people} {r.people}
-                      </span>
-                      <span>
-                        {T.actions} {r.actions}
-                      </span>
-                    </div>
-                  ) : (
-                    r.reason || T.excluded
-                  )
-                }
+                note={!r.included ? r.reason || T.excluded : undefined}
                 footer={
                   r.included ? (
                     <div className="w-full min-w-0">
@@ -336,6 +332,14 @@ export function PlanRegions({
                         scope={`territory:${r.id}`}
                         edit={null}
                         disabled={false}
+                        open={expanded.includes(r.id)}
+                        onOpenChange={(open) =>
+                          setExpanded((keys) =>
+                            open
+                              ? [...new Set([...keys, r.id])]
+                              : keys.filter((key) => key !== r.id),
+                          )
+                        }
                       />
                     </div>
                   ) : undefined

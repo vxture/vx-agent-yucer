@@ -1,12 +1,11 @@
 "use client";
 
-import { FilterBar } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import { TruncatedText } from "./truncated-text";
 import { useState, useTransition } from "react";
 import {
   Button,
-  DataTable,
   EmptyState,
   Section,
   TableTitleCell,
