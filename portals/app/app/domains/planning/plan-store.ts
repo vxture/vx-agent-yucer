@@ -14,6 +14,12 @@ export interface SalesPlanStore {
 export class InMemorySalesPlanStore implements SalesPlanStore {
   private plans = new Map<string, SalesPlan>();
   private queues = new Map<string, Promise<void>>();
+  seed(plans: readonly SalesPlan[]): void {
+    for (const plan of plans) {
+      const key = plan.workspaceId + "|" + plan.year;
+      if (!this.plans.has(key)) this.plans.set(key, structuredClone(plan));
+    }
+  }
   async list(workspaceId: string) {
     return structuredClone(
       [...this.plans.values()].filter((p) => p.workspaceId === workspaceId),

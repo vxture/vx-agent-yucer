@@ -941,7 +941,7 @@ function AttainmentSourceContent({
                 </span>
                 <span className="text-body-small text-muted-foreground">
                   {t.memberSub ? `${t.percent}%` : `${t.requestedFte} FTE`}{" "}
-                  \u00b7 {t.start} - {t.end}
+                  {"\u00b7"} {t.start} - {t.end}
                 </span>
               </div>
             ))}
