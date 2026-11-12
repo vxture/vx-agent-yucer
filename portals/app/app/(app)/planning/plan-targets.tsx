@@ -30,6 +30,7 @@ type Props = {
   edit: ((c: PlanContent) => void) | null;
   disabled: boolean;
   summary?: ReactNode;
+  headerInfo?: ReactNode;
   summaryTargetKey?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -230,7 +231,15 @@ export function PlanTargetLedger({
                   className={open ? "w-full bg-accent" : "w-full"}
                 >
                   <span className="flex w-full items-center justify-between gap-md">
-                    <span>{T.periodTargets}</span>
+                    <span
+                      className={
+                        open
+                          ? undefined
+                          : "text-body-small font-normal text-muted-foreground"
+                      }
+                    >
+                      {T.periodTargets}
+                    </span>
                     <span className="flex items-center gap-sm">
                       {!open ? (
                         <span className="text-body-small font-normal text-muted-foreground">
@@ -336,19 +345,24 @@ export function PlanTargets(props: Props) {
     <MetricListCard
       title={`${T.annualTargets} · Y${content.year}`}
       actions={
-        edit ? (
-          <RowActions
-            label={`${T.addMetric} · ${T.annualTargets}`}
-            disabled={disabled}
-            items={(["revenue", "new_logo", "pipeline", "margin"] as const)
-              .filter((metric) => !annual.some((t) => t.metric === metric))
-              .map((metric) => ({
-                id: metric,
-                label: `${T.addMetric} · ${labels[metric]}`,
-                icon: "plus" as const,
-                onSelect: () => addMetric(metric),
-              }))}
-          />
+        props.headerInfo || edit ? (
+          <div className="flex items-center gap-md">
+            {props.headerInfo}
+            {edit ? (
+              <RowActions
+                label={`${T.addMetric} · ${T.annualTargets}`}
+                disabled={disabled}
+                items={(["revenue", "new_logo", "pipeline", "margin"] as const)
+                  .filter((metric) => !annual.some((t) => t.metric === metric))
+                  .map((metric) => ({
+                    id: metric,
+                    label: `${T.addMetric} · ${labels[metric]}`,
+                    icon: "plus" as const,
+                    onSelect: () => addMetric(metric),
+                  }))}
+              />
+            ) : null}
+          </div>
         ) : undefined
       }
       note={props.summary}

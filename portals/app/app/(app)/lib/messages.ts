@@ -8453,6 +8453,9 @@ export const JUDGEMENT_ADOPT_ERROR: Record<string, string> = {
 };
 
 export const PLAN_VERSION_TEXT = {
+  personnel: "\u4eba\u5458",
+  personUnit: "\u4eba",
+  staffingGap: "\u5f85\u8865",
   resources: "\u8d44\u6e90",
   resume: "\u7ee7\u7eed\u7f16\u8f91",
   browse: "\u8fd4\u56de\u6d4f\u89c8",

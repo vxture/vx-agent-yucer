@@ -36,7 +36,10 @@ import {
 import type { PlanCommand } from "../../domains/planning/plan-service";
 import type { PlanContent, SalesPlan } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
-import { CompanyTargetSummary } from "./company-target-summary";
+import {
+  CompanyTargetAllocation,
+  CompanyTargetSummary,
+} from "./company-target-summary";
 import { PlanTargets } from "./plan-targets";
 import { PlanSupport } from "./plan-support";
 import { PlanRegions } from "./plan-regions";
@@ -635,6 +638,15 @@ export function PlanningVersionPanel({
                 }
                 edit={edit}
                 disabled={pending}
+                headerInfo={
+                  !currentRegion ? (
+                    <CompanyTargetAllocation
+                      content={c}
+                      target={companyTarget}
+                      currency={sources.currency}
+                    />
+                  ) : undefined
+                }
                 summaryTargetKey={
                   !currentRegion ? companyTarget?.key : undefined
                 }

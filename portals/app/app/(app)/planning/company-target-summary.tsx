@@ -25,16 +25,6 @@ export function CompanyTargetSummary({
     value == null
       ? "—"
       : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
-  const allocated = content.targets
-    .filter(
-      (t) =>
-        t.scope !== "workspace" &&
-        t.period === `Y${content.year}` &&
-        t.metric === "revenue" &&
-        t.currency === target?.currency &&
-        t.target != null,
-    )
-    .reduce((total, t) => total + Number(t.target), 0);
   const members = new Set(
     content.team.filter((t) => t.memberSub).map((t) => t.memberSub),
   ).size;
@@ -88,34 +78,65 @@ export function CompanyTargetSummary({
           />
         ))}
         <MetricListCard
-          title={T.resources}
+          title={T.personnel}
           note={
-            <div className="flex flex-col gap-sm">
-              <span className="flex items-baseline gap-sm">
-                <span className="text-heading-2 tabular-nums text-foreground">
-                  {members}
-                </span>
-                <span>{T.people}</span>
+            <span className="flex items-baseline gap-sm whitespace-nowrap">
+              <span className="text-heading-2 tabular-nums text-foreground">
+                {members}
               </span>
               <span>
-                {T.needs} · {format(requested)} FTE
+                {T.personUnit} · {T.staffingGap} {format(requested)} FTE
               </span>
-            </div>
+            </span>
           }
         />
       </div>
-      <p className="flex flex-wrap gap-x-lg gap-y-xs text-body-small text-muted-foreground">
-        <span>
-          {T.allocated} {format(allocated)} {target?.currency ?? currency}
-        </span>
-        <span>
-          {T.allocation}{" "}
-          {format(
-            target?.target == null ? null : Number(target.target) - allocated,
-          )}{" "}
-          {target?.currency ?? currency}
-        </span>
-      </p>
     </div>
+  );
+}
+
+// Allocation describes planning progress, so it belongs in the card header.
+export function CompanyTargetAllocation({
+  content,
+  target,
+  currency,
+}: {
+  content: PlanContent;
+  target: PlanTarget | undefined;
+  currency: string;
+}) {
+  const locale = useLocale();
+  const { PLAN_VERSION_TEXT: T } = useMessages();
+  const format = (value: string | number | null | undefined) =>
+    value == null
+      ? "\u2014"
+      : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
+  const allocated = content.targets
+    .filter(
+      (t) =>
+        t.scope !== "workspace" &&
+        t.period === `Y${content.year}` &&
+        t.metric === "revenue" &&
+        t.currency === target?.currency &&
+        t.target != null,
+    )
+    .reduce((total, t) => total + Number(t.target), 0);
+
+  return (
+    <span
+      className="flex items-center gap-md whitespace-nowrap text-body-small font-normal text-muted-foreground"
+      data-company-target-allocation
+    >
+      <span>
+        {T.allocated} {format(allocated)}
+      </span>
+      <span>
+        {T.allocation}{" "}
+        {format(
+          target?.target == null ? null : Number(target.target) - allocated,
+        )}
+      </span>
+      <span>{target?.currency ?? currency}</span>
+    </span>
   );
 }

@@ -71,6 +71,9 @@ export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
   PLAN_VERSION_TEXT: {
     ...zh.PLAN_VERSION_TEXT,
+    personnel: "Personnel",
+    personUnit: "people",
+    staffingGap: "To staff",
     resources: "Resources",
     resume: "Continue editing",
     browse: "Return to browsing",
