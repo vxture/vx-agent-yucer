@@ -5,7 +5,6 @@ import { FilterBar } from "./business-controls";
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState } from "react";
 import {
-  ActionMenu,
   DataTable,
   EmptyState,
   Field,
@@ -22,6 +21,7 @@ import {
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { RowActions, useTableSort } from "./table-fittings";
 import { DialogForm } from "./dialog-form";
 import type { AttainmentRow } from "../../domains/planning/service";

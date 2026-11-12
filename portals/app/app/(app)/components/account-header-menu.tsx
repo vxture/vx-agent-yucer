@@ -1,6 +1,6 @@
 "use client";
 
-import { ActionMenu } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { useMessages } from "../lib/i18n/provider";
 import { useAccountEdit } from "./account-edit-context";
 

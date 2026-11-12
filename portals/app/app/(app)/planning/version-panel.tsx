@@ -24,14 +24,15 @@ import {
   TableRow,
   Textarea,
 } from "@vxture/design-ui";
+import { RowActions } from "../components/table-fittings";
 import { Tag } from "../components/tag";
 import { ModuleHeadline } from "../components/module-headline";
 import { useLocale, useMessages } from "../lib/i18n/provider";
+import { previewTargetDelta } from "../lib/planning-preview";
 import { salesPlanCommandAction } from "./plan-actions";
 import {
   planVersions,
   comparePlanContents,
-  targetDelta,
 } from "../../domains/planning/plan-state";
 import type { PlanCommand } from "../../domains/planning/plan-service";
 import type { PlanContent, SalesPlan } from "../../domains/planning/plan-model";
@@ -138,6 +139,9 @@ export function PlanningVersionPanel({
   const [adopt, setAdopt] = useState(false);
   const [lockPeriod, setLockPeriod] = useState(`${year}Q1`);
   const [checksOpen, setChecksOpen] = useState(false);
+  const [panel, setPanel] = useState<"diff" | "history" | "version" | null>(
+    null,
+  );
   const requests = useRef(new Map<string, string>());
   const edit = editing
     ? (next: PlanContent) => {
@@ -173,6 +177,7 @@ export function PlanningVersionPanel({
         setView(s.draft?.id ?? "current");
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
+        setPanel(null);
         router.refresh();
       } catch {
         setError(E.plan_save_failed!);
@@ -181,10 +186,11 @@ export function PlanningVersionPanel({
   const choose = (value: string) => {
     if (dirty) {
       setError(T.saveFirst);
-      return;
+      return false;
     }
     setView(value);
     setRegionId(null);
+    return true;
   };
   const metricName: Record<string, string> = {
     revenue: P.metricRevenue,
@@ -287,6 +293,36 @@ export function PlanningVersionPanel({
         JSON.stringify(old.provinces) !== JSON.stringify(r.provinces)
       );
     });
+  const auxiliaryActions = [
+    ...(c
+      ? [
+          {
+            id: "diff",
+            label: T.diff,
+            icon: "git-branch" as const,
+            onSelect: () => setPanel("diff"),
+          },
+        ]
+      : []),
+    {
+      id: "history",
+      label: T.history,
+      icon: "clock-counter-clockwise" as const,
+      onSelect: () => setPanel("history"),
+    },
+    ...(canEdit &&
+    !state.closed &&
+    (state.draft || state.current || state.scheduled)
+      ? [
+          {
+            id: "version",
+            label: T.version,
+            icon: "settings" as const,
+            onSelect: () => setPanel("version"),
+          },
+        ]
+      : []),
+  ];
   return (
     <div className="@container flex flex-col gap-xl">
       <ModuleHeadline
@@ -382,6 +418,20 @@ export function PlanningVersionPanel({
                 {T.save}
               </Button>
             ) : null}
+            {editing ? (
+              <Button
+                size="xl"
+                disabled={pending || dirty}
+                onClick={() => setPanel("version")}
+              >
+                {T.publish}
+              </Button>
+            ) : null}
+            <RowActions
+              label={`${T.version} · Y${year}`}
+              items={auxiliaryActions}
+              disabled={pending}
+            />
           </div>
         }
       />
@@ -435,22 +485,29 @@ export function PlanningVersionPanel({
             title={currentRegion ? currentRegion.name : T.company}
             description={T.targetHint}
             action={
-              currentRegion ? (
-                <Button
-                  size="md"
-                  variant="secondary"
-                  onClick={() => setRegionId(null)}
-                >
-                  {T.back}
-                </Button>
-              ) : (
-                <Link
-                  href={`/attainment?period=Y${year}`}
-                  className="text-body-small text-muted-foreground transition-colors hover:text-primary"
-                >
-                  {T.actual}
-                </Link>
-              )
+              <div className="flex items-center gap-md">
+                {currentRegion ? (
+                  <Button
+                    size="md"
+                    variant="secondary"
+                    onClick={() => setRegionId(null)}
+                  >
+                    {T.back}
+                  </Button>
+                ) : (
+                  <Link
+                    href={`/attainment?period=Y${year}`}
+                    className="text-body-small text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    {T.actual}
+                  </Link>
+                )}
+                <RowActions
+                  label={`${T.company} · ${T.version}`}
+                  items={auxiliaryActions}
+                  disabled={pending}
+                />
+              </div>
             }
           >
             {currentRegion && edit ? (
@@ -544,7 +601,7 @@ export function PlanningVersionPanel({
                 disabled={pending}
                 summary={
                   !currentRegion ? (
-                    <div className="flex flex-wrap gap-x-xl gap-y-md">
+                    <div className="grid grid-cols-2 gap-x-xl gap-y-lg py-md @3xl:grid-cols-4">
                       <LabeledValue
                         label={`${T.allocated} · ${companyTarget?.currency ?? sources.currency}`}
                         value={format(String(allocated))}
@@ -604,83 +661,89 @@ export function PlanningVersionPanel({
           ) : (
             <PlanRegions content={c} onSelect={setRegionId} />
           )}
-          <PlanAssumptions content={c} edit={edit} disabled={pending} />
-          {editing ? (
-            <Section
-              icon="git-branch"
-              title={T.diff}
-              description={T.publishHint}
-              action={
-                <NativeSelect
-                  wrapperClassName="w-40"
-                  aria-label={T.diff}
-                  value={diffSection}
-                  onChange={(e) => setDiffSection(e.target.value)}
-                >
-                  <option value="all">{T.overview}</option>
-                  {Object.entries(sectionLabel).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </NativeSelect>
-              }
-            >
-              <p className="mb-md text-body-small text-muted-foreground">
-                {diff.length} {T.changes}
-                {dirty ? ` · ${T.saveFirst}` : ""}
-              </p>
-              {diff.length ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {[T.item, T.before, T.after, T.targetChange].map((l) => (
-                        <TableHead key={l}>{l}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {diff
-                      .filter(
-                        (d) =>
-                          diffSection === "all" || d.section === diffSection,
-                      )
-                      .map((d) => (
-                        <TableRow key={`${d.section}-${d.key}`}>
-                          <TableCell>{sectionLabel[d.section]}</TableCell>
-                          <TableCell className="text-body-small text-muted-foreground">
-                            {describe(d.before, d.section)}
-                          </TableCell>
-                          <TableCell className="text-body-small">
-                            {describe(d.after, d.section)}
-                          </TableCell>
-                          <TableCell className="text-body-small whitespace-nowrap">
-                            {(() => {
-                              const delta =
-                                d.section === "targets" && d.before && d.after
-                                  ? targetDelta(
-                                      d.before.target as string | null,
-                                      d.after.target as string | null,
-                                    )
-                                  : null;
-                              return delta
-                                ? `${delta.amount} ${d.after?.currency ?? T.count} · ${delta.percent ?? T.noPercent}`
-                                : "—";
-                            })()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-body-small text-muted-foreground">
-                  {T.noDiff}
-                </p>
-              )}
-            </Section>
-          ) : null}
+          <PlanAssumptions
+            content={c}
+            edit={edit}
+            disabled={pending}
+            onReview={() => {
+              setDiffSection("assumptions");
+              setPanel("diff");
+            }}
+          />
         </>
       )}
+      <Drawer
+        open={panel === "diff"}
+        onClose={() => setPanel(null)}
+        width="lg"
+        title={T.diff}
+        description={T.publishHint}
+        closeLabel={T.cancel}
+      >
+        <div className="flex flex-col gap-lg">
+          <NativeSelect
+            wrapperClassName="w-40"
+            aria-label={T.diff}
+            value={diffSection}
+            onChange={(e) => setDiffSection(e.target.value)}
+          >
+            <option value="all">{T.overview}</option>
+            {Object.entries(sectionLabel).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="mb-md text-body-small text-muted-foreground">
+            {diff.length} {T.changes}
+            {dirty ? ` · ${T.saveFirst}` : ""}
+          </p>
+          {diff.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {[T.item, T.before, T.after, T.targetChange].map((l) => (
+                    <TableHead key={l}>{l}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {diff
+                  .filter(
+                    (d) => diffSection === "all" || d.section === diffSection,
+                  )
+                  .map((d) => (
+                    <TableRow key={`${d.section}-${d.key}`}>
+                      <TableCell>{sectionLabel[d.section]}</TableCell>
+                      <TableCell className="text-body-small text-muted-foreground">
+                        {describe(d.before, d.section)}
+                      </TableCell>
+                      <TableCell className="text-body-small">
+                        {describe(d.after, d.section)}
+                      </TableCell>
+                      <TableCell className="text-body-small whitespace-nowrap">
+                        {(() => {
+                          const delta =
+                            d.section === "targets" && d.before && d.after
+                              ? previewTargetDelta(
+                                  d.before.target as string | null,
+                                  d.after.target as string | null,
+                                )
+                              : null;
+                          return delta
+                            ? `${delta.amount} ${d.after?.currency ?? T.count} · ${delta.percent ?? T.noPercent}`
+                            : "—";
+                        })()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-body-small text-muted-foreground">{T.noDiff}</p>
+          )}
+        </div>
+      </Drawer>
       <Drawer
         open={checksOpen}
         onClose={() => setChecksOpen(false)}
@@ -740,7 +803,21 @@ export function PlanningVersionPanel({
       {canEdit &&
       !state.closed &&
       (state.draft || state.current || state.scheduled) ? (
-        <Section icon="upload" title={T.version} description={T.reasonHint}>
+        <Drawer
+          open={panel === "version"}
+          onClose={() => {
+            if (!pending) setPanel(null);
+          }}
+          width="md"
+          title={T.version}
+          description={T.reasonHint}
+          closeLabel={T.cancel}
+        >
+          {error ? (
+            <p className="mb-md text-body-small text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
           <div className="flex flex-col gap-lg">
             <Field>
               <FieldLabel htmlFor="plan-change-reason">{T.reason}</FieldLabel>
@@ -791,7 +868,10 @@ export function PlanningVersionPanel({
                     !!state.scheduled ||
                     (when === "future" && !effective)
                   }
-                  onClick={() => setConfirm("release")}
+                  onClick={() => {
+                    setPanel(null);
+                    setConfirm("release");
+                  }}
                 >
                   {T.publish}
                 </Button>
@@ -799,7 +879,10 @@ export function PlanningVersionPanel({
                   size="md"
                   variant="ghost"
                   disabled={pending}
-                  onClick={() => setConfirm("discard")}
+                  onClick={() => {
+                    setPanel(null);
+                    setConfirm("discard");
+                  }}
                 >
                   {T.discard}
                 </Button>
@@ -872,85 +955,102 @@ export function PlanningVersionPanel({
                   size="md"
                   variant="ghost"
                   disabled={pending || !reason.trim()}
-                  onClick={() => setConfirm("close")}
+                  onClick={() => {
+                    setPanel(null);
+                    setConfirm("close");
+                  }}
                 >
                   {T.close}
                 </Button>
               </div>
             ) : null}
           </div>
-        </Section>
+        </Drawer>
       ) : null}
-      {plan?.events.some((e) => e.kind !== "draft" && e.kind !== "save") ? (
-        <Section
-          icon="clock-counter-clockwise"
-          title={T.history}
-          description={T.baselineHint}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {[T.version, T.item, T.effectiveAt, T.owner, T.reason].map(
-                  (l) => (
-                    <TableHead key={l}>{l}</TableHead>
-                  ),
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...plan.events]
-                .filter((e) => e.kind !== "draft" && e.kind !== "save")
-                .reverse()
-                .map((e) => (
-                  <TableRow key={e.no}>
-                    <TableCell>
-                      {e.revisionId ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => choose(e.revisionId!)}
-                        >
-                          {plan.revisions.find((r) => r.id === e.revisionId)
-                            ?.version
-                            ? `V${plan.revisions.find((r) => r.id === e.revisionId)?.version}`
-                            : T.draft}
-                        </Button>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {
+      <Drawer
+        open={panel === "history"}
+        onClose={() => setPanel(null)}
+        width="lg"
+        title={T.history}
+        description={T.baselineHint}
+        closeLabel={T.cancel}
+      >
+        {error ? (
+          <p className="mb-md text-body-small text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {plan?.events.some((e) => e.kind !== "draft" && e.kind !== "save") ? (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {[T.version, T.item, T.effectiveAt, T.owner, T.reason].map(
+                    (l) => (
+                      <TableHead key={l}>{l}</TableHead>
+                    ),
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...(plan?.events ?? [])]
+                  .filter((e) => e.kind !== "draft" && e.kind !== "save")
+                  .reverse()
+                  .map((e) => (
+                    <TableRow key={e.no}>
+                      <TableCell>
+                        {e.revisionId ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (choose(e.revisionId!)) setPanel(null);
+                            }}
+                          >
+                            {plan?.revisions.find((r) => r.id === e.revisionId)
+                              ?.version
+                              ? `V${plan?.revisions.find((r) => r.id === e.revisionId)?.version}`
+                              : T.draft}
+                          </Button>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {
-                          release: T.publish,
-                          cancel: T.canceled,
-                          draft: T.draft,
-                          save: T.save,
-                          discard: T.abandoned,
-                          lock: T.lockedPeriod,
-                          close: T.closed,
-                        }[e.kind]
-                      }
-                      {e.period ? ` · ${e.period}` : ""}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {new Date(e.effectiveAt).toLocaleString(locale, {
-                        timeZone: "UTC",
-                        hour12: false,
-                      })}{" "}
-                      UTC
-                    </TableCell>
-                    <TableCell>
-                      {sources.members.find((m) => m.sub === e.actor)?.name ??
-                        e.actor}
-                    </TableCell>
-                    <TableCell>{e.reason || "—"}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </Section>
-      ) : null}
+                          {
+                            release: T.publish,
+                            cancel: T.canceled,
+                            draft: T.draft,
+                            save: T.save,
+                            discard: T.abandoned,
+                            lock: T.lockedPeriod,
+                            close: T.closed,
+                          }[e.kind]
+                        }
+                        {e.period ? ` · ${e.period}` : ""}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {new Date(e.effectiveAt).toLocaleString(locale, {
+                          timeZone: "UTC",
+                          hour12: false,
+                        })}{" "}
+                        UTC
+                      </TableCell>
+                      <TableCell>
+                        {sources.members.find((m) => m.sub === e.actor)?.name ??
+                          e.actor}
+                      </TableCell>
+                      <TableCell>{e.reason || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </>
+        ) : (
+          <EmptyState title={T.empty} />
+        )}
+      </Drawer>
       <Drawer
         open={!!confirm}
         onClose={() => {
@@ -968,6 +1068,11 @@ export function PlanningVersionPanel({
         closeLabel={T.cancel}
       >
         <div className="flex flex-col gap-lg">
+          {error ? (
+            <p className="text-body-small text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
           <p className="text-body-small text-muted-foreground">
             {reason || T.baseline}
           </p>

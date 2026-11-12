@@ -5,7 +5,6 @@ import { FilterBar } from "./business-controls";
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   DataTable,
   EmptyState,
@@ -21,6 +20,7 @@ import {
   useListPagination,
   type DataTableColumn,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { DialogForm } from "./dialog-form";
 import {
   FilterSlot,

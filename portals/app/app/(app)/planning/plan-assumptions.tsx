@@ -10,6 +10,7 @@ import {
   Section,
   Textarea,
 } from "@vxture/design-ui";
+import { RowActions } from "../components/table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { PlanContent } from "../../domains/planning/plan-model";
 import {
@@ -23,10 +24,12 @@ export function PlanAssumptions({
   content,
   edit,
   disabled,
+  onReview,
 }: {
   content: PlanContent;
   edit: ((c: PlanContent) => void) | null;
   disabled: boolean;
+  onReview: () => void;
 }) {
   const { PLAN_VERSION_TEXT: T } = useMessages();
   const groups = readPrerequisites(content.assumptions);
@@ -40,6 +43,19 @@ export function PlanAssumptions({
       icon="file-text"
       title={T.assumptions}
       description={T.assumptionsHint}
+      action={
+        <RowActions
+          label={`${T.assumptions} · ${T.diff}`}
+          items={[
+            {
+              id: "diff",
+              label: T.diff,
+              icon: "git-branch",
+              onSelect: onReview,
+            },
+          ]}
+        />
+      }
     >
       <div className="flex flex-col gap-lg">
         {edit && content.assumptions.length > 8000 ? (
@@ -58,6 +74,23 @@ export function PlanAssumptions({
                 <PanelCard
                   title={T.prerequisiteLabels[group]}
                   description={T.prerequisiteHints[group]}
+                  action={
+                    edit ? (
+                      <RowActions
+                        label={`${T.prerequisiteLabels[group]} · ${T.addPrerequisite}`}
+                        disabled={disabled}
+                        items={[
+                          {
+                            id: "add",
+                            label: T.addPrerequisite,
+                            icon: "plus",
+                            onSelect: () =>
+                              update(group, [...groups[group], ""]),
+                          },
+                        ]}
+                      />
+                    ) : undefined
+                  }
                 >
                   <div className="flex w-full min-w-0 flex-col gap-md">
                     {groups[group].length ? (
@@ -126,18 +159,6 @@ export function PlanAssumptions({
                         {T.prerequisiteEmpty}
                       </p>
                     )}
-                    {edit ? (
-                      <div>
-                        <Button
-                          size="md"
-                          variant="secondary"
-                          disabled={disabled}
-                          onClick={() => update(group, [...groups[group], ""])}
-                        >
-                          {T.addPrerequisite}
-                        </Button>
-                      </div>
-                    ) : null}
                   </div>
                 </PanelCard>
               </Field>

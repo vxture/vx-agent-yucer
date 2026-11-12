@@ -4,7 +4,6 @@ import { FilterBar } from "./business-controls";
 
 import { useMemo, useState, useTransition } from "react";
 import {
-  ActionMenu,
   DataTable,
   EmptyState,
   Field,
@@ -21,6 +20,7 @@ import {
   useListPagination,
   type DataTableColumn,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
 import { DialogForm } from "./dialog-form";
 import { Tag } from "./tag";

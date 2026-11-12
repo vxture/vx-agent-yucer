@@ -94,7 +94,11 @@ export function PlanTargetLedger({ content, scope, edit, disabled }: Props) {
     edit?.(next);
   };
   const row = (t: PlanTarget, index: number) => (
-    <TableRow key={t.key} data-plan-period={t.period}>
+    <TableRow
+      key={t.key}
+      data-plan-period={t.period}
+      className="hover:bg-transparent"
+    >
       <TableCell className="text-center text-muted-foreground first:pl-md">
         {index + 1}
       </TableCell>
@@ -195,10 +199,20 @@ export function PlanTargetLedger({ content, scope, edit, disabled }: Props) {
         </TableHeader>
         <TableBody>{annual.map(row)}</TableBody>
         <TableBody className="border-t border-dashed border-border">
-          <TableRow>
+          <TableRow
+            className="cursor-pointer hover:bg-transparent"
+            onClick={(event) => {
+              if (!(event.target as HTMLElement).closest("button"))
+                setOpen(!open);
+            }}
+          >
             <TableCell colSpan={6} className="py-sm first:pl-0 last:pr-0">
               <CollapsibleTrigger asChild>
-                <Button size="xl" variant="ghost" className="w-full">
+                <Button
+                  size="xl"
+                  variant="ghost"
+                  className={open ? "w-full bg-accent" : "w-full"}
+                >
                   <span className="flex w-full items-center justify-between gap-md">
                     <span>{T.periodTargets}</span>
                     <span className="flex items-center gap-sm">
@@ -209,7 +223,7 @@ export function PlanTargetLedger({ content, scope, edit, disabled }: Props) {
                       ) : null}
                       <Icon
                         name={open ? "chevron-up" : "chevron-down"}
-                        size={16}
+                        size="sm"
                       />
                     </span>
                   </span>
@@ -286,26 +300,25 @@ export function PlanTargets(props: Props) {
   return (
     <MetricListCard
       title={`${T.annualTargets} · Y${content.year}`}
+      actions={
+        edit ? (
+          <RowActions
+            label={`${T.addMetric} · ${T.annualTargets}`}
+            disabled={disabled}
+            items={(["revenue", "new_logo", "pipeline", "margin"] as const)
+              .filter((metric) => !annual.some((t) => t.metric === metric))
+              .map((metric) => ({
+                id: metric,
+                label: `${T.addMetric} · ${labels[metric]}`,
+                icon: "plus" as const,
+                onSelect: () => addMetric(metric),
+              }))}
+          />
+        ) : undefined
+      }
       note={props.summary}
       footer={
         <div className="flex w-full min-w-0 flex-col gap-md">
-          {edit ? (
-            <div className="flex flex-wrap gap-sm">
-              {(["revenue", "new_logo", "pipeline", "margin"] as const)
-                .filter((metric) => !annual.some((t) => t.metric === metric))
-                .map((metric) => (
-                  <Button
-                    key={metric}
-                    size="md"
-                    variant="secondary"
-                    disabled={disabled}
-                    onClick={() => addMetric(metric)}
-                  >
-                    {T.addMetric} · {labels[metric]}
-                  </Button>
-                ))}
-            </div>
-          ) : null}
           <PlanTargetLedger {...props} />
         </div>
       }

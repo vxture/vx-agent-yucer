@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { RowActions } from "../components/table-fittings";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type {
   PlanContent,
@@ -189,16 +190,22 @@ export function PlanSupport({
               {T.customerHint}
             </p>
           </div>
-          {edit && sources.canCustomers ? (
-            <Button
-              size="md"
-              variant="secondary"
-              disabled={disabled || !target}
-              onClick={() => open("customer")}
-            >
-              {T.addCustomer}
-            </Button>
-          ) : null}
+          <RowActions
+            label={T.addCustomer}
+            disabled={disabled || !target}
+            items={
+              edit && sources.canCustomers
+                ? [
+                    {
+                      id: "add",
+                      label: T.addCustomer,
+                      icon: "plus",
+                      onSelect: () => open("customer"),
+                    },
+                  ]
+                : []
+            }
+          />
         </div>
         {c.contributions.some((x) => x.regionId === regionId) ? (
           <Table>
@@ -268,16 +275,22 @@ export function PlanSupport({
               {T.teamHint}
             </p>
           </div>
-          {edit && sources.canTeam ? (
-            <Button
-              size="md"
-              variant="secondary"
-              disabled={disabled}
-              onClick={() => open("team")}
-            >
-              {T.addMember}
-            </Button>
-          ) : null}
+          <RowActions
+            label={T.addMember}
+            disabled={disabled}
+            items={
+              edit && sources.canTeam
+                ? [
+                    {
+                      id: "add",
+                      label: T.addMember,
+                      icon: "plus",
+                      onSelect: () => open("team"),
+                    },
+                  ]
+                : []
+            }
+          />
         </div>
         {c.team.some((x) => x.regionId === regionId) ? (
           <Table>
@@ -339,16 +352,22 @@ export function PlanSupport({
               {T.actionHint}
             </p>
           </div>
-          {edit && sources.canTeam ? (
-            <Button
-              size="md"
-              variant="secondary"
-              disabled={disabled}
-              onClick={() => open("action")}
-            >
-              {T.addAction}
-            </Button>
-          ) : null}
+          <RowActions
+            label={T.addAction}
+            disabled={disabled}
+            items={
+              edit && sources.canTeam
+                ? [
+                    {
+                      id: "add",
+                      label: T.addAction,
+                      icon: "plus",
+                      onSelect: () => open("action"),
+                    },
+                  ]
+                : []
+            }
+          />
         </div>
         {c.actions.some((x) => x.regionId === regionId) ? (
           <Table>

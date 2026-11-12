@@ -7,7 +7,6 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ActionMenu,
   DataTable,
   EmptyState,
   Input,
@@ -21,6 +20,7 @@ import {
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
 import { filterAccounts, type HealthBand } from "../lib/account-list-filter";
 import type { AccountRecord } from "../../domains/account/store";

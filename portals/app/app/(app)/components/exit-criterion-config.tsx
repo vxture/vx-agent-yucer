@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   Checkbox,
   Field,
@@ -17,6 +16,7 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { DialogForm } from "./dialog-form";
 import { ConfirmDestructive } from "./confirm-destructive";
 import { Tag } from "./tag";

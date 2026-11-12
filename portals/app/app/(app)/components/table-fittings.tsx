@@ -2,12 +2,12 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
-  ActionMenu,
   Pagination,
   type ActionMenuItem,
   type DataTableSort,
   type PageSizeChoice,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 

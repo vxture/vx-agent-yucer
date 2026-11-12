@@ -1,8 +1,14 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
 import {
-  DataTable,
+  Button,
+  Icon,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   EmptyState,
   Grid,
   MetricListCard,
@@ -13,7 +19,6 @@ import {
   TooltipContent,
   TooltipTrigger,
   useMediaQuery,
-  type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
 import { FilterBar } from "../components/business-controls";
@@ -29,12 +34,7 @@ export function PlanRegions({
   content: PlanContent;
   onSelect: (id: string) => void;
 }) {
-  const {
-    PLAN_VERSION_TEXT: T,
-    PLANNING_TEXT: P,
-    DATA_TABLE_LABELS,
-    DS_LABELS,
-  } = useMessages();
+  const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P, DS_LABELS } = useMessages();
   const locale = useLocale();
   const isWide = useMediaQuery("(min-width: 96rem)");
   const [view, setView] = useState<FilterBarView>("cards");
@@ -100,129 +100,217 @@ export function PlanRegions({
       <TooltipContent>{r.provinces.join(" · ") || T.noCoverage}</TooltipContent>
     </Tooltip>
   );
-  // Flatten expanded periods into the same DataTable. A nested table would
-  // independently recalculate widths and break annual/period tier alignment.
-  const rows = regions.flatMap((r) => [
-    { region: r, target: r.target, isPeriod: false, key: r.id },
-    ...(expanded.includes(r.id)
-      ? r.periods.map((t) => ({
-          region: r,
-          target: t,
-          isPeriod: true,
-          key: `${r.id}:${t.key}`,
-        }))
-      : []),
-  ]);
-  type Row = (typeof rows)[number];
-  const columns: DataTableColumn<Row>[] = [
+  const togglePeriods = (id: string) =>
+    setExpanded((keys) =>
+      keys.includes(id) ? keys.filter((key) => key !== id) : [...keys, id],
+    );
+  const regionActions = (r: Region) => [
     {
-      id: "region",
-      header: T.regions,
-      cell: ({ region: r, target: t, isPeriod }) => (
-        <TableTitleCell
-          title={
-            isPeriod
-              ? t?.period.replace(String(content.year), "")
-              : regionTitle(r)
-          }
-          titleSuffix={
-            !isPeriod && !expanded.includes(r.id) ? (
-              <span className="whitespace-nowrap text-body-small font-normal text-muted-foreground">
-                {T.splitPeriods(new Set(r.periods.map((t) => t.period)).size)}
-              </span>
-            ) : undefined
-          }
-          description={
-            isPeriod
-              ? `${t ? metricLabels[t.metric] : ""} · ${t?.currency ?? T.count}`
-              : `${t?.currency ?? "—"} · ${T.customers} ${r.customers} · ${T.people} ${r.people} · ${T.actions} ${r.actions}`
-          }
-        />
-      ),
-    },
-    ...(["floor", "target", "stretch"] as const).map((tier) => ({
-      id: tier,
-      header: T[tier],
-      align: "numeric" as const,
-      width: "sm" as const,
-      cell: (r: Row) => format(r.target?.[tier]),
-    })),
-    {
-      id: "status",
-      header: T.participation,
-      align: "center",
-      width: "sm",
-      cell: (r) => (r.isPeriod ? "—" : status(r.region)),
+      id: "open",
+      label: T.regionDetail,
+      icon: "arrow-right" as const,
+      onSelect: () => onSelect(r.id),
     },
   ];
   return (
-    <Section icon="map-pin" title={T.regions} description={T.regionsHint}>
+    <Section
+      icon="map-pin"
+      title={T.regions}
+      description={T.regionsHint}
+      action={
+        <RowActions
+          label={`${T.regions} · ${DS_LABELS.actionMenu}`}
+          items={[
+            {
+              id: "configure",
+              label: T.configure,
+              icon: "settings",
+              onSelect: () =>
+                window.open("/admin/division", "_blank", "noopener,noreferrer"),
+            },
+          ]}
+        />
+      }
+    >
       <div className="flex flex-col gap-md">
         <FilterBar
           view={view}
           onViewChange={setView}
           count={T.regionCount(regions.length)}
-          actions={
-            <Link
-              href="/admin/division"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-body-small text-muted-foreground transition-colors hover:text-primary"
-            >
-              {T.configure}
-            </Link>
-          }
         />
         {view === "list" ? (
-          <DataTable
-            labels={DATA_TABLE_LABELS}
-            columns={columns}
-            rows={rows}
-            rowKey={(r) => r.key}
-            indexStart={1}
-            rowActions={({ region: r, isPeriod }) => (
-              <RowActions
-                label={`${DS_LABELS.actionMenu} · ${r.name}`}
-                items={
-                  isPeriod
-                    ? []
-                    : [
-                        {
-                          id: "open",
-                          label: T.regionDetail,
-                          icon: "arrow-right",
-                          onSelect: () => onSelect(r.id),
-                        },
-                        ...(r.included
-                          ? [
-                              {
-                                id: "periods",
-                                label: expanded.includes(r.id)
-                                  ? T.collapsePeriods
-                                  : T.periodTargets,
-                                icon: "calendar" as const,
-                                onSelect: () =>
-                                  setExpanded((keys) =>
-                                    keys.includes(r.id)
-                                      ? keys.filter((key) => key !== r.id)
-                                      : [...keys, r.id],
-                                  ),
-                              },
-                            ]
-                          : []),
-                      ]
-                }
-              />
-            )}
-            empty={<EmptyState title={T.noRegions} />}
-          />
+          <Table className="table-fixed min-w-panel-lg" aria-label={T.regions}>
+            <colgroup>
+              <col className="w-table-col-fixed" />
+              <col />
+              <col className="w-1/6" />
+              <col className="w-1/6" />
+              <col className="w-1/6" />
+              <col className="w-32" />
+              <col className="w-table-col-fixed" />
+            </colgroup>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-center first:pl-md">#</TableHead>
+                <TableHead>{T.regions}</TableHead>
+                {(["floor", "target", "stretch"] as const).map((tier) => (
+                  <TableHead key={tier} className="text-right">
+                    {T[tier]}
+                  </TableHead>
+                ))}
+                <TableHead className="text-center">{T.participation}</TableHead>
+                <TableHead className="text-center last:pr-md">
+                  {T.operations}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            {regions.map((r, index) => {
+              const open = expanded.includes(r.id);
+              return (
+                <TableBody key={r.id}>
+                  <TableRow
+                    data-region-id={r.id}
+                    className={`${r.included ? "cursor-pointer " : ""}${open ? "bg-accent hover:bg-accent" : "hover:bg-transparent"}`}
+                    onClick={(event) => {
+                      if (
+                        !r.included ||
+                        (event.target as HTMLElement).closest(
+                          'button,a,input,select,textarea,[role="menuitem"]',
+                        ) ||
+                        window.getSelection()?.toString()
+                      )
+                        return;
+                      togglePeriods(r.id);
+                    }}
+                  >
+                    <TableCell className="text-center text-muted-foreground first:pl-md">
+                      {index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <TableTitleCell
+                        title={regionTitle(r)}
+                        description={`${r.target?.currency ?? "—"} · ${T.customers} ${r.customers} · ${T.people} ${r.people} · ${T.actions} ${r.actions}`}
+                      />
+                      {r.included ? (
+                        <Button
+                          size="xl"
+                          variant="ghost"
+                          className="mt-sm w-full justify-between"
+                          aria-expanded={open}
+                          aria-controls={
+                            open && r.periods.length
+                              ? `region-periods-${r.id}`
+                              : undefined
+                          }
+                          onClick={() => togglePeriods(r.id)}
+                        >
+                          <span className="text-body-small text-muted-foreground">
+                            {open
+                              ? T.collapsePeriods
+                              : T.splitPeriods(
+                                  new Set(r.periods.map((t) => t.period)).size,
+                                )}
+                          </span>
+                          <Icon
+                            name={open ? "chevron-up" : "chevron-down"}
+                            size="sm"
+                          />
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                    {(["floor", "target", "stretch"] as const).map((tier) => (
+                      <TableCell
+                        key={tier}
+                        data-plan-tier={tier}
+                        className="text-right tabular-nums font-semibold"
+                      >
+                        {format(r.target?.[tier])}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-center">{status(r)}</TableCell>
+                    <TableCell className="text-center last:pr-md">
+                      <RowActions
+                        label={`${DS_LABELS.actionMenu} · ${r.name}`}
+                        items={regionActions(r)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                  {open
+                    ? r.periods.map((t, periodIndex) => (
+                        <TableRow
+                          key={t.key}
+                          id={
+                            periodIndex === 0
+                              ? `region-periods-${r.id}`
+                              : undefined
+                          }
+                          className="bg-accent hover:bg-accent"
+                        >
+                          <TableCell className="text-center text-muted-foreground first:pl-md">
+                            {index + 1}.{periodIndex + 1}
+                          </TableCell>
+                          <TableCell>
+                            <TableTitleCell
+                              title={t.period.replace(String(content.year), "")}
+                              description={`${metricLabels[t.metric]} · ${t.currency ?? T.count}`}
+                            />
+                          </TableCell>
+                          {(["floor", "target", "stretch"] as const).map(
+                            (tier) => (
+                              <TableCell
+                                key={tier}
+                                data-plan-tier={tier}
+                                className="text-right tabular-nums"
+                              >
+                                {format(t[tier])}
+                              </TableCell>
+                            ),
+                          )}
+                          <TableCell />
+                          <TableCell className="text-center last:pr-md">
+                            <RowActions
+                              label={`${DS_LABELS.actionMenu} · ${r.name} · ${t.period}`}
+                              items={[]}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    : null}
+                  {open && !r.periods.length ? (
+                    <TableRow className="bg-accent hover:bg-accent">
+                      <TableCell colSpan={7}>
+                        <EmptyState title={T.noQuarters} />
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </TableBody>
+              );
+            })}
+            {!regions.length ? (
+              <TableBody>
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <EmptyState title={T.noRegions} />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            ) : null}
+          </Table>
         ) : regions.length ? (
           <Grid columns={isWide ? 2 : 1} gap="md" className="items-start">
             {regions.map((r) => (
               <MetricListCard
                 key={r.id}
                 title={regionTitle(r)}
-                actions={status(r)}
+                actions={
+                  <div className="flex items-center gap-sm">
+                    {status(r)}
+                    <RowActions
+                      label={`${DS_LABELS.actionMenu} · ${r.name}`}
+                      items={regionActions(r)}
+                    />
+                  </div>
+                }
                 note={
                   r.included ? (
                     <div className="flex flex-wrap gap-md">

@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ActionMenu,
   DataTable,
   EmptyState,
   Input,
@@ -24,6 +23,7 @@ import {
   type DataTableColumn,
   type MetricGridItem,
 } from "@vxture/design-ui";
+import { ActionMenu } from "./business-controls";
 import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
 import {
   DEFAULT_STAGE_DEFINITIONS,
