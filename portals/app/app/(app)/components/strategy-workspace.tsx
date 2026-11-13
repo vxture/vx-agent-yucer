@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, LabeledValue, MetricListCard, NativeSelect, Section, Tabs, TabsTrigger, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
-import { DataTable, FilterBar, TabsList, ViewHeader } from "./business-controls";
+import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, LabeledValue, MetricListCard, NativeSelect, Section, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
+import { DataTable, FilterBar, ViewHeader } from "./business-controls";
 import { RowActions, SearchSlot } from "./table-fittings";
 import { ModuleHeadline } from "./module-headline";
 import { PageCrumbs } from "./page-crumbs";
@@ -40,9 +40,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const detail=data.plans?.find(p=>p.id===detailId);
   const plans=data.plans?.filter(p=>(!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))) ?? [];
   const allowedView = view === "markets" ? data.canMarkets : data.canPlan;
-  const switchView=(next:string)=>{
+  const switchView=(next:StrategyTab)=>{
+    if(next === view)return;
     const q=new URLSearchParams(params);q.set("view",next);q.delete("market");
-    router.push(`/strategy?${q}`,{scroll:false});
+    start(()=>router.push(`/strategy?${q}`,{scroll:false}));
   };
   const run=(id:string,to:string)=>start(async()=>{
     try {const r=await movePlan(id,to);if(!r.ok)toast({tone:"danger",title:PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied});}
@@ -123,17 +124,27 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const current = plans.filter(p=>!["closed","archived"].includes(p.status));
   const history = plans.filter(p=>["closed","archived"].includes(p.status));
   const cards = (rows:StrategyView[]) => <div className="grid grid-cols-1 gap-md @5xl:grid-cols-2">{rows.map(card)}</div>;
-  const tabs = <Tabs value={view} onValueChange={switchView}><TabsList aria-label={T.strategy}>
-    {data.canPlan?<TabsTrigger className="text-label-small" value="overview">{T.overview}</TabsTrigger>:null}
-    {data.canMarkets?<TabsTrigger className="text-label-small" value="markets">{T.markets}</TabsTrigger>:null}
-    {data.canPlan?<TabsTrigger className="text-label-small" value="validation">{T.validation}</TabsTrigger>:null}
-  </TabsList></Tabs>;
+  const views = [
+    { id: "overview", label: T.overview, icon: "flag", allowed: data.canPlan },
+    { id: "markets", label: T.markets, icon: "target", allowed: data.canMarkets },
+    { id: "validation", label: T.validation, icon: "chart-line", allowed: data.canPlan },
+  ] as const;
+  const viewActions = <div role="group" aria-label={T.strategy} aria-busy={pending}
+    className="flex shrink-0 items-center gap-2xs border-l border-border pl-sm" data-strategy-view-actions>
+    {views.filter(v=>v.allowed).map(v=><Tooltip key={v.id}>
+      <TooltipTrigger asChild><Button size="icon-xl" variant={view===v.id ? "secondary" : "ghost"}
+        aria-label={v.label} aria-pressed={view===v.id} disabled={pending} onClick={()=>switchView(v.id)}>
+        <Icon name={v.icon} size="md" aria-hidden="true"/>
+      </Button></TooltipTrigger>
+      <TooltipContent>{v.label}</TooltipContent>
+    </Tooltip>)}
+  </div>;
   const checkButton = <Button size="md" variant="secondary" onClick={()=>setChecks(true)}>{T.checks}<span className="text-body-small text-muted-foreground tabular-nums">{(data.canPlan?data.planAdvice.length:0)+(data.canMarkets?data.segmentAdvice.length:0)}</span></Button>;
   const periodFilter = <div className="w-36 max-w-full"><NativeSelect className="h-control-xl text-body-small font-medium" aria-label={T.period} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{T.allPeriods}</option>{[...new Set(data.plans?.map(p=>p.period))].map(p=><option key={p}>{p}</option>)}</NativeSelect></div>;
   const layoutSwitch=<ViewModeSwitch value={layout} onChange={setLayout} ariaLabel={T.layout} labels={{list:T.listView,cards:T.cardsView}}/>;
   const basisButton=<Tooltip><TooltipTrigger asChild><Button size="icon-xl" variant="ghost" aria-label={T.basis} onClick={()=>setBasis(true)}><Icon name="info" size="md"/></Button></TooltipTrigger><TooltipContent>{T.basis}</TooltipContent></Tooltip>;
   const overview=<>
-    <FilterBar scope={tabs} actions={<div className="flex items-center gap-sm">{layoutSwitch}{checkButton}</div>}
+    <FilterBar actions={<div className="flex flex-wrap items-center gap-sm">{layoutSwitch}{checkButton}{viewActions}</div>}
       search={<SearchSlot><Input aria-label={T.searchPlans} placeholder={T.searchPlans} value={query} onChange={e=>setQuery(e.target.value)}/></SearchSlot>}
       onReset={query||period?()=>{setQuery("");setPeriod("");}:undefined}>
       <div className="@3xl:hidden">{periodFilter}</div>
@@ -204,8 +215,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/><ViewHeader icon="graph" title={detail.name} description={detail.planNo} divider secondary={<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>} action={<RowActions disabled={pending} items={items(detail)}/>}/></> : <ModuleHeadline moduleKey="strategy" description={T.brief}
       action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm">{view!=="markets"?<div className="hidden @3xl:block">{periodFilter}</div>:null}{view==="markets"?data.canWriteMarket?<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>:null:data.canCreate?<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>:null}</div>}/>}
-    {detail ? <FilterBar scope={<div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small text-muted-foreground"><span>{T.period} {detail.period}</span><span>{T.owner} <MemberName sub={detail.ownerSub}/></span><span>{T.approvedAt} {detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale):T.none}</span></div>} actions={checkButton}/> : view==="validation" ? <FilterBar scope={tabs} actions={<div className="flex items-center gap-sm">{basisButton}{checkButton}</div>}><div className="@3xl:hidden">{periodFilter}</div></FilterBar> : null}
-    {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:view==="markets"?data.markets?<MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} initialMarket={params.get("market") ?? undefined} scope={tabs} actions={checkButton}/>:<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={T.noPlans} description={T.noPlansWhy}/>):overview}
+    {detail ? <FilterBar scope={<div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small text-muted-foreground"><span>{T.period} {detail.period}</span><span>{T.owner} <MemberName sub={detail.ownerSub}/></span><span>{T.approvedAt} {detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale):T.none}</span></div>} actions={checkButton}/> : view==="validation" ? <FilterBar actions={<div className="flex flex-wrap items-center gap-sm">{basisButton}{checkButton}{viewActions}</div>}><div className="@3xl:hidden">{periodFilter}</div></FilterBar> : null}
+    {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:view==="markets"?data.markets?<MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} initialMarket={params.get("market") ?? undefined} actions={<div className="flex flex-wrap items-center gap-sm">{checkButton}{viewActions}</div>}/>:<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={T.noPlans} description={T.noPlansWhy}/>):overview}
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{view==="validation"?<p className="mb-sm">{T.validationScope}</p>:null}{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
     <Drawer open={basis} onClose={()=>setBasis(false)} width="lg" title={T.basis} description={T.validationWhy} closeLabel={T.closed}>
       <div className="flex flex-col gap-xl"><p className="text-body-small text-muted-foreground">{T.validationScope}</p>
