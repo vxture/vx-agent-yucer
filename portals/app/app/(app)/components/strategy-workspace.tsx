@@ -115,7 +115,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         <span className="size-icon-xl shrink-0" aria-hidden="true"/>
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-sm gap-y-xs border-t border-dashed border-border pt-sm @sm:grid-cols-4" data-strategy-metrics>
           {metrics.map(({ key, icon, label, value }) => (
-            <LabeledValue key={key} label={<span className="inline-flex max-w-full items-center gap-xs" title={label}><Icon name={icon} size="sm" className="shrink-0" aria-hidden="true"/><span className="truncate">{label}</span></span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="tabular-nums"/>
+            <div key={key} className="flex min-w-0 items-center gap-sm" data-strategy-metric>
+              <Icon name={icon} size="xl" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
+              <LabeledValue label={<span title={label}>{label}</span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="min-w-0 flex-1 tabular-nums"/>
+            </div>
           ))}
         </div>
       </div>}/></div>;
