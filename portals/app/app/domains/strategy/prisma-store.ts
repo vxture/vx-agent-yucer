@@ -478,13 +478,13 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     period: String(r.period),
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
-    solutionIds: (r.solutionLinks as { solutionId: string }[]).map(link => link.solutionId).sort(),
+    solutionIds: (r.solutionLinks as { solutionId: string }[]).map(link => link.solutionId).sort((a, b) => a.localeCompare(b)),
     targetMarkets: (r.targetMarkets as Array<{
       segmentId: string; marketName: string; intent: TargetMarket["intent"]; approach: string | null;
       criteria: unknown; solutionLinks: { solutionId: string }[];
     }>).map(t => ({
       segmentId: t.segmentId, marketName: t.marketName, intent: t.intent, approach: t.approach,
-      criteria: readCriteria(t.criteria), solutionIds: t.solutionLinks.map(s => s.solutionId).sort(),
+      criteria: readCriteria(t.criteria), solutionIds: t.solutionLinks.map(s => s.solutionId).sort((a, b) => a.localeCompare(b)),
     })).sort((a, b) => a.marketName.localeCompare(b.marketName)),
     status: r.status as PlanStatus,
     approvedAt: (r.approvedAt as Date | null) ?? null,

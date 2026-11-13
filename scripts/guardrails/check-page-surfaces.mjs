@@ -9,10 +9,9 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const root = path.join(repo, "portals/app/app");
 const require = createRequire(path.join(repo, "portals/app/package.json"));
 const { parser } = require("next/dist/compiled/babel/bundle.js");
-const manifest = JSON.parse(fs.readFileSync(new URL("./page-surfaces.json", import.meta.url), "utf8"));
+export function inspectPageSurfaces(root, manifest) {
 const files = [];
 function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -97,8 +96,17 @@ for (const file of sources.keys()) {
 const counts = {};
 for (const c of controls) counts[c.tag] = (counts[c.tag] ?? 0) + 1;
 const result = { pages: manifest.pages, slots, sources: sources.size, controls, counts, errors };
+return result;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+const manifest = JSON.parse(fs.readFileSync(new URL("./page-surfaces.json", import.meta.url), "utf8"));
+const result = inspectPageSurfaces(path.join(repo, "portals/app/app"), manifest);
+const { errors, sources, controls, slots } = result;
 const jsonAt = process.argv.indexOf("--json");
 if (jsonAt >= 0) fs.writeFileSync(process.argv[jsonAt + 1], JSON.stringify(result, null, 2) + "\n");
 for (const e of errors) console.error(e);
-console.log(`${pages.length} pages, ${slots.length} parallel slots, ${sources.size} sources, ${controls.length} control declarations; ${errors.length} errors`);
+console.log(`${result.pages.length} pages, ${slots.length} parallel slots, ${sources} sources, ${controls.length} control declarations; ${errors.length} errors`);
 if (errors.length) process.exitCode = 1;
+
+}

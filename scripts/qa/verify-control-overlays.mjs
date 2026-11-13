@@ -1,11 +1,13 @@
 /** Read-only overlay, public-state and contextual-entry verification.
  * Requires a dedicated CDP tab. Never submits a form or selects a write action.
  */
-import {writeFile, readFile, mkdir} from "node:fs/promises";
+import {writeFile, readFile, mkdir, mkdtemp} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {inspectionExpression} from "./control-inspection.mjs";
 const arg=(k,d)=>{const i=process.argv.indexOf(k);return i<0?d:process.argv[i+1]};
 const tabId=arg("--tab");if(!tabId)throw Error("Specify --tab ID");
-const base=arg("--base","http://localhost:4060"),out=arg("--out","/tmp/yucer-control-overlays.json");
+const base=arg("--base","http://localhost:4060"),out=arg("--out")??join(await mkdtemp(join(tmpdir(),"yucer-controls-")),"overlays.json");
 const tabs=await(await fetch(arg("--cdp","http://localhost:9333")+"/json/list")).json();
 const tab=tabs.find(t=>t.id===tabId);if(!tab)throw Error("Review tab missing");
 const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener("open",r,{once:true}));
@@ -91,5 +93,6 @@ try{
   if(preserved.some(e=>e.h!==48||e.font!=='14px'))throw Error('Public CTA exception changed');
  }
  await call("Emulation.setDeviceMetricsOverride",{width:780,height:1000,deviceScaleFactor:1,mobile:false});await go('/named');await click('\u5173\u8054\u5ba2\u6237');await until(`!!${dialog}?.querySelector('input')`);await check('narrow-drawer');if(!await ev(`${dialog}.scrollWidth<=${dialog}.clientWidth`))throw Error('Drawer overflows');await escape();
+ console.log('Report: '+out);
  console.log('PASS read-only overlays, menus, contextual edit entries, public states and narrow drawer');
 }finally{try{await escape();await call("Page.navigate",{url:original});await call("Emulation.clearDeviceMetricsOverride")}finally{await writeFile(out,JSON.stringify({checks,entries},null,2)+"\n");ws.close()}}

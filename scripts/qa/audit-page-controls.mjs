@@ -3,7 +3,9 @@
  * No save/delete/probe/agent actions are executed.
  * node scripts/qa/audit-page-controls.mjs --tab ID [--out /tmp/result.json]
  */
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { inspectionExpression } from "./control-inspection.mjs";
 const args = process.argv.slice(2);
 const arg = (key, fallback) => { const i = args.indexOf(key); return i < 0 ? fallback : args[i + 1]; };
@@ -11,7 +13,7 @@ const tabId = arg("--tab");
 if (!tabId) throw Error("Specify --tab ID for a dedicated review tab");
 const base = arg("--base", "http://localhost:4060");
 const cdp = arg("--cdp", "http://localhost:9333");
-const out = arg("--out", "/tmp/yucer-controls-browser.json");
+const out = arg("--out") ?? join(await mkdtemp(join(tmpdir(), "yucer-controls-")), "browser.json");
 const { pages } = JSON.parse(await readFile(new URL("../guardrails/page-surfaces.json", import.meta.url), "utf8"));
 const tabs = await (await fetch(`${cdp}/json/list`)).json();
 const tab = tabs.find((t) => t.id === tabId);
