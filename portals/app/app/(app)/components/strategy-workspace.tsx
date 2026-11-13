@@ -89,10 +89,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       { key: "solutions", icon: "stack", label: T.solutionCount, value: p.solutions?.length },
       { key: "campaigns", icon: "megaphone", label: T.campaignCount, value: p.campaigns?.length },
     ] as const;
-    return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard className="@container [&>footer]:mt-auto"
+    return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard className="@container gap-md p-lg [&>footer]:mt-auto"
       title={<span className="flex min-w-0 items-center gap-sm" data-strategy-card-heading>
-        <Icon name="lightbulb" size="xl" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
-        <span className="flex min-w-0 flex-1 flex-col gap-2xs">
+        <Icon name="lightbulb" size="xl" className="shrink-0 text-primary-text" aria-hidden="true"/>
+        <span className="flex min-w-0 flex-1 flex-col gap-xs">
           <span className="flex min-h-control-md min-w-0 items-center gap-sm">
             <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
             <span className="shrink-0"><Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
@@ -103,7 +103,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       actions={<RowActions items={items(p)} disabled={pending}/>}
       note={<div className="flex min-w-0 gap-sm">
         <span className="size-icon-xl shrink-0" aria-hidden="true"/>
-        <div className="flex min-w-0 flex-1 flex-col gap-xs" data-strategy-card-body>
+        <div className="flex min-w-0 flex-1 flex-col gap-sm" data-strategy-card-body>
           <p className={`line-clamp-2 break-words @lg:line-clamp-1 ${p.objective ? "text-foreground" : ""}`} title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
           {markets.length || solutions.length ? <div className="grid min-w-0 gap-x-lg gap-y-2xs @sm:grid-flow-col @sm:auto-cols-fr">
             {linkedSummary(T.marketCount, markets, href)}
@@ -113,10 +113,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       </div>}
       footer={<div className="flex w-full min-w-0 gap-sm">
         <span className="size-icon-xl shrink-0" aria-hidden="true"/>
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-sm gap-y-xs border-t border-dashed border-border pt-sm @sm:grid-cols-4" data-strategy-metrics>
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-md gap-y-md border-t border-dashed border-border pt-md @sm:grid-cols-4" data-strategy-metrics>
           {metrics.map(({ key, icon, label, value }) => (
             <div key={key} className="flex min-w-0 items-center gap-sm" data-strategy-metric>
-              <Icon name={icon} size="xl" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
+              <Icon name={icon} size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
               <LabeledValue label={<span title={label}>{label}</span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="min-w-0 flex-1 tabular-nums"/>
             </div>
           ))}
