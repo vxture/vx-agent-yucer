@@ -8881,6 +8881,7 @@ export const MARKET_STRATEGY_TEXT = {
   newMarket: "\u65b0\u5efa\u7ec6\u5206\u5e02\u573a",
   checks: "\u6218\u7565\u68c0\u67e5",
   search: "\u641c\u7d22\u6218\u7565\u3001\u5e02\u573a\u6216\u7f16\u53f7",
+  allPlans: "\u5168\u90e8\u6218\u7565",
   allPeriods: "\u5168\u90e8\u5468\u671f",
   allStates: "\u5168\u90e8\u72b6\u6001",
   live: "\u5f53\u524d\u6218\u7565",

@@ -7441,6 +7441,7 @@ export const en: Dictionary = {
   newMarket: "New market segment",
   checks: "Strategy checks",
   search: "Search names or codes",
+  allPlans: "All strategies",
   allPeriods: "All periods",
   allStates: "All states",
   live: "Current strategies",
