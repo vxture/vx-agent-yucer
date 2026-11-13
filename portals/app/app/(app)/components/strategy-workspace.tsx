@@ -14,10 +14,11 @@ import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
 import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 import { MarketLibrary } from "./market-library";
+import { StrategyRelationsDrawer, type RelationTask } from "./strategy-relations-drawer";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import type { StrategyView } from "../lib/market-strategy";
-import { movePlan } from "../strategy/actions";
+import { movePlan, savePlanRelations } from "../strategy/actions";
 
 export type StrategyTab = "overview" | "markets" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
@@ -34,6 +35,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   };
   const [checks,setChecks]=useState(false);
   const [basis,setBasis]=useState(false);
+  const [relationTask,setRelationTask]=useState<RelationTask | null>(null);
   const [historyOpen,setHistoryOpen]=useState(false);
   const [pending,start]=useTransition();
   const {toast}=useToast();
@@ -200,8 +202,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   };
   const detailContent=detail?<>
     <Section title={T.currentMarkets} icon="target" description={T.targetMarketBasis}
-      action={data.canEdit && data.canMarkets && !["closed", "archived"].includes(detail.status)
-        ? <Button asChild size="md" variant="secondary"><Link href={`/strategy/new?no=${encodeURIComponent(detail.planNo)}#target-markets`}>{T.manageTargets}</Link></Button> : null}>
+      action={data.canEdit && !["closed", "archived"].includes(detail.status) ? <div className="flex flex-wrap gap-sm">
+        {data.canMarkets ? <Button size="xl" variant="secondary" disabled={pending || data.markets === null || detail.targetMarkets === null} onClick={()=>setRelationTask({kind:"markets"})}>{T.linkMarkets}</Button> : null}
+        {data.solutionOptions && detail.sharedSolutions !== null ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button> : null}
+      </div> : null}>
       {detail.sharedSolutions?.length || detail.sharedSolutions === null ? <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
         <span>{T.sharedSolutions}</span>{solutionLinks(detail.sharedSolutions)}
       </div> : null}
@@ -219,6 +223,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
                 {data.canCreateCampaign && detail.status === "active" && m.status === "active" ? <Button asChild size="md" variant="secondary">
                   <Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link>
                 </Button> : null}
+                {data.canEdit && !["closed", "archived"].includes(detail.status) ? <RowActions disabled={pending} items={[{id:"settings",label:T.marketSettings,onSelect:()=>setRelationTask({kind:"market",segmentId:m.segmentId})}]}/> : null}
               </div>
             </div></CardHeader>
             <CardContent><div className="flex flex-col gap-md text-body-small">
@@ -268,6 +273,11 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     </FilterBar> : null}
     {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:view==="markets"?data.markets?<MarketLibrary scope={sectionHeading} markets={data.markets} canWrite={data.canWriteMarket} initialMarket={params.get("market") ?? undefined} actions={checkButton}/>:<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={period||planFilter?T.noMatches:T.noPlans} description={period||planFilter?undefined:T.noPlansWhy}/>):overview}
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{view==="validation"?<p className="mb-sm">{T.validationScope}</p>:null}{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
+    {detail && relationTask ? <StrategyRelationsDrawer key={JSON.stringify(relationTask)} task={relationTask} planName={detail.name}
+      targets={detail.targetMarkets?.map(({segmentId,marketName,intent,approach,solutions})=>({segmentId,marketName,intent,approach,...(solutions === null ? {} : {solutionIds:solutions.map(s=>s.id)})})) ?? []}
+      sharedSolutionIds={detail.sharedSolutions?.map(s=>s.id)} marketOptions={data.markets} solutionOptions={data.solutionOptions}
+      onSave={async change=>{const result=await savePlanRelations(detail.id,change);if(result.ok){toast({tone:"success",title:T.relationSaved});start(()=>router.refresh());}return result;}}
+      onClose={()=>setRelationTask(null)}/> : null}
     <Drawer open={basis} onClose={()=>setBasis(false)} width="lg" title={T.basis} description={T.validationWhy} closeLabel={T.closed}>
       <div className="flex flex-col gap-xl"><p className="text-body-small text-muted-foreground">{T.validationScope}</p>
         {plans.map(p=><div key={p.id} className="flex flex-col gap-sm"><h3 className="text-heading-3">{p.name}</h3>

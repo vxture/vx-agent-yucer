@@ -26,6 +26,7 @@ import {
   planNewPlan,
   planPlanEdit,
   type PlanEdit,
+  type PlanRelationChange,
   type TargetMarket,
   type TargetMarketDraft,
   TARGET_MARKET_INTENTS,
@@ -206,6 +207,45 @@ export async function editPlan(
   id: string,
   input: PlanEdit,
 ): Promise<RuleResult<PlanRecord>> {
+  return applyPlanEdit(ctx, id, () => ok(input));
+}
+
+export async function editPlanRelations(
+  ctx: StrategyContext,
+  id: string,
+  change: PlanRelationChange,
+): Promise<RuleResult<PlanRecord>> {
+  return applyPlanEdit(ctx, id, plan => {
+    if (!change || typeof change !== "object") return fail(marketUnavailable());
+    const current = plan.targetMarkets ?? [];
+    let patch: Pick<PlanEdit, "targetMarkets" | "solutionIds">;
+    if (change.kind === "markets") {
+      if (![change.add, change.remove].every(ids => Array.isArray(ids) && ids.every(id => typeof id === "string" && !!id)) ||
+          change.add.some(id => change.remove.includes(id))) return fail(marketUnavailable());
+      patch = { targetMarkets: [
+        ...current.filter(t => !change.remove.includes(t.segmentId)).map(({ solutionIds: _ids, ...t }) => t),
+        ...[...new Set(change.add)].filter(id => !current.some(t => t.segmentId === id)).map(segmentId => ({ segmentId, intent: "focus" as const, approach: null })),
+      ] };
+    } else if (change.kind === "market") {
+      if (!current.some(t => t.segmentId === change.segmentId)) return fail(marketUnavailable());
+      patch = { targetMarkets: current.map(({ solutionIds: _ids, ...t }) => t.segmentId === change.segmentId ? {
+        ...t, intent: change.intent, approach: change.approach,
+        ...(change.solutionIds === undefined ? {} : { solutionIds: change.solutionIds }),
+      } : t) };
+    } else if (change.kind === "solutions") {
+      if (!Array.isArray(change.solutionIds)) return fail(violation("solution_not_selectable", "invalid solution selection", "solutionIds"));
+      patch = { solutionIds: change.solutionIds };
+    } else return fail(marketUnavailable());
+    return ok({ name: plan.name, period: plan.period, objective: plan.objective, ownerSub: plan.ownerSub, ...patch });
+  }, true);
+}
+
+async function applyPlanEdit(
+  ctx: StrategyContext,
+  id: string,
+  resolveInput: (plan: PlanRecord) => RuleResult<PlanEdit>,
+  relationsOnly = false,
+): Promise<RuleResult<PlanRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.update", "data");
   if (!gate.allowed) return denied(gate);
 
@@ -223,6 +263,9 @@ export async function editPlan(
     );
   }
 
+  const resolved = resolveInput(plan);
+  if (!resolved.ok) return resolved;
+  const input = resolved.value;
   const edit = planPlanEdit(input);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
@@ -231,7 +274,7 @@ export async function editPlan(
   const targets = await validateTargetMarkets(ctx, input.targetMarkets, plan.targetMarkets);
   if (!targets.ok) return targets;
   const { solutionIds: _solutions, targetMarkets: _targets, ...fields } = edit.value;
-  const patch = { ...fields,
+  const patch = { ...(relationsOnly ? {} : fields),
     ...(selection.value === undefined ? {} : { solutionIds: selection.value }),
     ...(targets.value === undefined ? {} : { targetMarkets: targets.value }),
   };

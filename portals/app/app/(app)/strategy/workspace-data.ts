@@ -50,6 +50,7 @@ export const strategyWorkspaceData = cache(async () => {
   }) : [];
   return { session, plansRead: plans, marketsRead: segments, data: {
     plans: canPlan ? planRows : null, markets: canMarkets ? markets : null,
+    solutionOptions: solutions?.ok ? solutions.value : null,
     planAdvice: canPlan ? planAdvice : [], segmentAdvice: canMarkets ? segmentAdvice : [], at: new Date().toISOString(),
     canPlan,
     canMarkets,

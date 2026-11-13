@@ -7,6 +7,7 @@ import { listAccounts } from "../../domains/account/service";
 import {
   createPlan,
   editPlan,
+  editPlanRelations,
   moveSegment,
   removeSegment,
   setSegmentStatus,
@@ -20,6 +21,7 @@ import {
   type SegmentStatus,
   type NewPlanDraft,
   type PlanEdit,
+  type PlanRelationChange,
   type SegmentCriteria,
 } from "../../domains/strategy/lib/lifecycle";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -127,6 +129,19 @@ export async function savePlan(
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
+  return { ok: true };
+}
+
+export async function savePlanRelations(id: string, change: PlanRelationChange): Promise<TransitionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await editPlanRelations({
+    workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
+    entitlement: session.entitlement, store: getStrategyStore(), catalog: getCatalogStore(),
+  }, id, change);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/strategy", "layout");
   revalidatePath("/segment");
   return { ok: true };

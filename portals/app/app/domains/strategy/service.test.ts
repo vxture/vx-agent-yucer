@@ -10,6 +10,7 @@ import {
   campaignReturn,
   createPlan,
   editPlan,
+  editPlanRelations,
   listSegments,
   strategyDiagnosticSnapshots,
   upsertSegment,
@@ -489,6 +490,70 @@ test("only active local markets can be added and only active catalogue solutions
   assert.equal(!result.ok && result.violations[0].code, "solution_not_selectable");
   const edited = unwrap(await editPlan(c, first.id, { ...EDIT, targetMarkets: [{ ...target, approach: "Follow up" }] }));
   assert.deepEqual(edited.targetMarkets?.[0].solutionIds, [ref.id]);
+});
+
+test("relationship edits preserve basic fields, other markets, saved criteria and solution links", async () => {
+  const catalog = new InMemoryCatalogStore();
+  catalog.seed({ solutions: [{ id: "sol", workspaceId: WS, solutionCode: "S", name: "Retail", summary: null, scenario: null, status: "active", sortOrder: 1 }] });
+  const c = { ...ctx("sales_leader", "business"), catalog };
+  const first = unwrap(await upsertSegment(c, SEG));
+  const second = unwrap(await upsertSegment(c, { ...SEG, segmentCode: "SECOND" }));
+  const third = unwrap(await upsertSegment(c, { ...SEG, segmentCode: "THIRD" }));
+  const p = unwrap(await createPlan(c, { ...newPlan, solutionIds: ["sol"], targetMarkets: [
+    { segmentId: first.id, intent: "focus", approach: "First", solutionIds: ["sol"] },
+    { segmentId: second.id, intent: "validate", approach: "Second" },
+  ] }));
+  unwrap(await editPlan(c, p.id, { ...EDIT, name: "Latest name", period: "2027", objective: "Latest direction" }));
+  unwrap(await upsertSegment(c, { ...SEG, criteria: { industries: ["logistics"], regions: [] } }));
+  unwrap(await editPlanRelations(c, p.id, { kind: "market", segmentId: second.id, intent: "focus", approach: "New approach" }));
+  const changed = (await c.store.getPlan(WS, p.id))!;
+  assert.equal(changed.name, "Latest name");assert.equal(changed.period, "2027");assert.equal(changed.objective, "Latest direction");
+  assert.deepEqual(changed.solutionIds, ["sol"]);
+  assert.deepEqual(changed.targetMarkets?.[0], p.targetMarkets?.[0]);
+  assert.equal(changed.targetMarkets?.[1].approach, "New approach");
+  unwrap(await editPlanRelations(c, p.id, { kind: "market", segmentId: second.id, intent: "focus", approach: "New approach", solutionIds: ["sol"] }));
+  assert.deepEqual((await c.store.getPlan(WS, p.id))?.targetMarkets?.[1].solutionIds, ["sol"]);
+  unwrap(await editPlanRelations(c, p.id, { kind: "markets", add: [third.id, third.id], remove: [second.id] }));
+  const linked = (await c.store.getPlan(WS, p.id))!;
+  assert.deepEqual(linked.targetMarkets?.map(t => t.segmentId), [first.id, third.id]);
+  assert.deepEqual(linked.targetMarkets?.[0], p.targetMarkets?.[0]);
+  unwrap(await editPlanRelations(c, p.id, { kind: "solutions", solutionIds: [] }));
+  assert.deepEqual((await c.store.getPlan(WS, p.id))?.targetMarkets, linked.targetMarkets);
+});
+
+test("relationship tasks keep catalogue gates and preserve unreadable solution links", async () => {
+  const store = new InMemoryStrategyStore();
+  const c = ctx("sales_leader", "business", store);
+  const m = unwrap(await upsertSegment(c, SEG));
+  store.seed({ plans: [plan({ targetMarkets: [{ segmentId: m.id, marketName: m.name, criteria: m.criteria, intent: "focus", approach: null, solutionIds: ["hidden"] }] })] });
+  const deniedCatalog = { ...c, holder: { permissions: new Set([...c.holder.permissions].filter(p => p !== "catalog.read")) } };
+  const edited = unwrap(await editPlanRelations(deniedCatalog, "plan_1", { kind: "market", segmentId: m.id, intent: "validate", approach: "Keep links" }));
+  assert.deepEqual(edited.targetMarkets?.[0].solutionIds, ["hidden"]);
+  for (const change of [
+    { kind: "markets" as const, add: [], remove: [m.id] },
+    { kind: "market" as const, segmentId: m.id, intent: "focus" as const, approach: null, solutionIds: [] },
+    { kind: "solutions" as const, solutionIds: [] },
+  ]) assert.equal((await editPlanRelations(deniedCatalog, "plan_1", change)).ok, false);
+  const bad = await editPlanRelations(c, "plan_1", { kind: "market", segmentId: m.id, intent: "focus", approach: null, solutionIds: ["missing"] });
+  assert.equal(!bad.ok && bad.violations[0].code, "solution_catalog_unavailable");
+  assert.deepEqual((await c.store.getPlan(WS, "plan_1"))?.targetMarkets?.[0].solutionIds, ["hidden"]);
+});
+
+test("relationship tasks refuse settled, foreign, unauthorized and invalid selections", async () => {
+  const store = new InMemoryStrategyStore();
+  const c = ctx("sales_leader", "business", store);
+  const active = unwrap(await upsertSegment(c, SEG));
+  const retired = unwrap(await upsertSegment(c, { ...SEG, segmentCode: "RETIRED", status: "retired" }));
+  const foreign = await c.store.upsertSegment("other", SEG);
+  store.seed({ plans: [plan(), plan({ id: "settled", status: "closed" }), plan({ id: "foreign", workspaceId: "other" })] });
+  for (const segmentId of [retired.id, foreign.id, "missing"]) assert.equal((await editPlanRelations(c, "plan_1", { kind: "markets", add: [segmentId], remove: [] })).ok, false);
+  const change = { kind: "markets" as const, add: [active.id], remove: [] };
+  assert.equal((await editPlanRelations(ctx("sales_rep", "business", store), "plan_1", change)).ok, false);
+  assert.equal((await editPlanRelations(ctx("sales_leader", "pro", store), "plan_1", change)).ok, false);
+  for (const id of ["settled", "foreign", "missing"]) assert.equal((await editPlanRelations(c, id, change)).ok, false);
+  assert.equal((await editPlanRelations(c, "plan_1", { kind: "markets", add: [active.id], remove: [active.id] })).ok, false);
+  assert.equal((await editPlanRelations(c, "plan_1", { kind: "market", segmentId: active.id, intent: "focus", approach: null })).ok, false);
+  assert.deepEqual((await c.store.getPlan(WS, "plan_1"))?.targetMarkets ?? [], []);
 });
 
 test("segments come back in priority order", async () => {

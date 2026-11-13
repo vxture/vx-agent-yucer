@@ -305,6 +305,12 @@ export interface TargetMarketDraft {
   solutionIds?: readonly string[];
 }
 
+/** Relationship tasks never carry the strategy's basic fields or another market's draft. */
+export type PlanRelationChange =
+  | { kind: "markets"; add: readonly string[]; remove: readonly string[] }
+  | { kind: "market"; segmentId: string; intent: TargetMarketIntent | null; approach: string | null; solutionIds?: readonly string[] }
+  | { kind: "solutions"; solutionIds: readonly string[] };
+
 export interface TargetMarket extends Omit<TargetMarketDraft, "solutionIds"> {
   marketName: string;
   criteria: SegmentCriteria;

@@ -3,34 +3,25 @@
 import { useMemo, useState } from "react";
 import {
   Button,
-  Combobox,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Field,
   FieldDescription,
   FieldLabel,
-  Icon,
   Input,
-  NativeSelect,
   Section,
   StatusBadge,
-  Textarea,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
   FormFields,
-  FormFieldWide,
   FormPage,
   useFormSubmit,
   type AssistSuggestion,
 } from "./form-page";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type { SolutionReference } from "../../domains/catalog/service";
-import type { MarketView } from "../lib/market-strategy";
-import type { NewPlanDraft, PlanEdit, TargetMarketDraft, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
+import { StrategyRelationsDrawer, type RelationTask, type RelationMarketOption, type RelationTarget } from "./strategy-relations-drawer";
+import type { NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/strategy/lib/lifecycle";
 
 // 新建 / 修改战略计划 - a page since 2026-09-05 (owner ruling: content-rich
 // operations get a page, with the assistant beside the work).
@@ -52,40 +43,8 @@ import type { NewPlanDraft, PlanEdit, TargetMarketDraft, TargetMarketIntent } fr
 // that would be silently dropped.
 
 type Saved = { ok: boolean; error?: string };
-type MarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing">;
-type TargetSelection = TargetMarketDraft & { marketName: string };
-
-function SolutionPicker({ options, ids, onChange, disabled }: {
-  readonly options: readonly SolutionReference[] | null;
-  readonly ids: readonly string[] | undefined;
-  readonly onChange: (ids: readonly string[]) => void;
-  readonly disabled: boolean;
-}) {
-  const { MARKET_STRATEGY_TEXT: T } = useMessages();
-  if (options === null || ids === undefined) return <FieldDescription>{T.solutionOptionsUnavailable}</FieldDescription>;
-  const selected = options.filter(s => ids.includes(s.id));
-  const available = options.filter(s => s.status === "active" && !ids.includes(s.id));
-  return <>
-    <Combobox
-      items={available.map(s => ({ value: s.id, label: `${s.name} · ${s.solutionCode}` }))}
-      onValueChange={id => { if (id && !ids.includes(id)) onChange([...ids, id]); }}
-      placeholder={available.length ? T.addSolution : T.noSelectableSolutions}
-      searchPlaceholder={T.searchSolutions}
-      emptyText={T.noMatches}
-      disabled={disabled || !available.length}
-      className="w-full text-body-small"
-    />
-    {selected.length ? <ul className="flex flex-wrap gap-sm" aria-label={T.primarySolutions}>
-      {selected.map(s => <li key={s.id} className="flex max-w-full items-center gap-xs rounded-md bg-accent pl-sm text-body-small">
-        <span className="min-w-0 break-words">{s.name}{s.status === "retired" ? ` · ${T.retiredSolution}` : ""}</span>
-        <Button type="button" size="icon-md" variant="ghost" aria-label={`${T.removeSolution}: ${s.name}`}
-          disabled={disabled} onClick={() => onChange(ids.filter(id => id !== s.id))}>
-          <Icon name="x" size="sm" aria-hidden="true" />
-        </Button>
-      </li>)}
-    </ul> : null}
-  </>;
-}
+type MarketOption = RelationMarketOption;
+type TargetSelection = RelationTarget;
 
 export interface PlanFormInitial {
   readonly id: string;
@@ -124,14 +83,26 @@ export function NewPlanForm({
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
   const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initial ? initial.solutionIds : []);
   const [targets, setTargets] = useState<readonly TargetSelection[]>(initial?.targetMarkets ?? []);
-  const [marketId, setMarketId] = useState("");
-  const availableMarkets = marketOptions?.filter(m => m.status === "active" && !targets.some(t => t.segmentId === m.id)) ?? [];
-  const candidate = availableMarkets.find(m => m.id === marketId);
+  const [relationTask, setRelationTask] = useState<RelationTask | null>(null);
   const solutionSelectionChanged = JSON.stringify(solutionIds) !== JSON.stringify(initial ? initial.solutionIds : []);
   const targetsChanged = JSON.stringify(targets) !== JSON.stringify(initial?.targetMarkets ?? []);
-  const patchTarget = (segmentId: string, patch: Partial<TargetMarketDraft>) =>
-    setTargets(rows => rows.map(row => row.segmentId === segmentId ? { ...row, ...patch } : row));
-  const number = (n: number | null) => n === null ? T.unknown : n;
+  const saveRelations = async (change: PlanRelationChange): Promise<Saved> => {
+    if (change.kind === "solutions") setSolutionIds(change.solutionIds);
+    else if (change.kind === "market") setTargets(rows => rows.map(row => row.segmentId === change.segmentId ? {
+      ...row, intent: change.intent, approach: change.approach,
+      ...(change.solutionIds === undefined ? {} : { solutionIds: change.solutionIds }),
+    } : row));
+    else setTargets(rows => [
+      ...rows.filter(row => !change.remove.includes(row.segmentId)),
+      ...change.add.filter(id => !rows.some(row => row.segmentId === id)).flatMap(id => {
+        const market = marketOptions?.find(m => m.id === id);
+        return market ? [{ segmentId: id, marketName: market.name, intent: "focus" as const, approach: null,
+          ...(solutionOptions === null ? {} : { solutionIds: [] }),
+        }] : [];
+      }),
+    ]);
+    return { ok: true };
+  };
   const submit = useFormSubmit("/strategy");
 
   const nextNo = useMemo(() => suggestNextCode(existingPlanNos), [existingPlanNos]);
@@ -199,79 +170,27 @@ export function NewPlanForm({
             </Field>
             </FormFields>
             <div id="target-markets">
-            <Section title={T.currentMarkets} icon="target" description={T.currentMarketsWhy}>
-              {marketOptions === null ? <p className="text-body-small text-muted-foreground">{T.marketOptionsUnavailable}</p> : <>
-                <div className="flex flex-wrap items-center gap-sm" data-target-market-picker>
-                  <Combobox
-                    items={availableMarkets.map(m => ({ value: m.id, label: `${m.name} · ${m.segmentCode}` }))}
-                    value={marketId}
-                    onValueChange={setMarketId}
-                    placeholder={availableMarkets.length ? T.chooseMarkets : T.noSelectableMarkets}
-                    searchPlaceholder={T.searchMarkets}
-                    emptyText={T.noMatches}
-                    disabled={submit.pending || !availableMarkets.length}
-                  />
-                  <Button size="md" variant="secondary" disabled={submit.pending || !candidate} onClick={() => {
-                    if (!candidate) return;
-                    setTargets(rows => [...rows, { segmentId: candidate.id, marketName: candidate.name, intent: "focus", approach: null }]);
-                    setMarketId("");
-                  }}>{T.addTargetMarket}</Button>
-                </div>
-                {candidate ? <div className="flex flex-col gap-xs text-body-small text-muted-foreground" aria-live="polite">
-                  <p>{[...candidate.criteria.industries, ...(candidate.criteria.sizes ?? []), ...candidate.criteria.regions].join(" / ") || T.undefined}</p>
-                  {candidate.criteria.customerNeed ? <p>{candidate.criteria.customerNeed}</p> : null}
-                  <p>{T.customerCount} {number(candidate.matched)} · {T.missing} {number(candidate.missing)}</p>
-                </div> : null}
-                {targets.map(t => {
-                  const market = marketOptions.find(m => m.id === t.segmentId);
-                  const original = initial?.targetMarkets.find(row => row.segmentId === t.segmentId);
-                  return <Card key={t.segmentId}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between gap-md">
-                        <CardTitle>{t.marketName}</CardTitle>
-                        <Button type="button" size="icon-md" variant="ghost" aria-label={`${T.removeTargetMarket}: ${t.marketName}`}
-                          disabled={submit.pending || (!!original && original.solutionIds === undefined)} onClick={() => setTargets(rows => rows.filter(row => row.segmentId !== t.segmentId))}>
-                          <Icon name="x" size="sm" aria-hidden="true" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <FormFields>
-                        <Field>
-                          <FieldLabel>{T.marketIntent}</FieldLabel>
-                          <NativeSelect aria-label={T.marketIntent} value={t.intent ?? ""} onChange={e => patchTarget(t.segmentId, { intent: e.target.value as TargetMarketIntent })}>
-                            {t.intent === null ? <option value="" disabled>{T.unclassifiedMarket}</option> : null}
-                            <option value="focus">{T.focusMarket}</option><option value="validate">{T.validateMarket}</option>
-                          </NativeSelect>
-                          {market && market.status !== "active" ? <FieldDescription>{STRATEGY_TEXT.segmentStatusLabel[market.status]}</FieldDescription> : null}
-                        </Field>
-                        <Field>
-                          <FieldLabel>{T.primarySolutions}</FieldLabel>
-                          <SolutionPicker options={solutionOptions} ids={t.solutionIds ?? (original ? undefined : [])}
-                            disabled={submit.pending} onChange={ids => patchTarget(t.segmentId, { solutionIds: ids })} />
-                        </Field>
-                        <FormFieldWide>
-                          <Field>
-                            <FieldLabel>{T.marketApproach}</FieldLabel>
-                            <Textarea aria-label={T.marketApproach} rows={2} maxLength={4000} value={t.approach ?? ""} placeholder={T.marketApproachHint}
-                              onChange={e => patchTarget(t.segmentId, { approach: e.target.value || null })} />
-                          </Field>
-                        </FormFieldWide>
-                      </FormFields>
-                    </CardContent>
-                  </Card>;
-                })}
-                {!targets.length && !candidate ? <p className="text-body-small text-muted-foreground">{T.noPlanMarkets}</p> : null}
-              </>}
-            </Section>
+              <Section title={T.currentMarkets} icon="target" description={T.relationNewPlanHint}
+                action={<div className="flex flex-wrap gap-sm">
+                  <Button type="button" size="xl" variant="secondary" disabled={submit.pending || marketOptions === null} onClick={() => setRelationTask({kind:"markets"})}>{T.linkMarkets}</Button>
+                  <Button type="button" size="xl" variant="secondary" disabled={submit.pending || solutionOptions === null || solutionIds === undefined} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>
+                </div>}>
+                {marketOptions === null ? <p className="text-body-small text-muted-foreground">{T.marketOptionsUnavailable}</p>
+                  : targets.length ? <div className="flex flex-col divide-y divide-dashed divide-primary/10">
+                    {targets.map(t => <div key={t.segmentId} className="flex flex-wrap items-center justify-between gap-sm py-md">
+                      <span className="flex min-w-0 flex-wrap items-center gap-sm text-body-small"><span className="font-medium">{t.marketName}</span>
+                        <span className="text-muted-foreground">{t.intent === "focus" ? T.focusMarket : t.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</span>
+                        <span className="text-muted-foreground">{T.primarySolutions} {t.solutionIds?.length ?? T.unknown}</span>
+                      </span>
+                      <Button type="button" size="md" variant="secondary" disabled={submit.pending} onClick={() => setRelationTask({kind:"market",segmentId:t.segmentId})}>{T.marketSettings}</Button>
+                    </div>)}
+                  </div> : <p className="text-body-small text-muted-foreground">{T.noPlanMarkets}</p>}
+                <p className="text-body-small text-muted-foreground">{T.sharedSolutions} {solutionIds?.length ?? T.unknown}</p>
+              </Section>
             </div>
-            <FormFields>
-              <Field>
-                <FieldLabel>{T.sharedSolutions}</FieldLabel>
-                <SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={submit.pending} />
-                <FieldDescription>{T.sharedSolutionsHint}</FieldDescription>
-              </Field>
-            </FormFields>
+            {relationTask ? <StrategyRelationsDrawer draft key={JSON.stringify(relationTask)} task={relationTask} planName={name || STRATEGY_TEXT.newPlanTitle}
+              targets={targets} sharedSolutionIds={solutionIds} marketOptions={marketOptions} solutionOptions={solutionOptions}
+              onSave={saveRelations} onClose={() => setRelationTask(null)}/> : null}
             {/* The number is the anchor: workspace-unique, no UPDATE grant, so
                 it cannot be corrected later. Said before the first attempt. */}
             {initial ? null : (
