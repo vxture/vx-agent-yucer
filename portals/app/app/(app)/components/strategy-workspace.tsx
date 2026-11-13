@@ -96,10 +96,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             <div className="flex min-h-control-md min-w-0 flex-wrap items-center gap-sm">{solutionLinks(p)}</div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-lg" data-strategy-metrics>
-          <LabeledValue label={T.marketCount} value={number(p.marketIds?.length)}/>
-          <LabeledValue label={T.customerCount} value={number(p.customerCount)}/>
-          <LabeledValue label={T.campaignCount} value={number(p.campaigns?.length)}/>
+        <div className="@container min-w-0">
+          <div className="grid grid-cols-2 gap-md @sm:grid-cols-4" data-strategy-metrics>
+            <LabeledValue label={T.marketCount} value={number(p.marketIds?.length)}/>
+            <LabeledValue label={T.customerCount} value={number(p.customerCount)}/>
+            <LabeledValue label={T.solutionCount} value={number(p.solutions?.length)}/>
+            <LabeledValue label={T.campaignCount} value={number(p.campaigns?.length)}/>
+          </div>
         </div>
       </div>
     </CardContent>

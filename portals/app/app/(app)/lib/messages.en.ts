@@ -7451,6 +7451,7 @@ export const en: Dictionary = {
   direction: "Strategic direction",
   directionEmpty: "No strategic direction yet",
   marketCount: "Markets",
+  solutionCount: "Solutions",
   customerCount: "Matching customers",
   campaignCount: "Campaigns",
   unknown: "Unavailable",

@@ -8889,6 +8889,7 @@ export const MARKET_STRATEGY_TEXT = {
   direction: "\u6218\u7565\u65b9\u5411",
   directionEmpty: "\u5c1a\u672a\u660e\u786e\u6218\u7565\u65b9\u5411",
   marketCount: "\u5173\u8054\u5e02\u573a",
+  solutionCount: "\u4e3b\u63a8\u65b9\u6848",
   customerCount: "\u5339\u914d\u5ba2\u6237",
   campaignCount: "\u8425\u9500\u6d3b\u52a8",
   unknown: "\u6682\u4e0d\u53ef\u8bfb\u53d6",
