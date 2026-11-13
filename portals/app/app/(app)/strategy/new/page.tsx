@@ -8,7 +8,9 @@ import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
 import { getCatalogStore, getStrategyStore } from "../../../domains/shared/registry";
 import { listSolutionReferences } from "../../../domains/catalog/service";
-import { listPlans } from "../../../domains/strategy/service";
+import { listAccounts } from "../../../domains/account/service";
+import { marketViews } from "../../lib/market-strategy";
+import { listPlans, listSegments } from "../../../domains/strategy/service";
 import { NewPlanForm } from "../../components/plan-form";
 import { createStrategyPlan, savePlan } from "../actions";
 
@@ -60,12 +62,20 @@ export default async function NewPlanPage({
   if (!can(session.authz, session.entitlement, action, "ui").allowed) {
     redirect("/strategy");
   }
-  const solutions = can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
-    ? await listSolutionReferences({
-        workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
-        entitlement: session.entitlement, store: getCatalogStore(),
-      }).catch(() => null)
-    : null;
+  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const [solutions, segments, accounts] = await Promise.all([
+    can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
+      ? listSolutionReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
+    can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed
+      ? listSegments({ ...base, store: getStrategyStore() }).catch(() => null) : null,
+    listAccounts({ ...base, store: session.stores.account() }).catch(() => null),
+  ]);
+  const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentCode, industry, region, customerSize }) =>
+    ({ id, name, accountNo, segmentCode, industry, region, customerSize: customerSize ?? null })) : null;
+  const marketOptions = segments?.ok ? marketViews(segments.value, null, customerRows)
+    .map(({ id, name, segmentCode, status, criteria, matched, missing }) => ({ id, name, segmentCode, status, criteria, matched, missing })) : null;
+  const solutionOptions = solutions?.ok ? solutions.value : null;
+  const visibleSolutions = new Set(solutionOptions?.map(s => s.id));
 
   return (
     <ViewLayout>
@@ -81,7 +91,8 @@ export default async function NewPlanPage({
         key={editable ? found.id : "new"}
         existingPlanNos={rows.map((p) => p.planNo)}
         existingPeriods={rows.map((p) => p.period)}
-        solutionOptions={solutions?.ok ? solutions.value : null}
+        solutionOptions={solutionOptions}
+        marketOptions={marketOptions}
         initial={
           editable
             ? {
@@ -91,7 +102,11 @@ export default async function NewPlanPage({
                 period: found.period,
                 objective: found.objective,
                 ownerSub: found.ownerSub,
-                solutionIds: solutions?.ok ? found.solutionIds : [],
+                solutionIds: solutionOptions && found.solutionIds.every(id => visibleSolutions.has(id)) ? found.solutionIds : undefined,
+                targetMarkets: marketOptions ? found.targetMarkets?.map(({ segmentId, intent, approach, solutionIds, marketName }) => ({
+                  segmentId, intent, approach, marketName,
+                  ...((!solutionIds.length || (solutionOptions && solutionIds.every(id => visibleSolutions.has(id)))) ? { solutionIds } : {}),
+                })) ?? [] : [],
               }
             : undefined
         }

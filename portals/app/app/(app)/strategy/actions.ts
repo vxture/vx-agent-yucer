@@ -20,6 +20,7 @@ import {
   type SegmentStatus,
   type NewPlanDraft,
   type PlanEdit,
+  type SegmentCriteria,
 } from "../../domains/strategy/lib/lifecycle";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
@@ -142,10 +143,9 @@ export async function savePlan(
 export async function saveSegment(input: {
   segmentCode: string;
   name: string;
-  planId: string | null;
   priority: number;
   status: string;
-  criteria: { industries: readonly string[]; regions: readonly string[]; sizes?: readonly string[] };
+  criteria: SegmentCriteria;
 }): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

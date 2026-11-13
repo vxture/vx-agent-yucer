@@ -13,6 +13,7 @@ import {
   listSegments,
   strategyDiagnosticSnapshots,
   upsertSegment,
+  removeSegment,
   createCampaign,
   editCampaign,
   removeExecution,
@@ -390,7 +391,6 @@ test("campaignReturn hands back the rows its progress is computed from", async (
 const SEG = {
   segmentCode: "ENTERPRISE",
   name: "Large enterprise",
-  planId: null,
   priority: 1,
   status: "active" as const,
   criteria: { industries: [], regions: [] },
@@ -436,32 +436,55 @@ test("a viewer may read segments and may not write one", async () => {
   assert.equal(denied.ok ? "" : denied.violations[0].code, "permission_denied");
 });
 
-test("a segment on a CLOSED plan is frozen", async () => {
-  // The plan was closed on a segmentation, and campaigns were aimed using it.
-  // Re-cutting the market afterwards rewrites what those campaigns were built
-  // on, and nothing would ever be asked to notice.
-  const store = new InMemoryStrategyStore();
-  store.seed({ plans: [plan({ id: "plan_closed", status: "closed" })] });
-  const c = ctx("sales_leader", "business", store);
-  const r = await upsertSegment(c, { ...SEG, planId: "plan_closed" });
-  assert.equal(r.ok, false);
-  assert.equal(r.ok ? "" : r.violations[0].code, "plan_closed");
+test("strategies in the same period can reuse one market with independent approaches", async () => {
+  const c = ctx("sales_leader", "business");
+  const definition = unwrap(await upsertSegment(c, { ...SEG, criteria: {
+    industries: ["retail"], regions: [], customerNeed: "  Stock accuracy  ",
+  } }));
+  const originalName = definition.name;
+  const focus = { segmentId: definition.id, intent: "focus" as const, approach: " Expand in retail " };
+  const first = unwrap(await createPlan(c, { ...newPlan, targetMarkets: [focus] }));
+  const second = unwrap(await createPlan(c, { ...newPlan, planNo: "SECOND", targetMarkets: [
+    { ...focus, intent: "validate", approach: "Test with partners" },
+  ] }));
+  assert.equal(first.period, second.period);
+  assert.notEqual(first.id, second.id);
+  assert.equal(first.targetMarkets?.[0].approach, "Expand in retail");
+  assert.equal(second.targetMarkets?.[0].intent, "validate");
+  assert.equal(first.targetMarkets?.[0].criteria.customerNeed, "Stock accuracy");
+
+  unwrap(await upsertSegment(c, { ...SEG, name: "New library name", criteria: { industries: ["logistics"], regions: [] } }));
+  unwrap(await editPlan(c, first.id, { ...EDIT, targetMarkets: [{ ...focus, approach: "Visit retail" }] }));
+  assert.equal((await c.store.getPlan(WS, first.id))?.targetMarkets?.[0].marketName, originalName);
+  assert.deepEqual((await c.store.getPlan(WS, first.id))?.targetMarkets?.[0].criteria.industries, ["retail"]);
+  assert.equal((await c.store.getPlan(WS, second.id))?.targetMarkets?.[0].approach, "Test with partners");
+
+  const remove = await removeSegment(c, { segmentId: definition.id, accountsCarrying: 0 });
+  assert.equal(!remove.ok && remove.violations[0].code, "segment_in_use");
+  unwrap(await editPlan(c, first.id, { ...EDIT, targetMarkets: [] }));
+  assert.equal((await c.store.getPlan(WS, first.id))?.targetMarkets?.length, 0);
+  assert.equal((await c.store.getPlan(WS, second.id))?.targetMarkets?.length, 1);
 });
 
-test("an open plan does not freeze it", async () => {
-  const store = new InMemoryStrategyStore();
-  store.seed({ plans: [plan({ id: "plan_open", status: "active" })] });
-  const c = ctx("sales_leader", "business", store);
-  assert.ok((await upsertSegment(c, { ...SEG, planId: "plan_open" })).ok);
-});
-
-test("a plan id from another workspace reads as not found, not as a status", async () => {
-  const store = new InMemoryStrategyStore();
-  store.seed({ plans: [plan({ id: "plan_other", workspaceId: "ws_other", status: "closed" })] });
-  const c = ctx("sales_leader", "business", store);
-  const r = await upsertSegment(c, { ...SEG, planId: "plan_other" });
-  assert.equal(r.ok, false);
-  assert.equal(r.ok ? "" : r.violations[0].code, "not_found");
+test("only active local markets can be added and only active catalogue solutions can be attached", async () => {
+  const catalog = new InMemoryCatalogStore();
+  const c = { ...ctx("sales_leader", "business"), catalog };
+  const local = unwrap(await upsertSegment(c, SEG));
+  const retired = unwrap(await upsertSegment(c, { ...SEG, segmentCode: "RETIRED", status: "retired" }));
+  const foreign = await c.store.upsertSegment("other", SEG);
+  const target = { segmentId: local.id, intent: "focus" as const, approach: null };
+  for (const segmentId of [retired.id, foreign.id, "missing"]) {
+    const result = await createPlan(c, { ...newPlan, targetMarkets: [{ ...target, segmentId }] });
+    assert.equal(!result.ok && result.violations[0].code, "market_not_selectable");
+  }
+  const ref = { id: "target-sol", workspaceId: WS, solutionCode: "S2", name: "Retail", summary: null, scenario: null, status: "active" as const, sortOrder: 1 };
+  catalog.seed({ solutions: [ref] });
+  const first = unwrap(await createPlan(c, { ...newPlan, targetMarkets: [{ ...target, solutionIds: [ref.id, ref.id] }] }));
+  catalog.seed({ solutions: [{ ...ref, status: "retired" }] });
+  const result = await createPlan(c, { ...newPlan, planNo: "SECOND", targetMarkets: [{ ...target, solutionIds: [ref.id] }] });
+  assert.equal(!result.ok && result.violations[0].code, "solution_not_selectable");
+  const edited = unwrap(await editPlan(c, first.id, { ...EDIT, targetMarkets: [{ ...target, approach: "Follow up" }] }));
+  assert.deepEqual(edited.targetMarkets?.[0].solutionIds, [ref.id]);
 });
 
 test("segments come back in priority order", async () => {
@@ -632,6 +655,23 @@ test("only an active plan takes a new campaign, and an id from nowhere is not a 
   assert.equal(ghost.ok === false && ghost.violations[0]!.code, "plan_not_found");
   const seg = await createCampaign(c, { ...DRAFT, planId: null, segmentId: "seg_x" });
   assert.equal(seg.ok === false && seg.violations[0]!.code, "segment_not_found");
+});
+
+test("a new campaign-market pairing must use the selected strategy, while an existing pairing stays editable", async () => {
+  const store = new InMemoryStrategyStore();
+  const one = await store.upsertSegment(WS, SEG);
+  const two = await store.upsertSegment(WS, { ...SEG, segmentCode: "OTHER" });
+  store.seed({
+    plans: [plan({ status: "active", targetMarkets: [{ segmentId: one.id, marketName: one.name,
+      criteria: one.criteria, intent: "focus", approach: null, solutionIds: [] }] })],
+    campaigns: [campaign({ id: "existing", status: "running", segmentId: two.id })],
+  });
+  const c = ctx("marketing_manager", "business", store);
+  const refused = await createCampaign(c, { ...DRAFT, segmentId: two.id });
+  assert.equal(!refused.ok && refused.violations[0].code, "segment_not_in_strategy");
+  assert.equal(unwrap(await createCampaign(c, { ...DRAFT, segmentId: one.id })).segmentId, one.id);
+  const { campaignNo: _number, ...fields } = DRAFT;
+  unwrap(await editCampaign(c, "existing", { ...fields, segmentId: two.id }));
 });
 
 test("a campaign is edited while it lives - and not once it completed or was cancelled", async () => {

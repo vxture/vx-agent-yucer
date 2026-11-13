@@ -26,6 +26,7 @@ export const strategyWorkspaceData = cache(async () => {
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const ctx = { ...base, store: getStrategyStore() };
   const canPlan = can(session.authz, session.entitlement, "strategy.plan.view", "ui").allowed;
+  const canMarkets = can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed;
   const canSeeSolutions = canPlan && can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed;
   const [plans, segments, campaigns, accounts, deals, solutions] = await Promise.all([
     read("plans", listPlans(ctx)), read("markets", listSegments(ctx)), read("campaigns", listCampaigns(ctx)),
@@ -33,21 +34,20 @@ export const strategyWorkspaceData = cache(async () => {
     read("pipeline", listPipeline({ ...base, store: session.stores.pipeline() }, { includeClosed: true })),
     canSeeSolutions ? read("solutions", listSolutionReferences({ ...base, store: getCatalogStore() })) : null,
   ]);
-  const markets = segments.ok ? marketViews(segments.value, plans.ok ? plans.value : null,
-    accounts.ok ? accounts.value.map(({id,name,accountNo,segmentCode,industry,region,customerSize}) => ({id,name,accountNo,segmentCode,industry,region,customerSize:customerSize ?? null})) : null) : null;
-  const planRows = plans.ok ? strategyViews(plans.value, markets, campaigns.ok ? campaigns.value : null, deals.ok ? deals.value : null, solutions?.ok ? solutions.value : null) : null;
+  const customers = accounts.ok ? accounts.value.map(({id,name,accountNo,segmentCode,industry,region,customerSize}) => ({id,name,accountNo,segmentCode,industry,region,customerSize:customerSize ?? null})) : null;
+  const markets = canMarkets && segments.ok ? marketViews(segments.value, canPlan && plans.ok ? plans.value : null, customers) : null;
+  const planRows = plans.ok ? strategyViews(plans.value, markets, campaigns.ok ? campaigns.value : null, deals.ok ? deals.value : null, solutions?.ok ? solutions.value : null, customers) : null;
   const planAdvice = plans.ok ? analysePlans({ plans: plans.value,
     campaignCounts: new Map(planRows!.map(p => [p.id, p.campaigns?.length ?? 0])),
     segmentCounts: new Map(planRows!.map(p => [p.id, p.marketIds?.length ?? 0])), now: new Date(),
   }).filter(a => !(!campaigns.ok && ["active_no_campaign", "work_under_inactive_plan"].includes(a.kind)) && !(!segments.ok && a.kind === "active_no_segment")) : [];
-  const segmentAdvice = markets && accounts.ok ? analyseSegments({ segments: segments.ok ? segments.value : [],
+  const segmentAdvice = markets && accounts.ok ? analyseSegments({ segments: markets,
     counts: new Map(markets.map(m => [m.segmentCode, { assigned: m.assigned!, matched: m.matched! }])),
     mismatch: new Map(markets.map(m => [m.segmentCode, {
       assignedNotMatching: m.customers!.filter(a => a.assigned && a.match === "miss").length,
       matchingNotAssigned: m.customers!.filter(a => !a.assigned && a.match === "match").length,
     }])),
   }) : [];
-  const canMarkets = can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed;
   return { session, plansRead: plans, marketsRead: segments, data: {
     plans: canPlan ? planRows : null, markets: canMarkets ? markets : null,
     planAdvice: canPlan ? planAdvice : [], segmentAdvice: canMarkets ? segmentAdvice : [], at: new Date().toISOString(),
@@ -55,6 +55,7 @@ export const strategyWorkspaceData = cache(async () => {
     canMarkets,
     canCreate: can(session.authz, session.entitlement, "strategy.plan.create", "ui").allowed,
     canEdit: can(session.authz, session.entitlement, "strategy.plan.update", "ui").allowed,
+    canCreateCampaign: can(session.authz, session.entitlement, "campaign.upsert", "ui").allowed,
     canApprove: can(session.authz, session.entitlement, "strategy.plan.approve", "ui").allowed,
     canWriteMarket: can(session.authz, session.entitlement, "strategy.segment.upsert", "ui").allowed,
   } };

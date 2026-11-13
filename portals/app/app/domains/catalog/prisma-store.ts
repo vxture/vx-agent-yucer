@@ -1,20 +1,20 @@
 import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
-import { SolutionInUseError } from "./store";
-import type {
-  CatalogStore,
-  DiscountApprovalRecord,
-  OpportunityLineRecord,
-  PriceDraft,
-  PriceEntryRecord,
-  ProductRecord,
-  ProductStatusRecord,
-  ProductTypeInput,
-  ProductTypeRecord,
-  ProductUnitRecord,
-  SolutionItemRecord,
-  SolutionRecord,
+import {
+  SolutionInUseError,
+  type CatalogStore,
+  type DiscountApprovalRecord,
+  type OpportunityLineRecord,
+  type PriceDraft,
+  type PriceEntryRecord,
+  type ProductRecord,
+  type ProductStatusRecord,
+  type ProductTypeInput,
+  type ProductTypeRecord,
+  type ProductUnitRecord,
+  type SolutionItemRecord,
+  type SolutionRecord,
 } from "./store";
 
 // Prisma-backed CatalogStore over yucer_catalog (+ yucer_pipeline.opportunity_line).

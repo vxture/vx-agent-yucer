@@ -23,18 +23,18 @@ import {
   SYSTEM_STATUS_DEFAULTS,
 } from "./lib/status-vocab";
 import { denied } from "../pipeline/service";
-import { SolutionInUseError } from "./store";
-import type {
-  CatalogStore,
-  DiscountApprovalRecord,
-  OpportunityLineRecord,
-  PriceEntryRecord,
-  ProductRecord,
-  ProductStatusRecord,
-  ProductTypeRecord,
-  ProductUnitRecord,
-  SolutionItemRecord,
-  SolutionRecord,
+import {
+  SolutionInUseError,
+  type CatalogStore,
+  type DiscountApprovalRecord,
+  type OpportunityLineRecord,
+  type PriceEntryRecord,
+  type ProductRecord,
+  type ProductStatusRecord,
+  type ProductTypeRecord,
+  type ProductUnitRecord,
+  type SolutionItemRecord,
+  type SolutionRecord,
 } from "./store";
 import type { MoveDirection } from "../shared/ordering";
 

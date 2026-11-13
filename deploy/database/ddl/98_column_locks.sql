@@ -101,13 +101,13 @@ END $$;
 REVOKE UPDATE ON yucer_core.account_relation FROM yucer_svc;
 
 -- --- yucer_gtm ---
--- strategy_plan_solution is created and locked by incr/0107 (no UPDATE).
+-- Strategy selection tables are created and locked by incr/0107 and 0108 (no UPDATE).
 REVOKE UPDATE ON yucer_gtm.strategy_plan FROM yucer_svc;
 GRANT UPDATE (name, period, objective, owner_sub, status, approved_at, updated_at)
   ON yucer_gtm.strategy_plan TO yucer_svc;
 
 REVOKE UPDATE ON yucer_gtm.market_segment FROM yucer_svc;
-GRANT UPDATE (name, plan_id, criteria, priority, status, updated_at)
+GRANT UPDATE (name, criteria, priority, status, updated_at)
   ON yucer_gtm.market_segment TO yucer_svc;
 
 REVOKE UPDATE ON yucer_gtm.territory FROM yucer_svc;

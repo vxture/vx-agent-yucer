@@ -7,7 +7,7 @@ import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
 import { getStrategyStore } from "../../../domains/shared/registry";
-import { listPlans, listSegments } from "../../../domains/strategy/service";
+import { listSegments } from "../../../domains/strategy/service";
 import { listAccounts } from "../../../domains/account/service";
 import { SegmentForm } from "../../components/segment-form";
 import { saveSegment } from "../../strategy/actions";
@@ -23,8 +23,8 @@ import { saveSegment } from "../../strategy/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewSegmentPage({searchParams}:{readonly searchParams:Promise<{code?:string;plan?:string}>}) {
-  const {code,plan}=await searchParams;
+export default async function NewSegmentPage({searchParams}:{readonly searchParams:Promise<{code?:string}>}) {
+  const {code}=await searchParams;
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -42,21 +42,15 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
     entitlement: session.entitlement,
     store: getStrategyStore(),
   };
-  const [segments, plans, accounts] = await Promise.all([
+  const [segments, accounts] = await Promise.all([
     listSegments(ctx),
-    listPlans(ctx),
     listAccounts({ ...ctx, store: session.stores.account() }),
   ]);
 
   if(!segments.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(segments.violations,LOAD_ERROR)}/>;
   const existing=code ? segments.value.find(s=>s.segmentCode===code) : undefined;
   if(code && !existing)notFound();
-  if(existing?.planId && !plans.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(plans.violations,LOAD_ERROR)}/>;
-  if(existing?.planId && plans.ok && plans.value.some(p=>p.id===existing.planId && ["closed","archived"].includes(p.status)))redirect(`/strategy?view=markets&market=${encodeURIComponent(existing.id)}`);
   const title=existing?T.editMarket:T.newMarket;
-  const openPlans = (plans.ok ? plans.value : [])
-    .filter((p) => p.status !== "closed" && p.status !== "archived")
-    .map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <ViewLayout>
@@ -68,9 +62,7 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
       <SegmentForm
         key={code ?? "new"}
         initialCode={code}
-        initialPlanId={openPlans.some(p=>p.id===plan)?plan:undefined}
-        rows={segments.ok ? segments.value : []}
-        plans={openPlans}
+        rows={segments.value}
         accountIndustries={accounts.ok ? accounts.value.map((a) => a.industry) : []}
         accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}
         statusLabel={STRATEGY_TEXT.segmentStatusLabel}

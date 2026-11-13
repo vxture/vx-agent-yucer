@@ -60,7 +60,6 @@ test("upsertSegment lands on ONE row by its code, and the code never moves", { s
     const first = await store.upsertSegment(WS, {
       segmentCode: "DBT-ENT",
       name: "first name",
-      planId: null,
       priority: 1,
       status: "active",
       criteria: { industries: ["制造"], regions: ["华东"] },
@@ -68,7 +67,6 @@ test("upsertSegment lands on ONE row by its code, and the code never moves", { s
     const second = await store.upsertSegment(WS, {
       segmentCode: "DBT-ENT",
       name: "second name",
-      planId: null,
       priority: 9,
       status: "paused",
       criteria: { industries: [], regions: [] },

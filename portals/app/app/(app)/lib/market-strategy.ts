@@ -1,5 +1,5 @@
 import type { PlanRecord, SegmentRecord, CampaignRecord } from "../../domains/strategy/store";
-import type { SegmentCriteria } from "../../domains/strategy/lib/lifecycle";
+import type { SegmentCriteria, TargetMarket } from "../../domains/strategy/lib/lifecycle";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import type { SolutionReference } from "../../domains/catalog/service";
 
@@ -17,8 +17,7 @@ export function marketMatch(a: MarketAccount, c: SegmentCriteria): MarketMatch {
   return limited.some(([, value]) => value == null || value === "") ? "missing" : "match";
 }
 export interface MarketView extends Omit<SegmentRecord, "workspaceId"> {
-  planName: string | null;
-  planStatus: PlanRecord["status"] | null;
+  plans: { id: string; name: string; period: string }[] | null;
   customers: (MarketAccount & { match: MarketMatch; assigned: boolean })[] | null;
   matched: number | null; missing: number | null; assigned: number | null;
 }
@@ -26,11 +25,18 @@ export interface StrategyResult {
   currency: string; open: number; won: number;
   openCount: number; wonCount: number; lostCount: number; unpriced: number;
 }
-export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt" | "solutionIds"> {
+export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt" | "solutionIds" | "targetMarkets"> {
   approvedAt: string | null;
   marketIds: string[] | null; customerCount: number | null;
   campaigns: Pick<CampaignRecord, "id" | "name" | "campaignNo" | "status">[] | null;
   solutions: SolutionReference[] | null;
+  sharedSolutions: SolutionReference[] | null;
+  targetMarkets: (Omit<TargetMarket, "solutionIds"> & {
+    solutions: SolutionReference[] | null;
+    matched: number | null;
+    missing: number | null;
+    status: SegmentRecord["status"];
+  })[] | null;
   results: StrategyResult[] | null; conflicts: number | null; attributionIncomplete: boolean;
 }
 /** Explicit plan or campaign references only. A conflicting chain credits neither. */
@@ -65,25 +71,59 @@ export function strategyResults(planId: string, deals: readonly OpportunityRecor
   return { results: [...results.values()].sort((a,b) => a.currency.localeCompare(b.currency)), conflicts, attributionIncomplete };
 }
 export function marketViews(segments: readonly SegmentRecord[], plans: readonly PlanRecord[] | null, accounts: readonly MarketAccount[] | null): MarketView[] {
+  const adoption = new Map<string, NonNullable<MarketView["plans"]>>();
+  for (const { id, name, period, targetMarkets } of plans ?? []) {
+    for (const { segmentId } of targetMarkets ?? []) {
+      const rows = adoption.get(segmentId) ?? [];
+      rows.push({ id, name, period });
+      adoption.set(segmentId, rows);
+    }
+  }
   return segments.map(({ workspaceId: _workspace, ...s }) => {
     const customers = accounts?.map(a => ({ ...a, match: marketMatch(a, s.criteria), assigned: a.segmentCode === s.segmentCode }))
       .filter(a => a.match === "match" || a.match === "missing" || a.assigned) ?? null;
-    return { ...s, planName: plans?.find(p => p.id === s.planId)?.name ?? null, planStatus: plans?.find(p => p.id === s.planId)?.status ?? null, customers,
+    return { ...s, plans: plans === null ? null : adoption.get(s.id) ?? [], customers,
       matched: customers?.filter(a => a.match === "match").length ?? null,
       missing: customers?.filter(a => a.match === "missing").length ?? null,
       assigned: customers?.filter(a => a.assigned).length ?? null };
   });
 }
-export function strategyViews(plans: readonly PlanRecord[], markets: readonly MarketView[] | null, campaigns: readonly CampaignRecord[] | null, deals: readonly OpportunityRecord[] | null, solutions: readonly SolutionReference[] | null = null): StrategyView[] {
-  return plans.map(({ workspaceId: _workspace, approvedAt, solutionIds, ...p }) => {
-    const selected = markets?.filter(m => m.planId === p.id) ?? null;
-    const linkedSolutions = solutions?.filter(s => solutionIds.includes(s.id));
-    const knownCustomers = selected !== null && selected.every(m => m.customers !== null);
+export function strategyViews(plans: readonly PlanRecord[], markets: readonly MarketView[] | null, campaigns: readonly CampaignRecord[] | null, deals: readonly OpportunityRecord[] | null, solutions: readonly SolutionReference[] | null = null, accounts: readonly MarketAccount[] | null = null): StrategyView[] {
+  const byMarket = new Map(markets?.map(m => [m.id, m]));
+  const bySolution = new Map(solutions?.map(s => [s.id, s]));
+  const references = (ids: readonly string[]) => {
+    if (solutions === null) return null;
+    const unique = [...new Set(ids)];
+    const rows = unique.map(id => bySolution.get(id)).filter((s): s is SolutionReference => s !== undefined);
+    return rows.length === unique.length ? rows : null;
+  };
+  return plans.map(({ workspaceId: _workspace, approvedAt, solutionIds, targetMarkets = [], ...p }) => {
+    const matched = new Set<string>();
+    let knownCustomers = markets !== null && accounts !== null;
+    const targets = markets === null ? null : targetMarkets.flatMap(({ solutionIds: targetSolutionIds, ...t }) => {
+      const market = byMarket.get(t.segmentId);
+      if (!market) { knownCustomers = false; return []; }
+      let count = 0, missing = 0;
+      if (accounts !== null) {
+        // Preview against the selection's saved criteria, not a library edit.
+        // market.customers includes only current matches, so use the full input
+        // passed by the gated account read below.
+        for (const a of accounts) {
+          const match = marketMatch(a, t.criteria);
+          if (match === "match") { matched.add(a.id); count++; }
+          else if (match === "missing") missing++;
+        }
+      }
+      return [{ ...t, status: market.status, solutions: references(targetSolutionIds),
+        matched: accounts === null ? null : count, missing: accounts === null ? null : missing }];
+    });
     const credited = deals ? strategyResults(p.id, deals, campaigns) : null;
     return { ...p, approvedAt: approvedAt?.toISOString() ?? null,
-      solutions: linkedSolutions?.length === solutionIds.length ? linkedSolutions : null,
-      marketIds: selected?.map(m => m.id) ?? null,
-      customerCount: knownCustomers ? new Set(selected!.flatMap(m => m.customers!.filter(a => a.match === "match").map(a => a.id))).size : null,
+      sharedSolutions: references(solutionIds),
+      solutions: markets === null && targetMarkets.length ? null : references([...solutionIds, ...targetMarkets.flatMap(m => m.solutionIds)]),
+      targetMarkets: targets,
+      marketIds: targets?.map(m => m.segmentId) ?? null,
+      customerCount: knownCustomers || (markets !== null && !targetMarkets.length) ? matched.size : null,
       campaigns: campaigns?.filter(c => c.planId === p.id).map(({id,name,campaignNo,status}) => ({id,name,campaignNo,status})) ?? null,
       results: credited?.results ?? null, conflicts: credited?.conflicts ?? null, attributionIncomplete: credited?.attributionIncomplete ?? false };
   });

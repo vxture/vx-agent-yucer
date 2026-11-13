@@ -19,6 +19,16 @@ export function MarketCriteria({ market, columns = 1 }: { readonly market: Marke
   </DetailList>;
 }
 
+function StrategyReferences({ market, compact = false }: { readonly market: MarketView; readonly compact?: boolean }) {
+  const { MARKET_STRATEGY_TEXT: T } = useMessages();
+  if (market.plans === null) return T.unknown;
+  if (!market.plans.length) return T.none;
+  if (compact && market.plans.length > 1) return <span title={market.plans.map(p => p.name).join(" / ")}>{T.adoptedBy(market.plans.length)}</span>;
+  return <div className="flex flex-col gap-xs">{market.plans.map(p => (
+    <Link key={p.id} className="truncate transition-colors hover:text-primary" href={`/strategy/${p.id}`} title={`${p.name} · ${p.period}`}>{p.name}</Link>
+  ))}</div>;
+}
+
 export function MarketDetails({ market, canWrite, onClose }: { readonly market: MarketView; readonly canWrite: boolean; readonly onClose: () => void }) {
   const { MARKET_STRATEGY_TEXT: T, DATA_TABLE_LABELS, STRATEGY_TEXT } = useMessages();
   const [query, setQuery] = useState("");
@@ -29,8 +39,10 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
     <div className="flex min-w-0 flex-col gap-xl" data-market-details>
       <Section title={T.criteria} icon="filter"><MarketCriteria market={market} /></Section>
       <DetailList columns={2}>
-        <DetailRow label={T.linkedPlan}>{market.planName ? <Link className="transition-colors hover:text-primary" href={`/strategy/${market.planId}`}>{market.planName}</Link> : market.planId ? T.unknown : T.none}</DetailRow>
+        <DetailRow label={T.linkedPlan}><StrategyReferences market={market}/></DetailRow>
         <DetailRow label={T.status}>{STRATEGY_TEXT.segmentStatusLabel[market.status]}</DetailRow>
+        {(["customerNeed", "buyingScenario", "entryBarrier"] as const).map(key => market.criteria[key]
+          ? <DetailRow key={key} label={T[key]}>{market.criteria[key]}</DetailRow> : null)}
       </DetailList>
       <Section title={T.preview} icon="users" description={T.previewWhy}>
         <FilterBar search={<SearchSlot><Input aria-label={T.searchCustomers} placeholder={T.searchCustomers} value={query} onChange={e => setQuery(e.target.value)} /></SearchSlot>}>
@@ -49,12 +61,12 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
         {market.customers !== null && rows.length ? <PaginationFooter pagination={pagination} total={market.customers.length} filteredTotal={query || match ? rows.length : undefined}/> : null}
         <p className="text-body-small text-muted-foreground">{T.baseOnly}</p>
       </Section>
-      {canWrite && !["closed","archived"].includes(market.planStatus ?? "") ? <Button asChild size="xl" variant="secondary"><Link href={`/segment/new?code=${encodeURIComponent(market.segmentCode)}`}>{T.editMarket}</Link></Button> : null}
+      {canWrite ? <Button asChild size="xl" variant="secondary"><Link href={`/segment/new?code=${encodeURIComponent(market.segmentCode)}`}>{T.editMarket}</Link></Button> : null}
     </div>
   </Drawer>;
 }
 
-export function MarketLibrary({ markets, canWrite, initialMarket, planId, scope, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly initialMarket?: string; readonly planId?: string; readonly scope?: ReactNode; readonly actions?: ReactNode }) {
+export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly initialMarket?: string; readonly scope?: ReactNode; readonly actions?: ReactNode }) {
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS } = useMessages();
   const [query, setQuery] = useState("");
   const [status,setStatus] = useState("");
@@ -69,29 +81,27 @@ export function MarketLibrary({ markets, canWrite, initialMarket, planId, scope,
     try {const r=await action();if(!r.ok)toast({tone:"danger",title:SEGMENT_ERROR[r.error ?? "denied"] ?? SEGMENT_ERROR.denied});}
     catch {toast({tone:"danger",title:SEGMENT_ERROR.denied});}
   });
-  const filtered = markets.filter(m => (!planId || m.planId === planId) && (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.planName ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
+  const filtered = markets.filter(m => (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.plans?.map(p => p.name).join(" ") ?? ""} ${m.criteria.customerNeed ?? ""} ${m.criteria.buyingScenario ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const live = filtered.filter(m=>m.status === "active"), shelved = filtered.filter(m=>m.status !== "active");
   const chosen = markets.filter(m => selected.includes(m.id));
   const table = (rows: readonly MarketView[]) => <DataTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
     rows={[...sorted.sortRows(rows)]} selectedKeys={selected} onSelectionChange={setSelected} sort={sorted.sort} onSortChange={sorted.onSortChange}
     className="[&_table]:min-w-(--container-3xl)"
     columns={[
-      {id:"name",header:T.marketName,align:"left",width:"md",sortable:true,cell:m=><TableTitleCell title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.segmentCode}/>},
+      {id:"name",header:T.marketName,align:"left",width:"md",sortable:true,cell:m=><TableTitleCell title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.criteria.customerNeed || m.segmentCode}/>},
       {id:"criteria",header:T.criteria,align:"left",width:"md",cell:m=><span className="line-clamp-2 text-body-small" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>{[...m.criteria.industries,...(m.criteria.sizes ?? []),...m.criteria.regions].join(" / ") || T.undefined}</span>},
       {id:"customers",header:T.customers,align:"left",sortable:true,width:"sm",cell:m=><div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs tabular-nums"><span className="font-medium">{m.matched ?? T.unknown}</span>{m.missing!==null && m.missing>0?<span className="whitespace-nowrap text-body-small text-muted-foreground">{T.missing} {m.missing}</span>:null}</div>},
-      ...(!planId?[{id:"plan",header:T.linkedPlan,align:"left" as const,width:"lg" as const,cell:(m:MarketView)=>m.planName?<Link className="block truncate text-body-small text-muted-foreground transition-colors hover:text-primary" title={m.planName} href={`/strategy/${m.planId}`}>{m.planName}</Link>:<span className="text-body-small text-muted-foreground">{m.planId?T.unknown:T.none}</span>}]:[]),
+      {id:"plan",header:T.linkedPlan,align:"left",width:"lg",cell:m=><div className="text-body-small text-muted-foreground"><StrategyReferences market={m} compact/></div>},
       {id:"status",header:T.status,width:"xs",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
     ]}
     rowActions={(m) => <RowActions disabled={pending} items={[
       {id:"view",label:T.openMarket,onSelect:()=>setDetail(m.id)},
       ...(canWrite ? [
-        ...(!["closed","archived"].includes(m.planStatus ?? "") ? [
         {id:"edit",label:T.editMarket,onSelect:()=>{window.location.href=`/segment/new?code=${encodeURIComponent(m.segmentCode)}`;}},
         ...(m.status === "active" ? [
           {id:"pause",label:STRATEGY_TEXT.segmentPause,onSelect:()=>run(()=>changeSegmentStatus(m.id,"paused"))},
           {id:"retire",label:STRATEGY_TEXT.segmentRetire,onSelect:()=>run(()=>changeSegmentStatus(m.id,"retired"))},
         ]:[{id:"resume",label:STRATEGY_TEXT.segmentResume,onSelect:()=>run(()=>changeSegmentStatus(m.id,"active"))}]),
-        ] : []),
         ...moveItems(ROW_OPS, markets.filter(s=>(s.status==="active")===(m.status==="active")).findIndex(s=>s.id===m.id),markets.filter(s=>(s.status==="active")===(m.status==="active")).length,d=>run(()=>moveSegmentRow(m.id,d))),
         {id:"delete",label:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),danger:true as const,confirm:{verb:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),target:m.name,consequence:STRATEGY_TEXT.segmentDeleteConsequence,onConfirm:()=>run(()=>deleteSegment(m.id))}},
       ] : []),

@@ -97,7 +97,7 @@ export function getCatalogStore(): CatalogStore {
   // locks.
   if (!memo.catalog) {
     memo.catalog = prismaEnabled() ? new PrismaCatalogStore() : new InMemoryCatalogStore(async (workspaceId, solutionId) =>
-      (await getStrategyStore().listPlans(workspaceId)).some(plan => plan.solutionIds.includes(solutionId)),
+      (await getStrategyStore().listPlans(workspaceId)).some(plan => plan.solutionIds.includes(solutionId) || plan.targetMarkets?.some(m => m.solutionIds.includes(solutionId))),
     );
   }
   return memo.catalog as CatalogStore;

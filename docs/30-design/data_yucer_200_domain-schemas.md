@@ -21,7 +21,10 @@
 | 表 | 说明 | 业务号 |
 |----|------|-------|
 | `strategy_plan` | 战略规划 | `plan_no` |
-| `market_segment` | 细分市场（`criteria` 为 JSONB 过滤条件） | `segment_code` |
+| `market_segment` | 可复用的细分市场（`criteria` 保存过滤条件与场景说明） | `segment_code` |
+| `strategy_plan_solution` | 战略通用方案引用（incr/0107） | - |
+| `strategy_plan_market` | 战略选用的细分市场、选入时的名称与条件、投入方式和打法（incr/0108） | - |
+| `strategy_plan_market_solution` | 单个目标市场的主推方案引用（incr/0108） | - |
 | `territory` | 销售区域（自引用树） | `territory_code` |
 | `sales_target` | 旧目标/独立个人配额；显式接管后禁止旧写 | - |
 | `sales_plan` | 年度规划稳定身份，工作区/年份唯一（incr/0106） | - |

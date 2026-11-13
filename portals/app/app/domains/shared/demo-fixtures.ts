@@ -140,12 +140,14 @@ export const DEMO_SEGMENTS = [
   {
     code: "ENTERPRISE",
     name: "大型企业",
+    approach: "访谈制造与通信客户，验证跨站点运营需求和采购门槛。",
     // Matches its members (西南制造/北方通信/东海精密) exactly.
     criteria: { industries: ["制造", "通信"], regions: [] },
   },
   {
     code: "MIDMARKET",
     name: "中型市场",
+    approach: "从有门店系统换代计划的零售客户切入，先用试点验证上线周期。",
     // 零售 and 物流 cover three of its four members. 西部能源装备 carries the
     // code but matches no criterion - a deliberate seam: "assigned but not
     // matching" is a finding the surface should make visible, not a tidy row.

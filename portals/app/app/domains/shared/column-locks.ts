@@ -126,7 +126,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "approved_at",
     "updated_at",
   ],
-  "yucer_gtm.market_segment": ["name", "plan_id", "criteria", "priority", "status", "updated_at"],
+  "yucer_gtm.market_segment": ["name", "criteria", "priority", "status", "updated_at"],
   "yucer_gtm.territory": ["name", "parent_id", "owner_sub", "regions", "status", "updated_at"],
   // The scope tuple is the row identity; only the number and the state move.
   "yucer_gtm.sales_plan": ["lock_version"],
@@ -441,6 +441,8 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // it covers - are pairs: a change is a delete and an insert.
   "yucer_gtm.territory_unit",
   "yucer_gtm.strategy_plan_solution",
+  "yucer_gtm.strategy_plan_market",
+  "yucer_gtm.strategy_plan_market_solution",
   "yucer_gtm.territory_division",
   // incr/0055. A department's direct 大区 link is the same kind of pair.
   "yucer_gtm.org_unit_division",

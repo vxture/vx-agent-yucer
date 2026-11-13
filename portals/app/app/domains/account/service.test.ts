@@ -462,7 +462,6 @@ function segment(over: Partial<SegmentRecord> = {}): SegmentRecord {
     workspaceId: WS,
     segmentCode: "SMB",
     name: "SMB",
-    planId: null,
     priority: 1,
     status: "active",
     criteria: { industries: ["Manufacturing"], regions: [] },

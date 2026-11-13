@@ -21,7 +21,7 @@ import { movePlan } from "../strategy/actions";
 
 export type StrategyTab = "overview" | "markets" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
-  const { MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS } = useMessages();
+  const { MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
   const router=useRouter(), params=useSearchParams();
   const [layout,setLayout]=useState<FilterBarView>("cards");
@@ -55,11 +55,11 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   ];
   const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
   const money=(n:number,currency:string)=>new Intl.NumberFormat(locale,{style:"currency",currency,maximumFractionDigits:0}).format(n);
-  const marketLinks=(p:StrategyView)=>p.marketIds===null || (!data.canMarkets && p.marketIds.length>0)
-    ? T.unknown : p.marketIds.length ? data.markets?.filter(m=>p.marketIds!.includes(m.id)).map(m=>
-      <Button key={m.id} asChild size="md" variant="secondary"><Link href={`/strategy?view=markets&market=${encodeURIComponent(m.id)}`}>{m.name}</Link></Button>
+  const marketLinks=(p:StrategyView)=>p.targetMarkets === null
+    ? T.unknown : p.targetMarkets.length ? p.targetMarkets.map(m =>
+      <Button key={m.segmentId} asChild size="md" variant="secondary"><Link href={`/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></Button>
     ) : T.noPlanMarkets;
-  const solutionLinks=(p:StrategyView)=>p.solutions === null ? T.unknown : p.solutions.length ? p.solutions.map(s => (
+  const solutionLinks=(solutions:StrategyView["solutions"])=>solutions === null ? T.unknown : solutions.length ? solutions.map(s => (
     <Button key={s.id} asChild size="md" variant="secondary" className="max-w-full">
       <Link href={`/solution?solution=${encodeURIComponent(s.id)}`} title={`${s.name} · ${s.solutionCode}`}>
         <span className="truncate">{s.name}</span>{s.status === "retired" ? <span className="shrink-0 text-muted-foreground">{T.retiredSolution}</span> : null}
@@ -93,7 +93,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             <span className="flex min-h-control-md items-center">{T.currentMarkets}</span>
             <div className="flex min-h-control-md min-w-0 flex-wrap items-center gap-sm">{marketLinks(p)}</div>
             <span className="flex min-h-control-md items-center">{T.primarySolutions}</span>
-            <div className="flex min-h-control-md min-w-0 flex-wrap items-center gap-sm">{solutionLinks(p)}</div>
+            <div className="flex min-h-control-md min-w-0 flex-wrap items-center gap-sm">{solutionLinks(p.solutions)}</div>
           </div>
         </div>
         <div className="@container min-w-0">
@@ -113,6 +113,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       {id:"direction",header:T.direction,align:"left",width:"lg",cell:p=><span className="line-clamp-2 text-body-small" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
       {id:"markets",header:T.marketCount,cell:p=>number(p.marketIds?.length)},
       {id:"customers",header:T.customerCount,cell:p=>number(p.customerCount)},
+      {id:"solutions",header:T.solutionCount,cell:p=>number(p.solutions?.length)},
+      {id:"campaigns",header:T.campaignCount,cell:p=>number(p.campaigns?.length)},
       {id:"status",header:T.status,cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
     ]} rowActions={p=><RowActions items={items(p)} disabled={pending}/>}
     empty={<EmptyState title={T.noMatches}/>}/>
@@ -161,11 +163,37 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const detailContent=detail?<>
     <Section title={T.direction} icon="flag">
       <p className="whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p>
-      <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
-        <span>{T.primarySolutions}</span>{solutionLinks(detail)}
-      </div>
+      {detail.sharedSolutions?.length || detail.sharedSolutions === null ? <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
+        <span>{T.sharedSolutions}</span>{solutionLinks(detail.sharedSolutions)}
+      </div> : null}
     </Section>
-    {!data.canMarkets || data.markets===null?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:<Section title={T.currentMarkets} icon="target"><MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} planId={detail.id}/></Section>}
+    <Section title={T.currentMarkets} icon="target" description={T.targetMarketBasis}
+      action={data.canEdit && data.canMarkets && !["closed", "archived"].includes(detail.status)
+        ? <Button asChild size="md" variant="secondary"><Link href={`/strategy/new?no=${encodeURIComponent(detail.planNo)}#target-markets`}>{T.manageTargets}</Link></Button> : null}>
+      {detail.targetMarkets === null ? <p className="text-body-small text-muted-foreground">{T.unknown}</p>
+        : !detail.targetMarkets.length ? <EmptyState title={T.noPlanMarkets}/> : <div className="grid grid-cols-1 gap-lg">
+          {detail.targetMarkets.map(m => <Card key={m.segmentId}>
+            <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm">
+              <div className="flex min-w-0 flex-wrap items-center gap-sm">
+                <CardTitle><Link className="transition-colors hover:text-primary" href={`/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
+                <Tag tone={m.intent === "focus" ? "success" : "neutral"}>{m.intent === "focus" ? T.focusMarket : m.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</Tag>
+                {m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-sm">
+                <span className="text-body-small text-muted-foreground">{T.customerCount} {number(m.matched)} · {T.missing} {number(m.missing)}</span>
+                {data.canCreateCampaign && detail.status === "active" && m.status === "active" ? <Button asChild size="md" variant="secondary">
+                  <Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link>
+                </Button> : null}
+              </div>
+            </div></CardHeader>
+            <CardContent><div className="flex flex-col gap-md text-body-small">
+              <p className="text-muted-foreground">{[...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions].join(" / ") || T.undefined}{m.criteria.customerNeed ? ` · ${m.criteria.customerNeed}` : ""}</p>
+              <p className="whitespace-pre-wrap break-words">{m.approach || T.noMarketApproach}</p>
+              <div className="flex flex-wrap items-center gap-sm"><span className="text-muted-foreground">{T.primarySolutions}</span>{solutionLinks(m.solutions)}</div>
+            </div></CardContent>
+          </Card>)}
+        </div>}
+    </Section>
     <Section title={T.handoff} icon="workflow" description={T.handoffWhy}>
       <DetailList columns={1}><DetailRow label={T.planning} actions={<Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>}>{T.planningHint}</DetailRow>
       <DetailRow label={T.campaignCount} actions={<Button asChild variant="secondary" size="md"><Link href="/campaign">{T.openCampaigns}</Link></Button>}>{detail.campaigns?.length ? <div className="flex flex-wrap gap-sm">{detail.campaigns.map(c=><Tag key={c.id}>{c.name}</Tag>)}</div>:detail.campaigns===null?T.unknown:T.noCampaigns}</DetailRow></DetailList>

@@ -25,8 +25,6 @@ export function SegmentAdvicePanel({ advice }: { readonly advice: readonly Segme
         return STRATEGY_TEXT.segmentAdviceStale(a.segmentName, a.count ?? 0);
       case "no_criteria":
         return STRATEGY_TEXT.segmentAdviceNoCriteria(a.segmentName);
-      case "no_plan":
-        return STRATEGY_TEXT.segmentAdviceNoPlan(a.segmentName);
     }
   };
 
@@ -43,7 +41,7 @@ export function SegmentAdvicePanel({ advice }: { readonly advice: readonly Segme
     },
     more: [
       { id: "accounts", label: STRATEGY_TEXT.segmentAdviceOpenAccounts, href: "/account" },
-      { id: "strategy", label: STRATEGY_TEXT.segmentsTitle, href: "/strategy" },
+      { id: "strategy", label: STRATEGY_TEXT.segmentsTitle, href: "/strategy?view=markets" },
     ],
   }));
 

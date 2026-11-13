@@ -4,25 +4,33 @@ import { useMemo, useState } from "react";
 import {
   Button,
   Combobox,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Field,
   FieldDescription,
   FieldLabel,
   Icon,
   Input,
+  NativeSelect,
   Section,
   StatusBadge,
+  Textarea,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
   FormFields,
+  FormFieldWide,
   FormPage,
   useFormSubmit,
   type AssistSuggestion,
 } from "./form-page";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type { SolutionReference } from "../../domains/catalog/service";
-import type { NewPlanDraft, PlanEdit } from "../../domains/strategy/lib/lifecycle";
+import type { MarketView } from "../lib/market-strategy";
+import type { NewPlanDraft, PlanEdit, TargetMarketDraft, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
 
 // 新建 / 修改战略计划 - a page since 2026-09-05 (owner ruling: content-rich
 // operations get a page, with the assistant beside the work).
@@ -44,6 +52,40 @@ import type { NewPlanDraft, PlanEdit } from "../../domains/strategy/lib/lifecycl
 // that would be silently dropped.
 
 type Saved = { ok: boolean; error?: string };
+type MarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing">;
+type TargetSelection = TargetMarketDraft & { marketName: string };
+
+function SolutionPicker({ options, ids, onChange, disabled }: {
+  readonly options: readonly SolutionReference[] | null;
+  readonly ids: readonly string[] | undefined;
+  readonly onChange: (ids: readonly string[]) => void;
+  readonly disabled: boolean;
+}) {
+  const { MARKET_STRATEGY_TEXT: T } = useMessages();
+  if (options === null || ids === undefined) return <FieldDescription>{T.solutionOptionsUnavailable}</FieldDescription>;
+  const selected = options.filter(s => ids.includes(s.id));
+  const available = options.filter(s => s.status === "active" && !ids.includes(s.id));
+  return <>
+    <Combobox
+      items={available.map(s => ({ value: s.id, label: `${s.name} · ${s.solutionCode}` }))}
+      onValueChange={id => { if (id && !ids.includes(id)) onChange([...ids, id]); }}
+      placeholder={available.length ? T.addSolution : T.noSelectableSolutions}
+      searchPlaceholder={T.searchSolutions}
+      emptyText={T.noMatches}
+      disabled={disabled || !available.length}
+      className="w-full text-body-small"
+    />
+    {selected.length ? <ul className="flex flex-wrap gap-sm" aria-label={T.primarySolutions}>
+      {selected.map(s => <li key={s.id} className="flex max-w-full items-center gap-xs rounded-md bg-accent pl-sm text-body-small">
+        <span className="min-w-0 break-words">{s.name}{s.status === "retired" ? ` · ${T.retiredSolution}` : ""}</span>
+        <Button type="button" size="icon-md" variant="ghost" aria-label={`${T.removeSolution}: ${s.name}`}
+          disabled={disabled} onClick={() => onChange(ids.filter(id => id !== s.id))}>
+          <Icon name="x" size="sm" aria-hidden="true" />
+        </Button>
+      </li>)}
+    </ul> : null}
+  </>;
+}
 
 export interface PlanFormInitial {
   readonly id: string;
@@ -52,7 +94,8 @@ export interface PlanFormInitial {
   readonly period: string;
   readonly objective: string | null;
   readonly ownerSub: string | null;
-  readonly solutionIds: readonly string[];
+  readonly solutionIds: readonly string[] | undefined;
+  readonly targetMarkets: readonly TargetSelection[];
 }
 
 export function NewPlanForm({
@@ -60,6 +103,7 @@ export function NewPlanForm({
   existingPeriods,
   initial,
   solutionOptions,
+  marketOptions,
   onCreate,
   onSave,
 }: {
@@ -68,6 +112,7 @@ export function NewPlanForm({
   /** Present edits that plan; absent creates one. */
   readonly initial?: PlanFormInitial;
   readonly solutionOptions: readonly SolutionReference[] | null;
+  readonly marketOptions: readonly MarketOption[] | null;
   readonly onCreate: (input: NewPlanDraft) => Promise<Saved>;
   readonly onSave: (id: string, input: PlanEdit) => Promise<Saved>;
 }) {
@@ -77,11 +122,16 @@ export function NewPlanForm({
   const [period, setPeriod] = useState(initial?.period ?? "");
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
-  const [solutionIds, setSolutionIds] = useState<readonly string[]>(initial?.solutionIds ?? []);
-  const selectedSolutions = solutionOptions?.filter(s => solutionIds.includes(s.id)) ?? [];
-  const availableSolutions = solutionOptions?.filter(s => s.status === "active" && !solutionIds.includes(s.id)) ?? [];
-  const solutionSelectionChanged = solutionIds.length !== (initial?.solutionIds.length ?? 0)
-    || solutionIds.some(id => !initial?.solutionIds.includes(id));
+  const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initial ? initial.solutionIds : []);
+  const [targets, setTargets] = useState<readonly TargetSelection[]>(initial?.targetMarkets ?? []);
+  const [marketId, setMarketId] = useState("");
+  const availableMarkets = marketOptions?.filter(m => m.status === "active" && !targets.some(t => t.segmentId === m.id)) ?? [];
+  const candidate = availableMarkets.find(m => m.id === marketId);
+  const solutionSelectionChanged = JSON.stringify(solutionIds) !== JSON.stringify(initial ? initial.solutionIds : []);
+  const targetsChanged = JSON.stringify(targets) !== JSON.stringify(initial?.targetMarkets ?? []);
+  const patchTarget = (segmentId: string, patch: Partial<TargetMarketDraft>) =>
+    setTargets(rows => rows.map(row => row.segmentId === segmentId ? { ...row, ...patch } : row));
+  const number = (n: number | null) => n === null ? T.unknown : n;
   const submit = useFormSubmit("/strategy");
 
   const nextNo = useMemo(() => suggestNextCode(existingPlanNos), [existingPlanNos]);
@@ -137,6 +187,7 @@ export function NewPlanForm({
             <Field>
               <FieldLabel>{STRATEGY_TEXT.newPlanPeriod}</FieldLabel>
               <Input value={period} onChange={(e) => setPeriod(e.target.value)} />
+              <FieldDescription>{T.parallelStrategies}</FieldDescription>
             </Field>
             <Field>
               <FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
@@ -146,32 +197,80 @@ export function NewPlanForm({
               <FieldLabel>{STRATEGY_TEXT.newPlanObjective}</FieldLabel>
               <Input value={objective} onChange={(e) => setObjective(e.target.value)} />
             </Field>
-            <Field>
-              <FieldLabel>{T.primarySolutions}</FieldLabel>
-              {solutionOptions === null ? (
-                <FieldDescription>{T.solutionOptionsUnavailable}</FieldDescription>
-              ) : <>
-                <Combobox
-                  items={availableSolutions.map(s => ({ value: s.id, label: `${s.name} · ${s.solutionCode}` }))}
-                  onValueChange={id => setSolutionIds(ids => ids.includes(id) ? ids : [...ids, id])}
-                  placeholder={availableSolutions.length ? T.addSolution : T.noSelectableSolutions}
-                  searchPlaceholder={T.searchSolutions}
-                  emptyText={T.noMatches}
-                  disabled={submit.pending || availableSolutions.length === 0}
-                  className="w-full text-body-small"
-                />
-                {selectedSolutions.length ? <ul className="flex flex-wrap gap-sm" aria-label={T.primarySolutions}>
-                  {selectedSolutions.map(s => <li key={s.id} className="flex max-w-full items-center gap-xs rounded-md bg-accent pl-sm text-body-small">
-                    <span className="min-w-0 break-words">{s.name}{s.status === "retired" ? ` · ${T.retiredSolution}` : ""}</span>
-                    <Button type="button" size="icon-md" variant="ghost" aria-label={`${T.removeSolution}: ${s.name}`}
-                      disabled={submit.pending} onClick={() => setSolutionIds(ids => ids.filter(id => id !== s.id))}>
-                      <Icon name="x" size="sm" aria-hidden="true" />
-                    </Button>
-                  </li>)}
-                </ul> : null}
-                <FieldDescription>{T.primarySolutionsHint}</FieldDescription>
+            </FormFields>
+            <div id="target-markets">
+            <Section title={T.currentMarkets} icon="target" description={T.currentMarketsWhy}>
+              {marketOptions === null ? <p className="text-body-small text-muted-foreground">{T.marketOptionsUnavailable}</p> : <>
+                <div className="flex flex-wrap items-center gap-sm" data-target-market-picker>
+                  <Combobox
+                    items={availableMarkets.map(m => ({ value: m.id, label: `${m.name} · ${m.segmentCode}` }))}
+                    value={marketId}
+                    onValueChange={setMarketId}
+                    placeholder={availableMarkets.length ? T.chooseMarkets : T.noSelectableMarkets}
+                    searchPlaceholder={T.searchMarkets}
+                    emptyText={T.noMatches}
+                    disabled={submit.pending || !availableMarkets.length}
+                  />
+                  <Button size="md" variant="secondary" disabled={submit.pending || !candidate} onClick={() => {
+                    if (!candidate) return;
+                    setTargets(rows => [...rows, { segmentId: candidate.id, marketName: candidate.name, intent: "focus", approach: null }]);
+                    setMarketId("");
+                  }}>{T.addTargetMarket}</Button>
+                </div>
+                {candidate ? <div className="flex flex-col gap-xs text-body-small text-muted-foreground" aria-live="polite">
+                  <p>{[...candidate.criteria.industries, ...(candidate.criteria.sizes ?? []), ...candidate.criteria.regions].join(" / ") || T.undefined}</p>
+                  {candidate.criteria.customerNeed ? <p>{candidate.criteria.customerNeed}</p> : null}
+                  <p>{T.customerCount} {number(candidate.matched)} · {T.missing} {number(candidate.missing)}</p>
+                </div> : null}
+                {targets.map(t => {
+                  const market = marketOptions.find(m => m.id === t.segmentId);
+                  const original = initial?.targetMarkets.find(row => row.segmentId === t.segmentId);
+                  return <Card key={t.segmentId}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-md">
+                        <CardTitle>{t.marketName}</CardTitle>
+                        <Button type="button" size="icon-md" variant="ghost" aria-label={`${T.removeTargetMarket}: ${t.marketName}`}
+                          disabled={submit.pending || (!!original && original.solutionIds === undefined)} onClick={() => setTargets(rows => rows.filter(row => row.segmentId !== t.segmentId))}>
+                          <Icon name="x" size="sm" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <FormFields>
+                        <Field>
+                          <FieldLabel>{T.marketIntent}</FieldLabel>
+                          <NativeSelect aria-label={T.marketIntent} value={t.intent ?? ""} onChange={e => patchTarget(t.segmentId, { intent: e.target.value as TargetMarketIntent })}>
+                            {t.intent === null ? <option value="" disabled>{T.unclassifiedMarket}</option> : null}
+                            <option value="focus">{T.focusMarket}</option><option value="validate">{T.validateMarket}</option>
+                          </NativeSelect>
+                          {market && market.status !== "active" ? <FieldDescription>{STRATEGY_TEXT.segmentStatusLabel[market.status]}</FieldDescription> : null}
+                        </Field>
+                        <Field>
+                          <FieldLabel>{T.primarySolutions}</FieldLabel>
+                          <SolutionPicker options={solutionOptions} ids={t.solutionIds ?? (original ? undefined : [])}
+                            disabled={submit.pending} onChange={ids => patchTarget(t.segmentId, { solutionIds: ids })} />
+                        </Field>
+                        <FormFieldWide>
+                          <Field>
+                            <FieldLabel>{T.marketApproach}</FieldLabel>
+                            <Textarea aria-label={T.marketApproach} rows={2} maxLength={4000} value={t.approach ?? ""} placeholder={T.marketApproachHint}
+                              onChange={e => patchTarget(t.segmentId, { approach: e.target.value || null })} />
+                          </Field>
+                        </FormFieldWide>
+                      </FormFields>
+                    </CardContent>
+                  </Card>;
+                })}
+                {!targets.length && !candidate ? <p className="text-body-small text-muted-foreground">{T.noPlanMarkets}</p> : null}
               </>}
-            </Field>
+            </Section>
+            </div>
+            <FormFields>
+              <Field>
+                <FieldLabel>{T.sharedSolutions}</FieldLabel>
+                <SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={submit.pending} />
+                <FieldDescription>{T.sharedSolutionsHint}</FieldDescription>
+              </Field>
             </FormFields>
             {/* The number is the anchor: workspace-unique, no UPDATE grant, so
                 it cannot be corrected later. Said before the first attempt. */}
@@ -190,6 +289,12 @@ export function NewPlanForm({
                       objective: objective.trim() === "" ? null : objective.trim(),
                       ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
                       ...(solutionOptions !== null && solutionSelectionChanged ? { solutionIds } : {}),
+                      ...(marketOptions !== null && targetsChanged ? {
+                        targetMarkets: targets.map(({ marketName: _name, solutionIds, ...t }) => {
+                          const original = initial?.targetMarkets.find(row => row.segmentId === t.segmentId);
+                          return { ...t, ...(JSON.stringify(solutionIds) !== JSON.stringify(original?.solutionIds) ? { solutionIds } : {}) };
+                        }),
+                      } : {}),
                     };
                     return initial
                       ? onSave(initial.id, fields)

@@ -27,7 +27,7 @@ const dayOf = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 export default async function CreateCampaignPage({
   searchParams,
 }: {
-  readonly searchParams: Promise<{ no?: string }>;
+  readonly searchParams: Promise<{ no?: string; plan?: string; market?: string }>;
 }) {
   const { DOMAIN_LABEL, CAMPAIGN_TEXT } = await getMessages();
   const session = await resolveAppSession();
@@ -48,7 +48,7 @@ export default async function CreateCampaignPage({
     pricingPolicy({ ...ctx, store: getCatalogStore() }),
   ]);
   const rows = campaigns.ok ? campaigns.value : [];
-  const { no } = await searchParams;
+  const { no, plan, market } = await searchParams;
   const found = no ? rows.find((c) => c.campaignNo === no) : undefined;
   const editable = found && found.status !== "completed" && found.status !== "cancelled" ? found : undefined;
 
@@ -56,7 +56,10 @@ export default async function CreateCampaignPage({
   // otherwise only a plan that takes new work is offered.
   const offeredPlans = (plans.ok ? plans.value : [])
     .filter((p) => planAcceptsNewWork(p.status) || p.id === editable?.planId)
-    .map((p) => ({ id: p.id, name: p.name }));
+    .map((p) => ({ id: p.id, name: p.name, targetIds: p.targetMarkets?.map(m => m.segmentId) ?? [] }));
+  const seedPlan = !no ? offeredPlans.find(p => p.id === plan) : undefined;
+  const seedMarket = seedPlan?.targetIds.includes(market ?? "") && segments.ok
+    ? segments.value.find(s => s.id === market)?.id : undefined;
 
   return (
     <ViewLayout>
@@ -73,6 +76,8 @@ export default async function CreateCampaignPage({
         existingNos={rows.map((c) => c.campaignNo)}
         plans={offeredPlans}
         segments={(segments.ok ? segments.value : []).map((s) => ({ id: s.id, name: s.name }))}
+        initialPlanId={seedPlan?.id}
+        initialSegmentId={seedMarket}
         defaultCurrency={policy.ok ? policy.value.defaultCurrency : "CNY"}
         initial={
           editable

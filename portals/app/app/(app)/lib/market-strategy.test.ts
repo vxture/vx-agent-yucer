@@ -23,13 +23,25 @@ test("strategy shows only linked catalog references and does not expose hidden i
   assert.equal(hidden.solutions, null);
   assert.equal("solutionIds" in hidden, false);
 });
-const segment:SegmentRecord={id:"m",workspaceId:"w",name:"M",segmentCode:"M1",planId:"p",priority:0,status:"active",criteria};
-test("overlapping market customers are deduplicated in strategy coverage; unavailable reads stay null",()=>{
-  const markets=marketViews([segment,{...segment,id:"m2"}],[plan],[account]);
-  assert.equal(strategyViews([plan],markets,[],[])[0].customerCount,1);
-  assert.equal(strategyViews([plan],marketViews([segment],[plan],null),[],[])[0].customerCount,null);
-  assert.equal(strategyViews([plan],null,null,null)[0].marketIds,null);
-  assert.equal(strategyViews([plan],null,null,null)[0].results,null);
+const segment:SegmentRecord={id:"m",workspaceId:"w",name:"M",segmentCode:"M1",priority:0,status:"active",criteria};
+test("strategy matching uses saved market criteria, and deduplicates customers and solutions", () => {
+  const ref = { id: "sol", solutionCode: "S1", name: "Retail", status: "active" as const };
+  const target = { segmentId: "m", marketName: segment.name, intent: "focus" as const, approach: null, criteria, solutionIds: [ref.id] };
+  const selected = { ...plan, solutionIds: [ref.id], targetMarkets: [target, { ...target, segmentId: "m2" }] };
+  const markets = marketViews([{ ...segment, criteria: { industries: ["retail"], regions: [] } }, { ...segment, id: "m2" }], [selected], [account]);
+  assert.equal(markets[0].matched, 0);
+  const view = strategyViews([selected], markets, [], [], [ref], [account])[0];
+  assert.equal(view.customerCount, 1);
+  assert.deepEqual(view.targetMarkets?.map(m => m.matched), [1, 1]);
+  assert.deepEqual(view.solutions, [ref]);
+  assert.deepEqual(view.targetMarkets?.[0].solutions, [ref]);
+
+  assert.equal(strategyViews([selected], markets, [], [], [ref], null)[0].customerCount, null);
+  const hidden = strategyViews([selected], null, null, null, [ref], [account])[0];
+  assert.equal(hidden.marketIds, null);
+  assert.equal(hidden.targetMarkets, null);
+  assert.equal(hidden.solutions, null);
+  assert.equal(hidden.results, null);
 });
 const campaign={id:"c",planId:"p"} as CampaignRecord;
 const deal=(id:string,patch:Partial<OpportunityRecord>={}):OpportunityRecord=>({id,planId:"p",campaignId:"c",status:"open",currency:"CNY",amount:money(100),...patch} as OpportunityRecord);

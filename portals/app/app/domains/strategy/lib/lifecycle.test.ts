@@ -250,51 +250,39 @@ test("done and skipped both settle an item - that is what canCompleteCampaign co
 const DRAFT = {
   segmentCode: "ENTERPRISE",
   name: "Large enterprise",
-  planId: null,
   priority: 1,
   status: "active" as const,
   criteria: { industries: [], regions: [] },
 };
 
 test("a segment needs a code and a name", () => {
-  assert.equal(planSegment({ ...DRAFT, segmentCode: "  " }, null).ok, false);
-  assert.equal(planSegment({ ...DRAFT, name: "\t" }, null).ok, false);
+  assert.equal(planSegment({ ...DRAFT, segmentCode: "  " }).ok, false);
+  assert.equal(planSegment({ ...DRAFT, name: "\t" }).ok, false);
 });
 
 test("the code and name are trimmed, not merely accepted", () => {
   // A stored " ENTERPRISE" would never match the accounts carrying
   // "ENTERPRISE", and nothing downstream would report a mismatch.
-  const r = planSegment({ ...DRAFT, segmentCode: " ENTERPRISE ", name: " Large " }, null);
+  const r = planSegment({ ...DRAFT, segmentCode: " ENTERPRISE ", name: " Large " });
   assert.ok(r.ok);
   assert.equal(r.ok && r.value.segmentCode, "ENTERPRISE");
   assert.equal(r.ok && r.value.name, "Large");
 });
 
 test("an unknown status is refused", () => {
-  const r = planSegment({ ...DRAFT, status: "sunsetting" as never }, null);
+  const r = planSegment({ ...DRAFT, status: "sunsetting" as never });
   assert.equal(r.ok, false);
   assert.equal(r.ok ? "" : r.violations[0].code, "unknown_status");
 });
 
 test("priority is a whole number in range", () => {
   for (const bad of [-1, 1.5, 10_000, Number.NaN]) {
-    const r = planSegment({ ...DRAFT, priority: bad }, null);
+    const r = planSegment({ ...DRAFT, priority: bad });
     assert.equal(r.ok, false, `priority ${bad} should be refused`);
     assert.equal(r.ok ? "" : r.violations[0].code, "priority_out_of_range");
   }
-  assert.ok(planSegment({ ...DRAFT, priority: 0 }, null).ok);
-  assert.ok(planSegment({ ...DRAFT, priority: 9999 }, null).ok);
-});
-
-test("a closed or archived plan freezes its segmentation, an open one does not", () => {
-  for (const status of ["closed", "archived"] as const) {
-    const r = planSegment(DRAFT, { status });
-    assert.equal(r.ok, false, `${status} should freeze`);
-    assert.equal(r.ok ? "" : r.violations[0].code, "plan_closed");
-  }
-  for (const status of ["draft", "approved", "active"] as const) {
-    assert.ok(planSegment(DRAFT, { status }).ok, `${status} should not freeze`);
-  }
+  assert.ok(planSegment({ ...DRAFT, priority: 0 }).ok);
+  assert.ok(planSegment({ ...DRAFT, priority: 9999 }).ok);
 });
 
 // --- accountMatchesCriteria --------------------------------------------------
@@ -328,7 +316,7 @@ test("a null account value never matches a named criterion", () => {
 });
 
 test("criteria values are trimmed and de-duplicated on the way in", () => {
-  const r = planSegment({ ...DRAFT, criteria: { industries: [" 零售 ", "零售", ""], regions: ["  "] } }, null);
+  const r = planSegment({ ...DRAFT, criteria: { industries: [" 零售 ", "零售", ""], regions: ["  "] } });
   assert.ok(r.ok);
   assert.deepEqual(r.ok && r.value.criteria, { industries: ["零售"], regions: [] });
 });

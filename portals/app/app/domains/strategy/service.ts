@@ -26,6 +26,9 @@ import {
   planNewPlan,
   planPlanEdit,
   type PlanEdit,
+  type TargetMarket,
+  type TargetMarketDraft,
+  TARGET_MARKET_INTENTS,
   type ExecutionDraft,
   type NewPlanDraft,
   planSegment,
@@ -34,17 +37,19 @@ import {
   type SegmentStatus,
 } from "./lib/lifecycle";
 import { checkCampaignLinks, planCampaignEdit, planNewCampaign, type CampaignDraft, type NewCampaignDraft } from "./lib/campaign";
-import type {
-  CampaignRecord,
-  ExecutionRecord,
-  PlanRecord,
-  SegmentCoverageSnapshotInput,
-  SegmentRecord,
-  StrategyStore,
-  TerritoryAttainmentSnapshotInput,
+import {
+  PlanMarketUnavailableError,
+  PlanSolutionUnavailableError,
+  SegmentReferencedError,
+  type CampaignRecord,
+  type ExecutionRecord,
+  type PlanRecord,
+  type SegmentCoverageSnapshotInput,
+  type SegmentRecord,
+  type StrategyStore,
+  type TerritoryAttainmentSnapshotInput,
 } from "./store";
 import type { MoveDirection } from "../shared/ordering";
-import { PlanSolutionUnavailableError } from "./store";
 
 export interface StrategyContext {
   workspaceId: string;
@@ -82,10 +87,60 @@ async function validatePlanSolutions(
   return fail(violation("solution_catalog_unavailable", "solution catalogue unavailable", "solutionIds", true));
 }
 
+function marketUnavailable() {
+  return violation("market_not_selectable", "invalid or unavailable target market", "targetMarkets");
+}
+
+async function validateTargetMarkets(
+  ctx: StrategyContext,
+  input: readonly TargetMarketDraft[] | undefined,
+  existing: readonly TargetMarket[] = [],
+): Promise<RuleResult<readonly TargetMarket[] | undefined>> {
+  if (input === undefined) return ok(undefined);
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.view", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!Array.isArray(input)) return fail(marketUnavailable());
+  const segments = new Map((await ctx.store.listSegments(ctx.workspaceId)).map(s => [s.id, s]));
+  const prior = new Map(existing.map(t => [t.segmentId, t]));
+  const chosen = new Map<string, TargetMarket>();
+  // Validate the catalogue once even when many targets were edited. Compare
+  // additions per market so a retired solution cannot move to a new target.
+  const addedSolutions = new Set<string>();
+  let changedSolutions = false;
+  for (const target of input as readonly TargetMarketDraft[]) {
+    if (!target || typeof target.segmentId !== "string" || chosen.has(target.segmentId)) return fail(marketUnavailable());
+    const held = prior.get(target.segmentId);
+    const segment = segments.get(target.segmentId);
+    if (!segment || (!held && segment.status !== "active")) return fail(marketUnavailable());
+    if (target.intent === null ? !held : !TARGET_MARKET_INTENTS.includes(target.intent)) return fail(marketUnavailable());
+    if (target.approach !== null && (typeof target.approach !== "string" || target.approach.length > 4000)) {
+      return fail(marketUnavailable());
+    }
+    const ids = target.solutionIds;
+    if (ids !== undefined && (!Array.isArray(ids) || ids.some(id => typeof id !== "string" || !id))) {
+      return fail(violation("solution_not_selectable", "invalid solution selection", "solutionIds"));
+    }
+    const solutionIds = ids === undefined ? held?.solutionIds ?? [] : [...new Set(ids)];
+    if (ids !== undefined) changedSolutions = true;
+    for (const id of solutionIds) if (!held?.solutionIds.includes(id)) addedSolutions.add(id);
+    chosen.set(segment.id, {
+      segmentId: segment.id, intent: target.intent, approach: target.approach?.trim() || null, solutionIds,
+      marketName: held?.marketName ?? segment.name,
+      criteria: held?.criteria ?? segment.criteria,
+    });
+  }
+  if (changedSolutions || existing.some(t => !chosen.has(t.segmentId) && t.solutionIds.length > 0)) {
+    const solutions = await validatePlanSolutions(ctx, [...addedSolutions]);
+    if (!solutions.ok) return solutions;
+  }
+  return ok([...chosen.values()]);
+}
+
 async function persistPlanSelection<T>(write: () => Promise<T>): Promise<RuleResult<T>> {
   try {
     return ok(await write());
   } catch (error) {
+    if (error instanceof PlanMarketUnavailableError) return fail(marketUnavailable());
     if (!(error instanceof PlanSolutionUnavailableError)) throw error;
     return fail(violation("solution_not_selectable", "solution unavailable for selection", "solutionIds"));
   }
@@ -129,7 +184,11 @@ export async function createPlan(
 
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds);
   if (!selection.ok) return selection;
-  const persisted = await persistPlanSelection(() => ctx.store.createPlan(ctx.workspaceId, { ...plan.value, solutionIds: selection.value }));
+  const targets = await validateTargetMarkets(ctx, input.targetMarkets);
+  if (!targets.ok) return targets;
+  const persisted = await persistPlanSelection(() => ctx.store.createPlan(ctx.workspaceId, {
+    ...plan.value, solutionIds: selection.value, targetMarkets: targets.value,
+  }));
   if (!persisted.ok) return persisted;
   const created = persisted.value;
   if (!created) {
@@ -169,7 +228,13 @@ export async function editPlan(
 
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds, plan.solutionIds);
   if (!selection.ok) return selection;
-  const patch = selection.value === undefined ? edit.value : { ...edit.value, solutionIds: selection.value };
+  const targets = await validateTargetMarkets(ctx, input.targetMarkets, plan.targetMarkets);
+  if (!targets.ok) return targets;
+  const { solutionIds: _solutions, targetMarkets: _targets, ...fields } = edit.value;
+  const patch = { ...fields,
+    ...(selection.value === undefined ? {} : { solutionIds: selection.value }),
+    ...(targets.value === undefined ? {} : { targetMarkets: targets.value }),
+  };
   const applied = await persistPlanSelection(() => ctx.store.updatePlan(ctx.workspaceId, id, patch));
   if (!applied.ok) return applied;
   if (!applied.value) {
@@ -359,7 +424,7 @@ export async function editCampaign(
   const plan = planCampaignEdit(current, input);
   if (!plan.ok) return plan as RuleResult<{ id: string }>;
   // The plan it already hangs under is kept even if that plan has since moved on.
-  const links = checkCampaignLinks(plan.value, await campaignLinkFacts(ctx, plan.value), { planId: current.planId });
+  const links = checkCampaignLinks(plan.value, await campaignLinkFacts(ctx, plan.value), { planId: current.planId, segmentId: current.segmentId });
   if (!links.ok) return links as RuleResult<{ id: string }>;
   const applied = await ctx.store.updateCampaign(ctx.workspaceId, id, plan.value);
   if (!applied) return fail(violation("not_found", `campaign ${id} was not found`, "id"));
@@ -433,18 +498,7 @@ export async function upsertSegment(
   const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  // The plan is read before the rule, and scoped to this workspace, so that a
-  // plan id from another tenant reads as "not found" rather than being handed
-  // to the rule as a status it can freeze on.
-  let plan: { status: PlanStatus } | null = null;
-  if (input.planId) {
-    plan = await ctx.store.getPlan(ctx.workspaceId, input.planId);
-    if (!plan) {
-      return fail(violation("not_found", `plan ${input.planId} was not found`, "planId"));
-    }
-  }
-
-  const checked = planSegment(input, plan);
+  const checked = planSegment(input);
   if (!checked.ok) return checked as RuleResult<SegmentRecord>;
 
   return ok(await ctx.store.upsertSegment(ctx.workspaceId, checked.value));
@@ -458,8 +512,7 @@ export async function upsertSegment(
  * every caller resend criteria it has no business touching - and a caller
  * that got them wrong would silently re-cut the market.
  *
- * The plan rule still applies underneath: a segment whose plan is closed is
- * settled, and planSegment refuses the write.
+ * Existing strategies retain their own selection snapshots.
  */
 export async function setSegmentStatus(
   ctx: StrategyContext,
@@ -478,7 +531,6 @@ export async function setSegmentStatus(
   return upsertSegment(ctx, {
     segmentCode: current.segmentCode,
     name: current.name,
-    planId: current.planId,
     priority: current.priority,
     status: input.status,
     criteria: current.criteria,
@@ -545,10 +597,17 @@ export async function removeSegment(
 
   const campaigns = await ctx.store.listCampaigns(ctx.workspaceId);
   const aimed = campaigns.filter((c) => c.segmentId === current.id).length;
-  const plan = planSegmentRemoval({ campaigns: aimed, accounts: input.accountsCarrying });
+  const strategies = (await ctx.store.listPlans(ctx.workspaceId)).filter(p => p.targetMarkets?.some(m => m.segmentId === current.id)).length;
+  const plan = planSegmentRemoval({ campaigns: aimed, accounts: input.accountsCarrying, strategies });
   if (!plan.ok) return plan as RuleResult<true>;
 
-  const removed = await ctx.store.removeSegment(ctx.workspaceId, input.segmentId);
+  let removed: boolean;
+  try {
+    removed = await ctx.store.removeSegment(ctx.workspaceId, input.segmentId);
+  } catch (error) {
+    if (!(error instanceof SegmentReferencedError)) throw error;
+    return planSegmentRemoval({ campaigns: 0, accounts: 0, strategies: 1 });
+  }
   if (!removed) return fail(violation("not_found", "no such segment", "segmentId"));
   return ok(true);
 }
