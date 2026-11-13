@@ -12,6 +12,7 @@ import { changeSegmentStatus, deleteSegment, moveSegmentRow } from "../strategy/
 
 export function MarketCriteria({ market, columns = 1 }: { readonly market: MarketView; readonly columns?: 1 | 2 }) {
   const { MARKET_STRATEGY_TEXT: T } = useMessages();
+  if (![...market.criteria.industries, ...market.criteria.regions, ...(market.criteria.sizes ?? [])].length) return <p className="text-body-small text-muted-foreground">{T.undefined}</p>;
   return <DetailList columns={columns}>
     <DetailRow label={T.industry}>{market.criteria.industries.join(" / ") || T.unlimited}</DetailRow>
     <DetailRow label={T.size}>{market.criteria.sizes?.join(" / ") || T.unlimited}</DetailRow>
@@ -24,7 +25,7 @@ function StrategyReferences({ market, compact = false }: { readonly market: Mark
   if (market.plans === null) return T.unknown;
   if (!market.plans.length) return T.none;
   if (compact && market.plans.length > 1) return <span title={market.plans.map(p => p.name).join(" / ")}>{T.adoptedBy(market.plans.length)}</span>;
-  return <div className="flex flex-col gap-xs">{market.plans.map(p => (
+  return <div className="flex min-w-0 max-w-full flex-col gap-xs">{market.plans.map(p => (
     <Link key={p.id} className="truncate transition-colors hover:text-primary" href={`/strategy/${p.id}`} title={`${p.name} · ${p.period}`}>{p.name}</Link>
   ))}</div>;
 }
@@ -71,6 +72,7 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
   const [query, setQuery] = useState("");
   const [status,setStatus] = useState("");
   const [selected,setSelected] = useState<readonly string[]>([]);
+  const [comparing,setComparing] = useState(false);
   const [detail,setDetail] = useState<string | null>(initialMarket ?? null);
   useEffect(()=>setDetail(initialMarket ?? null),[initialMarket]);
   const [compare,setCompare] = useState(false);
@@ -85,7 +87,7 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
   const live = filtered.filter(m=>m.status === "active"), shelved = filtered.filter(m=>m.status !== "active");
   const chosen = markets.filter(m => selected.includes(m.id));
   const table = (rows: readonly MarketView[]) => <DataTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
-    rows={[...sorted.sortRows(rows)]} selectedKeys={selected} onSelectionChange={setSelected} sort={sorted.sort} onSortChange={sorted.onSortChange}
+    rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
     className="[&_table]:min-w-(--container-3xl)"
     columns={[
       {id:"name",header:T.marketName,align:"left",width:"md",sortable:true,cell:m=><TableTitleCell title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.criteria.customerNeed || m.segmentCode}/>},
@@ -108,19 +110,41 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
     ]} />}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}
   />;
+  const comparisonRows: { id: string; label: string; render: (market: MarketView) => ReactNode }[] = [
+    ...(["industries", "sizes", "regions"] as const).map((key, i) => ({ id: key, label: [T.industry, T.size, T.region][i]!, render: (m: MarketView) => {
+      const defined = [...m.criteria.industries, ...m.criteria.regions, ...(m.criteria.sizes ?? [])].length > 0;
+      return (m.criteria[key] ?? []).join(" / ") || (defined ? T.unlimited : T.undefined);
+    } })),
+    { id: "matched", label: T.customerCount, render: m => m.matched ?? T.unknown },
+    { id: "missing", label: T.missing, render: m => m.missing ?? T.unknown },
+    ...(["customerNeed", "buyingScenario", "entryBarrier"] as const).map(key => ({ id: key, label: T[key], render: (m: MarketView) => m.criteria[key] || T.notProvided })),
+    { id: "plans", label: T.linkedPlan, render: m => <StrategyReferences market={m}/> },
+    { id: "status", label: T.status, render: m => STRATEGY_TEXT.segmentStatusLabel[m.status] },
+    { id: "preview", label: T.preview, render: m => <Button variant="secondary" size="md" onClick={()=>{setCompare(false);setDetail(m.id);}}>{T.preview}</Button> },
+  ];
   const viewed = markets.find(m=>m.id===detail || m.segmentCode===detail);
   return <div className="flex min-w-0 flex-col gap-xl" data-market-library>
-    <FilterBar scope={scope} search={<SearchSlot><Input aria-label={T.searchMarkets} placeholder={T.searchMarkets} value={query} onChange={e=>setQuery(e.target.value)} /></SearchSlot>}
-      onReset={query || status ? ()=>{setQuery("");setStatus("");}:undefined}
-      actions={<div className="flex items-center gap-sm"><Button variant="secondary" size="md" disabled={chosen.length<2 || chosen.length>3} title={T.compareLimit} onClick={()=>setCompare(true)}>{T.compare}</Button>{actions}</div>}>
-      <FilterSlot><NativeSelect aria-label={T.status} value={status} onChange={e=>setStatus(e.target.value)}><option value="">{T.allStates}</option>{Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</NativeSelect></FilterSlot>
+    <FilterBar scope={comparing ? <div className="flex flex-wrap items-center gap-sm">{scope}<span role="status" className="text-body-small text-muted-foreground">{T.compareLimit}</span></div> : scope} search={<SearchSlot><Input aria-label={T.searchMarkets} placeholder={T.searchMarkets} value={query} onChange={e=>{setQuery(e.target.value);setSelected([]);}} /></SearchSlot>}
+      onReset={query || status ? ()=>{setQuery("");setStatus("");setSelected([]);}:undefined}
+      actions={<div className="flex items-center gap-sm" data-market-compare-actions>{comparing ? <>
+        <Button variant="secondary" size="md" disabled={chosen.length<2 || chosen.length>3} title={T.compareLimit} onClick={()=>setCompare(true)}>{T.compareSelected(chosen.length)}</Button>
+        <Button variant="ghost" size="md" onClick={()=>{setComparing(false);setSelected([]);setCompare(false);}}>{T.cancelCompare}</Button>
+      </> : <Button variant="secondary" size="md" disabled={markets.length<2} onClick={()=>setComparing(true)}>{T.compare}</Button>}{actions}</div>}>
+      <FilterSlot><NativeSelect aria-label={T.status} value={status} onChange={e=>{setStatus(e.target.value);setSelected([]);}}><option value="">{T.allStates}</option>{Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</NativeSelect></FilterSlot>
     </FilterBar>
     {live.length || !shelved.length ? <div aria-label={T.library}>{table(live)}</div> : null}
     {shelved.length ? <Section title={T.shelvedMarkets} icon="archive">{table(shelved)}</Section>:null}
     <p className="text-body-small text-muted-foreground">{T.baseOnly}</p>
     {viewed ? <MarketDetails key={viewed.id} market={viewed} canWrite={canWrite} onClose={()=>setDetail(null)} />:null}
     <Drawer open={compare} onClose={()=>setCompare(false)} title={T.compare} description={T.compareWhy} width="lg" closeLabel={T.closed}>
-      <div className="grid grid-cols-1 gap-xl md:grid-cols-2">{chosen.map(m=><Section key={m.id} title={m.name} action={<Button variant="secondary" size="md" onClick={()=>{setCompare(false);setDetail(m.id);}}>{T.preview}</Button>}><MarketCriteria market={m} columns={2}/><p className="mt-md text-body-small text-muted-foreground">{T.match} {m.matched ?? T.unknown} · {T.missing} {m.missing ?? T.unknown}</p></Section>)}</div>
+      <div className="min-w-0" data-market-comparison>
+        <DataTable labels={DATA_TABLE_LABELS} rows={comparisonRows} rowKey={r=>r.id}
+          className="[&_table]:min-w-(--container-xl)" columns={[
+            { id: "dimension", header: T.compareDimension, align: "left", width: "xs", cell: row => row.label },
+            ...chosen.map(m => ({ id: m.id, header: <span title={m.name}>{m.name}</span>, align: "left" as const, width: "sm" as const,
+              cell: (row: typeof comparisonRows[number]) => <div className="min-w-0 max-w-48 break-words">{row.render(m)}</div> })),
+          ]}/>
+      </div>
     </Drawer>
   </div>;
 }
