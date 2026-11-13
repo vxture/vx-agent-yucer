@@ -206,7 +206,7 @@ export function OwnerEditor({
               <p className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.empty}</p>
             ) : (
               results.map((r) => (
-                <button
+                <button data-control-kind="structural"
                   key={r.sub}
                   type="button"
                   onClick={() => setPicked(r.sub)}

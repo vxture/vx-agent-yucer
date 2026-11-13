@@ -189,7 +189,7 @@ export function TheatrePlan({
           </span>
         ))}
         {silent.length > 0 ? (
-          <button
+          <button data-control-kind="operation" data-control-size="compact"
             type="button"
             onClick={() => setShowSilent((v) => !v)}
             aria-expanded={showSilent}

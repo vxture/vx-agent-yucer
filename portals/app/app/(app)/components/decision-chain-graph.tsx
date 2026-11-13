@@ -8,8 +8,7 @@ import { useMessages } from "../lib/i18n/provider";
 // Dialog 触发的弹窗; 现在 decision-chain-detail.tsx 用一个表格/图谱的
 // segmented 切换控制它的可见性, 图谱本身就是内嵌面板的一半, 不再需要自己
 // 的触发按钮和弹窗外壳。这个组件目前只有 account-detail 一个调用方
-// (跟 decision-chain.tsx 不同 - 那个还被 pipeline 详情页共用), 所以直接
-// 改掉整个导出形状是安全的。
+// Account detail is the only caller and owns this graph presentation.
 //
 // SAME DATA AS THE LIST ABOVE IT, drawn instead of enumerated - no second
 // read. `coverage.missing` is what makes the missing nodes honest: they are

@@ -279,7 +279,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                 sortable: true,
                 header: MEMBER_TEXT.columnMember,
                 cell: (r: MemberRow) => (
-                  <button
+                  <button data-control-kind="structural"
                     type="button"
                     className="cursor-pointer text-left"
                     aria-label={MEMBER_TEXT.detailsTitle(r.name)}

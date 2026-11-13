@@ -57,7 +57,8 @@ const INTERNAL = [/owner/i, /ADR/, /\b20\d\d-\d\d/, /\bL\d\b/, /\u88c1\u5b9a/];
 
 test("every page brief is one short line a tenant can read", () => {
   const zh = Object.entries(PAGE_BRIEF);
-  assert.ok(zh.length >= 35);
+  // One fewer after retiring the obsolete pending-migration page.
+  assert.ok(zh.length >= 34);
   for (const [key, text] of zh) {
     assert.ok([...text].length <= 30, `${key}: ${[...text].length} characters`);
     for (const re of INTERNAL) assert.ok(!re.test(text), `${key} carries internal wording: ${re}`);
@@ -85,7 +86,7 @@ test("every module key resolves to a brief", () => {
   }
 });
 
-const ADMIN_LISTS = ["opportunity", "division", "org", "reminder", "roles", "roles/groups", "scope", "product", "audit", "permissions", "diagnostics", "industry", "members", "migration"];
+const ADMIN_LISTS = ["opportunity", "division", "org", "reminder", "roles", "roles/groups", "scope", "product", "audit", "permissions", "diagnostics", "industry", "members"];
 
 test("the admin list headers use the same DS divider", () => {
   for (const d of ADMIN_LISTS) {

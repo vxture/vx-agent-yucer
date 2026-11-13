@@ -432,7 +432,7 @@ export function RolePanel({
                 id: "name",
                 header: ROLE_TEXT.colRole,
                 cell: (r: RoleRow) => (
-                  <button
+                  <button data-control-kind="structural"
                     type="button"
                     className="cursor-pointer text-left"
                     aria-label={ROLE_TEXT.detailsTitle(r.name)}

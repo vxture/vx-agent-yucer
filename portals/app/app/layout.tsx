@@ -4,6 +4,7 @@ import { Providers } from "./providers";
 import { resolveLocale } from "./(app)/lib/i18n/locale";
 import { buildMetadata } from "./metadata";
 import "./globals.css";
+import controlStyles from "./(app)/components/business-controls.module.css";
 
 // STATIC on purpose, at DEFAULT_LOCALE (2026-09-16) - not generateMetadata().
 // The (app) route group's own layout.tsx overrides this per-request with the
@@ -41,7 +42,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const locale = await resolveLocale();
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body>
+      <body className={controlStyles.controls}>
         {/* The prop is defaultMode; the DS README's example still says
             defaultTheme, which its own shipped types reject. */}
         <Providers>{children}

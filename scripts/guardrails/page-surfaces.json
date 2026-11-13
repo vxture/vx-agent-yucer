@@ -1,0 +1,893 @@
+{
+  "description": "Reviewed route entry evidence. Adding a page requires classification and a real entry or a named compatibility/development purpose. Browser samples use local demo fixtures.",
+  "pages": [
+    {
+      "route": "/account/[id]/evidence/[evidenceId]",
+      "file": "(app)/account/[id]/evidence/[evidenceId]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "domains/copilot/lib/citations.ts",
+        "needle": "/evidence/"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/account/acc_demo_1/evidence/int_demo_a1a"
+    },
+    {
+      "route": "/account/[id]",
+      "file": "(app)/account/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/account-table.tsx",
+        "needle": "/account/${"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/account/acc_demo_1"
+    },
+    {
+      "route": "/account/complete",
+      "file": "(app)/account/complete/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/account-completeness.tsx",
+        "needle": "href: \"/account/complete\""
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/account/complete"
+    },
+    {
+      "route": "/account/new",
+      "file": "(app)/account/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/account/page.tsx",
+        "needle": "/account/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/account/new"
+    },
+    {
+      "route": "/account",
+      "file": "(app)/account/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/account\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/account"
+    },
+    {
+      "route": "/admin/audit",
+      "file": "(app)/admin/audit/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/audit"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/audit"
+    },
+    {
+      "route": "/admin/diagnostics",
+      "file": "(app)/admin/diagnostics/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/diagnostics"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/diagnostics"
+    },
+    {
+      "route": "/admin/division/[id]",
+      "file": "(app)/admin/division/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/division-panel.tsx",
+        "needle": "/admin/division/${"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "entryProbe": {
+        "path": "/admin/division",
+        "action": "edit"
+      }
+    },
+    {
+      "route": "/admin/division/new",
+      "file": "(app)/admin/division/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/division-panel.tsx",
+        "needle": "/admin/division/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/admin/division/new"
+    },
+    {
+      "route": "/admin/division",
+      "file": "(app)/admin/division/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/division"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/division"
+    },
+    {
+      "route": "/admin/industry",
+      "file": "(app)/admin/industry/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/industry"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/industry"
+    },
+    {
+      "route": "/admin/members/[id]",
+      "file": "(app)/admin/members/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/member-panel.tsx",
+        "needle": "/admin/members/${"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "entryProbe": {
+        "path": "/admin/members?view=list",
+        "action": "edit"
+      }
+    },
+    {
+      "route": "/admin/members",
+      "file": "(app)/admin/members/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/members"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/members"
+    },
+    {
+      "route": "/admin/migration",
+      "file": "(app)/admin/migration/page.tsx",
+      "kind": "compatibility",
+      "entry": {
+        "file": "(app)/admin/migration/page.tsx",
+        "needle": "/admin"
+      },
+      "reason": "Preserve old bookmarks; no independent operation UI.",
+      "sample": "/admin/migration"
+    },
+    {
+      "route": "/admin/opportunity",
+      "file": "(app)/admin/opportunity/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/opportunity"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/opportunity"
+    },
+    {
+      "route": "/admin/org/[id]",
+      "file": "(app)/admin/org/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/org-panel.tsx",
+        "needle": "/admin/org/${"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "entryProbe": {
+        "path": "/admin/org",
+        "action": "edit"
+      }
+    },
+    {
+      "route": "/admin/org/kinds",
+      "file": "(app)/admin/org/kinds/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/admin/org/page.tsx",
+        "needle": "/admin/org/kinds"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/admin/org/kinds"
+    },
+    {
+      "route": "/admin/org/new",
+      "file": "(app)/admin/org/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/org-panel.tsx",
+        "needle": "/admin/org/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/admin/org/new"
+    },
+    {
+      "route": "/admin/org",
+      "file": "(app)/admin/org/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/org"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/org"
+    },
+    {
+      "route": "/admin",
+      "file": "(app)/admin/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/components/header-tools.tsx",
+        "needle": "\"/admin\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/admin"
+    },
+    {
+      "route": "/admin/permissions",
+      "file": "(app)/admin/permissions/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/permissions"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/permissions"
+    },
+    {
+      "route": "/admin/product",
+      "file": "(app)/admin/product/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/product"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/product"
+    },
+    {
+      "route": "/admin/reminder",
+      "file": "(app)/admin/reminder/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/reminder"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/reminder"
+    },
+    {
+      "route": "/admin/roles/[id]",
+      "file": "(app)/admin/roles/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/role-panel.tsx",
+        "needle": "/admin/roles/${"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "entryProbe": {
+        "path": "/admin/roles",
+        "action": "edit"
+      }
+    },
+    {
+      "route": "/admin/roles/groups",
+      "file": "(app)/admin/roles/groups/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/admin/roles/page.tsx",
+        "needle": "/admin/roles/groups"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/admin/roles/groups"
+    },
+    {
+      "route": "/admin/roles/new",
+      "file": "(app)/admin/roles/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/role-panel.tsx",
+        "needle": "/admin/roles/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/admin/roles/new"
+    },
+    {
+      "route": "/admin/roles",
+      "file": "(app)/admin/roles/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/roles"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/roles"
+    },
+    {
+      "route": "/admin/scope",
+      "file": "(app)/admin/scope/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "/admin/scope"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/admin/scope"
+    },
+    {
+      "route": "/attainment/coverage",
+      "file": "(app)/attainment/coverage/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/attainment-workspace.ts",
+        "needle": "/attainment/coverage?"
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/attainment/coverage"
+    },
+    {
+      "route": "/attainment",
+      "file": "(app)/attainment/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/attainment\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/attainment"
+    },
+    {
+      "route": "/campaign/create",
+      "file": "(app)/campaign/create/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/campaign/page.tsx",
+        "needle": "/campaign/create"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/campaign/create"
+    },
+    {
+      "route": "/campaign/new",
+      "file": "(app)/campaign/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/execution-panel.tsx",
+        "needle": "/campaign/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/campaign/new"
+    },
+    {
+      "route": "/campaign",
+      "file": "(app)/campaign/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/campaign\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/campaign"
+    },
+    {
+      "route": "/capture",
+      "file": "(app)/capture/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/account/[id]/page.tsx",
+        "needle": "/capture?account="
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/capture?account=acc_demo_1"
+    },
+    {
+      "route": "/catalog/new",
+      "file": "(app)/catalog/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/product-roster.tsx",
+        "needle": "/catalog/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/catalog/new"
+    },
+    {
+      "route": "/catalog",
+      "file": "(app)/catalog/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/catalog\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/catalog"
+    },
+    {
+      "route": "/collection/instalment",
+      "file": "(app)/collection/instalment/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/collection/page.tsx",
+        "needle": "/collection/instalment"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/collection/instalment"
+    },
+    {
+      "route": "/collection",
+      "file": "(app)/collection/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/collection"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/collection"
+    },
+    {
+      "route": "/contact/new",
+      "file": "(app)/contact/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/account/[id]/page.tsx",
+        "needle": "/contact/new?account="
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/contact/new?account=acc_demo_1"
+    },
+    {
+      "route": "/copilot",
+      "file": "(app)/copilot/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/agent-capture.tsx",
+        "needle": "/copilot"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/copilot"
+    },
+    {
+      "route": "/delivery/new",
+      "file": "(app)/delivery/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/delivery-roster.tsx",
+        "needle": "/delivery/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/delivery/new?project=prj_demo_1"
+    },
+    {
+      "route": "/delivery",
+      "file": "(app)/delivery/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/delivery"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/delivery"
+    },
+    {
+      "route": "/delivery/project",
+      "file": "(app)/delivery/project/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/delivery-roster.tsx",
+        "needle": "/delivery/project"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/delivery/project"
+    },
+    {
+      "route": "/domain/[key]",
+      "file": "(app)/domain/[key]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/domain-launcher.tsx",
+        "needle": "primaryHref(d)"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/domain/position"
+    },
+    {
+      "route": "/forecast",
+      "file": "(app)/forecast/page.tsx",
+      "kind": "compatibility",
+      "entry": {
+        "file": "(app)/forecast/page.tsx",
+        "needle": "legacyForecastHref"
+      },
+      "reason": "Preserve old bookmarks; no independent operation UI.",
+      "sample": "/forecast"
+    },
+    {
+      "route": "/funnel",
+      "file": "(app)/funnel/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/funnel"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/funnel"
+    },
+    {
+      "route": "/lead/new",
+      "file": "(app)/lead/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/lead-list.tsx",
+        "needle": "/lead/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/lead/new"
+    },
+    {
+      "route": "/lead",
+      "file": "(app)/lead/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/lead"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/lead"
+    },
+    {
+      "route": "/named",
+      "file": "(app)/named/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/named"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/named"
+    },
+    {
+      "route": "/",
+      "file": "(app)/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/"
+    },
+    {
+      "route": "/pipeline/[id]/lines",
+      "file": "(app)/pipeline/[id]/lines/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/pipeline/[id]/page.tsx",
+        "needle": "/lines"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/pipeline/opp_demo_1/lines"
+    },
+    {
+      "route": "/pipeline/[id]",
+      "file": "(app)/pipeline/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/pipeline-board.tsx",
+        "needle": "/pipeline/${"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/pipeline/opp_demo_1"
+    },
+    {
+      "route": "/pipeline/new",
+      "file": "(app)/pipeline/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/pipeline/page.tsx",
+        "needle": "/pipeline/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/pipeline/new"
+    },
+    {
+      "route": "/pipeline",
+      "file": "(app)/pipeline/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/pipeline\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/pipeline"
+    },
+    {
+      "route": "/planning/new",
+      "file": "(app)/planning/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/planning/legacy-planning.tsx",
+        "needle": "href=\"/planning/new\""
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/planning/new"
+    },
+    {
+      "route": "/planning",
+      "file": "(app)/planning/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/planning\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/planning"
+    },
+    {
+      "route": "/planning/territory/new",
+      "file": "(app)/planning/territory/new/page.tsx",
+      "kind": "compatibility",
+      "entry": {
+        "file": "(app)/planning/territory/new/page.tsx",
+        "needle": "/admin/division"
+      },
+      "reason": "Preserve old bookmarks; no independent operation UI.",
+      "sample": "/planning/territory/new"
+    },
+    {
+      "route": "/pricebook",
+      "file": "(app)/pricebook/page.tsx",
+      "kind": "compatibility",
+      "entry": {
+        "file": "(app)/pricebook/page.tsx",
+        "needle": "/catalog"
+      },
+      "reason": "Preserve old bookmarks; no independent operation UI.",
+      "sample": "/pricebook"
+    },
+    {
+      "route": "/quote",
+      "file": "(app)/quote/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/quote"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/quote"
+    },
+    {
+      "route": "/renewal",
+      "file": "(app)/renewal/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/renewal"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/renewal"
+    },
+    {
+      "route": "/segment/new",
+      "file": "(app)/segment/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/market-library.tsx",
+        "needle": "/segment/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/segment/new"
+    },
+    {
+      "route": "/segment",
+      "file": "(app)/segment/page.tsx",
+      "kind": "compatibility",
+      "entry": {
+        "file": "(app)/segment/page.tsx",
+        "needle": "/strategy?"
+      },
+      "reason": "Preserve old bookmarks; no independent operation UI.",
+      "sample": "/segment"
+    },
+    {
+      "route": "/signal",
+      "file": "(app)/signal/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/signal\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/signal"
+    },
+    {
+      "route": "/solution/new",
+      "file": "(app)/solution/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/solution-advice-panel.tsx",
+        "needle": "/solution/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/solution/new"
+    },
+    {
+      "route": "/solution",
+      "file": "(app)/solution/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/solution\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/solution"
+    },
+    {
+      "route": "/strategy/[id]",
+      "file": "(app)/strategy/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/strategy-workspace.tsx",
+        "needle": "/strategy/${"
+      },
+      "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
+      "sample": "/strategy/plan_demo_1"
+    },
+    {
+      "route": "/strategy/new",
+      "file": "(app)/strategy/new/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/strategy-workspace.tsx",
+        "needle": "/strategy/new"
+      },
+      "reason": "Creation/editing entry on parent page or business panel.",
+      "sample": "/strategy/new"
+    },
+    {
+      "route": "/strategy",
+      "file": "(app)/strategy/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "href: \"/strategy\""
+      },
+      "reason": "Launcher, configuration navigation or primary page action.",
+      "sample": "/strategy"
+    },
+    {
+      "route": "/upgrade/[module]",
+      "file": "(app)/upgrade/[module]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/domain-launcher.tsx",
+        "needle": "/upgrade/${"
+      },
+      "reason": "Locked launcher entry; with the local fully entitled role, /upgrade/pipeline intentionally redirects to /pipeline. Tier gaps remain covered by gate unit tests.",
+      "sample": "/upgrade/pipeline",
+      "allowedRedirects": [
+        "/pipeline"
+      ]
+    },
+    {
+      "route": "/winloss",
+      "file": "(app)/winloss/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/winloss"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/winloss"
+    },
+    {
+      "route": "/entitlement-matrix",
+      "file": "(demo)/entitlement-matrix/page.tsx",
+      "kind": "development",
+      "entry": {
+        "file": "(app)/admin/diagnostics/page.tsx",
+        "needle": "href=\"/entitlement-matrix\""
+      },
+      "reason": "Offline design/permission fixtures; links only in development diagnostics.",
+      "sample": "/entitlement-matrix"
+    },
+    {
+      "route": "/gate-screens",
+      "file": "(demo)/gate-screens/page.tsx",
+      "kind": "development",
+      "entry": {
+        "file": "(app)/admin/diagnostics/page.tsx",
+        "needle": "href=\"/gate-screens\""
+      },
+      "reason": "Offline design/permission fixtures; links only in development diagnostics.",
+      "sample": "/gate-screens"
+    },
+    {
+      "route": "/platform-check",
+      "file": "(demo)/platform-check/page.tsx",
+      "kind": "diagnostic",
+      "entry": {
+        "file": "(app)/admin/diagnostics/page.tsx",
+        "needle": "href=\"/platform-check\""
+      },
+      "reason": "Standalone recovery surface; endpoint access controls unchanged.",
+      "sample": "/platform-check"
+    },
+    {
+      "route": "/product-preview",
+      "file": "(demo)/product-preview/page.tsx",
+      "kind": "development",
+      "entry": {
+        "file": "(app)/admin/diagnostics/page.tsx",
+        "needle": "href=\"/product-preview\""
+      },
+      "reason": "Offline design/permission fixtures; links only in development diagnostics.",
+      "sample": "/product-preview"
+    },
+    {
+      "route": "/progression-preview",
+      "file": "(demo)/progression-preview/page.tsx",
+      "kind": "development",
+      "entry": {
+        "file": "(app)/admin/diagnostics/page.tsx",
+        "needle": "href=\"/progression-preview\""
+      },
+      "reason": "Offline design/permission fixtures; links only in development diagnostics.",
+      "sample": "/progression-preview"
+    },
+    {
+      "route": "/status",
+      "file": "(demo)/status/page.tsx",
+      "kind": "diagnostic",
+      "entry": {
+        "file": "(app)/admin/diagnostics/page.tsx",
+        "needle": "href=\"/status\""
+      },
+      "reason": "Standalone recovery surface; endpoint access controls unchanged.",
+      "sample": "/status"
+    },
+    {
+      "route": "/enablement",
+      "file": "(screen)/enablement/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/enablement"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/enablement"
+    },
+    {
+      "route": "/national",
+      "file": "(screen)/national/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/national"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/national"
+    },
+    {
+      "route": "/strategy-diag",
+      "file": "(screen)/strategy-diag/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/navigation.ts",
+        "needle": "/strategy-diag"
+      },
+      "reason": "Launcher or configuration navigation.",
+      "sample": "/strategy-diag"
+    }
+  ],
+  "preservedControls": {
+    "(app)/components/login-home.tsx": "Previously approved public sign-in CTA: 48px high, 14px label.",
+    "(app)/components/gate-actions.tsx": "Shared public access-state primary and secondary actions: 48px high, 14px label."
+  }
+}

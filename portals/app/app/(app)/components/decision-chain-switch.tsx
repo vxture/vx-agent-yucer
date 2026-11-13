@@ -167,7 +167,7 @@ export function ChainSummaryList({
               : CHAIN_TEXT.noEconomicBuyer;
           const suffix = c.unreachedBlockers > 0 ? ` · ${CHAIN_TEXT.blockersUnreached(c.unreachedBlockers)}` : "";
           return (
-            <button
+            <button data-control-kind="structural"
               key={c.id}
               type="button"
               onClick={() => setActiveId(c.id)}
@@ -252,7 +252,7 @@ export function ChainCrumbs({
           ))}
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <button type="button" onClick={() => setActiveId(null)}>
+              <button data-control-kind="operation" data-control-size="compact" type="button" onClick={() => setActiveId(null)}>
                 {current}
               </button>
             </BreadcrumbLink>

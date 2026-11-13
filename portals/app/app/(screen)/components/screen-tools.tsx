@@ -52,7 +52,7 @@ export function ScreenTools() {
 
   return (
     <div className="tools" ref={holder}>
-      <button
+      <button data-control-kind="operation" data-control-size="regular"
         type="button"
         className="tool"
         onClick={toggleFull}
@@ -63,7 +63,7 @@ export function ScreenTools() {
         <Icon name={isFull ? "minimize" : "maximize"} />
       </button>
 
-      <button
+      <button data-control-kind="operation" data-control-size="regular"
         type="button"
         className="tool"
         onClick={switchLocale}
@@ -77,7 +77,7 @@ export function ScreenTools() {
           and its documented meaning is exactly this one: the feature is here,
           it just is not available. A live button that silently did nothing
           would be the dishonest version. */}
-      <button
+      <button data-control-kind="operation" data-control-size="regular"
         type="button"
         className="tool"
         disabled

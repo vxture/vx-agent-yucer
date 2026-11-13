@@ -1,20 +1,98 @@
-/* TD-038: DS control dimensions use tokens; states, colour and type stay native. */
-.toolbar
-  :is(
-    [data-slot="input"],
-    [data-slot="input-group-input"],
-    [data-slot="native-select"],
-    [data-slot="button"],
-    [role="combobox"]
-  ),
-.primary :is([data-slot="button"], [role="combobox"]) {
+/* TD-038: one product-wide DS token binding, including body-mounted portals.
+ * Only operation controls are selected: never cards, disclosure rows, checkbox
+ * graphics or multiline fields. Explicit exceptions are auditable attributes.
+ */
+.controls :where(
+  [data-slot="button"], [data-slot="input"], [data-slot="native-select"],
+  [data-slot="input-group"], [role="combobox"], [role="tablist"],
+  [role="radiogroup"]:has(> button[role="radio"]:not([data-state])),
+  button[aria-pressed]:not([data-slot]),
+  button[role="radio"]:is([data-state="on"], [data-state="off"]),
+  [data-control-size="regular"]
+):not([data-control-size="preserve"], [data-control-size="preserve"] *) {
   height: var(--space-control-xl);
+  font-size: var(--label-small-font-size);
+  line-height: var(--label-small-line-height);
 }
 
-.toolbar [data-size^="icon-"],
-.primary [data-size^="icon-"] {
+.controls :where(
+  [data-slot="input-group-input"], [role="tab"],
+  [role="radiogroup"] > button[role="radio"]:not([data-state]),
+  [data-slot="textarea"], [role="menuitem"], [role="menuitemcheckbox"],
+  [role="menuitemradio"], [role="option"]
+):not([data-control-size="preserve"], [data-control-size="preserve"] *) {
+  font-size: var(--label-small-font-size);
+  line-height: var(--label-small-line-height);
+}
+
+/* ShellPanelRow carries an explicit label role inside its DS Button.
+ * Operation labels follow the selected control tier, not the content ladder.
+ */
+.controls [data-slot="button"] :global(.text-label) {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* DS ToggleGroup uses on/off; radio graphics use checked/unchecked. */
+.controls button[role="radio"]:is([data-state="on"], [data-state="off"])[class*="size-control-"] {
   width: var(--space-control-xl);
 }
+
+/* Sort headings and overlay close glyphs are deliberate compact controls. */
+.controls :where(
+  th button:not([role="checkbox"]):not([data-slot]):not([data-control-kind]),
+  td button[aria-expanded][class~="size-control-xs"],
+  [role="dialog"] button[class~="size-control-md"]:not([data-slot])
+) {
+  height: var(--space-control-md);
+  font-size: var(--label-small-font-size);
+  line-height: var(--label-small-line-height);
+}
+.controls :where([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"]) {
+  min-height: var(--space-control-xl);
+}
+
+.controls td button[aria-expanded][class~="size-control-xs"] {
+  width: var(--space-control-md);
+}
+
+/* DialogContent has a separate bare close trigger, not a DS Button. */
+.controls [role="dialog"] > button:has(> :global(.sr-only)):has(> svg):not([data-slot]) {
+  display: grid;
+  place-items: center;
+  width: var(--space-control-md);
+  height: var(--space-control-md);
+  font-size: var(--label-small-font-size);
+}
+
+/* The inner input must fit its group's border rather than overflow it. */
+.controls [data-slot="input-group-input"] { height: 100%; }
+
+.controls :where([data-size^="icon-"]):not(
+  [data-control-size="preserve"], [data-control-size="preserve"] *
+) { width: var(--space-control-xl); }
+
+/* An explicit 24px tier for dense table disclosures and inline evidence. */
+.controls [data-control-size="compact"] {
+  height: var(--space-control-md);
+  font-size: var(--label-small-font-size);
+  line-height: var(--label-small-line-height);
+}
+.controls [data-control-size="compact"][data-size^="icon-"] {
+  width: var(--space-control-md);
+}
+
+/* Primary page creation and form submission retain the DS 14px label. */
+.controls :where(
+  [data-slot="button"][data-size="xl"][data-variant="default"],
+  [data-slot="button"][type="submit"][data-variant="default"],
+  [data-control-emphasis="primary"]
+):not([data-control-size="preserve"], [data-control-size="preserve"] *) {
+  font-size: var(--label-font-size);
+  line-height: var(--label-line-height);
+}
+
+.toolbar { align-items: center; }
 
 .primary {
   display: flex;
@@ -26,11 +104,6 @@
 .overflow {
   display: inline-flex;
   vertical-align: middle;
-}
-
-.overflow > [data-slot="button"] {
-  width: var(--space-control-xl);
-  height: var(--space-control-xl);
 }
 
 .overflow > [data-slot="button"] > svg {

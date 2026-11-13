@@ -113,7 +113,6 @@ export const PAGE_BRIEF: Record<string, string> = {
   adminDiagnostics: "系统连接与运行状态。",
   adminIndustry: "行业、客户类型与规模的可选项。",
   adminMembers: "团队成员及其角色。",
-  adminMigration: "还没有入口指向的页面。",
 };
 
 /** The tag after the title on pages whose count is not already a roster's. */
@@ -187,10 +186,6 @@ export const DOMAIN_LABEL: Record<string, string> = {
   // 安全审计 (owner, 2026-09-17): 从占位条目变为真实页面 - 记录对配置的操作
   // (成员/角色相关的写操作)，不涉及业务数据。改名自旧的"操作审计"占位标签。
   audit: "安全审计",
-  // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由，做一个临时域，
-  // 先挂到里面) - 不进 5 个 functional domain（那是已经测试锁定的不变量），
-  // 挂在 admin 侧栏下单独一页。
-  pendingMigration: "待迁路由",
   // 赋能分析 (owner, 2026-09-17): 大屏风格的 AI 使用分析 - 每个人执行了多少
   // 任务、采纳/拒绝了多少建议。取代被否决的"使用分析"页 ("这些是分析吗，
   // 这是统计一下")。
@@ -2001,14 +1996,6 @@ export const ADMIN_PAGE_TEXT = {
   // 保留，只是文字本身缩到跟徽章配的短语)。
   scopeNoTerritory: "未指定区域",
   scopeCount: (n: number) => `${n} 位成员`,
-  // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由) - a holding
-  // list, not a table: every page导航和站内都没有入口，只能靠手打 URL 到达
-  // 的，先记在这里，等对应的功能整体处理时再决定去留。
-  pendingMigrationTitle: "待迁路由",
-  pendingMigrationWhy: "全应用没有任何导航或站内链接指向的页面 - 代码还在，先记在这里，等各自的功能整体处理时再决定去留。",
-  pendingMigrationCount: (n: number) => `${n} 条`,
-  pendingMigrationEmpty: "目前没有找到孤儿路由。",
-  pendingMigrationAccountComplete: "客户资料批量补全 - 功能完整，代码库里没有任何入口指向它",
 } as const;
 
 export const MEMBER_TEXT = {
@@ -2972,6 +2959,17 @@ export const AUDIT_TEXT = {
  * verification without redesigning the page when the second one arrives.
  */
 export const DIAGNOSTICS_TEXT = {
+  standaloneTitle: "\u72ec\u7acb\u8bca\u65ad\u9875\u9762",
+  standaloneHint: "\u5de5\u4f5c\u53f0\u65e0\u6cd5\u52a0\u8f7d\u65f6\uff0c\u53ef\u76f4\u63a5\u6253\u5f00\uff1b\u8bbf\u95ee\u6743\u9650\u4ecd\u7531\u539f\u8bca\u65ad\u63a5\u53e3\u63a7\u5236\u3002",
+  statusPage: "\u96c6\u6210\u72b6\u6001",
+  platformPage: "\u5e73\u53f0\u8fde\u63a5\u68c0\u67e5",
+  previewTitle: "\u5f00\u53d1\u9a8c\u8bc1\u9875\u9762",
+  previewHint: "\u4ec5\u5f00\u53d1\u73af\u5883\u663e\u793a\u5165\u53e3\uff0c\u4e0d\u8fdb\u5165\u6b63\u5f0f\u4e1a\u52a1\u5bfc\u822a\u548c\u767b\u5f55\u9875\u9762\u3002",
+  gatePreview: "\u767b\u5f55\u4e0e\u8bbf\u95ee\u72b6\u6001",
+  productPreview: "\u6743\u9650\u4e0e\u4ea7\u54c1\u9884\u89c8",
+  progressionPreview: "\u63a8\u8fdb\u4ea4\u4e92\u9884\u89c8",
+  matrixPreview: "\u6743\u76ca\u77e9\u9635",
+
   title: "系统验证",
   description: "产品这一端与平台的对接是否健康。只读探测，会花钱的动作各自单独标出。",
   refresh: "重新探测",

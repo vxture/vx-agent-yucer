@@ -316,7 +316,7 @@ export function AgeingPolicyConfig({
                 "-" behind it to STAGE that cutoff's removal. Either stage
                 only resolves through the confirm bar underneath. */}
             <div className="relative mt-xs w-full">
-              <button
+              <button data-control-kind="visualization"
                 type="button"
                 aria-label={AGEING_TEXT.cutoffAdd}
                 title={AGEING_TEXT.cutoffAdd}

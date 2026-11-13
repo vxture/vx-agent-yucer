@@ -30,6 +30,7 @@
     "lint:data-design": "node scripts/guardrails/check-data-architecture.mjs --strict",
     "lint:ports": "node scripts/guardrails/check-port-consistency.mjs --strict",
     "lint:envelope": "node scripts/guardrails/check-error-envelope.mjs --strict",
-    "lint:sca": "node scripts/guardrails/check-sca-consistency.mjs --strict"
+    "lint:sca": "node scripts/guardrails/check-sca-consistency.mjs --strict",
+    "lint:page-surfaces": "node scripts/guardrails/check-page-surfaces.mjs"
   }
 }

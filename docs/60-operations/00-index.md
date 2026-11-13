@@ -17,7 +17,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 | TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 | TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
-| TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
+| TD-008 | 旧战况板图表本地实现 | 2026-08-24 | closed（2026-11-13：无引用旧组件已删除；不代表上游已补齐） |
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open（DS 14 复核 2026-09-26：仍缺；已上报 [vxture-design#111](https://github.com/vxture/vxture-design/issues/111)） |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | **closed 2026-08-29**（可达性守卫上线，全部可达 code 有句子） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
@@ -212,6 +212,11 @@ DS 把容器刻度发布为 `--vx-container-*`，**没有**同时别名 Tailwind
 所以本条债不因此关闭，但修的时候不该再写方括号任意值。
 
 ### TD-008 - DS 无任何数据可视化元素，战况板图表本地实现
+
+**2026-11-13 关闭：** 全平台页面入口复核确认 `board-chart.tsx` 无任何导入或调用，
+旧战况板已由现有业务展示替代，本轮删除该组件。以下保留历史记录；关闭原因是
+本地权宜实现退役，不表示 DS 已实现当年的全部要求。
+
 
 **缺失的元素**：设计系统**一件图表都没有**。`MetricCard` / `MetricGrid` /
 `PanelItem` / `FactList` / `LabeledValue` 全部是文字读数；`Progress` 只画一个比例，
@@ -2174,6 +2179,26 @@ DS 15.0.1 的 `FilterBar` 内置 32px `ViewModeSwitch`，但输入框、原生�
 通过同一包装；原生 Table 的空表头与权限树自有编号表头直接清空。没有删去序号数据、
 选择框、折叠列或操作列。退出条件：DS 增加可空 index heading / label 参数后删除
 对应局部可见性 CSS，改用 DS 参数。本条是 owner 明确指定展示要求的暂行适配。
+
+
+2026-11-13 全平台复查：owner 明确指定常规操作 32px / 12px，少量紧凑操作
+24px / 12px，重点按钮可 14px。原组合行规则扩展到同一 CSS module 的根级
+`controls` 作用域，由 RootLayout 的 body 引入，覆盖 body 下挂载的 DS Drawer、
+DialogForm、ConfirmDestructive 与 Popover。只绑定 DS 单行操作 slot、组合组高和
+字阶 token；不遍历全部原生 button，不改变卡片/整行点击的自然高度，多行输入不压高。
+`InputGroup` 调整外组，内输入保持 100%，避免原适配只抬高 input 后溢出。
+
+显式约定：`data-control-size="compact"` 为 24px；`preserve` 保留已确认的独立场景
+（公开访问状态页 CTA 48px）；常规控件默认为 32px；主新建 xl/default、提交及显式
+`data-control-emphasis="primary"` 为 14px。原 md 不再隐含紧凑，防止遗漏的默认档位
+在不同页面继续漂移。Tabs 组 32px、内部 24px；SegmentedControl 组 32px，滑块
+保留 DS 原生内嵌结构。Checkbox/Radio/Switch 图形、结构触发器、菜单行和大屏空间
+折叠手柄按真实语义检查，不强行变为单行按钮。Launcher 条目仍遵守已确认的 40px。
+
+本次未修改 DS 源码，没有复制组件，继续复用 TD-038；退出时还须上游支持产品级
+控件密度/字阶策略及 portal 一致传递，再移除根级适配。入口与原生控件分类使用
+`pnpm lint:page-surfaces` 反向检查全部 page 和并行 slot；运行检查脚本、逐页清单、
+明确例外与验证边界见 `docs/70-workplan/45-page-controls-audit.md`。
 
 
 ### TD-039 - DS Progress 缺少语义颜色和多档节点接口

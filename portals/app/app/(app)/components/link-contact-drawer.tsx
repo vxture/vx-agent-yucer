@@ -130,7 +130,7 @@ export function LinkContactDrawer({ accountId, onSearch, onLink, openSignal }: L
               <p className="text-muted-foreground text-body-small">{LINK_CONTACT_TEXT.empty}</p>
             ) : (
               results.map((r) => (
-                <button
+                <button data-control-kind="structural"
                   key={r.id}
                   type="button"
                   onClick={() => setPicked(r.id)}

@@ -136,7 +136,7 @@ export function EvidenceSlots({
           {row.pending ? <div className={compact ? "" : indent}>{row.pending}</div> : null}
           {row.history.length > 0 ? (
             <Collapsible>
-              <CollapsibleTrigger className={`text-muted-foreground hover:text-foreground flex items-center gap-2xs ${indent} text-body-small`}>
+              <CollapsibleTrigger data-control-kind="operation" data-control-size="compact" className={`text-muted-foreground hover:text-foreground flex items-center gap-2xs ${indent} text-body-small`}>
                 <Icon name="chevron-right" size="xs" />
                 {DEAL_PAGE_TEXT.evidenceHistory(row.history.length)}
               </CollapsibleTrigger>

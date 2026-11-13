@@ -180,7 +180,7 @@ export function DesignateAccount({
                 第二个消费者, 不是新画一套图。 */}
             <div className="gap-sm flex flex-col">
               {TIERS.map(([k, label, desc]) => (
-                <button
+                <button data-control-kind="structural"
                   key={k}
                   type="button"
                   disabled={pending}

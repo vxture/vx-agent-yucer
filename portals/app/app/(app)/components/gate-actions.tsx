@@ -34,7 +34,7 @@ export function GateActions({
 /** The primary act of the screen. One per screen, always. */
 export function GatePrimary({ href, children }: { readonly href: string; readonly children: ReactNode }) {
   return (
-    <Button asChild size="md" className={styles.gateButton}>
+    <Button asChild size="md" data-control-size="preserve" className={styles.gateButton}>
       <a href={href}>{children}</a>
     </Button>
   );
@@ -43,7 +43,7 @@ export function GatePrimary({ href, children }: { readonly href: string; readonl
 /** The way out, or the other door. Same size and weight on every screen. */
 export function GateSecondary({ href, children }: { readonly href: string; readonly children: ReactNode }) {
   return (
-    <Button asChild variant="outline" size="md" className={styles.gateButton}>
+    <Button asChild variant="outline" size="md" data-control-size="preserve" className={styles.gateButton}>
       <a href={href}>{children}</a>
     </Button>
   );
@@ -60,7 +60,7 @@ export function GateSecondary({ href, children }: { readonly href: string; reado
 export function GateSignOut({ children }: { readonly children: ReactNode }) {
   return (
     <form method="post" action="/auth/logout" className="w-full">
-      <Button type="submit" variant="outline" size="md" className={styles.gateButton}>
+      <Button type="submit" variant="outline" size="md" data-control-size="preserve" className={styles.gateButton}>
         {children}
       </Button>
     </form>

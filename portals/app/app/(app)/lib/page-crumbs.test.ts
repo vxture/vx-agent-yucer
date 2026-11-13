@@ -36,6 +36,7 @@ const NO_CRUMB: Record<string, string> = {
   "upgrade/[module]": "stands in for a first-level module page",
   // Legacy bookmarks redirect to configuration without rendering a page.
   "planning/territory/new": "redirects to /admin/division; renders no content",
+  "admin/migration": "retired holding page redirects to /admin; renders no content",
 };
 
 /**

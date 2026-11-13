@@ -100,10 +100,10 @@
    the one control that leaves the screen looks like a control. */
 .screen .home{
   display: inline-flex; align-items: center; gap: 7px;
-  height: 32px; padding: 0 14px 0 11px;
+  height: var(--space-control-xl); padding: 0 var(--space-md) 0 var(--space-sm);
   border: 1px solid var(--screen-line-faint);
   background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
-  color: var(--screen-dim); font-size: 12.5px; letter-spacing: 0.06em;
+  color: var(--screen-dim); font-size: var(--label-small-font-size); letter-spacing: 0.06em;
   text-decoration: none;
   clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
   transition: color 0.2s, border-color 0.2s, background 0.2s;
@@ -196,15 +196,15 @@
 /* 全屏 / 语言 / 设置. Ghost buttons - no fill and no border until touched -
    because they are session controls sitting beside the reading, and three
    filled buttons in that corner would compete with the header's own chips. */
-.screen .tools{ display: flex; align-items: center; gap: 2px; }
+.screen .tools{ display: flex; align-items: center; gap: var(--space-2xs); }
 .screen .tool{
-  width: 28px; height: 28px; flex: none;
+  width: var(--space-control-xl); height: var(--space-control-xl); flex: none;
   display: grid; place-items: center;
   color: var(--screen-faint); background: none;
   border: 1px solid transparent; cursor: pointer;
   transition: color 0.18s, border-color 0.18s, background 0.18s;
 }
-.screen .tool svg{ width: 16px; height: 16px; }
+.screen .tool svg{ width: var(--spacing-icon-sm); height: var(--spacing-icon-sm); }
 .screen .tool:hover:not(:disabled), .screen .tool:focus-visible:not(:disabled){
   color: var(--screen-accent);
   border-color: var(--screen-line-faint);
@@ -249,11 +249,9 @@
 }
 .screen.folded > .periodbar{ top: 2px; }
 
-/* The fold handle. WIDER THAN IT LOOKS on purpose: it is hit far more often
-   than it is read, and a bare caret is a small target on a screen people drive
-   standing up. 34px against the caret's own 8. */
+/* The title fold is a compact 24px control with the native caret. */
 .screen .periodbar .fold{
-  width: 36px; height: 22px; flex: none;
+  width: var(--space-control-md); height: var(--space-control-md); flex: none;
   display: grid; place-items: center;
   background: none; border: none; padding: 0; cursor: pointer;
   color: var(--screen-faint);
@@ -275,9 +273,9 @@
 .screen .period{ position: relative; display: inline-flex; }
 .screen .period-btn{
   display: inline-flex; align-items: center; gap: 7px;
-  height: 22px; padding: 0 8px;
+  height: var(--space-control-md); padding: 0 var(--space-sm);
   background: none; border: none; cursor: pointer;
-  font-family: var(--screen-figure); font-size: 13px; font-weight: 600;
+  font-family: var(--screen-figure); font-size: var(--label-small-font-size); font-weight: 600;
   letter-spacing: 0.14em; color: var(--screen-faint);
   font-variant-numeric: tabular-nums;
   transition: color 0.18s, background 0.18s;
@@ -300,7 +298,7 @@
 .screen .period-pop button{
   padding: 5px 16px; text-align: left; white-space: nowrap;
   background: none; border: none; cursor: pointer;
-  font-family: var(--screen-figure); font-size: 12.5px; font-weight: 600;
+  font-family: var(--screen-figure); font-size: var(--label-small-font-size); font-weight: 600;
   letter-spacing: 0.1em; color: var(--screen-dim);
   font-variant-numeric: tabular-nums;
   transition: color 0.14s, background 0.14s;
@@ -382,9 +380,9 @@
 .screen .mod-hd .enter{
   flex: none;
   display: inline-flex; align-items: center; gap: 4px;
-  height: 18px; padding: 0 6px; margin-left: 2px;
+  height: var(--space-control-md); padding: 0 var(--space-xs); margin-left: var(--space-3xs);
   font-family: var(--vx-font-sans);
-  font-size: 11px; letter-spacing: 0.08em; line-height: 1;
+  font-size: var(--label-small-font-size); letter-spacing: 0.08em; line-height: 1;
   color: var(--screen-faint); text-decoration: none;
   border: 1px solid transparent;
   opacity: 0; pointer-events: none;
@@ -550,7 +548,7 @@
 .screen .screen-crumb{ display: flex; align-items: center; gap: var(--space-2xs); font-size: 0.85rem; }
 .screen .screen-crumb button{
   background: none; border: none; cursor: pointer;
-  color: var(--screen-dim); font: inherit; padding: 2px 4px;
+  color: var(--screen-dim); font: inherit; font-size: var(--label-small-font-size); height: var(--space-control-md); padding: var(--space-3xs) var(--space-2xs);
 }
 .screen .screen-crumb button:hover{ color: var(--screen-accent); }
 .screen .screen-crumb .cur{ color: var(--screen-accent); font-weight: 700; }
@@ -561,12 +559,12 @@
 .screen .screen-menu > button.chosen{ color: var(--screen-accent); font-weight: 700; }
 .screen .screen-menu > button:hover{ border-color: var(--screen-line); }
 .screen .screen-pop{
-  position: absolute; top: 1.6rem; left: 0; z-index: 20; min-width: 6.5rem;
+  position: absolute; top: 100%; left: 0; z-index: 20; min-width: 6.5rem;
   display: flex; flex-direction: column; padding: 4px;
   border: 1px solid var(--screen-line); border-radius: var(--radius-sm);
   background: var(--screen-raised);
 }
-.screen .screen-pop button{ text-align: left; padding: 5px 8px; border-radius: var(--radius-xs); }
+.screen .screen-pop button{ height: var(--space-control-xl); font-size: var(--label-small-font-size); text-align: left; padding: var(--space-2xs) var(--space-sm); border-radius: var(--radius-xs); }
 .screen .screen-pop button:hover{ background: color-mix(in oklab, var(--screen-accent) 15%, transparent); color: var(--screen-accent); }
 .screen .screen-pop button.on{ color: var(--screen-accent); font-weight: 700; }
 .screen .screen-hint{ font-size: 0.7rem; color: var(--screen-faint); }
@@ -575,7 +573,7 @@
    what makes these read as instrument switches rather than web buttons; a
    border-radius here quietly turned them into ordinary chips. */
 .screen .screen-pick{
-  height: 25px; padding: 0 12px; font-size: 11.5px; letter-spacing: 0.08em;
+  height: var(--space-control-xl); padding: 0 var(--space-sm); font-size: var(--label-small-font-size); letter-spacing: 0.08em;
   color: var(--screen-dim); cursor: pointer;
   border: 1px solid var(--screen-line-faint);
   background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
@@ -639,8 +637,8 @@
 
 .screen .screen-back{
   position: absolute; right: var(--space-md); top: var(--space-sm); z-index: 5;
-  height: var(--space-control-sm); padding: 0 var(--space-sm); cursor: pointer;
-  font-size: 0.72rem; color: var(--screen-accent);
+  height: var(--space-control-xl); padding: 0 var(--space-sm); cursor: pointer;
+  font-size: var(--label-small-font-size); color: var(--screen-accent);
   border: 1px solid var(--screen-accent); border-radius: var(--radius-sm);
   background: color-mix(in oklab, var(--screen-surface) 85%, transparent);
 }

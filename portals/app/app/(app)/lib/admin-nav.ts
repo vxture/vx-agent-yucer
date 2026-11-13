@@ -120,21 +120,6 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          three cross account/delivery/the home feed, none of which is
          "opportunity", so a dedicated item keeps both pages' names honest. */
       { key: "reminderThreshold", href: "/admin/reminder", icon: "bell", action: "admin.reminderthreshold.view" },
-      // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由，做一个临时
-      // 域，先挂到里面 - 标记：待迁移) - not a 6th functional domain (that
-      // count is test-locked at 5), just a holding page under admin's own
-      // menu for whatever page currently has no entry point anywhere else.
-      // Gated the same as the plainest admin reads (admin.member.view) - it
-      // names no sensitive data, only which routes exist. RELOCATED here
-      // (owner, 2026-09-17) from the now-deleted 运行状况 group: 使用分析,
-      // that group's other occupant, was rejected outright ("这些是分析吗，
-      // 这是统计一下，页面到处都有，还要专门分析") and deleted rather than
-      // reworked a third time - see 赋能分析, the (screen) page that replaced
-      // its per-user AI-usage question. 待迁路由 is unrelated to either and
-      // still points at a real route, so it moved rather than being dropped;
-      // 业务参数 is the last remaining general group, a reasonable resting
-      // place for an otherwise homeless page.
-      { key: "pendingMigration", href: "/admin/migration", icon: "archive", action: "admin.member.view" },
     ],
   },
   {

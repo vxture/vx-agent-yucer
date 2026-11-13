@@ -54,7 +54,7 @@ export function WorkspaceScope({
           icon="buildings"
           label={(
             <span className="flex items-center gap-2xs whitespace-nowrap">
-              <span className="text-label text-foreground">{labels.trigger}</span>
+              <span className="text-label-small text-foreground">{labels.trigger}</span>
               <span aria-hidden="true" className="text-muted-foreground">·</span>
               <span className="text-label-small text-muted-foreground">{workspaceLabel}</span>
             </span>

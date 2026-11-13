@@ -99,7 +99,7 @@ export function PlanRegions({
   const regionTitle = (r: Region) => (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <button data-control-kind="structural"
           type="button"
           className="text-left font-semibold transition-colors hover:text-primary"
           onClick={() => onSelect(r.id)}

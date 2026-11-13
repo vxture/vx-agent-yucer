@@ -193,6 +193,9 @@ jobs:
       - name: Type-check (all workspaces)
         run: pnpm type-check:all
 
+      - name: Page entry and native-control inventory
+        run: pnpm lint:page-surfaces
+
       - name: Build app (Next.js standalone)
         run: pnpm build
         env:

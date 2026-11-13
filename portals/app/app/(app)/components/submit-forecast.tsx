@@ -120,7 +120,7 @@ export function SubmitForecast({
     return (
       <Button
         size="xl"
-        className="text-body font-medium"
+        className="font-medium"
         variant="outline"
         disabled
         title={PIPELINE_TEXT.snapshotDenied}
@@ -175,7 +175,7 @@ export function SubmitForecast({
       ) : null}
       <Button
         size="xl"
-        className="text-body font-medium"
+        className="font-medium"
         disabled={pending}
         onClick={() => {
           setError(null);

@@ -43,7 +43,7 @@ export function JudgementNote({
   return (
     <div className="border-s-primary bg-primary/5 rounded-e-md border-s-[3px] px-md py-sm">
       <div className="flex items-center gap-sm">
-      <button
+      <button data-control-kind="structural"
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}

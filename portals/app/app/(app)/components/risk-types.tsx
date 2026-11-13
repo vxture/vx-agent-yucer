@@ -61,7 +61,7 @@ function JudgementLine({ judgement }: { readonly judgement: Judgement & LaneJudg
   const canOpen = Boolean(judgement.rule) || citations.length > 0;
   return (
     <span className="flex flex-col">
-      <button
+      <button data-control-kind="structural"
         type="button"
         disabled={!canOpen}
         onClick={() => setOpen((v) => !v)}

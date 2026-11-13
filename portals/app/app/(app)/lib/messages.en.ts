@@ -327,7 +327,6 @@ export const en: Dictionary = {
     adminDiagnostics: "System connections and run state.",
     adminIndustry: "Options for industry, customer type and size.",
     adminMembers: "Team members and their roles.",
-    adminMigration: "Pages that nothing links to yet.",
   },
 
   PAGE_TAG: {
@@ -381,7 +380,6 @@ export const en: Dictionary = {
     ageingPolicy: "Ageing bands",
     pricingPolicy: "Pricing rules",
     audit: "Security audit",
-    pendingMigration: "Pending migration",
     renewal: "Renewals",
     forecastRule: "Forecast review",
     attainment: "Attainment",
@@ -6226,11 +6224,6 @@ export const en: Dictionary = {
     scopeTerritories: (n: number) => `${n} territories`,
     scopeNoTerritory: "No territory assigned",
     scopeCount: (n: number) => `${n} members`,
-    pendingMigrationTitle: "Pending migration",
-    pendingMigrationWhy: "Pages no navigation or in-app link points to - the code is still here, held for whenever their own feature is decided one way or the other.",
-    pendingMigrationCount: (n: number) => `${n}`,
-    pendingMigrationEmpty: "No orphaned routes found right now.",
-    pendingMigrationAccountComplete: "Batch account completeness - fully built, nothing in the codebase links to it",
   },
   MEMBER_TEXT: {
     title: "Organisation",
@@ -6467,6 +6460,17 @@ export const en: Dictionary = {
   },
 
   DIAGNOSTICS_TEXT: {
+    standaloneTitle: "Standalone diagnostics",
+    standaloneHint: "Open directly if the workbench cannot load. Existing diagnostic endpoint access controls still apply.",
+    statusPage: "Integration status",
+    platformPage: "Platform checks",
+    previewTitle: "Development previews",
+    previewHint: "Development-only entries, excluded from business navigation and sign-in pages.",
+    gatePreview: "Sign-in and access states",
+    productPreview: "Permissions and product preview",
+    progressionPreview: "Progression preview",
+    matrixPreview: "Entitlement matrix",
+
     title: "System Verification",
     description: "Whether this product's own end of the platform connection is healthy. Every probe is read-only except the ones that spend, each called out on its own.",
     refresh: "Re-probe",
