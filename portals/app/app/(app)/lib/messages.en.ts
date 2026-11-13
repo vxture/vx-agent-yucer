@@ -7428,6 +7428,7 @@ export const en: Dictionary = {
   searchCustomers: "Search customers or codes",
   layout: "View mode",
   listView: "List view",
+  planCount: "Plans",
   cardsView: "Card view",
   expand: "Expand",
   collapse: "Collapse",

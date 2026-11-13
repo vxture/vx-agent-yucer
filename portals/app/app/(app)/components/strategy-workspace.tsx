@@ -84,12 +84,12 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       name: s.status === "retired" ? `${s.name} \u00b7 ${T.retiredSolution}` : s.name,
     })) ?? [];
     const metrics = [
-      { key: "markets", label: T.marketCount, value: p.marketIds?.length },
-      { key: "customers", label: T.customerCount, value: p.customerCount },
-      { key: "solutions", label: T.solutionCount, value: p.solutions?.length },
-      { key: "campaigns", label: T.campaignCount, value: p.campaigns?.length },
-    ];
-    return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard className="@container [&>footer]:mt-auto"
+      { key: "markets", icon: "globe", label: T.marketCount, value: p.marketIds?.length },
+      { key: "customers", icon: "users", label: T.customerCount, value: p.customerCount },
+      { key: "solutions", icon: "stack", label: T.solutionCount, value: p.solutions?.length },
+      { key: "campaigns", icon: "megaphone", label: T.campaignCount, value: p.campaigns?.length },
+    ] as const;
+    return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard icon="lightbulb" className="@container [&>footer]:mt-auto"
       title={<span className="flex min-h-control-md min-w-0 items-center gap-sm">
         <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
         <span className="shrink-0"><Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
@@ -104,8 +104,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         </div> : null}
       </div>}
       footer={<div className="grid w-full min-w-0 grid-cols-2 gap-x-sm gap-y-xs border-t border-dashed border-border pt-sm @sm:grid-cols-4" data-strategy-metrics>
-        {metrics.map(({ key, label, value }) => (
-          <LabeledValue key={key} label={<span title={label}>{label}</span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="tabular-nums"/>
+        {metrics.map(({ key, icon, label, value }) => (
+          <LabeledValue key={key} label={<span className="inline-flex max-w-full items-center gap-xs" title={label}><Icon name={icon} size="sm" className="shrink-0" aria-hidden="true"/><span className="truncate">{label}</span></span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="tabular-nums"/>
         ))}
       </div>}/></div>;
   };
@@ -144,7 +144,9 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const layoutSwitch=<ViewModeSwitch value={layout} onChange={setLayout} ariaLabel={T.layout} labels={{list:T.listView,cards:T.cardsView}}/>;
   const basisButton=<Tooltip><TooltipTrigger asChild><Button size="icon-xl" variant="ghost" aria-label={T.basis} onClick={()=>setBasis(true)}><Icon name="info" size="md"/></Button></TooltipTrigger><TooltipContent>{T.basis}</TooltipContent></Tooltip>;
   const overview=<>
-    <FilterBar actions={<div className="flex flex-wrap items-center gap-sm">{layoutSwitch}{checkButton}{viewActions}</div>}
+    <FilterBar scope={<div className="flex items-center gap-sm" data-strategy-layout-actions>
+      {layoutSwitch}<span className="whitespace-nowrap text-body-small text-muted-foreground" data-strategy-plan-count>{T.planCount} <span className="tabular-nums">{number(plans.length)}</span></span>
+    </div>} actions={<div className="flex flex-wrap items-center gap-sm">{checkButton}{viewActions}</div>}
       search={<SearchSlot><Input aria-label={T.searchPlans} placeholder={T.searchPlans} value={query} onChange={e=>setQuery(e.target.value)}/></SearchSlot>}
       onReset={query||period?()=>{setQuery("");setPeriod("");}:undefined}>
       <div className="@3xl:hidden">{periodFilter}</div>

@@ -8868,6 +8868,7 @@ export const MARKET_STRATEGY_TEXT = {
   searchCustomers: "\u641c\u7d22\u5ba2\u6237\u540d\u79f0\u6216\u7f16\u53f7",
   layout: "\u663e\u793a\u65b9\u5f0f",
   listView: "\u5217\u8868\u89c6\u56fe",
+  planCount: "\u89c4\u5212",
   cardsView: "\u5361\u7247\u89c6\u56fe",
   expand: "\u5c55\u5f00",
   collapse: "\u6536\u8d77",
