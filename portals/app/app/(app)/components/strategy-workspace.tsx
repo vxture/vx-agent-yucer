@@ -206,11 +206,11 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         <span>{T.sharedSolutions}</span>{solutionLinks(detail.sharedSolutions)}
       </div> : null}
       {detail.targetMarkets === null ? <p className="text-body-small text-muted-foreground">{T.unknown}</p>
-        : !detail.targetMarkets.length ? <EmptyState title={T.noPlanMarkets}/> : <div className="grid grid-cols-1 gap-lg">
-          {detail.targetMarkets.map(m => <Card key={m.segmentId} className="gap-md py-lg">
+        : !detail.targetMarkets.length ? <EmptyState title={T.noPlanMarkets}/> : <div className="grid grid-cols-1 gap-lg @xl:grid-cols-2 @3xl:grid-cols-3" data-strategy-target-market-grid>
+          {detail.targetMarkets.map(m => <Card key={m.segmentId} className="min-w-0 gap-md py-lg" data-strategy-target-market>
             <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm">
               <div className="flex min-w-0 flex-wrap items-center gap-sm">
-                <CardTitle><Link className="transition-colors hover:text-primary" href={`/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
+                <CardTitle className="break-words"><Link className="transition-colors hover:text-primary" href={`/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
                 <Tag tone={m.intent === "focus" ? "success" : "neutral"}>{m.intent === "focus" ? T.focusMarket : m.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</Tag>
                 {m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
               </div>
@@ -227,6 +227,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
               <div className="flex flex-wrap items-center gap-sm"><span className="text-muted-foreground">{T.primarySolutions}</span>{solutionLinks(m.solutions)}</div>
             </div></CardContent>
           </Card>)}
+          {detail.targetMarkets.length % 2 ? <div aria-hidden="true" className="hidden rounded-md border border-primary/5 @xl:block @3xl:hidden" data-strategy-market-placeholder/> : null}
+          {Array.from({length:(3-detail.targetMarkets.length % 3) % 3},(_,index)=><div key={`market-placeholder-${index}`} aria-hidden="true" className="hidden rounded-md border border-primary/5 @3xl:block" data-strategy-market-placeholder/>)}
         </div>}
     </Section>
     <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">
