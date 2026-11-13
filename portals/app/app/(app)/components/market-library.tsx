@@ -38,12 +38,15 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
   const pagination = useListPagination(rows, 10);
   return <Drawer open onClose={onClose} width="lg" title={market.name} description={market.segmentCode} closeLabel={T.closed}>
     <div className="flex min-w-0 flex-col gap-xl" data-market-details>
+      <Section title={T.marketInsight} icon="lightbulb" description={T.marketInsightHint}>
+        <DetailList columns={2}>
+          {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <DetailRow key={key} label={T[key]}><span className="whitespace-pre-wrap break-words">{market.criteria[key] || T.notProvided}</span></DetailRow>)}
+        </DetailList>
+      </Section>
       <Section title={T.criteria} icon="filter"><MarketCriteria market={market} /></Section>
       <DetailList columns={2}>
         <DetailRow label={T.linkedPlan}><StrategyReferences market={market}/></DetailRow>
         <DetailRow label={T.status}>{STRATEGY_TEXT.segmentStatusLabel[market.status]}</DetailRow>
-        {(["customerNeed", "buyingScenario", "entryBarrier"] as const).map(key => market.criteria[key]
-          ? <DetailRow key={key} label={T[key]}>{market.criteria[key]}</DetailRow> : null)}
       </DetailList>
       <Section title={T.preview} icon="users" description={T.previewWhy}>
         <FilterBar search={<SearchSlot><Input aria-label={T.searchCustomers} placeholder={T.searchCustomers} value={query} onChange={e => setQuery(e.target.value)} /></SearchSlot>}>
@@ -52,7 +55,7 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
           </NativeSelect></FilterSlot>
         </FilterBar>
         {market.customers === null ? <p className="text-body-small text-muted-foreground">{T.unknown}</p> : <DataTable
-          leadingSpacer labels={DATA_TABLE_LABELS} rows={pagination.pageRows} rowKey={a => a.id} indexStart={pagination.indexStart}
+          labels={DATA_TABLE_LABELS} rows={pagination.pageRows} rowKey={a => a.id} indexStart={pagination.indexStart}
           columns={[
             {id:"name",header:T.customerName,align:"left",cell:a => <TableTitleCell title={<Link href={`/account/${a.id}`} className="transition-colors hover:text-primary">{a.name}</Link>} description={a.accountNo} />},
             {id:"match",header:T.assessment,align:"left",cell:a => <div className="flex flex-col gap-xs"><Tag tone={a.match === "match" ? "success" : a.match === "missing" ? "warning" : "neutral"}>{T[a.match]}</Tag><span className="text-body-small text-muted-foreground">{[a.industry,a.customerSize,a.region].filter(Boolean).join(" / ")}</span>{a.assigned ? <span className="text-body-small text-muted-foreground">{T.assigned}</span> : null}</div>},
@@ -83,17 +86,21 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
     try {const r=await action();if(!r.ok)toast({tone:"danger",title:SEGMENT_ERROR[r.error ?? "denied"] ?? SEGMENT_ERROR.denied});}
     catch {toast({tone:"danger",title:SEGMENT_ERROR.denied});}
   });
-  const filtered = markets.filter(m => (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.plans?.map(p => p.name).join(" ") ?? ""} ${m.criteria.customerNeed ?? ""} ${m.criteria.buyingScenario ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
+  const filtered = markets.filter(m => (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.plans?.map(p => p.name).join(" ") ?? ""} ${m.criteria.customerNeed ?? ""} ${m.criteria.buyingScenario ?? ""} ${m.criteria.expectedOutcome ?? ""} ${m.criteria.entryBarrier ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const live = filtered.filter(m=>m.status === "active"), shelved = filtered.filter(m=>m.status !== "active");
   const chosen = markets.filter(m => selected.includes(m.id));
   const table = (rows: readonly MarketView[]) => <DataTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
     rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
     className="[&_table]:min-w-(--container-3xl)"
     columns={[
-      {id:"name",header:T.marketName,align:"left",width:"md",sortable:true,cell:m=><TableTitleCell title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.criteria.customerNeed || m.segmentCode}/>},
+      {id:"name",header:T.marketName,align:"left",width:"md",sortable:true,cell:m=><TableTitleCell className="w-48 max-w-full" tooltip={m.criteria.customerNeed || m.name} title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.criteria.customerNeed || m.segmentCode}/>},
       {id:"criteria",header:T.criteria,align:"left",width:"md",cell:m=><span className="line-clamp-2 text-body-small" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>{[...m.criteria.industries,...(m.criteria.sizes ?? []),...m.criteria.regions].join(" / ") || T.undefined}</span>},
+      {id:"buying",header:T.buyingEntry,align:"left",width:"md",cell:m=><div className="flex min-w-0 flex-col gap-xs">
+        <span className="line-clamp-2 text-body-small" title={m.criteria.buyingScenario}>{m.criteria.buyingScenario || T.notProvided}</span>
+        {m.criteria.expectedOutcome ? <span className="line-clamp-1 text-body-small text-muted-foreground" title={`${T.expectedOutcome}: ${m.criteria.expectedOutcome}`}>{T.expectedOutcome} {m.criteria.expectedOutcome}</span> : null}
+      </div>},
       {id:"customers",header:T.customers,align:"left",sortable:true,width:"sm",cell:m=><div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs tabular-nums"><span className="font-medium">{m.matched ?? T.unknown}</span>{m.missing!==null && m.missing>0?<span className="whitespace-nowrap text-body-small text-muted-foreground">{T.missing} {m.missing}</span>:null}</div>},
-      {id:"plan",header:T.linkedPlan,align:"left",width:"lg",cell:m=><div className="text-body-small text-muted-foreground"><StrategyReferences market={m} compact/></div>},
+      {id:"plan",header:T.linkedPlan,align:"left",width:"md",cell:m=><div className="text-body-small text-muted-foreground"><StrategyReferences market={m} compact/></div>},
       {id:"status",header:T.status,width:"xs",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
     ]}
     rowActions={(m) => <RowActions disabled={pending} items={[
@@ -117,7 +124,7 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
     } })),
     { id: "matched", label: T.customerCount, render: m => m.matched ?? T.unknown },
     { id: "missing", label: T.missing, render: m => m.missing ?? T.unknown },
-    ...(["customerNeed", "buyingScenario", "entryBarrier"] as const).map(key => ({ id: key, label: T[key], render: (m: MarketView) => m.criteria[key] || T.notProvided })),
+    ...(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => ({ id: key, label: T[key], render: (m: MarketView) => m.criteria[key] || T.notProvided })),
     { id: "plans", label: T.linkedPlan, render: m => <StrategyReferences market={m}/> },
     { id: "status", label: T.status, render: m => STRATEGY_TEXT.segmentStatusLabel[m.status] },
     { id: "preview", label: T.preview, render: m => <Button variant="secondary" size="md" onClick={()=>{setCompare(false);setDetail(m.id);}}>{T.preview}</Button> },

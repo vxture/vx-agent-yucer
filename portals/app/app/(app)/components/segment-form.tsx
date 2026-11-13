@@ -74,13 +74,14 @@ export function SegmentForm({
     sizes: "",
     customerNeed: "",
     buyingScenario: "",
+    expectedOutcome: "",
     entryBarrier: "",
   };
   const initial = rows.find(r => r.segmentCode === initialCode);
   const values = (g: SegmentFormRow) => ({
     segmentCode: g.segmentCode, name: g.name,
     priority: String(g.priority), status: g.status,
-    customerNeed: g.criteria.customerNeed ?? "", buyingScenario: g.criteria.buyingScenario ?? "", entryBarrier: g.criteria.entryBarrier ?? "",
+    customerNeed: g.criteria.customerNeed ?? "", buyingScenario: g.criteria.buyingScenario ?? "", expectedOutcome: g.criteria.expectedOutcome ?? "", entryBarrier: g.criteria.entryBarrier ?? "",
     industries: g.criteria.industries.join(", "), regions: g.criteria.regions.join(", "), sizes: (g.criteria.sizes ?? []).join(", "),
   });
   const [form, setForm] = useState(() => initial ? values(initial) : BLANK);
@@ -217,16 +218,20 @@ export function SegmentForm({
                 ))}
               </NativeSelect>
             </Field>
-            {(["customerNeed", "buyingScenario", "entryBarrier"] as const).map(key => (
-              <FormFieldWide key={key}>
-                <Field>
-                  <FieldLabel>{T[key]}</FieldLabel>
-                  <Textarea rows={2} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
-                  {key === "customerNeed" ? <FieldDescription>{T.qualitativeHint}</FieldDescription> : null}
-                </Field>
-              </FormFieldWide>
-            ))}
             </FormFields>
+            <Section title={T.marketInsight} icon="lightbulb" description={T.marketInsightHint}>
+              <FormFields>
+              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => (
+                <FormFieldWide key={key}>
+                  <Field>
+                    <FieldLabel>{T[key]}</FieldLabel>
+                    <Textarea rows={2} placeholder={T.insightPrompts[key]} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
+                    <FieldDescription>{T.insightHints[key]}</FieldDescription>
+                  </Field>
+                </FormFieldWide>
+              ))}
+              </FormFields>
+            </Section>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}
@@ -244,6 +249,7 @@ export function SegmentForm({
                           sizes: splitListField(form.sizes),
                           customerNeed: form.customerNeed,
                           buyingScenario: form.buyingScenario,
+                          expectedOutcome: form.expectedOutcome,
                           entryBarrier: form.entryBarrier,
                         },
                       }),

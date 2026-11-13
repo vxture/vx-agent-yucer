@@ -170,8 +170,9 @@ test("target markets can be shared in one period and all market and solution lin
     const s = await store();
     const market = await s.upsertSegment(WS, {
       segmentCode: "MKT", name: "Retail market", priority: 1, status: "active",
-      criteria: { industries: ["retail"], regions: [], customerNeed: "Stock visibility" },
+      criteria: { industries: ["retail"], regions: [], customerNeed: "Stock visibility", expectedOutcome: "Less manual reconciliation" },
     });
+    assert.equal((await s.listSegments(WS))[0].criteria.expectedOutcome, "Less manual reconciliation");
     const target = { segmentId: market.id, marketName: market.name, intent: "focus" as const,
       approach: "Direct sales", criteria: market.criteria, solutionIds: [localSolution] };
     await assert.rejects(s.createPlan(WS, plan({ targetMarkets: [{ ...target, segmentId: foreignMarket }] })), PlanMarketUnavailableError);
@@ -182,6 +183,7 @@ test("target markets can be shared in one period and all market and solution lin
     assert.equal(first.period, second.period);
     assert.equal((await s.listPlans(WS, { period: first.period })).length, 2);
     assert.equal((await s.getPlan(WS, first.id))?.targetMarkets?.[0].criteria.customerNeed, "Stock visibility");
+    assert.equal((await s.getPlan(WS, first.id))?.targetMarkets?.[0].criteria.expectedOutcome, "Less manual reconciliation");
     await assert.rejects(s.updatePlan(WS, first.id, { name: "No write", targetMarkets: [
       { ...target, approach: "No write", solutionIds: [foreignSolution] },
     ] }), PlanSolutionUnavailableError);

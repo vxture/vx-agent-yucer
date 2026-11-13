@@ -401,6 +401,8 @@ export interface SegmentCriteria {
   /** Qualitative context; never used as an automatic match filter. */
   customerNeed?: string;
   buyingScenario?: string;
+  /** Desired customer improvement; a hypothesis, not a promised result. */
+  expectedOutcome?: string;
   entryBarrier?: string;
 }
 
@@ -435,7 +437,7 @@ export function planSegment(input: SegmentDraft): RuleResult<SegmentDraft> {
   // Trimmed and de-duplicated, not merely accepted: " 零售" would never match
   // an account whose industry is "零售", and nothing downstream would say why.
   const criteria: SegmentCriteria = {
-    ...Object.fromEntries((["customerNeed", "buyingScenario", "entryBarrier"] as const)
+    ...Object.fromEntries((["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
       .map(key => [key, input.criteria[key]?.trim()]).filter(([, value]) => value)),
     industries: [...new Set(input.criteria.industries.map((v) => v.trim()).filter(Boolean))],
     regions: [...new Set(input.criteria.regions.map((v) => v.trim()).filter(Boolean))],

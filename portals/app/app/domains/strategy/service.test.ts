@@ -439,8 +439,9 @@ test("a viewer may read segments and may not write one", async () => {
 test("strategies in the same period can reuse one market with independent approaches", async () => {
   const c = ctx("sales_leader", "business");
   const definition = unwrap(await upsertSegment(c, { ...SEG, criteria: {
-    industries: ["retail"], regions: [], customerNeed: "  Stock accuracy  ",
+    industries: ["retail"], regions: [], customerNeed: "  Stock accuracy  ", expectedOutcome: "  Less manual reconciliation  ",
   } }));
+  assert.equal(definition.criteria.expectedOutcome, "Less manual reconciliation");
   const originalName = definition.name;
   const focus = { segmentId: definition.id, intent: "focus" as const, approach: " Expand in retail " };
   const first = unwrap(await createPlan(c, { ...newPlan, targetMarkets: [focus] }));
@@ -452,11 +453,14 @@ test("strategies in the same period can reuse one market with independent approa
   assert.equal(first.targetMarkets?.[0].approach, "Expand in retail");
   assert.equal(second.targetMarkets?.[0].intent, "validate");
   assert.equal(first.targetMarkets?.[0].criteria.customerNeed, "Stock accuracy");
+  assert.equal(first.targetMarkets?.[0].criteria.expectedOutcome, "Less manual reconciliation");
 
   unwrap(await upsertSegment(c, { ...SEG, name: "New library name", criteria: { industries: ["logistics"], regions: [] } }));
   unwrap(await editPlan(c, first.id, { ...EDIT, targetMarkets: [{ ...focus, approach: "Visit retail" }] }));
   assert.equal((await c.store.getPlan(WS, first.id))?.targetMarkets?.[0].marketName, originalName);
   assert.deepEqual((await c.store.getPlan(WS, first.id))?.targetMarkets?.[0].criteria.industries, ["retail"]);
+  assert.equal((await c.store.getPlan(WS, first.id))?.targetMarkets?.[0].criteria.expectedOutcome, "Less manual reconciliation");
+  assert.equal((await c.store.listSegments(WS))[0].criteria.expectedOutcome, undefined);
   assert.equal((await c.store.getPlan(WS, second.id))?.targetMarkets?.[0].approach, "Test with partners");
 
   const remove = await removeSegment(c, { segmentId: definition.id, accountsCarrying: 0 });
