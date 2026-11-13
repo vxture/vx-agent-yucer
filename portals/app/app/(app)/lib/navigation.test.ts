@@ -82,11 +82,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // thing (set once, read by every screen that shows or advances a deal),
     // so /admin/opportunity joins /admin/product's own already-stacked
     // precedent rather than staying five gear icons.
-    // 待迁路由 joined 业务参数 on 2026-09-17 (moved a second time - it started
-    // in 运行状况 on 2026-09-11, incr/0055's own change - when that group was
-    // deleted along with the 使用分析 page the owner rejected): a holding
-    // page for whatever route currently has no entry point anywhere else,
-    // found by an app-wide reachability sweep.
+    // The obsolete pending-route holding page now redirects to /admin.
     // 安全审计 (owner, 2026-09-17) replaced the old placeholder 操作审计 with
     // a real, browsable, filtered configuration-change log. 系统验证 (same
     // day) is whether the platform connection itself is healthy. Both were
@@ -94,7 +90,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // 高级管理 - since both answer "is something wrong" rather than
     // day-to-day setup; the flat key order here is unaffected by the merge.
     ["orgUnit", "division", "members", "roles", "permissions", "scope", "opportunityConfig", "product", "industry",
-     "reminderThreshold", "pendingMigration", "audit", "diagnostics"],
+     "reminderThreshold", "audit", "diagnostics"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of

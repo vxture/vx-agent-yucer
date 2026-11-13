@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getStrategyStore } from "../../domains/shared/registry";
+import { getCatalogStore, getStrategyStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import {
   createPlan,
   editPlan,
+  editPlanRelations,
   moveSegment,
   removeSegment,
   setSegmentStatus,
@@ -18,6 +19,10 @@ import {
   SEGMENT_STATUSES,
   type PlanStatus,
   type SegmentStatus,
+  type NewPlanDraft,
+  type PlanEdit,
+  type PlanRelationChange,
+  type SegmentCriteria,
 } from "../../domains/strategy/lib/lifecycle";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
@@ -57,7 +62,8 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -67,13 +73,7 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
  * The neighbour of `movePlan` above, which shipped first and could only ever
  * move plans that db-init had put there (TD-016).
  */
-export async function createStrategyPlan(input: {
-  planNo: string;
-  name: string;
-  period: string;
-  objective: string | null;
-  ownerSub: string | null;
-}): Promise<{ ok: boolean; error?: string }> {
+export async function createStrategyPlan(input: NewPlanDraft): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -84,6 +84,7 @@ export async function createStrategyPlan(input: {
       holder: session.authz,
       entitlement: session.entitlement,
       store: getStrategyStore(),
+      catalog: getCatalogStore(),
     },
     input,
   );
@@ -91,7 +92,8 @@ export async function createStrategyPlan(input: {
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -106,13 +108,8 @@ export async function createStrategyPlan(input: {
  */
 export async function savePlan(
   id: string,
-  input: {
-    name: string;
-    period: string;
-    objective: string | null;
-    ownerSub: string | null;
-  },
-): Promise<{ ok: boolean; error?: string }> {
+  input: PlanEdit,
+): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -123,6 +120,7 @@ export async function savePlan(
       holder: session.authz,
       entitlement: session.entitlement,
       store: getStrategyStore(),
+      catalog: getCatalogStore(),
     },
     id,
     input,
@@ -131,7 +129,21 @@ export async function savePlan(
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
+  return { ok: true };
+}
+
+export async function savePlanRelations(id: string, change: PlanRelationChange): Promise<TransitionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await editPlanRelations({
+    workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
+    entitlement: session.entitlement, store: getStrategyStore(), catalog: getCatalogStore(),
+  }, id, change);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -146,10 +158,9 @@ export async function savePlan(
 export async function saveSegment(input: {
   segmentCode: string;
   name: string;
-  planId: string | null;
   priority: number;
   status: string;
-  criteria: { industries: readonly string[]; regions: readonly string[]; sizes?: readonly string[] };
+  criteria: SegmentCriteria;
 }): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -175,7 +186,8 @@ export async function saveSegment(input: {
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy");
+  revalidatePath("/strategy", "layout");
+  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -197,6 +209,7 @@ export async function changeSegmentStatus(
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/segment");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 
@@ -218,6 +231,7 @@ export async function moveSegmentRow(
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/segment");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 
@@ -258,5 +272,6 @@ export async function deleteSegment(
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/segment");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }

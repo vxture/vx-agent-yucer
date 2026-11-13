@@ -79,6 +79,7 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_gtm.territory_attainment_snapshot WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign_execution WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_gtm.strategy_plan_market WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.market_segment WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.territory WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.strategy_plan WHERE workspace_id = $1`, [WS]);
@@ -116,6 +117,91 @@ test("createPlan always starts a plan in draft, whatever the caller had in mind"
     assert.equal(created?.objective, "double the mid-market");
   } finally {
     await cleanup();
+  }
+});
+
+test("solution links are atomic, workspace-bound, and protect the referenced catalog row", { skip }, async () => {
+  const { PrismaCatalogStore } = await import("../catalog/prisma-store");
+  const { SolutionInUseError } = await import("../catalog/store");
+  const { PlanSolutionUnavailableError } = await import("./store");
+  const local = "eeeeeeee-0000-0000-0000-00000000ab09";
+  const foreign = "eeeeeeee-0000-0000-0000-00000000ab10";
+  const otherWs = "eeeeeeee-0000-0000-0000-000000000009";
+  const catalog = new PrismaCatalogStore();
+  await cleanup();
+  try {
+    await withPg(c => c.query(`INSERT INTO yucer_catalog.solution (id, workspace_id, solution_code, name)
+      VALUES ($1, $2, 'SOL-1', 'Retail'), ($3, $4, 'SOL-1', 'Other')`, [local, WS, foreign, otherWs]));
+    const s = await store();
+    await assert.rejects(s.createPlan(WS, plan({ solutionIds: [foreign] })), PlanSolutionUnavailableError);
+    assert.equal((await s.listPlans(WS)).length, 0, "no partial plan after a rejected link");
+    const created = await s.createPlan(WS, plan({ solutionIds: [local] }));
+    assert.ok(created);
+    assert.deepEqual((await s.getPlan(WS, created.id))?.solutionIds, [local]);
+    await assert.rejects(s.updatePlan(WS, created.id, { name: "Rejected", solutionIds: [foreign] }), PlanSolutionUnavailableError);
+    assert.equal((await s.getPlan(WS, created.id))?.name, created.name);
+    assert.deepEqual((await s.getPlan(WS, created.id))?.solutionIds, [local]);
+    await assert.rejects(catalog.removeSolution(WS, local), SolutionInUseError);
+    assert.equal(await s.updatePlan(WS, created.id, { name: "Unlinked", solutionIds: [] }), true);
+    assert.deepEqual((await s.getPlan(WS, created.id))?.solutionIds, []);
+    assert.equal(await catalog.removeSolution(WS, local), true);
+  } finally {
+    await cleanup();
+    await withPg(c => c.query(`DELETE FROM yucer_catalog.solution WHERE id IN ($1, $2)`, [local, foreign]));
+  }
+});
+
+test("target markets can be shared in one period and all market and solution links stay in the workspace", { skip }, async () => {
+  const { PrismaCatalogStore } = await import("../catalog/prisma-store");
+  const { SolutionInUseError } = await import("../catalog/store");
+  const { PlanMarketUnavailableError, PlanSolutionUnavailableError, SegmentReferencedError } = await import("./store");
+  const foreignWs = "eeeeeeee-0000-0000-0000-00000000cd08";
+  const localSolution = "eeeeeeee-0000-0000-0000-00000000cd01";
+  const foreignSolution = "eeeeeeee-0000-0000-0000-00000000cd02";
+  const foreignMarket = "eeeeeeee-0000-0000-0000-00000000cd03";
+  await cleanup();
+  try {
+    await withPg(async c => {
+      await c.query(`INSERT INTO yucer_catalog.solution (id, workspace_id, solution_code, name)
+        VALUES ($1, $2, 'MKT-SOL', 'Retail'), ($3, $4, 'MKT-SOL', 'Foreign')`, [localSolution, WS, foreignSolution, foreignWs]);
+      await c.query(`INSERT INTO yucer_gtm.market_segment (id, workspace_id, segment_code, name)
+        VALUES ($1, $2, 'FOREIGN', 'Foreign market')`, [foreignMarket, foreignWs]);
+    });
+    const s = await store();
+    const market = await s.upsertSegment(WS, {
+      segmentCode: "MKT", name: "Retail market", priority: 1, status: "active",
+      criteria: { industries: ["retail"], regions: [], customerNeed: "Stock visibility", expectedOutcome: "Less manual reconciliation" },
+    });
+    assert.equal((await s.listSegments(WS))[0].criteria.expectedOutcome, "Less manual reconciliation");
+    const target = { segmentId: market.id, marketName: market.name, intent: "focus" as const,
+      approach: "Direct sales", criteria: market.criteria, solutionIds: [localSolution] };
+    await assert.rejects(s.createPlan(WS, plan({ targetMarkets: [{ ...target, segmentId: foreignMarket }] })), PlanMarketUnavailableError);
+    assert.equal((await s.listPlans(WS)).length, 0);
+    const first = await s.createPlan(WS, plan({ targetMarkets: [target] }));
+    const second = await s.createPlan(WS, plan({ planNo: "PLAN-2", targetMarkets: [{ ...target, intent: "validate" }] }));
+    assert.ok(first && second);
+    assert.equal(first.period, second.period);
+    assert.equal((await s.listPlans(WS, { period: first.period })).length, 2);
+    assert.equal((await s.getPlan(WS, first.id))?.targetMarkets?.[0].criteria.customerNeed, "Stock visibility");
+    assert.equal((await s.getPlan(WS, first.id))?.targetMarkets?.[0].criteria.expectedOutcome, "Less manual reconciliation");
+    await assert.rejects(s.updatePlan(WS, first.id, { name: "No write", targetMarkets: [
+      { ...target, approach: "No write", solutionIds: [foreignSolution] },
+    ] }), PlanSolutionUnavailableError);
+    const after = await s.getPlan(WS, first.id);
+    assert.equal(after?.name, first.name);
+    assert.equal(after?.targetMarkets?.[0].approach, target.approach);
+    assert.deepEqual(after?.targetMarkets?.[0].solutionIds, [localSolution]);
+    await assert.rejects(s.removeSegment(WS, market.id), SegmentReferencedError);
+    await assert.rejects(new PrismaCatalogStore().removeSolution(WS, localSolution), SolutionInUseError);
+    assert.ok(await s.updatePlan(WS, first.id, { targetMarkets: [] }));
+    assert.equal((await s.getPlan(WS, first.id))?.targetMarkets?.length, 0);
+    assert.equal((await s.getPlan(WS, second.id))?.targetMarkets?.[0].intent, "validate");
+  } finally {
+    await cleanup();
+    await withPg(async c => {
+      await c.query(`DELETE FROM yucer_catalog.solution WHERE id IN ($1, $2)`, [localSolution, foreignSolution]);
+      await c.query(`DELETE FROM yucer_gtm.market_segment WHERE id = $1`, [foreignMarket]);
+    });
   }
 });
 
@@ -434,7 +520,6 @@ test("upsertSegment upserts on the segment code and round-trips its criteria", {
     const first = await s.upsertSegment(WS, {
       segmentCode: "SEG-MM",
       name: "Mid-market",
-      planId: null,
       priority: 1,
       status: "active",
       criteria: { industries: ["manufacturing"], regions: ["East"] },
@@ -442,7 +527,6 @@ test("upsertSegment upserts on the segment code and round-trips its criteria", {
     const second = await s.upsertSegment(WS, {
       segmentCode: "SEG-MM",
       name: "Mid-market (revised)",
-      planId: null,
       priority: 2,
       status: "active",
       criteria: { industries: ["manufacturing", "logistics"], regions: [] },
@@ -496,7 +580,6 @@ test("an unrecognised segment status is refused by the real CHECK", { skip }, as
         s.upsertSegment(WS, {
           segmentCode: "SEG-BAD",
           name: "Bad",
-          planId: null,
           priority: 0,
           status: "bogus" as never,
           criteria: { industries: [], regions: [] },
@@ -777,7 +860,6 @@ test("a size condition round-trips through the JSONB criteria (ICP, 2026-09-24 -
     const seg = await store.upsertSegment(ws, {
       segmentCode: "ICP_SIZE",
       name: "icp size",
-      planId: null,
       priority: 1,
       status: "active",
       criteria: { industries: ["零售"], regions: [], sizes: ["大型企业"] },

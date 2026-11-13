@@ -131,7 +131,7 @@ export function EnablementScreen({ rows, windowDays, totals }: EnablementScreenP
 
       <header className="titlebar enablement-titlebar">
         <div className="chips">
-          <Link className="home" href="/" aria-label={T.home}>
+          <Link data-control-kind="operation" data-control-size="regular" className="home" href="/" aria-label={T.home}>
             <svg viewBox="0 0 13 13" fill="none" aria-hidden>
               <path
                 d="M7.5 1.5 L3 6.5 L7.5 11.5"

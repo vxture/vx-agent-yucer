@@ -1,19 +1,20 @@
 import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
-import type {
-  CatalogStore,
-  DiscountApprovalRecord,
-  OpportunityLineRecord,
-  PriceDraft,
-  PriceEntryRecord,
-  ProductRecord,
-  ProductStatusRecord,
-  ProductTypeInput,
-  ProductTypeRecord,
-  ProductUnitRecord,
-  SolutionItemRecord,
-  SolutionRecord,
+import {
+  SolutionInUseError,
+  type CatalogStore,
+  type DiscountApprovalRecord,
+  type OpportunityLineRecord,
+  type PriceDraft,
+  type PriceEntryRecord,
+  type ProductRecord,
+  type ProductStatusRecord,
+  type ProductTypeInput,
+  type ProductTypeRecord,
+  type ProductUnitRecord,
+  type SolutionItemRecord,
+  type SolutionRecord,
 } from "./store";
 
 // Prisma-backed CatalogStore over yucer_catalog (+ yucer_pipeline.opportunity_line).
@@ -156,8 +157,15 @@ export class PrismaCatalogStore implements CatalogStore {
   async removeSolution(workspaceId: string, solutionId: string): Promise<boolean> {
     const p = await getPrismaClient();
     // The items go with it - fk_solution_item_solution cascades.
-    const { count } = await p.solution.deleteMany({ where: { workspaceId, id: solutionId } });
-    return count > 0;
+    try {
+      const { count } = await p.solution.deleteMany({ where: { workspaceId, id: solutionId } });
+      return count > 0;
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2003") {
+        throw new SolutionInUseError("Solution referenced by strategy", { cause: error });
+      }
+      throw error;
+    }
   }
 
   async removePrice(workspaceId: string, priceId: string): Promise<boolean> {

@@ -266,7 +266,6 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         segmentCode: DEMO_SEGMENTS[0].code,
         name: DEMO_SEGMENTS[0].name,
         criteria: { industries: [...DEMO_SEGMENTS[0].criteria.industries], regions: [] },
-        planId: "plan_demo_1",
         priority: 1,
         status: "active" as const,
       },
@@ -276,7 +275,6 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         segmentCode: DEMO_SEGMENTS[1].code,
         name: DEMO_SEGMENTS[1].name,
         criteria: { industries: [...DEMO_SEGMENTS[1].criteria.industries], regions: [] },
-        planId: "plan_demo_1",
         priority: 2,
         status: "active" as const,
       },
@@ -292,6 +290,13 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         ownerSub: CRO,
         status: "active",
         approvedAt: daysAgo(60),
+        solutionIds: [],
+        targetMarkets: DEMO_SEGMENTS.slice(0, 2).map((segment, index) => ({
+          segmentId: `seg_demo_${index + 1}`, marketName: segment.name,
+          criteria: { industries: [...segment.criteria.industries], regions: [] },
+          intent: index === 0 ? "validate" : "focus", approach: DEMO_SEGMENTS[index].approach,
+          solutionIds: index === 1 ? ["sol_demo_1"] : [],
+        })),
       },
       {
         id: "plan_demo_2",
@@ -303,6 +308,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         ownerSub: CRO,
         status: "closed",
         approvedAt: daysAgo(240),
+        solutionIds: [],
       },
     ],
     campaigns: [

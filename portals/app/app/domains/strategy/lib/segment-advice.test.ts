@@ -9,7 +9,6 @@ const seg = (
   id: `id_${code}`,
   segmentCode: code,
   name: `细分 ${code}`,
-  planId: "plan_1",
   status: "active" as const,
   criteria: { industries: ["retail"], regions: ["east"] },
   ...over,
@@ -27,6 +26,10 @@ const run = (
   });
 
 const kinds = (out: ReturnType<typeof analyseSegments>) => out.map((a) => a.kind);
+
+test("a size-only market is a defined market", () => {
+  assert.deepEqual(kinds(run([seg("SIZE", { criteria: { industries: [], regions: [], sizes: ["large"] } })])), []);
+});
 
 test("a code handed out against the definition is the loudest finding", () => {
   const out = run(
@@ -76,15 +79,6 @@ test("a paused cut is quiet unless accounts still carry its code", () => {
   const stale = run([seg("A", { status: "retired" })], { A: { assigned: 6, matched: 0 } });
   assert.deepEqual(kinds(stale), ["stale_assignment"]);
   assert.equal(stale[0]!.count, 6);
-});
-
-test("a cut nobody is spending against is named, and can coexist with a divergence", () => {
-  const out = run(
-    [seg("A", { planId: null })],
-    { A: { assigned: 2, matched: 1 } },
-    { A: { assignedNotMatching: 1, matchingNotAssigned: 0 } },
-  );
-  assert.deepEqual(kinds(out), ["assigned_not_matching", "no_plan"]);
 });
 
 test("a sound segmentation says nothing at all", () => {

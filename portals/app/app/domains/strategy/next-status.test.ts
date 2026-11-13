@@ -47,6 +47,7 @@ function planRow(status: PlanStatus) {
     objective: null,
     ownerSub: "usr_cro",
     status,
+    solutionIds: [],
     approvedAt: null,
   };
 }

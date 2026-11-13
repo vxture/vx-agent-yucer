@@ -142,7 +142,7 @@ function Cited({
       <p>
         {text}
         {notes.length > 0 ? (
-          <button
+          <button data-control-kind="operation" data-control-size="compact"
             type="button"
             className="text-primary ml-2xs align-super text-label-small hover:underline"
             aria-expanded={open}
@@ -184,7 +184,7 @@ function Risk({
   const [open, setOpen] = useState(false);
   return (
     <div>
-      <button
+      <button data-control-kind="structural"
         type="button"
         className="text-foreground flex w-full items-center gap-2xs text-left hover:underline"
         aria-expanded={open}

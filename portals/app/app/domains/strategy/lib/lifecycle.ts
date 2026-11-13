@@ -201,13 +201,9 @@ export function canCompleteCampaign(
 
 // --- Bringing a plan into existence (TD-016) ---------------------------------
 
-export interface NewPlanDraft {
+export interface NewPlanDraft extends PlanEdit {
   /** Unique per workspace and NOT writable - the anchor, like a territory code. */
   planNo: string;
-  name: string;
-  period: string;
-  objective: string | null;
-  ownerSub: string | null;
 }
 
 /**
@@ -282,6 +278,8 @@ export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
     period,
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
+    ...(input.solutionIds === undefined ? {} : { solutionIds: input.solutionIds }),
+    ...(input.targetMarkets === undefined ? {} : { targetMarkets: input.targetMarkets }),
   });
 }
 
@@ -290,6 +288,33 @@ export interface PlanEdit {
   period: string;
   objective: string | null;
   ownerSub: string | null;
+  /** Omitted leaves links alone; an empty list clears them. */
+  solutionIds?: readonly string[];
+  /** Omitted leaves the market selections intact. */
+  targetMarkets?: readonly TargetMarketDraft[];
+}
+
+export const TARGET_MARKET_INTENTS = ["focus", "validate"] as const;
+export type TargetMarketIntent = typeof TARGET_MARKET_INTENTS[number];
+
+export interface TargetMarketDraft {
+  segmentId: string;
+  /** Null means an existing selection has not been classified yet. */
+  intent: TargetMarketIntent | null;
+  approach: string | null;
+  solutionIds?: readonly string[];
+}
+
+/** Relationship tasks never carry the strategy's basic fields or another market's draft. */
+export type PlanRelationChange =
+  | { kind: "markets"; add: readonly string[]; remove: readonly string[] }
+  | { kind: "market"; segmentId: string; intent: TargetMarketIntent | null; approach: string | null; solutionIds?: readonly string[] }
+  | { kind: "solutions"; solutionIds: readonly string[] };
+
+export interface TargetMarket extends Omit<TargetMarketDraft, "solutionIds"> {
+  marketName: string;
+  criteria: SegmentCriteria;
+  solutionIds: readonly string[];
 }
 
 // --- Writing an execution (TD-016) -------------------------------------------
@@ -379,12 +404,17 @@ export interface SegmentCriteria {
   regions: readonly string[];
   /** Optional: a criteria row written before sizes existed has none. */
   sizes?: readonly string[];
+  /** Qualitative context; never used as an automatic match filter. */
+  customerNeed?: string;
+  buyingScenario?: string;
+  /** Desired customer improvement; a hypothesis, not a promised result. */
+  expectedOutcome?: string;
+  entryBarrier?: string;
 }
 
 export interface SegmentDraft {
   segmentCode: string;
   name: string;
-  planId: string | null;
   priority: number;
   status: SegmentStatus;
   criteria: SegmentCriteria;
@@ -407,32 +437,19 @@ export function accountMatchesCriteria(
   return industryOk && regionOk && sizeOk;
 }
 
-export function planSegment(
-  input: SegmentDraft,
-  plan: { status: PlanStatus } | null,
-): RuleResult<SegmentDraft> {
-  // A closed or archived plan's segmentation is the record of how the market
-  // was cut for that period, and campaigns were aimed using it. Re-cutting it
-  // afterwards rewrites the reasoning those campaigns were built on, and
-  // nothing would ever be asked to notice. Same rule as a completed campaign's
-  // executions.
-  if (plan && (plan.status === "closed" || plan.status === "archived")) {
-    return fail(
-      violation(
-        "plan_closed",
-        "this plan is closed; its segmentation is how the market was cut for that period",
-        "planId",
-      ),
-    );
-  }
-
+export function planSegment(input: SegmentDraft): RuleResult<SegmentDraft> {
   const segmentCode = input.segmentCode.trim();
   const name = input.name.trim();
   // Trimmed and de-duplicated, not merely accepted: " 零售" would never match
   // an account whose industry is "零售", and nothing downstream would say why.
   const criteria: SegmentCriteria = {
+    ...Object.fromEntries((["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
+      .map(key => [key, input.criteria[key]?.trim()]).filter(([, value]) => value)),
     industries: [...new Set(input.criteria.industries.map((v) => v.trim()).filter(Boolean))],
     regions: [...new Set(input.criteria.regions.map((v) => v.trim()).filter(Boolean))],
+    ...(input.criteria.sizes === undefined ? {} : {
+      sizes: [...new Set(input.criteria.sizes.map((v) => v.trim()).filter(Boolean))],
+    }),
   };
 
   if (!segmentCode) {
@@ -471,12 +488,13 @@ export function planSegment(
 export function planSegmentRemoval(refs: {
   readonly campaigns: number;
   readonly accounts: number;
+  readonly strategies?: number;
 }): RuleResult<true> {
-  if (refs.campaigns > 0 || refs.accounts > 0) {
+  if (refs.campaigns > 0 || refs.accounts > 0 || (refs.strategies ?? 0) > 0) {
     return fail(
       violation(
         "segment_in_use",
-        `${refs.campaigns} campaign(s) aim at it and ${refs.accounts} account(s) carry its code - retire it instead`,
+        `the market is referenced - retire it instead`,
         "segmentId",
       ),
     );

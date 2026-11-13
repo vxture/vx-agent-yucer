@@ -23,17 +23,18 @@ import {
   SYSTEM_STATUS_DEFAULTS,
 } from "./lib/status-vocab";
 import { denied } from "../pipeline/service";
-import type {
-  CatalogStore,
-  DiscountApprovalRecord,
-  OpportunityLineRecord,
-  PriceEntryRecord,
-  ProductRecord,
-  ProductStatusRecord,
-  ProductTypeRecord,
-  ProductUnitRecord,
-  SolutionItemRecord,
-  SolutionRecord,
+import {
+  SolutionInUseError,
+  type CatalogStore,
+  type DiscountApprovalRecord,
+  type OpportunityLineRecord,
+  type PriceEntryRecord,
+  type ProductRecord,
+  type ProductStatusRecord,
+  type ProductTypeRecord,
+  type ProductUnitRecord,
+  type SolutionItemRecord,
+  type SolutionRecord,
 } from "./store";
 import type { MoveDirection } from "../shared/ordering";
 
@@ -107,6 +108,17 @@ export async function listSolutions(
     })),
   );
   return ok(views);
+}
+
+/** Cross-domain selectors need names and status, not composition or prices. */
+export type SolutionReference = Pick<SolutionRecord, "id" | "solutionCode" | "name" | "status">;
+
+export async function listSolutionReferences(
+  ctx: Omit<CatalogContext, "store"> & { store: Pick<CatalogStore, "listSolutions"> },
+): Promise<RuleResult<SolutionReference[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok((await ctx.store.listSolutions(ctx.workspaceId)).map(({ id, solutionCode, name, status }) => ({ id, solutionCode, name, status })));
 }
 
 /**
@@ -872,8 +884,13 @@ export async function removeSolution(
   const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  const removed = await ctx.store.removeSolution(ctx.workspaceId, input.solutionId);
-  if (!removed) return fail(violation("not_found", "no such solution", "solutionId"));
+  try {
+    const removed = await ctx.store.removeSolution(ctx.workspaceId, input.solutionId);
+    if (!removed) return fail(violation("not_found", "no such solution", "solutionId"));
+  } catch (error) {
+    if (!(error instanceof SolutionInUseError)) throw error;
+    return fail(violation("solution_in_use", "solution referenced by strategy", "solutionId"));
+  }
   return ok(true);
 }
 

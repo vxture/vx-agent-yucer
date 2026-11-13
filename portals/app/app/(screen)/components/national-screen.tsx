@@ -185,7 +185,7 @@ function Mod(
             Null when the reader may not open that page - a disabled entry
             point is not information, it is an advertisement for a refusal. */}
         {href ? (
-          <Link className="enter" href={href} aria-label={`${enterLabel} ${title}`}>
+          <Link data-control-kind="operation" data-control-size="compact" className="enter" href={href} aria-label={`${enterLabel} ${title}`}>
             {enterLabel}
             <svg viewBox="0 0 10 10" fill="none" aria-hidden>
               <path d="M3.4 2 L6.6 5 L3.4 8" stroke="currentColor" strokeWidth="1.4"
@@ -254,7 +254,7 @@ function FoldArc(
   // the way the rail is ABOUT to move rather than the way it came.
   const flip = (side === "right") !== folded;
   return (
-    <button
+    <button data-control-kind="visualization"
       type="button"
       className={`arc arc-${side}${lit ? " lit" : ""}`}
       aria-expanded={!folded}
@@ -568,7 +568,7 @@ export function NationalScreen(
           a caret alone is a small target on a screen people drive standing up.
           Its chevron points where the title is ABOUT to go, not where it is. */}
       <div className="periodbar">
-        <button
+        <button data-control-kind="operation" data-control-size="compact"
           type="button"
           className="fold"
           aria-label={titleFolded ? SCREEN_TEXT.unfoldTitle : SCREEN_TEXT.foldTitle}
@@ -587,7 +587,7 @@ export function NationalScreen(
         </button>
 
         <span className="period" ref={periodRef}>
-          <button
+          <button data-control-kind="operation" data-control-size="compact"
             type="button"
             className="period-btn"
             aria-expanded={periodOpen}
@@ -603,7 +603,7 @@ export function NationalScreen(
           {periodOpen ? (
             <span className="period-pop" role="menu">
               {periods.map((p) => (
-                <button
+                <button data-control-kind="operation" data-control-size="regular"
                   key={p.key}
                   type="button"
                   role="menuitem"
@@ -620,7 +620,7 @@ export function NationalScreen(
 
       <header className={`titlebar${titleFolded ? " folded" : ""}`}>
         <div className="chips">
-          <Link className="home" href="/" aria-label={SCREEN_TEXT.home}>
+          <Link data-control-kind="operation" data-control-size="regular" className="home" href="/" aria-label={SCREEN_TEXT.home}>
             <svg viewBox="0 0 13 13" fill="none" aria-hidden>
               <path d="M7.5 1.5 L3 6.5 L7.5 11.5" stroke="currentColor" strokeWidth="1.6"
                     strokeLinecap="round" strokeLinejoin="round" />
@@ -729,13 +729,13 @@ export function NationalScreen(
               {level === "nation" ? (
                 <span className="cur">{SCREEN_TEXT.nation}</span>
               ) : (
-                <button type="button" onClick={() => { setLevel("nation"); setRegion(null); setProvince(null); }}>
+                <button data-control-kind="operation" data-control-size="compact" type="button" onClick={() => { setLevel("nation"); setRegion(null); setProvince(null); }}>
                   {SCREEN_TEXT.nation}
                 </button>
               )}
               <span className="sep">▸</span>
               <span className="screen-menu" ref={menuRef}>
-                <button
+                <button data-control-kind="operation" data-control-size="compact"
                   type="button"
                   className={region ? "chosen" : "placeholder"}
                   aria-expanded={menuOpen}
@@ -746,7 +746,7 @@ export function NationalScreen(
                 </button>
                 {menuOpen ? (
                   <span className="screen-pop" role="menu">
-                    <button type="button" role="menuitem" onClick={() => { setLevel("nation"); setRegion(null); setProvince(null); setMenuOpen(false); }}>
+                    <button data-control-kind="operation" data-control-size="regular" type="button" role="menuitem" onClick={() => { setLevel("nation"); setRegion(null); setProvince(null); setMenuOpen(false); }}>
                       {SCREEN_TEXT.regionDefault}
                     </button>
                     {/* THE WORKSPACE'S OWN DIVISIONS, in its own order. Nothing
@@ -755,7 +755,7 @@ export function NationalScreen(
                         gets a menu, a map and a breadcrumb that all agree,
                         without a deploy. */}
                     {divisions.map((d) => (
-                      <button
+                      <button data-control-kind="operation" data-control-size="regular"
                         key={d.code}
                         type="button"
                         role="menuitem"
@@ -781,7 +781,7 @@ export function NationalScreen(
 
             <div className="screen-picks">
               {METRICS.map((m) => (
-                <button
+                <button data-control-kind="operation" data-control-size="regular"
                   key={m.id}
                   type="button"
                   className={`screen-pick${m.rate ? " rate" : ""}${m.id === metric ? " on" : ""}`}
@@ -876,7 +876,7 @@ export function NationalScreen(
             </svg>
 
             {level !== "nation" ? (
-              <button type="button" className="screen-back" onClick={stepOut}>
+              <button data-control-kind="operation" data-control-size="regular" type="button" className="screen-back" onClick={stepOut}>
                 ↩ {SCREEN_TEXT.back}
               </button>
             ) : null}

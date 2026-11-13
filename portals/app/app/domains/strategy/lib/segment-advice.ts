@@ -27,8 +27,6 @@ export type SegmentAdviceKind =
   | "matching_not_assigned"
   /** No criteria at all: a cut that names nobody. */
   | "no_criteria"
-  /** Not tied to a plan: a cut nobody is spending against. */
-  | "no_plan"
   /** Paused or retired, yet accounts still carry the code. */
   | "stale_assignment";
 
@@ -47,8 +45,7 @@ export interface SegmentAdviceInput {
     readonly id: string;
     readonly segmentCode: string;
     readonly name: string;
-    readonly planId: string | null;
-    readonly status: SegmentStatus;
+      readonly status: SegmentStatus;
     readonly criteria: SegmentCriteria;
   }[];
   /** Per segment code: accounts carrying it, and accounts its criteria match.
@@ -60,14 +57,12 @@ export interface SegmentAdviceInput {
   readonly mismatch: ReadonlyMap<string, { readonly assignedNotMatching: number; readonly matchingNotAssigned: number }>;
 }
 
-/** Worst first: a wrong assignment misleads work today; a missing plan is a
- * gap in intent. */
+/** Worst first: a wrong assignment misleads work today. */
 const RANK: Record<SegmentAdviceKind, number> = {
   assigned_not_matching: 0,
   matching_not_assigned: 1,
   stale_assignment: 2,
   no_criteria: 3,
-  no_plan: 4,
 };
 
 export function analyseSegments(input: SegmentAdviceInput): SegmentAdvice[] {
@@ -99,7 +94,7 @@ export function analyseSegments(input: SegmentAdviceInput): SegmentAdvice[] {
     // An empty definition matches nothing, so the two counts cannot be
     // compared - saying "nobody matches" would be blaming the data for a
     // definition that was never written.
-    if (s.criteria.industries.length === 0 && s.criteria.regions.length === 0) {
+    if (s.criteria.industries.length === 0 && s.criteria.regions.length === 0 && (s.criteria.sizes ?? []).length === 0) {
       out.push({ id: `criteria:${s.id}`, kind: "no_criteria", ...named });
     } else {
       if (gap.assignedNotMatching > 0) {
@@ -120,9 +115,6 @@ export function analyseSegments(input: SegmentAdviceInput): SegmentAdvice[] {
       }
     }
 
-    if (!s.planId) {
-      out.push({ id: `plan:${s.id}`, kind: "no_plan", ...named });
-    }
   }
 
   return out.sort(

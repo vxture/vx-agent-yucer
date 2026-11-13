@@ -87,8 +87,8 @@ export function planCampaignEdit(
  */
 export function checkCampaignLinks(
   input: { planId: string | null; segmentId: string | null },
-  facts: { plan: { status: PlanStatus } | null; segmentIds: readonly string[] },
-  keep?: { planId: string | null },
+  facts: { plan: { status: PlanStatus; targetMarkets?: readonly { segmentId: string }[] } | null; segmentIds: readonly string[] },
+  keep?: { planId: string | null; segmentId?: string | null },
 ): RuleResult<true> {
   if (input.planId && input.planId !== keep?.planId) {
     if (!facts.plan) return fail(violation("plan_not_found", "that plan was not found", "planId"));
@@ -98,6 +98,10 @@ export function checkCampaignLinks(
   }
   if (input.segmentId && !facts.segmentIds.includes(input.segmentId)) {
     return fail(violation("segment_not_found", "that segment was not found", "segmentId"));
+  }
+  const unchanged = input.planId === keep?.planId && input.segmentId === keep?.segmentId;
+  if (input.planId && input.segmentId && !unchanged && !facts.plan?.targetMarkets?.some(m => m.segmentId === input.segmentId)) {
+    return fail(violation("segment_not_in_strategy", "choose a target market from the strategy", "segmentId"));
   }
   return ok(true);
 }

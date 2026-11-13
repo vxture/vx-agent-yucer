@@ -22,6 +22,7 @@ import type {
   SegmentCriteria,
   SegmentDraft,
   SegmentStatus,
+  TargetMarket,
 } from "./lib/lifecycle";
 import type { NewCampaignDraft } from "./lib/campaign";
 import { asc, by, desc } from "../shared/order";
@@ -34,9 +35,18 @@ export interface PlanRecord {
   period: string;
   objective: string | null;
   ownerSub: string | null;
+  solutionIds: readonly string[];
+  targetMarkets?: readonly TargetMarket[];
   status: PlanStatus;
   approvedAt: Date | null;
 }
+
+/** A selected catalog row disappeared between validation and the write. */
+export class PlanSolutionUnavailableError extends Error {}
+export class PlanMarketUnavailableError extends Error {}
+export class SegmentReferencedError extends Error {}
+
+export type PlanCreate = Omit<NewPlanDraft, "targetMarkets"> & { targetMarkets?: readonly TargetMarket[] };
 
 /** What updateCampaign may move - exactly the columns 98_column_locks grants. */
 export interface CampaignPatch {
@@ -73,7 +83,6 @@ export interface SegmentRecord {
   workspaceId: string;
   segmentCode: string;
   name: string;
-  planId: string | null;
   priority: number;
   status: SegmentStatus;
   criteria: SegmentCriteria;
@@ -119,7 +128,7 @@ export interface StrategyStore {
    * a plan that people have already been approved against. Territories and
    * products have no such state; plans do. A duplicate number is refused.
    */
-  createPlan(workspaceId: string, input: NewPlanDraft): Promise<PlanRecord | null>;
+  createPlan(workspaceId: string, input: PlanCreate): Promise<PlanRecord | null>;
   /**
    * Patch a plan.
    *
@@ -138,6 +147,8 @@ export interface StrategyStore {
       period?: string;
       objective?: string | null;
       ownerSub?: string | null;
+      solutionIds?: readonly string[];
+      targetMarkets?: readonly TargetMarket[];
     },
   ): Promise<boolean>;
 
@@ -252,7 +263,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     return rows;
   }
 
-  async createPlan(workspaceId: string, input: NewPlanDraft): Promise<PlanRecord | null> {
+  async createPlan(workspaceId: string, input: PlanCreate): Promise<PlanRecord | null> {
     // Null, not a throw: the unique index would refuse it anyway, and the
     // service turns this into "that number is taken" rather than a constraint
     // name.
@@ -260,8 +271,13 @@ export class InMemoryStrategyStore implements StrategyStore {
       (p) => p.workspaceId === workspaceId && p.planNo === input.planNo,
     );
     if (taken) return null;
+    if (input.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
+      throw new PlanMarketUnavailableError();
+    }
     const created: PlanRecord = {
       ...input,
+      solutionIds: [...(input.solutionIds ?? [])],
+      targetMarkets: structuredClone(input.targetMarkets ?? []),
       id: `plan_${++this.seq}`,
       workspaceId,
       status: "draft",
@@ -279,7 +295,13 @@ export class InMemoryStrategyStore implements StrategyStore {
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId) return false;
-    Object.assign(p, patch);
+    if (patch.name !== undefined && (p.status === "closed" || p.status === "archived")) return false;
+    if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
+      throw new PlanMarketUnavailableError();
+    }
+    const { targetMarkets, ...fields } = patch;
+    Object.assign(p, fields, fields.solutionIds === undefined ? {} : { solutionIds: [...fields.solutionIds] });
+    if (targetMarkets !== undefined) p.targetMarkets = structuredClone(targetMarkets);
     return true;
   }
 
@@ -382,7 +404,6 @@ export class InMemoryStrategyStore implements StrategyStore {
     if (held) {
       // segmentCode is deliberately not assigned - it is how this row was found.
       held.name = input.name;
-      held.planId = input.planId;
       held.priority = input.priority;
       held.status = input.status;
       held.criteria = input.criteria;
@@ -406,6 +427,9 @@ export class InMemoryStrategyStore implements StrategyStore {
   async removeSegment(workspaceId: string, segmentId: string): Promise<boolean> {
     const row = this.segments.get(segmentId);
     if (!row || row.workspaceId !== workspaceId) return false;
+    if ([...this.plans.values()].some(p => p.workspaceId === workspaceId && p.targetMarkets?.some(m => m.segmentId === segmentId))) {
+      throw new SegmentReferencedError();
+    }
     this.segments.delete(segmentId);
     return true;
   }

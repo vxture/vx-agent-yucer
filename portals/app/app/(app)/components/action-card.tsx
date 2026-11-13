@@ -58,7 +58,7 @@ export function ActionCard({
       <p className="text-muted-foreground mt-3xs text-body-small leading-relaxed">
         {reason}
         {evidence ? (
-          <button
+          <button data-control-kind="operation" data-control-size="compact"
             type="button"
             className="text-primary ml-xs inline-flex items-center gap-3xs hover:underline"
             aria-expanded={open}

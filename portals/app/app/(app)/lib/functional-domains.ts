@@ -110,7 +110,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     icon: "package",
     modules: [
       built("strategy"),
-      built("segment"),
+      // Market library is an internal strategy view; legacy /segment redirects.
       // Solution BEFORE catalogue (owner, 2026-09-03). A solution BUNDLES
       // products - the catalogue copy already says a bundle with no products
       // in it is just a name - so the old order put the parts before the
@@ -293,7 +293,12 @@ function resolveModules(
       });
       continue;
     }
-    const entry = byKey.get(m.navKey);
+    const primary = byKey.get(m.navKey);
+    const market = m.navKey === "strategy" ? byKey.get("segment") : undefined;
+    // One workspace entry, while preserving independently purchased surfaces.
+    const entry = primary?.state === "visible" || market?.state !== "visible"
+      ? primary ?? (market ? {...market,key:"strategy",href:"/strategy?view=markets"} : undefined)
+      : {...market,key:"strategy",href:"/strategy?view=markets"};
     if (!entry) continue; // permission gap - silent, by design
     out.push({
       kind: "built",
@@ -440,6 +445,7 @@ export function navKeyForSegment(segment: string): string {
 
 /** Which of the five contains the route currently on screen, if any. */
 export function activeDomainKey(navKey: string): string | null {
+  if (navKey === "segment") return "armory";
   for (const domain of FUNCTIONAL_DOMAINS) {
     for (const m of domain.modules) {
       if (m.kind === "built" && m.navKey === navKey) return domain.key;

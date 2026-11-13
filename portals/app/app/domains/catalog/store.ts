@@ -87,6 +87,8 @@ export interface SolutionRecord {
   sortOrder: number;
 }
 
+export class SolutionInUseError extends Error {}
+
 export interface SolutionItemRecord {
   id: string;
   workspaceId: string;
@@ -331,6 +333,8 @@ export class InMemoryCatalogStore implements CatalogStore {
   private approvals: DiscountApprovalRecord[] = [];
   private readonly policies = new Map<string, PricingPolicy>();
   private seq = 0;
+
+  constructor(private readonly solutionInUse?: (workspaceId: string, solutionId: string) => Promise<boolean>) {}
 
   async getPricingPolicy(workspaceId: string): Promise<PricingPolicy> {
     return this.policies.get(workspaceId) ?? DEFAULT_PRICING_POLICY;
@@ -676,6 +680,7 @@ export class InMemoryCatalogStore implements CatalogStore {
   }
 
   async removeSolution(workspaceId: string, solutionId: string): Promise<boolean> {
+    if (await this.solutionInUse?.(workspaceId, solutionId)) throw new SolutionInUseError();
     const before = this.solutions.length;
     this.solutions = this.solutions.filter(
       (s) => !(s.workspaceId === workspaceId && s.id === solutionId),

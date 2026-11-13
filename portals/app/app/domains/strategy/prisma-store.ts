@@ -6,22 +6,26 @@ import type {
   ExecutionActionType,
   ExecutionDraft,
   ExecutionStatus,
-  NewPlanDraft,
   PlanStatus,
   SegmentDraft,
   SegmentCriteria,
   SegmentStatus,
+  TargetMarket,
 } from "./lib/lifecycle";
 import type { NewCampaignDraft } from "./lib/campaign";
-import type {
-  CampaignPatch,
-  CampaignRecord,
-  ExecutionRecord,
-  PlanRecord,
-  SegmentCoverageSnapshotInput,
-  StrategyStore,
-  SegmentRecord,
-  TerritoryAttainmentSnapshotInput,
+import {
+  PlanMarketUnavailableError,
+  PlanSolutionUnavailableError,
+  SegmentReferencedError,
+  type CampaignPatch,
+  type CampaignRecord,
+  type ExecutionRecord,
+  type PlanRecord,
+  type PlanCreate,
+  type SegmentCoverageSnapshotInput,
+  type StrategyStore,
+  type SegmentRecord,
+  type TerritoryAttainmentSnapshotInput,
 } from "./store";
 
 // Prisma-backed StrategyStore over yucer_gtm (D1 plans, D3 campaigns).
@@ -41,6 +45,31 @@ const PLAN_TABLE = "yucer_gtm.strategy_plan";
 const CAMPAIGN_TABLE = "yucer_gtm.campaign";
 const EXECUTION_TABLE = "yucer_gtm.campaign_execution";
 const SEGMENT_TABLE = "yucer_gtm.market_segment";
+const PLAN_SELECTION = {
+  solutionLinks: { select: { solutionId: true } },
+  targetMarkets: { include: { solutionLinks: { select: { solutionId: true } } } },
+} as const;
+type StrategyClient = Awaited<ReturnType<typeof getPrismaClient>>;
+type StrategySelectionClient = Pick<StrategyClient, "strategyPlanMarket" | "strategyPlanMarketSolution">;
+
+async function writeTargets(tx: StrategySelectionClient, scope: { workspaceId: string; planId: string }, targets: readonly TargetMarket[]) {
+  await tx.strategyPlanMarket.deleteMany({ where: scope });
+  if (!targets.length) return;
+  try {
+    await tx.strategyPlanMarket.createMany({ data: targets.map(({ solutionIds: _ids, criteria, ...target }) => ({
+      ...scope, ...target, criteria: { ...criteria },
+    })) });
+  } catch (error) {
+    if (foreignKeyFailure(error)) throw new PlanMarketUnavailableError("Target market disappeared", { cause: error });
+    throw error;
+  }
+  const solutions = targets.flatMap(t => t.solutionIds.map(solutionId => ({ ...scope, segmentId: t.segmentId, solutionId })));
+  if (solutions.length) await tx.strategyPlanMarketSolution.createMany({ data: solutions });
+}
+
+function foreignKeyFailure(error: unknown) {
+  return error && typeof error === "object" && "code" in error && error.code === "P2003";
+}
 
 export class PrismaStrategyStore implements StrategyStore {
   async listPlans(
@@ -55,11 +84,12 @@ export class PrismaStrategyStore implements StrategyStore {
         ...(filter.status ? { status: filter.status } : {}),
       },
       orderBy: [{ period: "desc" }, { createdAt: "desc" }],
+      include: PLAN_SELECTION,
     });
     return rows.map((r: Record<string, unknown>) => toPlan(r));
   }
 
-  async createPlan(workspaceId: string, input: NewPlanDraft): Promise<PlanRecord | null> {
+  async createPlan(workspaceId: string, input: PlanCreate): Promise<PlanRecord | null> {
     const p = await getPrismaClient();
     // findFirst before create rather than catching the unique violation: the
     // service turns null into "that number is taken", and a caught error would
@@ -70,25 +100,36 @@ export class PrismaStrategyStore implements StrategyStore {
     });
     if (taken) return null;
 
-    const row = await p.strategyPlan.create({
-      data: {
-        workspaceId,
-        planNo: input.planNo,
-        name: input.name,
-        period: input.period,
-        objective: input.objective,
-        ownerSub: input.ownerSub,
-        // Not from the caller. A plan starts as a draft and every move after
-        // that belongs to the transition verb, which is what stamps approved_at.
-        status: "draft",
-      },
-    });
-    return toPlan(row as Record<string, unknown>);
+    const row = await writePlanSolutions(() => p.$transaction(async (tx) => {
+      const created = await tx.strategyPlan.create({
+        data: {
+          workspaceId,
+          planNo: input.planNo,
+          name: input.name,
+          period: input.period,
+          objective: input.objective,
+          ownerSub: input.ownerSub,
+          // Lifecycle transitions own all moves after creation.
+          status: "draft",
+        },
+      });
+      const solutionLinks = (input.solutionIds ?? []).map(solutionId => ({ workspaceId, planId: created.id, solutionId }));
+      if (solutionLinks.length) await tx.strategyPlanSolution.createMany({ data: solutionLinks });
+      const targets = input.targetMarkets ?? [];
+      if (targets.length) await writeTargets(tx, { workspaceId, planId: created.id }, targets);
+      return { ...created, solutionLinks, targetMarkets: targets.map(t => ({
+        ...t, solutionLinks: t.solutionIds.map(solutionId => ({ solutionId })),
+      })) };
+    }));
+    return toPlan(row);
   }
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
     const p = await getPrismaClient();
-    const row = await p.strategyPlan.findFirst({ where: { id, workspaceId } });
+    const row = await p.strategyPlan.findFirst({
+      where: { id, workspaceId },
+      include: PLAN_SELECTION,
+    });
     return row ? toPlan(row as Record<string, unknown>) : null;
   }
 
@@ -102,10 +143,13 @@ export class PrismaStrategyStore implements StrategyStore {
       period?: string;
       objective?: string | null;
       ownerSub?: string | null;
+      solutionIds?: readonly string[];
+      targetMarkets?: readonly TargetMarket[];
     },
   ): Promise<boolean> {
     const p = await getPrismaClient();
-    const data: Record<string, unknown> = { ...patch, updatedAt: new Date() };
+    const { solutionIds, targetMarkets, ...fields } = patch;
+    const data = { ...fields, updatedAt: new Date() };
 
     const guard = assertWritable(PLAN_TABLE, data);
     if (!guard.ok) {
@@ -114,8 +158,23 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const res = await p.strategyPlan.updateMany({ where: { id, workspaceId }, data });
-    return res.count > 0;
+    const where = { id, workspaceId, ...(fields.name === undefined ? {} : { status: { notIn: ["closed", "archived"] } }) };
+    if (solutionIds === undefined && targetMarkets === undefined) {
+      return (await p.strategyPlan.updateMany({ where, data })).count > 0;
+    }
+    return writePlanSolutions(() => p.$transaction(async (tx) => {
+      // The parent update takes the row lock before changing the selection.
+      if (!(await tx.strategyPlan.updateMany({ where, data })).count) return false;
+      const scope = { workspaceId, planId: id };
+      if (solutionIds !== undefined) {
+        await tx.strategyPlanSolution.deleteMany({ where: { ...scope, solutionId: { notIn: [...solutionIds] } } });
+        if (solutionIds.length) {
+          await tx.strategyPlanSolution.createMany({ data: solutionIds.map(solutionId => ({ ...scope, solutionId })), skipDuplicates: true });
+        }
+      }
+      if (targetMarkets !== undefined) await writeTargets(tx, scope, targetMarkets);
+      return true;
+    }));
   }
 
   async listCampaigns(
@@ -244,7 +303,6 @@ export class PrismaStrategyStore implements StrategyStore {
     const p = await getPrismaClient();
     const writable = {
       name: input.name,
-      planId: input.planId,
       priority: input.priority,
       status: input.status,
       // JSONB; the column locks grant UPDATE on criteria alongside the rest.
@@ -252,7 +310,7 @@ export class PrismaStrategyStore implements StrategyStore {
       updatedAt: new Date(),
     };
     // segmentCode is absent on purpose, and the column locks agree: the DDL
-    // grants UPDATE on name/plan_id/criteria/priority/status only. An edit that
+    // grants UPDATE on name/criteria/priority/status only. An edit that
     // tried to rename the anchor would be refused by the database.
     const guard = assertWritable(SEGMENT_TABLE, writable);
     if (!guard.ok) {
@@ -292,8 +350,13 @@ export class PrismaStrategyStore implements StrategyStore {
     // fk_campaign_segment is ON DELETE SET NULL and account.segment_code is a
     // plain string - neither would stop this, which is exactly why the SERVICE
     // refuses a segment anything still points at.
-    const { count } = await p.marketSegment.deleteMany({ where: { workspaceId, id: segmentId } });
-    return count > 0;
+    try {
+      const { count } = await p.marketSegment.deleteMany({ where: { workspaceId, id: segmentId } });
+      return count > 0;
+    } catch (error) {
+      if (foreignKeyFailure(error)) throw new SegmentReferencedError("Market in use", { cause: error });
+      throw error;
+    }
   }
 
   async listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]> {
@@ -395,6 +458,17 @@ export class PrismaStrategyStore implements StrategyStore {
   }
 }
 
+async function writePlanSolutions<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (foreignKeyFailure(error)) {
+      throw new PlanSolutionUnavailableError("Selected solution is no longer available", { cause: error });
+    }
+    throw error;
+  }
+}
+
 function toPlan(r: Record<string, unknown>): PlanRecord {
   return {
     id: String(r.id),
@@ -404,6 +478,14 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     period: String(r.period),
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
+    solutionIds: (r.solutionLinks as { solutionId: string }[]).map(link => link.solutionId).sort((a, b) => a.localeCompare(b)),
+    targetMarkets: (r.targetMarkets as Array<{
+      segmentId: string; marketName: string; intent: TargetMarket["intent"]; approach: string | null;
+      criteria: unknown; solutionLinks: { solutionId: string }[];
+    }>).map(t => ({
+      segmentId: t.segmentId, marketName: t.marketName, intent: t.intent, approach: t.approach,
+      criteria: readCriteria(t.criteria), solutionIds: t.solutionLinks.map(s => s.solutionId).sort((a, b) => a.localeCompare(b)),
+    })).sort((a, b) => a.marketName.localeCompare(b.marketName)),
     status: r.status as PlanStatus,
     approvedAt: (r.approvedAt as Date | null) ?? null,
   };
@@ -429,21 +511,25 @@ function toCampaign(r: Record<string, unknown>): CampaignRecord {
 }
 
 function toSegment(r: Record<string, unknown>): SegmentRecord {
-  const raw = (r.criteria ?? {}) as { industries?: unknown; regions?: unknown; sizes?: unknown };
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
     segmentCode: String(r.segmentCode),
     name: String(r.name),
-    planId: (r.planId as string | null) ?? null,
     priority: Number(r.priority ?? 0),
     status: r.status as SegmentStatus,
-    // Tolerant of pre-criteria rows: {} reads as no filters, not a crash.
-    criteria: {
-      industries: Array.isArray(raw.industries) ? raw.industries.map(String) : [],
-      regions: Array.isArray(raw.regions) ? raw.regions.map(String) : [],
-      sizes: Array.isArray(raw.sizes) ? raw.sizes.map(String) : [],
-    },
+    criteria: readCriteria(r.criteria),
+  };
+}
+
+function readCriteria(criteria: unknown): SegmentCriteria {
+  const raw = (criteria ?? {}) as Partial<Record<keyof SegmentCriteria, unknown>>;
+  return {
+    industries: Array.isArray(raw.industries) ? raw.industries.map(String) : [],
+    regions: Array.isArray(raw.regions) ? raw.regions.map(String) : [],
+    sizes: Array.isArray(raw.sizes) ? raw.sizes.map(String) : [],
+    ...Object.fromEntries((["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
+      .map(key => [key, raw[key]]).filter(([, value]) => typeof value === "string")),
   };
 }
 

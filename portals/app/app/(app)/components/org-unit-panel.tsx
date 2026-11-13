@@ -241,7 +241,7 @@ export function OrgUnitPanel({
           </div>
         ) : null}
         <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-small">
+          <CollapsibleTrigger data-control-kind="operation" data-control-size="compact" className="text-muted-foreground hover:text-foreground flex items-center gap-2xs text-body-small">
             <Icon name={moreOpen ? "chevron-down" : "chevron-right"} size="xs" />
             {ACCOUNT_TEXT.orgUnitMore}
           </CollapsibleTrigger>

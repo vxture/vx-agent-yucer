@@ -629,8 +629,57 @@ model StrategyPlan {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
 
+  solutionLinks StrategyPlanSolution[]
+  targetMarkets StrategyPlanMarket[]
+
   @@unique([workspaceId, planNo], map: "uidx_strategy_plan_ws_no")
+  @@unique([workspaceId, id], map: "uidx_strategy_plan_ws_id")
   @@map("strategy_plan")
+  @@schema("yucer_gtm")
+}
+
+model StrategyPlanSolution {
+  workspaceId String @map("workspace_id") @db.Uuid
+  planId      String @map("plan_id") @db.Uuid
+  solutionId  String @map("solution_id") @db.Uuid
+  plan        StrategyPlan @relation(fields: [workspaceId, planId], references: [workspaceId, id], onDelete: Cascade, map: "fk_strategy_solution_plan")
+  solution    Solution @relation(fields: [workspaceId, solutionId], references: [workspaceId, id], onDelete: Restrict, map: "fk_strategy_solution_catalog")
+
+  @@id([workspaceId, planId, solutionId])
+  @@index([workspaceId, solutionId], map: "idx_strategy_solution_catalog")
+  @@map("strategy_plan_solution")
+  @@schema("yucer_gtm")
+}
+
+model StrategyPlanMarket {
+  workspaceId String @map("workspace_id") @db.Uuid
+  planId      String @map("plan_id") @db.Uuid
+  segmentId   String @map("segment_id") @db.Uuid
+  intent      String? @db.VarChar(16)
+  approach    String? @db.Text
+  marketName  String @map("market_name") @db.VarChar(255)
+  criteria    Json @db.JsonB
+  plan        StrategyPlan @relation(fields: [workspaceId, planId], references: [workspaceId, id], onDelete: Cascade, map: "fk_strategy_market_plan")
+  segment     MarketSegment @relation(fields: [workspaceId, segmentId], references: [workspaceId, id], onDelete: Restrict, map: "fk_strategy_market_segment")
+  solutionLinks StrategyPlanMarketSolution[]
+
+  @@id([workspaceId, planId, segmentId])
+  @@index([workspaceId, segmentId], map: "idx_strategy_market_segment")
+  @@map("strategy_plan_market")
+  @@schema("yucer_gtm")
+}
+
+model StrategyPlanMarketSolution {
+  workspaceId String @map("workspace_id") @db.Uuid
+  planId      String @map("plan_id") @db.Uuid
+  segmentId   String @map("segment_id") @db.Uuid
+  solutionId  String @map("solution_id") @db.Uuid
+  target      StrategyPlanMarket @relation(fields: [workspaceId, planId, segmentId], references: [workspaceId, planId, segmentId], onDelete: Cascade, map: "fk_market_solution_target")
+  solution    Solution @relation(fields: [workspaceId, solutionId], references: [workspaceId, id], onDelete: Restrict, map: "fk_market_solution_catalog")
+
+  @@id([workspaceId, planId, segmentId, solutionId])
+  @@index([workspaceId, solutionId], map: "idx_market_solution_catalog")
+  @@map("strategy_plan_market_solution")
   @@schema("yucer_gtm")
 }
 
@@ -646,7 +695,10 @@ model MarketSegment {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  strategyTargets StrategyPlanMarket[]
+
   @@unique([workspaceId, segmentCode], map: "uidx_market_segment_ws_code")
+  @@unique([workspaceId, id], map: "uidx_market_segment_ws_id")
   @@map("market_segment")
   @@schema("yucer_gtm")
 }
@@ -1666,7 +1718,11 @@ model Solution {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  strategyLinks StrategyPlanSolution[]
+  strategyMarketLinks StrategyPlanMarketSolution[]
+
   @@unique([workspaceId, solutionCode], map: "uidx_solution_code")
+  @@unique([workspaceId, id], map: "uidx_solution_ws_id")
   @@index([workspaceId, sortOrder], map: "idx_solution_ws_sort")
   @@map("solution")
   @@schema("yucer_catalog")

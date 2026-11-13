@@ -1,5 +1,5 @@
 import { ViewHeader } from "../../components/business-controls";
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { Tag } from "../../components/tag";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
@@ -60,6 +60,24 @@ export default async function DiagnosticsPage() {
         secondary={(() => { const probes = [check.c1, check.c2, check.c3Up, check.c3Down, check.tokenMint, check.planes.atlas, check.planes.runos, check.planes.arda].filter((p) => p.configured); const ok = probes.filter((p) => p.ok).length; return <Tag tone={ok === probes.length ? "success" : ok === 0 ? "danger" : "warning"}>{PAGE_TAG.checksOk(ok, probes.length)}</Tag>; })()}
       />
       <DiagnosticsPanel initialCheck={check} canProbe={canProbe} />
+      <section className="flex flex-col gap-sm border-t border-dashed border-border pt-lg">
+        <h2 className="text-label">{DIAGNOSTICS_TEXT.standaloneTitle}</h2>
+        <p className="text-body-small text-muted-foreground">{DIAGNOSTICS_TEXT.standaloneHint}</p>
+        <nav aria-label={DIAGNOSTICS_TEXT.standaloneTitle} className="flex flex-wrap gap-sm">
+          <Button asChild variant="secondary"><a href="/status" target="_blank" rel="noopener noreferrer">{DIAGNOSTICS_TEXT.statusPage}</a></Button>
+          <Button asChild variant="secondary"><a href="/platform-check" target="_blank" rel="noopener noreferrer">{DIAGNOSTICS_TEXT.platformPage}</a></Button>
+        </nav>
+      </section>
+      {process.env.NODE_ENV === "development" ? <section className="flex flex-col gap-sm">
+        <h2 className="text-label">{DIAGNOSTICS_TEXT.previewTitle}</h2>
+        <p className="text-body-small text-muted-foreground">{DIAGNOSTICS_TEXT.previewHint}</p>
+        <nav aria-label={DIAGNOSTICS_TEXT.previewTitle} className="flex flex-wrap gap-sm">
+          <Button asChild variant="secondary"><a href="/gate-screens" target="_blank" rel="noopener noreferrer">{DIAGNOSTICS_TEXT.gatePreview}</a></Button>
+          <Button asChild variant="secondary"><a href="/product-preview" target="_blank" rel="noopener noreferrer">{DIAGNOSTICS_TEXT.productPreview}</a></Button>
+          <Button asChild variant="secondary"><a href="/progression-preview" target="_blank" rel="noopener noreferrer">{DIAGNOSTICS_TEXT.progressionPreview}</a></Button>
+          <Button asChild variant="secondary"><a href="/entitlement-matrix" target="_blank" rel="noopener noreferrer">{DIAGNOSTICS_TEXT.matrixPreview}</a></Button>
+        </nav>
+      </section> : null}
     </ViewLayout>
   );
 }

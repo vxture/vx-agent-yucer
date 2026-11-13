@@ -68,10 +68,9 @@ const TIER_TONE: Record<string, "danger" | "info" | "success"> = {
 // 决策链详情视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认;
 // 2026-09-21 重点完善 - 组织内角色分类、立场、影响力权重、人际关系四个维度).
 //
-// account-detail 专用, 不跟 decision-chain.tsx 共用: 那个组件还被 pipeline
-// 详情页复用, 这里的表格/图谱切换、角色行、返回按钮是 mockup 给"点开一条
-// 决策链摘要"这个交互专门画的一套, 硬塞进共用组件会把 pipeline 页也一起
-// 改样子。
+// Account-detail-specific table/graph switching, role rows and breadcrumbs.
+// The obsolete shared DecisionChain component is retired; this view owns
+// the current account interaction and does not change the pipeline layout.
 //
 // 表格化, 不要信息堆积 (owner, 2026-09-21) - 之前每个人是一张纵向堆叠的卡片
 // (姓名+角色徽标+职务+可达状态叠着放), 塞进第四个维度(立场)会让堆叠继续

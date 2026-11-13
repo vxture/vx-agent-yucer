@@ -13,6 +13,18 @@
 实现与验收见 [35-attainment-planning-handoff.md](35-attainment-planning-handoff.md)。
 本轮接通当前规划执行、冻结报送成绩、区域/个人视角及规划支撑，尚未发布。
 
+## 市场战略与细分市场整合
+
+市场战略与细分市场整合的设计及实施前置见
+[40-market-strategy-integration.md](40-market-strategy-integration.md)。已完成系统设计及首轮本地交互，
+已接通同期多战略、细分市场复用、目标市场打法与方案、活动预填，尚未发布；
+旧快照修复、战略版本和验证闭环仍按后续批次验收。
+
+## 全平台操作组件与页面入口复核
+
+逐页清单、密度规则、明确例外、入口处理及验证边界见
+[45-page-controls-audit.md](45-page-controls-audit.md)。
+
 ## 批次 0 - 继承自模板（已完成，不在本仓重做）
 
 模板已交付并验证的部分，实例化后直接生效：

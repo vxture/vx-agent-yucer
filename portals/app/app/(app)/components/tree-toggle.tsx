@@ -25,7 +25,7 @@ export function TreeToggle({
   readonly onToggle: () => void;
 }) {
   return (
-    <button
+    <button data-control-kind="operation" data-control-size="compact"
       type="button"
       className={`text-muted-foreground hover:text-foreground flex ${TREE_TOGGLE_SIZE} shrink-0 cursor-pointer items-center justify-center`}
       aria-expanded={expanded}

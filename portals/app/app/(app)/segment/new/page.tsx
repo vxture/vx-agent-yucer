@@ -1,12 +1,13 @@
 import { ViewHeader } from "../../components/business-controls";
-import { ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
+import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
 import { getStrategyStore } from "../../../domains/shared/registry";
-import { listPlans, listSegments } from "../../../domains/strategy/service";
+import { listSegments } from "../../../domains/strategy/service";
 import { listAccounts } from "../../../domains/account/service";
 import { SegmentForm } from "../../components/segment-form";
 import { saveSegment } from "../../strategy/actions";
@@ -22,8 +23,9 @@ import { saveSegment } from "../../strategy/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewSegmentPage() {
-  const { DOMAIN_LABEL, STRATEGY_TEXT } = await getMessages();
+export default async function NewSegmentPage({searchParams}:{readonly searchParams:Promise<{code?:string}>}) {
+  const {code}=await searchParams;
+  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -40,26 +42,27 @@ export default async function NewSegmentPage() {
     entitlement: session.entitlement,
     store: getStrategyStore(),
   };
-  const [segments, plans, accounts] = await Promise.all([
+  const [segments, accounts] = await Promise.all([
     listSegments(ctx),
-    listPlans(ctx),
     listAccounts({ ...ctx, store: session.stores.account() }),
   ]);
 
-  const openPlans = (plans.ok ? plans.value : [])
-    .filter((p) => p.status !== "closed" && p.status !== "archived")
-    .map((p) => ({ id: p.id, name: p.name }));
+  if(!segments.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(segments.violations,LOAD_ERROR)}/>;
+  const existing=code ? segments.value.find(s=>s.segmentCode===code) : undefined;
+  if(code && !existing)notFound();
+  const title=existing?T.editMarket:T.newMarket;
 
   return (
     <ViewLayout>
       <PageCrumbs
-        trail={[{ label: DOMAIN_LABEL.segment, href: "/segment" }]}
-        current={STRATEGY_TEXT.segmentFormTitle}
+        trail={[{ label: T.markets, href: "/strategy?view=markets" }]}
+        current={title}
       />
-      <ViewHeader title={STRATEGY_TEXT.segmentFormTitle} description={STRATEGY_TEXT.segmentsWhy} />
+      <ViewHeader title={title} description={T.libraryWhy} divider />
       <SegmentForm
-        rows={segments.ok ? segments.value : []}
-        plans={openPlans}
+        key={code ?? "new"}
+        initialCode={code}
+        rows={segments.value}
         accountIndustries={accounts.ok ? accounts.value.map((a) => a.industry) : []}
         accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}
         statusLabel={STRATEGY_TEXT.segmentStatusLabel}

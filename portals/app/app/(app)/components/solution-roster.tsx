@@ -59,6 +59,7 @@ export interface SolutionView {
 }
 
 export interface SolutionRosterProps {
+  readonly initialSolutionId?: string;
   readonly solutions: readonly SolutionView[];
   readonly products: readonly ProductRecord[];
   /** Keyed by solution id. */
@@ -87,6 +88,7 @@ const EMPTY_FACTS: SolutionFacts = {
 };
 
 export function SolutionRoster({
+  initialSolutionId,
   solutions,
   products,
   facts,
@@ -100,7 +102,7 @@ export function SolutionRoster({
   const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(initialSolutionId ?? null);
   const detail = solutions.find((row) => row.solution.id === detailId);
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
   // state across both rosters: the keys are ids, so a selection is of the

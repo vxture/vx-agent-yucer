@@ -50,30 +50,40 @@ export function CampaignForm({
   segments,
   defaultCurrency,
   initial,
+  initialPlanId,
+  initialSegmentId,
   onCreate,
   onSave,
 }: {
   readonly existingNos: readonly string[];
   /** Plans that take new work, plus the one this campaign already hangs under. */
-  readonly plans: readonly { id: string; name: string }[];
+  readonly plans: readonly { id: string; name: string; targetIds: readonly string[] }[];
   readonly segments: readonly { id: string; name: string }[];
   readonly defaultCurrency: string;
   /** Present edits that campaign; absent creates one. */
   readonly initial?: CampaignFormInitial;
+  readonly initialPlanId?: string;
+  readonly initialSegmentId?: string;
   readonly onCreate: (input: CampaignFormInput & { campaignNo: string }) => Promise<Saved>;
   readonly onSave: (id: string, input: CampaignFormInput) => Promise<Saved>;
 }) {
   const { CAMPAIGN_TEXT, CAMPAIGN_FORM_ERROR, ASSIST_TEXT } = useMessages();
   const [campaignNo, setCampaignNo] = useState(initial?.campaignNo ?? "");
   const [name, setName] = useState(initial?.name ?? "");
-  const [planId, setPlanId] = useState(initial?.planId ?? "");
-  const [segmentId, setSegmentId] = useState(initial?.segmentId ?? "");
+  const [planId, setPlanId] = useState(initial?.planId ?? initialPlanId ?? "");
+  const [segmentId, setSegmentId] = useState(initial?.segmentId ?? initialSegmentId ?? "");
   const [channel, setChannel] = useState(initial?.channel ?? "");
   const [budget, setBudget] = useState(initial?.budgetAmount == null ? "" : String(initial.budgetAmount));
   const [currency, setCurrency] = useState(initial?.currency ?? defaultCurrency);
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
   const [startsAt, setStartsAt] = useState(initial?.startsAt ?? "");
   const [endsAt, setEndsAt] = useState(initial?.endsAt ?? "");
+  const availableSegments = (forPlan: string) => {
+    if (!forPlan) return segments;
+    const targetIds = plans.find(p => p.id === forPlan)?.targetIds ?? [];
+    return segments.filter(s => targetIds.includes(s.id) || (forPlan === initial?.planId && s.id === initial.segmentId));
+  };
+  const segmentOptions = availableSegments(planId);
   const submit = useFormSubmit("/campaign");
 
   const nextNo = useMemo(() => suggestNextCode(existingNos), [existingNos]);
@@ -116,7 +126,11 @@ export function CampaignForm({
               </Field>
               <Field>
                 <FieldLabel>{CAMPAIGN_TEXT.formPlan}</FieldLabel>
-                <NativeSelect value={planId} onChange={(e) => setPlanId(e.target.value)}>
+                <NativeSelect value={planId} onChange={(e) => {
+                  const next = e.target.value;
+                  setPlanId(next);
+                  if (!availableSegments(next).some(s => s.id === segmentId)) setSegmentId("");
+                }}>
                   <option value="">{CAMPAIGN_TEXT.formNone}</option>
                   {plans.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -129,12 +143,13 @@ export function CampaignForm({
                 <FieldLabel>{CAMPAIGN_TEXT.formSegment}</FieldLabel>
                 <NativeSelect value={segmentId} onChange={(e) => setSegmentId(e.target.value)}>
                   <option value="">{CAMPAIGN_TEXT.formNone}</option>
-                  {segments.map((s) => (
+                  {segmentOptions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
                   ))}
                 </NativeSelect>
+                {planId && !segmentOptions.length ? <FieldDescription>{CAMPAIGN_TEXT.formNoTargetMarkets}</FieldDescription> : null}
               </Field>
               <Field>
                 <FieldLabel>{CAMPAIGN_TEXT.formChannel}</FieldLabel>

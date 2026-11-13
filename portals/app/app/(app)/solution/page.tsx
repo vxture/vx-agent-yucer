@@ -25,8 +25,11 @@ import { Tag } from "../components/tag";
 
 export const dynamic = "force-dynamic";
 
-export default async function SolutionPage() {
+export default async function SolutionPage({ searchParams }: {
+  readonly searchParams: Promise<{ solution?: string }>;
+}) {
   const { CATALOG_TEXT } = await getMessages();
+  const { solution } = await searchParams;
   return (
     <CatalogPage
       render={({ products, prices, solutions, types, policy, authz, entitlement }) => {
@@ -64,6 +67,8 @@ export default async function SolutionPage() {
             />
 
             <SolutionRoster
+              key={solution ?? "catalog"}
+              initialSolutionId={solution}
               solutions={solutions}
               products={products}
               facts={facts}

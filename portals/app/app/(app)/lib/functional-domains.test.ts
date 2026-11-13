@@ -280,7 +280,7 @@ const SHIPPED_AS: Record<string, string> = {
   // had shipped, so the planned-check went on passing about a surface that
   // existed. It is SegmentRoster, and naming it here is what makes the guard
   // able to tell.
-  segment: "SegmentRoster",
+  segment: "MarketLibrary",
 
 };
 
@@ -544,4 +544,21 @@ test("a module route resolves to the domain that contains it", () => {
     [],
     `these module routes render no domain strip:\n  ${missing.join("\n  ")}`,
   );
+});
+
+
+test("market editors retain the strategy workspace domain", () => {
+  assert.equal(activeDomainFromPath("/segment/new"), "armory");
+});
+
+test("the single strategy launcher entry falls back to a reachable market library", () => {
+  const nav = resolveNavigation({permissions:new Set(permissionsForRoles(["sales_leader"]))}, {...EMPTY_ENTITLEMENT,workspace_id:"ws",product:"yucer"});
+  const market = nav.find(e=>e.key === "segment");
+  assert.ok(market);
+  const domains = resolveFunctionalDomains([{...market,state:"visible"}]);
+  const entry = domains.flatMap(d=>d.modules).find(m=>m.key === "strategy");
+  assert.ok(entry?.kind === "built");
+  assert.equal(entry.href,"/strategy?view=markets");
+  assert.equal(entry.state,"visible");
+  assert.equal(domains.flatMap(d=>d.modules).filter(m=>m.key === "segment").length,0);
 });

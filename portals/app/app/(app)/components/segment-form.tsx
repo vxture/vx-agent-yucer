@@ -5,10 +5,12 @@ import {
   Button,
   Field,
   FieldLabel,
+  FieldDescription,
   Input,
   NativeSelect,
   Section,
   StatusBadge,
+  Textarea,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import {
@@ -20,6 +22,7 @@ import {
   useFormSubmit,
   type AssistSuggestion,
 } from "./form-page";
+import type { SegmentCriteria } from "../../domains/strategy/lib/lifecycle";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 
 // 新建/编辑细分市场 - a page since 2026-09-05. One page for both because the
@@ -31,24 +34,23 @@ import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 export interface SegmentFormRow {
   readonly segmentCode: string;
   readonly name: string;
-  readonly planId: string | null;
   readonly priority: number;
   readonly status: string;
-  readonly criteria: { industries: readonly string[]; regions: readonly string[]; sizes?: readonly string[] };
+  readonly criteria: SegmentCriteria;
 }
 
 type Saved = { ok: boolean; error?: string };
 
 export function SegmentForm({
   rows,
-  plans,
+  initialCode,
   accountIndustries,
   accountRegions,
   statusLabel,
   onSave,
 }: {
   readonly rows: readonly SegmentFormRow[];
-  readonly plans: readonly { readonly id: string; readonly name: string }[];
+  readonly initialCode?: string;
   /** What the customer base actually looks like - the criteria vocabulary. */
   readonly accountIndustries: readonly (string | null)[];
   readonly accountRegions: readonly (string | null)[];
@@ -56,25 +58,34 @@ export function SegmentForm({
   readonly onSave: (input: {
     segmentCode: string;
     name: string;
-    planId: string | null;
     priority: number;
     status: string;
-    criteria: { industries: readonly string[]; regions: readonly string[]; sizes: readonly string[] };
+    criteria: SegmentCriteria;
   }) => Promise<Saved>;
 }) {
-  const { STRATEGY_TEXT, SEGMENT_ERROR, ASSIST_TEXT } = useMessages();
+  const { STRATEGY_TEXT, SEGMENT_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
   const BLANK = {
     segmentCode: "",
     name: "",
-    planId: "",
     priority: "0",
     status: "active",
     industries: "",
     regions: "",
     sizes: "",
+    customerNeed: "",
+    buyingScenario: "",
+    expectedOutcome: "",
+    entryBarrier: "",
   };
-  const [form, setForm] = useState(BLANK);
-  const submit = useFormSubmit("/segment");
+  const initial = rows.find(r => r.segmentCode === initialCode);
+  const values = (g: SegmentFormRow) => ({
+    segmentCode: g.segmentCode, name: g.name,
+    priority: String(g.priority), status: g.status,
+    customerNeed: g.criteria.customerNeed ?? "", buyingScenario: g.criteria.buyingScenario ?? "", expectedOutcome: g.criteria.expectedOutcome ?? "", entryBarrier: g.criteria.entryBarrier ?? "",
+    industries: g.criteria.industries.join(", "), regions: g.criteria.regions.join(", "), sizes: (g.criteria.sizes ?? []).join(", "),
+  });
+  const [form, setForm] = useState(() => initial ? values(initial) : BLANK);
+  const submit = useFormSubmit("/strategy?view=markets");
 
   const editing = form.segmentCode !== "" && rows.some((r) => r.segmentCode === form.segmentCode);
 
@@ -85,16 +96,7 @@ export function SegmentForm({
     if (code === "") return setForm(BLANK);
     const g = rows.find((r) => r.segmentCode === code);
     if (!g) return setForm(BLANK);
-    setForm({
-      segmentCode: g.segmentCode,
-      name: g.name,
-      planId: g.planId ?? "",
-      priority: String(g.priority),
-      status: g.status,
-      industries: g.criteria.industries.join(", "),
-      regions: g.criteria.regions.join(", "),
-      sizes: (g.criteria.sizes ?? []).join(", "),
-    });
+    setForm(values(g));
   }
 
   // The criteria vocabulary comes from the ACCOUNTS, not from other segments: a
@@ -173,21 +175,6 @@ export function SegmentForm({
               <FieldLabel>{STRATEGY_TEXT.segmentNameHeader}</FieldLabel>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </Field>
-            {/* The plan this segment belongs under - a link upward, and the
-                option labels are whole plan names. */}
-            <FormFieldWide>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentPlanHeader}</FieldLabel>
-              <NativeSelect value={form.planId} onChange={(e) => setForm({ ...form, planId: e.target.value })}>
-                <option value="">{STRATEGY_TEXT.segmentNoPlan}</option>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            </FormFieldWide>
             <Field>
               <FieldLabel>{STRATEGY_TEXT.segmentIndustries}</FieldLabel>
               <Input
@@ -232,6 +219,19 @@ export function SegmentForm({
               </NativeSelect>
             </Field>
             </FormFields>
+            <Section title={T.marketInsight} icon="lightbulb" description={T.marketInsightHint}>
+              <FormFields>
+              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => (
+                <FormFieldWide key={key}>
+                  <Field>
+                    <FieldLabel>{T[key]}</FieldLabel>
+                    <Textarea rows={2} placeholder={T.insightPrompts[key]} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
+                    <FieldDescription>{T.insightHints[key]}</FieldDescription>
+                  </Field>
+                </FormFieldWide>
+              ))}
+              </FormFields>
+            </Section>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}
@@ -241,13 +241,16 @@ export function SegmentForm({
                       onSave({
                         segmentCode: form.segmentCode.trim(),
                         name: form.name.trim(),
-                        planId: form.planId === "" ? null : form.planId,
                         priority,
                         status: form.status,
                         criteria: {
                           industries: splitListField(form.industries),
                           regions: splitListField(form.regions),
                           sizes: splitListField(form.sizes),
+                          customerNeed: form.customerNeed,
+                          buyingScenario: form.buyingScenario,
+                          expectedOutcome: form.expectedOutcome,
+                          entryBarrier: form.entryBarrier,
                         },
                       }),
                     (c) => SEGMENT_ERROR[c] ?? SEGMENT_ERROR.denied,

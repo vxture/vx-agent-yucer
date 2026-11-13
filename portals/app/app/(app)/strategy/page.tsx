@@ -1,121 +1,25 @@
-import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
-import { resolveAppSession } from "../lib/session";
-import { getStrategyStore } from "../../domains/shared/registry";
-import { listCampaigns, listPlans } from "../../domains/strategy/service";
-import { can } from "../../authz/decide";
-import { PlanRoster, type PlanRow } from "../components/plan-roster";
-import { ModuleHeadline } from "../components/module-headline";
-import { movePlan } from "./actions";
+import { redirect } from "next/navigation";
+import { EmptyState } from "@vxture/design-ui";
+import { StrategyWorkspace, type StrategyTab } from "../components/strategy-workspace";
+import { strategyWorkspaceData } from "./workspace-data";
+import { lockedPage } from "../components/locked-page";
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
-import { Tag } from "../components/tag";
-import { lockedPage } from "../components/locked-page";
-
-// D1 strategy: the top of the chain. Everything downstream can trace back here,
-// which is what makes "how much of this quarter came from the segment we chose
-// to attack" a join rather than a manual tally.
-//
-// On the module pattern since 2026-09-05 - the last list to move. What changed
-// is the shape, not the reads: the headline card carries the running plans and
-// their campaign counts, the roster splits running from settled, and the check
-// that used to have nowhere to live now sits in @deck/strategy.
 
 export const dynamic = "force-dynamic";
-
-export default async function StrategyPage() {
-  const { SHELL_TEXT, STRATEGY_TEXT, LOAD_ERROR } = await getMessages();
-  const session = await resolveAppSession();
-  if (!session) return null;
-  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
-  const locked = lockedPage(session, "strategy");
+export default async function StrategyPage({ searchParams }: { readonly searchParams: Promise<{view?:string}> }) {
+  const bundle = await strategyWorkspaceData();
+  if (!bundle) return null;
+  const {view:requested} = await searchParams;
+  const {data,session} = bundle;
+  const view: StrategyTab = requested === "markets" ? "markets" : requested === "validation" ? "validation" : "overview";
+  if (!requested && !data.canPlan && data.canMarkets) redirect("/strategy?view=markets");
+  const locked = lockedPage(session, view === "markets" ? "segment" : "strategy");
   if (locked) return locked;
-  // Unreachable: (app)/layout.tsx already renders the shared SignIn
-  // screen and never mounts this page when there is no session. Kept
-  // only because TypeScript needs it to narrow `session` below.
-
-  const ctx = {
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: getStrategyStore(),
-  };
-  const result = await listPlans(ctx);
-
-  if (!result.ok) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.loadFailed}
-        description={loadFailureText(result.violations, LOAD_ERROR)}
-      />
-    );
+  const read = view === "markets" ? bundle.marketsRead : bundle.plansRead;
+  if (!read.ok) {
+    const {SHELL_TEXT,LOAD_ERROR} = await getMessages();
+    return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(read.violations,LOAD_ERROR)}/>;
   }
-
-  // The downstream count, in ONE query rather than one per plan. campaign.view
-  // is a separate permission from the one guarding plans, so a member who holds
-  // only the latter gets no counts and the column says nothing - "none" and
-  // "you cannot see" are different facts and the table keeps them apart.
-  //
-  // Campaigns with a null planId are counted separately and stated: a campaign
-  // that traces back to no strategy is the exception to this page's whole
-  // claim, and a page that asserts traceability owes the reader its own
-  // exceptions rather than quietly omitting them from a total.
-  const campaigns = await listCampaigns(ctx);
-  const campaignCounts = campaigns.ok
-    ? campaigns.value.reduce((m, c) => {
-        if (c.planId) m.set(c.planId, (m.get(c.planId) ?? 0) + 1);
-        return m;
-      }, new Map<string, number>())
-    : undefined;
-  const orphanCampaigns = campaigns.ok
-    ? campaigns.value.filter((c) => !c.planId).length
-    : 0;
-
-  const rows: PlanRow[] = result.value.map((p) => ({
-    id: p.id,
-    planNo: p.planNo,
-    name: p.name,
-    period: p.period,
-    ownerSub: p.ownerSub,
-    status: p.status,
-    campaignCount: campaignCounts?.get(p.id) ?? (campaignCounts ? 0 : undefined),
-  }));
-
-  const running = rows.filter((r) => r.status === "active");
-  const settled = rows.filter((r) => r.status === "closed" || r.status === "archived");
-
-  const canEdit = can(session.authz, session.entitlement, "strategy.plan.update", "ui").allowed;
-  const canApprove = can(session.authz, session.entitlement, "strategy.plan.approve", "ui")
-    .allowed;
-
-  return (
-    <ViewLayout>
-      <ModuleHeadline
-        moduleKey="strategy"
-        tags={
-          <>
-            <StatusBadge tone="success">
-              {STRATEGY_TEXT.tagPlanRunning(running.length)}
-            </StatusBadge>
-            {settled.length > 0 ? (
-              <Tag>
-                {STRATEGY_TEXT.tagPlanSettled(settled.length)}
-              </Tag>
-            ) : null}
-            {campaigns.ok && orphanCampaigns > 0 ? (
-              <StatusBadge tone="warning">
-                {STRATEGY_TEXT.tagPlanOrphan(orphanCampaigns)}
-              </StatusBadge>
-            ) : null}
-          </>
-        }
-      />
-      <PlanRoster
-        rows={rows}
-        canEdit={canEdit}
-        canApprove={canApprove}
-        onMove={movePlan}
-      />
-    </ViewLayout>
-  );
+  return <StrategyWorkspace key={view} data={data} view={view}/>;
 }

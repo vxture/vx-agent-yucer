@@ -103,6 +103,7 @@ export function CollapsibleSection({
     <Button
       variant="ghost"
       size="icon-md"
+          data-control-size="compact"
       aria-expanded={expanded}
       aria-label={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}
       title={expanded ? CHAIN_TEXT.collapse : CHAIN_TEXT.expand}

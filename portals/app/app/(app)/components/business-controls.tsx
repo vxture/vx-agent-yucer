@@ -13,7 +13,7 @@ import {
 import styles from "./business-controls.module.css";
 
 // TD-038: DS composite controls lack a shared size prop. Bind business rows
-// to the DS 32px tier; compact actions use the native Button md (24px).
+// to the DS 32px tier; explicit data-control-size="compact" selects 24px.
 export function FilterBar({
   className,
   ...props
