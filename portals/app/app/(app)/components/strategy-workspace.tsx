@@ -244,16 +244,16 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
         className="grid grid-cols-[auto_minmax(0,1fr)] [&>div:last-child]:col-start-2 [&>div:last-child]:justify-end @4xl:grid-cols-[auto_minmax(0,1fr)_auto] @4xl:[&>div:last-child]:col-start-3"
         secondary={<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>}
-        description={<span className="flex min-w-0 flex-col gap-md">
+        description={<span className="flex min-w-0 flex-col gap-sm">
           <span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground">
             <span>{T.period} <span className="text-foreground">{detail.period}</span></span>
             <span>{T.owner} <span className="text-foreground"><MemberName sub={detail.ownerSub} fallback={T.noOwner}/></span></span>
             <span>{detail.planNo}</span>
             {detail.approvedAt ? <span>{T.approvedAt} {new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
           </span>
-          <span className="flex min-w-0 flex-col gap-xs">
-            <span className="text-body-small text-muted-foreground">{T.direction}</span>
-            <span className="whitespace-pre-wrap break-words text-body text-foreground">{detail.objective || T.directionEmpty}</span>
+          <span className="flex min-w-0 items-baseline gap-sm" data-strategy-detail-direction>
+            <span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
+            <span className="min-w-0 whitespace-pre-wrap break-words text-body text-foreground">{detail.objective || T.directionEmpty}</span>
           </span>
         </span>}
         action={<div className="flex max-w-full flex-wrap items-center gap-sm">
