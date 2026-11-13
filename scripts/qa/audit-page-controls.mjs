@@ -24,7 +24,7 @@ let currentErrors = [];
 let status = null;
 ws.onmessage = (event) => {
   const m = JSON.parse(event.data);
-  if (m.id) { pending.get(m.id)?.(m); pending.delete(m.id); }
+  if (Number.isSafeInteger(m.id) && pending.has(m.id)) { const handler = pending.get(m.id); pending.delete(m.id); if (typeof handler === "function") handler(m); }
   else if (m.method === "Runtime.exceptionThrown") currentErrors.push(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text);
   else if (m.method === "Network.responseReceived" && m.params.type === "Document") status = m.params.response.status;
 };
