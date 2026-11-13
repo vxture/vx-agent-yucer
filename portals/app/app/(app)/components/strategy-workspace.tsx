@@ -90,7 +90,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       { key: "campaigns", icon: "megaphone", label: T.campaignCount, value: p.campaigns?.length },
     ] as const;
     return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard className="@container gap-md p-lg [&>footer]:mt-auto"
-      title={<span className="flex min-w-0 items-center gap-sm" data-strategy-card-heading>
+      title={<span className="flex min-w-0 items-start gap-sm" data-strategy-card-heading>
         <Icon name="lightbulb" size="xl" className="shrink-0 text-primary-text" aria-hidden="true"/>
         <span className="flex min-w-0 flex-1 flex-col gap-xs">
           <span className="flex min-h-control-md min-w-0 items-center gap-sm">
@@ -115,7 +115,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         <span className="size-icon-xl shrink-0" aria-hidden="true"/>
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-md gap-y-md border-t border-dashed border-border pt-md @sm:grid-cols-4" data-strategy-metrics>
           {metrics.map(({ key, icon, label, value }) => (
-            <div key={key} className="flex min-w-0 items-center gap-sm" data-strategy-metric>
+            <div key={key} className="flex min-w-0 items-start gap-sm" data-strategy-metric>
               <Icon name={icon} size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
               <LabeledValue label={<span title={label}>{label}</span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="min-w-0 flex-1 tabular-nums"/>
             </div>
