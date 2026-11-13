@@ -89,24 +89,35 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       { key: "solutions", icon: "stack", label: T.solutionCount, value: p.solutions?.length },
       { key: "campaigns", icon: "megaphone", label: T.campaignCount, value: p.campaigns?.length },
     ] as const;
-    return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard icon="lightbulb" className="@container [&>footer]:mt-auto"
-      title={<span className="flex min-h-control-md min-w-0 items-center gap-sm">
-        <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
-        <span className="shrink-0"><Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
+    return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard className="@container [&>footer]:mt-auto"
+      title={<span className="flex min-w-0 items-center gap-sm" data-strategy-card-heading>
+        <Icon name="lightbulb" size="xl" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
+        <span className="flex min-w-0 flex-1 flex-col gap-2xs">
+          <span className="flex min-h-control-md min-w-0 items-center gap-sm">
+            <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
+            <span className="shrink-0"><Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
+          </span>
+          <span className="truncate text-body-small font-normal text-muted-foreground" title={p.planNo}>{p.period} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>
+        </span>
       </span>}
-      description={<span title={p.planNo}>{p.period} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>}
       actions={<RowActions items={items(p)} disabled={pending}/>}
-      note={<div className="flex min-w-0 flex-col gap-xs">
-        <p className={`line-clamp-2 break-words @lg:line-clamp-1 ${p.objective ? "text-foreground" : ""}`} title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
-        {markets.length || solutions.length ? <div className="grid min-w-0 gap-x-lg gap-y-2xs @sm:grid-flow-col @sm:auto-cols-fr">
-          {linkedSummary(T.marketCount, markets, href)}
-          {linkedSummary(T.solutionCount, solutions, href)}
-        </div> : null}
+      note={<div className="flex min-w-0 gap-sm">
+        <span className="size-icon-xl shrink-0" aria-hidden="true"/>
+        <div className="flex min-w-0 flex-1 flex-col gap-xs" data-strategy-card-body>
+          <p className={`line-clamp-2 break-words @lg:line-clamp-1 ${p.objective ? "text-foreground" : ""}`} title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
+          {markets.length || solutions.length ? <div className="grid min-w-0 gap-x-lg gap-y-2xs @sm:grid-flow-col @sm:auto-cols-fr">
+            {linkedSummary(T.marketCount, markets, href)}
+            {linkedSummary(T.solutionCount, solutions, href)}
+          </div> : null}
+        </div>
       </div>}
-      footer={<div className="grid w-full min-w-0 grid-cols-2 gap-x-sm gap-y-xs border-t border-dashed border-border pt-sm @sm:grid-cols-4" data-strategy-metrics>
-        {metrics.map(({ key, icon, label, value }) => (
-          <LabeledValue key={key} label={<span className="inline-flex max-w-full items-center gap-xs" title={label}><Icon name={icon} size="sm" className="shrink-0" aria-hidden="true"/><span className="truncate">{label}</span></span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="tabular-nums"/>
-        ))}
+      footer={<div className="flex w-full min-w-0 gap-sm">
+        <span className="size-icon-xl shrink-0" aria-hidden="true"/>
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-sm gap-y-xs border-t border-dashed border-border pt-sm @sm:grid-cols-4" data-strategy-metrics>
+          {metrics.map(({ key, icon, label, value }) => (
+            <LabeledValue key={key} label={<span className="inline-flex max-w-full items-center gap-xs" title={label}><Icon name={icon} size="sm" className="shrink-0" aria-hidden="true"/><span className="truncate">{label}</span></span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="tabular-nums"/>
+          ))}
+        </div>
       </div>}/></div>;
   };
   const table=(rows:StrategyView[])=><DataTable leadingSpacer labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1}
