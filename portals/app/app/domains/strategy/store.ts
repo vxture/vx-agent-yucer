@@ -34,9 +34,13 @@ export interface PlanRecord {
   period: string;
   objective: string | null;
   ownerSub: string | null;
+  solutionIds: readonly string[];
   status: PlanStatus;
   approvedAt: Date | null;
 }
+
+/** A selected catalog row disappeared between validation and the write. */
+export class PlanSolutionUnavailableError extends Error {}
 
 /** What updateCampaign may move - exactly the columns 98_column_locks grants. */
 export interface CampaignPatch {
@@ -138,6 +142,7 @@ export interface StrategyStore {
       period?: string;
       objective?: string | null;
       ownerSub?: string | null;
+      solutionIds?: readonly string[];
     },
   ): Promise<boolean>;
 
@@ -262,6 +267,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     if (taken) return null;
     const created: PlanRecord = {
       ...input,
+      solutionIds: [...(input.solutionIds ?? [])],
       id: `plan_${++this.seq}`,
       workspaceId,
       status: "draft",
@@ -279,7 +285,8 @@ export class InMemoryStrategyStore implements StrategyStore {
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId) return false;
-    Object.assign(p, patch);
+    if (patch.name !== undefined && (p.status === "closed" || p.status === "archived")) return false;
+    Object.assign(p, patch, patch.solutionIds === undefined ? {} : { solutionIds: [...patch.solutionIds] });
     return true;
   }
 

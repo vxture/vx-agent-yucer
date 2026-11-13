@@ -6,7 +6,8 @@ import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
-import { getStrategyStore } from "../../../domains/shared/registry";
+import { getCatalogStore, getStrategyStore } from "../../../domains/shared/registry";
+import { listSolutionReferences } from "../../../domains/catalog/service";
 import { listPlans } from "../../../domains/strategy/service";
 import { NewPlanForm } from "../../components/plan-form";
 import { createStrategyPlan, savePlan } from "../actions";
@@ -59,6 +60,12 @@ export default async function NewPlanPage({
   if (!can(session.authz, session.entitlement, action, "ui").allowed) {
     redirect("/strategy");
   }
+  const solutions = can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
+    ? await listSolutionReferences({
+        workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
+        entitlement: session.entitlement, store: getCatalogStore(),
+      }).catch(() => null)
+    : null;
 
   return (
     <ViewLayout>
@@ -74,6 +81,7 @@ export default async function NewPlanPage({
         key={editable ? found.id : "new"}
         existingPlanNos={rows.map((p) => p.planNo)}
         existingPeriods={rows.map((p) => p.period)}
+        solutionOptions={solutions?.ok ? solutions.value : null}
         initial={
           editable
             ? {
@@ -83,6 +91,7 @@ export default async function NewPlanPage({
                 period: found.period,
                 objective: found.objective,
                 ownerSub: found.ownerSub,
+                solutionIds: solutions?.ok ? found.solutionIds : [],
               }
             : undefined
         }

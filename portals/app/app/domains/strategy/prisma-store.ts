@@ -13,6 +13,7 @@ import type {
   SegmentStatus,
 } from "./lib/lifecycle";
 import type { NewCampaignDraft } from "./lib/campaign";
+import { PlanSolutionUnavailableError } from "./store";
 import type {
   CampaignPatch,
   CampaignRecord,
@@ -55,6 +56,7 @@ export class PrismaStrategyStore implements StrategyStore {
         ...(filter.status ? { status: filter.status } : {}),
       },
       orderBy: [{ period: "desc" }, { createdAt: "desc" }],
+      include: { solutionLinks: { select: { solutionId: true } } },
     });
     return rows.map((r: Record<string, unknown>) => toPlan(r));
   }
@@ -70,25 +72,32 @@ export class PrismaStrategyStore implements StrategyStore {
     });
     if (taken) return null;
 
-    const row = await p.strategyPlan.create({
-      data: {
-        workspaceId,
-        planNo: input.planNo,
-        name: input.name,
-        period: input.period,
-        objective: input.objective,
-        ownerSub: input.ownerSub,
-        // Not from the caller. A plan starts as a draft and every move after
-        // that belongs to the transition verb, which is what stamps approved_at.
-        status: "draft",
-      },
-    });
-    return toPlan(row as Record<string, unknown>);
+    const row = await writePlanSolutions(() => p.$transaction(async (tx) => {
+      const created = await tx.strategyPlan.create({
+        data: {
+          workspaceId,
+          planNo: input.planNo,
+          name: input.name,
+          period: input.period,
+          objective: input.objective,
+          ownerSub: input.ownerSub,
+          // Lifecycle transitions own all moves after creation.
+          status: "draft",
+        },
+      });
+      const solutionLinks = (input.solutionIds ?? []).map(solutionId => ({ workspaceId, planId: created.id, solutionId }));
+      if (solutionLinks.length) await tx.strategyPlanSolution.createMany({ data: solutionLinks });
+      return { ...created, solutionLinks };
+    }));
+    return toPlan(row);
   }
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
     const p = await getPrismaClient();
-    const row = await p.strategyPlan.findFirst({ where: { id, workspaceId } });
+    const row = await p.strategyPlan.findFirst({
+      where: { id, workspaceId },
+      include: { solutionLinks: { select: { solutionId: true } } },
+    });
     return row ? toPlan(row as Record<string, unknown>) : null;
   }
 
@@ -102,10 +111,12 @@ export class PrismaStrategyStore implements StrategyStore {
       period?: string;
       objective?: string | null;
       ownerSub?: string | null;
+      solutionIds?: readonly string[];
     },
   ): Promise<boolean> {
     const p = await getPrismaClient();
-    const data: Record<string, unknown> = { ...patch, updatedAt: new Date() };
+    const { solutionIds, ...fields } = patch;
+    const data = { ...fields, updatedAt: new Date() };
 
     const guard = assertWritable(PLAN_TABLE, data);
     if (!guard.ok) {
@@ -114,8 +125,20 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const res = await p.strategyPlan.updateMany({ where: { id, workspaceId }, data });
-    return res.count > 0;
+    const where = { id, workspaceId, ...(fields.name === undefined ? {} : { status: { notIn: ["closed", "archived"] } }) };
+    if (solutionIds === undefined) {
+      return (await p.strategyPlan.updateMany({ where, data })).count > 0;
+    }
+    return writePlanSolutions(() => p.$transaction(async (tx) => {
+      // The parent update takes the row lock before changing the selection.
+      if (!(await tx.strategyPlan.updateMany({ where, data })).count) return false;
+      const scope = { workspaceId, planId: id };
+      await tx.strategyPlanSolution.deleteMany({ where: { ...scope, solutionId: { notIn: [...solutionIds] } } });
+      if (solutionIds.length) {
+        await tx.strategyPlanSolution.createMany({ data: solutionIds.map(solutionId => ({ ...scope, solutionId })), skipDuplicates: true });
+      }
+      return true;
+    }));
   }
 
   async listCampaigns(
@@ -395,6 +418,17 @@ export class PrismaStrategyStore implements StrategyStore {
   }
 }
 
+async function writePlanSolutions<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2003") {
+      throw new PlanSolutionUnavailableError("Selected solution is no longer available", { cause: error });
+    }
+    throw error;
+  }
+}
+
 function toPlan(r: Record<string, unknown>): PlanRecord {
   return {
     id: String(r.id),
@@ -404,6 +438,7 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     period: String(r.period),
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
+    solutionIds: (r.solutionLinks as { solutionId: string }[]).map(link => link.solutionId).sort(),
     status: r.status as PlanStatus,
     approvedAt: (r.approvedAt as Date | null) ?? null,
   };

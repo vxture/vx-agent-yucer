@@ -4,6 +4,7 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
+import { InMemoryCatalogStore } from "../catalog/store";
 import { InMemoryStrategyStore, type CampaignRecord, type ExecutionRecord, type PlanRecord } from "./store";
 import {
   campaignReturn,
@@ -34,6 +35,7 @@ function plan(over: Partial<PlanRecord> = {}): PlanRecord {
     period: "2026H2",
     objective: null,
     ownerSub: "usr_cro",
+    solutionIds: [],
     status: "draft",
     approvedAt: null,
     ...over,
@@ -480,6 +482,38 @@ const EDIT = {
   objective: "win back the mid-market",
   ownerSub: "usr_cro",
 };
+
+test("strategy saves only selectable solutions and preserves a retired reference until it is removed", async () => {
+  const catalog = new InMemoryCatalogStore();
+  const solution = { id: "sol-1", workspaceId: WS, solutionCode: "S1", name: "Retail", summary: null, scenario: null, status: "active" as const, sortOrder: 1 };
+  const other = { ...solution, id: "sol-other", workspaceId: "other" };
+  const retired = { ...solution, id: "sol-retired", status: "retired" as const };
+  catalog.seed({ solutions: [solution, other, retired] });
+  const c = { ...ctx("sales_leader", "business"), catalog };
+  for (const id of [other.id, retired.id]) {
+    const refused = await createPlan(c, { ...newPlan, solutionIds: [id] });
+    assert.equal(!refused.ok && refused.violations[0].code, "solution_not_selectable");
+  }
+  const p = unwrap(await createPlan(c, { ...newPlan, solutionIds: [solution.id, solution.id] }));
+  assert.deepEqual((await c.store.getPlan(WS, p.id))?.solutionIds, [solution.id]);
+  catalog.seed({ solutions: [{ ...solution, status: "retired" }] });
+  unwrap(await editPlan(c, p.id, EDIT));
+  unwrap(await editPlan(c, p.id, { ...EDIT, solutionIds: [solution.id] }));
+  assert.deepEqual((await c.store.getPlan(WS, p.id))?.solutionIds, [solution.id]);
+  unwrap(await editPlan(c, p.id, { ...EDIT, solutionIds: [] }));
+  assert.deepEqual((await c.store.getPlan(WS, p.id))?.solutionIds, []);
+});
+
+test("strategy edit permission cannot read or alter links without catalog permission", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ solutionIds: ["hidden"] })] });
+  const base = ctx("sales_leader", "business", store);
+  const c = { ...base, holder: { permissions: new Set([...base.holder.permissions].filter(p => p !== "catalog.read")) } };
+  unwrap(await editPlan(c, "plan_1", EDIT));
+  const refused = await editPlan(c, "plan_1", { ...EDIT, solutionIds: [] });
+  assert.equal(!refused.ok && refused.violations[0].code, "permission_denied");
+  assert.deepEqual((await base.store.getPlan(WS, "plan_1"))?.solutionIds, ["hidden"]);
+});
 
 test("editing changes the four columns the DDL grants", async () => {
   const store = new InMemoryStrategyStore();

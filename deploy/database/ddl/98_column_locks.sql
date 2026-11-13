@@ -101,6 +101,7 @@ END $$;
 REVOKE UPDATE ON yucer_core.account_relation FROM yucer_svc;
 
 -- --- yucer_gtm ---
+-- strategy_plan_solution is created and locked by incr/0107 (no UPDATE).
 REVOKE UPDATE ON yucer_gtm.strategy_plan FROM yucer_svc;
 GRANT UPDATE (name, period, objective, owner_sub, status, approved_at, updated_at)
   ON yucer_gtm.strategy_plan TO yucer_svc;

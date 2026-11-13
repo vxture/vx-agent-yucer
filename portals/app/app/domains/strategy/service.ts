@@ -11,6 +11,8 @@ import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import { planMove } from "../catalog/lib/lifecycle";
+import { listSolutionReferences } from "../catalog/service";
+import type { CatalogStore } from "../catalog/store";
 import { sumMoney, type Money } from "../shared/money";
 import {
   canCompleteCampaign,
@@ -42,6 +44,7 @@ import type {
   TerritoryAttainmentSnapshotInput,
 } from "./store";
 import type { MoveDirection } from "../shared/ordering";
+import { PlanSolutionUnavailableError } from "./store";
 
 export interface StrategyContext {
   workspaceId: string;
@@ -49,6 +52,43 @@ export interface StrategyContext {
   holder: PermissionHolder;
   entitlement: Entitlement;
   store: StrategyStore;
+  catalog?: Pick<CatalogStore, "listSolutions">;
+}
+
+async function validatePlanSolutions(
+  ctx: StrategyContext,
+  ids: readonly string[],
+  existing: readonly string[] = [],
+): Promise<RuleResult<readonly string[]>> {
+  if (!Array.isArray(ids) || ids.some(id => typeof id !== "string" || !id)) {
+    return fail(violation("solution_not_selectable", "invalid solution selection", "solutionIds"));
+  }
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const selected = [...new Set(ids)];
+  const added = selected.filter(id => !existing.includes(id));
+  if (!added.length) return ok(selected);
+  if (ctx.catalog) {
+    try {
+      const refs = await listSolutionReferences({ ...ctx, store: ctx.catalog });
+      if (!refs.ok) return refs;
+      const available = new Set(refs.value.filter(s => s.status === "active").map(s => s.id));
+      if (added.every(id => available.has(id))) return ok(selected);
+      return fail(violation("solution_not_selectable", "solution unavailable for selection", "solutionIds"));
+    } catch {
+      // Preserve the draft when the source cannot be read.
+    }
+  }
+  return fail(violation("solution_catalog_unavailable", "solution catalogue unavailable", "solutionIds", true));
+}
+
+async function persistPlanSelection<T>(write: () => Promise<T>): Promise<RuleResult<T>> {
+  try {
+    return ok(await write());
+  } catch (error) {
+    if (!(error instanceof PlanSolutionUnavailableError)) throw error;
+    return fail(violation("solution_not_selectable", "solution unavailable for selection", "solutionIds"));
+  }
 }
 
 export async function listPlans(
@@ -87,7 +127,11 @@ export async function createPlan(
   const plan = planNewPlan(input);
   if (!plan.ok) return plan as RuleResult<PlanRecord>;
 
-  const created = await ctx.store.createPlan(ctx.workspaceId, plan.value);
+  const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds);
+  if (!selection.ok) return selection;
+  const persisted = await persistPlanSelection(() => ctx.store.createPlan(ctx.workspaceId, { ...plan.value, solutionIds: selection.value }));
+  if (!persisted.ok) return persisted;
+  const created = persisted.value;
   if (!created) {
     // The unique index would refuse it anyway; saying so here names the reason
     // and the field instead of surfacing a constraint name.
@@ -123,9 +167,19 @@ export async function editPlan(
   const edit = planPlanEdit(input);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
-  const applied = await ctx.store.updatePlan(ctx.workspaceId, id, edit.value);
-  if (!applied) return fail(violation("not_found", `plan ${id} was not found`, "id"));
-  return ok({ ...plan, ...edit.value });
+  const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds, plan.solutionIds);
+  if (!selection.ok) return selection;
+  const patch = selection.value === undefined ? edit.value : { ...edit.value, solutionIds: selection.value };
+  const applied = await persistPlanSelection(() => ctx.store.updatePlan(ctx.workspaceId, id, patch));
+  if (!applied.ok) return applied;
+  if (!applied.value) {
+    const latest = await ctx.store.getPlan(ctx.workspaceId, id);
+    if (latest?.status === "closed" || latest?.status === "archived") {
+      return fail(violation("plan_settled", `plan ${latest.planNo} is ${latest.status}`, "status"));
+    }
+    return fail(violation("not_found", `plan ${id} was not found`, "id"));
+  }
+  return ok({ ...plan, ...patch });
 }
 
 export async function transitionPlan(

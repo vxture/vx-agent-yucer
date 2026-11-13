@@ -119,6 +119,37 @@ test("createPlan always starts a plan in draft, whatever the caller had in mind"
   }
 });
 
+test("solution links are atomic, workspace-bound, and protect the referenced catalog row", { skip }, async () => {
+  const { PrismaCatalogStore } = await import("../catalog/prisma-store");
+  const { SolutionInUseError } = await import("../catalog/store");
+  const { PlanSolutionUnavailableError } = await import("./store");
+  const local = "eeeeeeee-0000-0000-0000-00000000ab09";
+  const foreign = "eeeeeeee-0000-0000-0000-00000000ab10";
+  const otherWs = "eeeeeeee-0000-0000-0000-000000000009";
+  const catalog = new PrismaCatalogStore();
+  await cleanup();
+  try {
+    await withPg(c => c.query(`INSERT INTO yucer_catalog.solution (id, workspace_id, solution_code, name)
+      VALUES ($1, $2, 'SOL-1', 'Retail'), ($3, $4, 'SOL-1', 'Other')`, [local, WS, foreign, otherWs]));
+    const s = await store();
+    await assert.rejects(s.createPlan(WS, plan({ solutionIds: [foreign] })), PlanSolutionUnavailableError);
+    assert.equal((await s.listPlans(WS)).length, 0, "no partial plan after a rejected link");
+    const created = await s.createPlan(WS, plan({ solutionIds: [local] }));
+    assert.ok(created);
+    assert.deepEqual((await s.getPlan(WS, created.id))?.solutionIds, [local]);
+    await assert.rejects(s.updatePlan(WS, created.id, { name: "Rejected", solutionIds: [foreign] }), PlanSolutionUnavailableError);
+    assert.equal((await s.getPlan(WS, created.id))?.name, created.name);
+    assert.deepEqual((await s.getPlan(WS, created.id))?.solutionIds, [local]);
+    await assert.rejects(catalog.removeSolution(WS, local), SolutionInUseError);
+    assert.equal(await s.updatePlan(WS, created.id, { name: "Unlinked", solutionIds: [] }), true);
+    assert.deepEqual((await s.getPlan(WS, created.id))?.solutionIds, []);
+    assert.equal(await catalog.removeSolution(WS, local), true);
+  } finally {
+    await cleanup();
+    await withPg(c => c.query(`DELETE FROM yucer_catalog.solution WHERE id IN ($1, $2)`, [local, foreign]));
+  }
+});
+
 test("a second plan on a taken plan_no returns null rather than raising", { skip }, async () => {
   // findFirst-before-create, and the real uidx behind it. The service turns
   // this null into "that number is taken"; a caught error would have to guess

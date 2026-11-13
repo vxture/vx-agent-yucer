@@ -59,6 +59,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     ? T.unknown : p.marketIds.length ? data.markets?.filter(m=>p.marketIds!.includes(m.id)).map(m=>
       <Button key={m.id} asChild size="md" variant="secondary"><Link href={`/strategy?view=markets&market=${encodeURIComponent(m.id)}`}>{m.name}</Link></Button>
     ) : T.noPlanMarkets;
+  const solutionLinks=(p:StrategyView)=>p.solutions === null ? T.unknown : p.solutions.length ? p.solutions.map(s => (
+    <Button key={s.id} asChild size="md" variant="secondary" className="max-w-full">
+      <Link href={`/solution?solution=${encodeURIComponent(s.id)}`} title={`${s.name} · ${s.solutionCode}`}>
+        <span className="truncate">{s.name}</span>{s.status === "retired" ? <span className="shrink-0 text-muted-foreground">{T.retiredSolution}</span> : null}
+      </Link>
+    </Button>
+  )) : T.noPlanSolutions;
   const card=(p:StrategyView)=><Card key={p.id} data-strategy-card>
     <CardHeader>
       <div className="flex min-w-0 items-start justify-between gap-lg">
@@ -82,8 +89,11 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             <span className="text-body-small text-muted-foreground">{T.direction}</span>
             <p className="line-clamp-2 text-body" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
-            <span>{T.currentMarkets}</span>{marketLinks(p)}
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-md gap-y-sm text-body-small text-muted-foreground">
+            <span className="flex min-h-control-md items-center">{T.currentMarkets}</span>
+            <div className="flex min-h-control-md min-w-0 flex-wrap items-center gap-sm">{marketLinks(p)}</div>
+            <span className="flex min-h-control-md items-center">{T.primarySolutions}</span>
+            <div className="flex min-h-control-md min-w-0 flex-wrap items-center gap-sm">{solutionLinks(p)}</div>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-lg" data-strategy-metrics>
@@ -146,7 +156,12 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     </div>;
   };
   const detailContent=detail?<>
-    <Section title={T.direction} icon="flag"><p className="whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p></Section>
+    <Section title={T.direction} icon="flag">
+      <p className="whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p>
+      <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
+        <span>{T.primarySolutions}</span>{solutionLinks(detail)}
+      </div>
+    </Section>
     {!data.canMarkets || data.markets===null?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:<Section title={T.currentMarkets} icon="target"><MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} planId={detail.id}/></Section>}
     <Section title={T.handoff} icon="workflow" description={T.handoffWhy}>
       <DetailList columns={1}><DetailRow label={T.planning} actions={<Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>}>{T.planningHint}</DetailRow>

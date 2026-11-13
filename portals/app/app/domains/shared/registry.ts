@@ -96,7 +96,9 @@ export function getCatalogStore(): CatalogStore {
   // was the last domain whose writes had never been checked against the column
   // locks.
   if (!memo.catalog) {
-    memo.catalog = prismaEnabled() ? new PrismaCatalogStore() : new InMemoryCatalogStore();
+    memo.catalog = prismaEnabled() ? new PrismaCatalogStore() : new InMemoryCatalogStore(async (workspaceId, solutionId) =>
+      (await getStrategyStore().listPlans(workspaceId)).some(plan => plan.solutionIds.includes(solutionId)),
+    );
   }
   return memo.catalog as CatalogStore;
 }

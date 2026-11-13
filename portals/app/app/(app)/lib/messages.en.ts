@@ -1587,6 +1587,7 @@ export const en: Dictionary = {
   },
 
   CATALOG_ERROR: {
+    solution_in_use: "This solution is linked to a market strategy. Retire it or unlink it before deleting.",
     ...GATE_ERROR,
     code_required: "A code is required",
     name_required: "A name is required",
@@ -1841,7 +1842,7 @@ export const en: Dictionary = {
     solutionRetire: "Retire",
     solutionReinstate: "Reinstate",
     solutionDeleteConsequence:
-      "Deletion is permanent and takes the combination with it. Deals quoted from it are unaffected - quote lines reference products.",
+      "Deletion permanently removes the combination. Retire it if a strategy still references it. Existing quotes are unaffected.",
     newSolutionEntry: "New solution",
     editSolution: "Edit solution",
     colOptional: "Standard / optional",
@@ -3044,6 +3045,8 @@ export const en: Dictionary = {
   },
 
   PLAN_ERROR: {
+    solution_not_selectable: "A selected solution is retired or unavailable. Refresh and select again.",
+    solution_catalog_unavailable: "The solution catalogue is unavailable. Try again later.",
     ...GATE_ERROR,
     plan_no_required: "A plan needs a number",
     name_required: "A plan needs a name",
@@ -5677,7 +5680,7 @@ export const en: Dictionary = {
     },
     newPlanTitle: "New plan",
     newPlanWhy:
-      "A plan is where the chain starts - targets and campaigns hang off one. Until now a plan could be moved through its lifecycle and not created.",
+      "Set the strategic direction and period. You can select priority solutions from the catalogue.",
     newPlanNo: "Plan number",
     newPlanName: "Name",
     newPlanPeriod: "Period",
@@ -5718,7 +5721,7 @@ export const en: Dictionary = {
     planNoFixed: "The number is this plan's identity and cannot be changed after it is created.",
     editPlanTitle: "Edit plan",
     editPlanWhy:
-      "The name, period, owner and objective can change. The number is the anchor downstream records quote, and the status belongs to the lifecycle.",
+      "Update the strategic direction, period, owner and priority solutions. The plan number stays the same.",
 
     planAdviceTitle: "Plan check",
     planAdviceClear: "Nothing on these plans needs attention.",
@@ -7410,6 +7413,15 @@ export const en: Dictionary = {
     unknown: "The draft did not complete - try again later",
   },
   MARKET_STRATEGY_TEXT: {
+    primarySolutions: "Priority solutions",
+    primarySolutionsHint: "Optional. Select one or more solutions and save them with the strategy.",
+    addSolution: "Add a solution",
+    noSelectableSolutions: "No more solutions to add",
+    searchSolutions: "Search by solution name or code",
+    removeSolution: "Unlink solution",
+    retiredSolution: "Retired",
+    noPlanSolutions: "None linked",
+    solutionOptionsUnavailable: "The solution catalogue is unavailable. Existing links will be kept.",
   planning: "Sales planning",
   basis: "Method and exceptions",
   resultNotes: "View method and items to reconcile",

@@ -201,13 +201,9 @@ export function canCompleteCampaign(
 
 // --- Bringing a plan into existence (TD-016) ---------------------------------
 
-export interface NewPlanDraft {
+export interface NewPlanDraft extends PlanEdit {
   /** Unique per workspace and NOT writable - the anchor, like a territory code. */
   planNo: string;
-  name: string;
-  period: string;
-  objective: string | null;
-  ownerSub: string | null;
 }
 
 /**
@@ -282,6 +278,7 @@ export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
     period,
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
+    ...(input.solutionIds === undefined ? {} : { solutionIds: input.solutionIds }),
   });
 }
 
@@ -290,6 +287,8 @@ export interface PlanEdit {
   period: string;
   objective: string | null;
   ownerSub: string | null;
+  /** Omitted leaves links alone; an empty list clears them. */
+  solutionIds?: readonly string[];
 }
 
 // --- Writing an execution (TD-016) -------------------------------------------

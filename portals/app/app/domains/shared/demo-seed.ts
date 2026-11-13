@@ -292,6 +292,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         ownerSub: CRO,
         status: "active",
         approvedAt: daysAgo(60),
+        solutionIds: ["sol_demo_1"],
       },
       {
         id: "plan_demo_2",
@@ -303,6 +304,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         ownerSub: CRO,
         status: "closed",
         approvedAt: daysAgo(240),
+        solutionIds: [],
       },
     ],
     campaigns: [

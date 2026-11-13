@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 import {
   Button,
+  Combobox,
   Field,
   FieldDescription,
   FieldLabel,
+  Icon,
   Input,
   Section,
   StatusBadge,
@@ -19,6 +21,8 @@ import {
   type AssistSuggestion,
 } from "./form-page";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
+import type { SolutionReference } from "../../domains/catalog/service";
+import type { NewPlanDraft, PlanEdit } from "../../domains/strategy/lib/lifecycle";
 
 // 新建 / 修改战略计划 - a page since 2026-09-05 (owner ruling: content-rich
 // operations get a page, with the assistant beside the work).
@@ -48,12 +52,14 @@ export interface PlanFormInitial {
   readonly period: string;
   readonly objective: string | null;
   readonly ownerSub: string | null;
+  readonly solutionIds: readonly string[];
 }
 
 export function NewPlanForm({
   existingPlanNos,
   existingPeriods,
   initial,
+  solutionOptions,
   onCreate,
   onSave,
 }: {
@@ -61,29 +67,21 @@ export function NewPlanForm({
   readonly existingPeriods: readonly string[];
   /** Present edits that plan; absent creates one. */
   readonly initial?: PlanFormInitial;
-  readonly onCreate: (input: {
-    planNo: string;
-    name: string;
-    period: string;
-    objective: string | null;
-    ownerSub: string | null;
-  }) => Promise<Saved>;
-  readonly onSave: (
-    id: string,
-    input: {
-      name: string;
-      period: string;
-      objective: string | null;
-      ownerSub: string | null;
-    },
-  ) => Promise<Saved>;
+  readonly solutionOptions: readonly SolutionReference[] | null;
+  readonly onCreate: (input: NewPlanDraft) => Promise<Saved>;
+  readonly onSave: (id: string, input: PlanEdit) => Promise<Saved>;
 }) {
-  const { STRATEGY_TEXT, PLAN_ERROR, ASSIST_TEXT } = useMessages();
+  const { STRATEGY_TEXT, PLAN_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
   const [planNo, setPlanNo] = useState(initial?.planNo ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [period, setPeriod] = useState(initial?.period ?? "");
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
+  const [solutionIds, setSolutionIds] = useState<readonly string[]>(initial?.solutionIds ?? []);
+  const selectedSolutions = solutionOptions?.filter(s => solutionIds.includes(s.id)) ?? [];
+  const availableSolutions = solutionOptions?.filter(s => s.status === "active" && !solutionIds.includes(s.id)) ?? [];
+  const solutionSelectionChanged = solutionIds.length !== (initial?.solutionIds.length ?? 0)
+    || solutionIds.some(id => !initial?.solutionIds.includes(id));
   const submit = useFormSubmit("/strategy");
 
   const nextNo = useMemo(() => suggestNextCode(existingPlanNos), [existingPlanNos]);
@@ -148,6 +146,32 @@ export function NewPlanForm({
               <FieldLabel>{STRATEGY_TEXT.newPlanObjective}</FieldLabel>
               <Input value={objective} onChange={(e) => setObjective(e.target.value)} />
             </Field>
+            <Field>
+              <FieldLabel>{T.primarySolutions}</FieldLabel>
+              {solutionOptions === null ? (
+                <FieldDescription>{T.solutionOptionsUnavailable}</FieldDescription>
+              ) : <>
+                <Combobox
+                  items={availableSolutions.map(s => ({ value: s.id, label: `${s.name} · ${s.solutionCode}` }))}
+                  onValueChange={id => setSolutionIds(ids => ids.includes(id) ? ids : [...ids, id])}
+                  placeholder={availableSolutions.length ? T.addSolution : T.noSelectableSolutions}
+                  searchPlaceholder={T.searchSolutions}
+                  emptyText={T.noMatches}
+                  disabled={submit.pending || availableSolutions.length === 0}
+                  className="w-full text-body-small"
+                />
+                {selectedSolutions.length ? <ul className="flex flex-wrap gap-sm" aria-label={T.primarySolutions}>
+                  {selectedSolutions.map(s => <li key={s.id} className="flex max-w-full items-center gap-xs rounded-md bg-accent pl-sm text-body-small">
+                    <span className="min-w-0 break-words">{s.name}{s.status === "retired" ? ` · ${T.retiredSolution}` : ""}</span>
+                    <Button type="button" size="icon-md" variant="ghost" aria-label={`${T.removeSolution}: ${s.name}`}
+                      disabled={submit.pending} onClick={() => setSolutionIds(ids => ids.filter(id => id !== s.id))}>
+                      <Icon name="x" size="sm" aria-hidden="true" />
+                    </Button>
+                  </li>)}
+                </ul> : null}
+                <FieldDescription>{T.primarySolutionsHint}</FieldDescription>
+              </>}
+            </Field>
             </FormFields>
             {/* The number is the anchor: workspace-unique, no UPDATE grant, so
                 it cannot be corrected later. Said before the first attempt. */}
@@ -156,6 +180,7 @@ export function NewPlanForm({
             )}
             <div className="flex items-center gap-md">
               <Button
+                size="xl"
                 disabled={submit.pending || !ready}
                 onClick={() =>
                   submit.run(() => {
@@ -164,6 +189,7 @@ export function NewPlanForm({
                       period: period.trim(),
                       objective: objective.trim() === "" ? null : objective.trim(),
                       ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
+                      ...(solutionOptions !== null && solutionSelectionChanged ? { solutionIds } : {}),
                     };
                     return initial
                       ? onSave(initial.id, fields)

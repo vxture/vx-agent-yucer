@@ -1104,7 +1104,7 @@ export const CATALOG_TEXT = {
   solutionRetire: "停用",
   solutionReinstate: "启用",
   solutionDeleteConsequence:
-    "删除不可恢复，组合与定制一并删除。已按此方案报过的商机不受影响——报价行引用的是产品。",
+    "删除不可恢复，组合与定制一并删除。有战略引用时无法删除，可改为停用。已生成的报价不受影响。",
   newSolutionEntry: "新建方案",
   editSolution: "修改方案",
   colOptional: "标配/可选",
@@ -1850,6 +1850,7 @@ export const CUSTOMER_NATURE_TEXT = {
 };
 
 export const CATALOG_ERROR: Record<string, string> = {
+  solution_in_use: "\u6b64\u65b9\u6848\u4ecd\u88ab\u5e02\u573a\u6218\u7565\u5f15\u7528\u3002\u53ef\u505c\u7528\uff0c\u6216\u5148\u89e3\u9664\u5173\u8054\u518d\u5220\u9664\u3002",
   ...GATE_ERROR,
   code_required: "需要填写编码",
   name_required: "需要填写名称",
@@ -6250,7 +6251,7 @@ export const STRATEGY_TEXT = {
   },
   newPlanTitle: "新建战略计划",
   newPlanWhy:
-    "计划是全链路的起点——目标和战役都挂在它下面。此前只能推进计划的状态，不能新建一个。",
+    "明确战略方向和周期，可从目录选择主推解决方案。",
   newPlanNo: "计划编号",
   newPlanName: "名称",
   newPlanPeriod: "周期",
@@ -6289,7 +6290,7 @@ export const STRATEGY_TEXT = {
   planNoFixed: "编号是这个计划的身份，创建后不可修改。",
   editPlanTitle: "修改战略计划",
   editPlanWhy:
-    "可以改的是名称、周期、负责人和目标陈述。编号是下游引用的锚点，状态由生命周期负责。",
+    "调整战略方向、周期、负责人和主推解决方案。计划编号保留。",
 
   // --- 计划检查 (the dock) ---------------------------------------------------
   planAdviceTitle: "计划检查",
@@ -6955,6 +6956,8 @@ export const CAMPAIGN_FORM_ERROR: Record<string, string> = {
 };
 
 export const PLAN_ERROR: Record<string, string> = {
+  solution_not_selectable: "\u6240\u9009\u65b9\u6848\u5df2\u505c\u7528\u6216\u4e0d\u53ef\u7528\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u65b0\u9009\u62e9\u3002",
+  solution_catalog_unavailable: "\u6682\u65f6\u65e0\u6cd5\u8bfb\u53d6\u65b9\u6848\u76ee\u5f55\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002",
   ...GATE_ERROR,
   plan_no_required: "计划需要一个编号",
   name_required: "计划需要一个名称",
@@ -8848,6 +8851,15 @@ export const ATTAINMENT_PLAN_TEXT = {
 } as const;
 
 export const MARKET_STRATEGY_TEXT = {
+  primarySolutions: "\u4e3b\u63a8\u89e3\u51b3\u65b9\u6848",
+  primarySolutionsHint: "\u9009\u586b\u3002\u53ef\u5173\u8054\u591a\u4e2a\u65b9\u6848\uff0c\u968f\u6218\u7565\u4e00\u8d77\u4fdd\u5b58\u3002",
+  addSolution: "\u6dfb\u52a0\u89e3\u51b3\u65b9\u6848",
+  noSelectableSolutions: "\u6682\u65e0\u53ef\u6dfb\u52a0\u7684\u65b9\u6848",
+  searchSolutions: "\u641c\u7d22\u65b9\u6848\u540d\u79f0\u6216\u7f16\u7801",
+  removeSolution: "\u79fb\u9664\u5173\u8054",
+  retiredSolution: "\u5df2\u505c\u7528",
+  noPlanSolutions: "\u5c1a\u672a\u5173\u8054",
+  solutionOptionsUnavailable: "\u6682\u65e0\u6cd5\u8bfb\u53d6\u65b9\u6848\u76ee\u5f55\uff0c\u5df2\u6709\u65b9\u6848\u5173\u8054\u4f1a\u4fdd\u7559\u3002",
   planning: "\u9500\u552e\u89c4\u5212",
   basis: "\u7edf\u8ba1\u53e3\u5f84\u4e0e\u5f02\u5e38",
   resultNotes: "\u67e5\u770b\u7edf\u8ba1\u8bf4\u660e\u4e0e\u5f85\u6838\u5bf9\u9879",

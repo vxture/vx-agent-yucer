@@ -1,6 +1,7 @@
 import type { PlanRecord, SegmentRecord, CampaignRecord } from "../../domains/strategy/store";
 import type { SegmentCriteria } from "../../domains/strategy/lib/lifecycle";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
+import type { SolutionReference } from "../../domains/catalog/service";
 
 export type MarketMatch = "match" | "miss" | "missing" | "undefined";
 export interface MarketAccount {
@@ -25,10 +26,11 @@ export interface StrategyResult {
   currency: string; open: number; won: number;
   openCount: number; wonCount: number; lostCount: number; unpriced: number;
 }
-export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt"> {
+export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt" | "solutionIds"> {
   approvedAt: string | null;
   marketIds: string[] | null; customerCount: number | null;
   campaigns: Pick<CampaignRecord, "id" | "name" | "campaignNo" | "status">[] | null;
+  solutions: SolutionReference[] | null;
   results: StrategyResult[] | null; conflicts: number | null; attributionIncomplete: boolean;
 }
 /** Explicit plan or campaign references only. A conflicting chain credits neither. */
@@ -72,12 +74,14 @@ export function marketViews(segments: readonly SegmentRecord[], plans: readonly 
       assigned: customers?.filter(a => a.assigned).length ?? null };
   });
 }
-export function strategyViews(plans: readonly PlanRecord[], markets: readonly MarketView[] | null, campaigns: readonly CampaignRecord[] | null, deals: readonly OpportunityRecord[] | null): StrategyView[] {
-  return plans.map(({ workspaceId: _workspace, approvedAt, ...p }) => {
+export function strategyViews(plans: readonly PlanRecord[], markets: readonly MarketView[] | null, campaigns: readonly CampaignRecord[] | null, deals: readonly OpportunityRecord[] | null, solutions: readonly SolutionReference[] | null = null): StrategyView[] {
+  return plans.map(({ workspaceId: _workspace, approvedAt, solutionIds, ...p }) => {
     const selected = markets?.filter(m => m.planId === p.id) ?? null;
+    const linkedSolutions = solutions?.filter(s => solutionIds.includes(s.id));
     const knownCustomers = selected !== null && selected.every(m => m.customers !== null);
     const credited = deals ? strategyResults(p.id, deals, campaigns) : null;
     return { ...p, approvedAt: approvedAt?.toISOString() ?? null,
+      solutions: linkedSolutions?.length === solutionIds.length ? linkedSolutions : null,
       marketIds: selected?.map(m => m.id) ?? null,
       customerCount: knownCustomers ? new Set(selected!.flatMap(m => m.customers!.filter(a => a.match === "match").map(a => a.id))).size : null,
       campaigns: campaigns?.filter(c => c.planId === p.id).map(({id,name,campaignNo,status}) => ({id,name,campaignNo,status})) ?? null,

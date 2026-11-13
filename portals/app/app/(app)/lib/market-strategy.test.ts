@@ -13,7 +13,16 @@ test("customer matching separates missing data from a known mismatch and an unde
   assert.equal(marketMatch({...account,industry:"retail"},{...criteria,regions:["east"]}),"miss");
   assert.equal(marketMatch(account,{industries:[],regions:[]}),"undefined");
 });
-const plan:PlanRecord={id:"p",workspaceId:"w",name:"P",planNo:"P1",period:"2026H2",objective:null,ownerSub:null,status:"active",approvedAt:null};
+const plan:PlanRecord={id:"p",workspaceId:"w",name:"P",planNo:"P1",period:"2026H2",objective:null,ownerSub:null,solutionIds:[],status:"active",approvedAt:null};
+test("strategy shows only linked catalog references and does not expose hidden ids", () => {
+  const selected = { ...plan, solutionIds: ["sol"] };
+  const ref = { id: "sol", solutionCode: "S1", name: "Retail", status: "retired" as const };
+  const visible = strategyViews([selected], [], [], [], [ref, { ...ref, id: "other" }])[0];
+  assert.deepEqual(visible.solutions, [ref]);
+  const hidden = strategyViews([selected], [], [], [], null)[0];
+  assert.equal(hidden.solutions, null);
+  assert.equal("solutionIds" in hidden, false);
+});
 const segment:SegmentRecord={id:"m",workspaceId:"w",name:"M",segmentCode:"M1",planId:"p",priority:0,status:"active",criteria};
 test("overlapping market customers are deduplicated in strategy coverage; unavailable reads stay null",()=>{
   const markets=marketViews([segment,{...segment,id:"m2"}],[plan],[account]);

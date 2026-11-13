@@ -99,6 +99,7 @@ export async function saveSolution(input: {
   // belongs to the dictionary.
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/solution");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 
@@ -111,6 +112,7 @@ export async function changeSolutionStatus(
   const r = await setSolutionStatus(ctx, { solutionId, status });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/solution");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getStrategyStore } from "../../domains/shared/registry";
+import { getCatalogStore, getStrategyStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import {
   createPlan,
@@ -18,6 +18,8 @@ import {
   SEGMENT_STATUSES,
   type PlanStatus,
   type SegmentStatus,
+  type NewPlanDraft,
+  type PlanEdit,
 } from "../../domains/strategy/lib/lifecycle";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
@@ -68,13 +70,7 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
  * The neighbour of `movePlan` above, which shipped first and could only ever
  * move plans that db-init had put there (TD-016).
  */
-export async function createStrategyPlan(input: {
-  planNo: string;
-  name: string;
-  period: string;
-  objective: string | null;
-  ownerSub: string | null;
-}): Promise<{ ok: boolean; error?: string }> {
+export async function createStrategyPlan(input: NewPlanDraft): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -85,6 +81,7 @@ export async function createStrategyPlan(input: {
       holder: session.authz,
       entitlement: session.entitlement,
       store: getStrategyStore(),
+      catalog: getCatalogStore(),
     },
     input,
   );
@@ -108,13 +105,8 @@ export async function createStrategyPlan(input: {
  */
 export async function savePlan(
   id: string,
-  input: {
-    name: string;
-    period: string;
-    objective: string | null;
-    ownerSub: string | null;
-  },
-): Promise<{ ok: boolean; error?: string }> {
+  input: PlanEdit,
+): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -125,6 +117,7 @@ export async function savePlan(
       holder: session.authz,
       entitlement: session.entitlement,
       store: getStrategyStore(),
+      catalog: getCatalogStore(),
     },
     id,
     input,
