@@ -1,3 +1,4 @@
+import { MemberName } from "../lib/member-names";
 import { getMessages } from "../lib/i18n/server";
 import { stageLabelFor } from "../lib/view-model";
 import type { StageDefinition } from "../../domains/pipeline/lib/stage";
@@ -49,7 +50,7 @@ export async function ChangeHistory({
         value(c.field, c.toValue),
       ),
       reason: c.reason,
-      by: DEAL_PAGE_TEXT.historyBy(who(c.actorSub), DEAL_PAGE_TEXT.claimSource[c.source] ?? c.source),
+      by: <span className="inline-flex items-center gap-xs"><MemberName sub={c.actorSub} name={c.actorSub ? actorNames[c.actorSub] : null} fallback={DEAL_PAGE_TEXT.historySystem}/><span>{DEAL_PAGE_TEXT.claimSource[c.source] ?? c.source}</span></span>,
       stage: false,
       exit: null as StageMove["exitCheck"],
     })),
@@ -58,7 +59,7 @@ export async function ChangeHistory({
       at: e.occurredAt,
       text: DEAL_PAGE_TEXT.stageChange(e.fromStage ? stageName(e.fromStage) : null, stageName(e.toStage)),
       reason: e.reason,
-      by: who(e.actorSub),
+      by: <MemberName sub={e.actorSub} name={e.actorSub ? actorNames[e.actorSub] : null} fallback={DEAL_PAGE_TEXT.historySystem}/>,
       stage: true,
       exit: e.exitCheck ?? null,
     })),

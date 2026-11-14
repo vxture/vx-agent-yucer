@@ -117,7 +117,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // tenant may change. The kind vocabulary locks its code like every other.
   "yucer_gtm.org_unit_kind": ["name", "sort_order", "updated_at"],
   "yucer_gtm.org_unit": ["name", "kind_id", "parent_id", "leader_sub", "sort_order", "updated_at"],
+  // incr/0109 created_by_sub is insert-only; never add it to this whitelist.
   "yucer_gtm.strategy_plan": [
+    "change_reason",
     "name",
     "period",
     "objective",
@@ -440,6 +442,7 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // incr/0052. The two joints of a territory - which units work it, which 大区
   // it covers - are pairs: a change is a delete and an insert.
   "yucer_gtm.territory_unit",
+  "yucer_gtm.market_segment_solution",
   "yucer_gtm.strategy_plan_solution",
   "yucer_gtm.strategy_plan_market",
   "yucer_gtm.strategy_plan_market_solution",
@@ -456,6 +459,7 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",
   "yucer_gtm.sales_plan_event",
+  "yucer_gtm.strategy_plan_event",
   "yucer_gtm.sales_plan_legacy_target",
   "yucer_pipeline.forecast_target_basis",
   "yucer_agent.agent_message",

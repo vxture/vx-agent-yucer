@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { DataTable, FilterBar } from "./business-controls";
 
@@ -158,7 +159,7 @@ export function AuditRoster({ rows }: { readonly rows: readonly AuditRow[] }) {
               header: AUDIT_TEXT.colActor,
               sortable: true,
               cell: (r: AuditRow) => (
-                <TableTitleCell title={r.actorName} description={r.actorIdLine ?? undefined} tooltip={r.actorName} />
+                <TableTitleCell title={<MemberName sub={r.actorSub} name={r.actorName}/>} description={r.actorIdLine ?? undefined} tooltip={r.actorName} />
               ),
             },
             {

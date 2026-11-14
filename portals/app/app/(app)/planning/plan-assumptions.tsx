@@ -1,4 +1,6 @@
 "use client";
+import { TitleHelp } from "../components/title-help";
+import { Section } from "../components/help-section";
 import {
   Field,
   FieldDescription,
@@ -6,7 +8,6 @@ import {
   FieldGroup,
   FieldLabel,
   PanelCard,
-  Section,
   Textarea,
 } from "@vxture/design-ui";
 import { RowActions } from "../components/table-fittings";
@@ -41,7 +42,7 @@ export function PlanAssumptions({
     <Section
       icon="file-text"
       title={T.assumptions}
-      description={T.assumptionsHint}
+      help={T.assumptionsHint}
       action={
         <RowActions
           label={`${T.assumptions} · ${T.diff}`}
@@ -71,8 +72,7 @@ export function PlanAssumptions({
                 span={group === "general" ? "full" : undefined}
               >
                 <PanelCard
-                  title={T.prerequisiteLabels[group]}
-                  description={T.prerequisiteHints[group]}
+                  title={<span className="inline-flex items-center gap-xs">{T.prerequisiteLabels[group]}<TitleHelp topic={T.prerequisiteLabels[group]}>{T.prerequisiteHints[group]}</TitleHelp></span>}
                   action={
                     edit ? (
                       <RowActions

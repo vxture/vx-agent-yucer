@@ -32,13 +32,13 @@ export interface EvidenceRow {
   readonly statement: string | null;
   readonly grounded: boolean;
   /** "谭处端 · 09-03" - who wrote the latest, and when. */
-  readonly meta: string | null;
+  readonly meta: ReactNode;
   /** The cited follow-up, labelled ("09-15 电话"), when grounded. */
   readonly cite: string | null;
   readonly citeId: string | null;
   readonly accepted: boolean;
   /** Earlier versions, newest first, already labelled. */
-  readonly history: readonly { readonly id: string; readonly statement: string; readonly meta: string }[];
+  readonly history: readonly { readonly id: string; readonly statement: string; readonly meta: ReactNode }[];
   /** 证据抽取's pending proposals for this slot, decided in place (batch 4b). */
   readonly pending?: ReactNode;
 }

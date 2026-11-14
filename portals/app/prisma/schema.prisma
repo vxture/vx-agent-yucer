@@ -617,6 +617,20 @@ model AccountHealthSnapshot {
 // ===== yucer_gtm (D1 strategy, D2 planning, D3 campaign) =====
 
 model StrategyPlan {
+  lineageId String @default(dbgenerated()) @map("lineage_id") @db.Uuid
+  basePlanId String? @map("base_plan_id") @db.Uuid
+  versionNo Int? @map("version_no")
+  editToken Int @default(1) @map("edit_token")
+  changeReason String @default("") @map("change_reason") @db.Text
+  publishedBySub String? @map("published_by_sub") @db.VarChar(128)
+  publishedSnapshot Json? @map("published_snapshot") @db.JsonB
+  lineageRoot StrategyPlan @relation("StrategyLineage", fields: [workspaceId, lineageId], references: [workspaceId, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_strategy_lineage")
+  lineageVersions StrategyPlan[] @relation("StrategyLineage")
+  basePlan StrategyPlan? @relation("StrategyBase", fields: [workspaceId, lineageId, basePlanId], references: [workspaceId, lineageId, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_strategy_base")
+  basedDrafts StrategyPlan[] @relation("StrategyBase")
+  versionEvents StrategyPlanEvent[]
+
+  createdBySub String? @map("created_by_sub") @db.VarChar(128)
   id          String    @id @default(uuid()) @db.Uuid
   workspaceId String    @map("workspace_id") @db.Uuid
   planNo      String    @map("plan_no") @db.VarChar(64)
@@ -632,9 +646,26 @@ model StrategyPlan {
   solutionLinks StrategyPlanSolution[]
   targetMarkets StrategyPlanMarket[]
 
-  @@unique([workspaceId, planNo], map: "uidx_strategy_plan_ws_no")
+  // Partial root-code and one-draft indexes are authoritative in incr/0110.
+  @@unique([workspaceId, lineageId, id], map: "uidx_strategy_plan_lineage_id")
+  @@unique([workspaceId, lineageId, versionNo], map: "uidx_strategy_plan_version")
   @@unique([workspaceId, id], map: "uidx_strategy_plan_ws_id")
   @@map("strategy_plan")
+  @@schema("yucer_gtm")
+}
+
+model StrategyPlanEvent {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  lineageId String @map("lineage_id") @db.Uuid
+  planId String @map("plan_id") @db.Uuid
+  kind String @db.VarChar(16)
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz()
+  reason String @default("") @db.Text
+  plan StrategyPlan @relation(fields: [workspaceId, lineageId, planId], references: [workspaceId, lineageId, id], onDelete: NoAction, onUpdate: NoAction)
+  @@unique([workspaceId, planId, kind])
+  @@map("strategy_plan_event")
   @@schema("yucer_gtm")
 }
 
@@ -694,6 +725,8 @@ model MarketSegment {
   status      String   @default("active") @db.VarChar(32)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  solutionLinks MarketSegmentSolution[]
 
   strategyTargets StrategyPlanMarket[]
 
@@ -1718,6 +1751,7 @@ model Solution {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  segmentLinks MarketSegmentSolution[]
   strategyLinks StrategyPlanSolution[]
   strategyMarketLinks StrategyPlanMarketSolution[]
 
@@ -2275,4 +2309,20 @@ model ForecastTargetBasis {
   @@unique([workspaceId, forecastSnapshotId, metric])
   @@map("forecast_target_basis")
   @@schema("yucer_pipeline")
+}
+
+
+// D1 market defaults, copied into a strategy selection on first adoption.
+model MarketSegmentSolution {
+  workspaceId String @map("workspace_id") @db.Uuid
+  segmentId String @map("segment_id") @db.Uuid
+  solutionId String @map("solution_id") @db.Uuid
+
+  segment MarketSegment @relation(fields: [workspaceId, segmentId], references: [workspaceId, id], onDelete: Cascade, map: "fk_segment_solution_market")
+  solution Solution @relation(fields: [workspaceId, solutionId], references: [workspaceId, id], onDelete: Restrict, map: "fk_segment_solution_catalog")
+
+  @@id([workspaceId, segmentId, solutionId])
+  @@index([workspaceId, solutionId], map: "idx_segment_solution_catalog")
+  @@map("market_segment_solution")
+  @@schema("yucer_gtm")
 }

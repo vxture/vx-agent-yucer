@@ -1,7 +1,8 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useState } from "react";
-import { Button, Field, FieldLabel, Input, NativeSelect, Section } from "@vxture/design-ui";
+import { Button, Field, FieldLabel, Input, NativeSelect } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { useSaveAction } from "../lib/use-save-action";
 import { SaveRow } from "./save-row";
@@ -96,7 +97,7 @@ export function BuyingRoleForm({
     <Section
       id="buying-roles"
       title={hideTitle ? undefined : BUYING_ROLE_TEXT.title}
-      description={hideTitle ? undefined : BUYING_ROLE_TEXT.description}
+      help={hideTitle ? undefined : BUYING_ROLE_TEXT.description}
     >
       {/* Two by two (polish, 2026-09-24): four full-width fields stacked were
           a tall form for four short answers. */}

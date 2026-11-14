@@ -81,7 +81,7 @@ export default async function CapturePage({
       />
       <ViewHeader
         title={FIELD_TEXT.captureTitle(detail.value.account.name)}
-        description={FIELD_TEXT.captureWhy}
+        help={FIELD_TEXT.captureWhy}
       />
       <RecordFollowUp
         accountId={accountId}

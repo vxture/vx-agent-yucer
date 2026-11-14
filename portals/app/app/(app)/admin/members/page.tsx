@@ -86,7 +86,7 @@ export default async function MembersPage() {
         divider
         icon="users"
         title={DOMAIN_LABEL.members}
-        description={PAGE_BRIEF.adminMembers}
+        help={PAGE_BRIEF.adminMembers}
         secondary={<Tag tone="info">{MEMBER_TEXT.count(active, rows.length - active)}</Tag>}
         action={
           canManage && inviteUrl ? (

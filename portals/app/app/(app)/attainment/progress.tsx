@@ -1,3 +1,5 @@
+import { TitleHelp } from "../components/title-help";
+import { Section } from "../components/help-section";
 import Link from "next/link";
 import {
   Button,
@@ -6,7 +8,6 @@ import {
   CollapsibleTrigger,
   EmptyState,
   Icon,
-  Section,
   StatusBadge,
 } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
@@ -135,7 +136,7 @@ export async function AttainmentProgress({
     }));
   return (
     <>
-      <Section icon="chart-bar" title={T.liveTitle} description={T.liveHint}>
+      <Section icon="chart-bar" title={T.liveTitle} help={T.liveHint}>
         {totals ? (
           <div className="grid grid-cols-1 gap-x-xl gap-y-md sm:grid-cols-3">
             {[
@@ -214,22 +215,22 @@ export async function AttainmentProgress({
           </Button>
         </div>
       </Section>
-      <Section icon="folder" title={T.dealsTitle} description={T.dealsHint}>
+      <Section icon="folder" title={T.dealsTitle} help={T.dealsHint}>
         <AttainmentDealTable rows={rows} />
       </Section>
       <Collapsible>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="xl">
-            <Icon name="package" size="sm" />
-            {T.composition}
-            <Icon name="chevron-down" size="sm" />
-          </Button>
-        </CollapsibleTrigger>
+        <div className="flex items-center gap-xs">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="xl">
+              <Icon name="package" size="sm" />
+              {T.composition}
+              <Icon name="chevron-down" size="sm" />
+            </Button>
+          </CollapsibleTrigger>
+          <TitleHelp topic={T.composition}>{T.compositionHint}</TitleHelp>
+        </div>
         <CollapsibleContent>
           <div className="flex flex-col gap-md pt-md">
-            <p className="text-body-small text-muted-foreground">
-              {T.compositionHint}
-            </p>
             {composition && !composition.lines.ok ? (
               <EmptyState
                 title={SHELL_TEXT.loadFailed}

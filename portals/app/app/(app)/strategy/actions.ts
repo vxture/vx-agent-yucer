@@ -1,13 +1,13 @@
 "use server";
 
+import { getAuthzStore } from "../../authz/store";
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getStrategyStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import {
-  createPlan,
+  createPlan, publishStrategy, reviseStrategy, discardStrategyDraft,
   editPlan,
-  editPlanRelations,
   moveSegment,
   removeSegment,
   setSegmentStatus,
@@ -21,7 +21,6 @@ import {
   type SegmentStatus,
   type NewPlanDraft,
   type PlanEdit,
-  type PlanRelationChange,
   type SegmentCriteria,
 } from "../../domains/strategy/lib/lifecycle";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -31,20 +30,21 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 // The gate is chosen by the DESTINATION inside the service: approving checks
 // strategy.plan.approve, every other move checks strategy.plan.update.
 //
-// Worth knowing rather than assuming: both action ids resolve to the same
-// permission (strategy.write) in today's catalog, so the split is nominal - a
-// member who may edit a plan may also approve it. Making approval a real
-// separation of duties is a role-catalog change, not a change here.
+// Editing uses strategy.write; approval uses the separate strategy.approve
+// permission. Content edits are draft-only, independently of those gates.
 
 export interface TransitionResult {
   ok: boolean;
   error?: string;
+  id?: string;
 }
 
-export async function movePlan(id: string, to: string): Promise<TransitionResult> {
+export async function movePlan(id: string, to: string, editToken?: number): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
+  if(to === "approved")return {ok:false,error:"controlled_release_required"};
+  if(!Number.isSafeInteger(editToken) || !editToken || editToken<1)return {ok:false,error:"strategy_draft_conflict"};
   if (!(PLAN_STATUSES as readonly string[]).includes(to)) {
     return { ok: false, error: "unknown_status" };
   }
@@ -59,6 +59,7 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
     },
     id,
     to as PlanStatus,
+    {expectedEditToken:editToken},
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
@@ -73,7 +74,7 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
  * The neighbour of `movePlan` above, which shipped first and could only ever
  * move plans that db-init had put there (TD-016).
  */
-export async function createStrategyPlan(input: NewPlanDraft): Promise<TransitionResult> {
+export async function createStrategyPlan(input: NewPlanDraft, autoNumber = false): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -85,8 +86,10 @@ export async function createStrategyPlan(input: NewPlanDraft): Promise<Transitio
       entitlement: session.entitlement,
       store: getStrategyStore(),
       catalog: getCatalogStore(),
+      memberDirectory: getAuthzStore(),
     },
     input,
+    { autoNumber: autoNumber === true },
   );
 
   if (!result.ok) {
@@ -94,7 +97,7 @@ export async function createStrategyPlan(input: NewPlanDraft): Promise<Transitio
   }
   revalidatePath("/strategy", "layout");
   revalidatePath("/segment");
-  return { ok: true };
+  return { ok: true, id:result.value.id };
 }
 
 /**
@@ -109,7 +112,9 @@ export async function createStrategyPlan(input: NewPlanDraft): Promise<Transitio
 export async function savePlan(
   id: string,
   input: PlanEdit,
+  editToken: number,
 ): Promise<TransitionResult> {
+  if(!Number.isSafeInteger(editToken)||editToken<1)return {ok:false,error:"strategy_draft_conflict"};
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -121,9 +126,11 @@ export async function savePlan(
       entitlement: session.entitlement,
       store: getStrategyStore(),
       catalog: getCatalogStore(),
+      memberDirectory: getAuthzStore(),
     },
     id,
     input,
+    {expectedEditToken:editToken},
   );
 
   if (!result.ok) {
@@ -134,16 +141,27 @@ export async function savePlan(
   return { ok: true };
 }
 
-export async function savePlanRelations(id: string, change: PlanRelationChange): Promise<TransitionResult> {
+export async function startStrategyRevision(id:string):Promise<TransitionResult & {id?:string}> {
+  const session=await resolveAppSession();if(!session)return {ok:false,error:"not_authenticated"};
+  const result=await reviseStrategy({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,store:getStrategyStore()},id);
+  if(!result.ok)return {ok:false,error:result.violations[0]?.code ?? "denied"};
+  revalidatePath("/strategy","layout");return {ok:true,id:result.value.id};
+}
+export async function publishStrategyVersion(id:string,editToken:number):Promise<TransitionResult> {
+  const session=await resolveAppSession();if(!session)return {ok:false,error:"not_authenticated"};
+  const result=await publishStrategy({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,
+    store:getStrategyStore(),catalog:getCatalogStore(),memberDirectory:getAuthzStore()},id,editToken);
+  if(!result.ok)return {ok:false,error:result.violations[0]?.code ?? "denied"};
+  revalidatePath("/strategy","layout");revalidatePath("/campaign");revalidatePath("/segment");return {ok:true};
+}
+
+export async function discardStrategyVersion(id: string, editToken: number): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
-  const result = await editPlanRelations({
-    workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
-    entitlement: session.entitlement, store: getStrategyStore(), catalog: getCatalogStore(),
-  }, id, change);
+  const result = await discardStrategyDraft({ workspaceId: session.workspaceId, sub: session.user.sub,
+    holder: session.authz, entitlement: session.entitlement, store: getStrategyStore() }, id, editToken);
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/strategy", "layout");
-  revalidatePath("/segment");
   return { ok: true };
 }
 
@@ -161,6 +179,7 @@ export async function saveSegment(input: {
   priority: number;
   status: string;
   criteria: SegmentCriteria;
+  solutionIds?: readonly string[];
 }): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -179,6 +198,7 @@ export async function saveSegment(input: {
       holder: session.authz,
       entitlement: session.entitlement,
       store: getStrategyStore(),
+      catalog: getCatalogStore(),
     },
     { ...input, status: input.status as SegmentStatus },
   );

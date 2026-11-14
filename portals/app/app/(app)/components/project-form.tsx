@@ -1,4 +1,5 @@
 "use client";
+import { MemberPicker } from "./member-picker";
 
 import { useMemo, useState } from "react";
 import { Button, Field, FieldDescription, FieldLabel, Input, NativeSelect, Section, StatusBadge } from "@vxture/design-ui";
@@ -143,7 +144,7 @@ export function ProjectForm({
               )}
               <Field>
                 <FieldLabel>{DELIVERY_TEXT.formManager}</FieldLabel>
-                <Input value={managerSub} onChange={(e) => setManagerSub(e.target.value)} />
+                <MemberPicker value={managerSub} onValueChange={setManagerSub} label={DELIVERY_TEXT.formManager} disabled={submit.pending}/>
               </Field>
               <Field>
                 <FieldLabel>{DELIVERY_TEXT.formAmount}</FieldLabel>

@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import Link from "next/link";
 import { Button, Icon, PanelCard, PanelItem, PanelList, StatusBadge } from "@vxture/design-ui";
@@ -142,7 +143,7 @@ export function DealLifecyclePanel({
                   {d.name}
                 </Link>
                 <span className="text-muted-foreground text-[11px]">
-                  {[d.opportunityNo, d.stageLabel, d.ownerName ? ACCOUNT_TEXT.headerOwner(d.ownerName) : null].filter(Boolean).join(" · ")}
+                  {[d.opportunityNo, d.stageLabel].filter(Boolean).join(" \u00b7 ")} {d.ownerName ? <MemberName name={d.ownerName}/> : null}
                 </span>
               </div>
               <span className="text-foreground shrink-0 text-body-small font-extrabold tabular-nums whitespace-nowrap">

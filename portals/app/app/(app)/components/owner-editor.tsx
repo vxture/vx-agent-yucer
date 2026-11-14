@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -42,6 +43,7 @@ export interface ColleagueSearchHit {
 export interface OwnerEditorProps {
   readonly accountId: string;
   readonly ownerName: string | null;
+  readonly ownerSub?: string | null;
   readonly collaborators: readonly OwnerRow[];
   readonly canManage: boolean;
   readonly open: boolean;
@@ -54,6 +56,7 @@ export interface OwnerEditorProps {
 export function OwnerEditor({
   accountId,
   ownerName,
+  ownerSub,
   collaborators,
   canManage,
   open,
@@ -136,11 +139,9 @@ export function OwnerEditor({
       >
         <div className="flex flex-col gap-sm">
           <div className="gap-sm border-border flex items-center border-b py-sm">
-            <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
-              {(ownerName ?? ACCOUNT_TEXT.ownerNone).charAt(0)}
-            </span>
+
             <div className="min-w-0 flex-1">
-              <div className="text-body-small truncate font-bold">{ownerName ?? ACCOUNT_TEXT.ownerNone}</div>
+              <div className="text-body-small truncate font-bold"><MemberName sub={ownerSub} name={ownerName} fallback={ACCOUNT_TEXT.ownerNone}/></div>
               <div className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.primary}</div>
             </div>
           </div>
@@ -149,11 +150,9 @@ export function OwnerEditor({
           ) : (
             collaborators.map((c) => (
               <div key={c.memberSub} className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
-                <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
-                  {(c.displayName ?? c.memberSub).charAt(0)}
-                </span>
+
                 <div className="min-w-0 flex-1">
-                  <div className="text-body-small truncate font-bold">{c.displayName ?? c.memberSub}</div>
+                  <div className="text-body-small truncate font-bold"><MemberName sub={c.memberSub} name={c.displayName}/></div>
                   <div className="text-muted-foreground text-body-small">{COLLABORATOR_TEXT.tag}</div>
                 </div>
                 <Button
@@ -214,10 +213,8 @@ export function OwnerEditor({
                     picked === r.sub ? "border-primary bg-primary-muted" : "bg-card"
                   }`}
                 >
-                  <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
-                    {(r.displayName ?? r.sub).charAt(0)}
-                  </span>
-                  <span className="text-body-small font-bold">{r.displayName ?? r.sub}</span>
+
+                  <MemberName sub={r.sub} name={r.displayName}/>
                 </button>
               ))
             )}

@@ -1,8 +1,9 @@
 "use client";
 
+import { Section } from "./help-section";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-import { Button, DetailList, DetailRow, Drawer, EmptyState, Input, NativeSelect, Section, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
+import { Button, DetailList, DetailRow, Drawer, EmptyState, Input, NativeSelect, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
 import { DataTable, FilterBar } from "./business-controls";
 import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { Tag } from "./tag";
@@ -38,17 +39,23 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
   const pagination = useListPagination(rows, 10);
   return <Drawer open onClose={onClose} width="lg" title={market.name} description={market.segmentCode} closeLabel={T.closed}>
     <div className="flex min-w-0 flex-col gap-xl" data-market-details>
-      <Section title={T.marketInsight} icon="lightbulb" description={T.marketInsightHint}>
+      <Section title={T.marketInsight} icon="lightbulb" help={T.marketInsightHint}>
         <DetailList columns={2}>
           {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <DetailRow key={key} label={T[key]}><span className="whitespace-pre-wrap break-words">{market.criteria[key] || T.notProvided}</span></DetailRow>)}
         </DetailList>
+      </Section>
+      <Section title={T.marketDefaultSolutions} icon="squares-four" help={T.marketDefaultSolutionsHint}>
+        <div className="flex flex-wrap gap-sm text-body-small">
+          {market.defaultSolutions == null ? T.solutionOptionsUnavailable : market.defaultSolutions.length ? market.defaultSolutions.map(s =>
+            <Link key={s.id} href={`/solution?solution=${encodeURIComponent(s.id)}`} className="transition-colors hover:text-primary">{s.name}</Link>) : T.noPlanSolutions}
+        </div>
       </Section>
       <Section title={T.criteria} icon="filter"><MarketCriteria market={market} /></Section>
       <DetailList columns={2}>
         <DetailRow label={T.linkedPlan}><StrategyReferences market={market}/></DetailRow>
         <DetailRow label={T.status}>{STRATEGY_TEXT.segmentStatusLabel[market.status]}</DetailRow>
       </DetailList>
-      <Section title={T.preview} icon="users" description={T.previewWhy}>
+      <Section title={T.preview} icon="users" help={<><p>{T.previewWhy}</p><p>{T.baseOnly}</p></>}>
         <FilterBar search={<SearchSlot><Input aria-label={T.searchCustomers} placeholder={T.searchCustomers} value={query} onChange={e => setQuery(e.target.value)} /></SearchSlot>}>
           <FilterSlot><NativeSelect aria-label={T.assessment} value={match} onChange={e => setMatch(e.target.value)}>
             <option value="">{T.allCustomers}</option><option value="match">{T.match}</option><option value="missing">{T.missing}</option><option value="miss">{T.miss}</option>
@@ -63,7 +70,6 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
           empty={<EmptyState title={query || match ? T.noMatches : T.noCustomers} description={T.noCustomersWhy} />}
         />}
         {market.customers !== null && rows.length ? <PaginationFooter pagination={pagination} total={market.customers.length} filteredTotal={query || match ? rows.length : undefined}/> : null}
-        <p className="text-body-small text-muted-foreground">{T.baseOnly}</p>
       </Section>
       {canWrite ? <Button asChild size="xl" variant="secondary"><Link href={`/segment/new?code=${encodeURIComponent(market.segmentCode)}`}>{T.editMarket}</Link></Button> : null}
     </div>
@@ -112,7 +118,7 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
           {id:"retire",label:STRATEGY_TEXT.segmentRetire,onSelect:()=>run(()=>changeSegmentStatus(m.id,"retired"))},
         ]:[{id:"resume",label:STRATEGY_TEXT.segmentResume,onSelect:()=>run(()=>changeSegmentStatus(m.id,"active"))}]),
         ...moveItems(ROW_OPS, markets.filter(s=>(s.status==="active")===(m.status==="active")).findIndex(s=>s.id===m.id),markets.filter(s=>(s.status==="active")===(m.status==="active")).length,d=>run(()=>moveSegmentRow(m.id,d))),
-        {id:"delete",label:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),danger:true as const,confirm:{verb:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),target:m.name,consequence:STRATEGY_TEXT.segmentDeleteConsequence,onConfirm:()=>run(()=>deleteSegment(m.id))}},
+        {id:"delete",label:T.deleteMarket,danger:true as const,confirm:{verb:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),target:m.name,consequence:STRATEGY_TEXT.segmentDeleteConsequence,onConfirm:()=>run(()=>deleteSegment(m.id))}},
       ] : []),
     ]} />}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}

@@ -39,3 +39,4 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-032 | [db-init 记账：每个 DDL 文件只应用一次](ADR-032-db-init-keeps-a-ledger.md) | accepted | 2026-09-10 |
 
 | ADR-037 | [作者可以删除自己写的跟进记录和承诺，前提是没有任何东西依赖它](ADR-037-an-author-may-delete-what-they-wrote.md) | accepted | 2026-10-02 |
+| ADR-039 | [批准后的战略内容保持锁定](ADR-039-approved-strategy-content-stays-locked.md) | accepted | 2026-11-14 |

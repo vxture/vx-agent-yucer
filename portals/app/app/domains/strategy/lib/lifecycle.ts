@@ -1,3 +1,4 @@
+import { parseStrategyPeriod } from "./plan-period";
 // D1 strategy and D3 campaign lifecycles.
 //
 // These two domains share a file because they share a shape: both own an object
@@ -20,8 +21,8 @@ export type PlanStatus = (typeof PLAN_STATUSES)[number];
 const PLAN_TRANSITIONS: Record<PlanStatus, readonly PlanStatus[]> = {
   // A draft can be abandoned outright; it was never a commitment.
   draft: ["approved", "archived"],
-  // Approved but not yet running - can start, or be sent back for rework.
-  approved: ["active", "draft", "archived"],
+  // Approval locks the content; it cannot be sent back and overwritten.
+  approved: ["active", "archived"],
   // A running plan ends by being closed, not by being deleted.
   active: ["closed"],
   // Closed keeps its history and can be filed away.
@@ -238,6 +239,7 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
     return fail(violation("period_required", "a plan needs a period", "period"));
   }
 
+  if (!parseStrategyPeriod(period)) return fail(violation("period_invalid", "choose a calendar period or valid date range", "period"));
   return ok({
     ...input,
     planNo,
@@ -262,7 +264,7 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
  * What is left is what the DDL actually grants: the name, the period, the
  * owner and the objective.
  */
-export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
+export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResult<PlanEdit> {
   const name = input.name.trim();
   const period = input.period.trim();
 
@@ -273,9 +275,11 @@ export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
     return fail(violation("period_required", "a plan needs a period", "period"));
   }
 
+  if (period !== existingPeriod && !parseStrategyPeriod(period)) return fail(violation("period_invalid", "choose a calendar period or valid date range", "period"));
   return ok({
     name,
     period,
+    ...(input.changeReason === undefined ? {} : {changeReason:input.changeReason.trim()}),
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
     ...(input.solutionIds === undefined ? {} : { solutionIds: input.solutionIds }),
@@ -284,6 +288,7 @@ export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
 }
 
 export interface PlanEdit {
+  changeReason?: string;
   name: string;
   period: string;
   objective: string | null;
@@ -418,6 +423,8 @@ export interface SegmentDraft {
   priority: number;
   status: SegmentStatus;
   criteria: SegmentCriteria;
+  /** Omission preserves defaults; an empty array explicitly clears them. */
+  solutionIds?: readonly string[];
 }
 
 /** An account matches when every non-empty dimension names its value. */

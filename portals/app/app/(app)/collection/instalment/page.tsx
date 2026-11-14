@@ -49,7 +49,7 @@ export default async function NewInstalmentPage({
         trail={[{ label: DOMAIN_LABEL.collection, href: "/collection" }]}
         current={DELIVERY_TEXT.newInstalment}
       />
-      <ViewHeader title={DELIVERY_TEXT.newInstalment} description={DELIVERY_TEXT.instalmentWhy} />
+      <ViewHeader title={DELIVERY_TEXT.newInstalment} help={DELIVERY_TEXT.instalmentWhy} />
       <InstalmentForm
         projects={open.map((p) => ({ id: p.id, name: p.name, currency: p.currency }))}
         milestones={gates}

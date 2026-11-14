@@ -160,7 +160,7 @@ export function PlanningTable({
       id: "scope",
   sortable: true,
       header: PLANNING_TEXT.columnScope,
-      cell: (row) => <TableTitleCell title={scopeLabel(row, names, nameOf, PLANNING_TEXT)} />,
+      cell: (row) => <TableTitleCell title={row.target.scopeType === "owner" ? <MemberName sub={row.target.ownerSub} fallback={PLANNING_TEXT.scopeUnnamed}/> : scopeLabel(row, names, nameOf, PLANNING_TEXT)} />,
     },
     {
       id: "metric",
@@ -327,7 +327,7 @@ export function PlanningTable({
             {rows.map((row) => (
               <ListCard
                 key={row.target.id}
-                title={scopeLabel(row, names, nameOf, PLANNING_TEXT)}
+                title={row.target.scopeType === "owner" ? <MemberName sub={row.target.ownerSub} fallback={PLANNING_TEXT.scopeUnnamed}/> : scopeLabel(row, names, nameOf, PLANNING_TEXT)}
                 description={
                   TARGET_METRIC_LABEL[row.target.metric] ?? row.target.metric
                 }

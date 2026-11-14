@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { TruncatedText } from "./truncated-text";
 import { useState, useTransition } from "react";
 import {
@@ -8,7 +9,6 @@ import {
   Input,
   Label,
   NativeSelect,
-  Section,
   StatusBadge,
   Textarea,
 } from "@vxture/design-ui";
@@ -333,7 +333,7 @@ export function CommitmentList({
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={hideTitle ? undefined : FIELD_TEXT.commitTitle}
-      description={hideDescription ? undefined : FIELD_TEXT.commitDescription}
+      help={hideDescription ? undefined : FIELD_TEXT.commitDescription}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 

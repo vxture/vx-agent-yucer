@@ -59,11 +59,15 @@ async function menuInTable(){await ev(`(()=>{const e=document.querySelector('tab
 try{
  await call("Page.enable");await call("Runtime.enable");await call("Emulation.setDeviceMetricsOverride",{width:1600,height:1000,deviceScaleFactor:1,mobile:false});
  if(!complete('strategy-market-settings')) {
- await go('/strategy/plan_demo_1');
- await click('\u5173\u8054\u7ec6\u5206\u5e02\u573a');await until(`!!document.querySelector('[data-strategy-relations-task=markets]')`);await check('strategy-market-drawer',true);await click('\u53d6\u6d88','[role=dialog]');
- await click('\u5173\u8054\u65b9\u6848');await until(`!!document.querySelector('[data-strategy-relations-task=solutions]')`);await check('strategy-solution-drawer');await click('\u53d6\u6d88','[role=dialog]');
- await ev(`document.querySelector('[data-strategy-target-market] button[aria-haspopup=menu]').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'}))`);await until(`!!document.querySelector('[role=menuitem]')`);await check('strategy-action-menu');await click('\u6295\u5165\u8bbe\u7f6e');await until(`!!document.querySelector('[data-strategy-relations-task=market]')`);await check('strategy-market-settings');await click('\u53d6\u6d88','[role=dialog]');
+ await go('/strategy/new');
+ await click('\u5173\u8054\u76ee\u6807\u5e02\u573a');await until(`!!document.querySelector('[data-strategy-relations-task=markets]')`);await check('strategy-market-drawer',true);await click('\u53d6\u6d88','[role=dialog]');
+ await click('\u5173\u8054\u89e3\u51b3\u65b9\u6848');await until(`!!document.querySelector('[data-strategy-relations-task=solutions]')`);await check('strategy-solution-drawer');await click('\u53d6\u6d88','[role=dialog]');
+ await click('\u5173\u8054\u76ee\u6807\u5e02\u573a');await until(`!!document.querySelector('[data-strategy-relations-task=markets]')`);
+ await ev(`document.querySelector('[role=dialog] [role=checkbox]:not(:disabled)').click()`);
+ await click('\u5e94\u7528\u5230\u8349\u7a3f','[role=dialog]');await until(`!!document.querySelector('[data-strategy-target-market]')&&!document.querySelector('[role=dialog]')`);
+ await click('\u6295\u5165\u8bbe\u7f6e','[data-strategy-target-market]');await until(`!!document.querySelector('[data-strategy-relations-task=market]')`);await check('strategy-market-settings');await click('\u53d6\u6d88','[role=dialog]');
  }
+ if(!process.argv.includes('--strategy-only')) {
  if(!complete('named-account-drawer')) {
  await go('/named');await click('\u5173\u8054\u5ba2\u6237');await until(`!!${dialog}?.querySelector('input')`);await check('named-account-drawer',true);await escape();
  }
@@ -93,6 +97,7 @@ try{
   if(preserved.some(e=>e.h!==48||e.font!=='14px'))throw Error('Public CTA exception changed');
  }
  await call("Emulation.setDeviceMetricsOverride",{width:780,height:1000,deviceScaleFactor:1,mobile:false});await go('/named');await click('\u5173\u8054\u5ba2\u6237');await until(`!!${dialog}?.querySelector('input')`);await check('narrow-drawer');if(!await ev(`${dialog}.scrollWidth<=${dialog}.clientWidth`))throw Error('Drawer overflows');await escape();
+ }
  console.log('Report: '+out);
- console.log('PASS read-only overlays, menus, contextual edit entries, public states and narrow drawer');
+ console.log(process.argv.includes('--strategy-only') ? 'PASS strategy draft overlays and market settings' : 'PASS read-only overlays, menus, contextual edit entries, public states and narrow drawer');
 }finally{try{await escape();await call("Page.navigate",{url:original});await call("Emulation.clearDeviceMetricsOverride")}finally{await writeFile(out,JSON.stringify({checks,entries},null,2)+"\n");ws.close()}}

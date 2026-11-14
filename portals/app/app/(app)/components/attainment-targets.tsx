@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,6 @@ import {
   EmptyState,
   Icon,
   MetricListCard,
-  Section,
   Table,
   TableBody,
   TableCell,
@@ -28,7 +28,7 @@ import { attainmentBalance, type ExecutionRow, type SupportDeal } from "../lib/a
 import { attainmentCoverageHref, attainmentHref, planningHref } from "../lib/attainment-workspace";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney, formatMoneyCompact } from "../lib/view-model";
-import { useMemberName } from "../lib/member-names";
+import { MemberName, useMemberName } from "../lib/member-names";
 import { RowActions } from "./table-fittings";
 import { FilterBar } from "./business-controls";
 import { AttainmentProgressBar } from "./attainment-progress-bar";
@@ -603,7 +603,7 @@ export function AttainmentTargets({
         <Section
           icon="calendar"
           title={`${allRows[0]?.name ?? T.periods} \u00b7 Y${plan.year}`}
-          description={T.allHint}
+          help={T.allHint}
         >
           <ExecutionTable
             rows={allRows}
@@ -627,7 +627,7 @@ export function AttainmentTargets({
         <Section
           icon={groupKind === "member" ? "users" : "map-pin"}
           title={groupKind === "member" ? T.teamTitle : T.regions}
-          description={groupKind === "member" ? T.teamHint : T.regionsHint}
+          help={groupKind === "member" ? T.teamHint : T.regionsHint}
         >
           <FilterBar
             view={view}
@@ -990,7 +990,7 @@ function AttainmentSourceContent({
       {plan.supportRestricted ? (
         <p className="text-body-small text-muted-foreground">{T.restricted}</p>
       ) : null}
-      <Section icon="buildings" title={T.customers} description={T.budgetHint}>
+      <Section icon="buildings" title={T.customers} help={T.budgetHint}>
         {budgets.length ? (
           <div className="flex flex-col gap-md">
             {budgets.map(({ contribution: c, budget: b }) => {
@@ -1041,7 +1041,7 @@ function AttainmentSourceContent({
               >
                 <span>
                   {t.memberSub
-                    ? (nameOf(t.memberSub) ?? t.memberName)
+                    ? <MemberName sub={t.memberSub} name={t.memberName}/>
                     : T.requested}{" "}
                   {" \u00b7 "}
                   {t.role}
@@ -1067,7 +1067,7 @@ function AttainmentSourceContent({
               >
                 <span className="font-medium">{a.objective}</span>
                 <span className="text-body-small text-muted-foreground">
-                  {T.owner} {a.ownerSub ? (nameOf(a.ownerSub) ?? "-") : "-"}{" "}
+                  {T.owner} <MemberName sub={a.ownerSub}/>{" "}
                   {"\u00b7"} {T.due} {a.due || "-"}
                 </span>
                 {a.accountId ? (

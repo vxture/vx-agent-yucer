@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   ActionMenu as DSActionMenu,
   DataTable as DSDataTable,
@@ -10,6 +10,7 @@ import {
   ViewHeader as DSViewHeader,
   cn,
 } from "@vxture/design-ui";
+import { TitleHelp } from "./title-help";
 import styles from "./business-controls.module.css";
 
 // TD-038: DS composite controls lack a shared size prop. Bind business rows
@@ -32,11 +33,17 @@ export function TabsList({
 // Open page titles share the native DS divider, padding and 32px action row.
 export function ViewHeader({
   action,
+  help,
+  secondary,
   ...props
-}: ComponentProps<typeof DSViewHeader>) {
+}: ComponentProps<typeof DSViewHeader> & { readonly help?: ReactNode }) {
   return (
     <DSViewHeader
       {...props}
+      secondary={help ? <>
+        <TitleHelp topic={typeof props.title === "string" ? props.title : undefined}>{help}</TitleHelp>
+        {secondary}
+      </> : secondary}
       action={
         action ? <div className={styles.primary}>{action}</div> : undefined
       }

@@ -1,6 +1,7 @@
 "use client";
 
-import { Field, FieldDescription, FieldLabel, Icon, Input, Section } from "@vxture/design-ui";
+import { Section } from "./help-section";
+import { Field, FieldDescription, FieldLabel, Icon, Input } from "@vxture/design-ui";
 import type { RenewalPolicy } from "../../domains/delivery/lib/renewal";
 import { useMessages } from "../lib/i18n/provider";
 import { FormFields } from "./form-page";
@@ -41,7 +42,7 @@ export function RenewalPolicyConfig({
     <Section
       icon="refresh"
       title={RENEWAL_POLICY_TEXT.title}
-      description={RENEWAL_POLICY_TEXT.why}
+      help={RENEWAL_POLICY_TEXT.why}
       action={<Tag>{policy.windowDays} {RENEWAL_POLICY_TEXT.days}</Tag>}
     >
       {/* INDENTED TO THE TITLE TEXT, not the icon - same device as the other

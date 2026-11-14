@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { type ReactNode, useState, useTransition } from "react";
 import {
   AlertDialog,
@@ -13,7 +14,6 @@ import {
   AlertDialogTrigger,
   Button,
   Card,
-  Section,
 } from "@vxture/design-ui";
 import type { PlatformCheck, ProbeResult } from "../../api/platform-check/check";
 import {
@@ -194,7 +194,7 @@ export function DiagnosticsPanel({
         id="platform-integration"
         icon="server"
         title={DIAGNOSTICS_TEXT.sectionPlatform}
-        description={DIAGNOSTICS_TEXT.sectionPlatformHint}
+        help={DIAGNOSTICS_TEXT.sectionPlatformHint}
       >
         <p className="text-muted-foreground mb-sm text-body-small">{DIAGNOSTICS_TEXT.readOnlyNote}</p>
         <div className="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-3">

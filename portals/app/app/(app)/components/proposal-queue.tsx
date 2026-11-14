@@ -1,5 +1,7 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
 import { useMemo, useState } from "react";
@@ -14,7 +16,6 @@ import {
   EmptyState,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   TableTitleCell,
   type DataTableColumn,
@@ -357,11 +358,7 @@ export function ProposalQueue({
                 {PROPOSAL_TEXT.autopilotMarker}
               </StatusBadge>
             ) : row.decidedBySub ? (
-              deciderNames[row.decidedBySub] ? (
-                <span className="text-muted-foreground text-body-small">{deciderNames[row.decidedBySub]}</span>
-              ) : (
-                <span className="text-muted-foreground font-mono text-body-small">{row.decidedBySub}</span>
-              )
+              <MemberName sub={row.decidedBySub} name={deciderNames[row.decidedBySub]}/>
             ) : null
           }
         </span>
@@ -372,7 +369,7 @@ export function ProposalQueue({
   return (
     <Section
       title={PROPOSAL_TEXT.title}
-      description={PROPOSAL_TEXT.description}
+      help={PROPOSAL_TEXT.description}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {notice ? <StatusBadge tone="info">{notice}</StatusBadge> : null}

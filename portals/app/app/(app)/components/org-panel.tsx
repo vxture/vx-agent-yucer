@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { DataTable, FilterBar } from "./business-controls";
 
@@ -494,7 +495,7 @@ export function OrgPanel({
                 <div className="gap-xs flex flex-wrap items-center">
                   {r.kindName ? <Tag>{r.kindName}</Tag> : null}
                   <span className="text-muted-foreground text-body-small">
-                    {r.leaderName ?? ORG_TEXT.leaderNone}
+                    <MemberName sub={r.leaderSub} name={r.leaderName} fallback={ORG_TEXT.leaderNone}/>
                   </span>
                   {/* 圆圈{直属人数}, tag {icon 总人数} - same reading as the
                       list view's own 成员数 column, see its comment there. */}
@@ -607,7 +608,7 @@ export function OrgPanel({
                 id: "leader",
                 header: ORG_TEXT.colLeader,
                 cell: (r: OrgUnitRow) =>
-                  r.leaderName ? <span className="text-body">{r.leaderName}</span> : <span className="text-muted-foreground text-body-small">{ORG_TEXT.leaderNone}</span>,
+                  <MemberName sub={r.leaderSub} name={r.leaderName} fallback={ORG_TEXT.leaderNone}/>,
               },
               {
                 /* 圆圈{直属人数}, tag {icon 总人数} (owner, 2026-09-13: 成员数

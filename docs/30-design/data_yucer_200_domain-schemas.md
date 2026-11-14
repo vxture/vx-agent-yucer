@@ -16,12 +16,14 @@
 | `contact` | 联系人（含决策角色、影响力） | - |
 | `account_relation` | 关系图谱有向边（只追加） | - |
 
-### yucer_gtm（15）
+### yucer_gtm（20）
 
 | 表 | 说明 | 业务号 |
 |----|------|-------|
-| `strategy_plan` | 战略规划 | `plan_no` |
+| `strategy_plan` | 战略及其草稿/版本，lineage 归组（incr/0110） | `plan_no`（战略根唯一） |
+| `strategy_plan_event` | 修订、发布、放弃事件，只读授权服务角色（incr/0110） | - |
 | `market_segment` | 可复用的细分市场（`criteria` 保存过滤条件与场景说明） | `segment_code` |
+| `market_segment_solution` | 市场默认方案；独立维护、供战略首次选入继承（incr/0112） | - |
 | `strategy_plan_solution` | 战略通用方案引用（incr/0107） | - |
 | `strategy_plan_market` | 战略选用的细分市场、选入时的名称与条件、投入方式和打法（incr/0108） | - |
 | `strategy_plan_market_solution` | 单个目标市场的主推方案引用（incr/0108） | - |
@@ -133,3 +135,11 @@ permission denied。这是有意的失败模式：让遗漏在开发期暴露，
 - **绝不**使用 Prisma migrate（本仓无 migrations 目录，Prisma 不是结构权威）。
 
 已应用增量见 `deploy/database/ddl/incr/README.md`。
+
+
+### 战略版本接管（0110）
+
+战略根 `plan_no` 在工作空间内唯一，修订沿用编码并持有独立 id。
+`lineage_id`、`base_plan_id` 使用工作空间复合外键；每个 lineage 至多一份草稿，版本号唯一。
+`published_snapshot` 只在受控发布事务冻结；所有关系行随父版本锁定，事件只可通过受控函数追加。
+下游 `plan_id` 保持指向具体版本。旧正式记录采用 legacy V1 快照，保留原状态与引用。

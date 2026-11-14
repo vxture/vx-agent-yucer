@@ -1,12 +1,12 @@
 "use client";
 
+import { Section } from "./help-section";
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useState, useTransition } from "react";
 import {
   Button,
   EmptyState,
   Icon,
-  Section,
   StatusBadge,
   useToast,
   type IconName,
@@ -164,7 +164,7 @@ export function InteractionTimeline({
                 {i.rawNote}
               </span>
               <span className="text-muted-foreground flex items-center gap-2xs text-[11px] whitespace-nowrap">
-                {i.actorName ?? nameOf(i.actorSub)}
+                <MemberName sub={i.actorSub} name={i.actorName}/>
                 {mine(i) ? (
                   <Button variant="ghost" size="md" disabled={pending} onClick={() => setRemoving(i)}>
                     {FIELD_TEXT.timelineDelete}
@@ -188,7 +188,7 @@ export function InteractionTimeline({
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
-        description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
+        help={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
         action={externalAction}
       >
         <EmptyState
@@ -204,7 +204,7 @@ export function InteractionTimeline({
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
-      description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
+      help={hideDescription || hideTitle ? undefined : FIELD_TEXT.timelineDescription}
       action={sectionAction}
     >
       <div className="flex flex-col gap-sm">
@@ -216,8 +216,8 @@ export function InteractionTimeline({
             <div className="min-w-0 flex-1">
               <div className="text-muted-foreground flex flex-wrap items-center gap-2xs text-[11px]">
                 <span>
-                  {i.actorName ?? nameOf(i.actorSub)}
-                  {i.participantNames?.length ? ` → ${i.participantNames.join(FIELD_TEXT.timelineParticipantSep)}` : null}
+                  <MemberName sub={i.actorSub} name={i.actorName}/>
+                  {i.participantNames?.length ? <span className="inline-flex flex-wrap items-center gap-xs">{" \u2192 "}{i.participantNames.map((name,index) => <MemberName key={index} name={name}/>)}</span> : null}
                 </span>
                 <span>{"·"}</span>
                 <time dateTime={i.occurredAt.toISOString()}>

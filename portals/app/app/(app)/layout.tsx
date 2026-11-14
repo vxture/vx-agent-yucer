@@ -258,11 +258,11 @@ export default async function AppLayout({
   // should see what the product is, and shutting a flank is one click.
   // The member directory, once per request, for every "who" on every page
   // (lib/member-names.tsx). A failed read degrades to subs, never an error.
-  const memberNames = Object.fromEntries(
-    (await getAuthzStore().listMembers(session.workspaceId).catch(() => []))
-      .filter((m) => m.displayName)
-      .map((m) => [m.sub, m.displayName as string]),
-  );
+  const directory = await getAuthzStore().listMembers(session.workspaceId).catch(() => []);
+  const memberNames = Object.fromEntries(directory.filter(m => m.displayName).map(m => [m.sub, m.displayName as string]));
+  const memberIdentities = directory.map(m => ({
+    sub: m.sub, name: m.displayName || m.sub, picture: m.pictureUrl, active: m.status === "active",
+  }));
 
   const jar = await cookies();
   const cookieString = jar
@@ -274,7 +274,7 @@ export default async function AppLayout({
     <MessagesProvider locale={locale}>
       {/* Around the WHOLE shell: the right deck (routing, proposals) is passed
           to AppShell as a prop and renders outside `children`. */}
-      <MemberNamesProvider names={memberNames}>
+      <MemberNamesProvider names={memberNames} members={memberIdentities}>
       <AppShell
         adminNavOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}

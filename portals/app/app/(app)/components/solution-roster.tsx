@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
 import { useState, useTransition } from "react";
@@ -9,7 +10,6 @@ import {
   Input,
   ListCard,
   ListCardGrid,
-  Section,
   StatusBadge,
   TableTitleCell,
   Tooltip,
@@ -363,7 +363,7 @@ export function SolutionRoster({
         id="solutions"
         icon="list-checks"
         title={CATALOG_TEXT.rosterSolution}
-        description={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`}
+        help={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`}
       >
         {view === "list" ? (
           table(live)
@@ -408,7 +408,7 @@ export function SolutionRoster({
         id="solutions-retired"
         icon="archive"
         title={CATALOG_TEXT.rosterSolutionRetired}
-        description={CATALOG_TEXT.rosterSolutionRetiredWhy}
+        help={CATALOG_TEXT.rosterSolutionRetiredWhy}
         action={
           narrowed ? (
             <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>

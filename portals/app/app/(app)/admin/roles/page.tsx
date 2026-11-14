@@ -90,7 +90,7 @@ export default async function RolesPage() {
         divider
         icon="user-circle"
         title={ROLE_TEXT.title}
-        description={PAGE_BRIEF.adminRoles}
+        help={PAGE_BRIEF.adminRoles}
         secondary={
           <StatusBadge tone={rows.some((r) => r.permissions.length === 0) ? "warning" : "success"}>
             {ROLE_TEXT.coverage(rows.length, custom, PERM_CODES.length)}

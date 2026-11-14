@@ -391,7 +391,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
         <ViewHeader
           icon={page.icon}
           title={text.title}
-          description={text.why}
+          help={text.why}
           secondary={<Tag>{page.count(rows.length)}</Tag>}
         />
       ) : null}

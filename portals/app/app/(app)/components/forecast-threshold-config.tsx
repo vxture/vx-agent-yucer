@@ -1,6 +1,7 @@
 "use client";
 
-import { Field, FieldDescription, FieldLabel, Icon, Input, Section } from "@vxture/design-ui";
+import { Section } from "./help-section";
+import { Field, FieldDescription, FieldLabel, Icon, Input } from "@vxture/design-ui";
 import type { Dispatch, SetStateAction } from "react";
 import type { ForecastThresholds } from "../../domains/pipeline/lib/forecast-rule";
 import { FORECAST_LABEL } from "../lib/messages";
@@ -79,7 +80,7 @@ export function ForecastThresholdConfig({
     <Section
       icon="trend-up"
       title={FORECAST_PARAM_TEXT.title}
-      description={FORECAST_PARAM_TEXT.why}
+      help={FORECAST_PARAM_TEXT.why}
       action={<Tag>{FORECAST_PARAM_TEXT.ladder(thresholds.bestCaseAt, thresholds.commitAt)}</Tag>}
     >
       {/* INDENTED TO THE TITLE TEXT, not the icon - the same device

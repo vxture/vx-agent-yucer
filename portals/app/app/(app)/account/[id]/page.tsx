@@ -1,3 +1,4 @@
+import { MemberName } from "../../lib/member-names";
 import {
   EmptyState,
   Icon,
@@ -1090,9 +1091,9 @@ export default async function AccountDetailPage({
   const ownerRow =
     ownerName || collaboratorNames.length > 0 ? (
       <span className="flex flex-col gap-2xs text-body-small">
-        {ownerName ? <span>{ACCOUNT_TEXT.headerOwner(ownerName)}</span> : null}
+        {ownerName ? <span className="inline-flex items-center gap-xs">{ACCOUNT_TEXT.headerOwner("")}<MemberName sub={account.ownerSub} name={ownerName}/></span> : null}
         {collaboratorNames.length > 0 ? (
-          <span className="text-muted-foreground">{ACCOUNT_TEXT.collaboratorsLine(collaboratorNames)}</span>
+          <span className="inline-flex flex-wrap items-center gap-xs text-muted-foreground">{ACCOUNT_TEXT.collaboratorsLine([])}{collaboratorsRead.ok ? collaboratorsRead.value.map(c => <MemberName key={c.memberSub} sub={c.memberSub} name={c.displayName}/>) : null}</span>
         ) : null}
       </span>
     ) : null;
@@ -1427,6 +1428,7 @@ export default async function AccountDetailPage({
               owner={{
                 accountId: id,
                 ownerName: ownerRead.ok ? ownerRead.value : null,
+                ownerSub: account.ownerSub,
                 collaborators: collaboratorsRead.ok ? collaboratorsRead.value : [],
                 canManage: canManageCollaborators,
                 onSearch: searchColleaguesAction,

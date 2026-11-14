@@ -51,7 +51,7 @@ export default async function NewProductPage({
             />
             <ViewHeader
               title={editing ? CATALOG_TEXT.editProduct : CATALOG_TEXT.newProduct}
-              description={CATALOG_TEXT.newProductWhy}
+              help={CATALOG_TEXT.newProductWhy}
             />
             <NewProductForm
               key={initial?.id ?? "new"}

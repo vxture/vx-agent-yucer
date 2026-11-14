@@ -1,4 +1,4 @@
-import { ViewHeader } from "../../components/business-controls";
+import { getAuthzStore } from "../../../authz/store";
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { notFound, redirect } from "next/navigation";
@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
 export default async function NewPlanPage({
   searchParams,
 }: {
-  readonly searchParams: Promise<{ no?: string }>;
+  readonly searchParams: Promise<{ no?: string; id?: string }>;
 }) {
   const { DOMAIN_LABEL, STRATEGY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
@@ -49,31 +49,33 @@ export default async function NewPlanPage({
   if(!plans.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(plans.violations,LOAD_ERROR)}/>;
   const rows = plans.value;
 
-  const { no } = await searchParams;
-  const found = no ? rows.find((p) => p.planNo === no) : undefined;
-  if(no && !found)notFound();
-  if(found && ["closed","archived"].includes(found.status))redirect(`/strategy/${found.id}`);
+  const { no, id } = await searchParams;
+  // id is the version identity. Old code links prefer the current draft.
+  const found=id ? rows.find(p=>p.id===id) : no ? rows.find(p=>p.planNo===no && p.status==="draft") ?? rows.filter(p=>p.planNo===no).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0] : undefined;
+  if((no || id) && !found)notFound();
+  if(found && found.status !== "draft")redirect(`/strategy/${found.id}`);
 
   // A settled plan is not editable - the service refuses it - so the form is
   // not offered for one either. Sending the reader back to the roster is the
   // same answer the gate gives, arrived at before the typing rather than after.
-  const editable = found && found.status !== "closed" && found.status !== "archived";
+  const editable = found && found.status === "draft";
   const action = editable ? "strategy.plan.update" : "strategy.plan.create";
   if (!can(session.authz, session.entitlement, action, "ui").allowed) {
     redirect("/strategy");
   }
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
-  const [solutions, segments, accounts] = await Promise.all([
+  const [solutions, segments, accounts, members] = await Promise.all([
     can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
       ? listSolutionReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
     can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed
       ? listSegments({ ...base, store: getStrategyStore() }).catch(() => null) : null,
     listAccounts({ ...base, store: session.stores.account() }).catch(() => null),
+    getAuthzStore().listMembers(session.workspaceId).catch(() => null),
   ]);
   const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentCode, industry, region, customerSize }) =>
     ({ id, name, accountNo, segmentCode, industry, region, customerSize: customerSize ?? null })) : null;
   const marketOptions = segments?.ok ? marketViews(segments.value, null, customerRows)
-    .map(({ id, name, segmentCode, status, criteria, matched, missing }) => ({ id, name, segmentCode, status, criteria, matched, missing })) : null;
+    .map(({ id, name, segmentCode, status, criteria, matched, missing, solutionIds }) => ({ id, name, segmentCode, status, criteria, matched, missing, solutionIds })) : null;
   const solutionOptions = solutions?.ok ? solutions.value : null;
   const visibleSolutions = new Set(solutionOptions?.map(s => s.id));
 
@@ -81,30 +83,28 @@ export default async function NewPlanPage({
     <ViewLayout>
       <PageCrumbs
         trail={[{ label: DOMAIN_LABEL.strategy, href: "/strategy" }]}
-        current={editable ? STRATEGY_TEXT.editPlanTitle : STRATEGY_TEXT.newPlanTitle}
-      />
-      <ViewHeader
-        title={editable ? STRATEGY_TEXT.editPlanTitle : STRATEGY_TEXT.newPlanTitle}
-        description={editable ? STRATEGY_TEXT.editPlanWhy : STRATEGY_TEXT.newPlanWhy}
+        current={editable ? found.name : STRATEGY_TEXT.newPlanTitle}
       />
       <NewPlanForm
         key={editable ? found.id : "new"}
         existingPlanNos={rows.map((p) => p.planNo)}
-        existingPeriods={rows.map((p) => p.period)}
         solutionOptions={solutionOptions}
         marketOptions={marketOptions}
+        ownerOptions={members?.filter(m => m.status === "active").map(m => ({ value: m.sub, label: m.displayName || m.sub })) ?? null}
+        creatorSub={found ? found.createdBySub ?? null : session.user.sub}
         initial={
           editable
             ? {
                 id: found.id,
+                editToken:found.editToken ?? 1,basePlanId:found.basePlanId ?? null,changeReason:found.changeReason ?? "",
                 planNo: found.planNo,
                 name: found.name,
                 period: found.period,
                 objective: found.objective,
                 ownerSub: found.ownerSub,
                 solutionIds: solutionOptions && found.solutionIds.every(id => visibleSolutions.has(id)) ? found.solutionIds : undefined,
-                targetMarkets: marketOptions ? found.targetMarkets?.map(({ segmentId, intent, approach, solutionIds, marketName }) => ({
-                  segmentId, intent, approach, marketName,
+                targetMarkets: marketOptions ? found.targetMarkets?.map(({ segmentId, intent, approach, solutionIds, marketName, criteria }) => ({
+                  segmentId, intent, approach, marketName, criteria,
                   ...((!solutionIds.length || (solutionOptions && solutionIds.every(id => visibleSolutions.has(id)))) ? { solutionIds } : {}),
                 })) ?? [] : [],
               }

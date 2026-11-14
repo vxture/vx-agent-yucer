@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { SectionHeader, Stack } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -42,11 +43,7 @@ export function CitationList({
                     c.channel ? (CHANNEL_LABEL[c.channel] ?? c.channel) : "",
                   )}
                 </span>
-                {c.actorName ? (
-                  <span>{c.actorName}</span>
-                ) : c.actorSub ? (
-                  <span className="font-mono">{c.actorSub}</span>
-                ) : null}
+                {c.actorName || c.actorSub ? <MemberName sub={c.actorSub} name={c.actorName}/> : null}
               </cite>
             ) : null}
             <p className="text-muted-foreground text-body-small leading-relaxed">{c.text}</p>

@@ -1,3 +1,4 @@
+import { isUniqueViolation } from "../shared/allocate";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
@@ -14,6 +15,8 @@ import type {
 } from "./lib/lifecycle";
 import type { NewCampaignDraft } from "./lib/campaign";
 import {
+  StrategyVersionError,
+  type StrategyPublication, type PublishPlanCommand, type PlanWriteGuard,
   PlanMarketUnavailableError,
   PlanSolutionUnavailableError,
   SegmentReferencedError,
@@ -100,10 +103,12 @@ export class PrismaStrategyStore implements StrategyStore {
     });
     if (taken) return null;
 
-    const row = await writePlanSolutions(() => p.$transaction(async (tx) => {
+    let row;
+    try { row = await writePlanSolutions(() => p.$transaction(async (tx) => {
       const created = await tx.strategyPlan.create({
         data: {
           workspaceId,
+          createdBySub: input.createdBySub ?? null,
           planNo: input.planNo,
           name: input.name,
           period: input.period,
@@ -120,7 +125,13 @@ export class PrismaStrategyStore implements StrategyStore {
       return { ...created, solutionLinks, targetMarkets: targets.map(t => ({
         ...t, solutionLinks: t.solutionIds.map(solutionId => ({ solutionId })),
       })) };
-    }));
+    })); } catch (error) {
+      if (isUniqueViolation(error)) {
+        const meta = (error as {meta?: {target?: readonly string[]; driverAdapterError?: {cause?: {constraint?: {index?: string}}}}}).meta;
+        if (meta?.target?.includes("plan_no") || meta?.driverAdapterError?.cause?.constraint?.index === "uidx_strategy_plan_ws_no") return null;
+      }
+      throw error;
+    }
     return toPlan(row);
   }
 
@@ -145,7 +156,9 @@ export class PrismaStrategyStore implements StrategyStore {
       ownerSub?: string | null;
       solutionIds?: readonly string[];
       targetMarkets?: readonly TargetMarket[];
+      changeReason?: string;
     },
+    writeGuard: PlanWriteGuard = {},
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const { solutionIds, targetMarkets, ...fields } = patch;
@@ -158,7 +171,7 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(fields.name === undefined ? {} : { status: { notIn: ["closed", "archived"] } }) };
+    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
     if (solutionIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
@@ -175,6 +188,28 @@ export class PrismaStrategyStore implements StrategyStore {
       if (targetMarkets !== undefined) await writeTargets(tx, scope, targetMarkets);
       return true;
     }));
+  }
+
+  async createRevision(workspaceId: string, baseId: string, actorSub: string): Promise<PlanRecord> {
+    const p=await getPrismaClient();
+    return strategyVersionWrite(async()=>{
+      const rows=await p.$queryRaw<{id:string}[]>`SELECT yucer_gtm.revise_strategy_plan(${workspaceId}::uuid,${baseId}::uuid,${actorSub}) AS id`;
+      return (await this.getPlan(workspaceId,rows[0]!.id))!;
+    });
+  }
+  async publishPlan(workspaceId: string, id: string, command: PublishPlanCommand): Promise<PlanRecord> {
+    const p=await getPrismaClient();
+    return strategyVersionWrite(async()=>{
+      const rows=await p.$queryRaw<{id:string}[]>`SELECT yucer_gtm.publish_strategy_plan(${workspaceId}::uuid,${id}::uuid,${command.expectedEditToken}::integer,${command.actorSub},${command.at}::timestamptz) AS id`;
+      return (await this.getPlan(workspaceId,rows[0]!.id))!;
+    });
+  }
+  async discardDraft(workspaceId: string, id: string, expectedEditToken: number, actorSub: string): Promise<PlanRecord> {
+    const p=await getPrismaClient();
+    return strategyVersionWrite(async()=>{
+      const rows=await p.$queryRaw<{id:string}[]>`SELECT yucer_gtm.discard_strategy_draft(${workspaceId}::uuid,${id}::uuid,${expectedEditToken}::integer,${actorSub}) AS id`;
+      return (await this.getPlan(workspaceId,rows[0]!.id))!;
+    });
   }
 
   async listCampaigns(
@@ -294,6 +329,7 @@ export class PrismaStrategyStore implements StrategyStore {
     const p = await getPrismaClient();
     const rows = await p.marketSegment.findMany({
       where: { workspaceId },
+      include: { solutionLinks: true },
       orderBy: [{ priority: "asc" }, { segmentCode: "asc" }],
     });
     return rows.map((r) => toSegment(r as Record<string, unknown>));
@@ -320,12 +356,22 @@ export class PrismaStrategyStore implements StrategyStore {
     }
 
     // By the anchor, not by id: this is the one identity accounts carry.
-    const row = await p.marketSegment.upsert({
-      where: { workspaceId_segmentCode: { workspaceId, segmentCode: input.segmentCode } },
-      update: writable,
-      create: { workspaceId, segmentCode: input.segmentCode, ...writable },
+    return p.$transaction(async tx => {
+      const row = await tx.marketSegment.upsert({
+        where: { workspaceId_segmentCode: { workspaceId, segmentCode: input.segmentCode } },
+        update: writable,
+        create: { workspaceId, segmentCode: input.segmentCode, ...writable },
+      });
+      const scope = { workspaceId, segmentId: row.id };
+      if (input.solutionIds !== undefined) {
+        await tx.marketSegmentSolution.deleteMany({ where: { ...scope, solutionId: { notIn: [...input.solutionIds] } } });
+        if (input.solutionIds.length) await tx.marketSegmentSolution.createMany({
+          data: input.solutionIds.map(solutionId => ({ ...scope, solutionId })), skipDuplicates: true,
+        });
+      }
+      const links = await tx.marketSegmentSolution.findMany({ where: scope });
+      return toSegment({ ...row, solutionLinks: links });
     });
-    return toSegment(row as Record<string, unknown>);
   }
 
   async setSegmentOrder(
@@ -473,6 +519,10 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
+    lineageId: String(r.lineageId),basePlanId:(r.basePlanId as string|null) ?? null,versionNo:(r.versionNo as number|null) ?? null,
+    editToken:Number(r.editToken),changeReason:String(r.changeReason ?? ""),publishedBySub:(r.publishedBySub as string|null) ?? null,
+    publishedSnapshot:(r.publishedSnapshot as StrategyPublication|null) ?? null,
+    createdBySub: (r.createdBySub as string | null) ?? null,
     planNo: String(r.planNo),
     name: String(r.name),
     period: String(r.period),
@@ -519,6 +569,7 @@ function toSegment(r: Record<string, unknown>): SegmentRecord {
     priority: Number(r.priority ?? 0),
     status: r.status as SegmentStatus,
     criteria: readCriteria(r.criteria),
+    solutionIds: ((r.solutionLinks ?? []) as { solutionId: string }[]).map(s => s.solutionId).sort(),
   };
 }
 
@@ -543,4 +594,14 @@ function toExecution(r: Record<string, unknown>): ExecutionRecord {
     dueAt: (r.dueAt as Date | null) ?? null,
     status: r.status as ExecutionStatus,
   };
+}
+
+async function strategyVersionWrite<T>(write:()=>Promise<T>):Promise<T> {
+  try{return await write();}catch(error){
+    const message=error instanceof Error?error.message:String(error);
+    for(const code of ["strategy_not_found","strategy_not_revisable","strategy_draft_conflict","strategy_reason_required", "period_invalid","strategy_base_conflict","draft_required","invalid_publication","controlled_release_required"]) {
+      if(message.includes(code))throw new StrategyVersionError(code);
+    }
+    throw error;
+  }
 }

@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { useMemo, useState } from "react";
 import { Button, Drawer, EmptyState, Input } from "@vxture/design-ui";
@@ -77,7 +78,7 @@ export function RoleMembersDrawer({
               <ul className="gap-2xs flex flex-col">
                 {filtered.map((m) => (
                   <li key={m.sub} className="gap-sm flex items-center justify-between rounded-sm px-2xs py-2xs">
-                    <span className="text-body-small">{m.name}</span>
+                    <MemberName sub={m.sub} name={m.name}/>
                     <NameOverflowTag names={m.orgUnitNames} empty={ROLE_TEXT.ungrouped} />
                   </li>
                 ))}

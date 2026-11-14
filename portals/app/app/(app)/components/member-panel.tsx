@@ -1,4 +1,6 @@
 "use client";
+import { MemberName } from "../lib/member-names";
+import { MemberPicker } from "./member-picker";
 import { DataTable } from "./business-controls";
 
 import {
@@ -289,9 +291,9 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                         phone > email > user_no. It was the sub - a UUID
                         nobody reads - and that is never the fallback. */}
                     <span className="gap-sm flex min-w-0 items-center">
-                      <UserAvatar src={r.picture ?? undefined} alt={r.name} className="size-8 shrink-0" />
+
                       <TableTitleCell
-                        title={r.name}
+                        title={<MemberName sub={r.sub} name={r.name} picture={r.picture}/>}
                         tooltip={r.name}
                         description={r.idLine ?? undefined}
                         titleSuffix={r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : undefined}
@@ -358,7 +360,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         open={details !== null}
         onClose={() => setDetails(null)}
         width="md"
-        title={details ? MEMBER_TEXT.detailsTitle(details.name) : ""}
+        title={details ? <MemberName sub={details.sub} name={details.name} picture={details.picture}/> : ""}
         description={details?.idLine ?? ""}
         closeLabel={MEMBER_TEXT.detailsDone}
         footer={
@@ -423,12 +425,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         {heirs.length === 0 ? (
           <p className="text-muted-foreground text-body-small">{MEMBER_TEXT.handoverNoHeir}</p>
         ) : (
-          <NativeSelect aria-label={MEMBER_TEXT.handoverTo} value={heir} onChange={(e) => setHeir(e.target.value)}>
-            <option value="">{MEMBER_TEXT.handoverTo}</option>
-            {heirs.map((m) => (
-              <option key={m.sub} value={m.sub}>{m.name}</option>
-            ))}
-          </NativeSelect>
+          <MemberPicker value={heir} onValueChange={setHeir} label={MEMBER_TEXT.handoverTo} emptyLabel={MEMBER_TEXT.handoverTo} options={heirs.map(m => ({ value: m.sub, label: m.name }))} disabled={pending}/>
         )}
       </DialogForm>
     </Section>

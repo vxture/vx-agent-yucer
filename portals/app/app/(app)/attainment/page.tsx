@@ -173,7 +173,7 @@ export default async function AttainmentPage({
       <ModuleHeadline
         className="[&>div:last-child]:max-w-full [&>div:last-child>div]:min-w-0 [&>div:last-child>div]:max-w-full"
         moduleKey="attainment"
-        description={T.why}
+        help={T.why}
         action={
           <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-sm"
             data-attainment-actions>

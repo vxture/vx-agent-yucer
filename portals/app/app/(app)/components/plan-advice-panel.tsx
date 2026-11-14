@@ -7,25 +7,10 @@ import { useMessages } from "../lib/i18n/provider";
 // 计划检查 - the strategy page's half of the dock, on the one assistant
 // surface (assistant.tsx owns the shape).
 //
-// ONE FINDING GETS AN ACT, AND THE TRANSITION MAP IS WHY. A draft whose period
-// has already started can be approved from here, because `approved -> draft`
-// is a legal move: the reader can undo it in the same menu they see it in.
-// Every other remedy is one-way - activating a plan admits only closing after
-// it, and closing admits only archiving - so those end in a LINK to the plan,
-// where the move is made deliberately. An assistant that offered a one-click
-// irreversible lifecycle move would be spending the reader's authority, not
-// carrying it.
-
-export function PlanAdvicePanel({
-  advice,
-  canApprove,
-  onApprove,
-}: {
-  readonly advice: readonly PlanAdvice[];
-  readonly canApprove: boolean;
-  readonly onApprove: (id: string, to: string) => Promise<{ ok: boolean; error?: string }>;
-}) {
-  const { STRATEGY_TEXT, PLAN_ERROR } = useMessages();
+// Publication is irreversible; findings link to the read view and its explicit
+// publish confirmation instead of executing it inside an assistant item.
+export function PlanAdvicePanel({ advice }: { readonly advice: readonly PlanAdvice[] }) {
+  const { STRATEGY_TEXT } = useMessages();
 
   const text = (a: PlanAdvice) => {
     switch (a.kind) {
@@ -59,16 +44,6 @@ export function PlanAdvicePanel({
     text: text(a),
     evidence: a.planNo,
     tone: tone(a),
-    ...(a.kind === "draft_period_started" && canApprove
-      ? {
-          act: {
-            label: STRATEGY_TEXT.planAdviceApprove,
-            done: STRATEGY_TEXT.planAdviceApproved,
-            errors: PLAN_ERROR,
-            run: () => onApprove(a.planId, "approved"),
-          },
-        }
-      : {}),
     link: {
       label: STRATEGY_TEXT.planAdviceOpen,
       href: `/strategy/${encodeURIComponent(a.planId)}`,

@@ -7,12 +7,7 @@ import type { ReactNode } from "react";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
-// A module page's header: 4 + 1 (owner ruling 2026-10-02, 聚焦标题).
-//
-// FOUR THAT ARE ALWAYS THERE - the icon, the title, one short line of
-// description, and the tags after the title (the key figures, in tone). ONE
-// THAT IS THERE ON DEMAND - the action button, bottom-right, on the
-// description's line (the DS ViewHeader's own self-end).
+// Module title, key figures and actions stay visible; guidance is on demand.
 //
 // The DS divider and its bottom padding separate the open title from content.
 // The page's ViewLayout supplies the space below the rule.
@@ -21,6 +16,7 @@ export function ModuleHeadline({
   moduleKey,
   brief,
   description,
+  help,
   tags,
   action,
   className,
@@ -30,10 +26,11 @@ export function ModuleHeadline({
    * moment either was edited (owner, 2026-09-05: 价目与底价 in the page,
    * 产品定价 in the menu). */
   readonly moduleKey: string;
-  /** Which PAGE_BRIEF line this page carries; the module key when omitted. */
+  /** Which PAGE_BRIEF appears in help; the module key when omitted. */
   readonly brief?: string;
   /** Only where the line is not ours to write (the upgrade page's own pitch). */
   readonly description?: string;
+  readonly help?: ReactNode;
   /** StatusBadges beside the title - the key figures, toned. */
   readonly tags?: ReactNode;
   /** The one button this page's header may carry. */
@@ -46,7 +43,8 @@ export function ModuleHeadline({
       className={className}
       icon={moduleIcon(moduleKey)}
       title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
-      description={description ?? PAGE_BRIEF[brief ?? moduleKey] ?? ""}
+      description={description}
+      help={help ?? (description === undefined ? PAGE_BRIEF[brief ?? moduleKey] : undefined)}
       secondary={tags ? <span className="flex flex-wrap items-center gap-xs">{tags}</span> : undefined}
       divider
       action={action}

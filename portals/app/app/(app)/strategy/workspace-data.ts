@@ -9,6 +9,7 @@ import { listPipeline } from "../../domains/pipeline/service";
 import { analysePlans } from "../../domains/strategy/lib/plan-advice";
 import { analyseSegments } from "../../domains/strategy/lib/segment-advice";
 import { fail, violation, type RuleResult } from "../../domains/shared/result";
+import { currentStrategyPlans } from "../../domains/strategy/store";
 import { marketViews, strategyViews } from "../lib/market-strategy";
 
 async function read<T>(source: string, pending: Promise<RuleResult<T>>): Promise<RuleResult<T>> {
@@ -27,7 +28,7 @@ export const strategyWorkspaceData = cache(async () => {
   const ctx = { ...base, store: getStrategyStore() };
   const canPlan = can(session.authz, session.entitlement, "strategy.plan.view", "ui").allowed;
   const canMarkets = can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed;
-  const canSeeSolutions = canPlan && can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed;
+  const canSeeSolutions = (canPlan || canMarkets) && can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed;
   const [plans, segments, campaigns, accounts, deals, solutions] = await Promise.all([
     read("plans", listPlans(ctx)), read("markets", listSegments(ctx)), read("campaigns", listCampaigns(ctx)),
     read("accounts", listAccounts({ ...base, store: session.stores.account() })),
@@ -35,9 +36,11 @@ export const strategyWorkspaceData = cache(async () => {
     canSeeSolutions ? read("solutions", listSolutionReferences({ ...base, store: getCatalogStore() })) : null,
   ]);
   const customers = accounts.ok ? accounts.value.map(({id,name,accountNo,segmentCode,industry,region,customerSize}) => ({id,name,accountNo,segmentCode,industry,region,customerSize:customerSize ?? null})) : null;
-  const markets = canMarkets && segments.ok ? marketViews(segments.value, canPlan && plans.ok ? plans.value : null, customers) : null;
+  const markets = canMarkets && segments.ok ? marketViews(segments.value, canPlan && plans.ok ? currentStrategyPlans(plans.value) : null, customers).map(m => ({ ...m,
+    defaultSolutions: solutions?.ok ? solutions.value.filter(s => m.solutionIds?.includes(s.id)) : null,
+  })) : null;
   const planRows = plans.ok ? strategyViews(plans.value, markets, campaigns.ok ? campaigns.value : null, deals.ok ? deals.value : null, solutions?.ok ? solutions.value : null, customers) : null;
-  const planAdvice = plans.ok ? analysePlans({ plans: plans.value,
+  const planAdvice = plans.ok ? analysePlans({ plans: currentStrategyPlans(plans.value),
     campaignCounts: new Map(planRows!.map(p => [p.id, p.campaigns?.length ?? 0])),
     segmentCounts: new Map(planRows!.map(p => [p.id, p.marketIds?.length ?? 0])), now: new Date(),
   }).filter(a => !(!campaigns.ok && ["active_no_campaign", "work_under_inactive_plan"].includes(a.kind)) && !(!segments.ok && a.kind === "active_no_segment")) : [];

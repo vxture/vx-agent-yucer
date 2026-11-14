@@ -1,16 +1,16 @@
 "use client";
+import { Section } from "./help-section";
 import { DataTable } from "./business-controls";
 
 import {
   Button,
   EmptyState,
-  Section,
   StatusBadge,
   TableTitleCell,
 } from "@vxture/design-ui";
 import { RowActions, useTableSort } from "./table-fittings";
 import { useRouter } from "next/navigation";
-import { useMemberName } from "../lib/member-names";
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useMessages } from "../lib/i18n/provider";
 
 // The work a campaign is made of - DISPLAY ONLY since 2026-09-05.
@@ -82,7 +82,7 @@ export function ExecutionPanel({
       id="executions"
       icon="list-checks"
       title={CAMPAIGN_TEXT.executionsTitle}
-      description={CAMPAIGN_TEXT.executionsWhy}
+      help={CAMPAIGN_TEXT.executionsWhy}
       action={
         canEdit ? (
           <Button asChild variant="secondary" size="md">
@@ -167,7 +167,7 @@ function executionColumns(
     {
       id: "assignee",
       header: text.executionAssignee,
-      cell: (r: ExecutionRow) => (r.assigneeSub ? nameOf(r.assigneeSub) : ""),
+      cell: (r: ExecutionRow) => <MemberName sub={r.assigneeSub}/>,
     },
     { id: "due", header: text.executionDue, cell: (r: ExecutionRow) => r.dueAt ?? "" },
     {

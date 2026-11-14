@@ -1,4 +1,5 @@
-import { EmptyState, PanelCard, Section, StatusBadge } from "@vxture/design-ui";
+import { Section } from "./help-section";
+import { EmptyState, PanelCard, StatusBadge } from "@vxture/design-ui";
 
 import { getMessages } from "../lib/i18n/server";
 import { Tag } from "./tag";
@@ -39,7 +40,7 @@ export async function PlaybookCatalog({
     return (
       <Section
         title={PLAYBOOK_TEXT.title}
-        description={PLAYBOOK_TEXT.description}
+        help={PLAYBOOK_TEXT.description}
       >
         <EmptyState
           title={PLAYBOOK_TEXT.emptyTitle}
@@ -52,7 +53,7 @@ export async function PlaybookCatalog({
   return (
     <Section
       title={PLAYBOOK_TEXT.title}
-      description={PLAYBOOK_TEXT.description}
+      help={PLAYBOOK_TEXT.description}
       // The bound is part of the contract, not an implementation detail: a
       // reader who sees eight plays listed would otherwise assume all eight
       // shape every answer.

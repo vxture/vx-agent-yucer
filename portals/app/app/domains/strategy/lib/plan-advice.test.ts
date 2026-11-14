@@ -166,3 +166,10 @@ test("each finding carries the plan it is about, and its id is stable", () => {
   assert.equal(out[0]!.planName, "2026 upper half");
   assert.equal(out[0]!.id, "draft_period_started:pl_1");
 });
+
+
+test("calendar annual periods cover the full year without interpreting custom fiscal labels", () => {
+  assert.equal(periodWindow("2026")?.start.toISOString(), "2026-01-01T00:00:00.000Z");
+  assert.equal(periodWindow("2026")?.end.toISOString(), "2026-12-31T23:59:59.999Z");
+  assert.equal(periodWindow("FY26"), null);
+});

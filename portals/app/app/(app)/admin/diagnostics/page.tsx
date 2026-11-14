@@ -56,7 +56,7 @@ export default async function DiagnosticsPage() {
         divider
         icon="plugs-connected"
         title={DIAGNOSTICS_TEXT.title}
-        description={PAGE_BRIEF.adminDiagnostics}
+        help={PAGE_BRIEF.adminDiagnostics}
         secondary={(() => { const probes = [check.c1, check.c2, check.c3Up, check.c3Down, check.tokenMint, check.planes.atlas, check.planes.runos, check.planes.arda].filter((p) => p.configured); const ok = probes.filter((p) => p.ok).length; return <Tag tone={ok === probes.length ? "success" : ok === 0 ? "danger" : "warning"}>{PAGE_TAG.checksOk(ok, probes.length)}</Tag>; })()}
       />
       <DiagnosticsPanel initialCheck={check} canProbe={canProbe} />

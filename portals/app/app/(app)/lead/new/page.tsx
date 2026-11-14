@@ -43,7 +43,7 @@ export default async function NewLeadPage() {
         trail={[{ label: DOMAIN_LABEL.lead, href: "/lead" }]}
         current={LEAD_TEXT.addLead}
       />
-      <ViewHeader title={LEAD_TEXT.addLead} description={LEAD_TEXT.addLeadWhy} />
+      <ViewHeader title={LEAD_TEXT.addLead} help={LEAD_TEXT.addLeadWhy} />
       <LeadForm
         accounts={(accounts.ok ? accounts.value : []).map((a) => ({ id: a.id, name: a.name }))}
         onSave={saveLead}

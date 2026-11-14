@@ -1,4 +1,5 @@
 "use client";
+import { MemberPicker } from "./member-picker";
 
 import { DataTable, FilterBar, ActionMenu } from "./business-controls";
 
@@ -322,7 +323,7 @@ export function LeadList({
     {
       id: "owner",
       header: LEAD_TEXT.columnOwner,
-      cell: (row) => nameOf(row.ownerSub) ?? "-",
+      cell: (row) => <MemberName sub={row.ownerSub}/>,
     },
     {
       id: "status",
@@ -841,19 +842,12 @@ export function LeadList({
             </NativeSelect>
           </FilterSlot>
           <FilterSlot>
-            <NativeSelect
-              value={ownerFilter}
-              aria-label={LEAD_TEXT.columnOwner}
-              onChange={(e) => { setOwnerFilter(e.target.value); pagination.resetPage(); }}
-            >
-              <option value="">{LEAD_TEXT.filterAllOwners}</option>
-              <option value="__none__">{LEAD_TEXT.filterUnowned}</option>
-              {owners.map((o) => (
-                <option key={o} value={o}>
-                  {nameOf(o)}
-                </option>
-              ))}
-            </NativeSelect>
+            <MemberPicker label={LEAD_TEXT.columnOwner} value={ownerFilter}
+              onValueChange={value => { setOwnerFilter(value); pagination.resetPage(); }}
+              emptyLabel={LEAD_TEXT.filterAllOwners} options={[
+                { value: "__none__", label: LEAD_TEXT.filterUnowned },
+                ...owners.map(sub => ({ value: sub, label: nameOf(sub) ?? sub })),
+              ]}/>
           </FilterSlot>
         </FilterBar>
 
@@ -916,7 +910,7 @@ export function LeadList({
                       {LEAD_STATUS_LABEL[row.status] ?? row.status}
                     </Tag>
                     {row.score == null ? null : <Tag tone={confidenceTone(row.score)}>{row.score}</Tag>}
-                    <span>{nameOf(row.ownerSub) ?? LEAD_TEXT.filterUnowned}</span>
+                    <MemberName sub={row.ownerSub} fallback={LEAD_TEXT.filterUnowned}/>
                   </>
                 }
               />

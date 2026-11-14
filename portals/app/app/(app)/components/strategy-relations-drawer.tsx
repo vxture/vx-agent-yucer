@@ -1,40 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Checkbox, Combobox, Drawer, EmptyState, Field, FieldDescription, FieldError, FieldLabel, Icon, Input, NativeSelect, Textarea } from "@vxture/design-ui";
+import { Button, Checkbox, Drawer, EmptyState, Field, FieldError, FieldLabel, Icon, Input, NativeSelect, Textarea } from "@vxture/design-ui";
 import type { SolutionReference } from "../../domains/catalog/service";
 import type { PlanRelationChange, TargetMarketDraft, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
 import type { MarketView } from "../lib/market-strategy";
+import { SolutionPicker } from "./solution-picker";
+import { TitleHelp } from "./title-help";
 import { useMessages } from "../lib/i18n/provider";
 
-export type RelationMarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing">;
+export type RelationMarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing" | "solutionIds">;
 export type RelationTarget = TargetMarketDraft & { marketName: string };
 export type RelationTask = { kind: "markets" } | { kind: "solutions" } | { kind: "market"; segmentId: string };
-
-function SolutionPicker({ options, ids, onChange, disabled }: {
-  readonly options: readonly SolutionReference[] | null;
-  readonly ids: readonly string[] | undefined;
-  readonly onChange: (ids: readonly string[]) => void;
-  readonly disabled: boolean;
-}) {
-  const { MARKET_STRATEGY_TEXT: T } = useMessages();
-  if (options === null || ids === undefined) return <FieldDescription>{T.solutionOptionsUnavailable}</FieldDescription>;
-  const selected = options.filter(s => ids.includes(s.id));
-  const available = options.filter(s => s.status === "active" && !ids.includes(s.id));
-  return <>
-    <Combobox items={available.map(s => ({ value: s.id, label: `${s.name} \u00b7 ${s.solutionCode}` }))}
-      onValueChange={id => { if (id && !ids.includes(id)) onChange([...ids, id]); }}
-      placeholder={available.length ? T.addSolution : T.noSelectableSolutions} searchPlaceholder={T.searchSolutions}
-      emptyText={T.noMatches} disabled={disabled || !available.length} className="w-full text-body-small"/>
-    {selected.length ? <ul className="flex flex-wrap gap-sm" aria-label={T.primarySolutions}>
-      {selected.map(s => <li key={s.id} className="flex max-w-full items-center gap-xs rounded-md bg-accent pl-sm text-body-small">
-        <span className="min-w-0 break-words">{s.name}{s.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span>
-        <Button type="button" size="icon-md" variant="ghost" aria-label={`${T.removeSolution}: ${s.name}`} disabled={disabled}
-          onClick={() => onChange(ids.filter(id => id !== s.id))}><Icon name="x" size="sm" aria-hidden="true"/></Button>
-      </li>)}
-    </ul> : null}
-  </>;
-}
 
 // Mounted per task: reopening starts from current links, never a cancelled draft.
 export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutionIds, marketOptions, solutionOptions, onSave, onClose, draft = false }: {
@@ -86,8 +63,12 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
     (!q || `${m.name} ${m.segmentCode} ${JSON.stringify(m.criteria)}`.toLocaleLowerCase().includes(q))) ?? [];
   const solutions = solutionOptions?.filter(s => (s.status === "active" || originalIds.includes(s.id)) &&
     (!q || `${s.name} ${s.solutionCode}`.toLocaleLowerCase().includes(q))) ?? [];
+  const title = task.kind === "markets" ? T.linkMarkets : task.kind === "solutions" ? T.linkSolutions : T.marketSettings;
   return <Drawer open onClose={close} width="md" className="max-w-full"
-    title={task.kind === "markets" ? T.linkMarkets : task.kind === "solutions" ? T.linkSolutions : T.marketSettings}
+    title={<span className="inline-flex items-center gap-xs">{title}<TitleHelp topic={title}>
+      <p>{task.kind === "markets" ? T.relationMarketsHint : task.kind === "market" ? T.relationMarketHint : T.sharedSolutionsHint}</p>
+      <p>{draft ? T.relationNewPlanHint : T.relationScopeHint}</p>
+    </TitleHelp></span>}
     description={<>{planName}{target ? ` \u00b7 ${target.marketName}` : ""}</>} closeLabel={T.closed}
     footer={<div className="flex w-full flex-col gap-sm">
       {error ? <FieldError role="alert">{error}</FieldError> : null}
@@ -98,7 +79,6 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
       </div>
     </div>}>
     <div className="flex min-w-0 flex-col gap-lg" data-strategy-relations-task={task.kind}>
-      <p className="text-body-small text-muted-foreground">{task.kind === "markets" ? T.relationMarketsHint : task.kind === "market" ? T.relationMarketHint : T.sharedSolutionsHint}</p>
       {task.kind !== "market" ? <>
         <Input type="search" className="h-control-xl" value={query} onChange={e => setQuery(e.target.value)}
           placeholder={task.kind === "markets" ? T.searchMarkets : T.searchSolutions} aria-label={task.kind === "markets" ? T.searchMarkets : T.searchSolutions}/>
@@ -134,7 +114,6 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
           disabled={pending} placeholder={T.marketApproachHint} onChange={e => setApproach(e.target.value)}/></Field>
         <Field><FieldLabel>{T.primarySolutions}</FieldLabel><SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={pending}/></Field>
       </> : <EmptyState title={T.noPlanMarkets}/>}
-      <p className="border-t border-dashed border-primary/10 pt-md text-body-small text-muted-foreground">{draft ? T.relationNewPlanHint : T.relationScopeHint}</p>
     </div>
   </Drawer>;
 }

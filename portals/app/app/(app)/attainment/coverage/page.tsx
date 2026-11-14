@@ -40,7 +40,8 @@ export default async function AttainmentCoveragePage({ searchParams }: {
       <ViewHeader
         icon="chart-pie-slice"
         title={T.coveragePage}
-        description={`${scopeName} \u00b7 ${selection.period} \u00b7 ${T.coveragePageHint}`}
+        description={`${scopeName} \u00b7 ${selection.period}`}
+        help={T.coveragePageHint}
         divider
         action={<PeriodTabs value={selection.period} periods={periods.quarters} yearLabel={periods.year} yearText={T.periodYear} compact resetParams={["snapshot", "planRevision"]} />}
       />

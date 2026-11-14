@@ -1,4 +1,7 @@
 "use client";
+import { MemberName } from "../lib/member-names";
+import { Section } from "../components/help-section";
+import { TitleHelp } from "../components/title-help";
 import { planningFindings } from "../../domains/planning/plan-checks";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -13,7 +16,6 @@ import {
   FieldLabel,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   Table,
   TableBody,
@@ -283,7 +285,7 @@ export function PlanningVersionPanel({
       return `${r.scope === "workspace" ? T.company : (c?.regions.find((x) => `territory:${x.id}` === r.scope)?.name ?? "—")} · ${r.period} · ${metricName[String(r.metric)] ?? r.metric} · ${T.floor} ${format(r.floor as string)} / ${T.target} ${format(r.target as string)} / ${T.stretch} ${format(r.stretch as string)} ${r.currency ?? T.count}`;
     if ("objective" in r) return `${r.objective} · ${r.due}`;
     if ("memberSub" in r)
-      return `${r.memberName || T.demand} · ${r.role} · ${r.percent}% · ${r.start} — ${r.end}`;
+      return <span className="inline-flex flex-wrap items-center gap-xs"><MemberName sub={r.memberSub as string | null} name={r.memberName as string | null} fallback={T.demand}/><span>{String(r.role)}{" \u00b7 "}{String(r.percent)}%{" \u00b7 "}{String(r.start)} - {String(r.end)}</span></span>;
     if ("budgetKey" in r)
       return `${c?.budgets.find((b) => b.key === r.budgetKey)?.name ?? T.customer} · ${format(r.amount as string)}`;
     if ("name" in r)
@@ -424,6 +426,7 @@ export function PlanningVersionPanel({
     <div className="@container flex flex-col gap-xl">
       <ModuleHeadline
         moduleKey="planning"
+        help={editing ? T.editHint : undefined}
         tags={
           <>
             <StatusBadge tone="info">Y{year}</StatusBadge>
@@ -550,9 +553,6 @@ export function PlanningVersionPanel({
           </div>
         }
       />
-      {editing ? (
-        <p className="text-body-small text-muted-foreground">{T.editHint}</p>
-      ) : null}
       {error ? (
         <p className="text-body-small text-destructive" role="alert">
           {error}
@@ -602,7 +602,7 @@ export function PlanningVersionPanel({
           <Section
             icon="target"
             title={currentRegion ? currentRegion.name : T.company}
-            description={T.targetHint}
+            help={T.targetHint}
             action={
               <div className="flex items-center gap-md">
                 {currentRegion ? (
@@ -872,8 +872,7 @@ export function PlanningVersionPanel({
         open={checksOpen}
         onClose={() => setChecksOpen(false)}
         width="md"
-        title={T.insights}
-        description={T.insightsHint}
+        title={<span className="inline-flex items-center gap-xs">{T.insights}<TitleHelp topic={T.insights}>{T.insightsHint}</TitleHelp></span>}
         closeLabel={T.cancel}
       >
         {findings === null ? (
@@ -1107,8 +1106,7 @@ export function PlanningVersionPanel({
         open={panel === "history"}
         onClose={() => setPanel(null)}
         width="lg"
-        title={T.history}
-        description={T.baselineHint}
+        title={<span className="inline-flex items-center gap-xs">{T.history}<TitleHelp topic={T.history}>{T.baselineHint}</TitleHelp></span>}
         closeLabel={T.cancel}
       >
         {error ? (
@@ -1177,8 +1175,7 @@ export function PlanningVersionPanel({
                         UTC
                       </TableCell>
                       <TableCell>
-                        {sources.members.find((m) => m.sub === e.actor)?.name ??
-                          e.actor}
+                        <MemberName sub={e.actor} name={sources.members.find(m => m.sub === e.actor)?.name}/>
                       </TableCell>
                       <TableCell>{e.reason || "—"}</TableCell>
                     </TableRow>

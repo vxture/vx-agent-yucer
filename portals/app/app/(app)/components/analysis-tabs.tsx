@@ -1,9 +1,10 @@
 "use client";
 
+import { Section } from "./help-section";
 import { TabsList } from "./business-controls";
 
 import { useState, type ReactNode } from "react";
-import { Section, Tabs, TabsContent, TabsTrigger, type IconName } from "@vxture/design-ui";
+import { Tabs, TabsContent, TabsTrigger, type IconName } from "@vxture/design-ui";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection, type PanelAction } from "./collapsible-section";
 import { useAccountEdit } from "./account-edit-context";
@@ -139,7 +140,7 @@ export function AnalysisTabs({
           id={id}
           icon={icon}
           title={title}
-          description={description}
+          help={description}
           summary={collapsible.summary}
           menu={menu}
         >
@@ -152,7 +153,7 @@ export function AnalysisTabs({
           id={id}
           icon={icon}
           title={title}
-          description={description}
+          help={description}
         >
           {body}
         </Section>

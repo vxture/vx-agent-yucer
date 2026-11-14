@@ -152,7 +152,7 @@ export default async function IndustryPage() {
         divider
         icon="buildings"
         title={DOMAIN_LABEL.industry}
-        description={PAGE_BRIEF.adminIndustry}
+        help={PAGE_BRIEF.adminIndustry}
         secondary={<Tag tone="info">{PAGE_TAG.options(industries.value.length + customerTypes.value.length + customerSizes.value.length + customerNatures.value.length)}</Tag>}
       />
       {/* Each panel's own header is a Section now (icon=, not page=): the

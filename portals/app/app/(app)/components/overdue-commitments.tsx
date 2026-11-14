@@ -1,3 +1,5 @@
+import { Section } from "./help-section";
+import { TitleHelp } from "./title-help";
 import { COLLAPSED_PANEL_CLASS } from "../lib/collapsed-panel";
 import Link from "next/link";
 import { MemberName, useMemberName } from "../lib/member-names";
@@ -10,7 +12,6 @@ import {
   Icon,
   PanelCard,
   PanelList,
-  Section,
   StatusBadge,
 } from "@vxture/design-ui";
 
@@ -73,7 +74,7 @@ export async function OverdueCommitments({
       <Section
         icon="warning"
         title={FIELD_TEXT.commitOverdueTitle}
-        description={FIELD_TEXT.commitOverdueDescription}
+        help={FIELD_TEXT.commitOverdueDescription}
       >
         <EmptyState
           title={FIELD_TEXT.commitOverdueEmpty}
@@ -87,7 +88,7 @@ export async function OverdueCommitments({
     /* PanelCard IS the block - there is no Section wrapping it.
        Wrapping one in the other printed the title and the description TWICE,
        once as the section heading and again as the card's own, because
-       PanelCard carries icon + title + description + action + tone by itself.
+       PanelCard carries icon + title + action + tone by itself.
        A Section earns its keep when it holds several cards, the way the signal
        queue holds three lines of enquiry. Here there is one group, so the card
        is the whole block.
@@ -97,11 +98,11 @@ export async function OverdueCommitments({
        shout it. */
     <Collapsible>
       <PanelCard
-              className={COLLAPSED_PANEL_CLASS}
+        className={COLLAPSED_PANEL_CLASS}
         icon="warning"
         tone="danger"
         title={FIELD_TEXT.commitOverdueTitle}
-        description={FIELD_TEXT.commitOverdueDescription}
+        titleSuffix={<TitleHelp topic={FIELD_TEXT.commitOverdueTitle}>{FIELD_TEXT.commitOverdueDescription}</TitleHelp>}
         action={
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="md">

@@ -12,6 +12,7 @@ import { DATA_SCOPES } from "../../../../authz/scope";
 import { getPlanningStore } from "../../../../domains/shared/registry";
 import { listOrgMembers, listOrgUnits, listTerritories } from "../../../../domains/planning/service";
 import { MemberForm } from "../../../components/member-form";
+import { MemberName } from "../../../lib/member-names";
 
 // 配置成员 - the one form. ROUTED BY THE ROW'S ID; the sub is the anchor and
 // travels inside the form.
@@ -58,7 +59,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
         ]}
         current={name}
       />
-      <ViewHeader icon="users" title={name} description={MEMBER_TEXT.formWhy} />
+      <ViewHeader icon="users" title={<MemberName sub={mine.sub} name={name}/>} help={MEMBER_TEXT.formWhy} />
       <MemberForm
         sub={mine.sub}
         name={name}

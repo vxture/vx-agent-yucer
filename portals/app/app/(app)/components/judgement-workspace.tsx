@@ -127,18 +127,8 @@ export function JudgementWorkspace({
         title={
           counts.today > 0 ? HOME_TEXT.lead(counts.today) : HOME_TEXT.leadNone
         }
-        // The analysis hint used to sit on EVERY panel that offered an
-        // analysis - the same sentence, five times down one screen, eating the
-        // right end of five rows. It is a fact about how this page works, not
-        // about any one case, so it is said once here.
-        description={
-          <>
-            <span className="block">
-              {HOME_TEXT.leadSub(scanned, judgements.length)}
-            </span>
-            <span className="block">{BOARD_TEXT.analysisNote}</span>
-          </>
-        }
+        description={HOME_TEXT.leadSub(scanned, judgements.length)}
+        help={BOARD_TEXT.analysisNote}
         action={
           <Stack gap="xs" className="flex-row flex-wrap items-center">
             <SegmentedControl

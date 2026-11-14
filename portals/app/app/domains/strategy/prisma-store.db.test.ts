@@ -558,6 +558,43 @@ test("a segment row with no criteria at all reads as no filters, not a crash", {
   }
 });
 
+test("market default links are atomic, workspace-bound and protect catalogue rows", { skip }, async () => {
+  const local = "eeeeeeee-0000-0000-0000-00000000dc01";
+  const foreign = "eeeeeeee-0000-0000-0000-00000000dc02";
+  const foreignWs = "eeeeeeee-0000-0000-0000-00000000dc03";
+  await cleanup();
+  try {
+    await withPg(c => c.query(`INSERT INTO yucer_catalog.solution (id, workspace_id, solution_code, name)
+      VALUES ($1, $2, 'DEFAULT-L', 'Local'), ($3, $4, 'DEFAULT-F', 'Foreign')`, [local, WS, foreign, foreignWs]));
+    const s = await store();
+    const draft = { segmentCode: "DEFAULT-M", name: "Market", priority: 1, status: "active" as const, criteria: { industries: [], regions: [] } };
+    const market = await s.upsertSegment(WS, { ...draft, solutionIds: [local] });
+    assert.deepEqual(market.solutionIds, [local]);
+    await assert.rejects(s.upsertSegment(WS, { ...draft, name: "Rejected rename", solutionIds: [foreign] }));
+    const held = (await s.listSegments(WS)).find(m => m.id === market.id)!;
+    assert.equal(held.name, "Market", "invalid association rolls back basic fields");
+    assert.deepEqual(held.solutionIds, [local]);
+    await s.upsertSegment(WS, { ...draft, name: "Renamed" });
+    assert.deepEqual((await s.listSegments(WS))[0].solutionIds, [local], "omission preserves links");
+    const { PrismaCatalogStore } = await import("../catalog/prisma-store");
+    const { SolutionInUseError } = await import("../catalog/store");
+    await assert.rejects(new PrismaCatalogStore().removeSolution(WS, local), SolutionInUseError);
+    await withPg(async c => {
+      await c.query("SET ROLE yucer_svc");
+      const scope = [WS, market.id, local];
+      await assert.rejects(c.query(`UPDATE yucer_gtm.market_segment_solution SET solution_id=$3 WHERE workspace_id=$1 AND segment_id=$2`, scope));
+      await c.query(`DELETE FROM yucer_gtm.market_segment_solution WHERE workspace_id=$1 AND segment_id=$2`, scope.slice(0,2));
+      await c.query(`INSERT INTO yucer_gtm.market_segment_solution VALUES ($1,$2,$3)`, scope);
+      await assert.rejects(c.query(`INSERT INTO yucer_gtm.market_segment_solution VALUES ($1,$2,$3)`, [WS, market.id, foreign]));
+    });
+    await s.upsertSegment(WS, { ...draft, solutionIds: [] });
+    assert.deepEqual((await s.listSegments(WS))[0].solutionIds, []);
+  } finally {
+    await cleanup();
+    await withPg(c => c.query(`DELETE FROM yucer_catalog.solution WHERE id IN ($1,$2)`, [local, foreign]));
+  }
+});
+
 test("listSegments orders by priority, then by code", { skip }, async () => {
   await cleanup();
   try {
@@ -894,4 +931,26 @@ test("the 战略诊断 reads: snapshots newest first, workspace-scoped, amounts 
   } finally {
     await cleanup();
   }
+});
+
+test("creator persists without UPDATE permission, and publication blocks every content write path", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const created = await s.createPlan(WS, {...plan(),createdBySub:"usr_creator"});
+    assert.equal(created?.createdBySub,"usr_creator");
+    assert.equal((await s.getPlan(WS,created!.id))?.createdBySub,"usr_creator");
+    await withPg(async c => {
+      await c.query("SET ROLE yucer_svc");
+      await assert.rejects(c.query("UPDATE yucer_gtm.strategy_plan SET created_by_sub = 'spoofed' WHERE id=$1",[created!.id]),{code:"42501"});
+    });
+    assert.equal(await s.updatePlan(WS,created!.id,{status:"approved",approvedAt:new Date()}),true);
+    for(const patch of [{period:"2027"},{name:"Changed"},{ownerSub:"usr_other"},{objective:"Changed"},{solutionIds:[]},{targetMarkets:[]}]) {
+      assert.equal(await s.updatePlan(WS,created!.id,patch),false);
+    }
+    const after=await s.getPlan(WS,created!.id);
+    assert.equal(after?.name,created!.name);
+    assert.equal(after?.createdBySub,"usr_creator");
+    assert.equal(await s.updatePlan(WS,created!.id,{status:"active"}),true);
+  } finally {await cleanup();}
 });

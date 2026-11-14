@@ -50,7 +50,7 @@ export default async function RoleGroupsPage() {
         divider
         icon="user-circle"
         title={ROLE_GROUP_TEXT.pageTitle}
-        description={PAGE_BRIEF.adminRoleGroups}
+        help={PAGE_BRIEF.adminRoleGroups}
         secondary={<Tag>{ROLE_GROUP_TEXT.count(lineRows.length, rankRows.length)}</Tag>}
       />
       <RoleGroupsConfig kind="line" rows={lineRows} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -9,7 +10,6 @@ import {
   FieldLabel,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
 } from "@vxture/design-ui";
 import { ProductPriceValues } from "./product-price-values";
@@ -484,7 +484,7 @@ export function NewSolutionForm({
             ))}
 
             <Section id="solution-price-preview" title={`${CATALOG_TEXT.solutionPrices} / ${currency}`}
-              description={CATALOG_TEXT.solutionPricesHint}
+              help={CATALOG_TEXT.solutionPricesHint}
               action={<Button asChild variant="ghost" size="md">
                 <a href="/catalog" target="_blank" rel="noopener noreferrer">{CATALOG_TEXT.manageProductPrices}</a>
               </Button>}>

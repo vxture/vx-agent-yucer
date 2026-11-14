@@ -1,3 +1,4 @@
+import { currentStrategyPlans } from "../../domains/strategy/store";
 import { cache } from "react";
 import { resolveNavigation } from "./navigation";
 import {
@@ -509,7 +510,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     // launcher.
     ...archiveByDomain(
       {
-        strategy: { title: BOARD_TEXT.strategy, href: "/strategy", metrics: count(plans, BOARD_TEXT.plans) },
+        strategy: { title: BOARD_TEXT.strategy, href: "/strategy", metrics: count(plans.ok ? {...plans,value:currentStrategyPlans(plans.value)} : plans, BOARD_TEXT.plans) },
         campaign: { title: BOARD_TEXT.campaign, href: "/campaign", metrics: count(campaigns, BOARD_TEXT.campaigns) },
         planning: {
           title: BOARD_TEXT.planning,
@@ -570,7 +571,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
 
   const modules: Record<string, BoardModuleCard> = {
     // 战略武备域
-    strategy: { metrics: count(plans, BOARD_TEXT.plans) },
+    strategy: { metrics: count(plans.ok ? {...plans,value:currentStrategyPlans(plans.value)} : plans, BOARD_TEXT.plans) },
     segment: { metrics: count(segments, BOARD_TEXT.segments) },
     catalog: { metrics: count(catalogueResult, BOARD_TEXT.catalogProducts) },
     solution: { metrics: count(solutions, BOARD_TEXT.solutions) },

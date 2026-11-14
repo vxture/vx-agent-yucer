@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
 import { MemberName, useMemberName } from "../lib/member-names";
@@ -10,7 +11,6 @@ import {
   EmptyState,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   TableTitleCell,
   useToast,
@@ -438,7 +438,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
         id="delivery"
         icon="package"
         title={DELIVERY_TEXT.rosterRunning}
-        description={DELIVERY_TEXT.rosterRunningWhy}
+        help={DELIVERY_TEXT.rosterRunningWhy}
       >
         {/* ONE TOOL ROW FOR BOTH TABLES, and it lives with the running one
             because that is the list people work. A keyword narrows the
@@ -516,7 +516,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
           id="delivery-finished"
           icon="file-text"
           title={DELIVERY_TEXT.rosterFinished}
-          description={DELIVERY_TEXT.rosterFinishedWhy}
+          help={DELIVERY_TEXT.rosterFinishedWhy}
           /* Says out loud that a control in the section ABOVE is narrowing
              this one. Without it the archive quietly loses rows and nothing
              on screen explains where they went. */

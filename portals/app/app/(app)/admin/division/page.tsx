@@ -115,7 +115,7 @@ export default async function DivisionPage() {
         divider
         icon="map-pin"
         title={DOMAIN_LABEL.division}
-        description={PAGE_BRIEF.adminDivision}
+        help={PAGE_BRIEF.adminDivision}
         /* ONE SENTENCE, ONCE (owner, 2026-09-09): placed and regions, and the
            unplaced count only when there is one. The same figure used to
            close the table as well; a number said twice on one screen is a

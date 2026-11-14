@@ -1,5 +1,7 @@
 "use client";
+import { MemberPicker } from "./member-picker";
 
+import { Section } from "./help-section";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -11,7 +13,6 @@ import {
   Icon,
   Input,
   NativeSelect,
-  Section,
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -295,7 +296,7 @@ export function OrgUnitForm({
       <FormPage
         form={
           <div className="gap-xl flex flex-col">
-            <Section icon="building-office" title={ORG_TEXT.formTitle} description={ORG_TEXT.formSectionWhy}>
+            <Section icon="building-office" title={ORG_TEXT.formTitle} help={ORG_TEXT.formSectionWhy}>
               <div className="gap-lg flex">
                 <span className="invisible shrink-0" aria-hidden="true">
                   <Icon name="tree-structure" size="lg" />
@@ -371,17 +372,7 @@ export function OrgUnitForm({
                     </Field>
                     <Field>
                       <FieldLabel>{ORG_TEXT.leaderField}</FieldLabel>
-                      <NativeSelect
-                        wrapperClassName="max-w-(--vx-container-sm)"
-                        value={leaderValue}
-                        onChange={(e) => setLeaderValue(e.target.value)}
-                        disabled={pending}
-                      >
-                        <option value="">{ORG_TEXT.leaderNone}</option>
-                        {leaders.map((m) => (
-                          <option key={m.sub} value={m.sub}>{m.name}</option>
-                        ))}
-                      </NativeSelect>
+                      <MemberPicker value={leaderValue} onValueChange={setLeaderValue} label={ORG_TEXT.leaderField} emptyLabel={ORG_TEXT.leaderNone} options={leaders.map(m => ({ value: m.sub, label: m.name }))} disabled={pending}/>
                       <FieldDescription>{ORG_TEXT.leaderHint}</FieldDescription>
                     </Field>
                   </FormFields>

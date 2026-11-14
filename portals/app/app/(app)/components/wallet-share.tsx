@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -69,7 +70,7 @@ export function DealWalletLine({
         </div>
         <div className="text-body-small opacity-80">
           {RISK_TEXT.source.manual}
-          {byName && at ? ` · ${WALLET_TEXT.by(byName, at)}` : ""}
+          {byName && at ? <span className="inline-flex items-center gap-xs"><MemberName name={byName}/><time>{at}</time></span> : null}
         </div>
         {share.exceeds ? <div className="text-body-small">{WALLET_TEXT.exceeds}</div> : null}
       </TooltipContent>
