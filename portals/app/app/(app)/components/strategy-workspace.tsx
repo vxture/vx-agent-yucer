@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input, LabeledValue, MetricListCard, NativeSelect, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input, LabeledValue, MetricListCard, NativeSelect, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar, ViewHeader } from "./business-controls";
 import { Section, SectionHeader } from "./help-section";
 import { TitleHelp } from "./title-help";
@@ -76,8 +76,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     ...(data.canEdit && p.versionNo && isLatest(p) && ["approved","active"].includes(p.status) ? [{id:"revise",label:draftFor(p)?T.resumeDraft:T.reviseStrategy,onSelect:()=>revise(p)}]:[]),
     ...(data.canApprove && p.status==="draft" ? [{id:"publish",label:p.basePlanId?T.publishNext:T.publishVersion,onSelect:()=>openPublication(p)}]:[]),
     {id:"versions",label:T.versionHistory,onSelect:()=>setVersionPlan(p)},
-    ...nextPlanStatuses(p.status).filter(s=>s!=="approved" && data.canEdit).map(s=>({id:s,label:p.status==="draft"&&s==="archived"?T.discardDraft:STRATEGY_TEXT.planMoveTo(PLAN_STATUS_LABEL[s] ?? s),
-      onSelect:()=>p.status==="draft"&&s==="archived"?openPublication(p,true):run(p.id,s)})),
+    ...(data.canEdit ? nextPlanStatuses(p.status).filter(s=>s!=="approved").map(s=>({id:s,label:p.status==="draft"&&s==="archived"?T.discardDraft:STRATEGY_TEXT.planMoveTo[s],
+      onSelect:()=>p.status==="draft"&&s==="archived"?openPublication(p,true):run(p.id,s)})) : []),
   ];
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
   const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
@@ -190,14 +190,11 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     help={view==="markets"?T.libraryWhy:resultHelp}
     data-strategy-section-heading data-view={view} data-market-heading={view==="markets" ? "" : undefined}/>;
   const viewActions = <div role="group" aria-label={T.strategy} aria-busy={pending}
-    className="flex shrink-0 items-center gap-2xs border-r border-border pr-sm" data-strategy-view-actions>
-    {views.filter(v=>v.allowed).map(v=><Tooltip key={v.id}>
-      <TooltipTrigger asChild><Button size="icon-xl" variant={view===v.id ? "secondary" : "ghost"}
-        aria-label={v.label} aria-pressed={view===v.id} disabled={pending} onClick={()=>switchView(v.id)}>
-        <Icon name={v.icon} size="md" aria-hidden="true"/>
-      </Button></TooltipTrigger>
-      <TooltipContent>{v.label}</TooltipContent>
-    </Tooltip>)}
+    className="flex min-w-0 max-w-full flex-wrap items-center gap-2xs" data-strategy-view-actions>
+    {views.filter(v=>v.allowed).map(v=><Button key={v.id} size="md" variant={view===v.id ? "secondary" : "ghost"}
+      className="gap-2xs" aria-pressed={view===v.id} disabled={pending} onClick={()=>switchView(v.id)}>
+      <Icon name={v.icon} size="sm" aria-hidden="true"/>{v.label}
+    </Button>)}
   </div>;
   const visiblePlanAdvice=data.planAdvice.filter(a=>!detailId || a.planId===detailId);
   const visibleSegmentAdvice=data.segmentAdvice.filter(a=>!detailId || detail?.marketIds?.includes(a.segmentId));
@@ -290,7 +287,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           {detail.status==="draft" && data.canApprove ? <Button size="xl" disabled={pending} onClick={()=>openPublication(detail)}>{detail.basePlanId?T.publishNext:T.publishVersion}</Button>:null}
           {detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status) ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>revise(detail)}>{draftFor(detail)?T.resumeDraft:T.reviseStrategy}</Button>:null}
           {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>!["view","publish","revise"].includes(item.id))}/>
-        </div>}/></> : <ModuleHeadline moduleKey="strategy" help={T.brief}
+        </div>}/></> : <ModuleHeadline moduleKey="strategy" help={T.brief} className="[&>div:last-child]:max-w-full"
       action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm" data-strategy-title-actions>{viewActions}{view!=="markets"?<div className="hidden @3xl:block">{periodFilter}</div>:null}{view==="markets"?data.canWriteMarket?<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>:null:data.canCreate?<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>:null}</div>}/>}
     {!detail && view==="validation" ? <FilterBar scope={sectionHeading} actions={checkButton}>
       {validationPlanFilter}<div className="@3xl:hidden">{periodFilter}</div>

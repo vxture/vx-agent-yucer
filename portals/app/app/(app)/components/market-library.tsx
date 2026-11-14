@@ -118,7 +118,7 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
           {id:"retire",label:STRATEGY_TEXT.segmentRetire,onSelect:()=>run(()=>changeSegmentStatus(m.id,"retired"))},
         ]:[{id:"resume",label:STRATEGY_TEXT.segmentResume,onSelect:()=>run(()=>changeSegmentStatus(m.id,"active"))}]),
         ...moveItems(ROW_OPS, markets.filter(s=>(s.status==="active")===(m.status==="active")).findIndex(s=>s.id===m.id),markets.filter(s=>(s.status==="active")===(m.status==="active")).length,d=>run(()=>moveSegmentRow(m.id,d))),
-        {id:"delete",label:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),danger:true as const,confirm:{verb:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),target:m.name,consequence:STRATEGY_TEXT.segmentDeleteConsequence,onConfirm:()=>run(()=>deleteSegment(m.id))}},
+        {id:"delete",label:T.deleteMarket,danger:true as const,confirm:{verb:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),target:m.name,consequence:STRATEGY_TEXT.segmentDeleteConsequence,onConfirm:()=>run(()=>deleteSegment(m.id))}},
       ] : []),
     ]} />}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}

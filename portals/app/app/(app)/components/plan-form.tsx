@@ -176,7 +176,7 @@ export function NewPlanForm({
             </CardContent></Card>
           </Section>
           <Section id="target-markets" title={T.linkMarkets} icon="target" help={T.relationMarketsHint}
-            action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || marketOptions === null} onClick={() => setRelationTask({kind:"markets"})}>{T.linkMarkets}</Button>}>
+            action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || marketOptions === null} onClick={() => setRelationTask({kind:"markets"})}>{T.linkMarketAction}</Button>}>
             <StrategyMarketCards markets={marketOptions === null ? null : targets.map(t => ({ ...t,
               criteria: initial?.targetMarkets.find(m => m.segmentId === t.segmentId)?.criteria ?? marketOptions.find(m => m.id === t.segmentId)?.criteria,
               // Current library counts may differ from an existing saved criteria snapshot.
