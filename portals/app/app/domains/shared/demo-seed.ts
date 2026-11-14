@@ -2212,6 +2212,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
   );
 
   stores.catalog.seed({ products, types, units, statuses, solutions, items, prices, lines });
+  stores.strategy.adoptSeedPublications(workspaceId, solutions, new Date());
 }
 
 /** One point on the forecast trajectory. Workspace scope, CNY. */

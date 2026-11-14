@@ -11,6 +11,7 @@
 // a record that stops being current keeps existing. Downstream data is
 // accomplished fact and a tidy-up upstream must not erase it.
 
+import type { SolutionReference } from "../catalog/service";
 import { money, type Money } from "../shared/money";
 import type {
   CampaignStatus,
@@ -36,10 +37,57 @@ export interface PlanRecord {
   objective: string | null;
   ownerSub: string | null;
   readonly createdBySub?: string | null;
+  readonly lineageId?: string;
+  readonly basePlanId?: string | null;
+  readonly versionNo?: number | null;
+  readonly editToken?: number;
+  readonly publishedBySub?: string | null;
+  readonly publishedSnapshot?: StrategyPublication | null;
+  readonly changeReason?: string;
   solutionIds: readonly string[];
   targetMarkets?: readonly TargetMarket[];
   status: PlanStatus;
   approvedAt: Date | null;
+}
+
+export interface StrategyPublication {
+  schemaVersion: 1;
+  legacy: boolean;
+  capturedAt: string;
+  name: string;
+  period: string;
+  objective: string | null;
+  ownerSub: string | null;
+  ownerName: string | null;
+  sharedSolutionIds: readonly string[];
+  targetMarkets: readonly TargetMarket[];
+  solutions: readonly SolutionReference[];
+}
+
+export class StrategyVersionError extends Error {
+  constructor(readonly code: string) { super(code); }
+}
+export interface PlanWriteGuard { expectedEditToken?: number; expectedStatus?: PlanStatus }
+export interface PublishPlanCommand {
+  expectedEditToken: number;
+  actorSub: string;
+  at: Date;
+  solutions: readonly SolutionReference[];
+  ownerName: string | null;
+}
+export function captureStrategyPublication(plan: PlanRecord, solutions: readonly SolutionReference[], at: Date, legacy = false, ownerName: string | null = null): StrategyPublication {
+  return structuredClone({schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
+    objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,
+    targetMarkets:plan.targetMarkets ?? [],solutions});
+}
+/** One overview entry per lineage. A revision draft never displaces a publication. */
+export function currentStrategyPlans<T extends Pick<PlanRecord,"id"|"lineageId"|"versionNo"|"status">>(plans: readonly T[]): T[] {
+  const groups = new Map<string,T[]>();
+  for (const p of plans) {const key=p.lineageId ?? p.id;groups.set(key,[...(groups.get(key) ?? []),p]);}
+  return [...groups.values()].flatMap(rows=>{
+    const published=rows.filter(p=>p.versionNo != null).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0));
+    return published[0] ? [published[0]] : [rows.find(p=>p.status==="draft") ?? rows[0]!];
+  });
 }
 
 /** A selected catalog row disappeared between validation and the write. */
@@ -150,8 +198,13 @@ export interface StrategyStore {
       ownerSub?: string | null;
       solutionIds?: readonly string[];
       targetMarkets?: readonly TargetMarket[];
+      changeReason?: string;
     },
+    guard?: PlanWriteGuard,
   ): Promise<boolean>;
+  createRevision(workspaceId: string, baseId: string, actorSub: string): Promise<PlanRecord>;
+  publishPlan(workspaceId: string, id: string, command: PublishPlanCommand): Promise<PlanRecord>;
+  discardDraft(workspaceId: string, id: string, expectedEditToken: number, actorSub: string): Promise<PlanRecord>;
 
   listCampaigns(
     workspaceId: string,
@@ -246,11 +299,25 @@ export class InMemoryStrategyStore implements StrategyStore {
     executions?: Array<ExecutionRecord & { workspaceId: string }>;
     attributed?: Record<string, Array<{ id: string; amount: Money | null; status: string }>>;
   }): void {
-    for (const p of input.plans ?? []) this.plans.set(p.id, { ...p });
+    for (const p of input.plans ?? []) this.plans.set(p.id, structuredClone({ ...p,
+      lineageId:p.lineageId ?? p.id,editToken:p.editToken ?? 1,
+      versionNo:p.versionNo ?? (p.status === "draft" || (p.status === "archived" && !p.approvedAt) ? null : 1),
+      basePlanId:p.basePlanId ?? null,
+      publishedSnapshot:p.publishedSnapshot ?? null,
+    }));
     for (const c of input.campaigns ?? []) this.campaigns.set(c.id, { ...c });
     for (const g of input.segments ?? []) this.segments.set(g.id, { ...g });
     this.executions.push(...(input.executions ?? []));
     for (const [k, v] of Object.entries(input.attributed ?? {})) this.attributed.set(k, v);
+  }
+
+  /** Offline legacy seed adoption mirrors 0110; never used by database stores. */
+  adoptSeedPublications(workspaceId: string, solutions: readonly SolutionReference[], at: Date): void {
+    for (const p of this.plans.values()) {
+      if (p.workspaceId !== workspaceId || !p.versionNo || p.publishedSnapshot) continue;
+      const ids = new Set([...p.solutionIds, ...(p.targetMarkets ?? []).flatMap(m => m.solutionIds)]);
+      Object.assign(p, { publishedSnapshot: captureStrategyPublication(p, solutions.filter(s => ids.has(s.id)), at, true) });
+    }
   }
 
   async listPlans(
@@ -261,8 +328,10 @@ export class InMemoryStrategyStore implements StrategyStore {
     if (filter.period) rows = rows.filter((p) => p.period === filter.period);
     if (filter.status) rows = rows.filter((p) => p.status === filter.status);
     rows.sort(by(desc((p: PlanRecord) => p.period)));
-    return rows;
+    return structuredClone(rows);
   }
+
+  private nextPlanId():string {let id:string;do{id=`plan_${++this.seq}`;}while(this.plans.has(id));return id;}
 
   async createPlan(workspaceId: string, input: PlanCreate): Promise<PlanRecord | null> {
     // Null, not a throw: the unique index would refuse it anyway, and the
@@ -280,31 +349,72 @@ export class InMemoryStrategyStore implements StrategyStore {
       createdBySub: input.createdBySub ?? null,
       solutionIds: [...(input.solutionIds ?? [])],
       targetMarkets: structuredClone(input.targetMarkets ?? []),
-      id: `plan_${++this.seq}`,
+      id: this.nextPlanId(),
       workspaceId,
       status: "draft",
       approvedAt: null,
     };
+    Object.assign(created,{lineageId:created.id,basePlanId:null,versionNo:null,editToken:1,changeReason:"",publishedSnapshot:null,publishedBySub:null});
     this.plans.set(created.id, created);
-    return created;
+    return structuredClone(created);
   }
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
     const p = this.plans.get(id);
-    return p && p.workspaceId === workspaceId ? { ...p } : null;
+    return p && p.workspaceId === workspaceId ? structuredClone(p) : null;
   }
 
-  async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>): Promise<boolean> {
+  async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>, guard: PlanWriteGuard = {}): Promise<boolean> {
     const p = this.plans.get(id);
-    if (!p || p.workspaceId !== workspaceId) return false;
-    if (["name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
+    if (!p || p.workspaceId !== workspaceId || (guard.expectedEditToken !== undefined && guard.expectedEditToken !== (p.editToken ?? 1)) || (guard.expectedStatus !== undefined && p.status !== guard.expectedStatus)) return false;
+    if (["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
     if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
       throw new PlanMarketUnavailableError();
     }
     const { targetMarkets, ...fields } = patch;
     Object.assign(p, fields, fields.solutionIds === undefined ? {} : { solutionIds: [...fields.solutionIds] });
     if (targetMarkets !== undefined) p.targetMarkets = structuredClone(targetMarkets);
+    Object.assign(p,{editToken:(p.editToken ?? 1)+1});
     return true;
+  }
+
+  async createRevision(workspaceId: string, baseId: string, actorSub: string): Promise<PlanRecord> {
+    const base=this.plans.get(baseId);
+    if(!base || base.workspaceId!==workspaceId) throw new StrategyVersionError("strategy_not_found");
+    const lineageId=base.lineageId ?? base.id;
+    const family=[...this.plans.values()].filter(p=>p.workspaceId===workspaceId && (p.lineageId ?? p.id)===lineageId);
+    const latest=currentStrategyPlans(family)[0];
+    if(latest?.id!==base.id || !base.versionNo || !["approved","active"].includes(base.status)) throw new StrategyVersionError("strategy_not_revisable");
+    const existing=family.find(p=>p.status==="draft");if(existing)return structuredClone(existing);
+    const draft={...structuredClone(base),id:this.nextPlanId(),lineageId,basePlanId:base.id,versionNo:null,editToken:1,
+      status:"draft" as const,approvedAt:null,publishedBySub:null,publishedSnapshot:null,createdBySub:actorSub,changeReason:""};
+    this.plans.set(draft.id,draft);return structuredClone(draft);
+  }
+
+  async publishPlan(workspaceId: string, id: string, command: PublishPlanCommand): Promise<PlanRecord> {
+    const draft=this.plans.get(id);
+    if(!draft || draft.workspaceId!==workspaceId)throw new StrategyVersionError("strategy_not_found");
+    if(draft.versionNo)return structuredClone(draft);
+    if(draft.status!=="draft")throw new StrategyVersionError("draft_required");
+    if((draft.editToken ?? 1)!==command.expectedEditToken)throw new StrategyVersionError("strategy_draft_conflict");
+    if(draft.basePlanId && !draft.changeReason?.trim())throw new StrategyVersionError("strategy_reason_required");
+    const family=[...this.plans.values()].filter(p=>p.workspaceId===workspaceId && (p.lineageId ?? p.id)===(draft.lineageId ?? draft.id));
+    const latest=family.filter(p=>p.versionNo).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0];
+    if((draft.basePlanId ?? null)!==(latest?.id ?? null) || (latest && !["approved","active"].includes(latest.status)))throw new StrategyVersionError("strategy_base_conflict");
+    const status=latest?.status==="active"?"active":"approved";
+    if(latest)Object.assign(latest,{status:"closed",editToken:(latest.editToken ?? 1)+1});
+    Object.assign(draft,{status,versionNo:(latest?.versionNo ?? 0)+1,approvedAt:command.at,publishedBySub:command.actorSub,
+      publishedSnapshot:captureStrategyPublication(draft,command.solutions,command.at,false,command.ownerName),editToken:(draft.editToken ?? 1)+1});
+    return structuredClone(draft);
+  }
+
+  async discardDraft(workspaceId: string, id: string, expectedEditToken: number, _actorSub: string): Promise<PlanRecord> {
+    const draft=this.plans.get(id);
+    if(!draft || draft.workspaceId!==workspaceId)throw new StrategyVersionError("strategy_not_found");
+    if(draft.status==="archived" && !draft.versionNo)return structuredClone(draft);
+    if(draft.status!=="draft")throw new StrategyVersionError("draft_required");
+    if((draft.editToken ?? 1)!==expectedEditToken)throw new StrategyVersionError("strategy_draft_conflict");
+    Object.assign(draft,{status:"archived",editToken:(draft.editToken ?? 1)+1});return structuredClone(draft);
   }
 
   async listCampaigns(

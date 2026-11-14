@@ -31,7 +31,7 @@ export const dynamic = "force-dynamic";
 export default async function NewPlanPage({
   searchParams,
 }: {
-  readonly searchParams: Promise<{ no?: string }>;
+  readonly searchParams: Promise<{ no?: string; id?: string }>;
 }) {
   const { DOMAIN_LABEL, STRATEGY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
@@ -50,9 +50,10 @@ export default async function NewPlanPage({
   if(!plans.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(plans.violations,LOAD_ERROR)}/>;
   const rows = plans.value;
 
-  const { no } = await searchParams;
-  const found = no ? rows.find((p) => p.planNo === no) : undefined;
-  if(no && !found)notFound();
+  const { no, id } = await searchParams;
+  // id is the version identity. Old code links prefer the current draft.
+  const found=id ? rows.find(p=>p.id===id) : no ? rows.find(p=>p.planNo===no && p.status==="draft") ?? rows.filter(p=>p.planNo===no).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0] : undefined;
+  if((no || id) && !found)notFound();
   if(found && found.status !== "draft")redirect(`/strategy/${found.id}`);
 
   // A settled plan is not editable - the service refuses it - so the form is
@@ -101,6 +102,7 @@ export default async function NewPlanPage({
           editable
             ? {
                 id: found.id,
+                editToken:found.editToken ?? 1,basePlanId:found.basePlanId ?? null,changeReason:found.changeReason ?? "",
                 planNo: found.planNo,
                 name: found.name,
                 period: found.period,

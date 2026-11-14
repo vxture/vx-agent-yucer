@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 import {
   Button, Card, CardHeader, CardTitle, CardContent, Combobox, NativeSelect,
   Field,
@@ -14,7 +15,6 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
   FormPage,
-  useFormSubmit,
   type AssistSuggestion,
 } from "./form-page";
 import { MemberName, useMemberName } from "../lib/member-names";
@@ -43,12 +43,15 @@ import type { SegmentCriteria, NewPlanDraft, PlanEdit, PlanRelationChange } from
 // is shown as the identity of the thing being edited rather than as a field
 // that would be silently dropped.
 
-type Saved = { ok: boolean; error?: string };
+type Saved = { ok: boolean; error?: string; id?: string };
 type MarketOption = RelationMarketOption;
 type TargetSelection = RelationTarget & { criteria?: SegmentCriteria };
 
 export interface PlanFormInitial {
   readonly id: string;
+  readonly editToken: number;
+  readonly basePlanId: string | null;
+  readonly changeReason: string;
   readonly planNo: string;
   readonly name: string;
   readonly period: string;
@@ -78,7 +81,7 @@ export function NewPlanForm({
   readonly ownerOptions: readonly { value: string; label: string }[] | null;
   readonly creatorSub: string | null;
   readonly onCreate: (input: NewPlanDraft) => Promise<Saved>;
-  readonly onSave: (id: string, input: PlanEdit) => Promise<Saved>;
+  readonly onSave: (id: string, input: PlanEdit, editToken: number) => Promise<Saved>;
 }) {
   const { STRATEGY_TEXT, PLAN_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
   const nameOf = useMemberName();
@@ -91,6 +94,7 @@ export function NewPlanForm({
   const [period, setPeriod] = useState(initial?.period ?? String(currentYear));
   const [customPeriod, setCustomPeriod] = useState(!!initial?.period && !presetPeriods.includes(initial.period));
   const [objective, setObjective] = useState(initial?.objective ?? "");
+  const [changeReason,setChangeReason]=useState(initial?.changeReason ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
   const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initial ? initial.solutionIds : []);
   const [targets, setTargets] = useState<readonly TargetSelection[]>(initial?.targetMarkets ?? []);
@@ -114,7 +118,14 @@ export function NewPlanForm({
     ]);
     return { ok: true };
   };
-  const submit = useFormSubmit("/strategy");
+  const router=useRouter();
+  const [saveError,setSaveError]=useState<string|null>(null);
+  const [saving,startSave]=useTransition();
+  const submit={pending:saving,err:saveError,run:(save:()=>Promise<Saved>,errorOf:(code:string)=>string)=>{
+    if(saving)return;startSave(async()=>{setSaveError(null);try{const r=await save();if(!r.ok){setSaveError(errorOf(r.error ?? "denied"));return;}
+      router.push(r.id?`/strategy/${r.id}`:initial?`/strategy/${initial.id}`:"/strategy");router.refresh();
+    }catch{setSaveError(errorOf("denied"));}});
+  }};
 
   const nextNo = useMemo(() => suggestNextCode(existingPlanNos), [existingPlanNos]);
   const periods = useMemo(() => knownValues(existingPeriods), [existingPeriods]);
@@ -179,6 +190,9 @@ export function NewPlanForm({
               <Field className="@xl:col-span-2 @3xl:col-span-4"><FieldLabel htmlFor="strategy-direction">{T.direction}</FieldLabel>
                 <Input id="strategy-direction" value={objective} disabled={submit.pending} onChange={e => setObjective(e.target.value)}/>
               </Field>
+              {initial?.basePlanId ? <Field className="@xl:col-span-2 @3xl:col-span-4"><FieldLabel htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>
+                <Input id="strategy-change-reason" value={changeReason} maxLength={4000} disabled={submit.pending} placeholder={T.changeReasonHint} onChange={e=>setChangeReason(e.target.value)}/>
+              </Field> : null}
             </div>
             <p className="mt-md text-body-small text-muted-foreground">{T.draftOnlyHint}</p>
             </CardContent>
@@ -213,6 +227,7 @@ export function NewPlanForm({
                 onClick={() =>
                   submit.run(() => {
                     const fields = {
+                      ...(initial?.basePlanId ? {changeReason:changeReason.trim()} : {}),
                       name: name.trim(),
                       period: period.trim(),
                       objective: objective.trim() === "" ? null : objective.trim(),
@@ -226,7 +241,7 @@ export function NewPlanForm({
                       } : {}),
                     };
                     return initial
-                      ? onSave(initial.id, fields)
+                      ? onSave(initial.id, fields, initial.editToken)
                       : onCreate({ planNo: planNo.trim(), ...fields });
                   }, (c) => PLAN_ERROR[c] ?? PLAN_ERROR.denied)
                 }

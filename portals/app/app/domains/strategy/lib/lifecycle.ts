@@ -276,6 +276,7 @@ export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
   return ok({
     name,
     period,
+    ...(input.changeReason === undefined ? {} : {changeReason:input.changeReason.trim()}),
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
     ...(input.solutionIds === undefined ? {} : { solutionIds: input.solutionIds }),
@@ -284,6 +285,7 @@ export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
 }
 
 export interface PlanEdit {
+  changeReason?: string;
   name: string;
   period: string;
   objective: string | null;

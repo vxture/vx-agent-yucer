@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, Drawer, EmptyState, Icon, Input, LabeledValue, MetricListCard, NativeSelect, Section, SectionHeader, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, Drawer, EmptyState, FieldError, Icon, Input, LabeledValue, MetricListCard, NativeSelect, Section, SectionHeader, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar, ViewHeader } from "./business-controls";
 import { RowActions, SearchSlot } from "./table-fittings";
 import { ModuleHeadline } from "./module-headline";
@@ -15,10 +15,12 @@ import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 import { MarketLibrary } from "./market-library";
 import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
+import { DialogForm } from "./dialog-form";
+import { currentStrategyPlans } from "../../domains/strategy/store";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import type { StrategyView } from "../lib/market-strategy";
-import { movePlan } from "../strategy/actions";
+import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrategyVersion } from "../strategy/actions";
 
 export type StrategyTab = "overview" | "markets" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
@@ -34,13 +36,17 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     router.replace(`/strategy?${q}`,{scroll:false});
   };
   const [checks,setChecks]=useState(false);
+  const [versionPlan,setVersionPlan]=useState<StrategyView|null>(null);
+  const [publication,setPublication]=useState<{plan:StrategyView;discard?:boolean}|null>(null);
+  const [publicationError,setPublicationError]=useState<string|null>(null);
   const [basis,setBasis]=useState(false);
   const [historyOpen,setHistoryOpen]=useState(false);
   const [pending,start]=useTransition();
   const {toast}=useToast();
   const detail=data.plans?.find(p=>p.id===detailId);
   const planFilter=view==="validation" ? params.get("plan") ?? "" : "";
-  const plans=data.plans?.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))) ?? [];
+  const scopedPlans=view==="overview"?currentStrategyPlans(data.plans ?? []):data.plans?.filter(p=>p.versionNo || !p.basePlanId) ?? [];
+  const plans=scopedPlans.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const allowedView = view === "markets" ? data.canMarkets : data.canPlan;
   const switchView=(next:StrategyTab)=>{
     if(next === view)return;
@@ -48,14 +54,30 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     start(()=>router.push(`/strategy?${q}`,{scroll:false}));
   };
   const run=(id:string,to:string)=>start(async()=>{
-    try {const r=await movePlan(id,to);if(!r.ok)toast({tone:"danger",title:PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied});}
+    try {const p=data.plans?.find(p=>p.id===id);const r=await movePlan(id,to,p?.editToken ?? 1);if(!r.ok)toast({tone:"danger",title:PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied});else router.refresh();}
     catch {toast({tone:"danger",title:PLAN_ERROR.denied});}
   });
+  const family=(p:StrategyView)=>(data.plans ?? []).filter(row=>(row.lineageId ?? row.id)===(p.lineageId ?? p.id));
+  const latest=(p:StrategyView)=>family(p).filter(row=>row.versionNo).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0];
+  const draftFor=(p:StrategyView)=>family(p).find(row=>row.status==="draft");
+  const isLatest=(p:StrategyView)=>latest(p)?.id===p.id;
+  const revise=(p:StrategyView)=>start(async()=>{
+    const existing=draftFor(p);if(existing){router.push(`/strategy/new?id=${encodeURIComponent(existing.id)}`);return;}
+    try{const r=await startStrategyRevision(p.id);if(!r.ok || !r.id){toast({tone:"danger",title:PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied});return;}
+      router.push(`/strategy/new?id=${encodeURIComponent(r.id)}`);router.refresh();
+    }catch{toast({tone:"danger",title:PLAN_ERROR.denied});}
+  });
+  const openPublication=(plan:StrategyView,discard=false)=>{setPublicationError(null);setPublication({plan,discard});};
   const items=(p:StrategyView):ActionMenuItem[]=>[
     {id:"view",label:T.openPlan,onSelect:()=>router.push(`/strategy/${p.id}`)},
-    ...(data.canEdit && p.status === "draft" ? [{id:"edit",label:T.editPlan,onSelect:()=>router.push(`/strategy/new?no=${encodeURIComponent(p.planNo)}`)}]:[]),
-    ...nextPlanStatuses(p.status).filter(s=>s==="approved"?data.canApprove:data.canEdit).map(s=>({id:s,label:STRATEGY_TEXT.planMoveTo(PLAN_STATUS_LABEL[s] ?? s),onSelect:()=>run(p.id,s)})),
+    ...(data.canEdit && p.status === "draft" ? [{id:"edit",label:T.editPlan,onSelect:()=>router.push(`/strategy/new?id=${encodeURIComponent(p.id)}`)}]:[]),
+    ...(data.canEdit && p.versionNo && isLatest(p) && ["approved","active"].includes(p.status) ? [{id:"revise",label:draftFor(p)?T.resumeDraft:T.reviseStrategy,onSelect:()=>revise(p)}]:[]),
+    ...(data.canApprove && p.status==="draft" ? [{id:"publish",label:p.basePlanId?T.publishNext:T.publishVersion,onSelect:()=>openPublication(p)}]:[]),
+    {id:"versions",label:T.versionHistory,onSelect:()=>setVersionPlan(p)},
+    ...nextPlanStatuses(p.status).filter(s=>s!=="approved" && data.canEdit).map(s=>({id:s,label:p.status==="draft"&&s==="archived"?T.discardDraft:STRATEGY_TEXT.planMoveTo(PLAN_STATUS_LABEL[s] ?? s),
+      onSelect:()=>p.status==="draft"&&s==="archived"?openPublication(p,true):run(p.id,s)})),
   ];
+  const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
   const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
   const money=(n:number,currency:string)=>new Intl.NumberFormat(locale,{style:"currency",currency,maximumFractionDigits:0}).format(n);
   const solutionLinks=(solutions:StrategyView["solutions"])=>solutions === null ? T.unknown : solutions.length ? solutions.map(s => (
@@ -97,12 +119,12 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         <span className="flex min-w-0 flex-1 flex-col gap-xs">
           <span className="flex min-h-control-md min-w-0 items-center gap-sm">
             <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
-            <span className="shrink-0"><Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
+            <span className="flex shrink-0 items-center gap-xs">{versionBadge(p)}<Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
           </span>
           <span className="truncate text-body-small font-normal text-muted-foreground" title={p.planNo}>{p.period} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>
         </span>
       </span>}
-      actions={<RowActions items={items(p)} disabled={pending}/>}
+      actions={<div className="flex items-center gap-xs">{draftFor(p) && p.status!=="draft" ? <span className="text-body-small text-muted-foreground">{T.draftAvailable}</span> : null}<RowActions items={items(p)} disabled={pending}/></div>}
       note={<div className="flex min-w-0 gap-sm">
         <span className="size-icon-xl shrink-0" aria-hidden="true"/>
         <div className="flex min-w-0 flex-1 flex-col gap-sm" data-strategy-card-body>
@@ -127,7 +149,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   };
   const table=(rows:StrategyView[])=><DataTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1}
     className="[&_table]:min-w-(--container-3xl)" columns={[
-      {id:"name",header:T.strategy,align:"left",width:"lg",cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period} · {p.planNo}</span></div>},
+      {id:"name",header:T.strategy,align:"left",width:"lg",cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period}{" \u00b7 "}{p.planNo} {p.versionNo ? `\u00b7 V${p.versionNo}` : ""}</span></div>},
       {id:"direction",header:T.direction,align:"left",width:"lg",cell:p=><span className="line-clamp-2 text-body-small" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
       {id:"markets",header:T.marketCount,cell:p=>number(p.marketIds?.length)},
       {id:"customers",header:T.customerCount,cell:p=>number(p.customerCount)},
@@ -165,7 +187,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const validationPlanFilter=<div className="w-56 max-w-full"><NativeSelect aria-label={T.strategy} value={planFilter} onChange={e=>{
     const q=new URLSearchParams(params);if(e.target.value)q.set("plan",e.target.value);else q.delete("plan");
     router.replace(`/strategy?${q}`,{scroll:false});
-  }}><option value="">{T.allPlans}</option>{data.plans?.filter(p=>!period || p.period===period).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect></div>;
+  }}><option value="">{T.allPlans}</option>{data.plans?.filter(p=>!period || p.period===period).map(p=><option key={p.id} value={p.id}>{p.name}{p.versionNo ? ` \u00b7 V${p.versionNo}` : ""}</option>)}</NativeSelect></div>;
   const layoutSwitch=<ViewModeSwitch value={layout} onChange={setLayout} ariaLabel={T.layout} labels={{list:T.listView,cards:T.cardsView}}/>;
   const basisButton=<Tooltip><TooltipTrigger asChild><Button size="icon-xl" variant="ghost" aria-label={T.basis} onClick={()=>setBasis(true)}><Icon name="info" size="md"/></Button></TooltipTrigger><TooltipContent>{T.basis}</TooltipContent></Tooltip>;
   const overview=<>
@@ -189,7 +211,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     return <div className="flex min-w-0 flex-col gap-md" data-strategy-results>
       <DataTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={r=>r.key} indexStart={1}
         className="[&_table]:min-w-(--container-3xl)" columns={[
-          {id:"strategy",header:T.strategy,align:"left" as const,width:"lg" as const,cell:({plan:p}:typeof rows[number])=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period}</span></div>},
+          {id:"strategy",header:T.strategy,align:"left" as const,width:"lg" as const,cell:({plan:p}:typeof rows[number])=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period}{p.versionNo ? ` \u00b7 V${p.versionNo}` : ""}</span></div>},
           {id:"currency",header:T.currency,width:"xs",cell:({result:r,empty})=>r?.currency ?? empty},
           {id:"pipeline",header:T.pipeline,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.open,r.currency):empty},
           {id:"won",header:T.won,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.won,r.currency):empty},
@@ -207,10 +229,12 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         </div></CardHeader>
         <CollapsibleContent><CardContent><div className="flex flex-col gap-md pt-md">
           <div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small">
-            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.owner}</span><MemberName sub={detail.ownerSub} fallback={T.noOwner}/></span>
+            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.owner}</span>{detail.publishedOwnerName || <MemberName sub={detail.ownerSub} fallback={T.noOwner}/>}</span>
             <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.creator}</span><MemberName sub={detail.createdBySub} fallback={T.creatorUnknown}/></span>
-            {detail.approvedAt ? <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.approvedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
+            {detail.approvedAt ? <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.publishedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
           </div>
+          {detail.changeReason ? <p className="text-body-small"><span className="mr-sm text-muted-foreground">{T.changeReason}</span>{detail.changeReason}</p> : null}
+          {detail.snapshotLegacy ? <p className="text-body-small text-muted-foreground">{T.legacySnapshot}</p>:null}
           <div className="flex items-baseline gap-sm" data-strategy-detail-direction><span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
             <p className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p></div>
         </div></CardContent></CollapsibleContent>
@@ -238,20 +262,57 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/>
       <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
         className="grid grid-cols-[auto_minmax(0,1fr)] [&>div:last-child]:col-start-2 [&>div:last-child]:justify-end @4xl:grid-cols-[auto_minmax(0,1fr)_auto] @4xl:[&>div:last-child]:col-start-3"
-        secondary={<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>}
+        secondary={<span className="flex flex-wrap items-center gap-sm">{versionBadge(detail)}<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>{detail.versionNo && !isLatest(detail)?<Tag>{T.historicalVersion}</Tag>:null}</span>}
         description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.period} <span className="text-foreground">{detail.period}</span></span><span>{detail.planNo}</span></span>}
         action={<div className="flex max-w-full flex-wrap items-center gap-sm">
           <Button asChild variant="secondary" size="xl"><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></Button>
-          {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>item.id!=="view")}/>
+          {detail.status==="draft" && data.canApprove ? <Button size="xl" disabled={pending} onClick={()=>openPublication(detail)}>{detail.basePlanId?T.publishNext:T.publishVersion}</Button>:null}
+          {detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status) ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>revise(detail)}>{draftFor(detail)?T.resumeDraft:T.reviseStrategy}</Button>:null}
+          {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>!["view","publish","revise"].includes(item.id))}/>
         </div>}/></> : <ModuleHeadline moduleKey="strategy" description={T.brief}
       action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm" data-strategy-title-actions>{viewActions}{view!=="markets"?<div className="hidden @3xl:block">{periodFilter}</div>:null}{view==="markets"?data.canWriteMarket?<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>:null:data.canCreate?<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>:null}</div>}/>}
     {!detail && view==="validation" ? <FilterBar scope={sectionHeading} actions={<div className="flex flex-wrap items-center gap-sm">{basisButton}{checkButton}</div>}>
       {validationPlanFilter}<div className="@3xl:hidden">{periodFilter}</div>
     </FilterBar> : null}
     {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:view==="markets"?data.markets?<MarketLibrary scope={sectionHeading} markets={data.markets} canWrite={data.canWriteMarket} initialMarket={params.get("market") ?? undefined} actions={checkButton}/>:<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={period||planFilter?T.noMatches:T.noPlans} description={period||planFilter?undefined:T.noPlansWhy}/>):overview}
-    <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{view==="validation"?<p className="mb-sm">{T.validationScope}</p>:null}{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
+    <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{view==="validation"?<p className="mb-sm">{T.validationScope} {T.versionResultsHint}</p>:null}{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
+    {publication ? <DialogForm open size="sm" title={publication.discard?T.discardConfirm:T.publishConfirm}
+      description={publication.discard?T.discardHint:publication.plan.basePlanId?T.publishReplacementHint:T.publishHint}
+      submitLabel={publication.discard?T.discardDraft:publication.plan.basePlanId?T.publishNext:T.publishVersion}
+      submitting={pending} onOpenChange={open=>{if(!open && !pending)setPublication(null);}}
+      onSubmit={e=>{e.preventDefault();if(pending)return;start(async()=>{
+        try{const p=publication.plan;const r=publication.discard?await discardStrategyVersion(p.id,p.editToken ?? 1):await publishStrategyVersion(p.id,p.editToken ?? 1);
+          if(!r.ok){setPublicationError(PLAN_ERROR[r.error ?? "denied"] ?? PLAN_ERROR.denied);return;}
+          setPublication(null);toast({tone:"success",title:publication.discard?T.discardDraft:T.publishSuccess});router.refresh();
+        }catch{setPublicationError(PLAN_ERROR.denied);}
+      });}}>
+      <div className="flex flex-col gap-md text-body-small" data-strategy-publication-confirm>
+        <p className="font-medium">{publication.plan.name}</p><p className="text-muted-foreground">{publication.plan.planNo}{" \u00b7 "}{publication.plan.period}</p>
+        {publication.plan.changeReason?<p>{T.changeReason}{" \u00b7 "}{publication.plan.changeReason}</p>:null}
+        {publicationError?<FieldError role="alert">{publicationError}</FieldError>:null}
+      </div>
+    </DialogForm>:null}
+    <Drawer open={!!versionPlan} onClose={()=>setVersionPlan(null)} width="md" title={T.versionHistory} description={versionPlan?.planNo} closeLabel={T.closed}>
+      <div className="flex flex-col gap-lg" data-strategy-version-history>
+        <p className="text-body-small text-muted-foreground">{T.versionResultsHint}</p>
+        {versionPlan ? family(versionPlan).sort((a,b)=>(b.versionNo ?? Number.MAX_SAFE_INTEGER)-(a.versionNo ?? Number.MAX_SAFE_INTEGER)).map(p=><Card key={p.id} className="gap-md py-lg">
+          <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><CardTitle>{p.versionNo?`V${p.versionNo}`:p.basePlanId?T.revisionDraft:T.noPublication}</CardTitle>
+            <span className="flex items-center gap-sm"><Tag>{PLAN_STATUS_LABEL[p.status]}</Tag>{isLatest(p)?<Tag>{T.currentVersion}</Tag>:null}</span></div></CardHeader>
+          <CardContent><div className="flex flex-col gap-sm text-body-small"><Link href={`/strategy/${p.id}`} onClick={()=>setVersionPlan(null)} className="font-medium transition-colors hover:text-primary">{p.name}</Link>
+            <span className="text-muted-foreground">{p.period}{p.approvedAt?` \u00b7 ${new Date(p.approvedAt).toLocaleString(locale)}`:""}</span>
+            {p.publishedBySub ? <span className="text-muted-foreground">{T.publishedBy} <MemberName sub={p.publishedBySub}/></span>:null}
+            {p.changeReason?<p>{p.changeReason}</p>:null}
+            {p.basePlanId?<span className="text-muted-foreground">{T.baseVersion} V{data.plans?.find(base=>base.id===p.basePlanId)?.versionNo ?? "?"}</span>:null}
+            {p.snapshotLegacy?<p className="text-muted-foreground">{T.legacySnapshot}</p>:null}
+            <div className="flex flex-wrap gap-sm"><Button asChild size="md" variant="secondary"><Link href={`/strategy/${p.id}`} onClick={()=>setVersionPlan(null)}>{T.versionRead}</Link></Button>
+              {p.status==="draft" && data.canEdit ? <Button asChild size="md" variant="secondary"><Link href={`/strategy/new?id=${encodeURIComponent(p.id)}`}>{T.resumeDraft}</Link></Button>:null}
+            </div>
+          </div></CardContent>
+        </Card>):null}
+      </div>
+    </Drawer>
     <Drawer open={basis} onClose={()=>setBasis(false)} width="lg" title={T.basis} description={T.validationWhy} closeLabel={T.closed}>
-      <div className="flex flex-col gap-xl"><p className="text-body-small text-muted-foreground">{T.validationScope}</p>
+      <div className="flex flex-col gap-xl"><p className="text-body-small text-muted-foreground">{T.validationScope} {T.versionResultsHint}</p>
         {plans.map(p=><div key={p.id} className="flex flex-col gap-sm"><h3 className="text-heading-3">{p.name}</h3>
           {p.results===null?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:!p.results.length?<p className="text-body-small text-muted-foreground">{T.noDealsWhy}</p>:null}
           {p.attributionIncomplete?<p className="text-body-small text-muted-foreground">{T.attributionIncomplete}</p>:null}
@@ -262,7 +323,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     </Drawer>
     <Drawer open={checks} onClose={()=>setChecks(false)} width="lg" title={T.checks} description={T.checkWhy} closeLabel={T.closed}>
       <div className="flex flex-col gap-xl">{data.plans===null||data.markets===null||data.markets.some(m=>m.customers===null)||data.plans.some(p=>p.campaigns===null)?<p className="text-body-small text-muted-foreground">{T.checkIncomplete}</p>:null}
-        {data.canPlan && data.plans!==null?<PlanAdvicePanel advice={visiblePlanAdvice} canApprove={data.canApprove} onApprove={movePlan}/>:null}
+        {data.canPlan && data.plans!==null?<PlanAdvicePanel advice={visiblePlanAdvice}/>:null}
         {data.canMarkets && data.markets!==null?<SegmentAdvicePanel advice={visibleSegmentAdvice}/>:null}
       </div>
     </Drawer>

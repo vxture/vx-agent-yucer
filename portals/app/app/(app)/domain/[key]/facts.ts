@@ -1,3 +1,4 @@
+import { currentStrategyPlans } from "../../../domains/strategy/store";
 import type { PermissionHolder } from "../../../authz/decide";
 import type { Entitlement } from "../../../entitlement/types";
 import {
@@ -88,7 +89,7 @@ async function armoryFacts(ctx: FactsContext): Promise<DomainFact[]> {
       : null;
 
   return visibleFacts([
-    fact("activePlans", plans.ok ? plans.value.filter((p) => p.status === "active").length : null, "/strategy"),
+    fact("activePlans", plans.ok ? currentStrategyPlans(plans.value).filter((p) => p.status === "active").length : null, "/strategy"),
     fact("segments", len(segments), "/strategy"),
     fact("emptySegments", emptySegments, "/strategy#segments", true),
     fact("products", products.ok ? products.value.filter((p) => p.statusId === onSaleId).length : null, "/catalog"),

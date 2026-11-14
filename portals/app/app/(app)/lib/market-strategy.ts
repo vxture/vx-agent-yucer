@@ -25,8 +25,10 @@ export interface StrategyResult {
   currency: string; open: number; won: number;
   openCount: number; wonCount: number; lostCount: number; unpriced: number;
 }
-export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt" | "solutionIds" | "targetMarkets"> {
+export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt" | "solutionIds" | "targetMarkets" | "publishedSnapshot"> {
   approvedAt: string | null;
+  snapshotLegacy: boolean;
+  publishedOwnerName: string | null;
   marketIds: string[] | null; customerCount: number | null;
   campaigns: Pick<CampaignRecord, "id" | "name" | "campaignNo" | "status">[] | null;
   solutions: SolutionReference[] | null;
@@ -97,7 +99,13 @@ export function strategyViews(plans: readonly PlanRecord[], markets: readonly Ma
     const rows = unique.map(id => bySolution.get(id)).filter((s): s is SolutionReference => s !== undefined);
     return rows.length === unique.length ? rows : null;
   };
-  return plans.map(({ workspaceId: _workspace, approvedAt, solutionIds, targetMarkets = [], ...p }) => {
+  return plans.map(({ workspaceId: _workspace, approvedAt, solutionIds, targetMarkets = [], publishedSnapshot, ...p }) => {
+    const frozen=publishedSnapshot;
+    if(frozen){solutionIds=frozen.sharedSolutionIds;targetMarkets=frozen.targetMarkets;}
+    const visibleReferences=(ids: readonly string[])=>{
+      const rows=references(ids);if(rows===null || !frozen)return rows;
+      return rows.map(s=>frozen.solutions.find(saved=>saved.id===s.id) ?? s);
+    };
     const matched = new Set<string>();
     let knownCustomers = markets !== null && accounts !== null;
     const targets = markets === null ? null : targetMarkets.flatMap(({ solutionIds: targetSolutionIds, ...t }) => {
@@ -114,13 +122,14 @@ export function strategyViews(plans: readonly PlanRecord[], markets: readonly Ma
           else if (match === "missing") missing++;
         }
       }
-      return [{ ...t, status: market.status, solutions: references(targetSolutionIds),
+      return [{ ...t, status: market.status, solutions: visibleReferences(targetSolutionIds),
         matched: accounts === null ? null : count, missing: accounts === null ? null : missing }];
     });
     const credited = deals ? strategyResults(p.id, deals, campaigns) : null;
-    return { ...p, approvedAt: approvedAt?.toISOString() ?? null,
-      sharedSolutions: references(solutionIds),
-      solutions: markets === null && targetMarkets.length ? null : references([...solutionIds, ...targetMarkets.flatMap(m => m.solutionIds)]),
+    return { ...p, ...(frozen ? {name:frozen.name,period:frozen.period,objective:frozen.objective,ownerSub:frozen.ownerSub}:{}),
+      snapshotLegacy:frozen?.legacy ?? false,publishedOwnerName:frozen?.ownerName ?? null,approvedAt: approvedAt?.toISOString() ?? null,
+      sharedSolutions: visibleReferences(solutionIds),
+      solutions: markets === null && targetMarkets.length ? null : visibleReferences([...solutionIds, ...targetMarkets.flatMap(m => m.solutionIds)]),
       targetMarkets: targets,
       marketIds: targets?.map(m => m.segmentId) ?? null,
       customerCount: knownCustomers || (markets !== null && !targetMarkets.length) ? matched.size : null,

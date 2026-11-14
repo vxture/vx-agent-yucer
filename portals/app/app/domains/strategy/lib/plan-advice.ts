@@ -74,6 +74,8 @@ export interface PlanAdviceInput {
  * finding computed from an assumption.
  */
 export function periodWindow(period: string): { start: Date; end: Date } | null {
+  const annual = /^(\d{4})$/.exec(period.trim());
+  if (annual) return { start: dayStart(Number(annual[1]), 0, 1), end: dayEnd(Number(annual[1]), 11, 31) };
   const m = /^(\d{4})[\s-]?([HQ])([1-4])$/i.exec(period.trim());
   if (!m) return null;
   const year = Number(m[1]);

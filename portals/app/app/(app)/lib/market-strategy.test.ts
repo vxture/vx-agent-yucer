@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { marketMatch, marketViews, strategyResults, strategyViews, type MarketAccount } from "./market-strategy";
-import type { PlanRecord, SegmentRecord, CampaignRecord } from "../../domains/strategy/store";
+import { captureStrategyPublication, type PlanRecord, type SegmentRecord, type CampaignRecord } from "../../domains/strategy/store";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { money } from "../../domains/shared/money";
 
@@ -58,4 +58,25 @@ test("an unreadable campaign chain is not assumed to validate attribution; zero 
   const r=strategyResults("p",[deal("zero",{campaignId:null,amount:money(0)}),deal("blank",{campaignId:null,amount:null})],null);
   assert.equal(r.results[0].openCount,2);
   assert.equal(r.results[0].unpriced,1);
+});
+
+
+test("published views freeze reference names and never serialize hidden snapshots", () => {
+  const ref = { id: "sol", solutionCode: "S1", name: "Original solution", status: "active" as const };
+  const target = { segmentId: "m", marketName: "Original market", intent: "focus" as const, approach: "Pilot", criteria, solutionIds: [ref.id] };
+  const original = { ...plan, solutionIds: [ref.id], targetMarkets: [target], ownerSub: "owner" };
+  const published = { ...original, publishedSnapshot: captureStrategyPublication(original, [ref], new Date("2026-11-14"), false, "Original owner") };
+  const markets = marketViews([{ ...segment, name: "Renamed market" }], [], [account]);
+  const visible = strategyViews([{ ...published, name: "Changed live field" }], markets, [], [], [{ ...ref, name: "Renamed solution" }], [account])[0];
+  assert.equal(visible.name, original.name);
+  assert.equal(visible.publishedOwnerName, "Original owner");
+  assert.equal(visible.targetMarkets?.[0].marketName, "Original market");
+  assert.equal(visible.solutions?.[0].name, "Original solution");
+  assert.equal("publishedSnapshot" in visible, false);
+  const hidden = strategyViews([published], null, null, null, null, null)[0];
+  assert.equal(hidden.solutions, null);
+  assert.equal(hidden.targetMarkets, null);
+  assert.equal(JSON.stringify(hidden).includes("Original solution"), false);
+  assert.equal(JSON.stringify(hidden).includes("Original market"), false);
+  assert.equal("publishedSnapshot" in hidden, false);
 });

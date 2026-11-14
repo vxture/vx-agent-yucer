@@ -14,6 +14,8 @@ import type {
 } from "./lib/lifecycle";
 import type { NewCampaignDraft } from "./lib/campaign";
 import {
+  StrategyVersionError,
+  type StrategyPublication, type PublishPlanCommand, type PlanWriteGuard,
   PlanMarketUnavailableError,
   PlanSolutionUnavailableError,
   SegmentReferencedError,
@@ -146,7 +148,9 @@ export class PrismaStrategyStore implements StrategyStore {
       ownerSub?: string | null;
       solutionIds?: readonly string[];
       targetMarkets?: readonly TargetMarket[];
+      changeReason?: string;
     },
+    writeGuard: PlanWriteGuard = {},
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const { solutionIds, targetMarkets, ...fields } = patch;
@@ -159,7 +163,7 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(["name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
+    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
     if (solutionIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
@@ -176,6 +180,28 @@ export class PrismaStrategyStore implements StrategyStore {
       if (targetMarkets !== undefined) await writeTargets(tx, scope, targetMarkets);
       return true;
     }));
+  }
+
+  async createRevision(workspaceId: string, baseId: string, actorSub: string): Promise<PlanRecord> {
+    const p=await getPrismaClient();
+    return strategyVersionWrite(async()=>{
+      const rows=await p.$queryRaw<{id:string}[]>`SELECT yucer_gtm.revise_strategy_plan(${workspaceId}::uuid,${baseId}::uuid,${actorSub}) AS id`;
+      return (await this.getPlan(workspaceId,rows[0]!.id))!;
+    });
+  }
+  async publishPlan(workspaceId: string, id: string, command: PublishPlanCommand): Promise<PlanRecord> {
+    const p=await getPrismaClient();
+    return strategyVersionWrite(async()=>{
+      const rows=await p.$queryRaw<{id:string}[]>`SELECT yucer_gtm.publish_strategy_plan(${workspaceId}::uuid,${id}::uuid,${command.expectedEditToken}::integer,${command.actorSub},${command.at}::timestamptz) AS id`;
+      return (await this.getPlan(workspaceId,rows[0]!.id))!;
+    });
+  }
+  async discardDraft(workspaceId: string, id: string, expectedEditToken: number, actorSub: string): Promise<PlanRecord> {
+    const p=await getPrismaClient();
+    return strategyVersionWrite(async()=>{
+      const rows=await p.$queryRaw<{id:string}[]>`SELECT yucer_gtm.discard_strategy_draft(${workspaceId}::uuid,${id}::uuid,${expectedEditToken}::integer,${actorSub}) AS id`;
+      return (await this.getPlan(workspaceId,rows[0]!.id))!;
+    });
   }
 
   async listCampaigns(
@@ -474,6 +500,9 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
+    lineageId: String(r.lineageId),basePlanId:(r.basePlanId as string|null) ?? null,versionNo:(r.versionNo as number|null) ?? null,
+    editToken:Number(r.editToken),changeReason:String(r.changeReason ?? ""),publishedBySub:(r.publishedBySub as string|null) ?? null,
+    publishedSnapshot:(r.publishedSnapshot as StrategyPublication|null) ?? null,
     createdBySub: (r.createdBySub as string | null) ?? null,
     planNo: String(r.planNo),
     name: String(r.name),
@@ -545,4 +574,14 @@ function toExecution(r: Record<string, unknown>): ExecutionRecord {
     dueAt: (r.dueAt as Date | null) ?? null,
     status: r.status as ExecutionStatus,
   };
+}
+
+async function strategyVersionWrite<T>(write:()=>Promise<T>):Promise<T> {
+  try{return await write();}catch(error){
+    const message=error instanceof Error?error.message:String(error);
+    for(const code of ["strategy_not_found","strategy_not_revisable","strategy_draft_conflict","strategy_reason_required","strategy_base_conflict","draft_required","invalid_publication","controlled_release_required"]) {
+      if(message.includes(code))throw new StrategyVersionError(code);
+    }
+    throw error;
+  }
 }

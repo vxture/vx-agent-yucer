@@ -6,7 +6,7 @@ import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getStrategyStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import {
-  createPlan,
+  createPlan, publishStrategy, reviseStrategy, discardStrategyDraft,
   editPlan,
   moveSegment,
   removeSegment,
@@ -36,12 +36,15 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 export interface TransitionResult {
   ok: boolean;
   error?: string;
+  id?: string;
 }
 
-export async function movePlan(id: string, to: string): Promise<TransitionResult> {
+export async function movePlan(id: string, to: string, editToken?: number): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
+  if(to === "approved")return {ok:false,error:"controlled_release_required"};
+  if(!Number.isSafeInteger(editToken) || !editToken || editToken<1)return {ok:false,error:"strategy_draft_conflict"};
   if (!(PLAN_STATUSES as readonly string[]).includes(to)) {
     return { ok: false, error: "unknown_status" };
   }
@@ -56,6 +59,7 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
     },
     id,
     to as PlanStatus,
+    {expectedEditToken:editToken},
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
@@ -92,7 +96,7 @@ export async function createStrategyPlan(input: NewPlanDraft): Promise<Transitio
   }
   revalidatePath("/strategy", "layout");
   revalidatePath("/segment");
-  return { ok: true };
+  return { ok: true, id:result.value.id };
 }
 
 /**
@@ -107,7 +111,9 @@ export async function createStrategyPlan(input: NewPlanDraft): Promise<Transitio
 export async function savePlan(
   id: string,
   input: PlanEdit,
+  editToken: number,
 ): Promise<TransitionResult> {
+  if(!Number.isSafeInteger(editToken)||editToken<1)return {ok:false,error:"strategy_draft_conflict"};
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -123,6 +129,7 @@ export async function savePlan(
     },
     id,
     input,
+    {expectedEditToken:editToken},
   );
 
   if (!result.ok) {
@@ -130,6 +137,30 @@ export async function savePlan(
   }
   revalidatePath("/strategy", "layout");
   revalidatePath("/segment");
+  return { ok: true };
+}
+
+export async function startStrategyRevision(id:string):Promise<TransitionResult & {id?:string}> {
+  const session=await resolveAppSession();if(!session)return {ok:false,error:"not_authenticated"};
+  const result=await reviseStrategy({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,store:getStrategyStore()},id);
+  if(!result.ok)return {ok:false,error:result.violations[0]?.code ?? "denied"};
+  revalidatePath("/strategy","layout");return {ok:true,id:result.value.id};
+}
+export async function publishStrategyVersion(id:string,editToken:number):Promise<TransitionResult> {
+  const session=await resolveAppSession();if(!session)return {ok:false,error:"not_authenticated"};
+  const result=await publishStrategy({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,
+    store:getStrategyStore(),catalog:getCatalogStore(),memberDirectory:getAuthzStore()},id,editToken);
+  if(!result.ok)return {ok:false,error:result.violations[0]?.code ?? "denied"};
+  revalidatePath("/strategy","layout");revalidatePath("/campaign");revalidatePath("/segment");return {ok:true};
+}
+
+export async function discardStrategyVersion(id: string, editToken: number): Promise<TransitionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await discardStrategyDraft({ workspaceId: session.workspaceId, sub: session.user.sub,
+    holder: session.authz, entitlement: session.entitlement, store: getStrategyStore() }, id, editToken);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 

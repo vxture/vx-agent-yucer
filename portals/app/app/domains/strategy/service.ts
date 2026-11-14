@@ -39,6 +39,8 @@ import {
 } from "./lib/lifecycle";
 import { checkCampaignLinks, planCampaignEdit, planNewCampaign, type CampaignDraft, type NewCampaignDraft } from "./lib/campaign";
 import {
+  StrategyVersionError,
+  type PlanWriteGuard,
   PlanMarketUnavailableError,
   PlanSolutionUnavailableError,
   SegmentReferencedError,
@@ -219,14 +221,16 @@ export async function editPlan(
   ctx: StrategyContext,
   id: string,
   input: PlanEdit,
+  guard: PlanWriteGuard = {},
 ): Promise<RuleResult<PlanRecord>> {
-  return applyPlanEdit(ctx, id, () => ok(input));
+  return applyPlanEdit(ctx, id, () => ok(input), guard);
 }
 
 async function applyPlanEdit(
   ctx: StrategyContext,
   id: string,
   resolveInput: (plan: PlanRecord) => RuleResult<PlanEdit>,
+  guard: PlanWriteGuard,
 ): Promise<RuleResult<PlanRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.update", "data");
   if (!gate.allowed) return denied(gate);
@@ -239,6 +243,7 @@ async function applyPlanEdit(
     return fail(violation("plan_settled", `plan ${plan.planNo} is ${plan.status}`, "status"));
   }
 
+  if(guard.expectedEditToken !== undefined && guard.expectedEditToken !== (plan.editToken ?? 1))return fail(violation("strategy_draft_conflict","draft changed; reload before saving","editToken"));
   const resolved = resolveInput(plan);
   if (!resolved.ok) return resolved;
   const input = resolved.value;
@@ -256,23 +261,24 @@ async function applyPlanEdit(
     ...(selection.value === undefined ? {} : { solutionIds: selection.value }),
     ...(targets.value === undefined ? {} : { targetMarkets: targets.value }),
   };
-  const applied = await persistPlanSelection(() => ctx.store.updatePlan(ctx.workspaceId, id, patch));
+  const applied = await persistPlanSelection(() => ctx.store.updatePlan(ctx.workspaceId, id, patch, {...guard,expectedStatus:"draft"}));
   if (!applied.ok) return applied;
   if (!applied.value) {
     const latest = await ctx.store.getPlan(ctx.workspaceId, id);
     if (latest && latest.status !== "draft") {
       return fail(violation("plan_settled", `plan ${latest.planNo} is ${latest.status}`, "status"));
     }
+    if(latest)return fail(violation("strategy_draft_conflict","draft changed; reload before saving","editToken"));
     return fail(violation("not_found", `plan ${id} was not found`, "id"));
   }
-  return ok({ ...plan, ...patch });
+  return ok((await ctx.store.getPlan(ctx.workspaceId,id))!);
 }
 
 export async function transitionPlan(
   ctx: StrategyContext,
   id: string,
   to: PlanStatus,
-  opts: { at?: Date } = {},
+  opts: { at?: Date; expectedEditToken?: number } = {},
 ): Promise<RuleResult<{ status: PlanStatus }>> {
   const action = to === "approved" ? "strategy.plan.approve" : "strategy.plan.update";
   const gate = can(ctx.holder, ctx.entitlement, action, "data");
@@ -284,9 +290,59 @@ export async function transitionPlan(
   const next = planStrategyTransition(plan, to, opts);
   if (!next.ok) return next as RuleResult<{ status: PlanStatus }>;
 
-  const applied = await ctx.store.updatePlan(ctx.workspaceId, id, next.value);
-  if (!applied) return fail(violation("not_found", `plan ${id} was not found`, "id"));
+  if(to === "approved") {
+    const result=await publishStrategy(ctx,id,opts.expectedEditToken ?? plan.editToken ?? 1,opts.at);
+    return result.ok ? ok({status:result.value.status}) : result;
+  }
+  if(plan.status==="draft" && to==="archived") {
+    const result=await discardStrategyDraft(ctx,id,opts.expectedEditToken ?? plan.editToken ?? 1);
+    return result.ok ? ok({status:result.value.status}) : result;
+  }
+  const applied = await ctx.store.updatePlan(ctx.workspaceId, id, next.value,{expectedEditToken:opts.expectedEditToken ?? plan.editToken ?? 1,expectedStatus:plan.status});
+  if (!applied) return fail(violation("strategy_draft_conflict", "strategy changed; reload before moving", "editToken"));
   return ok({ status: next.value.status });
+}
+
+async function versionResult<T>(write:()=>Promise<T>):Promise<RuleResult<T>> {
+  try{return ok(await write());}catch(error){
+    if(error instanceof StrategyVersionError)return fail(violation(error.code,"strategy version operation refused",undefined,true));
+    throw error;
+  }
+}
+export async function reviseStrategy(ctx:StrategyContext,baseId:string):Promise<RuleResult<PlanRecord>> {
+  const gate=can(ctx.holder,ctx.entitlement,"strategy.plan.update","data");if(!gate.allowed)return denied(gate);
+  return versionResult(()=>ctx.store.createRevision(ctx.workspaceId,baseId,ctx.sub));
+}
+export async function discardStrategyDraft(ctx:StrategyContext,id:string,expectedEditToken:number):Promise<RuleResult<PlanRecord>> {
+  const gate=can(ctx.holder,ctx.entitlement,"strategy.plan.update","data");if(!gate.allowed)return denied(gate);
+  if(!Number.isSafeInteger(expectedEditToken)||expectedEditToken<1)return fail(violation("strategy_draft_conflict","invalid edit token","editToken"));
+  return versionResult(()=>ctx.store.discardDraft(ctx.workspaceId,id,expectedEditToken,ctx.sub));
+}
+export async function publishStrategy(ctx:StrategyContext,id:string,expectedEditToken:number,at=new Date()):Promise<RuleResult<PlanRecord>> {
+  const gate=can(ctx.holder,ctx.entitlement,"strategy.plan.approve","data");if(!gate.allowed)return denied(gate);
+  if(!Number.isSafeInteger(expectedEditToken)||expectedEditToken<1)return fail(violation("strategy_draft_conflict","invalid edit token","editToken"));
+  const plan=await ctx.store.getPlan(ctx.workspaceId,id);
+  if(!plan)return fail(violation("strategy_not_found","strategy not found","id"));
+  // Idempotent retries preserve the original publisher, timestamp and version.
+  if(plan.versionNo)return ok(plan);
+  if(plan.status!=="draft")return fail(violation("draft_required","only a draft can be published","status"));
+  if((plan.editToken ?? 1)!==expectedEditToken)return fail(violation("strategy_draft_conflict","draft changed; reload before publishing","editToken"));
+  if(plan.basePlanId && !plan.changeReason?.trim())return fail(violation("strategy_reason_required","describe the revision before publishing","changeReason"));
+  if((plan.targetMarkets?.length ?? 0)>0){const marketGate=can(ctx.holder,ctx.entitlement,"strategy.segment.view","data");if(!marketGate.allowed)return denied(marketGate);}
+  const ids=new Set([...plan.solutionIds,...(plan.targetMarkets ?? []).flatMap(t=>t.solutionIds)]);
+  let solutions: import("../catalog/service").SolutionReference[]=[];
+  if(ids.size){
+    const catalogGate=can(ctx.holder,ctx.entitlement,"catalog.solution.view","data");if(!catalogGate.allowed)return denied(catalogGate);
+    if(!ctx.catalog)return fail(violation("solution_catalog_unavailable","solution catalogue unavailable",undefined,true));
+    try{
+      const refs=await listSolutionReferences({...ctx,store:ctx.catalog});if(!refs.ok)return refs;
+      solutions=refs.value.filter(s=>ids.has(s.id));
+      if(solutions.length!==ids.size)return fail(violation("solution_not_selectable","a linked solution cannot be read","solutionIds"));
+    }catch{return fail(violation("solution_catalog_unavailable","solution catalogue unavailable",undefined,true));}
+  }
+  let ownerName:string|null=null;
+  try{ownerName=(await ctx.memberDirectory?.listMembers(ctx.workspaceId))?.find(m=>m.sub===plan.ownerSub)?.displayName ?? null;}catch{/* Display cache is optional. */}
+  return versionResult(()=>ctx.store.publishPlan(ctx.workspaceId,id,{expectedEditToken,actorSub:ctx.sub,at,solutions,ownerName}));
 }
 
 export async function listCampaigns(

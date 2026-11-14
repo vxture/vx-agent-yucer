@@ -57,6 +57,7 @@ themselves in their own header comment.
 | `0105_account_plan_close_reason.sql` | A customer plan can be closed and reopened (owner, 2026-10-02): `account_plan.close_reason` (optional text, cleared on reopen) joins the writable whitelist, restated whole. |
 | `0104_author_may_delete_own_evidence.sql` | ADR-037 amends ADR-006: the service role gets DELETE on `interaction` and `commitment` (the rule layer decides which rows), and `commitment` gets `created_by_sub` so a promise has an author. Rows written before it keep NULL and stay undeletable. |
 | `0109_strategy_creator.sql` | Insert-only strategy creator identity; historical rows remain unknown. |
+| `0110_strategy_versions.sql` | Strategy lineage, frozen publications, guarded shared drafts, controlled release/revise/discard and append-only events; legacy V1 adoption retains exact downstream ids. |
 
 Note that `0001` carries DATA, not structure. It ships here rather than in
 `00_baseline.sql` because `local_authz.role` / `local_authz.permission` are
