@@ -8861,16 +8861,14 @@ export const ATTAINMENT_PLAN_TEXT = {
 } as const;
 
 export const MARKET_STRATEGY_TEXT = {
-  dateWindowHint: "\u76f4\u63a5\u9009\u62e9\u8d77\u6b62\u65e5\u671f\uff0c\u6216\u7528\u5e74\u5ea6\u3001\u5b63\u5ea6\u5feb\u6377\u586b\u5145\u3002",
   periodShortcuts: "\u5feb\u6377\u586b\u5145",
 
   executionPeriod: "\u6267\u884c\u5468\u671f",
   quarterly: "\u5b63\u5ea6",
-  customDateRange: "\u81ea\u5b9a\u4e49\u65e5\u671f\u8303\u56f4",
+  customDateRange: "\u81ea\u5b9a\u4e49\u5468\u671f",
   year: "\u5e74\u4efd",
   startDate: "\u5f00\u59cb\u65e5\u671f",
   endDate: "\u7ed3\u675f\u65e5\u671f",
-  inclusiveDates: "\u542b\u9996\u5c3e\u65e5\u671f",
   periodApply: "\u5e94\u7528\u5468\u671f",
   periodNeedsDates: "\u8865\u5145\u6267\u884c\u65e5\u671f",
   periodInvalidDates: "\u8bf7\u9009\u62e9\u6709\u6548\u7684\u5f00\u59cb\u65e5\u671f\u548c\u7ed3\u675f\u65e5\u671f",

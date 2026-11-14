@@ -7426,16 +7426,14 @@ export const en: Dictionary = {
     unknown: "The draft did not complete - try again later",
   },
   MARKET_STRATEGY_TEXT: {
-  dateWindowHint: "Choose start and end dates directly, or fill a calendar year or quarter.",
   periodShortcuts: "Quick fill",
 
   executionPeriod: "Execution period",
   quarterly: "Quarter",
-  customDateRange: "Custom date range",
+  customDateRange: "Custom period",
   year: "Year",
   startDate: "Start date",
   endDate: "End date",
-  inclusiveDates: "Both dates included",
   periodApply: "Apply period",
   periodNeedsDates: "Set execution dates",
   periodInvalidDates: "Choose valid start and end dates",
