@@ -130,7 +130,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       note={<div className="flex min-w-0 gap-sm">
         <span className="size-icon-xl shrink-0" aria-hidden="true"/>
         <div className="flex min-w-0 flex-1 flex-col gap-sm" data-strategy-card-body>
-          <p className={`line-clamp-2 break-words @lg:line-clamp-1 ${p.objective ? "text-foreground" : ""}`} title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
+          <div className="flex min-w-0 items-baseline gap-xs" data-strategy-card-direction>
+            <span className="shrink-0 text-muted-foreground">{T.direction}</span>
+            <p className={`min-w-0 line-clamp-2 break-words @lg:line-clamp-1 ${p.objective ? "text-foreground" : ""}`} title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
+          </div>
           {markets.length || solutions.length ? <div className="grid min-w-0 gap-x-lg gap-y-2xs @sm:grid-flow-col @sm:auto-cols-fr">
             {linkedSummary(T.marketCount, markets, href)}
             {linkedSummary(T.solutionCount, solutions, href)}

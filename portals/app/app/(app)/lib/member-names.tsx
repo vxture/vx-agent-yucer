@@ -43,7 +43,7 @@ export function MemberName({ sub, name, picture, fallback = "-" }: {
   const person = sub ? members.find(m => m.sub === sub) : undefined;
   const label = name || nameOf(sub);
   if (!label) return <>{fallback}</>;
-  return <span className="inline-flex max-w-full min-w-0 shrink-0 items-center gap-xs whitespace-nowrap align-middle" data-member-identity>
+  return <span className="inline-flex max-w-full min-w-0 shrink-0 items-center gap-2xs whitespace-nowrap px-2xs align-middle" data-member-identity>
     <UserAvatar src={picture ?? person?.picture} alt="" aria-hidden="true" className="size-control-md shrink-0 text-muted-foreground"/>
     <span className="min-w-0 truncate" title={label}>{label}</span>
   </span>;
