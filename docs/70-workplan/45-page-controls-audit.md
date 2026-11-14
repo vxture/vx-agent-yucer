@@ -293,3 +293,16 @@ node scripts/qa/verify-control-overlays.mjs --tab <dedicated-cdp-tab-id>
 
 周期组选中态补正：保留 DS secondary 背景/文字变化，使用同一 `border-control-border`
 语义 token 维持选中与未选中项的 1px 连续边线；保留键盘焦点环。
+
+
+### 周期组件接入已发布 DS（2026-11-14）
+
+消费 Design System 15.6.1 / Design UI 12.5.1 / Design Tokens 4.1.0，锁文件保留单一
+Design UI 版本。战略周期切换改用 DS SegmentedControl，起止使用 DS DatePicker，
+前置日历图标；浮层根据 DS 宽度与留白档位收紧。分段保持等宽、统一边线、无按压位移，
+选中使用品牌蓝底与白字。按用户本地日期读取选择结果，再交由既有周期规则校验。
+
+浏览器验证真实点击按下与释放时布局稳定、日期面板独立开关、自定义日期应用、
+1600px / 780px / 390px 下浮层控件适配。类型检查、生产构建、入口和文档检查通过；
+完整测试 3,327 项：2,882 通过、445 个需连接数据库的项目跳过、0 失败。
+本地截图 `/tmp/yucer-strategy-period-ds-panel.png`。本轮未上线。

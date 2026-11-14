@@ -1,9 +1,20 @@
 "use client";
 
 import {useState} from "react";
-import {Button, ButtonGroup, Field, FieldError, FieldLabel, Icon, Input, Popover, PopoverContent, PopoverTrigger} from "@vxture/design-ui";
+import {Button, DatePicker, Field, FieldError, FieldLabel, Icon, Input, Popover, PopoverContent, PopoverTrigger, SegmentedControl} from "@vxture/design-ui";
 import {parseStrategyPeriod, strategyPeriodForDates, strategyPeriodRangeLabel} from "../../domains/strategy/lib/plan-period";
 import {useMessages} from "../lib/i18n/provider";
+
+function pickerDate(value:string) {
+  if (!value) return undefined;
+  const [year,month,day]=value.split("-").map(Number);
+  return new Date(year!,month!-1,day!);
+}
+
+// The picker returns a local calendar day; UTC serialization can shift it.
+function dateKey(date?:Date) {
+  return date?`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`:"";
+}
 
 /** DS composition for an execution window. Dates are primary; presets fill them. */
 export function StrategyPeriodField({value,onChange,disabled}:{readonly value:string;readonly onChange:(value:string)=>void;readonly disabled:boolean}) {
@@ -28,7 +39,7 @@ export function StrategyPeriodField({value,onChange,disabled}:{readonly value:st
   const fill=(key:string)=>{const range=parseStrategyPeriod(key);if(range){setStartOn(range.startOn);setEndOn(range.endOn);setAttempted(false);}};
   const error=startOn && endOn && startOn>endOn?T.periodEndBeforeStart:T.periodInvalidDates;
   const datesChanged=startOn!==saved?.startOn || endOn!==saved?.endOn;
-  const presets=[{key:year,label:T.annual},...[1,2,3,4].map(q=>({key:`${year}-Q${q}`,label:`Q${q}`}))];
+  const presets=[{value:year,label:T.annual},...[1,2,3,4].map(q=>({value:`${year}-Q${q}`,label:`Q${q}`}))];
   return <Field>
     <div className="flex items-baseline gap-sm">
       <FieldLabel htmlFor="strategy-period">{T.executionPeriod}</FieldLabel>
@@ -37,17 +48,27 @@ export function StrategyPeriodField({value,onChange,disabled}:{readonly value:st
     <Popover open={open} onOpenChange={next=>{if(next)reset();setOpen(next);}}>
       <PopoverTrigger asChild><Button id="strategy-period" type="button" size="md" variant="outline" disabled={disabled}
         className="w-full justify-between" data-strategy-period-trigger title={strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}>
-        <span className="min-w-0 truncate tabular-nums">{strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}</span><Icon name="chevron-down" size="sm" className="shrink-0"/>
+        <span className="flex min-w-0 items-center gap-xs"><Icon name="calendar" size="sm"/><span className="truncate tabular-nums">{strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}</span></span>
+        <Icon name="chevron-down" size="sm" className="shrink-0"/>
       </Button></PopoverTrigger>
-      <PopoverContent width="xl" align="start">
+      <PopoverContent align="start" aria-label={T.executionPeriod} collisionPadding={8}
+        className="w-[calc(var(--container-overlay-lg)+var(--space-lg)*2)] max-w-(--radix-popover-content-available-width) p-md sm:p-lg">
         <div className="flex flex-col gap-lg" data-strategy-period-editor>
-          <ButtonGroup className="w-full" aria-label={T.periodShortcuts} data-strategy-period-presets>
+          <div className="flex items-center gap-xs" data-strategy-period-presets>
             <Input id="strategy-period-year" aria-label={T.year} type="number" min={1900} max={9999} step={1} inputMode="numeric" value={year} className="w-20 shrink-0" onChange={e=>setYear(e.target.value)}/>
-            {presets.map(p=><Button key={p.label} type="button" size="md" variant={candidate===p.key?"secondary":"outline"} className="min-w-0 flex-1 border-control-border" disabled={!yearValid} aria-pressed={candidate===p.key} onClick={()=>fill(p.key)}>{p.label}</Button>)}
-          </ButtonGroup>
+            <SegmentedControl ariaLabel={T.periodShortcuts} fill value={candidate ?? ""} onChange={fill}
+              items={presets.map(p=>({...p,disabled:!yearValid}))}
+              className="min-w-0 flex-1 [&>button]:rounded-none [&>button]:border-r [&>button]:border-control-border [&>button]:whitespace-nowrap [&>button]:font-medium [&>button:last-child]:border-transparent [&>button[aria-checked=true]]:bg-primary [&>button[aria-checked=true]]:text-primary-foreground [&>button[aria-checked=true]]:shadow-none"/>
+          </div>
           <div className="grid grid-cols-2 gap-md">
-            <Field><FieldLabel htmlFor="strategy-period-start">{T.startDate}</FieldLabel><Input id="strategy-period-start" type="date" min="1900-01-01" max={endOn || "9999-12-31"} value={startOn} onChange={e=>setStartOn(e.target.value)}/></Field>
-            <Field><FieldLabel htmlFor="strategy-period-end">{T.endDate}</FieldLabel><Input id="strategy-period-end" type="date" min={startOn || "1900-01-01"} max="9999-12-31" value={endOn} onChange={e=>setEndOn(e.target.value)}/></Field>
+            <Field aria-labelledby="strategy-period-start-label">
+              <FieldLabel id="strategy-period-start-label">{T.startDate}</FieldLabel>
+              <DatePicker value={pickerDate(startOn)} placeholder={T.startDate} onValueChange={date=>setStartOn(dateKey(date))} className="w-full"/>
+            </Field>
+            <Field aria-labelledby="strategy-period-end-label">
+              <FieldLabel id="strategy-period-end-label">{T.endDate}</FieldLabel>
+              <DatePicker value={pickerDate(endOn)} placeholder={T.endDate} onValueChange={date=>setEndOn(dateKey(date))} className="w-full"/>
+            </Field>
           </div>
           {!parsed && (attempted || startOn || endOn)?<FieldError role="status">{error}</FieldError>:null}
           <div className="flex justify-end gap-sm">
