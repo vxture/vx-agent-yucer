@@ -51,9 +51,11 @@ FROM yucer_gtm.strategy_plan p WHERE p.workspace_id=ws AND p.id=pid
 $$;
 -- Existing publications get a clearly labelled adoption snapshot of today's
 -- stored content. It is not represented as a recovered historical document.
+-- The old lifecycle could send an approved plan back to draft without clearing
+-- approved_at. Keep those drafts editable and without a publication snapshot.
 UPDATE yucer_gtm.strategy_plan p SET version_no=1,
   published_snapshot=yucer_gtm.strategy_version_snapshot(workspace_id,id,true)
-WHERE status IN ('approved','active','closed') OR approved_at IS NOT NULL;
+WHERE status IN ('approved','active','closed') OR (status='archived' AND approved_at IS NOT NULL);
 ALTER TABLE yucer_gtm.strategy_plan ADD CONSTRAINT chk_strategy_publication
   CHECK ((version_no IS NULL AND published_snapshot IS NULL AND published_by_sub IS NULL)
     OR (version_no IS NOT NULL AND status <> 'draft' AND published_snapshot IS NOT NULL AND jsonb_typeof(published_snapshot)='object'));
