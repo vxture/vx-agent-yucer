@@ -1,3 +1,4 @@
+import { parseStrategyPeriod } from "./plan-period";
 // D1 strategy and D3 campaign lifecycles.
 //
 // These two domains share a file because they share a shape: both own an object
@@ -238,6 +239,7 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
     return fail(violation("period_required", "a plan needs a period", "period"));
   }
 
+  if (!parseStrategyPeriod(period)) return fail(violation("period_invalid", "choose a calendar period or valid date range", "period"));
   return ok({
     ...input,
     planNo,
@@ -262,7 +264,7 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
  * What is left is what the DDL actually grants: the name, the period, the
  * owner and the objective.
  */
-export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
+export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResult<PlanEdit> {
   const name = input.name.trim();
   const period = input.period.trim();
 
@@ -273,6 +275,7 @@ export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
     return fail(violation("period_required", "a plan needs a period", "period"));
   }
 
+  if (period !== existingPeriod && !parseStrategyPeriod(period)) return fail(violation("period_invalid", "choose a calendar period or valid date range", "period"));
   return ok({
     name,
     period,

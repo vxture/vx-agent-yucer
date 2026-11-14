@@ -93,7 +93,6 @@ export default async function NewPlanPage({
       <NewPlanForm
         key={editable ? found.id : "new"}
         existingPlanNos={rows.map((p) => p.planNo)}
-        existingPeriods={rows.map((p) => p.period)}
         solutionOptions={solutionOptions}
         marketOptions={marketOptions}
         ownerOptions={members?.filter(m => m.status === "active").map(m => ({ value: m.sub, label: m.displayName || m.sub })) ?? null}

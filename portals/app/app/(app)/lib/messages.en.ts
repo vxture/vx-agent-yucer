@@ -3043,6 +3043,7 @@ export const en: Dictionary = {
   },
 
   PLAN_ERROR: {
+  period_invalid: "Choose a year, quarter or valid date range. Legacy labels need execution dates before publication.",
     strategy_not_found: "This strategy is unavailable in this workspace.",
     strategy_not_revisable: "Only the current published or active version can be revised.",
     strategy_draft_conflict: "This draft changed. Reload and review before saving again; nothing was overwritten.",
@@ -7425,6 +7426,24 @@ export const en: Dictionary = {
     unknown: "The draft did not complete - try again later",
   },
   MARKET_STRATEGY_TEXT: {
+  dateWindowHint: "Choose start and end dates directly, or fill a calendar year or quarter.",
+  periodShortcuts: "Quick fill",
+
+  executionPeriod: "Execution period",
+  quarterly: "Quarter",
+  customDateRange: "Custom date range",
+  year: "Year",
+  startDate: "Start date",
+  endDate: "End date",
+  inclusiveDates: "Both dates included",
+  periodApply: "Apply period",
+  periodNeedsDates: "Set execution dates",
+  periodInvalidDates: "Choose valid start and end dates",
+  periodEndBeforeStart: "The end date cannot precede the start date",
+  legacyPeriodLabel: "Legacy label without an explicit date range",
+  executionWindow: "Planned execution",
+  lifetimeResults: "Cumulative attribution for this strategy version, across all dates",
+
   strategyNumber: "Strategy number",
   numberAuto: "Auto",
   numberManual: "Custom",

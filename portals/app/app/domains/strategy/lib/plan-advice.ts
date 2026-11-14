@@ -1,3 +1,4 @@
+import { strategyPeriodWindow } from "./plan-period";
 import { planAcceptsNewWork, type PlanStatus } from "./lifecycle";
 
 // 计划检查 - what the strategy dock says about the plans a workspace is
@@ -58,56 +59,9 @@ export interface PlanAdviceInput {
   readonly now: Date;
 }
 
-/**
- * The calendar window a period string names, or null when it names one this
- * product cannot place.
- *
- * `2026H1` and `2026Q3` are arithmetic - halves and quarters of a stated year,
- * with the separator the workspace happens to write (`2026-Q3`) tolerated
- * because the create form suggests back whichever spelling it already found.
- *
- * `FY26` IS DELIBERATELY UNPLACEABLE. A fiscal year ends where the tenant's
- * finance calendar says, and this product holds no such setting; a guess would
- * date every calendar finding wrongly for every tenant whose year does not end
- * in December. An unknown period yields no window, and a plan with no window
- * simply gets no calendar findings - silence is the honest answer, not a
- * finding computed from an assumption.
- */
+/** All execution checks share the same validated calendar-date interpretation. */
 export function periodWindow(period: string): { start: Date; end: Date } | null {
-  const annual = /^(\d{4})$/.exec(period.trim());
-  if (annual) return { start: dayStart(Number(annual[1]), 0, 1), end: dayEnd(Number(annual[1]), 11, 31) };
-  const m = /^(\d{4})[\s-]?([HQ])([1-4])$/i.exec(period.trim());
-  if (!m) return null;
-  const year = Number(m[1]);
-  const kind = m[2]!.toUpperCase();
-  const n = Number(m[3]);
-  if (kind === "H") {
-    if (n > 2) return null;
-    return n === 1
-      ? { start: dayStart(year, 0, 1), end: dayEnd(year, 5, 30) }
-      : { start: dayStart(year, 6, 1), end: dayEnd(year, 11, 31) };
-  }
-  const firstMonth = (n - 1) * 3;
-  const lastMonth = firstMonth + 2;
-  return {
-    start: dayStart(year, firstMonth, 1),
-    end: dayEnd(year, lastMonth, daysIn(year, lastMonth)),
-  };
-}
-
-// The window is CLOSED at both ends - the first instant of its first day to
-// the last instant of its last day - so "the period has started" is true on
-// day one and "the period is over" is false on the last day.
-function dayStart(year: number, month: number, day: number): Date {
-  return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-}
-
-function dayEnd(year: number, month: number, day: number): Date {
-  return new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-}
-
-function daysIn(year: number, month: number): number {
-  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return strategyPeriodWindow(period);
 }
 
 /** Worst first, so the dock's top item is the one to act on. */

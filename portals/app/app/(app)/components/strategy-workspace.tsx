@@ -16,6 +16,7 @@ import { SegmentAdvicePanel } from "./segment-advice-panel";
 import { MarketLibrary } from "./market-library";
 import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
 import { DialogForm } from "./dialog-form";
+import { strategyPeriodRangeLabel, strategyPeriodLabel } from "../../domains/strategy/lib/plan-period";
 import { currentStrategyPlans } from "../../domains/strategy/store";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
@@ -121,7 +122,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
             <span className="flex shrink-0 items-center gap-xs">{versionBadge(p)}<Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
           </span>
-          <span className="truncate text-body-small font-normal text-muted-foreground" title={p.planNo}>{p.period} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>
+          <span className="truncate text-body-small font-normal text-muted-foreground" title={p.planNo}>{strategyPeriodLabel(p.period)} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>
         </span>
       </span>}
       actions={<div className="flex items-center gap-xs">{draftFor(p) && p.status!=="draft" ? <span className="text-body-small text-muted-foreground">{T.draftAvailable}</span> : null}<RowActions items={items(p)} disabled={pending}/></div>}
@@ -149,7 +150,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   };
   const table=(rows:StrategyView[])=><DataTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1}
     className="[&_table]:min-w-(--container-3xl)" columns={[
-      {id:"name",header:T.strategy,align:"left",width:"lg",cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period}{" \u00b7 "}{p.planNo} {p.versionNo ? `\u00b7 V${p.versionNo}` : ""}</span></div>},
+      {id:"name",header:T.strategy,align:"left",width:"lg",cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{strategyPeriodLabel(p.period)}{" \u00b7 "}{p.planNo} {p.versionNo ? `\u00b7 V${p.versionNo}` : ""}</span></div>},
       {id:"direction",header:T.direction,align:"left",width:"lg",cell:p=><span className="line-clamp-2 text-body-small" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
       {id:"markets",header:T.marketCount,cell:p=>number(p.marketIds?.length)},
       {id:"customers",header:T.customerCount,cell:p=>number(p.customerCount)},
@@ -183,7 +184,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const visiblePlanAdvice=data.planAdvice.filter(a=>!detailId || a.planId===detailId);
   const visibleSegmentAdvice=data.segmentAdvice.filter(a=>!detailId || detail?.marketIds?.includes(a.segmentId));
   const checkButton = <Button size="md" variant="secondary" onClick={()=>setChecks(true)}>{T.checks}<span className="text-body-small text-muted-foreground tabular-nums">{(data.canPlan?visiblePlanAdvice.length:0)+(data.canMarkets?visibleSegmentAdvice.length:0)}</span></Button>;
-  const periodFilter = <div className="w-36 max-w-full"><NativeSelect className="h-control-xl text-body-small font-medium" aria-label={T.period} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{T.allPeriods}</option>{[...new Set(data.plans?.map(p=>p.period))].map(p=><option key={p}>{p}</option>)}</NativeSelect></div>;
+  const periodFilter = <div className="w-36 max-w-full"><NativeSelect className="h-control-xl text-body-small font-medium" aria-label={T.period} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{T.allPeriods}</option>{[...new Set(data.plans?.map(p=>p.period))].map(p=><option key={p} value={p}>{strategyPeriodLabel(p)}</option>)}</NativeSelect></div>;
   const validationPlanFilter=<div className="w-56 max-w-full"><NativeSelect aria-label={T.strategy} value={planFilter} onChange={e=>{
     const q=new URLSearchParams(params);if(e.target.value)q.set("plan",e.target.value);else q.delete("plan");
     router.replace(`/strategy?${q}`,{scroll:false});
@@ -209,9 +210,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const results=(selected:readonly StrategyView[])=>{
     const rows=selected.flatMap(p=>(p.results?.length?p.results:[null]).map(r=>({plan:p,result:r,empty:p.results===null?T.unknown:T.none,key:`${p.id}:${r?.currency ?? "empty"}`})));
     return <div className="flex min-w-0 flex-col gap-md" data-strategy-results>
+      <p className="text-body-small text-muted-foreground">{T.lifetimeResults}</p>
       <DataTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={r=>r.key} indexStart={1}
         className="[&_table]:min-w-(--container-3xl)" columns={[
-          {id:"strategy",header:T.strategy,align:"left" as const,width:"lg" as const,cell:({plan:p}:typeof rows[number])=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{p.period}{p.versionNo ? ` \u00b7 V${p.versionNo}` : ""}</span></div>},
+          {id:"strategy",header:T.strategy,align:"left" as const,width:"lg" as const,cell:({plan:p}:typeof rows[number])=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{strategyPeriodLabel(p.period)}{p.versionNo ? ` \u00b7 V${p.versionNo}` : ""}</span></div>},
           {id:"currency",header:T.currency,width:"xs",cell:({result:r,empty})=>r?.currency ?? empty},
           {id:"pipeline",header:T.pipeline,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.open,r.currency):empty},
           {id:"won",header:T.won,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.won,r.currency):empty},
@@ -229,6 +231,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         </div></CardHeader>
         <CollapsibleContent><CardContent><div className="flex flex-col gap-md pt-md">
           <div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small">
+            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.executionWindow}</span><span className="tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></span>
             <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.owner}</span>{detail.publishedOwnerName || <MemberName sub={detail.ownerSub} fallback={T.noOwner}/>}</span>
             <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.creator}</span><MemberName sub={detail.createdBySub} fallback={T.creatorUnknown}/></span>
             {detail.approvedAt ? <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.publishedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
@@ -263,7 +266,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
         className="grid grid-cols-[auto_minmax(0,1fr)] [&>div:last-child]:col-start-2 [&>div:last-child]:justify-end @4xl:grid-cols-[auto_minmax(0,1fr)_auto] @4xl:[&>div:last-child]:col-start-3"
         secondary={<span className="flex flex-wrap items-center gap-sm">{versionBadge(detail)}<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>{detail.versionNo && !isLatest(detail)?<Tag>{T.historicalVersion}</Tag>:null}</span>}
-        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.period} <span className="text-foreground">{detail.period}</span></span><span>{detail.planNo}</span></span>}
+        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.period} <span className="text-foreground">{strategyPeriodLabel(detail.period)}</span></span><span>{detail.planNo}</span></span>}
         action={<div className="flex max-w-full flex-wrap items-center gap-sm">
           <Button asChild variant="secondary" size="xl"><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></Button>
           {detail.status==="draft" && data.canApprove ? <Button size="xl" disabled={pending} onClick={()=>openPublication(detail)}>{detail.basePlanId?T.publishNext:T.publishVersion}</Button>:null}
@@ -287,7 +290,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         }catch{setPublicationError(PLAN_ERROR.denied);}
       });}}>
       <div className="flex flex-col gap-md text-body-small" data-strategy-publication-confirm>
-        <p className="font-medium">{publication.plan.name}</p><p className="text-muted-foreground">{publication.plan.planNo}{" \u00b7 "}{publication.plan.period}</p>
+        <p className="font-medium">{publication.plan.name}</p><p className="text-muted-foreground">{publication.plan.planNo}{" \u00b7 "}{strategyPeriodLabel(publication.plan.period)}</p>
         {publication.plan.changeReason?<p>{T.changeReason}{" \u00b7 "}{publication.plan.changeReason}</p>:null}
         {publicationError?<FieldError role="alert">{publicationError}</FieldError>:null}
       </div>
@@ -299,7 +302,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><CardTitle>{p.versionNo?`V${p.versionNo}`:p.basePlanId?T.revisionDraft:T.noPublication}</CardTitle>
             <span className="flex items-center gap-sm"><Tag>{PLAN_STATUS_LABEL[p.status]}</Tag>{isLatest(p)?<Tag>{T.currentVersion}</Tag>:null}</span></div></CardHeader>
           <CardContent><div className="flex flex-col gap-sm text-body-small"><Link href={`/strategy/${p.id}`} onClick={()=>setVersionPlan(null)} className="font-medium transition-colors hover:text-primary">{p.name}</Link>
-            <span className="text-muted-foreground">{p.period}{p.approvedAt?` \u00b7 ${new Date(p.approvedAt).toLocaleString(locale)}`:""}</span>
+            <span className="text-muted-foreground">{strategyPeriodLabel(p.period)}{p.approvedAt?` \u00b7 ${new Date(p.approvedAt).toLocaleString(locale)}`:""}</span>
             {p.publishedBySub ? <span className="text-muted-foreground">{T.publishedBy} <MemberName sub={p.publishedBySub}/></span>:null}
             {p.changeReason?<p>{p.changeReason}</p>:null}
             {p.basePlanId?<span className="text-muted-foreground">{T.baseVersion} V{data.plans?.find(base=>base.id===p.basePlanId)?.versionNo ?? "?"}</span>:null}

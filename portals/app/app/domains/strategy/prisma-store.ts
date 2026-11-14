@@ -587,7 +587,7 @@ function toExecution(r: Record<string, unknown>): ExecutionRecord {
 async function strategyVersionWrite<T>(write:()=>Promise<T>):Promise<T> {
   try{return await write();}catch(error){
     const message=error instanceof Error?error.message:String(error);
-    for(const code of ["strategy_not_found","strategy_not_revisable","strategy_draft_conflict","strategy_reason_required","strategy_base_conflict","draft_required","invalid_publication","controlled_release_required"]) {
+    for(const code of ["strategy_not_found","strategy_not_revisable","strategy_draft_conflict","strategy_reason_required", "period_invalid","strategy_base_conflict","draft_required","invalid_publication","controlled_release_required"]) {
       if(message.includes(code))throw new StrategyVersionError(code);
     }
     throw error;

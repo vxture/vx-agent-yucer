@@ -20,7 +20,8 @@ import {
 import { MemberName, useMemberName } from "../lib/member-names";
 import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
 import { nextStrategyNumber } from "../../domains/strategy/lib/plan-number";
-import { knownValues } from "../../domains/shared/suggest";
+import { StrategyPeriodField } from "./strategy-period-field";
+import { parseStrategyPeriod } from "../../domains/strategy/lib/plan-period";
 import type { SolutionReference } from "../../domains/catalog/service";
 import { StrategyRelationsDrawer, type RelationTask, type RelationMarketOption, type RelationTarget } from "./strategy-relations-drawer";
 import type { SegmentCriteria, NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/strategy/lib/lifecycle";
@@ -64,7 +65,6 @@ export interface PlanFormInitial {
 
 export function NewPlanForm({
   existingPlanNos,
-  existingPeriods,
   initial,
   solutionOptions,
   marketOptions,
@@ -74,7 +74,6 @@ export function NewPlanForm({
   onSave,
 }: {
   readonly existingPlanNos: readonly string[];
-  readonly existingPeriods: readonly string[];
   /** Present edits that plan; absent creates one. */
   readonly initial?: PlanFormInitial;
   readonly solutionOptions: readonly SolutionReference[] | null;
@@ -84,17 +83,12 @@ export function NewPlanForm({
   readonly onCreate: (input: NewPlanDraft, autoNumber?: boolean) => Promise<Saved>;
   readonly onSave: (id: string, input: PlanEdit, editToken: number) => Promise<Saved>;
 }) {
-  const { STRATEGY_TEXT, PLAN_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
+  const { STRATEGY_TEXT, PLAN_ERROR, MARKET_STRATEGY_TEXT: T } = useMessages();
   const nameOf = useMemberName();
   const [manualPlanNo, setManualPlanNo] = useState<string | null>(null);
   const [numberOpen, setNumberOpen] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
-  const currentYear = new Date().getFullYear();
-  const initialYear = Number(initial?.period.slice(0, 4));
-  const years = [...new Set([currentYear - 1, currentYear, currentYear + 1, ...(Number.isInteger(initialYear) && initialYear >= 1900 ? [initialYear] : [])])].sort();
-  const presetPeriods = years.flatMap(y => [String(y), ...[1,2,3,4].map(q => `${y}-Q${q}`)]);
-  const [period, setPeriod] = useState(initial?.period ?? String(currentYear));
-  const [customPeriod, setCustomPeriod] = useState(!!initial?.period && !presetPeriods.includes(initial.period));
+  const [period, setPeriod] = useState(initial?.period ?? String(new Date().getFullYear()));
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [changeReason,setChangeReason]=useState(initial?.changeReason ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
@@ -131,23 +125,10 @@ export function NewPlanForm({
 
   const nextNo = useMemo(() => nextStrategyNumber(period, existingPlanNos), [period, existingPlanNos]);
   const planNo = initial?.planNo ?? manualPlanNo ?? nextNo;
-  const periods = useMemo(() => knownValues(existingPeriods), [existingPeriods]);
-
   const suggestions: AssistSuggestion[] = [];
-  // The period format the workspace already writes ("2026H2", "2026-Q3"...).
-  // Suggesting the EXISTING spelling is the point: two spellings of one period
-  // split every report that groups by it - the same argument as categories.
-  if (period.trim() === "" && periods.length > 0) {
-    suggestions.push({
-      id: "period",
-      label: ASSIST_TEXT.periodKnown(periods[0]!),
-      reason: ASSIST_TEXT.periodKnownWhy,
-      apply: () => { setPeriod(periods[0]!); setCustomPeriod(!presetPeriods.includes(periods[0]!)); },
-    });
-  }
-
+  const hasExecutionWindow = !!parseStrategyPeriod(period);
   const ready =
-    name.trim() !== "" && period.trim() !== "" && (initial ? true : planNo.trim() !== "");
+    name.trim() !== "" && (hasExecutionWindow || initial?.period === period) && (initial ? true : planNo.trim() !== "");
 
   return (
     <FormPage
@@ -161,17 +142,7 @@ export function NewPlanForm({
               <Field className="@xl:col-span-2 @3xl:col-span-1"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
                 <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e => setName(e.target.value)} aria-required="true"/>
               </Field>
-              <Field><FieldLabel htmlFor="strategy-period">{STRATEGY_TEXT.newPlanPeriod}</FieldLabel>
-                <NativeSelect id="strategy-period" value={customPeriod ? "custom" : period} disabled={submit.pending} onChange={e => {
-                  const v = e.target.value; setCustomPeriod(v === "custom"); if (v !== "custom") setPeriod(v);
-                }}>
-                  {years.map(y => <optgroup key={y} label={String(y)}><option value={String(y)}>{y} {T.annual}</option>
-                    {[1,2,3,4].map(q => <option key={q} value={`${y}-Q${q}`}>{y} Q{q}</option>)}
-                  </optgroup>)}
-                  <option value="custom">{T.periodCustom}</option>
-                </NativeSelect>
-                {customPeriod ? <Input aria-label={T.periodCustomLabel} maxLength={32} value={period} disabled={submit.pending} onChange={e => setPeriod(e.target.value)}/> : null}
-              </Field>
+              <StrategyPeriodField value={period} onChange={setPeriod} disabled={submit.pending}/>
               <Field><FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
                 <Combobox items={[{ value: "__none", label: T.noOwner }, ...(ownerOptions ?? []),
                   ...(ownerSub && !ownerOptions?.some(m => m.value === ownerSub) ? [{ value: ownerSub, label: nameOf(ownerSub) ?? ownerSub }] : [])]}

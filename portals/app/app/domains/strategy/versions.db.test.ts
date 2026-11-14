@@ -144,3 +144,24 @@ test("concurrent code collisions return one draft and one duplicate result witho
     assert.deepEqual(automatic.map(r => unwrap(r).planNo).toSorted(), ["PLAN-2026-Q1-002", "PLAN-2026-Q1-003", "PLAN-2026-Q1-004"]);
   } finally { await cleanup(); }
 });
+
+test("execution date windows persist, freeze and clone; direct writes reject free labels and impossible dates", {skip}, async () => {
+  await cleanup();
+  try {
+    const id = await initial();
+    for (const period of ["Pilot", "2026-02-30/2026-03-01", "2027-01-01/2026-12-31", "2026-Q5"]) {
+      await assert.rejects(svc(c=>c.query("UPDATE yucer_gtm.strategy_plan SET period=$2 WHERE id=$1",[id,period])),/period_invalid/);
+    }
+    await svc(c=>c.query("UPDATE yucer_gtm.strategy_plan SET period='2026-11-15/2027-02-28' WHERE id=$1",[id]));
+    await publish(id,2);
+    assert.equal((await row(id)).published_snapshot.period,"2026-11-15/2027-02-28");
+    await assert.rejects(svc(c=>c.query("UPDATE yucer_gtm.strategy_plan SET period='2028' WHERE id=$1",[id])),/immutable_strategy/);
+    const next = (await revise(id)).rows[0].id;
+    assert.equal((await row(next)).period,"2026-11-15/2027-02-28");
+    const revision = await row(next);
+    await svc(c=>c.query("UPDATE yucer_gtm.strategy_plan SET period='2027-Q2',change_reason='Replan next quarter' WHERE id=$1",[next]));
+    await publish(next,revision.edit_token+1);
+    assert.equal((await row(next)).published_snapshot.period,"2027-Q2");
+    assert.equal((await row(id)).published_snapshot.period,"2026-11-15/2027-02-28");
+  } finally {await cleanup();}
+});

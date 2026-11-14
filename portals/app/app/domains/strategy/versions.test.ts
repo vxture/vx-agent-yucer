@@ -130,12 +130,29 @@ test("automatic numbers follow the period, remain workspace scoped and survive r
   assert.equal(code(await createPlan(c, {...input, planNo: ""})), "plan_no_required");
 });
 
-test("automatic numbering preserves manual codes and supports custom period names", async () => {
+test("automatic numbering preserves manual codes and uses the full custom execution interval", async () => {
   const c = context();
-  const custom = unwrap(await createPlan(c, {...input, planNo: "CORP-RETAIL-26", period: "Pilot wave"}));
+  const custom = unwrap(await createPlan(c, {...input, planNo: "CORP-RETAIL-26", period: "2026-11-01/2027-02-28"}));
   assert.equal(custom.planNo, "CORP-RETAIL-26");
-  const first = unwrap(await createPlan(c, {...input, planNo: "", period: "Pilot wave"}, {autoNumber: true}));
-  assert.equal(first.planNo, "PLAN-PILOT-WAVE-001");
-  const second = unwrap(await createPlan(c, {...input, planNo: "", period: "\u8bd5\u70b9\u9636\u6bb5"}, {autoNumber: true}));
-  assert.equal(second.planNo, "PLAN-CUSTOM-001");
+  const first = unwrap(await createPlan(c, {...input, planNo: "", period: "2026-11-01/2027-02-28"}, {autoNumber: true}));
+  assert.equal(first.planNo, "PLAN-20261101-20270228-001");
+  const second = unwrap(await createPlan(c, {...input, planNo: "", period: "2026-11-01/2027-02-28"}, {autoNumber: true}));
+  assert.equal(second.planNo, "PLAN-20261101-20270228-002");
+});
+
+test("new strategies and publication require real windows; unknown legacy labels are preserved until corrected", async () => {
+  const c = context();
+  for (const period of ["Pilot wave", "2026-02-30/2026-03-10", "2027-01-01/2026-12-31", "2026-Q5"]) {
+    assert.equal(code(await createPlan(c, {...input, period})), "period_invalid");
+  }
+  const legacy: PlanRecord = {id:"old",workspaceId:WS,planNo:"OLD",name:"Legacy",period:"FY26",objective:null,ownerSub:null,solutionIds:[],status:"active",approvedAt:AT};
+  (c.store as InMemoryStrategyStore).seed({plans:[legacy]});
+  const draft = unwrap(await reviseStrategy(c, legacy.id));
+  const saved = unwrap(await editPlan(c, draft.id, {...edit(draft), changeReason:"Confirm historical execution dates"}));
+  assert.equal(saved.period,"FY26");
+  assert.equal(code(await publishStrategy(c,saved.id,token(saved))),"period_invalid");
+  const corrected = unwrap(await editPlan(c,saved.id,{...edit(saved),period:"2026-04-01/2027-03-31",changeReason:"Confirm historical execution dates"}));
+  const v2 = unwrap(await publishStrategy(c,corrected.id,token(corrected)));
+  assert.equal(v2.publishedSnapshot?.period,"2026-04-01/2027-03-31");
+  assert.equal((await c.store.getPlan(WS,legacy.id))?.period,"FY26");
 });

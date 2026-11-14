@@ -1,3 +1,4 @@
+import { parseStrategyPeriod } from "./lib/plan-period";
 import { nextStrategyNumber } from "./lib/plan-number";
 // D1 strategy and D3 campaign application service.
 //
@@ -253,7 +254,7 @@ async function applyPlanEdit(
   const resolved = resolveInput(plan);
   if (!resolved.ok) return resolved;
   const input = resolved.value;
-  const edit = planPlanEdit(input);
+  const edit = planPlanEdit(input, plan.period);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
   const owner = await validatePlanOwner(ctx, edit.value.ownerSub, plan.ownerSub);
@@ -332,6 +333,7 @@ export async function publishStrategy(ctx:StrategyContext,id:string,expectedEdit
   // Idempotent retries preserve the original publisher, timestamp and version.
   if(plan.versionNo)return ok(plan);
   if(plan.status!=="draft")return fail(violation("draft_required","only a draft can be published","status"));
+  if(!parseStrategyPeriod(plan.period))return fail(violation("period_invalid","set execution dates before publication","period"));
   if((plan.editToken ?? 1)!==expectedEditToken)return fail(violation("strategy_draft_conflict","draft changed; reload before publishing","editToken"));
   if(plan.basePlanId && !plan.changeReason?.trim())return fail(violation("strategy_reason_required","describe the revision before publishing","changeReason"));
   if((plan.targetMarkets?.length ?? 0)>0){const marketGate=can(ctx.holder,ctx.entitlement,"strategy.segment.view","data");if(!marketGate.allowed)return denied(marketGate);}
