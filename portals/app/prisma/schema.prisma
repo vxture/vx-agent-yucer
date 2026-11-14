@@ -726,6 +726,8 @@ model MarketSegment {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  solutionLinks MarketSegmentSolution[]
+
   strategyTargets StrategyPlanMarket[]
 
   @@unique([workspaceId, segmentCode], map: "uidx_market_segment_ws_code")
@@ -1749,6 +1751,7 @@ model Solution {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  segmentLinks MarketSegmentSolution[]
   strategyLinks StrategyPlanSolution[]
   strategyMarketLinks StrategyPlanMarketSolution[]
 
@@ -2306,4 +2309,20 @@ model ForecastTargetBasis {
   @@unique([workspaceId, forecastSnapshotId, metric])
   @@map("forecast_target_basis")
   @@schema("yucer_pipeline")
+}
+
+
+// D1 market defaults, copied into a strategy selection on first adoption.
+model MarketSegmentSolution {
+  workspaceId String @map("workspace_id") @db.Uuid
+  segmentId String @map("segment_id") @db.Uuid
+  solutionId String @map("solution_id") @db.Uuid
+
+  segment MarketSegment @relation(fields: [workspaceId, segmentId], references: [workspaceId, id], onDelete: Cascade, map: "fk_segment_solution_market")
+  solution Solution @relation(fields: [workspaceId, solutionId], references: [workspaceId, id], onDelete: Restrict, map: "fk_segment_solution_catalog")
+
+  @@id([workspaceId, segmentId, solutionId])
+  @@index([workspaceId, solutionId], map: "idx_segment_solution_catalog")
+  @@map("market_segment_solution")
+  @@schema("yucer_gtm")
 }

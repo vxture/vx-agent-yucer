@@ -28,7 +28,7 @@ import { attainmentBalance, type ExecutionRow, type SupportDeal } from "../lib/a
 import { attainmentCoverageHref, attainmentHref, planningHref } from "../lib/attainment-workspace";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney, formatMoneyCompact } from "../lib/view-model";
-import { useMemberName } from "../lib/member-names";
+import { MemberName, useMemberName } from "../lib/member-names";
 import { RowActions } from "./table-fittings";
 import { FilterBar } from "./business-controls";
 import { AttainmentProgressBar } from "./attainment-progress-bar";
@@ -1041,7 +1041,7 @@ function AttainmentSourceContent({
               >
                 <span>
                   {t.memberSub
-                    ? (nameOf(t.memberSub) ?? t.memberName)
+                    ? <MemberName sub={t.memberSub} name={t.memberName}/>
                     : T.requested}{" "}
                   {" \u00b7 "}
                   {t.role}
@@ -1067,7 +1067,7 @@ function AttainmentSourceContent({
               >
                 <span className="font-medium">{a.objective}</span>
                 <span className="text-body-small text-muted-foreground">
-                  {T.owner} {a.ownerSub ? (nameOf(a.ownerSub) ?? "-") : "-"}{" "}
+                  {T.owner} <MemberName sub={a.ownerSub}/>{" "}
                   {"\u00b7"} {T.due} {a.due || "-"}
                 </span>
                 {a.accountId ? (

@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { Section } from "./help-section";
 import { useState, useTransition } from "react";
@@ -167,7 +168,7 @@ export function RecordFollowUp({
           >
             {contacts.map((c) => (
               <ToggleGroupItem key={c.id} value={c.id} aria-label={c.name}>
-                {c.title ? `${c.name} · ${c.title}` : c.name}
+                <span className="inline-flex items-center gap-xs"><MemberName name={c.name}/>{c.title ? <span className="text-muted-foreground">{c.title}</span> : null}</span>
               </ToggleGroupItem>
             ))}
           </ToggleGroup>

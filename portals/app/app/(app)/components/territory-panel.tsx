@@ -1,7 +1,7 @@
 "use client";
 import { DataTable } from "./business-controls";
 
-import { useMemberName } from "../lib/member-names";
+import { MemberName, useMemberName } from "../lib/member-names";
 import {
   EmptyState,
   Section,
@@ -113,7 +113,7 @@ export function TerritoryPanel({
               id: "owner",
               header: PLANNING_TEXT.territoryOwner,
               cell: (r: TerritoryRow) =>
-                memberName(r.ownerSub) ?? PLANNING_TEXT.territoryNoOwner,
+                <MemberName sub={r.ownerSub} fallback={PLANNING_TEXT.territoryNoOwner}/>,
             },
           ]}
         />

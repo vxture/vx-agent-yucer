@@ -123,7 +123,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
             <span className="flex shrink-0 items-center gap-xs">{versionBadge(p)}<Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
           </span>
-          <span className="truncate text-body-small font-normal text-muted-foreground" title={p.planNo}>{strategyPeriodLabel(p.period)} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>
+          <span className="flex flex-wrap items-center gap-xs text-body-small font-normal text-muted-foreground" title={p.planNo}>{strategyPeriodLabel(p.period)} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>
         </span>
       </span>}
       actions={<div className="flex items-center gap-xs">{draftFor(p) && p.status!=="draft" ? <span className="text-body-small text-muted-foreground">{T.draftAvailable}</span> : null}<RowActions items={items(p)} disabled={pending}/></div>}
@@ -248,13 +248,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         </div></CardHeader>
         <CollapsibleContent><CardContent><div className="flex flex-col gap-md pt-md">
           <div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small">
-            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.executionWindow}</span><span className="tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></span>
-            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.owner}</span>{detail.publishedOwnerName || <MemberName sub={detail.ownerSub} fallback={T.noOwner}/>}</span>
-            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.creator}</span><MemberName sub={detail.createdBySub} fallback={T.creatorUnknown}/></span>
-            {detail.approvedAt ? <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.publishedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
+            <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.executionWindow}</span><span className="tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></span>
+            <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.owner}</span><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></span>
+            <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.creator}</span><MemberName sub={detail.createdBySub} fallback={T.creatorUnknown}/></span>
+            {detail.approvedAt ? <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.publishedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
           </div>
           {detail.changeReason ? <p className="text-body-small"><span className="mr-sm text-muted-foreground">{T.changeReason}</span>{detail.changeReason}</p> : null}
-          <div className="flex items-baseline gap-sm" data-strategy-detail-direction><span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
+          <div className="flex items-center gap-sm" data-strategy-detail-direction><span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
             <p className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p></div>
         </div></CardContent></CollapsibleContent>
       </Collapsible>

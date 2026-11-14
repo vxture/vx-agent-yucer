@@ -1,5 +1,7 @@
 "use client";
 
+import type { SolutionReference } from "../../domains/catalog/service";
+import { SolutionPicker } from "./solution-picker";
 import { Section } from "./help-section";
 import { useMemo, useState } from "react";
 import {
@@ -36,6 +38,7 @@ export interface SegmentFormRow {
   readonly priority: number;
   readonly status: string;
   readonly criteria: SegmentCriteria;
+  readonly solutionIds?: readonly string[];
 }
 
 type Saved = { ok: boolean; error?: string };
@@ -45,11 +48,13 @@ export function SegmentForm({
   initialCode,
   accountIndustries,
   accountRegions,
+  solutionOptions,
   statusLabel,
   onSave,
 }: {
   readonly rows: readonly SegmentFormRow[];
   readonly initialCode?: string;
+  readonly solutionOptions: readonly SolutionReference[] | null;
   /** What the customer base actually looks like - the criteria vocabulary. */
   readonly accountIndustries: readonly (string | null)[];
   readonly accountRegions: readonly (string | null)[];
@@ -60,6 +65,7 @@ export function SegmentForm({
     priority: number;
     status: string;
     criteria: SegmentCriteria;
+    solutionIds?: readonly string[];
   }) => Promise<Saved>;
 }) {
   const { STRATEGY_TEXT, SEGMENT_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
@@ -83,6 +89,7 @@ export function SegmentForm({
     customerNeed: g.criteria.customerNeed ?? "", buyingScenario: g.criteria.buyingScenario ?? "", expectedOutcome: g.criteria.expectedOutcome ?? "", entryBarrier: g.criteria.entryBarrier ?? "",
     industries: g.criteria.industries.join(", "), regions: g.criteria.regions.join(", "), sizes: (g.criteria.sizes ?? []).join(", "),
   });
+  const [solutionIds, setSolutionIds] = useState<readonly string[]>(initial?.solutionIds ?? []);
   const [form, setForm] = useState(() => initial ? values(initial) : BLANK);
   const submit = useFormSubmit("/strategy?view=markets");
 
@@ -92,9 +99,10 @@ export function SegmentForm({
   // loads that segment; the code field then locks, because accounts point at it
   // by string and a rename would break them silently.
   function pick(code: string) {
-    if (code === "") return setForm(BLANK);
+    if (code === "") { setSolutionIds([]); return setForm(BLANK); }
     const g = rows.find((r) => r.segmentCode === code);
     if (!g) return setForm(BLANK);
+    setSolutionIds(g.solutionIds ?? []);
     setForm(values(g));
   }
 
@@ -233,6 +241,9 @@ export function SegmentForm({
               ))}
               </FormFields>
             </Section>
+            <Section title={T.marketDefaultSolutions} icon="squares-four" help={T.marketDefaultSolutionsHint}>
+              <SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={submit.pending}/>
+            </Section>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}
@@ -240,6 +251,7 @@ export function SegmentForm({
                   submit.run(
                     () =>
                       onSave({
+                        ...(solutionOptions === null ? {} : { solutionIds }),
                         segmentCode: form.segmentCode.trim(),
                         name: form.name.trim(),
                         priority,

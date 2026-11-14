@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import type { RenewalRisk, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
 import { useEffect, useState, useTransition } from "react";
@@ -434,7 +435,7 @@ export function ContractRoster(props: ContractRosterProps) {
                     <li key={e.id}>
                       <span className="tabular-nums">{e.occurredAt}</span> {eventText(e)}
                       {e.reason ? ` · ${e.reason}` : ""}
-                      {e.actorName ? ` · ${e.actorName}` : ""}
+                      {e.actorName ? <MemberName name={e.actorName}/> : null}
                     </li>
                   ))}
                 </ul>

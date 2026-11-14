@@ -3024,6 +3024,8 @@ export const en: Dictionary = {
     segment_in_use: "A strategy, campaign or customer still references this segment. Retire it instead.",
     move_at_edge: "Already at that end of the list.",
     not_movable: "This row is not in the list being ordered.",
+    solution_not_selectable: "A selected solution is unavailable. Refresh and select again.",
+    solution_catalog_unavailable: "Solutions are temporarily unavailable. Try again later.",
   },
   CAMPAIGN_FORM_ERROR: {
     ...GATE_ERROR,
@@ -7611,6 +7613,8 @@ export const en: Dictionary = {
   customerNeed: "Shared customer needs",
   targetMarketBasis: "Preview current candidates using the saved selection criteria. Strategy totals deduplicate customers.",
   manageTargets: "Manage target markets",
+  marketDefaultSolutions: "Default solutions",
+  marketDefaultSolutionsHint: "Active defaults are copied when a market is added to a strategy. Each strategy can adjust its own selection; later default changes do not alter existing strategies.",
   sharedSolutionsHint: "Solutions for the strategy as a whole, without assigning them to a particular target market.",
   sharedSolutions: "Shared strategy solutions",
   noMarketApproach: "No approach defined yet",

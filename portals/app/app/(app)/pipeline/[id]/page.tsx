@@ -1,3 +1,4 @@
+import { MemberName } from "../../lib/member-names";
 import { Section } from "../../components/help-section";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -1228,7 +1229,7 @@ export default async function OpportunityDetailPage({
         notSet
       ),
     },
-    { label: DEAL_PAGE_TEXT.factOwner, value: nameOf(opportunity.ownerSub) ?? notSet },
+    { label: DEAL_PAGE_TEXT.factOwner, value: opportunity.ownerSub ? <MemberName sub={opportunity.ownerSub}/> : notSet },
     { label: DEAL_PAGE_TEXT.factContractType, value: contractTypeName ?? notSet },
     { label: DEAL_PAGE_TEXT.factBusinessForm, value: businessFormName ?? notSet },
     {
@@ -1255,7 +1256,7 @@ export default async function OpportunityDetailPage({
       ? [
           {
             label: DEAL_PAGE_TEXT.factTeam,
-            value: `${nameOf(plan.presalesSub) ?? POSITION_TEXT.roleUnset} / ${nameOf(plan.deliverySub) ?? POSITION_TEXT.roleUnset}`,
+            value: <span className="inline-flex flex-wrap items-center gap-xs"><MemberName sub={plan.presalesSub} fallback={POSITION_TEXT.roleUnset}/>{" / "}<MemberName sub={plan.deliverySub} fallback={POSITION_TEXT.roleUnset}/></span>,
           },
         ]
       : []),
@@ -1334,7 +1335,7 @@ export default async function OpportunityDetailPage({
         slot,
         statement: state?.filled ? cur!.statement : null,
         grounded: state?.grounded ?? false,
-        meta: cur && state?.filled ? `${nameOf(cur.authorSub) ?? cur.authorSub} · ${shortDate(cur.recordedAt)}` : null,
+        meta: cur && state?.filled ? <span className="inline-flex items-center gap-xs"><MemberName sub={cur.authorSub}/><time>{shortDate(cur.recordedAt)}</time></span> : null,
         cite: cur?.interactionId ? (noteLabel.get(cur.interactionId) ?? null) : null,
         citeId: cur?.interactionId ?? null,
         accepted: cur?.source === "model_accepted",
@@ -1342,7 +1343,7 @@ export default async function OpportunityDetailPage({
         history: (state?.history ?? []).slice(1).map((h) => ({
           id: h.id,
           statement: h.statement,
-          meta: `${nameOf(h.authorSub) ?? h.authorSub} · ${shortDate(h.recordedAt)}`,
+          meta: <span className="inline-flex items-center gap-xs"><MemberName sub={h.authorSub}/><time>{shortDate(h.recordedAt)}</time></span>,
         })),
       };
     });

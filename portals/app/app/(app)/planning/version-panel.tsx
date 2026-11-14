@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 import { Section } from "../components/help-section";
 import { TitleHelp } from "../components/title-help";
 import { planningFindings } from "../../domains/planning/plan-checks";
@@ -284,7 +285,7 @@ export function PlanningVersionPanel({
       return `${r.scope === "workspace" ? T.company : (c?.regions.find((x) => `territory:${x.id}` === r.scope)?.name ?? "—")} · ${r.period} · ${metricName[String(r.metric)] ?? r.metric} · ${T.floor} ${format(r.floor as string)} / ${T.target} ${format(r.target as string)} / ${T.stretch} ${format(r.stretch as string)} ${r.currency ?? T.count}`;
     if ("objective" in r) return `${r.objective} · ${r.due}`;
     if ("memberSub" in r)
-      return `${r.memberName || T.demand} · ${r.role} · ${r.percent}% · ${r.start} — ${r.end}`;
+      return <span className="inline-flex flex-wrap items-center gap-xs"><MemberName sub={r.memberSub as string | null} name={r.memberName as string | null} fallback={T.demand}/><span>{String(r.role)}{" \u00b7 "}{String(r.percent)}%{" \u00b7 "}{String(r.start)} - {String(r.end)}</span></span>;
     if ("budgetKey" in r)
       return `${c?.budgets.find((b) => b.key === r.budgetKey)?.name ?? T.customer} · ${format(r.amount as string)}`;
     if ("name" in r)
@@ -1174,8 +1175,7 @@ export function PlanningVersionPanel({
                         UTC
                       </TableCell>
                       <TableCell>
-                        {sources.members.find((m) => m.sub === e.actor)?.name ??
-                          e.actor}
+                        <MemberName sub={e.actor} name={sources.members.find(m => m.sub === e.actor)?.name}/>
                       </TableCell>
                       <TableCell>{e.reason || "—"}</TableCell>
                     </TableRow>

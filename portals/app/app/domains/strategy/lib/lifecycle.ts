@@ -423,6 +423,8 @@ export interface SegmentDraft {
   priority: number;
   status: SegmentStatus;
   criteria: SegmentCriteria;
+  /** Omission preserves defaults; an empty array explicitly clears them. */
+  solutionIds?: readonly string[];
 }
 
 /** An account matches when every non-empty dimension names its value. */

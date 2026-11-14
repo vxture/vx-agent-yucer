@@ -1,4 +1,5 @@
 "use client";
+import { MemberPicker } from "./member-picker";
 
 import { useMemo, useState } from "react";
 import { Button, Field, FieldDescription, FieldLabel, Input, NativeSelect, Section, StatusBadge } from "@vxture/design-ui";
@@ -167,7 +168,7 @@ export function CampaignForm({
               </Field>
               <Field>
                 <FieldLabel>{CAMPAIGN_TEXT.formOwner}</FieldLabel>
-                <Input value={ownerSub} onChange={(e) => setOwnerSub(e.target.value)} />
+                <MemberPicker value={ownerSub} onValueChange={setOwnerSub} label={CAMPAIGN_TEXT.formOwner} disabled={submit.pending}/>
               </Field>
               <Field>
                 <FieldLabel>{CAMPAIGN_TEXT.formBudget}</FieldLabel>

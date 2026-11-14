@@ -123,6 +123,7 @@ async function validateTargetMarkets(
   // additions per market so a retired solution cannot move to a new target.
   const addedSolutions = new Set<string>();
   let changedSolutions = false;
+  let availableDefaults: Set<string> | undefined;
   for (const target of input as readonly TargetMarketDraft[]) {
     if (!target || typeof target.segmentId !== "string" || chosen.has(target.segmentId)) return fail(marketUnavailable());
     const held = prior.get(target.segmentId);
@@ -136,8 +137,19 @@ async function validateTargetMarkets(
     if (ids !== undefined && (!Array.isArray(ids) || ids.some(id => typeof id !== "string" || !id))) {
       return fail(violation("solution_not_selectable", "invalid solution selection", "solutionIds"));
     }
-    const solutionIds = ids === undefined ? held?.solutionIds ?? [] : [...new Set(ids)];
-    if (ids !== undefined) changedSolutions = true;
+    // New targets copy current market defaults once. Existing drafts and
+    // publications retain their own selection, including an explicit empty one.
+    let solutionIds = ids === undefined ? [...(held?.solutionIds ?? segment.solutionIds ?? [])] : [...new Set(ids)];
+    if (ids === undefined && !held && solutionIds.length) {
+      if (!availableDefaults) {
+        if (!ctx.catalog) return fail(violation("solution_catalog_unavailable", "solution catalogue unavailable", "solutionIds", true));
+        const refs = await listSolutionReferences({ ...ctx, store: ctx.catalog });
+        if (!refs.ok) return refs;
+        availableDefaults = new Set(refs.value.filter(s => s.status === "active").map(s => s.id));
+      }
+      solutionIds = solutionIds.filter(id => availableDefaults!.has(id));
+    }
+    if (ids !== undefined || (!held && solutionIds.length)) changedSolutions = true;
     for (const id of solutionIds) if (!held?.solutionIds.includes(id)) addedSolutions.add(id);
     chosen.set(segment.id, {
       segmentId: segment.id, intent: target.intent, approach: target.approach?.trim() || null, solutionIds,
@@ -586,6 +598,13 @@ export async function upsertSegment(
   const checked = planSegment(input);
   if (!checked.ok) return checked as RuleResult<SegmentRecord>;
 
+  const existing = input.solutionIds === undefined ? undefined :
+    (await ctx.store.listSegments(ctx.workspaceId)).find(s => s.segmentCode === checked.value.segmentCode);
+  if (input.solutionIds !== undefined) {
+    const selection = await validatePlanSolutions(ctx, input.solutionIds, existing?.solutionIds);
+    if (!selection.ok) return selection;
+    return ok(await ctx.store.upsertSegment(ctx.workspaceId, { ...checked.value, solutionIds: selection.value }));
+  }
   return ok(await ctx.store.upsertSegment(ctx.workspaceId, checked.value));
 }
 

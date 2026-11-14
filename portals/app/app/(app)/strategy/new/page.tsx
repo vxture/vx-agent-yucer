@@ -1,5 +1,4 @@
 import { getAuthzStore } from "../../../authz/store";
-import { ViewHeader } from "../../components/business-controls";
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { notFound, redirect } from "next/navigation";
@@ -76,7 +75,7 @@ export default async function NewPlanPage({
   const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentCode, industry, region, customerSize }) =>
     ({ id, name, accountNo, segmentCode, industry, region, customerSize: customerSize ?? null })) : null;
   const marketOptions = segments?.ok ? marketViews(segments.value, null, customerRows)
-    .map(({ id, name, segmentCode, status, criteria, matched, missing }) => ({ id, name, segmentCode, status, criteria, matched, missing })) : null;
+    .map(({ id, name, segmentCode, status, criteria, matched, missing, solutionIds }) => ({ id, name, segmentCode, status, criteria, matched, missing, solutionIds })) : null;
   const solutionOptions = solutions?.ok ? solutions.value : null;
   const visibleSolutions = new Set(solutionOptions?.map(s => s.id));
 
@@ -84,11 +83,7 @@ export default async function NewPlanPage({
     <ViewLayout>
       <PageCrumbs
         trail={[{ label: DOMAIN_LABEL.strategy, href: "/strategy" }]}
-        current={editable ? STRATEGY_TEXT.editPlanTitle : STRATEGY_TEXT.newPlanTitle}
-      />
-      <ViewHeader
-        title={editable ? STRATEGY_TEXT.editPlanTitle : STRATEGY_TEXT.newPlanTitle}
-        help={editable ? STRATEGY_TEXT.editPlanWhy : STRATEGY_TEXT.newPlanWhy}
+        current={editable ? found.name : STRATEGY_TEXT.newPlanTitle}
       />
       <NewPlanForm
         key={editable ? found.id : "new"}

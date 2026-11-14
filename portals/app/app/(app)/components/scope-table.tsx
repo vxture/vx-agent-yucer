@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 import { DataTable } from "./business-controls";
 
 import { StatusBadge, TableTitleCell, useListPagination } from "@vxture/design-ui";
@@ -72,7 +73,7 @@ export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
                tells nobody who this is. */
             cell: (r: ScopeRow) => (
               <TableTitleCell
-                title={r.name}
+                title={<MemberName sub={r.sub} name={r.name}/>}
                 description={r.idLine ?? undefined}
                 tooltip={r.name}
               />

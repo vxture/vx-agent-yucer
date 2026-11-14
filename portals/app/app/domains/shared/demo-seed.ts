@@ -275,6 +275,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         segmentCode: DEMO_SEGMENTS[1].code,
         name: DEMO_SEGMENTS[1].name,
         criteria: { industries: [...DEMO_SEGMENTS[1].criteria.industries], regions: [] },
+        solutionIds: ["sol_demo_1"],
         priority: 2,
         status: "active" as const,
       },

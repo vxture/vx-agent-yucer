@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { useState, type ReactNode } from "react";
 import {
@@ -193,14 +194,12 @@ export function ContactCard({
   ) : null;
   return (
     <div className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
-      <span className="bg-accent text-muted-foreground flex h-xl w-xl flex-none items-center justify-center rounded-full text-label font-bold">
-        {contact.name.charAt(0)}
-      </span>
+
       <div className="min-w-0 flex-1">
         {/* 第三轮 (owner, 2026-09-24): 联系方式图标和天数缩小一号, 跟姓名同一行
             靠右; 第二行整个留给两件事 - 职务在左, 最后联系日期靠右小字。 */}
         <div className="flex items-center justify-between gap-sm">
-          <span className="text-body-small truncate font-bold">{contact.name}</span>
+          <span className="min-w-0 text-body-small font-bold"><MemberName name={contact.name}/></span>
           <span className="flex flex-none items-center gap-sm">
             <ContactChannels mobile={contact.mobile} email={contact.email} wechat={contact.wechat} labels={channelLabels} />
             {recency?.tooltip ? (

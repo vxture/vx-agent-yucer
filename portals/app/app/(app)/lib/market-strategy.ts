@@ -17,6 +17,7 @@ export function marketMatch(a: MarketAccount, c: SegmentCriteria): MarketMatch {
   return limited.some(([, value]) => value == null || value === "") ? "missing" : "match";
 }
 export interface MarketView extends Omit<SegmentRecord, "workspaceId"> {
+  defaultSolutions?: readonly SolutionReference[] | null;
   plans: { id: string; name: string; period: string }[] | null;
   customers: (MarketAccount & { match: MarketMatch; assigned: boolean })[] | null;
   matched: number | null; missing: number | null; assigned: number | null;

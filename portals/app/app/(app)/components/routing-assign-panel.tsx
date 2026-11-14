@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemberName } from "../lib/member-names";
+import { MemberName, useMemberName } from "../lib/member-names";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button, Card, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -136,7 +136,7 @@ export function RoutingAssignPanel({
         <div key={p.leadId} className="border-border flex flex-col gap-2xs rounded-md border p-sm">
           <span className="text-foreground truncate text-body-small">{p.companyName}</span>
           <span className="text-muted-foreground truncate text-body-small">
-            {ROUTING_TEXT.assignMove(nameOf(p.currentOwner) ?? ROUTING_TEXT.unowned, nameOf(p.suggestedOwner) ?? p.suggestedOwner)}
+            <span className="inline-flex flex-wrap items-center gap-xs"><MemberName sub={p.currentOwner} fallback={ROUTING_TEXT.unowned}/><span aria-hidden="true">{"\u2192"}</span><MemberName sub={p.suggestedOwner}/></span>
           </span>
           {/* THE REASON TRAVELS WITH THE PROPOSAL. "Why them" is the question a
               router is actually asked, and a suggestion that cannot answer it

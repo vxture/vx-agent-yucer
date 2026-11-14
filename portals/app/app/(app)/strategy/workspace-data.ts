@@ -28,7 +28,7 @@ export const strategyWorkspaceData = cache(async () => {
   const ctx = { ...base, store: getStrategyStore() };
   const canPlan = can(session.authz, session.entitlement, "strategy.plan.view", "ui").allowed;
   const canMarkets = can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed;
-  const canSeeSolutions = canPlan && can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed;
+  const canSeeSolutions = (canPlan || canMarkets) && can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed;
   const [plans, segments, campaigns, accounts, deals, solutions] = await Promise.all([
     read("plans", listPlans(ctx)), read("markets", listSegments(ctx)), read("campaigns", listCampaigns(ctx)),
     read("accounts", listAccounts({ ...base, store: session.stores.account() })),
@@ -36,7 +36,9 @@ export const strategyWorkspaceData = cache(async () => {
     canSeeSolutions ? read("solutions", listSolutionReferences({ ...base, store: getCatalogStore() })) : null,
   ]);
   const customers = accounts.ok ? accounts.value.map(({id,name,accountNo,segmentCode,industry,region,customerSize}) => ({id,name,accountNo,segmentCode,industry,region,customerSize:customerSize ?? null})) : null;
-  const markets = canMarkets && segments.ok ? marketViews(segments.value, canPlan && plans.ok ? currentStrategyPlans(plans.value) : null, customers) : null;
+  const markets = canMarkets && segments.ok ? marketViews(segments.value, canPlan && plans.ok ? currentStrategyPlans(plans.value) : null, customers).map(m => ({ ...m,
+    defaultSolutions: solutions?.ok ? solutions.value.filter(s => m.solutionIds?.includes(s.id)) : null,
+  })) : null;
   const planRows = plans.ok ? strategyViews(plans.value, markets, campaigns.ok ? campaigns.value : null, deals.ok ? deals.value : null, solutions?.ok ? solutions.value : null, customers) : null;
   const planAdvice = plans.ok ? analysePlans({ plans: currentStrategyPlans(plans.value),
     campaignCounts: new Map(planRows!.map(p => [p.id, p.campaigns?.length ?? 0])),

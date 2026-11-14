@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -324,12 +325,10 @@ export function DecisionChainDetail({
                           可达 column fell off the card. */}
                       <TableCell className="min-w-[9rem]">
                         <div className="gap-sm flex items-center">
-                          <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
-                            {nameOf(p.id).charAt(0)}
-                          </span>
+
                           <div className="min-w-0">
                             <div className="gap-xs flex items-center">
-                              <span className="text-body-small font-bold whitespace-nowrap">{nameOf(p.id)}</span>
+                              <span className="text-body-small font-bold"><MemberName name={nameOf(p.id)}/></span>
                               {/* 关键人异动: someone who left stays visible - the
                                   reachability verdict above has already stopped
                                   counting them, and the row says why. */}

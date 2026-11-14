@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -138,11 +139,9 @@ export function LinkContactDrawer({ accountId, onSearch, onLink, openSignal }: L
                     picked === r.id ? "border-primary bg-primary-muted" : "bg-card"
                   }`}
                 >
-                  <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-small font-bold">
-                    {r.name.charAt(0)}
-                  </span>
+
                   <div className="min-w-0">
-                    <div className="text-body-small font-bold">{r.name}</div>
+                    <div className="text-body-small font-bold"><MemberName name={r.name}/></div>
                     <div className="text-muted-foreground text-body-small">
                       {r.affiliations.length > 0
                         ? LINK_CONTACT_TEXT.alsoAt(r.affiliations[0]!.accountName, r.affiliations[0]!.title)

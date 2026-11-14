@@ -44,6 +44,12 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
           {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <DetailRow key={key} label={T[key]}><span className="whitespace-pre-wrap break-words">{market.criteria[key] || T.notProvided}</span></DetailRow>)}
         </DetailList>
       </Section>
+      <Section title={T.marketDefaultSolutions} icon="squares-four" help={T.marketDefaultSolutionsHint}>
+        <div className="flex flex-wrap gap-sm text-body-small">
+          {market.defaultSolutions == null ? T.solutionOptionsUnavailable : market.defaultSolutions.length ? market.defaultSolutions.map(s =>
+            <Link key={s.id} href={`/solution?solution=${encodeURIComponent(s.id)}`} className="transition-colors hover:text-primary">{s.name}</Link>) : T.noPlanSolutions}
+        </div>
+      </Section>
       <Section title={T.criteria} icon="filter"><MarketCriteria market={market} /></Section>
       <DetailList columns={2}>
         <DetailRow label={T.linkedPlan}><StrategyReferences market={market}/></DetailRow>

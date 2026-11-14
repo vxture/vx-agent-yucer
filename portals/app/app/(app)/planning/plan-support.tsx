@@ -1,4 +1,6 @@
 "use client";
+import { MemberPicker } from "../components/member-picker";
+import { MemberName } from "../lib/member-names";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -534,7 +536,7 @@ export function PlanSupport({
                       {index + 1}
                     </TableCell>
                     <TableCell>
-                      {x.memberSub ? x.memberName : T.demand}
+                      {x.memberSub ? <MemberName sub={x.memberSub} name={x.memberName}/> : T.demand}
                     </TableCell>
                     <TableCell>{x.role}</TableCell>
                     <TableCell>{x.unitName || "—"}</TableCell>
@@ -789,20 +791,7 @@ export function PlanSupport({
             <>
               <Field>
                 <FieldLabel htmlFor="plan-member">{T.member}</FieldLabel>
-                <NativeSelect
-                  id="plan-member"
-                  value={member}
-                  onChange={(e) => setMember(e.target.value)}
-                >
-                  <option value="">
-                    {mode === "team" ? T.demand : T.select}
-                  </option>
-                  {sources.members.map((m) => (
-                    <option key={m.sub} value={m.sub}>
-                      {m.name}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <MemberPicker value={member} onValueChange={setMember} label={T.member} emptyLabel={mode === "team" ? T.demand : T.select} options={sources.members.map(m => ({ value: m.sub, label: m.name }))} disabled={disabled || sourceLoading}/>
               </Field>
               {mode === "team" ? (
                 <>

@@ -549,6 +549,50 @@ test("segments come back in priority order", async () => {
   );
 });
 
+test("market defaults copy once, deduplicate and remain independently editable", async () => {
+  const catalog = new InMemoryCatalogStore();
+  const c = { ...ctx("sales_leader", "business"), catalog };
+  const ref = { id: "default-sol", workspaceId: WS, solutionCode: "DEF", name: "Retail", summary: null, scenario: null, status: "active" as const, sortOrder: 1 };
+  catalog.seed({ solutions: [ref] });
+  const market = unwrap(await upsertSegment(c, { ...SEG, solutionIds: [ref.id, ref.id] }));
+  assert.deepEqual(market.solutionIds, [ref.id]);
+  const target = { segmentId: market.id, intent: "focus" as const, approach: null };
+  const first = unwrap(await createPlan(c, { ...newPlan, targetMarkets: [target] }));
+  assert.deepEqual(first.targetMarkets?.[0].solutionIds, [ref.id]);
+  assert.deepEqual(first.solutionIds, [], "market supply is not copied into shared supply");
+
+  unwrap(await upsertSegment(c, { ...SEG, name: "Library revised" }));
+  assert.deepEqual((await c.store.listSegments(WS))[0].solutionIds, [ref.id], "omission preserves library links");
+  unwrap(await upsertSegment(c, { ...SEG, solutionIds: [] }));
+  assert.deepEqual((await c.store.getPlan(WS, first.id))?.targetMarkets?.[0].solutionIds, [ref.id]);
+  const second = unwrap(await createPlan(c, { ...newPlan, planNo: "NEW-DEFAULTS", targetMarkets: [target] }));
+  assert.deepEqual(second.targetMarkets?.[0].solutionIds, []);
+
+  unwrap(await upsertSegment(c, { ...SEG, solutionIds: [ref.id] }));
+  unwrap(await editPlan(c, first.id, { ...EDIT, targetMarkets: [{ ...target, solutionIds: [] }] }));
+  unwrap(await editPlan(c, first.id, { ...EDIT, targetMarkets: [target] }));
+  assert.deepEqual((await c.store.getPlan(WS, first.id))?.targetMarkets?.[0].solutionIds, [], "cleared strategy links never re-inherit on edit");
+  assert.deepEqual((await c.store.listSegments(WS))[0].solutionIds, [ref.id]);
+});
+
+test("market defaults enforce catalogue access, local scope and active-only inheritance", async () => {
+  const catalog = new InMemoryCatalogStore();
+  const c = { ...ctx("sales_leader", "business"), catalog };
+  const ref = { id: "local-sol", workspaceId: WS, solutionCode: "LOCAL", name: "Retail", summary: null, scenario: null, status: "active" as const, sortOrder: 1 };
+  catalog.seed({ solutions: [ref, { ...ref, id: "foreign-sol", workspaceId: "other" }] });
+  const market = unwrap(await upsertSegment(c, { ...SEG, solutionIds: [ref.id] }));
+  const foreign = await upsertSegment(c, { ...SEG, name: "Must not save", solutionIds: ["foreign-sol"] });
+  assert.equal(!foreign.ok && foreign.violations[0].code, "solution_not_selectable");
+  assert.equal((await c.store.listSegments(WS))[0].name, SEG.name);
+  const denied = { ...c, holder: { permissions: new Set([...c.holder.permissions].filter(p => p !== "catalog.read")) } };
+  assert.equal((await upsertSegment(denied, { ...SEG, solutionIds: [] })).ok, false);
+  assert.equal((await createPlan(denied, { ...newPlan, targetMarkets: [{ segmentId: market.id, intent: "focus", approach: null }] })).ok, false);
+  catalog.seed({ solutions: [{ ...ref, status: "retired" }] });
+  const next = unwrap(await createPlan(c, { ...newPlan, targetMarkets: [{ segmentId: market.id, intent: "focus", approach: null }] }));
+  assert.deepEqual(next.targetMarkets?.[0].solutionIds, [], "new adoption skips retired defaults");
+  assert.deepEqual((await c.store.listSegments(WS))[0].solutionIds, [ref.id], "historical default remains visible until deliberately removed");
+});
+
 // --- editing a plan ---------------------------------------------------------
 
 const EDIT = {

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, Drawer, Label, NativeSelect, StatusBadge } from "@vxture/design-ui";
 import { RELATION_TYPES, type ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
+import { MemberPicker } from "./member-picker";
 
 // Recording a path to the buyer.
 //
@@ -78,8 +79,8 @@ export function LinkContacts({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const label = (c: ContactNode) =>
-    `${contactNames[c.id] ?? c.id} (${DECISION_ROLE_LABEL[c.decisionRole] ?? c.decisionRole})`;
+  const choices = contacts.map(c => ({ value: c.id, label: contactNames[c.id] ?? c.id,
+    description: DECISION_ROLE_LABEL[c.decisionRole] ?? c.decisionRole }));
 
   function submit() {
     setError(null);
@@ -123,19 +124,8 @@ export function LinkContacts({
         ) : null}
 
         <Label htmlFor="rel-from">{RELATION_TEXT.from}</Label>
-        <NativeSelect
-          id="rel-from"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          disabled={pending}
-        >
-          <option value="">{RELATION_TEXT.pick}</option>
-          {contacts.map((c) => (
-            <option key={c.id} value={c.id}>
-              {label(c)}
-            </option>
-          ))}
-        </NativeSelect>
+        <MemberPicker id="rel-from" value={from} onValueChange={setFrom} options={choices}
+          label={RELATION_TEXT.from} emptyLabel={RELATION_TEXT.pick} disabled={pending}/>
 
         <Label htmlFor="rel-type">{RELATION_TEXT.type}</Label>
         <NativeSelect
@@ -152,24 +142,8 @@ export function LinkContacts({
         </NativeSelect>
 
         <Label htmlFor="rel-to">{RELATION_TEXT.to}</Label>
-        <NativeSelect
-          id="rel-to"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          disabled={pending}
-        >
-          <option value="">{RELATION_TEXT.pick}</option>
-          {/* The same person on both ends is refused by the rule AND by a CHECK
-              constraint; leaving it out of the list keeps the form from offering
-              a choice that can only fail. */}
-          {contacts
-            .filter((c) => c.id !== from)
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {label(c)}
-              </option>
-            ))}
-        </NativeSelect>
+        <MemberPicker id="rel-to" value={to} onValueChange={setTo} options={choices.filter(c => c.value !== from)}
+          label={RELATION_TEXT.to} emptyLabel={RELATION_TEXT.pick} disabled={pending}/>
 
         {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
         {saved ? (

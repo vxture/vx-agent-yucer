@@ -11,7 +11,7 @@ import {
   Textarea,
 } from "@vxture/design-ui";
 import { formatMoney } from "../lib/view-model";
-import { useMemberName } from "../lib/member-names";
+import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { DialogForm } from "./dialog-form";
 import type { ForecastConfirmationView } from "../lib/forecast-confirmation";
@@ -72,9 +72,8 @@ export function SubmitForecast({
   } = useMessages();
   const router = useRouter();
   const locale = useLocale();
-  const nameOf = useMemberName();
   const scopeLabel = scopeKey.startsWith("owner:")
-    ? (nameOf(scopeKey.slice(6)) ?? T.scopeUnavailable)
+    ? <MemberName sub={scopeKey.slice(6)} fallback={T.scopeUnavailable}/>
     : (contextLabel ?? T.wholeTeam);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +192,7 @@ export function SubmitForecast({
             if (!o && !pending) setOpen(false);
           }}
           title={T.submitTitle}
-          description={`${period} / ${scopeLabel} / ${confirmation?.currency ?? currency}. ${T.snapshotHint} ${PIPELINE_TEXT.snapshotDialogWhy}`}
+          description={<>{period} / {scopeLabel} / {confirmation?.currency ?? currency}. {T.snapshotHint} {PIPELINE_TEXT.snapshotDialogWhy}</>}
           submitLabel={T.submitConfirm}
           submitting={pending}
           submitDisabled={!confirmation}

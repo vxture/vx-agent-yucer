@@ -442,6 +442,7 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // incr/0052. The two joints of a territory - which units work it, which 大区
   // it covers - are pairs: a change is a delete and an insert.
   "yucer_gtm.territory_unit",
+  "yucer_gtm.market_segment_solution",
   "yucer_gtm.strategy_plan_solution",
   "yucer_gtm.strategy_plan_market",
   "yucer_gtm.strategy_plan_market_solution",

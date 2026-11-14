@@ -13,7 +13,7 @@ import { formatMoney } from "../lib/view-model";
 import { dealWorkspaceHref } from "../lib/deal-workspace";
 import { PaginationFooter, RowActions } from "./table-fittings";
 import { Tag } from "./tag";
-import { useMemberName } from "../lib/member-names";
+import { MemberName, useMemberName } from "../lib/member-names";
 
 const LINK =
   "text-foreground no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text focus-visible:ring-2 focus-visible:ring-ring";
@@ -118,7 +118,7 @@ export function AttainmentDealTable({
           {
             id: "owner",
             header: PT.owner,
-            cell: (r: AttainmentDealRow) => nameOf(r.ownerSub) ?? "-",
+            cell: (r: AttainmentDealRow) => <MemberName sub={r.ownerSub}/>,
           },
         ]}
         empty={<EmptyState title={T.noDeals} />}

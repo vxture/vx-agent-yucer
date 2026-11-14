@@ -1,4 +1,5 @@
 "use client";
+import { MemberPicker } from "./member-picker";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
@@ -102,32 +103,15 @@ export function AttainmentControls({
       </Tabs>
       {perspective !== "personal" && view !== "progress" ? (
         <div className="w-44 max-w-full">
-          <NativeSelect
+          {perspective === "regions" ? <NativeSelect
             className="h-control-xl text-body-small font-medium"
-            value={selection}
-            disabled={pending}
-            aria-label={T.scope}
-            onChange={(e) => select(e.target.value)}
-          >
-            {perspective === "regions" ? (
-              <>
-                {allowWorkspace ? (
-                  <option value="workspace">{P.company}</option>
-                ) : null}
-                {territories.map((t) => (
-                  <option key={t.id} value={`territory:${t.id}`}>
-                    {t.name}
-                  </option>
-                ))}
-              </>
-            ) : (
-              owners.map((sub) => (
-                <option key={sub} value={`owner:${sub}`}>
-                  {nameOf(sub) ?? T.scopeUnavailable}
-                </option>
-              ))
-            )}
-          </NativeSelect>
+            value={selection} disabled={pending} aria-label={T.scope} onChange={e => select(e.target.value)}>
+            {allowWorkspace ? <option value="workspace">{P.company}</option> : null}
+            {territories.map(t => <option key={t.id} value={`territory:${t.id}`}>{t.name}</option>)}
+          </NativeSelect> : <MemberPicker value={selection.startsWith("owner:") ? selection.slice(6) : ""}
+            onValueChange={sub => select(`owner:${sub}`)} allowEmpty={false} label={T.scope}
+            options={owners.map(sub => ({ value: sub, label: nameOf(sub) ?? T.scopeUnavailable }))} disabled={pending}/>}
+
         </div>
       ) : null}
       <div className="w-24">

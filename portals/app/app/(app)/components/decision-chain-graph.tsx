@@ -2,6 +2,7 @@
 
 import type { ChainCoverage, ContactNode, DecisionRole, RelationEdge } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
+import { MemberName } from "../lib/member-names";
 
 // 决策链图谱 (owner, 2026-09-18: 客户详情页重排; 2026-09-20: 设计图严格
 // 对齐 - mockup 原话"决策链两个板块都内嵌在栏2里", 不是弹窗). 曾经是一个
@@ -245,10 +246,12 @@ function RoleCircle({
         strokeWidth={2}
         strokeDasharray={node.missing ? "4 3" : undefined}
       />
-      <text x={cx} y={cy - 3} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--foreground)">
-        {node.contactName ?? node.label}
-      </text>
-      <text x={cx} y={cy + 12} textAnchor="middle" fontSize={9.5} fill="var(--muted-foreground)">
+      {node.contactName ? <foreignObject x={cx - 56} y={cy + r + 4} width={112} height={24}>
+        <div className="flex justify-center text-body-small"><MemberName name={node.contactName}/></div>
+      </foreignObject> : <text x={cx} y={cy - 3} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--foreground)">
+        {node.label}
+      </text>}
+      <text x={cx} y={node.contactName ? cy + 4 : cy + 12} textAnchor="middle" fontSize={9.5} fill="var(--muted-foreground)">
         {node.missing
           ? ACCOUNT_TEXT.graphMissingRole
           : node.unreachable

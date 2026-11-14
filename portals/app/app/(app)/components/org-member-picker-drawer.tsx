@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Button, Drawer, EmptyState, Input, useToast } from "@vxture/design-ui";
@@ -111,7 +112,7 @@ export function OrgMemberPickerDrawer({
                     <label className="gap-sm hover:bg-muted flex items-center justify-between rounded-sm px-2xs py-2xs">
                       <span className="gap-sm flex items-center">
                         <input type="checkbox" checked={selected.has(m.sub)} onChange={() => toggle(m.sub)} />
-                        <span className="text-body-small">{m.name}</span>
+                        <MemberName sub={m.sub} name={m.name}/>
                       </span>
                       <NameOverflowTag names={m.roleNames} empty={ORG_TEXT.noRole} />
                     </label>

@@ -179,6 +179,7 @@ export async function saveSegment(input: {
   priority: number;
   status: string;
   criteria: SegmentCriteria;
+  solutionIds?: readonly string[];
 }): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -197,6 +198,7 @@ export async function saveSegment(input: {
       holder: session.authz,
       entitlement: session.entitlement,
       store: getStrategyStore(),
+      catalog: getCatalogStore(),
     },
     { ...input, status: input.status as SegmentStatus },
   );

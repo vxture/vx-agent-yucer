@@ -1,35 +1,50 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
+import { UserAvatar } from "@vxture/design-ui";
 
-// WHO, BY NAME, EVERYWHERE (polish, 2026-09-24). A sweep of 27 pages found a
-// raw member sub (usr_demo_m010) printed in owner columns, owner filters and
-// timelines on twelve of them - each page had been left to resolve names on
-// its own, and most never did. The app layout reads the workspace's member
-// directory once and hands it down; any component asks here.
-//
-// A sub the directory does not know stays the sub: a departed member's rows
-// still say whose they were, and inventing "unknown" would lose that.
+export interface MemberIdentity {
+  readonly sub: string;
+  readonly name: string;
+  readonly picture?: string | null;
+  readonly active?: boolean;
+}
 
 const MemberNamesContext = createContext<Readonly<Record<string, string>>>({});
+const MemberDirectoryContext = createContext<readonly MemberIdentity[]>([]);
 
-export function MemberNamesProvider({
-  names,
-  children,
-}: {
+export function MemberNamesProvider({ names, members = [], children }: {
   readonly names: Readonly<Record<string, string>>;
+  readonly members?: readonly MemberIdentity[];
   readonly children: ReactNode;
 }) {
-  return <MemberNamesContext.Provider value={names}>{children}</MemberNamesContext.Provider>;
+  return <MemberNamesContext.Provider value={names}>
+    <MemberDirectoryContext.Provider value={members}>{children}</MemberDirectoryContext.Provider>
+  </MemberNamesContext.Provider>;
 }
 
-/** sub -> display name, falling back to the sub itself. */
+export function useMemberDirectory() { return useContext(MemberDirectoryContext); }
+
+/** Text only for searching, accessible labels and exported data. */
 export function useMemberName(): (sub: string | null | undefined) => string | null {
   const names = useContext(MemberNamesContext);
-  return (sub) => (sub ? (names[sub] ?? sub) : null);
+  return sub => sub ? names[sub] ?? sub : null;
 }
 
-export function MemberName({ sub, fallback = "-" }: { readonly sub: string | null | undefined; readonly fallback?: string }) {
+/** Avatar and display name form one unbroken inline identity. */
+export function MemberName({ sub, name, picture, fallback = "-" }: {
+  readonly sub?: string | null;
+  readonly name?: string | null;
+  readonly picture?: string | null;
+  readonly fallback?: string;
+}) {
   const nameOf = useMemberName();
-  return <>{nameOf(sub) ?? fallback}</>;
+  const members = useMemberDirectory();
+  const person = sub ? members.find(m => m.sub === sub) : undefined;
+  const label = name || nameOf(sub);
+  if (!label) return <>{fallback}</>;
+  return <span className="inline-flex max-w-full min-w-0 shrink-0 items-center gap-xs whitespace-nowrap align-middle" data-member-identity>
+    <UserAvatar src={picture ?? person?.picture} alt="" aria-hidden="true" className="size-control-md shrink-0 text-muted-foreground"/>
+    <span className="min-w-0 truncate" title={label}>{label}</span>
+  </span>;
 }

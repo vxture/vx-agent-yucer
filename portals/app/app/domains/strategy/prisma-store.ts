@@ -329,6 +329,7 @@ export class PrismaStrategyStore implements StrategyStore {
     const p = await getPrismaClient();
     const rows = await p.marketSegment.findMany({
       where: { workspaceId },
+      include: { solutionLinks: true },
       orderBy: [{ priority: "asc" }, { segmentCode: "asc" }],
     });
     return rows.map((r) => toSegment(r as Record<string, unknown>));
@@ -355,12 +356,22 @@ export class PrismaStrategyStore implements StrategyStore {
     }
 
     // By the anchor, not by id: this is the one identity accounts carry.
-    const row = await p.marketSegment.upsert({
-      where: { workspaceId_segmentCode: { workspaceId, segmentCode: input.segmentCode } },
-      update: writable,
-      create: { workspaceId, segmentCode: input.segmentCode, ...writable },
+    return p.$transaction(async tx => {
+      const row = await tx.marketSegment.upsert({
+        where: { workspaceId_segmentCode: { workspaceId, segmentCode: input.segmentCode } },
+        update: writable,
+        create: { workspaceId, segmentCode: input.segmentCode, ...writable },
+      });
+      const scope = { workspaceId, segmentId: row.id };
+      if (input.solutionIds !== undefined) {
+        await tx.marketSegmentSolution.deleteMany({ where: { ...scope, solutionId: { notIn: [...input.solutionIds] } } });
+        if (input.solutionIds.length) await tx.marketSegmentSolution.createMany({
+          data: input.solutionIds.map(solutionId => ({ ...scope, solutionId })), skipDuplicates: true,
+        });
+      }
+      const links = await tx.marketSegmentSolution.findMany({ where: scope });
+      return toSegment({ ...row, solutionLinks: links });
     });
-    return toSegment(row as Record<string, unknown>);
   }
 
   async setSegmentOrder(
@@ -558,6 +569,7 @@ function toSegment(r: Record<string, unknown>): SegmentRecord {
     priority: Number(r.priority ?? 0),
     status: r.status as SegmentStatus,
     criteria: readCriteria(r.criteria),
+    solutionIds: ((r.solutionLinks ?? []) as { solutionId: string }[]).map(s => s.solutionId).sort(),
   };
 }
 

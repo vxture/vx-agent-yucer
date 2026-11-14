@@ -1,4 +1,5 @@
 "use client";
+import { MemberName } from "../lib/member-names";
 import { DataTable } from "./business-controls";
 
 import {
@@ -329,12 +330,12 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
                 : <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} description={r.code} titleSuffix={headcountSuffix(r)} />
             ) : (
               <span className="gap-sm flex min-w-0 items-center">
-                <UserAvatar src={r.picture ?? undefined} alt={r.name} className="size-6 shrink-0" />
+
                 {/* 标题不走手写 button (owner, 2026-09-12: admin 标题体系统一) -
                     两行上面的 unit 分支已经用 TableTitleCell，这里看齐它，
                     只是没有 icon（UserAvatar 已经是这一行的头像）。 */}
                 <TableTitleCell
-                  title={r.name}
+                  title={<MemberName sub={r.sub} name={r.name} picture={r.picture}/>}
                   tooltip={r.name}
                   onTitleClick={() => onOpen(r.sub)}
                   titleSuffix={r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : undefined}
@@ -554,7 +555,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
               {candidates.map((m) => (
                 <label className="gap-2xs flex items-center" key={m.sub} htmlFor={`place-${m.sub}`}>
                   <Checkbox id={`place-${m.sub}`} checked={ticked.has(m.sub)} disabled={pending} onCheckedChange={() => tick(m.sub)} />
-                  <span className="text-body">{m.name}</span>
+                  <MemberName sub={m.sub} name={m.name}/>
                 </label>
               ))}
             </div>

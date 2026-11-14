@@ -1,4 +1,5 @@
 "use client";
+import { MemberPicker } from "./member-picker";
 
 import { useMemo, useState } from "react";
 import {
@@ -203,10 +204,7 @@ export function ExecutionForm({
             </Field>
             <Field>
               <FieldLabel>{CAMPAIGN_TEXT.executionAssignee}</FieldLabel>
-              <Input
-                value={form.assigneeSub}
-                onChange={(e) => setForm({ ...form, assigneeSub: e.target.value })}
-              />
+              <MemberPicker value={form.assigneeSub} onValueChange={value => setForm({ ...form, assigneeSub: value })} label={CAMPAIGN_TEXT.executionAssignee} disabled={submit.pending}/>
             </Field>
             <Field>
               <FieldLabel>{CAMPAIGN_TEXT.executionDue}</FieldLabel>

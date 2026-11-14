@@ -135,6 +135,7 @@ export interface SegmentRecord {
   priority: number;
   status: SegmentStatus;
   criteria: SegmentCriteria;
+  solutionIds?: readonly string[];
 }
 
 export interface ExecutionRecord {
@@ -519,6 +520,7 @@ export class InMemoryStrategyStore implements StrategyStore {
       held.priority = input.priority;
       held.status = input.status;
       held.criteria = input.criteria;
+      if (input.solutionIds !== undefined) held.solutionIds = [...input.solutionIds];
       return held;
     }
     const row: SegmentRecord = { ...input, id: `seg_${++this.seq}`, workspaceId };
