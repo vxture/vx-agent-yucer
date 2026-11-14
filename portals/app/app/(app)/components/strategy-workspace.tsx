@@ -237,7 +237,6 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             {detail.approvedAt ? <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.publishedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
           </div>
           {detail.changeReason ? <p className="text-body-small"><span className="mr-sm text-muted-foreground">{T.changeReason}</span>{detail.changeReason}</p> : null}
-          {detail.snapshotLegacy ? <p className="text-body-small text-muted-foreground">{T.legacySnapshot}</p>:null}
           <div className="flex items-baseline gap-sm" data-strategy-detail-direction><span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
             <p className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p></div>
         </div></CardContent></CollapsibleContent>
@@ -297,7 +296,6 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     </DialogForm>:null}
     <Drawer open={!!versionPlan} onClose={()=>setVersionPlan(null)} width="md" title={T.versionHistory} description={versionPlan?.planNo} closeLabel={T.closed}>
       <div className="flex flex-col gap-lg" data-strategy-version-history>
-        <p className="text-body-small text-muted-foreground">{T.versionResultsHint}</p>
         {versionPlan ? family(versionPlan).sort((a,b)=>(b.versionNo ?? Number.MAX_SAFE_INTEGER)-(a.versionNo ?? Number.MAX_SAFE_INTEGER)).map(p=><Card key={p.id} className="gap-md py-lg">
           <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><CardTitle>{p.versionNo?`V${p.versionNo}`:p.basePlanId?T.revisionDraft:T.noPublication}</CardTitle>
             <span className="flex items-center gap-sm"><Tag>{PLAN_STATUS_LABEL[p.status]}</Tag>{isLatest(p)?<Tag>{T.currentVersion}</Tag>:null}</span></div></CardHeader>
@@ -306,7 +304,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
             {p.publishedBySub ? <span className="text-muted-foreground">{T.publishedBy} <MemberName sub={p.publishedBySub}/></span>:null}
             {p.changeReason?<p>{p.changeReason}</p>:null}
             {p.basePlanId?<span className="text-muted-foreground">{T.baseVersion} V{data.plans?.find(base=>base.id===p.basePlanId)?.versionNo ?? "?"}</span>:null}
-            {p.snapshotLegacy?<p className="text-muted-foreground">{T.legacySnapshot}</p>:null}
+            {p.snapshotLegacy?<p className="text-muted-foreground">{T.originalVersionMissing}</p>:null}
             <div className="flex flex-wrap gap-sm"><Button asChild size="md" variant="secondary"><Link href={`/strategy/${p.id}`} onClick={()=>setVersionPlan(null)}>{T.versionRead}</Link></Button>
               {p.status==="draft" && data.canEdit ? <Button asChild size="md" variant="secondary"><Link href={`/strategy/new?id=${encodeURIComponent(p.id)}`}>{T.resumeDraft}</Link></Button>:null}
             </div>
