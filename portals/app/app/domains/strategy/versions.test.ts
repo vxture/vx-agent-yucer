@@ -108,3 +108,34 @@ test("store reads cannot mutate frozen publications through shared references", 
   listed[0].publishedSnapshot!.name = "List mutation";
   assert.equal((await c.store.getPlan(WS, v1.id))?.publishedSnapshot?.name, input.name);
 });
+
+test("automatic numbers follow the period, remain workspace scoped and survive revisions", async () => {
+  const c = context();
+  const annual = unwrap(await createPlan(c, {...input, planNo: ""}, {autoNumber: true}));
+  assert.equal(annual.planNo, "PLAN-2026-001");
+  const quarterly = unwrap(await createPlan(c, {...input, planNo: "stale-preview", period: "2026-Q1"}, {autoNumber: true}));
+  assert.equal(quarterly.planNo, "PLAN-2026-Q1-001");
+  const parallel = await Promise.all(Array.from({length: 4}, () => createPlan(c, {...input, planNo: "PLAN-2026-Q1-001", period: "2026Q1"}, {autoNumber: true})));
+  assert.equal(parallel.every(r => r.ok), true);
+  const numbers = parallel.map(r => unwrap(r).planNo);
+  assert.equal(new Set(numbers).size, 4);
+  assert.deepEqual(numbers.toSorted(), ["PLAN-2026-Q1-002", "PLAN-2026-Q1-003", "PLAN-2026-Q1-004", "PLAN-2026-Q1-005"]);
+  const foreign = unwrap(await createPlan({...c, workspaceId: "other"}, {...input, planNo: ""}, {autoNumber: true}));
+  assert.equal(foreign.planNo, annual.planNo);
+  const released = unwrap(await publishStrategy(c, annual.id, token(annual)));
+  const draft = unwrap(await reviseStrategy(c, released.id));
+  const changed = unwrap(await editPlan(c, draft.id, {...edit(draft), period: "2027", changeReason: "Extend planning period"}));
+  assert.equal(changed.planNo, annual.planNo);
+  assert.equal(code(await createPlan(c, {...input, planNo: annual.planNo})), "plan_no_taken");
+  assert.equal(code(await createPlan(c, {...input, planNo: ""})), "plan_no_required");
+});
+
+test("automatic numbering preserves manual codes and supports custom period names", async () => {
+  const c = context();
+  const custom = unwrap(await createPlan(c, {...input, planNo: "CORP-RETAIL-26", period: "Pilot wave"}));
+  assert.equal(custom.planNo, "CORP-RETAIL-26");
+  const first = unwrap(await createPlan(c, {...input, planNo: "", period: "Pilot wave"}, {autoNumber: true}));
+  assert.equal(first.planNo, "PLAN-PILOT-WAVE-001");
+  const second = unwrap(await createPlan(c, {...input, planNo: "", period: "\u8bd5\u70b9\u9636\u6bb5"}, {autoNumber: true}));
+  assert.equal(second.planNo, "PLAN-CUSTOM-001");
+});

@@ -7425,6 +7425,13 @@ export const en: Dictionary = {
     unknown: "The draft did not complete - try again later",
   },
   MARKET_STRATEGY_TEXT: {
+  strategyNumber: "Strategy number",
+  numberAuto: "Auto",
+  numberManual: "Custom",
+  numberHint: "Generated from the period and fixed after creation, including future revisions. You can also use your existing business code.",
+  numberReset: "Use automatic number",
+  numberDone: "Done",
+
     changeReason: "Revision reason",
     changeReasonHint: "Describe why this strategy changes; required before publishing",
     publishVersion: "Publish strategy",

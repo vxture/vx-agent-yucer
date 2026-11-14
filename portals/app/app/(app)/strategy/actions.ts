@@ -74,7 +74,7 @@ export async function movePlan(id: string, to: string, editToken?: number): Prom
  * The neighbour of `movePlan` above, which shipped first and could only ever
  * move plans that db-init had put there (TD-016).
  */
-export async function createStrategyPlan(input: NewPlanDraft): Promise<TransitionResult> {
+export async function createStrategyPlan(input: NewPlanDraft, autoNumber = false): Promise<TransitionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -89,6 +89,7 @@ export async function createStrategyPlan(input: NewPlanDraft): Promise<Transitio
       memberDirectory: getAuthzStore(),
     },
     input,
+    { autoNumber: autoNumber === true },
   );
 
   if (!result.ok) {

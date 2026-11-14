@@ -1,3 +1,4 @@
+import { isUniqueViolation } from "../shared/allocate";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
@@ -102,7 +103,8 @@ export class PrismaStrategyStore implements StrategyStore {
     });
     if (taken) return null;
 
-    const row = await writePlanSolutions(() => p.$transaction(async (tx) => {
+    let row;
+    try { row = await writePlanSolutions(() => p.$transaction(async (tx) => {
       const created = await tx.strategyPlan.create({
         data: {
           workspaceId,
@@ -123,7 +125,13 @@ export class PrismaStrategyStore implements StrategyStore {
       return { ...created, solutionLinks, targetMarkets: targets.map(t => ({
         ...t, solutionLinks: t.solutionIds.map(solutionId => ({ solutionId })),
       })) };
-    }));
+    })); } catch (error) {
+      if (isUniqueViolation(error)) {
+        const meta = (error as {meta?: {target?: readonly string[]; driverAdapterError?: {cause?: {constraint?: {index?: string}}}}}).meta;
+        if (meta?.target?.includes("plan_no") || meta?.driverAdapterError?.cause?.constraint?.index === "uidx_strategy_plan_ws_no") return null;
+      }
+      throw error;
+    }
     return toPlan(row);
   }
 

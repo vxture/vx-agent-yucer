@@ -9,7 +9,7 @@ import {
   FieldLabel,
   Input,
   Section,
-  StatusBadge,
+  StatusBadge, Popover, PopoverTrigger, PopoverContent,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import {
@@ -19,7 +19,8 @@ import {
 } from "./form-page";
 import { MemberName, useMemberName } from "../lib/member-names";
 import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
-import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
+import { nextStrategyNumber } from "../../domains/strategy/lib/plan-number";
+import { knownValues } from "../../domains/shared/suggest";
 import type { SolutionReference } from "../../domains/catalog/service";
 import { StrategyRelationsDrawer, type RelationTask, type RelationMarketOption, type RelationTarget } from "./strategy-relations-drawer";
 import type { SegmentCriteria, NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/strategy/lib/lifecycle";
@@ -80,12 +81,13 @@ export function NewPlanForm({
   readonly marketOptions: readonly MarketOption[] | null;
   readonly ownerOptions: readonly { value: string; label: string }[] | null;
   readonly creatorSub: string | null;
-  readonly onCreate: (input: NewPlanDraft) => Promise<Saved>;
+  readonly onCreate: (input: NewPlanDraft, autoNumber?: boolean) => Promise<Saved>;
   readonly onSave: (id: string, input: PlanEdit, editToken: number) => Promise<Saved>;
 }) {
   const { STRATEGY_TEXT, PLAN_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
   const nameOf = useMemberName();
-  const [planNo, setPlanNo] = useState(initial?.planNo ?? "");
+  const [manualPlanNo, setManualPlanNo] = useState<string | null>(null);
+  const [numberOpen, setNumberOpen] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
   const currentYear = new Date().getFullYear();
   const initialYear = Number(initial?.period.slice(0, 4));
@@ -127,18 +129,11 @@ export function NewPlanForm({
     }catch{setSaveError(errorOf("denied"));}});
   }};
 
-  const nextNo = useMemo(() => suggestNextCode(existingPlanNos), [existingPlanNos]);
+  const nextNo = useMemo(() => nextStrategyNumber(period, existingPlanNos), [period, existingPlanNos]);
+  const planNo = initial?.planNo ?? manualPlanNo ?? nextNo;
   const periods = useMemo(() => knownValues(existingPeriods), [existingPeriods]);
 
   const suggestions: AssistSuggestion[] = [];
-  if (!initial && nextNo && planNo.trim() === "") {
-    suggestions.push({
-      id: "no",
-      label: ASSIST_TEXT.codeNext(nextNo),
-      reason: ASSIST_TEXT.codeNextWhy,
-      apply: () => setPlanNo(nextNo),
-    });
-  }
   // The period format the workspace already writes ("2026H2", "2026-Q3"...).
   // Suggesting the EXISTING spelling is the point: two spellings of one period
   // split every report that groups by it - the same argument as categories.
@@ -162,14 +157,11 @@ export function NewPlanForm({
             <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><CardTitle>{T.basicInfo}</CardTitle>
               <span className="text-body-small text-muted-foreground">{T.creator} <MemberName sub={creatorSub} fallback={T.creatorUnknown}/></span>
             </div></CardHeader>
-            <CardContent><div className="grid grid-cols-1 gap-x-lg gap-y-md @xl:grid-cols-2 @3xl:grid-cols-4">
-              <Field><FieldLabel htmlFor="strategy-number">{STRATEGY_TEXT.newPlanNo}</FieldLabel>
-                <Input id="strategy-number" value={planNo} readOnly={!!initial} disabled={submit.pending} onChange={e => setPlanNo(e.target.value)} aria-required="true"/>
-              </Field>
-              <Field className="@3xl:col-span-3"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
+            <CardContent><div className="grid grid-cols-1 gap-x-lg gap-y-lg @xl:grid-cols-2 @3xl:grid-cols-3">
+              <Field className="@xl:col-span-2 @3xl:col-span-1"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
                 <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e => setName(e.target.value)} aria-required="true"/>
               </Field>
-              <Field className="@3xl:col-span-2"><FieldLabel htmlFor="strategy-period">{STRATEGY_TEXT.newPlanPeriod}</FieldLabel>
+              <Field><FieldLabel htmlFor="strategy-period">{STRATEGY_TEXT.newPlanPeriod}</FieldLabel>
                 <NativeSelect id="strategy-period" value={customPeriod ? "custom" : period} disabled={submit.pending} onChange={e => {
                   const v = e.target.value; setCustomPeriod(v === "custom"); if (v !== "custom") setPeriod(v);
                 }}>
@@ -180,21 +172,39 @@ export function NewPlanForm({
                 </NativeSelect>
                 {customPeriod ? <Input aria-label={T.periodCustomLabel} maxLength={32} value={period} disabled={submit.pending} onChange={e => setPeriod(e.target.value)}/> : null}
               </Field>
-              <Field className="@3xl:col-span-2"><FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
+              <Field><FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
                 <Combobox items={[{ value: "__none", label: T.noOwner }, ...(ownerOptions ?? []),
                   ...(ownerSub && !ownerOptions?.some(m => m.value === ownerSub) ? [{ value: ownerSub, label: nameOf(ownerSub) ?? ownerSub }] : [])]}
                   value={ownerSub || "__none"} onValueChange={v => setOwnerSub(v === "__none" ? "" : v ?? "")}
                   placeholder={T.chooseOwner} searchPlaceholder={T.ownerSearch} emptyText={T.noOwnerOptions}
                   disabled={submit.pending || ownerOptions === null} className="w-full" aria-label={STRATEGY_TEXT.newPlanOwner}/>
               </Field>
-              <Field className="@xl:col-span-2 @3xl:col-span-4"><FieldLabel htmlFor="strategy-direction">{T.direction}</FieldLabel>
+              <Field className="@xl:col-span-2 @3xl:col-span-3"><FieldLabel htmlFor="strategy-direction">{T.direction}</FieldLabel>
                 <Input id="strategy-direction" value={objective} disabled={submit.pending} onChange={e => setObjective(e.target.value)}/>
               </Field>
-              {initial?.basePlanId ? <Field className="@xl:col-span-2 @3xl:col-span-4"><FieldLabel htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>
+              {initial?.basePlanId ? <Field className="@xl:col-span-2 @3xl:col-span-3"><FieldLabel htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>
                 <Input id="strategy-change-reason" value={changeReason} maxLength={4000} disabled={submit.pending} placeholder={T.changeReasonHint} onChange={e=>setChangeReason(e.target.value)}/>
               </Field> : null}
             </div>
-            <p className="mt-md text-body-small text-muted-foreground">{T.draftOnlyHint}</p>
+            <div className="mt-lg flex flex-wrap items-center justify-between gap-x-lg gap-y-sm border-t border-dashed border-primary/10 pt-md text-body-small text-muted-foreground">
+              {initial ? <span>{T.strategyNumber} <span className="tabular-nums">{planNo}</span></span> :
+                <Popover open={numberOpen} onOpenChange={setNumberOpen}>
+                  <PopoverTrigger asChild><Button type="button" size="md" variant="ghost" disabled={submit.pending} className="text-muted-foreground" data-strategy-number-trigger>
+                    {T.strategyNumber}<span className="tabular-nums">{planNo}</span><span>{manualPlanNo === null ? T.numberAuto : T.numberManual}</span>
+                  </Button></PopoverTrigger>
+                  <PopoverContent align="start" className="max-w-full">
+                    <div className="flex flex-col gap-md" data-strategy-number-editor>
+                      <Field><FieldLabel htmlFor="strategy-number">{T.strategyNumber}</FieldLabel>
+                        <Input id="strategy-number" maxLength={64} value={planNo} disabled={submit.pending} onChange={e => setManualPlanNo(e.target.value)} aria-required="true"/>
+                      </Field>
+                      <p className="text-body-small text-muted-foreground">{T.numberHint}</p>
+                      <div className="flex justify-between gap-sm"><Button type="button" size="md" variant="secondary" onClick={() => setManualPlanNo(null)}>{T.numberReset}</Button>
+                        <Button type="button" size="md" variant="secondary" onClick={() => setNumberOpen(false)}>{T.numberDone}</Button></div>
+                    </div>
+                  </PopoverContent>
+                </Popover>}
+              <span>{T.draftOnlyHint}</span>
+            </div>
             </CardContent>
           </Card>
           <Section id="target-markets" title={T.linkMarkets} icon="target"
@@ -215,11 +225,6 @@ export function NewPlanForm({
             {relationTask ? <StrategyRelationsDrawer draft key={JSON.stringify(relationTask)} task={relationTask} planName={name || STRATEGY_TEXT.newPlanTitle}
               targets={targets} sharedSolutionIds={solutionIds} marketOptions={marketOptions} solutionOptions={solutionOptions}
               onSave={saveRelations} onClose={() => setRelationTask(null)}/> : null}
-            {/* The number is the anchor: workspace-unique, no UPDATE grant, so
-                it cannot be corrected later. Said before the first attempt. */}
-            {initial ? null : (
-              <p className="text-muted-foreground text-body-small">{STRATEGY_TEXT.newPlanAnchor}</p>
-            )}
             <div className="flex items-center gap-md">
               <Button
                 size="xl"
@@ -242,7 +247,7 @@ export function NewPlanForm({
                     };
                     return initial
                       ? onSave(initial.id, fields, initial.editToken)
-                      : onCreate({ planNo: planNo.trim(), ...fields });
+                      : onCreate({ planNo: planNo.trim(), ...fields }, manualPlanNo === null);
                   }, (c) => PLAN_ERROR[c] ?? PLAN_ERROR.denied)
                 }
               >

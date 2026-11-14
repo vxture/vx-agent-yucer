@@ -1,3 +1,4 @@
+import { nextStrategyNumber } from "./lib/plan-number";
 // D1 strategy and D3 campaign application service.
 //
 // campaignReturn() is the function this whole product exists to make possible.
@@ -189,11 +190,14 @@ export async function listPlans(
 export async function createPlan(
   ctx: StrategyContext,
   input: NewPlanDraft,
+  options: { autoNumber?: boolean } = {},
 ): Promise<RuleResult<PlanRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.create", "data");
   if (!gate.allowed) return denied(gate);
 
-  const plan = planNewPlan(input);
+  const autoNumber = options.autoNumber === true;
+  const codes = autoNumber ? (await ctx.store.listPlans(ctx.workspaceId)).map(p => p.planNo) : [];
+  const plan = planNewPlan(autoNumber ? { ...input, planNo: nextStrategyNumber(input.period, codes) } : input);
   if (!plan.ok) return plan as RuleResult<PlanRecord>;
 
   const owner = await validatePlanOwner(ctx, plan.value.ownerSub);
@@ -202,19 +206,21 @@ export async function createPlan(
   if (!selection.ok) return selection;
   const targets = await validateTargetMarkets(ctx, input.targetMarkets);
   if (!targets.ok) return targets;
-  const persisted = await persistPlanSelection(() => ctx.store.createPlan(ctx.workspaceId, {
-    ...plan.value, createdBySub: ctx.sub, solutionIds: selection.value, targetMarkets: targets.value,
-  }));
-  if (!persisted.ok) return persisted;
-  const created = persisted.value;
-  if (!created) {
-    // The unique index would refuse it anyway; saying so here names the reason
-    // and the field instead of surfacing a constraint name.
-    return fail(
-      violation("plan_no_taken", `plan ${plan.value.planNo} already exists`, "planNo"),
-    );
+  let planNo = plan.value.planNo;
+  // A preview is not a reservation. The unique index decides; auto numbering
+  // retries only a code collision, never a failed relation or unknown write.
+  for (let attempt = 0; attempt < (autoNumber ? 10 : 1); attempt++) {
+    const persisted = await persistPlanSelection(() => ctx.store.createPlan(ctx.workspaceId, {
+      ...plan.value, planNo, createdBySub: ctx.sub, solutionIds: selection.value, targetMarkets: targets.value,
+    }));
+    if (!persisted.ok) return persisted;
+    if (persisted.value) return ok(persisted.value);
+    if (autoNumber) {
+      codes.push(planNo, ...(await ctx.store.listPlans(ctx.workspaceId)).map(p => p.planNo));
+      planNo = nextStrategyNumber(input.period, codes);
+    }
   }
-  return ok(created);
+  return fail(violation("plan_no_taken", "strategy number already exists", "planNo"));
 }
 
 export async function editPlan(
