@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, Drawer, EmptyState, FieldError, Icon, Input, LabeledValue, MetricListCard, NativeSelect, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input, LabeledValue, MetricListCard, NativeSelect, Tooltip, TooltipContent, TooltipTrigger, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar, ViewHeader } from "./business-controls";
 import { Section, SectionHeader } from "./help-section";
 import { TitleHelp } from "./title-help";
@@ -244,24 +244,23 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     </div>;
   };
   const detailContent=detail?<>
-    <Card className="gap-md py-lg" data-strategy-basic-card>
-      <Collapsible defaultOpen>
-        <CardHeader><div className="flex items-center justify-between gap-sm"><CardTitle>{T.basicInfo}</CardTitle>
-          <CollapsibleTrigger asChild><Button size="icon-xl" variant="ghost" aria-label={T.basicInfo}><Icon name="chevron-down" size="sm"/></Button></CollapsibleTrigger>
-        </div></CardHeader>
-        <CollapsibleContent><CardContent><div className="flex flex-col gap-md pt-md">
-          <div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small">
-            <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.executionWindow}</span><span className="tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></span>
-            <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.owner}</span><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></span>
-            <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.creator}</span><MemberName sub={detail.createdBySub} fallback={T.creatorUnknown}/></span>
-            {detail.approvedAt ? <span className="flex items-center gap-sm"><span className="text-muted-foreground">{T.publishedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
-          </div>
-          {detail.changeReason ? <p className="text-body-small"><span className="mr-sm text-muted-foreground">{T.changeReason}</span>{detail.changeReason}</p> : null}
-          <div className="flex items-center gap-sm" data-strategy-detail-direction><span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
-            <p className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p></div>
-        </div></CardContent></CollapsibleContent>
-      </Collapsible>
-    </Card>
+    <Collapsible defaultOpen className="flex flex-col gap-md" data-strategy-basic-section>
+      <SectionHeader title={T.basicInfo} icon="clipboard" action={<div className="flex items-center gap-md">
+        {detail.createdBySub ? <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground">{T.creator}<MemberName sub={detail.createdBySub}/></span> : null}
+        <CollapsibleTrigger asChild><Button size="icon-xl" variant="ghost" className="group" aria-label={T.basicInfo}><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/></Button></CollapsibleTrigger>
+      </div>}/>
+      <CollapsibleContent><Card className="py-lg" data-strategy-basic-card><CardContent><div className="flex flex-col gap-lg">
+        <DetailList columns={3} data-strategy-basic-facts>
+          <DetailRow label={T.executionWindow}><span className="inline-flex min-h-control-md items-center tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></DetailRow>
+          <DetailRow label={T.owner}><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></DetailRow>
+          {detail.approvedAt ? <DetailRow label={T.publishedAt}><span className="inline-flex min-h-control-md items-center tabular-nums">{new Date(detail.approvedAt).toLocaleDateString(locale)}</span></DetailRow> : null}
+        </DetailList>
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-md gap-y-md border-t border-dashed border-primary/10 pt-md text-body-small" data-strategy-detail-direction>
+          <dt className="text-muted-foreground">{T.direction}</dt><dd className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</dd>
+          {detail.changeReason ? <><dt className="text-muted-foreground">{T.changeReason}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{detail.changeReason}</dd></> : null}
+        </dl>
+      </div></CardContent></Card></CollapsibleContent>
+    </Collapsible>
     <Section title={T.targetMarketsTitle} icon="target" help={T.targetMarketBasis}>
       <StrategyMarketCards markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
         ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
