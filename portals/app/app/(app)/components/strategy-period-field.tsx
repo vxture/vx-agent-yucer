@@ -43,7 +43,7 @@ export function StrategyPeriodField({value,onChange,disabled}:{readonly value:st
         <div className="flex flex-col gap-lg" data-strategy-period-editor>
           <ButtonGroup className="w-full" aria-label={T.periodShortcuts} data-strategy-period-presets>
             <Input id="strategy-period-year" aria-label={T.year} type="number" min={1900} max={9999} step={1} inputMode="numeric" value={year} className="w-20 shrink-0" onChange={e=>setYear(e.target.value)}/>
-            {presets.map(p=><Button key={p.label} type="button" size="md" variant={candidate===p.key?"secondary":"outline"} className="min-w-0 flex-1" disabled={!yearValid} aria-pressed={candidate===p.key} onClick={()=>fill(p.key)}>{p.label}</Button>)}
+            {presets.map(p=><Button key={p.label} type="button" size="md" variant={candidate===p.key?"secondary":"outline"} className="min-w-0 flex-1 border-control-border" disabled={!yearValid} aria-pressed={candidate===p.key} onClick={()=>fill(p.key)}>{p.label}</Button>)}
           </ButtonGroup>
           <div className="grid grid-cols-2 gap-md">
             <Field><FieldLabel htmlFor="strategy-period-start">{T.startDate}</FieldLabel><Input id="strategy-period-start" type="date" min="1900-01-01" max={endOn || "9999-12-31"} value={startOn} onChange={e=>setStartOn(e.target.value)}/></Field>

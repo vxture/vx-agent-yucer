@@ -290,3 +290,6 @@ node scripts/qa/verify-control-overlays.mjs --tab <dedicated-cdp-tab-id>
 快捷项与年份均为同一行相连的 32px 控件，无横向溢出。类型检查、79 页 / 916 控件
 入口清单及 diff 检查通过。截图 `/tmp/yucer-strategy-period-compact-panel.png`、
 `/tmp/yucer-strategy-period-compact-editor.png`。本地已更新，未上线。
+
+周期组选中态补正：保留 DS secondary 背景/文字变化，使用同一 `border-control-border`
+语义 token 维持选中与未选中项的 1px 连续边线；保留键盘焦点环。
