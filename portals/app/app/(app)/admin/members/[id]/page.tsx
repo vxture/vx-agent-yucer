@@ -58,7 +58,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
         ]}
         current={name}
       />
-      <ViewHeader icon="users" title={name} description={MEMBER_TEXT.formWhy} />
+      <ViewHeader icon="users" title={name} help={MEMBER_TEXT.formWhy} />
       <MemberForm
         sub={mine.sub}
         name={name}

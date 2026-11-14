@@ -1,11 +1,11 @@
 "use client";
 
+import { Section } from "./help-section";
 import {
   Field,
   FieldDescription,
   FieldLabel,
   Icon,
-  Section,
   Select,
   SelectContent,
   SelectItem,
@@ -52,7 +52,7 @@ export function PricingPolicyConfig({
     <Section
       icon="scales"
       title={PRICING_TEXT.title}
-      description={PRICING_TEXT.why}
+      help={PRICING_TEXT.why}
       action={<Tag>{policy.defaultCurrency}</Tag>}
     >
       {/* INDENTED TO THE TITLE TEXT, not the icon - the same device

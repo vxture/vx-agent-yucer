@@ -1,7 +1,8 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useState, useTransition } from "react";
-import { Button, Field, FieldDescription, FieldLabel, Icon, Input, Section, useToast } from "@vxture/design-ui";
+import { Button, Field, FieldDescription, FieldLabel, Icon, Input, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import {
@@ -77,7 +78,7 @@ export function DealScoreConfig({
     <Section
       icon="gauge"
       title={DEAL_SCORE_TEXT.title}
-      description={DEAL_SCORE_TEXT.why}
+      help={DEAL_SCORE_TEXT.why}
       action={<Tag tone={sum === 100 ? "neutral" : "danger"}>{DEAL_SCORE_TEXT.sum(sum)}</Tag>}
     >
       <div className="gap-lg flex">

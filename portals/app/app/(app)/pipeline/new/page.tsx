@@ -61,7 +61,7 @@ export default async function NewOpportunityPage() {
         trail={[{ label: DOMAIN_LABEL.pipeline, href: "/pipeline" }]}
         current={PIPELINE_TEXT.newTitle}
       />
-      <ViewHeader title={PIPELINE_TEXT.newTitle} description={PIPELINE_TEXT.newWhy} />
+      <ViewHeader title={PIPELINE_TEXT.newTitle} help={PIPELINE_TEXT.newWhy} />
       <OpportunityForm
         accounts={
           accounts.ok

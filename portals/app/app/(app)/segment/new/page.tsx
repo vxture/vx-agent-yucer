@@ -58,7 +58,7 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
         trail={[{ label: T.markets, href: "/strategy?view=markets" }]}
         current={title}
       />
-      <ViewHeader title={title} description={T.libraryWhy} divider />
+      <ViewHeader title={title} help={T.libraryWhy} divider />
       <SegmentForm
         key={code ?? "new"}
         initialCode={code}

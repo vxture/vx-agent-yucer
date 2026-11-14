@@ -58,7 +58,7 @@ export default async function ProductSettingsPage() {
               divider
               icon="cube"
               title={DOMAIN_LABEL.product}
-              description={PAGE_BRIEF.adminProduct}
+              help={PAGE_BRIEF.adminProduct}
         secondary={<Tag tone="info">{PAGE_TAG.products(products.length)}</Tag>}
             />
             <CatalogTypeConfig

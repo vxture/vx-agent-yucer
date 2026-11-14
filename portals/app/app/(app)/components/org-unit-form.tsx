@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -11,7 +12,6 @@ import {
   Icon,
   Input,
   NativeSelect,
-  Section,
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -295,7 +295,7 @@ export function OrgUnitForm({
       <FormPage
         form={
           <div className="gap-xl flex flex-col">
-            <Section icon="building-office" title={ORG_TEXT.formTitle} description={ORG_TEXT.formSectionWhy}>
+            <Section icon="building-office" title={ORG_TEXT.formTitle} help={ORG_TEXT.formSectionWhy}>
               <div className="gap-lg flex">
                 <span className="invisible shrink-0" aria-hidden="true">
                   <Icon name="tree-structure" size="lg" />

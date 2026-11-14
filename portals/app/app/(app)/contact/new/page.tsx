@@ -58,7 +58,7 @@ export default async function NewContactPage({
       />
       <ViewHeader
         title={ACCOUNT_TEXT.contactFormTitle(detail.value.account.name)}
-        description={ACCOUNT_TEXT.contactFormWhy}
+        help={ACCOUNT_TEXT.contactFormWhy}
       />
       <PersonForm
         accountId={accountId}

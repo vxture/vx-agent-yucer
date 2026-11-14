@@ -1,12 +1,12 @@
 "use client";
 
+import { Section } from "./help-section";
 import { MemberName, useMemberName } from "../lib/member-names";
 import { useState, useTransition } from "react";
 import {
   Button,
   EmptyState,
   Icon,
-  Section,
   StatusBadge,
   useToast,
   type IconName,
@@ -188,7 +188,7 @@ export function InteractionTimeline({
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
-        description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
+        help={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
         action={externalAction}
       >
         <EmptyState
@@ -204,7 +204,7 @@ export function InteractionTimeline({
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={hideTitle ? undefined : FIELD_TEXT.timelineTitle}
-      description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
+      help={hideDescription || hideTitle ? undefined : FIELD_TEXT.timelineDescription}
       action={sectionAction}
     >
       <div className="flex flex-col gap-sm">

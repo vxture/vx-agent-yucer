@@ -198,7 +198,7 @@ export default async function OpportunityConfigPage() {
         divider
         icon="kanban"
         title={DOMAIN_LABEL.opportunityConfig}
-        description={PAGE_BRIEF.adminOpportunity}
+        help={PAGE_BRIEF.adminOpportunity}
         secondary={<Tag tone="info">{PAGE_TAG.stages(stages.value.length)}</Tag>}
       />
 

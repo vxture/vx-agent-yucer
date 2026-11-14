@@ -43,7 +43,7 @@ export default async function NewSolutionPage({
             />
             <ViewHeader
               title={found ? CATALOG_TEXT.editSolution : CATALOG_TEXT.newSolution}
-              description={CATALOG_TEXT.newSolutionWhy}
+              help={CATALOG_TEXT.newSolutionWhy}
             />
             <NewSolutionForm
               key={found?.solution.id ?? "new"}

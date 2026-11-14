@@ -53,7 +53,7 @@ export default async function NewAccountPage({ searchParams }: { searchParams: P
   return (
     <ViewLayout>
       <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={ACCOUNT_BASICS_TEXT.createCrumb} />
-      <ViewHeader title={ACCOUNT_BASICS_TEXT.createTitle} description={ACCOUNT_BASICS_TEXT.createWhy} />
+      <ViewHeader title={ACCOUNT_BASICS_TEXT.createTitle} help={ACCOUNT_BASICS_TEXT.createWhy} />
       <AccountCreateForm
         initialTier={initialTier}
         vocab={{

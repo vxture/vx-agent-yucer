@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
 import { useState, useTransition, type ReactNode } from "react";
@@ -8,7 +9,6 @@ import {
   EmptyState,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   TableTitleCell,
   useToast,
@@ -366,7 +366,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
         id="renewal"
         icon="calendar"
         title={RENEWAL_TEXT.rosterDue}
-        description={RENEWAL_TEXT.rosterDueWhy}
+        help={RENEWAL_TEXT.rosterDueWhy}
       >
         {/* One tool row for both tables; the 未到期 list below says on its own
             heading that this control is narrowing it. */}
@@ -436,7 +436,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
           id="renewal-not-due"
           icon="file-text"
           title={RENEWAL_TEXT.rosterNotDue}
-          description={RENEWAL_TEXT.rosterNotDueWhy}
+          help={RENEWAL_TEXT.rosterNotDueWhy}
           action={
             narrowed ? (
               <StatusBadge tone="info">{RENEWAL_TEXT.narrowedNote}</StatusBadge>

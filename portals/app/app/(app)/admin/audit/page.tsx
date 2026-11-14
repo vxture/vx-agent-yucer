@@ -100,7 +100,7 @@ export default async function AuditPage() {
         divider
         icon="clipboard"
         title={AUDIT_TEXT.title}
-        description={PAGE_BRIEF.adminAudit}
+        help={PAGE_BRIEF.adminAudit}
         secondary={<Tag tone="info">{AUDIT_TEXT.count(rows.length)}</Tag>}
       />
       <AuditRoster rows={rows} />

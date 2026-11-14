@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,6 @@ import {
   EmptyState,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   TableTitleCell,
   useToast,
@@ -264,7 +264,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
         id="forecast-disputed"
         icon="scales"
         title={FORECAST_RULE_TEXT.rosterDisputed}
-        description={FORECAST_RULE_TEXT.rosterDisputedWhy}
+        help={FORECAST_RULE_TEXT.rosterDisputedWhy}
       >
         {/* One tool row for both tables; the agreed list below says on its
             own heading that this control is narrowing it. */}
@@ -338,7 +338,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
           id="forecast-agreed"
           icon="file-text"
           title={FORECAST_RULE_TEXT.rosterAgreed}
-          description={FORECAST_RULE_TEXT.rosterAgreedWhy}
+          help={FORECAST_RULE_TEXT.rosterAgreedWhy}
           action={
             narrowed ? (
               <StatusBadge tone="info">{FORECAST_RULE_TEXT.narrowedNote}</StatusBadge>

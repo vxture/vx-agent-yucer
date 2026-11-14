@@ -61,7 +61,7 @@ export default async function AccountBatchCompletePage() {
       />
       <ViewHeader
         title={BATCH_COMPLETE_TEXT.title}
-        description={BATCH_COMPLETE_TEXT.description}
+        help={BATCH_COMPLETE_TEXT.description}
       />
       <BatchCompleteness
         rows={rows.value.map((r) => ({

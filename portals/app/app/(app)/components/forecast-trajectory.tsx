@@ -1,4 +1,5 @@
-import { Card, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+import { Section } from "./help-section";
+import { Card, EmptyState, StatusBadge } from "@vxture/design-ui";
 
 import { getMessages } from "../lib/i18n/server";
 import { Tag } from "./tag";
@@ -135,7 +136,7 @@ export async function ForecastTrajectory({
     <Section
       icon="chart-line"
       title={PIPELINE_TEXT.trajectory}
-      description={PIPELINE_TEXT.trajectoryWhy}
+      help={PIPELINE_TEXT.trajectoryWhy}
       /* Says so when readings were dropped. Windowing silently would let a
          chart of the last eight weeks pass for the whole quarter, and the
          reader has no way to tell the difference from the plot alone. Absent

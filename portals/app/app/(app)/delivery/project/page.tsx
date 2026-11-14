@@ -58,7 +58,7 @@ export default async function ProjectFormPage({
       />
       <ViewHeader
         title={editable ? DELIVERY_TEXT.editProjectTitle : DELIVERY_TEXT.newProjectTitle}
-        description={editable ? DELIVERY_TEXT.editProjectWhy : DELIVERY_TEXT.newProjectWhy}
+        help={editable ? DELIVERY_TEXT.editProjectWhy : DELIVERY_TEXT.newProjectWhy}
       />
       <ProjectForm
         key={editable ? editable.id : "new"}

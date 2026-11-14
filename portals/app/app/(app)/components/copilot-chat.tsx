@@ -1,10 +1,11 @@
 "use client";
 
+import { Section } from "./help-section";
 import Link from "next/link";
 import type { EvidenceCitation } from "../../domains/copilot/lib/citations";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Button, Section, StatusBadge, Textarea } from "@vxture/design-ui";
+import { Button, StatusBadge, Textarea } from "@vxture/design-ui";
 
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
@@ -146,7 +147,7 @@ export function CopilotChat({
   }
 
   return (
-    <Section title={COPILOT_TEXT.title} description={COPILOT_TEXT.description}>
+    <Section title={COPILOT_TEXT.title} help={COPILOT_TEXT.description}>
       {/* Said out loud, because the difference between a grounded answer and a
           general one is the difference between citing and guessing - and a
           reader who cannot tell which they are getting will trust both alike. */}

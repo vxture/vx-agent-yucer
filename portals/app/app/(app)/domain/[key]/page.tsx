@@ -1,9 +1,9 @@
+import { Section } from "../../components/help-section";
 import { ViewHeader } from "../../components/business-controls";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   EmptyState,
-  Section,
   StatusBadge,
   ViewLayout,
 } from "@vxture/design-ui";
@@ -96,13 +96,13 @@ export default async function DomainHomePage({
       />
       <ViewHeader
         title={DOMAIN_GROUP_LABEL[key] ?? key}
-        description={DOMAIN_GROUP_QUESTION[key] ?? ""}
+        help={DOMAIN_GROUP_QUESTION[key] ?? ""}
       />
 
       <Section
         icon="chart-bar"
         title={DOMAIN_HOME_TEXT.factsTitle}
-        description={DOMAIN_HOME_TEXT.factsWhy}
+        help={DOMAIN_HOME_TEXT.factsWhy}
       >
         {facts.length === 0 ? (
           // Not "nothing is happening" - every read was refused. Saying it
@@ -144,7 +144,7 @@ export default async function DomainHomePage({
       <Section
         icon="squares-four"
         title={DOMAIN_HOME_TEXT.modulesTitle}
-        description={DOMAIN_HOME_TEXT.modulesWhy}
+        help={DOMAIN_HOME_TEXT.modulesWhy}
       >
         <div className="grid grid-cols-1 gap-sm md:grid-cols-3">
           {domain.modules.map((m) =>

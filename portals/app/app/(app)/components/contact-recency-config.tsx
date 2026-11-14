@@ -1,6 +1,7 @@
 "use client";
 
-import { Field, FieldDescription, FieldLabel, Icon, Input, Section } from "@vxture/design-ui";
+import { Section } from "./help-section";
+import { Field, FieldDescription, FieldLabel, Icon, Input } from "@vxture/design-ui";
 import type { Dispatch, SetStateAction } from "react";
 import type { ContactRecencyPolicy } from "../../domains/account/lib/contact-recency-policy";
 import { useMessages } from "../lib/i18n/provider";
@@ -69,7 +70,7 @@ export function ContactRecencyConfig({
     <Section
       icon="timer"
       title={CONTACT_RECENCY_TEXT.title}
-      description={CONTACT_RECENCY_TEXT.why}
+      help={CONTACT_RECENCY_TEXT.why}
       action={<Tag>{policy.quietDays}/{policy.staleDays}/{policy.chainWarmDays} {CONTACT_RECENCY_TEXT.days}</Tag>}
     >
       {/* INDENTED TO THE TITLE TEXT, not the icon - same device as

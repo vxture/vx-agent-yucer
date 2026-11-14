@@ -85,7 +85,7 @@ export default async function ReminderConfigPage() {
         divider
         icon="bell"
         title={DOMAIN_LABEL.reminderThreshold}
-        description={PAGE_BRIEF.adminReminder}
+        help={PAGE_BRIEF.adminReminder}
         secondary={<Tag tone="info">{PAGE_TAG.rules(2)}</Tag>}
       />
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -7,7 +8,6 @@ import {
   Input,
   Label,
   NativeSelect,
-  Section,
   StatusBadge,
   Textarea,
   ToggleGroup,
@@ -140,7 +140,7 @@ export function RecordFollowUp({
   return (
     <Section
       title={FIELD_TEXT.recordTitle}
-      description={FIELD_TEXT.recordDescription}
+      help={FIELD_TEXT.recordDescription}
     >
       <Label htmlFor="fu-note">{FIELD_TEXT.recordNote}</Label>
       <Textarea

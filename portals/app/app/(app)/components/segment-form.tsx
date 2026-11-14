@@ -1,14 +1,13 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useMemo, useState } from "react";
 import {
   Button,
   Field,
   FieldLabel,
-  FieldDescription,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   Textarea,
 } from "@vxture/design-ui";
@@ -219,14 +218,16 @@ export function SegmentForm({
               </NativeSelect>
             </Field>
             </FormFields>
-            <Section title={T.marketInsight} icon="lightbulb" description={T.marketInsightHint}>
+            <Section title={T.marketInsight} icon="lightbulb" help={<>
+              <p>{T.marketInsightHint}</p>
+              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <p key={key}><strong>{T[key]}</strong> {T.insightHints[key]}</p>)}
+            </>}>
               <FormFields>
               {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => (
                 <FormFieldWide key={key}>
                   <Field>
                     <FieldLabel>{T[key]}</FieldLabel>
                     <Textarea rows={2} placeholder={T.insightPrompts[key]} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
-                    <FieldDescription>{T.insightHints[key]}</FieldDescription>
                   </Field>
                 </FormFieldWide>
               ))}

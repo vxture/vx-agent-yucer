@@ -1,5 +1,6 @@
+import { Section } from "./help-section";
 import Link from "next/link";
-import { Card, Section } from "@vxture/design-ui";
+import { Card } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { Tag } from "./tag";
 import type { UnverifiedCategory, UnverifiedReason } from "../../domains/pipeline/lib/unverified";
@@ -32,7 +33,7 @@ export async function ForecastUnverified({
     }
   };
   return (
-    <Section icon="warning" title={T.title} description={T.why}>
+    <Section icon="warning" title={T.title} help={T.why}>
       <div className="flex flex-col gap-md">
         {blocks.map((b) => (
           <Card key={b.category} className="p-md">

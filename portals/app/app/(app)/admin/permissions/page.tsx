@@ -73,7 +73,7 @@ export default async function PermissionsPage() {
         divider
         icon="key"
         title={PERMISSION_TREE_TEXT.title}
-        description={PAGE_BRIEF.adminPermissions}
+        help={PAGE_BRIEF.adminPermissions}
         secondary={
           <span className="gap-xs flex flex-wrap items-center">
             <Tag>{PERMISSION_TREE_TEXT.tagOperations(totalActions)}</Tag>

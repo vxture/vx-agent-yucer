@@ -49,7 +49,7 @@ export default async function EditRolePage({ params }: { params: Promise<{ id: s
         ]}
         current={mine.name}
       />
-      <ViewHeader icon="user-circle" title={mine.name} description={ROLE_TEXT.formWhy} />
+      <ViewHeader icon="user-circle" title={mine.name} help={ROLE_TEXT.formWhy} />
       <RoleForm
         isNew={false}
         code={mine.code}

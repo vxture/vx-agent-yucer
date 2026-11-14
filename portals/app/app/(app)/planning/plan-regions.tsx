@@ -1,4 +1,5 @@
 "use client";
+import { Section } from "../components/help-section";
 import { useState } from "react";
 import {
   Icon,
@@ -11,7 +12,6 @@ import {
   EmptyState,
   Grid,
   MetricListCard,
-  Section,
   StatusBadge,
   TableTitleCell,
   Tooltip,
@@ -148,7 +148,7 @@ export function PlanRegions({
     <Section
       icon="map-pin"
       title={T.regions}
-      description={T.regionsHint}
+      help={T.regionsHint}
       action={
         <RowActions
           label={`${T.regions} · ${DS_LABELS.actionMenu}`}

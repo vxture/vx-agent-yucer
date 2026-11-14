@@ -1,4 +1,5 @@
 "use client";
+import { Section } from "./help-section";
 import { DataTable } from "./business-controls";
 
 import { useState, useTransition, type ReactNode } from "react";
@@ -15,7 +16,6 @@ import {
   Icon,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   TableTitleCell,
   Textarea,
@@ -185,7 +185,7 @@ export function LineEditor({
       title={hideTitle ? undefined : OPPORTUNITY_TEXT.linesTitle}
       // Not on the editor PAGE either (doneHref): its ViewHeader already says
       // it, and the same paragraph twice made the reader compare them.
-      description={hideTitle || doneHref ? undefined : OPPORTUNITY_TEXT.linesWhy}
+      help={hideTitle || doneHref ? undefined : OPPORTUNITY_TEXT.linesWhy}
       /* THE SECTION'S OWN ACTION SLOT holds both the warning and the way in
          to the editor. The page used to put that link in a row of its own
          below the table; the DS puts a panel's action in its header, and one

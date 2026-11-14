@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
 import { useState, useTransition } from "react";
@@ -14,7 +15,6 @@ import {
   Input,
   ListCard,
   ListCardGrid,
-  Section,
   StatusBadge,
   TableTitleCell,
   useToast,
@@ -386,7 +386,7 @@ export function ProductRoster({
 
   if (variant === "sort") {
     return (
-      <Section icon="sort-ascending" title={CATALOG_TEXT.sortTitle} description={CATALOG_TEXT.sortWhy}>
+      <Section icon="sort-ascending" title={CATALOG_TEXT.sortTitle} help={CATALOG_TEXT.sortWhy}>
         {table(live, canWrite ? arrowColumn : undefined)}
       </Section>
     );
@@ -448,7 +448,7 @@ export function ProductRoster({
         id="products"
         icon="list-checks"
         title={CATALOG_TEXT.rosterLive}
-        description={CATALOG_TEXT.rosterLiveWhy}
+        help={CATALOG_TEXT.rosterLiveWhy}
       >
         {view === "list" ? (
           table(live)
@@ -488,7 +488,7 @@ export function ProductRoster({
         id="retired"
         icon="archive"
         title={CATALOG_TEXT.rosterRetired}
-        description={CATALOG_TEXT.rosterRetiredWhy}
+        help={CATALOG_TEXT.rosterRetiredWhy}
         action={
           narrowed ? (
             <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>

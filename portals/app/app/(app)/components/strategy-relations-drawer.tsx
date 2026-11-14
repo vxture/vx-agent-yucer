@@ -5,6 +5,7 @@ import { Button, Checkbox, Combobox, Drawer, EmptyState, Field, FieldDescription
 import type { SolutionReference } from "../../domains/catalog/service";
 import type { PlanRelationChange, TargetMarketDraft, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
 import type { MarketView } from "../lib/market-strategy";
+import { TitleHelp } from "./title-help";
 import { useMessages } from "../lib/i18n/provider";
 
 export type RelationMarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing">;
@@ -86,8 +87,12 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
     (!q || `${m.name} ${m.segmentCode} ${JSON.stringify(m.criteria)}`.toLocaleLowerCase().includes(q))) ?? [];
   const solutions = solutionOptions?.filter(s => (s.status === "active" || originalIds.includes(s.id)) &&
     (!q || `${s.name} ${s.solutionCode}`.toLocaleLowerCase().includes(q))) ?? [];
+  const title = task.kind === "markets" ? T.linkMarkets : task.kind === "solutions" ? T.linkSolutions : T.marketSettings;
   return <Drawer open onClose={close} width="md" className="max-w-full"
-    title={task.kind === "markets" ? T.linkMarkets : task.kind === "solutions" ? T.linkSolutions : T.marketSettings}
+    title={<span className="inline-flex items-center gap-xs">{title}<TitleHelp topic={title}>
+      <p>{task.kind === "markets" ? T.relationMarketsHint : task.kind === "market" ? T.relationMarketHint : T.sharedSolutionsHint}</p>
+      <p>{draft ? T.relationNewPlanHint : T.relationScopeHint}</p>
+    </TitleHelp></span>}
     description={<>{planName}{target ? ` \u00b7 ${target.marketName}` : ""}</>} closeLabel={T.closed}
     footer={<div className="flex w-full flex-col gap-sm">
       {error ? <FieldError role="alert">{error}</FieldError> : null}
@@ -98,7 +103,6 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
       </div>
     </div>}>
     <div className="flex min-w-0 flex-col gap-lg" data-strategy-relations-task={task.kind}>
-      <p className="text-body-small text-muted-foreground">{task.kind === "markets" ? T.relationMarketsHint : task.kind === "market" ? T.relationMarketHint : T.sharedSolutionsHint}</p>
       {task.kind !== "market" ? <>
         <Input type="search" className="h-control-xl" value={query} onChange={e => setQuery(e.target.value)}
           placeholder={task.kind === "markets" ? T.searchMarkets : T.searchSolutions} aria-label={task.kind === "markets" ? T.searchMarkets : T.searchSolutions}/>
@@ -134,7 +138,6 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
           disabled={pending} placeholder={T.marketApproachHint} onChange={e => setApproach(e.target.value)}/></Field>
         <Field><FieldLabel>{T.primarySolutions}</FieldLabel><SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={pending}/></Field>
       </> : <EmptyState title={T.noPlanMarkets}/>}
-      <p className="border-t border-dashed border-primary/10 pt-md text-body-small text-muted-foreground">{draft ? T.relationNewPlanHint : T.relationScopeHint}</p>
     </div>
   </Drawer>;
 }

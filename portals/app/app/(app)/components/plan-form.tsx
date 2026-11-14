@@ -8,9 +8,10 @@ import {
   Field,
   FieldLabel,
   Input,
-  Section,
   StatusBadge, Popover, PopoverTrigger, PopoverContent,
 } from "@vxture/design-ui";
+import { Section } from "./help-section";
+import { TitleHelp } from "./title-help";
 import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
@@ -135,7 +136,9 @@ export function NewPlanForm({
       form={
         <div className="@container flex min-w-0 flex-col gap-xl" data-strategy-editor>
           <Card className="gap-lg py-lg" data-strategy-basic-card>
-            <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><CardTitle>{T.basicInfo}</CardTitle>
+            <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><div className="flex items-center gap-xs"><CardTitle>{T.basicInfo}</CardTitle>
+                <TitleHelp topic={T.basicInfo}><p>{T.draftOnlyHint}</p><p>{T.numberHint}</p></TitleHelp>
+              </div>
               <span className="text-body-small text-muted-foreground">{T.creator} <MemberName sub={creatorSub} fallback={T.creatorUnknown}/></span>
             </div></CardHeader>
             <CardContent><div className="grid grid-cols-1 gap-x-lg gap-y-lg @xl:grid-cols-2 @3xl:grid-cols-3">
@@ -168,17 +171,15 @@ export function NewPlanForm({
                       <Field><FieldLabel htmlFor="strategy-number">{T.strategyNumber}</FieldLabel>
                         <Input id="strategy-number" maxLength={64} value={planNo} disabled={submit.pending} onChange={e => setManualPlanNo(e.target.value)} aria-required="true"/>
                       </Field>
-                      <p className="text-body-small text-muted-foreground">{T.numberHint}</p>
                       <div className="flex justify-between gap-sm"><Button type="button" size="md" variant="secondary" onClick={() => setManualPlanNo(null)}>{T.numberReset}</Button>
                         <Button type="button" size="md" variant="secondary" onClick={() => setNumberOpen(false)}>{T.numberDone}</Button></div>
                     </div>
                   </PopoverContent>
                 </Popover>}
-              <span>{T.draftOnlyHint}</span>
             </div>
             </CardContent>
           </Card>
-          <Section id="target-markets" title={T.linkMarkets} icon="target"
+          <Section id="target-markets" title={T.linkMarkets} icon="target" help={T.relationMarketsHint}
             action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || marketOptions === null} onClick={() => setRelationTask({kind:"markets"})}>{T.linkMarkets}</Button>}>
             <StrategyMarketCards markets={marketOptions === null ? null : targets.map(t => ({ ...t,
               criteria: initial?.targetMarkets.find(m => m.segmentId === t.segmentId)?.criteria ?? marketOptions.find(m => m.id === t.segmentId)?.criteria,
@@ -188,7 +189,7 @@ export function NewPlanForm({
               solutions: t.solutionIds === undefined || solutionOptions === null ? null : solutionOptions.filter(s => t.solutionIds?.includes(s.id)),
             }))} actions={m => <Button type="button" size="md" variant="secondary" disabled={submit.pending} onClick={() => setRelationTask({kind:"market",segmentId:m.segmentId})}>{T.marketSettings}</Button>}/>
           </Section>
-          <Section id="primary-solutions" title={T.linkSolutions} icon="squares-four"
+          <Section id="primary-solutions" title={T.linkSolutions} icon="squares-four" help={T.sharedSolutionsHint}
             action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || solutionOptions === null || solutionIds === undefined} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>}>
             <StrategySolutionCards solutions={solutionOptions === null || solutionIds === undefined || targets.some(t => t.solutionIds === undefined) ? null
               : solutionOptions.filter(s => solutionIds.includes(s.id) || targets.some(t => t.solutionIds?.includes(s.id)))} markets={targets} sharedIds={solutionIds}/>

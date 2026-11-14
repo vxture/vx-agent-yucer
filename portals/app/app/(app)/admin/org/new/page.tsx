@@ -45,7 +45,7 @@ export default async function NewOrgUnitPage() {
         ]}
         current={ORG_TEXT.newUnit}
       />
-      <ViewHeader icon="tree-structure" title={ORG_TEXT.newUnit} description={ORG_TEXT.formWhy} />
+      <ViewHeader icon="tree-structure" title={ORG_TEXT.newUnit} help={ORG_TEXT.formWhy} />
       <OrgUnitForm
         isNew
         id={null}

@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, Icon, SectionHeader, StatusBadge } from "@vxture/design-ui";
+import { SectionHeader } from "./help-section";
+import { Card, Icon, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { SaveCell } from "./save-cell";
 import { AUTONOMY_MODES, CONFIDENCE_FLOOR, EXECUTABLE_ACTIONS } from "../../domains/copilot/lib/autonomy";
@@ -58,7 +59,7 @@ export function AutonomyPanel({
         <SectionHeader
           level={2}
           title={AUTONOMY_TEXT.title}
-          description={AUTONOMY_TEXT.why}
+          help={AUTONOMY_TEXT.why}
           titleSuffix={
             <>
             {/* NOT SET IS ITS OWN STATE, shown rather than smoothed over. A

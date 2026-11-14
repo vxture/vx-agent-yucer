@@ -44,7 +44,7 @@ export default async function NewRolePage() {
         ]}
         current={ROLE_TEXT.newRole}
       />
-      <ViewHeader icon="user-circle" title={ROLE_TEXT.newRole} description={ROLE_TEXT.formWhy} />
+      <ViewHeader icon="user-circle" title={ROLE_TEXT.newRole} help={ROLE_TEXT.formWhy} />
       <RoleForm
         isNew
         code=""

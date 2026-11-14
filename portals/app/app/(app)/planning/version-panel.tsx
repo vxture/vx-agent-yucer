@@ -1,4 +1,6 @@
 "use client";
+import { Section } from "../components/help-section";
+import { TitleHelp } from "../components/title-help";
 import { planningFindings } from "../../domains/planning/plan-checks";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -13,7 +15,6 @@ import {
   FieldLabel,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   Table,
   TableBody,
@@ -424,6 +425,7 @@ export function PlanningVersionPanel({
     <div className="@container flex flex-col gap-xl">
       <ModuleHeadline
         moduleKey="planning"
+        help={editing ? T.editHint : undefined}
         tags={
           <>
             <StatusBadge tone="info">Y{year}</StatusBadge>
@@ -550,9 +552,6 @@ export function PlanningVersionPanel({
           </div>
         }
       />
-      {editing ? (
-        <p className="text-body-small text-muted-foreground">{T.editHint}</p>
-      ) : null}
       {error ? (
         <p className="text-body-small text-destructive" role="alert">
           {error}
@@ -602,7 +601,7 @@ export function PlanningVersionPanel({
           <Section
             icon="target"
             title={currentRegion ? currentRegion.name : T.company}
-            description={T.targetHint}
+            help={T.targetHint}
             action={
               <div className="flex items-center gap-md">
                 {currentRegion ? (
@@ -872,8 +871,7 @@ export function PlanningVersionPanel({
         open={checksOpen}
         onClose={() => setChecksOpen(false)}
         width="md"
-        title={T.insights}
-        description={T.insightsHint}
+        title={<span className="inline-flex items-center gap-xs">{T.insights}<TitleHelp topic={T.insights}>{T.insightsHint}</TitleHelp></span>}
         closeLabel={T.cancel}
       >
         {findings === null ? (
@@ -1107,8 +1105,7 @@ export function PlanningVersionPanel({
         open={panel === "history"}
         onClose={() => setPanel(null)}
         width="lg"
-        title={T.history}
-        description={T.baselineHint}
+        title={<span className="inline-flex items-center gap-xs">{T.history}<TitleHelp topic={T.history}>{T.baselineHint}</TitleHelp></span>}
         closeLabel={T.cancel}
       >
         {error ? (

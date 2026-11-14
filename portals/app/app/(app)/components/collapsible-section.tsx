@@ -2,7 +2,8 @@
 
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Icon, Section, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import { Button, Icon, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import { Section } from "./help-section";
 import { ActionMenu } from "./business-controls";
 import { useMessages } from "../lib/i18n/provider";
 

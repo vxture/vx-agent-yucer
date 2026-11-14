@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
 import { useMemo, useState } from "react";
@@ -14,7 +15,6 @@ import {
   EmptyState,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   TableTitleCell,
   type DataTableColumn,
@@ -372,7 +372,7 @@ export function ProposalQueue({
   return (
     <Section
       title={PROPOSAL_TEXT.title}
-      description={PROPOSAL_TEXT.description}
+      help={PROPOSAL_TEXT.description}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {notice ? <StatusBadge tone="info">{notice}</StatusBadge> : null}

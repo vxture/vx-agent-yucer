@@ -1,8 +1,9 @@
 "use client";
 
+import { Section } from "./help-section";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Button, Card, Icon, Section, StatusBadge } from "@vxture/design-ui";
+import { Button, Card, Icon, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
 import type { ForecastBriefResult } from "../forecast/brief-action";
@@ -32,7 +33,7 @@ export function ForecastBriefPanel({
     <Section
       icon="sparkles"
       title={T.title}
-      description={T.why}
+      help={T.why}
       action={
         <Button
           size="md"

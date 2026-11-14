@@ -1,10 +1,10 @@
 "use client";
+import { Section } from "./help-section";
 import { DataTable } from "./business-controls";
 
 import {
   Button,
   EmptyState,
-  Section,
   StatusBadge,
   TableTitleCell,
 } from "@vxture/design-ui";
@@ -82,7 +82,7 @@ export function ExecutionPanel({
       id="executions"
       icon="list-checks"
       title={CAMPAIGN_TEXT.executionsTitle}
-      description={CAMPAIGN_TEXT.executionsWhy}
+      help={CAMPAIGN_TEXT.executionsWhy}
       action={
         canEdit ? (
           <Button asChild variant="secondary" size="md">

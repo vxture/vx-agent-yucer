@@ -56,7 +56,7 @@ export default async function NewTargetPage() {
         trail={[{ label: DOMAIN_LABEL.planning, href: "/planning" }]}
         current={PLANNING_TEXT.setTarget}
       />
-      <ViewHeader title={PLANNING_TEXT.setTarget} description={PLANNING_TEXT.setTargetWhy} />
+      <ViewHeader title={PLANNING_TEXT.setTarget} help={PLANNING_TEXT.setTargetWhy} />
       <TargetForm
         period={period}
         territories={territories.ok && divisions.ok ? salesRegionTerritories(divisions.value, territories.value) : []}

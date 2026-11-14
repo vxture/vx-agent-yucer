@@ -1,6 +1,7 @@
 "use client";
 
-import { DetailList, DetailRow, Drawer, Section } from "@vxture/design-ui";
+import { Section } from "./help-section";
+import { DetailList, DetailRow, Drawer } from "@vxture/design-ui";
 import type { ProductRecord } from "../../domains/catalog/store";
 import type { SolutionFacts } from "../lib/solution-prices";
 import { useMessages } from "../lib/i18n/provider";
@@ -30,7 +31,7 @@ export function SolutionDetails({ view, products, facts, currency, onClose }: {
             <p className="whitespace-pre-wrap break-words">{view.solution.scenario || T.noScenario}</p>
           </DetailRow>
         </DetailList>
-        <Section title={`${T.solutionPrices} / ${currency}`} description={T.solutionPricesHint}>
+        <Section title={`${T.solutionPrices} / ${currency}`} help={T.solutionPricesHint}>
           <ProductPriceValues price={facts.prices} missing={facts.missing} currency={currency} />
         </Section>
         <Section title={T.colComposition}

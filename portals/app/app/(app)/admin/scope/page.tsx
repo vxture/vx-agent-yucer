@@ -69,7 +69,7 @@ export default async function ScopePage() {
         divider
         icon="eye"
         title={ADMIN_PAGE_TEXT.scopeTitle}
-        description={PAGE_BRIEF.adminScope}
+        help={PAGE_BRIEF.adminScope}
         secondary={
           <Tag tone="info">{ADMIN_PAGE_TEXT.scopeCount(rows.length)}</Tag>
         }

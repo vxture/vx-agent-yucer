@@ -150,7 +150,7 @@ export default async function OrgPage() {
         divider
         icon="tree-structure"
         title={ORG_TEXT.title}
-        description={PAGE_BRIEF.adminOrg}
+        help={PAGE_BRIEF.adminOrg}
         secondary={<Tag tone="info">{ORG_TEXT.count(rows.length, placed)}</Tag>}
         action={
           editable ? (

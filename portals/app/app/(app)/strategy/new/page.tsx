@@ -88,7 +88,7 @@ export default async function NewPlanPage({
       />
       <ViewHeader
         title={editable ? STRATEGY_TEXT.editPlanTitle : STRATEGY_TEXT.newPlanTitle}
-        description={editable ? STRATEGY_TEXT.editPlanWhy : STRATEGY_TEXT.newPlanWhy}
+        help={editable ? STRATEGY_TEXT.editPlanWhy : STRATEGY_TEXT.newPlanWhy}
       />
       <NewPlanForm
         key={editable ? found.id : "new"}

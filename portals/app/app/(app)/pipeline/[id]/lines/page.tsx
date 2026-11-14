@@ -77,7 +77,7 @@ export default async function DealLinesPage({
       />
       <ViewHeader
         title={OPPORTUNITY_TEXT.linesPageTitle(opportunity.name)}
-        description={OPPORTUNITY_TEXT.linesWhy}
+        help={OPPORTUNITY_TEXT.linesWhy}
       />
       <LineEditor
         opportunityId={id}

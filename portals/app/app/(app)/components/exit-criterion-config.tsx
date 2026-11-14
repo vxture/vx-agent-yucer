@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -13,7 +14,6 @@ import {
   PanelCard,
   PanelItem,
   PanelList,
-  Section,
   StatusBadge,
 } from "@vxture/design-ui";
 import { ActionMenu } from "./business-controls";
@@ -134,7 +134,7 @@ export function ExitCriterionConfig({
   const roles = stageRoles(stages);
 
   return (
-    <Section icon="list-checks" title={EXIT_CONFIG_TEXT.title} description={EXIT_CONFIG_TEXT.why}>
+    <Section icon="list-checks" title={EXIT_CONFIG_TEXT.title} help={EXIT_CONFIG_TEXT.why}>
       <div className="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-3">
         {stages.map((s, i) => {
           const role = roles[i]!;

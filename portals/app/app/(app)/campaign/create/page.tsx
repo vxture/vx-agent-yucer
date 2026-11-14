@@ -69,7 +69,7 @@ export default async function CreateCampaignPage({
       />
       <ViewHeader
         title={editable ? CAMPAIGN_TEXT.editCampaign : CAMPAIGN_TEXT.newCampaignTitle}
-        description={editable ? CAMPAIGN_TEXT.editCampaignWhy : CAMPAIGN_TEXT.newCampaignWhy}
+        help={editable ? CAMPAIGN_TEXT.editCampaignWhy : CAMPAIGN_TEXT.newCampaignWhy}
       />
       <CampaignForm
         key={editable ? editable.id : "new"}

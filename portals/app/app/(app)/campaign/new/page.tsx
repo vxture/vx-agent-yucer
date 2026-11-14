@@ -70,7 +70,7 @@ export default async function NewExecutionPage({
         trail={[{ label: DOMAIN_LABEL.campaign, href: "/campaign" }]}
         current={CAMPAIGN_TEXT.executionsTitle}
       />
-      <ViewHeader title={CAMPAIGN_TEXT.executionsTitle} description={CAMPAIGN_TEXT.executionsWhy} />
+      <ViewHeader title={CAMPAIGN_TEXT.executionsTitle} help={CAMPAIGN_TEXT.executionsWhy} />
       <ExecutionForm
         initialId={execution}
         rows={executions}

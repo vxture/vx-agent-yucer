@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
 import { useState, useTransition, type ReactNode } from "react";
@@ -11,7 +12,6 @@ import {
   FieldLabel,
   Input,
   NativeSelect,
-  Section,
   StatusBadge,
   TableTitleCell,
   useToast,
@@ -349,7 +349,7 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
         id="collections"
         icon="coins"
         title={DELIVERY_TEXT.rosterOpen}
-        description={DELIVERY_TEXT.rosterOpenWhy}
+        help={DELIVERY_TEXT.rosterOpenWhy}
         action={
           overdue > 0 ? (
             <StatusBadge tone="danger">{DELIVERY_TEXT.overdueCount(overdue)}</StatusBadge>
@@ -427,7 +427,7 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
           id="collections-closed"
           icon="file-text"
           title={DELIVERY_TEXT.rosterClosed}
-          description={DELIVERY_TEXT.rosterClosedWhy}
+          help={DELIVERY_TEXT.rosterClosedWhy}
           action={
             narrowed ? (
               <StatusBadge tone="info">{DELIVERY_TEXT.narrowedNote}</StatusBadge>

@@ -1,5 +1,6 @@
+import { Section } from "./help-section";
 import Link from "next/link";
-import { Card, EmptyState, Section } from "@vxture/design-ui";
+import { Card, EmptyState } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { Tag } from "./tag";
 import type { CategoryChange, ChangeKind } from "../../domains/pipeline/lib/forecast-change";
@@ -35,7 +36,8 @@ export async function ForecastChange({
     <Section
       icon="clock-counter-clockwise"
       title={T.title}
-      description={change ? T.since(change.since.toISOString().slice(0, 10)) : T.why}
+      description={change ? T.since(change.since.toISOString().slice(0, 10)) : undefined}
+      help={T.why}
     >
       {!change ? (
         <div>

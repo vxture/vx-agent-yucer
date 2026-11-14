@@ -1,5 +1,6 @@
 "use client";
 
+import { Section } from "./help-section";
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import {
   Button,
@@ -8,7 +9,6 @@ import {
   FieldLabel,
   Icon,
   Input,
-  Section,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
@@ -292,7 +292,7 @@ export function AgeingPolicyConfig({
     <Section
       icon="timer"
       title={AGEING_TEXT.title}
-      description={AGEING_TEXT.why}
+      help={AGEING_TEXT.why}
       action={<Tag>{AGEING_TEXT.bandCount(cutoffs.length + 1)}</Tag>}
     >
       {/* INDENTED TO THE TITLE TEXT, not the icon - the same device

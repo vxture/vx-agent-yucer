@@ -85,7 +85,7 @@ export default async function NewMilestonePage({
         trail={[{ label: DOMAIN_LABEL.delivery, href: "/delivery" }]}
         current={DELIVERY_TEXT.milestonesTitle}
       />
-      <ViewHeader title={DELIVERY_TEXT.milestonesTitle} description={DELIVERY_TEXT.milestonesWhy} />
+      <ViewHeader title={DELIVERY_TEXT.milestonesTitle} help={DELIVERY_TEXT.milestonesWhy} />
       <MilestoneForm
         initialProjectId={(await searchParams).project}
         milestones={milestones}

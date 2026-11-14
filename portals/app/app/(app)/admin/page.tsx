@@ -139,7 +139,7 @@ export default async function AdminHomePage() {
       <ViewHeader
         icon="settings"
         title={ADMIN_TEXT.title}
-        description={ADMIN_TEXT.description}
+        help={ADMIN_TEXT.description}
         secondary={
           members.ok ? (
             <StatusBadge tone="success">{ADMIN_TEXT.tagMembers(members.value.length)}</StatusBadge>

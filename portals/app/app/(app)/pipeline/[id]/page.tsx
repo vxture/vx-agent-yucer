@@ -1,6 +1,7 @@
+import { Section } from "../../components/help-section";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Button, EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { DealWorkspace } from "../../components/deal-workspace";
 import { resolveDealWorkspace } from "../../lib/deal-workspace";
 import { DealMeetingButton } from "../../components/deal-meeting";
@@ -1438,11 +1439,11 @@ export default async function OpportunityDetailPage({
   const workspacePlan = (
     <>
       {opportunity.status !== "open" ? <p className="text-body-small text-muted-foreground">{WX.closed}</p> : null}
-      <Section icon="flag" title={WX.goalTitle} description={WX.goalHint} action={<Link href={`/pipeline/${id}#progress`} className="text-label no-underline transition-colors hover:text-primary-text focus-visible:ring-2 focus-visible:ring-ring">{WX.contextLink}</Link>}>
+      <Section icon="flag" title={WX.goalTitle} help={WX.goalHint} action={<Link href={`/pipeline/${id}#progress`} className="text-label no-underline transition-colors hover:text-primary-text focus-visible:ring-2 focus-visible:ring-ring">{WX.contextLink}</Link>}>
         <p className="text-label">{stageText}</p>
         {exitCheck && exitCheck.total > 0 ? <ExitChecks check={exitCheck} filledSlots={filledSlots ?? new Set()} hrefPrefix={`/pipeline/${id}`} /> : <p className="text-body-small text-muted-foreground">{WX.criteriaNone}</p>}
       </Section>
-      <Section icon="lightbulb" title={WX.planTitle} description={WX.planHint}
+      <Section icon="lightbulb" title={WX.planTitle} help={WX.planHint}
         action={canDraftPlan ? <PlanDraftButton opportunityId={id} onGenerate={generatePlanAction} /> : undefined}>
         {planItems.length > 0 && opportunity.status === "open" ? <AdvisorFinding items={planItems} onAdjudicate={adjudicateProposals} /> : <p className="text-body-small text-muted-foreground">{WX.planEmpty}</p>}
       </Section>
@@ -1451,7 +1452,7 @@ export default async function OpportunityDetailPage({
   );
   const workspacePreparation = (
     <>
-      <Section icon="clipboard" title={WX.preparationTitle} description={WX.preparationHint}>
+      <Section icon="clipboard" title={WX.preparationTitle} help={WX.preparationHint}>
         {!account.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(account.violations, LOAD_ERROR)} /> : !chain.ok ? <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(chain.violations, LOAD_ERROR)} /> : opportunity.status === "open" ? <>
           {meetingChoices.length > 0 ? <div className="flex flex-wrap items-center gap-sm">{meetingChoices.map((p) => <Tag key={p.id} tone="neutral">{p.name}{p.title ? ` / ${p.title}` : ""}</Tag>)}</div> : <p className="text-body-small text-muted-foreground">{WX.noPeople}</p>}
           <div className="flex flex-wrap items-center gap-sm">
@@ -1472,7 +1473,7 @@ export default async function OpportunityDetailPage({
       <Button size="xl" variant="outline" asChild><Link href={`/copilot?opportunity=${encodeURIComponent(id)}`}>{WX.feedbackAsk}</Link></Button>
     </>
   );
-  const workspaceHistory = <Section icon="clock-counter-clockwise" title={WX.history} description={WX.historyHint}>{workspaceTimeline(true)}</Section>;
+  const workspaceHistory = <Section icon="clock-counter-clockwise" title={WX.history} help={WX.historyHint}>{workspaceTimeline(true)}</Section>;
 
   return (
     // TWO PANES, BOTH SERVER-RENDERED - lib/sidebar-slot.ts. DealEditProvider
