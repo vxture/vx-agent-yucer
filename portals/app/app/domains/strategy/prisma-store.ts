@@ -104,6 +104,7 @@ export class PrismaStrategyStore implements StrategyStore {
       const created = await tx.strategyPlan.create({
         data: {
           workspaceId,
+          createdBySub: input.createdBySub ?? null,
           planNo: input.planNo,
           name: input.name,
           period: input.period,
@@ -158,7 +159,7 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(fields.name === undefined ? {} : { status: { notIn: ["closed", "archived"] } }) };
+    const where = { id, workspaceId, ...(["name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
     if (solutionIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
@@ -473,6 +474,7 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
+    createdBySub: (r.createdBySub as string | null) ?? null,
     planNo: String(r.planNo),
     name: String(r.name),
     period: String(r.period),

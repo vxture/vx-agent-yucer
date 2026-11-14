@@ -14,11 +14,11 @@ import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
 import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 import { MarketLibrary } from "./market-library";
-import { StrategyRelationsDrawer, type RelationTask } from "./strategy-relations-drawer";
+import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import type { StrategyView } from "../lib/market-strategy";
-import { movePlan, savePlanRelations } from "../strategy/actions";
+import { movePlan } from "../strategy/actions";
 
 export type StrategyTab = "overview" | "markets" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
@@ -35,7 +35,6 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   };
   const [checks,setChecks]=useState(false);
   const [basis,setBasis]=useState(false);
-  const [relationTask,setRelationTask]=useState<RelationTask | null>(null);
   const [historyOpen,setHistoryOpen]=useState(false);
   const [pending,start]=useTransition();
   const {toast}=useToast();
@@ -54,7 +53,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   });
   const items=(p:StrategyView):ActionMenuItem[]=>[
     {id:"view",label:T.openPlan,onSelect:()=>router.push(`/strategy/${p.id}`)},
-    ...(data.canEdit && !["closed","archived"].includes(p.status) ? [{id:"edit",label:T.editPlan,onSelect:()=>router.push(`/strategy/new?no=${encodeURIComponent(p.planNo)}`)}]:[]),
+    ...(data.canEdit && p.status === "draft" ? [{id:"edit",label:T.editPlan,onSelect:()=>router.push(`/strategy/new?no=${encodeURIComponent(p.planNo)}`)}]:[]),
     ...nextPlanStatuses(p.status).filter(s=>s==="approved"?data.canApprove:data.canEdit).map(s=>({id:s,label:STRATEGY_TEXT.planMoveTo(PLAN_STATUS_LABEL[s] ?? s),onSelect:()=>run(p.id,s)})),
   ];
   const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
@@ -201,40 +200,29 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     </div>;
   };
   const detailContent=detail?<>
-    <Section title={T.currentMarkets} icon="target" description={T.targetMarketBasis}
-      action={data.canEdit && !["closed", "archived"].includes(detail.status) ? <div className="flex flex-wrap gap-sm">
-        {data.canMarkets ? <Button size="xl" variant="secondary" disabled={pending || data.markets === null || detail.targetMarkets === null} onClick={()=>setRelationTask({kind:"markets"})}>{T.linkMarkets}</Button> : null}
-        {data.solutionOptions && detail.sharedSolutions !== null ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button> : null}
-      </div> : null}>
-      {detail.sharedSolutions?.length || detail.sharedSolutions === null ? <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
-        <span>{T.sharedSolutions}</span>{solutionLinks(detail.sharedSolutions)}
-      </div> : null}
-      {detail.targetMarkets === null ? <p className="text-body-small text-muted-foreground">{T.unknown}</p>
-        : !detail.targetMarkets.length ? <EmptyState title={T.noPlanMarkets}/> : <div className="grid grid-cols-1 gap-lg @xl:grid-cols-2 @3xl:grid-cols-3" data-strategy-target-market-grid>
-          {detail.targetMarkets.map(m => <Card key={m.segmentId} className="min-w-0 gap-md py-lg" data-strategy-target-market>
-            <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm">
-              <div className="flex min-w-0 flex-wrap items-center gap-sm">
-                <CardTitle className="break-words"><Link className="transition-colors hover:text-primary" href={`/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
-                <Tag tone={m.intent === "focus" ? "success" : "neutral"}>{m.intent === "focus" ? T.focusMarket : m.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</Tag>
-                {m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
-              </div>
-              <div className="flex flex-wrap items-center gap-sm">
-                <span className="text-body-small text-muted-foreground">{T.customerCount} {number(m.matched)} · {T.missing} {number(m.missing)}</span>
-                {data.canCreateCampaign && detail.status === "active" && m.status === "active" ? <Button asChild size="md" variant="secondary">
-                  <Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link>
-                </Button> : null}
-                {data.canEdit && !["closed", "archived"].includes(detail.status) ? <RowActions disabled={pending} items={[{id:"settings",label:T.marketSettings,onSelect:()=>setRelationTask({kind:"market",segmentId:m.segmentId})}]}/> : null}
-              </div>
-            </div></CardHeader>
-            <CardContent><div className="flex flex-col gap-md text-body-small">
-              <p className="text-muted-foreground">{[...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions].join(" / ") || T.undefined}{m.criteria.customerNeed ? ` · ${m.criteria.customerNeed}` : ""}</p>
-              <div className="flex min-w-0 flex-col gap-xs"><span className="text-muted-foreground">{T.marketApproach}</span><p className="whitespace-pre-wrap break-words">{m.approach || T.noMarketApproach}</p></div>
-              <div className="flex flex-wrap items-center gap-sm"><span className="text-muted-foreground">{T.primarySolutions}</span>{solutionLinks(m.solutions)}</div>
-            </div></CardContent>
-          </Card>)}
-          {detail.targetMarkets.length % 2 ? <div aria-hidden="true" className="hidden rounded-md border border-primary/5 @xl:block @3xl:hidden" data-strategy-market-placeholder/> : null}
-          {Array.from({length:(3-detail.targetMarkets.length % 3) % 3},(_,index)=><div key={`market-placeholder-${index}`} aria-hidden="true" className="hidden rounded-md border border-primary/5 @3xl:block" data-strategy-market-placeholder/>)}
-        </div>}
+    <Card className="gap-md py-lg" data-strategy-basic-card>
+      <Collapsible defaultOpen>
+        <CardHeader><div className="flex items-center justify-between gap-sm"><CardTitle>{T.basicInfo}</CardTitle>
+          <CollapsibleTrigger asChild><Button size="icon-xl" variant="ghost" aria-label={T.basicInfo}><Icon name="chevron-down" size="sm"/></Button></CollapsibleTrigger>
+        </div></CardHeader>
+        <CollapsibleContent><CardContent><div className="flex flex-col gap-md pt-md">
+          <div className="flex flex-wrap items-center gap-x-xl gap-y-sm text-body-small">
+            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.owner}</span><MemberName sub={detail.ownerSub} fallback={T.noOwner}/></span>
+            <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.creator}</span><MemberName sub={detail.createdBySub} fallback={T.creatorUnknown}/></span>
+            {detail.approvedAt ? <span className="flex items-baseline gap-sm"><span className="text-muted-foreground">{T.approvedAt}</span>{new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
+          </div>
+          <div className="flex items-baseline gap-sm" data-strategy-detail-direction><span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
+            <p className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</p></div>
+        </div></CardContent></CollapsibleContent>
+      </Collapsible>
+    </Card>
+    <Section title={T.targetMarketsTitle} icon="target" description={T.targetMarketBasis}>
+      <StrategyMarketCards markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
+        ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
+    </Section>
+    <Section title={T.featuredSolutions} icon="squares-four">
+      <StrategySolutionCards solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
+        markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
     </Section>
     <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">
       <Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>
@@ -251,18 +239,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
         className="grid grid-cols-[auto_minmax(0,1fr)] [&>div:last-child]:col-start-2 [&>div:last-child]:justify-end @4xl:grid-cols-[auto_minmax(0,1fr)_auto] @4xl:[&>div:last-child]:col-start-3"
         secondary={<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>}
-        description={<span className="flex min-w-0 flex-col gap-sm">
-          <span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground">
-            <span>{T.period} <span className="text-foreground">{detail.period}</span></span>
-            <span>{T.owner} <span className="text-foreground"><MemberName sub={detail.ownerSub} fallback={T.noOwner}/></span></span>
-            <span>{detail.planNo}</span>
-            {detail.approvedAt ? <span>{T.approvedAt} {new Date(detail.approvedAt).toLocaleDateString(locale)}</span> : null}
-          </span>
-          <span className="flex min-w-0 items-baseline gap-sm" data-strategy-detail-direction>
-            <span className="shrink-0 text-body-small text-muted-foreground">{T.direction}</span>
-            <span className="min-w-0 whitespace-pre-wrap break-words text-body text-foreground">{detail.objective || T.directionEmpty}</span>
-          </span>
-        </span>}
+        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.period} <span className="text-foreground">{detail.period}</span></span><span>{detail.planNo}</span></span>}
         action={<div className="flex max-w-full flex-wrap items-center gap-sm">
           <Button asChild variant="secondary" size="xl"><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></Button>
           {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>item.id!=="view")}/>
@@ -273,11 +250,6 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     </FilterBar> : null}
     {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:view==="markets"?data.markets?<MarketLibrary scope={sectionHeading} markets={data.markets} canWrite={data.canWriteMarket} initialMarket={params.get("market") ?? undefined} actions={checkButton}/>:<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={period||planFilter?T.noMatches:T.noPlans} description={period||planFilter?undefined:T.noPlansWhy}/>):overview}
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{view==="validation"?<p className="mb-sm">{T.validationScope}</p>:null}{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
-    {detail && relationTask ? <StrategyRelationsDrawer key={JSON.stringify(relationTask)} task={relationTask} planName={detail.name}
-      targets={detail.targetMarkets?.map(({segmentId,marketName,intent,approach,solutions})=>({segmentId,marketName,intent,approach,...(solutions === null ? {} : {solutionIds:solutions.map(s=>s.id)})})) ?? []}
-      sharedSolutionIds={detail.sharedSolutions?.map(s=>s.id)} marketOptions={data.markets} solutionOptions={data.solutionOptions}
-      onSave={async change=>{const result=await savePlanRelations(detail.id,change);if(result.ok){toast({tone:"success",title:T.relationSaved});start(()=>router.refresh());}return result;}}
-      onClose={()=>setRelationTask(null)}/> : null}
     <Drawer open={basis} onClose={()=>setBasis(false)} width="lg" title={T.basis} description={T.validationWhy} closeLabel={T.closed}>
       <div className="flex flex-col gap-xl"><p className="text-body-small text-muted-foreground">{T.validationScope}</p>
         {plans.map(p=><div key={p.id} className="flex flex-col gap-sm"><h3 className="text-heading-3">{p.name}</h3>

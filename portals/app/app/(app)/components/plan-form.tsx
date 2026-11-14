@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  Button,
+  Button, Card, CardHeader, CardTitle, CardContent, Combobox, NativeSelect,
   Field,
-  FieldDescription,
   FieldLabel,
   Input,
   Section,
@@ -13,15 +13,16 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
-  FormFields,
   FormPage,
   useFormSubmit,
   type AssistSuggestion,
 } from "./form-page";
+import { MemberName, useMemberName } from "../lib/member-names";
+import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type { SolutionReference } from "../../domains/catalog/service";
 import { StrategyRelationsDrawer, type RelationTask, type RelationMarketOption, type RelationTarget } from "./strategy-relations-drawer";
-import type { NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/strategy/lib/lifecycle";
+import type { SegmentCriteria, NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/strategy/lib/lifecycle";
 
 // 新建 / 修改战略计划 - a page since 2026-09-05 (owner ruling: content-rich
 // operations get a page, with the assistant beside the work).
@@ -44,7 +45,7 @@ import type { NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/s
 
 type Saved = { ok: boolean; error?: string };
 type MarketOption = RelationMarketOption;
-type TargetSelection = RelationTarget;
+type TargetSelection = RelationTarget & { criteria?: SegmentCriteria };
 
 export interface PlanFormInitial {
   readonly id: string;
@@ -63,6 +64,8 @@ export function NewPlanForm({
   initial,
   solutionOptions,
   marketOptions,
+  ownerOptions,
+  creatorSub,
   onCreate,
   onSave,
 }: {
@@ -72,13 +75,21 @@ export function NewPlanForm({
   readonly initial?: PlanFormInitial;
   readonly solutionOptions: readonly SolutionReference[] | null;
   readonly marketOptions: readonly MarketOption[] | null;
+  readonly ownerOptions: readonly { value: string; label: string }[] | null;
+  readonly creatorSub: string | null;
   readonly onCreate: (input: NewPlanDraft) => Promise<Saved>;
   readonly onSave: (id: string, input: PlanEdit) => Promise<Saved>;
 }) {
   const { STRATEGY_TEXT, PLAN_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
+  const nameOf = useMemberName();
   const [planNo, setPlanNo] = useState(initial?.planNo ?? "");
   const [name, setName] = useState(initial?.name ?? "");
-  const [period, setPeriod] = useState(initial?.period ?? "");
+  const currentYear = new Date().getFullYear();
+  const initialYear = Number(initial?.period.slice(0, 4));
+  const years = [...new Set([currentYear - 1, currentYear, currentYear + 1, ...(Number.isInteger(initialYear) && initialYear >= 1900 ? [initialYear] : [])])].sort();
+  const presetPeriods = years.flatMap(y => [String(y), ...[1,2,3,4].map(q => `${y}-Q${q}`)]);
+  const [period, setPeriod] = useState(initial?.period ?? String(currentYear));
+  const [customPeriod, setCustomPeriod] = useState(!!initial?.period && !presetPeriods.includes(initial.period));
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
   const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initial ? initial.solutionIds : []);
@@ -125,7 +136,7 @@ export function NewPlanForm({
       id: "period",
       label: ASSIST_TEXT.periodKnown(periods[0]!),
       reason: ASSIST_TEXT.periodKnownWhy,
-      apply: () => setPeriod(periods[0]!),
+      apply: () => { setPeriod(periods[0]!); setCustomPeriod(!presetPeriods.includes(periods[0]!)); },
     });
   }
 
@@ -135,59 +146,58 @@ export function NewPlanForm({
   return (
     <FormPage
       form={
-        // The page ViewHeader owns the title - repeating it in the Section
-        // rendered the same sentence twice within one viewport.
-        <Section icon="flag">
-          <div className="gap-xl flex flex-col">
-            <FormFields>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.newPlanNo}</FieldLabel>
-              {initial ? (
-                <>
-                  <p className="text-foreground mono text-body">{initial.planNo}</p>
-                  <FieldDescription>{STRATEGY_TEXT.planNoFixed}</FieldDescription>
-                </>
-              ) : (
-                <Input value={planNo} onChange={(e) => setPlanNo(e.target.value)} />
-              )}
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.newPlanName}</FieldLabel>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.newPlanPeriod}</FieldLabel>
-              <Input value={period} onChange={(e) => setPeriod(e.target.value)} />
-              <FieldDescription>{T.parallelStrategies}</FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
-              <Input value={ownerSub} onChange={(e) => setOwnerSub(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.newPlanObjective}</FieldLabel>
-              <Input value={objective} onChange={(e) => setObjective(e.target.value)} />
-            </Field>
-            </FormFields>
-            <div id="target-markets">
-              <Section title={T.currentMarkets} icon="target" description={T.relationNewPlanHint}
-                action={<div className="flex flex-wrap gap-sm">
-                  <Button type="button" size="xl" variant="secondary" disabled={submit.pending || marketOptions === null} onClick={() => setRelationTask({kind:"markets"})}>{T.linkMarkets}</Button>
-                  <Button type="button" size="xl" variant="secondary" disabled={submit.pending || solutionOptions === null || solutionIds === undefined} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>
-                </div>}>
-                {marketOptions === null ? <p className="text-body-small text-muted-foreground">{T.marketOptionsUnavailable}</p>
-                  : targets.length ? <div className="flex flex-col divide-y divide-dashed divide-primary/10">
-                    {targets.map(t => <div key={t.segmentId} className="flex flex-wrap items-center justify-between gap-sm py-md">
-                      <span className="flex min-w-0 flex-wrap items-center gap-sm text-body-small"><span className="font-medium">{t.marketName}</span>
-                        <span className="text-muted-foreground">{t.intent === "focus" ? T.focusMarket : t.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</span>
-                        <span className="text-muted-foreground">{T.primarySolutions} {t.solutionIds?.length ?? T.unknown}</span>
-                      </span>
-                      <Button type="button" size="md" variant="secondary" disabled={submit.pending} onClick={() => setRelationTask({kind:"market",segmentId:t.segmentId})}>{T.marketSettings}</Button>
-                    </div>)}
-                  </div> : <p className="text-body-small text-muted-foreground">{T.noPlanMarkets}</p>}
-                <p className="text-body-small text-muted-foreground">{T.sharedSolutions} {solutionIds?.length ?? T.unknown}</p>
-              </Section>
+        <div className="@container flex min-w-0 flex-col gap-xl" data-strategy-editor>
+          <Card className="gap-lg py-lg" data-strategy-basic-card>
+            <CardHeader><div className="flex flex-wrap items-center justify-between gap-sm"><CardTitle>{T.basicInfo}</CardTitle>
+              <span className="text-body-small text-muted-foreground">{T.creator} <MemberName sub={creatorSub} fallback={T.creatorUnknown}/></span>
+            </div></CardHeader>
+            <CardContent><div className="grid grid-cols-1 gap-x-lg gap-y-md @xl:grid-cols-2 @3xl:grid-cols-4">
+              <Field><FieldLabel htmlFor="strategy-number">{STRATEGY_TEXT.newPlanNo}</FieldLabel>
+                <Input id="strategy-number" value={planNo} readOnly={!!initial} disabled={submit.pending} onChange={e => setPlanNo(e.target.value)} aria-required="true"/>
+              </Field>
+              <Field className="@3xl:col-span-3"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
+                <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e => setName(e.target.value)} aria-required="true"/>
+              </Field>
+              <Field className="@3xl:col-span-2"><FieldLabel htmlFor="strategy-period">{STRATEGY_TEXT.newPlanPeriod}</FieldLabel>
+                <NativeSelect id="strategy-period" value={customPeriod ? "custom" : period} disabled={submit.pending} onChange={e => {
+                  const v = e.target.value; setCustomPeriod(v === "custom"); if (v !== "custom") setPeriod(v);
+                }}>
+                  {years.map(y => <optgroup key={y} label={String(y)}><option value={String(y)}>{y} {T.annual}</option>
+                    {[1,2,3,4].map(q => <option key={q} value={`${y}-Q${q}`}>{y} Q{q}</option>)}
+                  </optgroup>)}
+                  <option value="custom">{T.periodCustom}</option>
+                </NativeSelect>
+                {customPeriod ? <Input aria-label={T.periodCustomLabel} maxLength={32} value={period} disabled={submit.pending} onChange={e => setPeriod(e.target.value)}/> : null}
+              </Field>
+              <Field className="@3xl:col-span-2"><FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
+                <Combobox items={[{ value: "__none", label: T.noOwner }, ...(ownerOptions ?? []),
+                  ...(ownerSub && !ownerOptions?.some(m => m.value === ownerSub) ? [{ value: ownerSub, label: nameOf(ownerSub) ?? ownerSub }] : [])]}
+                  value={ownerSub || "__none"} onValueChange={v => setOwnerSub(v === "__none" ? "" : v ?? "")}
+                  placeholder={T.chooseOwner} searchPlaceholder={T.ownerSearch} emptyText={T.noOwnerOptions}
+                  disabled={submit.pending || ownerOptions === null} className="w-full" aria-label={STRATEGY_TEXT.newPlanOwner}/>
+              </Field>
+              <Field className="@xl:col-span-2 @3xl:col-span-4"><FieldLabel htmlFor="strategy-direction">{T.direction}</FieldLabel>
+                <Input id="strategy-direction" value={objective} disabled={submit.pending} onChange={e => setObjective(e.target.value)}/>
+              </Field>
             </div>
+            <p className="mt-md text-body-small text-muted-foreground">{T.draftOnlyHint}</p>
+            </CardContent>
+          </Card>
+          <Section id="target-markets" title={T.linkMarkets} icon="target"
+            action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || marketOptions === null} onClick={() => setRelationTask({kind:"markets"})}>{T.linkMarkets}</Button>}>
+            <StrategyMarketCards markets={marketOptions === null ? null : targets.map(t => ({ ...t,
+              criteria: initial?.targetMarkets.find(m => m.segmentId === t.segmentId)?.criteria ?? marketOptions.find(m => m.id === t.segmentId)?.criteria,
+              // Current library counts may differ from an existing saved criteria snapshot.
+              matched: initial ? undefined : marketOptions.find(m => m.id === t.segmentId)?.matched,
+              status: marketOptions.find(m => m.id === t.segmentId)?.status,
+              solutions: t.solutionIds === undefined || solutionOptions === null ? null : solutionOptions.filter(s => t.solutionIds?.includes(s.id)),
+            }))} actions={m => <Button type="button" size="md" variant="secondary" disabled={submit.pending} onClick={() => setRelationTask({kind:"market",segmentId:m.segmentId})}>{T.marketSettings}</Button>}/>
+          </Section>
+          <Section id="primary-solutions" title={T.linkSolutions} icon="squares-four"
+            action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || solutionOptions === null || solutionIds === undefined} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>}>
+            <StrategySolutionCards solutions={solutionOptions === null || solutionIds === undefined || targets.some(t => t.solutionIds === undefined) ? null
+              : solutionOptions.filter(s => solutionIds.includes(s.id) || targets.some(t => t.solutionIds?.includes(s.id)))} markets={targets} sharedIds={solutionIds}/>
+          </Section>
             {relationTask ? <StrategyRelationsDrawer draft key={JSON.stringify(relationTask)} task={relationTask} planName={name || STRATEGY_TEXT.newPlanTitle}
               targets={targets} sharedSolutionIds={solutionIds} marketOptions={marketOptions} solutionOptions={solutionOptions}
               onSave={saveRelations} onClose={() => setRelationTask(null)}/> : null}
@@ -223,10 +233,10 @@ export function NewPlanForm({
               >
                 {initial ? STRATEGY_TEXT.planSave : STRATEGY_TEXT.newPlanSave}
               </Button>
+              <Button asChild size="xl" variant="secondary" disabled={submit.pending}><Link href={initial ? `/strategy/${initial.id}` : "/strategy"}>{T.relationCancel}</Link></Button>
               {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
             </div>
-          </div>
-        </Section>
+        </div>
       }
       assist={<AssistPanel suggestions={suggestions} />}
     />

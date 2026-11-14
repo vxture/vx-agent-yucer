@@ -114,7 +114,7 @@ test("approving a plan stamps the approval and only once", () => {
   assert.ok(first.approvedAt, "the moment of approval is recorded");
 
   const already = { ...planRow("approved"), approvedAt: new Date("2026-01-01T00:00:00Z") };
-  const back = unwrap(planStrategyTransition(already, "draft"));
+  const back = unwrap(planStrategyTransition(already, "active"));
   assert.equal("approvedAt" in back, false, "an existing approval is left alone");
 });
 

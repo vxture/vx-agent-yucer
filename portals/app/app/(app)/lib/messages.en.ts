@@ -3043,6 +3043,8 @@ export const en: Dictionary = {
   },
 
   PLAN_ERROR: {
+    owner_not_selectable: "Select an active member of this workspace.",
+    member_directory_unavailable: "The member directory is temporarily unavailable. Try again later.",
     market_not_selectable: "The selected market segment is unavailable. Refresh and select again.",
     solution_not_selectable: "A selected solution is retired or unavailable. Refresh and select again.",
     solution_catalog_unavailable: "The solution catalogue is unavailable. Try again later.",
@@ -3055,7 +3057,7 @@ export const en: Dictionary = {
     unknown_status: "Unknown plan status",
     illegal_transition: "A plan cannot move that way from where it is",
     plan_settled:
-      "A closed or archived plan is not rewritten - its period is spent, and downstream records were measured against what it said at the time",
+      "Only drafts can be edited. Approved strategy content and links remain locked.",
   },
 
   PROJECT_FORM_ERROR: {
@@ -5684,8 +5686,7 @@ export const en: Dictionary = {
     newPlanObjective: "Objective",
     newPlanSave: "Create plan",
     newPlanSaved: "Created",
-    newPlanAnchor:
-      "The number is unique per workspace and cannot be changed after creation - it IS the plan's identity. A new plan is always a draft; approval and every later move belong to the table below, which is what stamps the approval time.",
+    newPlanAnchor: "The number is unique within this workspace and fixed after creation. Save a draft, then approve and activate.",
     title: "Market strategy",
     description:
       "Strategy is where the chain starts: campaigns, leads and opportunities downstream can all point back to it.",
@@ -7415,7 +7416,24 @@ export const en: Dictionary = {
     unknown: "The draft did not complete - try again later",
   },
   MARKET_STRATEGY_TEXT: {
-    linkMarkets: "Link market segments",
+    basicInfo: "Strategy basics",
+    targetMarketsTitle: "Target markets",
+    featuredSolutions: "Featured solutions",
+    creator: "Created by",
+    creatorAutomatic: "Recorded from the signed-in account",
+    creatorUnknown: "Not recorded on this legacy strategy",
+    chooseOwner: "Select an owner",
+    noOwnerOptions: "No eligible members",
+    ownerSearch: "Search workspace members",
+    periodCustom: "Custom period",
+    periodSelect: "Select a year or quarter",
+    periodCustomLabel: "Custom period name",
+    draftOnlyHint: "Drafts are editable. Approval locks the content and links.",
+    sharedScope: "Across all target markets",
+    marketScope: "Target market",
+    annual: "Annual",
+
+    linkMarkets: "Link target markets",
     linkSolutions: "Link solutions",
     marketSettings: "Market investment settings",
     relationSave: "Save links",

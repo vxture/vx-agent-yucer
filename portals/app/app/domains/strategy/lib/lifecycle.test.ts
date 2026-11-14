@@ -34,17 +34,15 @@ test("approving stamps the approval moment, and later moves do not re-stamp it",
   const first = unwrap(planStrategyTransition({ status: "draft", approvedAt: null }, "approved", { at: AT }));
   assert.equal(first.approvedAt, AT);
 
-  const back = unwrap(planStrategyTransition({ status: "approved", approvedAt: AT }, "draft"));
-  assert.equal(back.approvedAt, undefined, "the original approval stamp is left alone");
-
-  const again = unwrap(planStrategyTransition({ status: "draft", approvedAt: AT }, "approved"));
-  assert.equal(again.approvedAt, undefined, "re-approving does not overwrite the first stamp");
+  const activated = unwrap(planStrategyTransition({ status: "approved", approvedAt: AT }, "active"));
+  assert.equal(activated.approvedAt, undefined, "activation preserves the original approval");
 });
 
-test("an approved plan can be sent back for rework; a running one cannot", () => {
-  assert.ok(planStrategyTransition({ status: "approved", approvedAt: AT }, "draft").ok);
-  const r = planStrategyTransition({ status: "active", approvedAt: AT }, "draft");
-  assert.equal(r.ok === false && r.violations[0].code, "illegal_transition");
+test("approved and running plans cannot return to draft and overwrite publication", () => {
+  for(const status of ["approved", "active"] as const) {
+    const r = planStrategyTransition({ status, approvedAt: AT }, "draft");
+    assert.equal(!r.ok && r.violations[0].code, "illegal_transition");
+  }
 });
 
 test("a running plan ends by being closed, never by being archived directly", () => {

@@ -35,6 +35,7 @@ export interface PlanRecord {
   period: string;
   objective: string | null;
   ownerSub: string | null;
+  readonly createdBySub?: string | null;
   solutionIds: readonly string[];
   targetMarkets?: readonly TargetMarket[];
   status: PlanStatus;
@@ -46,7 +47,7 @@ export class PlanSolutionUnavailableError extends Error {}
 export class PlanMarketUnavailableError extends Error {}
 export class SegmentReferencedError extends Error {}
 
-export type PlanCreate = Omit<NewPlanDraft, "targetMarkets"> & { targetMarkets?: readonly TargetMarket[] };
+export type PlanCreate = Omit<NewPlanDraft, "targetMarkets"> & { targetMarkets?: readonly TargetMarket[]; createdBySub?: string | null };
 
 /** What updateCampaign may move - exactly the columns 98_column_locks grants. */
 export interface CampaignPatch {
@@ -276,6 +277,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     }
     const created: PlanRecord = {
       ...input,
+      createdBySub: input.createdBySub ?? null,
       solutionIds: [...(input.solutionIds ?? [])],
       targetMarkets: structuredClone(input.targetMarkets ?? []),
       id: `plan_${++this.seq}`,
@@ -295,7 +297,7 @@ export class InMemoryStrategyStore implements StrategyStore {
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId) return false;
-    if (patch.name !== undefined && (p.status === "closed" || p.status === "archived")) return false;
+    if (["name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
     if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
       throw new PlanMarketUnavailableError();
     }

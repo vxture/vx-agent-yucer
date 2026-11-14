@@ -10,7 +10,6 @@ import {
   campaignReturn,
   createPlan,
   editPlan,
-  editPlanRelations,
   listSegments,
   strategyDiagnosticSnapshots,
   upsertSegment,
@@ -81,6 +80,7 @@ function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryStra
     holder: { permissions: new Set(permissionsForRoles([role])) },
     entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
     store,
+    memberDirectory: { listMembers: async () => [{sub:"usr_cro",displayName:"Owner",status:"active"}] },
   };
 }
 
@@ -101,7 +101,7 @@ test("approving stamps the moment, and later moves do not re-stamp it", async ()
   unwrap(await transitionPlan(c, "plan_1", "approved", { at: AT }));
   assert.equal((await store.getPlan(WS, "plan_1"))?.approvedAt?.getTime(), AT.getTime());
 
-  unwrap(await transitionPlan(c, "plan_1", "draft"));
+  unwrap(await transitionPlan(c, "plan_1", "active"));
   assert.equal(
     (await store.getPlan(WS, "plan_1"))?.approvedAt?.getTime(),
     AT.getTime(),
@@ -492,7 +492,7 @@ test("only active local markets can be added and only active catalogue solutions
   assert.deepEqual(edited.targetMarkets?.[0].solutionIds, [ref.id]);
 });
 
-test("relationship edits preserve basic fields, other markets, saved criteria and solution links", async () => {
+test("draft relation saves preserve basic fields, other markets, saved criteria and solution links", async () => {
   const catalog = new InMemoryCatalogStore();
   catalog.seed({ solutions: [{ id: "sol", workspaceId: WS, solutionCode: "S", name: "Retail", summary: null, scenario: null, status: "active", sortOrder: 1 }] });
   const c = { ...ctx("sales_leader", "business"), catalog };
@@ -505,56 +505,39 @@ test("relationship edits preserve basic fields, other markets, saved criteria an
   ] }));
   unwrap(await editPlan(c, p.id, { ...EDIT, name: "Latest name", period: "2027", objective: "Latest direction" }));
   unwrap(await upsertSegment(c, { ...SEG, criteria: { industries: ["logistics"], regions: [] } }));
-  unwrap(await editPlanRelations(c, p.id, { kind: "market", segmentId: second.id, intent: "focus", approach: "New approach" }));
+  const focusTarget = ({solutionIds: _ids, ...t}: NonNullable<PlanRecord["targetMarkets"]>[number]) => t;
+  const fields = { ...EDIT, name: "Latest name", period: "2027", objective: "Latest direction" };
+  unwrap(await editPlan(c, p.id, { ...fields, targetMarkets: [focusTarget(p.targetMarkets![0]), {segmentId:second.id,intent:"focus",approach:"New approach"}] }));
   const changed = (await c.store.getPlan(WS, p.id))!;
   assert.equal(changed.name, "Latest name");assert.equal(changed.period, "2027");assert.equal(changed.objective, "Latest direction");
   assert.deepEqual(changed.solutionIds, ["sol"]);
   assert.deepEqual(changed.targetMarkets?.[0], p.targetMarkets?.[0]);
   assert.equal(changed.targetMarkets?.[1].approach, "New approach");
-  unwrap(await editPlanRelations(c, p.id, { kind: "market", segmentId: second.id, intent: "focus", approach: "New approach", solutionIds: ["sol"] }));
+  unwrap(await editPlan(c, p.id, { ...fields, targetMarkets: [focusTarget(p.targetMarkets![0]), {segmentId:second.id,intent:"focus",approach:"New approach",solutionIds:["sol"]}] }));
   assert.deepEqual((await c.store.getPlan(WS, p.id))?.targetMarkets?.[1].solutionIds, ["sol"]);
-  unwrap(await editPlanRelations(c, p.id, { kind: "markets", add: [third.id, third.id], remove: [second.id] }));
+  unwrap(await editPlan(c, p.id, { ...fields, targetMarkets: [focusTarget(p.targetMarkets![0]), {segmentId:third.id,intent:"focus",approach:null}] }));
   const linked = (await c.store.getPlan(WS, p.id))!;
   assert.deepEqual(linked.targetMarkets?.map(t => t.segmentId), [first.id, third.id]);
   assert.deepEqual(linked.targetMarkets?.[0], p.targetMarkets?.[0]);
-  unwrap(await editPlanRelations(c, p.id, { kind: "solutions", solutionIds: [] }));
+  unwrap(await editPlan(c, p.id, { ...fields, solutionIds: [] }));
   assert.deepEqual((await c.store.getPlan(WS, p.id))?.targetMarkets, linked.targetMarkets);
 });
 
-test("relationship tasks keep catalogue gates and preserve unreadable solution links", async () => {
+test("draft editor preserves hidden links, rejects foreign markets, and saves links with basics", async () => {
   const store = new InMemoryStrategyStore();
   const c = ctx("sales_leader", "business", store);
   const m = unwrap(await upsertSegment(c, SEG));
-  store.seed({ plans: [plan({ targetMarkets: [{ segmentId: m.id, marketName: m.name, criteria: m.criteria, intent: "focus", approach: null, solutionIds: ["hidden"] }] })] });
-  const deniedCatalog = { ...c, holder: { permissions: new Set([...c.holder.permissions].filter(p => p !== "catalog.read")) } };
-  const edited = unwrap(await editPlanRelations(deniedCatalog, "plan_1", { kind: "market", segmentId: m.id, intent: "validate", approach: "Keep links" }));
-  assert.deepEqual(edited.targetMarkets?.[0].solutionIds, ["hidden"]);
-  for (const change of [
-    { kind: "markets" as const, add: [], remove: [m.id] },
-    { kind: "market" as const, segmentId: m.id, intent: "focus" as const, approach: null, solutionIds: [] },
-    { kind: "solutions" as const, solutionIds: [] },
-  ]) assert.equal((await editPlanRelations(deniedCatalog, "plan_1", change)).ok, false);
-  const bad = await editPlanRelations(c, "plan_1", { kind: "market", segmentId: m.id, intent: "focus", approach: null, solutionIds: ["missing"] });
-  assert.equal(!bad.ok && bad.violations[0].code, "solution_catalog_unavailable");
-  assert.deepEqual((await c.store.getPlan(WS, "plan_1"))?.targetMarkets?.[0].solutionIds, ["hidden"]);
+  store.seed({plans:[plan({targetMarkets:[{segmentId:m.id,marketName:m.name,criteria:m.criteria,intent:"focus",approach:null,solutionIds:["hidden"]}]})]});
+  const deniedCatalog = {...c,holder:{permissions:new Set([...c.holder.permissions].filter(p=>p!=="catalog.read"))}};
+  const target = {segmentId:m.id,intent:"validate" as const,approach:"Keep existing links"};
+  const edited = unwrap(await editPlan(deniedCatalog,"plan_1",{...EDIT,targetMarkets:[target]}));
+  assert.deepEqual(edited.targetMarkets?.[0].solutionIds,["hidden"]);
+  assert.equal(edited.name,EDIT.name);
+  assert.equal((await editPlan(deniedCatalog,"plan_1",{...EDIT,targetMarkets:[]})).ok,false);
+  const foreign = await store.upsertSegment("other",SEG);
+  assert.equal((await editPlan(c,"plan_1",{...EDIT,targetMarkets:[{...target,segmentId:foreign.id}]})).ok,false);
 });
 
-test("relationship tasks refuse settled, foreign, unauthorized and invalid selections", async () => {
-  const store = new InMemoryStrategyStore();
-  const c = ctx("sales_leader", "business", store);
-  const active = unwrap(await upsertSegment(c, SEG));
-  const retired = unwrap(await upsertSegment(c, { ...SEG, segmentCode: "RETIRED", status: "retired" }));
-  const foreign = await c.store.upsertSegment("other", SEG);
-  store.seed({ plans: [plan(), plan({ id: "settled", status: "closed" }), plan({ id: "foreign", workspaceId: "other" })] });
-  for (const segmentId of [retired.id, foreign.id, "missing"]) assert.equal((await editPlanRelations(c, "plan_1", { kind: "markets", add: [segmentId], remove: [] })).ok, false);
-  const change = { kind: "markets" as const, add: [active.id], remove: [] };
-  assert.equal((await editPlanRelations(ctx("sales_rep", "business", store), "plan_1", change)).ok, false);
-  assert.equal((await editPlanRelations(ctx("sales_leader", "pro", store), "plan_1", change)).ok, false);
-  for (const id of ["settled", "foreign", "missing"]) assert.equal((await editPlanRelations(c, id, change)).ok, false);
-  assert.equal((await editPlanRelations(c, "plan_1", { kind: "markets", add: [active.id], remove: [active.id] })).ok, false);
-  assert.equal((await editPlanRelations(c, "plan_1", { kind: "market", segmentId: active.id, intent: "focus", approach: null })).ok, false);
-  assert.deepEqual((await c.store.getPlan(WS, "plan_1"))?.targetMarkets ?? [], []);
-});
 
 test("segments come back in priority order", async () => {
   const c = ctx("sales_leader", "business");
@@ -622,18 +605,18 @@ test("editing changes the four columns the DDL grants", async () => {
 // The anchor and the lifecycle are the two things an edit must not reach.
 test("an edit cannot move the number or the status", async () => {
   const store = new InMemoryStrategyStore();
-  store.seed({ plans: [plan({ status: "approved", approvedAt: AT })] });
+  store.seed({ plans: [plan()] });
   const c = ctx("sales_leader", "business", store);
 
   unwrap(await editPlan(c, "plan_1", EDIT));
   const after = await store.getPlan(WS, "plan_1");
   assert.equal(after?.planNo, "PLAN-1", "the number is the anchor and has no UPDATE grant");
-  assert.equal(after?.status, "approved", "an edit is not a second door into the lifecycle");
-  assert.equal(after?.approvedAt?.getTime(), AT.getTime());
+  assert.equal(after?.status, "draft", "an edit is not a second door into the lifecycle");
+  assert.equal(after?.approvedAt, null);
 });
 
 test("a settled plan is not rewritten - the lifecycle is the way out", async () => {
-  for (const status of ["closed", "archived"] as const) {
+  for (const status of ["approved", "active", "closed", "archived"] as const) {
     const store = new InMemoryStrategyStore();
     store.seed({ plans: [plan({ status, approvedAt: AT })] });
     const r = await editPlan(ctx("sales_leader", "business", store), "plan_1", EDIT);
@@ -761,4 +744,45 @@ test("a campaign is edited while it lives - and not once it completed or was can
   assert.equal(missing.ok === false && missing.violations[0]!.code, "not_found");
   const viewer = await editCampaign(ctx("viewer", "business", store), "camp_a", { ...fields });
   assert.equal(viewer.ok === false && viewer.violations[0]!.code, "permission_denied");
+});
+
+
+test("creator comes from the caller and cannot be changed through a content edit", async () => {
+  const c = ctx("sales_leader", "business");
+  const p = unwrap(await createPlan(c, {...newPlan, createdBySub: "spoofed"} as typeof newPlan));
+  assert.equal(p.createdBySub, c.sub);
+  unwrap(await editPlan(c, p.id, {...EDIT, createdBySub: "spoofed"} as typeof EDIT));
+  assert.equal((await c.store.getPlan(WS, p.id))?.createdBySub, c.sub);
+});
+
+test("owner selection is scoped to active workspace members and directory failures retain the draft", async () => {
+  const c = ctx("sales_leader", "business");
+  c.memberDirectory = {listMembers: async ws => {assert.equal(ws, WS);return [{sub:"active",displayName:"A",status:"active"},{sub:"departed",displayName:"D",status:"inactive"}];}};
+  for(const ownerSub of ["departed", "foreign", "arbitrary text"]) {
+    const r = await createPlan(c, {...newPlan, ownerSub});
+    assert.equal(!r.ok && r.violations[0].code, "owner_not_selectable");
+  }
+  const p = unwrap(await createPlan(c, {...newPlan, ownerSub:"active"}));
+  c.memberDirectory = {listMembers: async () => {throw Error("offline");}};
+  unwrap(await editPlan(c, p.id, {...EDIT, ownerSub:"active"}));
+  const r = await editPlan(c, p.id, {...EDIT, ownerSub:"different"});
+  assert.equal(!r.ok && r.violations[0].code, "member_directory_unavailable");
+  assert.equal((await c.store.getPlan(WS,p.id))?.ownerSub,"active");
+  c.memberDirectory = undefined;
+  assert.equal((await editPlan(c,p.id,{...EDIT,ownerSub:"different"})).ok,false);
+});
+
+test("approval locks direct relation writes and a concurrent draft save is refused", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({plans:[plan()]});
+  const c = ctx("sales_leader","business",store);
+  const draft = await store.getPlan(WS,"plan_1");
+  unwrap(await transitionPlan(c,"plan_1","approved"));
+  for(const patch of [{solutionIds:[]},{targetMarkets:[]}] as const) {
+    const r = await editPlan(c,"plan_1",{...EDIT,...patch});
+    assert.equal(!r.ok && r.violations[0].code,"plan_settled");
+  }
+  assert.equal(await store.updatePlan(WS,draft!.id,{solutionIds:[]}),false);
+  assert.equal(await store.updatePlan(WS,draft!.id,{period:"2027"}),false);
+  assert.equal((await transitionPlan(c,"plan_1","draft")).ok,false);
 });

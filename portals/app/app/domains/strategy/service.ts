@@ -6,6 +6,7 @@
 // This answers it with a join, because attribution was captured at creation and
 // frozen - not by asking anyone to tally it.
 
+import type { MemberRecord } from "../../authz/store";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
@@ -26,7 +27,6 @@ import {
   planNewPlan,
   planPlanEdit,
   type PlanEdit,
-  type PlanRelationChange,
   type TargetMarket,
   type TargetMarketDraft,
   TARGET_MARKET_INTENTS,
@@ -59,6 +59,17 @@ export interface StrategyContext {
   entitlement: Entitlement;
   store: StrategyStore;
   catalog?: Pick<CatalogStore, "listSolutions">;
+  memberDirectory?: { listMembers(workspaceId: string): Promise<readonly Pick<MemberRecord, "sub" | "status" | "displayName">[]> };
+}
+
+async function validatePlanOwner(ctx: StrategyContext, owner: string | null, existing: string | null = null): Promise<RuleResult<null>> {
+  if (!owner || owner === existing) return ok(null);
+  if (!ctx.memberDirectory) return fail(violation("member_directory_unavailable", "member directory unavailable", "ownerSub", true));
+  try {
+    const members = await ctx.memberDirectory.listMembers(ctx.workspaceId);
+    return members.some(m => m.sub === owner && m.status === "active") ? ok(null)
+      : fail(violation("owner_not_selectable", "owner must be an active workspace member", "ownerSub"));
+  } catch { return fail(violation("member_directory_unavailable", "member directory unavailable", "ownerSub", true)); }
 }
 
 async function validatePlanSolutions(
@@ -183,12 +194,14 @@ export async function createPlan(
   const plan = planNewPlan(input);
   if (!plan.ok) return plan as RuleResult<PlanRecord>;
 
+  const owner = await validatePlanOwner(ctx, plan.value.ownerSub);
+  if (!owner.ok) return owner;
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds);
   if (!selection.ok) return selection;
   const targets = await validateTargetMarkets(ctx, input.targetMarkets);
   if (!targets.ok) return targets;
   const persisted = await persistPlanSelection(() => ctx.store.createPlan(ctx.workspaceId, {
-    ...plan.value, solutionIds: selection.value, targetMarkets: targets.value,
+    ...plan.value, createdBySub: ctx.sub, solutionIds: selection.value, targetMarkets: targets.value,
   }));
   if (!persisted.ok) return persisted;
   const created = persisted.value;
@@ -210,41 +223,10 @@ export async function editPlan(
   return applyPlanEdit(ctx, id, () => ok(input));
 }
 
-export async function editPlanRelations(
-  ctx: StrategyContext,
-  id: string,
-  change: PlanRelationChange,
-): Promise<RuleResult<PlanRecord>> {
-  return applyPlanEdit(ctx, id, plan => {
-    if (!change || typeof change !== "object") return fail(marketUnavailable());
-    const current = plan.targetMarkets ?? [];
-    let patch: Pick<PlanEdit, "targetMarkets" | "solutionIds">;
-    if (change.kind === "markets") {
-      if (![change.add, change.remove].every(ids => Array.isArray(ids) && ids.every(id => typeof id === "string" && !!id)) ||
-          change.add.some(id => change.remove.includes(id))) return fail(marketUnavailable());
-      patch = { targetMarkets: [
-        ...current.filter(t => !change.remove.includes(t.segmentId)).map(({ solutionIds: _ids, ...t }) => t),
-        ...[...new Set(change.add)].filter(id => !current.some(t => t.segmentId === id)).map(segmentId => ({ segmentId, intent: "focus" as const, approach: null })),
-      ] };
-    } else if (change.kind === "market") {
-      if (!current.some(t => t.segmentId === change.segmentId)) return fail(marketUnavailable());
-      patch = { targetMarkets: current.map(({ solutionIds: _ids, ...t }) => t.segmentId === change.segmentId ? {
-        ...t, intent: change.intent, approach: change.approach,
-        ...(change.solutionIds === undefined ? {} : { solutionIds: change.solutionIds }),
-      } : t) };
-    } else if (change.kind === "solutions") {
-      if (!Array.isArray(change.solutionIds)) return fail(violation("solution_not_selectable", "invalid solution selection", "solutionIds"));
-      patch = { solutionIds: change.solutionIds };
-    } else return fail(marketUnavailable());
-    return ok({ name: plan.name, period: plan.period, objective: plan.objective, ownerSub: plan.ownerSub, ...patch });
-  }, true);
-}
-
 async function applyPlanEdit(
   ctx: StrategyContext,
   id: string,
   resolveInput: (plan: PlanRecord) => RuleResult<PlanEdit>,
-  relationsOnly = false,
 ): Promise<RuleResult<PlanRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.update", "data");
   if (!gate.allowed) return denied(gate);
@@ -252,15 +234,9 @@ async function applyPlanEdit(
   const plan = await ctx.store.getPlan(ctx.workspaceId, id);
   if (!plan) return fail(violation("not_found", `plan ${id} was not found`, "id"));
 
-  // A CLOSED OR ARCHIVED PLAN IS SETTLED. Its period is spent and everything
-  // downstream was measured against what it said at the time; rewriting the
-  // name or the period afterwards would silently restate history that other
-  // records already quote. The lifecycle is the way out of a finished plan,
-  // not the edit form.
-  if (plan.status === "closed" || plan.status === "archived") {
-    return fail(
-      violation("plan_settled", `plan ${plan.planNo} is ${plan.status}`, "status"),
-    );
+  // Published content is stable. Only a draft accepts content/relation writes.
+  if (plan.status !== "draft") {
+    return fail(violation("plan_settled", `plan ${plan.planNo} is ${plan.status}`, "status"));
   }
 
   const resolved = resolveInput(plan);
@@ -269,12 +245,14 @@ async function applyPlanEdit(
   const edit = planPlanEdit(input);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
+  const owner = await validatePlanOwner(ctx, edit.value.ownerSub, plan.ownerSub);
+  if (!owner.ok) return owner;
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds, plan.solutionIds);
   if (!selection.ok) return selection;
   const targets = await validateTargetMarkets(ctx, input.targetMarkets, plan.targetMarkets);
   if (!targets.ok) return targets;
   const { solutionIds: _solutions, targetMarkets: _targets, ...fields } = edit.value;
-  const patch = { ...(relationsOnly ? {} : fields),
+  const patch = { ...fields,
     ...(selection.value === undefined ? {} : { solutionIds: selection.value }),
     ...(targets.value === undefined ? {} : { targetMarkets: targets.value }),
   };
@@ -282,7 +260,7 @@ async function applyPlanEdit(
   if (!applied.ok) return applied;
   if (!applied.value) {
     const latest = await ctx.store.getPlan(ctx.workspaceId, id);
-    if (latest?.status === "closed" || latest?.status === "archived") {
+    if (latest && latest.status !== "draft") {
       return fail(violation("plan_settled", `plan ${latest.planNo} is ${latest.status}`, "status"));
     }
     return fail(violation("not_found", `plan ${id} was not found`, "id"));

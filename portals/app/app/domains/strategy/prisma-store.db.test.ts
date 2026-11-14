@@ -895,3 +895,25 @@ test("the 战略诊断 reads: snapshots newest first, workspace-scoped, amounts 
     await cleanup();
   }
 });
+
+test("creator persists without UPDATE permission, and publication blocks every content write path", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const created = await s.createPlan(WS, {...plan(),createdBySub:"usr_creator"});
+    assert.equal(created?.createdBySub,"usr_creator");
+    assert.equal((await s.getPlan(WS,created!.id))?.createdBySub,"usr_creator");
+    await withPg(async c => {
+      await c.query("SET ROLE yucer_svc");
+      await assert.rejects(c.query("UPDATE yucer_gtm.strategy_plan SET created_by_sub = 'spoofed' WHERE id=$1",[created!.id]),{code:"42501"});
+    });
+    assert.equal(await s.updatePlan(WS,created!.id,{status:"approved",approvedAt:new Date()}),true);
+    for(const patch of [{period:"2027"},{name:"Changed"},{ownerSub:"usr_other"},{objective:"Changed"},{solutionIds:[]},{targetMarkets:[]}]) {
+      assert.equal(await s.updatePlan(WS,created!.id,patch),false);
+    }
+    const after=await s.getPlan(WS,created!.id);
+    assert.equal(after?.name,created!.name);
+    assert.equal(after?.createdBySub,"usr_creator");
+    assert.equal(await s.updatePlan(WS,created!.id,{status:"active"}),true);
+  } finally {await cleanup();}
+});

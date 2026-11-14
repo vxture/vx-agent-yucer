@@ -6255,7 +6255,7 @@ export const STRATEGY_TEXT = {
   newPlanSave: "建立计划",
   newPlanSaved: "已建立",
   newPlanAnchor:
-    "编号在工作区内唯一且创建后不可修改——它是这个计划的身份。新计划一律是草稿，审批等状态变更由下面的表负责，审批时间戳只有那条路径会写。",
+    "\u7f16\u53f7\u5728\u5de5\u4f5c\u7a7a\u95f4\u5185\u552f\u4e00\u4e14\u521b\u5efa\u540e\u56fa\u5b9a\uff1b\u5148\u4fdd\u5b58\u8349\u7a3f\uff0c\u518d\u6279\u51c6\u542f\u7528\u3002",
   title: "市场战略",
   description: "战略是全链路的起点：下游的战役、线索、商机都能回指到它。",
   leadNoCampaignRead: "没有战役读取权限，无法统计下游归属。",
@@ -6953,6 +6953,8 @@ export const CAMPAIGN_FORM_ERROR: Record<string, string> = {
 };
 
 export const PLAN_ERROR: Record<string, string> = {
+  owner_not_selectable: "\u8bf7\u9009\u62e9\u5f53\u524d\u5de5\u4f5c\u7a7a\u95f4\u7684\u6709\u6548\u6210\u5458\u4f5c\u4e3a\u8d1f\u8d23\u4eba",
+  member_directory_unavailable: "\u6210\u5458\u76ee\u5f55\u6682\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5",
   market_not_selectable: "\u6240\u9009\u7ec6\u5206\u5e02\u573a\u4e0d\u53ef\u7528\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u65b0\u9009\u62e9\u3002",
   solution_not_selectable: "\u6240\u9009\u65b9\u6848\u5df2\u505c\u7528\u6216\u4e0d\u53ef\u7528\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u65b0\u9009\u62e9\u3002",
   solution_catalog_unavailable: "\u6682\u65f6\u65e0\u6cd5\u8bfb\u53d6\u65b9\u6848\u76ee\u5f55\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002",
@@ -6964,7 +6966,7 @@ export const PLAN_ERROR: Record<string, string> = {
   not_found: "计划不存在，或不属于当前工作区",
   unknown_status: "未知的计划状态",
   illegal_transition: "当前状态不能这样变更",
-  plan_settled: "已结束或已归档的计划不再修改——它的周期已经过去，下游数据是按当时的说法记的",
+  plan_settled: "\u4ec5\u8349\u7a3f\u53ef\u4fee\u6539\uff0c\u5df2\u6279\u51c6\u7684\u6218\u7565\u5185\u5bb9\u4e0e\u5173\u8054\u4fdd\u6301\u9501\u5b9a",
 };
 
 /**
@@ -8849,9 +8851,26 @@ export const ATTAINMENT_PLAN_TEXT = {
 } as const;
 
 export const MARKET_STRATEGY_TEXT = {
+  basicInfo: "\u6218\u7565\u57fa\u672c\u4fe1\u606f",
+  targetMarketsTitle: "\u76ee\u6807\u5e02\u573a",
+  featuredSolutions: "\u4e3b\u63a8\u65b9\u6848",
+  creator: "\u521b\u5efa\u4eba",
+  creatorAutomatic: "\u7531\u5f53\u524d\u767b\u5f55\u8d26\u53f7\u81ea\u52a8\u8bb0\u5f55",
+  creatorUnknown: "\u5386\u53f2\u8bb0\u5f55\u672a\u8bb0\u5f55",
+  chooseOwner: "\u9009\u62e9\u8d1f\u8d23\u4eba",
+  noOwnerOptions: "\u6682\u65e0\u53ef\u9009\u6210\u5458",
+  ownerSearch: "\u641c\u7d22\u6210\u5458\u59d3\u540d",
+  periodCustom: "\u81ea\u5b9a\u4e49\u5468\u671f",
+  periodSelect: "\u9009\u62e9\u5e74\u5ea6\u6216\u5b63\u5ea6",
+  periodCustomLabel: "\u81ea\u5b9a\u4e49\u5468\u671f\u540d\u79f0",
+  draftOnlyHint: "\u8349\u7a3f\u53ef\u7f16\u8f91\uff1b\u6279\u51c6\u540e\u57fa\u672c\u4fe1\u606f\u4e0e\u5173\u8054\u5185\u5bb9\u9501\u5b9a",
+  sharedScope: "\u9762\u5411\u5168\u90e8\u76ee\u6807\u5e02\u573a",
+  marketScope: "\u5173\u8054\u76ee\u6807\u5e02\u573a",
+  annual: "\u5e74\u5ea6",
+
   relationApply: "\u5e94\u7528\u5230\u8349\u7a3f",
-  linkMarkets: "\u5173\u8054\u7ec6\u5206\u5e02\u573a",
-  linkSolutions: "\u5173\u8054\u65b9\u6848",
+  linkMarkets: "\u5173\u8054\u76ee\u6807\u5e02\u573a",
+  linkSolutions: "\u5173\u8054\u89e3\u51b3\u65b9\u6848",
   marketSettings: "\u6295\u5165\u8bbe\u7f6e",
   relationSave: "\u4fdd\u5b58\u5173\u8054",
   relationCancel: "\u53d6\u6d88",

@@ -1,5 +1,6 @@
 "use server";
 
+import { getAuthzStore } from "../../authz/store";
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getStrategyStore } from "../../domains/shared/registry";
@@ -7,7 +8,6 @@ import { listAccounts } from "../../domains/account/service";
 import {
   createPlan,
   editPlan,
-  editPlanRelations,
   moveSegment,
   removeSegment,
   setSegmentStatus,
@@ -21,7 +21,6 @@ import {
   type SegmentStatus,
   type NewPlanDraft,
   type PlanEdit,
-  type PlanRelationChange,
   type SegmentCriteria,
 } from "../../domains/strategy/lib/lifecycle";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -31,10 +30,8 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 // The gate is chosen by the DESTINATION inside the service: approving checks
 // strategy.plan.approve, every other move checks strategy.plan.update.
 //
-// Worth knowing rather than assuming: both action ids resolve to the same
-// permission (strategy.write) in today's catalog, so the split is nominal - a
-// member who may edit a plan may also approve it. Making approval a real
-// separation of duties is a role-catalog change, not a change here.
+// Editing uses strategy.write; approval uses the separate strategy.approve
+// permission. Content edits are draft-only, independently of those gates.
 
 export interface TransitionResult {
   ok: boolean;
@@ -85,6 +82,7 @@ export async function createStrategyPlan(input: NewPlanDraft): Promise<Transitio
       entitlement: session.entitlement,
       store: getStrategyStore(),
       catalog: getCatalogStore(),
+      memberDirectory: getAuthzStore(),
     },
     input,
   );
@@ -121,6 +119,7 @@ export async function savePlan(
       entitlement: session.entitlement,
       store: getStrategyStore(),
       catalog: getCatalogStore(),
+      memberDirectory: getAuthzStore(),
     },
     id,
     input,
@@ -129,19 +128,6 @@ export async function savePlan(
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy", "layout");
-  revalidatePath("/segment");
-  return { ok: true };
-}
-
-export async function savePlanRelations(id: string, change: PlanRelationChange): Promise<TransitionResult> {
-  const session = await resolveAppSession();
-  if (!session) return { ok: false, error: "not_authenticated" };
-  const result = await editPlanRelations({
-    workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
-    entitlement: session.entitlement, store: getStrategyStore(), catalog: getCatalogStore(),
-  }, id, change);
-  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/strategy", "layout");
   revalidatePath("/segment");
   return { ok: true };

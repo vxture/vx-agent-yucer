@@ -56,6 +56,7 @@ themselves in their own header comment.
 | `0069_root_unit_code_headquarters.sql` | PR #244 renamed the templates' root unit `hq` -> `headquarters` by editing 0051 in place after production had applied it. This is the increment that edit should have been: a guarded rename in the template table and in seeded workspace trees; links are by id. |
 | `0105_account_plan_close_reason.sql` | A customer plan can be closed and reopened (owner, 2026-10-02): `account_plan.close_reason` (optional text, cleared on reopen) joins the writable whitelist, restated whole. |
 | `0104_author_may_delete_own_evidence.sql` | ADR-037 amends ADR-006: the service role gets DELETE on `interaction` and `commitment` (the rule layer decides which rows), and `commitment` gets `created_by_sub` so a promise has an author. Rows written before it keep NULL and stay undeletable. |
+| `0109_strategy_creator.sql` | Insert-only strategy creator identity; historical rows remain unknown. |
 
 Note that `0001` carries DATA, not structure. It ships here rather than in
 `00_baseline.sql` because `local_authz.role` / `local_authz.permission` are

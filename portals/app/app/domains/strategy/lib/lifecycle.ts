@@ -20,8 +20,8 @@ export type PlanStatus = (typeof PLAN_STATUSES)[number];
 const PLAN_TRANSITIONS: Record<PlanStatus, readonly PlanStatus[]> = {
   // A draft can be abandoned outright; it was never a commitment.
   draft: ["approved", "archived"],
-  // Approved but not yet running - can start, or be sent back for rework.
-  approved: ["active", "draft", "archived"],
+  // Approval locks the content; it cannot be sent back and overwritten.
+  approved: ["active", "archived"],
   // A running plan ends by being closed, not by being deleted.
   active: ["closed"],
   // Closed keeps its history and can be filed away.

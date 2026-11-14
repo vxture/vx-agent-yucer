@@ -117,6 +117,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // tenant may change. The kind vocabulary locks its code like every other.
   "yucer_gtm.org_unit_kind": ["name", "sort_order", "updated_at"],
   "yucer_gtm.org_unit": ["name", "kind_id", "parent_id", "leader_sub", "sort_order", "updated_at"],
+  // incr/0109 created_by_sub is insert-only; never add it to this whitelist.
   "yucer_gtm.strategy_plan": [
     "name",
     "period",
