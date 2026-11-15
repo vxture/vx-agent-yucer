@@ -259,11 +259,11 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       </div></CardContent></Card></CollapsibleContent>
     </Collapsible>
     <Section title={T.targetMarketsTitle} icon="target" help={T.targetMarketBasis}>
-      <StrategyMarketCards markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
+      <StrategyMarketCards detail markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
         ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
     </Section>
     <Section title={T.featuredSolutions} icon="squares-four">
-      <StrategySolutionCards solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
+      <StrategySolutionCards detail solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
         markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
     </Section>
     <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">

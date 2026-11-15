@@ -20,14 +20,41 @@ interface SelectedMarket {
   solutions?: readonly SolutionReference[] | null;
 }
 
+function StrategySelectionGrid({ children, count, kind, detail }: {
+  readonly children: ReactNode;
+  readonly count: number;
+  readonly kind: "market" | "solution";
+  readonly detail?: boolean;
+}) {
+  // Width controls the first expansion; the shell permits the third column
+  // only when the content has the entire workspace to itself.
+  const columns = detail
+    ? "@2xl:grid-cols-2 @5xl:in-data-workspace-full-width:grid-cols-3"
+    : "@xl:grid-cols-2 @3xl:grid-cols-3";
+  const slots = kind === "market" || detail;
+  const placeholder = { "data-strategy-market-placeholder": kind === "market" ? "" : undefined, "aria-hidden": true as const };
+  return <div className={`grid grid-cols-1 gap-lg ${columns}`}
+    data-strategy-target-market-grid={kind === "market" ? "" : undefined}
+    data-strategy-solution-grid={kind === "solution" ? "" : undefined}>
+    {children}
+    {slots && count % 2 === 1 ? <div {...placeholder} className={`hidden rounded-md border border-primary/5 ${detail
+      ? "@2xl:block @5xl:in-data-workspace-full-width:hidden"
+      : "@xl:block @3xl:hidden"}`}/> : null}
+    {slots ? Array.from({length:(3-count % 3) % 3},(_,i)=><div key={i} {...placeholder} className={`hidden rounded-md border border-primary/5 ${detail
+      ? "@5xl:in-data-workspace-full-width:block"
+      : "@3xl:block"}`}/>) : null}
+  </div>;
+}
+
 // Shared read/draft presentation; mutation controls are supplied only by the editor.
-export function StrategyMarketCards({ markets, actions }: {
+export function StrategyMarketCards({ markets, actions, detail }: {
   readonly markets: readonly SelectedMarket[] | null;
   readonly actions?: (market: SelectedMarket) => ReactNode;
+  readonly detail?: boolean;
 }) {
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT } = useMessages();
   if (markets === null || !markets.length) return <p className="text-body-small text-muted-foreground">{markets === null ? T.unknown : T.noPlanMarkets}</p>;
-  return <div className="grid grid-cols-1 gap-lg @xl:grid-cols-2 @3xl:grid-cols-3" data-strategy-target-market-grid>
+  return <StrategySelectionGrid kind="market" count={markets.length} detail={detail}>
     {markets.map(m => <Card key={m.segmentId} className="min-w-0 gap-lg py-lg" data-strategy-target-market>
       <CardHeader><div className="flex items-start gap-sm">
         <Icon name="globe" size="lg" className="shrink-0 text-primary-text" aria-hidden="true"/>
@@ -60,20 +87,19 @@ export function StrategyMarketCards({ markets, actions }: {
         {actions?.(m)}
       </div></CardFooter> : null}
     </Card>)}
-    {markets.length % 2 ? <div aria-hidden="true" className="hidden rounded-md border border-primary/5 @xl:block @3xl:hidden" data-strategy-market-placeholder/> : null}
-    {Array.from({length:(3-markets.length % 3) % 3},(_,i)=><div key={i} aria-hidden="true" className="hidden rounded-md border border-primary/5 @3xl:block" data-strategy-market-placeholder/>)}
-  </div>;
+  </StrategySelectionGrid>;
 }
 
-export function StrategySolutionCards({ solutions, markets, sharedIds }: {
+export function StrategySolutionCards({ solutions, markets, sharedIds, detail }: {
   readonly solutions: readonly SolutionReference[] | null;
   readonly markets: readonly { marketName: string; solutionIds?: readonly string[] }[];
   readonly sharedIds: readonly string[] | undefined;
+  readonly detail?: boolean;
 }) {
   const { MARKET_STRATEGY_TEXT: T } = useMessages();
   if (solutions === null) return <p className="text-body-small text-muted-foreground">{T.solutionOptionsUnavailable}</p>;
   if (!solutions.length) return <p className="text-body-small text-muted-foreground">{T.noPlanSolutions}</p>;
-  return <div className="grid grid-cols-1 gap-lg @xl:grid-cols-2 @3xl:grid-cols-3" data-strategy-solution-grid>
+  return <StrategySelectionGrid kind="solution" count={solutions.length} detail={detail}>
     {solutions.map(s => <Card key={s.id} className="min-w-0 gap-md py-lg"><CardHeader>
       <div className="flex items-start gap-sm"><Icon name="package" size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
         <div className="flex min-w-0 flex-col gap-xs"><CardTitle><Link href={`/solution?solution=${encodeURIComponent(s.id)}`} className="break-words transition-colors hover:text-primary">{s.name}</Link></CardTitle>
@@ -84,5 +110,5 @@ export function StrategySolutionCards({ solutions, markets, sharedIds }: {
           <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt><dd className="break-words">{markets.filter(m => m.solutionIds?.includes(s.id)).map(m => m.marketName).join(" / ")}</dd>
         </dl> : null}
       </div></div></CardContent></Card>)}
-  </div>;
+  </StrategySelectionGrid>;
 }
