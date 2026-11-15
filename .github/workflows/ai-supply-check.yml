@@ -1,0 +1,66 @@
+name: ai-supply-check
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Exact main commit to inspect with the fixed read-only script"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: production
+    steps:
+      - name: Require pinned main
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+          ACTUAL_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_REF" = refs/heads/main
+          test "$EXPECTED_SHA" = "$ACTUAL_SHA"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify diagnostic locally
+        run: python3 -m unittest discover -s scripts/qa -p 'test_ai_supply_check.py'
+
+      - name: Join tailnet and prepare SSH
+        uses: ./.github/actions/tailnet-ssh-connect
+        with:
+          tailscale-oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          tailscale-oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
+          tailscale-tag: ${{ vars.TAILSCALE_OAUTH_CLIENT_TAG }}
+          deploy-host: ${{ secrets.DEPLOY_HOST }}
+          deploy-port: ${{ secrets.DEPLOY_PORT }}
+          deploy-ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          deploy-ssh-passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          deploy-known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+
+      - name: Inspect existing AI supply on worker02
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 -o ServerAliveInterval=30 \
+            "$DEPLOY_USER@$DEPLOY_HOST" python3 - < scripts/qa/ai-supply-check.py
