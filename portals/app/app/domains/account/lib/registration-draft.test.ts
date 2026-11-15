@@ -69,7 +69,7 @@ test("public research can fill an empty profile field with a cited read result, 
     { field: "targetAmount", value: "1000000", evidence: "\u6536\u5165\u89c4\u6a21", sourceId: "read-1" },
   ] });
   const r = readRegistrationDraft(answerText, input, vocab, { evidence: [{ id: "read-1", content: '{"name":"Acme","website":"https://acme.example"}' }] });
-  assert.deepEqual(r?.patch, { name: "Acme", website: "https://acme.example" });
+  assert.deepEqual(r?.patch, { name: "Acme", website: "https://acme.example/" });
   assert.deepEqual(r?.sources, [
     { field: "name", excerpt: "Acme", url: "https://acme.example/" },
     { field: "website", excerpt: "https://acme.example", url: "https://acme.example/" },
@@ -107,4 +107,51 @@ test("duplicate hints normalize spacing and punctuation and do not treat one-let
   assert.deepEqual(similarRegistrations("acme ltd", rows), [rows[0]]);
   assert.deepEqual(similarRegistrations("a", rows), []);
   assert.deepEqual(similarRegistrations("", rows), []);
+});
+
+test("public profile fills identity inputs from decoded MCP text, display punctuation and bare domains", () => {
+  const profile = "\u56db\u5ddd\u7701\u56fd\u571f\u79d1\u5b66\u6280\u672f\u7814\u7a76\u9662\uff08\u56db\u5ddd\u7701\u536b\u661f\u5e94\u7528\u6280\u672f\u4e2d\u5fc3\uff09\n\u7edf\u4e00\u4fe1\u7528\u4ee3\u7801\uff1a125100004507196291\n\u5b98\u7f51\uff1awww.sclandcloud.org.cn\n\u5730\u5740\uff1a\u56db\u5ddd\u7701\u6210\u90fd\u5e02\n\u4e8b\u4e1a\u5355\u4f4d\uff0c\u5458\u5de5 140 \u4eba";
+  const choices = { ...vocab, customerNatures: [{ id: "institution", name: "\u4e8b\u4e1a\u5355\u4f4d" }] };
+  const rows = [
+    { field: "name", value: "\u56db\u5ddd\u7701\u56fd\u571f\u79d1\u5b66\u6280\u672f\u7814\u7a76\u9662(\u56db\u5ddd\u7701\u536b\u661f\u5e94\u7528\u6280\u672f\u4e2d\u5fc3)", evidence: profile.split("\n")[0], sourceId: "read-1" },
+    { field: "creditCode", value: "125100004507196291", evidence: "\u7edf\u4e00\u4fe1\u7528\u4ee3\u7801\uff1a125100004507196291", sourceId: "read-1" },
+    { field: "website", value: "www.sclandcloud.org.cn", evidence: "\u5b98\u7f51\uff1awww.sclandcloud.org.cn", sourceId: "read-1" },
+    { field: "province", value: "\u56db\u5ddd", evidence: "\u5730\u5740\uff1a\u56db\u5ddd\u7701\u6210\u90fd\u5e02", sourceId: "read-1" },
+    { field: "customerNatureId", value: "\u4e8b\u4e1a\u5355\u4f4d", evidence: "\u4e8b\u4e1a\u5355\u4f4d", sourceId: "read-1" },
+    { field: "employeeCount", value: 140, evidence: "\u5458\u5de5 140 \u4eba", sourceId: "read-1" },
+  ];
+  const result = readRegistrationDraft(answer(rows), "look it up", choices, { evidence: [{ id: "read-1", content: JSON.stringify({ structured: { status: "ok" }, text: profile }) }] });
+  assert.equal(result?.patch.name, rows[0]!.value);
+  assert.equal(result?.patch.creditCode, "125100004507196291");
+  assert.equal(result?.patch.website, "https://www.sclandcloud.org.cn/");
+  assert.equal(result?.patch.province, "\u56db\u5ddd\u7701");
+  assert.equal(result?.patch.customerNatureId, "institution");
+  assert.equal(result?.patch.employeeCount, "140");
+  assert.deepEqual(result?.rejected, []);
+});
+
+test("research alternatives preserve the user's count and expose a sourced value for explicit adoption", () => {
+  const result = readRegistrationDraft(answer([
+    { field: "employeeCount", value: "140", evidence: "140 employees", sourceId: "read-1", sourceUrl: "https://official.example/jobs" },
+    { field: "employeeCount", value: "100", evidence: "100 people" },
+  ]), "Acme, 100 people", vocab, { evidence: [{ id: "read-1", content: "140 employees https://official.example/jobs" }] });
+  assert.deepEqual(result?.patch, { employeeCount: "100" });
+  assert.deepEqual(result?.suggestions, [{ field: "employeeCount", value: "140", currentValue: "100", excerpt: "140 employees", url: "https://official.example/jobs" }]);
+});
+
+test("missing sourceId is recovered only from actual matching evidence; wrong IDs and forged facts get feedback", () => {
+  const result = readRegistrationDraft(answer([
+    { field: "creditCode", value: "1234", evidence: "Code 1234" },
+    { field: "province", value: "\u56db\u5ddd\u7701", evidence: "\u56db\u5ddd\u7701", sourceId: "invented" },
+    { field: "website", value: "https://unrelated.example", evidence: "https://official.example", sourceId: "read-1" },
+    { field: "industryId", value: "invented", evidence: "Code 1234", sourceId: "read-1" },
+  ]), "research", vocab, { evidence: [{ id: "read-1", content: "Code 1234 https://official.example \u56db\u5ddd\u7701" }] });
+  assert.deepEqual(result?.patch, { creditCode: "1234" });
+  assert.equal(result?.sources.length, 1);
+  assert.deepEqual(result?.rejected.map(row => row.field), ["province", "website", "industryId"]);
+  for (const website of ["https://official.example", "https://official.example/guessed", "javascript:alert(1)", "https://user:pass@official.example"]) {
+    const r = readRegistrationDraft(answer([{ field: "website", value: website, evidence: "https://official.example.evil/path", sourceId: "read-1" }]), "research", vocab,
+      { evidence: [{ id: "read-1", content: "https://official.example.evil/path" }] });
+    assert.deepEqual(r?.patch, {});
+  }
 });

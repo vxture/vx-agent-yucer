@@ -58,6 +58,8 @@ export interface TurnInput {
   draftOnly?: boolean;
   /** Allow Runos read operations while retaining the draft's no-write boundary. */
   readOnlyTools?: boolean;
+  /** Form-owned validation; one correction stays in this metered Atlas turn. */
+  reviewAnswer?: (answer: string, evidence: readonly ReadEvidence[]) => { answer: string; feedback?: string };
 }
 
 export interface ToolInvocation {
@@ -156,16 +158,23 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   let totalTokens = 0;
   const modelCodes = new Set<string>();
   const readEvidence: ReadEvidence[] = [];
+  let correctingAnswer = false;
+  let reviewedFallback: string | undefined;
 
   for (;;) {
     let res;
     try {
       res = await deps.atlasClient.chat(
         profile,
-        noTools ? { messages } : { messages, tools: surface.definitions, toolChoice: "auto" },
+        noTools || correctingAnswer ? { messages } : { messages, tools: surface.definitions, toolChoice: "auto" },
         input.atlas,
       );
     } catch (e) {
+      if (correctingAnswer && reviewedFallback !== undefined) {
+        console.warn("[copilot-tools] draft correction failed", { errorCode: e instanceof AtlasError ? e.code : "correction_failed" });
+        answer = reviewedFallback;
+        break;
+      }
       // The window was unknown, or the estimate low. Before any tool round,
       // cut the turn to half its size once and ask again; the member gets an
       // answer on less evidence (declared in the prompt) instead of an error.
@@ -185,7 +194,17 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     if (reply.content) answer = reply.content;
 
     const calls = reply.toolCalls ?? [];
-    if (calls.length === 0 || noTools) break;
+    if (calls.length === 0 || noTools || correctingAnswer) {
+      const review = input.reviewAnswer?.(answer, readEvidence);
+      if (review?.feedback && !correctingAnswer) {
+        correctingAnswer = true;
+        reviewedFallback = review.answer;
+        messages.push(reply, { role: "user", content: review.feedback });
+        continue;
+      }
+      if (review) answer = review.answer;
+      break;
+    }
 
     // The reply goes back AS RECEIVED - its reasoning envelope included. A
     // reasoning model with tools requires the whole envelope on the next
@@ -206,6 +225,14 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       totalTokens += final.usage.totalTokens;
       if (final.modelCode) modelCodes.add(final.modelCode);
       if (final.message.content) answer = final.message.content;
+      const review = input.reviewAnswer?.(answer, readEvidence);
+      if (review?.feedback && !correctingAnswer) {
+        correctingAnswer = true;
+        reviewedFallback = review.answer;
+        messages.push(final.message, { role: "user", content: review.feedback });
+        continue;
+      }
+      if (review) answer = review.answer;
       break;
     }
 

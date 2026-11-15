@@ -745,3 +745,41 @@ test("an empty acknowledgement is not offered as verified company evidence", asy
   assert.match(response.note, /Try a relevant alternative/);
   assert.equal(result.invocations[0]?.callId, "empty-read");
 });
+
+test("form feedback corrects once with no tools and includes both calls in usage", async () => {
+  const h = harness({ replies: [{ content: "bad draft" }, { content: "still incomplete" }] });
+  let reviews = 0;
+  const result = await runTurn({ ...BASE, question: "register", draftOnly: true, readOnlyTools: true,
+    reviewAnswer: (_answer, evidence) => { reviews++; assert.deepEqual(evidence, []); return { answer: "validated partial draft", feedback: "Fix the missing form fields" }; },
+  }, h);
+  assert.equal(h.calls.length, 2); assert.equal(reviews, 2);
+  assert.equal(h.calls[1]!.tools, undefined);
+  assert.match(h.calls[1]!.messages.at(-1)!.content, /Fix the missing form fields/);
+  assert.equal(result.answer, "validated partial draft");
+  assert.equal(result.totalTokens, 4);
+  assert.deepEqual(result.proposals, []);
+});
+
+test("an optional correction failure preserves the validated partial form", async () => {
+  const h = harness({ replies: [{ content: "some draft" }] });
+  let calls = 0;
+  const initial = h.atlasClient.chat.bind(h.atlasClient);
+  h.atlasClient.chat = async (...args) => { if (++calls === 2) throw new Error("offline"); return initial(...args); };
+  const result = await runTurn({ ...BASE, question: "register", draftOnly: true,
+    reviewAnswer: () => ({ answer: "safe partial form", feedback: "Correct the rest" }),
+  }, h);
+  assert.equal(result.answer, "safe partial form");
+  assert.equal(calls, 2); assert.equal(result.totalTokens, 2);
+});
+
+test("a form review also runs after the research tool budget is exhausted", async () => {
+  const h = harness({ capabilities: [cap()], replies: [{ toolCalls: [{ id: "t", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] }] });
+  const result = await runTurn({ ...BASE, question: "register", maxToolRounds: 0,
+    reviewAnswer: () => ({ answer: "safe draft", feedback: "Correct fields once" }),
+  }, h);
+  assert.equal(result.answer, "safe draft");
+  assert.equal(result.truncated, true);
+  assert.equal(h.calls.length, 3);
+  assert.equal(h.calls.at(-1)!.tools, undefined);
+  assert.equal(h.invoked.length, 0);
+});

@@ -3841,6 +3841,7 @@ export const en: Dictionary = {
     "assistDenied": "AI filling is unavailable for this account. You can complete the form below.",
     "assistInvalid": "Enter customer details (up to 4,000 characters).",
     "assistInvalidDraft": "We could not extract reliable details. Your form is preserved. Add more information or try again.",
+    "applyResearch": "Apply details",
     "assistUpdated": "Updated fields",
     "assistNoChanges": "No form details changed this time.",
     "assistSimilar": "Similar customers found",

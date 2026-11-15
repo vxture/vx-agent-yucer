@@ -12,7 +12,7 @@ import { AccountOperatingFields } from "./account-operating-fields";
 import { operatingValues, operatingPlan, operatingError } from "../lib/account-plan-form";
 import { defaultPeriod } from "../lib/periods";
 import type { AccountPlanDraft, AccountTier } from "../../domains/account/store";
-import { REGISTRATION_FIELDS, type RegistrationDraftValues } from "../../domains/account/lib/registration-draft";
+import { REGISTRATION_FIELDS, type RegistrationDraftValues, type RegistrationSuggestion } from "../../domains/account/lib/registration-draft";
 import { FORM_ENTRY_CLASS } from "./form-page";
 import { DialogForm } from "./dialog-form";
 import { ViewHeader } from "./business-controls";
@@ -48,6 +48,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   const [recovery, setRecovery] = useState<{ sessionId: string; messageId: string; text: string }>();
   const [messages, setMessages] = useState<readonly RegistrationMessage[]>([]);
   const [changed, setChanged] = useState<readonly string[]>([]);
+  const [suggestions, setSuggestions] = useState<readonly RegistrationSuggestion[]>([]);
   const [similar, setSimilar] = useState<readonly { id: string; name: string; accountNo: string }[]>([]);
   const [error, setError] = useState<string>();
   const [confirm, setConfirm] = useState(false);
@@ -76,6 +77,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
           return;
         }
         const { patch } = result;
+        setSuggestions(result.suggestions);
         setRelationResult(result.hierarchy);
         setHierarchy(previous=>({
           parentId:previous.parentId||result.hierarchy.parent?.id||"",
@@ -141,7 +143,26 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   const display = { ...values, industryId: named("industries", values.industryId), segmentCode: named("segments", values.segmentCode),
     customerTypeId: named("customerTypes", values.customerTypeId), customerSizeId: named("customerSizes", values.customerSizeId), customerNatureId: named("customerNatures", values.customerNatureId) };
   const tierLabel = tier === "strategic" ? POSITION_TEXT.tierStrategic : tier === "key" ? POSITION_TEXT.tierKey : POSITION_TEXT.tierStandard;
+  const suggestionValue = (suggestion: RegistrationSuggestion, value: string) => {
+    const choices = { industryId: "industries", segmentCode: "segments", customerTypeId: "customerTypes", customerSizeId: "customerSizes", customerNatureId: "customerNatures" } as const;
+    return suggestion.field in choices ? named(choices[suggestion.field as keyof typeof choices], value) : value;
+  };
+  const applySuggestion = (suggestion: RegistrationSuggestion) => {
+    if (busy || !REGISTRATION_FIELDS.some(key => key === suggestion.field)) return;
+    setValues(previous => ({ ...previous, [suggestion.field]: suggestion.value }));
+    setChanged([labels[suggestion.field]]);
+    setSuggestions(previous => previous.filter(item => item.field !== suggestion.field));
+    setMessages(previous => [...previous, { role: "assistant", text: `${T.assistUpdated} ${labels[suggestion.field]}: ${suggestionValue(suggestion, suggestion.value)}`, sources: [suggestion] }]);
+  };
   const relations = <>
+      {suggestions.length ? <div className="flex flex-col gap-sm" data-registration-suggestions>
+        {suggestions.map(suggestion => <div key={`${suggestion.field}-${suggestion.value}`} className="flex flex-wrap items-center gap-sm text-body-small">
+          <span className="text-muted-foreground">{labels[suggestion.field]}</span>
+          <span>{suggestionValue(suggestion, suggestion.currentValue)} <span className="text-muted-foreground">{"\u2192"}</span> {suggestionValue(suggestion, suggestion.value)}</span>
+          {suggestion.url ? <a href={suggestion.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary" title={suggestion.excerpt}>{T.researchSource(1)}</a> : null}
+          <Button type="button" size="md" variant="secondary" disabled={busy} onClick={() => applySuggestion(suggestion)}>{T.applyResearch}</Button>
+        </div>)}
+      </div> : null}
       {relationResult?.existing ? <div className="flex flex-col gap-xs text-body-small" data-registration-existing>
         <span className="text-muted-foreground">{T.existingCustomer}</span>
         <Link target="_blank" rel="noopener noreferrer" className="text-body text-primary-text transition-colors hover:text-primary" href={`/account/${relationResult.existing.account.id}`}>{relationResult.existing.account.name} {relationResult.existing.account.accountNo}</Link>

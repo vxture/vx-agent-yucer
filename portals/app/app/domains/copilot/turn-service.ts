@@ -95,6 +95,9 @@ export interface TurnInput {
   /** Read-only research for form drafts; writes and proposals remain disabled. */
   readOnlyTools?: boolean;
   capabilityQuery?: string;
+  reviewAnswer?: Parameters<typeof runTurn>[0]["reviewAnswer"];
+  /** Hide form-owned persistence metadata from the conversational transcript. */
+  assistantHistory?: (content: string) => string;
 }
 
 /** The profile a turn runs on - see TurnInput.profile. */
@@ -287,7 +290,7 @@ async function runUnlockedTurn(
     turn = await runTurn(
       {
         question: input.framing ? `${input.framing}\n\n${question}` : question,
-        history: history.slice(0, -1).map((m) => ({ role: m.role, content: m.content })),
+        history: history.slice(0, -1).map((m) => ({ role: m.role, content: m.role === "assistant" && input.assistantHistory ? input.assistantHistory(m.content) : m.content })),
         prompt,
         atlas,
         runos,
@@ -295,6 +298,7 @@ async function runUnlockedTurn(
         draftOnly: input.draftOnly,
         readOnlyTools: input.readOnlyTools,
         capabilityQuery: input.capabilityQuery ?? [input.subject?.summary, question].filter(Boolean).join(" "),
+        reviewAnswer: input.reviewAnswer,
         // The member's own words choose which notes show (rerank) - not the
         // role-play frame a rehearsal puts in front of them.
         evidenceQuery: question,
