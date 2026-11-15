@@ -495,7 +495,8 @@ export function AppShell({
           </div>
         </div>
       ) : (
-        <div id={SHELL_BODY_ID} className={`flex h-full min-h-0 ${workspaceInsets.body}`}>
+        <div id={SHELL_BODY_ID} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
+          data-workspace-full-width={!deckVisible && !isDossierPage ? "" : undefined}>
           {isDossierPage ? children : <div className={CENTRE_PANE_CLASS}>{children}</div>}
         </div>
       )}

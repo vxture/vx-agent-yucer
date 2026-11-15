@@ -112,6 +112,10 @@ export const COLUMN_RULE =
 export const CROSSCUTTING_RULE =
   "border-l border-dashed border-primary/10 dark:border-primary/20 pl-md";
 
+function moduleName(label: string) {
+  return <span className="truncate text-(length:--label-font-size) leading-(--label-line-height)" title={label}>{label}</span>;
+}
+
 export function DomainLauncher({
   nav,
   activeKey,
@@ -142,9 +146,7 @@ export function DomainLauncher({
       .join(" \u00b7 ");
     return (
       <span className="inline-flex min-w-0 max-w-full items-center gap-xs align-middle">
-        <span className="truncate" title={label}>
-          {label}
-        </span>
+        {moduleName(label)}
         {primary?.value ? (
           <span
             className="shrink-0 text-body-small font-normal text-muted-foreground tabular-nums"
@@ -178,7 +180,7 @@ export function DomainLauncher({
         className="h-control-2xl"
         key={`planned-${m.key}`}
         icon={m.icon}
-        label={PLANNED_MODULE_LABEL[m.key] ?? m.key}
+        label={moduleName(PLANNED_MODULE_LABEL[m.key] ?? m.key)}
         value={LAUNCHER_TEXT.planned}
         disabled
       />
@@ -188,7 +190,7 @@ export function DomainLauncher({
         className="h-control-2xl"
         key={`section-${m.key}`}
         icon={m.icon}
-        label={PLANNED_MODULE_LABEL[m.key] ?? m.key}
+        label={moduleName(PLANNED_MODULE_LABEL[m.key] ?? m.key)}
         value={LAUNCHER_TEXT.section}
         href={m.href}
         linkComponent={Link}
