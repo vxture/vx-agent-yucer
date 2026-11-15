@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
-import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaAccountStore } from "./prisma-store";
 import { AccountHierarchyError } from "./lib/parent";
@@ -9,6 +8,8 @@ const skip=process.env.DATABASE_URL?false:"no DATABASE_URL - see ci.yml db-contr
 const WS="7accade0-0000-0000-0000-000000000011";
 const basics={name:"Hierarchy create",region:null,province:null,industryId:null,segmentCode:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null,ownerSub:"owner"};
 async function database(run:(pg:Client,store:PrismaAccountStore)=>Promise<void>){
+ // Offline CI intentionally skips DB tests without generating a Prisma client.
+ const { PrismaClient } = await import("@prisma/client");
  const pg=new Client({connectionString:process.env.DATABASE_URL});await pg.connect();
  // Execute the actual adapter with production column grants, never admin grants.
  const url=new URL(process.env.DATABASE_URL!);url.searchParams.set("options","-c role=yucer_svc");
