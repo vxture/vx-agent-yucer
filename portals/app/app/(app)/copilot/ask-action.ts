@@ -119,6 +119,7 @@ export async function askCopilot(
       sessionId: sessionId ?? undefined,
       retryMessageId: anchor?.retryMessageId,
       tenantId,
+      subjectToken: (await session.accessToken()) ?? undefined,
       subject,
       evidence,
       framing,

@@ -1,4 +1,5 @@
 import { AtlasClient } from "../../../agent/atlas/client";
+import { RunosClient } from "../../../agent/runos/client";
 import { envelope, errorResponse } from "../../../platform/envelope";
 import { getCopilotStore } from "../../../domains/shared/registry";
 import { streamCopilotTurn, shouldStream } from "../../../domains/copilot/streaming-turn";
@@ -65,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
       // (platform/s2s.ts) exactly the way a user-less background job does.
       subjectToken: (await session.accessToken()) ?? undefined,
     },
-    { atlasClient: new AtlasClient() },
+    { atlasClient: new AtlasClient(), runosClient: new RunosClient() },
   );
 
   const encoder = new TextEncoder();

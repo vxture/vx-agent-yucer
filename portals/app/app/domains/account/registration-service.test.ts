@@ -55,6 +55,59 @@ test("registration uses the shared Atlas profile, identity and metering context 
   }
 });
 
+test("a model identity question reports the actual Atlas model rather than an invented model identity", async () => {
+  const h = harness();
+  h.reply(JSON.stringify({ message: "I cannot answer identity questions.", fields: [] }));
+  const result = await prepareAccountRegistration(h.ctx, { text: "\u4f60\u662f\u54ea\u4e2a\u6a21\u578b", values }, h.deps);
+  assert.equal(result.ok, true);
+  assert.match(result.ok ? result.message : "", /Atlas.*fake/);
+  assert.deepEqual(result.ok && result.patch, {});
+  assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length, 0);
+});
+
+test("company research flows through Atlas and Runos into a cited draft while preserving sales decisions", async () => {
+  const h = harness();
+  let calls = 0;
+  const runosContexts: { taskId: string; workspaceId: string }[] = [];
+  const text = "Acme \u6218\u7565\u7ea7\uff0c\u76ee\u6807 100\u4e07\uff0c\u5176\u4ed6\u4fe1\u606f\u5e2e\u6211\u67e5\u8be2\u8865\u9f50";
+  const website = "https://acme.example/about";
+  const final = JSON.stringify({ message: "Found the official profile. Please review.", fields: [
+    { field: "name", value: "Acme", evidence: "Acme" },
+    { field: "tier", value: "strategic", evidence: "\u6218\u7565\u7ea7" },
+    { field: "targetAmount", value: "1000000", evidence: "100\u4e07" },
+    { field: "website", value: website, evidence: website, sourceId: "read-1-1", sourceUrl: website },
+    { field: "province", value: "\u6d59\u6c5f\u7701", evidence: "\u6d59\u6c5f\u7701", sourceId: "read-1-1", sourceUrl: website },
+    { field: "period", value: "2027Q1", evidence: "2027Q1", sourceId: "read-1-1" },
+  ] });
+  const result = await prepareAccountRegistration(h.ctx, { text, values: { ...values, period: "2026Q4" } }, { ...h.deps,
+    atlasClient: { chat: async (_profile: string, request: { tools?: { name: string; parameters: unknown }[] }, context: AtlasContext) => {
+      h.modelContexts.push(context);
+      if (++calls === 1) assert.deepEqual(request.tools?.[0]?.parameters, { type: "object", properties: { query: { type: "string" } }, required: ["query"] });
+      return { id: "research", modelCode: "served-model", message: calls === 1
+        ? { role: "assistant", content: "", toolCalls: [{ id: "lookup", name: "company__lookup", arguments: { query: "Acme" } }] }
+        : { role: "assistant", content: final }, usage: { promptTokens: 2, completionTokens: 2, totalTokens: 4 } };
+    } } as unknown as AtlasClient,
+    runosClient: {
+      discover: async (_args: unknown, context: { taskId: string; workspaceId: string }) => { runosContexts.push(context); return [{ capability_id: "company", primitive_type: "connector", operations: [{ operation: "lookup", risk_level: "read", interaction_mode: "sync", description: "Company public profile" }] }]; },
+      resolve: async () => ({ capability_id: "company", primitive_type: "connector", state: "stable", version: "1.0.0", contract: { operations: [{ operation: "lookup", riskLevel: "read", interactionMode: "sync", description: "Company public profile", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } }] } }),
+      invoke: async (_args: unknown, context: { taskId: string; workspaceId: string }) => { runosContexts.push(context); return { structured: { website, province: "\u6d59\u6c5f\u7701", period: "2027Q1" }, content: [], meta: { call_id: "lookup", version_resolved: "1.0.0" } }; },
+    } as unknown as RunosClient,
+  });
+  assert.equal(result.ok, true); if (!result.ok) return;
+  assert.equal(result.patch.name, "Acme");
+  assert.equal(result.patch.targetAmount, "1000000");
+  assert.equal(result.patch.tier, "strategic");
+  assert.equal(result.patch.website, website);
+  assert.equal(result.patch.province, "\u6d59\u6c5f\u7701");
+  assert.equal(result.patch.period, undefined);
+  assert.equal(result.sources.length, 2);
+  assert.equal(result.sources[0]?.url, website);
+  assert.equal(calls, 2);
+  assert.ok(runosContexts.every(context => context.taskId === h.modelContexts[0]?.taskId && context.workspaceId === h.ctx.workspaceId));
+  assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length, 0);
+  assert.equal((await h.copilot.listProposals(h.ctx.workspaceId)).length, 0);
+});
+
 test("assistant extracts then follows up in an owned thread, meters each question, and never creates a customer", async () => {
   const h = harness();
   const first = await prepareAccountRegistration(h.ctx, { text: "Acme", values }, h.deps);

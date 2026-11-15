@@ -1,17 +1,18 @@
 import { matchRegistrationRelations, readRegistrationRelations, type RegistrationHierarchyResult } from "./lib/registration-hierarchy";
 import type { AtlasClient } from "../../agent/atlas/client";
+import { modelIdentityReply } from "../../agent/atlas/identity";
 import type { RunosClient } from "../../agent/runos/client";
 import { can } from "../../authz/decide";
 import type { TurnMeter } from "../../usage/lib/copilot-turns";
 import { listAccounts, listCustomerNatures, listCustomerSizes, listCustomerTypes, listIndustries, listMarketDivisions, type AccountContext } from "./service";
-import { readRegistrationDraft, registrationFrame, similarRegistrations, REGISTRATION_DRAFT_FIELDS, type RegistrationDraftValues } from "./lib/registration-draft";
+import { readRegistrationDraft, registrationFrame, similarRegistrations, REGISTRATION_DRAFT_FIELDS, type RegistrationDraftValues, type RegistrationSource } from "./lib/registration-draft";
 import { listSegments } from "../strategy/service";
 import type { StrategyStore } from "../strategy/store";
 import type { CopilotStore } from "../copilot/store";
 import { runCopilotTurn } from "../copilot/turn-service";
 
 export type RegistrationAssistResult =
-  | { ok: true; sessionId: string; patch: Partial<RegistrationDraftValues>; message: string; similar: { id: string; name: string; accountNo: string }[]; hierarchy: RegistrationHierarchyResult }
+  | { ok: true; sessionId: string; patch: Partial<RegistrationDraftValues>; message: string; sources: RegistrationSource[]; similar: { id: string; name: string; accountNo: string }[]; hierarchy: RegistrationHierarchyResult }
   | { ok: false; error: string; sessionId?: string; recovery?: { sessionId: string; messageId: string } };
 
 export interface RegistrationAssistInput { text: string; sessionId?: string; retryMessageId?: string; values: RegistrationDraftValues; hierarchy?: {parentId?:string|null;childIds?:readonly string[]} }
@@ -27,7 +28,7 @@ export interface RegistrationAssistDeps {
   meter?: TurnMeter;
 }
 
-/** A metered, read-only extraction turn. Customer writes remain in createAccount. */
+/** A metered draft/research turn. Customer writes remain in createAccount. */
 export async function prepareAccountRegistration(ctx: AccountContext, input: RegistrationAssistInput, deps: RegistrationAssistDeps): Promise<RegistrationAssistResult> {
   if (!can(ctx.holder, ctx.entitlement, "account.upsert", "data").allowed || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) return { ok: false, error: "denied" };
   if (typeof input?.text !== "string" || !input.text.trim() || input.text.length > 4000) return { ok: false, error: "invalid_input" };
@@ -35,9 +36,11 @@ export async function prepareAccountRegistration(ctx: AccountContext, input: Reg
   const tenantId = deps.tenantId;
   if (!tenantId) return { ok: false, error: "no_active_tenant" };
   const store = deps.copilotStore;
+  let previousUserTexts: string[] = [];
   if (input.sessionId) {
     const thread = await store.getSession(ctx.workspaceId, input.sessionId);
     if (!thread || thread.actorSub !== ctx.sub || !thread.title?.startsWith("[account-registration]")) return { ok: false, error: "not_found" };
+    previousUserTexts = (await store.listMessages(ctx.workspaceId, input.sessionId)).filter(message => message.role === "user").map(message => message.content);
   }
   const current = Object.fromEntries(REGISTRATION_DRAFT_FIELDS.map(k => [k, typeof input.values?.[k] === "string" ? input.values[k].slice(0, 500) : ""])) as RegistrationDraftValues;
   const base = { workspaceId: ctx.workspaceId, sub: ctx.sub, holder: ctx.holder, entitlement: ctx.entitlement };
@@ -51,11 +54,13 @@ export async function prepareAccountRegistration(ctx: AccountContext, input: Reg
   try {
     const turn = await runCopilotTurn({ ...base, store }, {
       question: input.text.trim(), sessionId: input.sessionId, retryMessageId: input.retryMessageId, tenantId, subjectToken: deps.subjectToken,
-      framing: registrationFrame(vocab, current, deps.locale), profile: "drafting", draftOnly: true, autopilotActive: false,
+      framing: registrationFrame(vocab, current, deps.locale), profile: "drafting", draftOnly: true, readOnlyTools: true, autopilotActive: false,
+      capabilityQuery: `Public company information research, official website, legal identity, industry and location: ${current.name} ${input.text.trim()}`.slice(0, 2000),
     }, { atlasClient: deps.atlasClient, runosClient: deps.runosClient, meter: deps.meter });
     if (!turn.ok) return { ok: false, error: turn.violations[0]?.code ?? "denied", recovery: turn.recovery };
-    const draft = readRegistrationDraft(turn.value.answer, input.text.trim(), vocab);
+    const draft = readRegistrationDraft(turn.value.answer, input.text.trim(), vocab, { current, previousUserTexts, evidence: turn.value.readEvidence });
     if (!draft) return { ok: false, error: "invalid_draft", sessionId: turn.value.session.id };
+    draft.message = modelIdentityReply(input.text, turn.value.modelCodes, deps.locale) ?? draft.message;
     if (draft.patch.province && !draft.patch.region && !current.region && regions.ok) {
       const matches = regions.value.filter(region => region.scope === "china" && region.members.some(member => member.key === draft.patch.province));
       if (matches.length === 1) draft.patch.region = matches[0]!.name;
