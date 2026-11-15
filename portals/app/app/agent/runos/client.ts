@@ -5,6 +5,7 @@ import {
   type CallMeta,
   type DiscoverArgs,
   type DiscoveredCapability,
+  type DiscoveryPage,
   type InvokeArgs,
   type InvokeResult,
   type ReportOutcomeArgs,
@@ -86,18 +87,8 @@ interface JsonRpcResponse {
   id: number | string;
   result?: {
     content?: Array<{ type: string; text?: string; [k: string]: unknown }>;
-    /**
-     * Where the gateway's metadata actually lives - as a FLAT `_meta_vxture`
-     * key inside this object, beside the capability's own payload.
-     *
-     * yucer previously read `result._meta.vxture`, a nested shape taken from a
-     * superseded revision of the interface reference. That key is never
-     * present, so the metadata was always empty and four things failed at once
-     * and silently: every skill fetch threw (result_kind defaulted to
-     * "executed"), content_digest was never verified, version_resolved fell
-     * back to whatever was requested, and call_id was never captured - so
-     * yucer's invocation log could not be joined to Runos's audit trail at all.
-     */
+    /** Gateway response metadata is inside structuredContent._meta.vxture.
+     * Legacy _meta_vxture responses remain readable during upgrades. */
     structuredContent?: unknown;
     isError?: boolean;
     _meta?: Record<string, unknown>;
@@ -105,19 +96,9 @@ interface JsonRpcResponse {
   error?: { code: number; message: string; data?: unknown };
 }
 
-/** The gateway's key inside structuredContent. */
-const META_KEY = "_meta_vxture";
-
 /**
- * Split the gateway's metadata from the capability's payload.
- *
- * They are SIBLINGS for a normal capability - `structuredContent` is the
- * payload with `_meta_vxture` mixed in beside it - so the split has to happen
- * here rather than at the call site. Without it the orchestrator hands
- * `structuredContent` straight to the model, and `call_id` / `version_resolved`
- * arrive in the tool result as if they were part of the capability's answer.
- * Plumbing in the model's context is not harmless: it is unexplained tokens
- * that look like data.
+ * Keep gateway metadata out of business evidence, preserving other MCP
+ * namespaces. Verified against Runos gateway.service.ts withMeta (v0.28.2).
  */
 function splitMeta(structuredContent: unknown): {
   payload: unknown;
@@ -126,10 +107,14 @@ function splitMeta(structuredContent: unknown): {
   if (typeof structuredContent !== "object" || structuredContent === null || Array.isArray(structuredContent)) {
     return { payload: structuredContent, meta: {} };
   }
-  const { [META_KEY]: raw, ...payload } = structuredContent as Record<string, unknown>;
-  const meta = typeof raw === "object" && raw !== null && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : {};
+  const { _meta_vxture: legacy, _meta: namespaces, ...payload } = structuredContent as Record<string, unknown>;
+  const object = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+  const nested = object(namespaces) ? namespaces.vxture : undefined;
+  const meta = object(nested) ? nested : object(legacy) ? legacy : {};
+  if (object(namespaces)) {
+    const { vxture: _gateway, ...other } = namespaces;
+    if (Object.keys(other).length) payload._meta = other;
+  }
   // A skill distribution carries ONLY the metadata, so the remainder is {} -
   // returned as undefined so a caller does not render an empty object as an
   // answer.
@@ -151,7 +136,7 @@ export class RunosClient {
   }
 
   /**
-   * Semantic search over the catalog, already filtered by what this product is
+   * Keyword search over the catalog, already filtered by what this product is
    * entitled to - an unauthorized capability simply does not appear.
    *
    * Only DIRECT grants are searchable. A capability reached as a skill's
@@ -159,9 +144,15 @@ export class RunosClient {
    * here, so an empty result is not proof that a dependency is unavailable.
    */
   async discover(args: DiscoverArgs, ctx: RunosContext): Promise<DiscoveredCapability[]> {
+    return (await this.discoverPage(args, ctx)).capabilities;
+  }
+
+  async discoverPage(args: DiscoverArgs, ctx: RunosContext): Promise<DiscoveryPage> {
     const result = await this.callTool("runos_discover", args, ctx);
-    const payload = this.structured<{ capabilities?: DiscoveredCapability[] }>(result);
-    return payload?.capabilities ?? [];
+    const payload = this.structured<Partial<DiscoveryPage>>(result);
+    return { capabilities: payload?.capabilities ?? [],
+      ...(typeof payload?.total === "number" ? { total: payload.total } : {}),
+      ...(typeof payload?.next_cursor === "string" ? { next_cursor: payload.next_cursor } : {}) };
   }
 
   /**
@@ -218,8 +209,19 @@ export class RunosClient {
   ): Promise<InvokeResult> {
     const result = await this.callTool("runos_invoke", args, ctx, skillContext);
     const { payload, meta } = splitMeta(result.structuredContent);
+    // Runos mirrors structured payload in a JSON text block. Normalize that
+    // mirror too, or gateway metadata leaks back into the model as evidence.
+    const content = (result.content ?? []).map(block => {
+      if (block.type !== "text" || typeof block.text !== "string") return block;
+      try {
+        const parsed: unknown = JSON.parse(block.text);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed) || !("_meta_vxture" in parsed || "_meta" in parsed)) return block;
+        const cleaned = splitMeta(parsed).payload;
+        return { ...block, text: cleaned === undefined ? "" : JSON.stringify(cleaned) };
+      } catch { return block; }
+    });
     return {
-      content: result.content ?? [],
+      content,
       // The capability's payload with the gateway's metadata removed.
       structured: payload,
       meta,
@@ -372,7 +374,9 @@ export class RunosClient {
     // Layer 2: execution failure. HTTP was 200 - the call was accepted and then
     // failed - so the verdict lives inside the tool result.
     if (body.result.isError) {
-      const text = body.result.content?.find((c) => c.type === "text")?.text ?? "";
+      const text = body.result.structuredContent !== undefined
+        ? JSON.stringify(body.result.structuredContent)
+        : body.result.content?.find((c) => c.type === "text")?.text ?? "";
       throw parseToolError(text, body.result);
     }
 

@@ -5,7 +5,8 @@
 //   - protocol / authentication failures ride the HTTP status. The call was
 //     never accepted.
 //   - execution failures ride an MCP tool result with isError, whose
-//     content[0].text is a JSON {error_class, error_code, retryable, call_id}.
+//     structuredContent / content[0].text carries {code, message, retryable,
+//     call_id}. Older error_class/error_code envelopes remain readable.
 //     HTTP is already 200 here: the call WAS accepted and then failed.
 //
 // Collapsing the two would destroy the distinction between "not accepted" and
@@ -80,7 +81,8 @@ export class RunosError extends Error {
       this.errorCode === "not_entitled" ||
       this.errorCode === "policy_denied" ||
       this.errorCode === "approval_required" ||
-      this.errorCode === "quota_exceeded"
+      this.errorCode === "quota_exceeded" ||
+      ["NOT_ENTITLED", "POLICY_DENIED", "APPROVAL_REQUIRED", "QUOTA_EXCEEDED"].includes(this.errorCode)
     );
   }
 
@@ -91,7 +93,7 @@ export class RunosError extends Error {
    * enumerate the catalog.
    */
   get isUnknown(): boolean {
-    return this.errorCode === "unknown_capability";
+    return this.errorCode === "unknown_capability" || this.errorCode === "CALLER_UNKNOWN_CAPABILITY";
   }
 }
 
@@ -140,12 +142,16 @@ export function parseToolError(text: string, raw?: unknown): RunosError {
     });
   }
 
+  const code = typeof body.code === "string" ? body.code : typeof body.error_code === "string" ? body.error_code : "contract_violation";
+  const inferredClass: ErrorClass = ["NOT_ENTITLED", "POLICY_DENIED", "APPROVAL_REQUIRED", "QUOTA_EXCEEDED"].includes(code) ? "authz_rejected"
+    : code.startsWith("CALLER_") ? "caller_error" : code === "CAPABILITY_TIMEOUT" ? "capability_timeout"
+    : code.startsWith("CAPABILITY_") || code === "RATE_LIMITED" ? "capability_error" : "gateway_error";
   return new RunosError({
-    errorClass: (body.error_class as ErrorClass) ?? "gateway_error",
-    errorCode: (body.error_code as ErrorCode) ?? "contract_violation",
+    errorClass: (body.error_class as ErrorClass) ?? inferredClass,
+    errorCode: code,
     message:
       (typeof body.message === "string" && body.message) ||
-      `${String(body.error_class ?? "error")}: ${String(body.error_code ?? "unknown")}`,
+      `${String(body.error_class ?? inferredClass)}: ${code}`,
     retryable: typeof body.retryable === "boolean" ? body.retryable : undefined,
     callId: typeof body.call_id === "string" ? body.call_id : undefined,
     raw: raw ?? body,

@@ -231,11 +231,11 @@ test("the loader is wired to a real client without a private SDK", async () => {
             // A skill distribution carries ONLY the metadata in
             // structuredContent - there is no payload beside it.
             structuredContent: {
-              _meta_vxture: {
+              _meta: { vxture: {
                 result_kind: "distributed",
                 content_digest: sha256(SKILL_MD),
                 call_id: "c1",
-              },
+              } },
             },
           },
         }),
@@ -249,4 +249,14 @@ test("the loader is wired to a real client without a private SDK", async () => {
   assert.equal(bundle.digestVerified, true);
   assert.equal(bundle.frontmatter.name, "Deal Qualification");
   assert.equal((posts[0].params as { name: string }).name, "runos_invoke");
+});
+
+test("distributed reference documents reach the model with the skill guidance", () => {
+  const result = distributed();
+  result.content.push({ type: "resource", resource: { uri: "skill://company/1.0.0/references/api-map.md", mimeType: "text/markdown", text: "Call describe_tool before company_enrich." } });
+  const bundle = readDistribution("company", result);
+  assert.equal(bundle.resources?.length, 1);
+  const prompt = renderSkillPrompt(bundle);
+  assert.match(prompt, /references\/api-map.md/);
+  assert.match(prompt, /Call describe_tool before company_enrich/);
 });

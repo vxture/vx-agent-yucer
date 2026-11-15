@@ -72,11 +72,20 @@ export interface DiscoveredCapability {
 
 export interface DiscoverArgs {
   query: string;
-  /** Default 100 upstream, hard ceiling 500. */
+  /** Default 100 upstream, hard ceiling 5000. */
   limit?: number;
+  filter?: { primitive_type?: PrimitiveType };
+  /** Opaque continuation token, valid only with query="*". */
+  cursor?: string;
   category?: Category;
   /** All tags must match (AND). */
   tags?: string[];
+}
+
+export interface DiscoveryPage {
+  capabilities: DiscoveredCapability[];
+  total?: number;
+  next_cursor?: string;
 }
 
 /** "stable" (default) or "latest" or a bare semver. Never a "pinned:" prefix -

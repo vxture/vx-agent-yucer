@@ -55,7 +55,7 @@ export async function prepareAccountRegistration(ctx: AccountContext, input: Reg
     const turn = await runCopilotTurn({ ...base, store }, {
       question: input.text.trim(), sessionId: input.sessionId, retryMessageId: input.retryMessageId, tenantId, subjectToken: deps.subjectToken,
       framing: registrationFrame(vocab, current, deps.locale), profile: "drafting", draftOnly: true, readOnlyTools: true, autopilotActive: false,
-      capabilityQuery: `Public company information research, official website, legal identity, industry and location: ${current.name} ${input.text.trim()}`.slice(0, 2000),
+      capabilityQuery: "web search webpage retrieve company enrichment public information",
     }, { atlasClient: deps.atlasClient, runosClient: deps.runosClient, meter: deps.meter });
     if (!turn.ok) return { ok: false, error: turn.violations[0]?.code ?? "denied", recovery: turn.recovery };
     const draft = readRegistrationDraft(turn.value.answer, input.text.trim(), vocab, { current, previousUserTexts, evidence: turn.value.readEvidence });

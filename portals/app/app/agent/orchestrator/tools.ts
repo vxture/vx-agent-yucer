@@ -30,8 +30,8 @@ export const LOAD_CAPABILITY = "load_capability";
 export const CATALOG_TOOLS: ToolDefinition[] = [
   {
     name: FIND_CAPABILITIES,
-    description: "Find available Runos tools or skills by purpose. This searches the TOOL CATALOG, not the web or company records. For public research find actual internet search and webpage retrieval connectors, then load and invoke them. A catalog match is not company evidence.",
-    parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+    description: "Find available Runos tools or skills by purpose. This searches the TOOL CATALOG, not the web or company records. Use short purpose keywords; primitive_type=connector finds executable integrations without being crowded out by skills. Query '*' enumerates the chosen type. For public research load and invoke actual internet search and webpage retrieval connectors. A catalog match is not company evidence.",
+    parameters: { type: "object", properties: { query: { type: "string" }, primitive_type: { type: "string", enum: ["connector", "skill", "executor", "asset"] }, cursor: { type: "string", description: "Continue query='*' with the previous next_cursor and same filters." } }, required: ["query"] },
   },
   {
     name: LOAD_CAPABILITY,

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AtlasClient } from "../atlas/client";
 import type { ChatMessage, ChatResponse, ToolDefinition } from "../atlas/types";
-import type { RunosClient } from "../runos/client";
+import { RunosClient } from "../runos/client";
 import { RunosError } from "../runos/errors";
 import type { DiscoveredCapability } from "../runos/types";
 import { runTurn, type TurnInput } from "./turn";
@@ -65,8 +65,11 @@ function harness(opts: {
   } as unknown as AtlasClient;
 
   const runosClient = {
-    async discover() {
+    async discover(..._args: unknown[]) {
       return opts.capabilities ?? [];
+    },
+    async discoverPage(args: Parameters<RunosClient["discover"]>[0], ctx: Parameters<RunosClient["discover"]>[1]) {
+      return { capabilities: await runosClient.discover(args, ctx) };
     },
     async resolve(id: string) {
       const capability = opts.capabilities?.find(capability => capability.capability_id === id)!;
@@ -663,6 +666,40 @@ test("a fetched research skill can load and invoke its search dependency absent 
   assert.equal(h.calls[2]?.tools?.some(tool => tool.name === toolNameFor("public.web", "publish")), false);
 });
 
+test("current Runos wire skill metadata and reference blocks reach the orchestration loop as guidance", async () => {
+  // Shapes checked against Runos v0.28.2 gateway.service.ts: discover,
+  // resolveContract, distributeSkill, withMeta. The real client parses the RPC;
+  // this is a consumer seam check, not an internet or model-quality test.
+  const skill = cap({ capability_id: "research.company", primitive_type: "skill", operations: [{ operation: "fetch", description: "Company research", risk_level: "read", interaction_mode: "sync" }] });
+  const h = harness({ replies: [
+    { toolCalls: [{ id: "skill", name: toolNameFor("research.company", "fetch"), arguments: {} }] },
+    { content: "Research instructions loaded; company research is not complete." },
+  ] });
+  h.runosClient = new RunosClient({ enabled: true, baseUrl: "https://runos.test", mcpPath: "/v1/mcp", timeoutMs: 1000 }, {
+    mintToken: async args => ({ accessToken: "test", audience: args.audience, mode: args.mode, expiresAt: 0 }),
+    fetchImpl: async (_url, init) => {
+      const rpc = JSON.parse(String(init.body));
+      let result;
+      if (rpc.params.name === "runos_discover") result = { structuredContent: { capabilities: [skill] } };
+      else if (rpc.params.name === "runos_resolve") result = { structuredContent: { ...skill, version: "1.0.0", state: "stable", contract: {
+        summary: "Company research guidance", useWhen: "Research companies", avoidWhen: "", operations: [{ operation: "fetch", description: "Fetch guidance", riskLevel: "read", interactionMode: "sync", inputSchema: { type: "object", properties: {} } }],
+      } } };
+      else result = { content: [
+        { type: "text", text: "# Company research\nRead references/api-map.md before choosing a tool." },
+        { type: "resource", resource: { uri: "skill://research.company/1.0.0/references/api-map.md", mimeType: "text/markdown", text: "Use sandbase_describe_tool, then sandbase_call_tool." } },
+      ], structuredContent: { _meta: { vxture: { result_kind: "distributed", call_id: "real-format-call", version_resolved: "1.0.0", resource_count: 1 } } } };
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result }), { status: 200 });
+    },
+  });
+  const result = await runTurn({ ...BASE, question: "Research Acme", draftOnly: true, readOnlyTools: true }, h);
+  const toolResult = h.calls[1]!.messages.find(message => message.role === "tool");
+  assert.match(String(toolResult?.content), /sandbase_describe_tool/);
+  assert.match(String(toolResult?.content), /Reference guidance was loaded/);
+  assert.deepEqual(result.readEvidence, []);
+  assert.equal(result.invocations[0]?.resultKind, "distributed");
+  assert.equal(result.invocations[0]?.callId, "real-format-call");
+});
+
 test("catalog navigation can recover from an empty initial query without treating tool discovery as web evidence", async () => {
   const h = harness({ replies: [
     { toolCalls: [{ id: "catalog", name: FIND_CAPABILITIES, arguments: { query: "internet search webpage retrieval" } }] },
@@ -673,6 +710,17 @@ test("catalog navigation can recover from an empty initial query without treatin
   assert.match(String(reply?.content), /no web search or company lookup executed/);
   assert.deepEqual(result.readEvidence, []);
   assert.deepEqual(result.invocations, []);
+});
+
+test("catalog navigation can enumerate connectors independently of a large skill catalog", async () => {
+  const h = harness({ replies: [
+    { toolCalls: [{ id: "catalog", name: FIND_CAPABILITIES, arguments: { query: "*", primitive_type: "connector" } }] },
+    { content: "Found executable connectors." },
+  ] });
+  const queries: unknown[] = [];
+  h.runosClient.discover = async args => { queries.push(args); return []; };
+  await runTurn({ ...BASE, question: "Find public search", readOnlyTools: true }, h);
+  assert.deepEqual(queries[1], { query: "*", limit: 100, filter: { primitive_type: "connector" } });
 });
 
 test("structured status cannot hide company evidence returned in MCP text content", async () => {

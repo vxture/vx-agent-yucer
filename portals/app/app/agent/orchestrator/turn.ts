@@ -344,7 +344,7 @@ function hasReferenceData(value: unknown): boolean {
   if (typeof value === "string") return !!value.trim() && !/^(ok|done|success|accepted|pending|queued)$/i.test(value.trim());
   if (Array.isArray(value)) return value.some(hasReferenceData);
   if (typeof value === "object") return Object.entries(value).some(([key, item]) =>
-    !/^(ok|status|success|request_?id|call_?id|job_?id|task_?id)$/i.test(key) && hasReferenceData(item));
+    !/^(ok|status|success|request_?id|call_?id|job_?id|task_?id|_meta|_meta_vxture)$/i.test(key) && hasReferenceData(item));
   return true;
 }
 
@@ -363,8 +363,11 @@ async function handleToolCall(
     try {
       if (call.name === FIND_CAPABILITIES) {
         if (typeof args.query !== "string" || !args.query.trim() || args.query.length > 2000) return { content: JSON.stringify({ ok: false, error: "A short tool-purpose query is required." }) };
-        const capabilities = await deps.runosClient.discover({ query: args.query, limit: 20 }, input.runos);
-        return { content: JSON.stringify({ ok: true, capabilities, note: "Tool catalog only; no web search or company lookup executed. Load a relevant capability_id to use its registered operations." }) };
+        if (args.primitive_type !== undefined && !["connector", "skill", "executor", "asset"].includes(String(args.primitive_type))) return { content: JSON.stringify({ ok: false, error: "Unknown primitive_type." }) };
+        if (args.cursor !== undefined && (typeof args.cursor !== "string" || args.cursor.length > 2000 || args.query !== "*")) return { content: JSON.stringify({ ok: false, error: "A cursor is valid only for catalog enumeration with query='*'." }) };
+        const query = { query: args.query, limit: 100, ...(typeof args.primitive_type === "string" ? { filter: { primitive_type: args.primitive_type } } : {}), ...(typeof args.cursor === "string" ? { cursor: args.cursor } : {}) };
+        const page = await deps.runosClient.discoverPage(query, input.runos);
+        return { content: JSON.stringify({ ok: true, ...page, note: "Tool catalog only; no web search or company lookup executed. Load a relevant capability_id to use its registered operations. Continue enumeration with next_cursor when present." }) };
       }
       if (typeof args.capability_id !== "string" || !args.capability_id.trim() || args.capability_id.length > 256) return { content: JSON.stringify({ ok: false, error: "A registered capability_id is required." }) };
       const contract = await deps.runosClient.resolve(args.capability_id, input.runos, pinnedVersions.get(args.capability_id) ?? "stable");
