@@ -12,7 +12,7 @@ import { AccountOperatingFields } from "./account-operating-fields";
 import { operatingValues, operatingPlan, operatingError } from "../lib/account-plan-form";
 import { defaultPeriod } from "../lib/periods";
 import type { AccountPlanDraft, AccountTier } from "../../domains/account/store";
-import { REGISTRATION_FIELDS, type RegistrationDraftValues } from "../../domains/account/lib/registration-draft";
+import { REGISTRATION_FIELDS, type RegistrationDraftValues, type RegistrationAdjustment, type RegistrationField } from "../../domains/account/lib/registration-draft";
 import { FORM_ENTRY_CLASS } from "./form-page";
 import { DialogForm } from "./dialog-form";
 import { ViewHeader } from "./business-controls";
@@ -48,12 +48,21 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   const [recovery, setRecovery] = useState<{ sessionId: string; messageId: string; text: string }>();
   const [messages, setMessages] = useState<readonly RegistrationMessage[]>([]);
   const [changed, setChanged] = useState<readonly string[]>([]);
+  const [adjustments, setAdjustments] = useState<readonly RegistrationAdjustment[]>([]);
   const [similar, setSimilar] = useState<readonly { id: string; name: string; accountNo: string }[]>([]);
   const [error, setError] = useState<string>();
   const [confirm, setConfirm] = useState(false);
   const busy = saving || assisting;
   const submitting = useRef(false);
   const assistInFlight = useRef(false);
+  const hasFilled = useRef(false);
+  const manualFields = useRef(new Set<RegistrationField>());
+  const updateValues = (next: typeof values) => {
+    const edited = REGISTRATION_FIELDS.filter(key => next[key] !== values[key]);
+    if (hasFilled.current) edited.forEach(key => manualFields.current.add(key));
+    setAdjustments(previous => previous.filter(adjustment => !edited.some(key => key === adjustment.field)));
+    setValues(next);
+  };
   const labels = { ...B, industryId: B.industry, segmentCode: B.segment, customerTypeId: B.customerType, customerSizeId: B.customerSize, customerNatureId: B.customerNature, tier: POSITION_TEXT.designate, period: POSITION_TEXT.planPeriod, targetAmount: POSITION_TEXT.planTarget,
     contactCadenceDays: POSITION_TEXT.cadenceContact, execCadenceDays: POSITION_TEXT.cadenceExec };
   const current = (): RegistrationDraftValues => ({ ...values, tier, period: operating.period, targetAmount: operating.targetAmount,
@@ -67,7 +76,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
     const retry = recovery?.text === question ? recovery : undefined;
     startAssist(async () => {
       try {
-        const result = await onAssist({ text: question, values: current(), hierarchy:{parentId:hierarchy.parentId||null,childIds:hierarchy.childIds}, sessionId: retry?.sessionId ?? thread, retryMessageId: retry?.messageId });
+        const result = await onAssist({ text: question, values: current(), manualFields: [...manualFields.current], hierarchy:{parentId:hierarchy.parentId||null,childIds:hierarchy.childIds}, sessionId: retry?.sessionId ?? thread, retryMessageId: retry?.messageId });
         if (!result.ok) {
           if (result.sessionId) setThread(result.sessionId);
           setRecovery(result.recovery ? { ...result.recovery, text: question } : undefined);
@@ -76,6 +85,8 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
           return;
         }
         const { patch } = result;
+        hasFilled.current = true;
+        setAdjustments(result.adjustments);
         setRelationResult(result.hierarchy);
         setHierarchy(previous=>({
           parentId:previous.parentId||result.hierarchy.parent?.id||"",
@@ -141,7 +152,18 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   const display = { ...values, industryId: named("industries", values.industryId), segmentCode: named("segments", values.segmentCode),
     customerTypeId: named("customerTypes", values.customerTypeId), customerSizeId: named("customerSizes", values.customerSizeId), customerNatureId: named("customerNatures", values.customerNatureId) };
   const tierLabel = tier === "strategic" ? POSITION_TEXT.tierStrategic : tier === "key" ? POSITION_TEXT.tierKey : POSITION_TEXT.tierStandard;
+  const adjustmentValue = (adjustment: RegistrationAdjustment, value: string) => {
+    const choices = { industryId: "industries", segmentCode: "segments", customerTypeId: "customerTypes", customerSizeId: "customerSizes", customerNatureId: "customerNatures" } as const;
+    return adjustment.field in choices ? named(choices[adjustment.field as keyof typeof choices], value) : value;
+  };
   const relations = <>
+      {adjustments.length ? <div className="flex flex-col gap-sm" data-registration-adjustments>
+        {adjustments.map(adjustment => <div key={`${adjustment.field}-${adjustment.value}`} className="flex flex-wrap items-center gap-sm text-body-small">
+          <span className="text-muted-foreground">{labels[adjustment.field]}</span>
+          <span>{adjustmentValue(adjustment, adjustment.currentValue)} <span className="text-muted-foreground">{"\u2192"}</span> {adjustmentValue(adjustment, adjustment.value)}</span>
+          {adjustment.url ? <a href={adjustment.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary" title={adjustment.excerpt}>{T.researchSource(1)}</a> : null}
+        </div>)}
+      </div> : null}
       {relationResult?.existing ? <div className="flex flex-col gap-xs text-body-small" data-registration-existing>
         <span className="text-muted-foreground">{T.existingCustomer}</span>
         <Link target="_blank" rel="noopener noreferrer" className="text-body text-primary-text transition-colors hover:text-primary" href={`/account/${relationResult.existing.account.id}`}>{relationResult.existing.account.name} {relationResult.existing.account.accountNo}</Link>
@@ -174,7 +196,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
     <AccountRegistrationAssistant {...assistantProps} compact={!!assistantSlot} />
     {assistantSlot ? createPortal(<AccountRegistrationAssistant {...assistantProps} dock />, assistantSlot) : null}
     <Card className="flex w-full flex-col gap-lg p-lg">
-      <AccountFields values={values} onChange={setValues} vocab={vocab} pending={busy} accountNo={null} />
+      <AccountFields values={values} onChange={updateValues} vocab={vocab} pending={busy} accountNo={null} />
       <Separator />
       <AccountHierarchyFields accounts={accounts} value={hierarchy} onChange={setHierarchy} disabled={busy}/>
       <Separator />

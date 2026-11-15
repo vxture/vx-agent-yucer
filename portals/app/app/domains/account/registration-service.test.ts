@@ -29,7 +29,7 @@ function harness() {
     atlasClient: { chat: async (_profile: string, req: { tools?: unknown }, context: AtlasContext) => {
       assert.equal(_profile, "drafting");
       modelContexts.push(context);
-      calls++; assert.deepEqual((req.tools as { name: string }[]).map(tool => tool.name), ["find_capabilities", "load_capability"]);
+      calls++; if (req.tools) assert.deepEqual((req.tools as { name: string }[]).map(tool => tool.name), ["find_capabilities", "load_capability"]);
       if (error) throw error;
       return { id: "chat", modelCode: "fake", message: { role: "assistant", content: reply }, usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 } };
     } } as unknown as AtlasClient,
@@ -102,7 +102,7 @@ test("company research flows through Atlas and Runos into a cited draft while pr
   assert.equal(result.patch.period, undefined);
   assert.equal(result.sources.length, 2);
   assert.equal(result.sources[0]?.url, website);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   assert.ok(runosContexts.every(context => context.taskId === h.modelContexts[0]?.taskId && context.workspaceId === h.ctx.workspaceId));
   assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length, 0);
   assert.equal((await h.copilot.listProposals(h.ctx.workspaceId)).length, 0);
@@ -223,4 +223,67 @@ test("registered customer identity retrieves its parent and subsidiaries without
   assert.deepEqual(out.hierarchy.existing?.children.map(a=>a.id),[child.id]);
   assert.deepEqual(out.hierarchy.children,[]);
   assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length,3);
+});
+
+test("identity omissions get one Atlas correction; later turns reuse the validated public evidence", async () => {
+  const h = harness();
+  const name = "\u56db\u5ddd\u7701\u536b\u661f\u5e94\u7528\u6280\u672f\u4e2d\u5fc3";
+  const legal = `\u56db\u5ddd\u7701\u56fd\u571f\u79d1\u5b66\u6280\u672f\u7814\u7a76\u9662\uff08${name}\uff09`;
+  const text = `${name} 100\u4eba\uff0c\u91cd\u8981\u7ea7\uff0c\u76ee\u6807\u989d20\u4e07`;
+  const website = "www.sclandcloud.org.cn";
+  const report = `${legal}\n125100004507196291\n${website}\n\u56db\u5ddd\u7701\u6210\u90fd\u5e02\n140\u540d\u5de5\u4f5c\u4eba\u5458`;
+  let calls = 0, invocations = 0;
+  let later = false, priorSource = "";
+  const contexts: AtlasContext[] = [];
+  const rows = (sourceId: string) => [
+    { field: "name", value: legal, evidence: legal, sourceId },
+    { field: "creditCode", value: "125100004507196291", evidence: "125100004507196291", sourceId },
+    { field: "website", value: website, evidence: website, sourceId },
+    { field: "province", value: "\u56db\u5ddd\u7701", evidence: "\u56db\u5ddd\u7701\u6210\u90fd\u5e02", sourceId },
+    { field: "employeeCount", value: 140, evidence: "140\u540d\u5de5\u4f5c\u4eba\u5458", sourceId },
+  ];
+  const response = (content: string) => ({ id: "draft", modelCode: "served", message: { role: "assistant", content }, usage: { totalTokens: 3 } });
+  const deps = { ...h.deps, atlasClient: { chat: async (_profile: string, request: Parameters<AtlasClient["chat"]>[1], context: AtlasContext) => {
+    calls++; contexts.push(context);
+    if (later) {
+      assert.ok(request.messages.some(message => /Previously verified read results/.test(message.content)));
+      assert.ok(request.messages.filter(message => message.role === "assistant").every(message => !message.content.includes("_registrationReadEvidence")));
+      return response(JSON.stringify({ message: "Filled", fields: rows(priorSource) }));
+    }
+    if (calls === 1) return { ...response(""), message: { role: "assistant", content: "", toolCalls: [{ id: "lookup", name: "public__lookup", arguments: { query: name } }] } };
+    if (calls === 2) return response(JSON.stringify({ message: "\u57fa\u7840\u8d44\u6599\u5df2\u5168\u90e8\u586b\u5199\u5e76\u4fdd\u5b58", fields: [
+      { field: "employeeCount", value: 100, evidence: "100\u4eba" }, { field: "tier", value: "key", evidence: "\u91cd\u8981\u7ea7" }, { field: "targetAmount", value: "200000", evidence: "20\u4e07" },
+    ] }));
+    assert.equal(request.tools, undefined);
+    assert.match(request.messages.at(-1)!.content, /Still empty: name, website, province, creditCode/);
+    return response(JSON.stringify({ message: "All set", fields: rows("read-1-1") }));
+  } } as unknown as AtlasClient, runosClient: {
+    discover: async () => [{ capability_id: "public", primitive_type: "connector", operations: [{ operation: "lookup", risk_level: "read", interaction_mode: "sync" }] }],
+    resolve: async () => ({ capability_id: "public", primitive_type: "connector", state: "stable", version: "1.0.0", contract: { operations: [{ operation: "lookup", riskLevel: "read", interactionMode: "sync", inputSchema: { type: "object" } }] } }),
+    invoke: async () => { invocations++; return { structured: { status: "ok" }, content: [{ type: "text", text: report }], meta: { result_kind: "executed", call_id: "public-fixture", version_resolved: "1.0.0" } }; },
+  } as unknown as RunosClient };
+  const result = await prepareAccountRegistration(h.ctx, { text, values }, deps);
+  assert.equal(result.ok, true); if (!result.ok) return;
+  assert.equal(result.patch.name, legal.normalize("NFKC"));
+  assert.equal(result.patch.website, `https://${website}/`);
+  assert.equal(result.patch.creditCode, "125100004507196291");
+  assert.equal(result.patch.province, "\u56db\u5ddd\u7701");
+  assert.equal(result.patch.employeeCount, "140");
+  assert.equal(result.patch.tier, "key"); assert.equal(result.patch.targetAmount, "200000");
+  assert.equal(result.adjustments[0]?.value, "140");
+  assert.equal(calls, 3); assert.equal(invocations, 1); assert.equal(h.charged(), 1);
+  assert.ok(contexts.every(context => context.taskId === contexts[0]?.taskId));
+  assert.doesNotMatch(result.message, /\u5df2\u5168\u90e8\u586b\u5199\u5e76\u4fdd\u5b58/);
+  const { previousRegistrationEvidence } = await import("./lib/registration-feedback");
+  const prior = previousRegistrationEvidence(await h.copilot.listMessages(h.ctx.workspaceId, result.sessionId));
+  priorSource = prior.find(source => source.content.includes(website) && source.content.includes("125100004507196291"))!.id;
+  later = true;
+  const next = await prepareAccountRegistration(h.ctx, { text: "\u57fa\u7840\u8d44\u6599\u6ca1\u6709\u586b\u5199", sessionId: result.sessionId, values: { ...values, employeeCount: "120", website: "https://manual.example" }, manualFields: ["employeeCount", "website"] }, deps);
+  assert.equal(next.ok, true); if (!next.ok) return;
+  assert.equal(next.patch.creditCode, "125100004507196291");
+  assert.equal(next.patch.website, undefined);
+  assert.equal(next.patch.employeeCount, undefined);
+  assert.deepEqual(next.adjustments, []);
+  assert.equal(invocations, 1);
+  assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length, 0);
 });
