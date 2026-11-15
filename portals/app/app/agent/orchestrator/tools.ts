@@ -23,6 +23,23 @@ import { SUBJECT_TYPES } from "../../domains/copilot/lib/action";
 /** The single write path available to the model. */
 export const PROPOSE_ACTION_TOOL_NAME = "propose_action";
 
+// Catalog navigation is not internet search. These two helpers let the model
+// reach relevant connectors and skill dependencies through the same Runos gate.
+export const FIND_CAPABILITIES = "find_capabilities";
+export const LOAD_CAPABILITY = "load_capability";
+export const CATALOG_TOOLS: ToolDefinition[] = [
+  {
+    name: FIND_CAPABILITIES,
+    description: "Find available Runos tools or skills by purpose. This searches the TOOL CATALOG, not the web or company records. For public research find actual internet search and webpage retrieval connectors, then load and invoke them. A catalog match is not company evidence.",
+    parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+  },
+  {
+    name: LOAD_CAPABILITY,
+    description: "Load the registered read-only tools for a capability_id. Use for catalog matches and capability IDs required by a fetched skill, including dependencies missing from catalog search. Runos checks access. Loading a contract does not execute research and supplies no company evidence.",
+    parameters: { type: "object", properties: { capability_id: { type: "string" } }, required: ["capability_id"] },
+  },
+];
+
 export const PROPOSE_ACTION_TOOL: ToolDefinition = {
   name: PROPOSE_ACTION_TOOL_NAME,
   description:

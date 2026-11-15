@@ -51,6 +51,14 @@ test("confirmation frame asks for missing strategic targets without creating fac
   assert.match(frame, /verbatim excerpt/);
   assert.match(frame, /untrusted data/);
   assert.match(frame, /Simplified Chinese/);
+  assert.match(frame, /website = official homepage/);
+  assert.match(frame, /not a substitute for public internet research/);
+  assert.match(frame, /load_capability/);
+});
+
+test("important customer tier is accepted as key rather than silently dropped", () => {
+  const text = "Acme \u91cd\u8981\u7ea7";
+  assert.deepEqual(readRegistrationDraft(answer([{ field: "tier", value: "key", evidence: "\u91cd\u8981\u7ea7" }]), text, vocab)?.patch, { tier: "key" });
 });
 
 test("public research can fill an empty profile field with a cited read result, never a target", () => {
