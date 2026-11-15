@@ -33,6 +33,11 @@ import {
   planningEntryLocked,
   removePlanningTarget,
 } from "../lib/planning-operations";
+import {
+  addPlanningMetric,
+  autofillPlanningQuarters,
+  updatePlanningAmount,
+} from "../lib/planning-autofill";
 import { planningTierPercent } from "../lib/planning-preview";
 import { minor, PlanError } from "../../domains/planning/plan-values";
 
@@ -51,8 +56,7 @@ type Props = {
 };
 const tiers = ["floor", "target", "stretch"] as const;
 
-// Annual and period rows share ONE physical table/colgroup. Separate tables
-// cannot guarantee tier alignment when labels, values or edit permissions vary.
+// Annual tiers remain together; quarterly values use a compact Q1-Q4 matrix.
 export function PlanTargetLedger({
   content,
   scope,
@@ -99,28 +103,20 @@ export function PlanTargetLedger({
     tier: (typeof tiers)[number],
     value: string,
   ) =>
-    edit?.({
-      ...content,
-      targets: content.targets.map((t) =>
-        t.key === target.key ? { ...t, [tier]: value.trim() || null } : t,
-      ),
-    });
+    edit?.(
+      updatePlanningAmount(content, target.key, tier, value, lockedPeriods),
+    );
   const missingQuarters = missingPlanningQuarters(
     content,
     scope,
     lockedPeriods,
   );
-  const addQuarters = () =>
-    edit?.({
-      ...content,
-      targets: [
-        ...content.targets,
-        ...missingQuarters.map((line) => ({
-          ...line,
-          key: crypto.randomUUID(),
-        })),
-      ],
-    });
+  const addQuarters = () => {
+    let next = content;
+    for (const line of annual)
+      next = autofillPlanningQuarters(next, line, lockedPeriods);
+    edit?.(next);
+  };
   const applyTarget = () => {
     if (
       !selected ||
@@ -141,12 +137,24 @@ export function PlanTargetLedger({
         throw new PlanError("count_integer");
       if (amounts.some((value, i) => i > 0 && amounts[i - 1]! > value))
         throw new PlanError("target_ladder");
-      edit({
+      let next = {
         ...content,
         targets: content.targets.map((line) =>
           line.key === selected.key ? selected : line,
         ),
-      });
+      };
+      if (selected.period === `Y${content.year}`)
+        next = autofillPlanningQuarters(next, selected, lockedPeriods);
+      else
+        for (const tier of tiers)
+          next = updatePlanningAmount(
+            next,
+            selected.key,
+            tier,
+            selected[tier] ?? "",
+            lockedPeriods,
+          );
+      edit(next);
       setSelected(null);
     } catch (cause) {
       setError(
@@ -170,45 +178,85 @@ export function PlanTargetLedger({
         <TableTitleCell
           title={
             t.period === `Y${content.year}`
-              ? t.period
+              ? labels[t.metric]
               : t.period.replace(String(content.year), "")
           }
-          description={t.metric === "revenue" ? undefined : labels[t.metric]}
+          titleSuffix={
+            <span className="ml-xs text-body-small font-normal text-muted-foreground">
+              {t.currency ?? T.count}
+            </span>
+          }
           tooltip={`${t.period} · ${labels[t.metric]} · ${t.currency ?? T.count}`}
         />
       </TableCell>
-      {tiers.map((tier) => (
-        <TableCell
-          key={tier}
-          data-plan-tier={tier}
-          className="text-right tabular-nums"
-        >
-          {edit ? (
-            <Input
-              aria-label={`${t.period} ${labels[t.metric]} ${T[tier]}`}
-              inputMode="decimal"
-              value={t[tier] ?? ""}
-              placeholder="—"
-              disabled={
-                disabled || planningEntryLocked(content, lockedPeriods, t)
-              }
-              onChange={(e) => update(t, tier, e.target.value)}
-            />
-          ) : t[tier] === null ? (
-            "—"
-          ) : (
-            <span
-              className={
-                t.period === `Y${content.year}` ? "font-semibold" : undefined
-              }
-            >
-              {Number(t[tier]).toLocaleString(locale, {
-                maximumFractionDigits: 2,
-              })}
+      {(t.period === `Y${content.year}` ? tiers : (["target"] as const)).map(
+        (tier) => (
+          <TableCell
+            key={tier}
+            colSpan={t.period === `Y${content.year}` ? 1 : 3}
+            data-plan-tier={tier}
+            className="text-right tabular-nums"
+          >
+            <span className="inline-flex w-full items-center justify-end gap-xs">
+              {edit ? (
+                <Input
+                  aria-label={`${t.period} ${labels[t.metric]} ${T[tier]}`}
+                  inputMode="decimal"
+                  readOnly={t.period === `${content.year}Q4`}
+                  value={t[tier] ?? ""}
+                  placeholder="—"
+                  disabled={
+                    disabled || planningEntryLocked(content, lockedPeriods, t)
+                  }
+                  onChange={(e) => update(t, tier, e.target.value)}
+                />
+              ) : t[tier] === null ? (
+                "—"
+              ) : (
+                <span
+                  className={
+                    t.period === `Y${content.year}`
+                      ? "font-semibold"
+                      : undefined
+                  }
+                >
+                  {Number(t[tier]).toLocaleString(locale, {
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              )}
+              {t.period !== `Y${content.year}` ? (
+                <span className="shrink-0 text-body-small text-muted-foreground">
+                  {planningTierPercent(
+                    t.target,
+                    annual.find(
+                      (line) =>
+                        line.metric === t.metric &&
+                        line.currency === t.currency,
+                    )?.target,
+                    locale,
+                  )}
+                </span>
+              ) : null}
+              {tier !== "target" || t.metric === "margin" ? (
+                <span className="shrink-0 text-body-small text-muted-foreground">
+                  {planningTierPercent(
+                    t[tier],
+                    t.metric === "margin"
+                      ? annual.find(
+                          (line) =>
+                            line.metric === "revenue" &&
+                            line.currency === t.currency,
+                        )?.[tier]
+                      : t.target,
+                    locale,
+                  )}
+                </span>
+              ) : null}
             </span>
-          )}
-        </TableCell>
-      ))}
+          </TableCell>
+        ),
+      )}
       <TableCell className="text-center last:pr-md">
         <RowActions
           label={`${DS_LABELS.actionMenu} · ${t.period} · ${labels[t.metric]}`}
@@ -220,7 +268,9 @@ export function PlanTargetLedger({
                     id: "edit",
                     label: T.editItem,
                     icon: "edit",
-                    disabled: planningEntryLocked(content, lockedPeriods, t),
+                    disabled:
+                      planningEntryLocked(content, lockedPeriods, t) ||
+                      t.period === `${content.year}Q4`,
                     hint: planningEntryLocked(content, lockedPeriods, t)
                       ? T.lockedHint
                       : undefined,
@@ -229,7 +279,7 @@ export function PlanTargetLedger({
                       setSelected(structuredClone(t));
                     },
                   },
-                  ...(t.period === `Y${content.year}` && t.metric === "revenue"
+                  ...(t.period !== `Y${content.year}` || t.metric === "revenue"
                     ? []
                     : [
                         {
@@ -273,10 +323,10 @@ export function PlanTargetLedger({
   );
   return (
     <>
-      <Collapsible open={open} onOpenChange={setOpen}>
+      {ledgerAnnual.length ? (
         <Table
           className="table-fixed min-w-panel-md"
-          aria-label={T.targetLedger}
+          aria-label={T.annualTargets}
         >
           <colgroup>
             <col className="w-table-col-fixed" />
@@ -286,127 +336,169 @@ export function PlanTargetLedger({
             <col className="w-1/5" />
             <col className="w-table-col-fixed" />
           </colgroup>
-          {ledgerAnnual.length ? (
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-center first:pl-md"></TableHead>
-                <TableHead>
-                  {T.period} / {T.metric}
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-center first:pl-md" />
+              <TableHead>{T.metric}</TableHead>
+              {tiers.map((tier) => (
+                <TableHead key={tier} className="text-right">
+                  {T[tier]}
                 </TableHead>
-                {tiers.map((tier) => (
-                  <TableHead key={tier} className="text-right">
-                    {T[tier]}
-                    {tier !== "target" && ledgerAnnual.length === 1 ? (
-                      <span className="ml-xs text-body-small font-normal text-muted-foreground">
-                        {planningTierPercent(
-                          ledgerAnnual[0][tier],
-                          ledgerAnnual[0].target,
-                          locale,
-                        )}
-                      </span>
-                    ) : null}
-                  </TableHead>
-                ))}
-                <TableHead className="text-center last:pr-md">
-                  {T.operations}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-          ) : null}
+              ))}
+              <TableHead className="text-center last:pr-md">
+                {T.operations}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
           <TableBody>
             {ledgerAnnual.map((target, index) => row(target, index))}
           </TableBody>
-          <TableBody className="border-t border-dashed border-border">
-            <TableRow
-              className="cursor-pointer hover:bg-transparent"
-              onClick={(event) => {
-                if (!(event.target as HTMLElement).closest("button"))
-                  setOpen(!open);
-              }}
+        </Table>
+      ) : null}
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <div className="border-t border-dashed border-border pt-sm">
+          <CollapsibleTrigger asChild>
+            <Button
+              size="xl"
+              variant="ghost"
+              className={open ? "w-full bg-accent" : "w-full"}
             >
-              <TableCell colSpan={6} className="py-sm first:pl-0 last:pr-0">
-                <CollapsibleTrigger asChild>
-                  <Button
-                    size="xl"
-                    variant="ghost"
-                    className={open ? "w-full bg-accent" : "w-full"}
-                  >
-                    <span className="flex w-full items-center justify-between gap-md">
-                      <span
-                        className={
-                          open
-                            ? undefined
-                            : "text-body-small font-normal text-muted-foreground"
-                        }
-                      >
-                        {T.periodTargets}
-                      </span>
-                      <span className="flex items-center gap-sm">
-                        {!open ? (
-                          <span className="text-body-small font-normal text-muted-foreground">
-                            {T.splitPeriods(periodCount)}
-                          </span>
-                        ) : null}
-                        <Icon
-                          name={open ? "chevron-up" : "chevron-down"}
-                          size="sm"
-                        />
-                      </span>
+              <span className="flex w-full items-center justify-between gap-md">
+                <span
+                  className={
+                    open
+                      ? undefined
+                      : "text-body-small font-normal text-muted-foreground"
+                  }
+                >
+                  {T.periodTargets}
+                </span>
+                <span className="flex items-center gap-sm">
+                  {!open ? (
+                    <span className="text-body-small font-normal text-muted-foreground">
+                      {T.splitPeriods(periodCount)}
                     </span>
-                  </Button>
-                </CollapsibleTrigger>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-          <CollapsibleContent asChild>
-            <TableBody>
-              {!ledgerAnnual.length ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableHead
-                    scope="col"
-                    className="text-center first:pl-md"
-                  ></TableHead>
-                  <TableHead scope="col">
-                    {T.period} / {T.metric}
-                  </TableHead>
-                  {tiers.map((tier) => (
-                    <TableHead scope="col" key={tier} className="text-right">
-                      {T[tier]}
+                  ) : null}
+                  <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
+                </span>
+              </span>
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent>
+          {periods.length ? (
+            <Table
+              className="table-fixed min-w-panel-md"
+              aria-label={T.periodTargets}
+            >
+              <colgroup>
+                <col className="w-table-col-fixed" />
+                <col />
+                {[1, 2, 3, 4].map((q) => (
+                  <col key={q} className="w-1/6" />
+                ))}
+                <col className="w-table-col-fixed" />
+              </colgroup>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-center first:pl-md" />
+                  <TableHead>{T.metric}</TableHead>
+                  {[1, 2, 3, 4].map((q) => (
+                    <TableHead key={q} className="text-right">
+                      Q{q}
                     </TableHead>
                   ))}
-                  <TableHead scope="col" className="text-center last:pr-md">
+                  <TableHead className="text-center last:pr-md">
                     {T.operations}
                   </TableHead>
                 </TableRow>
-              ) : null}
-              {periods.length ? (
-                periods.map((t, i) => row(t, ledgerAnnual.length + i))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6}>
-                    <EmptyState title={T.noQuarters} />
-                  </TableCell>
-                </TableRow>
-              )}
-              {edit ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="first:pl-md last:pr-md">
-                    <Button
-                      size="md"
-                      variant="secondary"
-                      disabled={disabled || !missingQuarters.length}
-                      onClick={addQuarters}
-                    >
-                      {missingQuarters.length
-                        ? T.addQuarter
-                        : T.allQuartersAdded}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </CollapsibleContent>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {annual.map((base, index) => (
+                  <TableRow key={base.key} className="hover:bg-transparent">
+                    <TableCell className="text-center text-muted-foreground first:pl-md">
+                      {index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <TableTitleCell
+                        title={labels[base.metric]}
+                        titleSuffix={
+                          <span className="ml-xs text-body-small font-normal text-muted-foreground">
+                            {base.currency ?? T.count}
+                          </span>
+                        }
+                      />
+                    </TableCell>
+                    {[1, 2, 3, 4].map((q) => {
+                      const line = periods.find(
+                        (t) =>
+                          t.metric === base.metric &&
+                          t.currency === base.currency &&
+                          t.period === `${content.year}Q${q}`,
+                      );
+                      return (
+                        <TableCell key={q} className="text-right tabular-nums">
+                          {edit && line ? (
+                            <Input
+                              aria-label={`${line.period} ${labels[line.metric]} ${T.target}`}
+                              inputMode={
+                                line.metric === "new_logo"
+                                  ? "numeric"
+                                  : "decimal"
+                              }
+                              className="text-right tabular-nums"
+                              value={line.target ?? ""}
+                              placeholder="—"
+                              readOnly={q === 4}
+                              disabled={
+                                disabled ||
+                                planningEntryLocked(
+                                  content,
+                                  lockedPeriods,
+                                  line,
+                                )
+                              }
+                              onChange={(event) =>
+                                update(line, "target", event.target.value)
+                              }
+                            />
+                          ) : line?.target == null ? (
+                            "—"
+                          ) : (
+                            Number(line.target).toLocaleString(locale, {
+                              maximumFractionDigits: 2,
+                            })
+                          )}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="text-center last:pr-md">
+                      <RowActions
+                        label={`${DS_LABELS.actionMenu} · ${labels[base.metric]}`}
+                        items={[]}
+                        disabled
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <EmptyState title={T.noQuarters} />
+          )}
+          {edit && missingQuarters.length ? (
+            <div className="px-md py-sm">
+              <Button
+                size="md"
+                variant="secondary"
+                disabled={disabled}
+                onClick={addQuarters}
+              >
+                {T.addQuarter}
+              </Button>
+            </div>
+          ) : null}
+        </CollapsibleContent>
       </Collapsible>
       <Drawer
         open={!!selected}
@@ -422,7 +514,10 @@ export function PlanTargetLedger({
       >
         {selected ? (
           <div className="flex flex-col gap-lg">
-            {tiers.map((tier) => (
+            {(selected.period === `Y${content.year}`
+              ? tiers
+              : (["target"] as const)
+            ).map((tier) => (
               <Field key={tier}>
                 <FieldLabel htmlFor={`plan-edit-${tier}`}>{T[tier]}</FieldLabel>
                 <Input
@@ -430,12 +525,23 @@ export function PlanTargetLedger({
                   inputMode="decimal"
                   disabled={disabled || !edit}
                   value={selected[tier] ?? ""}
-                  onChange={(event) =>
-                    setSelected({
-                      ...selected,
-                      [tier]: event.target.value.trim() || null,
-                    })
-                  }
+                  onChange={(event) => {
+                    const next = updatePlanningAmount(
+                      {
+                        ...content,
+                        targets: content.targets.map((line) =>
+                          line.key === selected.key ? selected : line,
+                        ),
+                      },
+                      selected.key,
+                      tier,
+                      event.target.value,
+                      lockedPeriods,
+                    );
+                    setSelected(
+                      next.targets.find((t) => t.key === selected.key)!,
+                    );
+                  }}
                 />
               </Field>
             ))}
@@ -493,26 +599,7 @@ export function PlanTargets(props: Props) {
     (t) => t.scope === scope && t.period === `Y${content.year}`,
   );
   const addMetric = (metric: PlanTarget["metric"]) =>
-    edit?.({
-      ...content,
-      targets: [
-        ...content.targets,
-        {
-          key: crypto.randomUUID(),
-          scope,
-          period: `Y${content.year}`,
-          metric,
-          currency:
-            metric === "new_logo"
-              ? null
-              : (annual.find((t) => t.metric === "revenue")?.currency ?? "CNY"),
-          floor: null,
-          target: null,
-          stretch: null,
-          note: "",
-        },
-      ],
-    });
+    edit?.(addPlanningMetric(content, scope, metric));
   return (
     <MetricListCard
       title={`${T.annualTargets} · Y${content.year}`}

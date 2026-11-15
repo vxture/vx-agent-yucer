@@ -67,3 +67,4 @@ runtime-read-only (UPDATE revoked in `../98_column_locks.sql`), so db-init is th
 only legitimate write path - and because the catalog grows as features land,
 while the baseline is create-once. A new permission is a new increment here,
 never an application write.
+| `0113_company_planning_workflow.sql` | Publish company targets before regional allocation; freeze regional company baselines and validate only formal quarterly target allocations. |

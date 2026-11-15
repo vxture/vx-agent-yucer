@@ -1,4 +1,5 @@
 "use client";
+import { companyPlanningRevision } from "../../domains/planning/plan-workflow";
 import { MemberName } from "../lib/member-names";
 import { Section } from "../components/help-section";
 import { TitleHelp } from "../components/title-help";
@@ -36,7 +37,10 @@ import {
 } from "../lib/planning-operations";
 import { previewTargetDelta } from "../lib/planning-preview";
 import { attainmentHref } from "../lib/attainment-workspace";
-import { salesPlanCommandAction } from "./plan-actions";
+import {
+  checkSalesPlanDraftAction,
+  salesPlanCommandAction,
+} from "./plan-actions";
 import {
   planVersions,
   comparePlanContents,
@@ -64,6 +68,7 @@ export function PlanningVersionPanel({
   canEdit,
   sources,
   legacyIds,
+  legacyCompanyIds,
   initialRevision,
   initialRegion,
   initialPeriod,
@@ -75,6 +80,7 @@ export function PlanningVersionPanel({
   canEdit: boolean;
   sources: PlanSources;
   legacyIds: string[];
+  legacyCompanyIds: string[];
   initialRevision?: string;
   initialRegion?: string;
   initialPeriod?: string;
@@ -141,10 +147,27 @@ export function PlanningVersionPanel({
   const c = editing
     ? (content ?? state.draft!.content)
     : (revision?.content ?? previewContent);
+  const companyEditing = editing && c?.releaseScope === "company";
+  const regionalEditing = editing && c?.releaseScope === "regions";
+  const companyRevision =
+    plan && revision?.state === "sealed"
+      ? companyPlanningRevision(plan, revision)
+      : plan && state.current
+        ? companyPlanningRevision(plan, state.current)
+        : null;
+  const managedLegacyIds =
+    companyEditing && !c?.regions.length ? legacyCompanyIds : legacyIds;
+  const publishLabel = companyEditing
+    ? T.publishCompany
+    : regionalEditing
+      ? T.publishRegions
+      : T.publish;
   const dirty =
     editing && JSON.stringify(c) !== JSON.stringify(state.draft?.content);
   const [diffSection, setDiffSection] = useState("all");
-  const [regionId, setRegionId] = useState<string | null>(initialRegion ?? null);
+  const [regionId, setRegionId] = useState<string | null>(
+    initialRegion ?? null,
+  );
   const [reason, setReason] = useState("");
   const [effective, setEffective] = useState("");
   const [when, setWhen] = useState("immediate");
@@ -157,6 +180,7 @@ export function PlanningVersionPanel({
   const [adopt, setAdopt] = useState(false);
   const [lockPeriod, setLockPeriod] = useState(`${year}Q1`);
   const [checksOpen, setChecksOpen] = useState(false);
+  const [checkError, setCheckError] = useState("");
   const [panel, setPanel] = useState<"diff" | "history" | "version" | null>(
     null,
   );
@@ -197,7 +221,29 @@ export function PlanningVersionPanel({
         setError("");
       }
     : null;
-  const run = (command: PlanCommand, afterSave?: "publish" | "browse") =>
+  const checkDraft = async (candidate: SalesPlan, publish: boolean) => {
+    const draft = planVersions(candidate, new Date().toISOString()).draft;
+    if (!draft) return;
+    try {
+      const checked = await checkSalesPlanDraftAction({
+        year,
+        revisionId: draft.id,
+        editToken: draft.editToken,
+      });
+      setCheckError(
+        checked.ok ? "" : (E[checked.error] ?? E.plan_save_failed!),
+      );
+      setChecksOpen(!publish || !checked.ok);
+      setPanel(publish && checked.ok ? "version" : null);
+    } catch {
+      setCheckError(E.plan_save_failed!);
+      setChecksOpen(true);
+    }
+  };
+  const run = (
+    command: PlanCommand,
+    afterSave?: "publish" | "browse" | "check",
+  ) =>
     transition(async () => {
       setError("");
       setMessage("");
@@ -232,7 +278,9 @@ export function PlanningVersionPanel({
         }
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
-        setPanel(afterSave === "publish" ? "version" : null);
+        setPanel(null);
+        if (afterSave === "publish" || afterSave === "check")
+          await checkDraft(result.plan, afterSave === "publish");
         router.refresh();
       } catch {
         setError(E.plan_save_failed!);
@@ -285,7 +333,21 @@ export function PlanningVersionPanel({
       return `${r.scope === "workspace" ? T.company : (c?.regions.find((x) => `territory:${x.id}` === r.scope)?.name ?? "—")} · ${r.period} · ${metricName[String(r.metric)] ?? r.metric} · ${T.floor} ${format(r.floor as string)} / ${T.target} ${format(r.target as string)} / ${T.stretch} ${format(r.stretch as string)} ${r.currency ?? T.count}`;
     if ("objective" in r) return `${r.objective} · ${r.due}`;
     if ("memberSub" in r)
-      return <span className="inline-flex flex-wrap items-center gap-xs"><MemberName sub={r.memberSub as string | null} name={r.memberName as string | null} fallback={T.demand}/><span>{String(r.role)}{" \u00b7 "}{String(r.percent)}%{" \u00b7 "}{String(r.start)} - {String(r.end)}</span></span>;
+      return (
+        <span className="inline-flex flex-wrap items-center gap-xs">
+          <MemberName
+            sub={r.memberSub as string | null}
+            name={r.memberName as string | null}
+            fallback={T.demand}
+          />
+          <span>
+            {String(r.role)}
+            {" \u00b7 "}
+            {String(r.percent)}%{" \u00b7 "}
+            {String(r.start)} - {String(r.end)}
+          </span>
+        </span>
+      );
     if ("budgetKey" in r)
       return `${c?.budgets.find((b) => b.key === r.budgetKey)?.name ?? T.customer} · ${format(r.amount as string)}`;
     if ("name" in r)
@@ -359,7 +421,7 @@ export function PlanningVersionPanel({
   };
   const confirmLabel =
     confirm === "release"
-      ? T.publish
+      ? publishLabel
       : confirm === "discard"
         ? T.discard
         : confirm === "cancel"
@@ -426,7 +488,13 @@ export function PlanningVersionPanel({
     <div className="@container flex flex-col gap-xl">
       <ModuleHeadline
         moduleKey="planning"
-        help={editing ? T.editHint : undefined}
+        help={
+          companyEditing
+            ? T.companyFlowHint
+            : regionalEditing
+              ? T.regionFlowHint
+              : T.companyFlowHint
+        }
         tags={
           <>
             <StatusBadge tone="info">Y{year}</StatusBadge>
@@ -436,7 +504,9 @@ export function PlanningVersionPanel({
                 {dirty ? T.dirty : T.draft}
               </StatusBadge>
             ) : revision ? (
-              <StatusBadge tone="info">V{revision.version}</StatusBadge>
+              <StatusBadge tone="info">
+                {T.published} V{revision.version}
+              </StatusBadge>
             ) : null}
           </>
         }
@@ -488,7 +558,26 @@ export function PlanningVersionPanel({
             <Button
               size="lg"
               variant="secondary"
-              onClick={() => setChecksOpen(true)}
+              onClick={() => {
+                if (editing && dirty)
+                  run(
+                    {
+                      kind: "save",
+                      revisionId: state.draft!.id,
+                      editToken: state.draft!.editToken,
+                      content: c!,
+                    },
+                    "check",
+                  );
+                else if (editing && plan)
+                  transition(async () => {
+                    await checkDraft(plan, false);
+                  });
+                else {
+                  setCheckError("");
+                  setChecksOpen(true);
+                }
+              }}
               disabled={!c || pending}
             >
               {T.insights}
@@ -501,10 +590,39 @@ export function PlanningVersionPanel({
                 onClick={() =>
                   state.draft
                     ? choose(state.draft.id)
-                    : run({ kind: "draft", content: {} as PlanContent })
+                    : run({
+                        kind: "draft",
+                        content: {} as PlanContent,
+                        scope: "company",
+                      })
                 }
               >
-                {state.draft ? T.resume : state.current ? T.adjust : T.create}
+                {state.draft
+                  ? T.resume
+                  : state.current
+                    ? T.adjustCompany
+                    : T.create}
+              </Button>
+            ) : null}
+            {!editing &&
+            !state.draft &&
+            state.current &&
+            canEdit &&
+            !state.closed ? (
+              <Button
+                size="lg"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => {
+                  setReason(T.planRegions);
+                  run({
+                    kind: "draft",
+                    content: {} as PlanContent,
+                    scope: "regions",
+                  });
+                }}
+              >
+                {T.planRegions}
               </Button>
             ) : null}
             {editing ? (
@@ -539,10 +657,13 @@ export function PlanningVersionPanel({
                       },
                       "publish",
                     );
-                  else setPanel("version");
+                  else if (plan)
+                    transition(async () => {
+                      await checkDraft(plan, true);
+                    });
                 }}
               >
-                {T.publish}
+                {publishLabel}
               </Button>
             ) : null}
             <RowActions
@@ -585,7 +706,7 @@ export function PlanningVersionPanel({
         <EmptyState title={T.noRelease} description={T.noReleaseHint} />
       ) : (
         <>
-          {needsSourceRefresh && edit ? (
+          {needsSourceRefresh && edit && !companyEditing ? (
             <div className="flex items-center gap-md text-body-small text-muted-foreground">
               {T.sourceChanged}
               <Button
@@ -602,9 +723,14 @@ export function PlanningVersionPanel({
           <Section
             icon="target"
             title={currentRegion ? currentRegion.name : T.company}
-            help={T.targetHint}
+            help={regionalEditing ? T.regionFlowHint : T.targetHint}
             action={
               <div className="flex items-center gap-md">
+                {!currentRegion && companyRevision ? (
+                  <StatusBadge tone={companyEditing ? "warning" : "info"}>
+                    {companyEditing ? T.draft : `${T.published} V${companyRevision.version}`}
+                  </StatusBadge>
+                ) : null}
                 {currentRegion ? (
                   <Button
                     size="md"
@@ -616,7 +742,13 @@ export function PlanningVersionPanel({
                 ) : null}
                 {!editing && revision?.state === "sealed" ? (
                   <Link
-                    href={attainmentHref({ period: initialPeriod ?? `Y${year}`, scope: currentRegion ? `territory:${currentRegion.id}` : "workspace", planRevision: revision.id })}
+                    href={attainmentHref({
+                      period: initialPeriod ?? `Y${year}`,
+                      scope: currentRegion
+                        ? `territory:${currentRegion.id}`
+                        : "workspace",
+                      planRevision: revision.id,
+                    })}
                     className="text-body-small text-muted-foreground transition-colors hover:text-primary"
                   >
                     {T.actual}
@@ -709,7 +841,7 @@ export function PlanningVersionPanel({
                 scope={
                   currentRegion ? `territory:${currentRegion.id}` : "workspace"
                 }
-                edit={edit}
+                edit={regionalEditing && !currentRegion ? null : edit}
                 disabled={pending}
                 lockedPeriods={lockedPeriods}
                 headerInfo={
@@ -730,8 +862,9 @@ export function PlanningVersionPanel({
                       content={c}
                       target={companyTarget}
                       currency={sources.currency}
-                      edit={edit}
+                      edit={regionalEditing ? null : edit}
                       disabled={pending}
+                      lockedPeriods={lockedPeriods}
                     />
                   ) : undefined
                 }
@@ -742,7 +875,7 @@ export function PlanningVersionPanel({
               </p>
             )}
           </Section>
-          {currentRegion ? (
+          {companyEditing ? null : currentRegion ? (
             currentRegion.included ? (
               <PlanSupport
                 key={currentRegion.id}
@@ -754,16 +887,29 @@ export function PlanningVersionPanel({
                 disabled={pending}
               />
             ) : null
-          ) : (
+          ) : !revision && !editing ? (
+            <EmptyState title={T.companyFirst} />
+          ) : c.regions.length ? (
             <PlanRegions
               content={c}
               onSelect={setRegionId}
-              onAttainment={!editing ? (id) => router.push(attainmentHref({ period: `Y${year}`, scope: `territory:${id}`, planRevision: revision?.id })) : undefined}
+              onAttainment={
+                !editing
+                  ? (id) =>
+                      router.push(
+                        attainmentHref({
+                          period: `Y${year}`,
+                          scope: `territory:${id}`,
+                          planRevision: revision?.id,
+                        }),
+                      )
+                  : undefined
+              }
               editing={editing}
               disabled={pending}
               lockedPeriods={lockedPeriods}
             />
-          )}
+          ) : null}
           <PlanAssumptions
             content={c}
             edit={edit}
@@ -872,9 +1018,19 @@ export function PlanningVersionPanel({
         open={checksOpen}
         onClose={() => setChecksOpen(false)}
         width="md"
-        title={<span className="inline-flex items-center gap-xs">{T.insights}<TitleHelp topic={T.insights}>{T.insightsHint}</TitleHelp></span>}
+        title={
+          <span className="inline-flex items-center gap-xs">
+            {T.insights}
+            <TitleHelp topic={T.insights}>{T.insightsHint}</TitleHelp>
+          </span>
+        }
         closeLabel={T.cancel}
       >
+        {checkError ? (
+          <p className="mb-md text-body-small text-destructive" role="alert">
+            {checkError}
+          </p>
+        ) : null}
         {findings === null ? (
           <EmptyState title={T.validation} description={T.checksInvalidHint} />
         ) : findings.length ? (
@@ -932,7 +1088,7 @@ export function PlanningVersionPanel({
             if (!pending) setPanel(null);
           }}
           width="md"
-          title={T.version}
+          title={editing ? publishLabel : T.version}
           description={T.reasonHint}
           closeLabel={T.cancel}
         >
@@ -998,7 +1154,7 @@ export function PlanningVersionPanel({
                   }
                   onClick={() => confirmVersion("release")}
                 >
-                  {T.publish}
+                  {publishLabel}
                 </Button>
                 <Button
                   size="md"
@@ -1106,7 +1262,12 @@ export function PlanningVersionPanel({
         open={panel === "history"}
         onClose={() => setPanel(null)}
         width="lg"
-        title={<span className="inline-flex items-center gap-xs">{T.history}<TitleHelp topic={T.history}>{T.baselineHint}</TitleHelp></span>}
+        title={
+          <span className="inline-flex items-center gap-xs">
+            {T.history}
+            <TitleHelp topic={T.history}>{T.baselineHint}</TitleHelp>
+          </span>
+        }
         closeLabel={T.cancel}
       >
         {error ? (
@@ -1175,7 +1336,12 @@ export function PlanningVersionPanel({
                         UTC
                       </TableCell>
                       <TableCell>
-                        <MemberName sub={e.actor} name={sources.members.find(m => m.sub === e.actor)?.name}/>
+                        <MemberName
+                          sub={e.actor}
+                          name={
+                            sources.members.find((m) => m.sub === e.actor)?.name
+                          }
+                        />
                       </TableCell>
                       <TableCell>{e.reason || "—"}</TableCell>
                     </TableRow>
@@ -1193,7 +1359,11 @@ export function PlanningVersionPanel({
         width="md"
         title={
           confirm === "release"
-            ? T.publishConfirm
+            ? companyEditing
+              ? T.publishCompanyConfirm
+              : regionalEditing
+                ? T.publishRegionsConfirm
+                : T.publishConfirm
             : confirm === "discard"
               ? T.discardConfirm
               : confirm === "cancel"
@@ -1237,8 +1407,7 @@ export function PlanningVersionPanel({
               <p className="text-body-small">
                 {T.diff} · {diff.length} {T.changes}
               </p>
-              {!plan?.revisions.some((r) => r.state === "sealed") &&
-              legacyIds.length ? (
+              {managedLegacyIds.length ? (
                 <>
                   <p className="text-body-small text-muted-foreground">
                     {T.adoptHint}
@@ -1249,7 +1418,7 @@ export function PlanningVersionPanel({
                       disabled={pending}
                       onCheckedChange={(value) => setAdopt(value === true)}
                     />
-                    {T.adopt} · {legacyIds.length}
+                    {T.adopt} · {managedLegacyIds.length}
                   </label>
                 </>
               ) : null}
@@ -1268,10 +1437,7 @@ export function PlanningVersionPanel({
               size="md"
               disabled={
                 pending ||
-                (confirm === "release" &&
-                  !plan?.revisions.some((r) => r.state === "sealed") &&
-                  legacyIds.length > 0 &&
-                  !adopt)
+                (confirm === "release" && managedLegacyIds.length > 0 && !adopt)
               }
               onClick={() => {
                 if (confirm === "release" && state.draft) {
@@ -1296,7 +1462,7 @@ export function PlanningVersionPanel({
                       : {}),
                     ...(adopt
                       ? {
-                          adoptions: legacyIds.map((targetId) => ({
+                          adoptions: managedLegacyIds.map((targetId) => ({
                             targetId,
                             snapshot: null,
                           })),

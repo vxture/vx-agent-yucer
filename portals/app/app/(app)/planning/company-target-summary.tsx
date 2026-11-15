@@ -1,5 +1,6 @@
 "use client";
 import { Icon, Input, MetricListCard } from "@vxture/design-ui";
+import { updatePlanningAmount } from "../lib/planning-autofill";
 import { planningTierPercent } from "../lib/planning-preview";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type {
@@ -13,12 +14,14 @@ export function CompanyTargetSummary({
   currency,
   edit,
   disabled,
+  lockedPeriods = [],
 }: {
   content: PlanContent;
   target: PlanTarget | undefined;
   currency: string;
   edit: ((content: PlanContent) => void) | null;
   disabled: boolean;
+  lockedPeriods?: readonly string[];
 }) {
   const locale = useLocale();
   const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P } = useMessages();
@@ -35,7 +38,11 @@ export function CompanyTargetSummary({
   return (
     <div className="flex flex-col gap-md py-sm">
       <div
-        className="grid grid-cols-2 gap-md @3xl:grid-cols-4"
+        className={
+          content.regions.length
+            ? "grid grid-cols-2 gap-md @3xl:grid-cols-4"
+            : "grid grid-cols-1 gap-md @2xl:grid-cols-3"
+        }
         data-company-target-summary
       >
         {(["floor", "target", "stretch"] as const).map((tier) => (
@@ -56,79 +63,79 @@ export function CompanyTargetSummary({
                 />
                 <span className="flex min-w-0 flex-1 flex-col gap-sm">
                   <span className="flex items-baseline justify-between gap-sm">
-                    <span className="whitespace-nowrap">
-                      {T[tier]}
-                      {tier !== "target" ? (
-                        <span className="ml-xs text-body-small font-normal text-muted-foreground">
-                          {planningTierPercent(
-                            target?.[tier],
-                            target?.target,
-                            locale,
-                          )}
-                        </span>
-                      ) : null}
-                    </span>
+                    <span className="whitespace-nowrap">{T[tier]}</span>
                     <span className="text-body-small font-normal text-muted-foreground">
                       {target?.currency ?? currency}
                     </span>
                   </span>
-                  {edit && target ? (
-                    <Input
-                      aria-label={`${target.period} ${P.metricRevenue} ${T[tier]}`}
-                      inputMode="decimal"
-                      value={target[tier] ?? ""}
-                      placeholder={"\u2014"}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        edit({
-                          ...content,
-                          targets: content.targets.map((t) =>
-                            t.key === target.key
-                              ? {
-                                  ...t,
-                                  [tier]: event.target.value.trim() || null,
-                                }
-                              : t,
-                          ),
-                        })
-                      }
-                    />
-                  ) : (
-                    <span
-                      className={`text-heading-2 tabular-nums ${tier === "target" ? "text-primary" : "text-foreground"}`}
-                    >
-                      {format(target?.[tier])}
-                    </span>
-                  )}
+                  <span className="flex items-baseline gap-xs">
+                    {edit && target ? (
+                      <Input
+                        aria-label={`${target.period} ${P.metricRevenue} ${T[tier]}`}
+                        inputMode="decimal"
+                        value={target[tier] ?? ""}
+                        placeholder={"\u2014"}
+                        disabled={disabled}
+                        onChange={(event) =>
+                          edit(
+                            updatePlanningAmount(
+                              content,
+                              target.key,
+                              tier,
+                              event.target.value,
+                              lockedPeriods,
+                            ),
+                          )
+                        }
+                      />
+                    ) : (
+                      <span
+                        className={`text-heading-2 tabular-nums ${tier === "target" ? "text-primary" : "text-foreground"}`}
+                      >
+                        {format(target?.[tier])}
+                      </span>
+                    )}
+                    {tier !== "target" ? (
+                      <span className="shrink-0 text-body-small font-normal text-muted-foreground">
+                        {planningTierPercent(
+                          target?.[tier],
+                          target?.target,
+                          locale,
+                        )}
+                      </span>
+                    ) : null}
+                  </span>
                 </span>
               </span>
             }
           />
         ))}
-        <MetricListCard
-          title={
-            <span className="flex items-center gap-md">
-              <Icon
-                name="users"
-                size="xl"
-                className="shrink-0 text-muted-foreground"
-              />
-              <span className="flex min-w-0 flex-col gap-sm">
-                <span>{T.personnel}</span>
-                <span className="flex items-baseline gap-xs whitespace-nowrap">
-                  <span className="text-heading-2 tabular-nums text-foreground">
-                    {members}
-                  </span>
-                  <span className="text-body-small font-normal text-muted-foreground">
-                    {T.personUnit}
-                    {" \u00b7 "}
-                    {T.staffingGap} {format(requested)} FTE
+        {content.regions.length ? (
+          <MetricListCard
+            title={
+              <span className="flex items-center gap-md">
+                <Icon
+                  name="users"
+                  size="xl"
+                  className="shrink-0 text-muted-foreground"
+                />
+                <span className="flex min-w-0 flex-col gap-sm">
+                  <span>{T.personnel}</span>
+                  <span className="flex items-baseline gap-xs whitespace-nowrap">
+                    <span className="text-heading-2 tabular-nums text-foreground">
+                      {members}
+                    </span>
+                    <span className="text-body-small font-normal text-muted-foreground">
+                      {T.personUnit}
+                      {" \u00b7 "}
+                      {T.staffingGap} {format(requested)} FTE
+                    </span>
                   </span>
                 </span>
               </span>
-            </span>
-          }
-        />
+            }
+          />
+        ) : null}
       </div>
     </div>
   );

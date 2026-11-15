@@ -77,6 +77,8 @@ export interface PlanAction {
 }
 export interface PlanContent {
   schemaVersion: 1;
+  releaseScope?: "company" | "regions";
+  companyRevisionId?: string;
   year: number;
   periods: PlanPeriod[];
   regions: PlanRegion[];
@@ -346,7 +348,7 @@ export function validateContent(c: PlanContent, publish: boolean): void {
               x.currency === t.currency,
           ),
         );
-      if (t.metric !== "pipeline")
+      if (t.metric !== "pipeline" && tier === "target")
         axes.push(
           c.targets.filter(
             (x) =>
@@ -368,7 +370,11 @@ export function validateContent(c: PlanContent, publish: boolean): void {
         }
       }
     }
-  if (publish && !c.regions.some((r) => r.included))
+  if (
+    publish &&
+    c.releaseScope !== "company" &&
+    !c.regions.some((r) => r.included)
+  )
     demand(c.allocationNote.trim(), "allocation_note_required");
   for (const b of c.budgets) {
     demand(
