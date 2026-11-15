@@ -4,7 +4,7 @@ import { SectionHeader } from "./help-section";
 import { Card, Icon, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { SaveCell } from "./save-cell";
-import { AUTONOMY_MODES, CONFIDENCE_FLOOR, EXECUTABLE_ACTIONS } from "../../domains/copilot/lib/autonomy";
+import { AUTONOMY_MODES, CONFIDENCE_FLOOR } from "../../domains/copilot/lib/autonomy";
 
 // How much the copilot may do before it asks.
 //
@@ -41,17 +41,8 @@ export function AutonomyPanel({
   canChange,
   onChange,
 }: AutonomyPanelProps) {
-  const { AGENT_ACTION_LABEL, AUTONOMY_TEXT, AUTONOMY_ERROR, PROPOSAL_TEXT } = useMessages();
+  const { AUTONOMY_TEXT, AUTONOMY_ERROR } = useMessages();
 
-  // NAMED FROM THE LIST, NOT FROM MEMORY. This sentence used to enumerate the
-  // auto-performed actions in prose, and it went stale the moment
-  // `promote_signal` left EXECUTABLE_ACTIONS - the setting page claimed the
-  // agent promoted signals by itself while the queue two inches above marked
-  // every one of them "needs a person". Rendering the list is the only version
-  // that cannot say the wrong thing.
-  const canDo = PROPOSAL_TEXT.joinLabels(
-    EXECUTABLE_ACTIONS.map((a) => AGENT_ACTION_LABEL[a] ?? a),
-  );
 
   return (
     <Card className="p-lg">
@@ -98,9 +89,6 @@ export function AutonomyPanel({
                   <div className="text-foreground text-sm">{AUTONOMY_TEXT.modes[m] ?? m}</div>
                   <p className="text-muted-foreground mt-3xs text-body-small">
                     {AUTONOMY_TEXT.modeWhy[m] ?? ""}
-                    {m === "ask_high_risk"
-                      ? ` ${canDo ? AUTONOMY_TEXT.modeCanDo(canDo) : AUTONOMY_TEXT.modeCanDoNone}`
-                      : ""}
                   </p>
                 </div>
                 {current ? (

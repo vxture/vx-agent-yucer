@@ -1,0 +1,21 @@
+.transcript {
+  min-height: 120px;
+  scrollbar-width: none;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+.transcript::-webkit-scrollbar { display: none; }
+.composer {
+  min-height: 72px;
+  max-height: 144px;
+  overflow-y: auto;
+}
+@media (max-width: 43.749rem) {
+  .transcript { min-height: 96px; }
+  .composer { min-height: 64px; max-height: 120px; }
+}
+
+@media (max-height: 440px) {
+  .transcript { min-height: 0; }
+  .composer { min-height: 48px; max-height: 80px; }
+}

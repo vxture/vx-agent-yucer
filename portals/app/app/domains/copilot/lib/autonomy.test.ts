@@ -1,103 +1,49 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  CONFIDENCE_FLOOR,
-  decideAutonomy,
-  isAutonomyMode,
-  isExecutable,
-  riskOf,
-} from "./autonomy";
+import { ACTION_RISK, CONFIDENCE_FLOOR, decideAutonomy, isAutonomyMode, isExecutable, operationRisk, riskOf } from "./autonomy";
+const action = (actionType: string, confidence: number | null) => ({ actionType, confidence });
 
-const p = (actionType: string, confidence: number | null) => ({ actionType, confidence });
-
-// --- What counts as high risk -----------------------------------------------
-
-test("an outreach is irreversible however sure the model is", () => {
-  // The line is REVERSIBILITY, not the model's opinion of itself. A message
-  // sent to a customer cannot be unsent, and no confidence score makes it
-  // retractable.
-  assert.deepEqual(riskOf(p("draft_outreach", 99)), ["irreversible"]);
+test("registration distinguishes business writes and destructive replacements from research", () => {
+  assert.equal(operationRisk("advance_stage"), "important");
+  assert.equal(operationRisk("record_interaction"), "important");
+  assert.equal(operationRisk("fill_account_field"), "destructive");
+  assert.equal(operationRisk("set_buying_role"), "destructive");
+  assert.deepEqual(riskOf(action("record_evidence", 90)), ["important"]);
 });
 
-test("a reversible action with real confidence is not high risk", () => {
-  // advance_stage journals every move in opportunity_stage_event, so somebody
-  // can walk it back.
-  assert.deepEqual(riskOf(p("advance_stage", 86)), []);
+test("unknown operations cannot inherit authority, including prototype property names", () => {
+  for (const name of ["draft_outreach", "delete_account", "promote_signal", "toString", "constructor", "__proto__"]) {
+    assert.equal(isExecutable(name), false);
+    assert.equal(operationRisk(name), "destructive");
+    for (const mode of ["ask_always", "ask_high_risk", "autonomous"] as const) assert.equal(decideAutonomy(action(name, 100), mode).kind, "ask");
+  }
 });
 
-test("promote_signal is high risk BECAUSE nothing can carry it out", () => {
-  // It was on the safe list until 2026-09-01, which meant ask_high_risk
-  // auto-approved it and the executor then had no handler - nobody looked, and
-  // nothing happened. agent_action.subject_type has no `signal`, so a proposal
-  // cannot name which signal to promote. Listing it again without widening
-  // that CHECK would put the same hole back.
-  assert.deepEqual(riskOf(p("promote_signal", 99)), ["irreversible"]);
+test("all confirmation modes stop destructive operations even at full confidence", () => {
+  for (const [name, risk] of Object.entries(ACTION_RISK)) {
+    if (risk !== "destructive") continue;
+    for (const mode of ["ask_always", "ask_high_risk", "autonomous"] as const) assert.equal(decideAutonomy(action(name, 100), mode).kind, "ask");
+  }
 });
 
-test("the floor is inclusive, so 60 acts and 59 asks", () => {
-  // 60 is the line the product already draws - the copilot page says "其中 N
-  // 条置信度低于 60%". A second threshold would give one doubt two answers.
-  assert.deepEqual(riskOf(p("advance_stage", CONFIDENCE_FLOOR)), []);
-  assert.deepEqual(riskOf(p("advance_stage", CONFIDENCE_FLOOR - 1)), ["low_confidence"]);
+test("routine authority asks before important business writes", () => {
+  assert.equal(decideAutonomy(action("advance_stage", 99), "ask_high_risk").kind, "ask");
+  assert.equal(decideAutonomy(action("add_commitment", 99), "ask_high_risk").kind, "ask");
 });
 
-test("no confidence at all is low confidence, not high", () => {
-  // A model that declined to say how sure it was has not earned an unwatched
-  // write. Absent must not read as fine.
-  assert.deepEqual(riskOf(p("advance_stage", null)), ["low_confidence"]);
+test("extended authority allows supported important operations, while ask-always still asks", () => {
+  assert.equal(decideAutonomy(action("advance_stage", 95), "autonomous").kind, "act");
+  assert.equal(decideAutonomy(action("advance_stage", 95), "ask_always").kind, "ask");
 });
 
-test("both reasons are reported, not the first one found", () => {
-  // A page saying only "low confidence" about an outreach would invite
-  // somebody to fix the confidence and expect it to go through.
-  assert.deepEqual(riskOf(p("draft_outreach", 20)), ["irreversible", "low_confidence"]);
+test("uncertainty is recorded in addition to the explicit operation risk", () => {
+  assert.deepEqual(riskOf(action("advance_stage", CONFIDENCE_FLOOR)), ["important"]);
+  assert.deepEqual(riskOf(action("advance_stage", CONFIDENCE_FLOOR - 1)), ["important", "low_confidence"]);
+  assert.deepEqual(riskOf(action("fill_account_field", null)), ["irreversible", "low_confidence"]);
 });
 
-test("an unknown action type is high risk by default", () => {
-  // The safe direction for a list that will grow: a new kind of proposal is
-  // asked about until somebody deliberately adds it to EXECUTABLE_ACTIONS.
-  assert.deepEqual(riskOf(p("delete_account", 100)), ["irreversible"]);
-});
-
-// --- The three postures ------------------------------------------------------
-
-test("ask_always asks about everything, including the safe ones", () => {
-  const v = decideAutonomy(p("advance_stage", 95), "ask_always");
-  assert.equal(v.kind, "ask");
-  // And it still reports the risk, which is empty here - the MODE is why this
-  // one waits, not the proposal.
-  assert.deepEqual(v.kind === "ask" ? v.reasons : null, []);
-});
-
-test("ask_high_risk acts on the safe ones and asks about the rest", () => {
-  assert.equal(decideAutonomy(p("advance_stage", 86), "ask_high_risk").kind, "act");
-  assert.equal(decideAutonomy(p("draft_outreach", 86), "ask_high_risk").kind, "ask");
-  assert.equal(decideAutonomy(p("advance_stage", 41), "ask_high_risk").kind, "ask");
-});
-
-test("autonomous acts even on what the rule calls high risk", () => {
-  // The mode means what it says. A workspace that switched this on and still
-  // had outreach held back would have bought a setting that does not do the
-  // thing on its label.
-  const v = decideAutonomy(p("draft_outreach", 10), "autonomous");
-  assert.equal(v.kind, "act");
-});
-
-test("the mode string is validated, so a bad row cannot widen autonomy", () => {
-  // The DDL has a CHECK, but a value arriving from anywhere else must not be
-  // able to become a mode by being spelled like one.
+test("persisted modes remain valid and arbitrary strings cannot widen autonomy", () => {
   assert.equal(isAutonomyMode("ask_high_risk"), true);
   assert.equal(isAutonomyMode("autopilot"), false);
   assert.equal(isAutonomyMode(""), false);
-});
-
-// --- What the product can perform itself -------------------------------------
-
-test("isExecutable is asked before accepting, not only after", () => {
-  // The queue marks a row with this, and the confirm dialog counts with it, so
-  // the person deciding knows which of the two things accepting means.
-  assert.equal(isExecutable("advance_stage"), true);
-  assert.equal(isExecutable("draft_outreach"), false);
-  assert.equal(isExecutable("promote_signal"), false);
-  assert.equal(isExecutable("anything the model made up"), false);
 });

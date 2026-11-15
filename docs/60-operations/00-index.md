@@ -2217,3 +2217,20 @@ Radix Root，指标填充固定 bg-primary，没有 tone / indicatorClassName / 
 success；刻度只按真实目标金额定位，分隔线与间距使用 DS token，不复制进度组件。
 退出条件：DS 提供指标语气与多档节点 API 后删除子元素选择器及本地节点组合，
 直接使用正式 API。本次未修改平台或 DS 源码，不声称上游已经提供这些接口。
+
+
+### TD-040 - 智能助手框架组合与表面变体
+
+2026-11-15 按 owner 提供的智能助手设计规范 v1.0 实施。DS 15.6.1 缺少 Header
+border-only、ShellDock surface-3/工作区全屏及统一助手组合契约，已提交
+[vxture-design#144](https://github.com/vxture/vxture-design/issues/144)。
+
+临时绑定位置：components 下 assistant-panel、assistant-conversation、
+assistant-interaction、workspace-insets.module.css 和 AppShell 的 DS props。
+只组合已有 DS Header/ShellDock、DropdownMenu、Collapsible、Textarea、Card、
+DialogForm、ConfirmDestructive，使用公开 T2 token；不复制演示 CSS 和依赖源码。
+Robot 暂从已安装同源 Phosphor 导入，不自绘图形。
+
+退出条件：上游提供公开 API 后删除局部表面和消息输入组合，改为共享助手组件。
+业务对象、风险与权限绑定仍归聿策所有。验收矩阵与服务端明确后续项见
+[55-assistant-design-v1](../70-workplan/55-assistant-design-v1.md)。

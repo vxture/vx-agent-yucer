@@ -339,7 +339,7 @@ test("running unasked needs the tier, the permission AND the workspace's own row
   assert.equal(r.autonomous, true);
 });
 
-test("ask_high_risk runs the reversible ones and still asks about the rest", async () => {
+test("ask_high_risk asks before important writes even when reversible", async () => {
   // THE FOURTH YES, and the reason it is asked last: this workspace has the
   // tier, the permission and the switch, and a proposal the rule calls high
   // risk still does not run.
@@ -352,7 +352,9 @@ test("ask_high_risk runs the reversible ones and still asks about the rest", asy
   };
   const c = (s: InMemoryCopilotStore) => ctx("sales_leader", "enterprise", s);
 
-  assert.equal(unwrap(await execute(c(await mk("advance_stage", 86)), "a")).autonomous, true);
+  const important = await execute(c(await mk("advance_stage", 86)), "a");
+  assert.equal(important.ok, false);
+  assert.equal(important.ok ? "" : important.violations[0].code, "human_decision_required");
 
   // Reaches the customer - never, at this posture.
   const outreach = await execute(c(await mk("draft_outreach", 99)), "a");
@@ -622,4 +624,17 @@ test("deciding one proposal and deciding they need no deciding are different act
   // ...and can still read what the posture is, because a member watching the
   // queue is entitled to know how much of it the agent skipped.
   assert.equal((await getAutonomy(rep)).ok, true);
+});
+
+
+test("extended authority never executes destructive replacements or unknown operations", async () => {
+  for (const actionType of ["fill_account_field", "set_buying_role", "delete_account"]) {
+    const store = new InMemoryCopilotStore();
+    store.seedProposals(WS, [proposal("high-risk", { actionType, confidence: 100 })]);
+    await store.setAutonomy(WS, { mode: "autonomous", decidedBySub: "usr_boss" });
+    const result = await execute(ctx("sales_leader", "enterprise", store), "high-risk");
+    assert.equal(result.ok, false);
+    assert.equal(result.ok ? "" : result.violations[0].code, "human_decision_required");
+    assert.equal((await store.getProposal(WS, "high-risk"))?.status, "proposed");
+  }
 });

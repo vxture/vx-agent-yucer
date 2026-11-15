@@ -1362,6 +1362,16 @@ export const en: Dictionary = {
       "Open deals carry no lines yet, so there is nothing to break down",
   },
   ASSISTANT_PANEL_TEXT: {
+    continuesWhenClosed: "The task is still running. Reopen the assistant to see the result.",
+    contextActions: "Business suggestions",
+    conversation: "Conversation with the assistant",
+    newMessages: "New messages",
+    send: "Send message",
+    recommendations: "Recommended actions",
+    showDetails: "Show details",
+    closeDetails: "Hide details",
+    recordNote: "Record follow-up",
+    scopeHint: "Working with this business context",
     controls: "Assistant panel controls",
     narrow: "Use narrow panel",
     wide: "Use wide panel",
@@ -1370,33 +1380,37 @@ export const en: Dictionary = {
   AUTONOMY_TEXT: {
     title: "Assistant authority",
     why: "Workspace authority determines which proposals require individual confirmation. Permissions and supported execution capabilities still apply.",
-    modeLabel: "Assistant mode",
+    overwriteConsequence: "This proposal changes customer information or roles and may replace existing content. Review the targets and changes.",
+    dangerHint: "Deletion, overwriting and other high-risk actions still require confirmation.",
+    saving: "Saving confirmation mode...",
+    modeLabel: "Confirmation mode",
     modes: {
       ask_high_risk: "Routine authority",
       ask_always: "Confirm every action",
-      autonomous: "Full authority",
+      autonomous: "Extended authority",
     } as Record<string, string>,
     modeSummary: {
-      autonomous: "Supported actions run within your permissions",
-      ask_high_risk: "Routine actions run; important or uncertain ones ask",
-      ask_always: "Every action waits for your confirmation",
+      autonomous: "Act automatically within the authorized scope.",
+      ask_high_risk: "Routine actions run; important or uncertain ones ask.",
+      ask_always: "Ask before each operation.",
     } as Record<string, string>,
     modeWhy: {
       ask_high_risk:
-        "It does what can be walked back on its own, because those leave a trail. What cannot be taken back, and what it is unsure of, still comes to you.",
+        "Research, analysis and drafts continue automatically. Important business operations or uncertainty require confirmation.",
       ask_always:
         "Every proposal waits for you. This is where a workspace that has never opened this setting stands: not set is not authorised.",
       autonomous:
-        "Authorize all supported operations without individual confirmation. Permissions, subscription and execution gates still apply; unsupported operations require manual handling.",
+        "Act automatically within the authorized scope. Deletion, overwriting and other high-risk operations still ask for confirmation.",
     } as Record<string, string>,
     risk: {
-      irreversible: "cannot be taken back",
+      irreversible: "replacement or high-risk operation",
+      important: "important business operation",
       low_confidence: "not confident enough",
     } as Record<string, string>,
     modeCanDo: (actions: string) => `Right now it performs: ${actions}.`,
     modeCanDoNone: "Right now it performs nothing on its own.",
     riskWhy: (floor: number) =>
-      `Cannot be taken back = anything that reaches the customer. Not confident enough = under ${floor}%, or no figure given. Either one asks you.`,
+      `Routine authority asks before important business writes or when confidence is under ${floor}%. Replacement and other high-risk operations require confirmation in every mode.`,
     unset: "not set",
     setBy: (who: string) => `set by ${who}`,
     save: "Switch to this",

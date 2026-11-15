@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Button } from "@vxture/design-ui";
 import { AgentCapture } from "./agent-capture";
 import { AssistantDeck } from "./assistant";
 import type { AgentPanelData } from "../lib/board";
@@ -62,13 +60,7 @@ export interface AgentPanelProps {
    * Default on - the deal and account decks are scoped to their object.
    */
   readonly decisions?: boolean;
-  /**
-   * 敌情, the competitor placeholder. Kept where competition belongs to the
-   * page (a deal: who it is being won against) and dropped where it does not
-   * (a customer's own page) - a placeholder is only worth its space beside the
-   * thing it will one day be about (owner, 2026-10-02: 与页面适配和关联才保留).
-   */
-  readonly recon?: boolean;
+
 }
 
 export function AgentPanel({
@@ -82,11 +74,12 @@ export function AgentPanel({
   onBuildBrief,
   advisor,
   decisions = true,
-  recon = false,
 }: AgentPanelProps) {
-  const { BOARD_TEXT } = useMessages();
+  const { BOARD_TEXT, ASSISTANT_PANEL_TEXT: T } = useMessages();
 
-  const sections = !decisions ? [] : [
+  const sections = [
+    ...(advisor ? [{ id: "advisor", title: T.contextActions, empty: "", items: [], footer: advisor }] : []),
+    ...(!decisions ? [] : [
     // A quick command, first because it is the one you open the deck for
     // half an hour before a meeting.
     ...(briefFor && onBuildBrief
@@ -116,34 +109,13 @@ export function AgentPanel({
         link: { label: BOARD_TEXT.openThread, href: "/copilot#copilot-proposals" },
       })),
     },
-    ...(recon
-      ? [
-        {
-          id: "recon",
-          title: BOARD_TEXT.reconTitle,
-          // THE ENEMY, and the honest state of it: there is no structured
-          // competitor data in this product - competitors appear only inside raw
-          // follow-up notes. A war room that invents its enemies is worse than
-          // one that admits it cannot see them.
-          empty: BOARD_TEXT.reconEmpty,
-          items: [],
-          footer: (
-            <span className="flex flex-col gap-xs">
-              <Button size="md" variant="outline" disabled>
-                {BOARD_TEXT.reconCta}
-              </Button>
-              <span className="text-muted-foreground text-body-small">{BOARD_TEXT.analysisNote}</span>
-            </span>
-          ),
-        },
-        ]
-      : []),
+  ]),
   ];
 
   return (
     <AssistantDeck
       capture={
-        <div className="flex min-h-72 flex-1 flex-col gap-sm">
+        <div className="flex h-full min-h-0 flex-1 flex-col gap-sm">
           {/* KEYED BY WHAT THE DECK IS BESIDE. The deck persists across
               navigation, so a draft typed beside deal A came along to the
               list, where 记一笔 filed it with no deal - a note written for one
@@ -157,7 +129,6 @@ export function AgentPanel({
             onRecord={onRecord}
             onAttach={onAttach}
           />
-          {advisor ? <div className="max-h-[45%] shrink-0 overflow-y-auto">{advisor}</div> : null}
         </div>
       }
       sections={sections}
