@@ -246,11 +246,32 @@ async function discoverTools(input: TurnInput, deps: TurnDeps): Promise<ToolSurf
       { query: input.capabilityQuery ?? input.question, limit: 20 },
       input.runos,
     );
-    if (!input.readOnlyTools) return buildToolSurface(capabilities);
     // Research needs registered schemas. Keep relevant skills and assets too;
     // distributed content is guidance, not externally verified company facts.
     const candidates = capabilities.filter(cap => cap.operations?.some(operation => operation.risk_level === "read"));
-    const resolved = await Promise.allSettled(candidates.map(cap => deps.runosClient.resolve(cap.capability_id, input.runos)));
+    const resolved = await Promise.allSettled(candidates.map(async cap => deps.runosClient.resolve(cap.capability_id, input.runos)));
+    if (!input.readOnlyTools) {
+      const surface = buildToolSurface(capabilities);
+      for (const result of resolved) {
+        if (result.status !== "fulfilled") continue;
+        const contract = result.value;
+        for (const [name, binding] of surface.bindings) {
+          if (binding.capabilityId !== contract.capability_id) continue;
+          const operation = contract.contract.operations.find(operation => operation.operation === binding.operation && operation.riskLevel === "read");
+          if (!operation || /disabled|revoked|archived|retired/i.test(contract.state)) {
+            surface.bindings.delete(name);
+            surface.definitions = surface.definitions.filter(tool => tool.name !== name);
+            continue;
+          }
+          const definition = surface.definitions.find(tool => tool.name === name);
+          if (definition) {
+            definition.parameters = operation.inputSchema;
+            definition.description = operation.description;
+          }
+        }
+      }
+      return surface;
+    }
     const surface = buildToolSurface([]);
     surface.definitions = [];
     for (const result of resolved) {

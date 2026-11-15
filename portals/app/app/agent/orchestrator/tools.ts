@@ -92,7 +92,7 @@ export interface ToolSurface {
  * Build the tool surface from discovered capabilities.
  *
  * discover() does not return schemas, so read-risk operations get a permissive
- * object schema here; the caller resolves the full contract before invoking, and
+ * object schema here; the caller enriches it with resolved input schemas, and
  * Runos validates the arguments against the registered inputSchema anyway. That
  * keeps the discover -> resolve round trip off the hot path for the common case
  * where the model asks about a capability it never calls.
