@@ -85,7 +85,7 @@ test("research cannot overwrite manual input, cite an invented result, or replac
     { field: "tier", value: "strategic", evidence: "strategic", sourceId: "read-1" },
   ];
   const result = readRegistrationDraft(answer(rows), "Look it up", vocab, {
-    current: { website: "https://manual.example" },
+    current: { website: "https://manual.example" }, manualFields: ["website"],
     evidence: [{ id: "read-1", content: "https://old.example 200 2026Q4 1000000 strategic" }],
   });
   assert.deepEqual(result?.patch, {});
@@ -130,13 +130,13 @@ test("public profile fills identity inputs from decoded MCP text, display punctu
   assert.deepEqual(result?.rejected, []);
 });
 
-test("research alternatives preserve the user's count and expose a sourced value for explicit adoption", () => {
+test("researched profile facts replace conversation hints directly and record an informational difference", () => {
   const result = readRegistrationDraft(answer([
     { field: "employeeCount", value: "140", evidence: "140 employees", sourceId: "read-1", sourceUrl: "https://official.example/jobs" },
     { field: "employeeCount", value: "100", evidence: "100 people" },
   ]), "Acme, 100 people", vocab, { evidence: [{ id: "read-1", content: "140 employees https://official.example/jobs" }] });
-  assert.deepEqual(result?.patch, { employeeCount: "100" });
-  assert.deepEqual(result?.suggestions, [{ field: "employeeCount", value: "140", currentValue: "100", excerpt: "140 employees", url: "https://official.example/jobs" }]);
+  assert.deepEqual(result?.patch, { employeeCount: "140" });
+  assert.deepEqual(result?.adjustments, [{ field: "employeeCount", value: "140", currentValue: "100", excerpt: "140 employees", url: "https://official.example/jobs" }]);
 });
 
 test("missing sourceId is recovered only from actual matching evidence; wrong IDs and forged facts get feedback", () => {
@@ -153,5 +153,16 @@ test("missing sourceId is recovered only from actual matching evidence; wrong ID
     const r = readRegistrationDraft(answer([{ field: "website", value: website, evidence: "https://official.example.evil/path", sourceId: "read-1" }]), "research", vocab,
       { evidence: [{ id: "read-1", content: "https://official.example.evil/path" }] });
     assert.deepEqual(r?.patch, {});
+  }
+});
+
+
+test("later manual corrections including intentionally blank fields are retained without asking", () => {
+  for (const value of ["120", ""]) {
+    const result = readRegistrationDraft(answer([{ field: "employeeCount", value: "140", evidence: "140 employees", sourceId: "read-1" }]), "complete the profile", vocab,
+      { current: { employeeCount: value }, manualFields: ["employeeCount"], evidence: [{ id: "read-1", content: "140 employees" }] });
+    assert.deepEqual(result?.patch, {});
+    assert.deepEqual(result?.adjustments, []);
+    assert.deepEqual(result?.rejected, []);
   }
 });

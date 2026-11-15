@@ -48,3 +48,15 @@ test("a malformed repair retains the first valid partial draft and invalid rows 
   const repaired = review("bad JSON", []);
   assert.equal(repaired.answer, initial.answer);
 });
+
+test("profile updates are automatic, do not ask per field, and retain only required business questions", () => {
+  const review = registrationAnswerReviewer(vocab, { ...current, name: "Acme", tier: "key", employeeCount: "100" }, "complete the profile", [], [], "en-US");
+  const result = JSON.parse(review(JSON.stringify({ message: "Please confirm every field", question: "Should I use 140 employees?", fields: [
+    { field: "employeeCount", value: "140", evidence: "140 employees", sourceId: "read-1" },
+  ] }), [{ id: "read-1", content: "140 employees" }]).answer);
+  assert.match(result.message, /Filled: Employee count/);
+  assert.doesNotMatch(result.message, /Should I|confirm every/);
+  const strategic = registrationAnswerReviewer(vocab, { ...current, name: "Acme", tier: "strategic" }, "Acme", [], [], "en-US");
+  const missing = JSON.parse(strategic(JSON.stringify({ message: "Need a target", question: "What is the sales target?", fields: [] }), []).answer);
+  assert.match(missing.message, /sales target/);
+});

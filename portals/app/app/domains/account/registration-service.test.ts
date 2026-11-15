@@ -268,9 +268,9 @@ test("identity omissions get one Atlas correction; later turns reuse the validat
   assert.equal(result.patch.website, `https://${website}/`);
   assert.equal(result.patch.creditCode, "125100004507196291");
   assert.equal(result.patch.province, "\u56db\u5ddd\u7701");
-  assert.equal(result.patch.employeeCount, "100");
+  assert.equal(result.patch.employeeCount, "140");
   assert.equal(result.patch.tier, "key"); assert.equal(result.patch.targetAmount, "200000");
-  assert.equal(result.suggestions[0]?.value, "140");
+  assert.equal(result.adjustments[0]?.value, "140");
   assert.equal(calls, 3); assert.equal(invocations, 1); assert.equal(h.charged(), 1);
   assert.ok(contexts.every(context => context.taskId === contexts[0]?.taskId));
   assert.doesNotMatch(result.message, /\u5df2\u5168\u90e8\u586b\u5199\u5e76\u4fdd\u5b58/);
@@ -278,11 +278,12 @@ test("identity omissions get one Atlas correction; later turns reuse the validat
   const prior = previousRegistrationEvidence(await h.copilot.listMessages(h.ctx.workspaceId, result.sessionId));
   priorSource = prior.find(source => source.content.includes(website) && source.content.includes("125100004507196291"))!.id;
   later = true;
-  const next = await prepareAccountRegistration(h.ctx, { text: "\u57fa\u7840\u8d44\u6599\u6ca1\u6709\u586b\u5199", sessionId: result.sessionId, values: { ...values, employeeCount: "100" } }, deps);
+  const next = await prepareAccountRegistration(h.ctx, { text: "\u57fa\u7840\u8d44\u6599\u6ca1\u6709\u586b\u5199", sessionId: result.sessionId, values: { ...values, employeeCount: "120", website: "https://manual.example" }, manualFields: ["employeeCount", "website"] }, deps);
   assert.equal(next.ok, true); if (!next.ok) return;
   assert.equal(next.patch.creditCode, "125100004507196291");
-  assert.equal(next.patch.website, `https://${website}/`);
-  assert.equal(next.suggestions[0]?.currentValue, "100");
+  assert.equal(next.patch.website, undefined);
+  assert.equal(next.patch.employeeCount, undefined);
+  assert.deepEqual(next.adjustments, []);
   assert.equal(invocations, 1);
   assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length, 0);
 });
