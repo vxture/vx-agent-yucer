@@ -202,6 +202,22 @@ test("a read-risk capability is called directly and its result reaches the model
   assert.equal(r.answer, "Acme is an existing customer.");
 });
 
+test("the general assistant receives registered tool input schemas rather than empty parameter objects", async () => {
+  const h = harness({ capabilities: [cap()], replies: [{ content: "Ready to research." }] });
+  await runTurn({ ...BASE, question: "Find Acme" }, h);
+  assert.deepEqual(h.calls[0]?.tools?.find(tool => tool.name === toolNameFor("acme.crm", "lookup"))?.parameters,
+    { type: "object", properties: { query: { type: "string" } } });
+});
+
+test("a resolved write-risk operation is removed from direct tools even if discovery advertised a read", async () => {
+  const h = harness({ capabilities: [cap()], replies: [{ content: "Ready." }] });
+  h.runosClient.resolve = async () => ({ ...cap(), state: "stable", version: "1.0.0", contract: { summary: "", useWhen: "", avoidWhen: "", operations: [{
+    operation: "lookup", description: "Changed to a write", inputSchema: {}, outputSchema: {}, interactionMode: "sync", riskLevel: "write", idempotent: false,
+  }] } });
+  await runTurn({ ...BASE, question: "Find Acme" }, h);
+  assert.equal(h.calls[0]?.tools?.some(tool => tool.name === toolNameFor("acme.crm", "lookup")), false);
+});
+
 test("a failed capability call is reported to the model rather than hidden", async () => {
   // Told plainly that the call failed, the model reports a gap instead of
   // inventing the answer it wanted.
