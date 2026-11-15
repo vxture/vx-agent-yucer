@@ -29,7 +29,7 @@ function harness() {
     atlasClient: { chat: async (_profile: string, req: { tools?: unknown }, context: AtlasContext) => {
       assert.equal(_profile, "drafting");
       modelContexts.push(context);
-      calls++; assert.equal(req.tools, undefined);
+      calls++; assert.deepEqual((req.tools as { name: string }[]).map(tool => tool.name), ["find_capabilities", "load_capability"]);
       if (error) throw error;
       return { id: "chat", modelCode: "fake", message: { role: "assistant", content: reply }, usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 } };
     } } as unknown as AtlasClient,

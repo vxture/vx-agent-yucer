@@ -2,11 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AtlasClient } from "../atlas/client";
 import type { ChatMessage, ChatResponse, ToolDefinition } from "../atlas/types";
-import type { RunosClient } from "../runos/client";
+import { RunosClient } from "../runos/client";
 import { RunosError } from "../runos/errors";
 import type { DiscoveredCapability } from "../runos/types";
 import { runTurn, type TurnInput } from "./turn";
-import { PROPOSE_ACTION_TOOL_NAME, buildToolSurface, readProposalDraft, toolNameFor } from "./tools";
+import { PROPOSE_ACTION_TOOL_NAME, FIND_CAPABILITIES, LOAD_CAPABILITY, buildToolSurface, readProposalDraft, toolNameFor } from "./tools";
 import { buildSystemPrompt, renderPlaybook } from "./prompt";
 
 const BASE: Omit<TurnInput, "question"> = {
@@ -65,8 +65,11 @@ function harness(opts: {
   } as unknown as AtlasClient;
 
   const runosClient = {
-    async discover() {
+    async discover(..._args: unknown[]) {
       return opts.capabilities ?? [];
+    },
+    async discoverPage(args: Parameters<RunosClient["discover"]>[0], ctx: Parameters<RunosClient["discover"]>[1]) {
+      return { capabilities: await runosClient.discover(args, ctx) };
     },
     async resolve(id: string) {
       const capability = opts.capabilities?.find(capability => capability.capability_id === id)!;
@@ -175,7 +178,7 @@ test("calling a withheld tool is refused with a pointer to propose_action", asyn
 test("propose_action is always offered, even with no capabilities at all", async () => {
   const h = harness({ replies: [{ content: "ok" }], capabilities: [] });
   await runTurn({ ...BASE, question: "q" }, h);
-  assert.deepEqual((h.calls[0].tools ?? []).map((t) => t.name), [PROPOSE_ACTION_TOOL_NAME]);
+  assert.deepEqual((h.calls[0].tools ?? []).map((t) => t.name), [PROPOSE_ACTION_TOOL_NAME, FIND_CAPABILITIES, LOAD_CAPABILITY]);
 });
 
 // --- Read-risk capability calls ---------------------------------------------
@@ -611,7 +614,7 @@ test("a draft may use read-only capabilities for research but never receives a w
   const out = await runTurn({ ...BASE, question: "\u67e5\u4e00\u4e0b Acme \u7684\u516c\u5f00\u8d44\u6599", draftOnly: true, readOnlyTools: true }, h);
   assert.equal(h.calls[0]?.tools?.some(tool => tool.name === PROPOSE_ACTION_TOOL_NAME), false);
   assert.deepEqual(out.proposals, []);
-  assert.deepEqual(out.readEvidence, [{ id: "read-1-1", content: JSON.stringify({ name: "Acme", website: "https://acme.example" }) }]);
+  assert.deepEqual(out.readEvidence, [{ id: "read-1-1", content: JSON.stringify({ structured: { name: "Acme", website: "https://acme.example" }, text: "Acme official profile" }) }]);
   assert.deepEqual(h.invoked, [{ capability_id: "acme.crm", operation: "lookup", arguments: { query: "Acme" }, version: "1.0.0" }]);
 });
 
@@ -626,11 +629,119 @@ test("research cannot propose a change even when a model calls an unoffered writ
   assert.match(String(h.calls[1]?.messages.find(message => message.role === "tool")?.content), /no proposal or write/);
 });
 
-test("empty or failed research discovery is explained as unavailable, never as a ban on public facts", async () => {
+test("empty research discovery retains catalog navigation rather than claiming internet is unavailable", async () => {
   const h = harness({ replies: [{ content: '{"message":"Lookup is currently unavailable.","fields":[]}' }] });
   const result = await runTurn({ ...BASE, question: "Research Acme", draftOnly: true, readOnlyTools: true }, h);
-  assert.equal(h.calls[0]?.tools, undefined);
-  assert.match(String(h.calls[0]?.messages[0]?.content), /No read tools are reachable/);
+  assert.deepEqual(h.calls[0]?.tools?.map(tool => tool.name), [FIND_CAPABILITIES, LOAD_CAPABILITY]);
+  assert.match(String(h.calls[0]?.messages[0]?.content), /not proof that internet research is unavailable/);
   assert.deepEqual(result.readEvidence, []);
   assert.deepEqual(result.modelCodes, ["m"]);
+});
+
+test("a fetched research skill can load and invoke its search dependency absent from discovery", async () => {
+  const skill = cap({ capability_id: "company.research", primitive_type: "skill", operations: [{ operation: "fetch", description: "Company research instructions", risk_level: "read", interaction_mode: "sync" }] });
+  const h = harness({ capabilities: [skill], replies: [
+    { toolCalls: [{ id: "skill", name: toolNameFor("company.research", "fetch"), arguments: {} }] },
+    { toolCalls: [{ id: "load", name: LOAD_CAPABILITY, arguments: { capability_id: "public.web" } }] },
+    { toolCalls: [{ id: "search", name: toolNameFor("public.web", "search"), arguments: { query: "Acme official website" } }] },
+    { content: "Found Acme." },
+  ], invoke: async args => args.capability_id === "company.research"
+    ? { content: [{ type: "text", text: "Use capability public.web to search the public internet." }], meta: { result_kind: "distributed" } }
+    : { structured: { website: "https://acme.example" }, content: [], meta: { call_id: "web-call" } },
+  });
+  const originalResolve = h.runosClient.resolve.bind(h.runosClient);
+  h.runosClient.resolve = async (id, ctx, version) => id !== "public.web" ? originalResolve(id, ctx, version) : {
+    capability_id: id, title: "Public internet search", primitive_type: "connector", provider: "platform", version: "2.0.0", state: "stable",
+    contract: { summary: "Search public pages", useWhen: "Research public company facts", avoidWhen: "", operations: [
+      { operation: "search", description: "Search the internet", inputSchema: { type: "object", required: ["query"], properties: { query: { type: "string" } } }, outputSchema: {}, riskLevel: "read", interactionMode: "sync", idempotent: true },
+      { operation: "publish", description: "Publish data", inputSchema: {}, outputSchema: {}, riskLevel: "write", interactionMode: "sync", idempotent: false },
+    ] },
+  };
+  const result = await runTurn({ ...BASE, question: "Research Acme", draftOnly: true, readOnlyTools: true }, h);
+  assert.deepEqual(h.invoked.map(call => call.capability_id), ["company.research", "public.web"]);
+  assert.equal((h.invoked[1] as { version?: string }).version, "2.0.0");
+  assert.equal(result.readEvidence.length, 1, "loading a skill or contract is not company evidence");
+  assert.match(result.readEvidence[0]!.content, /https:\/\/acme.example/);
+  assert.ok(h.calls[2]?.tools?.some(tool => tool.name === toolNameFor("public.web", "search")));
+  assert.equal(h.calls[2]?.tools?.some(tool => tool.name === toolNameFor("public.web", "publish")), false);
+});
+
+test("current Runos wire skill metadata and reference blocks reach the orchestration loop as guidance", async () => {
+  // Shapes checked against Runos v0.28.2 gateway.service.ts: discover,
+  // resolveContract, distributeSkill, withMeta. The real client parses the RPC;
+  // this is a consumer seam check, not an internet or model-quality test.
+  const skill = cap({ capability_id: "research.company", primitive_type: "skill", operations: [{ operation: "fetch", description: "Company research", risk_level: "read", interaction_mode: "sync" }] });
+  const h = harness({ replies: [
+    { toolCalls: [{ id: "skill", name: toolNameFor("research.company", "fetch"), arguments: {} }] },
+    { content: "Research instructions loaded; company research is not complete." },
+  ] });
+  h.runosClient = new RunosClient({ enabled: true, baseUrl: "https://runos.test", mcpPath: "/v1/mcp", timeoutMs: 1000 }, {
+    mintToken: async args => ({ accessToken: "test", audience: args.audience, mode: args.mode, expiresAt: 0 }),
+    fetchImpl: async (_url, init) => {
+      const rpc = JSON.parse(String(init.body));
+      let result;
+      if (rpc.params.name === "runos_discover") result = { structuredContent: { capabilities: [skill] } };
+      else if (rpc.params.name === "runos_resolve") result = { structuredContent: { ...skill, version: "1.0.0", state: "stable", contract: {
+        summary: "Company research guidance", useWhen: "Research companies", avoidWhen: "", operations: [{ operation: "fetch", description: "Fetch guidance", riskLevel: "read", interactionMode: "sync", inputSchema: { type: "object", properties: {} } }],
+      } } };
+      else result = { content: [
+        { type: "text", text: "# Company research\nRead references/api-map.md before choosing a tool." },
+        { type: "resource", resource: { uri: "skill://research.company/1.0.0/references/api-map.md", mimeType: "text/markdown", text: "Use sandbase_describe_tool, then sandbase_call_tool." } },
+      ], structuredContent: { _meta: { vxture: { result_kind: "distributed", call_id: "real-format-call", version_resolved: "1.0.0", resource_count: 1 } } } };
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result }), { status: 200 });
+    },
+  });
+  const result = await runTurn({ ...BASE, question: "Research Acme", draftOnly: true, readOnlyTools: true }, h);
+  const toolResult = h.calls[1]!.messages.find(message => message.role === "tool");
+  assert.match(String(toolResult?.content), /sandbase_describe_tool/);
+  assert.match(String(toolResult?.content), /Reference guidance was loaded/);
+  assert.deepEqual(result.readEvidence, []);
+  assert.equal(result.invocations[0]?.resultKind, "distributed");
+  assert.equal(result.invocations[0]?.callId, "real-format-call");
+});
+
+test("catalog navigation can recover from an empty initial query without treating tool discovery as web evidence", async () => {
+  const h = harness({ replies: [
+    { toolCalls: [{ id: "catalog", name: FIND_CAPABILITIES, arguments: { query: "internet search webpage retrieval" } }] },
+    { content: "No public search connector was found." },
+  ] });
+  const result = await runTurn({ ...BASE, question: "Look up Acme", readOnlyTools: true }, h);
+  const reply = h.calls[1]!.messages.find(message => message.role === "tool");
+  assert.match(String(reply?.content), /no web search or company lookup executed/);
+  assert.deepEqual(result.readEvidence, []);
+  assert.deepEqual(result.invocations, []);
+});
+
+test("catalog navigation can enumerate connectors independently of a large skill catalog", async () => {
+  const h = harness({ replies: [
+    { toolCalls: [{ id: "catalog", name: FIND_CAPABILITIES, arguments: { query: "*", primitive_type: "connector" } }] },
+    { content: "Found executable connectors." },
+  ] });
+  const queries: unknown[] = [];
+  h.runosClient.discover = async args => { queries.push(args); return []; };
+  await runTurn({ ...BASE, question: "Find public search", readOnlyTools: true }, h);
+  assert.deepEqual(queries[1], { query: "*", limit: 100, filter: { primitive_type: "connector" } });
+});
+
+test("structured status cannot hide company evidence returned in MCP text content", async () => {
+  const h = harness({ capabilities: [cap()], replies: [
+    { toolCalls: [{ id: "lookup", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+    { content: "Found the homepage." },
+  ], invoke: async () => ({ structured: { status: "success" }, content: [{ type: "text", text: "Official website: https://acme.example" }], meta: { call_id: "actual-read" } }) });
+  const result = await runTurn({ ...BASE, question: "Research Acme", readOnlyTools: true }, h);
+  assert.match(result.readEvidence[0]!.content, /Official website: https:\/\/acme.example/);
+  assert.match(String(h.calls[1]!.messages.find(message => message.role === "tool")?.content), /https:\/\/acme.example/);
+});
+
+test("an empty acknowledgement is not offered as verified company evidence", async () => {
+  const h = harness({ capabilities: [cap()], replies: [
+    { toolCalls: [{ id: "lookup", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+    { content: "I need to try a public search connector." },
+  ], invoke: async () => ({ structured: { status: "success", requestId: "request-1", results: [] }, content: [{ type: "text", text: "ok" }], meta: { call_id: "empty-read" } }) });
+  const result = await runTurn({ ...BASE, question: "Research Acme", readOnlyTools: true }, h);
+  assert.deepEqual(result.readEvidence, []);
+  const response = JSON.parse(String(h.calls[1]!.messages.find(message => message.role === "tool")?.content));
+  assert.equal(response.sourceId, undefined);
+  assert.match(response.note, /Try a relevant alternative/);
+  assert.equal(result.invocations[0]?.callId, "empty-read");
 });

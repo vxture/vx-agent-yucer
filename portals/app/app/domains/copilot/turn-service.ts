@@ -368,6 +368,14 @@ async function runUnlockedTurn(
     costUnit: "tokens",
   });
 
+  // Operational facts only: no user text, tool arguments, reports or tickets.
+  // callId joins Runos's audit record so empty results can be investigated
+  // without relying on the model's explanation of what it called.
+  console.info("[copilot-tools] turn", { taskId, sessionId: session.id,
+    modelCodes: turn.modelCodes, toolRounds: turn.toolRounds, truncated: turn.truncated,
+    invocations: turn.invocations.map(({ capabilityId, operation, ok, callId, errorCode, versionResolved, resultKind, hasReferenceData }) => ({ capabilityId, operation, ok, callId, errorCode, versionResolved, resultKind, hasReferenceData })),
+    evidenceCount: turn.readEvidence.length });
+
   return ok({
     session,
     answer: turn.answer,

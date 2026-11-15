@@ -241,3 +241,75 @@ Server Action 响应，验证顶部→右侧两轮共享线程、最新手改值
 登录首页返回 HTTP 200，`/api/status` 显示 Atlas、Runos、数据库及 Redis 可达。
 这轮只验证部署与连接；真实企业公开资料查询结果、工作区实际可用查询能力及
 具体服务模型仍待登录后验收，未将模拟响应或健康检查记为真实业务验收。
+
+## 企业检索链路补齐（2026-11-15，本地待发布）
+
+v0.1.94 线上反馈仍出现「工具调用了但只有状态」及反复索要企业资料。本轮不把
+模型自己的故障解释当作调用证据，也不将能力授权等同于真实联网搜索可用。
+
+代码检查确认并修正：
+
+- 原表单 frame 主要给出字段键及选项，补充各字段业务含义、填写优先级、公开资料
+  与销售决策的区分；内部 CRM 查询用于去重与关联，不能冒充互联网检索。
+- 原工具集合固定为首轮 discovery 结果。共享工具循环增加目录查找与契约加载，
+  均复用现有 Runos；技能的注册依赖显示在说明中，可按 ID 加载，不要求依赖必须
+  出现在 discovery 中。新加载工具采用平台注册 schema 和版本，仍按 read/sync
+  契约调用；目录与技能内容本身不作为企业事实。
+- 原实现优先采用 structuredContent，可能漏掉同时返回的文本报告。现在保留两种
+  内容，识别空结果或纯状态回执，要求尝试相关替代工具；回执不生成字段来源。
+- 修正「重要级」已被模型识别为 key、却被原文校验丢弃的问题。
+- 服务端记录能力 ID、操作、Runos callId、实际版本、分发/执行类型与是否有参考
+  内容，可用 taskId 关联平台审计；不记录用户原文、工具参数、企业正文或票据。
+
+新增集成夹具验证：仅发现调研技能时仍能加载隐藏的搜索依赖并调用；空目录时能
+继续查找工具；结构化状态不遮蔽文本正文；纯成功回执不形成企业来源；写操作不
+因加载契约而直接暴露。该验证不是线上 Runos 清单检查或真实企业联网查询验收。
+初次排查时操作机无法直达 Runos 内网；owner 随后提供本地源码，核对结果见下。
+线上受权目录和调用记录仍未读取，不据此要求 owner 重新授权。
+
+### 对照本地 Atlas / Runos 权威源码（2026-11-15）
+
+owner 提供本机 `MyWebSite/vxturestudio/vxture-runos` 与 `vxture-atlas` 后继续
+只读核对，未修改两个平台仓库。Runos 本地提交 `c83009f`，生产健康接口为
+`v0.28.2 / 05a1a70b`，两提交间 gateway/envelope 代码无差异；Atlas 本地提交
+`31e9941` 与生产 `v0.9.3 / 31e99415` 对应。公网 health/ready 只证明服务就绪，
+不是目录授权或企业查询验收。
+
+新增确认与修正：
+
+- Runos `service/src/gateway/gateway.service.ts` 的 `withMeta` 实际使用
+  `structuredContent._meta.vxture`，技能分发仅带此元数据，正文在 text block。
+  聿策只读 `_meta_vxture` 的旧实现会错过 `result_kind=distributed` 并把技能
+  fetch 当成查询执行；现优先读取当前格式，兼容旧格式，去除网关元数据及其
+  文本镜像，不污染企业来源，保留其他 MCP 命名空间。
+- Runos `envelope.ts` 真实错误为 `{code,message,retryable,call_id}`，非旧的
+  `error_class/error_code`；聿策补齐现有错误码识别与结构化错误读取，避免将
+  `NOT_ENTITLED`、`CALLER_UNKNOWN_CAPABILITY` 或上游失败都归成契约错误。
+- 技能 fetch 还包含 `resource` 文本块；聿策此前遗漏这些参考文档。现在与
+  SKILL.md 一同传给模型，保留来源围栏。企业补全技能附带的 API map 因此可用。
+- Runos 目录实际为关键词加权搜索，不是网页搜索或模型语义搜索。工具查找增加
+  `filter.primitive_type`，支持 `query=*` 单独列出 connector，避免 877 项技能
+  把少量实际连接器挤出首屏，并保留 total/next_cursor 以继续翻页；登记入口改为
+  简短用途词查询，不混入公司名称。
+
+能力供给的范围必须区分：本地 `deploy/preset/ledger.json` 有 877 项技能，
+`deploy/preset/connectors/` 仅预置 `markitdown.document-to-markdown`；
+`sandbaseai.research-company-enrichment/SKILL.md` 要求 `sandbase_describe_tool`
+与 `sandbase_call_tool`，其 API map 列出 Apollo/Strale/Akta 等工具。这是操作知识，
+不自带这些服务、凭据或注册连接器。本地示例中的 `hooli.web-search`、
+`umbrella.web-fetch` 指向 `mock-hooli`、`mock-umbrella`，位于明确限定本地的
+test corpus，不能据此宣称生产有真实联网检索。
+
+Atlas `openai-compatible.ts` 支持传递工具调用，但模型接口本身不自动构成搜索
+服务。现有证据确认聿策消费契约存在错误，同时表明预置技能数量不能代表真实
+查询能力数量；生产可能有运营另行注册的 connector，需以受权目录和调用审计
+为准，尚未读取，不能认定 owner 没授权，也不能认定真实搜索已经可用。
+
+源码对照后的验证：完整离线回归 3404 项，2953 通过、451 项数据库测试按环境
+跳过、0 失败；后续补充真实客户端到编排循环的响应联动、目录分页测试，最终
+110 项针对性测试及类型检查通过，正式构建通过。联动使用按 Runos 当前源码
+响应构造的 HTTP 夹具，不是生产 API/真实模型/真实互联网查询验收。
+
+本地验证：完整离线回归 3399 项，2948 通过、451 项数据库测试按环境跳过、
+0 失败；最终 98 项编排/登记/共享回合针对性测试通过，类型检查及正式构建通过，
+文档编号与 diff 检查通过。未执行真实公网企业查询，未创建客户。

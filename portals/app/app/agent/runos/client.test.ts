@@ -149,6 +149,14 @@ test("discover returning nothing is an empty list, not an error", async () => {
   assert.deepEqual(await client.discover({ query: "anything" }, CTX), []);
 });
 
+test("catalog enumeration preserves total and continuation token without hiding later tools", async () => {
+  const { client, sent } = harness([() => rpcOk({ structuredContent: { capabilities: [{ capability_id: "search" }], total: 101, next_cursor: "page-two" } })]);
+  const page = await client.discoverPage({ query: "*", filter: { primitive_type: "connector" }, cursor: "page-one" }, CTX);
+  assert.equal(page.total, 101);
+  assert.equal(page.next_cursor, "page-two");
+  assert.deepEqual(sent[0].rpc.params.arguments, { query: "*", filter: { primitive_type: "connector" }, cursor: "page-one" });
+});
+
 test("resolve defaults to the stable alias and returns the contract", async () => {
   const { client, sent } = harness([
     () =>
@@ -187,19 +195,16 @@ test("a payload delivered as a JSON text block is read the same as structuredCon
   assert.equal(caps[0].capability_id, "x");
 });
 
-test("invoke reads the meta block from structuredContent, and keeps it out of the payload", async () => {
-  // NOTE THE ASYMMETRY, which is the whole reason this was wrong: the REQUEST
-  // carries its metadata at `_meta.vxture` (asserted above), while the RESPONSE
-  // carries it as a flat `_meta_vxture` key INSIDE structuredContent, beside
-  // the capability's own payload. The fixture used to build the request shape
-  // for a response, so the suite was green against a body Runos never sends.
+test("invoke reads current Runos _meta.vxture and preserves unrelated MCP metadata", async () => {
+  // Runos v0.28.2 gateway.service.ts withMeta: namespaces are merged in the
+  // structured payload; the mirror JSON text contains the business payload.
   const { client, sent } = harness([
     () =>
       rpcOk({
         content: [{ type: "text", text: "done" }],
         structuredContent: {
           rows: 3,
-          _meta_vxture: { call_id: "call_9", version_resolved: "2.0.0" },
+          _meta: { vxture: { call_id: "call_9", version_resolved: "2.0.0" }, "acme/trace": "trace-1" },
         },
       }),
   ]);
@@ -212,8 +217,43 @@ test("invoke reads the meta block from structuredContent, and keeps it out of th
   // The payload the model sees has the gateway's plumbing stripped out. Leaving
   // it in feeds call_id and version_resolved to the LLM as though they were
   // part of the capability's answer.
-  assert.deepEqual(res.structured, { rows: 3 });
+  assert.deepEqual(res.structured, { rows: 3, _meta: { "acme/trace": "trace-1" } });
   assert.equal(sent[0].rpc.params.name, "runos_invoke");
+});
+
+test("legacy metadata remains readable but current namespace wins when both appear", async () => {
+  for (const current of [undefined, { call_id: "current", result_kind: "distributed" }]) {
+    const { client } = harness([() => rpcOk({ structuredContent: {
+      _meta_vxture: { call_id: "legacy", result_kind: "executed" },
+      ...(current ? { _meta: { vxture: current } } : {}),
+    } })]);
+    const result = await client.invoke({ capability_id: "skill", operation: "fetch", arguments: {} }, CTX);
+    assert.equal(result.meta.call_id, current ? "current" : "legacy");
+    assert.equal(result.structured, undefined);
+  }
+});
+
+test("gateway-only metadata in a JSON text mirror never becomes business evidence", async () => {
+  const payload = { _meta: { vxture: { call_id: "c1", result_kind: "distributed" } } };
+  const { client } = harness([() => rpcOk({ structuredContent: payload, content: [{ type: "text", text: JSON.stringify(payload) }] })]);
+  const result = await client.invoke({ capability_id: "skill", operation: "fetch", arguments: {} }, CTX);
+  assert.equal(result.structured, undefined);
+  assert.equal(result.content[0]?.text, "");
+});
+
+test("current Runos error codes survive structured-only MCP errors", async () => {
+  for (const code of ["CALLER_UNKNOWN_CAPABILITY", "CAPABILITY_PROVIDER_UNAVAILABLE", "NOT_ENTITLED", "RATE_LIMITED"]) {
+    const { client } = harness([() => rpcOk({ isError: true, structuredContent: { code, message: "reported upstream", retryable: true, call_id: "failure-call" } })]);
+    await assert.rejects(() => client.invoke({ capability_id: "company", operation: "lookup", arguments: {} }, CTX), (error: unknown) => {
+      assert.ok(error instanceof RunosError);
+      assert.equal(error.errorCode, code);
+      assert.equal(error.callId, "failure-call");
+      assert.equal(error.retryable, true);
+      assert.equal(error.isUnknown, code === "CALLER_UNKNOWN_CAPABILITY");
+      assert.equal(error.isAdjudication, code === "NOT_ENTITLED");
+      return true;
+    });
+  }
 });
 
 test("skill_context rides along when following a skill", async () => {
