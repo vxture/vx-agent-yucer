@@ -14,7 +14,7 @@ import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import { planMove } from "../catalog/lib/lifecycle";
-import { listSolutionReferences } from "../catalog/service";
+import { listProductReferences, listSolutionReferences } from "../catalog/service";
 import type { CatalogStore } from "../catalog/store";
 import { sumMoney, type Money } from "../shared/money";
 import {
@@ -45,6 +45,7 @@ import {
   type PlanWriteGuard,
   PlanMarketUnavailableError,
   PlanSolutionUnavailableError,
+  PlanProductUnavailableError,
   SegmentReferencedError,
   type CampaignRecord,
   type ExecutionRecord,
@@ -62,7 +63,7 @@ export interface StrategyContext {
   holder: PermissionHolder;
   entitlement: Entitlement;
   store: StrategyStore;
-  catalog?: Pick<CatalogStore, "listSolutions">;
+  catalog?: Pick<CatalogStore, "listSolutions"> & Partial<Pick<CatalogStore, "listProducts" | "listStatusConfigs">>;
   memberDirectory?: { listMembers(workspaceId: string): Promise<readonly Pick<MemberRecord, "sub" | "status" | "displayName">[]> };
 }
 
@@ -103,6 +104,33 @@ async function validatePlanSolutions(
   return fail(violation("solution_catalog_unavailable", "solution catalogue unavailable", "solutionIds", true));
 }
 
+async function validatePlanProducts(
+  ctx: StrategyContext,
+  ids: readonly string[],
+  existing: readonly string[] = [],
+): Promise<RuleResult<readonly string[]>> {
+  if (!Array.isArray(ids) || ids.some(id => typeof id !== "string" || !id)) {
+    return fail(violation("product_not_selectable", "invalid product selection", "productIds"));
+  }
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const selected = [...new Set(ids)];
+  const added = selected.filter(id => !existing.includes(id));
+  if (!added.length) return ok(selected);
+  if (ctx.catalog?.listProducts && ctx.catalog.listStatusConfigs) {
+    try {
+      const refs = await listProductReferences({ ...ctx, store: { listProducts: ctx.catalog.listProducts.bind(ctx.catalog), listStatusConfigs: ctx.catalog.listStatusConfigs.bind(ctx.catalog) } });
+      if (!refs.ok) return refs;
+      const available = new Set(refs.value.filter(s => s.status === "active").map(s => s.id));
+      if (added.every(id => available.has(id))) return ok(selected);
+      return fail(violation("product_not_selectable", "product unavailable for selection", "productIds"));
+    } catch {
+      // Preserve the draft when the source cannot be read.
+    }
+  }
+  return fail(violation("product_catalog_unavailable", "product catalogue unavailable", "productIds", true));
+}
+
 function marketUnavailable() {
   return violation("market_not_selectable", "invalid or unavailable target market", "targetMarkets");
 }
@@ -121,6 +149,9 @@ async function validateTargetMarkets(
   const chosen = new Map<string, TargetMarket>();
   // Validate the catalogue once even when many targets were edited. Compare
   // additions per market so a retired solution cannot move to a new target.
+  const addedProducts = new Set<string>();
+  let changedProducts = false;
+  let availableProductDefaults: Set<string> | undefined;
   const addedSolutions = new Set<string>();
   let changedSolutions = false;
   let availableDefaults: Set<string> | undefined;
@@ -151,8 +182,26 @@ async function validateTargetMarkets(
     }
     if (ids !== undefined || (!held && solutionIds.length)) changedSolutions = true;
     for (const id of solutionIds) if (!held?.solutionIds.includes(id)) addedSolutions.add(id);
+    const productInput = target.productIds;
+    if (productInput !== undefined && (!Array.isArray(productInput) || productInput.some(id => typeof id !== "string" || !id))) {
+      return fail(violation("product_not_selectable", "invalid product selection", "productIds"));
+    }
+    // New targets copy current market defaults once. Existing drafts and
+    // publications retain their own selection, including an explicit empty one.
+    let productIds = productInput === undefined ? [...(held?.productIds ?? segment.productIds ?? [])] : [...new Set(productInput)];
+    if (productInput === undefined && !held && productIds.length) {
+      if (!availableProductDefaults) {
+        if (!ctx.catalog?.listProducts || !ctx.catalog.listStatusConfigs) return fail(violation("product_catalog_unavailable", "product catalogue unavailable", "productIds", true));
+        const refs = await listProductReferences({ ...ctx, store: { listProducts: ctx.catalog.listProducts.bind(ctx.catalog), listStatusConfigs: ctx.catalog.listStatusConfigs.bind(ctx.catalog) } });
+        if (!refs.ok) return refs;
+        availableProductDefaults = new Set(refs.value.filter(s => s.status === "active").map(s => s.id));
+      }
+      productIds = productIds.filter(id => availableProductDefaults!.has(id));
+    }
+    if (productInput !== undefined || (!held && productIds.length)) changedProducts = true;
+    for (const id of productIds) if (!held?.productIds?.includes(id)) addedProducts.add(id);
     chosen.set(segment.id, {
-      segmentId: segment.id, intent: target.intent, approach: target.approach?.trim() || null, solutionIds,
+      segmentId: segment.id, intent: target.intent, approach: target.approach?.trim() || null, solutionIds, productIds,
       marketName: held?.marketName ?? segment.name,
       criteria: held?.criteria ?? segment.criteria,
     });
@@ -160,6 +209,10 @@ async function validateTargetMarkets(
   if (changedSolutions || existing.some(t => !chosen.has(t.segmentId) && t.solutionIds.length > 0)) {
     const solutions = await validatePlanSolutions(ctx, [...addedSolutions]);
     if (!solutions.ok) return solutions;
+  }
+  if (changedProducts || existing.some(t => !chosen.has(t.segmentId) && (t.productIds?.length ?? 0) > 0)) {
+    const products = await validatePlanProducts(ctx, [...addedProducts]);
+    if (!products.ok) return products;
   }
   return ok([...chosen.values()]);
 }
@@ -169,6 +222,7 @@ async function persistPlanSelection<T>(write: () => Promise<T>): Promise<RuleRes
     return ok(await write());
   } catch (error) {
     if (error instanceof PlanMarketUnavailableError) return fail(marketUnavailable());
+    if (error instanceof PlanProductUnavailableError) return fail(violation("product_not_selectable", "product unavailable for selection", "productIds"));
     if (!(error instanceof PlanSolutionUnavailableError)) throw error;
     return fail(violation("solution_not_selectable", "solution unavailable for selection", "solutionIds"));
   }
@@ -217,6 +271,8 @@ export async function createPlan(
   if (!owner.ok) return owner;
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds);
   if (!selection.ok) return selection;
+  const products = input.productIds === undefined ? ok(undefined) : await validatePlanProducts(ctx, input.productIds);
+  if (!products.ok) return products;
   const targets = await validateTargetMarkets(ctx, input.targetMarkets);
   if (!targets.ok) return targets;
   let planNo = plan.value.planNo;
@@ -224,7 +280,7 @@ export async function createPlan(
   // retries only a code collision, never a failed relation or unknown write.
   for (let attempt = 0; attempt < (autoNumber ? 10 : 1); attempt++) {
     const persisted = await persistPlanSelection(() => ctx.store.createPlan(ctx.workspaceId, {
-      ...plan.value, planNo, createdBySub: ctx.sub, solutionIds: selection.value, targetMarkets: targets.value,
+      ...plan.value, planNo, createdBySub: ctx.sub, solutionIds: selection.value, productIds: products.value, targetMarkets: targets.value,
     }));
     if (!persisted.ok) return persisted;
     if (persisted.value) return ok(persisted.value);
@@ -273,11 +329,14 @@ async function applyPlanEdit(
   if (!owner.ok) return owner;
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds, plan.solutionIds);
   if (!selection.ok) return selection;
+  const products = input.productIds === undefined ? ok(undefined) : await validatePlanProducts(ctx, input.productIds, plan.productIds);
+  if (!products.ok) return products;
   const targets = await validateTargetMarkets(ctx, input.targetMarkets, plan.targetMarkets);
   if (!targets.ok) return targets;
-  const { solutionIds: _solutions, targetMarkets: _targets, ...fields } = edit.value;
+  const { solutionIds: _solutions, productIds: _products, targetMarkets: _targets, ...fields } = edit.value;
   const patch = { ...fields,
     ...(selection.value === undefined ? {} : { solutionIds: selection.value }),
+    ...(products.value === undefined ? {} : { productIds: products.value }),
     ...(targets.value === undefined ? {} : { targetMarkets: targets.value }),
   };
   const applied = await persistPlanSelection(() => ctx.store.updatePlan(ctx.workspaceId, id, patch, {...guard,expectedStatus:"draft"}));
@@ -360,9 +419,20 @@ export async function publishStrategy(ctx:StrategyContext,id:string,expectedEdit
       if(solutions.length!==ids.size)return fail(violation("solution_not_selectable","a linked solution cannot be read","solutionIds"));
     }catch{return fail(violation("solution_catalog_unavailable","solution catalogue unavailable",undefined,true));}
   }
+  const productIds=new Set([...(plan.productIds ?? []),...(plan.targetMarkets ?? []).flatMap(t=>t.productIds ?? [])]);
+  let products: import("../catalog/service").ProductReference[]=[];
+  if(productIds.size){
+    const productGate=can(ctx.holder,ctx.entitlement,"catalog.product.view","data");if(!productGate.allowed)return denied(productGate);
+    if(!ctx.catalog?.listProducts || !ctx.catalog.listStatusConfigs)return fail(violation("product_catalog_unavailable","product catalogue unavailable",undefined,true));
+    try{
+      const refs=await listProductReferences({...ctx,store:{listProducts:ctx.catalog.listProducts.bind(ctx.catalog),listStatusConfigs:ctx.catalog.listStatusConfigs.bind(ctx.catalog)}});if(!refs.ok)return refs;
+      products=refs.value.filter(p=>productIds.has(p.id));
+      if(products.length!==productIds.size)return fail(violation("product_not_selectable","a linked product cannot be read","productIds"));
+    }catch{return fail(violation("product_catalog_unavailable","product catalogue unavailable",undefined,true));}
+  }
   let ownerName:string|null=null;
   try{ownerName=(await ctx.memberDirectory?.listMembers(ctx.workspaceId))?.find(m=>m.sub===plan.ownerSub)?.displayName ?? null;}catch{/* Display cache is optional. */}
-  return versionResult(()=>ctx.store.publishPlan(ctx.workspaceId,id,{expectedEditToken,actorSub:ctx.sub,at,solutions,ownerName}));
+  return versionResult(()=>ctx.store.publishPlan(ctx.workspaceId,id,{expectedEditToken,actorSub:ctx.sub,at,solutions,products,ownerName}));
 }
 
 export async function listCampaigns(
@@ -598,14 +668,16 @@ export async function upsertSegment(
   const checked = planSegment(input);
   if (!checked.ok) return checked as RuleResult<SegmentRecord>;
 
-  const existing = input.solutionIds === undefined ? undefined :
-    (await ctx.store.listSegments(ctx.workspaceId)).find(s => s.segmentCode === checked.value.segmentCode);
-  if (input.solutionIds !== undefined) {
-    const selection = await validatePlanSolutions(ctx, input.solutionIds, existing?.solutionIds);
-    if (!selection.ok) return selection;
-    return ok(await ctx.store.upsertSegment(ctx.workspaceId, { ...checked.value, solutionIds: selection.value }));
-  }
-  return ok(await ctx.store.upsertSegment(ctx.workspaceId, checked.value));
+  const existing = (await ctx.store.listSegments(ctx.workspaceId)).find(s => s.segmentCode === checked.value.segmentCode);
+  const solutions = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds, existing?.solutionIds);
+  if (!solutions.ok) return solutions;
+  const products = input.productIds === undefined ? ok(undefined) : await validatePlanProducts(ctx, input.productIds, existing?.productIds);
+  if (!products.ok) return products;
+  return persistPlanSelection(() => ctx.store.upsertSegment(ctx.workspaceId, {
+    ...checked.value,
+    ...(solutions.value === undefined ? {} : {solutionIds:solutions.value}),
+    ...(products.value === undefined ? {} : {productIds:products.value}),
+  }));
 }
 
 /**

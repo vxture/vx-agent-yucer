@@ -15,3 +15,7 @@
 // standing at the same time.
 export const BOARD_COOKIE_PREFIX = "yucer-board";
 export const DOCK_COOKIE_PREFIX = "yucer-dock";
+
+/** Normal dock width only; fullscreen is deliberately temporary. */
+export const ASSISTANT_WIDTH_COOKIE = "yucer_assistant_width";
+export type AssistantWidth = "narrow" | "wide";

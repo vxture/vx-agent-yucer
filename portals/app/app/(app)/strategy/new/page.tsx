@@ -7,7 +7,7 @@ import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
 import { getCatalogStore, getStrategyStore } from "../../../domains/shared/registry";
-import { listSolutionReferences } from "../../../domains/catalog/service";
+import { listProductReferences, listSolutionReferences } from "../../../domains/catalog/service";
 import { listAccounts } from "../../../domains/account/service";
 import { marketViews } from "../../lib/market-strategy";
 import { listPlans, listSegments } from "../../../domains/strategy/service";
@@ -64,19 +64,23 @@ export default async function NewPlanPage({
     redirect("/strategy");
   }
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
-  const [solutions, segments, accounts, members] = await Promise.all([
+  const [solutions, segments, accounts, members, products] = await Promise.all([
     can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
       ? listSolutionReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
     can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed
       ? listSegments({ ...base, store: getStrategyStore() }).catch(() => null) : null,
     listAccounts({ ...base, store: session.stores.account() }).catch(() => null),
     getAuthzStore().listMembers(session.workspaceId).catch(() => null),
+    can(session.authz, session.entitlement, "catalog.product.view", "ui").allowed
+      ? listProductReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
   ]);
   const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentCode, industry, region, customerSize }) =>
     ({ id, name, accountNo, segmentCode, industry, region, customerSize: customerSize ?? null })) : null;
   const marketOptions = segments?.ok ? marketViews(segments.value, null, customerRows)
-    .map(({ id, name, segmentCode, status, criteria, matched, missing, solutionIds }) => ({ id, name, segmentCode, status, criteria, matched, missing, solutionIds })) : null;
+    .map(({ id, name, segmentCode, status, criteria, matched, missing, solutionIds, productIds }) => ({ id, name, segmentCode, status, criteria, matched, missing, solutionIds, productIds })) : null;
   const solutionOptions = solutions?.ok ? solutions.value : null;
+  const productOptions = products?.ok ? products.value : null;
+  const visibleProducts = new Set(productOptions?.map(p => p.id));
   const visibleSolutions = new Set(solutionOptions?.map(s => s.id));
 
   return (
@@ -89,6 +93,7 @@ export default async function NewPlanPage({
         key={editable ? found.id : "new"}
         existingPlanNos={rows.map((p) => p.planNo)}
         solutionOptions={solutionOptions}
+        productOptions={productOptions}
         marketOptions={marketOptions}
         ownerOptions={members?.filter(m => m.status === "active").map(m => ({ value: m.sub, label: m.displayName || m.sub })) ?? null}
         creatorSub={found ? found.createdBySub ?? null : session.user.sub}
@@ -102,9 +107,11 @@ export default async function NewPlanPage({
                 period: found.period,
                 objective: found.objective,
                 ownerSub: found.ownerSub,
+                productIds: productOptions && (found.productIds ?? []).every(id => visibleProducts.has(id)) ? found.productIds ?? [] : undefined,
                 solutionIds: solutionOptions && found.solutionIds.every(id => visibleSolutions.has(id)) ? found.solutionIds : undefined,
-                targetMarkets: marketOptions ? found.targetMarkets?.map(({ segmentId, intent, approach, solutionIds, marketName, criteria }) => ({
+                targetMarkets: marketOptions ? found.targetMarkets?.map(({ segmentId, intent, approach, solutionIds, productIds = [], marketName, criteria }) => ({
                   segmentId, intent, approach, marketName, criteria,
+                  ...((!productIds.length || (productOptions && productIds.every(id => visibleProducts.has(id)))) ? { productIds } : {}),
                   ...((!solutionIds.length || (solutionOptions && solutionIds.every(id => visibleSolutions.has(id)))) ? { solutionIds } : {}),
                 })) ?? [] : [],
               }

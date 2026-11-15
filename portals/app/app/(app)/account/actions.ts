@@ -1,5 +1,6 @@
 "use server";
 
+import type { RegistrationHierarchy } from "../../domains/account/lib/parent";
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getAccountStore, getDeliveryStore, getFieldStore } from "../../domains/shared/registry";
@@ -336,7 +337,7 @@ export async function updateAccountBasicsAction(
 
 /** 新建客户 (owner, 2026-09-23). Returns the new id so the page can land on it. */
 export async function createAccountAction(
-  input: Required<AccountBasicsPatch> & { name: string; tier?: AccountTier; plan?: AccountPlanDraft },
+  input: Required<AccountBasicsPatch> & RegistrationHierarchy & { name: string; tier?: AccountTier; plan?: AccountPlanDraft },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -354,6 +355,9 @@ export async function createAccountAction(
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/account");
   revalidatePath("/named");
+  for(const id of [input.parentId,...(input.childLinks ?? []).flatMap(child=>[child.accountId,child.expectedParentId])]){
+    if(id)revalidatePath(`/account/${id}`);
+  }
   return { ok: true, id: result.value.id };
 }
 

@@ -121,6 +121,20 @@ export async function listSolutionReferences(
   return ok((await ctx.store.listSolutions(ctx.workspaceId)).map(({ id, solutionCode, name, status }) => ({ id, solutionCode, name, status })));
 }
 
+/** Products remain distinct from solutions even when selected together. */
+export type ProductReference = { id: string; productCode: string; name: string; status: "active" | "retired" };
+export async function listProductReferences(
+  ctx: Omit<CatalogContext, "store"> & { store: Pick<CatalogStore, "listProducts" | "listStatusConfigs"> },
+): Promise<RuleResult<ProductReference[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const [products, statuses] = await Promise.all([ctx.store.listProducts(ctx.workspaceId), ctx.store.listStatusConfigs(ctx.workspaceId)]);
+  const byStatus = new Map(statuses.map(s => [s.id, s.statusCode]));
+  return ok(products.map(({ id, productCode, name, statusId }) => ({
+    id, productCode, name, status: byStatus.get(statusId) === "retired" ? "retired" : "active",
+  })));
+}
+
 /**
  * The price book.
  *

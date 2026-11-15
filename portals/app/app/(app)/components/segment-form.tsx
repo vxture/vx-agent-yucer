@@ -1,6 +1,6 @@
 "use client";
 
-import type { SolutionReference } from "../../domains/catalog/service";
+import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import { SolutionPicker } from "./solution-picker";
 import { Section } from "./help-section";
 import { useMemo, useState } from "react";
@@ -39,6 +39,7 @@ export interface SegmentFormRow {
   readonly status: string;
   readonly criteria: SegmentCriteria;
   readonly solutionIds?: readonly string[];
+  readonly productIds?: readonly string[];
 }
 
 type Saved = { ok: boolean; error?: string };
@@ -49,11 +50,13 @@ export function SegmentForm({
   accountIndustries,
   accountRegions,
   solutionOptions,
+  productOptions,
   statusLabel,
   onSave,
 }: {
   readonly rows: readonly SegmentFormRow[];
   readonly initialCode?: string;
+  readonly productOptions: readonly ProductReference[] | null;
   readonly solutionOptions: readonly SolutionReference[] | null;
   /** What the customer base actually looks like - the criteria vocabulary. */
   readonly accountIndustries: readonly (string | null)[];
@@ -66,6 +69,7 @@ export function SegmentForm({
     status: string;
     criteria: SegmentCriteria;
     solutionIds?: readonly string[];
+    productIds?: readonly string[];
   }) => Promise<Saved>;
 }) {
   const { STRATEGY_TEXT, SEGMENT_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
@@ -89,6 +93,7 @@ export function SegmentForm({
     customerNeed: g.criteria.customerNeed ?? "", buyingScenario: g.criteria.buyingScenario ?? "", expectedOutcome: g.criteria.expectedOutcome ?? "", entryBarrier: g.criteria.entryBarrier ?? "",
     industries: g.criteria.industries.join(", "), regions: g.criteria.regions.join(", "), sizes: (g.criteria.sizes ?? []).join(", "),
   });
+  const [productIds, setProductIds] = useState<readonly string[]>(initial?.productIds ?? []);
   const [solutionIds, setSolutionIds] = useState<readonly string[]>(initial?.solutionIds ?? []);
   const [form, setForm] = useState(() => initial ? values(initial) : BLANK);
   const submit = useFormSubmit("/strategy?view=markets");
@@ -99,10 +104,11 @@ export function SegmentForm({
   // loads that segment; the code field then locks, because accounts point at it
   // by string and a rename would break them silently.
   function pick(code: string) {
-    if (code === "") { setSolutionIds([]); return setForm(BLANK); }
+    if (code === "") { setSolutionIds([]); setProductIds([]); return setForm(BLANK); }
     const g = rows.find((r) => r.segmentCode === code);
     if (!g) return setForm(BLANK);
     setSolutionIds(g.solutionIds ?? []);
+    setProductIds(g.productIds ?? []);
     setForm(values(g));
   }
 
@@ -242,7 +248,7 @@ export function SegmentForm({
               </FormFields>
             </Section>
             <Section title={T.marketDefaultSolutions} icon="squares-four" help={T.marketDefaultSolutionsHint}>
-              <SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={submit.pending}/>
+              <SolutionPicker productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={submit.pending}/>
             </Section>
             <div className="flex items-center gap-md">
               <Button
@@ -252,6 +258,7 @@ export function SegmentForm({
                     () =>
                       onSave({
                         ...(solutionOptions === null ? {} : { solutionIds }),
+                        ...(productOptions === null ? {} : { productIds }),
                         segmentCode: form.segmentCode.trim(),
                         name: form.name.trim(),
                         priority,

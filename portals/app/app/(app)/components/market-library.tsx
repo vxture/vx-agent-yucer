@@ -3,9 +3,10 @@
 import { Section } from "./help-section";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-import { Button, DetailList, DetailRow, Drawer, EmptyState, Input, NativeSelect, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
+import { Button, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, NativeSelect, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
 import { DataTable, FilterBar } from "./business-controls";
 import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
+import { strategyOfferings } from "../lib/strategy-offerings";
 import { Tag } from "./tag";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketView } from "../lib/market-strategy";
@@ -46,8 +47,13 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
       </Section>
       <Section title={T.marketDefaultSolutions} icon="squares-four" help={T.marketDefaultSolutionsHint}>
         <div className="flex flex-wrap gap-sm text-body-small">
-          {market.defaultSolutions == null ? T.solutionOptionsUnavailable : market.defaultSolutions.length ? market.defaultSolutions.map(s =>
-            <Link key={s.id} href={`/solution?solution=${encodeURIComponent(s.id)}`} className="transition-colors hover:text-primary">{s.name}</Link>) : T.noPlanSolutions}
+          {strategyOfferings(market.defaultSolutions, market.defaultProducts).map(row =>
+            <Link key={row.key} href={row.href} className="inline-flex items-center gap-xs transition-colors hover:text-primary" title={row.kind === "product" ? T.productKind : T.solutionKind}>
+              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/>{row.name}
+            </Link>)}
+          {market.defaultSolutions == null ? <span>{T.solutionOptionsUnavailable}</span> : null}
+          {market.defaultProducts == null ? <span>{T.productOptionsUnavailable}</span> : null}
+          {market.defaultSolutions?.length === 0 && market.defaultProducts?.length === 0 ? T.noPlanSolutions : null}
         </div>
       </Section>
       <Section title={T.criteria} icon="filter"><MarketCriteria market={market} /></Section>

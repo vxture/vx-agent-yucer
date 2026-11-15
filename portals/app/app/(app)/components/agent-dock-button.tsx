@@ -58,7 +58,7 @@ export function AgentDockButton({
     count > 0 ? HEADER_TEXT.agentDockWithCount(count) : HEADER_TEXT.agentDock;
 
   return (
-    <span className="relative inline-flex">
+    <span className="relative inline-flex" data-assistant-dock-trigger>
       <ShellIconButton className={`${HEADER_ICON_CONTROL} ${HEADER_LARGE_ICON}`} icon="sparkles" label={label} onClick={onToggle} />
 
       {count > 0 ? (

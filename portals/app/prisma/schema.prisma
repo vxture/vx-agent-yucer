@@ -652,6 +652,8 @@ model StrategyPlan {
   @@unique([workspaceId, id], map: "uidx_strategy_plan_ws_id")
   @@map("strategy_plan")
   @@schema("yucer_gtm")
+  productLinks StrategyPlanProduct[]
+
 }
 
 model StrategyPlanEvent {
@@ -698,6 +700,8 @@ model StrategyPlanMarket {
   @@index([workspaceId, segmentId], map: "idx_strategy_market_segment")
   @@map("strategy_plan_market")
   @@schema("yucer_gtm")
+  productLinks StrategyPlanMarketProduct[]
+
 }
 
 model StrategyPlanMarketSolution {
@@ -734,6 +738,8 @@ model MarketSegment {
   @@unique([workspaceId, id], map: "uidx_market_segment_ws_id")
   @@map("market_segment")
   @@schema("yucer_gtm")
+  productLinks MarketSegmentProduct[]
+
 }
 
 model Territory {
@@ -1660,6 +1666,11 @@ model Product {
   @@index([workspaceId, unitId], map: "idx_product_ws_unit")
   @@map("product")
   @@schema("yucer_catalog")
+  strategyLinks StrategyPlanProduct[]
+  strategyMarketLinks StrategyPlanMarketProduct[]
+  segmentLinks MarketSegmentProduct[]
+  @@unique([workspaceId, id], map: "uidx_product_ws_id")
+
 }
 
 /// The workspace's own type vocabulary - incr/0028. `category` on Product
@@ -2324,5 +2335,46 @@ model MarketSegmentSolution {
   @@id([workspaceId, segmentId, solutionId])
   @@index([workspaceId, solutionId], map: "idx_segment_solution_catalog")
   @@map("market_segment_solution")
+  @@schema("yucer_gtm")
+}
+
+model StrategyPlanProduct {
+  workspaceId String @map("workspace_id") @db.Uuid
+  planId      String @map("plan_id") @db.Uuid
+  productId  String @map("product_id") @db.Uuid
+  plan        StrategyPlan @relation(fields: [workspaceId, planId], references: [workspaceId, id], onDelete: Cascade, map: "fk_strategy_product_plan")
+  product    Product @relation(fields: [workspaceId, productId], references: [workspaceId, id], onDelete: Restrict, map: "fk_strategy_product_catalog")
+
+  @@id([workspaceId, planId, productId])
+  @@index([workspaceId, productId], map: "idx_strategy_product_catalog")
+  @@map("strategy_plan_product")
+  @@schema("yucer_gtm")
+}
+
+model StrategyPlanMarketProduct {
+  workspaceId String @map("workspace_id") @db.Uuid
+  planId      String @map("plan_id") @db.Uuid
+  segmentId   String @map("segment_id") @db.Uuid
+  productId  String @map("product_id") @db.Uuid
+  target      StrategyPlanMarket @relation(fields: [workspaceId, planId, segmentId], references: [workspaceId, planId, segmentId], onDelete: Cascade, map: "fk_market_product_target")
+  product    Product @relation(fields: [workspaceId, productId], references: [workspaceId, id], onDelete: Restrict, map: "fk_market_product_catalog")
+
+  @@id([workspaceId, planId, segmentId, productId])
+  @@index([workspaceId, productId], map: "idx_market_product_catalog")
+  @@map("strategy_plan_market_product")
+  @@schema("yucer_gtm")
+}
+
+model MarketSegmentProduct {
+  workspaceId String @map("workspace_id") @db.Uuid
+  segmentId String @map("segment_id") @db.Uuid
+  productId String @map("product_id") @db.Uuid
+
+  segment MarketSegment @relation(fields: [workspaceId, segmentId], references: [workspaceId, id], onDelete: Cascade, map: "fk_segment_product_market")
+  product Product @relation(fields: [workspaceId, productId], references: [workspaceId, id], onDelete: Restrict, map: "fk_segment_product_catalog")
+
+  @@id([workspaceId, segmentId, productId])
+  @@index([workspaceId, productId], map: "idx_segment_product_catalog")
+  @@map("market_segment_product")
   @@schema("yucer_gtm")
 }

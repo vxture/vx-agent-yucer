@@ -1,7 +1,7 @@
 import type { PlanRecord, SegmentRecord, CampaignRecord } from "../../domains/strategy/store";
 import type { SegmentCriteria, TargetMarket } from "../../domains/strategy/lib/lifecycle";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
-import type { SolutionReference } from "../../domains/catalog/service";
+import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 
 export type MarketMatch = "match" | "miss" | "missing" | "undefined";
 export interface MarketAccount {
@@ -17,6 +17,7 @@ export function marketMatch(a: MarketAccount, c: SegmentCriteria): MarketMatch {
   return limited.some(([, value]) => value == null || value === "") ? "missing" : "match";
 }
 export interface MarketView extends Omit<SegmentRecord, "workspaceId"> {
+  defaultProducts?: readonly ProductReference[] | null;
   defaultSolutions?: readonly SolutionReference[] | null;
   plans: { id: string; name: string; period: string }[] | null;
   customers: (MarketAccount & { match: MarketMatch; assigned: boolean })[] | null;
@@ -26,15 +27,18 @@ export interface StrategyResult {
   currency: string; open: number; won: number;
   openCount: number; wonCount: number; lostCount: number; unpriced: number;
 }
-export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt" | "solutionIds" | "targetMarkets" | "publishedSnapshot"> {
+export interface StrategyView extends Omit<PlanRecord, "workspaceId" | "approvedAt" | "productIds" | "solutionIds" | "targetMarkets" | "publishedSnapshot"> {
   approvedAt: string | null;
   snapshotLegacy: boolean;
   publishedOwnerName: string | null;
   marketIds: string[] | null; customerCount: number | null;
   campaigns: Pick<CampaignRecord, "id" | "name" | "campaignNo" | "status">[] | null;
+  products: ProductReference[] | null;
+  sharedProducts: ProductReference[] | null;
   solutions: SolutionReference[] | null;
   sharedSolutions: SolutionReference[] | null;
-  targetMarkets: (Omit<TargetMarket, "solutionIds"> & {
+  targetMarkets: (Omit<TargetMarket, "solutionIds" | "productIds"> & {
+    products: ProductReference[] | null;
     solutions: SolutionReference[] | null;
     matched: number | null;
     missing: number | null;
@@ -91,7 +95,7 @@ export function marketViews(segments: readonly SegmentRecord[], plans: readonly 
       assigned: customers?.filter(a => a.assigned).length ?? null };
   });
 }
-export function strategyViews(plans: readonly PlanRecord[], markets: readonly MarketView[] | null, campaigns: readonly CampaignRecord[] | null, deals: readonly OpportunityRecord[] | null, solutions: readonly SolutionReference[] | null = null, accounts: readonly MarketAccount[] | null = null): StrategyView[] {
+export function strategyViews(plans: readonly PlanRecord[], markets: readonly MarketView[] | null, campaigns: readonly CampaignRecord[] | null, deals: readonly OpportunityRecord[] | null, solutions: readonly SolutionReference[] | null = null, accounts: readonly MarketAccount[] | null = null, products: readonly ProductReference[] | null = null): StrategyView[] {
   const byMarket = new Map(markets?.map(m => [m.id, m]));
   const bySolution = new Map(solutions?.map(s => [s.id, s]));
   const references = (ids: readonly string[]) => {
@@ -100,16 +104,23 @@ export function strategyViews(plans: readonly PlanRecord[], markets: readonly Ma
     const rows = unique.map(id => bySolution.get(id)).filter((s): s is SolutionReference => s !== undefined);
     return rows.length === unique.length ? rows : null;
   };
-  return plans.map(({ workspaceId: _workspace, approvedAt, solutionIds, targetMarkets = [], publishedSnapshot, ...p }) => {
+  return plans.map(({ workspaceId: _workspace, approvedAt, solutionIds, productIds = [], targetMarkets = [], publishedSnapshot, ...p }) => {
     const frozen=publishedSnapshot;
-    if(frozen){solutionIds=frozen.sharedSolutionIds;targetMarkets=frozen.targetMarkets;}
+    if(frozen){solutionIds=frozen.sharedSolutionIds;targetMarkets=frozen.targetMarkets;productIds=frozen.sharedProductIds ?? [];}
     const visibleReferences=(ids: readonly string[])=>{
       const rows=references(ids);if(rows===null || !frozen)return rows;
       return rows.map(s=>frozen.solutions.find(saved=>saved.id===s.id) ?? s);
     };
+    const visibleProducts=(ids: readonly string[])=>{
+      if(products === null)return null;
+      const unique=[...new Set(ids)];
+      const rows=unique.map(id=>products.find(p=>p.id===id)).filter((p):p is ProductReference=>!!p);
+      if(rows.length!==unique.length)return null;
+      return rows.map(p=>frozen?.products?.find(saved=>saved.id===p.id) ?? p);
+    };
     const matched = new Set<string>();
     let knownCustomers = markets !== null && accounts !== null;
-    const targets = markets === null ? null : targetMarkets.flatMap(({ solutionIds: targetSolutionIds, ...t }) => {
+    const targets = markets === null ? null : targetMarkets.flatMap(({ solutionIds: targetSolutionIds, productIds: targetProductIds = [], ...t }) => {
       const market = byMarket.get(t.segmentId);
       if (!market) { knownCustomers = false; return []; }
       let count = 0, missing = 0;
@@ -123,12 +134,14 @@ export function strategyViews(plans: readonly PlanRecord[], markets: readonly Ma
           else if (match === "missing") missing++;
         }
       }
-      return [{ ...t, status: market.status, solutions: visibleReferences(targetSolutionIds),
+      return [{ ...t, status: market.status, products: visibleProducts(targetProductIds), solutions: visibleReferences(targetSolutionIds),
         matched: accounts === null ? null : count, missing: accounts === null ? null : missing }];
     });
     const credited = deals ? strategyResults(p.id, deals, campaigns) : null;
     return { ...p, ...(frozen ? {name:frozen.name,period:frozen.period,objective:frozen.objective,ownerSub:frozen.ownerSub}:{}),
       snapshotLegacy:frozen?.legacy ?? false,publishedOwnerName:frozen?.ownerName ?? null,approvedAt: approvedAt?.toISOString() ?? null,
+      sharedProducts: visibleProducts(productIds),
+      products: markets === null && targetMarkets.length ? null : visibleProducts([...productIds, ...targetMarkets.flatMap(m => m.productIds ?? [])]),
       sharedSolutions: visibleReferences(solutionIds),
       solutions: markets === null && targetMarkets.length ? null : visibleReferences([...solutionIds, ...targetMarkets.flatMap(m => m.solutionIds)]),
       targetMarkets: targets,

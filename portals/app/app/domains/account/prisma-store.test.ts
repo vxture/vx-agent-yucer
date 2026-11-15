@@ -482,7 +482,7 @@ const NEW = {
 test("createAccount takes the allocation lock, then numbers after the highest ACC in use", async () => {
   const f = createFake({ taken: ["ACC-0004", "ACC-0012"] });
   const made = await new PrismaAccountStore(f.client).createAccount(WS, NEW);
-  assert.equal(f.calls.raw, 1, "the advisory lock is taken inside the transaction");
+  assert.equal(f.calls.raw, 2, "allocation and hierarchy locks are taken inside the transaction");
   assert.equal((f.calls.created[0] as { accountNo: string }).accountNo, "ACC-0013");
   assert.equal((f.calls.created[0] as { ownerSub: string }).ownerSub, "usr_me");
   assert.equal(made.id, "acc_new");

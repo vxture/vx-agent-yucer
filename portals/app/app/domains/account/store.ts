@@ -1,3 +1,4 @@
+import { AccountHierarchyError, planAccountRegistrationHierarchy, planAccountParent, type RegistrationHierarchy } from "./lib/parent";
 import type { ImportanceLevel, PriorityRule } from "./lib/importance";
 import { randomUUID } from "node:crypto";
 // D4 account persistence port.
@@ -100,7 +101,7 @@ export interface AccountRecord {
 
 /** What a new customer is created with (owner, 2026-09-23: 新建客户). The number
  *  is the store's to assign, the tier D1's (ADR-013), the status derived. */
-export interface NewAccount {
+export interface NewAccount extends RegistrationHierarchy {
   tier?: AccountTier;
   plan?: AccountPlanWrite;
   name: string;
@@ -930,7 +931,7 @@ export class InMemoryAccountStore implements AccountStore {
     if (input.creditCode && mine.some((a) => a.creditCode === input.creditCode)) {
       throw new Error("credit_code_taken");
     }
-    const { plan, tier = "standard", ...basics } = input;
+    const { plan, tier = "standard", parentId = null, childLinks = [], ...basics } = input;
     const row: AccountRecord = {
       id: crypto.randomUUID(),
       workspaceId,
@@ -944,16 +945,22 @@ export class InMemoryAccountStore implements AccountStore {
       status: "prospect",
       tier,
       tierLevelId: this.importanceLevels.find((l) => l.workspaceId === workspaceId && l.subject === "account" && l.levelCode === tier)?.id ?? null,
-      parentId: null,
+      parentId,
     };
+    const hierarchy = planAccountRegistrationHierarchy({parentId,childLinks}, mine, row.id);
+    if (!hierarchy.ok) throw new AccountHierarchyError(hierarchy.violations[0]!.code);
     this.accounts.set(row.id, row);
     try {
       if (plan) await this.upsertAccountPlan(workspaceId, { ...plan, accountId: row.id });
+      const current = [...this.accounts.values()].filter(a=>a.workspaceId===workspaceId && a.id!==row.id);
+      const rechecked = planAccountRegistrationHierarchy({parentId,childLinks}, current, row.id);
+      if (!rechecked.ok) throw new AccountHierarchyError(rechecked.violations[0]!.code);
     } catch (error) {
       this.accounts.delete(row.id);
       this.plans.delete(`${workspaceId}|${row.id}`);
       throw error;
     }
+    for (const child of childLinks) this.accounts.get(child.accountId)!.parentId = row.id;
     return this.hydrate(row);
   }
 
@@ -987,6 +994,10 @@ export class InMemoryAccountStore implements AccountStore {
   ): Promise<boolean> {
     const a = this.accounts.get(id);
     if (!a || a.workspaceId !== workspaceId) return false;
+    if (patch.parentId !== undefined) {
+      const checked = planAccountParent({accountId:id, parentId:patch.parentId}, [...this.accounts.values()].filter(a=>a.workspaceId===workspaceId));
+      if (!checked.ok) throw new AccountHierarchyError(checked.violations[0]!.code);
+    }
     Object.assign(a, patch);
     return true;
   }

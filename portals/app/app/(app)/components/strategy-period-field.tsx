@@ -47,13 +47,13 @@ export function StrategyPeriodField({value,onChange,disabled}:{readonly value:st
     </div>
     <Popover open={open} onOpenChange={next=>{if(next)reset();setOpen(next);}}>
       <PopoverTrigger asChild><Button id="strategy-period" type="button" size="md" variant="outline" disabled={disabled}
-        className="w-full justify-between" data-strategy-period-trigger title={strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}>
+        className="w-full justify-between" data-form-value data-strategy-period-trigger title={strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}>
         <span className="flex min-w-0 items-center gap-xs"><Icon name="calendar" size="sm"/><span className="truncate tabular-nums">{strategyPeriodRangeLabel(value) ?? T.periodNeedsDates}</span></span>
         <Icon name="chevron-down" size="sm" className="shrink-0"/>
       </Button></PopoverTrigger>
       <PopoverContent align="start" aria-label={T.executionPeriod} collisionPadding={8}
         className="w-[calc(var(--container-overlay-lg)+var(--space-lg)*2)] max-w-(--radix-popover-content-available-width) p-md sm:p-lg">
-        <div className="flex flex-col gap-lg" data-strategy-period-editor>
+        <div className="flex flex-col gap-lg" data-business-form data-strategy-period-editor>
           <div className="flex items-center gap-xs" data-strategy-period-presets>
             <Input id="strategy-period-year" aria-label={T.year} type="number" min={1900} max={9999} step={1} inputMode="numeric" value={year} className="w-20 shrink-0" onChange={e=>setYear(e.target.value)}/>
             <SegmentedControl ariaLabel={T.periodShortcuts} fill value={candidate ?? ""} onChange={fill}

@@ -1,7 +1,10 @@
 "use client";
 
-import { Field, FieldDescription, FieldLabel, Input, NativeSelect } from "@vxture/design-ui";
+import { useId } from "react";
+import { Field, FieldDescription, FieldLabel, Input, NativeSelect, Separator } from "@vxture/design-ui";
+import type { RegistrationValues, RegistrationVocab } from "../../domains/account/lib/registration-draft";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
+import { FormFields } from "./form-page";
 import { useMessages } from "../lib/i18n/provider";
 
 // 客户资料的字段区 - ONE block, two forms: the 客户总编辑 drawer (edit) and
@@ -17,30 +20,8 @@ export interface VocabOption {
   readonly name: string;
 }
 
-export interface AccountFieldValues {
-  name: string;
-  region: string;
-  province: string;
-  industryId: string;
-  segmentCode: string;
-  customerTypeId: string;
-  customerSizeId: string;
-  customerNatureId: string;
-  creditCode: string;
-  website: string;
-  employeeCount: string;
-}
-
-export interface AccountFieldVocab {
-  /** Values remain geographic names, matching account.region and routing. */
-  readonly regions: readonly VocabOption[];
-  readonly industries: readonly VocabOption[];
-  /** id = segmentCode itself - account.segment_code stores the code. */
-  readonly segments: readonly VocabOption[];
-  readonly customerTypes: readonly VocabOption[];
-  readonly customerSizes: readonly VocabOption[];
-  readonly customerNatures: readonly VocabOption[];
-}
+export type AccountFieldValues = RegistrationValues;
+export type AccountFieldVocab = RegistrationVocab;
 
 export interface AccountPatchShape {
   name: string;
@@ -105,88 +86,66 @@ export function AccountFields({
   /** The existing number (edit), or null on create - where it is assigned on save. */
   readonly accountNo: string | null;
 }) {
-  const { ACCOUNT_BASICS_TEXT } = useMessages();
-  const set = (k: keyof AccountFieldValues) => (value: string) => onChange({ ...values, [k]: value });
-  const select = (
-    k: keyof AccountFieldValues,
-    label: string,
-    pick: string,
-    options: readonly VocabOption[],
-  ) => (
+  const { ACCOUNT_BASICS_TEXT: T } = useMessages();
+  const id = useId();
+  const set = (key: keyof AccountFieldValues, value: string) => onChange({ ...values, [key]: value });
+  const input = (key: keyof AccountFieldValues, label: string, props: { required?: boolean; type?: string; min?: number } = {}) => (
     <Field>
-      <FieldLabel>{label}</FieldLabel>
-      <NativeSelect value={values[k]} onChange={(ev) => set(k)(ev.target.value)} disabled={pending}>
+      <FieldLabel htmlFor={`${id}-${key}`} required={props.required}>{label}</FieldLabel>
+      <Input id={`${id}-${key}`} {...props} value={values[key]} onChange={e => set(key, e.target.value)} disabled={pending} />
+    </Field>
+  );
+  const select = (key: keyof AccountFieldValues, label: string, pick: string, options: readonly VocabOption[]) => (
+    <Field>
+      <FieldLabel htmlFor={`${id}-${key}`}>{label}</FieldLabel>
+      <NativeSelect id={`${id}-${key}`} value={values[key]} onChange={e => set(key, e.target.value)} disabled={pending}>
         <option value="">{pick}</option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>{o.name}</option>
-        ))}
+        {options.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
       </NativeSelect>
     </Field>
   );
 
-  return (
-    <>
-      <Field>
-        <FieldLabel>{ACCOUNT_BASICS_TEXT.name}</FieldLabel>
-        <Input value={values.name} onChange={(ev) => set("name")(ev.target.value)} disabled={pending} />
-      </Field>
-
-      {/* 只读派生标识 - 系统生成, 不能改. On create it does not exist yet. */}
-      <Field>
-        <FieldLabel>{ACCOUNT_BASICS_TEXT.accountNo}</FieldLabel>
-        <Input value={accountNo ?? ACCOUNT_BASICS_TEXT.accountNoOnSave} disabled />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor="account-sales-region">{ACCOUNT_BASICS_TEXT.region}</FieldLabel>
-        <NativeSelect id="account-sales-region" value={values.region} onChange={(ev) => set("region")(ev.target.value)} disabled={pending}>
-          <option value="">{ACCOUNT_BASICS_TEXT.regionPick}</option>
-          {values.region && !vocab.regions.some((r) => r.name === values.region)
-            ? <option value={values.region}>{ACCOUNT_BASICS_TEXT.regionLegacy(values.region)}</option> : null}
-          {vocab.regions.map((r) => <option key={r.id} value={r.name}>{r.name}</option>)}
-        </NativeSelect>
-        {vocab.regions.length === 0 ? <FieldDescription>{ACCOUNT_BASICS_TEXT.regionNone}</FieldDescription> : null}
-      </Field>
-
-      {select(
-        "province",
-        ACCOUNT_BASICS_TEXT.province,
-        ACCOUNT_BASICS_TEXT.provincePick,
-        ALL_PROVINCES.map((p) => ({ id: p, name: p })),
-      )}
-      {select("industryId", ACCOUNT_BASICS_TEXT.industry, ACCOUNT_BASICS_TEXT.industryPick, vocab.industries)}
-      {vocab.segments.length > 0
-        ? select("segmentCode", ACCOUNT_BASICS_TEXT.segment, ACCOUNT_BASICS_TEXT.segmentPick, vocab.segments)
-        : null}
-      {select("customerTypeId", ACCOUNT_BASICS_TEXT.customerType, ACCOUNT_BASICS_TEXT.customerTypePick, vocab.customerTypes)}
-      {select("customerSizeId", ACCOUNT_BASICS_TEXT.customerSize, ACCOUNT_BASICS_TEXT.customerSizePick, vocab.customerSizes)}
-      {select(
-        "customerNatureId",
-        ACCOUNT_BASICS_TEXT.customerNature,
-        ACCOUNT_BASICS_TEXT.customerNaturePick,
-        vocab.customerNatures,
-      )}
-
-      <Field>
-        <FieldLabel>{ACCOUNT_BASICS_TEXT.creditCode}</FieldLabel>
-        <Input value={values.creditCode} onChange={(ev) => set("creditCode")(ev.target.value)} disabled={pending} />
-      </Field>
-
-      <Field>
-        <FieldLabel>{ACCOUNT_BASICS_TEXT.website}</FieldLabel>
-        <Input value={values.website} onChange={(ev) => set("website")(ev.target.value)} disabled={pending} />
-      </Field>
-
-      <Field>
-        <FieldLabel>{ACCOUNT_BASICS_TEXT.employeeCount}</FieldLabel>
-        <Input
-          type="number"
-          min="0"
-          value={values.employeeCount}
-          onChange={(ev) => set("employeeCount")(ev.target.value)}
-          disabled={pending}
-        />
-      </Field>
-    </>
-  );
+  return <div className="flex flex-col gap-lg" data-business-form data-account-fields>
+    <section className="flex flex-col gap-md" aria-labelledby={`${id}-identity`}>
+      <h2 id={`${id}-identity`} className="text-label-medium">{T.identityGroup}</h2>
+      <FormFields>
+        {input("name", T.name, { required: true })}
+        {input("creditCode", T.creditCode)}
+        {input("website", T.website)}
+        {accountNo !== null ? <Field>
+          <FieldLabel htmlFor={`${id}-number`}>{T.accountNo}</FieldLabel>
+          <Input id={`${id}-number`} value={accountNo} readOnly />
+        </Field> : null}
+      </FormFields>
+    </section>
+    <Separator />
+    <section className="flex flex-col gap-md" aria-labelledby={`${id}-positioning`}>
+      <h2 id={`${id}-positioning`} className="text-label-medium">{T.positionGroup}</h2>
+      <FormFields>
+        {select("industryId", T.industry, T.industryPick, vocab.industries)}
+        {select("segmentCode", T.segment, T.segmentPick, vocab.segments)}
+        {select("customerTypeId", T.customerType, T.customerTypePick, vocab.customerTypes)}
+        {select("customerNatureId", T.customerNature, T.customerNaturePick, vocab.customerNatures)}
+        {select("customerSizeId", T.customerSize, T.customerSizePick, vocab.customerSizes)}
+        {input("employeeCount", T.employeeCount, { type: "number", min: 0 })}
+      </FormFields>
+    </section>
+    <Separator />
+    <section className="flex flex-col gap-md" aria-labelledby={`${id}-location`}>
+      <h2 id={`${id}-location`} className="text-label-medium">{T.locationGroup}</h2>
+      <FormFields>
+        <Field>
+          <FieldLabel htmlFor={`${id}-region`}>{T.region}</FieldLabel>
+          <NativeSelect id={`${id}-region`} value={values.region} onChange={e => set("region", e.target.value)} disabled={pending}>
+            <option value="">{T.regionPick}</option>
+            {values.region && !vocab.regions.some(r => r.name === values.region)
+              ? <option value={values.region}>{T.regionLegacy(values.region)}</option> : null}
+            {vocab.regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+          </NativeSelect>
+          {vocab.regions.length === 0 ? <FieldDescription>{T.regionNone}</FieldDescription> : null}
+        </Field>
+        {select("province", T.province, T.provincePick, ALL_PROVINCES.map(p => ({ id: p, name: p })))}
+      </FormFields>
+    </section>
+  </div>;
 }

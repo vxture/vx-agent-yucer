@@ -20,6 +20,7 @@ import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection
 import { DialogForm } from "./dialog-form";
 import { strategyPeriodRangeLabel, strategyPeriodLabel } from "../../domains/strategy/lib/plan-period";
 import { currentStrategyPlans } from "../../domains/strategy/store";
+import { strategyOfferings } from "../lib/strategy-offerings";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import type { StrategyView } from "../lib/market-strategy";
@@ -82,20 +83,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
   const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
   const money=(n:number,currency:string)=>new Intl.NumberFormat(locale,{style:"currency",currency,maximumFractionDigits:0}).format(n);
-  const solutionLinks=(solutions:StrategyView["solutions"])=>solutions === null ? T.unknown : solutions.length ? solutions.map(s => (
-    <Button key={s.id} asChild size="md" variant="secondary" className="max-w-full">
-      <Link href={`/solution?solution=${encodeURIComponent(s.id)}`} title={`${s.name} · ${s.solutionCode}`}>
-        <span className="truncate">{s.name}</span>{s.status === "retired" ? <span className="shrink-0 text-muted-foreground">{T.retiredSolution}</span> : null}
-      </Link>
-    </Button>
-  )) : T.noPlanSolutions;
   const linkStyle = "min-w-0 truncate transition-colors hover:text-primary-text focus-visible:text-primary-text";
-  const linkedSummary = (label: string, links: readonly { href: string; name: string }[], detailHref: string) => {
+  const linkedSummary = (label: string, links: readonly { href: string; name: string; icon?: "cube" | "stack" }[], detailHref: string) => {
     const [first, ...more] = links;
     if (!first) return null;
     return <div className="flex min-w-0 items-baseline gap-xs">
       <span className="shrink-0 text-muted-foreground">{label}</span>
-      <Link href={first.href} className={`${linkStyle} text-foreground`} title={first.name}>{first.name}</Link>
+      <Link href={first.href} className={`${linkStyle} text-foreground`} title={first.name}>{first.icon ? <Icon name={first.icon} size="sm" className="mr-xs inline-block text-muted-foreground" aria-hidden="true"/> : null}{first.name}</Link>
       {more.length ? <Link href={detailHref} className="shrink-0 tabular-nums text-primary-text" title={more.map(m => m.name).join(" / ")}
         aria-label={`${label}: ${more.map(m => m.name).join(" / ")}`}>+{more.length}</Link> : null}
     </div>;
@@ -105,14 +99,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     const markets = p.targetMarkets?.toSorted((a, b) => Number(b.intent === "focus") - Number(a.intent === "focus")).map(m => ({
       href: `/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`, name: m.marketName,
     })) ?? [];
-    const solutions = p.solutions?.map(s => ({
-      href: `/solution?solution=${encodeURIComponent(s.id)}`,
-      name: s.status === "retired" ? `${s.name} \u00b7 ${T.retiredSolution}` : s.name,
-    })) ?? [];
+    const solutions = strategyOfferings(p.solutions, p.products).map(row => ({
+      href: row.href, name: row.status === "retired" ? `${row.name} \u00b7 ${T.retiredSolution}` : row.name, icon: row.icon,
+    }));
     const metrics = [
       { key: "markets", icon: "globe", label: T.marketCount, value: p.marketIds?.length },
       { key: "customers", icon: "users", label: T.customerCount, value: p.customerCount },
-      { key: "solutions", icon: "stack", label: T.solutionCount, value: p.solutions?.length },
+      { key: "solutions", icon: "stack", label: T.solutionCount, value: p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length },
       { key: "campaigns", icon: "megaphone", label: T.campaignCount, value: p.campaigns?.length },
     ] as const;
     return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard className="@container gap-md p-lg [&>footer]:mt-auto"
@@ -158,7 +151,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       {id:"direction",header:T.direction,align:"left",width:"lg",cell:p=><span className="line-clamp-2 text-body-small" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
       {id:"markets",header:T.marketCount,cell:p=>number(p.marketIds?.length)},
       {id:"customers",header:T.customerCount,cell:p=>number(p.customerCount)},
-      {id:"solutions",header:T.solutionCount,cell:p=>number(p.solutions?.length)},
+      {id:"solutions",header:T.solutionCount,cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length)},
       {id:"campaigns",header:T.campaignCount,cell:p=>number(p.campaigns?.length)},
       {id:"status",header:T.status,cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
     ]} rowActions={p=><RowActions items={items(p)} disabled={pending}/>}
@@ -263,8 +256,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
     </Section>
     <Section title={T.featuredSolutions} icon="squares-four">
-      <StrategySolutionCards detail solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
-        markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
+      <StrategySolutionCards detail products={detail.products} sharedProductIds={detail.sharedProducts?.map(p=>p.id)} solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
+        markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, productIds:m.products?.map(p=>p.id), solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
     </Section>
     <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">
       <Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>

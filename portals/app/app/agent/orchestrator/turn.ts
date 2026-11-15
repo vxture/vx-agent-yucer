@@ -51,6 +51,8 @@ export interface TurnInput {
    */
   profile?: CallProfile;
   maxToolRounds?: number;
+  /** Form extraction receives only the supplied text and has no tool surface. */
+  draftOnly?: boolean;
 }
 
 export interface ToolInvocation {
@@ -101,7 +103,9 @@ const DEFAULT_MAX_TOOL_ROUNDS = 4;
 export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnResult> {
   const maxRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
   const profile: CallProfile = input.profile ?? "dialogue";
-  const surface = await discoverTools(input, deps);
+  const surface: ToolSurface = input.draftOnly
+    ? { definitions: [], bindings: new Map(), proposalOnly: [] }
+    : await discoverTools(input, deps);
 
   // Which follow-up notes to show, when the customer has more than fit: by what
   // was asked, not just by recency. Floors at the old behaviour.
@@ -135,7 +139,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     try {
       res = await deps.atlasClient.chat(
         profile,
-        { messages, tools: surface.definitions, toolChoice: "auto" },
+        input.draftOnly ? { messages } : { messages, tools: surface.definitions, toolChoice: "auto" },
         input.atlas,
       );
     } catch (e) {
@@ -157,7 +161,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     if (reply.content) answer = reply.content;
 
     const calls = reply.toolCalls ?? [];
-    if (calls.length === 0) break;
+    if (calls.length === 0 || input.draftOnly) break;
 
     // The reply goes back AS RECEIVED - its reasoning envelope included. A
     // reasoning model with tools requires the whole envelope on the next

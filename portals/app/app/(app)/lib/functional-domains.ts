@@ -185,22 +185,11 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
   },
 ];
 
-/**
- * What sits above the five columns. Just the home stream.
- *
- * THE COPILOT WAS HERE AND IS NOT ANY MORE. It has a page and it is a
- * capability domain (D8), but it is not a place you go: it reads the record and
- * puts what it wants decided into the deck beside whatever you are looking at,
- * into the home stream, and into the panels on the detail pages. A menu entry
- * for it said the opposite - that it is one more feature to remember to open -
- * which is the framing this product exists to reject. It is reached where its
- * output is, which is everywhere.
- *
- * The home stream stays because it IS a destination: it is where you land and
- * what you come back to.
- */
+/** Cross-business destinations, separate from the five business domains. */
 export const CROSSCUTTING_MODULES: readonly DomainModule[] = [
   built("home"),
+  // Independent workspace: work across business domains without opening each.
+  built("copilot"),
   /* 销售大屏 sits beside 今日判断 rather than in a domain column, for the same
      reason 今日判断 does: it OWNS NO OBJECT. It is a way of looking at what the
      domains already hold, so putting it in one of their columns would claim it

@@ -17,8 +17,9 @@ import { fail, ok, violation, type RuleResult } from "../../shared/result";
 export function planRemoval(refs: {
   readonly lines: number;
   readonly solutionItems: number;
+  readonly strategyLinks?: number;
 }): RuleResult<true> {
-  if (refs.lines > 0 || refs.solutionItems > 0) {
+  if (refs.lines > 0 || refs.solutionItems > 0 || (refs.strategyLinks ?? 0) > 0) {
     return fail(
       violation(
         "product_in_use",

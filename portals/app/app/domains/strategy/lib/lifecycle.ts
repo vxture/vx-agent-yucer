@@ -283,6 +283,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
     ...(input.solutionIds === undefined ? {} : { solutionIds: input.solutionIds }),
+    ...(input.productIds === undefined ? {} : { productIds: input.productIds }),
     ...(input.targetMarkets === undefined ? {} : { targetMarkets: input.targetMarkets }),
   });
 }
@@ -295,6 +296,7 @@ export interface PlanEdit {
   ownerSub: string | null;
   /** Omitted leaves links alone; an empty list clears them. */
   solutionIds?: readonly string[];
+  productIds?: readonly string[];
   /** Omitted leaves the market selections intact. */
   targetMarkets?: readonly TargetMarketDraft[];
 }
@@ -308,13 +310,14 @@ export interface TargetMarketDraft {
   intent: TargetMarketIntent | null;
   approach: string | null;
   solutionIds?: readonly string[];
+  productIds?: readonly string[];
 }
 
 /** Relationship tasks never carry the strategy's basic fields or another market's draft. */
 export type PlanRelationChange =
   | { kind: "markets"; add: readonly string[]; remove: readonly string[] }
-  | { kind: "market"; segmentId: string; intent: TargetMarketIntent | null; approach: string | null; solutionIds?: readonly string[] }
-  | { kind: "solutions"; solutionIds: readonly string[] };
+  | { kind: "market"; segmentId: string; intent: TargetMarketIntent | null; approach: string | null; solutionIds?: readonly string[]; productIds?: readonly string[] }
+  | { kind: "solutions"; solutionIds?: readonly string[]; productIds?: readonly string[] };
 
 export interface TargetMarket extends Omit<TargetMarketDraft, "solutionIds"> {
   marketName: string;
@@ -425,6 +428,7 @@ export interface SegmentDraft {
   criteria: SegmentCriteria;
   /** Omission preserves defaults; an empty array explicitly clears them. */
   solutionIds?: readonly string[];
+  productIds?: readonly string[];
 }
 
 /** An account matches when every non-empty dimension names its value. */

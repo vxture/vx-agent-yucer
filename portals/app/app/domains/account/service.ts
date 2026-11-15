@@ -47,7 +47,7 @@ import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
 import type { AuthzStore } from "../../authz/store";
 import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
-import { planAccountParent } from "./lib/parent";
+import { AccountHierarchyError, planAccountRegistrationHierarchy, planAccountParent } from "./lib/parent";
 import { chainForOpportunity } from "./lib/buying-role";
 import { denied } from "../pipeline/service";
 import {
@@ -1482,6 +1482,11 @@ export async function createAccount(
   if (invalid) return fail(invalid);
   if (!name) return fail(violation("name_required", "an account needs a name", "name"));
 
+  if (input.parentId !== undefined || input.childLinks !== undefined) {
+    const visible = await ctx.store.listAccounts(ctx.workspaceId);
+    const hierarchy = planAccountRegistrationHierarchy(input, visible, "new-account-registration");
+    if (!hierarchy.ok) return hierarchy;
+  }
   try {
     const { plan, ...basics } = input;
     return ok(await ctx.store.createAccount(ctx.workspaceId, {
@@ -1489,6 +1494,7 @@ export async function createAccount(
       ...(plan ? { plan: { ...plan, period: plan.period.trim(), ownerSub: ctx.sub, presalesSub: null, deliverySub: null, status: "active" as const } } : {}),
     }));
   } catch (e) {
+    if (e instanceof AccountHierarchyError) return fail(violation(e.code, "customer relationships could not be saved", "childLinks"));
     if (e instanceof Error && e.message === "credit_code_taken") {
       return fail(violation("credit_code_taken", "another customer already has this credit code", "creditCode"));
     }
@@ -1957,7 +1963,12 @@ export async function setAccountParent(
   const plan = planAccountParent({ accountId, parentId }, all);
   if (!plan.ok) return plan as RuleResult<{ accountId: string; parentId: string | null }>;
 
-  const written = await ctx.store.updateAccount(ctx.workspaceId, accountId, { parentId });
+  let written: boolean;
+  try { written = await ctx.store.updateAccount(ctx.workspaceId, accountId, { parentId }); }
+  catch (e) {
+    if (e instanceof AccountHierarchyError) return fail(violation(e.code, "customer relationship could not be saved", "parentId"));
+    throw e;
+  }
   if (!written) {
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }

@@ -2,7 +2,7 @@ import { cache } from "react";
 import { resolveAppSession } from "../lib/session";
 import { can } from "../../authz/decide";
 import { getCatalogStore, getStrategyStore } from "../../domains/shared/registry";
-import { listSolutionReferences } from "../../domains/catalog/service";
+import { listProductReferences, listSolutionReferences } from "../../domains/catalog/service";
 import { listPlans, listSegments, listCampaigns } from "../../domains/strategy/service";
 import { listAccounts } from "../../domains/account/service";
 import { listPipeline } from "../../domains/pipeline/service";
@@ -29,17 +29,20 @@ export const strategyWorkspaceData = cache(async () => {
   const canPlan = can(session.authz, session.entitlement, "strategy.plan.view", "ui").allowed;
   const canMarkets = can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed;
   const canSeeSolutions = (canPlan || canMarkets) && can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed;
-  const [plans, segments, campaigns, accounts, deals, solutions] = await Promise.all([
+  const canSeeProducts = (canPlan || canMarkets) && can(session.authz, session.entitlement, "catalog.product.view", "ui").allowed;
+  const [plans, segments, campaigns, accounts, deals, solutions, products] = await Promise.all([
     read("plans", listPlans(ctx)), read("markets", listSegments(ctx)), read("campaigns", listCampaigns(ctx)),
     read("accounts", listAccounts({ ...base, store: session.stores.account() })),
     read("pipeline", listPipeline({ ...base, store: session.stores.pipeline() }, { includeClosed: true })),
     canSeeSolutions ? read("solutions", listSolutionReferences({ ...base, store: getCatalogStore() })) : null,
+    canSeeProducts ? read("products", listProductReferences({ ...base, store: getCatalogStore() })) : null,
   ]);
   const customers = accounts.ok ? accounts.value.map(({id,name,accountNo,segmentCode,industry,region,customerSize}) => ({id,name,accountNo,segmentCode,industry,region,customerSize:customerSize ?? null})) : null;
   const markets = canMarkets && segments.ok ? marketViews(segments.value, canPlan && plans.ok ? currentStrategyPlans(plans.value) : null, customers).map(m => ({ ...m,
+    defaultProducts: products?.ok ? products.value.filter(p => m.productIds?.includes(p.id)) : null,
     defaultSolutions: solutions?.ok ? solutions.value.filter(s => m.solutionIds?.includes(s.id)) : null,
   })) : null;
-  const planRows = plans.ok ? strategyViews(plans.value, markets, campaigns.ok ? campaigns.value : null, deals.ok ? deals.value : null, solutions?.ok ? solutions.value : null, customers) : null;
+  const planRows = plans.ok ? strategyViews(plans.value, markets, campaigns.ok ? campaigns.value : null, deals.ok ? deals.value : null, solutions?.ok ? solutions.value : null, customers, products?.ok ? products.value : null) : null;
   const planAdvice = plans.ok ? analysePlans({ plans: currentStrategyPlans(plans.value),
     campaignCounts: new Map(planRows!.map(p => [p.id, p.campaigns?.length ?? 0])),
     segmentCounts: new Map(planRows!.map(p => [p.id, p.marketIds?.length ?? 0])), now: new Date(),
@@ -53,6 +56,7 @@ export const strategyWorkspaceData = cache(async () => {
   }) : [];
   return { session, plansRead: plans, marketsRead: segments, data: {
     plans: canPlan ? planRows : null, markets: canMarkets ? markets : null,
+    productOptions: products?.ok ? products.value : null,
     solutionOptions: solutions?.ok ? solutions.value : null,
     planAdvice: canPlan ? planAdvice : [], segmentAdvice: canMarkets ? segmentAdvice : [], at: new Date().toISOString(),
     canPlan,
