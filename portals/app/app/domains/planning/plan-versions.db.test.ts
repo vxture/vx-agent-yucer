@@ -205,7 +205,13 @@ test(
       targetBasis: basis,
     };
     await pipeline.appendForecastSnapshot(ctx.workspaceId, row);
-    await assert.rejects(pipeline.appendForecastSnapshot(ctx.workspaceId, { ...row, snapshotAt: new Date(row.snapshotAt.getTime() + 1) }), /Unique constraint|unique constraint/);
+    await assert.rejects(
+      pipeline.appendForecastSnapshot(ctx.workspaceId, {
+        ...row,
+        snapshotAt: new Date(row.snapshotAt.getTime() + 1),
+      }),
+      /Unique constraint|unique constraint/,
+    );
     plan = await changeSalesPlan(ctx, {
       year,
       expectedEventNo: plan.events.at(-1)!.no,
@@ -493,5 +499,81 @@ test(
         /managed_by_sales_plan/,
       );
     });
+  },
+);
+test(
+  "Postgres: company-only publication and immutable regional company baseline",
+  { skip },
+  async () => {
+    const ctx = context();
+    const year = new Date().getUTCFullYear();
+    const content = emptyContent(year, [], "CNY");
+    content.releaseScope = "company";
+    content.targets[0]!.target = "1000";
+    let plan = await changeSalesPlan(ctx, {
+      year,
+      expectedEventNo: 0,
+      requestKey: randomUUID(),
+      command: { kind: "draft", scope: "company", content },
+    });
+    let draft = planVersions(plan, new Date().toISOString()).draft!;
+    plan = await changeSalesPlan(ctx, {
+      year,
+      expectedEventNo: plan.events.at(-1)!.no,
+      requestKey: randomUUID(),
+      command: {
+        kind: "release",
+        revisionId: draft.id,
+        editToken: draft.editToken,
+        reason: "",
+      },
+    });
+    const company = planVersions(plan, new Date().toISOString()).current!;
+    assert.equal(company.version, 1);
+    plan = await changeSalesPlan(ctx, {
+      year,
+      expectedEventNo: plan.events.at(-1)!.no,
+      requestKey: randomUUID(),
+      command: { kind: "draft", scope: "regions", content: company.content },
+    });
+    draft = planVersions(plan, new Date().toISOString()).draft!;
+    assert.equal(draft.content.companyRevisionId, company.id);
+    await pg(async (c) => {
+      await c.query("SET ROLE yucer_svc");
+      const wrong = structuredClone(draft.content);
+      wrong.targets[0]!.target = "900";
+      await assert.rejects(
+        c.query(
+          "UPDATE yucer_gtm.sales_plan_revision SET content=$2::jsonb WHERE id=$1",
+          [draft.id, wrong],
+        ),
+        /company_basis_changed/,
+      );
+      const removed = structuredClone(draft.content);
+      delete removed.releaseScope;
+      delete removed.companyRevisionId;
+      await assert.rejects(
+        c.query(
+          "UPDATE yucer_gtm.sales_plan_revision SET content=$2::jsonb WHERE id=$1",
+          [draft.id, removed],
+        ),
+        /company_basis_changed/,
+      );
+      const foreign = { ...draft.content, companyRevisionId: randomUUID() };
+      await assert.rejects(
+        c.query(
+          "UPDATE yucer_gtm.sales_plan_revision SET content=$2::jsonb WHERE id=$1",
+          [draft.id, foreign],
+        ),
+        /company_release_required/,
+      );
+      await c.query("RESET ROLE");
+    });
+    assert.equal(
+      (await ctx.store.read(ctx.workspaceId, year))!.revisions.find(
+        (r) => r.id === company.id,
+      )!.content.targets[0]!.target,
+      "1000",
+    );
   },
 );

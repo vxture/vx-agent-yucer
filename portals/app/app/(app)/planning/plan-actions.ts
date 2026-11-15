@@ -1,4 +1,6 @@
 "use server";
+import { autofillPlanningRegions } from "../lib/planning-autofill";
+import { validatePlanningWorkflow } from "../../domains/planning/plan-workflow";
 import { revalidatePath } from "next/cache";
 import { can } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
@@ -13,6 +15,7 @@ import {
   digest,
   PlanError,
   planVersions,
+  validateRevision,
 } from "../../domains/planning/plan-model";
 import {
   checkPlanRead,
@@ -21,6 +24,40 @@ import {
   salesPlanContext,
   verifyPlanSources,
 } from "./plan-data";
+export async function checkSalesPlanDraftAction(input: {
+  year: number;
+  revisionId: string;
+  editToken: number;
+}) {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false as const, error: "not_authenticated" };
+  try {
+    const plan = await readSalesPlan(salesPlanContext(session), input.year);
+    const draft = plan?.revisions.find(
+      (r) => r.id === input.revisionId && r.state === "draft",
+    );
+    demand(plan && draft, "draft_not_found");
+    demand(draft.editToken === input.editToken, "draft_conflict");
+    const state = planVersions(plan, new Date().toISOString());
+    demand(
+      !state.closed && draft.baseId === (state.current?.id ?? null),
+      "plan_conflict",
+    );
+    validateRevision(plan, draft.content, new Date().toISOString());
+    validatePlanningWorkflow(plan, draft.content, draft.baseId);
+    await verifyPlanSources(
+      session,
+      draft.content,
+      await loadPlanSources(session),
+    );
+    return { ok: true as const };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof PlanError ? error.code : "source_read_failed",
+    };
+  }
+}
 export async function salesPlanCommandAction(input: {
   year: number;
   expectedEventNo: number;
@@ -60,7 +97,23 @@ export async function salesPlanCommandAction(input: {
     ) {
       const sources = await loadPlanSources(session);
       if (command.kind === "draft") {
+        demand(
+          command.restoreId ||
+            command.scope === "company" ||
+            command.scope === "regions",
+          "company_release_required",
+        );
         command.content = freshPlan(input.year, sources);
+        if (command.scope === "regions" && plan) {
+          const current = planVersions(plan, new Date().toISOString()).current;
+          demand(current, "company_release_required");
+          command.content = autofillPlanningRegions({
+            ...current.content,
+            regions: current.content.regions.length
+              ? current.content.regions
+              : command.content.regions,
+          });
+        }
         if (
           !planVersions(
             plan ?? {
@@ -152,7 +205,7 @@ export async function salesPlanCommandAction(input: {
            legacy metrics removed from the new draft. Their old values must
            not reappear as an independent target after publication. */
 
-        if (!plan?.revisions.some((r) => r.state === "sealed")) {
+        if (conflicts.length) {
           demand(
             conflicts.every((t) =>
               command.adoptions?.some((a) => a.targetId === t.id),

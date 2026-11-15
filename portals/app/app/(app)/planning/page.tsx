@@ -68,6 +68,13 @@ export default async function PlanningPage({
       : null;
     if (revision && !selected) return <EmptyState title={AT.contextMissing} />;
     const previewContent = freshPlan(year, sources);
+    if (!plan) {
+      previewContent.releaseScope = "company";
+      previewContent.regions = [];
+      previewContent.targets = previewContent.targets.filter(
+        (t) => t.scope === "workspace",
+      );
+    }
     const displayed =
       selected?.content ??
       (plan
@@ -82,6 +89,7 @@ export default async function PlanningPage({
     const legacyIds = legacy
       .filter(
         (t) =>
+          !plan?.legacy.some((entry) => entry.targetId === t.id) &&
           !t.id.startsWith("plan_") &&
           t.status !== "closed" &&
           t.scopeType !== "owner" &&
@@ -105,6 +113,11 @@ export default async function PlanningPage({
           year={year}
           sources={sources}
           legacyIds={legacyIds}
+          legacyCompanyIds={legacy
+            .filter(
+              (t) => t.scopeType === "workspace" && legacyIds.includes(t.id),
+            )
+            .map((t) => t.id)}
           canEdit={
             can(
               session.authz,

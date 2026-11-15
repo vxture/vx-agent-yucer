@@ -15,6 +15,21 @@ export type PlanningFinding = {
 };
 export function planningFindings(content: PlanContent): PlanningFinding[] {
   const out: PlanningFinding[] = [];
+  const company = content.targets.find(
+    (t) =>
+      t.scope === "workspace" &&
+      t.period === `Y${content.year}` &&
+      t.metric === "revenue",
+  );
+  if (company?.target == null)
+    out.push({
+      kind: "missing_target",
+      regionId: null,
+      subject: `Y${content.year}`,
+      value: null,
+      currency: company?.currency ?? null,
+      evidenceKeys: company ? [company.key] : [],
+    });
   for (const r of content.regions.filter((r) => r.included)) {
     const target = content.targets.find(
       (t) =>

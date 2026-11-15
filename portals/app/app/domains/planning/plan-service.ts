@@ -1,3 +1,7 @@
+import {
+  companyPlanningRevision,
+  validatePlanningWorkflow,
+} from "./plan-workflow";
 import { can } from "../../authz/decide";
 import type { DataScope } from "../../authz/scope";
 import type { PlanningContext } from "./service";
@@ -22,7 +26,12 @@ export type SalesPlanContext = Omit<PlanningContext, "store"> & {
   requestDigest?: string;
 };
 export type PlanCommand =
-  | { kind: "draft"; content: PlanContent; restoreId?: string }
+  | {
+      kind: "draft";
+      content: PlanContent;
+      restoreId?: string;
+      scope?: "company" | "regions";
+    }
   | {
       kind: "save";
       revisionId: string;
@@ -169,6 +178,42 @@ export async function changeSalesPlan(
         : state.current;
       demand(!cmd.restoreId || source, "version_not_found");
       const content = structuredClone(source?.content ?? cmd.content);
+      if (cmd.restoreId && source?.content.releaseScope && state.current) {
+        Object.assign(content, structuredClone(state.current.content), {
+          releaseScope: "company",
+          periods: structuredClone(source.content.periods),
+          targets: [
+            ...structuredClone(
+              source.content.targets.filter((t) => t.scope === "workspace"),
+            ),
+            ...structuredClone(
+              state.current.content.targets.filter(
+                (t) => t.scope !== "workspace",
+              ),
+            ),
+          ],
+        });
+        delete content.companyRevisionId;
+      }
+      if (cmd.scope === "company") {
+        content.releaseScope = "company";
+        delete content.companyRevisionId;
+        if (!source) {
+          content.regions = [];
+          content.targets = content.targets.filter(
+            (t) => t.scope === "workspace",
+          );
+        }
+      } else if (cmd.scope === "regions") {
+        demand(source?.state === "sealed", "company_release_required");
+        const company = companyPlanningRevision(plan, source);
+        demand(company, "company_release_required");
+        content.releaseScope = "regions";
+        content.companyRevisionId = company.id;
+        content.regions = structuredClone(cmd.content.regions);
+        content.targets = structuredClone(cmd.content.targets);
+      }
+      validatePlanningWorkflow(plan, content, state.current?.id ?? null);
       demand(content.year === plan.year, "invalid_period");
       validateContent(content, false);
       plan.revisions.push({
@@ -191,12 +236,18 @@ export async function changeSalesPlan(
       const r = draft();
       demand(cmd.content.year === plan.year, "invalid_period");
       validateContent(cmd.content, false);
+      validatePlanningWorkflow(plan, cmd.content, r.baseId);
+      demand(
+        cmd.content.releaseScope === r.content.releaseScope,
+        "company_basis_changed",
+      );
       r.content = structuredClone(cmd.content);
       r.editToken++;
       event("save", r.id, "");
     } else if (cmd.kind === "release") {
       const r = draft();
       validateRevision(plan, r.content, now);
+      validatePlanningWorkflow(plan, r.content, r.baseId);
       const reason = cmd.reason.trim();
       demand(
         plan.revisions.every((r) => r.state !== "sealed") || reason,
@@ -218,10 +269,6 @@ export async function changeSalesPlan(
         event("cancel", old.revisionId, reason, { relatedNo: old.no });
       }
       if (cmd.adoptions) {
-        demand(
-          !plan.revisions.some((x) => x.state === "sealed"),
-          "adoption_first_release_only",
-        );
         for (const adoption of cmd.adoptions) {
           demand(
             !plan.legacy.some((l) => l.targetId === adoption.targetId),

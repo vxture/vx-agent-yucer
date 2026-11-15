@@ -547,3 +547,71 @@ test("planning findings use declared targets and deduplicate shared resource evi
   assert.equal(findings.filter((f) => f.kind === "over_capacity").length, 1);
   assert.equal(findings.find((f) => f.kind === "over_capacity")!.value, "120");
 });
+
+test("company-first: publish V1 without regions, save and publish regional V2 against frozen company", async () => {
+  const { change } = setup();
+  let c = content();
+  c.targets[0]!.floor = "600";
+  c.targets[0]!.stretch = "1200";
+  let plan = await change({ kind: "draft", scope: "company", content: c });
+  let draft = planVersions(plan, "2026-07-01T00:00:00Z").draft!;
+  assert.equal(draft.content.regions.length, 0);
+  plan = await change({
+    kind: "release",
+    revisionId: draft.id,
+    editToken: draft.editToken,
+    reason: "",
+  });
+  const company = planVersions(plan, "2026-07-01T00:00:00Z").current!;
+  assert.equal(company.version, 1);
+  const seed = {
+    ...company.content,
+    regions: c.regions,
+    targets: [
+      ...company.content.targets,
+      ...c.targets.filter((t) => t.scope !== "workspace"),
+    ],
+  };
+  plan = await change({ kind: "draft", scope: "regions", content: seed });
+  draft = planVersions(plan, "2026-07-01T00:00:00Z").draft!;
+  assert.equal(draft.content.companyRevisionId, company.id);
+  const invalid = structuredClone(draft.content);
+  invalid.targets.find((t) => t.scope === "workspace")!.target = "1100";
+  await assert.rejects(
+    change({
+      kind: "save",
+      revisionId: draft.id,
+      editToken: draft.editToken,
+      content: invalid,
+    }),
+    /company_basis_changed/,
+  );
+  const valid = structuredClone(draft.content);
+  valid.targets.find((t) => t.scope !== "workspace")!.floor = "600";
+  valid.targets.find((t) => t.scope !== "workspace")!.stretch = "1200";
+  plan = await change({
+    kind: "save",
+    revisionId: draft.id,
+    editToken: draft.editToken,
+    content: valid,
+  });
+  draft = planVersions(plan, "2026-07-01T00:00:00Z").draft!;
+  plan = await change({
+    kind: "release",
+    revisionId: draft.id,
+    editToken: draft.editToken,
+    reason: "Allocate regions",
+  });
+  assert.equal(planVersions(plan, "2026-07-01T00:00:00Z").current!.version, 2);
+  assert.deepEqual(
+    plan.revisions.find((r) => r.id === company.id)!.content,
+    company.content,
+  );
+});
+test("regional planning cannot precede company publication", async () => {
+  const { change } = setup();
+  await assert.rejects(
+    change({ kind: "draft", scope: "regions", content: content() }),
+    /company_release_required/,
+  );
+});

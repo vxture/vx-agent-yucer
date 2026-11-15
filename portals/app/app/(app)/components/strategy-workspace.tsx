@@ -250,7 +250,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         <DetailList columns={3} data-strategy-basic-facts>
           <DetailRow label={T.executionWindow}><span className="inline-flex min-h-control-md items-center tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></DetailRow>
           <DetailRow label={T.owner}><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></DetailRow>
-          {detail.approvedAt ? <DetailRow label={T.publishedAt}><span className="inline-flex min-h-control-md items-center tabular-nums">{new Date(detail.approvedAt).toLocaleDateString(locale)}</span></DetailRow> : null}
+          <DetailRow label={T.publishedAt}><span className="inline-flex min-h-control-md items-center tabular-nums">{detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale) : "-"}</span></DetailRow>
         </DetailList>
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-md gap-y-md border-t border-dashed border-primary/10 pt-md text-body-small" data-strategy-detail-direction>
           <dt className="text-muted-foreground">{T.direction}</dt><dd className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</dd>

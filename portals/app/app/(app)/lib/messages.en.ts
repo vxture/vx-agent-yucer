@@ -71,6 +71,20 @@ export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
   PLAN_VERSION_TEXT: {
     ...zh.PLAN_VERSION_TEXT,
+    publishCompany: "Publish company plan",
+    publishRegions: "Publish regional plan",
+    planRegions: "Plan regions",
+    adjustCompany: "Adjust company",
+    published: "Published",
+    companyBasis: "Company baseline",
+    companyFlowHint: "Save the company draft, check it and publish. Then allocate regional plans from the published company version.",
+    autofillHint: "Annual revenue calculates a 60% floor and 120% stretch, both editable. Quarters contain formal targets only, initially 10%, 20%, 30% and the remainder. Auxiliary metrics follow revenue timing. Margin defaults to 30%, 40% and 50% of each revenue tier. Customer counts are integers; pipeline is a point-in-time reserve. Annual edits re-split unlocked quarters.",
+    regionFlowHint: "Company targets are read-only. Regional allocations start from the published company version and can be adjusted with customers, people and actions. Regions publish together.",
+    companyFirst: "Publish company targets first",
+    publishCompanyConfirm: "Confirm company publication",
+    publishRegionsConfirm: "Confirm regional publication",
+    checked: "Checked",
+
     budgetLoaded: "Loaded the customer budget for this period",
     budgetManualHint: "No customer-plan budget matches this period. Enter the budget and its basis.",
     editItem: "Edit item",
@@ -108,7 +122,7 @@ export const en: Dictionary = {
     prerequisitesTooLong: "Planning prerequisites exceed the length limit. Shorten the items before saving.",
     checksInvalidHint: "Complete missing inputs and correct amount formats before checking again.",
     noQuarters: "No quarterly targets yet",
-    quartersHint: "Break annual metrics into quarters, then enter each floor, target and stretch amount.",
+    quartersHint: "Quarters contain formal targets only. Revenue defaults to 10%, 20%, 30% and the remainder. Auxiliary metrics follow revenue timing; pipeline remains a reserve at an observation time.",
     regionsHint: "Plan annual target tiers by geographic region. Expand quarterly targets or open a region to plan customers and capacity.",
     participation: "Participation",
     noCoverage: "No geographic coverage configured",
@@ -159,6 +173,9 @@ export const en: Dictionary = {
   PLAN_VERSION_ERROR: {
     ...zh.PLAN_VERSION_ERROR,
     plan_save_failed: "The operation failed; your inputs are preserved. Please retry.",
+    company_release_required: "Publish company targets before planning regions.",
+    company_basis_changed: "The published company baseline cannot be changed in a regional draft. Start a company revision instead.",
+    regional_draft_required: "Regional targets must be edited in a regional draft.",
   },
 
   COMPLETENESS_ERROR: {
