@@ -13,9 +13,9 @@ import { boardSections, agentPanel } from "./lib/board";
 import { ADMIN_NAV_ENTRIES } from "./lib/admin-nav";
 import { can } from "../authz/decide";
 import { consoleUrl } from "./lib/console-url";
-import { AssistantDock } from "./components/assistant-dock";
+import { AssistantProvider } from "./components/assistant-provider";
 import { AppShell } from "./components/app-shell";
-import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
+import { ASSISTANT_WIDTH_COOKIE, BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
 import { SignedOut } from "./components/signed-out";
 import { NoSubscription } from "./components/no-subscription";
@@ -275,11 +275,13 @@ export default async function AppLayout({
       {/* Around the WHOLE shell: the right deck (routing, proposals) is passed
           to AppShell as a prop and renders outside `children`. */}
       <MemberNamesProvider names={memberNames} members={memberIdentities}>
+      <AssistantProvider>
       <AppShell
         adminNavOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
+        dockWidth={jar.get(ASSISTANT_WIDTH_COOKIE)?.value === "wide" ? "wide" : "narrow"}
         boardModules={board.modules}
-        deck={<AssistantDock>{deck}</AssistantDock>}
+        deck={deck}
         deckCount={agent.pending.length}
         notificationsTotal={notificationTotal(bellItems)}
         notificationItems={bellItems}
@@ -318,6 +320,7 @@ export default async function AppLayout({
       >
         {children}
       </AppShell>
+      </AssistantProvider>
       </MemberNamesProvider>
     </MessagesProvider>
   );

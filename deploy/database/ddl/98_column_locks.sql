@@ -269,3 +269,7 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 -- while draft. The controlled event function alone seals a version.
 -- sales_plan_event, sales_plan_legacy_target and forecast_target_basis have no
 -- UPDATE grant. Their DDL increment declares the grants and row guards.
+
+-- incr/0114 creates product relationship tables after these baseline locks.
+-- strategy_plan_product / strategy_plan_market_product / market_segment_product
+-- carry their INSERT/DELETE-only grants and UPDATE revocations in that increment.

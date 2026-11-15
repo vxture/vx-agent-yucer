@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { AccountHierarchyError, planAccountRegistrationHierarchy, planAccountParent } from "./lib/parent";
 import type { ImportanceLevel, PriorityRule } from "./lib/importance";
 import type { PrismaClient } from "@prisma/client";
 import type { HealthSnapshot } from "./lib/health-history";
@@ -362,18 +364,23 @@ export class PrismaAccountStore implements AccountStore {
   async createAccount(workspaceId: string, input: NewAccount): Promise<AccountRecord> {
     const p = await this.client();
     let id: string;
-    const { plan, tier = "standard", ...basics } = input;
+    const { plan, tier = "standard", parentId = null, childLinks = [], ...basics } = input;
     try {
       // account_no is human-facing and unique per workspace; the advisory lock
       // serialises allocation (READ COMMITTED alone lets two creates read the
       // same highest number), released at commit - the opportunity_no pattern.
       id = await p.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("account_no")}::int, hashtext(${workspaceId})::int)`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("account_hierarchy")}::int, hashtext(${workspaceId})::int)`;
         const taken = await tx.account.findMany({ where: { workspaceId }, select: { accountNo: true } });
         const level = await tx.importanceLevel.findFirst({ where: { workspaceId, subject: "account", levelCode: tier } });
+        const newId = randomUUID();
+        const known = await tx.account.findMany({where:{workspaceId,deletedAt:null},select:{id:true,parentId:true}});
+        const hierarchy = planAccountRegistrationHierarchy({parentId,childLinks}, known, newId);
+        if (!hierarchy.ok) throw new AccountHierarchyError(hierarchy.violations[0]!.code);
         const row = await tx.account.create({
           data: {
-            workspaceId,
+            id:newId, parentId, workspaceId,
             accountNo: nextAccountNo(taken.map((r: { accountNo: string }) => r.accountNo)),
             ...basics,
             tier,
@@ -382,6 +389,10 @@ export class PrismaAccountStore implements AccountStore {
           select: { id: true },
         });
         if (plan) await this.writeAccountPlan(tx, workspaceId, { ...plan, accountId: row.id });
+        for (const child of childLinks) {
+          const changed = await tx.account.updateMany({where:{workspaceId,id:child.accountId,parentId:child.expectedParentId,deletedAt:null},data:{parentId:row.id,updatedAt:new Date()}});
+          if (changed.count !== 1) throw new AccountHierarchyError("hierarchy_changed");
+        }
         return row.id as string;
       });
     } catch (e) {
@@ -458,9 +469,16 @@ export class PrismaAccountStore implements AccountStore {
 
     // 定级同事务写两列 (incr/0090): while account.tier and tier_level_id live
     // side by side, a tier change carries its level row with it.
-    if (patch.tier !== undefined) {
+    if (patch.tier !== undefined || patch.parentId !== undefined) {
       return p.$transaction(async (tx) => {
-        const level = await tx.importanceLevel.findFirst({
+        if (patch.parentId !== undefined) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("account_hierarchy")}::int, hashtext(${workspaceId})::int)`;
+          const known = await tx.account.findMany({where:{workspaceId,deletedAt:null},select:{id:true,parentId:true}});
+          if (!known.some(a => a.id === id)) return false;
+          const checked = planAccountParent({accountId:id,parentId:patch.parentId},known);
+          if (!checked.ok) throw new AccountHierarchyError(checked.violations[0]!.code);
+        }
+        const level = patch.tier === undefined ? null : await tx.importanceLevel.findFirst({
           where: { workspaceId, subject: "account", levelCode: patch.tier },
         });
         const res = await tx.account.updateMany({

@@ -25,6 +25,11 @@
 逐页清单、密度规则、明确例外、入口处理及验证边界见
 [45-page-controls-audit.md](45-page-controls-audit.md)。
 
+## 资料表单与客户登记助手
+
+字段字阶、短字段三列布局及客户登记确认流程见
+[50-business-forms-registration.md](50-business-forms-registration.md)。
+
 ## 批次 0 - 继承自模板（已完成，不在本仓重做）
 
 模板已交付并验证的部分，实例化后直接生效：

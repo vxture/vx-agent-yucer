@@ -18,6 +18,7 @@ export function AccountOperatingFields({ tier, values, onChange, onTierChange, d
   const { ACCOUNT_OPERATING_TEXT: text, POSITION_TEXT } = useMessages();
   const id = useId();
   const strategic = tier === "strategic";
+  const showPlan = strategic || values.enabled;
   const field = (key: "period" | "targetAmount" | "contactCadenceDays" | "execCadenceDays", label: string, required: boolean) => (
     <Field key={key}>
       <FieldLabel htmlFor={`${id}-${key}`} required={required}>{label}</FieldLabel>
@@ -35,37 +36,28 @@ export function AccountOperatingFields({ tier, values, onChange, onTierChange, d
     </Field>
   );
   return (
-    <div className="flex flex-col gap-md">
-      {onTierChange ? (
-        <FormFields>
-          <Field>
-            <FieldLabel htmlFor={`${id}-tier`}>{text.tier}</FieldLabel>
-            <NativeSelect id={`${id}-tier`} value={tier} disabled={disabled} onChange={(ev) => onTierChange(ev.target.value as AccountTier)}>
-              <option value="standard">{POSITION_TEXT.tierStandard}</option>
-              <option value="key">{POSITION_TEXT.tierKey}</option>
-              <option value="strategic">{POSITION_TEXT.tierStrategic}</option>
-            </NativeSelect>
-          </Field>
-        </FormFields>
-      ) : null}
-      <div className="flex flex-col gap-xs">
-        <p className="text-label-medium font-medium">{text.title}</p>
-        <p className="text-body-small text-muted-foreground">{strategic ? text.required : text.optional}</p>
-      </div>
+    <section className="flex flex-col gap-md" aria-labelledby={`${id}-operating`}>
+      <h2 id={`${id}-operating`} className="text-label-medium">{text.title}</h2>
+      <FormFields>
+        {onTierChange ? <Field>
+          <FieldLabel htmlFor={`${id}-tier`}>{text.tier}</FieldLabel>
+          <NativeSelect id={`${id}-tier`} value={tier} disabled={disabled} onChange={ev => onTierChange(ev.target.value as AccountTier)}>
+            <option value="standard">{POSITION_TEXT.tierStandard}</option>
+            <option value="key">{POSITION_TEXT.tierKey}</option>
+            <option value="strategic">{POSITION_TEXT.tierStrategic}</option>
+          </NativeSelect>
+        </Field> : null}
+        {showPlan ? field("period", POSITION_TEXT.planPeriod, strategic) : null}
+        {showPlan ? field("targetAmount", POSITION_TEXT.planTarget, strategic) : null}
+        {showPlan ? field("contactCadenceDays", POSITION_TEXT.cadenceContact, strategic) : null}
+        {showPlan ? field("execCadenceDays", POSITION_TEXT.cadenceExec, strategic) : null}
+      </FormFields>
       {!strategic ? (
-        <div className="flex items-center gap-sm">
-          <Checkbox id={`${id}-enabled`} checked={values.enabled} disabled={disabled} onCheckedChange={(checked) => onChange({ ...values, enabled: checked === true })} />
+        <Field orientation="horizontal">
+          <Checkbox id={`${id}-enabled`} checked={values.enabled} disabled={disabled} onCheckedChange={checked => onChange({ ...values, enabled: checked === true })} />
           <FieldLabel htmlFor={`${id}-enabled`}>{text.enable}</FieldLabel>
-        </div>
+        </Field>
       ) : null}
-      {strategic || values.enabled ? (
-        <FormFields>
-          {field("period", POSITION_TEXT.planPeriod, strategic)}
-          {field("targetAmount", POSITION_TEXT.planTarget, strategic)}
-          {field("contactCadenceDays", POSITION_TEXT.cadenceContact, strategic)}
-          {field("execCadenceDays", POSITION_TEXT.cadenceExec, strategic)}
-        </FormFields>
-      ) : null}
-    </div>
+    </section>
   );
 }

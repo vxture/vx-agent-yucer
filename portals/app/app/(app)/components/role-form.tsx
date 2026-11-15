@@ -28,7 +28,7 @@ import {
 import { DialogForm } from "./dialog-form";
 import { useMessages } from "../lib/i18n/provider";
 import { removeRoleAction, saveRoleAction } from "../admin/roles/actions";
-import { FormActions } from "./form-page";
+import { FORM_ENTRY_CLASS, FormActions } from "./form-page";
 import { Tag } from "./tag";
 
 /* 配置角色 - TWO COLUMNS, the division form's shape (owner, 2026-09-09:
@@ -210,7 +210,7 @@ export function RoleForm({
   };
 
   return (
-    <div className="@container">
+    <div className={`@container ${FORM_ENTRY_CLASS}`} data-business-form>
       {/* INDENTED TO THE TITLE TEXT, not the icon - the same 80px
           (size-icon-2xl 48px + header gap-xl 32px) pricing-policy-config,
           forecast-threshold-config and ageing-policy-config use, so this

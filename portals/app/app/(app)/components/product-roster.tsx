@@ -142,7 +142,7 @@ export function ProductRoster({
      necessarily know it has been retired; that is often the answer they came
      for. The 分类 filter is the second axis because it is the only column
      with a small, closed set of values. */
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => products.find(p => p.id === params.get("product"))?.name ?? "");
   const [typeFilter, setTypeFilter] = useState("");
   const family = typeFilter === "" ? null : typeFamily(types, typeFilter);
   const match = (p: ProductRecord) => {

@@ -224,7 +224,7 @@ export interface CatalogStore {
   countProductRefs(
     workspaceId: string,
     productId: string,
-  ): Promise<{ lines: number; solutionItems: number }>;
+  ): Promise<{ lines: number; solutionItems: number; strategyLinks?: number }>;
 
   /** The type vocabulary, in its own order. */
   listProductTypes(workspaceId: string): Promise<ProductTypeRecord[]>;
@@ -334,7 +334,10 @@ export class InMemoryCatalogStore implements CatalogStore {
   private readonly policies = new Map<string, PricingPolicy>();
   private seq = 0;
 
-  constructor(private readonly solutionInUse?: (workspaceId: string, solutionId: string) => Promise<boolean>) {}
+  constructor(
+    private readonly solutionInUse?: (workspaceId: string, solutionId: string) => Promise<boolean>,
+    private readonly productInUse?: (workspaceId: string, productId: string) => Promise<boolean>,
+  ) {}
 
   async getPricingPolicy(workspaceId: string): Promise<PricingPolicy> {
     return this.policies.get(workspaceId) ?? DEFAULT_PRICING_POLICY;
@@ -460,8 +463,10 @@ export class InMemoryCatalogStore implements CatalogStore {
   async countProductRefs(
     workspaceId: string,
     productId: string,
-  ): Promise<{ lines: number; solutionItems: number }> {
+  ): Promise<{ lines: number; solutionItems: number; strategyLinks?: number }> {
+    const strategyLinks = await this.productInUse?.(workspaceId, productId) ? 1 : 0;
     return {
+      ...(strategyLinks ? { strategyLinks } : {}),
       lines: this.lines.filter(
         (l) => l.workspaceId === workspaceId && l.productId === productId,
       ).length,

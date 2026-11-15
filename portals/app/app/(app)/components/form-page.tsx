@@ -3,10 +3,14 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Banner, Button, DestructiveButton, type DestructiveConfirm } from "@vxture/design-ui";
+import { Banner, Button, DestructiveButton, FieldGroup, type DestructiveConfirm } from "@vxture/design-ui";
 import { AssistantSection } from "./assistant";
 import { useFormAssistSlot } from "./form-assist-slot";
 import { useMessages } from "../lib/i18n/provider";
+
+// DS form roles are bound centrally with the existing business-control rules.
+// Dedicated pages and grids opt in; toolbar/filter typography stays compact.
+export const FORM_ENTRY_CLASS = "text-foreground";
 
 // The shape every DEDICATED FORM PAGE shares - owner ruling, 2026-09-05.
 //
@@ -33,90 +37,27 @@ export function FormPage({
   const slot = useFormAssistSlot();
   return (
     <div className="flex min-w-0 flex-col gap-lg">
-      {form}
+      <div className={`min-w-0 ${FORM_ENTRY_CLASS}`} data-business-form>{form}</div>
       {assist ? (slot ? createPortal(assist, slot) : assist) : null}
     </div>
   );
 }
 
-/**
- * THE FIELD GRID - two items to a row, evenly (owner, 2026-09-09).
- *
- * WHAT IT REPLACES. Forms capped their whole field stack at a reading measure
- * (max-w-(--vx-container-md), 448px) and put two fields inside it, so on a
- * page that had just been given its full width the pair sat squeezed into the
- * left quarter with everything else empty. The owner's words for the two
- * failure modes it is between: 简单粗暴拉伸 - a control stretched across
- * 1400px - and 堆积, everything piled into one narrow column.
- *
- * SO: THE COLUMNS SPLIT EVENLY and the CONTROLS TIGHTEN UNIFORMLY. Two equal
- * 1fr columns take the form's width, and every grid item carries the same
- * max measure, so a wide window spends its extra width on the gutter between
- * two evenly-set columns rather than on making a code field wide enough for
- * eighty characters. Both columns are treated identically, which is what
- * keeps a half-filled column reading as a layout rather than as a squeeze.
- *
- * A CONTAINER QUERY, NOT A VIEWPORT BREAKPOINT - the same argument FormPage
- * makes above it. What decides whether two columns fit is how much room this
- * form actually has, and with a sidebar and (later) an agent panel beside it
- * the viewport does not know that. @xl is 36rem of container: two columns only
- * when each still gets ~17rem.
- */
-export function FormFields({
-  children,
-  gap = "xl",
-}: {
+/** Short business fields share a responsive three-column DS grid. */
+export function FormFields({ children, gap = "xl" }: {
   readonly children: ReactNode;
-  /** "xl" (32px both axes, the default every other form keeps) or "128" -
-   *  a single page's explicit ask for far more HORIZONTAL air between its
-   *  two columns (owner, 2026-09-11: 内容区一行两条布局的，gap = 128px).
-   *  Row gap does NOT also widen to 128px (that shipped once as a uniform
-   *  `gap-[128px]` and was corrected the same day: 横向gap=128，纵向gap
-   *  按原来值). It also does not stay at this component's other rows'
-   *  32px either - a second look at the 128px-wide columns found 32px
-   *  between rows read as too loose next to that much air (owner,
-   *  2026-09-11: 纵向是不是在少一些，行业是多少，8px如何，或者16px) - 16px
-   *  (gap-md) is what this DS's own stacked/single-column forms already
-   *  use between fields, so this drops to that rather than to 8px, which
-   *  reads cramped once a Field's label+control+description is three
-   *  lines tall. Not the default, so it stays that page's own choice
-   *  rather than a systemic redesign of every two-column form. */
   readonly gap?: "xl" | "128";
 }) {
-  return (
-    <div className="@container">
-      {/* gap-xl (32px) rather than the md the stacked forms used: two columns
-          need a gutter wide enough to read as a gutter, or the two fields look
-          like one wrapped row.
-
-          THE MEASURE IS A VARIABLE, not a class, and that is what lets
-          FormFieldWide exist. `*:max-w-(--vx-field-measure)` sets the cap on
-          every direct child, and a child selector beats a class the child
-          carries itself - so a wide field cannot simply declare max-w-none.
-          Redeclaring the VARIABLE on itself works, because the value is
-          resolved on the element the declaration lands on. */}
-      <div
-        className={`${gap === "128" ? "gap-y-md gap-x-[128px]" : "gap-xl"} @xl:grid-cols-2 grid grid-cols-1 [--vx-field-measure:var(--vx-container-lg)] *:min-w-0 *:max-w-(--vx-field-measure)`}
-      >
-        {children}
-      </div>
-    </div>
-  );
+  return <div className={`@container ${FORM_ENTRY_CLASS}`} data-business-fields>
+    <FieldGroup columns={3} className={`grid-cols-1 @xl:grid-cols-2 @3xl:grid-cols-3 ${gap === "128" ? "gap-y-md gap-x-[128px]" : "gap-x-lg gap-y-lg"} *:min-w-0`}>
+      {children}
+    </FieldGroup>
+  </div>;
 }
 
-/**
- * A field that takes the whole row inside FormFields.
- *
- * FOR THE ONES THAT ARE NOT HALF A ROW'S WORTH OF QUESTION: the "which record
- * am I editing" selector at the top of an upsert form governs everything under
- * it rather than sitting beside one of them, and a control whose content is a
- * sentence needs the width. Everything else is a field and takes a column.
- *
- * It also drops the measure - a full row that stopped at half of it would be
- * the squeeze this grid exists to end, one row lower.
- */
+/** Descriptions and long-content controls occupy the available row. */
 export function FormFieldWide({ children }: { readonly children: ReactNode }) {
-  return <div className="@xl:col-span-2 [--vx-field-measure:none]">{children}</div>;
+  return <div className="col-span-full min-w-0">{children}</div>;
 }
 
 /**

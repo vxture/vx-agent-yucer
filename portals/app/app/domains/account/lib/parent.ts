@@ -90,3 +90,44 @@ function reaches(all: readonly KnownAccount[], fromId: string, targetId: string)
   }
   return false;
 }
+
+/** A confirmed child move carries the parent observed when it was selected. */
+export interface RegistrationChildLink {
+  readonly accountId: string;
+  readonly expectedParentId: string | null;
+}
+export interface RegistrationHierarchy {
+  readonly parentId?: string | null;
+  readonly childLinks?: readonly RegistrationChildLink[];
+}
+export class AccountHierarchyError extends Error {
+  constructor(readonly code: string) { super(code); }
+}
+
+/** Validate the whole proposed tree before any customer or child is written. */
+export function planAccountRegistrationHierarchy(
+  input: RegistrationHierarchy, existing: readonly KnownAccount[], accountId: string,
+): RuleResult<RegistrationHierarchy> {
+  const parentId = input.parentId ?? null;
+  const childLinks = input.childLinks === undefined ? [] : input.childLinks;
+  if ((parentId !== null && (typeof parentId !== "string" || !parentId)) || !Array.isArray(childLinks) || childLinks.length > 100)
+    return fail(violation("hierarchy_invalid", "invalid customer relationships", "childLinks"));
+  const next: KnownAccount[] = [...existing, { id: accountId, parentId: null }];
+  const parent = planAccountParent({ accountId, parentId }, next);
+  if (!parent.ok) return parent;
+  next[next.length-1] = { id: accountId, parentId };
+  const seen = new Set<string>();
+  for (const link of childLinks) {
+    if (!link || typeof link.accountId !== "string" || !link.accountId || seen.has(link.accountId) ||
+      (link.expectedParentId !== null && (typeof link.expectedParentId !== "string" || !link.expectedParentId)))
+      return fail(violation("hierarchy_invalid", "invalid subsidiary selection", "childLinks"));
+    seen.add(link.accountId);
+    const held = next.find(a => a.id === link.accountId);
+    if (!held || held.id === accountId) return fail(violation("child_not_found", "subsidiary is unavailable", "childLinks"));
+    if (held.parentId !== link.expectedParentId) return fail(violation("hierarchy_changed", "subsidiary parent changed; review again", "childLinks"));
+    const change = planAccountParent({ accountId: link.accountId, parentId: accountId }, next);
+    if (!change.ok) return change;
+    next[next.indexOf(held)] = { ...held, parentId: accountId };
+  }
+  return ok({ parentId, childLinks });
+}

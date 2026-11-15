@@ -11,7 +11,7 @@ export const CENTRE_PANE_CLASS =
 
 /** DS viewport dock: independently padded and separated from the work area. */
 export const ASSISTANT_PANE_CLASS =
-  "w-(--vx-pane-action) h-full min-h-0 shrink-0 overflow-hidden border-l border-border px-lg pt-lg pb-md";
+  "h-full min-h-0 overflow-hidden px-lg pt-lg pb-md";
 
 /** The routes whose page renders the board and centre panes itself: an
  *  object's detail page, where 栏1 is that object's own dossier instead of

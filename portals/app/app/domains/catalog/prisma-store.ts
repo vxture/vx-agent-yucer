@@ -278,13 +278,17 @@ export class PrismaCatalogStore implements CatalogStore {
   async countProductRefs(
     workspaceId: string,
     productId: string,
-  ): Promise<{ lines: number; solutionItems: number }> {
+  ): Promise<{ lines: number; solutionItems: number; strategyLinks?: number }> {
     const p = await getPrismaClient();
-    const [lines, solutionItems] = await Promise.all([
+    const [lines, solutionItems, shared, targets, defaults] = await Promise.all([
       p.opportunityLine.count({ where: { workspaceId, productId } }),
       p.solutionItem.count({ where: { workspaceId, productId } }),
+      p.strategyPlanProduct.count({ where: { workspaceId, productId } }),
+      p.strategyPlanMarketProduct.count({ where: { workspaceId, productId } }),
+      p.marketSegmentProduct.count({ where: { workspaceId, productId } }),
     ]);
-    return { lines, solutionItems };
+    const strategyLinks = shared + targets + defaults;
+    return { lines, solutionItems, ...(strategyLinks ? { strategyLinks } : {}) };
   }
 
   async listProductTypes(workspaceId: string): Promise<ProductTypeRecord[]> {

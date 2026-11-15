@@ -2,22 +2,24 @@
 
 import { useState } from "react";
 import { Button, Checkbox, Drawer, EmptyState, Field, FieldError, FieldLabel, Icon, Input, NativeSelect, Textarea } from "@vxture/design-ui";
-import type { SolutionReference } from "../../domains/catalog/service";
+import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import type { PlanRelationChange, TargetMarketDraft, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
 import type { MarketView } from "../lib/market-strategy";
 import { SolutionPicker } from "./solution-picker";
 import { TitleHelp } from "./title-help";
 import { useMessages } from "../lib/i18n/provider";
 
-export type RelationMarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing" | "solutionIds">;
+export type RelationMarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing" | "solutionIds" | "productIds">;
 export type RelationTarget = TargetMarketDraft & { marketName: string };
 export type RelationTask = { kind: "markets" } | { kind: "solutions" } | { kind: "market"; segmentId: string };
 
 // Mounted per task: reopening starts from current links, never a cancelled draft.
-export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutionIds, marketOptions, solutionOptions, onSave, onClose, draft = false }: {
+export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutionIds, sharedProductIds, marketOptions, solutionOptions, productOptions, onSave, onClose, draft = false }: {
   readonly task: RelationTask;
   readonly planName: string;
   readonly targets: readonly RelationTarget[];
+  readonly sharedProductIds: readonly string[] | undefined;
+  readonly productOptions: readonly ProductReference[] | null;
   readonly sharedSolutionIds: readonly string[] | undefined;
   readonly marketOptions: readonly RelationMarketOption[] | null;
   readonly solutionOptions: readonly SolutionReference[] | null;
@@ -30,16 +32,18 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
   const [selected, setSelected] = useState<readonly string[]>(task.kind === "markets" ? targets.map(t => t.segmentId) : sharedSolutionIds ?? []);
   const [intent, setIntent] = useState(target?.intent ?? null);
   const [approach, setApproach] = useState(target?.approach ?? "");
-  const [solutionIds, setSolutionIds] = useState(target?.solutionIds);
+  const [productIds, setProductIds] = useState(task.kind === "solutions" ? sharedProductIds : target?.productIds);
+  const [solutionIds, setSolutionIds] = useState(task.kind === "solutions" ? sharedSolutionIds : target?.solutionIds);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const originalIds = task.kind === "markets" ? targets.map(t => t.segmentId) : sharedSolutionIds ?? [];
-  const solutionChanged = JSON.stringify(solutionIds) !== JSON.stringify(target?.solutionIds);
-  const dirty = task.kind === "market" ? intent !== target?.intent || approach !== (target?.approach ?? "") || solutionChanged
-    : selected.length !== originalIds.length || selected.some(id => !originalIds.includes(id));
+  const solutionChanged = JSON.stringify(solutionIds) !== JSON.stringify(task.kind === "solutions" ? sharedSolutionIds : target?.solutionIds);
+  const productChanged = JSON.stringify(productIds) !== JSON.stringify(task.kind === "solutions" ? sharedProductIds : target?.productIds);
+  const dirty = task.kind === "market" ? intent !== target?.intent || approach !== (target?.approach ?? "") || solutionChanged || productChanged
+    : task.kind === "solutions" ? solutionChanged || productChanged : selected.length !== originalIds.length || selected.some(id => !originalIds.includes(id));
   const unavailable = task.kind === "markets" ? marketOptions === null
-    : task.kind === "solutions" ? solutionOptions === null || sharedSolutionIds === undefined : !target;
+    : task.kind === "solutions" ? (solutionOptions === null || sharedSolutionIds === undefined) && (productOptions === null || sharedProductIds === undefined) : !target;
   const close = () => { if (!pending) onClose(); };
   const toggle = (id: string) => setSelected(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
   const save = async () => {
@@ -49,7 +53,11 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
     } : task.kind === "market" ? {
       kind: "market", segmentId: task.segmentId, intent, approach: approach.trim() || null,
       ...(solutionChanged && solutionIds !== undefined ? { solutionIds } : {}),
-    } : { kind: "solutions", solutionIds: selected };
+      ...(productChanged && productIds !== undefined ? { productIds } : {}),
+    } : { kind: "solutions",
+      ...(solutionChanged && solutionIds !== undefined ? { solutionIds } : {}),
+      ...(productChanged && productIds !== undefined ? { productIds } : {}),
+    };
     setPending(true);setError(null);
     try {
       const result = await onSave(change);
@@ -61,8 +69,6 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
   const q = query.trim().toLocaleLowerCase();
   const markets = marketOptions?.filter(m => (m.status === "active" || originalIds.includes(m.id)) &&
     (!q || `${m.name} ${m.segmentCode} ${JSON.stringify(m.criteria)}`.toLocaleLowerCase().includes(q))) ?? [];
-  const solutions = solutionOptions?.filter(s => (s.status === "active" || originalIds.includes(s.id)) &&
-    (!q || `${s.name} ${s.solutionCode}`.toLocaleLowerCase().includes(q))) ?? [];
   const title = task.kind === "markets" ? T.linkMarkets : task.kind === "solutions" ? T.linkSolutions : T.marketSettings;
   return <Drawer open onClose={close} width="md" className="max-w-full"
     title={<span className="inline-flex items-center gap-xs">{title}<TitleHelp topic={title}>
@@ -73,20 +79,21 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
     footer={<div className="flex w-full flex-col gap-sm">
       {error ? <FieldError role="alert">{error}</FieldError> : null}
       <div className="flex items-center justify-between gap-sm">
-        <span className="text-body-small text-muted-foreground">{task.kind !== "market" ? `${T.relationSelectedCount} ${selected.length}` : null}</span>
+        <span className="text-body-small text-muted-foreground">{task.kind !== "market" ? `${T.relationSelectedCount} ${task.kind === "solutions" ? (solutionIds?.length ?? 0) + (productIds?.length ?? 0) : selected.length}` : null}</span>
         <div className="flex gap-sm"><Button size="xl" variant="secondary" disabled={pending} onClick={close}>{T.relationCancel}</Button>
           <Button size="xl" disabled={pending || unavailable || !dirty} onClick={save}>{draft ? T.relationApply : T.relationSave}</Button></div>
       </div>
     </div>}>
-    <div className="flex min-w-0 flex-col gap-lg" data-strategy-relations-task={task.kind}>
-      {task.kind !== "market" ? <>
+    <div className="flex min-w-0 flex-col gap-lg" data-business-form data-strategy-relations-task={task.kind}>
+      {task.kind === "solutions" ? <SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds}
+        productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} disabled={pending}/> : task.kind === "markets" ? <>
         <Input type="search" className="h-control-xl" value={query} onChange={e => setQuery(e.target.value)}
-          placeholder={task.kind === "markets" ? T.searchMarkets : T.searchSolutions} aria-label={task.kind === "markets" ? T.searchMarkets : T.searchSolutions}/>
-        {unavailable ? <p role="status" className="text-body-small text-muted-foreground">{task.kind === "markets" ? T.marketOptionsUnavailable : T.solutionOptionsUnavailable}</p>
+          placeholder={T.searchMarkets} aria-label={T.searchMarkets}/>
+        {unavailable ? <p role="status" className="text-body-small text-muted-foreground">{T.marketOptionsUnavailable}</p>
           : <div className="flex flex-col divide-y divide-dashed divide-primary/10">
-          {task.kind === "markets" ? markets.map(m => {
+          {markets.map(m => {
             const prior = targets.find(t => t.segmentId === m.id);
-            const locked = !!prior && prior.solutionIds === undefined;
+            const locked = !!prior && (prior.solutionIds === undefined || prior.productIds === undefined);
             return <label key={m.id} className="flex cursor-pointer items-start gap-sm py-md">
               <Checkbox checked={selected.includes(m.id)} disabled={pending || locked} onCheckedChange={() => toggle(m.id)} aria-label={m.name}/>
               <span className="flex min-w-0 flex-1 flex-col gap-xs">
@@ -97,12 +104,8 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
               </span>
               <span className="shrink-0 text-body-small text-muted-foreground">{T.customerCount} {m.matched ?? T.unknown}</span>
             </label>;
-          }) : solutions.map(s => <label key={s.id} className="flex cursor-pointer items-start gap-sm py-md">
-            <Checkbox checked={selected.includes(s.id)} disabled={pending} onCheckedChange={() => toggle(s.id)} aria-label={s.name}/>
-            <span className="flex min-w-0 flex-col gap-xs"><span className="text-body font-medium">{s.name}</span>
-              <span className="text-body-small text-muted-foreground">{s.solutionCode}{s.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span></span>
-          </label>)}
-          {!(task.kind === "markets" ? markets : solutions).length ? <EmptyState title={T.noMatches}/> : null}
+          })}
+          {!markets.length ? <EmptyState title={T.noMatches}/> : null}
         </div>}
         {task.kind === "markets" && originalIds.some(id => !selected.includes(id)) ? <p className="text-body-small text-muted-foreground">{T.relationRemoveHint}</p> : null}
       </> : target ? <>
@@ -112,7 +115,7 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
         </NativeSelect></Field>
         <Field><FieldLabel>{T.marketApproach}</FieldLabel><Textarea rows={3} maxLength={4000} aria-label={T.marketApproach} value={approach}
           disabled={pending} placeholder={T.marketApproachHint} onChange={e => setApproach(e.target.value)}/></Field>
-        <Field><FieldLabel>{T.primarySolutions}</FieldLabel><SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={pending}/></Field>
+        <Field><FieldLabel>{T.primarySolutions}</FieldLabel><SolutionPicker productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={pending}/></Field>
       </> : <EmptyState title={T.noPlanMarkets}/>}
     </div>
   </Drawer>;

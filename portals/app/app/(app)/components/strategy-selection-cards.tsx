@@ -3,9 +3,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, Icon } from "@vxture/design-ui";
-import type { SolutionReference } from "../../domains/catalog/service";
+import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import type { SegmentCriteria, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
 import { useMessages } from "../lib/i18n/provider";
+import { strategyOfferings } from "../lib/strategy-offerings";
 import { Tag } from "./tag";
 
 interface SelectedMarket {
@@ -18,6 +19,7 @@ interface SelectedMarket {
   matched?: number | null;
   missing?: number | null;
   solutions?: readonly SolutionReference[] | null;
+  products?: readonly ProductReference[] | null;
 }
 
 function StrategySelectionGrid({ children, count, kind, detail }: {
@@ -75,7 +77,12 @@ export function StrategyMarketCards({ markets, actions, detail }: {
           <dd className={`min-w-0 whitespace-pre-wrap break-words ${m.approach ? "" : "text-muted-foreground"}`}>{m.approach || T.noMarketApproach}</dd>
           <dt className="text-muted-foreground">{T.featuredSolutions}</dt>
           <dd className="flex min-w-0 flex-col items-start gap-xs">
-            {m.solutions === null ? <span className="text-muted-foreground">{T.unknown}</span> : !m.solutions?.length ? <span className="text-muted-foreground">{T.noPlanSolutions}</span> : m.solutions.map(s => <Link key={s.id} href={`/solution?solution=${encodeURIComponent(s.id)}`} className="break-words transition-colors hover:text-primary-text">{s.name}</Link>)}
+            {strategyOfferings(m.solutions, m.products).map(row => <Link key={row.key} href={row.href}
+              className="inline-flex min-w-0 items-start gap-xs break-words transition-colors hover:text-primary-text" title={row.kind === "product" ? T.productKind : T.solutionKind}>
+              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span>{row.name}</span>
+            </Link>)}
+            {m.solutions === null || m.products === null ? <span className="text-muted-foreground">{T.unknown}</span>
+              : !m.solutions?.length && !m.products?.length ? <span className="text-muted-foreground">{T.noPlanSolutions}</span> : null}
           </dd>
         </dl>
       </div></CardContent>
@@ -90,25 +97,35 @@ export function StrategyMarketCards({ markets, actions, detail }: {
   </StrategySelectionGrid>;
 }
 
-export function StrategySolutionCards({ solutions, markets, sharedIds, detail }: {
+export function StrategySolutionCards({ solutions, products = [], markets, sharedIds, sharedProductIds, detail }: {
+  readonly products?: readonly ProductReference[] | null;
+  readonly sharedProductIds?: readonly string[];
   readonly solutions: readonly SolutionReference[] | null;
-  readonly markets: readonly { marketName: string; solutionIds?: readonly string[] }[];
+  readonly markets: readonly { marketName: string; solutionIds?: readonly string[]; productIds?: readonly string[] }[];
   readonly sharedIds: readonly string[] | undefined;
   readonly detail?: boolean;
 }) {
   const { MARKET_STRATEGY_TEXT: T } = useMessages();
-  if (solutions === null) return <p className="text-body-small text-muted-foreground">{T.solutionOptionsUnavailable}</p>;
-  if (!solutions.length) return <p className="text-body-small text-muted-foreground">{T.noPlanSolutions}</p>;
-  return <StrategySelectionGrid kind="solution" count={solutions.length} detail={detail}>
-    {solutions.map(s => <Card key={s.id} className="min-w-0 gap-md py-lg"><CardHeader>
-      <div className="flex items-start gap-sm"><Icon name="package" size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
-        <div className="flex min-w-0 flex-col gap-xs"><CardTitle><Link href={`/solution?solution=${encodeURIComponent(s.id)}`} className="break-words transition-colors hover:text-primary">{s.name}</Link></CardTitle>
-          <span className="text-body-small text-muted-foreground">{s.solutionCode}{s.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span></div>
-      </div></CardHeader><CardContent><div className="flex min-w-0 gap-sm"><span className="size-icon-lg shrink-0" aria-hidden="true"/><div className="flex min-w-0 flex-1 flex-col gap-sm text-body-small">
-        {sharedIds?.includes(s.id) ? <span className="text-muted-foreground">{T.sharedScope}</span> : null}
-        {markets.some(m => m.solutionIds?.includes(s.id)) ? <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-sm">
-          <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt><dd className="break-words">{markets.filter(m => m.solutionIds?.includes(s.id)).map(m => m.marketName).join(" / ")}</dd>
-        </dl> : null}
-      </div></div></CardContent></Card>)}
-  </StrategySelectionGrid>;
+  const rows = strategyOfferings(solutions, products);
+  return <>
+    {solutions === null ? <p className="text-body-small text-muted-foreground">{T.solutionOptionsUnavailable}</p> : null}
+    {products === null ? <p className="text-body-small text-muted-foreground">{T.productOptionsUnavailable}</p> : null}
+    {!rows.length && solutions !== null && products !== null ? <p className="text-body-small text-muted-foreground">{T.noPlanSolutions}</p> : null}
+    <StrategySelectionGrid kind="solution" count={rows.length} detail={detail}>
+      {rows.map(row => {
+        const shared=(row.kind === "product" ? sharedProductIds : sharedIds)?.includes(row.id);
+        const scopes=markets.filter(m=>(row.kind === "product" ? m.productIds : m.solutionIds)?.includes(row.id));
+        return <Card key={row.key} className="min-w-0 gap-md py-lg" data-strategy-offering={row.kind}><CardHeader>
+          <div className="flex items-start gap-sm"><Icon name={row.icon} size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
+            <div className="flex min-w-0 flex-col gap-xs"><CardTitle><Link href={row.href} className="break-words transition-colors hover:text-primary">{row.name}</Link></CardTitle>
+              <span className="text-body-small text-muted-foreground">{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span></div>
+          </div></CardHeader><CardContent><div className="flex min-w-0 gap-sm"><span className="size-icon-lg shrink-0" aria-hidden="true"/><div className="flex min-w-0 flex-1 flex-col gap-sm text-body-small">
+            {shared ? <span className="text-muted-foreground">{T.sharedScope}</span> : null}
+            {scopes.length ? <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-sm">
+              <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt><dd className="break-words">{scopes.map(m=>m.marketName).join(" / ")}</dd>
+            </dl> : null}
+          </div></div></CardContent></Card>;
+      })}
+    </StrategySelectionGrid>
+  </>;
 }

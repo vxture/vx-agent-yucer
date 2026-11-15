@@ -11,7 +11,7 @@
 // a record that stops being current keeps existing. Downstream data is
 // accomplished fact and a tidy-up upstream must not erase it.
 
-import type { SolutionReference } from "../catalog/service";
+import type { ProductReference, SolutionReference } from "../catalog/service";
 import { money, type Money } from "../shared/money";
 import type {
   CampaignStatus,
@@ -45,6 +45,7 @@ export interface PlanRecord {
   readonly publishedSnapshot?: StrategyPublication | null;
   readonly changeReason?: string;
   solutionIds: readonly string[];
+  productIds?: readonly string[];
   targetMarkets?: readonly TargetMarket[];
   status: PlanStatus;
   approvedAt: Date | null;
@@ -60,8 +61,10 @@ export interface StrategyPublication {
   ownerSub: string | null;
   ownerName: string | null;
   sharedSolutionIds: readonly string[];
+  sharedProductIds?: readonly string[];
   targetMarkets: readonly TargetMarket[];
   solutions: readonly SolutionReference[];
+  products?: readonly ProductReference[];
 }
 
 export class StrategyVersionError extends Error {
@@ -73,11 +76,12 @@ export interface PublishPlanCommand {
   actorSub: string;
   at: Date;
   solutions: readonly SolutionReference[];
+  products?: readonly ProductReference[];
   ownerName: string | null;
 }
-export function captureStrategyPublication(plan: PlanRecord, solutions: readonly SolutionReference[], at: Date, legacy = false, ownerName: string | null = null): StrategyPublication {
+export function captureStrategyPublication(plan: PlanRecord, solutions: readonly SolutionReference[], at: Date, legacy = false, ownerName: string | null = null, products: readonly ProductReference[] = []): StrategyPublication {
   return structuredClone({schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
-    objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,
+    objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
     targetMarkets:plan.targetMarkets ?? [],solutions});
 }
 /** One overview entry per lineage. A revision draft never displaces a publication. */
@@ -92,6 +96,7 @@ export function currentStrategyPlans<T extends Pick<PlanRecord,"id"|"lineageId"|
 
 /** A selected catalog row disappeared between validation and the write. */
 export class PlanSolutionUnavailableError extends Error {}
+export class PlanProductUnavailableError extends Error {}
 export class PlanMarketUnavailableError extends Error {}
 export class SegmentReferencedError extends Error {}
 
@@ -136,6 +141,7 @@ export interface SegmentRecord {
   status: SegmentStatus;
   criteria: SegmentCriteria;
   solutionIds?: readonly string[];
+  productIds?: readonly string[];
 }
 
 export interface ExecutionRecord {
@@ -198,6 +204,7 @@ export interface StrategyStore {
       objective?: string | null;
       ownerSub?: string | null;
       solutionIds?: readonly string[];
+      productIds?: readonly string[];
       targetMarkets?: readonly TargetMarket[];
       changeReason?: string;
     },
@@ -349,6 +356,7 @@ export class InMemoryStrategyStore implements StrategyStore {
       ...input,
       createdBySub: input.createdBySub ?? null,
       solutionIds: [...(input.solutionIds ?? [])],
+      productIds: [...(input.productIds ?? [])],
       targetMarkets: structuredClone(input.targetMarkets ?? []),
       id: this.nextPlanId(),
       workspaceId,
@@ -368,12 +376,12 @@ export class InMemoryStrategyStore implements StrategyStore {
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>, guard: PlanWriteGuard = {}): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId || (guard.expectedEditToken !== undefined && guard.expectedEditToken !== (p.editToken ?? 1)) || (guard.expectedStatus !== undefined && p.status !== guard.expectedStatus)) return false;
-    if (["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
+    if (["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
     if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
       throw new PlanMarketUnavailableError();
     }
     const { targetMarkets, ...fields } = patch;
-    Object.assign(p, fields, fields.solutionIds === undefined ? {} : { solutionIds: [...fields.solutionIds] });
+    Object.assign(p, fields, fields.productIds === undefined ? {} : { productIds: [...fields.productIds] }, fields.solutionIds === undefined ? {} : { solutionIds: [...fields.solutionIds] });
     if (targetMarkets !== undefined) p.targetMarkets = structuredClone(targetMarkets);
     Object.assign(p,{editToken:(p.editToken ?? 1)+1});
     return true;
@@ -405,7 +413,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     const status=latest?.status==="active"?"active":"approved";
     if(latest)Object.assign(latest,{status:"closed",editToken:(latest.editToken ?? 1)+1});
     Object.assign(draft,{status,versionNo:(latest?.versionNo ?? 0)+1,approvedAt:command.at,publishedBySub:command.actorSub,
-      publishedSnapshot:captureStrategyPublication(draft,command.solutions,command.at,false,command.ownerName),editToken:(draft.editToken ?? 1)+1});
+      publishedSnapshot:captureStrategyPublication(draft,command.solutions,command.at,false,command.ownerName,command.products),editToken:(draft.editToken ?? 1)+1});
     return structuredClone(draft);
   }
 
@@ -521,6 +529,7 @@ export class InMemoryStrategyStore implements StrategyStore {
       held.status = input.status;
       held.criteria = input.criteria;
       if (input.solutionIds !== undefined) held.solutionIds = [...input.solutionIds];
+      if (input.productIds !== undefined) held.productIds = [...input.productIds];
       return held;
     }
     const row: SegmentRecord = { ...input, id: `seg_${++this.seq}`, workspaceId };

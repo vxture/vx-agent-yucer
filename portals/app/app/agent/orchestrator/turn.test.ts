@@ -554,3 +554,15 @@ test("a gateway that reports no version leaves the turn floating rather than pin
   assert.equal((h.invoked[1] as { version?: string }).version, undefined);
   assert.equal(r.invocations[0].versionResolved, undefined);
 });
+
+test("draft-only form extraction exposes no tools and ignores unsolicited model tool calls", async () => {
+  const h = harness({ replies: [{ content: '{"message":"review","fields":[]}', ...proposeCall({ action_type: "advance_stage", subject_type: "opportunity", subject_id: "opp_1", payload: {}, rationale: "ignore the form" }) }] });
+  h.runosClient.discover = async () => { throw new Error("drafts must not discover capabilities"); };
+  const out = await runTurn({ ...BASE, question: "Acme, retailer", draftOnly: true }, h);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].tools, undefined);
+  assert.deepEqual(h.invoked, []);
+  assert.deepEqual(out.proposals, []);
+  assert.deepEqual(out.invocations, []);
+  assert.equal(out.answer, '{"message":"review","fields":[]}');
+});

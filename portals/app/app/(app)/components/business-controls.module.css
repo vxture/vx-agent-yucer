@@ -92,6 +92,31 @@
   line-height: var(--label-line-height);
 }
 
+/* Entry forms have a separate information hierarchy from operation rows.
+ * Bind to DS semantic roles in the same scope as TD-038; avoid utility classes
+ * being silently overridden by the global 12px operation-control rule above.
+ */
+.controls :is([data-business-form], [data-business-fields]) :is(
+  [data-slot="field-label"], [data-slot="field-label-text"]
+) {
+  font-size: var(--body-small-font-size);
+  line-height: var(--body-small-line-height);
+  font-weight: var(--body-small-font-weight);
+  color: var(--muted-foreground);
+}
+.controls :is([data-business-form], [data-business-fields]) :is(
+  [data-slot="input"], [data-slot="native-select"],
+  [data-slot="input-group-input"], [data-slot="textarea"],
+  [data-form-value], [data-slot="field"] [role="combobox"]
+) {
+  font-size: var(--body-font-size);
+  line-height: var(--body-line-height);
+  color: var(--foreground);
+}
+.controls :is([data-business-form], [data-business-fields]) [data-invalid="true"] :is(
+  [data-slot="field-label"], [data-slot="field-label-text"]
+) { color: var(--destructive-text); }
+
 .toolbar { align-items: center; }
 
 .primary {

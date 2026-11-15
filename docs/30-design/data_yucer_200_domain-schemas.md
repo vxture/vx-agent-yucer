@@ -24,6 +24,9 @@
 | `strategy_plan_event` | 修订、发布、放弃事件，只读授权服务角色（incr/0110） | - |
 | `market_segment` | 可复用的细分市场（`criteria` 保存过滤条件与场景说明） | `segment_code` |
 | `market_segment_solution` | 市场默认方案；独立维护、供战略首次选入继承（incr/0112） | - |
+| `market_segment_product` | 市场默认产品（incr/0114） | - |
+| `strategy_plan_product` | 战略通用产品引用（incr/0114） | - |
+| `strategy_plan_market_product` | 目标市场主推产品引用（incr/0114） | - |
 | `strategy_plan_solution` | 战略通用方案引用（incr/0107） | - |
 | `strategy_plan_market` | 战略选用的细分市场、选入时的名称与条件、投入方式和打法（incr/0108） | - |
 | `strategy_plan_market_solution` | 单个目标市场的主推方案引用（incr/0108） | - |

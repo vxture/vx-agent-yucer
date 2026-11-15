@@ -115,17 +115,14 @@ test("GROUP_MODULES agrees with FUNCTIONAL_DOMAINS - every nav module sits under
   }
 });
 
-test("GROUP_MODULES.home / .national / .enablement agree with CROSSCUTTING_MODULES", () => {
-  /* 今日判断, 销售大屏 and 赋能分析 sit outside the five business domains in
-     the nav (CROSSCUTTING_MODULES, not FUNCTIONAL_DOMAINS) precisely because
-     none owns an object - the same reason 智能副驾 and 配置管理 are groups of
-     their own. Each gets a one-module group here, same shape as those two
-     (owner, 2026-09-11: 缺少今日裁决和销售大屏; 赋能分析 added 2026-09-17). */
+test("crosscutting destinations agree with permission groups and keep workspace actions", () => {
+  // The AI workspace is a destination with existing actions. Reporting screens
+  // remain placeholders; restoring the launcher entry must not change grants.
   const crosscuttingKeys = new Set(CROSSCUTTING_MODULES.filter((m) => m.kind === "built").map((m) => m.navKey));
-  assert.deepEqual(crosscuttingKeys, new Set(["home", "national", "enablement", "strategyDiag"]));
+  assert.deepEqual(crosscuttingKeys, new Set(["home", "copilot", "national", "enablement", "strategyDiag"]));
   for (const key of crosscuttingKeys) {
     assert.deepEqual(GROUP_MODULES[key], [key], `GROUP_MODULES.${key} should be a single self-named module`);
-    assert.ok(PLACEHOLDER_MODULES.has(key), `${key} owns no object and should never gate on an action of its own`);
+    assert.equal(PLACEHOLDER_MODULES.has(key), key !== "copilot");
   }
 });
 

@@ -24,7 +24,7 @@ import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection
 import { nextStrategyNumber } from "../../domains/strategy/lib/plan-number";
 import { StrategyPeriodField } from "./strategy-period-field";
 import { parseStrategyPeriod } from "../../domains/strategy/lib/plan-period";
-import type { SolutionReference } from "../../domains/catalog/service";
+import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import { StrategyRelationsDrawer, type RelationTask, type RelationMarketOption, type RelationTarget } from "./strategy-relations-drawer";
 import type { SegmentCriteria, NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/strategy/lib/lifecycle";
 
@@ -61,6 +61,7 @@ export interface PlanFormInitial {
   readonly period: string;
   readonly objective: string | null;
   readonly ownerSub: string | null;
+  readonly productIds: readonly string[] | undefined;
   readonly solutionIds: readonly string[] | undefined;
   readonly targetMarkets: readonly TargetSelection[];
 }
@@ -69,6 +70,7 @@ export function NewPlanForm({
   existingPlanNos,
   initial,
   solutionOptions,
+  productOptions,
   marketOptions,
   ownerOptions,
   creatorSub,
@@ -78,6 +80,7 @@ export function NewPlanForm({
   readonly existingPlanNos: readonly string[];
   /** Present edits that plan; absent creates one. */
   readonly initial?: PlanFormInitial;
+  readonly productOptions: readonly ProductReference[] | null;
   readonly solutionOptions: readonly SolutionReference[] | null;
   readonly marketOptions: readonly MarketOption[] | null;
   readonly ownerOptions: readonly { value: string; label: string }[] | null;
@@ -93,15 +96,21 @@ export function NewPlanForm({
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [changeReason,setChangeReason]=useState(initial?.changeReason ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
+  const [productIds, setProductIds] = useState<readonly string[] | undefined>(initial ? initial.productIds : []);
   const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initial ? initial.solutionIds : []);
   const [targets, setTargets] = useState<readonly TargetSelection[]>(initial?.targetMarkets ?? []);
   const [relationTask, setRelationTask] = useState<RelationTask | null>(null);
+  const productSelectionChanged = JSON.stringify(productIds) !== JSON.stringify(initial ? initial.productIds : []);
   const solutionSelectionChanged = JSON.stringify(solutionIds) !== JSON.stringify(initial ? initial.solutionIds : []);
   const targetsChanged = JSON.stringify(targets) !== JSON.stringify(initial?.targetMarkets ?? []);
   const saveRelations = async (change: PlanRelationChange): Promise<Saved> => {
-    if (change.kind === "solutions") setSolutionIds(change.solutionIds);
+    if (change.kind === "solutions") {
+      if(change.solutionIds !== undefined)setSolutionIds(change.solutionIds);
+      if(change.productIds !== undefined)setProductIds(change.productIds);
+    }
     else if (change.kind === "market") setTargets(rows => rows.map(row => row.segmentId === change.segmentId ? {
       ...row, intent: change.intent, approach: change.approach,
+      ...(change.productIds === undefined ? {} : { productIds: change.productIds }),
       ...(change.solutionIds === undefined ? {} : { solutionIds: change.solutionIds }),
     } : row));
     else setTargets(rows => [
@@ -110,6 +119,7 @@ export function NewPlanForm({
         const market = marketOptions?.find(m => m.id === id);
         return market ? [{ segmentId: id, marketName: market.name, intent: "focus" as const, approach: null,
           ...(solutionOptions === null ? {} : { solutionIds: (market.solutionIds ?? []).filter(id => solutionOptions.some(s => s.id === id && s.status === "active")) }),
+          ...(productOptions === null ? {} : { productIds: (market.productIds ?? []).filter(id => productOptions.some(p => p.id === id && p.status === "active")) }),
         }] : [];
       }),
     ]);
@@ -182,16 +192,18 @@ export function NewPlanForm({
               // Current library counts may differ from an existing saved criteria snapshot.
               matched: initial ? undefined : marketOptions.find(m => m.id === t.segmentId)?.matched,
               status: marketOptions.find(m => m.id === t.segmentId)?.status,
+              products: t.productIds === undefined || productOptions === null ? null : productOptions.filter(p => t.productIds?.includes(p.id)),
               solutions: t.solutionIds === undefined || solutionOptions === null ? null : solutionOptions.filter(s => t.solutionIds?.includes(s.id)),
             }))} actions={m => <Button type="button" size="md" variant="secondary" disabled={submit.pending} onClick={() => setRelationTask({kind:"market",segmentId:m.segmentId})}>{T.marketSettings}</Button>}/>
           </Section>
           <Section id="primary-solutions" title={T.linkSolutions} icon="squares-four" help={T.sharedSolutionsHint}
-            action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || solutionOptions === null || solutionIds === undefined} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>}>
-            <StrategySolutionCards solutions={solutionOptions === null || solutionIds === undefined || targets.some(t => t.solutionIds === undefined) ? null
+            action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || ((solutionOptions === null || solutionIds === undefined) && (productOptions === null || productIds === undefined))} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>}>
+            <StrategySolutionCards products={productOptions === null || productIds === undefined || targets.some(t => t.productIds === undefined) ? null
+              : productOptions.filter(p => productIds.includes(p.id) || targets.some(t => t.productIds?.includes(p.id)))} sharedProductIds={productIds} solutions={solutionOptions === null || solutionIds === undefined || targets.some(t => t.solutionIds === undefined) ? null
               : solutionOptions.filter(s => solutionIds.includes(s.id) || targets.some(t => t.solutionIds?.includes(s.id)))} markets={targets} sharedIds={solutionIds}/>
           </Section>
             {relationTask ? <StrategyRelationsDrawer draft key={JSON.stringify(relationTask)} task={relationTask} planName={name || STRATEGY_TEXT.newPlanTitle}
-              targets={targets} sharedSolutionIds={solutionIds} marketOptions={marketOptions} solutionOptions={solutionOptions}
+              targets={targets} sharedSolutionIds={solutionIds} sharedProductIds={productIds} productOptions={productOptions} marketOptions={marketOptions} solutionOptions={solutionOptions}
               onSave={saveRelations} onClose={() => setRelationTask(null)}/> : null}
             <div className="flex items-center gap-md">
               <Button
@@ -205,11 +217,12 @@ export function NewPlanForm({
                       period: period.trim(),
                       objective: objective.trim() === "" ? null : objective.trim(),
                       ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
+                      ...(productOptions !== null && productSelectionChanged ? { productIds } : {}),
                       ...(solutionOptions !== null && solutionSelectionChanged ? { solutionIds } : {}),
                       ...(marketOptions !== null && targetsChanged ? {
-                        targetMarkets: targets.map(({ marketName: _name, solutionIds, ...t }) => {
+                        targetMarkets: targets.map(({ marketName: _name, solutionIds, productIds, ...t }) => {
                           const original = initial?.targetMarkets.find(row => row.segmentId === t.segmentId);
-                          return { ...t, ...(JSON.stringify(solutionIds) !== JSON.stringify(original?.solutionIds) ? { solutionIds } : {}) };
+                          return { ...t, ...(JSON.stringify(productIds) !== JSON.stringify(original?.productIds) ? { productIds } : {}), ...(JSON.stringify(solutionIds) !== JSON.stringify(original?.solutionIds) ? { solutionIds } : {}) };
                         }),
                       } : {}),
                     };

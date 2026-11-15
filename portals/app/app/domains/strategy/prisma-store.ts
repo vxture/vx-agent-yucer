@@ -19,6 +19,7 @@ import {
   type StrategyPublication, type PublishPlanCommand, type PlanWriteGuard,
   PlanMarketUnavailableError,
   PlanSolutionUnavailableError,
+  PlanProductUnavailableError,
   SegmentReferencedError,
   type CampaignPatch,
   type CampaignRecord,
@@ -49,17 +50,18 @@ const CAMPAIGN_TABLE = "yucer_gtm.campaign";
 const EXECUTION_TABLE = "yucer_gtm.campaign_execution";
 const SEGMENT_TABLE = "yucer_gtm.market_segment";
 const PLAN_SELECTION = {
+  productLinks: { select: { productId: true } },
   solutionLinks: { select: { solutionId: true } },
-  targetMarkets: { include: { solutionLinks: { select: { solutionId: true } } } },
+  targetMarkets: { include: { productLinks: { select: { productId: true } }, solutionLinks: { select: { solutionId: true } } } },
 } as const;
 type StrategyClient = Awaited<ReturnType<typeof getPrismaClient>>;
-type StrategySelectionClient = Pick<StrategyClient, "strategyPlanMarket" | "strategyPlanMarketSolution">;
+type StrategySelectionClient = Pick<StrategyClient, "strategyPlanMarket" | "strategyPlanMarketSolution" | "strategyPlanMarketProduct">;
 
 async function writeTargets(tx: StrategySelectionClient, scope: { workspaceId: string; planId: string }, targets: readonly TargetMarket[]) {
   await tx.strategyPlanMarket.deleteMany({ where: scope });
   if (!targets.length) return;
   try {
-    await tx.strategyPlanMarket.createMany({ data: targets.map(({ solutionIds: _ids, criteria, ...target }) => ({
+    await tx.strategyPlanMarket.createMany({ data: targets.map(({ solutionIds: _ids, productIds: _products, criteria, ...target }) => ({
       ...scope, ...target, criteria: { ...criteria },
     })) });
   } catch (error) {
@@ -68,6 +70,8 @@ async function writeTargets(tx: StrategySelectionClient, scope: { workspaceId: s
   }
   const solutions = targets.flatMap(t => t.solutionIds.map(solutionId => ({ ...scope, segmentId: t.segmentId, solutionId })));
   if (solutions.length) await tx.strategyPlanMarketSolution.createMany({ data: solutions });
+  const products = targets.flatMap(t => (t.productIds ?? []).map(productId => ({ ...scope, segmentId: t.segmentId, productId })));
+  if (products.length) await writeProducts(() => tx.strategyPlanMarketProduct.createMany({ data: products }));
 }
 
 function foreignKeyFailure(error: unknown) {
@@ -120,10 +124,12 @@ export class PrismaStrategyStore implements StrategyStore {
       });
       const solutionLinks = (input.solutionIds ?? []).map(solutionId => ({ workspaceId, planId: created.id, solutionId }));
       if (solutionLinks.length) await tx.strategyPlanSolution.createMany({ data: solutionLinks });
+      const productLinks = (input.productIds ?? []).map(productId => ({ workspaceId, planId: created.id, productId }));
+      if (productLinks.length) await writeProducts(() => tx.strategyPlanProduct.createMany({ data: productLinks }));
       const targets = input.targetMarkets ?? [];
       if (targets.length) await writeTargets(tx, { workspaceId, planId: created.id }, targets);
-      return { ...created, solutionLinks, targetMarkets: targets.map(t => ({
-        ...t, solutionLinks: t.solutionIds.map(solutionId => ({ solutionId })),
+      return { ...created, solutionLinks, productLinks, targetMarkets: targets.map(t => ({
+        ...t, solutionLinks: t.solutionIds.map(solutionId => ({ solutionId })), productLinks: (t.productIds ?? []).map(productId => ({ productId })),
       })) };
     })); } catch (error) {
       if (isUniqueViolation(error)) {
@@ -155,13 +161,14 @@ export class PrismaStrategyStore implements StrategyStore {
       objective?: string | null;
       ownerSub?: string | null;
       solutionIds?: readonly string[];
+      productIds?: readonly string[];
       targetMarkets?: readonly TargetMarket[];
       changeReason?: string;
     },
     writeGuard: PlanWriteGuard = {},
   ): Promise<boolean> {
     const p = await getPrismaClient();
-    const { solutionIds, targetMarkets, ...fields } = patch;
+    const { solutionIds, productIds, targetMarkets, ...fields } = patch;
     const data = { ...fields, updatedAt: new Date() };
 
     const guard = assertWritable(PLAN_TABLE, data);
@@ -171,8 +178,8 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
-    if (solutionIds === undefined && targetMarkets === undefined) {
+    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
+    if (solutionIds === undefined && productIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
     return writePlanSolutions(() => p.$transaction(async (tx) => {
@@ -184,6 +191,12 @@ export class PrismaStrategyStore implements StrategyStore {
         if (solutionIds.length) {
           await tx.strategyPlanSolution.createMany({ data: solutionIds.map(solutionId => ({ ...scope, solutionId })), skipDuplicates: true });
         }
+      }
+      if (productIds !== undefined) {
+        await tx.strategyPlanProduct.deleteMany({ where: { workspaceId, planId: id, productId: { notIn: [...productIds] } } });
+        if (productIds.length) await writeProducts(() => tx.strategyPlanProduct.createMany({
+          data: productIds.map(productId => ({ workspaceId, planId: id, productId })), skipDuplicates: true,
+        }));
       }
       if (targetMarkets !== undefined) await writeTargets(tx, scope, targetMarkets);
       return true;
@@ -329,7 +342,7 @@ export class PrismaStrategyStore implements StrategyStore {
     const p = await getPrismaClient();
     const rows = await p.marketSegment.findMany({
       where: { workspaceId },
-      include: { solutionLinks: true },
+      include: { solutionLinks: true, productLinks: true },
       orderBy: [{ priority: "asc" }, { segmentCode: "asc" }],
     });
     return rows.map((r) => toSegment(r as Record<string, unknown>));
@@ -369,8 +382,15 @@ export class PrismaStrategyStore implements StrategyStore {
           data: input.solutionIds.map(solutionId => ({ ...scope, solutionId })), skipDuplicates: true,
         });
       }
+      if (input.productIds !== undefined) {
+        await tx.marketSegmentProduct.deleteMany({ where: { ...scope, productId: { notIn: [...input.productIds] } } });
+        if (input.productIds.length) await writeProducts(() => tx.marketSegmentProduct.createMany({
+          data: input.productIds!.map(productId => ({ ...scope, productId })), skipDuplicates: true,
+        }));
+      }
+      const productLinks = await tx.marketSegmentProduct.findMany({ where: scope });
       const links = await tx.marketSegmentSolution.findMany({ where: scope });
-      return toSegment({ ...row, solutionLinks: links });
+      return toSegment({ ...row, solutionLinks: links, productLinks });
     });
   }
 
@@ -528,12 +548,14 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     period: String(r.period),
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
+    productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),
     solutionIds: (r.solutionLinks as { solutionId: string }[]).map(link => link.solutionId).sort((a, b) => a.localeCompare(b)),
     targetMarkets: (r.targetMarkets as Array<{
       segmentId: string; marketName: string; intent: TargetMarket["intent"]; approach: string | null;
-      criteria: unknown; solutionLinks: { solutionId: string }[];
+      criteria: unknown; productLinks: { productId: string }[]; solutionLinks: { solutionId: string }[];
     }>).map(t => ({
       segmentId: t.segmentId, marketName: t.marketName, intent: t.intent, approach: t.approach,
+      productIds: (t.productLinks ?? []).map(p => p.productId).sort(),
       criteria: readCriteria(t.criteria), solutionIds: t.solutionLinks.map(s => s.solutionId).sort((a, b) => a.localeCompare(b)),
     })).sort((a, b) => a.marketName.localeCompare(b.marketName)),
     status: r.status as PlanStatus,
@@ -569,6 +591,7 @@ function toSegment(r: Record<string, unknown>): SegmentRecord {
     priority: Number(r.priority ?? 0),
     status: r.status as SegmentStatus,
     criteria: readCriteria(r.criteria),
+    productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),
     solutionIds: ((r.solutionLinks ?? []) as { solutionId: string }[]).map(s => s.solutionId).sort(),
   };
 }
@@ -602,6 +625,13 @@ async function strategyVersionWrite<T>(write:()=>Promise<T>):Promise<T> {
     for(const code of ["strategy_not_found","strategy_not_revisable","strategy_draft_conflict","strategy_reason_required", "period_invalid","strategy_base_conflict","draft_required","invalid_publication","controlled_release_required"]) {
       if(message.includes(code))throw new StrategyVersionError(code);
     }
+    throw error;
+  }
+}
+
+async function writeProducts<T>(write: () => Promise<T>): Promise<T> {
+  try { return await write(); } catch (error) {
+    if (foreignKeyFailure(error)) throw new PlanProductUnavailableError("Selected product is no longer available", { cause: error });
     throw error;
   }
 }

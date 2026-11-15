@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  Avatar,
-  AvatarFallback,
   Button,
   Card,
   Icon,
@@ -16,7 +13,7 @@ import type { AgentPanelData } from "../lib/board";
 import { askHref, askOverBy, type AskAnchor } from "../lib/agent-ask";
 import { captureFeedback } from "../lib/capture-feedback";
 import { useMessages } from "../lib/i18n/provider";
-import { FormAssistSlot } from "./form-assist-slot";
+import { FormAssistSlot, PageAssistantOutlet } from "./form-assist-slot";
 
 // The assistant's own card: who is looking, at how much, the way into the
 // full thread, and the box you type into.
@@ -56,42 +53,14 @@ export function AgentCapture({
   const href = askHref(text, askAnchor);
   const over = askOverBy(text);
 
-  // ONE card, with the agent's identity as its header. Splitting the identity
-  // into its own card made the panel read as two unrelated things stacked; the
-  // scope line belongs to the box you are about to type into, because it says
-  // what the answer will be based on.
+  // The shell owns the permanent assistant title and controls. This card
+  // supplies only the current page's capture and conversation context.
   return (
     <>
+    <PageAssistantOutlet>
     <Card className="min-h-64 flex-1 p-sm">
       <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-xs">
-        <Avatar className="size-6">
-          <AvatarFallback>{BOARD_TEXT.agent.slice(0, 1)}</AvatarFallback>
-        </Avatar>
-        <span className="text-label text-foreground">
-          {BOARD_TEXT.agent}
-        </span>
-        <span className="text-muted-foreground ml-auto text-body-small tabular-nums">
-          {BOARD_TEXT.agentScope(data.scanned)}
-        </span>
-
-        {/* THE WAY INTO THE FULL CONVERSATION, and the only one.
-
-              The copilot has no entry in the domain launcher on purpose - it
-              is not a place you go, it is the thing that reads the record and
-              puts what it wants decided in front of you. But the full thread
-              is a real page, and with the menu entry gone this is where it has
-              to be reachable from: beside the assistant you are already
-              talking to, not in a list of business domains it does not belong
-              to. Without this the page is orphaned, which is what
-              functional-domains.test.ts asserts against. */}
-        <Button asChild variant="ghost" size="md" className="-mr-xs">
-          <Link href={askAnchor?.opportunityId ? `/copilot?opportunity=${encodeURIComponent(askAnchor.opportunityId)}` : askAnchor?.accountId ? `/copilot?account=${encodeURIComponent(askAnchor.accountId)}` : "/copilot"} aria-label={BOARD_TEXT.openThread}>
-            <Icon name="chat-circle" size="xs" />
-          </Link>
-        </Button>
-      </div>
-
+      <p className="mt-xs text-body-small tabular-nums text-muted-foreground">{BOARD_TEXT.agentScope(data.scanned)}</p>
       {canRecord || canAsk ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <Textarea
@@ -177,6 +146,7 @@ export function AgentCapture({
       ) : null}
       </div>
     </Card>
+    </PageAssistantOutlet>
     {/* 智能填写 of the form on screen, if any (form-assist-slot.tsx). */}
     <FormAssistSlot />
     </>

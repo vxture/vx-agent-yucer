@@ -2201,6 +2201,13 @@ DialogForm、ConfirmDestructive 与 Popover。只绑定 DS 单行操作 slot、�
 明确例外与验证边界见 `docs/70-workplan/45-page-controls-audit.md`。
 
 
+2026-11-15 补充：资料创建/编辑页与操作行分开表达字阶。`data-business-form` /
+`data-business-fields` 显式标记输入范围，标签绑定 DS body-small / muted-foreground，
+输入、选择与正文内容绑定 body / foreground。继续复用 TD-038 的统一 token 适配，
+不修改 DS 源码或添加私有字阶；退出条件补充为 DS 支持资料表单的 label/value 字阶策略，
+并能对组合字段与 portal 保持一致。筛选与普通按钮仍按原 12px 规则。
+
+
 ### TD-039 - DS Progress 缺少语义颜色和多档节点接口
 
 2026-11-12 owner 要求区域进度区分保底、正式目标和挑战。当前 ProgressProps 仅继承

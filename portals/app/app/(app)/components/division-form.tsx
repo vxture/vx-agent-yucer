@@ -38,7 +38,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { frameNoun } from "../lib/frame-copy";
 import { matchPreset } from "../lib/preset-match";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
-import { FormActions } from "./form-page";
+import { FORM_ENTRY_CLASS, FormActions } from "./form-page";
 import { Tag } from "./tag";
 
 /* 配置区域 - TWO COLUMNS (owner, 2026-09-09: 改为左右布局).
@@ -213,7 +213,7 @@ export function DivisionForm({
        beside the sidebar, and the viewport does not know that. @3xl = 48rem
        of container: two columns only when each still gets ~24rem. Narrower,
        the list drops under the form - the form is the errand. */
-    <div className="@container">
+    <div className={`@container ${FORM_ENTRY_CLASS}`} data-business-form>
       <div className="grid items-start gap-lg @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* LEFT - the controls, and only the controls, ONE UNDER THE OTHER
             (owner: 操作区全部纵向排列, not the two-a-row FormFields grid the

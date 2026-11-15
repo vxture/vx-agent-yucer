@@ -2,6 +2,10 @@
 
 日期：2026-11-13。范围为本机聿策开发环境；本轮不发布。
 
+2026-11-15 补充：资料创建/编辑表单采用标签 12px 辅助色、内容 14px 正文色；
+下表的 12px 输入规则继续用于操作行与筛选。新字阶与客户登记流程的复核清单见
+[50-business-forms-registration.md](50-business-forms-registration.md)。
+
 ## 统一规则
 
 | 检查项 | 本轮落地 |
@@ -80,7 +84,7 @@
 | `/collection/instalment` | 业务上下文 · `collection/page.tsx` | 已核对 | 通过：16 个可测控件 |
 | `/collection` | 导航 / 父级操作 · `lib/navigation.ts` | 已核对 | 通过：134 个可测控件 |
 | `/contact/new` | 业务上下文 · `account/[id]/page.tsx` | 已核对 | 通过：25 个可测控件 |
-| `/copilot` | 业务上下文 · `components/agent-capture.tsx` | 已核对 | 通过：103 个可测控件 |
+| `/copilot` | 导航 / 助手底部 · `lib/functional-domains.ts` | 已核对 | 通过：103 个可测控件 |
 | `/delivery/new` | 业务上下文 · `components/delivery-roster.tsx` | 已核对 | 通过：19 个可测控件 |
 | `/delivery` | 导航 / 父级操作 · `lib/navigation.ts` | 已核对 | 通过：111 个可测控件 |
 | `/delivery/project` | 业务上下文 · `components/delivery-roster.tsx` | 已核对 | 通过：22 个可测控件 |

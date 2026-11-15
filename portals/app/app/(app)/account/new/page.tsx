@@ -1,4 +1,3 @@
-import { ViewHeader } from "../../components/business-controls";
 import { ViewLayout } from "@vxture/design-ui";
 import { redirect } from "next/navigation";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -6,6 +5,7 @@ import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import {
+  listAccounts,
   listCustomerNatures,
   listCustomerSizes,
   listCustomerTypes,
@@ -15,6 +15,7 @@ import {
 import { listSegments } from "../../../domains/strategy/service";
 import { getStrategyStore } from "../../../domains/shared/registry";
 import { AccountCreateForm } from "../../components/account-create-form";
+import { assistAccountRegistration } from "./assist-action";
 import { createAccountAction } from "../actions";
 
 // 新建客户 (owner, 2026-09-23: 独立页面全字段表单). Before this page the product
@@ -39,13 +40,14 @@ export default async function NewAccountPage({ searchParams }: { searchParams: P
     entitlement: session.entitlement,
     store: session.stores.account(),
   };
-  const [industries, types, sizes, natures, segments, regions] = await Promise.all([
+  const [industries, types, sizes, natures, segments, regions, accounts] = await Promise.all([
     listIndustries(ctx),
     listCustomerTypes(ctx),
     listCustomerSizes(ctx),
     listCustomerNatures(ctx),
     listSegments({ ...ctx, store: getStrategyStore() }),
     listMarketDivisions(ctx),
+    listAccounts(ctx),
   ]);
   const opts = <T extends { id: string; name: string }>(r: { ok: boolean; value?: readonly T[] }) =>
     r.ok && r.value ? r.value.map((x) => ({ id: x.id, name: x.name })) : [];
@@ -53,9 +55,11 @@ export default async function NewAccountPage({ searchParams }: { searchParams: P
   return (
     <ViewLayout>
       <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={ACCOUNT_BASICS_TEXT.createCrumb} />
-      <ViewHeader title={ACCOUNT_BASICS_TEXT.createTitle} help={ACCOUNT_BASICS_TEXT.createWhy} />
       <AccountCreateForm
         initialTier={initialTier}
+        accounts={accounts.ok ? accounts.value.map(({id,name,accountNo,parentId})=>({id,name,accountNo,parentId})) : null}
+        canAssist={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}
+        onAssist={assistAccountRegistration}
         vocab={{
           regions: opts(regions),
           industries: opts(industries),

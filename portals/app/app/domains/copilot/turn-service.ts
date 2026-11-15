@@ -89,6 +89,8 @@ export interface TurnInput {
    * takes "dialogue".
    */
   profile?: CallProfile;
+  /** Trusted server-side mode for form extraction, never set by the chat API. */
+  draftOnly?: boolean;
 }
 
 /** The profile a turn runs on - see TurnInput.profile. */
@@ -229,7 +231,7 @@ async function runUnlockedTurn(
 
   const history = await ctx.store.listMessages(ctx.workspaceId, session.id);
 
-  const playbooks = await selectPlaybooks(ctx, input.subject?.type);
+  const playbooks = input.draftOnly ? [] : await selectPlaybooks(ctx, input.subject?.type);
 
   const prompt: PromptContext = {
     productName: "Yucer",
@@ -284,6 +286,7 @@ async function runUnlockedTurn(
         atlas,
         runos,
         profile: profileForTurn(input),
+        draftOnly: input.draftOnly,
         // The member's own words choose which notes show (rerank) - not the
         // role-play frame a rehearsal puts in front of them.
         evidenceQuery: question,
@@ -319,7 +322,7 @@ async function runUnlockedTurn(
   // 3. Proposals are gated again. A workspace on copilot.ask alone gets the
   // answer and none of the proposals, even if the model produced them.
   let written: AgentAction[] = [];
-  const admitted = input.admitProposal
+  const admitted = input.draftOnly ? [] : input.admitProposal
     ? turn.proposals.filter((p) => input.admitProposal!({ actionType: p.actionType, payload: p.payload }))
     : turn.proposals;
   let dropped = turn.proposals.length;

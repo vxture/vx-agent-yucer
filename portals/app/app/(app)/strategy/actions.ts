@@ -180,6 +180,7 @@ export async function saveSegment(input: {
   status: string;
   criteria: SegmentCriteria;
   solutionIds?: readonly string[];
+  productIds?: readonly string[];
 }): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

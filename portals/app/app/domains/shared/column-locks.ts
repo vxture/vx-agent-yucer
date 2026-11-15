@@ -443,6 +443,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // it covers - are pairs: a change is a delete and an insert.
   "yucer_gtm.territory_unit",
   "yucer_gtm.market_segment_solution",
+  "yucer_gtm.strategy_plan_product",
+  "yucer_gtm.strategy_plan_market_product",
+  "yucer_gtm.market_segment_product",
   "yucer_gtm.strategy_plan_solution",
   "yucer_gtm.strategy_plan_market",
   "yucer_gtm.strategy_plan_market_solution",

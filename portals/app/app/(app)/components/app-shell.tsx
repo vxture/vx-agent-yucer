@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ShellDock,
   ShellHeaderDivider,
   ShellIconButton,
   ShellProductTitle,
@@ -17,6 +18,7 @@ import {
   ShellPageContainer,
   ShellViewport,
   StatusBadge,
+  useFullscreen,
 } from "@vxture/design-ui";
 import {
   LOCALE_CONFIGS,
@@ -29,6 +31,7 @@ import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
 import { AdminNav } from "./admin-nav";
+import { AssistantPanel } from "./assistant-panel";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { HeaderSearch } from "./header-search";
@@ -39,7 +42,7 @@ import type { BoardModuleCard } from "../lib/board";
 // the shell - it renders on every page, in whatever language the request
 // resolved to - so it reads the dictionary rather than one locale's copy of it.
 import { useMessages } from "../lib/i18n/provider";
-import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
+import { ASSISTANT_WIDTH_COOKIE, BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX, type AssistantWidth } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { CENTRE_PANE_CLASS, ASSISTANT_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
@@ -146,6 +149,7 @@ export interface AppShellProps {
    */
   readonly adminNavOpen: boolean;
   readonly dockOpen: boolean;
+  readonly dockWidth: AssistantWidth;
   readonly children: ReactNode;
 }
 
@@ -173,6 +177,7 @@ export function AppShell({
   searchable,
   adminNavOpen,
   dockOpen,
+  dockWidth,
   children,
 }: AppShellProps) {
   const [query, setQuery] = useState("");
@@ -190,9 +195,24 @@ export function AppShell({
   // so the retired business-board preference must never hide it.
   const isDossierPage = isDossierRoute(segments);
   const [adminNavExpanded, setAdminNavExpanded] = useState(adminNavOpen);
-  const [showDock, setShowDock] = useState(dockOpen);
-
   const isAdmin = segments[0] === "admin";
+  const [showDock, setShowDock] = useState(dockOpen);
+  const [assistantWidth, setAssistantWidth] = useState<AssistantWidth>(dockWidth);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const { isTargetFullscreen, toggle: toggleFullscreen, exit: exitFullscreen } = useFullscreen();
+  const assistantFullscreen = isTargetFullscreen("yucer-assistant");
+  const fullscreenState = useRef({ active: assistantFullscreen, exit: exitFullscreen });
+  useEffect(() => { fullscreenState.current = { active: assistantFullscreen, exit: exitFullscreen }; });
+  useEffect(() => () => {
+    if (fullscreenState.current.active) fullscreenState.current.exit();
+  }, []);
+  const workbench = nav.find(entry => entry.key === "copilot" && entry.state === "visible");
+  useEffect(() => {
+    if (!assistantFullscreen) return;
+    if (isAdmin) { exitFullscreen(); return; }
+    dockRef.current?.querySelector<HTMLButtonElement>("[data-assistant-fullscreen-toggle]")?.focus();
+  }, [assistantFullscreen, isAdmin, exitFullscreen]);
+
   const deckVisible = showDock;
 
   const toggleAdminNav = () =>
@@ -203,11 +223,26 @@ export function AppShell({
       return !prev;
     });
 
-  const toggleDock = () =>
+  const toggleDock = () => {
+    if (assistantFullscreen) exitFullscreen();
     setShowDock((prev) => {
       writeNavCollapsed(DOCK_COOKIE_PREFIX, prev);
       return !prev;
     });
+  };
+
+  const toggleAssistantWidth = () => {
+    if (assistantFullscreen) exitFullscreen();
+    const next = assistantWidth === "narrow" ? "wide" : "narrow";
+    setAssistantWidth(next);
+    document.cookie = `${ASSISTANT_WIDTH_COOKIE}=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+  };
+  const closeAssistant = () => {
+    if (assistantFullscreen) exitFullscreen();
+    writeNavCollapsed(DOCK_COOKIE_PREFIX, true);
+    setShowDock(false);
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-assistant-dock-trigger] button")?.focus());
+  };
 
   // Filtered here rather than fetched: the set is one workspace's accounts and
   // open deals, it already came down with the shell, and a round trip per
@@ -265,9 +300,20 @@ export function AppShell({
       }
       sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed") : "hidden"}
       dock={!isAdmin && deckVisible ? (
-        <aside className={ASSISTANT_PANE_CLASS}>{deck}</aside>
+        <div ref={dockRef} className={workspaceInsets.assistantDock}
+          data-assistant-width={assistantWidth} data-assistant-fullscreen={assistantFullscreen}>
+          <ShellDock mode={assistantFullscreen ? "full" : assistantWidth}
+            className={`${ASSISTANT_PANE_CLASS} ${workspaceInsets.assistantPane} bg-background shadow-none`}>
+          <AssistantPanel wide={assistantWidth === "wide"} fullscreen={assistantFullscreen}
+            onToggleWidth={toggleAssistantWidth} onClose={closeAssistant} workbenchHref={workbench?.href}
+            onToggleFullscreen={() => { const target = dockRef.current?.querySelector("aside"); if (target) toggleFullscreen("yucer-assistant", target, { mode: "pseudo" }); }}>
+            {deck}
+          </AssistantPanel>
+          </ShellDock>
+        </div>
       ) : null}
       header={
+        <div inert={assistantFullscreen} className="shrink-0">
         <ShellHeader
           // 单产品视角 (design-system 03 section 7.1, 13.5+): full width, the page
           // background, the DS's default workspace height (md, 48px).
@@ -486,16 +532,17 @@ export function AppShell({
             </div>
           }
         />
+        </div>
       }
     >
       {isAdmin ? (
-        <div id={SHELL_BODY_ID} className={`flex h-full min-h-0 ${workspaceInsets.body}`}>
+        <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}>
           <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
             <ShellPageContainer width="wide-2xl" className={workspaceInsets.adminContent}>{children}</ShellPageContainer>
           </div>
         </div>
       ) : (
-        <div id={SHELL_BODY_ID} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
+        <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
           data-workspace-full-width={!deckVisible && !isDossierPage ? "" : undefined}>
           {isDossierPage ? children : <div className={CENTRE_PANE_CLASS}>{children}</div>}
         </div>

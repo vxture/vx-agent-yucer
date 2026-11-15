@@ -25,3 +25,38 @@
   padding-inline-start: var(--yucer-content-inset-start);
   padding-inline-end: var(--yucer-content-inset-end);
 }
+
+/* ShellDock owns narrow/wide/full geometry. Keep its mounted slot stable. */
+.assistantDock { height: 100%; flex-shrink: 0; }
+.assistantPane { min-width: 0; max-width: 100vw; }
+
+/* Let a wide dock float on smaller screens, keeping a useful business canvas. */
+@media (max-width: 79.999rem) {
+  .assistantDock[data-assistant-width="wide"] .assistantPane {
+    position: fixed;
+    top: var(--spacing-header-md);
+    right: 0;
+    bottom: 0;
+    height: auto;
+    z-index: var(--z-index-overlay);
+  }
+}
+@media (max-width: 43.749rem) {
+  .assistantPane {
+    position: fixed;
+    top: var(--spacing-header-md);
+    right: 0;
+    bottom: 0;
+    height: auto;
+    z-index: var(--z-index-overlay);
+  }
+}
+/* Keep the form and its conversation mounted. DS menus, help drawers and
+ * confirmation dialogs must remain above this viewport-covering surface. */
+.assistantDock[data-assistant-fullscreen="true"] .assistantPane {
+  inset: 0;
+  z-index: var(--z-index-overlay);
+  height: auto;
+  max-width: none;
+  padding-inline: var(--yucer-content-edge);
+}

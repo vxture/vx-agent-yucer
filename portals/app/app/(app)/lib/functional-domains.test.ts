@@ -12,6 +12,7 @@ import {
   hasHome,
   primaryHref,
   resolveFunctionalDomains,
+  resolveCrosscutting,
   routeCount,
   type DomainModule,
 } from "./functional-domains";
@@ -51,27 +52,10 @@ test("every built module points at a real nav entry", () => {
   }
 });
 
-/**
- * The copilot is the ONE domain page deliberately absent from the launcher.
- *
- * It is not a place you go - it reads the record and puts what it wants
- * decided into the deck, the home stream and the detail panels. A menu entry
- * said the opposite: that it is one more feature to remember to open.
- *
- * That decision costs something, and this constant is where the cost is
- * booked: its page still exists, so SOMETHING has to lead to it or it is
- * unreachable except by URL. The test below checks the replacement is real
- * rather than trusting the prose above it.
- */
-const REACHED_ELSEWHERE: Record<string, string> = {
-  copilot: "../components/agent-capture.tsx",
-};
-
 test("every domain page is reachable from the launcher, exactly once", () => {
   const listed = builtKeys.filter((k) => k !== "home");
 
   for (const entry of DOMAIN_NAV_ENTRIES) {
-    if (entry.key in REACHED_ELSEWHERE) continue;
     assert.ok(
       listed.includes(entry.key),
       `domain page "${entry.key}" exists but no launcher module points at it - it would be reachable only by URL`,
@@ -84,23 +68,6 @@ test("every domain page is reachable from the launcher, exactly once", () => {
   );
 });
 
-test("a page kept out of the launcher is reachable from where it says it is", () => {
-  // The exemption is only honest if the replacement route exists. Reading the
-  // file is crude and it is the point: the claim being checked is "there is a
-  // link to /copilot in the assistant panel", and nothing weaker than looking
-  // actually checks it. Delete the link and this fails, which is the moment
-  // the page would otherwise have gone quietly unreachable.
-  const here = dirname(fileURLToPath(import.meta.url));
-  for (const [key, where] of Object.entries(REACHED_ELSEWHERE)) {
-    const entry = DOMAIN_NAV_ENTRIES.find((e) => e.key === key);
-    assert.ok(entry, `no nav entry "${key}"`);
-    const source = readFileSync(join(here, where), "utf8");
-    assert.ok(
-      source.includes(`"${entry.href}"`),
-      `"${key}" is exempt from the launcher on the grounds that ${where} links to ${entry.href}, and it does not`,
-    );
-  }
-});
 
 test("administration is not one of the five", () => {
   const adminKeys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
@@ -185,6 +152,21 @@ test("a permission gap drops the row; an entitlement gap keeps it", () => {
     !resolved.some((d) => d.modules.length === 0),
     "an empty domain must not render",
   );
+});
+
+test("the AI workspace is crosscutting and obeys the resolved member gates", () => {
+  assert.ok(CROSSCUTTING_MODULES.some(m => m.kind === "built" && m.navKey === "copilot"));
+  assert.ok(!FUNCTIONAL_DOMAINS.some(d => d.modules.some(m => m.kind === "built" && m.navKey === "copilot")));
+  assert.ok(!resolveCrosscutting([]).some(m => m.key === "copilot"));
+  const entry = NAV_ENTRIES.find(e => e.key === "copilot");
+  assert.ok(entry);
+  for (const state of ["visible", "locked"] as const) {
+    const result = resolveCrosscutting([{ ...entry, state, decision: { allowed: state === "visible" } as never }]);
+    const workspace = result.find(m => m.key === "copilot");
+    assert.ok(workspace?.kind === "built");
+    assert.equal(workspace.href, "/copilot");
+    assert.equal(workspace.state, state);
+  }
 });
 
 test("activeDomainKey finds the domain holding a route", () => {

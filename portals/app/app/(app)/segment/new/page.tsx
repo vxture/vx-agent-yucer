@@ -7,7 +7,7 @@ import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
 import { getCatalogStore, getStrategyStore } from "../../../domains/shared/registry";
-import { listSolutionReferences } from "../../../domains/catalog/service";
+import { listProductReferences, listSolutionReferences } from "../../../domains/catalog/service";
 import { listSegments } from "../../../domains/strategy/service";
 import { listAccounts } from "../../../domains/account/service";
 import { SegmentForm } from "../../components/segment-form";
@@ -43,11 +43,13 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
     entitlement: session.entitlement,
     store: getStrategyStore(),
   };
-  const [segments, accounts, solutions] = await Promise.all([
+  const [segments, accounts, solutions, products] = await Promise.all([
     listSegments(ctx),
     listAccounts({ ...ctx, store: session.stores.account() }),
     can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
       ? listSolutionReferences({ ...ctx, store: getCatalogStore() }).catch(() => null) : null,
+    can(session.authz, session.entitlement, "catalog.product.view", "ui").allowed
+      ? listProductReferences({ ...ctx, store: getCatalogStore() }).catch(() => null) : null,
   ]);
 
   if(!segments.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(segments.violations,LOAD_ERROR)}/>;
@@ -67,6 +69,7 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
         initialCode={code}
         rows={segments.value}
         solutionOptions={solutions?.ok ? solutions.value : null}
+        productOptions={products?.ok ? products.value : null}
         accountIndustries={accounts.ok ? accounts.value.map((a) => a.industry) : []}
         accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}
         statusLabel={STRATEGY_TEXT.segmentStatusLabel}
