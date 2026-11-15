@@ -68,6 +68,13 @@ function harness(opts: {
     async discover() {
       return opts.capabilities ?? [];
     },
+    async resolve(id: string) {
+      const capability = opts.capabilities?.find(capability => capability.capability_id === id)!;
+      return { ...capability, state: "stable", version: "1.0.0", contract: { operations: capability.operations.map(operation => ({
+        operation: operation.operation, description: operation.description, riskLevel: operation.risk_level,
+        interactionMode: operation.interaction_mode, inputSchema: { type: "object", properties: { query: { type: "string" } } },
+      })) } };
+    },
     async invoke(args: { capability_id: string; operation: string }) {
       invoked.push(args);
       if (opts.invoke) return opts.invoke(args);
@@ -437,6 +444,15 @@ test("the system prompt states the human-in-the-loop rule in the imperative", ()
   assert.match(p, /Never claim to have done something/);
 });
 
+test("the shared assistant works capability-first across pages and retrieves missing facts before asking", () => {
+  const prompt = buildSystemPrompt(BASE.prompt);
+  assert.match(prompt, /WORK PROACTIVELY/);
+  assert.match(prompt, /Public company research is allowed/);
+  assert.match(prompt, /context, not a boundary/);
+  assert.match(prompt, /Do not ask for information already supplied/);
+  assert.match(prompt, /first use available tools/);
+});
+
 test("the prompt names the member's permissions and the workspace's features", () => {
   // Usability, not security: the gates run again on accept. But a model that is
   // not told stops nothing and recommends the impossible.
@@ -565,4 +581,40 @@ test("draft-only form extraction exposes no tools and ignores unsolicited model 
   assert.deepEqual(out.proposals, []);
   assert.deepEqual(out.invocations, []);
   assert.equal(out.answer, '{"message":"review","fields":[]}');
+});
+
+test("a draft may use read-only capabilities for research but never receives a write tool", async () => {
+  const h = harness({
+    replies: [
+      { toolCalls: [{ id: "lookup-1", name: toolNameFor("acme.crm", "lookup"), arguments: { query: "Acme" } }] },
+      { content: '{"message":"Found the official profile.","fields":[]}' },
+    ],
+    capabilities: [cap()],
+    invoke: async () => ({ content: [{ type: "text", text: "Acme official profile" }], structured: { name: "Acme", website: "https://acme.example" }, meta: { call_id: "read-1", version_resolved: "1.0.0" } }),
+  });
+  const out = await runTurn({ ...BASE, question: "\u67e5\u4e00\u4e0b Acme \u7684\u516c\u5f00\u8d44\u6599", draftOnly: true, readOnlyTools: true }, h);
+  assert.equal(h.calls[0]?.tools?.some(tool => tool.name === PROPOSE_ACTION_TOOL_NAME), false);
+  assert.deepEqual(out.proposals, []);
+  assert.deepEqual(out.readEvidence, [{ id: "read-1-1", content: JSON.stringify({ name: "Acme", website: "https://acme.example" }) }]);
+  assert.deepEqual(h.invoked, [{ capability_id: "acme.crm", operation: "lookup", arguments: { query: "Acme" }, version: "1.0.0" }]);
+});
+
+test("research cannot propose a change even when a model calls an unoffered write tool", async () => {
+  const h = harness({ capabilities: [cap()], replies: [
+    proposeCall({ action_type: "create_account", subject_type: "account", subject_id: "draft", payload: {}, rationale: "save now" }),
+    { content: '{"message":"Review first.","fields":[]}' },
+  ] });
+  const result = await runTurn({ ...BASE, question: "Research Acme", draftOnly: true, readOnlyTools: true }, h);
+  assert.deepEqual(result.proposals, []);
+  assert.deepEqual(h.invoked, []);
+  assert.match(String(h.calls[1]?.messages.find(message => message.role === "tool")?.content), /no proposal or write/);
+});
+
+test("empty or failed research discovery is explained as unavailable, never as a ban on public facts", async () => {
+  const h = harness({ replies: [{ content: '{"message":"Lookup is currently unavailable.","fields":[]}' }] });
+  const result = await runTurn({ ...BASE, question: "Research Acme", draftOnly: true, readOnlyTools: true }, h);
+  assert.equal(h.calls[0]?.tools, undefined);
+  assert.match(String(h.calls[0]?.messages[0]?.content), /No read tools are reachable/);
+  assert.deepEqual(result.readEvidence, []);
+  assert.deepEqual(result.modelCodes, ["m"]);
 });

@@ -20,6 +20,7 @@ import { defaultTurnMeter, type TurnMeter } from "../../usage/lib/copilot-turns"
 import { featureKeysFor } from "../../entitlement/capability";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
+import { modelIdentityReply } from "../../agent/atlas/identity";
 import type { RunosClient, RunosContext } from "../../agent/runos/client";
 import { runTurn, type TurnResult } from "../../agent/orchestrator/turn";
 import type {
@@ -91,6 +92,9 @@ export interface TurnInput {
   profile?: CallProfile;
   /** Trusted server-side mode for form extraction, never set by the chat API. */
   draftOnly?: boolean;
+  /** Read-only research for form drafts; writes and proposals remain disabled. */
+  readOnlyTools?: boolean;
+  capabilityQuery?: string;
 }
 
 /** The profile a turn runs on - see TurnInput.profile. */
@@ -108,6 +112,8 @@ export interface TurnOutput {
   /** Proposals the model produced that were NOT written, and why. */
   droppedProposals: number;
   invocations: TurnResult["invocations"];
+  readEvidence: TurnResult["readEvidence"];
+  modelCodes: string[];
   truncated: boolean;
 }
 
@@ -287,6 +293,8 @@ async function runUnlockedTurn(
         runos,
         profile: profileForTurn(input),
         draftOnly: input.draftOnly,
+        readOnlyTools: input.readOnlyTools,
+        capabilityQuery: input.capabilityQuery ?? [input.subject?.summary, question].filter(Boolean).join(" "),
         // The member's own words choose which notes show (rerank) - not the
         // role-play frame a rehearsal puts in front of them.
         evidenceQuery: question,
@@ -312,6 +320,8 @@ async function runUnlockedTurn(
     }
     return { ...fail<TurnOutput>(violation("turn_failed", "the model turn failed", "model")), recovery: { sessionId: session.id, messageId: asked.id } };
   }
+
+  if (!input.draftOnly) turn.answer = modelIdentityReply(question, turn.modelCodes) ?? turn.answer;
 
   await ctx.store.appendMessage(ctx.workspaceId, {
     sessionId: session.id,
@@ -364,6 +374,8 @@ async function runUnlockedTurn(
     proposals: written,
     droppedProposals: dropped,
     invocations: turn.invocations,
+    readEvidence: turn.readEvidence,
+    modelCodes: turn.modelCodes,
     truncated: turn.truncated,
   });
 }

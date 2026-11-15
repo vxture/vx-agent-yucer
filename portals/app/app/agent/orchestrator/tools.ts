@@ -62,6 +62,7 @@ export interface ToolBinding {
   operation: string;
   riskLevel: RiskLevel;
   idempotent: boolean;
+  resolvedVersion?: string;
 }
 
 /**

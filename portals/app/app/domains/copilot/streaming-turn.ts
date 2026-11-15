@@ -1,4 +1,5 @@
-import { COPILOT_CHAT_FEATURE } from "./turn-service";
+import { COPILOT_CHAT_FEATURE, runCopilotTurn } from "./turn-service";
+import type { RunosClient } from "../../agent/runos/client";
 // A streamed copilot turn.
 //
 // The reason this is a separate function rather than a flag on runCopilotTurn:
@@ -51,6 +52,7 @@ export type StreamEvent =
 
 export interface StreamDeps {
   atlasClient: AtlasClient;
+  runosClient?: RunosClient;
   /** The product's own turn metering (usage/lib/copilot-turns); defaults to the real buffer. */
   meter?: TurnMeter;
 }
@@ -81,6 +83,21 @@ export async function* streamCopilotTurn(
   input: StreamTurnInput,
   deps: StreamDeps,
 ): AsyncGenerator<StreamEvent, void, void> {
+  // Event transport must not remove the tools available to the same member.
+  // Research uses the shared tool loop and emits only its completed answer;
+  // persistence, authorization, session locking and metering remain shared.
+  if (deps.runosClient) {
+    const result = await runCopilotTurn(ctx, input, { atlasClient: deps.atlasClient, runosClient: deps.runosClient, meter: deps.meter });
+    if (!result.ok) {
+      const error = result.violations[0];
+      yield { type: "error", code: error?.code ?? "turn_failed", message: error?.message ?? "turn failed", retryable: error?.retryable ?? false };
+      return;
+    }
+    yield { type: "session", sessionId: result.value.session.id };
+    yield { type: "delta", text: result.value.answer };
+    yield { type: "done", answer: result.value.answer };
+    return;
+  }
   if (!input.sessionId || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) {
     yield* streamUnlockedTurn(ctx, input, deps);
     return;

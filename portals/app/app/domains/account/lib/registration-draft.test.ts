@@ -53,6 +53,47 @@ test("confirmation frame asks for missing strategic targets without creating fac
   assert.match(frame, /Simplified Chinese/);
 });
 
+test("public research can fill an empty profile field with a cited read result, never a target", () => {
+  const input = "\u5e2e\u6211\u67e5\u4e00\u4e0b Acme \u7684\u516c\u5f00\u8d44\u6599";
+  const answerText = JSON.stringify({ message: "\u67e5\u5230\u5b98\u7f51\u548c\u884c\u4e1a\uff0c\u8bf7\u6838\u5bf9\u3002", fields: [
+    { field: "name", value: "Acme", evidence: "Acme", sourceId: "read-1", sourceUrl: "https://acme.example" },
+    { field: "website", value: "https://acme.example", evidence: "https://acme.example", sourceId: "read-1", sourceUrl: "https://acme.example" },
+    { field: "targetAmount", value: "1000000", evidence: "\u6536\u5165\u89c4\u6a21", sourceId: "read-1" },
+  ] });
+  const r = readRegistrationDraft(answerText, input, vocab, { evidence: [{ id: "read-1", content: '{"name":"Acme","website":"https://acme.example"}' }] });
+  assert.deepEqual(r?.patch, { name: "Acme", website: "https://acme.example" });
+  assert.deepEqual(r?.sources, [
+    { field: "name", excerpt: "Acme", url: "https://acme.example/" },
+    { field: "website", excerpt: "https://acme.example", url: "https://acme.example/" },
+  ]);
+});
+
+test("research cannot overwrite manual input, cite an invented result, or replace business decisions", () => {
+  const rows = [
+    { field: "website", value: "https://old.example", evidence: "https://old.example", sourceId: "read-1" },
+    { field: "employeeCount", value: "200", evidence: "200", sourceId: "invented" },
+    { field: "period", value: "2026Q4", evidence: "2026Q4", sourceId: "read-1" },
+    { field: "targetAmount", value: "1000000", evidence: "1000000", sourceId: "read-1" },
+    { field: "tier", value: "strategic", evidence: "strategic", sourceId: "read-1" },
+  ];
+  const result = readRegistrationDraft(answer(rows), "Look it up", vocab, {
+    current: { website: "https://manual.example" },
+    evidence: [{ id: "read-1", content: "https://old.example 200 2026Q4 1000000 strategic" }],
+  });
+  assert.deepEqual(result?.patch, {});
+  assert.deepEqual(result?.sources, []);
+});
+
+test("previous user facts can fill gaps across turns without undoing a manual correction", () => {
+  const rows = [
+    { field: "name", value: "Acme", evidence: "Acme" },
+    { field: "targetAmount", value: "1000000", evidence: "100\u4e07" },
+  ];
+  const context = { previousUserTexts: ["Acme, \u76ee\u6807100\u4e07"] };
+  assert.deepEqual(readRegistrationDraft(answer(rows), "I already gave that", vocab, context)?.patch, { name: "Acme", targetAmount: "1000000" });
+  assert.deepEqual(readRegistrationDraft(answer(rows), "I already gave that", vocab, { ...context, current: { name: "Manual", targetAmount: "2000000" } })?.patch, {});
+});
+
 test("duplicate hints normalize spacing and punctuation and do not treat one-letter fragments as company matches", () => {
   const rows = [{ id: "1", name: "Acme, Ltd", accountNo: "ACC-0001" }, { id: "2", name: "Other", accountNo: "ACC-0002" }];
   assert.deepEqual(similarRegistrations("acme ltd", rows), [rows[0]]);

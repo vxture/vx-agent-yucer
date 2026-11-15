@@ -3808,6 +3808,7 @@ export const en: Dictionary = {
     titleTemplate: "{verb} {target}?",
   },
   ACCOUNT_REGISTRATION_TEXT: {
+  researchSource: (index: number) => `Source ${index}`,
   assistBegin: "Fill draft",
   dockPlaceholder: "Add customer details or tell me what to change",
   dockWelcome: "Tell me the customer name and business profile. I will organize the details, match registered parent and subsidiary customers, and fill the form for your review.",
@@ -3843,7 +3844,7 @@ export const en: Dictionary = {
     "assistUpdated": "Updated fields",
     "assistNoChanges": "No form details changed this time.",
     "assistSimilar": "Similar customers found",
-    "assistHelp": "Only supplied facts are filled into the form. Business positioning is matched to existing industries and market segments. Continue the conversation or edit the form directly. Strategic accounts require a target amount. Other optional details can remain blank. Nothing is saved until you confirm registration; success opens the customer detail. Registered parents and subsidiaries can be matched automatically; ambiguous or conflicting assignments require review. Relationships are saved with the confirmed customer. The page and sidebar share one customer draft and conversation. Details entered in either place update the same form. You can continue with the sidebar closed; only confirmed registration saves the customer.",
+    "assistHelp": "Public company facts can be researched on request, with sources for review. Lookup failures are reported honestly. Research does not overwrite your filled details; targets, periods and customer tiers need your decision. Business positioning is matched to existing industries and market segments. Continue the conversation or edit the form directly. Strategic accounts require a target amount. Other optional details can remain blank. Nothing is saved until you confirm registration; success opens the customer detail. Registered parents and subsidiaries can be matched automatically; ambiguous or conflicting assignments require review. Relationships are saved with the confirmed customer. The page and sidebar share one customer draft and conversation. Details entered in either place update the same form. You can continue with the sidebar closed; only confirmed registration saves the customer.",
     "confirmTitle": "Confirm customer details",
     "confirmSubmit": "Confirm registration",
     "confirmEdit": "Keep editing",

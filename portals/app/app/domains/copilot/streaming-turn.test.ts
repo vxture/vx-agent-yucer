@@ -6,12 +6,33 @@ import { InMemoryCopilotStore } from "./store";
 import { streamCopilotTurn, shouldStream, type StreamEvent } from "./streaming-turn";
 import type { CopilotContext } from "./service";
 import type { AtlasClient } from "../../agent/atlas/client";
+import type { RunosClient } from "../../agent/runos/client";
 import { AtlasError } from "../../agent/atlas/errors";
 import type { StreamFrame } from "../../agent/atlas/types";
 import { InMemoryAuditStore, setAuditStore } from "../../audit/lib/store";
 
 const WS = "ws_1";
 const TENANT = "tn_1";
+
+test("SSE with Runos uses the shared research loop instead of losing tools", async () => {
+  const store = new InMemoryCopilotStore();
+  let modelCalls = 0;
+  let lookups = 0;
+  const atlasClient = { chat: async () => ({ id: "c", modelCode: "m", usage: { totalTokens: 2 }, message: ++modelCalls === 1
+    ? { role: "assistant", content: "", toolCalls: [{ id: "r", name: "company__lookup", arguments: { query: "Acme" } }] }
+    : { role: "assistant", content: "Found the official profile." } }) } as unknown as AtlasClient;
+  const runosClient = {
+    discover: async () => [{ capability_id: "company", primitive_type: "connector", operations: [{ operation: "lookup", risk_level: "read", description: "Find public company facts" }] }],
+    invoke: async () => { lookups++; return { content: [], structured: { name: "Acme" }, meta: { call_id: "lookup" } }; },
+  } as unknown as RunosClient;
+  const events = await collect(streamCopilotTurn(ctx("sales_rep", "free", store), { question: "Research Acme", tenantId: TENANT }, { atlasClient, runosClient }));
+  assert.equal(lookups, 1);
+  assert.equal(modelCalls, 2);
+  assert.deepEqual(events.at(-1), { type: "done", answer: "Found the official profile." });
+  const session = events.find(event => event.type === "session");
+  assert.ok(session?.type === "session");
+  assert.deepEqual((await store.listMessages(WS, session.sessionId)).map(message => message.role), ["user", "assistant"]);
+});
 
 function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryCopilotStore()): CopilotContext {
   return {

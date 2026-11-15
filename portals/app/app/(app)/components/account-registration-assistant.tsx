@@ -4,10 +4,12 @@ import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { Banner, Button, Card, Field, FieldLabel, Icon, Input, Textarea } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { TitleHelp } from "./title-help";
+import type { RegistrationSource } from "../../domains/account/lib/registration-draft";
 
 export interface RegistrationMessage {
   readonly role: "user" | "assistant";
   readonly text: string;
+  readonly sources?: readonly RegistrationSource[];
 }
 
 /** Two views over the same form-owned thread; neither owns a separate draft. */
@@ -72,6 +74,13 @@ export function AccountRegistrationAssistant({
             className={message.role === "user" ? "ml-lg self-end rounded-md bg-accent px-md py-sm" : "min-w-0 leading-relaxed text-foreground"}>
             {dock ? <p className="mb-xs text-body-small text-muted-foreground">{message.role === "user" ? COPILOT_TEXT.you : COPILOT_TEXT.assistant}</p> : null}
             <p className="whitespace-pre-wrap break-words">{message.text}</p>
+            {message.sources?.length ? <div className="mt-xs flex flex-wrap gap-x-sm gap-y-xs text-body-small text-muted-foreground">
+              {message.sources.map((source, sourceIndex) => source.url
+                ? <a key={sourceIndex} href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-xs hover:text-primary" title={source.excerpt}>
+                  <Icon name="link" size="sm" />{T.researchSource(sourceIndex + 1)}
+                </a>
+                : <span key={sourceIndex} title={source.excerpt}>{T.researchSource(sourceIndex + 1)}</span>)}
+            </div> : null}
           </div>)}
         </div> : dock ? <p className="text-body-small leading-relaxed text-muted-foreground">{T.dockWelcome}</p> : null}
         {error ? <Banner tone="warning" title={error} /> : null}

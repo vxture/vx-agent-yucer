@@ -18,7 +18,7 @@ import { DialogForm } from "./dialog-form";
 import { ViewHeader } from "./business-controls";
 import { createPortal } from "react-dom";
 import { usePageAssistantSlot } from "./form-assist-slot";
-import { AccountRegistrationAssistant } from "./account-registration-assistant";
+import { AccountRegistrationAssistant, type RegistrationMessage } from "./account-registration-assistant";
 import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError } from "../lib/model-plane-error";
 import { AccountFields, toAccountFieldValues, toAccountPatch, type AccountFieldVocab, type AccountPatchShape } from "./account-fields";
@@ -46,7 +46,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   const [text, setText] = useState("");
   const [thread, setThread] = useState<string>();
   const [recovery, setRecovery] = useState<{ sessionId: string; messageId: string; text: string }>();
-  const [messages, setMessages] = useState<readonly { role: "user" | "assistant"; text: string }[]>([]);
+  const [messages, setMessages] = useState<readonly RegistrationMessage[]>([]);
   const [changed, setChanged] = useState<readonly string[]>([]);
   const [similar, setSimilar] = useState<readonly { id: string; name: string; accountNo: string }[]>([]);
   const [error, setError] = useState<string>();
@@ -89,7 +89,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
           ...(patch.period ? { period: patch.period } : {}), ...(patch.targetAmount ? { targetAmount: patch.targetAmount } : {}),
           ...(patch.contactCadenceDays ? { contactCadenceDays: patch.contactCadenceDays } : {}), ...(patch.execCadenceDays ? { execCadenceDays: patch.execCadenceDays } : {}),
         }));
-        setMessages(previous => [...previous, { role: "user", text: question }, { role: "assistant", text: result.message }]);
+        setMessages(previous => [...previous, { role: "user", text: question }, { role: "assistant", text: result.message, sources: result.sources }]);
         setChanged([
           ...Object.keys(patch).map(key => labels[key as keyof typeof labels] as string).filter(Boolean),
           ...(result.hierarchy.parent ? [P.field] : []),
