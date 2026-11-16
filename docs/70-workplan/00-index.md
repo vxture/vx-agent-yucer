@@ -1,5 +1,11 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 细分市场表单与智能填写
+
+四个业务板块、全字段引导、多选产品方案和共享 Atlas 智能填写见
+[65-segment-form-assistant.md](65-segment-form-assistant.md)。本轮本地待评审，尚未发布。
+
+
 本仓由 `vxture-template` 实例化而来（product_code = `yucer`）。每个批次是一个 PR，
 带机器可验收的门禁。治理基座、平台集成契约面、部署流水线随模板继承，**不重做**。
 

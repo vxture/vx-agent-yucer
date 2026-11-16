@@ -1,290 +1,157 @@
 "use client";
 
-import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
+import { useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Banner, Button, Card, Field, FieldLabel, Icon, Input, NativeSelect, Section, SectionHeader, Textarea, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import { SolutionPicker } from "./solution-picker";
-import { Section } from "./help-section";
-import { useMemo, useState } from "react";
-import {
-  Button,
-  Field,
-  FieldLabel,
-  Input,
-  NativeSelect,
-  StatusBadge,
-  Textarea,
-} from "@vxture/design-ui";
+import { FormFields, FormPage, useFormSubmit } from "./form-page";
+import { SegmentChoices } from "./segment-choices";
+import { usePageAssistantSlot } from "./form-assist-slot";
+import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assistant-conversation";
 import { useMessages } from "../lib/i18n/provider";
-import {
-  AssistPanel,
-  FormFields,
-  FormFieldWide,
-  FormPage,
-  splitListField,
-  useFormSubmit,
-  type AssistSuggestion,
-} from "./form-page";
+import { suggestNextCode } from "../../domains/shared/suggest";
 import type { SegmentCriteria } from "../../domains/strategy/lib/lifecycle";
-import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
-
-// 新建/编辑细分市场 - a page since 2026-09-05. One page for both because the
-// write IS one act (upsert-by-anchor): picking an existing code loads it and
-// locks the code field, since accounts point at the code by string.
-//
-// ONE FORM PER FILE - see plan-form.tsx for why the guard demands it.
+import { segmentFillValues, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "../../domains/strategy/lib/segment-draft";
+import type { SegmentAssistInput, SegmentAssistResult } from "../../domains/strategy/segment-assist-service";
 
 export interface SegmentFormRow {
-  readonly segmentCode: string;
-  readonly name: string;
-  readonly priority: number;
-  readonly status: string;
-  readonly criteria: SegmentCriteria;
-  readonly solutionIds?: readonly string[];
-  readonly productIds?: readonly string[];
+  readonly segmentCode: string; readonly name: string; readonly priority: number; readonly status: string;
+  readonly criteria: SegmentCriteria; readonly solutionIds?: readonly string[]; readonly productIds?: readonly string[];
 }
 
-type Saved = { ok: boolean; error?: string };
+/** Concise inline guidance; DS tooltip supports keyboard focus as well as hover. */
+function SegmentHelp({ label, children }: { readonly label: string; readonly children: ReactNode }) {
+  return <Tooltip><TooltipTrigger asChild>
+    <Button type="button" variant="ghost" size="icon-md" data-control-size="compact" className="shrink-0 text-muted-foreground" aria-label={label}>
+      <Icon name="help" size="xs" />
+    </Button>
+  </TooltipTrigger><TooltipContent className="max-w-xs text-body-small leading-relaxed">{children}</TooltipContent></Tooltip>;
+}
 
-export function SegmentForm({
-  rows,
-  initialCode,
-  accountIndustries,
-  accountRegions,
-  solutionOptions,
-  productOptions,
-  statusLabel,
-  onSave,
-}: {
-  readonly rows: readonly SegmentFormRow[];
-  readonly initialCode?: string;
-  readonly productOptions: readonly ProductReference[] | null;
-  readonly solutionOptions: readonly SolutionReference[] | null;
-  /** What the customer base actually looks like - the criteria vocabulary. */
-  readonly accountIndustries: readonly (string | null)[];
-  readonly accountRegions: readonly (string | null)[];
-  readonly statusLabel: Record<string, string>;
-  readonly onSave: (input: {
-    segmentCode: string;
-    name: string;
-    priority: number;
-    status: string;
-    criteria: SegmentCriteria;
-    solutionIds?: readonly string[];
-    productIds?: readonly string[];
-  }) => Promise<Saved>;
+export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist, onSave }: {
+  readonly rows: readonly SegmentFormRow[]; readonly initialCode?: string; readonly vocabulary: SegmentVocabulary;
+  readonly canAssist: boolean;
+  readonly onAssist: (input: SegmentAssistInput) => Promise<SegmentAssistResult>;
+  readonly onSave: (input: { segmentCode: string; name: string; priority: number; status: string; criteria: SegmentCriteria; solutionIds?: readonly string[]; productIds?: readonly string[] }) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const { STRATEGY_TEXT, SEGMENT_ERROR, ASSIST_TEXT, MARKET_STRATEGY_TEXT: T } = useMessages();
-  const BLANK = {
-    segmentCode: "",
-    name: "",
-    priority: "0",
-    status: "active",
-    industries: "",
-    regions: "",
-    sizes: "",
-    customerNeed: "",
-    buyingScenario: "",
-    expectedOutcome: "",
-    entryBarrier: "",
-  };
-  const initial = rows.find(r => r.segmentCode === initialCode);
-  const values = (g: SegmentFormRow) => ({
-    segmentCode: g.segmentCode, name: g.name,
-    priority: String(g.priority), status: g.status,
-    customerNeed: g.criteria.customerNeed ?? "", buyingScenario: g.criteria.buyingScenario ?? "", expectedOutcome: g.criteria.expectedOutcome ?? "", entryBarrier: g.criteria.entryBarrier ?? "",
-    industries: g.criteria.industries.join(", "), regions: g.criteria.regions.join(", "), sizes: (g.criteria.sizes ?? []).join(", "),
-  });
-  const [productIds, setProductIds] = useState<readonly string[]>(initial?.productIds ?? []);
-  const [solutionIds, setSolutionIds] = useState<readonly string[]>(initial?.solutionIds ?? []);
-  const [form, setForm] = useState(() => initial ? values(initial) : BLANK);
+  const { SEGMENT_FORM_TEXT: T, SEGMENT_ERROR, HEADER_TEXT: H } = useMessages();
+  const id = useId();
+  const original = rows.find(row => row.segmentCode === initialCode);
+  const existingCodes = new Set(rows.map(row => row.segmentCode));
+  const defaultCode = suggestNextCode([...existingCodes]) ?? (() => { let n = 1; while (existingCodes.has(`SEG-${String(n).padStart(3, "0")}`)) n++; return `SEG-${String(n).padStart(3, "0")}`; })();
+  const [code, setCode] = useState(original?.segmentCode ?? defaultCode);
+  const [priority, setPriority] = useState(String(original?.priority ?? 0));
+  const [status, setStatus] = useState(original?.status ?? "active");
+  const [values, setValues] = useState<SegmentFillValues>(() => segmentFillValues(original?.name ?? "", original?.criteria ?? { industries: [], regions: [] }, original?.solutionIds, original?.productIds));
+  const [text, setText] = useState("");
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [assisting, setAssisting] = useState(false);
+  const [assistError, setAssistError] = useState("");
+  const [changed, setChanged] = useState<SegmentFillField[]>([]);
+  const [sessionId, setSessionId] = useState<string>();
+  const [recovery, setRecovery] = useState<{ sessionId: string; messageId: string; text: string }>();
+  const manual = useRef(new Set<SegmentFillField>());
+  const hasAssisted = useRef(false);
+  const inFlight = useRef(false);
+  const slot = usePageAssistantSlot();
   const submit = useFormSubmit("/strategy?view=markets");
-
-  const editing = form.segmentCode !== "" && rows.some((r) => r.segmentCode === form.segmentCode);
-
-  // UPSERT-BY-ANCHOR SURVIVES THE MOVE TO A PAGE. Picking an existing code
-  // loads that segment; the code field then locks, because accounts point at it
-  // by string and a rename would break them silently.
-  function pick(code: string) {
-    if (code === "") { setSolutionIds([]); setProductIds([]); return setForm(BLANK); }
-    const g = rows.find((r) => r.segmentCode === code);
-    if (!g) return setForm(BLANK);
-    setSolutionIds(g.solutionIds ?? []);
-    setProductIds(g.productIds ?? []);
-    setForm(values(g));
+  const busy = assisting || submit.pending;
+  const duplicate = !original && existingCodes.has(code.trim());
+  const ready = !!code.trim() && !!values.name.trim() && !duplicate && Number.isInteger(Number(priority)) && Number(priority) >= 0 && Number(priority) <= 9999;
+  function change<K extends SegmentFillField>(key: K, value: SegmentFillValues[K]) {
+    if (hasAssisted.current) manual.current.add(key);
+    setValues(current => ({ ...current, [key]: value }));
   }
-
-  // The criteria vocabulary comes from the ACCOUNTS, not from other segments: a
-  // segment is a cut of the actual market, and an industry no customer carries
-  // is a cut of nothing. Top values not already in the field, one click each.
-  const industries = useMemo(() => knownValues(accountIndustries), [accountIndustries]);
-  const regions = useMemo(() => knownValues(accountRegions), [accountRegions]);
-  const inField = new Set(splitListField(form.industries));
-  const inRegions = new Set(splitListField(form.regions));
-
-  const suggestions: AssistSuggestion[] = [];
-  for (const ind of industries.filter((i) => !inField.has(i)).slice(0, 2)) {
-    suggestions.push({
-      id: `ind-${ind}`,
-      label: ASSIST_TEXT.industryKnown(ind),
-      reason: ASSIST_TEXT.criteriaWhy,
-      apply: () =>
-        setForm((f) => ({
-          ...f,
-          industries: f.industries.trim() === "" ? ind : `${f.industries}, ${ind}`,
-        })),
-    });
-  }
-  for (const reg of regions.filter((r) => !inRegions.has(r)).slice(0, 2)) {
-    suggestions.push({
-      id: `reg-${reg}`,
-      label: ASSIST_TEXT.regionKnown(reg),
-      reason: ASSIST_TEXT.criteriaWhy,
-      apply: () =>
-        setForm((f) => ({
-          ...f,
-          regions: f.regions.trim() === "" ? reg : `${f.regions}, ${reg}`,
-        })),
-    });
-  }
-
-  const priority = Number(form.priority);
-  const ready =
-    form.segmentCode.trim() !== "" &&
-    form.name.trim() !== "" &&
-    Number.isInteger(priority) &&
-    priority >= 0;
-
-  return (
-    <FormPage
-      form={
-        // The page ViewHeader owns the title - repeating it in the Section
-        // rendered the same sentence twice within one viewport.
-        <Section icon="target">
-          <div className="gap-xl flex flex-col">
-            <FormFields>
-            {/* WHICH SEGMENT, and it takes the whole row: it is not one of the
-                fields below, it is the choice of what they are describing. */}
-            <FormFieldWide>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentEditing}</FieldLabel>
-              <NativeSelect value={editing ? form.segmentCode : ""} onChange={(e) => pick(e.target.value)}>
-                <option value="">{STRATEGY_TEXT.segmentNew}</option>
-                {rows.map((r) => (
-                  <option key={r.segmentCode} value={r.segmentCode}>
-                    {r.segmentCode} - {r.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            </FormFieldWide>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentCodeHeader}</FieldLabel>
-              <Input
-                value={form.segmentCode}
-                disabled={editing}
-                onChange={(e) => setForm({ ...form, segmentCode: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentNameHeader}</FieldLabel>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentIndustries}</FieldLabel>
-              <Input
-                value={form.industries}
-                placeholder={STRATEGY_TEXT.segmentListHint}
-                onChange={(e) => setForm({ ...form, industries: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentSizes}</FieldLabel>
-              <Input
-                value={form.sizes}
-                placeholder={STRATEGY_TEXT.segmentListHint}
-                onChange={(e) => setForm({ ...form, sizes: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentRegions}</FieldLabel>
-              <Input
-                value={form.regions}
-                placeholder={STRATEGY_TEXT.segmentListHint}
-                onChange={(e) => setForm({ ...form, regions: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentPriorityHeader}</FieldLabel>
-              <Input
-                type="number"
-                min={0}
-                value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value })}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{STRATEGY_TEXT.segmentStatusHeader}</FieldLabel>
-              <NativeSelect value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {Object.entries(statusLabel).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            </FormFields>
-            <Section title={T.marketInsight} icon="lightbulb" help={<>
-              <p>{T.marketInsightHint}</p>
-              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <p key={key}><strong>{T[key]}</strong> {T.insightHints[key]}</p>)}
-            </>}>
-              <FormFields>
-              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => (
-                <FormFieldWide key={key}>
-                  <Field>
-                    <FieldLabel>{T[key]}</FieldLabel>
-                    <Textarea rows={2} placeholder={T.insightPrompts[key]} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
-                  </Field>
-                </FormFieldWide>
-              ))}
-              </FormFields>
-            </Section>
-            <Section title={T.marketDefaultSolutions} icon="squares-four" help={T.marketDefaultSolutionsHint}>
-              <SolutionPicker productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={submit.pending}/>
-            </Section>
-            <div className="flex items-center gap-md">
-              <Button
-                disabled={submit.pending || !ready}
-                onClick={() =>
-                  submit.run(
-                    () =>
-                      onSave({
-                        ...(solutionOptions === null ? {} : { solutionIds }),
-                        ...(productOptions === null ? {} : { productIds }),
-                        segmentCode: form.segmentCode.trim(),
-                        name: form.name.trim(),
-                        priority,
-                        status: form.status,
-                        criteria: {
-                          industries: splitListField(form.industries),
-                          regions: splitListField(form.regions),
-                          sizes: splitListField(form.sizes),
-                          customerNeed: form.customerNeed,
-                          buyingScenario: form.buyingScenario,
-                          expectedOutcome: form.expectedOutcome,
-                          entryBarrier: form.entryBarrier,
-                        },
-                      }),
-                    (c) => SEGMENT_ERROR[c] ?? SEGMENT_ERROR.denied,
-                  )
-                }
-              >
-                {STRATEGY_TEXT.segmentSave}
-              </Button>
-              {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
-            </div>
-          </div>
-        </Section>
+  async function send() {
+    const question = text.trim();
+    if (!canAssist || !question || busy || inFlight.current) return;
+    inFlight.current = true; setAssisting(true); setAssistError(""); setChanged([]);
+    const retry = recovery?.text === question ? recovery : undefined;
+    if (!retry) setMessages(current => [...current, { role: "user", text: question }]);
+    try {
+      const result = await onAssist({ text: question, initialCode, sessionId: retry?.sessionId ?? sessionId, retryMessageId: retry?.messageId, values, manualFields: [...manual.current] });
+      if (!result.ok) {
+        if (result.sessionId) setSessionId(result.sessionId);
+        if (result.recovery) { setSessionId(result.recovery.sessionId); setRecovery({ ...result.recovery, text: question }); }
+        setAssistError(SEGMENT_ERROR[result.error] ?? SEGMENT_ERROR.turn_failed);
+        return;
       }
-      assist={<AssistPanel suggestions={suggestions} />}
-    />
-  );
+      setSessionId(result.sessionId); setRecovery(undefined); hasAssisted.current = true;
+      setValues(current => ({ ...current, ...result.patch })); setText("");
+      const fields = Object.keys(result.patch) as SegmentFillField[];
+      setChanged(fields);
+      setMessages(current => [...current, { role: "assistant", text: result.message || (fields.length ? T.assistUpdated : T.assistNoChange) }]);
+    } catch { setAssistError(SEGMENT_ERROR.turn_failed); }
+    finally { inFlight.current = false; setAssisting(false); }
+  }
+  const label = (key: keyof typeof T.help, required = false) => <div className="flex items-center gap-xs">
+    <FieldLabel htmlFor={`${id}-${key}`} required={required}>{T[key]}</FieldLabel>
+    <SegmentHelp label={`${T[key]} \u00b7 ${H.help}`}>{T.help[key]}</SegmentHelp>
+  </div>;
+  const changedLabel = (field: SegmentFillField) => field === "productIds" || field === "solutionIds" ? T.offerings : T[field];
+  const feedback = <>
+    {assistError ? <Banner tone="warning" title={assistError} /> : null}
+    {changed.length ? <p role="status" className="text-body-small text-muted-foreground">{T.changed}: {[...new Set(changed.map(changedLabel))].join(" / ")}</p> : null}
+  </>;
+  const assistant = slot ? createPortal(<div className="flex min-h-0 flex-1 flex-col gap-md" data-segment-assistant="dock">
+    <p className="shrink-0 text-body-small text-muted-foreground">{T.assistTask}{values.name ? ` \u00b7 ${values.name}` : ""}</p>
+    <AssistantTranscript revision={messages.length} busy={assisting}>
+      {!messages.length ? <p className="text-body-small leading-relaxed text-muted-foreground">{T.assistWelcome}</p> : null}
+      {messages.map((message, i) => <AssistantMessage key={i} role={message.role}><p className="whitespace-pre-wrap break-words">{message.text}</p></AssistantMessage>)}
+      {feedback}
+    </AssistantTranscript>
+    <AssistantComposer id={`${id}-dock`} value={text} onChange={setText} onSend={() => void send()} disabled={!canAssist} busy={busy} placeholder={T.assistExample} />
+  </div>, slot) : null;
+  const title = (key: "basic" | "conditions" | "insights" | "offerings", icon: "clipboard" | "filter" | "lightbulb" | "squares-four") => <SectionHeader title={T[key]} icon={icon}
+    titleSuffix={key === "offerings" ? <SegmentHelp label={T.offerings}>{T.help.offerings}</SegmentHelp> : undefined} />;
+  return <>
+    {assistant}
+    <FormPage form={<div className="flex flex-col gap-xl" data-segment-form>
+      <Card className="flex flex-col gap-md border-primary/10 bg-primary/5 p-lg" data-segment-assistant="inline">
+        <div className="flex items-center gap-xs"><Icon name="magic-wand" size="md" className="text-primary" /><h2 className="text-label-medium">{T.assist}</h2><SegmentHelp label={T.assist}>{T.help.assist}</SegmentHelp></div>
+        {canAssist ? <>
+          <form className="flex items-end gap-sm" onSubmit={event => { event.preventDefault(); void send(); }}>
+            <Field className="min-w-0 flex-1"><FieldLabel htmlFor={`${id}-assist`} className="sr-only">{T.assist}</FieldLabel><Input id={`${id}-assist`} placeholder={T.assistExample} value={text} maxLength={4000} disabled={busy} onChange={event => setText(event.target.value)} /></Field>
+            <Button size="xl" type="submit" disabled={busy || !text.trim()}><Icon name={assisting ? "spinner" : "magic-wand"} size="sm" className={assisting ? "animate-spin" : undefined} />{assistError ? T.retry : messages.length ? T.send : T.begin}</Button>
+          </form>
+          {!slot ? <div className="flex max-h-48 flex-col gap-sm overflow-y-auto">{messages.map((message, i) => <AssistantMessage key={i} role={message.role}>{message.text}</AssistantMessage>)}{feedback}</div> : null}
+        </> : <p className="text-body-small text-muted-foreground">{T.assistDenied}</p>}
+      </Card>
+      <form className="flex flex-col gap-xl" onSubmit={event => {
+        event.preventDefault(); if (!ready || busy) return;
+        submit.run(() => onSave({ segmentCode: code.trim(), name: values.name.trim(), priority: Number(priority), status,
+          criteria: { industries: values.industries, regions: values.regions, sizes: values.sizes, customerNeed: values.customerNeed, buyingScenario: values.buyingScenario, expectedOutcome: values.expectedOutcome, entryBarrier: values.entryBarrier },
+          ...(vocabulary.solutions === null ? {} : { solutionIds: values.solutionIds }), ...(vocabulary.products === null ? {} : { productIds: values.productIds }),
+        }), key => SEGMENT_ERROR[key] ?? SEGMENT_ERROR.denied);
+      }}>
+        <fieldset disabled={busy} className="flex min-w-0 flex-col gap-xl">
+          <Section>{title("basic", "clipboard")}
+            <FormFields>
+              <Field>{label("name", true)}<Input id={`${id}-name`} required maxLength={200} placeholder={T.examples.name} value={values.name} onChange={e => change("name", e.target.value)} /></Field>
+              <Field>{label("code", true)}<Input id={`${id}-code`} required readOnly={!!original} aria-invalid={duplicate} placeholder={T.examples.code} value={code} onChange={e => setCode(e.target.value)} />{duplicate ? <p className="text-body-small text-destructive">{T.codeConflict}</p> : null}</Field>
+              <div className="grid grid-cols-2 items-start gap-md">
+              <Field>{label("status", true)}<NativeSelect id={`${id}-status`} required value={status} onChange={e => setStatus(e.target.value)}>{Object.entries(T.statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</NativeSelect></Field>
+              <Field>{label("priority", true)}<Input id={`${id}-priority`} required type="number" min={0} max={9999} step={1} placeholder={T.examples.priority} value={priority} onChange={e => setPriority(e.target.value)} /></Field>
+              </div>
+            </FormFields>
+          </Section>
+          <Section>{title("conditions", "filter")}
+            <FormFields>{(["industries", "sizes", "regions"] as const).map(key => <Field key={key}>{label(key)}<SegmentChoices id={`${id}-${key}`} label={T[key]} values={values[key]} options={vocabulary[key]} disabled={busy} onChange={v => change(key, v)} /></Field>)}</FormFields>
+            <p className="text-body-small text-muted-foreground">{values.industries.length || values.regions.length || values.sizes.length ? T.conditionRule : T.noConditions}</p>
+          </Section>
+          <Section>{title("insights", "lightbulb")}
+            <div className="@container"><div className="grid min-w-0 grid-cols-1 gap-lg @xl:grid-cols-2">{(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <Field key={key}>{label(key)}<Textarea id={`${id}-${key}`} rows={3} maxLength={2000} placeholder={T.examples[key]} value={values[key]} onChange={e => change(key, e.target.value)} /></Field>)}</div></div>
+          </Section>
+          <Section>{title("offerings", "squares-four")}
+            <SolutionPicker options={vocabulary.solutions} ids={values.solutionIds} onChange={v => change("solutionIds", v)} productOptions={vocabulary.products} productIds={values.productIds} onProductChange={v => change("productIds", v)} disabled={busy} />
+          </Section>
+        </fieldset>
+        <div className="flex items-center justify-end gap-sm border-t border-dashed border-border pt-lg">
+          <Button type="button" size="xl" variant="secondary" disabled={busy} asChild><a href="/strategy?view=markets">{T.cancel}</a></Button>
+          <Button type="submit" size="xl" disabled={busy || !ready}>{T.save}</Button>
+        </div>
+        {submit.err ? <Banner tone="danger" title={submit.err} /> : null}
+      </form>
+    </div>} />
+  </>;
 }
