@@ -13,7 +13,7 @@ export function HeaderSearch(props: ComponentProps<typeof ShellSearchBox>) {
   }, []);
   const key = props.shortcutKey === undefined ? "k" : props.shortcutKey;
   return (
-    <div className={styles.search}>
+    <div className={styles.search} data-header-group="search">
       <ShellSearchBox {...props} />
       {key && !props.query ? (
         <Kbd className={styles.shortcut}>{modifier} + {key.toUpperCase()}</Kbd>

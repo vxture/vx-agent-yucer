@@ -63,6 +63,7 @@ export function HeaderTools({
   // owns the order and the interactions of its six slots; this product fills
   // three of them - help, messages (a side drawer), settings.
   return (
+    <span className="inline-flex shrink-0" data-header-group="tools">
     <ShellHeaderTools
       /* 32px controls, 16px glyphs and 4px internal gaps (TD-037). */
       className={`${TOOLBOX_ON_LADDER} ${styles.tools}`}
@@ -96,5 +97,6 @@ export function HeaderTools({
       }}
       settings={settingsHref ? { label: HEADER_TEXT.settings, href: settingsHref } : undefined}
     />
+    </span>
   );
 }

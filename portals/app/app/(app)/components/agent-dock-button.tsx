@@ -18,12 +18,8 @@ import { CountBadge } from "./count-badge";
 // generic unread tally: the agent proposes and a human decides (ADR-003), so the
 // only number worth interrupting someone with is the one they alone can clear.
 //
-// NO `active` FILL, for the same reason the board toggle dropped one: an
-// active state earns its weight when the state it reports is otherwise
-// invisible, and the deck is right there on screen when it is open. Two of the
-// three header icon buttons painting themselves accent-blue made the two
-// carrying the least information the heaviest objects in the bar. The count
-// badge is the thing worth seeing here, and it was competing with a fill.
+// Independent of the tools group: 32px, round like the user trigger. The open
+// state is exposed to assistive technology and uses the DS active surface.
 //
 // COMPOSITION, not restyling. The badge is a sibling of the DS button inside a
 // relative wrapper rather than a replacement for its children, so the button
@@ -58,8 +54,8 @@ export function AgentDockButton({
     count > 0 ? HEADER_TEXT.agentDockWithCount(count) : HEADER_TEXT.agentDock;
 
   return (
-    <span className="relative inline-flex" data-assistant-dock-trigger>
-      <ShellIconButton className={`${HEADER_ICON_CONTROL} ${HEADER_LARGE_ICON}`} icon="sparkles" label={label} onClick={onToggle} />
+    <span className="relative inline-flex shrink-0" data-assistant-dock-trigger data-header-group="assistant">
+      <ShellIconButton className={`${HEADER_ICON_CONTROL} ${HEADER_LARGE_ICON} rounded-full`} icon="sparkles" label={label} active={open} onClick={onToggle} />
 
       {count > 0 ? (
         // aria-hidden because the count is already in the button's label; a

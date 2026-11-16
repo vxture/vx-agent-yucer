@@ -10,7 +10,7 @@
 
 /** Product name 18px, descriptor 16px; tier shares their vertical center. */
 export const PRODUCT_TITLE_ON_LADDER =
-  "[&>span.font-brand]:text-lg [&>span.text-xl:not(.font-brand)]:text-base [&>[data-slot=header-superscript]]:items-center";
+  "gap-[calc(var(--vx-spacing)*2)] [&>img]:size-icon-xl [&>span.font-brand]:text-lg [&>span.text-xl:not(.font-brand)]:text-base [&>[data-slot=header-superscript]]:items-center";
 
 /** A 32px hit area does not dictate the glyph size. */
 export const HEADER_ICON_CONTROL = "size-control-xl";
@@ -18,7 +18,7 @@ export const HEADER_LARGE_ICON = "[&_svg]:size-icon-lg";
 
 /** ShellToolbox uses content-box and padding, so normalize its outer box. */
 export const TOOLBOX_ON_LADDER =
-  "gap-2xs p-0 [&_[data-slot^=shell-toolbox-]]:m-0 [&_[data-slot^=shell-toolbox-]]:box-border [&_[data-slot^=shell-toolbox-]]:size-control-xl [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm";
+  "p-0 [&_[data-slot^=shell-toolbox-]]:m-0 [&_[data-slot^=shell-toolbox-]]:box-border [&_[data-slot^=shell-toolbox-]]:size-control-xl [&_[data-slot^=shell-toolbox-]_svg]:size-icon-sm";
 
 /** Keep the native 32px avatar inside a matching 32px trigger. */
 export const AVATAR_ON_LADDER = "size-control-xl";
