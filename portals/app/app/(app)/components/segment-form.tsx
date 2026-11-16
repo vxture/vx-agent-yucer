@@ -3,7 +3,7 @@
 import { useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Banner, Button, Card, Field, FieldLabel, Icon, Input, NativeSelect, Section, SectionHeader, Textarea, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
-import { SolutionPicker } from "./solution-picker";
+import { SegmentOfferings } from "./segment-offerings";
 import { FormFields, FormPage, useFormSubmit } from "./form-page";
 import { SegmentChoices } from "./segment-choices";
 import { usePageAssistantSlot } from "./form-assist-slot";
@@ -25,7 +25,7 @@ function SegmentHelp({ label, children }: { readonly label: string; readonly chi
     <Button type="button" variant="ghost" size="icon-md" data-control-size="compact" className="shrink-0 text-muted-foreground" aria-label={label}>
       <Icon name="help" size="xs" />
     </Button>
-  </TooltipTrigger><TooltipContent collisionPadding={12} className="w-[min(18rem,calc(100dvw-24px))] break-words leading-relaxed">
+  </TooltipTrigger><TooltipContent side="bottom" align="start" collisionPadding={12} className="w-[min(18rem,calc(100dvw-24px))] break-words leading-relaxed">
     {children}
   </TooltipContent></Tooltip>;
 }
@@ -104,8 +104,8 @@ export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist
     </AssistantTranscript>
     <AssistantComposer id={`${id}-dock`} value={text} onChange={setText} onSend={() => void send()} disabled={!canAssist} busy={busy} placeholder={T.assistExample} />
   </div>, slot) : null;
-  const title = (key: "basic" | "conditions" | "insights" | "offerings", icon: "clipboard" | "filter" | "lightbulb" | "squares-four") => <SectionHeader title={T[key]} icon={icon}
-    titleSuffix={key === "offerings" ? <SegmentHelp label={T.offerings}>{T.help.offerings}</SegmentHelp> : undefined} />;
+  const title = (key: "basic" | "conditions" | "insights", icon: "clipboard" | "filter" | "lightbulb") =>
+    <SectionHeader title={T[key]} icon={icon} />;
   return <>
     {assistant}
     <FormPage form={<div className="flex flex-col gap-xl" data-segment-form>
@@ -119,7 +119,7 @@ export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist
           {!slot ? <div className="flex max-h-48 flex-col gap-sm overflow-y-auto">{messages.map((message, i) => <AssistantMessage key={i} role={message.role}>{message.text}</AssistantMessage>)}{feedback}</div> : null}
         </> : <p className="text-body-small text-muted-foreground">{T.assistDenied}</p>}
       </Card>
-      <form className="flex flex-col gap-xl" onSubmit={event => {
+      <form className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]" onSubmit={event => {
         event.preventDefault(); if (!ready || busy) return;
         submit.run(() => onSave({ segmentCode: code.trim(), name: values.name.trim(), priority: Number(priority), status,
           criteria: { industries: values.industries, regions: values.regions, sizes: values.sizes, customerNeed: values.customerNeed, buyingScenario: values.buyingScenario, expectedOutcome: values.expectedOutcome, entryBarrier: values.entryBarrier },
@@ -144,9 +144,12 @@ export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist
           <Section>{title("insights", "lightbulb")}
             <div className="@container"><div className="grid min-w-0 grid-cols-1 gap-lg @xl:grid-cols-2">{(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <Field key={key}>{label(key)}<Textarea id={`${id}-${key}`} rows={3} maxLength={2000} placeholder={T.examples[key]} value={values[key]} onChange={e => change(key, e.target.value)} /></Field>)}</div></div>
           </Section>
-          <Section>{title("offerings", "squares-four")}
-            <SolutionPicker options={vocabulary.solutions} ids={values.solutionIds} onChange={v => change("solutionIds", v)} productOptions={vocabulary.products} productIds={values.productIds} onProductChange={v => change("productIds", v)} disabled={busy} />
-          </Section>
+          <SegmentOfferings vocabulary={vocabulary} selection={values} disabled={busy}
+            help={<SegmentHelp label={T.offerings}>{T.help.offerings}</SegmentHelp>}
+            onChange={next => {
+              if (next.productIds !== values.productIds) change("productIds", next.productIds);
+              if (next.solutionIds !== values.solutionIds) change("solutionIds", next.solutionIds);
+            }} />
         </fieldset>
         <div className="flex items-center justify-end gap-sm border-t border-dashed border-border pt-lg">
           <Button type="button" size="xl" variant="secondary" disabled={busy} asChild><a href="/strategy?view=markets">{T.cancel}</a></Button>

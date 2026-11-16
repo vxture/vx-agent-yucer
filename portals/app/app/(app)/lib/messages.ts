@@ -9222,6 +9222,8 @@ export const ACCOUNT_REGISTRATION_TEXT = {
 } as const;
 
 export const SEGMENT_FORM_TEXT = {
+  "chooseOfferings": "\u9009\u62e9\u5173\u8054",
+  "manageOfferings": "\u8c03\u6574\u5173\u8054",
   "basic": "\u57fa\u672c\u4fe1\u606f",
   "conditions": "\u5ba2\u7fa4\u6761\u4ef6",
   "insights": "\u75db\u70b9\u4e0e\u91c7\u8d2d",

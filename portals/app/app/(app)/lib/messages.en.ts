@@ -7791,6 +7791,8 @@ export const en: Dictionary = {
   noSelection: "Select a strategy",
 },
   SEGMENT_FORM_TEXT: {
+  "chooseOfferings": "Select links",
+  "manageOfferings": "Edit links",
   "basic": "Basic information",
   "conditions": "Customer criteria",
   "insights": "Pains and buying",
