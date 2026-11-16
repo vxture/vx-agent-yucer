@@ -7,26 +7,20 @@ import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
 import { can } from "../../../authz/decide";
 import { getCatalogStore, getStrategyStore } from "../../../domains/shared/registry";
-import { listProductReferences, listSolutionReferences } from "../../../domains/catalog/service";
+import { segmentVocabulary } from "../../../domains/strategy/segment-assist-service";
+import { assistSegmentDraft } from "./assist-action";
 import { listSegments } from "../../../domains/strategy/service";
-import { listAccounts } from "../../../domains/account/service";
 import { SegmentForm } from "../../components/segment-form";
 import { saveSegment } from "../../strategy/actions";
 
-// 新建/编辑细分市场 - a page since 2026-09-05. One page for both because the
-// write IS one act (upsert-by-anchor): picking an existing code loads it and
-// locks the code field, since accounts point at the code by string.
-//
-// The ACCOUNTS are read here for one reason: the criteria vocabulary. A
-// segment is a cut of the actual market, and the assistant offers the
-// industries and regions customers actually carry - an industry nobody is in
-// is a cut of nothing.
+// Create and edit share the same business form and configured vocabulary.
+// Route identity selects the record; changing an anchor cannot switch records.
 
 export const dynamic = "force-dynamic";
 
 export default async function NewSegmentPage({searchParams}:{readonly searchParams:Promise<{code?:string}>}) {
   const {code}=await searchParams;
-  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { MARKET_STRATEGY_TEXT: T, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -43,13 +37,9 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
     entitlement: session.entitlement,
     store: getStrategyStore(),
   };
-  const [segments, accounts, solutions, products] = await Promise.all([
+  const [segments, vocabulary] = await Promise.all([
     listSegments(ctx),
-    listAccounts({ ...ctx, store: session.stores.account() }),
-    can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
-      ? listSolutionReferences({ ...ctx, store: getCatalogStore() }).catch(() => null) : null,
-    can(session.authz, session.entitlement, "catalog.product.view", "ui").allowed
-      ? listProductReferences({ ...ctx, store: getCatalogStore() }).catch(() => null) : null,
+    segmentVocabulary({ ...ctx, store: session.stores.account() }, getCatalogStore()),
   ]);
 
   if(!segments.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(segments.violations,LOAD_ERROR)}/>;
@@ -68,11 +58,9 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
         key={code ?? "new"}
         initialCode={code}
         rows={segments.value}
-        solutionOptions={solutions?.ok ? solutions.value : null}
-        productOptions={products?.ok ? products.value : null}
-        accountIndustries={accounts.ok ? accounts.value.map((a) => a.industry) : []}
-        accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}
-        statusLabel={STRATEGY_TEXT.segmentStatusLabel}
+        vocabulary={vocabulary}
+        canAssist={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}
+        onAssist={assistSegmentDraft}
         onSave={saveSegment}
       />
     </ViewLayout>
