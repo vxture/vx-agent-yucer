@@ -25,7 +25,9 @@ function SegmentHelp({ label, children }: { readonly label: string; readonly chi
     <Button type="button" variant="ghost" size="icon-md" data-control-size="compact" className="shrink-0 text-muted-foreground" aria-label={label}>
       <Icon name="help" size="xs" />
     </Button>
-  </TooltipTrigger><TooltipContent className="max-w-xs text-body-small leading-relaxed">{children}</TooltipContent></Tooltip>;
+  </TooltipTrigger><TooltipContent collisionPadding={12} className="w-[min(18rem,calc(100dvw-24px))] break-words leading-relaxed">
+    {children}
+  </TooltipContent></Tooltip>;
 }
 
 export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist, onSave }: {
