@@ -78,6 +78,7 @@ export default async function DealDeck({
     .sort((a, b) => Number(b.capability === NEXT_ACTION_CAPABILITY) - Number(a.capability === NEXT_ACTION_CAPABILITY))
     .map((a) => ({
       id: a.id,
+      actionType: a.actionType,
       title:
         a.capability === NEXT_ACTION_CAPABILITY
           ? NEXT_ACTION_TEXT.proposal(String(a.payload.statement ?? ""), String(a.payload.dueAt ?? ""))

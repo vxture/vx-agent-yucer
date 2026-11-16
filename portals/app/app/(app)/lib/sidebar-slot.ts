@@ -3,7 +3,7 @@
 
 /** Object dossiers remain visible independently of the administration menu. */
 export const BOARD_PANE_CLASS =
-  "w-(--vx-pane-nav) h-full min-h-0 shrink-0 overflow-y-auto border-r border-border px-lg pt-lg pb-2xl";
+  "w-(--vx-pane-nav) h-full min-h-0 shrink-0 overflow-y-auto px-lg pt-lg pb-2xl";
 
 /** AppShell supplies each edge inset according to the adjacent visible pane. */
 export const CENTRE_PANE_CLASS =

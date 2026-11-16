@@ -4,13 +4,14 @@ import { Section } from "./help-section";
 import Link from "next/link";
 import type { EvidenceCitation } from "../../domains/copilot/lib/citations";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Button, StatusBadge, Textarea } from "@vxture/design-ui";
+import { useRef, useState, useTransition } from "react";
+import { Button, Card, Icon, StatusBadge } from "@vxture/design-ui";
 
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
 import { explainModelPlaneError } from "../lib/model-plane-error";
 import { Tag } from "./tag";
+import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assistant-conversation";
 // The copilot conversation.
 //
 // The design decision that matters here is what the surface REFUSES to imply.
@@ -43,6 +44,8 @@ export interface TurnOutcome {
 }
 
 export interface CopilotChatProps {
+  readonly embedded?: boolean;
+  readonly onRecord?: (text: string) => Promise<{ ok: boolean; error?: string }>;
   readonly initialMessages: readonly ChatMessageView[];
   readonly sessionId: string | null;
   readonly canAsk: boolean;
@@ -76,6 +79,8 @@ export interface CopilotChatProps {
 }
 
 export function CopilotChat({
+  embedded = false,
+  onRecord,
   initialMessages,
   sessionId,
   canAsk,
@@ -86,7 +91,7 @@ export function CopilotChat({
   onAsk,
 }: CopilotChatProps) {
   const router = useRouter();
-  const { ASK_ABOUT_TEXT, COPILOT_TEXT } = useMessages();
+  const { ASK_ABOUT_TEXT, COPILOT_TEXT, ASSISTANT_PANEL_TEXT: P, FIELD_ERROR, BOARD_TEXT } = useMessages();
   const [messages, setMessages] = useState<ChatMessageView[]>([
     ...initialMessages,
   ]);
@@ -95,8 +100,6 @@ export function CopilotChat({
   const [draft, setDraft] = useState(initialDraft ?? (unfinished?.role === "user" ? unfinished.content : ""));
   const [outcome, setOutcome] = useState<TurnOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const transcriptEnd = useRef<HTMLDivElement>(null);
-  useEffect(() => { transcriptEnd.current?.scrollIntoView({ block: "nearest" }); }, [messages]);
   const recovery = useRef<{ question: string; messageId: string } | null>(unfinished?.role === "user" && unfinished.id ? { question: unfinished.content, messageId: unfinished.id } : null);
   const inFlight = useRef(false);
   const [pending, startTransition] = useTransition();
@@ -109,7 +112,7 @@ export function CopilotChat({
     // The question is shown immediately. It is also persisted server-side before
     // the model is called, so what the user sees here and what survives a
     // model-plane failure are the same thing.
-    const alreadyShown = recovery.current?.question === question && messages.at(-1)?.role === "user" && messages.at(-1)?.content === question;
+    const alreadyShown = messages.at(-1)?.role === "user" && messages.at(-1)?.content === question;
     if (!alreadyShown) setMessages((prev) => [...prev, { role: "user", content: question }]);
     setDraft("");
     setError(null);
@@ -125,7 +128,6 @@ export function CopilotChat({
           }
           setError(explainModelPlaneError(result.error, COPILOT_TEXT));
           setDraft(question);
-          if (!alreadyShown) setMessages((prev) => prev.slice(0, -1));
           return;
         }
         recovery.current = null;
@@ -137,7 +139,6 @@ export function CopilotChat({
           { role: "assistant", content: result.outcome.answer, citations: result.outcome.citations },
         ]);
       } catch {
-        if (!alreadyShown) setMessages((prev) => prev.slice(0, -1));
         setError(COPILOT_TEXT.errorGeneric);
         setDraft(question);
       } finally {
@@ -146,118 +147,49 @@ export function CopilotChat({
     });
   }
 
-  return (
-    <Section title={COPILOT_TEXT.title} help={COPILOT_TEXT.description}>
-      {/* Said out loud, because the difference between a grounded answer and a
-          general one is the difference between citing and guessing - and a
-          reader who cannot tell which they are getting will trust both alike. */}
-      {deal ? (
-        <>
-          <StatusBadge tone={rehearsal ? "warning" : "info"} dot>
-            {rehearsal ? ASK_ABOUT_TEXT.rehearsal(deal.name) : ASK_ABOUT_TEXT.anchoredDeal(deal.name)}
-          </StatusBadge>
-          <p>{rehearsal ? ASK_ABOUT_TEXT.rehearsalHint : ASK_ABOUT_TEXT.anchoredDealHint}</p>
-        </>
-      ) : account ? (
-        <>
-          <StatusBadge tone="info" dot>
-            {ASK_ABOUT_TEXT.anchored(account.name)}
-          </StatusBadge>
-          <p>{ASK_ABOUT_TEXT.anchoredHint}</p>
-        </>
-      ) : null}
-
-      <Button variant="ghost" size="md" disabled={pending} onClick={() => {
+  const conversation = <div className={embedded ? "flex h-full min-h-0 flex-1 flex-col gap-md" : "flex h-[40rem] max-h-[80dvh] min-h-0 flex-col gap-md"}>
+    {!embedded && (deal || account) ? <StatusBadge tone={rehearsal ? "warning" : "info"} dot>
+      {deal ? rehearsal ? ASK_ABOUT_TEXT.rehearsal(deal.name) : ASK_ABOUT_TEXT.anchoredDeal(deal.name) : ASK_ABOUT_TEXT.anchored(account!.name)}
+    </StatusBadge> : null}
+    <div className="flex shrink-0 justify-end">
+      <Button type="button" variant="ghost" size="md" disabled={pending} onClick={() => {
         recovery.current = null; setSession(null); setMessages([]); setOutcome(null); setError(null);
       }}>{COPILOT_TEXT.newSession}</Button>
-      {/* NO EMPTY STATE, and this is a deliberate subtraction. An EmptyState
-          announces an absence, which is worth 146px when a reader might
-          otherwise wonder whether something failed to load. Here the control
-          that fills the absence is directly underneath, and the same screen
-          already explained itself twice: the section's own description says
-          what the assistant does, and the composer's placeholder shows a
-          question to ask. A third block saying "no conversation yet" above the
-          box for starting one cost 146px of the 403 this section spent while
-          empty - and the proposals, which are the page's actual work, started
-          at y=740 in a 900px viewport because of it.
-
-          The composer IS the empty state. */}
-      {messages.length > 0 || pending ? (
-        <div role="log" aria-live="polite" aria-busy={pending} className="my-md max-h-[60vh] space-y-md overflow-y-auto">
-          {messages.map((m, i) => (
-            <div key={i} data-role={m.role} className={`whitespace-pre-wrap rounded-lg p-md text-body-small leading-relaxed ${m.role === "user" ? "ml-lg bg-muted" : "mr-lg border border-border bg-card"}`}>
-              <p className="mb-xs text-label text-muted-foreground">{m.role === "user" ? COPILOT_TEXT.you : COPILOT_TEXT.assistant}</p>
-              {m.content}
-              {m.citations?.length ? <div className="mt-sm flex flex-wrap gap-xs">{m.citations.map((citation) => <Button key={citation.id} variant="outline" size="md" asChild><Link href={citation.href}>{citation.label}</Link></Button>)}</div> : null}
-            </div>
-          ))}
-          <div ref={transcriptEnd} />
-          {pending ? (
-            <div data-role="assistant">{COPILOT_TEXT.thinking}</div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {error ? (
-        <StatusBadge tone="danger">
-          {COPILOT_TEXT.errorPrefix}
-          {error}
-        </StatusBadge>
-      ) : null}
-
-      {error && recovery.current ? <p className="text-body-small text-muted-foreground">{COPILOT_TEXT.recoveryHint}</p> : null}
-
-      {outcome && outcome.proposalCount > 0 ? (
-        // A count and a pointer - never an inline accept. Approving a change
-        // from inside a chat bubble is how the human step becomes a formality.
-        <a href="#copilot-proposals"><StatusBadge tone="warning">
-          {COPILOT_TEXT.proposalsFromTurn(outcome.proposalCount)}
-        </StatusBadge></a>
-      ) : null}
-
-      {outcome && outcome.droppedProposals > 0 ? (
-        <Tag>
-          {COPILOT_TEXT.droppedProposals(outcome.droppedProposals)}
-        </Tag>
-      ) : null}
-
-      {outcome && outcome.capabilitiesUsed.length > 0 ? (
-        <StatusBadge tone="info">
-          {COPILOT_TEXT.capabilitiesUsed(
-            [...new Set(outcome.capabilitiesUsed)].join(", "),
-          )}
-        </StatusBadge>
-      ) : null}
-
-      {outcome?.truncated ? (
-        <StatusBadge tone="warning">{COPILOT_TEXT.truncated}</StatusBadge>
-      ) : null}
-
-      {messages.length === 0 && !rehearsal ? <div className="my-sm flex flex-wrap gap-xs">
-        {COPILOT_TEXT.starters.map((question) => <Button key={question} variant="outline" size="md" disabled={!canAsk || pending} onClick={() => setDraft(question)}>{question}</Button>)}
+    </div>
+    <AssistantTranscript revision={messages.length} busy={pending}>
+      {messages.map((message, index) => <AssistantMessage key={message.id ?? index} role={message.role}>
+        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        {message.citations?.length ? <div className="mt-sm flex flex-wrap gap-xs">{message.citations.map(citation => <Button key={citation.id} variant="outline" size="md" asChild><Link href={citation.href}>{citation.label}</Link></Button>)}</div> : null}
+      </AssistantMessage>)}
+      {pending ? <p role="status" className="flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="spinner" size="sm" className="animate-spin" />{COPILOT_TEXT.thinking}</p> : null}
+      {error ? <Card className="p-md" data-assistant-failure>
+        <p role="alert" className="text-body-small text-destructive-text">{error}</p>
+        <Button type="button" size="md" variant="outline" disabled={pending || !draft.trim()} onClick={() => submit(draft)}>{COPILOT_TEXT.submit}</Button>
+      </Card> : null}
+      {outcome && outcome.proposalCount > 0 ? <Card className="p-md"><Button asChild size="md" variant="outline">
+        <Link href="/copilot#copilot-proposals">{COPILOT_TEXT.proposalsFromTurn(outcome.proposalCount)}</Link>
+      </Button></Card> : null}
+      {outcome && outcome.droppedProposals > 0 ? <Tag>{COPILOT_TEXT.droppedProposals(outcome.droppedProposals)}</Tag> : null}
+      {outcome?.truncated ? <StatusBadge tone="warning">{COPILOT_TEXT.truncated}</StatusBadge> : null}
+      {messages.length === 0 && !rehearsal ? <div className="flex flex-wrap gap-xs">
+        {COPILOT_TEXT.starters.map(question => <Button key={question} variant="outline" size="md" disabled={!canAsk || pending} onClick={() => setDraft(question)}>{question}</Button>)}
       </div> : null}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit(draft);
-        }}
-      >
-        <Textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={COPILOT_TEXT.placeholder}
-          disabled={!canAsk || pending}
-          rows={3}
-          aria-label={COPILOT_TEXT.placeholder}
-        />
-        <Button
-          type="submit"
-          disabled={!canAsk || pending || draft.trim() === ""}
-        >
-          {COPILOT_TEXT.submit}
-        </Button>
-        {!canAsk ? <p>{COPILOT_TEXT.errorGeneric}</p> : null}
-      </form>
-    </Section>
-  );
+    </AssistantTranscript>
+    <AssistantComposer value={draft} onChange={setDraft} onSend={() => submit(draft)} disabled={!canAsk && !onRecord} sendDisabled={!canAsk} busy={pending}
+      placeholder={COPILOT_TEXT.placeholder} extra={onRecord ? <Button type="button" size="md" variant="ghost"
+        disabled={pending || !draft.trim()} onClick={() => {
+          const note = draft.trim();
+          if (!note || inFlight.current) return;
+          inFlight.current = true;
+          startTransition(async () => {
+            try {
+              const result = await onRecord(note);
+              if (result.ok) { setDraft(""); setMessages(previous => [...previous, { role: "user", content: note }, { role: "assistant", content: BOARD_TEXT.captured }]); router.refresh(); }
+              else setError(FIELD_ERROR[result.error ?? "denied"] ?? FIELD_ERROR.denied);
+            } catch { setError(COPILOT_TEXT.errorGeneric); }
+            finally { inFlight.current = false; }
+          });
+        }}>{P.recordNote}</Button> : null} />
+  </div>;
+  return embedded ? conversation : <Section title={COPILOT_TEXT.title} help={COPILOT_TEXT.description}>{conversation}</Section>;
 }

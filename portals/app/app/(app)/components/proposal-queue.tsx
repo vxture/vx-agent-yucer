@@ -25,7 +25,7 @@ import {
   type AgentAction,
   type Decision,
 } from "../../domains/copilot/lib/action";
-import { isExecutable } from "../../domains/copilot/lib/autonomy";
+import { operationRisk, isExecutable } from "../../domains/copilot/lib/autonomy";
 import { capabilityLabel } from "../../domains/copilot/lib/capability";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
 import {
@@ -38,6 +38,8 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { displayRationale } from "../lib/proposal-rationale";
 import { Tag } from "./tag";
+import { ConfirmDestructive } from "./confirm-destructive";
+import { DialogForm } from "./dialog-form";
 // The copilot proposal queue - where a human decides what the agent may do.
 //
 // ADR-003 named the risk this surface exists to answer: one-at-a-time
@@ -135,6 +137,9 @@ export function ProposalQueue({
     DS_LABELS,
     PROPOSAL_TEXT,
     PROPOSAL_ERROR,
+    ACCOUNT_BASICS_TEXT,
+    DECISION_ROLE_LABEL,
+    STANCE_LABEL,
     TABLE_TOOLBAR_TEXT,
     RATIONALE_TEXT,
   } = useMessages();
@@ -148,6 +153,7 @@ export function ProposalQueue({
   const [expanded, setExpanded] = useState<readonly string[]>([]);
   const [confirming, setConfirming] = useState<Decision | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   /* 工具行. ONE TABLE HERE, holding proposed and decided rows together, so
@@ -205,41 +211,51 @@ export function ProposalQueue({
     // The result used to be discarded, so a refused adjudication cleared the
     // selection and closed the dialog exactly like a successful one. The two
     // outcomes must not be indistinguishable (TD-010 sweep).
+    if (submitting) return;
+    setSubmitting(true);
     setNotice(null);
-    const r = await onDecide(
-      selectedActions.map((a) => a.id),
-      decision,
-    );
-    // A PARTIAL SUCCESS IS NOT A SUCCESS AND NOT A FAILURE, and saying nothing
-    // would be the worst of the three. Since 2026-09-01 accepting also carries
-    // the action out, so "ok" can mean "signed for, and one of them did not
-    // happen" - the queue empties either way, and without this line the deal
-    // that did not move is a thing the reader would have to go and notice.
-    //
-    // The COUNT and the FIRST REASON, not a list: the row itself now says
-    // `failed`, so this is the nudge to look rather than the report.
-    if (!r.ok) {
-      setError(PROPOSAL_ERROR[r.error ?? "denied"] ?? PROPOSAL_ERROR.not_found);
-    } else if (r.failed && r.failed.length > 0) {
-      // A REAL ATTEMPT THAT WAS REFUSED - reported first, because it is the
-      // one that needs looking at.
-      const reason =
-        PROPOSAL_ERROR[r.failed[0].reason] ?? PROPOSAL_ERROR.not_found;
-      setError(PROPOSAL_TEXT.executionFailed(r.failed.length, reason));
-    } else if (r.manual && r.manual.length > 0) {
-      // NOT AN ERROR, and it does not pretend to be: these were accepted and
-      // nothing was attempted, so the row stays `accepted` rather than being
-      // ended as `failed`. The reader still has to know a person now owes the
-      // work.
-      setNotice(PROPOSAL_TEXT.acceptedForManual(r.manual.length));
-      setError(null);
-    } else {
-      setError(null);
+    let refusal: string | undefined;
+    try {
+      const r = await onDecide(
+        selectedActions.map((a) => a.id),
+        decision,
+      );
+      // A PARTIAL SUCCESS IS NOT A SUCCESS AND NOT A FAILURE, and saying nothing
+      // would be the worst of the three. Since 2026-09-01 accepting also carries
+      // the action out, so "ok" can mean "signed for, and one of them did not
+      // happen" - the queue empties either way, and without this line the deal
+      // that did not move is a thing the reader would have to go and notice.
+      //
+      // The COUNT and the FIRST REASON, not a list: the row itself now says
+      // `failed`, so this is the nudge to look rather than the report.
+      if (!r.ok) {
+        refusal = PROPOSAL_ERROR[r.error ?? "denied"] ?? PROPOSAL_ERROR.not_found;
+        throw new Error("Decision refused");
+      } else if (r.failed && r.failed.length > 0) {
+        // A REAL ATTEMPT THAT WAS REFUSED - reported first, because it is the
+        // one that needs looking at.
+        const reason =
+          PROPOSAL_ERROR[r.failed[0].reason] ?? PROPOSAL_ERROR.not_found;
+        setError(PROPOSAL_TEXT.executionFailed(r.failed.length, reason));
+      } else if (r.manual && r.manual.length > 0) {
+        // NOT AN ERROR, and it does not pretend to be: these were accepted and
+        // nothing was attempted, so the row stays `accepted` rather than being
+        // ended as `failed`. The reader still has to know a person now owes the
+        // work.
+        setNotice(PROPOSAL_TEXT.acceptedForManual(r.manual.length));
+        setError(null);
+      } else {
+        setError(null);
+      }
+      setSelected(new Set());
+      setConfirming(null);
+    } catch (cause) {
+      setError(refusal ?? PROPOSAL_ERROR.denied);
+      throw cause;
+    } finally {
+      setSubmitting(false);
     }
-    setSelected(new Set());
-    setConfirming(null);
   }
-
   const columns: readonly DataTableColumn<AgentAction>[] = [
     {
       id: "action",
@@ -410,7 +426,21 @@ export function ProposalQueue({
           decision={confirming}
           risk={risk}
           onCancel={() => setConfirming(null)}
-          onConfirm={() => void apply(confirming)}
+          destructive={confirming === "accept" && selectedActions.some(action => operationRisk(action.actionType) === "destructive" && isExecutable(action.actionType))}
+          targets={selectedActions.map(action => {
+            const p = action.payload;
+            const field = String(p.field ?? "");
+            const fieldLabel = (ACCOUNT_BASICS_TEXT as Record<string, unknown>)[field];
+            const effect = action.actionType === "fill_account_field"
+              ? `${typeof fieldLabel === "string" ? fieldLabel : field}: ${String(p.value ?? "")}`
+              : action.actionType === "set_buying_role"
+                ? `${String(p.personName ?? p.personId ?? "")}: ${DECISION_ROLE_LABEL[String(p.buyingRole)] ?? String(p.buyingRole ?? "")}${p.stance ? ` / ${STANCE_LABEL[String(p.stance)] ?? String(p.stance)}` : ""}`
+                : "";
+            return `${AGENT_ACTION_LABEL[action.actionType] ?? action.actionType}: ${subjectOf(action)?.name ?? action.subjectId}${effect ? ` - ${effect}` : ""}`;
+          }).join("; ")}
+          submitting={submitting}
+          error={error}
+          onConfirm={() => apply(confirming)}
         />
       ) : null}
 
@@ -571,7 +601,11 @@ interface BatchConfirmProps {
   readonly decision: Decision;
   readonly risk: ReturnType<typeof batchRisk>;
   readonly onCancel: () => void;
-  readonly onConfirm: () => void;
+  readonly onConfirm: () => Promise<void>;
+  readonly destructive: boolean;
+  readonly targets: string;
+  readonly submitting: boolean;
+  readonly error: string | null;
 }
 
 /**
@@ -579,73 +613,23 @@ interface BatchConfirmProps {
  * as "accept 200 items" is precisely what makes bulk approval dangerous, so the
  * count, the kinds, the targets and the low-confidence share are all named.
  */
-function BatchConfirm({
-  decision,
-  risk,
-  onCancel,
-  onConfirm,
-}: BatchConfirmProps) {
-  const { AGENT_ACTION_LABEL, AGENT_SUBJECT_LABEL, PROPOSAL_TEXT } =
-    useMessages();
-  const verb =
-    decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
-  return (
-    <Section
-      tone="default"
-      title={PROPOSAL_TEXT.confirmTitle(verb, risk.count)}
-      description={PROPOSAL_TEXT.confirmDetail({
-        // LABELLED, like the table one row below. This printed the raw enums -
-        // a Chinese dialog reading "动作类型：draft_outreach；作用对象：account"
-        // directly under a table that says 起草触达 / 客户. The table was fixed
-        // for exactly this and the dialog was missed, which is the shape TD-010
-        // keeps taking: the value is a key, and the sentence lives in the
-        // message table. The raw value stays as the fallback, because
-        // action_type is an open vocabulary and no map can be exhaustive.
-        actionTypes: PROPOSAL_TEXT.joinLabels(
-          risk.actionTypes.map((t) => AGENT_ACTION_LABEL[t] ?? t),
-        ),
-        subjectTypes: PROPOSAL_TEXT.joinLabels(
-          risk.subjectTypes.map((t) => AGENT_SUBJECT_LABEL[t] ?? t),
-        ),
-        meanConfidence: risk.meanConfidence,
-        lowConfidenceCount: risk.lowConfidenceCount,
-      })}
-      action={
-        <>
-          <Button variant="ghost" onClick={onCancel}>
-            {PROPOSAL_TEXT.cancel}
-          </Button>
-          {/* destructive-STRONG, not destructive, and that is the DS's own
-              distinction rather than a way around the new type obligation.
-              This button IS the confirmation - BatchConfirm is the interrupt
-              batchRisk() exists to raise - so asking it to raise a second one
-              would be a loop, and design-ui 6.0 leaves the strong grade
-              unconstrained for exactly that reason: it is the hammer, and a
-              hammer does not ask itself. */}
-          <Button
-            variant={decision === "accept" ? "default" : "destructive-strong"}
-            onClick={onConfirm}
-          >
-            {PROPOSAL_TEXT.confirm(verb)}
-          </Button>
-        </>
-      }
-    >
-      {decision === "accept" ? (
-        <>
-          <p>{PROPOSAL_TEXT.acceptNote}</p>
-          {/* SAID BEFORE THE CLICK, not after. Accepting performs the action,
-              except for the ones it cannot - and which of the two a batch is is
-              part of what the person is deciding. */}
-          {risk.manualCount > 0 ? (
-            <p>
-              {PROPOSAL_TEXT.acceptManualNote(risk.manualCount, risk.count)}
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <p>{PROPOSAL_TEXT.rejectNote}</p>
-      )}
-    </Section>
-  );
+function BatchConfirm({ decision, risk, onCancel, onConfirm, destructive, targets, submitting, error }: BatchConfirmProps) {
+  const { AGENT_ACTION_LABEL, AGENT_SUBJECT_LABEL, PROPOSAL_TEXT, AUTONOMY_TEXT } = useMessages();
+  const verb = decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
+  const detail = PROPOSAL_TEXT.confirmDetail({
+    actionTypes: PROPOSAL_TEXT.joinLabels(risk.actionTypes.map(type => AGENT_ACTION_LABEL[type] ?? type)),
+    subjectTypes: PROPOSAL_TEXT.joinLabels(risk.subjectTypes.map(type => AGENT_SUBJECT_LABEL[type] ?? type)),
+    meanConfidence: risk.meanConfidence, lowConfidenceCount: risk.lowConfidenceCount,
+  });
+  if (destructive) return <ConfirmDestructive open onOpenChange={open => { if (!open && !submitting) onCancel(); }}
+    verb={verb} target={targets} consequence={`${AUTONOMY_TEXT.overwriteConsequence} ${detail}${error ? ` ${error}` : ""}`} onConfirm={onConfirm} />;
+  return <DialogForm open onOpenChange={open => { if (!open && !submitting) onCancel(); }}
+    title={PROPOSAL_TEXT.confirmTitle(verb, risk.count)} description={detail} size="sm"
+    submitLabel={PROPOSAL_TEXT.confirm(verb)} submitting={submitting}
+    onSubmit={event => { event.preventDefault(); void onConfirm().catch(() => undefined); }}>
+    <p className="text-body-small">{targets}</p>
+    {error ? <p role="alert" className="text-body-small text-destructive-text">{error}</p> : null}
+    <p className="text-body-small text-muted-foreground">{decision === "accept" ? PROPOSAL_TEXT.acceptNote : PROPOSAL_TEXT.rejectNote}</p>
+    {decision === "accept" && risk.manualCount > 0 ? <p className="text-body-small text-muted-foreground">{PROPOSAL_TEXT.acceptManualNote(risk.manualCount, risk.count)}</p> : null}
+  </DialogForm>;
 }

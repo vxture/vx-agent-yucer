@@ -1,145 +1,43 @@
 import type { AgentAction } from "./action";
 
-// How much the copilot may do without being asked.
-//
-// The owner's rulings of 2026-09-01, in order:
-//
-//   1. "采纳当然要真实发生业务动作" - accepting a proposal has to do the thing.
-//      Until now accepting left the row at `accepted` and the deal did not
-//      move, which made the whole adjudication theatre.
-//   2. Three postures, not a boolean: act on the safe ones and ask about the
-//      rest; ask about everything; act on everything.
-//   3. High risk is IRREVERSIBLE **or** LOW CONFIDENCE.
-//
-// ADR-003 is not weakened by any of this. The machine still proposes and a
-// human still decides - what the workspace decides, once, is which decisions it
-// wants to keep making one at a time. That is a decision a person makes, in a
-// setting, with their name on it (agent_autonomy.decided_by_sub).
-
-export const AUTONOMY_MODES = ["ask_high_risk", "ask_always", "autonomous"] as const;
+// Persisted identifiers remain compatible with agent_autonomy's existing CHECK.
+export const AUTONOMY_MODES = ["ask_always", "ask_high_risk", "autonomous"] as const;
 export type AutonomyMode = (typeof AUTONOMY_MODES)[number];
-
-export function isAutonomyMode(v: string): v is AutonomyMode {
-  return (AUTONOMY_MODES as readonly string[]).includes(v);
+export function isAutonomyMode(value: string): value is AutonomyMode {
+  return (AUTONOMY_MODES as readonly string[]).includes(value);
 }
 
-/**
- * Action types the copilot may carry out on its own, when the mode allows it.
- *
- * ONE LIST, TWO MEANINGS, and they have to be the same list. An entry here says
- * both "this is reversible enough to do unwatched" AND "the executor knows how
- * to do it" - `executor.ts` consults this very constant before dispatching, so
- * a type that is auto-approved and then unperformable cannot exist. That
- * combination is the worst of both readings: nobody looked at it, and nothing
- * happened.
- *
- * REVERSIBILITY IS THE LINE, not the model's opinion of itself. `advance_stage`
- * writes to our own records and journals every move in opportunity_stage_event,
- * so somebody can walk it back.
- *
- * `fill_account_field` joined on 2026-09-01 - the model filling in a customer's
- * industry or region on first entry, which the owner asked for. It qualifies on
- * the same test rather than on being useful: it writes one whitelisted column
- * on our own record, the previous value is visible in the record it overwrote,
- * and a wrong industry is corrected by typing over it. Nothing leaves the
- * building.
- *
- * Note what that means under `ask_high_risk`: a HIGH-CONFIDENCE fill happens
- * without being asked, and a low-confidence one waits. That is the intended
- * reading - a model unsure what a company does should not be quietly writing
- * it down - and it is why the confidence floor matters more here than anywhere
- * else, because an industry decides the segment, which decides the playbook.
- *
- * `record_interaction` joined on 2026-09-22 - the copilot structuring a pasted
- * meeting transcript into an interaction record (ADR-006). It qualifies on the
- * same reversibility test: it writes to our own append-only evidence table, and
- * a wrong record is corrected by a new row (correctsInteractionId), never
- * overwritten. Nothing leaves the building. capture_mode is set to
- * `agent_drafted` so the provenance is always visible.
- *
- * `draft_outreach` is deliberately absent and is the reason the line is drawn
- * here rather than at confidence: a message sent to a customer cannot be
- * unsent, and no confidence score makes it retractable. It is also why this
- * batch never had to decide what "draft an outreach" should produce - under
- * this rule a person sees it every time, whatever the mode.
- *
- * `promote_signal` WAS here and was removed on 2026-09-01, when wiring the
- * executor showed it cannot be performed as modelled: agent_action's
- * subject_type CHECK allows account, lead, opportunity, project, campaign and
- * plan - there is no `signal` - so a proposal has no way to name which signal
- * to promote (the demo seeds one against a LEAD id, which promoteSignal would
- * read as a signal id and not find). It was the exact failure this list now
- * prevents: called safe, auto-approved under ask_high_risk, and impossible to
- * carry out. Making it executable means widening the CHECK or redefining the
- * action; both are rulings, not wiring.
- *
- * An action type absent from this set is high risk BY DEFAULT. That is not
- * caution for its own sake: `action_type` is FREE TEXT from the model - the
- * tool schema offers "e.g. advance_stage, update_forecast_category,
- * draft_email" and nothing validates what comes back - so the set of things
- * that can arrive here is open, and only an allowlist can bound it.
+export type OperationRisk = "routine" | "important" | "destructive";
+/** Server-owned risk registration, never a classification supplied by a model.
+ * Reads and unsubmitted drafts use read-only tools outside the write executor.
+ * All currently executable proposals change business records. Field and role
+ * replacements can overwrite existing values, so always require confirmation.
  */
-export const EXECUTABLE_ACTIONS: readonly string[] = [
-  "advance_stage",
-  "fill_account_field",
-  "record_interaction",
-  // Deal batch 4b: a new VERSION of an evidence slot - append-only, the prior
-  // version stays in the history, so accepting is reversible by a later one.
-  "record_evidence",
-  // Deal batch 4c: a role or stance on one deal (restated by the next
-  // statement), and a promise (closed or waived like any other).
-  "set_buying_role",
-  "add_commitment",
-  // Deal batch 5c: an accepted plan step is a commitment, like the above.
-  "plan_step",
-];
-
-/**
- * Can the product carry this action out itself?
- *
- * ASKED BEFORE ACCEPTING, not only after. A person deciding a queue is entitled
- * to know which of these the machine will actually perform and which it is only
- * recording their agreement to - those are different acts, and offering one
- * button for both makes the reader discover the difference afterwards.
- *
- * The answer is also what keeps `failed` meaning something. A type with no
- * handler was never attempted, so calling the outcome a failure would put "we
- * tried and were refused" and "we never knew how" in the same bucket - and
- * `failed` is terminal, so it would end a judgement the person had just made.
- */
+export const ACTION_RISK: Readonly<Record<string, OperationRisk>> = {
+  advance_stage: "important",
+  fill_account_field: "destructive",
+  record_interaction: "important",
+  record_evidence: "important",
+  set_buying_role: "destructive",
+  add_commitment: "important",
+  plan_step: "important",
+};
+export const EXECUTABLE_ACTIONS: readonly string[] = Object.keys(ACTION_RISK);
 export function isExecutable(actionType: string): boolean {
-  return EXECUTABLE_ACTIONS.includes(actionType);
+  return Object.hasOwn(ACTION_RISK, actionType);
+}
+export function operationRisk(actionType: string): OperationRisk {
+  return Object.hasOwn(ACTION_RISK, actionType) ? ACTION_RISK[actionType]! : "destructive";
 }
 
-/**
- * Below this, the model is not sure enough to act unwatched.
- *
- * 60 because it is the line the product already draws: the copilot page says
- * "其中 N 条置信度低于 60%，值得先读理由", so a reader has been told for months
- * that 60 is where a recommendation stops speaking for itself. Inventing a
- * second threshold would give the product two answers about the same doubt.
- *
- * A proposal with NO confidence is treated as below it. Absent is not high -
- * a model that declined to say how sure it was has not earned an unwatched
- * write.
- */
 export const CONFIDENCE_FLOOR = 60;
-
-export type RiskReason = "irreversible" | "low_confidence";
-
-/**
- * Why this proposal is high risk, or empty when it is not.
- *
- * BOTH REASONS ARE REPORTED, not the first one found. A page that says only
- * "low confidence" about an outreach draft would invite somebody to fix the
- * confidence and expect it to go through.
- */
+export type RiskReason = "irreversible" | "important" | "low_confidence";
 export function riskOf(action: Pick<AgentAction, "actionType" | "confidence">): RiskReason[] {
   const reasons: RiskReason[] = [];
-  if (!EXECUTABLE_ACTIONS.includes(action.actionType)) reasons.push("irreversible");
-  if (action.confidence === null || action.confidence < CONFIDENCE_FLOOR) {
-    reasons.push("low_confidence");
-  }
+  const risk = operationRisk(action.actionType);
+  if (risk === "destructive") reasons.push("irreversible");
+  else if (risk === "important") reasons.push("important");
+  if (action.confidence === null || action.confidence < CONFIDENCE_FLOOR) reasons.push("low_confidence");
   return reasons;
 }
 
@@ -147,28 +45,14 @@ export type AutonomyVerdict =
   | { readonly kind: "act"; readonly mode: AutonomyMode }
   | { readonly kind: "ask"; readonly reasons: readonly RiskReason[] };
 
-/**
- * Does this proposal need a person, under this workspace's posture?
- *
- * A PURE FUNCTION OF THE PROPOSAL AND THE MODE. It says nothing about whether
- * the caller is entitled or permitted to act autonomously - `autopilotAuthorized`
- * answers that, and it needs three independent yeses of its own. This is the
- * fourth question and it is asked last: even a workspace that bought autopilot,
- * granted the permission and switched it on still does not get to skip a
- * decision this rule says is a person's.
+/** Confirmation preference never grants business permission or task scope.
+ * Unknown and destructive operations cannot skip confirmation in any mode.
+ * The service separately checks entitlement, actor and workspace. Task-scope
+ * and execution-time expiry validation are tracked in issue #652.
  */
-export function decideAutonomy(
-  action: Pick<AgentAction, "actionType" | "confidence">,
-  mode: AutonomyMode,
-): AutonomyVerdict {
-  if (mode === "ask_always") {
-    // Not "no reasons" - the mode is the reason, and reporting an empty list
-    // here would let a caller conclude the proposal was safe and merely
-    // waiting, which is a different sentence.
-    return { kind: "ask", reasons: riskOf(action) };
-  }
-  if (mode === "autonomous") return { kind: "act", mode };
-
+export function decideAutonomy(action: Pick<AgentAction, "actionType" | "confidence">, mode: AutonomyMode): AutonomyVerdict {
   const reasons = riskOf(action);
-  return reasons.length > 0 ? { kind: "ask", reasons } : { kind: "act", mode };
+  if (mode === "ask_always" || operationRisk(action.actionType) === "destructive") return { kind: "ask", reasons };
+  if (mode === "autonomous") return { kind: "act", mode };
+  return reasons.length ? { kind: "ask", reasons } : { kind: "act", mode };
 }

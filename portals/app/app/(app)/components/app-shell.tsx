@@ -18,7 +18,6 @@ import {
   ShellPageContainer,
   ShellViewport,
   StatusBadge,
-  useFullscreen,
 } from "@vxture/design-ui";
 import {
   LOCALE_CONFIGS,
@@ -199,21 +198,23 @@ export function AppShell({
   const [showDock, setShowDock] = useState(dockOpen);
   const [assistantWidth, setAssistantWidth] = useState<AssistantWidth>(dockWidth);
   const dockRef = useRef<HTMLDivElement>(null);
-  const { isTargetFullscreen, toggle: toggleFullscreen, exit: exitFullscreen } = useFullscreen();
-  const assistantFullscreen = isTargetFullscreen("yucer-assistant");
-  const fullscreenState = useRef({ active: assistantFullscreen, exit: exitFullscreen });
-  useEffect(() => { fullscreenState.current = { active: assistantFullscreen, exit: exitFullscreen }; });
-  useEffect(() => () => {
-    if (fullscreenState.current.active) fullscreenState.current.exit();
-  }, []);
+  const [assistantFullscreen, setAssistantFullscreen] = useState(false);
+  const assistantAvailable = !isAdmin && activeKey !== "home" && activeKey !== "copilot";
   const workbench = nav.find(entry => entry.key === "copilot" && entry.state === "visible");
   useEffect(() => {
     if (!assistantFullscreen) return;
-    if (isAdmin) { exitFullscreen(); return; }
+    if (!assistantAvailable) { setAssistantFullscreen(false); return; }
     dockRef.current?.querySelector<HTMLButtonElement>("[data-assistant-fullscreen-toggle]")?.focus();
-  }, [assistantFullscreen, isAdmin, exitFullscreen]);
+  }, [assistantFullscreen, assistantAvailable]);
+  useEffect(() => {
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) setAssistantFullscreen(false);
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, []);
 
-  const deckVisible = showDock;
+  const deckVisible = showDock && assistantAvailable;
 
   const toggleAdminNav = () =>
     setAdminNavExpanded((prev) => {
@@ -224,7 +225,7 @@ export function AppShell({
     });
 
   const toggleDock = () => {
-    if (assistantFullscreen) exitFullscreen();
+    if (assistantFullscreen) setAssistantFullscreen(false);
     setShowDock((prev) => {
       writeNavCollapsed(DOCK_COOKIE_PREFIX, prev);
       return !prev;
@@ -232,13 +233,13 @@ export function AppShell({
   };
 
   const toggleAssistantWidth = () => {
-    if (assistantFullscreen) exitFullscreen();
+    if (assistantFullscreen) setAssistantFullscreen(false);
     const next = assistantWidth === "narrow" ? "wide" : "narrow";
     setAssistantWidth(next);
     document.cookie = `${ASSISTANT_WIDTH_COOKIE}=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
   };
   const closeAssistant = () => {
-    if (assistantFullscreen) exitFullscreen();
+    if (assistantFullscreen) setAssistantFullscreen(false);
     writeNavCollapsed(DOCK_COOKIE_PREFIX, true);
     setShowDock(false);
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-assistant-dock-trigger] button")?.focus());
@@ -299,26 +300,26 @@ export function AppShell({
         ) : null
       }
       sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed") : "hidden"}
-      dock={!isAdmin && deckVisible ? (
-        <div ref={dockRef} className={workspaceInsets.assistantDock}
+      dock={assistantAvailable ? (
+        <div ref={dockRef} hidden={!deckVisible} inert={!deckVisible} className={workspaceInsets.assistantDock}
           data-assistant-width={assistantWidth} data-assistant-fullscreen={assistantFullscreen}>
           <ShellDock mode={assistantFullscreen ? "full" : assistantWidth}
-            className={`${ASSISTANT_PANE_CLASS} ${workspaceInsets.assistantPane} bg-background shadow-none`}>
+            className={`${ASSISTANT_PANE_CLASS} ${workspaceInsets.assistantPane} border-0 bg-surface-3`}>
           <AssistantPanel wide={assistantWidth === "wide"} fullscreen={assistantFullscreen}
             onToggleWidth={toggleAssistantWidth} onClose={closeAssistant} workbenchHref={workbench?.href}
-            onToggleFullscreen={() => { const target = dockRef.current?.querySelector("aside"); if (target) toggleFullscreen("yucer-assistant", target, { mode: "pseudo" }); }}>
+            onToggleFullscreen={() => setAssistantFullscreen(current => !current)}>
             {deck}
           </AssistantPanel>
           </ShellDock>
         </div>
       ) : null}
       header={
-        <div inert={assistantFullscreen} className="shrink-0">
+        <div className="shrink-0">
         <ShellHeader
           // 单产品视角 (design-system 03 section 7.1, 13.5+): full width, the page
           // background, the DS's default workspace height (md, 48px).
-          surface="background"
-          className="gap-md"
+          surface="card"
+          className={`gap-md border-b border-border ${workspaceInsets.header}`}
           leading={
             <>
               {/* Module switching and its key figures live in one place. */}
@@ -387,11 +388,11 @@ export function AppShell({
             <div className="flex items-center gap-md">
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
-              <AgentDockButton
+              {assistantAvailable ? <AgentDockButton
                 count={deckCount}
-                open={showDock}
+                open={deckVisible}
                 onToggle={toggleDock}
-              />
+              /> : null}
 
               {/* (3) The shell tools: help, messages, settings. */}
               <HeaderTools

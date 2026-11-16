@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import { Button, Card, useToast } from "@vxture/design-ui";
+import { Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, useToast } from "@vxture/design-ui";
+import { ConfirmDestructive } from "./confirm-destructive";
+import { useAssistantInteraction } from "./assistant-interaction";
 import { ActionMenu } from "./business-controls";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
@@ -50,6 +52,7 @@ export interface AssistantItem {
     readonly run: () => Promise<{ ok: boolean; error?: string }>;
     /** Said on success - the product confirming what it did. */
     readonly done?: string;
+    readonly confirm?: { readonly verb: string; readonly target: string; readonly consequence: string };
     /** THE MODULE'S OWN ERROR DICTIONARY (TD-010: the action returns a code,
      * this turns it into a sentence). Supplied by the panel because the panel
      * is the thing that knows which module's vocabulary a refusal belongs to.
@@ -94,8 +97,10 @@ const TONE_TEXT = {
   danger: "text-destructive-text",
 } as const;
 
-export function AssistantSection({ section }: { readonly section: AssistantSection }) {
-  const { ASSISTANT_TEXT } = useMessages();
+export function AssistantSection({ section, compact = false, onResolve }: { readonly section: AssistantSection; readonly compact?: boolean; readonly onResolve?: (id: string) => void }) {
+  const { ASSISTANT_TEXT, ASSISTANT_PANEL_TEXT: P } = useMessages();
+  const [confirming, setConfirming] = useState<AssistantItem | null>(null);
+  const [expanded, setExpanded] = useState<readonly string[]>([]);
   // ACCEPTED AND IGNORED ARE DIFFERENT THINGS, and conflating them was a
   // real defect (review, 2026-09-05): a successful act pushed the item onto
   // `ignored`, so the product told you it had IGNORED the suggestion you had
@@ -110,31 +115,38 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
     (i) => !ignored.includes(i.id) && !accepted.includes(i.id),
   );
 
+  const runItem = async (item: AssistantItem): Promise<boolean> => {
+    try {
+      const result = await item.act!.run();
+      if (result.ok) {
+        setAccepted(current => [...current, item.id]);
+        onResolve?.(item.id);
+        if (item.act?.done) toast({ tone: "success", title: item.act.done });
+        return true;
+      }
+      const dictionary = item.act?.errors;
+      toast({ tone: "danger", title: dictionary?.[result.error ?? "denied"] ?? dictionary?.denied ?? ASSISTANT_TEXT.actFailed });
+    } catch { toast({ tone: "danger", title: ASSISTANT_TEXT.actFailed }); }
+    return false;
+  };
   const act = (item: AssistantItem) => {
-    if (!item.act) return;
-    start(() => {
-      void item.act!.run().then((r) => {
-        if (r.ok) {
-          setAccepted((x) => [...x, item.id]);
-          if (item.act?.done) toast({ tone: "success", title: item.act.done });
-        } else {
-          const dict = item.act?.errors;
-          toast({
-            tone: "danger",
-            title:
-              dict?.[r.error ?? "denied"] ?? dict?.denied ?? ASSISTANT_TEXT.actFailed,
-          });
-        }
-      });
-    });
+    if (!item.act || pending) return;
+    if (item.act.confirm) { setConfirming(item); return; }
+    start(async () => { await runItem(item); });
   };
 
+  const Frame = compact ? "div" : Card;
   return (
-    <Card className="p-sm">
+    <Frame className={compact ? "min-w-0" : "p-sm"}>
       {/* ONE child (polish, 2026-09-24): the DS Card spaces its direct
           children with its own gap, and title / body / footer each already
           carry mt-sm - together a ~50px blank band under every title. */}
       <div>
+      {confirming?.act?.confirm ? <ConfirmDestructive open onOpenChange={open => { if (!open) setConfirming(null); }}
+        {...confirming.act.confirm} onConfirm={async () => {
+          if (!await runItem(confirming)) throw new Error("Action refused");
+          setConfirming(null);
+        }} /> : null}
       <div className="flex items-center gap-xs">
         <span className="text-label text-foreground">{section.title}</span>
         {section.scope ? (
@@ -147,8 +159,14 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
       ) : (
         <div className="mt-sm flex flex-col gap-sm">
           {shown.map((item) => (
-            <div key={item.id} className="border-border rounded-md border p-sm">
-              <p className={`text-body-small ${TONE_TEXT[item.tone ?? "info"]}`}>{item.text}</p>
+            <Card key={item.id} className="p-sm">
+              <div>
+              <Collapsible open={!compact || expanded.includes(item.id)} onOpenChange={open => setExpanded(current => open ? [...current, item.id] : current.filter(id => id !== item.id))}>
+                {compact ? <CollapsibleTrigger className="flex min-h-control-xl w-full items-start justify-between gap-sm text-left" aria-label={`${P.showDetails}: ${item.text}`}>
+                  <span className={`text-body-small ${TONE_TEXT[item.tone ?? "info"]}`}>{item.text}</span>
+                  <Icon name={expanded.includes(item.id) ? "chevron-up" : "chevron-down"} size="xs" className="mt-2xs shrink-0 text-muted-foreground" />
+                </CollapsibleTrigger> : <p className={`text-body-small ${TONE_TEXT[item.tone ?? "info"]}`}>{item.text}</p>}
+              <CollapsibleContent>
               {item.evidence ? (
                 <p className="text-muted-foreground mt-xs text-body-small">{item.evidence}</p>
               ) : null}
@@ -173,7 +191,7 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
                       size="md"
                       variant="ghost"
                       disabled={pending}
-                      onClick={() => setIgnored((x) => [...x, item.id])}
+                      onClick={() => { setIgnored(current => [...current, item.id]); onResolve?.(item.id); }}
                     >
                       {ASSISTANT_TEXT.ignore}
                     </Button>
@@ -193,7 +211,10 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
                   ) : null}
                 </div>
               ) : null}
-            </div>
+              </CollapsibleContent>
+              </Collapsible>
+              </div>
+            </Card>
           ))}
         </div>
       )}
@@ -207,7 +228,7 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
         </div>
       ) : null}
       </div>
-    </Card>
+    </Frame>
   );
 }
 
@@ -226,12 +247,22 @@ export function AssistantDeck({
   readonly capture: ReactNode;
   readonly sections: readonly AssistantSection[];
 }) {
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-sm overflow-y-auto">
-      {capture}
-      {sections.filter((s) => s.items.length > 0 || s.footer).map((s) => (
-        <div key={s.id} className="shrink-0"><AssistantSection section={s} /></div>
-      ))}
-    </div>
-  );
+  const interaction = useAssistantInteraction();
+  const { ASSISTANT_PANEL_TEXT: T } = useMessages();
+  const [localOpen, setLocalOpen] = useState(true);
+  const [resolved, setResolved] = useState<readonly string[]>([]);
+  const open = interaction?.recommendationsOpen ?? localOpen;
+  const active = sections.map(section => ({ ...section, items: section.items.filter(item => !resolved.includes(item.id)) })).filter(section => section.items.length > 0 || section.footer);
+  const count = active.reduce((total, section) => total + Math.max(section.items.length, section.footer ? 1 : 0), 0);
+  return <div className="flex h-full min-h-0 flex-col gap-md overflow-hidden">
+    {count ? <Collapsible open={open} onOpenChange={interaction?.setRecommendationsOpen ?? setLocalOpen} className="max-h-[40%] min-h-0 shrink overflow-y-auto" data-assistant-recommendations>
+      <CollapsibleTrigger asChild><Button type="button" variant="ghost" size="md" className="w-full justify-between">
+        <span>{T.recommendations}<span className="ml-xs text-muted-foreground">({count})</span></span><Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+      </Button></CollapsibleTrigger>
+      <CollapsibleContent className="mt-sm flex flex-col gap-md">
+        {active.map(section => <AssistantSection key={section.id} section={section} compact onResolve={id => setResolved(current => [...current, id])} />)}
+      </CollapsibleContent>
+    </Collapsible> : null}
+    <div className="flex min-h-0 flex-1 flex-col" data-assistant-conversation>{capture}</div>
+  </div>;
 }

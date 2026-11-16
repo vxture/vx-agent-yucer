@@ -9,8 +9,9 @@ export async function AssistantProvider({ children }: { readonly children: React
   const session = await resolveAppSession();
   if (!session) return null;
   const autonomy = await getAutonomy({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement, store: getCopilotStore() });
+  const decision = can(session.authz, session.entitlement, "copilot.autopilot.enable", "ui");
   return <AssistantModeProvider mode={autonomy.ok ? autonomy.value.mode : undefined}
-    canChange={can(session.authz, session.entitlement, "copilot.autopilot.enable", "ui").allowed}>
+    canChange={decision.allowed} reason={decision.reason ?? undefined}>
     {children}
   </AssistantModeProvider>;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { isExecutable, operationRisk } from "../../domains/copilot/lib/autonomy";
 import { AssistantSection } from "./assistant";
 import { useMessages } from "../lib/i18n/provider";
 import type { Decision } from "../../domains/copilot/lib/action";
@@ -13,6 +14,7 @@ import type { Decision } from "../../domains/copilot/lib/action";
 /** One proposal on the deal the deck is beside, already labelled. */
 export interface DeckProposal {
   readonly id: string;
+  readonly actionType: string;
   readonly title: string;
   readonly rationale: string | null;
   readonly group: string;
@@ -39,7 +41,7 @@ export function DealAdvisor({
     error?: string;
   }>;
 }) {
-  const { DEAL_PAGE_TEXT, WAR_ROOM_TEXT, PROPOSAL_ERROR } = useMessages();
+  const { DEAL_PAGE_TEXT, WAR_ROOM_TEXT, PROPOSAL_ERROR, AUTONOMY_TEXT } = useMessages();
 
   // Accepting EXECUTES (the queue's own action), so the verb says so. A row
   // that was skipped or failed reports why, in the queue's dictionary.
@@ -65,7 +67,8 @@ export function DealAdvisor({
           evidence: p.rationale ?? undefined,
           trail: DEAL_PAGE_TEXT.advisorTrail(p.group, p.confidence),
           act: p.decidable
-            ? { label: WAR_ROOM_TEXT.acceptAndExecute, run: accept(p.id), done: WAR_ROOM_TEXT.accepted, errors: PROPOSAL_ERROR }
+            ? { label: WAR_ROOM_TEXT.acceptAndExecute, run: accept(p.id), done: WAR_ROOM_TEXT.accepted, errors: PROPOSAL_ERROR,
+              ...(isExecutable(p.actionType) && operationRisk(p.actionType) === "destructive" ? { confirm: { verb: WAR_ROOM_TEXT.acceptAndExecute, target: `${scope}: ${p.title}`, consequence: AUTONOMY_TEXT.overwriteConsequence } } : {}) }
             : undefined,
           // Rejecting takes a reason, and the queue is where one is given.
           link: { label: WAR_ROOM_TEXT.toQueue, href: "/copilot" },
