@@ -2152,6 +2152,14 @@ Dependabot npm 任务 [42209048119](https://github.com/vxture/vx-agent-yucer/act
 本条两条扫描链路均已恢复，关闭。新依赖升级仍需独立兼容性验收，不能视为已合并。
 
 
+**2026-11-15 G1–G7 复核**：产品图形调整为固定 32px，文字、档位保持；
+产品与租户组内固定 8px，工具组恢复 DS 原生固定 4px（移除随 compact 变为 2px 的 gap-2xs）。
+恢复 ShellHeaderTools 整组 hover/focus 底色，消息展开保持 accent；右侧组间距直接复用 ShellHeaderActions。
+ShellProductTitle 没有 logoSize，使用命名尺寸适配的单处子图形选择器，已在
+[vxture-design#111](https://github.com/vxture/vxture-design/issues/111#issuecomment-6906834478) 留痕。
+Header 窄屏分行只负责组合布局，覆盖助手使用真实高度；检查清单见
+[60-header-groups](../70-workplan/60-header-groups.md)。
+
 ### TD-038 - DS 组合操作行缺少统一尺寸参数
 
 **状态：临时绑定，待 DS 补齐。** 2026-11-10，owner 要求业务操作统一为 32px / 24px，同一操作行同高。

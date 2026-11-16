@@ -54,9 +54,9 @@ export function WorkspaceScope({
           icon="buildings"
           label={(
             <span className="flex items-center gap-2xs whitespace-nowrap">
-              <span className="text-label-small text-foreground">{labels.trigger}</span>
+              <span className="text-sm font-normal text-foreground" data-scope-org>{labels.trigger}</span>
               <span aria-hidden="true" className="text-muted-foreground">·</span>
-              <span className="text-label-small text-muted-foreground">{workspaceLabel}</span>
+              <span className="text-xs font-normal text-muted-foreground" data-scope-workspace>{workspaceLabel}</span>
             </span>
           )}
           ariaLabel={`${HEADER_TEXT.workspaceAria}: ${labels.trigger} · ${workspaceLabel}`}

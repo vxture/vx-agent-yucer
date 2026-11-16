@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ShellDock,
@@ -15,6 +15,7 @@ import {
 import {
   Separator,
   ShellHeader,
+  ShellHeaderActions,
   ShellPageContainer,
   ShellViewport,
   StatusBadge,
@@ -198,8 +199,22 @@ export function AppShell({
   const [showDock, setShowDock] = useState(dockOpen);
   const [assistantWidth, setAssistantWidth] = useState<AssistantWidth>(dockWidth);
   const dockRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  // Wrapped headers reserve their actual height in overlay/fullscreen docks.
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    const workspace = header?.parentElement;
+    if (!header || !workspace) return;
+    const measure = () => workspace.style.setProperty("--yucer-header-height", `${header.getBoundingClientRect().height}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   const [assistantFullscreen, setAssistantFullscreen] = useState(false);
-  const assistantAvailable = !isAdmin && activeKey !== "home" && activeKey !== "copilot";
+  // Entry and entitlement pages have no contextual task; the workbench owns
+  // its main conversation. Every business route retains the dock entry.
+  const assistantAvailable = !["home", "admin", "copilot", "upgrade"].includes(activeKey);
   const workbench = nav.find(entry => entry.key === "copilot" && entry.state === "visible");
   useEffect(() => {
     if (!assistantFullscreen) return;
@@ -314,7 +329,7 @@ export function AppShell({
         </div>
       ) : null}
       header={
-        <div className="shrink-0">
+        <div ref={headerRef} className="shrink-0">
         <ShellHeader
           // 单产品视角 (design-system 03 section 7.1, 13.5+): full width, the page
           // background, the DS's default workspace height (md, 48px).
@@ -323,11 +338,9 @@ export function AppShell({
           leading={
             <>
               {/* Module switching and its key figures live in one place. */}
-              <DomainLauncher
-                nav={nav}
-                activeKey={activeKey}
-                modules={boardModules}
-              />
+              <span className="inline-flex shrink-0" data-header-group="launcher">
+                <DomainLauncher nav={nav} activeKey={activeKey} modules={boardModules} />
+              </span>
 
               {/* The signed-in workspace carries only the product identity. */}
               <ShellProductTitle
@@ -345,9 +358,8 @@ export function AppShell({
                   </StatusBadge>
                 }
               />
-              {/* (7) THE CURRENT TENANT after the rule - the DS's product view
-                  as of 13.5 (owner 2026-09-26: 按 DS 最新，只留租户按钮); the
-                  functional domain it used to show here is gone from the header. */}
+              {/* One scope group: the divider and tenant keep an 8px gap. */}
+              <span className="inline-flex shrink-0 items-center gap-[calc(var(--vx-spacing)*2)]" data-header-group="scope">
               <ShellHeaderDivider />
               <WorkspaceScope
                 workspaceLabel={workspaceLabel}
@@ -357,6 +369,7 @@ export function AppShell({
                 activeOrgType={activeOrgType}
                 consoleUrl={consoleUrl}
               />
+              </span>
             </>
           }
           /* SEARCH SITS AT THE RIGHT POLE, not centred. centerAlign="end" is the
@@ -385,7 +398,7 @@ export function AppShell({
           }
           trailing={
             /* Search-to-tools and cluster gaps use the same 16px token. */
-            <div className="flex items-center gap-md">
+            <ShellHeaderActions>
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
               {assistantAvailable ? <AgentDockButton
@@ -407,6 +420,7 @@ export function AppShell({
                   caught still defaulting. */}
               {/* DS identity, account link, preferences and session actions.
                   Organization context belongs to WorkspaceScope. */}
+              <span className="inline-flex shrink-0" data-header-group="user">
               <ShellUserMenu
                 /* Match the native avatar with a 32px trigger (TD-037). */
                 triggerClassName={AVATAR_ON_LADDER}
@@ -530,7 +544,8 @@ export function AppShell({
                   />
                 }
               />
-            </div>
+              </span>
+            </ShellHeaderActions>
           }
         />
         </div>

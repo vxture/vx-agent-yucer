@@ -2,6 +2,7 @@
 .header { box-shadow: none; }
 
 .workspace {
+  --yucer-header-height: var(--spacing-header-md);
   --yucer-content-edge: var(--space-page-inset);
   --yucer-content-inset-start: var(--yucer-content-edge);
   --yucer-content-inset-end: var(--yucer-content-edge);
@@ -42,7 +43,7 @@
 @media (max-width: 79.999rem) {
   .assistantDock[data-assistant-width="wide"] .assistantPane {
     position: fixed;
-    top: var(--spacing-header-md);
+    top: var(--yucer-header-height);
     right: 0;
     bottom: 0;
     height: auto;
@@ -52,7 +53,7 @@
 @media (max-width: 63.999rem) {
   .assistantPane {
     position: fixed;
-    top: var(--spacing-header-md);
+    top: var(--yucer-header-height);
     right: 0;
     bottom: 0;
     height: auto;
@@ -62,10 +63,40 @@
 /* Keep the form and its conversation mounted. DS menus, help drawers and
  * confirmation dialogs must remain above this viewport-covering surface. */
 .assistantDock[data-assistant-fullscreen="true"] .assistantPane {
-  inset: var(--spacing-header-md) 0 0;
+  inset: var(--yucer-header-height) 0 0;
   z-index: var(--z-index-overlay);
   height: auto;
   max-width: none;
   padding-inline: var(--space-lg);
   box-shadow: none;
+}
+
+/* Keep each identity and action group intact when a single row cannot fit. */
+@media (max-width: 63.999rem) {
+  .header {
+    display: grid;
+    grid-template-columns: var(--spacing-icon-xl) minmax(0, 1fr) auto;
+    grid-template-rows: repeat(2, var(--spacing-icon-xl));
+    height: auto;
+    padding-block: calc(var(--vx-spacing) * 2);
+    gap: calc(var(--vx-spacing) * 2) calc(var(--vx-spacing) * 4);
+  }
+  .header > div:first-child { display: contents; }
+  .header [data-header-group="launcher"] { grid-area: 1 / 1; }
+  .header [data-slot="header-product"] { grid-area: 1 / 2; }
+  .header [data-header-group="scope"] { grid-area: 2 / 1 / 3 / 3; justify-self: start; }
+  .header > div:nth-child(2) {
+    grid-area: 1 / 3;
+    width: clamp(calc(var(--vx-spacing) * 40), 24vw, calc(var(--vx-spacing) * 80));
+    justify-self: end;
+  }
+  .header > div:last-child { grid-area: 2 / 3; justify-self: end; }
+}
+@media (max-width: 39.999rem) {
+  .header {
+    grid-template-columns: var(--spacing-icon-xl) minmax(0, 1fr);
+    grid-template-rows: repeat(3, var(--spacing-icon-xl));
+  }
+  .header [data-header-group="scope"] { grid-area: 2 / 1 / 3 / -1; max-width: 100%; overflow-x: auto; }
+  .header > div:last-child { grid-area: 3 / 1 / 4 / -1; }
 }
