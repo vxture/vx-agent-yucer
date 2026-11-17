@@ -1,5 +1,7 @@
 "use client";
 
+import { StrategyExpectations } from "./strategy-expectations";
+import type { StrategicExpectation } from "../../domains/strategy/lib/expectations";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -53,6 +55,7 @@ type MarketOption = RelationMarketOption;
 type TargetSelection = RelationTarget & { criteria?: SegmentCriteria };
 
 export interface PlanFormInitial {
+  readonly expectations?: readonly StrategicExpectation[];
   readonly id: string;
   readonly editToken: number;
   readonly basePlanId: string | null;
@@ -114,6 +117,7 @@ export function NewPlanForm({ strategyTypes,
   const [numberOpen, setNumberOpen] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
   const [period, setPeriod] = useState(initial?.period ?? String(new Date().getFullYear()));
+  const [expectations, setExpectations] = useState<readonly StrategicExpectation[]>(initial?.expectations ?? []);
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [changeReason,setChangeReason]=useState(initial?.changeReason ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
@@ -227,6 +231,7 @@ export function NewPlanForm({ strategyTypes,
               : productOptions.filter(p => productIds.includes(p.id) || targets.some(t => t.productIds?.includes(p.id)))} sharedProductIds={productIds} solutions={solutionOptions === null || solutionIds === undefined || targets.some(t => t.solutionIds === undefined) ? null
               : solutionOptions.filter(s => solutionIds.includes(s.id) || targets.some(t => t.solutionIds?.includes(s.id)))} markets={targets} sharedIds={solutionIds}/>
           </Section>
+            <StrategyExpectations value={expectations} onChange={setExpectations}/>
             {relationTask ? <StrategyRelationsDrawer draft key={JSON.stringify(relationTask)} task={relationTask} planName={name || STRATEGY_TEXT.newPlanTitle}
               targets={targets} sharedSolutionIds={solutionIds} sharedProductIds={productIds} productOptions={productOptions} marketOptions={marketOptions} solutionOptions={solutionOptions}
               onSave={saveRelations} onClose={() => setRelationTask(null)}/> : null}
@@ -239,6 +244,7 @@ export function NewPlanForm({ strategyTypes,
                     const fields = {
                       ...(initial?.basePlanId ? {changeReason:changeReason.trim()} : {}),
                       ...(strategyTypes===null ? {} : {strategyTypeId:strategyTypeId || null}),
+                      expectations,
                       name: name.trim(),
                       period: period.trim(),
                       objective: objective.trim() === "" ? null : objective.trim(),

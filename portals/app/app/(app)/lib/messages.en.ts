@@ -68,7 +68,82 @@ const GATE_ERROR = {
 const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account active" };
 
 export const en: Dictionary = {
+
   ...(zh as unknown as Dictionary),
+  STRATEGY_HANDOFF_TEXT: {
+  addAllocation: "Add allocation",
+  removeAllocation: "Remove",
+  revenueTarget: "Revenue target",
+  details: "Allocation details",
+  validation: "Check values, periods and regions. Accepted and allocated values cannot exceed their target capacity.",
+
+  "title": "Business expectations",
+  "help": "Strategy proposes expectations; sales planning accepts concrete targets. Revenue uses won opportunity amounts; channels and reference cases use verified evidence. Do not add strategy and regional totals together.",
+  "revenue": "Expected revenue",
+  "channels": "Channel development",
+  "reference_cases": "Reference cases",
+  "amount": "Expected value",
+  "currency": "Currency",
+  "criterion": "Acceptance criteria",
+  "criterionExample": "For example: a signed partner with its first order",
+  "empty": "No business expectations yet",
+  "handoff": "Strategy alignment",
+  "accept": "Accept target",
+  "accepted": "Accepted target",
+  "expected": "Strategic expectation",
+  "owner": "Accountable owner",
+  "note": "Acceptance basis",
+  "source": "Strategic expectation",
+  "remove": "Remove",
+  "auto": "Auto allocate",
+  "allocation": "Period and region",
+  "period": "Period",
+  "region": "Sales region",
+  "value": "Accepted value",
+  "save": "Confirm",
+  "cancel": "Cancel",
+  "edit": "Edit alignment",
+  "none": "No strategic targets accepted",
+  "choose": "Select",
+  "unallocated": "Unallocated",
+  "allocated": "Allocated",
+  "actual": "Fulfillment",
+  "won": "Won amount",
+  "verified": "Verified",
+  "unknown": "Unavailable",
+  "pending": "Pending acceptance",
+  "newVersion": "New strategy version available",
+  "openPlan": "Sales planning",
+  "openStrategy": "View strategy",
+  "openAttainment": "Fulfillment",
+  "count": "items",
+  "results": "Fulfillment evidence",
+  "record": "Record result",
+  "date": "Achieved on",
+  "evidence": "Evidence link",
+  "evidenceExample": "https://... signed agreement or case acceptance",
+  "memo": "Result description",
+  "revoke": "Revoke",
+  "recorded": "Recorded",
+  "resultHelp": "Revenue includes only explicitly attributed opportunities won in the selected period, counted once. Each channel or case evidence item counts once. Incorrect entries can be revoked with history retained.",
+  "sourceDenied": "Strategy access required",
+  "annual": "Annual acceptance",
+  "actualBasis": "Won opportunity amounts",
+  "current": "Current version",
+  "allocationHelp": "Automatically distribute by regional revenue targets and quarterly cadence. Count metrics remain whole items. Adjust as needed; unallocated values stay visible.",
+  "noSources": "No published strategic expectations",
+  "capacity": "Company target balance",
+  "quarter": "Quarter",
+  "recordSuccess": "Evidence recorded",
+  "error": "Operation failed. Refresh and retry.",
+  "criterionRequired": "Enter verifiable acceptance criteria",
+  "updated": "Source versions stay frozen. Align newer strategy versions through a planning draft.",
+  "noEvidence": "No fulfillment evidence yet",
+  "allocateFirst": "Publish regional and period acceptance before recording results",
+  "planVersion": "Planning version",
+  "sourceVersion": "Strategy version",
+  "progress": "Fulfillment progress"
+},
   PLAN_VERSION_TEXT: {
     ...zh.PLAN_VERSION_TEXT,
     publishCompany: "Publish company plan",
@@ -171,7 +246,30 @@ export const en: Dictionary = {
     cancel: "Cancel",
   },
   PLAN_VERSION_ERROR: {
+
     ...zh.PLAN_VERSION_ERROR,
+    strategy_result_duplicate: "Check strategic alignment: result duplicate",
+
+    strategy_result_conflict: "Check strategic alignment: result conflict",
+
+    strategy_result_invalid: "Check strategic alignment: result invalid",
+
+    strategy_source_permission: "Check strategic alignment: source permission",
+
+    strategy_source_changed: "Check strategic alignment: source changed",
+
+    strategy_owner_required: "Check strategic alignment: owner required",
+
+    strategy_overallocated: "Check strategic alignment: overallocated",
+
+    strategy_allocation_invalid: "Check strategic alignment: allocation invalid",
+
+    strategy_period_mismatch: "Check strategic alignment: period mismatch",
+
+    strategy_duplicate: "Check strategic alignment: duplicate",
+
+    strategy_acceptance_invalid: "Check strategic alignment: acceptance invalid",
+
     plan_save_failed: "The operation failed; your inputs are preserved. Please retry.",
     company_release_required: "Publish company targets before planning regions.",
     company_basis_changed: "The published company baseline cannot be changed in a regional draft. Start a company revision instead.",
@@ -3129,6 +3227,7 @@ export const en: Dictionary = {
   },
 
   PLAN_ERROR: {
+    expectations_invalid: "Check expectation amounts, counts and currency.",
   strategy_type_unavailable: "Select an available strategy type",
   strategy_type_invalid: "Check the type code, name, and background theme",
 

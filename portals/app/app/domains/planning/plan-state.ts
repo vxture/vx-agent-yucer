@@ -48,6 +48,7 @@ export function comparePlanContents(
     after: Record<string, unknown> | null;
   }[] = [];
   for (const section of [
+    "strategyAcceptances",
     "regions",
     "periods",
     "targets",
@@ -61,7 +62,7 @@ export function comparePlanContents(
         (x as Record<string, unknown>).key ?? (x as Record<string, unknown>).id,
       );
     const left = new Map((before?.[section] ?? []).map((x) => [key(x), x]));
-    const right = new Map(after[section].map((x) => [key(x), x]));
+    const right = new Map((after[section] ?? []).map((x) => [key(x), x]));
     for (const id of new Set([...left.keys(), ...right.keys()]))
       if (
         JSON.stringify(left.get(id) ?? null) !==

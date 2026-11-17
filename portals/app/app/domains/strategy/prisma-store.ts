@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { createBusinessRow, editBusinessRow, type BusinessWrite } from "../shared/business-code";
 import { DEFAULT_STRATEGY_TYPES, type StrategyType, type StrategyTheme } from "./lib/strategy-type";
 import { isUniqueViolation } from "../shared/allocate";
@@ -132,6 +133,7 @@ export class PrismaStrategyStore implements StrategyStore {
           name: input.name,
           period: input.period,
           strategyTypeId: input.strategyTypeId ?? null,
+          expectations: [...(input.expectations ?? [])] as unknown as Prisma.InputJsonValue,
           objective: input.objective,
           ownerSub: input.ownerSub,
           // Lifecycle transitions own all moves after creation.
@@ -170,6 +172,7 @@ export class PrismaStrategyStore implements StrategyStore {
     workspaceId: string,
     id: string,
     patch: {
+      expectations?: readonly import("./lib/expectations").StrategicExpectation[];
       status?: PlanStatus;
       approvedAt?: Date | null;
       name?: string;
@@ -186,7 +189,8 @@ export class PrismaStrategyStore implements StrategyStore {
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const { solutionIds, productIds, targetMarkets, ...fields } = patch;
-    const data = { ...fields, updatedAt: new Date() };
+    const { expectations, ...rest } = fields;
+    const data = { ...rest, ...(expectations === undefined ? {} : { expectations: [...expectations] as unknown as Prisma.InputJsonValue }), updatedAt: new Date() };
 
     const guard = assertWritable(PLAN_TABLE, data);
     if (!guard.ok) {
@@ -195,7 +199,7 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
+    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["expectations", "strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
     if (solutionIds === undefined && productIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
@@ -570,6 +574,7 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     period: String(r.period),
     strategyTypeId: (r.strategyTypeId as string | null) ?? null,
     strategyType,
+    expectations: (r.expectations ?? []) as import("./lib/expectations").StrategicExpectation[],
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
     productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),

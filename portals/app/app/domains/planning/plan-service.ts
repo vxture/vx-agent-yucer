@@ -1,3 +1,6 @@
+import { allocateStrategicTarget } from "./strategy-autofill";
+import { verifyStrategyAcceptance } from "./strategy-handoff";
+import type { StrategyStore } from "../strategy/store";
 import {
   companyPlanningRevision,
   validatePlanningWorkflow,
@@ -20,6 +23,7 @@ import {
 
 export type SalesPlanContext = Omit<PlanningContext, "store"> & {
   store: SalesPlanStore;
+  strategy?: Pick<StrategyStore, "getPlan">;
   scope: DataScope;
   now?: () => Date;
   // Server-computed digest of the original request, before source enrichment.
@@ -64,6 +68,7 @@ function gate(ctx: SalesPlanContext, write: boolean) {
   demand(ctx.scope.kind === "workspace", "plan_scope_required");
 }
 function sourceGate(ctx: SalesPlanContext, content: PlanContent) {
+  demand(!content.strategyAcceptances?.length || can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data").allowed, "strategy_source_permission");
   demand(
     !content.budgets.length ||
       can(ctx.holder, ctx.entitlement, "account.view", "data").allowed,
@@ -107,7 +112,7 @@ export async function changeSalesPlan(
       expectedEventNo: input.expectedEventNo,
       actor: ctx.sub,
     });
-  return ctx.store.transact(ctx.workspaceId, input.year, (plan) => {
+  return ctx.store.transact(ctx.workspaceId, input.year, async (plan) => {
     for (const r of plan.revisions) sourceGate(ctx, r.content);
     if ("content" in input.command) sourceGate(ctx, input.command.content);
     const now = (ctx.now?.() ?? new Date()).toISOString();
@@ -182,6 +187,7 @@ export async function changeSalesPlan(
       if (cmd.restoreId && source?.content.releaseScope && state.current) {
         Object.assign(content, structuredClone(state.current.content), {
           releaseScope: "company",
+          strategyAcceptances: structuredClone(source.content.strategyAcceptances ?? []).map(x => ({ ...x, allocations: state.current!.content.strategyAcceptances?.find(y => y.key === x.key)?.allocations ?? [] })),
           periods: structuredClone(source.content.periods),
           targets: [
             ...structuredClone(
@@ -213,6 +219,12 @@ export async function changeSalesPlan(
         content.companyRevisionId = company.id;
         content.regions = structuredClone(cmd.content.regions);
         content.targets = structuredClone(cmd.content.targets);
+        for (const [i,x] of (content.strategyAcceptances ?? []).entries()) {
+          if (!x.allocations.length) content.strategyAcceptances![i] = allocateStrategicTarget(content,x,newKey);
+        }
+      }
+      for (const x of content.strategyAcceptances ?? []) {
+        demand(ctx.strategy, "strategy_source_changed"); verifyStrategyAcceptance(x, await ctx.strategy.getPlan(ctx.workspaceId,x.strategyId),content.year);
       }
       validatePlanningWorkflow(plan, content, state.current?.id ?? null);
       demand(content.year === plan.year, "invalid_period");
@@ -236,6 +248,9 @@ export async function changeSalesPlan(
     } else if (cmd.kind === "save") {
       const r = draft();
       demand(cmd.content.year === plan.year, "invalid_period");
+      for (const x of cmd.content.strategyAcceptances ?? []) {
+        demand(ctx.strategy, "strategy_source_changed"); verifyStrategyAcceptance(x, await ctx.strategy.getPlan(ctx.workspaceId,x.strategyId),cmd.content.year);
+      }
       validateContent(cmd.content, false);
       validatePlanningWorkflow(plan, cmd.content, r.baseId);
       demand(
@@ -247,6 +262,9 @@ export async function changeSalesPlan(
       event("save", r.id, "");
     } else if (cmd.kind === "release") {
       const r = draft();
+      for (const x of r.content.strategyAcceptances ?? []) {
+        demand(ctx.strategy, "strategy_source_changed"); verifyStrategyAcceptance(x, await ctx.strategy.getPlan(ctx.workspaceId,x.strategyId),r.content.year);
+      }
       validateRevision(plan, r.content, now);
       validatePlanningWorkflow(plan, r.content, r.baseId);
       const reason = cmd.reason.trim();

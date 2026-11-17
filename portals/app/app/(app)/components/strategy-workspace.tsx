@@ -1,4 +1,6 @@
 "use client";
+import { StrategyFulfillmentPanel } from "./strategy-fulfillment-panel";
+import { StrategyExpectations } from "./strategy-expectations";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -189,6 +191,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         </dl>
       </div></CardContent></Card></CollapsibleContent>
     </Collapsible>
+    <StrategyExpectations value={detail.expectations ?? []}/>
     <Section title={T.targetMarketsTitle} icon="target" help={T.targetMarketBasis}>
       <StrategyMarketCards detail markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
         ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
@@ -197,6 +200,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       <StrategySolutionCards detail products={detail.products} sharedProductIds={detail.sharedProducts?.map(p=>p.id)} solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
         markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, productIds:m.products?.map(p=>p.id), solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
     </Section>
+    <StrategyFulfillmentPanel rows={data.fulfillment?.filter(r => r.acceptance.lineageId === (detail.lineageId ?? detail.id)) ?? null}/>
     <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">
       <Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>
       <Button asChild variant="secondary" size="md"><Link href="/campaign">{T.openCampaigns}</Link></Button>

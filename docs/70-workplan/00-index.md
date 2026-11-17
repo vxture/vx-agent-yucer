@@ -1,5 +1,9 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 战略预期到承诺兑现
+
+[85-strategy-planning-fulfillment.md](85-strategy-planning-fulfillment.md) 记录战略预期、规划核定、季度区域拆解与兑现证据闭环。
+
 ## Accounts 登录与退出
 
 中央会话校验、退出 303、账号切换和并发撤销见

@@ -328,6 +328,13 @@ async function applyPlanEdit(
   const edit = planPlanEdit(input, plan.period);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
+  if (input.expectations) {
+    const lineage = plan.lineageId ?? plan.id;
+    const history = (await ctx.store.listPlans(ctx.workspaceId)).filter(p => (p.lineageId ?? p.id) === lineage);
+    if (input.expectations.some(e => history.some(p => p.expectations?.some(old => old.id === e.id && old.metric !== e.metric)))) {
+      return fail(violation("expectations_invalid", "an objective identity cannot change metric", "expectations"));
+    }
+  }
   const type = await validateStrategyType(ctx, input.strategyTypeId, plan.strategyTypeId);
   if (!type.ok) return type;
   const owner = await validatePlanOwner(ctx, edit.value.ownerSub, plan.ownerSub);

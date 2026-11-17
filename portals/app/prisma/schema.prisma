@@ -640,6 +640,7 @@ model StrategyType {
 }
 
 model StrategyPlan {
+  expectations Json @default("[]") @db.JsonB
   strategyTypeId String? @map("strategy_type_id") @db.Uuid
   strategyType StrategyType? @relation(fields: [workspaceId, strategyTypeId], references: [workspaceId, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_strategy_type_id")
   lineageId String @default(dbgenerated()) @map("lineage_id") @db.Uuid
@@ -2414,4 +2415,25 @@ model MarketSegmentProduct {
   @@index([workspaceId, productId], map: "idx_segment_product_catalog")
   @@map("market_segment_product")
   @@schema("yucer_gtm")
+}
+
+model StrategicResult {
+ id String @id @default(uuid()) @db.Uuid
+ workspaceId String @map("workspace_id") @db.Uuid
+ planId String @map("plan_id") @db.Uuid
+ revisionId String @map("revision_id") @db.Uuid
+ acceptanceKey String @map("acceptance_key") @db.Uuid
+ lineageId String @map("lineage_id") @db.Uuid
+ objectiveId String @map("objective_id") @db.Uuid
+ allocationKey String @map("allocation_key") @db.Uuid
+ regionId String @map("region_id") @db.Uuid
+ achievedOn DateTime @map("achieved_on") @db.Date
+ evidenceUrl String @map("evidence_url") @db.Text
+ note String @db.Text
+ actorSub String @map("actor_sub") @db.VarChar(128)
+ recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz()
+ voidsId String? @map("voids_id") @db.Uuid
+ @@unique([workspaceId,id])
+ @@map("strategic_result")
+ @@schema("yucer_gtm")
 }

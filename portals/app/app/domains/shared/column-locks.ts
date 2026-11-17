@@ -122,6 +122,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // incr/0109 created_by_sub is insert-only; never add it to this whitelist.
   "yucer_gtm.strategy_type": ["name", "description", "theme", "enabled", "sort_order", "updated_at"],
   "yucer_gtm.strategy_plan": [
+    "expectations",
     "strategy_type_code",
     "strategy_type_id",
     "change_reason",
@@ -467,6 +468,7 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_pipeline.forecast_snapshot",
   "yucer_gtm.sales_plan_event",
   "yucer_gtm.strategy_plan_event",
+  "yucer_gtm.strategic_result",
   "yucer_gtm.sales_plan_legacy_target",
   "yucer_pipeline.forecast_target_basis",
   "yucer_agent.agent_message",

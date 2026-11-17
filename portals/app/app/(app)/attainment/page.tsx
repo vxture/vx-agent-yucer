@@ -1,3 +1,5 @@
+import { loadStrategyFulfillment } from "../lib/strategy-fulfillment";
+import { StrategyFulfillmentPanel } from "../components/strategy-fulfillment-panel";
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { can } from "../../authz/decide";
 import { resolveLocale } from "../lib/i18n/locale";
@@ -248,6 +250,7 @@ export default async function AttainmentPage({
           }
         />
       )}
+      {selection.view === "progress" && selection.perspective === "regions" ? <StrategyFulfillmentPanel rows={await loadStrategyFulfillment(session, {year:selectedYear,period:selection.period === "all" ? `Y${selectedYear}` : selection.period,regionId:selection.scope.scopeType === "territory" ? selection.scope.territoryId ?? undefined : undefined})} canRecord={can(session.authz,session.entitlement,"planning.target.update","ui").allowed}/> : null}
       <footer
         className="mt-xl border-t border-dashed border-border pt-lg pb-xl text-body-small text-muted-foreground"
         data-attainment-cutoff

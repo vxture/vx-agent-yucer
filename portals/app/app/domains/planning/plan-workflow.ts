@@ -1,8 +1,10 @@
+import { companyAcceptances, regionalAcceptances } from "./strategy-handoff";
 import type { PlanContent, PlanRevision, SalesPlan } from "./plan-model";
 import { canonical, demand } from "./plan-values";
 
 export function companyPlanningSlice(content: PlanContent) {
   return {
+    strategyAcceptances: companyAcceptances(content),
     periods: content.periods,
     targets: content.targets.filter((line) => line.scope === "workspace"),
   };
@@ -52,6 +54,7 @@ export function validatePlanningWorkflow(
   } else {
     demand(!content.companyRevisionId, "company_basis_changed");
     const regionalSlice = (c?: PlanContent) => ({
+      strategyAllocations: regionalAcceptances(c),
       regions: c?.regions ?? [],
       targets: c?.targets.filter((t) => t.scope !== "workspace") ?? [],
       budgets: c?.budgets ?? [],

@@ -31,6 +31,7 @@ import type { NewCampaignDraft } from "./lib/campaign";
 import { asc, by, desc } from "../shared/order";
 
 export interface PlanRecord {
+  expectations?: readonly import("./lib/expectations").StrategicExpectation[];
   id: string;
   workspaceId: string;
   planNo: string;
@@ -56,6 +57,7 @@ export interface PlanRecord {
 }
 
 export interface StrategyPublication {
+  expectations?: readonly import("./lib/expectations").StrategicExpectation[];
   schemaVersion: 1;
   legacy: boolean;
   capturedAt: string;
@@ -86,7 +88,7 @@ export interface PublishPlanCommand {
   ownerName: string | null;
 }
 export function captureStrategyPublication(plan: PlanRecord, solutions: readonly SolutionReference[], at: Date, legacy = false, ownerName: string | null = null, products: readonly ProductReference[] = []): StrategyPublication {
-  return structuredClone({schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
+  return structuredClone({expectations:plan.expectations ?? [],schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
     strategyTypeId:plan.strategyTypeId ?? null,strategyType:plan.strategyType ?? null,objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
     targetMarkets:plan.targetMarkets ?? [],solutions});
 }
@@ -349,7 +351,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     return Promise.all(rows.map(p=>this.getPlan(workspaceId,p.id).then(p=>p!)));
   }
 
-  private nextPlanId():string {let id:string;do{id=`plan_${++this.seq}`;}while(this.plans.has(id));return id;}
+  private nextPlanId():string { return globalThis.crypto.randomUUID(); }
 
   async createPlan(workspaceId: string, input: PlanCreate): Promise<PlanRecord | null> {
     // Null, not a throw: the unique index would refuse it anyway, and the
@@ -387,7 +389,8 @@ export class InMemoryStrategyStore implements StrategyStore {
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>, guard: PlanWriteGuard = {}): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId || (guard.expectedEditToken !== undefined && guard.expectedEditToken !== (p.editToken ?? 1)) || (guard.expectedStatus !== undefined && p.status !== guard.expectedStatus)) return false;
-    if (["strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
+    if (["expectations", "strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
+    if (patch.expectations?.some(e => [...this.plans.values()].some(old => old.workspaceId === workspaceId && (old.lineageId ?? old.id) === (p.lineageId ?? p.id) && old.expectations?.some(x => x.id === e.id && x.metric !== e.metric)))) throw new StrategyVersionError("expectations_invalid");
     if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
       throw new PlanMarketUnavailableError();
     }

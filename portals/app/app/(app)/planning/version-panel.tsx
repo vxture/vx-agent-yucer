@@ -1,4 +1,5 @@
 "use client";
+import { StrategyHandoffPanel } from "./strategy-handoff-panel";
 import { companyPlanningRevision } from "../../domains/planning/plan-workflow";
 import { MemberName } from "../lib/member-names";
 import { Section } from "../components/help-section";
@@ -87,6 +88,7 @@ export function PlanningVersionPanel({
 }) {
   const locale = useLocale();
   const {
+    STRATEGY_HANDOFF_TEXT: H,
     PLAN_VERSION_TEXT: T,
     PLAN_VERSION_ERROR: E,
     PLANNING_TEXT: P,
@@ -323,6 +325,7 @@ export function PlanningVersionPanel({
     contributions: T.contribution,
     team: T.team,
     actions: T.actions,
+    strategyAcceptances: H.handoff,
     assumptions: T.assumptions,
     allocationNote: T.allocationNote,
     capacityNote: T.capacityNote,
@@ -875,6 +878,7 @@ export function PlanningVersionPanel({
               </p>
             )}
           </Section>
+          <StrategyHandoffPanel content={c} sources={sources} edit={edit} regionId={regionId} disabled={pending} lockedPeriods={lockedPeriods}/>
           {companyEditing ? null : currentRegion ? (
             currentRegion.included ? (
               <PlanSupport
