@@ -61,7 +61,7 @@ export function StrategyMarketCards({ markets, actions, detail }: {
       <CardHeader><div className="flex items-start gap-sm">
         <Icon name="globe" size="lg" className="shrink-0 text-primary-text" aria-hidden="true"/>
         <div className="flex min-h-control-md min-w-0 flex-1 flex-wrap items-center justify-between gap-sm">
-          <CardTitle className="min-w-0"><Link className="break-words transition-colors hover:text-primary-text" href={`/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
+          <CardTitle className="min-w-0"><Link className="break-words transition-colors hover:text-primary-text" href={`/segment?market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
           <div className="flex shrink-0 flex-wrap items-center gap-xs"><Tag tone={m.intent === "focus" ? "success" : "neutral"}>{m.intent === "focus" ? T.focusMarket : m.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</Tag>
             {m.status && m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
           </div>

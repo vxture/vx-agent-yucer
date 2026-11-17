@@ -50,7 +50,7 @@ export function PlanAdvicePanel({ advice }: { readonly advice: readonly PlanAdvi
     },
     more: [
       { id: "campaign", label: STRATEGY_TEXT.planAdviceOpenCampaigns, href: "/campaign" },
-      { id: "segment", label: STRATEGY_TEXT.planAdviceOpenSegments, href: "/strategy?view=markets" },
+      { id: "segment", label: STRATEGY_TEXT.planAdviceOpenSegments, href: "/segment" },
     ],
   }));
 

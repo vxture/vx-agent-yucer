@@ -1,11 +1,22 @@
-import { redirect } from "next/navigation";
-// Keep existing links while the market library lives inside market strategy.
-export default async function SegmentPage({searchParams}:{readonly searchParams:Promise<Record<string,string|string[]|undefined>>}) {
-  const values=await searchParams;
-  const query=new URLSearchParams();
-  for(const [key,value] of Object.entries(values)) {
-    for(const item of Array.isArray(value)?value:value===undefined?[]:[value])query.append(key,item);
+import { EmptyState } from "@vxture/design-ui";
+import { MarketWorkspace } from "../components/market-workspace";
+import { lockedPage } from "../components/locked-page";
+import { getMessages } from "../lib/i18n/server";
+import { loadFailureText } from "../lib/load-failure";
+import { strategyWorkspaceData } from "../strategy/workspace-data";
+
+export const dynamic = "force-dynamic";
+
+export default async function SegmentPage({ searchParams }: { readonly searchParams: Promise<{ market?: string }> }) {
+  const bundle = await strategyWorkspaceData();
+  if (!bundle) return null;
+  const locked = lockedPage(bundle.session, "segment");
+  if (locked) return locked;
+  if (!bundle.marketsRead.ok) {
+    const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+    return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(bundle.marketsRead.violations, LOAD_ERROR)} />;
   }
-  query.set("view","markets");
-  redirect(`/strategy?${query}`);
+  const { market } = await searchParams;
+  const { markets, canWriteMarket, segmentAdvice, at } = bundle.data;
+  return <MarketWorkspace data={{ markets, canWriteMarket, segmentAdvice, at }} initialMarket={market} />;
 }

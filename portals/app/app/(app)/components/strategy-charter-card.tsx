@@ -80,7 +80,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
           </div>
         </div>
         <div className={`${styles.relations} text-foreground`}>
-          {relation(T.targetMarketsTitle,"target",markets?.map(m=>({id:m.segmentId,name:m.marketName,href:`/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
+          {relation(T.targetMarketsTitle,"target",markets?.map(m=>({id:m.segmentId,name:m.marketName,href:`/segment?market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
           {relation(T.featuredSolutions,"squares-four",offerings,T.offeringEmpty)}
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input,  NativeSelect, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar, ViewHeader } from "./business-controls";
 import { Section, SectionHeader } from "./help-section";
@@ -15,7 +15,6 @@ import { useLocale, useMessages } from "../lib/i18n/provider";
 import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
 import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
-import { MarketLibrary } from "./market-library";
 import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
 import { DialogForm } from "./dialog-form";
 import { strategyPeriodRangeLabel, strategyPeriodLabel } from "../../domains/strategy/lib/plan-period";
@@ -26,7 +25,7 @@ import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import type { StrategyView } from "../lib/market-strategy";
 import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrategyVersion } from "../strategy/actions";
 
-export type StrategyTab = "overview" | "markets" | "validation";
+export type StrategyTab = "overview" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
   const { MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
@@ -50,7 +49,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const planFilter=view==="validation" ? params.get("plan") ?? "" : "";
   const scopedPlans=view==="overview"?currentStrategyPlans(data.plans ?? []):data.plans?.filter(p=>p.versionNo || !p.basePlanId) ?? [];
   const plans=scopedPlans.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
-  const allowedView = view === "markets" ? data.canMarkets : data.canPlan;
+  const allowedView = data.canPlan;
   const switchView=(next:StrategyTab)=>{
     if(next === view)return;
     const q=new URLSearchParams(params);q.set("view",next);q.delete("market");q.delete("plan");
@@ -101,7 +100,6 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const cards = (rows:StrategyView[]) => <div className="grid min-w-0 grid-cols-1 gap-xl">{rows.map(card)}</div>;
   const views = [
     { id: "overview", label: T.overview, icon: "flag", allowed: data.canPlan },
-    { id: "markets", label: T.markets, icon: "target", allowed: data.canMarkets },
     { id: "validation", label: T.validation, icon: "chart-line", allowed: data.canPlan },
   ] as const;
   const activeView = views.find(v=>v.id===view)!;
@@ -119,8 +117,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       </div>)}
   </> : undefined;
   const sectionHeading = <SectionHeader level={2} icon={activeView.icon} title={activeView.label} divider={false}
-    help={view==="markets"?T.libraryWhy:resultHelp}
-    data-strategy-section-heading data-view={view} data-market-heading={view==="markets" ? "" : undefined}/>;
+    help={resultHelp}
+    data-strategy-section-heading data-view={view}/>;
   const viewActions = <div role="group" aria-label={T.strategy} aria-busy={pending}
     className="flex min-w-0 max-w-full flex-wrap items-center gap-2xs" data-strategy-view-actions>
     {views.filter(v=>v.allowed).map(v=><Button key={v.id} size="md" variant={view===v.id ? "secondary" : "ghost"}
@@ -209,10 +207,15 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       </div>
     </Section>
   </>:null;
-  let createAction: ReactNode=null;
-  if(view==="markets") {
-    if(data.canWriteMarket)createAction=<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>;
-  } else if(data.canCreate)createAction=<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>;
+  const workspaceContent = () => {
+    if (detail) return detailContent;
+    if (!allowedView || data.plans === null) return <EmptyState title={T.unknown}/>;
+    if (view === "overview") return overview;
+    if (plans.length) return results(plans);
+    const filtered = !!(period || planFilter);
+    return <EmptyState title={filtered ? T.noMatches : T.noPlans} description={filtered ? undefined : T.noPlansWhy}/>;
+  };
+  const createAction = data.canCreate ? <Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button> : null;
   return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/>
       <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
@@ -225,11 +228,11 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           {detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status) ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>revise(detail)}>{draftFor(detail)?T.resumeDraft:T.reviseStrategy}</Button>:null}
           {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>!["view","publish","revise"].includes(item.id))}/>
         </div>}/></> : <ModuleHeadline moduleKey="strategy" help={T.brief} className="[&>div:last-child]:max-w-full"
-      action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm" data-strategy-title-actions>{viewActions}{view!=="markets"?<div className="hidden @3xl:block">{periodFilter}</div>:null}{view==="overview" && data.canEdit ? <Button asChild size="md" variant="ghost"><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></Button>:null}{createAction}</div>}/>}
+      action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm" data-strategy-title-actions>{viewActions}<div className="hidden @3xl:block">{periodFilter}</div>{view==="overview" && data.canEdit ? <Button asChild size="md" variant="ghost"><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></Button>:null}{createAction}</div>}/>}
     {!detail && view==="validation" ? <FilterBar scope={sectionHeading} actions={checkButton}>
       {validationPlanFilter}<div className="@3xl:hidden">{periodFilter}</div>
     </FilterBar> : null}
-    {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:view==="markets"?data.markets?<MarketLibrary scope={sectionHeading} markets={data.markets} canWrite={data.canWriteMarket} initialMarket={params.get("market") ?? undefined} actions={checkButton}/>:<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={period||planFilter?T.noMatches:T.noPlans} description={period||planFilter?undefined:T.noPlansWhy}/>):overview}
+    {workspaceContent()}
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
     {publication ? <DialogForm open size="sm" title={publication.discard?T.discardConfirm:T.publishConfirm}
       description={publication.discard?T.discardHint:publication.plan.basePlanId?T.publishReplacementHint:T.publishHint}

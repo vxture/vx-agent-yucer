@@ -37,11 +37,11 @@ export function SegmentAdvicePanel({ advice }: { readonly advice: readonly Segme
         : "info",
     link: {
       label: STRATEGY_TEXT.segmentAdviceOpen,
-      href: `/strategy?view=markets&market=${encodeURIComponent(a.segmentId)}`,
+      href: `/segment?market=${encodeURIComponent(a.segmentId)}`,
     },
     more: [
       { id: "accounts", label: STRATEGY_TEXT.segmentAdviceOpenAccounts, href: "/account" },
-      { id: "strategy", label: STRATEGY_TEXT.segmentsTitle, href: "/strategy?view=markets" },
+      { id: "strategy", label: STRATEGY_TEXT.segmentsTitle, href: "/segment" },
     ],
   }));
 

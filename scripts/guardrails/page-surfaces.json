@@ -687,12 +687,12 @@
     {
       "route": "/segment",
       "file": "(app)/segment/page.tsx",
-      "kind": "compatibility",
+      "kind": "navigation",
       "entry": {
-        "file": "(app)/segment/page.tsx",
-        "needle": "/strategy?"
+        "file": "(app)/lib/navigation.ts",
+        "needle": "{ key: \"segment\", href: \"/segment\""
       },
-      "reason": "Preserve old bookmarks; no independent operation UI.",
+      "reason": "Reusable market library has its own gated launcher entry.",
       "sample": "/segment"
     },
     {
