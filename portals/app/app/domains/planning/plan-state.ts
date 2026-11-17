@@ -18,7 +18,7 @@ export function activeReleases(plan: SalesPlan, at: string): PlanEvent[] {
   return known.filter(
     (e) =>
       e.kind === "release" &&
-      !known.some((c) => c.kind === "cancel" && c.relatedNo === e.no),
+      !known.some((c) => c.kind === "cancel" && c.relatedId === e.id),
   );
 }
 export function planVersions(plan: SalesPlan, at: string) {

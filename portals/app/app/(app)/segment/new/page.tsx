@@ -1,3 +1,4 @@
+import { nextBusinessCode } from "../../../domains/shared/business-code";
 import { ViewHeader } from "../../components/business-controls";
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -18,8 +19,8 @@ import { saveSegment } from "../../strategy/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewSegmentPage({searchParams}:{readonly searchParams:Promise<{code?:string}>}) {
-  const {code}=await searchParams;
+export default async function NewSegmentPage({searchParams}:{readonly searchParams:Promise<{id?:string;code?:string}>}) {
+  const {id,code}=await searchParams;
   const { MARKET_STRATEGY_TEXT: T, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -43,8 +44,8 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
   ]);
 
   if(!segments.ok)return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(segments.violations,LOAD_ERROR)}/>;
-  const existing=code ? segments.value.find(s=>s.segmentCode===code) : undefined;
-  if(code && !existing)notFound();
+  const existing=id ? segments.value.find(s=>s.id===id) : code ? segments.value.find(s=>s.segmentCode===code) : undefined;
+  if((id || code) && !existing)notFound();
   const title=existing?T.editMarket:T.newMarket;
 
   return (
@@ -55,9 +56,9 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
       />
       <ViewHeader title={title} help={T.libraryWhy} divider />
       <SegmentForm
-        key={code ?? "new"}
-        initialCode={code}
-        rows={segments.value}
+        key={existing?.id ?? "new"}
+        original={existing}
+        generatedCode={nextBusinessCode("MKT", segments.value.map(s => s.segmentCode))}
         vocabulary={vocabulary}
         canAssist={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}
         onAssist={assistSegmentDraft}

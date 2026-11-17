@@ -13,7 +13,7 @@ test("only supplied facts and workspace vocabulary enter the draft; unsupported 
     { field: "name", value: "Acme", evidence: "Acme is a retailer" },
     { field: "industryId", value: "retail", evidence: "retailer" },
     { field: "region", value: "Other", evidence: "retailer" },
-    { field: "segmentCode", value: "OTHER-WORKSPACE", evidence: "retailer" },
+    { field: "segmentId", value: "OTHER-WORKSPACE", evidence: "retailer" },
     { field: "creditCode", value: "91330000ABC", evidence: "retailer" },
     { field: "employeeCount", value: "200", evidence: "retailer" },
     { field: "website", value: "https://invented.example", evidence: "retailer" },

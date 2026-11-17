@@ -1,3 +1,4 @@
+import { businessRecordMissing, nextBusinessCode, saveBusinessRecord, type BusinessWrite } from "../shared/business-code";
 import { parseStrategyPeriod } from "./lib/plan-period";
 import { nextStrategyNumber } from "./lib/plan-number";
 // D1 strategy and D3 campaign application service.
@@ -267,7 +268,7 @@ export async function createPlan(
   const plan = planNewPlan(autoNumber ? { ...input, planNo: nextStrategyNumber(input.period, codes) } : input);
   if (!plan.ok) return plan as RuleResult<PlanRecord>;
 
-  const type = await validateStrategyType(ctx, input.strategyTypeCode);
+  const type = await validateStrategyType(ctx, input.strategyTypeId);
   if (!type.ok) return type;
   const owner = await validatePlanOwner(ctx, plan.value.ownerSub);
   if (!owner.ok) return owner;
@@ -327,7 +328,7 @@ async function applyPlanEdit(
   const edit = planPlanEdit(input, plan.period);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
-  const type = await validateStrategyType(ctx, input.strategyTypeCode, plan.strategyTypeCode);
+  const type = await validateStrategyType(ctx, input.strategyTypeId, plan.strategyTypeId);
   if (!type.ok) return type;
   const owner = await validatePlanOwner(ctx, edit.value.ownerSub, plan.ownerSub);
   if (!owner.ok) return owner;
@@ -665,23 +666,29 @@ export async function listSegments(
 export async function upsertSegment(
   ctx: StrategyContext,
   input: SegmentDraft,
+  mode?: BusinessWrite,
 ): Promise<RuleResult<SegmentRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  const checked = planSegment(input);
+  const segments = await ctx.store.listSegments(ctx.workspaceId);
+  const existing = mode === "create" ? undefined : segments.find(s => mode ? s.id === mode.editId : s.segmentCode === input.segmentCode.trim());
+  if (mode !== "create" && mode && !existing) return businessRecordMissing();
+  const codes = segments.map(s => s.segmentCode);
+  const checked = planSegment({ ...input, segmentCode: existing?.segmentCode ?? (mode === "create" ? nextBusinessCode("MKT", codes) : input.segmentCode) });
   if (!checked.ok) return checked as RuleResult<SegmentRecord>;
 
-  const existing = (await ctx.store.listSegments(ctx.workspaceId)).find(s => s.segmentCode === checked.value.segmentCode);
   const solutions = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds, existing?.solutionIds);
   if (!solutions.ok) return solutions;
   const products = input.productIds === undefined ? ok(undefined) : await validatePlanProducts(ctx, input.productIds, existing?.productIds);
   if (!products.ok) return products;
-  return persistPlanSelection(() => ctx.store.upsertSegment(ctx.workspaceId, {
+  const saved = await persistPlanSelection(() => saveBusinessRecord("MKT", codes, mode, code => ctx.store.upsertSegment(ctx.workspaceId, {
     ...checked.value,
+    segmentCode: code ?? checked.value.segmentCode,
     ...(solutions.value === undefined ? {} : {solutionIds:solutions.value}),
     ...(products.value === undefined ? {} : {productIds:products.value}),
-  }));
+  }, mode)));
+  return saved.ok ? saved.value : saved;
 }
 
 /**
@@ -750,20 +757,7 @@ export async function moveSegment(
   return ok(true);
 }
 
-/**
- * Delete a segment outright.
- *
- * REFUSED WHILE ANYTHING POINTS AT IT, and the two references break in
- * different ways, which is why neither can be left to the database:
- *
- *   campaign.segment_id is a real FK with ON DELETE SET NULL - the campaign
- *     survives, silently un-aimed, and no screen shows a gap.
- *   account.segment_code is a plain string with nothing behind it - the
- *     accounts keep carrying a code that names nothing.
- *
- * Both are the shape this product refuses elsewhere (a product in use, a type
- * in use). Retiring is the reversible move and the roster offers it.
- */
+/** Retire instead if the market is still used by customers, campaigns, or strategic plans. */
 export async function removeSegment(
   ctx: StrategyContext,
   input: { segmentId: string; accountsCarrying: number },
@@ -837,9 +831,9 @@ export async function campaignReturn(
   });
 }
 
-async function validateStrategyType(ctx: StrategyContext, code: unknown, existing?: string | null): Promise<RuleResult<null>> {
-  if (code === undefined || code === null || code === existing) return ok(null);
-  if (typeof code !== "string" || !(await ctx.store.listStrategyTypes(ctx.workspaceId)).some(t=>t.code===code && t.enabled))
-    return fail(violation("strategy_type_unavailable", "select an enabled workspace strategy type", "strategyTypeCode"));
+async function validateStrategyType(ctx: StrategyContext, id: unknown, existing?: string | null): Promise<RuleResult<null>> {
+  if (id === undefined || id === null || id === existing) return ok(null);
+  if (typeof id !== "string" || !(await ctx.store.listStrategyTypes(ctx.workspaceId)).some(t=>t.id===id && t.enabled))
+    return fail(violation("strategy_type_unavailable", "select an enabled workspace strategy type", "strategyTypeId"));
   return ok(null);
 }

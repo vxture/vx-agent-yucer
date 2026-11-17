@@ -19,7 +19,7 @@ const CONTACTS_ANCHOR = "account-basics-contacts";
 // EVERY FIELD HERE ALREADY HAD A REAL COLUMN before this form existed -
 // updateAccountBasics() (domains/account/service.ts) is the first SERVICE
 // VERB to write more than one of them at once, not the first thing to make
-// them writable. name/region/province/industryId/segmentCode/creditCode/
+// them writable. name/region/province/industryId/segmentId/creditCode/
 // website/employeeCount have been in the store's updateAccount() patch type
 // since their own increments (0024/0035/0040); customerTypeId/
 // customerSizeId/customerNatureId since 0071/0072. This is the TD-016 shape
@@ -49,7 +49,7 @@ export interface AccountBasicsFormProps {
   readonly region: string | null;
   readonly province: string | null;
   readonly industryId: string | null;
-  readonly segmentCode: string | null;
+  readonly segmentId: string | null;
   readonly customerTypeId: string | null;
   readonly customerSizeId: string | null;
   readonly customerNatureId: string | null;
@@ -58,8 +58,6 @@ export interface AccountBasicsFormProps {
   readonly employeeCount: number | null;
   readonly regions: readonly VocabOption[];
   readonly industries: readonly VocabOption[];
-  /** id = segmentCode itself - account.segment_code stores the code, not a
-   *  uuid join (see SegmentRecord vs. IndustryRecord/CustomerTypeRecord). */
   readonly segments: readonly VocabOption[];
   readonly customerTypes: readonly VocabOption[];
   readonly customerSizes: readonly VocabOption[];
@@ -76,7 +74,7 @@ export interface AccountBasicsFormProps {
       region?: string | null;
       province?: string | null;
       industryId?: string | null;
-      segmentCode?: string | null;
+      segmentId?: string | null;
       customerTypeId?: string | null;
       customerSizeId?: string | null;
       customerNatureId?: string | null;
@@ -108,7 +106,7 @@ export function AccountBasicsForm({
   region,
   province,
   industryId,
-  segmentCode,
+  segmentId,
   customerTypeId,
   customerSizeId,
   customerNatureId,
@@ -143,7 +141,7 @@ export function AccountBasicsForm({
 
   const current = () =>
     toAccountFieldValues({
-      name, region, province, industryId, segmentCode, customerTypeId,
+      name, region, province, industryId, segmentId, customerTypeId,
       customerSizeId, customerNatureId, creditCode, website, employeeCount,
     });
   const [values, setValues] = useState<AccountFieldValues>(current);

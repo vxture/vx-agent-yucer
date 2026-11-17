@@ -84,14 +84,8 @@ async function computeSegmentStats(
   segmentId: string,
 ): Promise<{ accountCount: number; openPipelineAmount: number; wonAmount: number }> {
   const p = await getPrismaClient();
-  const seg = await p.marketSegment.findFirst({
-    where: { id: segmentId, workspaceId },
-    select: { segmentCode: true },
-  });
-  if (!seg) return { accountCount: 0, openPipelineAmount: 0, wonAmount: 0 };
-
   const accountCount = await p.account.count({
-    where: { workspaceId, segmentCode: seg.segmentCode, deletedAt: null },
+    where: { workspaceId, segmentId, deletedAt: null },
   });
 
   const pipeline = await p.opportunity.aggregate({

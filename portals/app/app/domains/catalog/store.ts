@@ -1,3 +1,4 @@
+import { BusinessCodeCollision, BusinessRecordMissing, type BusinessWrite } from "../shared/business-code";
 import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 // The product catalogue - see ADR-014.
 //
@@ -197,14 +198,12 @@ export interface CatalogStore {
 
   // --- writes (batch 6b-1b, ADR-017) ---------------------------------------
   //
-  // UPSERT BY BUSINESS CODE, not by id. `product_code` and `solution_code` are
-  // the workspace-unique keys the DDL declares, and they are what a person
-  // types; ids are generated. Keying on the code means importing the same
-  // catalogue twice updates rather than duplicating, which is the normal way
-  // catalogues arrive.
+  // UI creates insert new records, and edits target workspace + UUID.
+  // Legacy import/seed calls without a mode deduplicate by business number.
   upsertProduct(
     workspaceId: string,
     input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
+    mode?: BusinessWrite,
   ): Promise<ProductRecord>;
   /** Point the product at another status row. Null when no such product. */
   setProductStatus(
@@ -270,6 +269,7 @@ export interface CatalogStore {
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
+    mode?: BusinessWrite,
   ): Promise<SolutionRecord>;
   /** Apply a renumbering computed by planMove - the whole list, dense. */
   setSolutionOrder(
@@ -399,15 +399,19 @@ export class InMemoryCatalogStore implements CatalogStore {
   async upsertProduct(
     workspaceId: string,
     input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
+    mode?: BusinessWrite,
   ): Promise<ProductRecord> {
     const at = this.products.findIndex(
-      (x) => x.workspaceId === workspaceId && x.productCode === input.productCode,
+      (x) => x.workspaceId === workspaceId && (mode && mode !== "create" ? x.id === mode.editId : x.productCode === input.productCode),
     );
+    if (mode === "create" && at >= 0) throw new BusinessCodeCollision();
+    if (mode && mode !== "create" && at < 0) throw new BusinessRecordMissing();
     if (at >= 0) {
-      // The code and the workspace are the identity - they are what was matched
-      // on, so they are not among the fields an upsert may move. Nor is the
-      // order: setProductOrder is the only writer of sortOrder.
-      const next = { ...this.products[at]!, ...input, productCode: this.products[at]!.productCode };
+      if (mode && this.products.some((x, i) => i !== at && x.workspaceId === workspaceId && x.productCode === input.productCode)) {
+        throw new BusinessCodeCollision();
+      }
+      // The edit follows the UUID; legacy imports still match the number.
+      const next = { ...this.products[at]!, ...input };
       this.products[at] = next;
       return next;
     }
@@ -644,10 +648,13 @@ export class InMemoryCatalogStore implements CatalogStore {
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
+    mode?: BusinessWrite,
   ): Promise<SolutionRecord> {
     const at = this.solutions.findIndex(
-      (x) => x.workspaceId === workspaceId && x.solutionCode === input.solutionCode,
+      (x) => x.workspaceId === workspaceId && (mode && mode !== "create" ? x.id === mode.editId : x.solutionCode === input.solutionCode),
     );
+    if (mode === "create" && at >= 0) throw new BusinessCodeCollision();
+    if (mode && mode !== "create" && at < 0) throw new BusinessRecordMissing();
     let row: SolutionRecord;
     if (at >= 0) {
       row = { ...this.solutions[at]!, ...input, solutionCode: this.solutions[at]!.solutionCode };

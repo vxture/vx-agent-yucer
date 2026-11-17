@@ -53,6 +53,7 @@ async function context() {
 }
 
 export async function saveProduct(input: {
+  editId?: string;
   productCode: string;
   name: string;
   typeId: string | null;
@@ -63,7 +64,7 @@ export async function saveProduct(input: {
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await upsertProduct(ctx, input);
+  const r = await upsertProduct(ctx, input, input.editId === undefined ? "create" : { editId: input.editId });
   // THE CODE, NOT THE PROSE. A violation's `message` is written for the rule
   // layer's own reader and is in English; passing it to the interface is
   // TD-010, and this file added a fresh instance of that debt before this line
@@ -72,11 +73,13 @@ export async function saveProduct(input: {
   // belongs to the dictionary.
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
+  revalidatePath("/solution");
+  revalidatePath("/strategy", "layout");
   return { ok: true };
 }
 
 export async function saveSolution(input: {
-  solutionCode: string;
+  editId?: string;
   name: string;
   summary: string | null;
   scenario?: string | null;
@@ -90,7 +93,7 @@ export async function saveSolution(input: {
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await upsertSolution(ctx, input);
+  const r = await upsertSolution(ctx, { ...input, solutionCode: "" }, input.editId === undefined ? "create" : { editId: input.editId });
   // THE CODE, NOT THE PROSE. A violation's `message` is written for the rule
   // layer's own reader and is in English; passing it to the interface is
   // TD-010, and this file added a fresh instance of that debt before this line

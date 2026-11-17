@@ -8,7 +8,7 @@ import { createAccount, designateAccount, importanceScheme, type AccountContext 
 import { InMemoryAccountStore, type AccountPlanWrite } from "./store";
 
 const WS = "ws_designation";
-const basics = { name: "New account", region: null, province: null, industryId: null, segmentCode: null,
+const basics = { name: "New account", region: null, province: null, industryId: null, segmentId: null,
   customerTypeId: null, customerSizeId: null, customerNatureId: null, creditCode: null, website: null, employeeCount: null };
 const plan = { period: "Y2026", targetAmount: 500000, contactCadenceDays: 14, execCadenceDays: 60 };
 const context = (store = new InMemoryAccountStore()): AccountContext => ({ workspaceId: WS, sub: "operator",

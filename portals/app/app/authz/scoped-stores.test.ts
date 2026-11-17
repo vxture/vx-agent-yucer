@@ -47,7 +47,7 @@ function account(over: Partial<AccountRecord>): AccountRecord {
     name: "Acme",
     industry: null,
     region: null,
-    segmentCode: null,
+    segmentId: null,
     ownerSub: "usr_other",
     healthScore: null,
     status: "active",

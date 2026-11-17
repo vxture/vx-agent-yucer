@@ -97,6 +97,10 @@
 - 索引前缀 `idx_` / `uidx_` / `fk_` / `chk_`。
 - 平台引用键（`workspace_id` / `tenant_id` / `sub`）只存引用，注释标 `[ref]`。
 
+业务记录之间以 UUID 关联，按工作区隔离。选择器提交 UUID，编辑以 UUID 定位，编号只作展示、搜索及旧链接解析。细分市场、方案和产品新建时预填 `MKT/SOL/PRD-YYYYMMDD-NNN`（北京时间）；实际保存由服务端查重分配，产品允许用自有编号。历史快照保留当时的编号和名称，版本号与事件序号仍用于排序和并发检查。
+
+0117–0121 将客户的细分市场和销售区域、战略类型、商机阶段及退出条件、销售规划的撤销事件关系统一落到 UUID。旧版本兼容入口只在边界解析原值。不匹配或有歧义的旧归属保留已有文本，UUID 留空，不猜测。平台账号 `sub`、静态枚举、筛选条件和历史快照不是本产品的记录引用。
+
 ## 3. 隔离键
 
 每张业务根表都带 `workspace_id`，它是**唯一权威隔离键**。所有唯一约束都以它开头
@@ -110,7 +114,7 @@
 
 列级写锁的完整定义在 `deploy/database/ddl/98_column_locks.sql`。三条判定规则：
 
-1. **锚点永不可写**：`id`、`workspace_id`、`*_no` / `*_code` 业务号、`created_at`。
+1. **身份锚点不可写**：`id`、`workspace_id`、`created_at`。业务编号用于展示和查找，默认不改；产品编号可按客户需要修改（0116），仍在工作区内查重。
 2. **归因键永不可写**：`lead.signal_id`、`lead.campaign_id`、
    `opportunity.campaign_id`、`opportunity.account_id`，以及 `signal` 的全部证据列
    （`source` / `source_ref` / `signal_type` / `subject` / `payload` / `detected_at`）。

@@ -1,3 +1,4 @@
+import { businessRecordMissing, nextBusinessCode, saveBusinessRecord, type BusinessWrite } from "../shared/business-code";
 import { planPricingPolicy, type PricingPolicy } from "./lib/pricing-policy";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
@@ -220,6 +221,7 @@ export async function upsertProduct(
      * omitted on a create = the canonical 在售 row. */
     statusId?: string;
   },
+  mode?: BusinessWrite,
 ): Promise<RuleResult<ProductRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -248,12 +250,12 @@ export async function upsertProduct(
     return fail(violation("unit_not_found", "no such unit", "unitId"));
   }
 
-  const [existing, vocab] = await Promise.all([
-    ctx.store
-      .listProducts(ctx.workspaceId)
-      .then((rows) => rows.find((p) => p.productCode === input.productCode.trim())),
-    ensureStatusVocab(ctx),
-  ]);
+  const [rows, vocab] = await Promise.all([ctx.store.listProducts(ctx.workspaceId), ensureStatusVocab(ctx)]);
+  const existing = mode === "create" ? undefined : rows.find(p => mode ? p.id === mode.editId : p.productCode === input.productCode.trim());
+  if (mode !== "create" && mode && !existing) return businessRecordMissing();
+  const manualCode = input.productCode.trim();
+  const codes = rows.map(p => p.productCode);
+  const productCode = mode === "create" && !manualCode ? nextBusinessCode("PRD", codes) : manualCode;
 
   // Status is the vocabulary's, not the form's. Omitted keeps what the row
   // has (edit mode); a provided change on an EXISTING product must be a legal
@@ -291,7 +293,7 @@ export async function upsertProduct(
   }
 
   const plan = planProduct({
-    productCode: input.productCode,
+    productCode,
     name: input.name,
     typeId: input.typeId ?? null,
     unitId: input.unitId,
@@ -299,7 +301,9 @@ export async function upsertProduct(
   });
   if (!plan.ok) return plan as RuleResult<ProductRecord>;
 
-  return ok(await ctx.store.upsertProduct(ctx.workspaceId, plan.value));
+  return saveBusinessRecord("PRD", codes, mode,
+    code => ctx.store.upsertProduct(ctx.workspaceId, { ...plan.value, productCode: code ?? plan.value.productCode }, mode),
+    mode === "create" && manualCode ? manualCode : undefined);
 }
 
 /**
@@ -765,6 +769,7 @@ export async function upsertSolution(
     status?: "active" | "retired";
     items: readonly SolutionItemDraft[];
   },
+  mode?: BusinessWrite,
 ): Promise<RuleResult<SolutionRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -786,12 +791,13 @@ export async function upsertSolution(
   // it back in front of customers. upsertProduct closes exactly this door two
   // hundred lines up; this path had copied the form's half of the contract
   // without the service's half.
-  const existing = (await ctx.store.listSolutions(ctx.workspaceId)).find(
-    (s) => s.solutionCode === input.solutionCode.trim(),
-  );
+  const rows = await ctx.store.listSolutions(ctx.workspaceId);
+  const existing = mode === "create" ? undefined : rows.find(s => mode ? s.id === mode.editId : s.solutionCode === input.solutionCode.trim());
+  if (mode !== "create" && mode && !existing) return businessRecordMissing();
+  const codes = rows.map(s => s.solutionCode);
   const plan = planSolution(
     {
-      solutionCode: input.solutionCode,
+      solutionCode: existing?.solutionCode ?? (mode === "create" ? nextBusinessCode("SOL", codes) : input.solutionCode),
       name: input.name,
       summary: input.summary ?? null,
       scenario: input.scenario ?? null,
@@ -801,16 +807,17 @@ export async function upsertSolution(
   );
   if (!plan.ok) return plan as RuleResult<SolutionRecord>;
 
-  return ok(
-    await ctx.store.upsertSolution(
+  return saveBusinessRecord("SOL", codes, mode, code =>
+    ctx.store.upsertSolution(
       ctx.workspaceId,
-      plan.value.solution,
+      { ...plan.value.solution, solutionCode: code ?? plan.value.solution.solutionCode },
       plan.value.items.map((i) => ({
         productId: i.productId,
         quantity: i.quantity,
         optional: i.optional ?? false,
         note: i.note ?? null,
       })),
+      mode,
     ),
   );
 }

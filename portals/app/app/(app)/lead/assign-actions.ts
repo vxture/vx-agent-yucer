@@ -119,6 +119,7 @@ export async function analyseAssignments(): Promise<{
     { ...base, store: session.stores.signal() },
     territories.value,
     regionOf,
+    new Map(accounts.value.map(a => [a.id, a.regionId])),
   );
   if (!plan.ok) return { ok: false, error: plan.violations[0]?.code ?? "denied" };
 

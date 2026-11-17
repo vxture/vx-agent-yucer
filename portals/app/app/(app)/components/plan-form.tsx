@@ -57,7 +57,7 @@ export interface PlanFormInitial {
   readonly editToken: number;
   readonly basePlanId: string | null;
   readonly changeReason: string;
-  readonly strategyTypeCode?: string | null;
+  readonly strategyTypeId?: string | null;
   readonly planNo: string;
   readonly name: string;
   readonly period: string;
@@ -81,7 +81,7 @@ function StrategyTypeField({types,value,existing,disabled,onChange}: {
   return <Field><FieldLabel htmlFor="strategy-type">{T.strategyType}</FieldLabel>
     <NativeSelect id="strategy-type" value={value} disabled={disabled || types===null} onChange={e=>onChange(e.target.value)}>
       <option value="">{T.typeUnclassified}</option>
-      {types?.filter(t=>t.enabled || t.code===existing).map(t=><option key={t.code} value={t.code}>{t.name}{t.enabled ? "" : ` (${T.typeDisabledLabel})`}</option>)}
+      {types?.filter(t=>t.enabled || t.id===existing).map(t=><option key={t.id} value={t.id}>{t.name}{t.enabled ? "" : ` (${T.typeDisabledLabel})`}</option>)}
     </NativeSelect>
   </Field>;
 }
@@ -157,7 +157,7 @@ export function NewPlanForm({ strategyTypes,
     }catch{setSaveError(errorOf("denied"));}});
   }};
 
-  const [strategyTypeCode,setStrategyTypeCode]=useState(initial?.strategyTypeCode ?? "");
+  const [strategyTypeId,setStrategyTypeId]=useState(initial?.strategyTypeId ?? "");
   const nextNo = useMemo(() => nextStrategyNumber(period, existingPlanNos), [period, existingPlanNos]);
   const planNo = initial?.planNo ?? manualPlanNo ?? nextNo;
   const suggestions: AssistSuggestion[] = [];
@@ -195,7 +195,7 @@ export function NewPlanForm({ strategyTypes,
                 <Field className="@xl:col-span-2"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
                   <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e => setName(e.target.value)} aria-required="true"/>
                 </Field>
-                <StrategyTypeField types={strategyTypes} value={strategyTypeCode} existing={initial?.strategyTypeCode} disabled={submit.pending} onChange={setStrategyTypeCode}/>
+                <StrategyTypeField types={strategyTypes} value={strategyTypeId} existing={initial?.strategyTypeId} disabled={submit.pending} onChange={setStrategyTypeId}/>
                 <Field><FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
                   <MemberPicker options={ownerOptions} value={ownerSub} onValueChange={setOwnerSub}
                     label={STRATEGY_TEXT.newPlanOwner} disabled={submit.pending}/>
@@ -238,7 +238,7 @@ export function NewPlanForm({ strategyTypes,
                   submit.run(() => {
                     const fields = {
                       ...(initial?.basePlanId ? {changeReason:changeReason.trim()} : {}),
-                      ...(strategyTypes===null ? {} : {strategyTypeCode:strategyTypeCode || null}),
+                      ...(strategyTypes===null ? {} : {strategyTypeId:strategyTypeId || null}),
                       name: name.trim(),
                       period: period.trim(),
                       objective: objective.trim() === "" ? null : objective.trim(),

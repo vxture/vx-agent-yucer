@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getStrategyStore } from "../../../domains/shared/registry";
 import { resolveAppSession } from "../../lib/session";
 import { fillAccountField } from "../../../domains/account/service";
 
@@ -34,7 +35,7 @@ export async function fillField(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: session.stores.account(),
+      store: session.stores.account(), strategy: getStrategyStore(),
     },
     accountId,
     field,

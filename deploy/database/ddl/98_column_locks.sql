@@ -278,3 +278,19 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 -- UPDATE only on name, description, theme, enabled, sort_order, updated_at.
 -- It adds strategy_plan.strategy_type_code and grants its draft-only UPDATE;
 -- configuration code and published strategy identity remain locked there.
+
+-- 0116 grants product_code updates for UUID-based edits. Its versioned grant
+-- also applies to existing workspaces when upgrading.
+
+-- incr/0117 adds the writable account.segment_id UUID. The earlier
+-- segment_code grant supports the previous app until a later cleanup.
+
+-- incr/0118 adds the writable strategy_plan.strategy_type_id UUID for drafts.
+-- The earlier strategy_type_code grant is used only by the compatibility path.
+
+-- incr/0119 binds opportunity, stage history and exit criteria to stage
+-- UUIDs inside triggers. The UUID columns have no independent UPDATE grant.
+-- incr/0120 binds sales planning cancellation events to release UUIDs;
+-- events remain append-only through the controlled recording function.
+-- incr/0121 adds writable account.region_id. The old region label is retained
+-- for compatibility and for historical names with no unambiguous match.

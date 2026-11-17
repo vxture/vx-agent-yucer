@@ -1365,7 +1365,7 @@ export default async function AccountDetailPage({
                 accountId: id,
                 accountNo: account.accountNo,
                 name: account.name,
-                region: account.region,
+                region: account.regionId ?? account.region,
                 province: account.province,
                 // A legacy row carries the NAME with no vocabulary id; the card
                 // shows the name (中型企业) and the drawer showed 未标注 beside
@@ -1374,7 +1374,7 @@ export default async function AccountDetailPage({
                 industryId:
                   account.industryId ??
                   idByName(industriesRead && industriesRead.ok ? industriesRead.value : [], account.industry),
-                segmentCode: account.segmentCode,
+                segmentId: account.segmentId,
                 customerTypeId:
                   account.customerTypeId ??
                   idByName(customerTypesRead.ok ? customerTypesRead.value : [], account.customerType),
@@ -1389,7 +1389,7 @@ export default async function AccountDetailPage({
                 employeeCount: account.employeeCount,
                 regions: regionsRead?.ok ? regionsRead.value.map((r) => ({ id: r.id, name: r.name })) : [],
                 industries: industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : [],
-                segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : [],
+                segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.id, name: s.name })) : [],
                 customerTypes: customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : [],
                 customerSizes: customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : [],
                 customerNatures: customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : [],

@@ -193,6 +193,9 @@ export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
   if (!input.productCode.trim()) {
     return fail(violation("code_required", "a product needs a code", "productCode"));
   }
+  if ([...input.productCode.trim()].length > 64) {
+    return fail(violation("number_too_long", "product number exceeds 64 characters", "productCode"));
+  }
   if (!input.name.trim()) {
     return fail(violation("name_required", "a product needs a name", "name"));
   }

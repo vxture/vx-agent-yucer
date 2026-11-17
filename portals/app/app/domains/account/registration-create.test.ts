@@ -7,7 +7,7 @@ import { unwrap } from "../shared/result";
 import { createAccount, setAccountParent, type AccountContext } from "./service";
 import { InMemoryAccountStore, type AccountPlanWrite } from "./store";
 const WS="ws_registration_hierarchy";
-const basics={name:"New",region:null,province:null,industryId:null,segmentCode:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null};
+const basics={name:"New",region:null,province:null,industryId:null,segmentId:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null};
 const context=(store=new InMemoryAccountStore()):AccountContext=>({workspaceId:WS,sub:"owner",store,
   holder:{permissions:new Set(permissionsForRoles(["sales_leader"]))},entitlement:{...EMPTY_ENTITLEMENT,workspace_id:WS,product:"yucer",tier:"pro"}});
 const code=(r:{ok:boolean;violations?:{code:string}[]})=>!r.ok&&r.violations![0]!.code;

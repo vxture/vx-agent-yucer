@@ -51,7 +51,7 @@ function shell(): AccountRecord {
   return {
     id: "acc_shell", workspaceId: WS, accountNo: "ACC-9001", name: "建错的客户", industryId: null, industry: null,
     customerTypeId: null, customerType: null, customerSizeId: null, customerSize: null, customerNatureId: null,
-    customerNature: null, region: null, province: null, segmentCode: null, ownerSub: "usr_me", healthScore: null,
+    customerNature: null, region: null, province: null, segmentId: null, ownerSub: "usr_me", healthScore: null,
     status: "prospect", tier: "standard", creditCode: null, website: null, employeeCount: null, parentId: null,
   };
 }

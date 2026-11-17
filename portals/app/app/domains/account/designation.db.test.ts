@@ -6,7 +6,7 @@ import { PrismaAccountStore } from "./prisma-store";
 // Persistence failures must roll back the customer/level and the plan together.
 const skip = process.env.DATABASE_URL ? false : "no DATABASE_URL - see ci.yml db-contract";
 const WS = "7accede0-0000-0000-0000-000000000001";
-const basics = { name: "Strategic create contract", region: null, province: null, industryId: null, segmentCode: null,
+const basics = { name: "Strategic create contract", region: null, province: null, industryId: null, segmentId: null,
   customerTypeId: null, customerSizeId: null, customerNatureId: null, creditCode: null, website: null, employeeCount: null, ownerSub: "sales_owner" };
 const plan = { period: "Y2026", targetAmount: 120000, contactCadenceDays: 14, execCadenceDays: 60,
   ownerSub: "sales_owner", presalesSub: "presales", deliverySub: "delivery", status: "active" as const };

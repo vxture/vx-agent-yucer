@@ -1,7 +1,8 @@
+import { nextBusinessCode } from "../../../domains/shared/business-code";
 import { ViewHeader } from "../../components/business-controls";
 
 import { PageCrumbs } from "../../components/page-crumbs";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { CatalogPage } from "../../catalog/shell";
@@ -9,32 +10,25 @@ import { inForceByProduct } from "../../../domains/catalog/lib/pricing";
 import { NewSolutionForm } from "../../components/catalog-forms";
 import { saveSolution } from "../../catalog/actions";
 
-// 新建 / 修改方案 - the composition and its customisation are content-rich
-// work, so they get a page (the 2026-09-05 flow ruling), while retiring and
-// ordering stay row operations on the roster.
-//
-// ?code=X edits that solution: the anchor locks and the combination arrives
-// filled in. An unknown code falls back to creation rather than showing an
-// edit heading over an empty form.
-
 export const dynamic = "force-dynamic";
 
 export default async function NewSolutionPage({
   searchParams,
 }: {
-  readonly searchParams: Promise<{ code?: string }>;
+  readonly searchParams: Promise<{ id?: string; code?: string }>;
 }) {
   const { CATALOG_TEXT, DOMAIN_LABEL } = await getMessages();
-  const { code } = await searchParams;
+  const { id, code } = await searchParams;
   return (
     <CatalogPage
       render={({ products, prices, policy, solutions, statuses, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.solution.upsert", "ui").allowed) {
           redirect("/solution");
         }
-        const found = code
+        const found = id ? solutions.find(s => s.solution.id === id) : code
           ? solutions.find((s) => s.solution.solutionCode === code)
           : undefined;
+        if ((id || code) && !found) notFound();
         return (
           <>
             <PageCrumbs
@@ -47,6 +41,7 @@ export default async function NewSolutionPage({
             />
             <NewSolutionForm
               key={found?.solution.id ?? "new"}
+              generatedCode={nextBusinessCode("SOL", solutions.map(s => s.solution.solutionCode))}
               products={products}
               statuses={statuses}
               currentPrices={Object.fromEntries(inForceByProduct(prices, policy.defaultCurrency, Date.now()))}

@@ -115,6 +115,7 @@ export interface AccountContext {
   holder: PermissionHolder;
   entitlement: Entitlement;
   store: AccountStore;
+  strategy?: Pick<StrategyStore, "listSegments">;
 }
 
 /**
@@ -1393,7 +1394,7 @@ export async function reassignAccount(
  *
  * THE STORE PATCH TYPE ALREADY COVERED EVERY ONE OF THESE FIELDS - name,
  * industryId/customerTypeId/customerSizeId/customerNatureId, region,
- * province, segmentCode, creditCode, website, employeeCount have all been
+ * province, segmentId, creditCode, website, employeeCount have all been
  * writable via `updateAccount()` since their own increments (0024/0035/0040/
  * 0071/0072), and every one of those increments said so in its own grant
  * comment. What did not exist was a SERVICE VERB taking more than one of them
@@ -1418,7 +1419,7 @@ export interface AccountBasicsPatch {
   region?: string | null;
   province?: string | null;
   industryId?: string | null;
-  segmentCode?: string | null;
+  segmentId?: string | null;
   customerTypeId?: string | null;
   customerSizeId?: string | null;
   customerNatureId?: string | null;
@@ -1443,12 +1444,22 @@ function basicsViolation(patch: AccountBasicsPatch): Violation | null {
   return null;
 }
 
-/** A selected region must be configured; unchanged historical names remain editable. */
-async function accountRegionViolation(ctx: AccountContext, region: string | null | undefined, current?: string | null): Promise<Violation | null> {
-  if (region == null || region === current) return null;
+/** Translate old name inputs at the boundary; new selectors send the configured UUID. */
+async function accountRegionSelection(ctx: AccountContext, value: string | null | undefined, current?: AccountRecord): Promise<RuleResult<Partial<Pick<AccountRecord, "region" | "regionId">>>> {
+  if (value === undefined || (current && value === (current.regionId ?? current.region))) return ok({});
+  if (value === null) return ok({ region: null, regionId: null });
   const divisions = await ctx.store.listMarketDivisions(ctx.workspaceId);
-  return divisions.some((d) => d.name === region)
-    ? null : violation("region_unknown", "select a configured geographic sales region", "region");
+  const matches = divisions.filter(d => d.name === value);
+  const row = divisions.find(d => d.id === value) ?? (matches.length === 1 ? matches[0] : undefined);
+  return row ? ok({ region: row.name, regionId: row.id })
+    : fail(violation("region_unknown", "select a configured geographic sales region", "region"));
+}
+
+async function accountMarketViolation(ctx: AccountContext, id: string | null | undefined, current?: string | null): Promise<Violation | null> {
+  if (id == null || id === current) return null;
+  const rows = await ctx.strategy?.listSegments(ctx.workspaceId) ?? [];
+  return rows.some(row => row.id === id && row.status === "active")
+    ? null : violation("segment_unknown", "select an active market in this workspace", "segmentId");
 }
 
 /**
@@ -1471,8 +1482,10 @@ export async function createAccount(
   const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  const regionError = await accountRegionViolation(ctx, input.region);
-  if (regionError) return fail(regionError);
+  const region = await accountRegionSelection(ctx, input.regionId ?? input.region);
+  if (!region.ok) return region;
+  const marketError = await accountMarketViolation(ctx, input.segmentId);
+  if (marketError) return fail(marketError);
   const tier = input.tier ?? "standard";
   if (!(ACCOUNT_TIERS as readonly string[]).includes(tier)) return fail(violation("unknown_tier", "unknown customer tier", "tier"));
   const planError = accountPlanViolation(tier, input.plan);
@@ -1490,7 +1503,7 @@ export async function createAccount(
   try {
     const { plan, ...basics } = input;
     return ok(await ctx.store.createAccount(ctx.workspaceId, {
-      ...basics, name, tier, ownerSub: ctx.sub,
+      ...basics, ...region.value, name, tier, ownerSub: ctx.sub,
       ...(plan ? { plan: { ...plan, period: plan.period.trim(), ownerSub: ctx.sub, presalesSub: null, deliverySub: null, status: "active" as const } } : {}),
     }));
   } catch (e) {
@@ -1518,15 +1531,18 @@ export async function updateAccountBasics(
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
 
-  const regionError = await accountRegionViolation(ctx, patch.region, current.region);
-  if (regionError) return fail(regionError);
+  const region = await accountRegionSelection(ctx, patch.region, current);
+  if (!region.ok) return region;
+
+  const marketError = await accountMarketViolation(ctx, patch.segmentId, current.segmentId);
+  if (marketError) return fail(marketError);
 
   const write: Partial<AccountRecord> = {};
   if (patch.name !== undefined) write.name = patch.name.trim();
-  if (patch.region !== undefined) write.region = patch.region;
+  Object.assign(write, region.value);
   if (patch.province !== undefined) write.province = patch.province;
   if (patch.industryId !== undefined) write.industryId = patch.industryId;
-  if (patch.segmentCode !== undefined) write.segmentCode = patch.segmentCode;
+  if (patch.segmentId !== undefined) write.segmentId = patch.segmentId;
   if (patch.customerTypeId !== undefined) write.customerTypeId = patch.customerTypeId;
   if (patch.customerSizeId !== undefined) write.customerSizeId = patch.customerSizeId;
   if (patch.customerNatureId !== undefined) write.customerNatureId = patch.customerNatureId;
@@ -1607,10 +1623,12 @@ export async function accountCompleteness(
       name: t.name,
       ownerSub: t.ownerSub,
       regions: t.regions ?? [],
+      divisionIds: t.divisionIds,
       status: t.status,
     })),
-    segments.map((sg) => ({
-      code: sg.segmentCode,
+    segments.filter(sg => sg.status === "active").map((sg) => ({
+      id: sg.id,
+      name: sg.name,
       // The criteria are already typed by D1 - read them, do not re-shape them.
       industries: sg.criteria?.industries ?? [],
       regions: sg.criteria?.regions ?? [],
@@ -1703,6 +1721,16 @@ export async function fillAccountField(
     return ok({ accountId, field, value: row.name });
   }
 
+  if (field === "region") {
+    const region = await accountRegionSelection(ctx, value.trim(), current);
+    if (!region.ok) return region;
+    if (Object.keys(region.value).length) await ctx.store.updateAccount(ctx.workspaceId, accountId, region.value);
+    return ok({ accountId, field, value: region.value.region ?? current.region ?? value.trim() });
+  }
+  if (field === "segmentId") {
+    const invalid = await accountMarketViolation(ctx, value.trim(), current.segmentId);
+    if (invalid) return fail(invalid);
+  }
   await ctx.store.updateAccount(ctx.workspaceId, accountId, { [field]: value.trim() });
   return ok({ accountId, field, value: value.trim() });
 }
@@ -1876,10 +1904,12 @@ export async function workspaceCompleteness(
     name: t.name,
     ownerSub: t.ownerSub,
     regions: t.regions ?? [],
+    divisionIds: t.divisionIds,
     status: t.status,
   }));
-  const segmentInputs = segments.map((sg) => ({
-    code: sg.segmentCode,
+  const segmentInputs = segments.filter(sg => sg.status === "active").map((sg) => ({
+    id: sg.id,
+      name: sg.name,
     industries: sg.criteria?.industries ?? [],
     regions: sg.criteria?.regions ?? [],
   }));

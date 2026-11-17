@@ -1,3 +1,4 @@
+import { createBusinessRow, editBusinessRow, type BusinessWrite } from "../shared/business-code";
 import { DEFAULT_STRATEGY_TYPES, type StrategyType, type StrategyTheme } from "./lib/strategy-type";
 import { isUniqueViolation } from "../shared/allocate";
 import { getPrismaClient } from "../../lib/db";
@@ -83,14 +84,14 @@ function foreignKeyFailure(error: unknown) {
 export class PrismaStrategyStore implements StrategyStore {
   async listStrategyTypes(workspaceId: string): Promise<StrategyType[]> {
     const p = await getPrismaClient();
-    await p.strategyType.createMany({data:DEFAULT_STRATEGY_TYPES.map(t=>({...t,workspaceId})),skipDuplicates:true});
+    await p.strategyType.createMany({data:DEFAULT_STRATEGY_TYPES.map(({ id: _id, ...t })=>({...t,workspaceId})),skipDuplicates:true});
     const rows = await p.strategyType.findMany({where:{workspaceId},orderBy:[{sortOrder:"asc"},{code:"asc"}]});
     return rows.map(toStrategyType);
   }
   async saveStrategyType(workspaceId: string, input: StrategyType): Promise<void> {
     const p = await getPrismaClient();
-    const {code,...fields} = input;
-    await p.strategyType.upsert({where:{workspaceId_code:{workspaceId,code}},create:{workspaceId,...input},update:{...fields,updatedAt:new Date()}});
+    const {id: _id, code,...fields} = input;
+    await p.strategyType.upsert({where:{workspaceId_code:{workspaceId,code}},create:{workspaceId,code,...fields},update:{...fields,updatedAt:new Date()}});
   }
 
   async listPlans(
@@ -130,7 +131,7 @@ export class PrismaStrategyStore implements StrategyStore {
           planNo: input.planNo,
           name: input.name,
           period: input.period,
-          strategyTypeCode: input.strategyTypeCode ?? null,
+          strategyTypeId: input.strategyTypeId ?? null,
           objective: input.objective,
           ownerSub: input.ownerSub,
           // Lifecycle transitions own all moves after creation.
@@ -173,7 +174,7 @@ export class PrismaStrategyStore implements StrategyStore {
       approvedAt?: Date | null;
       name?: string;
       period?: string;
-      strategyTypeCode?: string | null;
+      strategyTypeId?: string | null;
       objective?: string | null;
       ownerSub?: string | null;
       solutionIds?: readonly string[];
@@ -194,7 +195,7 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["strategyTypeCode", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
+    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
     if (solutionIds === undefined && productIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
@@ -364,7 +365,7 @@ export class PrismaStrategyStore implements StrategyStore {
     return rows.map((r) => toSegment(r as Record<string, unknown>));
   }
 
-  async upsertSegment(workspaceId: string, input: SegmentDraft): Promise<SegmentRecord> {
+  async upsertSegment(workspaceId: string, input: SegmentDraft, mode?: BusinessWrite): Promise<SegmentRecord> {
     const p = await getPrismaClient();
     const writable = {
       name: input.name,
@@ -375,8 +376,8 @@ export class PrismaStrategyStore implements StrategyStore {
       updatedAt: new Date(),
     };
     // segmentCode is absent on purpose, and the column locks agree: the DDL
-    // grants UPDATE on name/criteria/priority/status only. An edit that
-    // tried to rename the anchor would be refused by the database.
+    // grants UPDATE on name/criteria/priority/status only. Numbering stays
+    // fixed here; edits locate the record by UUID.
     const guard = assertWritable(SEGMENT_TABLE, writable);
     if (!guard.ok) {
       throw new Error(
@@ -384,13 +385,13 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    // By the anchor, not by id: this is the one identity accounts carry.
     return p.$transaction(async tx => {
-      const row = await tx.marketSegment.upsert({
-        where: { workspaceId_segmentCode: { workspaceId, segmentCode: input.segmentCode } },
-        update: writable,
-        create: { workspaceId, segmentCode: input.segmentCode, ...writable },
-      });
+      const create = { workspaceId, segmentCode: input.segmentCode, ...writable };
+      const row = await (async () => {
+        if (mode === "create") return createBusinessRow(() => tx.marketSegment.create({ data: create }));
+        if (mode) return editBusinessRow(() => tx.marketSegment.update({ where: { id: mode.editId, workspaceId }, data: writable }));
+        return tx.marketSegment.upsert({ where: { workspaceId_segmentCode: { workspaceId, segmentCode: input.segmentCode } }, update: writable, create });
+      })();
       const scope = { workspaceId, segmentId: row.id };
       if (input.solutionIds !== undefined) {
         await tx.marketSegmentSolution.deleteMany({ where: { ...scope, solutionId: { notIn: [...input.solutionIds] } } });
@@ -429,9 +430,7 @@ export class PrismaStrategyStore implements StrategyStore {
 
   async removeSegment(workspaceId: string, segmentId: string): Promise<boolean> {
     const p = await getPrismaClient();
-    // fk_campaign_segment is ON DELETE SET NULL and account.segment_code is a
-    // plain string - neither would stop this, which is exactly why the SERVICE
-    // refuses a segment anything still points at.
+    // UUID constraints also catch assignments made after the service preflight.
     try {
       const { count } = await p.marketSegment.deleteMany({ where: { workspaceId, id: segmentId } });
       return count > 0;
@@ -551,8 +550,8 @@ async function writePlanSolutions<T>(write: () => Promise<T>): Promise<T> {
   }
 }
 
-function toStrategyType(t: {code:string;name:string;description:string;theme:string;enabled:boolean;sortOrder:number}): StrategyType {
-  return {code:t.code,name:t.name,description:t.description,theme:t.theme as StrategyTheme,enabled:t.enabled,sortOrder:t.sortOrder};
+function toStrategyType(t: {id?:string;code:string;name:string;description:string;theme:string;enabled:boolean;sortOrder:number}): StrategyType {
+  return {id:t.id,code:t.code,name:t.name,description:t.description,theme:t.theme as StrategyTheme,enabled:t.enabled,sortOrder:t.sortOrder};
 }
 
 function toPlan(r: Record<string, unknown>): PlanRecord {
@@ -569,7 +568,7 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     planNo: String(r.planNo),
     name: String(r.name),
     period: String(r.period),
-    strategyTypeCode: (r.strategyTypeCode as string | null) ?? null,
+    strategyTypeId: (r.strategyTypeId as string | null) ?? null,
     strategyType,
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,

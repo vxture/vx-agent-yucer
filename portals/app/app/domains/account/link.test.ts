@@ -73,7 +73,7 @@ function unreachableAccount(): InMemoryAccountStore {
         customerNature: null,
         region: null,
         province: null,
-        segmentCode: null,
+        segmentId: null,
         ownerSub: null,
         healthScore: null,
         status: "active",

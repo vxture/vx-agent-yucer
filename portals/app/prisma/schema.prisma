@@ -301,13 +301,16 @@ model Account {
   /// incr/0072. The fourth join - what kind of organisation this is.
   customerNatureId String? @map("customer_nature_id") @db.Uuid
   region        String?   @db.VarChar(64)
+  regionId      String?   @map("region_id") @db.Uuid
+  salesRegion   MarketDivision? @relation(fields: [workspaceId, regionId], references: [workspaceId, id], onDelete: NoAction, map: "fk_account_sales_region")
   /// incr/0035. The provincial-level division, one granularity below `region`.
   /// Both are stored: `region` (大区) is what territory routing matches on, so
   /// it cannot be repurposed, and deriving it from the province on read would
   /// move that mapping out of the database where the routing rule cannot see it.
   /// CHECK-constrained to the 34 divisions, spelled as the map's geometry keys them.
   province      String?   @db.VarChar(32)
-  segmentCode   String?   @map("segment_code") @db.VarChar(64)
+  segmentId     String?   @map("segment_id") @db.Uuid
+  segment       MarketSegment? @relation(fields: [workspaceId, segmentId], references: [workspaceId, id], map: "fk_account_market_segment")
   ownerSub      String?   @map("owner_sub") @db.VarChar(128)
   /// strategic | key | standard. Set by D1, not by the owner - see ADR-013.
   tier          String    @default("standard") @db.VarChar(16)
@@ -331,6 +334,8 @@ model Account {
 
   @@unique([workspaceId, accountNo], map: "uidx_account_ws_no")
   @@index([workspaceId, province], map: "idx_account_ws_province")
+  @@index([workspaceId, segmentId], map: "idx_account_ws_segment")
+  @@index([workspaceId, regionId], map: "idx_account_ws_region_id")
   @@index([workspaceId, industryId], map: "idx_account_ws_industry")
   @@index([workspaceId, customerTypeId], map: "idx_account_ws_customer_type")
   @@index([workspaceId, customerSizeId], map: "idx_account_ws_customer_size")
@@ -617,6 +622,7 @@ model AccountHealthSnapshot {
 // ===== yucer_gtm (D1 strategy, D2 planning, D3 campaign) =====
 
 model StrategyType {
+  id String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String @map("workspace_id") @db.Uuid
   code String @db.VarChar(64)
   name String @db.VarChar(64)
@@ -628,13 +634,14 @@ model StrategyType {
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
   plans StrategyPlan[]
   @@id([workspaceId, code])
+  @@unique([workspaceId, id], map: "uidx_strategy_type_ws_id")
   @@map("strategy_type")
   @@schema("yucer_gtm")
 }
 
 model StrategyPlan {
-  strategyTypeCode String? @map("strategy_type_code") @db.VarChar(64)
-  strategyType StrategyType? @relation(fields: [workspaceId, strategyTypeCode], references: [workspaceId, code], onDelete: NoAction, onUpdate: NoAction, map: "fk_strategy_type")
+  strategyTypeId String? @map("strategy_type_id") @db.Uuid
+  strategyType StrategyType? @relation(fields: [workspaceId, strategyTypeId], references: [workspaceId, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_strategy_type_id")
   lineageId String @default(dbgenerated()) @map("lineage_id") @db.Uuid
   basePlanId String? @map("base_plan_id") @db.Uuid
   versionNo Int? @map("version_no")
@@ -748,6 +755,7 @@ model MarketSegment {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  accounts Account[]
   solutionLinks MarketSegmentSolution[]
 
   strategyTargets StrategyPlanMarket[]
@@ -1074,6 +1082,8 @@ model Opportunity {
   // column that one function happened to fill.
   ownerSub         String    @map("owner_sub") @db.VarChar(128)
   stage            String    @default("qualify") @db.VarChar(32)
+  stageId          String    @default(dbgenerated()) @map("stage_id") @db.Uuid
+  stageDefinition  StageDefinition @relation(fields: [workspaceId, stageId], references: [workspaceId, id], onDelete: Restrict, map: "fk_opportunity_stage")
   forecastCategory String    @default("pipeline") @map("forecast_category") @db.VarChar(32)
   amount           Decimal?  @db.Decimal(18, 2)
   currency         String    @default("CNY") @db.VarChar(8)
@@ -1118,6 +1128,10 @@ model OpportunityStageEvent {
   opportunityId String   @map("opportunity_id") @db.Uuid
   fromStage     String?  @map("from_stage") @db.VarChar(32)
   toStage       String   @map("to_stage") @db.VarChar(32)
+  fromStageId String? @map("from_stage_id") @db.Uuid
+  toStageId String @default(dbgenerated()) @map("to_stage_id") @db.Uuid
+  fromStageDefinition StageDefinition? @relation("StageFrom", fields: [workspaceId, fromStageId], references: [workspaceId, id], onDelete: Restrict, map: "fk_opportunity_stage_event_from_stage")
+  toStageDefinition StageDefinition @relation("StageTo", fields: [workspaceId, toStageId], references: [workspaceId, id], onDelete: Restrict, map: "fk_opportunity_stage_event_to_stage")
   reason        String?  @db.VarChar(255)
   actorSub      String?  @map("actor_sub") @db.VarChar(128)
   occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz()
@@ -1129,12 +1143,7 @@ model OpportunityStageEvent {
   @@schema("yucer_pipeline")
 }
 
-/// incr/0057 - 商机阶段, a per-workspace vocabulary. No Prisma relation to
-/// Opportunity.stage / OpportunityStageEvent.{from,to}Stage: the FK (0058) is
-/// a composite natural-key FK (workspace_id, stage) against stage_code, and
-/// those three columns stay plain String - hundreds of call sites already
-/// compare/filter/index them by string, which a UUID relation would disturb
-/// for no integrity gain the composite FK does not already give.
+/// Stage codes classify workflow state; incr/0119 binds relational identity by UUID.
 model StageDefinition {
   id                  String   @id @default(uuid()) @db.Uuid
   workspaceId         String   @map("workspace_id") @db.Uuid
@@ -1147,6 +1156,11 @@ model StageDefinition {
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  opportunities Opportunity[]
+  fromEvents OpportunityStageEvent[] @relation("StageFrom")
+  toEvents OpportunityStageEvent[] @relation("StageTo")
+  exitCriteria StageExitCriterion[]
+  @@unique([workspaceId, id], map: "uidx_stage_definition_ws_id")
   @@unique([workspaceId, stageCode], map: "uidx_stage_definition_code")
   @@index([workspaceId, sortOrder], map: "idx_stage_definition_ws_sort")
   @@map("stage_definition")
@@ -1691,8 +1705,7 @@ model Product {
 
 }
 
-/// The workspace's own type vocabulary - incr/0028. `category` on Product
-/// holds a type_code by value (no FK: types retire, never delete).
+/// The workspace's own type vocabulary. Product refers to it by type_id.
 model ProductType {
   id          String   @id @default(uuid()) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
@@ -1905,6 +1918,8 @@ model MarketDivision {
   /// read-only reference from yucer_gtm, not through a territory.
   orgUnits    OrgUnitDivision[]
 
+  accounts Account[]
+  @@unique([workspaceId, id], map: "uidx_market_division_ws_id")
   @@unique([workspaceId, scope, scopeProvince, divisionCode], map: "uidx_market_division_code")
   @@index([workspaceId, sortOrder], map: "idx_market_division_ws_sort")
   @@map("market_division")
@@ -2210,6 +2225,8 @@ model StageExitCriterion {
   id          String   @id @default(uuid()) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
   stageCode   String   @map("stage_code") @db.VarChar(32)
+  stageId String @default(dbgenerated()) @map("stage_id") @db.Uuid
+  stageDefinition StageDefinition @relation(fields: [workspaceId, stageId], references: [workspaceId, id], onDelete: Cascade, map: "fk_exit_criterion_stage")
   kind        String   @db.VarChar(24)
   param       Json     @default("{}")
   name        String   @db.VarChar(255)
@@ -2297,7 +2314,7 @@ model SalesPlanEvent {
   eventNo        Int      @map("event_no")
   kind           String   @db.VarChar(16)
   revisionId     String?  @map("revision_id") @db.Uuid
-  relatedEventNo Int?     @map("related_event_no")
+  relatedEventId String?  @map("related_event_id") @db.Uuid
   periodKey      String?  @map("period_key") @db.VarChar(32)
   recordedAt     DateTime @map("recorded_at") @db.Timestamptz()
   effectiveAt    DateTime @map("effective_at") @db.Timestamptz()
@@ -2307,6 +2324,8 @@ model SalesPlanEvent {
   requestHash    String   @map("request_hash") @db.VarChar(64)
 
   @@unique([workspaceId, planId, eventNo])
+  @@unique([workspaceId, planId, id], map: "uidx_sales_plan_event_scope_id")
+  @@index([workspaceId, planId, relatedEventId], map: "idx_sales_plan_related_event_id")
   @@unique([workspaceId, planId, requestKey])
   @@map("sales_plan_event")
   @@schema("yucer_gtm")

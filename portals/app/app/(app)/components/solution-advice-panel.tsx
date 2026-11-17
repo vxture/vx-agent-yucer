@@ -40,10 +40,10 @@ export function SolutionAdvicePanel({ advice }: { readonly advice: readonly Solu
         : a.kind === "unpriced_product" || a.kind === "unquotable_product"
           ? "warn"
           : "info",
-    link: a.solutionCode
+    link: a.solutionId
       ? {
           label: CATALOG_TEXT.solutionAdviceOpen,
-          href: `/solution/new?code=${encodeURIComponent(a.solutionCode)}`,
+          href: `/solution/new?id=${encodeURIComponent(a.solutionId)}`,
         }
       : { label: CATALOG_TEXT.solutionAdviceOpenCatalogue, href: "/catalog" },
     more: [

@@ -65,7 +65,7 @@ export default async function NewOpportunityPage() {
       <OpportunityForm
         accounts={
           accounts.ok
-            ? accounts.value.map((a) => ({ id: a.id, name: a.name, region: a.region, status: statusOf?.get(a.id) ?? "unknown" }))
+            ? accounts.value.map((a) => ({ id: a.id, name: a.name, region: a.region, regionId: a.regionId, status: statusOf?.get(a.id) ?? "unknown" }))
             : []
         }
         territories={
@@ -74,6 +74,7 @@ export default async function NewOpportunityPage() {
                 id: t.id,
                 name: t.name,
                 regions: t.regions,
+                divisionIds: t.divisionIds,
                 status: t.status,
               }))
             : []

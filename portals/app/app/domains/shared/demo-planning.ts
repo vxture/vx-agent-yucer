@@ -367,10 +367,11 @@ export async function seedPlanningDemo(
     year,
     revisions,
     events: revisions.map((r, i) => ({
+      id: id(workspaceId, "release-event|" + r.id),
       no: i + 1,
       kind: "release",
       revisionId: r.id,
-      relatedNo: null,
+      relatedId: null,
       period: null,
       at: r.sealedAt,
       effectiveAt: r.sealedAt,

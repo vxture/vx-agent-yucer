@@ -190,7 +190,7 @@ export default async function AccountPage() {
           }
           segmentNames={
             segments.ok
-              ? new Map(segments.value.map((g) => [g.segmentCode, g.name]))
+              ? new Map(segments.value.map((g) => [g.id, g.name]))
               : undefined
           }
           canRecompute={

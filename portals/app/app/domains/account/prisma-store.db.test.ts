@@ -470,7 +470,7 @@ test("toAccount maps a real row, including the columns that may be null", { skip
     assert.equal(bare.industry, null);
     assert.equal(bare.industryId, null);
     assert.equal(bare.region, null);
-    assert.equal(bare.segmentCode, null);
+    assert.equal(bare.segmentId, null);
     assert.equal(bare.ownerSub, null);
     assert.equal(bare.healthScore, null);
     // `tier` defaults in the mapper, not in the column, so an absent value has
@@ -547,7 +547,7 @@ test("createAccount numbers after the workspace's highest ACC and refuses a cred
   await withPg(seed);
   const s = await store();
   const base = {
-    region: null, province: null, industryId: null, segmentCode: null, customerTypeId: null,
+    region: null, province: null, industryId: null, segmentId: null, customerTypeId: null,
     customerSizeId: null, customerNatureId: null, website: null, employeeCount: null, ownerSub: "usr_me",
   };
   try {

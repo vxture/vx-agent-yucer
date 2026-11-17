@@ -11,7 +11,7 @@ import { listSegments, type StrategyContext } from "./service";
 import { readSegmentDraft, segmentDraftFrame, SEGMENT_FILL_FIELDS, SEGMENT_LIST_FIELDS, SEGMENT_TEXT_FIELDS, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "./lib/segment-draft";
 
 export interface SegmentAssistInput {
-  text: string; initialCode?: string; sessionId?: string; retryMessageId?: string;
+  text: string; editId?: string; sessionId?: string; retryMessageId?: string;
   values: SegmentFillValues; manualFields?: readonly SegmentFillField[];
 }
 export type SegmentAssistResult =
@@ -40,7 +40,7 @@ export async function prepareSegmentDraft(ctx: StrategyContext, input: SegmentAs
 }): Promise<SegmentAssistResult> {
   if (!can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data").allowed || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) return { ok: false, error: "denied" };
   if (typeof input?.text !== "string" || !input.text.trim() || input.text.length > 4000 ||
-    [input.initialCode, input.sessionId, input.retryMessageId].some(id => id !== undefined && (typeof id !== "string" || id.length > 128))) return { ok: false, error: "invalid_input" };
+    [input.editId, input.sessionId, input.retryMessageId].some(id => id !== undefined && (typeof id !== "string" || id.length > 128))) return { ok: false, error: "invalid_input" };
   if (!deps.tenantId) return { ok: false, error: "no_active_tenant" };
   try {
     if (input.sessionId) {
@@ -49,8 +49,8 @@ export async function prepareSegmentDraft(ctx: StrategyContext, input: SegmentAs
     }
     const segments = await listSegments(ctx);
     if (!segments.ok) return { ok: false, error: segments.violations[0]?.code ?? "denied" };
-    const original = segments.value.find(row => row.segmentCode === input.initialCode);
-    if (input.initialCode && !original) return { ok: false, error: "not_found" };
+    const original = segments.value.find(row => row.id === input.editId);
+    if (input.editId && !original) return { ok: false, error: "not_found" };
     const vocab = await segmentVocabulary(deps.account, deps.catalog);
     const current = {} as SegmentFillValues;
     for (const key of SEGMENT_TEXT_FIELDS) current[key] = typeof input.values?.[key] === "string" ? input.values[key].slice(0, key === "name" ? 200 : 2000) : "";

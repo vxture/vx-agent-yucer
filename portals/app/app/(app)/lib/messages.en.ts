@@ -179,6 +179,8 @@ export const en: Dictionary = {
   },
 
   COMPLETENESS_ERROR: {
+  region_unknown: "Select a sales region from region settings.",
+  segment_unknown: "The selected market segment is unavailable. Refresh and try again.",
     invalid_retry: "This question was answered or its conversation changed. Refresh before retrying.",
     turn_in_progress: "This conversation is still processing. Wait for it to finish.",
 
@@ -227,7 +229,7 @@ export const en: Dictionary = {
       province: "Province",
       region: "Region",
       industry: "Industry",
-      segmentCode: "Segment",
+      segmentId: "Segment",
       ownerSub: "Owner",
     },
     askable: (fields: string) =>
@@ -247,6 +249,8 @@ export const en: Dictionary = {
   },
 
   BATCH_COMPLETE_ERROR: {
+  region_unknown: "Select a sales region from region settings.",
+  segment_unknown: "The selected market segment is unavailable. Refresh and try again.",
     ...GATE_ERROR,
     province_unknown:
       "The province must be one of the 34 provincial-level divisions - pick one from the list",
@@ -1615,6 +1619,7 @@ export const en: Dictionary = {
     move_at_edge: "Already at that end",
     not_movable: "This row cannot be moved",
     name_required: "An account needs a name",
+    segment_unknown: "The selected market segment is unavailable. Refresh and try again.",
     region_unknown: "Select a sales region from region settings.",
     province_unknown: "Not one of the 34 provincial-level divisions",
     employee_count_invalid: "Employee count must be a non-negative whole number",
@@ -1644,6 +1649,9 @@ export const en: Dictionary = {
   },
 
   CATALOG_ERROR: {
+  number_taken: "This number is already in use. Enter another.",
+  number_busy: "Number allocation is busy. Try saving again.",
+  number_too_long: "The product number may be up to 64 characters.",
     solution_in_use: "This solution is linked to a market strategy. Retire it or unlink it before deleting.",
     ...GATE_ERROR,
     code_required: "A code is required",
@@ -1739,6 +1747,10 @@ export const en: Dictionary = {
     accept: "Accept",
   },
   CATALOG_TEXT: {
+  productNameExample: "E.g. store management software",
+  productNumber: "Product number",
+  productNumberHint: "Use the suggested number or enter your own product number.",
+  cancelProductEdit: "Cancel",
     productNoun: "product",
     solutionNoun: "solution",
     statusNoun: "status",
@@ -3070,6 +3082,8 @@ export const en: Dictionary = {
     unknown: "Could not load the data. Please try again.",
   },
   SEGMENT_ERROR: {
+    number_taken: "This number is in use. Refresh and try again.",
+  number_busy: "Number allocation is busy. Try saving again.",
   empty_question: "Describe the target customers or business problem first.",
   invalid_retry: "This retry expired. Your form is retained; refresh to continue.",
   quota_exceeded: "The smart service quota is exhausted. Contact your administrator.",
@@ -7841,7 +7855,7 @@ export const en: Dictionary = {
   "conditions": "Customer criteria",
   "insights": "Pains and buying",
   "offerings": "Linked products & solutions",
-  "code": "Market code",
+  "code": "Automatically assigned when saved.",
   "name": "Market name",
   "priority": "Display order",
   "status": "Availability",
@@ -7897,7 +7911,7 @@ export const en: Dictionary = {
     "assist": "Describe customers, problems or offerings. The existing assistant organizes an editable draft using configured choices and may research public market context. Judgments are hypotheses to validate. Review and save when ready."
   },
   "examples": {
-    "code": "e.g. SEG-004",
+    "code": "e.g. MKT-20261117-001",
     "name": "e.g. East medium retail chains",
     "priority": "e.g. 0; smaller first",
     "customerNeed": "e.g. Inventory and online orders are out of sync, causing stockouts",

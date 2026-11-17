@@ -62,12 +62,10 @@ export async function resolveDataScope(
     // to "which territory covers this customer", and routing would send a lead
     // to somebody who cannot see it.
     const mine = new Set(territoryIds);
-    const covered = new Set(
-      territories.filter((t) => mine.has(t.id)).flatMap((t) => t.regions ?? []),
-    );
+    const covered = territories.filter(t => mine.has(t.id));
     const accounts = await getAccountStore().listAccounts(workspaceId);
     const accountIds = accounts
-      .filter((a) => a.region != null && covered.has(a.region))
+      .filter((a) => a.region != null && coveringTerritories(a.region, covered, a.regionId).length > 0)
       .map((a) => a.id);
 
     // THE FALLBACK. Whoever owns a territory on this ground - one person per
@@ -81,8 +79,10 @@ export async function resolveDataScope(
     // whether the row is filed anywhere, not whether it is filed here - and
     // `coveringTerritories` is the same rule routing uses to answer it, so the
     // two cannot disagree about which customers are unplaced.
+    // A saved legacy label with no resolved UUID stays out of the shared
+    // queue until corrected; an ambiguous label must not widen visibility.
     const unplacedAccountIds = accounts
-      .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
+      .filter((a) => a.region == null || (a.regionId !== null && coveringTerritories(a.region, territories, a.regionId).length === 0))
       .map((a) => a.id);
 
     return {
@@ -119,12 +119,12 @@ export async function resolveDataScope(
     const parentOf = new Map<string, string | null>(territories.map((t) => [t.id, t.parentId ?? null]));
     const territoryIds = expandTerritories(worked, parentOf);
     const held = new Set(territoryIds);
-    const covered = new Set(territories.filter((t) => held.has(t.id)).flatMap((t) => t.regions ?? []));
+    const covered = territories.filter(t => held.has(t.id));
     const accounts = await getAccountStore().listAccounts(workspaceId);
-    const accountIds = accounts.filter((a) => a.region != null && covered.has(a.region)).map((a) => a.id);
+    const accountIds = accounts.filter((a) => a.region != null && coveringTerritories(a.region, covered, a.regionId).length > 0).map((a) => a.id);
     const ownerSubs = territories.filter((t) => held.has(t.id) && t.ownerSub).map((t) => t.ownerSub as string);
     const unplacedAccountIds = accounts
-      .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
+      .filter((a) => a.region == null || (a.regionId !== null && coveringTerritories(a.region, territories, a.regionId).length === 0))
       .map((a) => a.id);
     return {
       kind: "unit",

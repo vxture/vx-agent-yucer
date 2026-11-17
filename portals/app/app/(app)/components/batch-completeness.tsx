@@ -29,6 +29,7 @@ export interface BatchGapRow {
   readonly accountName: string;
   readonly field: string;
   readonly suggestion: string;
+  readonly suggestionLabel?: string;
   readonly basis: string | null;
 }
 
@@ -132,7 +133,7 @@ export function BatchCompleteness({
     {
       id: "suggestion",
       header: BATCH_COMPLETE_TEXT.columnSuggestion,
-      cell: (row) => row.suggestion,
+      cell: (row) => row.suggestionLabel ?? row.suggestion,
     },
     {
       id: "basis",

@@ -10,6 +10,17 @@ const T = (id: string, name: string, owner: string | null, regions: string[], st
   status,
 });
 
+test("same-name sales regions are routed by UUID; unresolved labels do not route", () => {
+  const first = { ...T("t1", "First", "rep1", ["East"]), divisionIds: ["region-1"] };
+  const second = { ...T("t2", "Second", "rep2", ["East"]), divisionIds: ["region-2"] };
+  const routed = routeLead({ id: "l1", region: "East", regionId: "region-2" }, [first, second], new Map());
+  assert.equal(routed.kind, "assigned");
+  assert.equal(routed.territoryId, "t2");
+  assert.deepEqual(routeLead({ id: "l2", region: "East", regionId: null }, [first, second], new Map()), {
+    kind: "unroutable", reason: "no_territory",
+  });
+});
+
 const EAST = T("t_east", "East China", "rep_1", ["华东", "华中"]);
 const SOUTH = T("t_south", "South China", "rep_2", ["华南"]);
 

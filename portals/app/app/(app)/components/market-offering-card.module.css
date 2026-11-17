@@ -1,0 +1,41 @@
+.card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  container-type: inline-size;
+  background: linear-gradient(110deg, var(--card), color-mix(in srgb, currentColor 7%, var(--card)));
+}
+
+.art {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 auto;
+  width: 46%;
+  background: currentColor;
+  opacity: .12;
+  mask-position: right center;
+  mask-size: auto 105%;
+  mask-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-sm);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+}
+
+@container (max-width: 40rem) {
+  .body { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .art { width: 70%; opacity: .08; }
+}

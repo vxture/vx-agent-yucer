@@ -1,0 +1,51 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { Button, Card, CardContent, Icon, type IconName } from "@vxture/design-ui";
+import styles from "./market-offering-card.module.css";
+
+/** A quieter companion to the strategy charter, shared by both library views. */
+export function MarketOfferingCard({ kind, name, number, status, actions, summary, context, facts, openLabel, onOpen }: {
+  readonly kind: "market" | "solution";
+  readonly name: string;
+  readonly number: string;
+  readonly status: ReactNode;
+  readonly actions: ReactNode;
+  readonly summary: ReactNode;
+  readonly context: ReactNode;
+  readonly facts: ReactNode;
+  readonly openLabel: string;
+  readonly onOpen: () => void;
+}) {
+  const icon: IconName = kind === "market" ? "target" : "stack";
+  const color = kind === "market" ? "text-info-text" : "text-primary-text";
+  return <Card surface="soft" className={`${styles.card} py-lg ${color}`} data-market-offering-card={kind}>
+    <div className={styles.art} aria-hidden="true" style={{ maskImage: `url(/assets/strategy/${kind}-library.svg)` }} />
+    <CardContent className="flex min-w-0 flex-col gap-md text-foreground">
+      <div className={styles.header}>
+        <Icon name={icon} size="xl" className={`shrink-0 ${color}`} aria-hidden="true" />
+        <div className="min-w-0">
+          <h3><Button type="button" size="md" variant="ghost" className="h-auto min-h-0 max-w-full justify-start whitespace-normal p-0 text-left text-foreground hover:bg-transparent hover:text-primary-text" onClick={onOpen}><span className="break-words text-heading-2">{name}</span></Button></h3>
+          <p className="break-words text-body-small tabular-nums text-muted-foreground">{number}</p>
+        </div>
+        <div className="flex items-center gap-sm">{status}{actions}</div>
+      </div>
+      <div className={styles.body}>
+        <div className="min-w-0 space-y-xs">{summary}</div>
+        <div className="min-w-0 space-y-xs">{context}</div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-sm border-t border-dashed border-border pt-sm">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-xl gap-y-xs">{facts}</div>
+        <Button size="md" variant="ghost" onClick={onOpen}>{openLabel}<Icon name="arrow-right" size="sm" aria-hidden="true" /></Button>
+      </div>
+    </CardContent>
+  </Card>;
+}
+
+export function LibraryCardFact({ icon, label, children }: {
+  readonly icon: IconName; readonly label: string; readonly children: ReactNode;
+}) {
+  return <span className="inline-flex min-w-0 flex-wrap items-center gap-xs text-body-small text-muted-foreground">
+    <Icon name={icon} size="sm" aria-hidden="true" />{label}<span className="font-medium tabular-nums text-foreground">{children}</span>
+  </span>;
+}

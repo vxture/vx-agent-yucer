@@ -38,9 +38,10 @@ export interface CompletableAccount {
   name: string;
   industry: string | null;
   region: string | null;
+  regionId?: string | null;
   /** incr/0035. The province the customer sits in; the map is coloured by it. */
   province: string | null;
-  segmentCode: string | null;
+  segmentId: string | null;
   ownerSub: string | null;
 }
 
@@ -52,7 +53,8 @@ export interface AccountEvidence {
 
 /** A segment, and the criteria that decide whether a customer is in it. */
 export interface SegmentCriteria {
-  code: string;
+  id: string;
+  name: string;
   industries: readonly string[];
   regions: readonly string[];
 }
@@ -62,7 +64,7 @@ export interface SegmentCriteria {
    in the product could ever write one: a workspace that was not seeded would
    have every province grey for ever, and no page said why. The补全 module is
    where a missing fact on a customer record gets filled, so it belongs here. */
-export const FILLABLE_FIELDS = ["province", "region", "industry", "segmentCode", "ownerSub"] as const;
+export const FILLABLE_FIELDS = ["province", "region", "industry", "segmentId", "ownerSub"] as const;
 export type FillableField = (typeof FILLABLE_FIELDS)[number];
 
 export interface AccountGap {
@@ -174,7 +176,7 @@ export function accountGaps(
       // can be asked about by name.
       forModel: only === null,
     });
-  } else if (coveringTerritories(account.region, territories).length === 0) {
+  } else if (coveringTerritories(account.region, territories, account.regionId).length === 0) {
     // 未分区. NOT a missing value - the record is filled in, and no territory
     // claims the ground it names. It is reported because of what it silently
     // does: an unplaced customer is visible to EVERY territory member, so a
@@ -207,7 +209,7 @@ export function accountGaps(
   }
 
   // --- segment ----------------------------------------------------------
-  if (!account.segmentCode) {
+  if (!account.segmentId) {
     // Matched on the segment's own criteria, which is data an administrator
     // maintains - so this is reading a rule somebody wrote, not inventing one.
     // Ambiguity refuses to choose for the same reason region does.
@@ -220,9 +222,9 @@ export function accountGaps(
       : [];
     const only = matches.length === 1 ? matches[0] : null;
     gaps.push({
-      field: "segmentCode",
-      suggestion: only ? only.code : null,
-      basis: only ? { code: "industry_segment", industry: account.industry as string, segment: only.code } : null,
+      field: "segmentId",
+      suggestion: only ? only.id : null,
+      basis: only ? { code: "industry_segment", industry: account.industry as string, segment: only.name } : null,
       // Never the model's question. The segment is decided by criteria an
       // administrator wrote down; asking a model to guess at it would override
       // a rule somebody in this company owns.

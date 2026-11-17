@@ -332,8 +332,9 @@ export class PrismaAccountStore implements AccountStore {
         deletedAt: null,
         ...(filter.status ? { status: filter.status } : {}),
         ...(filter.ownerSub ? { ownerSub: filter.ownerSub } : {}),
-        ...(filter.segmentCode ? { segmentCode: filter.segmentCode } : {}),
+        ...(filter.segmentId ? { segmentId: filter.segmentId } : {}),
       },
+      include: { salesRegion: { select: { name: true } } },
       // Sickest first. Postgres sorts NULLs last on ASC by default, which is
       // what we want: an unscored account is not the most urgent one.
       orderBy: [{ healthScore: "asc" }, { name: "asc" }],
@@ -406,7 +407,7 @@ export class PrismaAccountStore implements AccountStore {
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
     const p = await this.client();
-    const row = await p.account.findFirst({ where: { id, workspaceId, deletedAt: null } });
+    const row = await p.account.findFirst({ where: { id, workspaceId, deletedAt: null }, include: { salesRegion: { select: { name: true } } } });
     if (!row) return null;
     const [industryNames, customerTypeNames, customerSizeNames, customerNatureNames] = await Promise.all([
       this.industryNames(workspaceId),
@@ -1526,9 +1527,10 @@ function toAccount(
     customerSize: customerSizeId ? customerSizeNames.get(customerSizeId) ?? null : null,
     customerNatureId,
     customerNature: customerNatureId ? customerNatureNames.get(customerNatureId) ?? null : null,
-    region: (r.region as string | null) ?? null,
+    regionId: (r.regionId as string | null) ?? null,
+    region: (r.salesRegion as {name: string} | null)?.name ?? (r.region as string | null) ?? null,
     province: (r.province as string | null) ?? null,
-    segmentCode: (r.segmentCode as string | null) ?? null,
+    segmentId: (r.segmentId as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
     healthScore: (r.healthScore as number | null) ?? null,
     status: r.status as AccountStatus,

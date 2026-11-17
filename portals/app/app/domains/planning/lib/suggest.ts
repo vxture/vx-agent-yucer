@@ -22,6 +22,7 @@ export function untargetedTerritories(
     readonly scopeType: TargetScopeType;
     readonly territoryId: string | null;
   }[],
+  regionId?: string | null,
 ): { id: string; name: string }[] {
   const targeted = new Set(
     targets
@@ -73,12 +74,16 @@ export function coveringTerritories(
     readonly id: string;
     readonly name: string;
     readonly regions: readonly string[];
+    readonly divisionIds?: readonly string[];
     readonly status: string;
   }[],
+  regionId?: string | null,
 ): { id: string; name: string }[] {
   const r = region?.trim();
   if (!r) return [];
   return territories
-    .filter((t) => t.status === "active" && t.regions.includes(r))
+    .filter((t) => t.status === "active" && (regionId === undefined
+      ? t.regions.includes(r)
+      : regionId !== null && (t.divisionIds ?? []).includes(regionId)))
     .map((t) => ({ id: t.id, name: t.name }));
 }

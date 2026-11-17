@@ -282,7 +282,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
     ...(input.changeReason === undefined ? {} : {changeReason:input.changeReason.trim()}),
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
-    ...(input.strategyTypeCode === undefined ? {} : {strategyTypeCode:input.strategyTypeCode}),
+    ...(input.strategyTypeId === undefined ? {} : {strategyTypeId:input.strategyTypeId}),
     ...(input.solutionIds === undefined ? {} : { solutionIds: input.solutionIds }),
     ...(input.productIds === undefined ? {} : { productIds: input.productIds }),
     ...(input.targetMarkets === undefined ? {} : { targetMarkets: input.targetMarkets }),
@@ -290,7 +290,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
 }
 
 export interface PlanEdit {
-  strategyTypeCode?: string | null;
+  strategyTypeId?: string | null;
   changeReason?: string;
   name: string;
   period: string;
@@ -392,11 +392,7 @@ export function planExecution(
 // A segment is the addressable-market decomposition of a strategy: who we are
 // going after, cut into named pieces, ordered by priority.
 //
-// It is the anchor two other records already point at. `campaign.segment_id` is
-// a real foreign key; `account.segment_code` points at it BY VALUE, with no
-// foreign key to enforce it. That second one is why the code is immutable here:
-// nothing in the database would stop a rename, and nothing would tell you that
-// seven accounts had just stopped resolving.
+// Campaigns, accounts, and strategy targets relate to the market UUID.
 
 export const SEGMENT_STATUSES = ["active", "paused", "retired"] as const;
 export type SegmentStatus = (typeof SEGMENT_STATUSES)[number];
@@ -488,16 +484,7 @@ export function planSegment(input: SegmentDraft): RuleResult<SegmentDraft> {
   return ok({ ...input, segmentCode, name, criteria });
 }
 
-/**
- * May this segment be DELETED?
- *
- * Refused while anything points at it, because neither reference protests on
- * its own: `campaign.segment_id` is ON DELETE SET NULL (the campaign survives,
- * silently un-aimed) and `account.segment_code` is a plain string (the
- * accounts keep carrying a code that names nothing). A segmentation that
- * quietly stops meaning anything is worse than one that refuses to be
- * deleted, and retiring is the reversible move.
- */
+/** Retiring is the reversible choice while any business record uses this market. */
 export function planSegmentRemoval(refs: {
   readonly campaigns: number;
   readonly accounts: number;

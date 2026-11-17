@@ -1,10 +1,11 @@
 "use client";
 
 import { Section } from "./help-section";
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Button,
+  Button, Card, CardContent,
   Field,
   FieldDescription,
   FieldLabel,
@@ -17,7 +18,6 @@ import { solutionPricingFacts } from "../lib/solution-prices";
 import type { PriceValues } from "../lib/product-prices";
 import { useMessages } from "../lib/i18n/provider";
 import { AssistPanel, FormFields, FormPage, type AssistSuggestion } from "./form-page";
-import { suggestNextCode } from "../../domains/shared/suggest";
 import type {
   ProductRecord,
   ProductStatusRecord,
@@ -66,14 +66,14 @@ function useSubmit(onDone: string) {
 // --- 新建产品 ---------------------------------------------------------------
 
 export function NewProductForm({
-  products,
+  generatedCode,
   types,
   statuses,
   units,
   initial,
   onSave,
 }: {
-  readonly products: readonly ProductRecord[];
+  readonly generatedCode: string;
   /** The workspace's type vocabulary - the type field selects from it. */
   readonly types: readonly ProductTypeRecord[];
   /** The status vocabulary - the birth choice selects from it. */
@@ -81,10 +81,10 @@ export function NewProductForm({
   /** 计价单位 (incr/0037). A picker since the unit stopped being free text:
    *  套 typed here and 台 typed there were two units nobody could group by. */
   readonly units: readonly ProductUnitRecord[];
-  /** Present = EDIT mode (?code= on the page): code locked, status untouched -
-   * transitions belong to the roster's row menu, not the form. */
+  /** Status transitions remain in the list; either form can set the number. */
   readonly initial?: ProductRecord;
   readonly onSave: (input: {
+    editId?: string;
     productCode: string;
     name: string;
     typeId: string | null;
@@ -92,9 +92,9 @@ export function NewProductForm({
     statusId?: string;
   }) => Promise<Saved>;
 }) {
-  const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
+  const { CATALOG_TEXT, CATALOG_ERROR } = useMessages();
   const editing = initial !== undefined;
-  const [code, setCode] = useState(initial?.productCode ?? "");
+  const [code, setCode] = useState(initial?.productCode ?? generatedCode);
   const [name, setName] = useState(initial?.name ?? "");
   // TWO FIELDS, ONE TYPE (incr/0100; owner, 2026-09-29: 两个字段，连接显示).
   // 一级类 first, then an optional 二级类 under it; the product carries the
@@ -121,46 +121,30 @@ export function NewProductForm({
   );
   const submit = useSubmit("/catalog");
 
-  // Everything the assistant says here is read off the rows the page already
-  // loaded - see domains/catalog/lib/suggest.ts for what each one refuses to
-  // guess about.
-  const nextCode = useMemo(
-    () => suggestNextCode(products.map((p) => p.productCode)),
-    [products],
-  );
-
-
-  const suggestions: AssistSuggestion[] = [];
-  if (!editing && nextCode && code.trim() === "") {
-    suggestions.push({
-      id: "code",
-      label: ASSIST_TEXT.codeNext(nextCode),
-      reason: ASSIST_TEXT.codeNextWhy,
-      apply: () => setCode(nextCode),
-    });
-  }
-  const ready = code.trim() !== "" && name.trim() !== "" && unitId !== "";
+  const ready = (!editing || code.trim() !== "") && name.trim() !== "" && unitId !== "";
+  const savedCode = !editing && code.trim() === generatedCode ? "" : code.trim();
+  const currentStatus = statuses.find(row => row.id === initial?.statusId);
   return (
     <FormPage
       form={
-        /* No heading of its own: the page's header already says 新建产品 /
-           修改产品 (owner 2026-09-28: 标题重复). The code rule stays, as a
-           line above the fields. */
-        <Section>
-          <div className="gap-xl flex flex-col">
-            <p className="text-muted-foreground text-body-small">{editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}</p>
+        <div className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]">
+          <Card className="py-lg" data-product-basic-card><CardContent>
             <FormFields>
-            <Field>
-              <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
-              {/* The code is the identity the upsert matches on - editable it
-                  would silently CREATE instead of edit. */}
-              <Input value={code} disabled={editing} onChange={(e) => setCode(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel>{CATALOG_TEXT.colName}</FieldLabel>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
-            <Field>
+              <Field>
+                <FieldLabel htmlFor="product-name">{CATALOG_TEXT.colName} <span aria-hidden="true">*</span></FieldLabel>
+                <Input id="product-name" aria-required="true" value={name} placeholder={CATALOG_TEXT.productNameExample} disabled={submit.pending} onChange={e => setName(e.target.value)} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="product-code">{CATALOG_TEXT.productNumber}{editing && <span aria-hidden="true"> *</span>}</FieldLabel>
+                <Input id="product-code" value={code} placeholder={generatedCode} title={CATALOG_TEXT.productNumberHint} maxLength={64} aria-required={editing} disabled={submit.pending} onChange={e => setCode(e.target.value)} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="product-unit">{CATALOG_TEXT.colUnit} <span aria-hidden="true">*</span></FieldLabel>
+                <NativeSelect id="product-unit" aria-required="true" value={unitId} disabled={submit.pending} onChange={e => setUnitId(e.target.value)}>
+                  {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </NativeSelect>
+              </Field>
+            <Field className="@xl:col-span-2">
               <FieldLabel>{CATALOG_TEXT.colType}</FieldLabel>
               {/* A select over the vocabulary, valued by the type's uuid -
                   internal joins are uuid, and the id never renders. New kinds
@@ -169,6 +153,7 @@ export function NewProductForm({
                 <NativeSelect
                   value={level1Id}
                   aria-label={CATALOG_TEXT.typeLevel1}
+                  disabled={submit.pending}
                   onChange={(e) => {
                     setLevel1Id(e.target.value);
                     setLevel2Id("");
@@ -184,7 +169,7 @@ export function NewProductForm({
                 <NativeSelect
                   value={level2Id}
                   aria-label={CATALOG_TEXT.typeLevel2}
-                  disabled={level2Options.length === 0}
+                  disabled={submit.pending || level2Options.length === 0}
                   onChange={(e) => setLevel2Id(e.target.value)}
                 >
                   <option value="">{CATALOG_TEXT.typeLevel2None}</option>
@@ -197,42 +182,25 @@ export function NewProductForm({
               </div>
             </Field>
             <Field>
-              {/* Required, and the rule layer refuses without it: a unit-less
-                  product makes every quantity on every quote a meaningless
-                  number. A PICKER since 0037 - the vocabulary is configured in
-                  配置管理, and typing one here is how two spellings of the
-                  same unit got into one catalogue. */}
-              <FieldLabel>{CATALOG_TEXT.colUnit}</FieldLabel>
-              <NativeSelect value={unitId} onChange={(e) => setUnitId(e.target.value)}>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            {!editing ? (
-              <Field>
-                <FieldLabel>{CATALOG_TEXT.newStatus}</FieldLabel>
-                <NativeSelect value={statusId} onChange={(e) => setStatusId(e.target.value)}>
-                  {birthable.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
+              <FieldLabel htmlFor="product-status">{CATALOG_TEXT.newStatus}</FieldLabel>
+              {editing ? <Input id="product-status" readOnly value={currentStatus?.name ?? "-"} /> : (
+                <NativeSelect id="product-status" value={statusId} disabled={submit.pending} onChange={e => setStatusId(e.target.value)}>
+                  {birthable.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
                 </NativeSelect>
-                <p className="text-muted-foreground text-body-small">{CATALOG_TEXT.newStatusWhy}</p>
-              </Field>
-            ) : null}
+              )}
+            </Field>
             </FormFields>
-            <div className="flex items-center gap-md">
-              <Button
+          </CardContent></Card>
+            <div className="flex flex-wrap items-center justify-end gap-sm">
+              <Button asChild size="md" variant="secondary"><Link href="/catalog">{CATALOG_TEXT.cancelProductEdit}</Link></Button>
+              <Button size="xl"
                 disabled={submit.pending || !ready}
                 onClick={() =>
                   submit.run(
                     () =>
                       onSave({
-                        productCode: code.trim(),
+                        editId: initial?.id,
+                        productCode: savedCode,
                         name: name.trim(),
                         typeId: typeId || null,
                         unitId,
@@ -249,9 +217,7 @@ export function NewProductForm({
               {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
             </div>
           </div>
-        </Section>
       }
-      assist={<AssistPanel suggestions={suggestions} />}
     />
   );
 }
@@ -260,12 +226,14 @@ export function NewProductForm({
 
 export function NewSolutionForm({
   products,
+  generatedCode,
   statuses,
   currentPrices,
   currency,
   initial,
   onSave,
 }: {
+  readonly generatedCode: string;
   readonly products: readonly ProductRecord[];
   readonly statuses: readonly ProductStatusRecord[];
   readonly currentPrices: Readonly<Record<string, PriceValues>>;
@@ -277,7 +245,7 @@ export function NewSolutionForm({
     readonly items: readonly SolutionItemRecord[];
   };
   readonly onSave: (input: {
-    solutionCode: string;
+    editId?: string;
     name: string;
     summary: string | null;
     scenario: string | null;
@@ -290,8 +258,7 @@ export function NewSolutionForm({
   }) => Promise<Saved>;
 }) {
   const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
-  const editing = initial !== undefined;
-  const [code, setCode] = useState(initial?.solution.solutionCode ?? "");
+  const code = initial?.solution.solutionCode ?? generatedCode;
   const [name, setName] = useState(initial?.solution.name ?? "");
   const [summary, setSummary] = useState(initial?.solution.summary ?? "");
   const [scenario, setScenario] = useState(initial?.solution.scenario ?? "");
@@ -355,7 +322,6 @@ export function NewSolutionForm({
     new Map(), [], new Map(Object.entries(currentPrices)),
   );
   const ready =
-    code.trim() !== "" &&
     name.trim() !== "" &&
     parsed.length > 0 &&
     parsed.every((it) => Number.isFinite(it.quantity) && it.quantity > 0) &&
@@ -374,10 +340,9 @@ export function NewSolutionForm({
               <Input
                 id="sol-code"
                 value={code}
-                disabled={editing}
-                onChange={(e) => setCode(e.target.value)}
+                readOnly
               />
-              {editing ? <FieldDescription>{CATALOG_TEXT.editHint}</FieldDescription> : null}
+
             </Field>
             <Field>
               <FieldLabel htmlFor="sol-name">{CATALOG_TEXT.colSolutionName}</FieldLabel>
@@ -509,7 +474,7 @@ export function NewSolutionForm({
                   submit.run(
                     () =>
                       onSave({
-                        solutionCode: code.trim(),
+                        editId: initial?.solution.id,
                         name: name.trim(),
                         summary: summary.trim() === "" ? null : summary.trim(),
                         scenario: scenario.trim() === "" ? null : scenario.trim(),

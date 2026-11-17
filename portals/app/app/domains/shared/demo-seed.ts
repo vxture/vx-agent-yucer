@@ -20,6 +20,7 @@
 //
 // All display copy lives in demo-fixtures.ts so this file stays ASCII.
 
+import { DEFAULT_STRATEGY_TYPES } from "../strategy/lib/strategy-type";
 import { money } from "./money";
 import { periodRange } from "./period";
 import {
@@ -283,7 +284,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
     plans: [
       {
         id: "plan_demo_1",
-        strategyTypeCode: "market-expansion",
+        strategyTypeId: DEFAULT_STRATEGY_TYPES[1].id,
         workspaceId,
         planNo: "PLAN-2026H2",
         name: DEMO_PLANS[0].name,
@@ -302,7 +303,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
       },
       {
         id: "plan_demo_2",
-        strategyTypeCode: "market-depth",
+        strategyTypeId: DEFAULT_STRATEGY_TYPES[0].id,
         workspaceId,
         planNo: "PLAN-2026H1",
         name: DEMO_PLANS[1].name,
@@ -1627,7 +1628,7 @@ function account(
     website: identity.website ?? null,
     employeeCount: identity.employeeCount ?? null,
     parentId: identity.parentId ?? null,
-    segmentCode,
+    segmentId: segmentCode === DEMO_SEGMENTS[0].code ? "seg_demo_1" : "seg_demo_2",
     ownerSub,
     healthScore,
     status: status as never,

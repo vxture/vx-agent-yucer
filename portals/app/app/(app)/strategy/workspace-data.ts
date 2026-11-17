@@ -37,7 +37,7 @@ export const strategyWorkspaceData = cache(async () => {
     canSeeSolutions ? read("solutions", listSolutionReferences({ ...base, store: getCatalogStore() })) : null,
     canSeeProducts ? read("products", listProductReferences({ ...base, store: getCatalogStore() })) : null,
   ]);
-  const customers = accounts.ok ? accounts.value.map(({id,name,accountNo,segmentCode,industry,region,customerSize}) => ({id,name,accountNo,segmentCode,industry,region,customerSize:customerSize ?? null})) : null;
+  const customers = accounts.ok ? accounts.value.map(({id,name,accountNo,segmentId,industry,region,customerSize}) => ({id,name,accountNo,segmentId,industry,region,customerSize:customerSize ?? null})) : null;
   const markets = canMarkets && segments.ok ? marketViews(segments.value, canPlan && plans.ok ? currentStrategyPlans(plans.value) : null, customers).map(m => ({ ...m,
     defaultProducts: products?.ok ? products.value.filter(p => m.productIds?.includes(p.id)) : null,
     defaultSolutions: solutions?.ok ? solutions.value.filter(s => m.solutionIds?.includes(s.id)) : null,
@@ -48,8 +48,8 @@ export const strategyWorkspaceData = cache(async () => {
     segmentCounts: new Map(planRows!.map(p => [p.id, p.marketIds?.length ?? 0])), now: new Date(),
   }).filter(a => !(!campaigns.ok && ["active_no_campaign", "work_under_inactive_plan"].includes(a.kind)) && !(!segments.ok && a.kind === "active_no_segment")) : [];
   const segmentAdvice = markets && accounts.ok ? analyseSegments({ segments: markets,
-    counts: new Map(markets.map(m => [m.segmentCode, { assigned: m.assigned!, matched: m.matched! }])),
-    mismatch: new Map(markets.map(m => [m.segmentCode, {
+    counts: new Map(markets.map(m => [m.id, { assigned: m.assigned!, matched: m.matched! }])),
+    mismatch: new Map(markets.map(m => [m.id, {
       assignedNotMatching: m.customers!.filter(a => a.assigned && a.match === "miss").length,
       matchingNotAssigned: m.customers!.filter(a => !a.assigned && a.match === "match").length,
     }])),
