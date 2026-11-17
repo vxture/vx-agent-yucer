@@ -89,7 +89,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // briefly their own last groups, then merged same-day into one -
     // 高级管理 - since both answer "is something wrong" rather than
     // day-to-day setup; the flat key order here is unaffected by the merge.
-    ["orgUnit", "division", "members", "roles", "permissions", "scope", "opportunityConfig", "product", "industry",
+    ["orgUnit", "division", "members", "roles", "permissions", "scope", "strategyConfig", "opportunityConfig", "product", "industry",
      "reminderThreshold", "audit", "diagnostics"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
@@ -274,7 +274,7 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
   // (pipeline.winloss.record / pipeline.dealType / pipeline.stage /
   // pipeline.forecast / delivery.revenue / catalog.pricebook.upsert) is
   // something a viewer holds none of.
-  const inPlane = ["division", "product", "opportunityConfig", "industry"];
+  const inPlane = ["division", "product", "opportunityConfig", "industry", "strategyConfig"];
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
     DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length

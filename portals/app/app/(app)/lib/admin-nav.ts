@@ -83,6 +83,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     // 业务参数 - the vocabularies the business runs on.
     key: "params",
     items: [
+      { key: "strategyConfig", href: "/admin/strategy", icon: "flag", action: "strategy.type.view" },
       /* 商机配置 (PR4 of the 商机配置 batch): six items folded into one -
          赢丢原因 (incr/0039), 商机阶段 (incr/0057-0059), 商机类型
          (incr/0060-0061), 预测阈值 (incr/0041), 计价规则 (incr/0044) and

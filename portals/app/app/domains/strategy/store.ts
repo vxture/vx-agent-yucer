@@ -11,6 +11,7 @@
 // a record that stops being current keeps existing. Downstream data is
 // accomplished fact and a tidy-up upstream must not erase it.
 
+import { DEFAULT_STRATEGY_TYPES, type StrategyType } from "./lib/strategy-type";
 import type { ProductReference, SolutionReference } from "../catalog/service";
 import { money, type Money } from "../shared/money";
 import type {
@@ -34,6 +35,8 @@ export interface PlanRecord {
   planNo: string;
   name: string;
   period: string;
+  strategyTypeCode?: string | null;
+  strategyType?: StrategyType | null;
   objective: string | null;
   ownerSub: string | null;
   readonly createdBySub?: string | null;
@@ -57,6 +60,8 @@ export interface StrategyPublication {
   capturedAt: string;
   name: string;
   period: string;
+  strategyTypeCode?: string | null;
+  strategyType?: StrategyType | null;
   objective: string | null;
   ownerSub: string | null;
   ownerName: string | null;
@@ -81,7 +86,7 @@ export interface PublishPlanCommand {
 }
 export function captureStrategyPublication(plan: PlanRecord, solutions: readonly SolutionReference[], at: Date, legacy = false, ownerName: string | null = null, products: readonly ProductReference[] = []): StrategyPublication {
   return structuredClone({schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
-    objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
+    strategyTypeCode:plan.strategyTypeCode ?? null,strategyType:plan.strategyType ?? null,objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
     targetMarkets:plan.targetMarkets ?? [],solutions});
 }
 /** One overview entry per lineage. A revision draft never displaces a publication. */
@@ -173,6 +178,8 @@ export interface TerritoryAttainmentSnapshotInput {
 }
 
 export interface StrategyStore {
+  listStrategyTypes(workspaceId: string): Promise<StrategyType[]>;
+  saveStrategyType(workspaceId: string, input: StrategyType): Promise<void>;
   listPlans(workspaceId: string, filter?: { period?: string; status?: PlanStatus }): Promise<PlanRecord[]>;
   getPlan(workspaceId: string, id: string): Promise<PlanRecord | null>;
   /**
@@ -201,6 +208,7 @@ export interface StrategyStore {
       approvedAt?: Date | null;
       name?: string;
       period?: string;
+      strategyTypeCode?: string | null;
       objective?: string | null;
       ownerSub?: string | null;
       solutionIds?: readonly string[];
@@ -297,6 +305,17 @@ export class InMemoryStrategyStore implements StrategyStore {
   private seq = 0;
   private campaigns = new Map<string, CampaignRecord>();
   private segments = new Map<string, SegmentRecord>();
+  private strategyTypes = new Map<string, StrategyType[]>();
+
+  async listStrategyTypes(workspaceId: string): Promise<StrategyType[]> {
+    if (!this.strategyTypes.has(workspaceId)) this.strategyTypes.set(workspaceId, structuredClone([...DEFAULT_STRATEGY_TYPES]));
+    return structuredClone(this.strategyTypes.get(workspaceId)!).sort((a,b)=>a.sortOrder-b.sortOrder || a.code.localeCompare(b.code));
+  }
+  async saveStrategyType(workspaceId: string, input: StrategyType): Promise<void> {
+    const rows = this.strategyTypes.get(workspaceId) ?? [...DEFAULT_STRATEGY_TYPES];
+    this.strategyTypes.set(workspaceId, [...rows.filter(t=>t.code!==input.code), structuredClone(input)]);
+  }
+
   private executions: Array<ExecutionRecord & { workspaceId: string }> = [];
   private attributed = new Map<string, Array<{ id: string; amount: Money | null; status: string }>>();
 
@@ -324,7 +343,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     for (const p of this.plans.values()) {
       if (p.workspaceId !== workspaceId || !p.versionNo || p.publishedSnapshot) continue;
       const ids = new Set([...p.solutionIds, ...(p.targetMarkets ?? []).flatMap(m => m.solutionIds)]);
-      Object.assign(p, { publishedSnapshot: captureStrategyPublication(p, solutions.filter(s => ids.has(s.id)), at, true) });
+      Object.assign(p, { publishedSnapshot: captureStrategyPublication({...p,strategyType:p.strategyTypeCode ? DEFAULT_STRATEGY_TYPES.find(t=>t.code===p.strategyTypeCode) ?? null : null}, solutions.filter(s => ids.has(s.id)), at, true) });
     }
   }
 
@@ -336,7 +355,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     if (filter.period) rows = rows.filter((p) => p.period === filter.period);
     if (filter.status) rows = rows.filter((p) => p.status === filter.status);
     rows.sort(by(desc((p: PlanRecord) => p.period)));
-    return structuredClone(rows);
+    return Promise.all(rows.map(p=>this.getPlan(workspaceId,p.id).then(p=>p!)));
   }
 
   private nextPlanId():string {let id:string;do{id=`plan_${++this.seq}`;}while(this.plans.has(id));return id;}
@@ -365,18 +384,19 @@ export class InMemoryStrategyStore implements StrategyStore {
     };
     Object.assign(created,{lineageId:created.id,basePlanId:null,versionNo:null,editToken:1,changeReason:"",publishedSnapshot:null,publishedBySub:null});
     this.plans.set(created.id, created);
-    return structuredClone(created);
+    return (await this.getPlan(workspaceId,created.id))!;
   }
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
     const p = this.plans.get(id);
-    return p && p.workspaceId === workspaceId ? structuredClone(p) : null;
+    if (p?.workspaceId !== workspaceId) return null;
+    return structuredClone({...p, strategyType: p.publishedSnapshot ? p.publishedSnapshot.strategyType ?? null : (await this.listStrategyTypes(workspaceId)).find(t=>t.code===p.strategyTypeCode) ?? null});
   }
 
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>, guard: PlanWriteGuard = {}): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId || (guard.expectedEditToken !== undefined && guard.expectedEditToken !== (p.editToken ?? 1)) || (guard.expectedStatus !== undefined && p.status !== guard.expectedStatus)) return false;
-    if (["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
+    if (["strategyTypeCode", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
     if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
       throw new PlanMarketUnavailableError();
     }
@@ -394,16 +414,16 @@ export class InMemoryStrategyStore implements StrategyStore {
     const family=[...this.plans.values()].filter(p=>p.workspaceId===workspaceId && (p.lineageId ?? p.id)===lineageId);
     const latest=currentStrategyPlans(family)[0];
     if(latest?.id!==base.id || !base.versionNo || !["approved","active"].includes(base.status)) throw new StrategyVersionError("strategy_not_revisable");
-    const existing=family.find(p=>p.status==="draft");if(existing)return structuredClone(existing);
+    const existing=family.find(p=>p.status==="draft");if(existing)return (await this.getPlan(workspaceId,existing.id))!;
     const draft={...structuredClone(base),id:this.nextPlanId(),lineageId,basePlanId:base.id,versionNo:null,editToken:1,
       status:"draft" as const,approvedAt:null,publishedBySub:null,publishedSnapshot:null,createdBySub:actorSub,changeReason:""};
-    this.plans.set(draft.id,draft);return structuredClone(draft);
+    this.plans.set(draft.id,draft);return (await this.getPlan(workspaceId,draft.id))!;
   }
 
   async publishPlan(workspaceId: string, id: string, command: PublishPlanCommand): Promise<PlanRecord> {
     const draft=this.plans.get(id);
     if(!draft || draft.workspaceId!==workspaceId)throw new StrategyVersionError("strategy_not_found");
-    if(draft.versionNo)return structuredClone(draft);
+    if(draft.versionNo)return (await this.getPlan(workspaceId,draft.id))!;
     if(draft.status!=="draft")throw new StrategyVersionError("draft_required");
     if((draft.editToken ?? 1)!==command.expectedEditToken)throw new StrategyVersionError("strategy_draft_conflict");
     if(draft.basePlanId && !draft.changeReason?.trim())throw new StrategyVersionError("strategy_reason_required");
@@ -413,8 +433,8 @@ export class InMemoryStrategyStore implements StrategyStore {
     const status=latest?.status==="active"?"active":"approved";
     if(latest)Object.assign(latest,{status:"closed",editToken:(latest.editToken ?? 1)+1});
     Object.assign(draft,{status,versionNo:(latest?.versionNo ?? 0)+1,approvedAt:command.at,publishedBySub:command.actorSub,
-      publishedSnapshot:captureStrategyPublication(draft,command.solutions,command.at,false,command.ownerName,command.products),editToken:(draft.editToken ?? 1)+1});
-    return structuredClone(draft);
+      publishedSnapshot:captureStrategyPublication({...draft,strategyType:(this.strategyTypes.get(workspaceId) ?? DEFAULT_STRATEGY_TYPES).find(t=>t.code===draft.strategyTypeCode) ?? null},command.solutions,command.at,false,command.ownerName,command.products),editToken:(draft.editToken ?? 1)+1});
+    return (await this.getPlan(workspaceId,draft.id))!;
   }
 
   async discardDraft(workspaceId: string, id: string, expectedEditToken: number, _actorSub: string): Promise<PlanRecord> {

@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   Button, Card, CardContent,
   Field,
-  FieldLabel,
+  FieldLabel, NativeSelect,
   Input,
   StatusBadge, Popover, PopoverTrigger, PopoverContent,
 } from "@vxture/design-ui";
@@ -24,6 +24,7 @@ import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection
 import { nextStrategyNumber } from "../../domains/strategy/lib/plan-number";
 import { StrategyPeriodField } from "./strategy-period-field";
 import { parseStrategyPeriod } from "../../domains/strategy/lib/plan-period";
+import type { StrategyType } from "../../domains/strategy/lib/strategy-type";
 import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import { StrategyRelationsDrawer, type RelationTask, type RelationMarketOption, type RelationTarget } from "./strategy-relations-drawer";
 import type { SegmentCriteria, NewPlanDraft, PlanEdit, PlanRelationChange } from "../../domains/strategy/lib/lifecycle";
@@ -56,6 +57,7 @@ export interface PlanFormInitial {
   readonly editToken: number;
   readonly basePlanId: string | null;
   readonly changeReason: string;
+  readonly strategyTypeCode?: string | null;
   readonly planNo: string;
   readonly name: string;
   readonly period: string;
@@ -66,7 +68,25 @@ export interface PlanFormInitial {
   readonly targetMarkets: readonly TargetSelection[];
 }
 
-export function NewPlanForm({
+function initialSelection(initial: PlanFormInitial | undefined, key: "productIds" | "solutionIds") {
+  return initial ? initial[key] : [];
+}
+
+function StrategyTypeField({types,value,existing,disabled,onChange}: {
+  readonly types: readonly StrategyType[] | null;
+  readonly value: string; readonly existing?: string | null;
+  readonly disabled: boolean; readonly onChange: (value: string)=>void;
+}) {
+  const { MARKET_STRATEGY_TEXT:T }=useMessages();
+  return <Field><FieldLabel htmlFor="strategy-type">{T.strategyType}</FieldLabel>
+    <NativeSelect id="strategy-type" value={value} disabled={disabled || types===null} onChange={e=>onChange(e.target.value)}>
+      <option value="">{T.typeUnclassified}</option>
+      {types?.filter(t=>t.enabled || t.code===existing).map(t=><option key={t.code} value={t.code}>{t.name}{t.enabled ? "" : ` (${T.typeDisabledLabel})`}</option>)}
+    </NativeSelect>
+  </Field>;
+}
+
+export function NewPlanForm({ strategyTypes,
   existingPlanNos,
   initial,
   solutionOptions,
@@ -77,6 +97,7 @@ export function NewPlanForm({
   onCreate,
   onSave,
 }: {
+  readonly strategyTypes: readonly StrategyType[] | null;
   readonly existingPlanNos: readonly string[];
   /** Present edits that plan; absent creates one. */
   readonly initial?: PlanFormInitial;
@@ -96,12 +117,14 @@ export function NewPlanForm({
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [changeReason,setChangeReason]=useState(initial?.changeReason ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
-  const [productIds, setProductIds] = useState<readonly string[] | undefined>(initial ? initial.productIds : []);
-  const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initial ? initial.solutionIds : []);
+  const initialProductIds=initialSelection(initial,"productIds");
+  const initialSolutionIds=initialSelection(initial,"solutionIds");
+  const [productIds, setProductIds] = useState<readonly string[] | undefined>(initialProductIds);
+  const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initialSolutionIds);
   const [targets, setTargets] = useState<readonly TargetSelection[]>(initial?.targetMarkets ?? []);
   const [relationTask, setRelationTask] = useState<RelationTask | null>(null);
-  const productSelectionChanged = JSON.stringify(productIds) !== JSON.stringify(initial ? initial.productIds : []);
-  const solutionSelectionChanged = JSON.stringify(solutionIds) !== JSON.stringify(initial ? initial.solutionIds : []);
+  const productSelectionChanged = JSON.stringify(productIds) !== JSON.stringify(initialProductIds);
+  const solutionSelectionChanged = JSON.stringify(solutionIds) !== JSON.stringify(initialSolutionIds);
   const targetsChanged = JSON.stringify(targets) !== JSON.stringify(initial?.targetMarkets ?? []);
   const saveRelations = async (change: PlanRelationChange): Promise<Saved> => {
     if (change.kind === "solutions") {
@@ -134,6 +157,7 @@ export function NewPlanForm({
     }catch{setSaveError(errorOf("denied"));}});
   }};
 
+  const [strategyTypeCode,setStrategyTypeCode]=useState(initial?.strategyTypeCode ?? "");
   const nextNo = useMemo(() => nextStrategyNumber(period, existingPlanNos), [period, existingPlanNos]);
   const planNo = initial?.planNo ?? manualPlanNo ?? nextNo;
   const suggestions: AssistSuggestion[] = [];
@@ -168,14 +192,15 @@ export function NewPlanForm({
             action={<span className="inline-flex items-center gap-sm text-body-small text-muted-foreground">{T.creator} <MemberName sub={creatorSub} fallback={T.creatorUnknown}/></span>}>
             <Card className="py-lg" data-strategy-basic-card><CardContent>
               <div className="grid grid-cols-1 gap-x-lg gap-y-lg @xl:grid-cols-2 @3xl:grid-cols-3">
-                <Field className="@xl:col-span-2 @3xl:col-span-1"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
+                <Field className="@xl:col-span-2"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
                   <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e => setName(e.target.value)} aria-required="true"/>
                 </Field>
-                <StrategyPeriodField value={period} onChange={setPeriod} disabled={submit.pending}/>
+                <StrategyTypeField types={strategyTypes} value={strategyTypeCode} existing={initial?.strategyTypeCode} disabled={submit.pending} onChange={setStrategyTypeCode}/>
                 <Field><FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
                   <MemberPicker options={ownerOptions} value={ownerSub} onValueChange={setOwnerSub}
                     label={STRATEGY_TEXT.newPlanOwner} disabled={submit.pending}/>
                 </Field>
+                <div className="@xl:col-span-2"><StrategyPeriodField value={period} onChange={setPeriod} disabled={submit.pending}/></div>
                 <Field className="@xl:col-span-2 @3xl:col-span-3"><FieldLabel htmlFor="strategy-direction">{T.direction}</FieldLabel>
                   <Input id="strategy-direction" value={objective} disabled={submit.pending} onChange={e => setObjective(e.target.value)}/>
                 </Field>
@@ -213,6 +238,7 @@ export function NewPlanForm({
                   submit.run(() => {
                     const fields = {
                       ...(initial?.basePlanId ? {changeReason:changeReason.trim()} : {}),
+                      ...(strategyTypes===null ? {} : {strategyTypeCode:strategyTypeCode || null}),
                       name: name.trim(),
                       period: period.trim(),
                       objective: objective.trim() === "" ? null : objective.trim(),

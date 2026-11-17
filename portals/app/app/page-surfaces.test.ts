@@ -11,8 +11,8 @@ test("every real page has reviewed entry evidence and every UI module is reachab
   const manifest = JSON.parse(readFileSync(join(REPO, "scripts/guardrails/page-surfaces.json"), "utf8"));
   const result = inspectPageSurfaces(join(REPO, "portals/app/app"), manifest);
   assert.deepEqual(result.errors, []);
-  assert.equal(result.pages.length, 79);
-  assert.equal(result.slots.length, 70);
+  assert.equal(result.pages.length, 80);
+  assert.equal(result.slots.length, 71);
   assert.ok(result.controls.length > 800);
 });
 

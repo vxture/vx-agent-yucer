@@ -12,6 +12,7 @@ import { listAccounts } from "../../../domains/account/service";
 import { marketViews } from "../../lib/market-strategy";
 import { listPlans, listSegments } from "../../../domains/strategy/service";
 import { NewPlanForm } from "../../components/plan-form";
+import { listStrategyTypes } from "../../../domains/strategy/type-service";
 import { createStrategyPlan, savePlan } from "../actions";
 
 // 新建 / 修改战略计划 - a page since 2026-09-05 (owner ruling; see /catalog/new
@@ -64,7 +65,7 @@ export default async function NewPlanPage({
     redirect("/strategy");
   }
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
-  const [solutions, segments, accounts, members, products] = await Promise.all([
+  const [solutions, segments, accounts, members, products, strategyTypes] = await Promise.all([
     can(session.authz, session.entitlement, "catalog.solution.view", "ui").allowed
       ? listSolutionReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
     can(session.authz, session.entitlement, "strategy.segment.view", "ui").allowed
@@ -73,6 +74,7 @@ export default async function NewPlanPage({
     getAuthzStore().listMembers(session.workspaceId).catch(() => null),
     can(session.authz, session.entitlement, "catalog.product.view", "ui").allowed
       ? listProductReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
+    listStrategyTypes({...base,store:getStrategyStore()}).catch(()=>null),
   ]);
   const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentCode, industry, region, customerSize }) =>
     ({ id, name, accountNo, segmentCode, industry, region, customerSize: customerSize ?? null })) : null;
@@ -92,6 +94,7 @@ export default async function NewPlanPage({
       <NewPlanForm
         key={editable ? found.id : "new"}
         existingPlanNos={rows.map((p) => p.planNo)}
+        strategyTypes={strategyTypes?.ok ? strategyTypes.value : null}
         solutionOptions={solutionOptions}
         productOptions={productOptions}
         marketOptions={marketOptions}
@@ -105,6 +108,7 @@ export default async function NewPlanPage({
                 planNo: found.planNo,
                 name: found.name,
                 period: found.period,
+                strategyTypeCode: found.strategyTypeCode ?? null,
                 objective: found.objective,
                 ownerSub: found.ownerSub,
                 productIds: productOptions && (found.productIds ?? []).every(id => visibleProducts.has(id)) ? found.productIds ?? [] : undefined,

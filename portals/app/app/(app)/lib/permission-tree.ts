@@ -115,6 +115,7 @@ interface Regroup {
 const REGROUP: Readonly<Record<string, Regroup>> = {
   "strategy/plan": { group: "armory", module: "strategy", page: "strategy.plan" },
   "strategy/segment": { group: "armory", module: "strategy", page: "strategy.segment" },
+  "strategy/type": { group: "admin", module: "admin", page: "admin.strategytype" },
   "catalog/product": { group: "armory", module: "catalog", page: "catalog.product" },
   "catalog/solution": { group: "armory", module: "solution", page: "catalog.solution" },
   "catalog/pricebook": { group: "armory", module: "catalog", page: "catalog.pricebook" },

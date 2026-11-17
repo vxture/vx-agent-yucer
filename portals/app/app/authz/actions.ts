@@ -70,6 +70,10 @@ export interface ActionSpec {
 // property of the call site, not of the action. A page render passes "ui"; an
 // API route serving data passes "data".
 export const ACTIONS = {
+  // Strategy configuration is a basic management surface. Product strategy
+  // pages keep their commercial gate; these reuse existing role permissions.
+  "strategy.type.view": {domain:"strategy",feature:null,permission:"strategy.read",writes:false},
+  "strategy.type.update": {domain:"strategy",feature:null,permission:"strategy.write",writes:true},
   // --- D1 strategy ---------------------------------------------------------
   "strategy.plan.view": {
     domain: "strategy",
