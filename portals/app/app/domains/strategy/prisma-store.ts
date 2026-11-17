@@ -1,3 +1,4 @@
+import { DEFAULT_STRATEGY_TYPES, type StrategyType, type StrategyTheme } from "./lib/strategy-type";
 import { isUniqueViolation } from "../shared/allocate";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
@@ -50,6 +51,7 @@ const CAMPAIGN_TABLE = "yucer_gtm.campaign";
 const EXECUTION_TABLE = "yucer_gtm.campaign_execution";
 const SEGMENT_TABLE = "yucer_gtm.market_segment";
 const PLAN_SELECTION = {
+  strategyType: true,
   productLinks: { select: { productId: true } },
   solutionLinks: { select: { solutionId: true } },
   targetMarkets: { include: { productLinks: { select: { productId: true } }, solutionLinks: { select: { solutionId: true } } } },
@@ -79,6 +81,18 @@ function foreignKeyFailure(error: unknown) {
 }
 
 export class PrismaStrategyStore implements StrategyStore {
+  async listStrategyTypes(workspaceId: string): Promise<StrategyType[]> {
+    const p = await getPrismaClient();
+    await p.strategyType.createMany({data:DEFAULT_STRATEGY_TYPES.map(t=>({...t,workspaceId})),skipDuplicates:true});
+    const rows = await p.strategyType.findMany({where:{workspaceId},orderBy:[{sortOrder:"asc"},{code:"asc"}]});
+    return rows.map(toStrategyType);
+  }
+  async saveStrategyType(workspaceId: string, input: StrategyType): Promise<void> {
+    const p = await getPrismaClient();
+    const {code,...fields} = input;
+    await p.strategyType.upsert({where:{workspaceId_code:{workspaceId,code}},create:{workspaceId,...input},update:{...fields,updatedAt:new Date()}});
+  }
+
   async listPlans(
     workspaceId: string,
     filter: { period?: string; status?: PlanStatus } = {},
@@ -116,6 +130,7 @@ export class PrismaStrategyStore implements StrategyStore {
           planNo: input.planNo,
           name: input.name,
           period: input.period,
+          strategyTypeCode: input.strategyTypeCode ?? null,
           objective: input.objective,
           ownerSub: input.ownerSub,
           // Lifecycle transitions own all moves after creation.
@@ -138,7 +153,7 @@ export class PrismaStrategyStore implements StrategyStore {
       }
       throw error;
     }
-    return toPlan(row);
+    return (await this.getPlan(workspaceId,row.id))!;
   }
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
@@ -158,6 +173,7 @@ export class PrismaStrategyStore implements StrategyStore {
       approvedAt?: Date | null;
       name?: string;
       period?: string;
+      strategyTypeCode?: string | null;
       objective?: string | null;
       ownerSub?: string | null;
       solutionIds?: readonly string[];
@@ -178,7 +194,7 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
+    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["strategyTypeCode", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
     if (solutionIds === undefined && productIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
@@ -535,6 +551,10 @@ async function writePlanSolutions<T>(write: () => Promise<T>): Promise<T> {
   }
 }
 
+function toStrategyType(t: {code:string;name:string;description:string;theme:string;enabled:boolean;sortOrder:number}): StrategyType {
+  return {code:t.code,name:t.name,description:t.description,theme:t.theme as StrategyTheme,enabled:t.enabled,sortOrder:t.sortOrder};
+}
+
 function toPlan(r: Record<string, unknown>): PlanRecord {
   return {
     id: String(r.id),
@@ -546,6 +566,8 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     planNo: String(r.planNo),
     name: String(r.name),
     period: String(r.period),
+    strategyTypeCode: (r.strategyTypeCode as string | null) ?? null,
+    strategyType: r.publishedSnapshot ? (r.publishedSnapshot as StrategyPublication).strategyType ?? null : r.strategyType ? toStrategyType(r.strategyType as StrategyType) : null,
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
     productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),

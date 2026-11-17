@@ -267,6 +267,8 @@ export async function createPlan(
   const plan = planNewPlan(autoNumber ? { ...input, planNo: nextStrategyNumber(input.period, codes) } : input);
   if (!plan.ok) return plan as RuleResult<PlanRecord>;
 
+  const type = await validateStrategyType(ctx, input.strategyTypeCode);
+  if (!type.ok) return type;
   const owner = await validatePlanOwner(ctx, plan.value.ownerSub);
   if (!owner.ok) return owner;
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds);
@@ -325,6 +327,8 @@ async function applyPlanEdit(
   const edit = planPlanEdit(input, plan.period);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
+  const type = await validateStrategyType(ctx, input.strategyTypeCode, plan.strategyTypeCode);
+  if (!type.ok) return type;
   const owner = await validatePlanOwner(ctx, edit.value.ownerSub, plan.ownerSub);
   if (!owner.ok) return owner;
   const selection = input.solutionIds === undefined ? ok(undefined) : await validatePlanSolutions(ctx, input.solutionIds, plan.solutionIds);
@@ -831,4 +835,11 @@ export async function campaignReturn(
     wonAmount: wonTotal.value,
     returnOnBudget,
   });
+}
+
+async function validateStrategyType(ctx: StrategyContext, code: unknown, existing?: string | null): Promise<RuleResult<null>> {
+  if (code === undefined || code === null || code === existing) return ok(null);
+  if (typeof code !== "string" || !(await ctx.store.listStrategyTypes(ctx.workspaceId)).some(t=>t.code===code && t.enabled))
+    return fail(violation("strategy_type_unavailable", "select an enabled workspace strategy type", "strategyTypeCode"));
+  return ok(null);
 }

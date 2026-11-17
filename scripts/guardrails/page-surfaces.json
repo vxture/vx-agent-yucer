@@ -884,6 +884,17 @@
       },
       "reason": "Launcher or configuration navigation.",
       "sample": "/strategy-diag"
+    },
+    {
+      "route": "/admin/strategy",
+      "file": "(app)/admin/strategy/page.tsx",
+      "kind": "navigation",
+      "entry": {
+        "file": "(app)/lib/admin-nav.ts",
+        "needle": "href: \"/admin/strategy\""
+      },
+      "reason": "Workspace strategy type configuration; reachable from configuration navigation and strategy overview.",
+      "sample": "/admin/strategy"
     }
   ],
   "preservedControls": {

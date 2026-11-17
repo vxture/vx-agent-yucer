@@ -1,0 +1,82 @@
+.charter {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.ambience {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, color-mix(in srgb, currentColor 3%, transparent), transparent 48%, color-mix(in srgb, currentColor 8%, transparent));
+}
+
+.illustration {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 auto;
+  width: 54%;
+  background: currentColor;
+  opacity: .16;
+  mask-repeat: no-repeat;
+  mask-position: right center;
+  mask-size: auto 115%;
+  pointer-events: none;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2xl);
+}
+
+.objective {
+  max-width: 46ch;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.relations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding-top: var(--space-xs);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  border-top: 1px dashed var(--border);
+  padding-top: var(--space-lg);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  flex: 1;
+  gap: var(--space-lg);
+}
+
+@container (max-width: 44rem) {
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .relations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .illustration { width: 80%; opacity: .09; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); flex-basis: 100%; }
+}
+
+@container (max-width: 26rem) {
+  .relations { grid-template-columns: minmax(0, 1fr); }
+}

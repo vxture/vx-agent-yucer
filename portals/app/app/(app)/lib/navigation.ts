@@ -26,6 +26,7 @@ import { can, type PermissionHolder } from "../../authz/decide";
 
 /** Icon names are the DS's closed set; these are checked at compile time. */
 export type NavIcon =
+  | "flag"
   | "stack"
   | "graph"
   | "chart-bar"

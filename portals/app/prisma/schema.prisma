@@ -616,7 +616,25 @@ model AccountHealthSnapshot {
 
 // ===== yucer_gtm (D1 strategy, D2 planning, D3 campaign) =====
 
+model StrategyType {
+  workspaceId String @map("workspace_id") @db.Uuid
+  code String @db.VarChar(64)
+  name String @db.VarChar(64)
+  description String @default("") @db.VarChar(240)
+  theme String @db.VarChar(24)
+  enabled Boolean @default(true)
+  sortOrder Int @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  plans StrategyPlan[]
+  @@id([workspaceId, code])
+  @@map("strategy_type")
+  @@schema("yucer_gtm")
+}
+
 model StrategyPlan {
+  strategyTypeCode String? @map("strategy_type_code") @db.VarChar(64)
+  strategyType StrategyType? @relation(fields: [workspaceId, strategyTypeCode], references: [workspaceId, code], onDelete: NoAction, onUpdate: NoAction, map: "fk_strategy_type")
   lineageId String @default(dbgenerated()) @map("lineage_id") @db.Uuid
   basePlanId String? @map("base_plan_id") @db.Uuid
   versionNo Int? @map("version_no")

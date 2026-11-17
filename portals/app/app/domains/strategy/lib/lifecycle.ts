@@ -282,6 +282,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
     ...(input.changeReason === undefined ? {} : {changeReason:input.changeReason.trim()}),
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
+    ...(input.strategyTypeCode === undefined ? {} : {strategyTypeCode:input.strategyTypeCode}),
     ...(input.solutionIds === undefined ? {} : { solutionIds: input.solutionIds }),
     ...(input.productIds === undefined ? {} : { productIds: input.productIds }),
     ...(input.targetMarkets === undefined ? {} : { targetMarkets: input.targetMarkets }),
@@ -289,6 +290,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
 }
 
 export interface PlanEdit {
+  strategyTypeCode?: string | null;
   changeReason?: string;
   name: string;
   period: string;

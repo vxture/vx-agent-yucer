@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input, LabeledValue, MetricListCard, NativeSelect, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input,  NativeSelect, ViewLayout, ViewModeSwitch, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar, ViewHeader } from "./business-controls";
 import { Section, SectionHeader } from "./help-section";
 import { TitleHelp } from "./title-help";
@@ -20,7 +20,7 @@ import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection
 import { DialogForm } from "./dialog-form";
 import { strategyPeriodRangeLabel, strategyPeriodLabel } from "../../domains/strategy/lib/plan-period";
 import { currentStrategyPlans } from "../../domains/strategy/store";
-import { strategyOfferings } from "../lib/strategy-offerings";
+import { StrategyCharterCard } from "./strategy-charter-card";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import type { StrategyView } from "../lib/market-strategy";
@@ -83,68 +83,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
   const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
   const money=(n:number,currency:string)=>new Intl.NumberFormat(locale,{style:"currency",currency,maximumFractionDigits:0}).format(n);
-  const linkStyle = "min-w-0 truncate transition-colors hover:text-primary-text focus-visible:text-primary-text";
-  const linkedSummary = (label: string, links: readonly { href: string; name: string; icon?: "cube" | "stack" }[], detailHref: string) => {
-    const [first, ...more] = links;
-    if (!first) return null;
-    return <div className="flex min-w-0 items-baseline gap-xs">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <Link href={first.href} className={`${linkStyle} text-foreground`} title={first.name}>{first.icon ? <Icon name={first.icon} size="sm" className="mr-xs inline-block text-muted-foreground" aria-hidden="true"/> : null}{first.name}</Link>
-      {more.length ? <Link href={detailHref} className="shrink-0 tabular-nums text-primary-text" title={more.map(m => m.name).join(" / ")}
-        aria-label={`${label}: ${more.map(m => m.name).join(" / ")}`}>+{more.length}</Link> : null}
-    </div>;
-  };
-  const card = (p: StrategyView) => {
-    const href = `/strategy/${p.id}`;
-    const markets = p.targetMarkets?.toSorted((a, b) => Number(b.intent === "focus") - Number(a.intent === "focus")).map(m => ({
-      href: `/strategy?view=markets&market=${encodeURIComponent(m.segmentId)}`, name: m.marketName,
-    })) ?? [];
-    const solutions = strategyOfferings(p.solutions, p.products).map(row => ({
-      href: row.href, name: row.status === "retired" ? `${row.name} \u00b7 ${T.retiredSolution}` : row.name, icon: row.icon,
-    }));
-    const metrics = [
-      { key: "markets", icon: "globe", label: T.marketCount, value: p.marketIds?.length },
-      { key: "customers", icon: "users", label: T.customerCount, value: p.customerCount },
-      { key: "solutions", icon: "stack", label: T.solutionCount, value: p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length },
-      { key: "campaigns", icon: "megaphone", label: T.campaignCount, value: p.campaigns?.length },
-    ] as const;
-    return <div key={p.id} className="grid min-w-0" data-strategy-card><MetricListCard className="@container gap-md p-lg [&>footer]:mt-auto"
-      title={<span className="flex min-w-0 items-start gap-sm" data-strategy-card-heading>
-        <Icon name="lightbulb" size="xl" className="shrink-0 text-primary-text" aria-hidden="true"/>
-        <span className="flex min-w-0 flex-1 flex-col gap-xs">
-          <span className="flex min-h-control-md min-w-0 items-center gap-sm">
-            <Link href={href} className={linkStyle} title={p.name}>{p.name}</Link>
-            <span className="flex shrink-0 items-center gap-xs">{versionBadge(p)}<Tag tone={p.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag></span>
-          </span>
-          <span className="flex flex-wrap items-center gap-xs text-body-small font-normal text-muted-foreground" title={p.planNo}>{strategyPeriodLabel(p.period)} {"\u00b7"} {T.owner} <MemberName sub={p.ownerSub} fallback={T.noOwner}/></span>
-        </span>
-      </span>}
-      actions={<div className="flex items-center gap-xs">{draftFor(p) && p.status!=="draft" ? <span className="text-body-small text-muted-foreground">{T.draftAvailable}</span> : null}<RowActions items={items(p)} disabled={pending}/></div>}
-      note={<div className="flex min-w-0 gap-sm">
-        <span className="size-icon-xl shrink-0" aria-hidden="true"/>
-        <div className="flex min-w-0 flex-1 flex-col gap-sm" data-strategy-card-body>
-          <div className="flex min-w-0 items-baseline gap-xs" data-strategy-card-direction>
-            <span className="shrink-0 text-muted-foreground">{T.direction}</span>
-            <p className={`min-w-0 line-clamp-2 break-words @lg:line-clamp-1 ${p.objective ? "text-foreground" : ""}`} title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</p>
-          </div>
-          {markets.length || solutions.length ? <div className="grid min-w-0 gap-x-lg gap-y-2xs @sm:grid-flow-col @sm:auto-cols-fr">
-            {linkedSummary(T.marketCount, markets, href)}
-            {linkedSummary(T.solutionCount, solutions, href)}
-          </div> : null}
-        </div>
-      </div>}
-      footer={<div className="flex w-full min-w-0 gap-sm">
-        <span className="size-icon-xl shrink-0" aria-hidden="true"/>
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-md gap-y-md border-t border-dashed border-border pt-md @sm:grid-cols-4" data-strategy-metrics>
-          {metrics.map(({ key, icon, label, value }) => (
-            <div key={key} className="flex min-w-0 items-start gap-sm" data-strategy-metric>
-              <Icon name={icon} size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
-              <LabeledValue label={<span title={label}>{label}</span>} value={value == null ? <span aria-label={T.unknown} title={T.unknown}>&mdash;</span> : number(value)} className="min-w-0 flex-1 tabular-nums"/>
-            </div>
-          ))}
-        </div>
-      </div>}/></div>;
-  };
+  const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} actions={<RowActions items={items(p)} disabled={pending}/>} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
   const table=(rows:StrategyView[])=><DataTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1}
     className="[&_table]:min-w-(--container-3xl)" columns={[
       {id:"name",header:T.strategy,align:"left",width:"lg",cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{strategyPeriodLabel(p.period)}{" \u00b7 "}{p.planNo} {p.versionNo ? `\u00b7 V${p.versionNo}` : ""}</span></div>},
@@ -159,7 +98,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   ;
   const current = plans.filter(p=>!["closed","archived"].includes(p.status));
   const history = plans.filter(p=>["closed","archived"].includes(p.status));
-  const cards = (rows:StrategyView[]) => <div className="grid grid-cols-1 gap-md @5xl:grid-cols-2">{rows.map(card)}</div>;
+  const cards = (rows:StrategyView[]) => <div className="grid min-w-0 grid-cols-1 gap-xl">{rows.map(card)}</div>;
   const views = [
     { id: "overview", label: T.overview, icon: "flag", allowed: data.canPlan },
     { id: "markets", label: T.markets, icon: "target", allowed: data.canMarkets },
@@ -241,6 +180,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       </div>}/>
       <CollapsibleContent><Card className="py-lg" data-strategy-basic-card><CardContent><div className="flex flex-col gap-lg">
         <DetailList columns={3} data-strategy-basic-facts>
+          <DetailRow label={T.strategyType}>{detail.strategyType?.name ?? T.typeUnclassified}</DetailRow>
           <DetailRow label={T.executionWindow}><span className="inline-flex min-h-control-md items-center tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></DetailRow>
           <DetailRow label={T.owner}><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></DetailRow>
           <DetailRow label={T.publishedAt}><span className="inline-flex min-h-control-md items-center tabular-nums">{detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale) : "-"}</span></DetailRow>
@@ -281,7 +221,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           {detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status) ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>revise(detail)}>{draftFor(detail)?T.resumeDraft:T.reviseStrategy}</Button>:null}
           {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>!["view","publish","revise"].includes(item.id))}/>
         </div>}/></> : <ModuleHeadline moduleKey="strategy" help={T.brief} className="[&>div:last-child]:max-w-full"
-      action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm" data-strategy-title-actions>{viewActions}{view!=="markets"?<div className="hidden @3xl:block">{periodFilter}</div>:null}{view==="markets"?data.canWriteMarket?<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>:null:data.canCreate?<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>:null}</div>}/>}
+      action={<div className="flex max-w-full flex-wrap items-center justify-end gap-sm" data-strategy-title-actions>{viewActions}{view!=="markets"?<div className="hidden @3xl:block">{periodFilter}</div>:null}{view==="overview" && data.canEdit ? <Button asChild size="md" variant="ghost"><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></Button>:null}{view==="markets"?data.canWriteMarket?<Button asChild size="xl"><Link href="/segment/new">{T.newMarket}</Link></Button>:null:data.canCreate?<Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button>:null}</div>}/>}
     {!detail && view==="validation" ? <FilterBar scope={sectionHeading} actions={checkButton}>
       {validationPlanFilter}<div className="@3xl:hidden">{periodFilter}</div>
     </FilterBar> : null}

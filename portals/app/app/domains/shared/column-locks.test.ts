@@ -372,7 +372,11 @@ test("no writable list contains an anchor column", () => {
     // local_authz.member from their token like display_name. This system
     // assigns nothing there; the cache has to be writable or the number could
     // never arrive on a row that was first seen before the token carried it.
-    const ANCHOR_EXEMPT = new Set(["segment_code", "credit_code", "type_code", "type_no", "user_no"]);
+    // strategy_type_code on a draft is a foreign classification reference,
+    // not the strategy number or the configuration row's immutable code.
+    // 0115 freezes the reference on publication; strategy-type.db.test proves it.
+    const ANCHOR_EXEMPT = new Set(["segment_code", "credit_code", "type_code", "type_no", "user_no",
+      ...(table === "yucer_gtm.strategy_plan" ? ["strategy_type_code"] : [])]);
     const businessNumber = cols.find((c) => /_(no|code)$/.test(c) && !ANCHOR_EXEMPT.has(c));
     assert.equal(businessNumber, undefined, `${table} must not allow writing ${businessNumber}`);
   }

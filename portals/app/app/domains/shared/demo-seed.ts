@@ -283,6 +283,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
     plans: [
       {
         id: "plan_demo_1",
+        strategyTypeCode: "market-expansion",
         workspaceId,
         planNo: "PLAN-2026H2",
         name: DEMO_PLANS[0].name,
@@ -301,6 +302,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
       },
       {
         id: "plan_demo_2",
+        strategyTypeCode: "market-depth",
         workspaceId,
         planNo: "PLAN-2026H1",
         name: DEMO_PLANS[1].name,

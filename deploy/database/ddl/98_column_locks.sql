@@ -273,3 +273,8 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 -- incr/0114 creates product relationship tables after these baseline locks.
 -- strategy_plan_product / strategy_plan_market_product / market_segment_product
 -- carry their INSERT/DELETE-only grants and UPDATE revocations in that increment.
+
+-- incr/0115 creates strategy_type after these baseline locks and grants
+-- UPDATE only on name, description, theme, enabled, sort_order, updated_at.
+-- It adds strategy_plan.strategy_type_code and grants its draft-only UPDATE;
+-- configuration code and published strategy identity remain locked there.
