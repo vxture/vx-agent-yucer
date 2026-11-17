@@ -5,7 +5,7 @@ import { Button, Checkbox, Drawer, EmptyState, Field, FieldError, FieldLabel, Ic
 import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import type { PlanRelationChange, TargetMarketDraft, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
 import type { MarketView } from "../lib/market-strategy";
-import { SolutionPicker } from "./solution-picker";
+import { OfferingSelectionList } from "./offering-selection-list";
 import { TitleHelp } from "./title-help";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -79,22 +79,22 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
     footer={<div className="flex w-full flex-col gap-sm">
       {error ? <FieldError role="alert">{error}</FieldError> : null}
       <div className="flex items-center justify-between gap-sm">
-        <span className="text-body-small text-muted-foreground">{task.kind !== "market" ? `${T.relationSelectedCount} ${task.kind === "solutions" ? (solutionIds?.length ?? 0) + (productIds?.length ?? 0) : selected.length}` : null}</span>
+        <output className="text-body-small text-muted-foreground">{task.kind !== "market" ? `${T.relationSelectedCount} ${task.kind === "solutions" ? (solutionIds?.length ?? 0) + (productIds?.length ?? 0) : selected.length}` : null}</output>
         <div className="flex gap-sm"><Button size="xl" variant="secondary" disabled={pending} onClick={close}>{T.relationCancel}</Button>
           <Button size="xl" disabled={pending || unavailable || !dirty} onClick={save}>{draft ? T.relationApply : T.relationSave}</Button></div>
       </div>
     </div>}>
     <div className="flex min-w-0 flex-col gap-lg" data-business-form data-strategy-relations-task={task.kind}>
-      {task.kind === "solutions" ? <SolutionPicker options={solutionOptions} ids={solutionIds} onChange={setSolutionIds}
+      {task.kind === "solutions" ? <OfferingSelectionList options={solutionOptions} ids={solutionIds} onChange={setSolutionIds}
         productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} disabled={pending}/> : task.kind === "markets" ? <>
         <Input type="search" className="h-control-xl" value={query} onChange={e => setQuery(e.target.value)}
           placeholder={T.searchMarkets} aria-label={T.searchMarkets}/>
         {unavailable ? <p role="status" className="text-body-small text-muted-foreground">{T.marketOptionsUnavailable}</p>
-          : <div className="flex flex-col divide-y divide-dashed divide-primary/10">
+          : <div className="flex flex-col divide-y divide-dashed divide-border">
           {markets.map(m => {
             const prior = targets.find(t => t.segmentId === m.id);
             const locked = !!prior && (prior.solutionIds === undefined || prior.productIds === undefined);
-            return <label key={m.id} className="flex cursor-pointer items-start gap-sm py-md">
+            return <label key={m.id} className={`flex min-w-0 cursor-pointer items-start gap-sm rounded-md px-sm py-md transition-colors hover:bg-accent ${selected.includes(m.id) ? "bg-accent" : ""}`}>
               <Checkbox checked={selected.includes(m.id)} disabled={pending || locked} onCheckedChange={() => toggle(m.id)} aria-label={m.name}/>
               <span className="flex min-w-0 flex-1 flex-col gap-xs">
                 <span className="text-body font-medium">{m.name}</span>
@@ -115,7 +115,7 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
         </NativeSelect></Field>
         <Field><FieldLabel>{T.marketApproach}</FieldLabel><Textarea rows={3} maxLength={4000} aria-label={T.marketApproach} value={approach}
           disabled={pending} placeholder={T.marketApproachHint} onChange={e => setApproach(e.target.value)}/></Field>
-        <Field><FieldLabel>{T.primarySolutions}</FieldLabel><SolutionPicker productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={pending}/></Field>
+        <Field><FieldLabel>{T.primarySolutions}</FieldLabel><OfferingSelectionList productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={pending}/></Field>
       </> : <EmptyState title={T.noPlanMarkets}/>}
     </div>
   </Drawer>;

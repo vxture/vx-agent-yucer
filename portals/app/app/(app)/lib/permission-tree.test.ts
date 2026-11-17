@@ -255,13 +255,14 @@ test("unheldActionCount counts only actions nobody in the given set holds, and z
 });
 
 
-test("market library stays an independent permission page inside market strategy", () => {
+test("market library is its own module with the existing permission actions", () => {
   const tree=buildPermissionTree();
   const armory=tree.find(g=>g.name === "armory")!;
   const strategy=armory.children.find(m=>m.name === "strategy")!;
   assert.ok(strategy.children.some(p=>p.name === "strategy.plan"));
-  const market=strategy.children.find(p=>p.name === "strategy.segment")!;
+  const segment=armory.children.find(m=>m.name === "segment")!;
+  const market=segment.children.find(p=>p.name === "strategy.segment")!;
   assert.ok(market.children.length > 0);
   for(const action of market.children)assert.equal(action.permission,ACTIONS[action.action!].permission);
-  assert.equal(armory.children.some(m=>m.name === "segment"),false);
+  assert.equal(strategy.children.some(p=>p.name === "strategy.segment"),false);
 });

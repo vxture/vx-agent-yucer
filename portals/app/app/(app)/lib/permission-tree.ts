@@ -17,8 +17,8 @@ import type { PermCode } from "../../authz/catalog";
  * module-level action - `campaign.view`; `splitActionId` reads the two
  * tokens the SAME way it always did. WHAT IS TYPED, because it can no
  * longer be derived, is REGROUP: which new 模块 (and which 业务) each
- * `(domain, page)` pair now lands under - segment is the market-library page within the
- * unified strategy module; its action gates remain independent;
+ * `(domain, page)` pair now lands under - segment is an independent reusable market library;
+ * its action gates remain unchanged;
  * planning/attainment and pipeline/forecast share the attainment module in
  * deployment, following the target-to-forecast workflow. A domain/page pair
  * not in REGROUP is a build error, not a silently-dropped row - the old
@@ -80,7 +80,7 @@ export const GROUP_ORDER: readonly string[] = [
  *  (`home` / `national` are `CROSSCUTTING_MODULES` instead - reachable, but
  *  not filed under any of the five). */
 export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
-  armory: ["strategy", "solution", "catalog"],
+  armory: ["strategy", "segment", "solution", "catalog"],
   deployment: ["namedAccount", "planning", "attainment"],
   recon: ["campaign", "signal", "lead", "funnel"],
   position: ["account", "pipeline", "quote", "winLossReview"],
@@ -114,7 +114,7 @@ interface Regroup {
 }
 const REGROUP: Readonly<Record<string, Regroup>> = {
   "strategy/plan": { group: "armory", module: "strategy", page: "strategy.plan" },
-  "strategy/segment": { group: "armory", module: "strategy", page: "strategy.segment" },
+  "strategy/segment": { group: "armory", module: "segment", page: "strategy.segment" },
   "strategy/type": { group: "admin", module: "admin", page: "admin.strategytype" },
   "catalog/product": { group: "armory", module: "catalog", page: "catalog.product" },
   "catalog/solution": { group: "armory", module: "solution", page: "catalog.solution" },

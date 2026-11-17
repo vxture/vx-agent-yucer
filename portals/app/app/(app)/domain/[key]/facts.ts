@@ -90,10 +90,10 @@ async function armoryFacts(ctx: FactsContext): Promise<DomainFact[]> {
 
   return visibleFacts([
     fact("activePlans", plans.ok ? currentStrategyPlans(plans.value).filter((p) => p.status === "active").length : null, "/strategy"),
-    fact("segments", len(segments), "/strategy"),
-    fact("emptySegments", emptySegments, "/strategy#segments", true),
+    fact("segments", len(segments), "/segment"),
+    fact("emptySegments", emptySegments, "/segment", true),
     fact("products", products.ok ? products.value.filter((p) => p.statusId === onSaleId).length : null, "/catalog"),
-    fact("solutions", len(solutions), "/catalog#solutions"),
+    fact("solutions", len(solutions), "/solution"),
     fact("unpricedProducts", unpriced, "/catalog", true),
   ]);
 }

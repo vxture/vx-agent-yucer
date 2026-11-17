@@ -529,18 +529,29 @@ test("a module route resolves to the domain that contains it", () => {
 });
 
 
-test("market editors retain the strategy workspace domain", () => {
+test("market editors retain the strategy and supply domain", () => {
   assert.equal(activeDomainFromPath("/segment/new"), "armory");
 });
 
-test("the single strategy launcher entry falls back to a reachable market library", () => {
+test("market and strategy launcher entries preserve their own gates and destinations", () => {
   const nav = resolveNavigation({permissions:new Set(permissionsForRoles(["sales_leader"]))}, {...EMPTY_ENTITLEMENT,workspace_id:"ws",product:"yucer"});
   const market = nav.find(e=>e.key === "segment");
+  const strategy = nav.find(e=>e.key === "strategy");
   assert.ok(market);
-  const domains = resolveFunctionalDomains([{...market,state:"visible"}]);
-  const entry = domains.flatMap(d=>d.modules).find(m=>m.key === "strategy");
+  assert.ok(strategy);
+  const modules = (entries: readonly ResolvedNavEntry[]) => resolveFunctionalDomains(entries).flatMap(d=>d.modules);
+  const marketOnly = modules([{...market,state:"visible"}]);
+  const entry = marketOnly.find(m=>m.key === "segment");
   assert.ok(entry?.kind === "built");
-  assert.equal(entry.href,"/strategy?view=markets");
+  assert.equal(entry.href,"/segment");
   assert.equal(entry.state,"visible");
-  assert.equal(domains.flatMap(d=>d.modules).filter(m=>m.key === "segment").length,0);
+  assert.equal(marketOnly.some(m=>m.key === "strategy"),false);
+  const strategyOnly = modules([{...strategy,state:"visible"}]);
+  assert.equal(strategyOnly.some(m=>m.key === "segment"),false);
+  const both = modules([{...market,state:"visible"},{...strategy,state:"locked"}]);
+  assert.equal(both.find(m=>m.key === "segment")?.kind === "built",true);
+  const locked = both.find(m=>m.key === "strategy");
+  assert.ok(locked?.kind === "built");
+  assert.equal(locked.state,"locked");
+  assert.equal(locked.href,"/strategy");
 });

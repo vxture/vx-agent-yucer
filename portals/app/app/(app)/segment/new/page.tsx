@@ -51,7 +51,7 @@ export default async function NewSegmentPage({searchParams}:{readonly searchPara
   return (
     <ViewLayout>
       <PageCrumbs
-        trail={[{ label: T.markets, href: "/strategy?view=markets" }]}
+        trail={[{ label: T.markets, href: "/segment" }]}
         current={title}
       />
       <ViewHeader title={title} help={T.libraryWhy} divider />

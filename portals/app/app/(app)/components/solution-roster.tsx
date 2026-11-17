@@ -327,7 +327,7 @@ export function SolutionRoster({
           {contents && <p className="line-clamp-2 text-body-small text-muted-foreground" title={contents}>{contents}</p>}
           {markets.length > 0 && <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs text-body-small">
             <span className="text-muted-foreground">{MARKET_STRATEGY_TEXT.markets}</span>
-            {markets.slice(0, 2).map(m => <Link key={m.id} href={`/strategy?view=markets&market=${encodeURIComponent(m.id)}`} className="truncate hover:text-primary-text" title={m.name}>{m.name}</Link>)}
+            {markets.slice(0, 2).map(m => <Link key={m.id} href={`/segment?market=${encodeURIComponent(m.id)}`} className="truncate hover:text-primary-text" title={m.name}>{m.name}</Link>)}
             {markets.length > 2 && <span title={markets.slice(2).map(m => m.name).join(" / ")}>+{markets.length - 2}</span>}
           </div>}
         </>}
