@@ -207,6 +207,14 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       </div>
     </Section>
   </>:null;
+  const workspaceContent = () => {
+    if (detail) return detailContent;
+    if (!allowedView || data.plans === null) return <EmptyState title={T.unknown}/>;
+    if (view === "overview") return overview;
+    if (plans.length) return results(plans);
+    const filtered = !!(period || planFilter);
+    return <EmptyState title={filtered ? T.noMatches : T.noPlans} description={filtered ? undefined : T.noPlansWhy}/>;
+  };
   const createAction = data.canCreate ? <Button asChild size="xl"><Link href="/strategy/new">{T.newPlan}</Link></Button> : null;
   return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/>
@@ -224,7 +232,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     {!detail && view==="validation" ? <FilterBar scope={sectionHeading} actions={checkButton}>
       {validationPlanFilter}<div className="@3xl:hidden">{periodFilter}</div>
     </FilterBar> : null}
-    {detail?detailContent:!allowedView?<EmptyState title={T.unknown}/>:data.plans===null?<EmptyState title={T.unknown}/>:view==="validation"?(plans.length?results(plans):<EmptyState title={period||planFilter?T.noMatches:T.noPlans} description={period||planFilter?undefined:T.noPlansWhy}/>):overview}
+    {workspaceContent()}
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">{T.dataAt} {new Date(data.at).toLocaleString(locale)}</footer>
     {publication ? <DialogForm open size="sm" title={publication.discard?T.discardConfirm:T.publishConfirm}
       description={publication.discard?T.discardHint:publication.plan.basePlanId?T.publishReplacementHint:T.publishHint}

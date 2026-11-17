@@ -5,18 +5,13 @@ import { strategyWorkspaceData } from "./workspace-data";
 import { lockedPage } from "../components/locked-page";
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
+import { legacyMarketDestination } from "../lib/market-route";
 
 export const dynamic = "force-dynamic";
 export default async function StrategyPage({ searchParams }: { readonly searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const values = await searchParams;
-  if (values.view === "markets") {
-    const query = new URLSearchParams();
-    for (const [key, value] of Object.entries(values)) {
-      if (key === "view") continue;
-      for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, item);
-    }
-    redirect(`/segment${query.size ? `?${query}` : ""}`);
-  }
+  const destination = legacyMarketDestination(values);
+  if (destination) redirect(destination);
   const bundle = await strategyWorkspaceData();
   if (!bundle) return null;
   const {view:requested} = values;
