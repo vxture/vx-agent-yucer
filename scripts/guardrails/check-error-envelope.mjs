@@ -35,7 +35,7 @@ const strict = process.argv.includes("--strict");
  */
 const EXCLUSIONS = [
   {
-    path: "auth/backchannel-logout/route.ts",
+    path: "auth/lib/backchannel.ts",
     why: "answers the IdP under OIDC Back-Channel Logout 1.0; the caller does not speak the vxture envelope",
   },
 ];

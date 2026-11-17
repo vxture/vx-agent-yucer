@@ -1,6 +1,6 @@
 import type { OidcConfig } from "./config";
 import { toAuthUser, type AuthUser } from "./claims";
-import { accessTokenFor, resolveLoginState } from "./login-state";
+import { accessTokenFor, resolveLoginState, LoginStateUnavailableError } from "./login-state";
 
 // Per-request auth (080-rp section 2.6): cookie -> the product's one login
 // state (login-state.ts) -> AuthUser. Returns null when there is no login
@@ -26,14 +26,16 @@ export interface ResolveOptions {
    * The member is actually doing something - a page they opened, an action
    * they took. Only such a request may ask accounts (and so renew the login's
    * idle clock). Probes, prefetches and status polls pass false.
+   * Validation is independent: forceCheck bypasses the Accounts check schedule.
    */
   activity: boolean;
+  forceCheck?: boolean;
 }
 
 export async function getAuthUser(
   cfg: OidcConfig,
   rpsid: string,
-  opts: ResolveOptions = { activity: false },
+  opts: ResolveOptions = { activity: false, forceCheck: true },
 ): Promise<AuthUser | null> {
   return (await getAuthSession(cfg, rpsid, opts))?.user ?? null;
 }
@@ -41,10 +43,13 @@ export async function getAuthUser(
 export async function getAuthSession(
   cfg: OidcConfig,
   rpsid: string,
-  opts: ResolveOptions = { activity: false },
+  opts: ResolveOptions = { activity: false, forceCheck: true },
 ): Promise<AuthSession | null> {
-  const state = await resolveLoginState(cfg, rpsid, opts);
+  const state = await resolveLoginState(cfg, rpsid, opts).catch(() => {
+    throw new LoginStateUnavailableError();
+  });
   if (!state) return null;
+  if (state.claims.account_status && state.claims.account_status !== "active") return null;
   let token: Promise<string | null> | null = null;
   return {
     user: toAuthUser(state.claims),

@@ -169,7 +169,8 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
   const rpsid = jar.get(cfg.cookieName)?.value;
   if (!rpsid) return null;
 
-  const authSession = await getAuthSession(cfg, rpsid, { activity: await isMemberActivity() });
+  const activity = await isMemberActivity();
+  const authSession = await getAuthSession(cfg, rpsid, { activity, forceCheck: activity });
   if (!authSession) return null;
   const { user, accessToken } = authSession;
 

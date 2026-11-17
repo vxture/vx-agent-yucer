@@ -461,10 +461,7 @@ export function AppShell({
                     key: "switch",
                     label: HEADER_TEXT.switchUser,
                     icon: "user-switch",
-                    // A fresh authorize round with prompt=login: the IdP asks
-                    // for credentials again, and the callback replaces this
-                    // session with whoever signs in. A top-level navigation,
-                    // as the RP contract requires of /auth/login.
+                    // End the old central login before requesting another account.
                     onClick: () => window.location.assign("/auth/login?switch=1"),
                   },
                   {

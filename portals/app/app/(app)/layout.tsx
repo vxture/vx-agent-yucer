@@ -1,3 +1,8 @@
+import { redirect } from "next/navigation";
+import { SessionBoundary } from "./components/session-boundary";
+import { SessionUnavailableReload } from "./components/session-unavailable";
+import { LoginStateUnavailableError } from "../auth/lib/login-state";
+import { SWITCH_COOKIE } from "../auth/lib/logout";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { pricingUrl } from "../entitlement/deeplink";
@@ -66,7 +71,12 @@ export default async function AppLayout({
   /** The right deck, from the @deck parallel route - see @deck/deck-data.ts. */
   deck: ReactNode;
 }) {
-  const session = await resolveAppSession();
+  let unavailable = false;
+  const session = await resolveAppSession().catch((error: unknown) => {
+    if (!(error instanceof LoginStateUnavailableError)) throw error;
+    unavailable = true;
+    return null;
+  });
   // Resolved on the SERVER so the first paint is already in the right language.
   const locale = await resolveLocale();
   const { SHELL_TEXT } = await getMessages();
@@ -79,6 +89,7 @@ export default async function AppLayout({
   // It sits on this layout rather than on a route so it covers every route:
   // there is no address in the product that answers a session-less visitor
   // with anything else.
+  if (unavailable) return <MessagesProvider locale={locale}><SessionUnavailableReload /></MessagesProvider>;
   if (!session) {
     // WRAPPED, and every early return below is too.
     //
@@ -96,6 +107,7 @@ export default async function AppLayout({
     // way to the IdP and this reads it - see auth/lib/signed-out-marker.ts for
     // why the product cannot simply be sent to a /signed-out route instead.
     const jar = await cookies();
+    if (jar.has(SWITCH_COOKIE)) redirect("/auth/login?switchComplete=1");
     const justSignedOut = jar.get(SIGNED_OUT_COOKIE)?.value === "1";
     // A member whose session died SERVER side still holds its cookie, and the
     // IdP's own session is usually alive - which is why 登录 used to go
@@ -115,6 +127,17 @@ export default async function AppLayout({
     );
   }
 
+  const jar = await cookies();
+  const oidc = getOidcConfig();
+  const protect = (content: ReactNode) => (
+    <MessagesProvider locale={locale}>
+      <SessionBoundary
+        enabled={oidc.enabled && jar.has(oidc.cookieName)}
+        identity={{ sub: session.user.sub, activeOrg: session.user.activeOrg, activeWorkspace: session.user.activeWorkspace }}
+      >{content}</SessionBoundary>
+    </MessagesProvider>
+  );
+
   const nav = resolveNavigation(session.authz, session.entitlement);
   const lockout = lockoutReason(nav);
 
@@ -127,8 +150,8 @@ export default async function AppLayout({
     // opened the subscription is this product's super administrator
     // (authz/context.ts bootstraps them) - and shows the identity that
     // administrator will be searching a roster for.
-    return (
-      <MessagesProvider locale={locale}>
+    return protect(
+      <>
         <NoRoles
           userName={session.user.displayName}
           userPhone={session.user.phone}
@@ -136,7 +159,7 @@ export default async function AppLayout({
           orgLabel={session.user.activeOrgName}
           workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
-      </MessagesProvider>
+      </>
     );
   }
 
@@ -145,8 +168,8 @@ export default async function AppLayout({
     // a dashed box meaning "this container has nothing in it", and what is
     // actually happening is that the workspace has not bought the product. The
     // decision stays here; the component only renders it.
-    return (
-      <MessagesProvider locale={locale}>
+    return protect(
+      <>
         <NoSubscription
           // subscribe for a workspace that never subscribed, renew for one
           // that lapsed - the console shows a different flow for each, and
@@ -158,7 +181,7 @@ export default async function AppLayout({
           orgLabel={session.user.activeOrgName}
           workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
-      </MessagesProvider>
+      </>
     );
   }
 
@@ -264,14 +287,13 @@ export default async function AppLayout({
     sub: m.sub, name: m.displayName || m.sub, picture: m.pictureUrl, active: m.status === "active",
   }));
 
-  const jar = await cookies();
   const cookieString = jar
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  return (
-    <MessagesProvider locale={locale}>
+  return protect(
+    <>
       {/* Around the WHOLE shell: the right deck (routing, proposals) is passed
           to AppShell as a prop and renders outside `children`. */}
       <MemberNamesProvider names={memberNames} members={memberIdentities}>
@@ -322,6 +344,6 @@ export default async function AppLayout({
       </AppShell>
       </AssistantProvider>
       </MemberNamesProvider>
-    </MessagesProvider>
+    </>
   );
 }

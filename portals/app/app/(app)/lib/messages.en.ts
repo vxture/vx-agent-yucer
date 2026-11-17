@@ -285,6 +285,10 @@ export const en: Dictionary = {
   },
 
   SHELL_TEXT: {
+    sessionUpdating: "Updating your account",
+    sessionUnavailable: "Unable to confirm your sign-in",
+    sessionRetryDescription: "Try again shortly. You do not need to sign in again.",
+    sessionRetry: "Try again",
     brandName: "Yucer Sales Agent",
     brandMark: "Yucer",
     brandTagline: "Sales Agent",

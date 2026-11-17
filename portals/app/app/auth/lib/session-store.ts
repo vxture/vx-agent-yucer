@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import { randomUUID } from "node:crypto";
 import type { AccessClaims } from "./claims";
 
 // RP session store on Redis (080-rp section 2.4). Key families are namespaced by
@@ -6,10 +7,10 @@ import type { AccessClaims } from "./claims";
 //   vx:rp:{cid}:authstate:{state}  login handshake {verifier,nonce,returnTo}, ~600s, single-use
 //   vx:rp:{cid}:sess:{rpsid}       session bundle {tokens,sid,sub,...}, TTL ~ refresh lifetime
 //   vx:rp:{cid}:sididx:{sid}       SET of rpsids for a given IdP sid (back-channel logout)
-//   vx:rp:{cid}:bclogout:{jti}     logout_token replay guard
+//   vx:rp:{cid}:revoked:{sid}      tombstone: delayed callbacks cannot recreate the sid
 //
 // Fail-closed: if Redis is unreachable, session reads throw and the request is
-// treated as unauthenticated (ADR-001 refresh fail-closed).
+// treated as temporarily unverifiable, with protected UI/data unavailable.
 
 let client: Redis | null = null;
 
@@ -27,7 +28,7 @@ const k = {
   authstate: (cid: string, state: string) => `vx:rp:${cid}:authstate:${state}`,
   sess: (cid: string, rpsid: string) => `vx:rp:${cid}:sess:${rpsid}`,
   sididx: (cid: string, sid: string) => `vx:rp:${cid}:sididx:${sid}`,
-  bclogout: (cid: string, jti: string) => `vx:rp:${cid}:bclogout:${jti}`,
+  revoked: (cid: string, sid: string) => `vx:rp:${cid}:revoked:${sid}`,
   check: (cid: string, rpsid: string) => `vx:rp:${cid}:check:${rpsid}`,
 };
 
@@ -49,18 +50,19 @@ export interface RpSession {
   sub: string;
   /**
    * WHO THIS IS, as accounts last said (login-state.ts). The product's one
-   * copy of the person, read by every section; refreshed on every check with
-   * accounts. Absent on sessions written before login-state existed - those
+   * copy of the person, read by every section; refreshed on token renewal. Absent on sessions written before login-state existed - those
    * are checked on first use.
    */
   claims?: AccessClaims;
   /**
    * When accounts is next asked whether this login still holds, epoch
-   * seconds. Set from what ACCOUNTS says - the token's own expiry today, the
-   * status query's next-check time once that exists (vxture-platform#538) -
-   * never from a product constant.
+   * seconds. Set from Accounts' status-query next_check_at, never from a
+   * product-defined session lifetime.
    */
   nextCheckAt?: number;
+  /** Last successful central validation; never a local login lifetime. */
+  checkedAt?: number;
+  statusUnavailable?: boolean;
 }
 
 export async function putAuthState(
@@ -78,20 +80,41 @@ export async function takeAuthState(cid: string, state: string): Promise<AuthSta
   return raw ? (JSON.parse(raw) as AuthState) : null;
 }
 
+/** Create only. A delayed callback cannot recreate an already revoked sid. */
 export async function putSession(
-  cid: string,
-  rpsid: string,
-  data: RpSession,
-  ttlSeconds: number,
-): Promise<void> {
-  const r = redis();
-  const tx = r.multi();
-  tx.set(k.sess(cid, rpsid), JSON.stringify(data), "EX", ttlSeconds);
-  if (data.sid) {
-    tx.sadd(k.sididx(cid, data.sid), rpsid);
-    tx.expire(k.sididx(cid, data.sid), ttlSeconds);
-  }
-  await tx.exec();
+  cid: string, rpsid: string, data: RpSession, ttlSeconds: number,
+): Promise<boolean> {
+  return (await redis().eval(`
+    if ARGV[3] ~= '' and redis.call('EXISTS', KEYS[3]) == 1 then return 0 end
+    if not redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2], 'NX') then return 0 end
+    if ARGV[3] ~= '' then
+      redis.call('SADD', KEYS[2], ARGV[4])
+      local ttl = redis.call('TTL', KEYS[2])
+      if ttl < tonumber(ARGV[2]) then redis.call('EXPIRE', KEYS[2], ARGV[2]) end
+    end
+    return 1
+  `, 3, k.sess(cid, rpsid), k.sididx(cid, data.sid ?? ""), k.revoked(cid, data.sid ?? ""),
+  JSON.stringify(data), ttlSeconds, data.sid ?? "", rpsid)) === 1;
+}
+
+/** Compare-and-set under an owned lease. Neither logout nor a new checker can
+ * be undone by an old status/refresh response, even after lease expiration. */
+export async function updateSession(
+  cid: string, rpsid: string, before: RpSession, data: RpSession, ttlSeconds: number, lease: string,
+): Promise<boolean> {
+  return (await redis().eval(`
+    if redis.call('GET', KEYS[2]) ~= ARGV[1] then return 0 end
+    if redis.call('GET', KEYS[1]) ~= ARGV[2] then return 0 end
+    if ARGV[5] ~= '' and redis.call('EXISTS', KEYS[4]) == 1 then return 0 end
+    redis.call('SET', KEYS[1], ARGV[3], 'EX', ARGV[4])
+    if ARGV[5] ~= '' then
+      redis.call('SADD', KEYS[3], ARGV[6])
+      local ttl = redis.call('TTL', KEYS[3])
+      if ttl < tonumber(ARGV[4]) then redis.call('EXPIRE', KEYS[3], ARGV[4]) end
+    end
+    return 1
+  `, 4, k.sess(cid, rpsid), k.check(cid, rpsid), k.sididx(cid, data.sid ?? ""), k.revoked(cid, data.sid ?? ""),
+  lease, JSON.stringify(before), JSON.stringify(data), ttlSeconds, data.sid ?? "", rpsid)) === 1;
 }
 
 export async function getSession(cid: string, rpsid: string): Promise<RpSession | null> {
@@ -100,35 +123,42 @@ export async function getSession(cid: string, rpsid: string): Promise<RpSession 
 }
 
 export async function deleteSession(cid: string, rpsid: string): Promise<void> {
-  const r = redis();
-  const raw = await r.get(k.sess(cid, rpsid));
-  if (raw) {
-    const sess = JSON.parse(raw) as RpSession;
-    if (sess.sid) await r.srem(k.sididx(cid, sess.sid), rpsid);
-  }
-  await r.del(k.sess(cid, rpsid));
+  await redis().eval(`
+    local raw = redis.call('GET', KEYS[1])
+    if raw then
+      local data = cjson.decode(raw)
+      if data.sid then redis.call('SREM', ARGV[1] .. data.sid, ARGV[2]) end
+    end
+    redis.call('DEL', KEYS[1])
+  `, 1, k.sess(cid, rpsid), `vx:rp:${cid}:sididx:`, rpsid);
 }
 
-/**
- * The one-checker lock (login-state.ts): SET NX with a short expiry, so a
- * crashed holder frees it on its own. Across processes and replicas, not just
- * in-process - the platform revokes a whole token chain on a replay, so two
- * checkers anywhere is one too many.
- */
-export async function acquireCheckLock(cid: string, rpsid: string, holdSeconds: number): Promise<boolean> {
-  return (await redis().set(k.check(cid, rpsid), "1", "EX", holdSeconds, "NX")) === "OK";
+/** Atomic and idempotent: failures remain retryable; no pre-claimed jti can
+ * turn a failed delivery into a successful no-op on the next attempt. */
+export async function revokeSid(cid: string, sid: string, ttlSeconds: number): Promise<void> {
+  await redis().eval(`
+    redis.call('SET', KEYS[2], '1', 'EX', ARGV[1])
+    local sessions = redis.call('SMEMBERS', KEYS[1])
+    for _, rp in ipairs(sessions) do redis.call('DEL', ARGV[2] .. rp) end
+    redis.call('DEL', KEYS[1])
+  `, 2, k.sididx(cid, sid), k.revoked(cid, sid), ttlSeconds, `vx:rp:${cid}:sess:`);
 }
 
-export async function releaseCheckLock(cid: string, rpsid: string): Promise<void> {
-  await redis().del(k.check(cid, rpsid));
+export async function acquireCheckLock(cid: string, rpsid: string, holdSeconds: number): Promise<string | null> {
+  const lease = randomUUID();
+  return (await redis().set(k.check(cid, rpsid), lease, "EX", holdSeconds, "NX")) === "OK" ? lease : null;
 }
 
-export async function sessionsForSid(cid: string, sid: string): Promise<string[]> {
-  return redis().smembers(k.sididx(cid, sid));
+export async function releaseCheckLock(cid: string, rpsid: string, lease: string): Promise<void> {
+  await redis().eval(`
+    if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) end
+    return 0
+  `, 1, k.check(cid, rpsid), lease);
 }
 
-/** Back-channel logout replay guard: returns true only the first time for a jti. */
-export async function claimBclogoutJti(cid: string, jti: string, ttlSeconds = 300): Promise<boolean> {
-  const res = await redis().set(k.bclogout(cid, jti), "1", "EX", ttlSeconds, "NX");
-  return res === "OK";
+/** Graceful shutdown for isolated contract-test workers and application hosts. */
+export async function closeSessionStore(): Promise<void> {
+  const current = client;
+  client = null;
+  if (current) await current.quit();
 }

@@ -124,6 +124,8 @@ async function postToken(cfg: OidcConfig, body: URLSearchParams): Promise<TokenS
     },
     body,
     cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

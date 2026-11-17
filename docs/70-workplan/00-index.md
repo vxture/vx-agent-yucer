@@ -1,5 +1,10 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## Accounts 登录与退出
+
+中央会话校验、退出 303、账号切换和并发撤销见
+[70-accounts-session-lifecycle.md](70-accounts-session-lifecycle.md)。
+
 ## 细分市场表单与智能填写
 
 四个业务板块、全字段引导、多选产品方案和共享 Atlas 智能填写见
