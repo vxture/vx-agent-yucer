@@ -4,6 +4,7 @@ import {
   accessTokenFor,
   accountsStatusAuthority,
   grantAuthority,
+  LoginStateUnavailableError,
   resolveLoginState,
   type LoginAuthority,
   type LoginStateDeps,
@@ -48,9 +49,12 @@ function world(record: RpSession | null, authorityOf: (now: () => number) => Log
   const now = () => clock;
   const deps: LoginStateDeps = {
     getSession: async (_c, id) => map.get(id) ?? null,
-    putSession: async (_c, id, data) => void map.set(id, data),
+    updateSession: async (_c, id, before, data) => {
+      if (JSON.stringify(map.get(id)) !== JSON.stringify(before)) return false;
+      map.set(id, data); return true;
+    },
     deleteSession: async (_c, id) => void map.delete(id),
-    acquireCheckLock: async () => (locked ? false : (locked = true)),
+    acquireCheckLock: async () => locked ? null : (locked = true, "lease"),
     releaseCheckLock: async () => void (locked = false),
     authority: authorityOf(now),
     now,
@@ -60,6 +64,7 @@ function world(record: RpSession | null, authorityOf: (now: () => number) => Log
     peek: () => map.get("r1") ?? null,
     advance: (s: number) => void (clock += s),
     hold: () => void (locked = true),
+    release: () => void (locked = false),
   };
 }
 
@@ -91,19 +96,24 @@ test("a check that is not due asks nothing", async () => {
   assert.deepEqual(idp.calls, []);
 });
 
-test("a request the member did not make (probe, prefetch) never asks - it reads, and does not renew", async () => {
+test("a due background probe asks Accounts with active:false without renewing tokens", async () => {
+  const seen: unknown[] = [];
   const idp = rotatingIdp();
-  const w = world(record(-5), (now) => grantAuthority(idp, now));
+  const w = world(record(-5), (now) => accountsStatusAuthority("u", {
+    ...idp, fetch: statusFetch({ body: { valid: true, next_check_at: NOW + 300 } }, seen),
+  }, now));
   assert.equal((await resolveLoginState(cfg, "r1", { activity: false }, w.deps))?.claims.sub, "u1");
   assert.deepEqual(idp.calls, [], "an open tab must not keep the login alive by itself");
+  assert.deepEqual(seen, [{ sid: "sid-1", active: false }]);
 });
 
-test("while another request holds the check, a section reads the record and carries on - it neither waits nor asks", async () => {
+test("a protected request waits for the existing check rather than accepting an unchecked record", async () => {
   const idp = rotatingIdp();
   const w = world(record(-5), (now) => grantAuthority(idp, now));
   w.hold();
+  setTimeout(w.release, 60);
   assert.equal((await resolveLoginState(cfg, "r1", { activity: true }, w.deps))?.claims.sub, "u1");
-  assert.deepEqual(idp.calls, []);
+  assert.deepEqual(idp.calls, ["rt-0"]);
 });
 
 test("ACCOUNTS saying no ends the state - once, recorded, and never re-asked on every request", async () => {
@@ -117,15 +127,15 @@ test("ACCOUNTS saying no ends the state - once, recorded, and never re-asked on 
   assert.equal(idp.calls.length, 1, "the dead grant is not presented again");
 });
 
-test("accounts NOT ANSWERING is not a no: the member stays signed in, and it is retried later", async () => {
+test("central outage retains credentials for recovery and refuses protected rendering", async () => {
   const before = counts().check_unavailable;
   const idp = rotatingIdp({ fail: "network" });
   const w = world(record(-5), (now) => grantAuthority(idp, now));
-  assert.equal((await resolveLoginState(cfg, "r1", { activity: true }, w.deps))?.claims.sub, "u1");
+  await assert.rejects(resolveLoginState(cfg, "r1", { activity: true }, w.deps), LoginStateUnavailableError);
   assert.ok(w.peek(), "the record is kept");
   assert.equal(counts().check_unavailable, before + 1);
   // Retried on a later activity, not on the very next request.
-  await resolveLoginState(cfg, "r1", { activity: true }, w.deps);
+  await assert.rejects(resolveLoginState(cfg, "r1", { activity: true }, w.deps), LoginStateUnavailableError);
   assert.equal(idp.calls.length, 1);
 });
 
@@ -187,7 +197,8 @@ test("status query: 'not valid' ends the state; a failed query does not", async 
 
   const down = world(record(-5), (now) =>
     accountsStatusAuthority("u", { ...rotatingIdp(), fetch: statusFetch({ status: 503 }) }, now));
-  assert.equal((await resolveLoginState(cfg, "r1", { activity: true }, down.deps))?.claims.sub, "u1");
+  await assert.rejects(resolveLoginState(cfg, "r1", { activity: true }, down.deps), LoginStateUnavailableError);
+  assert.ok(down.peek());
 });
 
 test("status query mode: a refused token renewal fails that call only - the member stays signed in", async () => {
@@ -204,4 +215,69 @@ test("no record behind the cookie is simply logged out, and noted", async () => 
   const w = world(null, (now) => grantAuthority(rotatingIdp(), now));
   assert.equal(await resolveLoginState(cfg, "r1", { activity: true }, w.deps), null);
   assert.equal(counts().no_record, before + 1);
+});
+
+
+test("refresh/refocus force a read-only check before the scheduled deadline", async () => {
+  const seen: unknown[] = [];
+  const w = world(record(600), (now) => accountsStatusAuthority("u", {
+    ...rotatingIdp(), fetch: statusFetch({ body: { valid: false } }, seen),
+  }, now));
+  assert.equal(await resolveLoginState(cfg, "r1", { activity: false, forceCheck: true }, w.deps), null);
+  assert.deepEqual(seen, [{ sid: "sid-1", active: false }]);
+});
+
+test("a background probe detects logout even when the notification was lost", async () => {
+  const w = world(record(-5), (now) => accountsStatusAuthority("u", {
+    ...rotatingIdp(), fetch: statusFetch({ body: { valid: false } }),
+  }, now));
+  assert.equal(await resolveLoginState(cfg, "r1", { activity: false }, w.deps), null);
+  assert.equal(w.peek(), null);
+});
+
+test("back-channel deletion during a status check cannot resurrect a session", async () => {
+  const w = world(record(-5), () => ({
+    check: async (_cfg, session) => {
+      await w.deps.deleteSession(cfg.clientId, "r1");
+      return { kind: "valid", session };
+    },
+    freshToken: async () => ({ kind: "unavailable", detail: "unused" }),
+  }));
+  assert.equal(await resolveLoginState(cfg, "r1", { activity: true }, w.deps), null);
+  assert.equal(w.peek(), null);
+});
+
+test("back-channel deletion during token renewal cannot resurrect credentials", async () => {
+  const w = world(record(-5), () => ({
+    check: async (_cfg, session) => ({ kind: "valid", session }),
+    freshToken: async (_cfg, session) => {
+      await w.deps.deleteSession(cfg.clientId, "r1");
+      return { kind: "valid", session: { ...session, accessToken: "late-token", accessExpiresAt: NOW + 600 } };
+    },
+  }));
+  assert.equal(await accessTokenFor(cfg, "r1", w.deps), null);
+  assert.equal(w.peek(), null);
+});
+
+test("a read-only successful retry recovers a temporarily unavailable session", async () => {
+  let down = true;
+  const w = world(record(600), () => ({
+    check: async (_cfg, session) => down ? { kind: "unavailable", detail: "network" }
+      : { kind: "valid", session: { ...session, nextCheckAt: NOW + 600 } },
+    freshToken: async () => ({ kind: "unavailable", detail: "unused" }),
+  }));
+  await assert.rejects(resolveLoginState(cfg, "r1", { activity: false, forceCheck: true }, w.deps), LoginStateUnavailableError);
+  down = false;
+  assert.equal((await resolveLoginState(cfg, "r1", { activity: false, forceCheck: true }, w.deps))?.claims.sub, "u1");
+  assert.equal(w.peek()?.statusUnavailable, false);
+});
+
+
+test("forced foreground checks still report real user activity", async () => {
+  const seen: unknown[] = [];
+  const w = world(record(600), (now) => accountsStatusAuthority("u", {
+    ...rotatingIdp(), fetch: statusFetch({ body: { valid: true, next_check_at: NOW + 600 } }, seen),
+  }, now));
+  assert.equal((await resolveLoginState(cfg, "r1", { activity: true, forceCheck: true }, w.deps))?.claims.sub, "u1");
+  assert.deepEqual(seen, [{ sid: "sid-1", active: true }]);
 });

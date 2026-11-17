@@ -1,8 +1,10 @@
+import { cookies } from "next/headers";
+import { SIGNED_OUT_COOKIE } from "../../../../auth/lib/signed-out-marker";
 import { NextResponse } from "next/server";
 import { getOidcConfig } from "../../../../auth/lib/config";
 import { accessExpiry, exchangeCode, verifyToken } from "../../../../auth/lib/oidc";
-import { takeAuthState, putSession, type RpSession } from "../../../../auth/lib/session-store";
-import { sessionCookieOptions } from "../../../../auth/lib/cookie";
+import { takeAuthState, putSession, deleteSession, type RpSession } from "../../../../auth/lib/session-store";
+import { clearCookieOptions, sessionCookieOptions } from "../../../../auth/lib/cookie";
 import { randomToken } from "../../../../auth/lib/pkce";
 import type { AccessClaims } from "../../../../auth/lib/claims";
 import {
@@ -82,6 +84,7 @@ export async function GET(req: Request): Promise<Response> {
   }
   if (accessClaims.sub !== idClaims.sub) return reject("sub mismatch");
 
+  if (typeof idClaims.sid !== "string" || !idClaims.sid || !idClaims.sub) return reject("missing sid/sub");
   const rpsid = randomToken();
   const accessExpiresAt = accessExpiry(tokens.access_token, tokens.expires_in, Math.floor(Date.now() / 1000));
   const session: RpSession = {
@@ -96,12 +99,18 @@ export async function GET(req: Request): Promise<Response> {
     claims: accessClaims as AccessClaims,
     nextCheckAt: accessExpiresAt,
   };
-  await putSession(cfg.clientId, rpsid, session, cfg.sessionTtlSeconds);
+  if (!(await putSession(cfg.clientId, rpsid, session, cfg.sessionTtlSeconds))) return reject("login already ended");
+  const jar = await cookies();
+  const previous = jar.get(cfg.cookieName)?.value;
+  if (previous) await deleteSession(cfg.clientId, previous);
+
 
   // returnTo is a whitelisted relative path; anchor it to the app origin.
   const dest = new URL(authState.returnTo, cfg.appOrigin || url.origin);
   const res = NextResponse.redirect(dest.toString());
+  res.headers.set("Cache-Control", "private, no-store");
   res.cookies.set(cfg.cookieName, rpsid, sessionCookieOptions(cfg));
+  res.cookies.set(SIGNED_OUT_COOKIE, "", { ...clearCookieOptions(cfg), httpOnly: false });
   // Signed in: shorten the silent-attempt marker to a few seconds rather than
   // clearing it. Cleared, a session the layout cannot use (no workspace, no
   // role) would be resumed, signed in and bounced forever; a few seconds stops
