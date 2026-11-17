@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { OidcConfig } from "./config";
 import { getAuthUser } from "./session";
-import { clearCookieOptions } from "./cookie";
 
 export async function sessionResponse(
   cfg: OidcConfig, rpsid: string | undefined, forceCheck: boolean,
@@ -11,7 +10,9 @@ export async function sessionResponse(
   try {
     const user = rpsid ? await resolve(cfg, rpsid, { activity: false, forceCheck }) : null;
     const response = NextResponse.json(user ? { authenticated: true, user } : { authenticated: false }, { headers });
-    if (!user && rpsid) response.cookies.set(cfg.cookieName, "", clearCookieOptions(cfg));
+    // This is an asynchronous probe. Its old response must never erase the
+    // cookie installed by a newer sign-in in another tab. Only top-level
+    // logout and the login callback may change the browser session pointer.
     return response;
   } catch {
     // Unknown is neither signed in nor signed out. Keep the cookie for retry.

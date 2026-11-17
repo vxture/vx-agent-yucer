@@ -19,10 +19,10 @@ test("status force-checks centrally with activity false and never leaks tokens",
   assert.match(response.headers.get("cache-control")!, /no-store/);
 });
 
-test("confirmed invalidation clears the browser session pointer", async () => {
+test("an old invalid probe never clears a newer sign-in cookie", async () => {
   const response = await sessionResponse(cfg, "rp", true, async () => null);
   assert.deepEqual(await response.json(), { authenticated: false });
-  assert.equal(response.cookies.get(cfg.cookieName)?.value, "");
+  assert.equal(response.headers.get("set-cookie"), null);
 });
 
 test("central unavailability returns retryable 503 and retains cookie for recovery", async () => {
