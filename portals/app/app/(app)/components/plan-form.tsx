@@ -68,6 +68,10 @@ export interface PlanFormInitial {
   readonly targetMarkets: readonly TargetSelection[];
 }
 
+function initialSelection(initial: PlanFormInitial | undefined, key: "productIds" | "solutionIds") {
+  return initial ? initial[key] : [];
+}
+
 function StrategyTypeField({types,value,existing,disabled,onChange}: {
   readonly types: readonly StrategyType[] | null;
   readonly value: string; readonly existing?: string | null;
@@ -113,12 +117,14 @@ export function NewPlanForm({ strategyTypes,
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [changeReason,setChangeReason]=useState(initial?.changeReason ?? "");
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
-  const [productIds, setProductIds] = useState<readonly string[] | undefined>(initial ? initial.productIds : []);
-  const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initial ? initial.solutionIds : []);
+  const initialProductIds=initialSelection(initial,"productIds");
+  const initialSolutionIds=initialSelection(initial,"solutionIds");
+  const [productIds, setProductIds] = useState<readonly string[] | undefined>(initialProductIds);
+  const [solutionIds, setSolutionIds] = useState<readonly string[] | undefined>(initialSolutionIds);
   const [targets, setTargets] = useState<readonly TargetSelection[]>(initial?.targetMarkets ?? []);
   const [relationTask, setRelationTask] = useState<RelationTask | null>(null);
-  const productSelectionChanged = JSON.stringify(productIds) !== JSON.stringify(initial ? initial.productIds : []);
-  const solutionSelectionChanged = JSON.stringify(solutionIds) !== JSON.stringify(initial ? initial.solutionIds : []);
+  const productSelectionChanged = JSON.stringify(productIds) !== JSON.stringify(initialProductIds);
+  const solutionSelectionChanged = JSON.stringify(solutionIds) !== JSON.stringify(initialSolutionIds);
   const targetsChanged = JSON.stringify(targets) !== JSON.stringify(initial?.targetMarkets ?? []);
   const saveRelations = async (change: PlanRelationChange): Promise<Saved> => {
     if (change.kind === "solutions") {

@@ -17,13 +17,13 @@ REVOKE UPDATE, DELETE ON yucer_gtm.strategy_type FROM yucer_svc;
 GRANT UPDATE (name, description, theme, enabled, sort_order, updated_at) ON yucer_gtm.strategy_type TO yucer_svc;
 ALTER TABLE yucer_gtm.strategy_plan ADD COLUMN strategy_type_code VARCHAR(64);
 ALTER TABLE yucer_gtm.strategy_plan ADD CONSTRAINT fk_strategy_type
-  FOREIGN KEY (workspace_id,strategy_type_code) REFERENCES yucer_gtm.strategy_type(workspace_id,code) ON DELETE NO ACTION;
+  FOREIGN KEY (workspace_id,strategy_type_code) REFERENCES yucer_gtm.strategy_type(workspace_id,code);
 GRANT UPDATE (strategy_type_code) ON yucer_gtm.strategy_plan TO yucer_svc;
 
 CREATE FUNCTION yucer_gtm.strategy_type_guard()
 RETURNS TRIGGER LANGUAGE plpgsql SET search_path = pg_catalog, yucer_gtm AS $$
 BEGIN
-  IF TG_OP <> 'INSERT' THEN
+  IF TG_OP='UPDATE' THEN
     IF NEW.strategy_type_code IS NOT DISTINCT FROM OLD.strategy_type_code THEN RETURN NEW; END IF;
     IF OLD.status <> 'draft' THEN RAISE EXCEPTION 'immutable_strategy'; END IF;
   END IF;
