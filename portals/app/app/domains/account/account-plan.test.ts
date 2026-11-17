@@ -15,7 +15,7 @@ function account(): AccountRecord {
   return {
     id: "acc_1", workspaceId: WS, accountNo: "ACC-1", name: "Acme", industryId: null, industry: null,
     customerTypeId: null, customerType: null, customerSizeId: null, customerSize: null, customerNatureId: null,
-    customerNature: null, region: null, province: null, segmentCode: null, ownerSub: "usr_me", healthScore: null,
+    customerNature: null, region: null, province: null, segmentId: null, ownerSub: "usr_me", healthScore: null,
     status: "active", tier: "strategic", creditCode: null, website: null, employeeCount: null, parentId: null,
   };
 }

@@ -42,12 +42,14 @@ export function OpportunityForm({
     readonly id: string;
     readonly name: string;
     readonly region: string | null;
+    readonly regionId?: string | null;
     readonly status: string;
   }[];
   readonly territories: readonly {
     readonly id: string;
     readonly name: string;
     readonly regions: readonly string[];
+    readonly divisionIds?: readonly string[];
     readonly status: string;
   }[];
   /** Open deals, for the who-has-none suggestion. */
@@ -80,7 +82,7 @@ export function OpportunityForm({
   );
   const chosen = accounts.find((a) => a.id === accountId);
   const covering = useMemo(
-    () => coveringTerritories(chosen?.region ?? null, territories),
+    () => coveringTerritories(chosen?.region ?? null, territories, chosen?.regionId),
     [chosen, territories],
   );
 

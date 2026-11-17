@@ -127,7 +127,7 @@ export function AccountCompleteness({
             <span className="text-foreground text-sm">
               {COMPLETENESS_TEXT.fields[g.field] ?? g.field}
               {": "}
-              {g.suggestion}
+              {g.basis?.code === "industry_segment" ? g.basis.segment : g.suggestion}
             </span>
             {/* THE BASIS, always. See the header. */}
             <span className="text-muted-foreground text-body-small">{g.basis ? COMPLETENESS_TEXT.basis(g.basis) : null}</span>

@@ -28,6 +28,7 @@ export interface RoutableLead {
   id: string;
   /** Null when the lead has not been matched to an account yet. */
   region: string | null;
+  regionId?: string | null;
 }
 
 export interface RoutingTerritory {
@@ -36,6 +37,7 @@ export interface RoutingTerritory {
   ownerSub: string | null;
   /** The regions this territory covers. Empty covers NOTHING - see 0017. */
   regions: readonly string[];
+  divisionIds?: readonly string[];
   status: string;
 }
 
@@ -74,6 +76,7 @@ export type RoutingOutcome =
 export function coveringTerritories(
   region: string,
   territories: readonly RoutingTerritory[],
+  regionId?: string | null,
 ): RoutingTerritory[] {
   return territories.filter(
     // `regions ?? []` rather than trusting the field. A territory row written
@@ -81,7 +84,11 @@ export function coveringTerritories(
     // router that stops working the moment it meets real historical data.
     // Absent reads as covering NOTHING, which is the same answer an empty list
     // gives and the safe one here.
-    (t) => t.status === "active" && (t.regions ?? []).includes(region),
+    // null is an explicitly unresolved persisted relationship. Only old
+    // callers and fixtures without an ID field may still match by name.
+    (t) => t.status === "active" && (regionId === undefined
+      ? (t.regions ?? []).includes(region)
+      : regionId !== null && (t.divisionIds ?? []).includes(regionId)),
   );
 }
 
@@ -100,7 +107,7 @@ export function routeLead(
 ): RoutingOutcome {
   if (!lead.region) return { kind: "unroutable", reason: "no_region" };
 
-  const covering = coveringTerritories(lead.region, territories);
+  const covering = coveringTerritories(lead.region, territories, lead.regionId);
   if (covering.length === 0) return { kind: "unroutable", reason: "no_territory" };
 
   const owned = covering.filter((t) => t.ownerSub !== null);

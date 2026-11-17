@@ -9,13 +9,12 @@ import { SegmentChoices } from "./segment-choices";
 import { usePageAssistantSlot } from "./form-assist-slot";
 import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assistant-conversation";
 import { useMessages } from "../lib/i18n/provider";
-import { suggestNextCode } from "../../domains/shared/suggest";
 import type { SegmentCriteria } from "../../domains/strategy/lib/lifecycle";
 import { segmentFillValues, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "../../domains/strategy/lib/segment-draft";
 import type { SegmentAssistInput, SegmentAssistResult } from "../../domains/strategy/segment-assist-service";
 
 export interface SegmentFormRow {
-  readonly segmentCode: string; readonly name: string; readonly priority: number; readonly status: string;
+  readonly id: string; readonly segmentCode: string; readonly name: string; readonly priority: number; readonly status: string;
   readonly criteria: SegmentCriteria; readonly solutionIds?: readonly string[]; readonly productIds?: readonly string[];
 }
 
@@ -30,18 +29,15 @@ function SegmentHelp({ label, children }: { readonly label: string; readonly chi
   </TooltipContent></Tooltip>;
 }
 
-export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist, onSave }: {
-  readonly rows: readonly SegmentFormRow[]; readonly initialCode?: string; readonly vocabulary: SegmentVocabulary;
+export function SegmentForm({ original, generatedCode, vocabulary, canAssist, onAssist, onSave }: {
+  readonly original?: SegmentFormRow; readonly generatedCode: string; readonly vocabulary: SegmentVocabulary;
   readonly canAssist: boolean;
   readonly onAssist: (input: SegmentAssistInput) => Promise<SegmentAssistResult>;
-  readonly onSave: (input: { segmentCode: string; name: string; priority: number; status: string; criteria: SegmentCriteria; solutionIds?: readonly string[]; productIds?: readonly string[] }) => Promise<{ ok: boolean; error?: string }>;
+  readonly onSave: (input: { editId?: string; name: string; priority: number; status: string; criteria: SegmentCriteria; solutionIds?: readonly string[]; productIds?: readonly string[] }) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { SEGMENT_FORM_TEXT: T, SEGMENT_ERROR, HEADER_TEXT: H } = useMessages();
   const id = useId();
-  const original = rows.find(row => row.segmentCode === initialCode);
-  const existingCodes = new Set(rows.map(row => row.segmentCode));
-  const defaultCode = suggestNextCode([...existingCodes]) ?? (() => { let n = 1; while (existingCodes.has(`SEG-${String(n).padStart(3, "0")}`)) n++; return `SEG-${String(n).padStart(3, "0")}`; })();
-  const [code, setCode] = useState(original?.segmentCode ?? defaultCode);
+  const code = original?.segmentCode ?? generatedCode;
   const [priority, setPriority] = useState(String(original?.priority ?? 0));
   const [status, setStatus] = useState(original?.status ?? "active");
   const [values, setValues] = useState<SegmentFillValues>(() => segmentFillValues(original?.name ?? "", original?.criteria ?? { industries: [], regions: [] }, original?.solutionIds, original?.productIds));
@@ -58,8 +54,7 @@ export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist
   const slot = usePageAssistantSlot();
   const submit = useFormSubmit("/strategy?view=markets");
   const busy = assisting || submit.pending;
-  const duplicate = !original && existingCodes.has(code.trim());
-  const ready = !!code.trim() && !!values.name.trim() && !duplicate && Number.isInteger(Number(priority)) && Number(priority) >= 0 && Number(priority) <= 9999;
+  const ready = !!values.name.trim() && Number.isInteger(Number(priority)) && Number(priority) >= 0 && Number(priority) <= 9999;
   function change<K extends SegmentFillField>(key: K, value: SegmentFillValues[K]) {
     if (hasAssisted.current) manual.current.add(key);
     setValues(current => ({ ...current, [key]: value }));
@@ -71,7 +66,7 @@ export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist
     const retry = recovery?.text === question ? recovery : undefined;
     if (!retry) setMessages(current => [...current, { role: "user", text: question }]);
     try {
-      const result = await onAssist({ text: question, initialCode, sessionId: retry?.sessionId ?? sessionId, retryMessageId: retry?.messageId, values, manualFields: [...manual.current] });
+      const result = await onAssist({ text: question, editId: original?.id, sessionId: retry?.sessionId ?? sessionId, retryMessageId: retry?.messageId, values, manualFields: [...manual.current] });
       if (!result.ok) {
         if (result.sessionId) setSessionId(result.sessionId);
         if (result.recovery) { setSessionId(result.recovery.sessionId); setRecovery({ ...result.recovery, text: question }); }
@@ -121,7 +116,7 @@ export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist
       </Card>
       <form className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]" onSubmit={event => {
         event.preventDefault(); if (!ready || busy) return;
-        submit.run(() => onSave({ segmentCode: code.trim(), name: values.name.trim(), priority: Number(priority), status,
+        submit.run(() => onSave({ editId: original?.id, name: values.name.trim(), priority: Number(priority), status,
           criteria: { industries: values.industries, regions: values.regions, sizes: values.sizes, customerNeed: values.customerNeed, buyingScenario: values.buyingScenario, expectedOutcome: values.expectedOutcome, entryBarrier: values.entryBarrier },
           ...(vocabulary.solutions === null ? {} : { solutionIds: values.solutionIds }), ...(vocabulary.products === null ? {} : { productIds: values.productIds }),
         }), key => SEGMENT_ERROR[key] ?? SEGMENT_ERROR.denied);
@@ -130,7 +125,7 @@ export function SegmentForm({ rows, initialCode, vocabulary, canAssist, onAssist
           <Section>{title("basic", "clipboard")}
             <FormFields>
               <Field>{label("name", true)}<Input id={`${id}-name`} required maxLength={200} placeholder={T.examples.name} value={values.name} onChange={e => change("name", e.target.value)} /></Field>
-              <Field>{label("code", true)}<Input id={`${id}-code`} required readOnly={!!original} aria-invalid={duplicate} placeholder={T.examples.code} value={code} onChange={e => setCode(e.target.value)} />{duplicate ? <p className="text-body-small text-destructive">{T.codeConflict}</p> : null}</Field>
+              <Field>{label("code")}<Input id={`${id}-code`} readOnly value={code} /></Field>
               <div className="grid grid-cols-2 items-start gap-md">
               <Field>{label("status", true)}<NativeSelect id={`${id}-status`} required value={status} onChange={e => setStatus(e.target.value)}>{Object.entries(T.statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</NativeSelect></Field>
               <Field>{label("priority", true)}<Input id={`${id}-priority`} required type="number" min={0} max={9999} step={1} placeholder={T.examples.priority} value={priority} onChange={e => setPriority(e.target.value)} /></Field>

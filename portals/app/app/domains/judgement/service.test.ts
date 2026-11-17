@@ -61,7 +61,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     customerNature: null,
     region: "华东",
     province: "上海市",
-    segmentCode: null,
+    segmentId: null,
     ownerSub: ME,
     healthScore: 60,
     status: "active",

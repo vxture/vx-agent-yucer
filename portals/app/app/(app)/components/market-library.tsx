@@ -3,10 +3,11 @@
 import { Section } from "./help-section";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-import { Button, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, NativeSelect, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
+import { Button, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, NativeSelect, TableTitleCell, useListPagination, useToast, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar } from "./business-controls";
 import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { strategyOfferings } from "../lib/strategy-offerings";
+import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
 import { Tag } from "./tag";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketView } from "../lib/market-strategy";
@@ -77,7 +78,7 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
         />}
         {market.customers !== null && rows.length ? <PaginationFooter pagination={pagination} total={market.customers.length} filteredTotal={query || match ? rows.length : undefined}/> : null}
       </Section>
-      {canWrite ? <Button asChild size="xl" variant="secondary"><Link href={`/segment/new?code=${encodeURIComponent(market.segmentCode)}`}>{T.editMarket}</Link></Button> : null}
+      {canWrite ? <Button asChild size="xl" variant="secondary"><Link href={`/segment/new?id=${encodeURIComponent(market.id)}`}>{T.editMarket}</Link></Button> : null}
     </div>
   </Drawer>;
 }
@@ -85,11 +86,17 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
 export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly initialMarket?: string; readonly scope?: ReactNode; readonly actions?: ReactNode }) {
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS } = useMessages();
   const [query, setQuery] = useState("");
+  const [view, setView] = useState<FilterBarView>("cards");
   const [status,setStatus] = useState("");
   const [selected,setSelected] = useState<readonly string[]>([]);
   const [comparing,setComparing] = useState(false);
-  const [detail,setDetail] = useState<string | null>(initialMarket ?? null);
-  useEffect(()=>setDetail(initialMarket ?? null),[initialMarket]);
+  // Old bookmarks can use a number. Resolve at entry and keep only a UUID
+  // in the panel state, even if a legacy number happens to look like an ID.
+  const initialId = initialMarket
+    ? (markets.find(m => m.id === initialMarket) ?? markets.find(m => m.segmentCode === initialMarket))?.id ?? null
+    : null;
+  const [detail,setDetail] = useState<string | null>(initialId);
+  useEffect(()=>setDetail(initialId),[initialId]);
   const [compare,setCompare] = useState(false);
   const [pending,start] = useTransition();
   const {toast} = useToast();
@@ -101,6 +108,19 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
   const filtered = markets.filter(m => (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.plans?.map(p => p.name).join(" ") ?? ""} ${m.criteria.customerNeed ?? ""} ${m.criteria.buyingScenario ?? ""} ${m.criteria.expectedOutcome ?? ""} ${m.criteria.entryBarrier ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const live = filtered.filter(m=>m.status === "active"), shelved = filtered.filter(m=>m.status !== "active");
   const chosen = markets.filter(m => selected.includes(m.id));
+  const rowActions = (m: MarketView) => <RowActions disabled={pending} items={[
+      {id:"view",label:T.openMarket,onSelect:()=>setDetail(m.id)},
+      ...(canWrite ? [
+        {id:"edit",label:T.editMarket,onSelect:()=>{window.location.href=`/segment/new?id=${encodeURIComponent(m.id)}`;}},
+        ...(m.status === "active" ? [
+          {id:"pause",label:STRATEGY_TEXT.segmentPause,onSelect:()=>run(()=>changeSegmentStatus(m.id,"paused"))},
+          {id:"retire",label:STRATEGY_TEXT.segmentRetire,onSelect:()=>run(()=>changeSegmentStatus(m.id,"retired"))},
+        ]:[{id:"resume",label:STRATEGY_TEXT.segmentResume,onSelect:()=>run(()=>changeSegmentStatus(m.id,"active"))}]),
+        ...moveItems(ROW_OPS, markets.filter(s=>(s.status==="active")===(m.status==="active")).findIndex(s=>s.id===m.id),markets.filter(s=>(s.status==="active")===(m.status==="active")).length,d=>run(()=>moveSegmentRow(m.id,d))),
+        {id:"delete",label:T.deleteMarket,danger:true as const,confirm:{verb:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),target:m.name,consequence:STRATEGY_TEXT.segmentDeleteConsequence,onConfirm:()=>run(()=>deleteSegment(m.id))}},
+      ] : []),
+    ]} />;
+  const empty = <EmptyState title={markets.length ? T.noMatches : T.noMarkets} description={T.noMarketsWhy} />;
   const table = (rows: readonly MarketView[]) => <DataTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
     rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
     className="[&_table]:min-w-(--container-3xl)"
@@ -115,20 +135,38 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
       {id:"plan",header:T.linkedPlan,align:"left",width:"md",cell:m=><div className="text-body-small text-muted-foreground"><StrategyReferences market={m} compact/></div>},
       {id:"status",header:T.status,width:"xs",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
     ]}
-    rowActions={(m) => <RowActions disabled={pending} items={[
-      {id:"view",label:T.openMarket,onSelect:()=>setDetail(m.id)},
-      ...(canWrite ? [
-        {id:"edit",label:T.editMarket,onSelect:()=>{window.location.href=`/segment/new?code=${encodeURIComponent(m.segmentCode)}`;}},
-        ...(m.status === "active" ? [
-          {id:"pause",label:STRATEGY_TEXT.segmentPause,onSelect:()=>run(()=>changeSegmentStatus(m.id,"paused"))},
-          {id:"retire",label:STRATEGY_TEXT.segmentRetire,onSelect:()=>run(()=>changeSegmentStatus(m.id,"retired"))},
-        ]:[{id:"resume",label:STRATEGY_TEXT.segmentResume,onSelect:()=>run(()=>changeSegmentStatus(m.id,"active"))}]),
-        ...moveItems(ROW_OPS, markets.filter(s=>(s.status==="active")===(m.status==="active")).findIndex(s=>s.id===m.id),markets.filter(s=>(s.status==="active")===(m.status==="active")).length,d=>run(()=>moveSegmentRow(m.id,d))),
-        {id:"delete",label:T.deleteMarket,danger:true as const,confirm:{verb:ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),target:m.name,consequence:STRATEGY_TEXT.segmentDeleteConsequence,onConfirm:()=>run(()=>deleteSegment(m.id))}},
-      ] : []),
-    ]} />}
+    rowActions={rowActions}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}
   />;
+  const render = (rows: readonly MarketView[]) => comparing || view === "list" ? table(rows) : rows.length ? (
+    <div className="flex flex-col gap-lg">{rows.map(m => {
+      const offerings = strategyOfferings(m.defaultSolutions, m.defaultProducts);
+      const criteria = [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions].join(" / ");
+      return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode}
+        status={<Tag tone={m.status === "active" ? "success" : "neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>}
+        actions={rowActions(m)} openLabel={T.openMarket} onOpen={() => setDetail(m.id)}
+        summary={<>
+          <p className="text-body-small text-muted-foreground">{T.customerNeed}</p>
+          <p className="line-clamp-2 text-body" title={m.criteria.customerNeed || m.criteria.buyingScenario}>{m.criteria.customerNeed || m.criteria.buyingScenario || T.notProvided}</p>
+          {criteria && <p className="line-clamp-1 text-body-small text-muted-foreground" title={criteria}>{criteria}</p>}
+        </>}
+        context={<>
+          <p className="text-body-small text-muted-foreground">{T.marketDefaultSolutions}</p>
+          <div className="flex flex-wrap items-center gap-x-md gap-y-xs text-body-small">
+            {offerings.slice(0, 3).map(row => <Link key={row.key} href={row.href} className="inline-flex min-w-0 items-center gap-xs transition-colors hover:text-primary" title={row.name}>
+              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">{row.name}</span>
+            </Link>)}
+            {offerings.length > 3 && <Button size="sm" variant="ghost" onClick={() => setDetail(m.id)}>+{offerings.length - 3}</Button>}
+            {!offerings.length && <span>{m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : T.noPlanSolutions}</span>}
+          </div>
+        </>}
+        facts={<>
+          <LibraryCardFact icon="users" label={T.customers}>{m.matched ?? T.unknown}</LibraryCardFact>
+          <LibraryCardFact icon="flag" label={T.linkedPlan}>{m.plans?.length ?? T.unknown}</LibraryCardFact>
+        </>}
+      />;
+    })}</div>
+  ) : empty;
   const comparisonRows: { id: string; label: string; render: (market: MarketView) => ReactNode }[] = [
     ...(["industries", "sizes", "regions"] as const).map((key, i) => ({ id: key, label: [T.industry, T.size, T.region][i]!, render: (m: MarketView) => {
       const defined = [...m.criteria.industries, ...m.criteria.regions, ...(m.criteria.sizes ?? [])].length > 0;
@@ -141,9 +179,9 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
     { id: "status", label: T.status, render: m => STRATEGY_TEXT.segmentStatusLabel[m.status] },
     { id: "preview", label: T.preview, render: m => <Button variant="secondary" size="md" onClick={()=>{setCompare(false);setDetail(m.id);}}>{T.preview}</Button> },
   ];
-  const viewed = markets.find(m=>m.id===detail || m.segmentCode===detail);
+  const viewed = markets.find(m=>m.id===detail);
   return <div className="flex min-w-0 flex-col gap-xl" data-market-library>
-    <FilterBar scope={comparing ? <div className="flex flex-wrap items-center gap-sm">{scope}<span role="status" className="text-body-small text-muted-foreground">{T.compareLimit}</span></div> : scope} search={<SearchSlot><Input aria-label={T.searchMarkets} placeholder={T.searchMarkets} value={query} onChange={e=>{setQuery(e.target.value);setSelected([]);}} /></SearchSlot>}
+    <FilterBar view={comparing ? undefined : view} onViewChange={comparing ? undefined : setView} scope={comparing ? <div className="flex flex-wrap items-center gap-sm">{scope}<span role="status" className="text-body-small text-muted-foreground">{T.compareLimit}</span></div> : scope} search={<SearchSlot><Input aria-label={T.searchMarkets} placeholder={T.searchMarkets} value={query} onChange={e=>{setQuery(e.target.value);setSelected([]);}} /></SearchSlot>}
       onReset={query || status ? ()=>{setQuery("");setStatus("");setSelected([]);}:undefined}
       actions={<div className="flex items-center gap-sm" data-market-compare-actions>{comparing ? <>
         <Button variant="secondary" size="md" disabled={chosen.length<2 || chosen.length>3} title={T.compareLimit} onClick={()=>setCompare(true)}>{T.compareSelected(chosen.length)}</Button>
@@ -151,8 +189,8 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
       </> : <Button variant="secondary" size="md" disabled={markets.length<2} onClick={()=>setComparing(true)}>{T.compare}</Button>}{actions}</div>}>
       <FilterSlot><NativeSelect aria-label={T.status} value={status} onChange={e=>{setStatus(e.target.value);setSelected([]);}}><option value="">{T.allStates}</option>{Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</NativeSelect></FilterSlot>
     </FilterBar>
-    {live.length || !shelved.length ? <div aria-label={T.library}>{table(live)}</div> : null}
-    {shelved.length ? <Section title={T.shelvedMarkets} icon="archive">{table(shelved)}</Section>:null}
+    {live.length || !shelved.length ? <div aria-label={T.library}>{render(live)}</div> : null}
+    {shelved.length ? <Section title={T.shelvedMarkets} icon="archive">{render(shelved)}</Section>:null}
     <p className="text-body-small text-muted-foreground">{T.baseOnly}</p>
     {viewed ? <MarketDetails key={viewed.id} market={viewed} canWrite={canWrite} onClose={()=>setDetail(null)} />:null}
     <Drawer open={compare} onClose={()=>setCompare(false)} title={T.compare} description={T.compareWhy} width="lg" closeLabel={T.closed}>

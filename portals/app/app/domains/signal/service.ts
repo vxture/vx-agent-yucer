@@ -403,6 +403,7 @@ export async function previewRouting(
   ctx: SignalContext,
   territories: readonly RoutingTerritory[],
   regionOf: ReadonlyMap<string, string | null>,
+  regionIdOf?: ReadonlyMap<string, string | null | undefined>,
 ): Promise<RuleResult<RoutingPlan[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "signal.lead.view", "data");
   if (!gate.allowed) return denied(gate);
@@ -430,7 +431,7 @@ export async function previewRouting(
         currentOwner: l.ownerSub,
         region,
         accountId: l.accountId,
-        outcome: routeLead({ id: l.id, region }, territories, load),
+        outcome: routeLead({ id: l.id, region, regionId: l.accountId ? regionIdOf?.get(l.accountId) : null }, territories, load),
       };
     }),
   );

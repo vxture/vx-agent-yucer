@@ -133,22 +133,23 @@ export async function changeSalesPlan(
       reason: string,
       extras: {
         effectiveAt?: string;
-        relatedNo?: number;
+        relatedId?: string;
         period?: string;
       } = {},
     ) => {
       plan.events.push({
+        id: newKey(),
         no: (plan.events.at(-1)?.no ?? 0) + 1,
         kind,
         revisionId,
-        relatedNo: extras.relatedNo ?? null,
+        relatedId: extras.relatedId ?? null,
         period: extras.period ?? null,
         at: now,
         effectiveAt: extras.effectiveAt ?? now,
         actor: ctx.sub,
         reason,
         requestKey:
-          extras.relatedNo && cmd.kind !== "cancel"
+          extras.relatedId && cmd.kind !== "cancel"
             ? `${input.requestKey}_cancel`
             : input.requestKey,
         requestHash: hash,
@@ -266,7 +267,7 @@ export async function changeSalesPlan(
         const old = plan.events.find(
           (e) => e.kind === "release" && e.revisionId === state.scheduled!.id,
         )!;
-        event("cancel", old.revisionId, reason, { relatedNo: old.no });
+        event("cancel", old.revisionId, reason, { relatedId: old.id });
       }
       if (cmd.adoptions) {
         for (const adoption of cmd.adoptions) {
@@ -291,7 +292,7 @@ export async function changeSalesPlan(
       const old = plan.events.find(
         (e) => e.kind === "release" && e.revisionId === state.scheduled!.id,
       )!;
-      event("cancel", old.revisionId, cmd.reason.trim(), { relatedNo: old.no });
+      event("cancel", old.revisionId, cmd.reason.trim(), { relatedId: old.id });
     } else if (cmd.kind === "discard") {
       const r = draft();
       r.state = "abandoned";
@@ -319,7 +320,7 @@ export async function changeSalesPlan(
           (e) => e.kind === "release" && e.revisionId === state.scheduled!.id,
         )!;
         event("cancel", old.revisionId, cmd.reason.trim(), {
-          relatedNo: old.no,
+          relatedId: old.id,
         });
       }
       if (state.draft) {

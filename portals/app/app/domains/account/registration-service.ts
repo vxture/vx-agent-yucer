@@ -55,7 +55,7 @@ export async function prepareAccountRegistration(ctx: AccountContext, input: Reg
   ]);
   const options = (r: { ok: boolean; value?: readonly { id: string; name: string }[] }) => r.ok ? r.value?.map(({ id, name }) => ({ id, name })) ?? [] : [];
   const vocab = { industries: options(industries), customerTypes: options(types), customerSizes: options(sizes), customerNatures: options(natures), regions: options(regions),
-    segments: segments.ok ? segments.value.filter(s => s.status === "active").map(s => ({ id: s.segmentCode, name: s.name })) : [] };
+    segments: segments.ok ? segments.value.filter(s => s.status === "active").map(s => ({ id: s.id, name: s.name })) : [] };
   try {
     const turn = await runCopilotTurn({ ...base, store }, {
       question: input.text.trim(), sessionId: input.sessionId, retryMessageId: input.retryMessageId, tenantId, subjectToken: deps.subjectToken,
@@ -72,7 +72,7 @@ export async function prepareAccountRegistration(ctx: AccountContext, input: Reg
       rejectedFields: draft.rejected, adjustedFields: draft.adjustments.map(adjustment => adjustment.field) });
     if (draft.patch.province && !draft.patch.region && !manualFields.includes("region") && regions.ok) {
       const matches = regions.value.filter(region => region.scope === "china" && region.members.some(member => member.key === draft.patch.province));
-      if (matches.length === 1 && matches[0]!.name !== current.region) draft.patch.region = matches[0]!.name;
+      if (matches.length === 1 && matches[0]!.id !== current.region) draft.patch.region = matches[0]!.id;
     }
     const customers = await listAccounts(ctx);
     const hierarchy = matchRegistrationRelations(readRegistrationRelations(turn.value.answer,input.text.trim()),

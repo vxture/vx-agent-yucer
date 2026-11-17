@@ -165,16 +165,9 @@ export async function discardStrategyVersion(id: string, editToken: number): Pro
   return { ok: true };
 }
 
-/**
- * Creating or editing a market segment.
- *
- * By CODE, not by id. `campaign.segment_id` is a real foreign key, but
- * `account.segment_code` points here by plain string with nothing enforcing it -
- * so the code is the identity, and an edit finds the row by it and leaves it
- * alone. The column locks agree: segment_code carries no UPDATE grant.
- */
+/** New markets allocate a number at save; edits follow the workspace UUID. */
 export async function saveSegment(input: {
-  segmentCode: string;
+  editId?: string;
   name: string;
   priority: number;
   status: string;
@@ -201,7 +194,8 @@ export async function saveSegment(input: {
       store: getStrategyStore(),
       catalog: getCatalogStore(),
     },
-    { ...input, status: input.status as SegmentStatus },
+    { ...input, segmentCode: "", status: input.status as SegmentStatus },
+    input.editId === undefined ? "create" : { editId: input.editId },
   );
 
   if (!result.ok) {
@@ -285,7 +279,7 @@ export async function deleteSegment(
 
   const target = segments.value.find((g) => g.id === segmentId);
   if (!target) return { ok: false, error: "not_found" };
-  const carrying = accounts.value.filter((a) => a.segmentCode === target.segmentCode).length;
+  const carrying = accounts.value.filter((a) => a.segmentId === target.id).length;
 
   const r = await removeSegment(
     { ...base, store: getStrategyStore() },

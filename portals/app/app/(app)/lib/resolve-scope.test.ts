@@ -20,6 +20,39 @@ function authzWith(setting: ScopeSetting): AuthzStore {
   return { getScope: async () => setting } as unknown as AuthzStore;
 }
 
+test("an unresolved saved region cannot grant territory access or enter its shared queue", async () => {
+  const planning = new InMemoryPlanningStore({
+    divisions: async () => [{ id: "first", name: "East" }, { id: "second", name: "East" }],
+  });
+  setPlanningStore(planning);
+  setAccountStore({
+    listAccounts: async () => [
+      { id: "mine", region: "East", regionId: "first" },
+      { id: "other", region: "East", regionId: "second" },
+      { id: "ambiguous", region: "East", regionId: null },
+    ],
+    listCollaboratedAccountIds: async () => [],
+  } as unknown as AccountStore);
+  try {
+    const mine = await planning.upsertTerritory(WS, {
+      territoryCode: "EAST", name: "East", parentId: null, ownerSub: null, status: "active",
+      regions: [], divisionIds: ["first"], unitIds: [],
+    });
+    await planning.upsertTerritory(WS, {
+      territoryCode: "OTHER", name: "Other", parentId: null, ownerSub: null, status: "active",
+      regions: [], divisionIds: ["second"], unitIds: [],
+    });
+    const scope = await resolveDataScope(WS, "viewer", authzWith({ kind: "territory", territoryIds: [mine.id] }));
+    assert.equal(scope.kind, "territory");
+    if (scope.kind !== "territory") return;
+    assert.deepEqual(scope.accountIds, ["mine"]);
+    assert.deepEqual(scope.unplacedAccountIds, []);
+  } finally {
+    setPlanningStore(null);
+    setAccountStore(null);
+  }
+});
+
 test("a unit-scoped member sees their subtree's people and ground; placed nowhere, the queue alone", async () => {
   const planning = new InMemoryPlanningStore({
     divisions: async () => [{ id: "d_south", name: "华南" }, { id: "d_north", name: "华北" }],

@@ -107,6 +107,10 @@ const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[
     skip: ["\u9009\u62e9"],
     reason: "Strategy rows have individual lifecycle actions and no batch operation; owner removed the empty leading column on 2026-11-13.",
   },
+  "solution-roster.tsx": {
+    skip: ["\u9009\u62e9"],
+    reason: "Solutions have no batch action; cards and list offer the same per-record actions.",
+  },
   "account-table.tsx": {
     skip: ["选择"],
     reason: "客户列表不设选择列 - 没有作用于多个客户的操作 (同报价管理 / 商机列表的裁定, owner 2026-09-26: 可以不要选择列)",

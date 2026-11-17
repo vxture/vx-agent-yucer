@@ -63,7 +63,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
     setAdjustments(previous => previous.filter(adjustment => !edited.some(key => key === adjustment.field)));
     setValues(next);
   };
-  const labels = { ...B, industryId: B.industry, segmentCode: B.segment, customerTypeId: B.customerType, customerSizeId: B.customerSize, customerNatureId: B.customerNature, tier: POSITION_TEXT.designate, period: POSITION_TEXT.planPeriod, targetAmount: POSITION_TEXT.planTarget,
+  const labels = { ...B, industryId: B.industry, segmentId: B.segment, customerTypeId: B.customerType, customerSizeId: B.customerSize, customerNatureId: B.customerNature, tier: POSITION_TEXT.designate, period: POSITION_TEXT.planPeriod, targetAmount: POSITION_TEXT.planTarget,
     contactCadenceDays: POSITION_TEXT.cadenceContact, execCadenceDays: POSITION_TEXT.cadenceExec };
   const current = (): RegistrationDraftValues => ({ ...values, tier, period: operating.period, targetAmount: operating.targetAmount,
     contactCadenceDays: operating.contactCadenceDays, execCadenceDays: operating.execCadenceDays });
@@ -148,12 +148,12 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
     });
   };
   const named = (key: "industries" | "segments" | "regions" | "customerTypes" | "customerSizes" | "customerNatures", value: string) =>
-    vocab[key].find(option => (key === "regions" ? option.name : option.id) === value)?.name ?? value;
-  const display = { ...values, industryId: named("industries", values.industryId), segmentCode: named("segments", values.segmentCode),
+    vocab[key].find(option => option.id === value)?.name ?? value;
+  const display = { ...values, region: named("regions", values.region), industryId: named("industries", values.industryId), segmentId: named("segments", values.segmentId),
     customerTypeId: named("customerTypes", values.customerTypeId), customerSizeId: named("customerSizes", values.customerSizeId), customerNatureId: named("customerNatures", values.customerNatureId) };
   const tierLabel = tier === "strategic" ? POSITION_TEXT.tierStrategic : tier === "key" ? POSITION_TEXT.tierKey : POSITION_TEXT.tierStandard;
   const adjustmentValue = (adjustment: RegistrationAdjustment, value: string) => {
-    const choices = { industryId: "industries", segmentCode: "segments", customerTypeId: "customerTypes", customerSizeId: "customerSizes", customerNatureId: "customerNatures" } as const;
+    const choices = { region: "regions", industryId: "industries", segmentId: "segments", customerTypeId: "customerTypes", customerSizeId: "customerSizes", customerNatureId: "customerNatures" } as const;
     return adjustment.field in choices ? named(choices[adjustment.field as keyof typeof choices], value) : value;
   };
   const relations = <>

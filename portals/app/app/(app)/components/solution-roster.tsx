@@ -3,13 +3,12 @@
 import { Section } from "./help-section";
 import { DataTable, FilterBar } from "./business-controls";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   Button,
   EmptyState,
   Input,
-  ListCard,
-  ListCardGrid,
   StatusBadge,
   TableTitleCell,
   Tooltip,
@@ -31,6 +30,7 @@ import {
   useTableSort,
   moveItems,
 } from "./table-fittings";
+import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
 import { Tag } from "./tag";
 import { SolutionDetails } from "./solution-details";
 import { ProductPriceValues } from "./product-price-values";
@@ -64,6 +64,7 @@ export interface SolutionRosterProps {
   readonly products: readonly ProductRecord[];
   /** Keyed by solution id. */
   readonly facts: Readonly<Record<string, SolutionFacts>>;
+  readonly marketsBySolution: Readonly<Record<string, readonly { id: string; name: string }[]>>;
   /** The catalogue's type vocabulary - the 产品类型 filter and column. */
   readonly types: readonly ProductTypeRecord[];
   readonly currency: string;
@@ -92,6 +93,7 @@ export function SolutionRoster({
   solutions,
   products,
   facts,
+  marketsBySolution,
   types,
   currency,
   canWrite,
@@ -99,21 +101,17 @@ export function SolutionRoster({
   onStatus,
   onDelete,
 }: SolutionRosterProps) {
-  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
+  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT, MARKET_STRATEGY_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
   const [detailId, setDetailId] = useState<string | null>(initialSolutionId ?? null);
   const detail = solutions.find((row) => row.solution.id === detailId);
-  // 选择列 - one of the three standard fittings (table-fittings.tsx). One
-  // state across both rosters: the keys are ids, so a selection is of the
-  // things themselves, not of the half of the page they appeared in.
-  const [selected, setSelected] = useState<readonly string[]>([]);
   const factsOf = (r: SolutionView) => facts[r.solution.id] ?? EMPTY_FACTS;
   const sorted = useTableSort<SolutionView>([], {
     ...SORT_ON,
     total: (r: SolutionView) => factsOf(r).prices.listPrice ?? null,
   });
-  const [view, setView] = useState<FilterBarView>("list");
+  const [view, setView] = useState<FilterBarView>("cards");
   // Full names, 软件产品-基础软件 (incr/0100).
   const typeName = new Map(types.map((t) => [t.id, typeLabel(types, t.id)?.name ?? t.name]));
   const { toast } = useToast();
@@ -241,7 +239,7 @@ export function SolutionRoster({
                 id: "edit",
                 label: ROW_OPS.configure(CATALOG_TEXT.solutionNoun),
                 onSelect: () => {
-                  window.location.href = `/solution/new?code=${encodeURIComponent(row.solution.solutionCode)}`;
+                  window.location.href = `/solution/new?id=${encodeURIComponent(row.solution.id)}`;
                 },
               },
               {
@@ -279,12 +277,10 @@ export function SolutionRoster({
 
   // Use the DS table's own horizontal scroll when the pane is narrow.
   const table = (rows: readonly SolutionView[], retiredGroup = false) => (
-    <div className="[&_table]:min-w-(--vx-container-4xl) [&_thead_th:nth-child(3)]:w-[34%]">
+    <div className="[&_table]:min-w-(--vx-container-4xl) [&_thead_th:nth-child(2)]:w-[34%]">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
-        selectedKeys={selected}
-        onSelectionChange={setSelected}
         rowKey={(r: SolutionView) => r.solution.id}
         rows={[...sorted.sortRows(rows)]}
         sort={sorted.sort}
@@ -307,6 +303,40 @@ export function SolutionRoster({
       />
     </div>
   );
+
+  const render = (rows: readonly SolutionView[], retiredGroup = false) => view === "list" ? table(rows, retiredGroup)
+    : !rows.length ? <CardsEmpty narrowed={narrowed} title={retiredGroup ? CATALOG_TEXT.noRetiredSolutions : CATALOG_TEXT.noSolutions}
+      description={retiredGroup ? "" : CATALOG_TEXT.rosterSolutionWhy} />
+    : <div className="flex flex-col gap-lg">{rows.map((row, i) => {
+      const { solution, items } = row;
+      const contents = items.map(it => products.find(p => p.id === it.productId)?.name).filter(Boolean).join(" / ");
+      const composition = CATALOG_TEXT.compositionCount(items.filter(it => !it.optional).length, items.filter(it => it.optional).length);
+      const scenario = solution.scenario || solution.summary;
+      const markets = marketsBySolution[solution.id] ?? [];
+      return <MarketOfferingCard key={solution.id} kind="solution" name={solution.name} number={solution.solutionCode}
+        status={retiredGroup ? <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag> : <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
+        actions={rowActions(row, i)} openLabel={ROW_OPS.details(CATALOG_TEXT.solutionNoun)} onOpen={() => setDetailId(solution.id)}
+        summary={<>
+          <p className="text-body-small text-muted-foreground">{CATALOG_TEXT.colScenario}</p>
+          <p className="line-clamp-2 text-body" title={scenario ?? undefined}>{scenario || "-"}</p>
+          {solution.scenario && solution.summary && solution.summary !== scenario && <p className="line-clamp-1 text-body-small text-muted-foreground" title={solution.summary}>{solution.summary}</p>}
+        </>}
+        context={<>
+          <p className="text-body-small text-muted-foreground">{CATALOG_TEXT.solutionContents}</p>
+          <p className="text-body-small font-medium">{composition}</p>
+          {contents && <p className="line-clamp-2 text-body-small text-muted-foreground" title={contents}>{contents}</p>}
+          {markets.length > 0 && <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs text-body-small">
+            <span className="text-muted-foreground">{MARKET_STRATEGY_TEXT.markets}</span>
+            {markets.slice(0, 2).map(m => <Link key={m.id} href={`/strategy?view=markets&market=${encodeURIComponent(m.id)}`} className="truncate hover:text-primary-text" title={m.name}>{m.name}</Link>)}
+            {markets.length > 2 && <span title={markets.slice(2).map(m => m.name).join(" / ")}>+{markets.length - 2}</span>}
+          </div>}
+        </>}
+        facts={<>
+          <LibraryCardFact icon="package" label={CATALOG_TEXT.colUnitPrice}>{CATALOG_TEXT.solutionUnit}</LibraryCardFact>
+          <ProductPriceValues price={factsOf(row).prices} missing={factsOf(row).missing} currency={currency} />
+        </>}
+      />;
+    })}</div>;
 
   return (
     <>
@@ -365,42 +395,7 @@ export function SolutionRoster({
         title={CATALOG_TEXT.rosterSolution}
         help={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`}
       >
-        {view === "list" ? (
-          table(live)
-        ) : live.length === 0 ? (
-          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noSolutions} description={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`} />
-        ) : (
-          /* The same row as a card (DS ListCard): name and code, status and
-             the row menu top right; composition, covered types and all three price totals
-             as the meta line. */
-          <ListCardGrid className="p-md">
-            {live.map((row, i) => (
-              <ListCard
-                key={row.solution.id}
-                title={row.solution.name}
-                onTitleClick={() => setDetailId(row.solution.id)}
-                description={row.solution.solutionCode}
-                status={<StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
-                actions={rowActions(row, i)}
-                meta={
-                  <>
-                    <span className="tabular-nums">
-                      {CATALOG_TEXT.compositionCount(
-                        row.items.filter((it) => !it.optional).length,
-                        row.items.filter((it) => it.optional).length,
-                      )}
-                    </span>
-                    <CoveredTypes ids={factsOf(row).typeIds} names={typeName} />
-                    <div className="flex flex-col gap-xs">
-                      <span>{CATALOG_TEXT.solutionPrices} / {currency}</span>
-                      <ProductPriceValues price={factsOf(row).prices} missing={factsOf(row).missing} currency={currency} />
-                    </div>
-                  </>
-                }
-              />
-            ))}
-          </ListCardGrid>
-        )}
+        {render(live)}
       </Section>
 
       {/* The archive remains visible even when empty or filtered out. */}
@@ -415,7 +410,7 @@ export function SolutionRoster({
           ) : undefined
         }
       >
-        {table(retired, true)}
+        {render(retired, true)}
       </Section>
     </>
   );

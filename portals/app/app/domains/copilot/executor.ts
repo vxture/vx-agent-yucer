@@ -1,7 +1,7 @@
 import type { Entitlement } from "../../entitlement/types";
 import type { PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
-import { getAccountStore, getFieldStore, getPipelineStore } from "../shared/registry";
+import { getAccountStore, getStrategyStore, getFieldStore, getPipelineStore } from "../shared/registry";
 import { advanceStage, recordEvidence } from "../pipeline/service";
 import { fillAccountField, getAccountDetail, setBuyingRole } from "../account/service";
 import { DECISION_ROLES, STANCES, type DecisionRole, type Stance } from "../account/lib/health";
@@ -247,7 +247,7 @@ async function fillAccountFieldAction(
   }
 
   const filled = await fillAccountField(
-    { ...ctx, store: getAccountStore() },
+    { ...ctx, store: getAccountStore(), strategy: getStrategyStore() },
     action.subjectId,
     payload.field,
     payload.value,

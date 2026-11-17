@@ -66,7 +66,7 @@ export default async function NewAccountPage({ searchParams }: { searchParams: P
           customerTypes: opts(types),
           customerSizes: opts(sizes),
           customerNatures: opts(natures),
-          segments: segments.ok ? segments.value.map((g) => ({ id: g.segmentCode, name: g.name })) : [],
+          segments: segments.ok ? segments.value.map((g) => ({ id: g.id, name: g.name })) : [],
         }}
         onCreate={createAccountAction}
       />

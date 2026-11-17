@@ -475,7 +475,7 @@ function createFake(opts: { taken: string[]; fail?: unknown }) {
 }
 
 const NEW = {
-  name: "新客户", region: null, province: null, industryId: null, segmentCode: null, customerTypeId: null,
+  name: "新客户", region: null, province: null, industryId: null, segmentId: null, customerTypeId: null,
   customerSizeId: null, customerNatureId: null, creditCode: null, website: null, employeeCount: null, ownerSub: "usr_me",
 };
 

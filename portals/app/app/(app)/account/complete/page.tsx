@@ -70,6 +70,7 @@ export default async function AccountBatchCompletePage() {
           accountName: r.accountName,
           field: r.gap.field,
           suggestion: r.gap.suggestion as string,
+          suggestionLabel: r.gap.basis?.code === "industry_segment" ? r.gap.basis.segment : undefined,
           // The sentence, in the reader's language, from the rule's code.
           basis: r.gap.basis ? COMPLETENESS_TEXT.basis(r.gap.basis) : null,
         }))}

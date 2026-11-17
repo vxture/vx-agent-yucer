@@ -3,7 +3,7 @@
 import type { RegistrationHierarchy } from "../../domains/account/lib/parent";
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getAccountStore, getDeliveryStore, getFieldStore } from "../../domains/shared/registry";
+import { getStrategyStore, getAccountStore, getDeliveryStore, getFieldStore } from "../../domains/shared/registry";
 import { getAuthzStore } from "../../authz/store";
 import {
   designateAccount,
@@ -320,7 +320,7 @@ export async function updateAccountBasicsAction(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: session.stores.account(),
+      store: session.stores.account(), strategy: getStrategyStore(),
     },
     accountId,
     patch,
@@ -348,7 +348,7 @@ export async function createAccountAction(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: session.stores.account(),
+      store: session.stores.account(), strategy: getStrategyStore(),
     },
     input,
   );

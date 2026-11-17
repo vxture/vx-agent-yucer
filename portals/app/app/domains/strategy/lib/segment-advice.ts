@@ -27,7 +27,7 @@ export type SegmentAdviceKind =
   | "matching_not_assigned"
   /** No criteria at all: a cut that names nobody. */
   | "no_criteria"
-  /** Paused or retired, yet accounts still carry the code. */
+  /** Paused or retired, yet accounts are still assigned. */
   | "stale_assignment";
 
 export interface SegmentAdvice {
@@ -45,14 +45,14 @@ export interface SegmentAdviceInput {
     readonly id: string;
     readonly segmentCode: string;
     readonly name: string;
-      readonly status: SegmentStatus;
+    readonly status: SegmentStatus;
     readonly criteria: SegmentCriteria;
   }[];
-  /** Per segment code: accounts carrying it, and accounts its criteria match.
+  /** Per segment UUID: assigned accounts, and accounts its criteria match.
    * Resolved by the caller, which is where the account read (and its own
    * gate) lives - this file stays pure. */
   readonly counts: ReadonlyMap<string, { readonly assigned: number; readonly matched: number }>;
-  /** Accounts carrying the code that do NOT match the criteria, and the other
+  /** Accounts in the segment that do NOT match the criteria, and the other
    * way round. Both are derived by the caller for the same reason. */
   readonly mismatch: ReadonlyMap<string, { readonly assignedNotMatching: number; readonly matchingNotAssigned: number }>;
 }
@@ -70,8 +70,8 @@ export function analyseSegments(input: SegmentAdviceInput): SegmentAdvice[] {
 
   for (const s of input.segments) {
     const named = { segmentId: s.id, segmentCode: s.segmentCode, segmentName: s.name };
-    const counts = input.counts.get(s.segmentCode) ?? { assigned: 0, matched: 0 };
-    const gap = input.mismatch.get(s.segmentCode) ?? {
+    const counts = input.counts.get(s.id) ?? { assigned: 0, matched: 0 };
+    const gap = input.mismatch.get(s.id) ?? {
       assignedNotMatching: 0,
       matchingNotAssigned: 0,
     };

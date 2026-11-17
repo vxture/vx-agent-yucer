@@ -21,7 +21,7 @@ function ctx(role: RoleCode = "sales_leader", tier: Entitlement["tier"] = "busin
 }
 
 const blank = {
-  region: null, province: null, industryId: null, segmentCode: null, customerTypeId: null,
+  region: null, province: null, industryId: null, segmentId: null, customerTypeId: null,
   customerSizeId: null, customerNatureId: null, creditCode: null, website: null, employeeCount: null,
 };
 

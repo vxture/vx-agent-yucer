@@ -22,7 +22,7 @@ test("real database freezes type metadata and artwork, inherits revisions, and r
   await cleanup();try{
     const store=new PrismaStrategyStore();const types=await store.listStrategyTypes(WS);
     assert.equal(types.length,5);const type=types[1];
-    const first=await store.createPlan(WS,{name:"Expansion",planNo:"TYPE-2027",period:"2027",ownerSub:null,objective:"New markets",strategyTypeCode:type.code});
+    const first=await store.createPlan(WS,{name:"Expansion",planNo:"TYPE-2027",period:"2027",ownerSub:null,objective:"New markets",strategyTypeId:type.id});
     assert.equal(first?.strategyType?.name,type.name);
     let row=(await store.getPlan(WS,first!.id))!;assert.equal(row.strategyType?.theme,type.theme);
     const version=await store.publishPlan(WS,row.id,{expectedEditToken:row.editToken!,actorSub:"owner",at:new Date(),solutions:[],ownerName:null});
@@ -30,12 +30,12 @@ test("real database freezes type metadata and artwork, inherits revisions, and r
     await store.saveStrategyType(WS,{...type,name:"Changed type",theme:"partner",enabled:false});
     assert.equal((await store.getPlan(WS,row.id))?.strategyType?.name,type.name);
     const revision=await store.createRevision(WS,row.id,"editor");
-    assert.equal(revision.strategyTypeCode,type.code);assert.equal(revision.strategyType?.theme,"partner");
-    await store.updatePlan(WS,revision.id,{strategyTypeCode:types[0].code,changeReason:"New direction"},{expectedEditToken:revision.editToken});
+    assert.equal(revision.strategyTypeId,type.id);assert.equal(revision.strategyType?.theme,"partner");
+    await store.updatePlan(WS,revision.id,{strategyTypeId:types[0].id,changeReason:"New direction"},{expectedEditToken:revision.editToken});
     row=(await store.getPlan(WS,revision.id))!;
     const v2=await store.publishPlan(WS,row.id,{expectedEditToken:row.editToken!,actorSub:"owner",at:new Date(),solutions:[],ownerName:null});
     assert.equal(v2.strategyType?.code,types[0].code);
-    await assert.rejects(svc(c=>c.query("UPDATE yucer_gtm.strategy_plan SET strategy_type_code=$1 WHERE id=$2",[types[0].code,first!.id])),/immutable_strategy/);
+    await assert.rejects(svc(c=>c.query("UPDATE yucer_gtm.strategy_plan SET strategy_type_id=$1 WHERE id=$2",[types[0].id,first!.id])),/immutable_strategy/);
     await assert.rejects(svc(c=>c.query("UPDATE yucer_gtm.strategy_type SET code='renamed' WHERE workspace_id=$1",[WS])),/permission denied/);
     await assert.rejects(svc(c=>c.query("DELETE FROM yucer_gtm.strategy_type WHERE workspace_id=$1",[WS])),/permission denied/);
     await assert.rejects(svc(c=>c.query("INSERT INTO yucer_gtm.strategy_plan(id,workspace_id,plan_no,name,period,strategy_type_code) VALUES($1,$2,'DISABLED','Disabled','2027',$3)",[randomUUID(),WS,type.code])),/strategy_type_unavailable/);

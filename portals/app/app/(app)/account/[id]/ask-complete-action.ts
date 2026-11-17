@@ -103,7 +103,7 @@ export async function askToComplete(accountId: string): Promise<AskCompleteResul
 const FIELD_ASK: Record<string, string> = {
   industry: "industry",
   region: "the region of China its headquarters is in",
-  segmentCode: "market segment",
+  segmentId: "market segment",
   ownerSub: "owner",
 };
 

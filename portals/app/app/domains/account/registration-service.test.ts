@@ -118,7 +118,7 @@ test("assistant extracts then follows up in an owned thread, meters each questio
   const next = await prepareAccountRegistration(h.ctx, { text: "\u6d59\u6c5f", values: { ...values, name: "Acme" }, sessionId: first.sessionId }, h.deps);
   assert.equal(next.ok && next.sessionId, first.sessionId);
   const region = (await h.account.listMarketDivisions(h.ctx.workspaceId)).find(r => r.members.some(member => member.key === "\u6d59\u6c5f\u7701"))!;
-  assert.deepEqual(next.ok && next.patch, { province: "\u6d59\u6c5f\u7701", region: region.name });
+  assert.deepEqual(next.ok && next.patch, { province: "\u6d59\u6c5f\u7701", region: region.id });
   assert.equal(h.charged(), 2);
   assert.equal((await h.copilot.listMessages(h.ctx.workspaceId, first.sessionId)).length, 4);
   assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length, 0);
@@ -180,7 +180,7 @@ test("missing only one of the two permissions and malformed or oversized request
 
 test("duplicate hints contain only readable customers in the current workspace", async () => {
   const h = harness();
-  const blank = { region: null, province: null, industryId: null, segmentCode: null, customerTypeId: null,
+  const blank = { region: null, province: null, industryId: null, segmentId: null, customerTypeId: null,
     customerSizeId: null, customerNatureId: null, creditCode: null, website: null, employeeCount: null, ownerSub: h.ctx.sub };
   const own = await h.account.createAccount(h.ctx.workspaceId, { ...blank, name: "Acme Ltd" });
   await h.account.createAccount("other-workspace", { ...blank, name: "Acme Secret" });
@@ -191,7 +191,7 @@ test("duplicate hints contain only readable customers in the current workspace",
 
 test("Atlas extracted relationships resolve to registered customers as a draft without writing", async () => {
   const h = harness();
-  const blank = { region:null,province:null,industryId:null,segmentCode:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null,ownerSub:h.ctx.sub };
+  const blank = { region:null,province:null,industryId:null,segmentId:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null,ownerSub:h.ctx.sub };
   const parent = await h.account.createAccount(h.ctx.workspaceId,{...blank,name:"Parent Group"});
   const child = await h.account.createAccount(h.ctx.workspaceId,{...blank,name:"Child Ltd"});
   await h.account.createAccount("another-workspace",{...blank,name:"Foreign Group"});
@@ -212,7 +212,7 @@ test("Atlas extracted relationships resolve to registered customers as a draft w
 
 test("registered customer identity retrieves its parent and subsidiaries without proposing duplicate moves",async()=>{
   const h=harness();
-  const blank={region:null,province:null,industryId:null,segmentCode:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null,ownerSub:h.ctx.sub};
+  const blank={region:null,province:null,industryId:null,segmentId:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null,ownerSub:h.ctx.sub};
   const parent=await h.account.createAccount(h.ctx.workspaceId,{...blank,name:"Group"});
   const customer=await h.account.createAccount(h.ctx.workspaceId,{...blank,name:"Acme",parentId:parent.id});
   const child=await h.account.createAccount(h.ctx.workspaceId,{...blank,name:"Subsidiary",parentId:customer.id});

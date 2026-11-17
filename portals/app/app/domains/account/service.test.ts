@@ -42,7 +42,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     customerNature: null,
     region: null,
     province: null,
-    segmentCode: null,
+    segmentId: null,
     ownerSub: "usr_rep",
     healthScore: null,
     status: "active",
@@ -540,7 +540,7 @@ test("workspaceCompleteness never includes a gap only the model can answer", asy
 test("segment is derivable once industry and region are already on the record", async () => {
   const accountStore = new InMemoryAccountStore();
   accountStore.seed({
-    accounts: [account({ id: "acc_1", industry: "Manufacturing", region: "East China", segmentCode: null })],
+    accounts: [account({ id: "acc_1", industry: "Manufacturing", region: "East China", segmentId: null })],
   });
   const planning = new InMemoryPlanningStore();
   planning.seed({ territories: [territory()] });
@@ -552,9 +552,9 @@ test("segment is derivable once industry and region are already on the record", 
       batchCtx("sales_leader", "pro", { account: accountStore, planning, strategy }),
     ),
   );
-  const seg = r.find((row) => row.gap.field === "segmentCode");
+  const seg = r.find((row) => row.gap.field === "segmentId");
   assert.ok(seg);
-  assert.equal(seg?.gap.suggestion, "SMB");
+  assert.equal(seg?.gap.suggestion, "seg_1");
 });
 
 test("an unsubscribed workspace cannot run the batch", async () => {
@@ -570,7 +570,7 @@ test("an account with nothing missing contributes no rows", async () => {
         id: "acc_1",
         region: "East China",
         industry: "Manufacturing",
-        segmentCode: "SMB",
+        segmentId: "SMB",
         ownerSub: "usr_rep",
       }),
     ],

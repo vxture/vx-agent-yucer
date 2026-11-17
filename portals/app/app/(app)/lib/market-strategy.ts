@@ -5,7 +5,7 @@ import type { ProductReference, SolutionReference } from "../../domains/catalog/
 
 export type MarketMatch = "match" | "miss" | "missing" | "undefined";
 export interface MarketAccount {
-  id: string; name: string; accountNo: string; segmentCode: string | null;
+  id: string; name: string; accountNo: string; segmentId: string | null;
   industry: string | null; region: string | null; customerSize: string | null;
 }
 // A known mismatch wins over missing information in another dimension.
@@ -87,7 +87,7 @@ export function marketViews(segments: readonly SegmentRecord[], plans: readonly 
     }
   }
   return segments.map(({ workspaceId: _workspace, ...s }) => {
-    const customers = accounts?.map(a => ({ ...a, match: marketMatch(a, s.criteria), assigned: a.segmentCode === s.segmentCode }))
+    const customers = accounts?.map(a => ({ ...a, match: marketMatch(a, s.criteria), assigned: a.segmentId === s.id }))
       .filter(a => a.match === "match" || a.match === "missing" || a.assigned) ?? null;
     return { ...s, plans: plans === null ? null : adoption.get(s.id) ?? [], customers,
       matched: customers?.filter(a => a.match === "match").length ?? null,
@@ -138,7 +138,7 @@ export function strategyViews(plans: readonly PlanRecord[], markets: readonly Ma
         matched: accounts === null ? null : count, missing: accounts === null ? null : missing }];
     });
     const credited = deals ? strategyResults(p.id, deals, campaigns) : null;
-    return { ...p, ...(frozen ? {name:frozen.name,period:frozen.period,objective:frozen.objective,ownerSub:frozen.ownerSub,strategyTypeCode:frozen.strategyTypeCode ?? null,strategyType:frozen.strategyType ?? null}:{}),
+    return { ...p, ...(frozen ? {name:frozen.name,period:frozen.period,objective:frozen.objective,ownerSub:frozen.ownerSub,strategyType:frozen.strategyType ?? null}:{}),
       snapshotLegacy:frozen?.legacy ?? false,publishedOwnerName:frozen?.ownerName ?? null,approvedAt: approvedAt?.toISOString() ?? null,
       sharedProducts: visibleProducts(productIds),
       products: markets === null && targetMarkets.length ? null : visibleProducts([...productIds, ...targetMarkets.flatMap(m => m.productIds ?? [])]),

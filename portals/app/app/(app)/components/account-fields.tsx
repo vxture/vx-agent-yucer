@@ -28,7 +28,7 @@ export interface AccountPatchShape {
   region: string | null;
   province: string | null;
   industryId: string | null;
-  segmentCode: string | null;
+  segmentId: string | null;
   customerTypeId: string | null;
   customerSizeId: string | null;
   customerNatureId: string | null;
@@ -46,7 +46,7 @@ export function toAccountFieldValues(r: Partial<Record<keyof AccountPatchShape, 
     region: blank(r.region as string | null),
     province: blank(r.province as string | null),
     industryId: blank(r.industryId as string | null),
-    segmentCode: blank(r.segmentCode as string | null),
+    segmentId: blank(r.segmentId as string | null),
     customerTypeId: blank(r.customerTypeId as string | null),
     customerSizeId: blank(r.customerSizeId as string | null),
     customerNatureId: blank(r.customerNatureId as string | null),
@@ -62,7 +62,7 @@ export function toAccountPatch(v: AccountFieldValues): AccountPatchShape {
     region: nullIfBlank(v.region),
     province: nullIfBlank(v.province),
     industryId: nullIfBlank(v.industryId),
-    segmentCode: nullIfBlank(v.segmentCode),
+    segmentId: nullIfBlank(v.segmentId),
     customerTypeId: nullIfBlank(v.customerTypeId),
     customerSizeId: nullIfBlank(v.customerSizeId),
     customerNatureId: nullIfBlank(v.customerNatureId),
@@ -123,7 +123,7 @@ export function AccountFields({
       <h2 id={`${id}-positioning`} className="text-label-medium">{T.positionGroup}</h2>
       <FormFields>
         {select("industryId", T.industry, T.industryPick, vocab.industries)}
-        {select("segmentCode", T.segment, T.segmentPick, vocab.segments)}
+        {select("segmentId", T.segment, T.segmentPick, vocab.segments)}
         {select("customerTypeId", T.customerType, T.customerTypePick, vocab.customerTypes)}
         {select("customerNatureId", T.customerNature, T.customerNaturePick, vocab.customerNatures)}
         {select("customerSizeId", T.customerSize, T.customerSizePick, vocab.customerSizes)}
@@ -138,9 +138,9 @@ export function AccountFields({
           <FieldLabel htmlFor={`${id}-region`}>{T.region}</FieldLabel>
           <NativeSelect id={`${id}-region`} value={values.region} onChange={e => set("region", e.target.value)} disabled={pending}>
             <option value="">{T.regionPick}</option>
-            {values.region && !vocab.regions.some(r => r.name === values.region)
+            {values.region && !vocab.regions.some(r => r.id === values.region)
               ? <option value={values.region}>{T.regionLegacy(values.region)}</option> : null}
-            {vocab.regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+            {vocab.regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </NativeSelect>
           {vocab.regions.length === 0 ? <FieldDescription>{T.regionNone}</FieldDescription> : null}
         </Field>

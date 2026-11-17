@@ -76,8 +76,8 @@ export default async function NewPlanPage({
       ? listProductReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
     listStrategyTypes({...base,store:getStrategyStore()}).catch(()=>null),
   ]);
-  const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentCode, industry, region, customerSize }) =>
-    ({ id, name, accountNo, segmentCode, industry, region, customerSize: customerSize ?? null })) : null;
+  const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentId, industry, region, customerSize }) =>
+    ({ id, name, accountNo, segmentId, industry, region, customerSize: customerSize ?? null })) : null;
   const marketOptions = segments?.ok ? marketViews(segments.value, null, customerRows)
     .map(({ id, name, segmentCode, status, criteria, matched, missing, solutionIds, productIds }) => ({ id, name, segmentCode, status, criteria, matched, missing, solutionIds, productIds })) : null;
   const solutionOptions = solutions?.ok ? solutions.value : null;
@@ -108,7 +108,7 @@ export default async function NewPlanPage({
                 planNo: found.planNo,
                 name: found.name,
                 period: found.period,
-                strategyTypeCode: found.strategyTypeCode ?? null,
+                strategyTypeId: found.strategyTypeId ?? null,
                 objective: found.objective,
                 ownerSub: found.ownerSub,
                 productIds: productOptions && (found.productIds ?? []).every(id => visibleProducts.has(id)) ? found.productIds ?? [] : undefined,

@@ -73,13 +73,7 @@ export interface AccountTableProps {
    *  with the viewer teaches nobody what the product can do). */
   readonly canDelete?: boolean;
   readonly remove?: AccountDeleteProps;
-  /**
-   * segment_code -> display name, resolved on the page. account.segment_code
-   * is a plain string with no foreign key behind it, so a code CAN point at a
-   * definition that does not exist - and when it does, the raw code is shown
-   * rather than a blank, because a dangling anchor is a finding to surface,
-   * not a cell to tidy.
-   */
+  /** Display names resolved by market UUID. */
   readonly segmentNames?: ReadonlyMap<string, string>;
   /** 客户级别 per account (name + medal), resolved on the page from the
    *  importance scheme - the same source as the customer page's 级别 coin.
@@ -275,8 +269,8 @@ export function AccountTable({
         <span className="inline-flex items-center gap-sm whitespace-nowrap">
           <span>{row.industry ?? "-"}</span>
           <span className="text-muted-foreground">
-            {row.segmentCode
-              ? (segmentNames?.get(row.segmentCode) ?? row.segmentCode)
+            {row.segmentId
+              ? (segmentNames?.get(row.segmentId) ?? "-")
               : "-"}
           </span>
         </span>

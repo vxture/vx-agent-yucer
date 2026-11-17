@@ -107,10 +107,11 @@ export interface PlanRevision {
   sealedAt: string | null;
 }
 export interface PlanEvent {
+  id: string;
   no: number;
   kind: "draft" | "save" | "release" | "cancel" | "discard" | "lock" | "close";
   revisionId: string | null;
-  relatedNo: number | null;
+  relatedId: string | null;
   period: string | null;
   at: string;
   effectiveAt: string;

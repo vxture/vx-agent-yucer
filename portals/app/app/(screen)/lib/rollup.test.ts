@@ -15,7 +15,7 @@ const account = (id: string, province: string | null): AccountRecord =>
   ({
     id, workspaceId: "ws", accountNo: id, name: id,
     industry: null, region: null, province,
-    segmentCode: null, ownerSub: null, healthScore: null,
+    segmentId: null, ownerSub: null, healthScore: null,
     status: "active", tier: "standard",
     creditCode: null, website: null, employeeCount: null, parentId: null,
   }) as AccountRecord;

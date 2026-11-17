@@ -955,6 +955,10 @@ export const ASSISTANT_TEXT = {
 } as const;
 
 export const CATALOG_TEXT = {
+  productNameExample: "\u4f8b\u5982 \u95e8\u5e97\u7ba1\u7406\u8f6f\u4ef6",
+  productNumber: "\u4ea7\u54c1\u7f16\u53f7",
+  productNumberHint: "\u7cfb\u7edf\u81ea\u52a8\u9884\u586b\uff1b\u4e5f\u53ef\u586b\u5199\u6216\u4fee\u6539\u4e3a\u4f01\u4e1a\u81ea\u5df1\u7684\u4ea7\u54c1\u7f16\u53f7\u3002",
+  cancelProductEdit: "\u53d6\u6d88",
   // 三个新建页 - owner 裁定 2026-09-05：新建从列表页拆出，独立成页。
   newProduct: "新建产品",
   newProductWhy: "产品是目录的最小单位：报价的行项、方案的组成都指向它。",
@@ -1368,6 +1372,7 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   not_movable: "这一条不能移动",
   // 基础信息表单 (owner, 2026-09-20)。
   name_required: "客户名称不能为空",
+  segment_unknown: "\u627e\u4e0d\u5230\u6240\u9009\u7ec6\u5206\u5e02\u573a\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
   region_unknown: "请选择「区域设置」中的销售区域。",
   province_unknown: "不是有效的省级行政区划",
   employee_count_invalid: "员工数必须是不小于 0 的整数",
@@ -1876,6 +1881,9 @@ export const CUSTOMER_NATURE_TEXT = {
 };
 
 export const CATALOG_ERROR: Record<string, string> = {
+  number_taken: "\u8fd9\u4e2a\u7f16\u53f7\u5df2\u7ecf\u5728\u4f7f\u7528\uff0c\u8bf7\u6362\u4e00\u4e2a\u3002",
+  number_busy: "\u5f53\u524d\u7f16\u53f7\u5206\u914d\u7e41\u5fd9\uff0c\u8bf7\u518d\u4fdd\u5b58\u4e00\u6b21\u3002",
+  number_too_long: "\u4ea7\u54c1\u7f16\u53f7\u6700\u591a 64 \u4e2a\u5b57\u7b26\u3002",
   solution_in_use: "\u6b64\u65b9\u6848\u4ecd\u88ab\u5e02\u573a\u6218\u7565\u5f15\u7528\u3002\u53ef\u505c\u7528\uff0c\u6216\u5148\u89e3\u9664\u5173\u8054\u518d\u5220\u9664\u3002",
   ...GATE_ERROR,
   code_required: "需要填写编码",
@@ -2217,6 +2225,8 @@ export const MEMBER_ERROR: Record<string, string> = {
 // 客户信息补齐（2026-09-01 owner 提出）。分两组，因为它们的代价不同：
 // 数据已经知道的（免费、确定、一键），和只有模型能答的（一次 turn，走提案队列）。
 export const COMPLETENESS_ERROR: Record<string, string> = {
+  region_unknown: "\u8bf7\u9009\u62e9\u533a\u57df\u8bbe\u7f6e\u4e2d\u7684\u9500\u552e\u533a\u57df\u3002",
+  segment_unknown: "\u627e\u4e0d\u5230\u6240\u9009\u7ec6\u5206\u5e02\u573a\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
   invalid_retry: "\u8be5\u95ee\u9898\u5df2\u56de\u7b54\u6216\u4f1a\u8bdd\u5df2\u53d8\u5316\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
   turn_in_progress: "\u5f53\u524d\u4f1a\u8bdd\u4ecd\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210\u3002",
 
@@ -2266,7 +2276,7 @@ export const COMPLETENESS_TEXT = {
     province: "所在省份",
     region: "所在区域",
     industry: "行业",
-    segmentCode: "细分市场",
+    segmentId: "细分市场",
     ownerSub: "负责人",
   } as Record<string, string>,
   askable: (fields: string) =>
@@ -2287,6 +2297,8 @@ export const COMPLETENESS_TEXT = {
 } as const;
 
 export const BATCH_COMPLETE_ERROR: Record<string, string> = {
+  region_unknown: "\u8bf7\u9009\u62e9\u533a\u57df\u8bbe\u7f6e\u4e2d\u7684\u9500\u552e\u533a\u57df\u3002",
+  segment_unknown: "\u627e\u4e0d\u5230\u6240\u9009\u7ec6\u5206\u5e02\u573a\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
   ...GATE_ERROR,
   /* incr/0035 CHECK-constrains this column, so an unknown province fails at
      the database with an error nobody can act on. Said in the product's own
@@ -6958,6 +6970,8 @@ export const EXECUTION_ERROR: Record<string, string> = {
 };
 
 export const SEGMENT_ERROR: Record<string, string> = {
+  number_taken: "\u7f16\u53f7\u5df2\u88ab\u4f7f\u7528\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
+  number_busy: "\u5f53\u524d\u7f16\u53f7\u5206\u914d\u7e41\u5fd9\uff0c\u8bf7\u518d\u4fdd\u5b58\u4e00\u6b21\u3002",
   empty_question: "\u8bf7\u5148\u63cf\u8ff0\u76ee\u6807\u5ba2\u7fa4\u6216\u4e1a\u52a1\u95ee\u9898\u3002",
   invalid_retry: "\u672c\u6b21\u91cd\u8bd5\u5df2\u5931\u6548\uff0c\u5df2\u6709\u8868\u5355\u5185\u5bb9\u4fdd\u7559\uff0c\u8bf7\u5237\u65b0\u540e\u7ee7\u7eed\u3002",
   quota_exceeded: "\u5f53\u524d\u667a\u80fd\u670d\u52a1\u989d\u5ea6\u4e0d\u8db3\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u3002",
@@ -9272,7 +9286,7 @@ export const SEGMENT_FORM_TEXT = {
   "conditions": "\u5ba2\u7fa4\u6761\u4ef6",
   "insights": "\u75db\u70b9\u4e0e\u91c7\u8d2d",
   "offerings": "\u5173\u8054\u4ea7\u54c1\u65b9\u6848",
-  "code": "\u5e02\u573a\u7f16\u53f7",
+  "code": "\u7cfb\u7edf\u5728\u4fdd\u5b58\u65f6\u81ea\u52a8\u5206\u914d\u7f16\u53f7\u3002",
   "name": "\u5e02\u573a\u540d\u79f0",
   "priority": "\u663e\u793a\u6392\u5e8f",
   "status": "\u4f7f\u7528\u72b6\u6001",
@@ -9328,7 +9342,7 @@ export const SEGMENT_FORM_TEXT = {
     "assist": "\u8f93\u5165\u76ee\u6807\u5ba2\u7fa4\u3001\u4e1a\u52a1\u95ee\u9898\u6216\u4ea7\u54c1\u65b9\u5411\uff0c\u52a9\u624b\u4f1a\u7ed3\u5408\u73b0\u6709\u9009\u9879\u6574\u7406\u8349\u7a3f\uff0c\u53ef\u7ee7\u7eed\u5bf9\u8bdd\u5b8c\u5584\u3002\u516c\u5f00\u884c\u4e1a\u8d44\u6599\u53ef\u8f85\u52a9\u7814\u7a76\uff0c\u5224\u65ad\u6027\u5185\u5bb9\u5148\u4f5c\u4e3a\u5f85\u9a8c\u8bc1\u5047\u8bbe\uff1b\u6700\u7ec8\u7531\u4f60\u4fee\u6b63\u5e76\u4fdd\u5b58\u3002"
   },
   "examples": {
-    "code": "\u4f8b\u5982 SEG-004",
+    "code": "\u4f8b\u5982 MKT-20261117-001",
     "name": "\u4f8b\u5982 \u534e\u4e1c\u4e2d\u578b\u8fde\u9501\u96f6\u552e",
     "priority": "\u4f8b\u5982 0\uff0c\u8d8a\u5c0f\u8d8a\u9760\u524d",
     "customerNeed": "\u4f8b\u5982 \u5e93\u5b58\u4e0e\u7ebf\u4e0a\u8ba2\u5355\u4e0d\u540c\u6b65\uff0c\u5e38\u6709\u7f3a\u8d27\u548c\u79ef\u538b",

@@ -48,10 +48,11 @@ async function load(
       sealedAt: r.sealedAt?.toISOString() ?? null,
     })),
     events: events.map((e) => ({
+      id: e.id,
       no: e.eventNo,
       kind: e.kind as PlanEvent["kind"],
       revisionId: e.revisionId,
-      relatedNo: e.relatedEventNo,
+      relatedId: e.relatedEventId,
       period: e.periodKey,
       at: e.recordedAt.toISOString(),
       effectiveAt: e.effectiveAt.toISOString(),
@@ -210,12 +211,12 @@ export class PrismaSalesPlanStore implements SalesPlanStore {
           }
         }
         for (const e of plan.events.filter(
-          (e) => !before.events.some((x) => x.no === e.no),
+          (e) => !before.events.some((x) => x.id === e.id),
         )) {
           const hash =
             plan.revisions.find((r) => r.id === e.revisionId)?.contentHash ??
             null;
-          await tx.$executeRaw`SELECT yucer_gtm.sales_plan_record_event(${workspaceId}::uuid,${plan.id}::uuid,${e.revisionId}::uuid,${e.no}::integer,${e.kind}::text,${e.relatedNo}::integer,${e.period}::text,${e.at}::timestamptz,${e.effectiveAt}::timestamptz,${e.actor}::text,${e.reason}::text,${e.requestKey}::text,${e.requestHash}::text,${hash}::text)`;
+          await tx.$executeRaw`SELECT yucer_gtm.sales_plan_record_event_uuid(${workspaceId}::uuid,${plan.id}::uuid,${e.revisionId}::uuid,${e.no}::integer,${e.kind}::text,${e.relatedId}::uuid,${e.id}::uuid,${e.period}::text,${e.at}::timestamptz,${e.effectiveAt}::timestamptz,${e.actor}::text,${e.reason}::text,${e.requestKey}::text,${e.requestHash}::text,${hash}::text)`;
         }
         for (const l of plan.legacy.filter(
           (l) => !before.legacy.some((x) => x.targetId === l.targetId),

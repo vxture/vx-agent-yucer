@@ -1,3 +1,4 @@
+import { BusinessCodeCollision, BusinessRecordMissing, type BusinessWrite } from "../shared/business-code";
 // D1 strategy and D3 campaign persistence port.
 //
 // These two share a port for the same reason they share a rules file: both own
@@ -35,7 +36,7 @@ export interface PlanRecord {
   planNo: string;
   name: string;
   period: string;
-  strategyTypeCode?: string | null;
+  strategyTypeId?: string | null;
   strategyType?: StrategyType | null;
   objective: string | null;
   ownerSub: string | null;
@@ -60,7 +61,7 @@ export interface StrategyPublication {
   capturedAt: string;
   name: string;
   period: string;
-  strategyTypeCode?: string | null;
+  strategyTypeId?: string | null;
   strategyType?: StrategyType | null;
   objective: string | null;
   ownerSub: string | null;
@@ -86,7 +87,7 @@ export interface PublishPlanCommand {
 }
 export function captureStrategyPublication(plan: PlanRecord, solutions: readonly SolutionReference[], at: Date, legacy = false, ownerName: string | null = null, products: readonly ProductReference[] = []): StrategyPublication {
   return structuredClone({schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
-    strategyTypeCode:plan.strategyTypeCode ?? null,strategyType:plan.strategyType ?? null,objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
+    strategyTypeId:plan.strategyTypeId ?? null,strategyType:plan.strategyType ?? null,objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
     targetMarkets:plan.targetMarkets ?? [],solutions});
 }
 /** One overview entry per lineage. A revision draft never displaces a publication. */
@@ -208,7 +209,7 @@ export interface StrategyStore {
       approvedAt?: Date | null;
       name?: string;
       period?: string;
-      strategyTypeCode?: string | null;
+      strategyTypeId?: string | null;
       objective?: string | null;
       ownerSub?: string | null;
       solutionIds?: readonly string[];
@@ -253,24 +254,14 @@ export interface StrategyStore {
   ): Promise<ExecutionRecord | null>;
 
   listSegments(workspaceId: string): Promise<SegmentRecord[]>;
-  /**
-   * Create a segment, or edit one BY ITS CODE.
-   *
-   * By code, not by id, because segment_code is the anchor: accounts carry it
-   * as a plain string with no foreign key behind it. An edit therefore finds
-   * the existing row by code and never changes that column, which is the only
-   * thing standing between a rename and seven accounts silently ceasing to
-   * resolve.
-   */
-  upsertSegment(workspaceId: string, input: SegmentDraft): Promise<SegmentRecord>;
+  /** UI edits target the UUID; legacy imports can deduplicate by business number. */
+  upsertSegment(workspaceId: string, input: SegmentDraft, mode?: BusinessWrite): Promise<SegmentRecord>;
   /** Apply a renumbering computed by planMove - priority IS the order. */
   setSegmentOrder(
     workspaceId: string,
     orders: readonly { id: string; sortOrder: number }[],
   ): Promise<void>;
-  /** Delete a segment. The SERVICE refuses one anything still points at:
-   * campaign.segment_id is SET NULL and account.segment_code is a plain
-   * string, so a delete would un-aim campaigns and orphan codes in silence. */
+  /** Delete a segment. The service refuses one still used by planning or customers. */
   removeSegment(workspaceId: string, segmentId: string): Promise<boolean>;
 
   /** Opportunities attributed to a campaign. Read-only across the domain
@@ -313,7 +304,7 @@ export class InMemoryStrategyStore implements StrategyStore {
   }
   async saveStrategyType(workspaceId: string, input: StrategyType): Promise<void> {
     const rows = this.strategyTypes.get(workspaceId) ?? [...DEFAULT_STRATEGY_TYPES];
-    this.strategyTypes.set(workspaceId, [...rows.filter(t=>t.code!==input.code), structuredClone(input)]);
+    this.strategyTypes.set(workspaceId, [...rows.filter(t=>t.code!==input.code), structuredClone({ ...input, id: rows.find(t => t.code === input.code)?.id ?? crypto.randomUUID() })]);
   }
 
   private executions: Array<ExecutionRecord & { workspaceId: string }> = [];
@@ -343,7 +334,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     for (const p of this.plans.values()) {
       if (p.workspaceId !== workspaceId || !p.versionNo || p.publishedSnapshot) continue;
       const ids = new Set([...p.solutionIds, ...(p.targetMarkets ?? []).flatMap(m => m.solutionIds)]);
-      Object.assign(p, { publishedSnapshot: captureStrategyPublication({...p,strategyType:p.strategyTypeCode ? DEFAULT_STRATEGY_TYPES.find(t=>t.code===p.strategyTypeCode) ?? null : null}, solutions.filter(s => ids.has(s.id)), at, true) });
+      Object.assign(p, { publishedSnapshot: captureStrategyPublication({...p,strategyType:p.strategyTypeId ? DEFAULT_STRATEGY_TYPES.find(t=>t.id===p.strategyTypeId) ?? null : null}, solutions.filter(s => ids.has(s.id)), at, true) });
     }
   }
 
@@ -390,13 +381,13 @@ export class InMemoryStrategyStore implements StrategyStore {
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
     const p = this.plans.get(id);
     if (p?.workspaceId !== workspaceId) return null;
-    return structuredClone({...p, strategyType: p.publishedSnapshot ? p.publishedSnapshot.strategyType ?? null : (await this.listStrategyTypes(workspaceId)).find(t=>t.code===p.strategyTypeCode) ?? null});
+    return structuredClone({...p, strategyType: p.publishedSnapshot ? p.publishedSnapshot.strategyType ?? null : (await this.listStrategyTypes(workspaceId)).find(t=>t.id===p.strategyTypeId) ?? null});
   }
 
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>, guard: PlanWriteGuard = {}): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId || (guard.expectedEditToken !== undefined && guard.expectedEditToken !== (p.editToken ?? 1)) || (guard.expectedStatus !== undefined && p.status !== guard.expectedStatus)) return false;
-    if (["strategyTypeCode", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
+    if (["strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
     if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
       throw new PlanMarketUnavailableError();
     }
@@ -433,7 +424,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     const status=latest?.status==="active"?"active":"approved";
     if(latest)Object.assign(latest,{status:"closed",editToken:(latest.editToken ?? 1)+1});
     Object.assign(draft,{status,versionNo:(latest?.versionNo ?? 0)+1,approvedAt:command.at,publishedBySub:command.actorSub,
-      publishedSnapshot:captureStrategyPublication({...draft,strategyType:(this.strategyTypes.get(workspaceId) ?? DEFAULT_STRATEGY_TYPES).find(t=>t.code===draft.strategyTypeCode) ?? null},command.solutions,command.at,false,command.ownerName,command.products),editToken:(draft.editToken ?? 1)+1});
+      publishedSnapshot:captureStrategyPublication({...draft,strategyType:(this.strategyTypes.get(workspaceId) ?? DEFAULT_STRATEGY_TYPES).find(t=>t.id===draft.strategyTypeId) ?? null},command.solutions,command.at,false,command.ownerName,command.products),editToken:(draft.editToken ?? 1)+1});
     return (await this.getPlan(workspaceId,draft.id))!;
   }
 
@@ -538,12 +529,14 @@ export class InMemoryStrategyStore implements StrategyStore {
       .sort(by(asc((g: SegmentRecord) => g.priority), asc((g: SegmentRecord) => g.segmentCode)));
   }
 
-  async upsertSegment(workspaceId: string, input: SegmentDraft): Promise<SegmentRecord> {
+  async upsertSegment(workspaceId: string, input: SegmentDraft, mode?: BusinessWrite): Promise<SegmentRecord> {
     const held = [...this.segments.values()].find(
-      (g) => g.workspaceId === workspaceId && g.segmentCode === input.segmentCode,
+      (g) => g.workspaceId === workspaceId && (mode && mode !== "create" ? g.id === mode.editId : g.segmentCode === input.segmentCode),
     );
+    if (mode === "create" && held) throw new BusinessCodeCollision();
+    if (mode && mode !== "create" && !held) throw new BusinessRecordMissing();
     if (held) {
-      // segmentCode is deliberately not assigned - it is how this row was found.
+      // Business numbering stays fixed; edits locate the record by UUID.
       held.name = input.name;
       held.priority = input.priority;
       held.status = input.status;

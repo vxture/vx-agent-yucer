@@ -55,9 +55,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     // incr/0072 - the fourth join.
     "customer_nature_id",
     "region",
+    "region_id",
     // incr/0035 - the province, one granularity below region. Both writable.
     "province",
     "segment_code",
+    "segment_id",
     "owner_sub",
     "health_score", "tier",
     // incr/0090 - the tier as a level row; written together with `tier`
@@ -121,6 +123,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_gtm.strategy_type": ["name", "description", "theme", "enabled", "sort_order", "updated_at"],
   "yucer_gtm.strategy_plan": [
     "strategy_type_code",
+    "strategy_type_id",
     "change_reason",
     "name",
     "period",
@@ -308,12 +311,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_agent.judgement_snooze": ["urgency_at_snooze", "snoozed_until"],
   // account_plan: account_id and period ARE the plan's identity. Re-planning the
   // same period edits this row; a different period is a new row.
-  // The catalogue. product_code / solution_code are anchors: renaming what a
-  // thing IS would rewrite every historical line that referenced it.
+  // Product identity is its UUID; the customer-facing product_code is editable.
   // 0028 added sort_order (manual catalogue order); 0029 replaced category
   // and status with the two uuid joins (internal keys are uuids - owner,
   // 2026-09-05).
-  "yucer_catalog.product": ["name", "sort_order", "type_id", "status_id", "unit_id", "updated_at"],
+  "yucer_catalog.product": ["product_code", "name", "sort_order", "type_id", "status_id", "unit_id", "updated_at"],
   // 0028. type_code is the workspace's anchor vocabulary - the join key is
   // the uuid, but the code is still what imports and upserts match on.
   /* 0036. 大区 - the tenant may RENAME and REORDER a division. Not the code:

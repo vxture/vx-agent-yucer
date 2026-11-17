@@ -13,12 +13,9 @@ import {
   EmptyState,
   Icon,
   Input,
-  ListCard,
-  ListCardGrid,
   StatusBadge,
   TableTitleCell,
   useToast,
-  type FilterBarView,
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
 import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
@@ -37,7 +34,7 @@ import type {
 } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
-import { CardsEmpty, TypeFilter } from "./catalog-tool-row";
+import { TypeFilter } from "./catalog-tool-row";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -123,7 +120,6 @@ export function ProductRoster({
     ...SORT_ON,
     ...(pricing ? { list: (row: ProductRecord) => priceByProduct.get(row.id)?.listPrice ?? -1 } : {}),
   });
-  const [view, setView] = useState<FilterBarView>("list");
   // Clicking the row toggles it - the checkbox is too small a target
   // (owner, 2026-09-06). Bound per table because each has its own row order.
   const click = (list: readonly ProductRecord[]) =>
@@ -260,7 +256,7 @@ export function ProductRoster({
                 id: "edit",
                 label: ROW_OPS.configure(CATALOG_TEXT.productNoun),
                 onSelect: () => {
-                  window.location.href = `/catalog/new?code=${encodeURIComponent(row.productCode)}`;
+                  window.location.href = `/catalog/new?id=${encodeURIComponent(row.id)}`;
                 },
               },
               ...targetsFor(row).map((to) => ({
@@ -399,12 +395,7 @@ export function ProductRoster({
           has been retired - that is often the answer they came for. The
           retired roster below says on its own heading that the same control
           is narrowing it. */}
-      {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
-          【新建产品】. The create button moved here from the section header;
-          without the permission it stays, disabled - FilterBar's contract. */}
       <FilterBar
-        view={view}
-        onViewChange={setView}
         actions={
           canWrite ? (
             <Button asChild>
@@ -450,37 +441,7 @@ export function ProductRoster({
         title={CATALOG_TEXT.rosterLive}
         help={CATALOG_TEXT.rosterLiveWhy}
       >
-        {view === "list" ? (
-          table(live)
-        ) : live.length === 0 ? (
-          <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noCurrentProducts} description={CATALOG_TEXT.byTypeEmpty} />
-        ) : (
-          /* The same row as a card (DS ListCard): name and code, status and
-             the row menu top right, type / unit / 标准价 as the meta line. */
-          <ListCardGrid className="p-md">
-            {live.map((row, i) => {
-              const status = vocab.get(row.statusId);
-              return (
-                <ListCard
-                  key={row.id}
-                  title={row.name}
-                  description={row.productCode}
-                  status={<Tag tone={status ? statusTone(status) : "neutral"}>{status?.name ?? ""}</Tag>}
-                  actions={rowActions(row, i)}
-                  meta={
-                    <>
-                      <span>
-                        {typeNameOf(row.typeId)}
-                      </span>
-                      <span>{unitName.get(row.unitId) ?? ""}</span>
-                      {pricing ? <ProductPriceValues price={priceByProduct.get(row.id)} currency={pricing.currency} /> : null}
-                    </>
-                  }
-                />
-              );
-            })}
-          </ListCardGrid>
-        )}
+        {table(live)}
       </Section>
 
       {/* The archive remains visible even when empty or filtered out. */}

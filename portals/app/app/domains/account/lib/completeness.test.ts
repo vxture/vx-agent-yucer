@@ -9,8 +9,8 @@ const TERRITORIES: RoutingTerritory[] = [
 ];
 
 const SEGMENTS = [
-  { code: "ENTERPRISE", industries: ["制造", "通信"], regions: [] },
-  { code: "MIDMARKET", industries: ["零售"], regions: [] },
+  { id: "market-uuid", name: "Enterprise", industries: ["制造", "通信"], regions: [] },
+  { id: "mid-market-uuid", name: "Midmarket", industries: ["零售"], regions: [] },
 ];
 
 const full: CompletableAccount = {
@@ -19,7 +19,7 @@ const full: CompletableAccount = {
   industry: "制造",
   region: "华北",
   province: "北京市",
-  segmentCode: "ENTERPRISE",
+  segmentId: "ENTERPRISE",
   ownerSub: "usr_a",
 };
 
@@ -62,9 +62,9 @@ test("an ambiguous territory refuses to choose, and hands the question up", () =
 });
 
 test("a segment is matched on criteria an administrator wrote, never guessed", () => {
-  const gaps = gapsOf({ segmentCode: null });
-  const seg = gaps.find((g) => g.field === "segmentCode")!;
-  assert.equal(seg.suggestion, "ENTERPRISE");
+  const gaps = gapsOf({ segmentId: null });
+  const seg = gaps.find((g) => g.field === "segmentId")!;
+  assert.equal(seg.suggestion, "market-uuid");
   assert.equal(seg.forModel, false, "asking a model would override a rule this company owns");
 });
 
@@ -89,7 +89,7 @@ test("an industry is the model's question, because a schema cannot know it", () 
   // THE CASE THE MODEL PLANE EXISTS FOR, and the reason it is not simply left
   // blank: it is a fact about the world that somebody would otherwise look up
   // by hand on first entry.
-  const gaps = gapsOf({ industry: null, segmentCode: null });
+  const gaps = gapsOf({ industry: null, segmentId: null });
   const industry = gaps.find((g) => g.field === "industry")!;
   assert.equal(industry.suggestion, null);
   assert.equal(industry.forModel, true);
@@ -99,7 +99,7 @@ test("a customer with no deals at all is the first-entry case", () => {
   // Nothing in the workspace places them yet - which is exactly when the model
   // is worth asking, and exactly when a person is otherwise typing from memory.
   const gaps = gapsOf(
-    { region: null, province: null, industry: null, segmentCode: null, ownerSub: null }, []);
+    { region: null, province: null, industry: null, segmentId: null, ownerSub: null }, []);
   assert.deepEqual(
     forModel(gaps).map((g) => g.field).sort(),
     // province joins industry and region: where a company is registered is a
@@ -133,7 +133,7 @@ test("the free half and the paid half are counted separately", () => {
   // So a caller can take everything the data knows without spending a turn, and
   // so the expensive half is an explicit decision rather than something that
   // happens because a page rendered.
-  const gaps = gapsOf({ region: null, industry: null, segmentCode: null, ownerSub: null }, [
+  const gaps = gapsOf({ region: null, industry: null, segmentId: null, ownerSub: null }, [
     { territoryId: "t_north", ownerSub: "usr_x" },
   ]);
   assert.deepEqual(fillable(gaps).map((g) => g.field).sort(), ["ownerSub", "region"]);
@@ -143,8 +143,8 @@ test("the free half and the paid half are counted separately", () => {
 test("gaps come back in filling order, because the segment reads the region", () => {
   // Filling them in the order returned means each suggestion is computed
   // against what the previous one settled.
-  const gaps = gapsOf({ region: null, industry: null, segmentCode: null, ownerSub: null }, []);
-  assert.deepEqual(gaps.map((g) => g.field), ["region", "industry", "segmentCode", "ownerSub"]);
+  const gaps = gapsOf({ region: null, industry: null, segmentId: null, ownerSub: null }, []);
+  assert.deepEqual(gaps.map((g) => g.field), ["region", "industry", "segmentId", "ownerSub"]);
 });
 
 // --- 省份, and the 大区 it settles ------------------------------------------

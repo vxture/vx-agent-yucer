@@ -36,7 +36,6 @@ export interface SolutionAdvice {
   /** The solution this is about; absent for `product_uncovered`. */
   readonly solutionId?: string;
   readonly solutionName?: string;
-  readonly solutionCode?: string;
   /** The product this is about, when the advice names one. */
   readonly productId?: string;
   readonly productName?: string;
@@ -71,7 +70,6 @@ export function analyseSolutions(input: SolutionAdviceInput): SolutionAdvice[] {
     const named = {
       solutionId: solution.id,
       solutionName: solution.name,
-      solutionCode: solution.solutionCode,
     };
 
     for (const item of items) {

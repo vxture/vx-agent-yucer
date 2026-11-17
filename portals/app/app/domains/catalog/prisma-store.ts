@@ -1,3 +1,4 @@
+import { createBusinessRow, editBusinessRow, type BusinessWrite } from "../shared/business-code";
 import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
@@ -189,9 +190,11 @@ export class PrismaCatalogStore implements CatalogStore {
   async upsertProduct(
     workspaceId: string,
     input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
+    mode?: BusinessWrite,
   ): Promise<ProductRecord> {
     const p = await getPrismaClient();
     const update = {
+      ...(mode && mode !== "create" ? { productCode: input.productCode } : {}),
       name: input.name,
       typeId: input.typeId,
       unitId: input.unitId,
@@ -206,24 +209,15 @@ export class PrismaCatalogStore implements CatalogStore {
         `refusing to write a locked product column: ${guard.violations.map((v) => v.message).join("; ")}`,
       );
     }
-    // A new product joins at the END of the catalogue - last place is the one
-    // position that is nobody else's decision to give away. Read-then-upsert is
-    // not raced in this product's write pattern (one maintainer edits the
-    // catalogue), and the unique code key makes the upsert itself safe.
-    const tail = await p.product.aggregate({
-      where: { workspaceId },
-      _max: { sortOrder: true },
-    });
-    const row = await p.product.upsert({
-      where: { workspaceId_productCode: { workspaceId, productCode: input.productCode } },
-      update,
-      create: {
-        workspaceId,
-        productCode: input.productCode,
-        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
-        ...update,
-      },
-    });
+    if (mode && mode !== "create") {
+      const row = await editBusinessRow(() => p.product.update({ where: { id: mode.editId, workspaceId }, data: update }));
+      return this.toProduct(row);
+    }
+    const tail = await p.product.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+    const create = { ...update, workspaceId, productCode: input.productCode, sortOrder: (tail._max?.sortOrder ?? 0) + 1 };
+    const row = mode === "create"
+      ? await createBusinessRow(() => p.product.create({ data: create }))
+      : await p.product.upsert({ where: { workspaceId_productCode: { workspaceId, productCode: input.productCode } }, update, create });
     return this.toProduct(row);
   }
 
@@ -560,6 +554,7 @@ export class PrismaCatalogStore implements CatalogStore {
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
+    mode?: BusinessWrite,
   ): Promise<SolutionRecord> {
     const p = await getPrismaClient();
     const update = {
@@ -580,17 +575,13 @@ export class PrismaCatalogStore implements CatalogStore {
     // empty bundle is precisely what planSolution refuses to let anyone create
     // on purpose.
     return p.$transaction(async (tx) => {
-      const tail = await tx.solution.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
-      const row = await tx.solution.upsert({
-        where: { workspaceId_solutionCode: { workspaceId, solutionCode: input.solutionCode } },
-        update,
-        create: {
-          workspaceId,
-          solutionCode: input.solutionCode,
-          sortOrder: (tail._max?.sortOrder ?? 0) + 1,
-          ...update,
-        },
-      });
+      const row = await (async () => {
+        if (mode && mode !== "create") return editBusinessRow(() => tx.solution.update({ where: { id: mode.editId, workspaceId }, data: update }));
+        const tail = await tx.solution.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+        const create = { ...update, workspaceId, solutionCode: input.solutionCode, sortOrder: (tail._max?.sortOrder ?? 0) + 1 };
+        if (mode === "create") return createBusinessRow(() => tx.solution.create({ data: create }));
+        return tx.solution.upsert({ where: { workspaceId_solutionCode: { workspaceId, solutionCode: input.solutionCode } }, update, create });
+      })();
       await tx.solutionItem.deleteMany({ where: { workspaceId, solutionId: row.id } });
       if (items.length > 0) {
         await tx.solutionItem.createMany({

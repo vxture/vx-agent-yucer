@@ -5,7 +5,7 @@ import { captureStrategyPublication, type PlanRecord, type SegmentRecord, type C
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { money } from "../../domains/shared/money";
 
-const account: MarketAccount = { id:"a",name:"A",accountNo:"A1",industry:"software",region:null,customerSize:"large",segmentCode:null };
+const account: MarketAccount = { id:"a",name:"A",accountNo:"A1",industry:"software",region:null,customerSize:"large",segmentId:null };
 const criteria = { industries:["software"],regions:[],sizes:["large"] };
 test("customer matching separates missing data from a known mismatch and an undefined market",()=>{
   assert.equal(marketMatch(account,criteria),"match");

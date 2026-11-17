@@ -4,7 +4,7 @@ import {
 } from "./registration-draft";
 
 const LABELS = {
-  name: "\u5ba2\u6237\u540d\u79f0", region: "\u9500\u552e\u533a\u57df", province: "\u7701\u4efd", industryId: "\u884c\u4e1a", segmentCode: "\u7ec6\u5206\u5e02\u573a",
+  name: "\u5ba2\u6237\u540d\u79f0", region: "\u9500\u552e\u533a\u57df", province: "\u7701\u4efd", industryId: "\u884c\u4e1a", segmentId: "\u7ec6\u5206\u5e02\u573a",
   customerTypeId: "\u5ba2\u6237\u7c7b\u578b", customerSizeId: "\u5ba2\u6237\u89c4\u6a21", customerNatureId: "\u5ba2\u6237\u6027\u8d28",
   creditCode: "\u7edf\u4e00\u4fe1\u7528\u4ee3\u7801", website: "\u5b98\u7f51", employeeCount: "\u5458\u5de5\u4eba\u6570", tier: "\u5ba2\u6237\u7ea7\u522b",
   period: "\u76ee\u6807\u5468\u671f", targetAmount: "\u76ee\u6807\u989d", contactCadenceDays: "\u56de\u8bbf\u8282\u594f", execCadenceDays: "\u6267\u884c\u8282\u594f",
@@ -12,7 +12,7 @@ const LABELS = {
 
 /** Only the server reviewer writes this archive. Model-supplied archives are discarded. */
 const EN_LABELS: Record<keyof typeof LABELS, string> = {
-  name: "Customer name", region: "Sales region", province: "Province", industryId: "Industry", segmentCode: "Market segment",
+  name: "Customer name", region: "Sales region", province: "Province", industryId: "Industry", segmentId: "Market segment",
   customerTypeId: "Customer type", customerSizeId: "Customer size", customerNatureId: "Customer nature", creditCode: "Credit code",
   website: "Website", employeeCount: "Employee count", tier: "Customer tier", period: "Target period", targetAmount: "Target amount",
   contactCadenceDays: "Contact cadence", execCadenceDays: "Execution cadence",

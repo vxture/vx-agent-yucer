@@ -1,7 +1,8 @@
+import { nextBusinessCode } from "../../../domains/shared/business-code";
 import { ViewHeader } from "../../components/business-controls";
 
 import { PageCrumbs } from "../../components/page-crumbs";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { CatalogPage } from "../shell";
@@ -14,11 +15,10 @@ import { changeProductStatus, deleteProduct, moveProductRow, saveProduct } from 
 // below, and the arrows put it where it belongs without a round trip - the
 // one moment ordering matters most is right after something new appears.
 //
-// ?code=X turns the page into EDIT mode for that product: the code field
-// locks (it is the identity the upsert matches on) and status stays with the
-// row - transitions belong to the roster's row menu.
+// New links use the product UUID. Legacy number links are accepted on entry
+// while that number remains in use. Status transitions live in the roster.
 //
-// The GATE REDIRECTS rather than rendering a refusal: this route exists only
+//// The GATE REDIRECTS rather than rendering a refusal: this route exists only
 // behind controls the list page already hides from anyone without the
 // permission, so landing here without it means a typed URL - and the list is
 // a better answer than a dead end. The server actions still carry their own
@@ -29,19 +29,18 @@ export const dynamic = "force-dynamic";
 export default async function NewProductPage({
   searchParams,
 }: {
-  readonly searchParams: Promise<{ code?: string }>;
+  readonly searchParams: Promise<{ id?: string; code?: string }>;
 }) {
   const { CATALOG_TEXT, DOMAIN_LABEL } = await getMessages();
-  const { code } = await searchParams;
+  const { id, code } = await searchParams;
   return (
     <CatalogPage
       render={({ products, types, statuses, units, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.product.upsert", "ui").allowed) {
           redirect("/catalog");
         }
-        const initial = code ? products.find((p) => p.productCode === code) : undefined;
-        // An unknown ?code= is a stale link; the create form under a 修改
-        // heading would quietly create, so fall back to plain creation.
+        const initial = products.find(p => id ? p.id === id : code && p.productCode === code);
+        if ((id || code) && !initial) notFound();
         const editing = initial !== undefined;
         return (
           <>
@@ -55,7 +54,7 @@ export default async function NewProductPage({
             />
             <NewProductForm
               key={initial?.id ?? "new"}
-              products={products}
+              generatedCode={nextBusinessCode("PRD", products.map(p => p.productCode))}
               types={types}
               statuses={statuses}
               units={units}

@@ -1,4 +1,7 @@
 import { StatusBadge } from "@vxture/design-ui";
+import { getStrategyStore } from "../../domains/shared/registry";
+import { listSegments } from "../../domains/strategy/service";
+import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
@@ -30,6 +33,15 @@ export default async function SolutionPage({ searchParams }: {
 }) {
   const { CATALOG_TEXT } = await getMessages();
   const { solution } = await searchParams;
+  const session = await resolveAppSession();
+  const marketRead = session && await listSegments({
+    workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
+    entitlement: session.entitlement, store: getStrategyStore(),
+  });
+  const marketsBySolution: Record<string, { id: string; name: string }[]> = {};
+  if (marketRead?.ok) for (const market of marketRead.value) {
+    for (const id of market.solutionIds ?? []) (marketsBySolution[id] ??= []).push({ id: market.id, name: market.name });
+  }
   return (
     <CatalogPage
       render={({ products, prices, solutions, types, policy, authz, entitlement }) => {
@@ -72,6 +84,7 @@ export default async function SolutionPage({ searchParams }: {
               solutions={solutions}
               products={products}
               facts={facts}
+              marketsBySolution={marketsBySolution}
               types={types}
               currency={policy.defaultCurrency}
               canWrite={canWrite}

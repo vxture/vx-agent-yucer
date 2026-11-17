@@ -66,6 +66,7 @@ export interface AccountRecord {
   customerNatureId: string | null;
   customerNature: string | null;
   region: string | null;
+  regionId?: string | null;
   /**
    * incr/0035. The provincial-level division - one granularity below `region`.
    *
@@ -75,7 +76,7 @@ export interface AccountRecord {
    * unassignable. CHECK-constrained in the database to the 34 divisions.
    */
   province: string | null;
-  segmentCode: string | null;
+  segmentId: string | null;
   ownerSub: string | null;
   healthScore: number | null;
   status: AccountStatus;
@@ -106,9 +107,10 @@ export interface NewAccount extends RegistrationHierarchy {
   plan?: AccountPlanWrite;
   name: string;
   region: string | null;
+  regionId?: string | null;
   province: string | null;
   industryId: string | null;
-  segmentCode: string | null;
+  segmentId: string | null;
   customerTypeId: string | null;
   customerSizeId: string | null;
   customerNatureId: string | null;
@@ -212,7 +214,7 @@ export interface AccountFilter {
   tier?: AccountTier;
   status?: AccountStatus;
   ownerSub?: string;
-  segmentCode?: string;
+  segmentId?: string;
   limit?: number;
 }
 
@@ -400,8 +402,8 @@ export interface AccountStore {
     patch: Partial<
       Pick<
         AccountRecord,
-        | "name" | "industryId" | "customerTypeId" | "customerSizeId" | "customerNatureId" | "region" | "province"
-        | "segmentCode" | "ownerSub" | "healthScore"
+        | "name" | "industryId" | "customerTypeId" | "customerSizeId" | "customerNatureId" | "region" | "regionId" | "province"
+        | "segmentId" | "ownerSub" | "healthScore"
         | "status" | "tier" | "creditCode" | "website" | "employeeCount" | "parentId"
       >
     >,
@@ -910,7 +912,7 @@ export class InMemoryAccountStore implements AccountStore {
       .map((a) => this.hydrate(a));
     if (filter.status) rows = rows.filter((a) => a.status === filter.status);
     if (filter.ownerSub) rows = rows.filter((a) => a.ownerSub === filter.ownerSub);
-    if (filter.segmentCode) rows = rows.filter((a) => a.segmentCode === filter.segmentCode);
+    if (filter.segmentId) rows = rows.filter((a) => a.segmentId === filter.segmentId);
     // Sickest first: the list exists to surface the accounts needing attention.
     // Unscored sorts last, which is Postgres ASC NULLS LAST - "never assessed"
     // is not "in trouble". Name breaks the tie so `limit` is deterministic.
