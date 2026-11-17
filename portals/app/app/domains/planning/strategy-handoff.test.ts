@@ -67,3 +67,9 @@ test("missing revenue currency or regional attribution stays unknown",()=>{
  assert.equal(strategicActual(x,{...input,deals:[deal(p,{amount:null,currency:undefined})]}),null);
  assert.equal(strategicActual(x,{...input,regionId:east,deals:[deal(p,{territoryId:null})]}),null);
 });
+
+test("planning can turn an exploratory channel expectation into an explicit acceptance criterion",()=>{
+ const {c,x}=fixture("channels");x.expectation.criterion="";
+ assert.throws(()=>validateStrategyAcceptances(c,true),/strategy_owner_required/);
+ x.note="Signed partner with the first order";validateStrategyAcceptances(c,true);
+});

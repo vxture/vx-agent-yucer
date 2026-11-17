@@ -131,7 +131,7 @@ BEGIN
   execution_window:=yucer_gtm.strategy_execution_window(x->>'period');
   IF execution_window IS NULL OR NOT execution_window && daterange(make_date((doc->>'year')::int,1,1),make_date((doc->>'year')::int+1,1,1),'[)') THEN RAISE EXCEPTION 'strategy_period_mismatch'; END IF;
   IF x->'expectation'->>'metric'<>'revenue' AND (x->>'amount')::numeric<>trunc((x->>'amount')::numeric) THEN RAISE EXCEPTION 'count_integer'; END IF;
-  IF NEW.state='sealed' AND (COALESCE(btrim(x->>'ownerSub'),'')='' OR (x->'expectation'->>'metric'<>'revenue' AND COALESCE(btrim(x->'expectation'->>'criterion'),'')='')) THEN RAISE EXCEPTION 'strategy_owner_required'; END IF;
+  IF NEW.state='sealed' AND (COALESCE(btrim(x->>'ownerSub'),'')='' OR (x->'expectation'->>'metric'<>'revenue' AND COALESCE(btrim(x->'expectation'->>'criterion'),'')='' AND btrim(x->>'note')='')) THEN RAISE EXCEPTION 'strategy_owner_required'; END IF;
   IF EXISTS(SELECT 1 FROM jsonb_array_elements(x->'allocations') z GROUP BY z->>'key' HAVING count(*)>1) OR
      EXISTS(SELECT 1 FROM jsonb_array_elements(x->'allocations') z GROUP BY z->>'regionId',z->>'period' HAVING count(*)>1) THEN RAISE EXCEPTION 'strategy_allocation_invalid'; END IF;
   FOR allocation_row IN SELECT * FROM jsonb_array_elements(x->'allocations') LOOP

@@ -40,7 +40,7 @@ export function StrategyFulfillmentPanel({ rows, canRecord = false }: { rows: Fu
       </CardContent></Card>;
     })}</div>
     <Drawer open={!!selected} onClose={() => setSelected(null)} width="md" title={T.results}>
-      {selected ? <div className="flex flex-col gap-lg pb-xl"><p className="text-body">{selected.acceptance.name} · {T[selected.acceptance.expectation.metric]}</p><p className="text-body-small text-muted-foreground">{selected.acceptance.expectation.criterion}</p>
+      {selected ? <div className="flex flex-col gap-lg pb-xl"><p className="text-body">{selected.acceptance.name} · {T[selected.acceptance.expectation.metric]}</p><p className="text-body-small text-muted-foreground">{selected.acceptance.note || selected.acceptance.expectation.criterion}</p>
         {canRecord && selected.allocations.length ? <>
           <Field><FieldLabel htmlFor="result-allocation">{T.allocation}</FieldLabel><NativeSelect id="result-allocation" value={allocation} onChange={e => setAllocation(e.target.value)}>{selected.allocations.map(a => <option key={a.key} value={a.key}>{a.regionName} · {a.period}</option>)}</NativeSelect></Field>
           <Field><FieldLabel htmlFor="result-date">{T.date}</FieldLabel><Input id="result-date" type="date" max={new Date().toISOString().slice(0,10)} value={achievedOn} onChange={e => setDate(e.target.value)}/></Field>

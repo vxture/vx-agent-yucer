@@ -37,7 +37,7 @@ export function validateStrategyAcceptances(c: PlanContent, publish: boolean) {
     demand(window, "strategy_period_mismatch");
     minor(x.amount);
     if (x.expectation.metric !== "revenue") demand(minor(x.amount) % 100n === 0n, "count_integer");
-    if (publish) demand(x.ownerSub && (x.expectation.metric === "revenue" || x.expectation.criterion.trim()), "strategy_owner_required");
+    if (publish) demand(x.ownerSub && (x.expectation.metric === "revenue" || (x.expectation.criterion.trim() || x.note.trim())), "strategy_owner_required");
     const cells = new Set<string>(), allocationKeys = new Set<string>();
     for (const a of x.allocations) {
       const p = c.periods.find(p => p.key === a.period);

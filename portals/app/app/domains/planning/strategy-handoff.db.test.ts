@@ -52,3 +52,15 @@ test("Postgres: closed strategic period slice detects allocation changes without
  const compare=async()=> (await c.query("SELECT yucer_gtm.sales_plan_closed_slice($1,$3) IS NOT DISTINCT FROM yucer_gtm.sales_plan_closed_slice($2,$3) AS same",[JSON.stringify(f.content),JSON.stringify(next),`${f.year}Q1`])).rows[0].same;
  assert.equal(await compare(),true);next.strategyAcceptances![0]!.allocations[0]!.amount="2";assert.equal(await compare(),false);
 }));
+
+test("Postgres: planning can refine a missing non-financial acceptance criterion",{skip},async()=>db(async c=>{
+ const f=await seed(c);f.content.strategyAcceptances![0]!.expectation.criterion="";
+ // This test validates the criterion rule through a separately published source.
+ const sid=id(),expectation={...f.acceptance.expectation,id:id(),criterion:""};
+ await c.query("INSERT INTO yucer_gtm.strategy_plan(id,workspace_id,plan_no,name,period,expectations) VALUES($1,$2,'STR-CRITERION','Retail',$3,$4)",[sid,f.ws,String(f.year),JSON.stringify([expectation])]);
+ await c.query("SELECT yucer_gtm.publish_strategy_plan($1,$2,1,'owner',now())",[f.ws,sid]);
+ const x=f.content.strategyAcceptances![0]!;Object.assign(x,{strategyId:sid,lineageId:sid,expectation});
+ const seal="UPDATE yucer_gtm.sales_plan_revision SET content=$2,state='sealed',version_no=1,content_hash=$3,sealed_by_sub='owner',sealed_at=now() WHERE id=$1";
+ await rejected(c,seal,[f.revision,JSON.stringify(f.content),"b".repeat(64)],/strategy_owner_required/);
+ x.note="Signed and accepted";await c.query(seal,[f.revision,JSON.stringify(f.content),"b".repeat(64)]);
+}));
