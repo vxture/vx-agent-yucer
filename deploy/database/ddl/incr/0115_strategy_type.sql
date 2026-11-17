@@ -23,7 +23,7 @@ GRANT UPDATE (strategy_type_code) ON yucer_gtm.strategy_plan TO yucer_svc;
 CREATE FUNCTION yucer_gtm.strategy_type_guard()
 RETURNS TRIGGER LANGUAGE plpgsql SET search_path = pg_catalog, yucer_gtm AS $$
 BEGIN
-  IF TG_OP='UPDATE' THEN
+  IF TG_OP <> 'INSERT' THEN
     IF NEW.strategy_type_code IS NOT DISTINCT FROM OLD.strategy_type_code THEN RETURN NEW; END IF;
     IF OLD.status <> 'draft' THEN RAISE EXCEPTION 'immutable_strategy'; END IF;
   END IF;

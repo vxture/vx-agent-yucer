@@ -31,6 +31,9 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   const href=`/strategy/${p.id}`;
   const markets=p.targetMarkets?.toSorted((a,b)=>Number(b.intent==="focus")-Number(a.intent==="focus"));
   const offerings=p.solutions===null || p.products===null ? null : strategyOfferings(p.solutions,p.products);
+  let versionBadge: ReactNode=null;
+  if(p.versionNo)versionBadge=<Tag>{`V${p.versionNo}`}</Tag>;
+  else if(p.basePlanId)versionBadge=<Tag>{T.revisionDraft}</Tag>;
   const metrics=[
     {key:"markets",icon:"globe",label:T.marketCount,value:p.marketIds?.length},
     {key:"customers",icon:"users",label:T.customerCount,value:p.customerCount},
@@ -58,7 +61,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
           <span className="text-body-small text-muted-foreground tabular-nums" title={strategyPeriodRangeLabel(p.period) ?? undefined}>{strategyPeriodLabel(p.period)}</span>
         </div>
         <div className="flex items-center gap-sm text-foreground">
-          {p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag>:p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}
+          {versionBadge}
           <Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>
           {actions}
         </div>

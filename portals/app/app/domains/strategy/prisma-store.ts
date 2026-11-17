@@ -556,6 +556,9 @@ function toStrategyType(t: {code:string;name:string;description:string;theme:str
 }
 
 function toPlan(r: Record<string, unknown>): PlanRecord {
+  let strategyType: StrategyType | null=null;
+  if(r.publishedSnapshot)strategyType=(r.publishedSnapshot as StrategyPublication).strategyType ?? null;
+  else if(r.strategyType)strategyType=toStrategyType(r.strategyType as StrategyType);
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
@@ -567,7 +570,7 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     name: String(r.name),
     period: String(r.period),
     strategyTypeCode: (r.strategyTypeCode as string | null) ?? null,
-    strategyType: r.publishedSnapshot ? (r.publishedSnapshot as StrategyPublication).strategyType ?? null : r.strategyType ? toStrategyType(r.strategyType as StrategyType) : null,
+    strategyType,
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
     productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),

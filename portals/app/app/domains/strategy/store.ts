@@ -389,7 +389,7 @@ export class InMemoryStrategyStore implements StrategyStore {
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
     const p = this.plans.get(id);
-    if (!p || p.workspaceId !== workspaceId) return null;
+    if (p?.workspaceId !== workspaceId) return null;
     return structuredClone({...p, strategyType: p.publishedSnapshot ? p.publishedSnapshot.strategyType ?? null : (await this.listStrategyTypes(workspaceId)).find(t=>t.code===p.strategyTypeCode) ?? null});
   }
 

@@ -68,6 +68,20 @@ export interface PlanFormInitial {
   readonly targetMarkets: readonly TargetSelection[];
 }
 
+function StrategyTypeField({types,value,existing,disabled,onChange}: {
+  readonly types: readonly StrategyType[] | null;
+  readonly value: string; readonly existing?: string | null;
+  readonly disabled: boolean; readonly onChange: (value: string)=>void;
+}) {
+  const { MARKET_STRATEGY_TEXT:T }=useMessages();
+  return <Field><FieldLabel htmlFor="strategy-type">{T.strategyType}</FieldLabel>
+    <NativeSelect id="strategy-type" value={value} disabled={disabled || types===null} onChange={e=>onChange(e.target.value)}>
+      <option value="">{T.typeUnclassified}</option>
+      {types?.filter(t=>t.enabled || t.code===existing).map(t=><option key={t.code} value={t.code}>{t.name}{t.enabled ? "" : ` (${T.typeDisabledLabel})`}</option>)}
+    </NativeSelect>
+  </Field>;
+}
+
 export function NewPlanForm({ strategyTypes,
   existingPlanNos,
   initial,
@@ -175,12 +189,7 @@ export function NewPlanForm({ strategyTypes,
                 <Field className="@xl:col-span-2"><FieldLabel htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
                   <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e => setName(e.target.value)} aria-required="true"/>
                 </Field>
-                <Field><FieldLabel htmlFor="strategy-type">{T.strategyType}</FieldLabel>
-                  <NativeSelect id="strategy-type" value={strategyTypeCode} disabled={submit.pending || strategyTypes===null} onChange={e=>setStrategyTypeCode(e.target.value)}>
-                    <option value="">{T.typeUnclassified}</option>
-                    {strategyTypes?.filter(t=>t.enabled || t.code===initial?.strategyTypeCode).map(t=><option key={t.code} value={t.code}>{t.name}{t.enabled ? "" : ` (${T.typeDisabledLabel})`}</option>)}
-                  </NativeSelect>
-                </Field>
+                <StrategyTypeField types={strategyTypes} value={strategyTypeCode} existing={initial?.strategyTypeCode} disabled={submit.pending} onChange={setStrategyTypeCode}/>
                 <Field><FieldLabel>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
                   <MemberPicker options={ownerOptions} value={ownerSub} onValueChange={setOwnerSub}
                     label={STRATEGY_TEXT.newPlanOwner} disabled={submit.pending}/>
