@@ -563,6 +563,7 @@ export function StrategyAdvanced({
   );
   const legacy = risks.length ? (
     <Section title={T.risks} icon="shield">
+      <Card className="min-w-0 py-lg"><CardContent>
       <div className="flex flex-col gap-md">
         {risks.map((r) => (
           <div key={r.id} className="grid grid-cols-1 gap-md @xl:grid-cols-2">
@@ -573,25 +574,28 @@ export function StrategyAdvanced({
           </div>
         ))}
       </div>
+      </CardContent></Card>
     </Section>
   ) : null;
-  if (!onChange)
-    return <>
-      {resource?<Section title={T.resources} icon="wallet">
-        <dl className="grid grid-cols-1 gap-lg @xl:grid-cols-3" data-strategy-resources>
-          {(["people","funds","technology"] as const).filter(k=>value.resources[k].trim() || value.resources[`${k}Note`].trim()).map(k=><div key={k} className="flex min-w-0 flex-col gap-xs">
-            <dt className="text-body-small text-muted-foreground">{T[k]}</dt>
-            {value.resources[k].trim()?<dd className="text-body tabular-nums">{value.resources[k]}{k==="funds"?<span className="ml-xs text-body-small text-muted-foreground">{currency}</span>:null}</dd>:null}
-            {value.resources[`${k}Note`].trim()?<dd className="whitespace-pre-wrap break-words text-body-small text-muted-foreground">{value.resources[`${k}Note`]}</dd>:null}
-          </div>)}
-        </dl>
-      </Section>:null}
-      {milestones.length?<Section title={T.milestones} icon="flag">{timeline}</Section>:null}
-      {legacy}
-    </>;
+  const resourceSummary = (
+    <dl className="grid grid-cols-1 gap-lg @xl:grid-cols-3" data-strategy-resources>
+      {(["people", "funds", "technology"] as const)
+        .filter(k => value.resources[k].trim() || value.resources[`${k}Note`].trim())
+        .map(k => <div key={k} className="flex min-w-0 flex-col gap-xs">
+          <dt className="text-body-small text-muted-foreground">{T[k]}</dt>
+          {value.resources[k].trim() ? <dd className="text-body tabular-nums">
+            {value.resources[k]}
+            {k === "funds" ? <span className="ml-xs text-body-small text-muted-foreground">{currency}</span> : null}
+          </dd> : null}
+          {value.resources[`${k}Note`].trim() ? <dd className="whitespace-pre-wrap break-words text-body-small text-muted-foreground">
+            {value.resources[`${k}Note`]}
+          </dd> : null}
+        </div>)}
+    </dl>
+  );
   return (
     <>
-      <Collapsible
+      {onChange || count ? <Collapsible
         className="@container flex flex-col gap-md"
         data-strategy-advanced
       >
@@ -618,18 +622,18 @@ export function StrategyAdvanced({
           }
         />
         <CollapsibleContent className="flex flex-col gap-lg">
-          <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
-            {resources}
-          </AdvancedPart>
-          <AdvancedPart
+          {onChange || resource ? <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
+            {onChange ? resources : resourceSummary}
+          </AdvancedPart> : null}
+          {onChange || milestones.length ? <AdvancedPart
             title={T.milestones}
             icon="flag"
             filled={!!milestones.length}
           >
             {stages}
-          </AdvancedPart>
+          </AdvancedPart> : null}
         </CollapsibleContent>
-      </Collapsible>
+      </Collapsible> : null}
       {legacy}
     </>
   );
