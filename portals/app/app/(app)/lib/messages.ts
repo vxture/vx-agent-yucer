@@ -9080,6 +9080,7 @@ export const MARKET_STRATEGY_TEXT = {
   versionRead: "\u67e5\u770b\u7248\u672c",
 
   basicInfo: "\u57fa\u672c\u4fe1\u606f",
+  productSolutionsTitle: "\u4ea7\u54c1\u65b9\u6848",
   targetMarketsTitle: "\u76ee\u6807\u5e02\u573a",
   featuredSolutions: "\u4e3b\u63a8\u4ea7\u54c1\u65b9\u6848",
   creator: "\u521b\u5efa\u4eba",

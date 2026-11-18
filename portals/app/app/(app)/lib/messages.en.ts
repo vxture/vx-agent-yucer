@@ -7783,6 +7783,7 @@ export const en: Dictionary = {
     versionRead: "View version",
 
     basicInfo: "Basic information",
+    productSolutionsTitle: "Products & solutions",
     targetMarketsTitle: "Target markets",
     featuredSolutions: "Featured products & solutions",
     creator: "Created by",

@@ -244,7 +244,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
             </CardContent></Card>
           </Section>
           <StrategyGoals value={result} onChange={setResult} issues={issues} currency={currency}/>
-          <Section id="target-markets" title={T.linkMarkets} icon="target" help={T.relationMarketsHint}
+          <Section id="target-markets" title={T.targetMarketsTitle} icon="target" help={T.relationMarketsHint}
             action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || marketOptions === null} onClick={() => setRelationTask({kind:"markets"})}>{T.linkMarketAction}</Button>}>
             {requiredError("markets")}
             <StrategyMarketCards markets={marketOptions === null ? null : targets.map(t => ({ ...t,
@@ -256,7 +256,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
               solutions: t.solutionIds === undefined || solutionOptions === null ? null : solutionOptions.filter(s => t.solutionIds?.includes(s.id)),
             }))} actions={m => <Button type="button" size="md" variant="ghost" disabled={submit.pending} onClick={()=>setRelationTask({kind:"market",segmentId:m.segmentId})}>{T.marketSettings}</Button>}/>
           </Section>
-          <Section id="primary-solutions" title={T.linkSolutions} icon="squares-four" help={T.sharedSolutionsHint}
+          <Section id="primary-solutions" title={T.productSolutionsTitle} icon="squares-four" help={T.sharedSolutionsHint}
             action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || ((solutionOptions === null || solutionIds === undefined) && (productOptions === null || productIds === undefined))} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>}>
             <StrategySolutionCards products={productOptions === null || productIds === undefined || targets.some(t => t.productIds === undefined) ? null
               : productOptions.filter(p => productIds.includes(p.id) || targets.some(t => t.productIds?.includes(p.id)))} sharedProductIds={productIds} solutions={solutionOptions === null || solutionIds === undefined || targets.some(t => t.solutionIds === undefined) ? null
