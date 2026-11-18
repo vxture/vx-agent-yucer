@@ -1,12 +1,11 @@
 "use client";
 
-import { Section } from "./help-section";
-import { DataTable, FilterBar } from "./business-controls";
+import { DataTable } from "./business-controls";
+import { CollectionHeadline, CollectionHistory, CollectionToolbar } from "./collection-layout";
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
-  Button,
   EmptyState,
   Input,
   StatusBadge,
@@ -226,8 +225,8 @@ export function SolutionRoster({
   ];
 
   // Every reader can open details; write actions retain their original gate.
-  const rowActions = (row: SolutionView, rowIndex: number) => {
-    const list = row.solution.status === "retired" ? retired : live;
+  const rowActions = (row: SolutionView) => {
+    const group = solutions.filter(({ solution }) => solution.status === row.solution.status);
     return (
       <RowActions
         disabled={pending}
@@ -256,7 +255,7 @@ export function SolutionRoster({
                     ),
                   ),
               },
-              ...moveItems(ROW_OPS, rowIndex, list.length, (d) => run(onMove(row.solution.id, d))),
+              ...moveItems(ROW_OPS, group.findIndex(({ solution }) => solution.id === row.solution.id), group.length, (d) => run(onMove(row.solution.id, d))),
               {
                 id: "delete",
                 label: ROW_OPS.remove(CATALOG_TEXT.solutionNoun),
@@ -304,18 +303,18 @@ export function SolutionRoster({
     </div>
   );
 
-  const render = (rows: readonly SolutionView[], retiredGroup = false) => view === "list" ? table(rows, retiredGroup)
-    : !rows.length ? <CardsEmpty narrowed={narrowed} title={retiredGroup ? CATALOG_TEXT.noRetiredSolutions : CATALOG_TEXT.noSolutions}
-      description={retiredGroup ? "" : CATALOG_TEXT.rosterSolutionWhy} />
-    : <div className="flex flex-col gap-lg">{rows.map((row, i) => {
+  const render = (rows: readonly SolutionView[]) => view === "list" ? table(rows)
+    : !rows.length ? <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noSolutions}
+      description={CATALOG_TEXT.rosterSolutionWhy} />
+    : <div className="flex flex-col gap-lg">{sorted.sortRows(rows).map((row) => {
       const { solution, items } = row;
       const contents = items.map(it => products.find(p => p.id === it.productId)?.name).filter(Boolean).join(" / ");
       const composition = CATALOG_TEXT.compositionCount(items.filter(it => !it.optional).length, items.filter(it => it.optional).length);
       const scenario = solution.scenario || solution.summary;
       const markets = marketsBySolution[solution.id] ?? [];
       return <MarketOfferingCard key={solution.id} kind="solution" name={solution.name} number={solution.solutionCode}
-        status={retiredGroup ? <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag> : <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
-        actions={rowActions(row, i)} openLabel={ROW_OPS.details(CATALOG_TEXT.solutionNoun)} onOpen={() => setDetailId(solution.id)}
+        status={<StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
+        actions={rowActions(row)} openLabel={ROW_OPS.details(CATALOG_TEXT.solutionNoun)} onOpen={() => setDetailId(solution.id)}
         summary={<>
           <p className="text-body-small text-muted-foreground">{CATALOG_TEXT.colScenario}</p>
           <p className="line-clamp-2 text-body" title={scenario ?? undefined}>{scenario || "-"}</p>
@@ -340,30 +339,17 @@ export function SolutionRoster({
 
   return (
     <>
+      <CollectionHeadline moduleKey="solution"
+        help={<><p>{CATALOG_TEXT.rosterSolutionWhy}</p><p>{CATALOG_TEXT.solutionPricesHint}</p></>}
+        create={canWrite ? { href: "/solution/new", label: CATALOG_TEXT.newSolutionEntry } : undefined} />
       {detail ? <SolutionDetails view={detail} products={products} facts={factsOf(detail)} currency={currency}
         onClose={() => setDetailId(null)} /> : null}
-      {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
-          【新建方案】, one row for both rosters - the retired list says on
-          its own heading that this control is narrowing it. The create
-          button moved here from the section header; disabled, not hidden,
-          without the permission. */}
-      <FilterBar
-        view={view}
-        onViewChange={setView}
-        actions={
-          canWrite ? (
-            <Button asChild>
-              <a href="/solution/new">{CATALOG_TEXT.newSolutionEntry}</a>
-            </Button>
-          ) : (
-            <Button disabled>{CATALOG_TEXT.newSolutionEntry}</Button>
-          )
-        }
-        count={
-          narrowed
-            ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, solutions.length)
-            : CATALOG_TEXT.solutionCount(solutions.length)
-        }
+      <CollectionToolbar
+        id="solutions"
+        title={CATALOG_TEXT.solutionRoster}
+        icon="list-checks"
+        mode={{ value: view, onChange: setView }}
+        count={shown.length}
         search={
           <SearchSlot>
             <Input
@@ -384,34 +370,14 @@ export function SolutionRoster({
               }
             : undefined
         }
-        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
       >
         <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
-      </FilterBar>
-
-      <Section
-        id="solutions"
-        icon="list-checks"
-        title={CATALOG_TEXT.rosterSolution}
-        help={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`}
-      >
-        {render(live)}
-      </Section>
-
-      {/* The archive remains visible even when empty or filtered out. */}
-      <Section
-        id="solutions-retired"
-        icon="archive"
-        title={CATALOG_TEXT.rosterSolutionRetired}
-        help={CATALOG_TEXT.rosterSolutionRetiredWhy}
-        action={
-          narrowed ? (
-            <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
-          ) : undefined
-        }
-      >
-        {render(retired, true)}
-      </Section>
+      </CollectionToolbar>
+      {live.length || !retired.length ? render(live) : null}
+      <CollectionHistory id="solutions-retired" title={CATALOG_TEXT.rosterSolutionRetired} count={retired.length} mode={view}
+        revealMatches={narrowed && !live.length}>
+        {table(retired, true)}
+      </CollectionHistory>
     </>
   );
 }

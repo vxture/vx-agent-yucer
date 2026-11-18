@@ -1,7 +1,8 @@
 "use client";
 
 import { Section } from "./help-section";
-import { DataTable, FilterBar } from "./business-controls";
+import { DataTable } from "./business-controls";
+import { CollectionHeadline, CollectionHistory, CollectionToolbar } from "./collection-layout";
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -13,9 +14,10 @@ import {
   EmptyState,
   Icon,
   Input,
-  StatusBadge,
+  ListCard,
   TableTitleCell,
   useToast,
+  type FilterBarView,
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
 import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
@@ -139,6 +141,7 @@ export function ProductRoster({
      for. The 分类 filter is the second axis because it is the only column
      with a small, closed set of values. */
   const [query, setQuery] = useState(() => products.find(p => p.id === params.get("product"))?.name ?? "");
+  const [view, setView] = useState<FilterBarView>("list");
   const [typeFilter, setTypeFilter] = useState("");
   const family = typeFilter === "" ? null : typeFamily(types, typeFilter);
   const match = (p: ProductRecord) => {
@@ -187,6 +190,10 @@ export function ProductRoster({
       });
     });
 
+  const statusBadge = (product: ProductRecord) => {
+    const status = vocab.get(product.statusId);
+    return status ? <Tag tone={statusTone(status)}>{status.name}</Tag> : null;
+  };
   const columns = [
     {
       id: "name",
@@ -230,22 +237,15 @@ export function ProductRoster({
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
-      cell: (r: ProductRecord) => {
-        const row = vocab.get(r.statusId);
-        return (
-          <Tag tone={row ? statusTone(row) : "neutral"}>
-            {row?.name ?? ""}
-          </Tag>
-        );
-      },
+      cell: statusBadge,
     },
   ];
 
   /** One menu per row - the DS's single-trigger row-action column. ALWAYS
    * rendered: with no write permission the menu is empty and the trigger is
    * disabled, so the column holds its place (the 2026-09-06 fittings ruling). */
-  const rowActions = (row: ProductRecord, rowIndex: number) => {
-    const list = codeOf(row) === "retired" ? retired : live;
+  const rowActions = (row: ProductRecord) => {
+    const group = products.filter(product => isRetired(product) === isRetired(row));
     return (
       <RowActions
         disabled={pending}
@@ -264,7 +264,7 @@ export function ProductRoster({
                 label: moveLabel(row, to),
                 onSelect: () => run(onStatus(row.id, to.id)),
               })),
-              ...moveItems(ROW_OPS, rowIndex, list.length, (d) => run(onMove(row.id, d))),
+              ...moveItems(ROW_OPS, group.findIndex(product => product.id === row.id), group.length, (d) => run(onMove(row.id, d))),
               {
                 id: "delete",
                 label: ROW_OPS.remove(CATALOG_TEXT.productNoun),
@@ -388,28 +388,32 @@ export function ProductRoster({
     );
   }
 
+  const renderLive = () => view === "list" || !live.length ? table(live) : (
+    <div className="@container">
+      <div className="grid min-w-0 grid-cols-1 gap-lg @2xl:grid-cols-2 @5xl:grid-cols-3" data-product-cards>
+        {sorted.sortRows(live).map((product) => <ListCard key={product.id} title={product.name}
+          description={product.productCode} icon="cube" status={statusBadge(product)}
+          actions={rowActions(product)} meta={<div className="flex w-full flex-wrap items-center justify-between gap-sm">
+            <span>{[typeNameOf(product.typeId), unitName.get(product.unitId)].filter(Boolean).join(" \u00b7 ")}</span>
+            {pricing ? <ProductPriceValues price={priceByProduct.get(product.id)} currency={pricing.currency} /> : null}
+          </div>} />)}
+      </div>
+    </div>
+  );
+
   return (
     <>
-      {/* ONE TOOL ROW FOR BOTH ROSTERS. A catalogue is looked up by name or
-          code, and the person looking does not necessarily know the product
-          has been retired - that is often the answer they came for. The
-          retired roster below says on its own heading that the same control
-          is narrowing it. */}
-      <FilterBar
-        actions={
-          canWrite ? (
-            <Button asChild>
-              <a href="/catalog/new">{CATALOG_TEXT.newProduct}</a>
-            </Button>
-          ) : (
-            <Button disabled>{CATALOG_TEXT.newProduct}</Button>
-          )
-        }
-        count={
-          narrowed
-            ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, products.length)
-            : CATALOG_TEXT.productCount(products.length)
-        }
+      <CollectionHeadline moduleKey="catalog" help={CATALOG_TEXT.rosterLiveWhy}
+        create={canWrite ? { href: "/catalog/new", label: CATALOG_TEXT.newProduct } : undefined} />
+      <CollectionToolbar
+        id="products"
+        title={CATALOG_TEXT.productRoster}
+        icon="list-checks"
+        mode={{ value: view, onChange: setView }}
+        count={shown.length}
+        actions={pricing ? <Button size="xl" variant="outline" className="px-md" onClick={() => openHistory("all")}>
+          <Icon name="clock-counter-clockwise" size="sm" aria-hidden="true" />{CATALOG_TEXT.priceHistory}
+        </Button> : undefined}
         search={
           <SearchSlot>
             <Input
@@ -430,34 +434,14 @@ export function ProductRoster({
               }
             : undefined
         }
-        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
       >
         <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
-      </FilterBar>
-
-      <Section
-        id="products"
-        icon="list-checks"
-        title={CATALOG_TEXT.rosterLive}
-        help={CATALOG_TEXT.rosterLiveWhy}
-      >
-        {table(live)}
-      </Section>
-
-      {/* The archive remains visible even when empty or filtered out. */}
-      <Section
-        id="retired"
-        icon="archive"
-        title={CATALOG_TEXT.rosterRetired}
-        help={CATALOG_TEXT.rosterRetiredWhy}
-        action={
-          narrowed ? (
-            <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
-          ) : undefined
-        }
-      >
+      </CollectionToolbar>
+      {live.length || !retired.length ? renderLive() : null}
+      <CollectionHistory id="retired" title={CATALOG_TEXT.rosterRetired} count={retired.length} mode={view}
+        revealMatches={narrowed && !live.length}>
         {table(retired, undefined, true)}
-      </Section>
+      </CollectionHistory>
       {pricing && editingPrice ? (
         <ProductPricePanel key={`edit-${editingPrice}`} mode="edit" products={products}
           product={products.find((p) => p.id === editingPrice)} pricing={pricing}

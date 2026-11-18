@@ -1899,7 +1899,7 @@ export const en: Dictionary = {
     byTypeEmpty: "No products yet - the breakdown starts with the first one",
     typeStat: (active: number, dev: number) =>
       dev > 0 ? `${active} on sale · ${dev} in development` : `${active} on sale`,
-    rosterLive: "Current products",
+    productRoster: "Product list",
     noCurrentProducts: "No current products",
     rosterLiveWhy: "Products on sale, in development or in another non-retired status.",
     rosterRetired: "Retired products",
@@ -1984,7 +1984,7 @@ export const en: Dictionary = {
     solutionStat: (inSolution: number, outside: number) =>
       outside > 0 ? `${inSolution} in a solution · ${outside} not` : `${inSolution} in a solution`,
     solutionStatEmpty: "No products on sale yet - coverage starts with the first one",
-    rosterSolution: "Active solutions",
+    solutionRoster: "Solution list",
     rosterSolutionWhy:
       "Product combinations and business customisations available for quoting.",
     rosterSolutionRetired: "Inactive solutions",
@@ -7821,6 +7821,7 @@ export const en: Dictionary = {
   live: "Current strategies",
   history: "Past strategies",
   library: "Market segments",
+  marketRoster: "Market list",
   libraryWhy: "Define customer criteria and shared needs for reuse across strategies.",
   direction: "Strategic direction",
   directionEmpty: "No strategic direction yet",

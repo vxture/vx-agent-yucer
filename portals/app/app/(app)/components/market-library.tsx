@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { Button, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, NativeSelect, TableTitleCell, useListPagination, useToast, type FilterBarView } from "@vxture/design-ui";
 import { DataTable, FilterBar } from "./business-controls";
+import { CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
 import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { strategyOfferings } from "../lib/strategy-offerings";
 import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
@@ -39,7 +40,7 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
   const [match, setMatch] = useState("");
   const rows = market.customers?.filter(a => (!match || a.match === match) && (!query.trim() || `${a.name} ${a.accountNo}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))) ?? [];
   const pagination = useListPagination(rows, 10);
-  return <Drawer open onClose={onClose} width="lg" title={market.name} description={market.segmentCode} closeLabel={T.closed}>
+  return <Drawer open onClose={onClose} width={collectionDrawerWidth.wide} title={market.name} description={market.segmentCode} closeLabel={T.closed}>
     <div className="flex min-w-0 flex-col gap-xl" data-market-details>
       <Section title={T.marketInsight} icon="lightbulb" help={T.marketInsightHint}>
         <DetailList columns={2}>
@@ -83,7 +84,7 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
   </Drawer>;
 }
 
-export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly initialMarket?: string; readonly scope?: ReactNode; readonly actions?: ReactNode }) {
+export function MarketLibrary({ markets, canWrite, initialMarket, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly initialMarket?: string; readonly actions?: ReactNode }) {
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS } = useMessages();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<FilterBarView>("cards");
@@ -107,6 +108,7 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
   });
   const filtered = markets.filter(m => (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.plans?.map(p => p.name).join(" ") ?? ""} ${m.criteria.customerNeed ?? ""} ${m.criteria.buyingScenario ?? ""} ${m.criteria.expectedOutcome ?? ""} ${m.criteria.entryBarrier ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const live = filtered.filter(m=>m.status === "active"), shelved = filtered.filter(m=>m.status !== "active");
+  const mode = comparing ? "list" : view;
   const chosen = markets.filter(m => selected.includes(m.id));
   const rowActions = (m: MarketView) => <RowActions disabled={pending} items={[
       {id:"view",label:T.openMarket,onSelect:()=>setDetail(m.id)},
@@ -138,8 +140,8 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
     rowActions={rowActions}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}
   />;
-  const render = (rows: readonly MarketView[]) => comparing || view === "list" ? table(rows) : rows.length ? (
-    <div className="flex flex-col gap-lg">{rows.map(m => {
+  const render = (rows: readonly MarketView[]) => mode === "list" ? table(rows) : rows.length ? (
+    <div className="flex flex-col gap-lg">{sorted.sortRows(rows).map(m => {
       const offerings = strategyOfferings(m.defaultSolutions, m.defaultProducts);
       const criteria = [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions].join(" / ");
       return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode}
@@ -181,19 +183,22 @@ export function MarketLibrary({ markets, canWrite, initialMarket, scope, actions
   ];
   const viewed = markets.find(m=>m.id===detail);
   return <div className="flex min-w-0 flex-col gap-xl" data-market-library>
-    <FilterBar view={comparing ? undefined : view} onViewChange={comparing ? undefined : setView} scope={comparing ? <div className="flex flex-wrap items-center gap-sm">{scope}<span role="status" className="text-body-small text-muted-foreground">{T.compareLimit}</span></div> : scope} search={<SearchSlot><Input aria-label={T.searchMarkets} placeholder={T.searchMarkets} value={query} onChange={e=>{setQuery(e.target.value);setSelected([]);}} /></SearchSlot>}
+    <CollectionToolbar title={T.marketRoster} icon="list-checks" count={filtered.length}
+      mode={comparing ? undefined : { value: view, onChange: setView }}
+      notice={comparing ? <span role="status" className="text-body-small text-muted-foreground">{T.compareLimit}</span> : undefined}
+      search={<SearchSlot><Input type="search" aria-label={T.searchMarkets} placeholder={T.searchMarkets} value={query} onChange={e=>{setQuery(e.target.value);setSelected([]);}} /></SearchSlot>}
       onReset={query || status ? ()=>{setQuery("");setStatus("");setSelected([]);}:undefined}
-      actions={<div className="flex items-center gap-sm" data-market-compare-actions>{comparing ? <>
-        <Button variant="secondary" size="md" disabled={chosen.length<2 || chosen.length>3} title={T.compareLimit} onClick={()=>setCompare(true)}>{T.compareSelected(chosen.length)}</Button>
-        <Button variant="ghost" size="md" onClick={()=>{setComparing(false);setSelected([]);setCompare(false);}}>{T.cancelCompare}</Button>
-      </> : <Button variant="secondary" size="md" disabled={markets.length<2} onClick={()=>setComparing(true)}>{T.compare}</Button>}{actions}</div>}>
+      actions={<div className="flex min-w-0 flex-wrap items-center justify-end gap-sm" data-market-compare-actions>{comparing ? <>
+        <Button variant="outline" size="xl" className="px-md" disabled={chosen.length<2 || chosen.length>3} title={T.compareLimit} onClick={()=>setCompare(true)}>{T.compareSelected(chosen.length)}</Button>
+        <Button variant="ghost" size="xl" className="px-md" onClick={()=>{setComparing(false);setSelected([]);setCompare(false);}}>{T.cancelCompare}</Button>
+      </> : <Button variant="outline" size="xl" className="px-md" disabled={filtered.length<2} onClick={()=>setComparing(true)}>{T.compare}</Button>}{actions}</div>}>
       <FilterSlot><NativeSelect aria-label={T.status} value={status} onChange={e=>{setStatus(e.target.value);setSelected([]);}}><option value="">{T.allStates}</option>{Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</NativeSelect></FilterSlot>
-    </FilterBar>
-    {live.length || !shelved.length ? <div aria-label={T.library}>{render(live)}</div> : null}
-    {shelved.length ? <Section title={T.shelvedMarkets} icon="archive">{render(shelved)}</Section>:null}
-    <p className="text-body-small text-muted-foreground">{T.baseOnly}</p>
+    </CollectionToolbar>
+    {live.length || !shelved.length ? render(live) : null}
+    <CollectionHistory title={T.shelvedMarkets} count={shelved.length} mode={mode}
+      revealMatches={!live.length && Boolean(query.trim() || status)}>{table(shelved)}</CollectionHistory>
     {viewed ? <MarketDetails key={viewed.id} market={viewed} canWrite={canWrite} onClose={()=>setDetail(null)} />:null}
-    <Drawer open={compare} onClose={()=>setCompare(false)} title={T.compare} description={T.compareWhy} width="lg" closeLabel={T.closed}>
+    <Drawer open={compare} onClose={()=>setCompare(false)} title={T.compare} description={T.compareWhy} width={collectionDrawerWidth.wide} closeLabel={T.closed}>
       <div className="min-w-0" data-market-comparison>
         <DataTable labels={DATA_TABLE_LABELS} rows={comparisonRows} rowKey={r=>r.id}
           className="[&_table]:min-w-(--container-xl)" columns={[

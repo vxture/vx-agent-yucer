@@ -193,8 +193,9 @@ export function RowActions({
   readonly disabled?: boolean;
   readonly label?: string;
 }) {
+  const { DS_LABELS } = useMessages();
   return (
-    <ActionMenu items={items} disabled={disabled || items.length === 0} label={label} />
+    <ActionMenu items={items} disabled={disabled || items.length === 0} label={label ?? DS_LABELS.actionMenu} />
   );
 }
 

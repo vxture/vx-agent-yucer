@@ -999,7 +999,7 @@ export const CATALOG_TEXT = {
   byTypeEmpty: "还没有产品，分类统计从第一个产品开始",
   typeStat: (active: number, dev: number) =>
     dev > 0 ? `${active} 在售 · ${dev} 研发` : `${active} 在售`,
-  rosterLive: "当前产品",
+  productRoster: "\u4ea7\u54c1\u6e05\u5355",
   noCurrentProducts: "暂无当前产品",
   rosterLiveWhy: "包括在售、在研及其他未退役状态的产品。",
   rosterRetired: "退役产品",
@@ -1099,7 +1099,7 @@ export const CATALOG_TEXT = {
   solutionStat: (inSolution: number, outside: number) =>
     outside > 0 ? `${inSolution} 已入方案 · ${outside} 未入` : `${inSolution} 已入方案`,
   solutionStatEmpty: "还没有在售产品，方案覆盖统计从第一个产品开始",
-  rosterSolution: "在用方案",
+  solutionRoster: "\u65b9\u6848\u6e05\u5355",
   rosterSolutionWhy:
     "可用于报价的产品组合与业务定制方案。",
   rosterSolutionRetired: "停用方案",
@@ -9118,6 +9118,7 @@ export const MARKET_STRATEGY_TEXT = {
   live: "\u5f53\u524d\u6218\u7565",
   history: "\u5386\u53f2\u6218\u7565",
   library: "\u7ec6\u5206\u5e02\u573a",
+  marketRoster: "\u5e02\u573a\u6e05\u5355",
   libraryWhy: "\u7528\u5ba2\u7fa4\u6761\u4ef6\u548c\u5171\u6027\u9700\u6c42\u5b9a\u4e49\u5e02\u573a\uff0c\u4f9b\u4e0d\u540c\u6218\u7565\u9009\u62e9\u3002",
   direction: "\u6218\u7565\u65b9\u5411",
   directionEmpty: "\u5c1a\u672a\u660e\u786e\u6218\u7565\u65b9\u5411",
