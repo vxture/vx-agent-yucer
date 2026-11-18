@@ -15,7 +15,6 @@ import type { CampaignRecord } from "../../domains/strategy/store";
 import { can } from "../../authz/decide";
 import { CampaignTable, type CampaignRow } from "../components/campaign-table";
 import { moveCampaign } from "./actions";
-import { NewEntryLink } from "../components/form-page";
 import {
   ExecutionPanel,
   type ExecutionRow,
@@ -155,10 +154,8 @@ export default async function CampaignPage() {
           one reading worth the top of the page, so it is said in words. */}
       <ModuleHeadline
         moduleKey="campaign"
-        action={
-          can(session.authz, session.entitlement, "campaign.upsert", "ui")
-            .allowed ? <NewEntryLink href="/campaign/create" label={CAMPAIGN_TEXT.newCampaign} /> : null
-        }
+        create={can(session.authz, session.entitlement, "campaign.upsert", "ui").allowed
+          ? { href: "/campaign/create", label: CAMPAIGN_TEXT.newCampaign } : undefined}
         tags={
           <>
             <StatusBadge tone="success">{CAMPAIGN_TEXT.tagCount(rows.length)}</StatusBadge>

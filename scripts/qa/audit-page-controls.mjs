@@ -54,13 +54,32 @@ const ordered = [...constants.filter((p) => p.route.split("/").length <= 2), ...
 const reserved = new Set(constants.map((p) => p.route));
 function sampleFor(p) {
   const regex = new RegExp("^" + p.route.split("/").map((s) => s.startsWith("[") ? "[^/]+" : s).join("/") + "$");
-  return p.route.includes("[") ? [...links].find((l) => regex.test(new URL(l).pathname) && !reserved.has(new URL(l).pathname))?.replace(base, "") ?? p.sample : p.sample;
+  return p.sample ?? (p.route.includes("[")
+    ? [...links].find((l) => regex.test(new URL(l).pathname) && !reserved.has(new URL(l).pathname))?.replace(base, "")
+    : undefined);
 }
 async function sampleFromEntry(p) {
+  const parent = p.entryProbe.path.split("?")[0];
+  const existingLink = `(()=>{
+    const prefix = ${JSON.stringify(parent + "/")};
+    const reserved = new Set(${JSON.stringify([...reserved])});
+    return [...document.querySelectorAll('table a[href]')]
+      .map(a => new URL(a.href))
+      .find(url => url.origin === location.origin && url.pathname.startsWith(prefix) &&
+        !url.pathname.slice(prefix.length).includes("/") && !reserved.has(url.pathname))?.pathname;
+  })()`;
   const n = await call("Page.navigate", { url: base + p.entryProbe.path });
   if (n.errorText) throw Error(n.errorText);
   for (let i = 0; i < 250; i++) {
-    if (await ev(`location.pathname===${JSON.stringify(p.entryProbe.path.split('?')[0])}&&document.readyState==='complete'&&(()=>{const b=document.querySelector('table button[aria-haspopup=menu]:not(:disabled)');return b&&Object.keys(b).some(k=>k.startsWith('__reactProps'))})()`)) break;
+    if (await ev(`location.pathname===${JSON.stringify(parent)}&&document.readyState==='complete'`)) {
+      const target = await ev(existingLink);
+      if (target) return target;
+      const hydrated = await ev(`(()=>{
+        const b = document.querySelector('table button[aria-haspopup=menu]:not(:disabled)');
+        return b && Object.keys(b).some(k => k.startsWith('__reactProps'));
+      })()`);
+      if (hydrated) break;
+    }
     await sleep(200);
   }
   await sleep(500);

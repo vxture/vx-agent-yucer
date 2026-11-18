@@ -1,3 +1,6 @@
+import { PageActionButton } from "../../components/page-header-actions";
+import { NewEntryLink } from "../../components/form-page";
+import Link from "next/link";
 import { ViewHeader } from "../../components/business-controls";
 import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -12,7 +15,6 @@ import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgMembers, listOrgUnits } from "../../../domains/planning/service";
 import { RolePanel } from "../../components/role-panel";
 import { RoleReset } from "../../components/role-reset";
-import { NewEntryLink } from "../../components/form-page";
 
 // 角色管理 - the workspace's own roles (incr/0046).
 //
@@ -96,19 +98,15 @@ export default async function RolesPage() {
             {ROLE_TEXT.coverage(rows.length, custom, PERM_CODES.length)}
           </StatusBadge>
         }
-        action={
-          editable ? (
-            <>
-              {/* The two vocabularies' own page (0047): configuration beside
-                  the other ways to change what the roster says. 新建角色
-                  itself lives in RolePanel's own FilterBar now - the same
-                  split org/division already have between page-level actions
-                  here and "new row" in the toolbar. */}
-              <NewEntryLink href="/admin/roles/groups" label={ROLE_TEXT.groupsButton} />
-              <RoleReset changed={changed} missing={missing} />
-            </>
-          ) : null
-        }
+        pageActions={{
+          secondary: editable ? (
+              <>
+                <PageActionButton asChild><Link href="/admin/roles/groups">{ROLE_TEXT.groupsButton}</Link></PageActionButton>
+                <RoleReset changed={changed} missing={missing} />
+              </>
+            ) : null,
+          primary: editable ? <NewEntryLink href="/admin/roles/new" label={ROLE_TEXT.newRole} /> : undefined,
+        }}
       />
       <RolePanel rows={rows} total={PERM_CODES.length} editable={editable} members={roster} />
     </ViewLayout>

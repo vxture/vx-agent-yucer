@@ -624,31 +624,26 @@ export function AttainmentTargets({
         />
       ) : null}
       {regions.length ? (
-        <Section
-          icon={groupKind === "member" ? "users" : "map-pin"}
-          title={groupKind === "member" ? T.teamTitle : T.regions}
-          help={groupKind === "member" ? T.teamHint : T.regionsHint}
-        >
+        <Section>
           <FilterBar
+            heading={{
+              title: groupKind === "member" ? T.teamTitle : T.regions,
+              icon: groupKind === "member" ? "users" : "map-pin",
+              help: groupKind === "member" ? T.teamHint : T.regionsHint,
+            }}
             view={view}
             onViewChange={setView}
+            count={regions.length}
             actions={
               view === "list" ? (
-                <div className="flex items-center gap-sm text-body-small text-muted-foreground">
-                  <span>
-                    {groupKind === "member"
-                      ? T.memberBasis
-                      : plan.current
-                        ? `V${plan.current.version}`
-                        : T.legacy}
-                    {" \u00b7 "}
-                    {regions[0]?.currency}
-                  </span>
-                  <RowActions
-                    label={groupKind === "member" ? T.teamTitle : T.regions}
-                    items={[]}
-                  />
-                </div>
+                <span className="text-body-small text-muted-foreground">
+                  {groupKind === "member"
+                    ? T.memberBasis
+                    : plan.current
+                      ? `V${plan.current.version}`
+                      : T.legacy}
+                  {" · "}{regions[0]?.currency}
+                </span>
               ) : undefined
             }
           />

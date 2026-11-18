@@ -75,6 +75,7 @@ export function AuditRoster({ rows }: { readonly rows: readonly AuditRow[] }) {
   return (
     <div className="gap-md flex flex-col">
       <FilterBar
+        heading={{ title: TABLE_TOOLBAR_TEXT.audit, icon: "list-checks" }}
         count={
           narrowed
             ? TABLE_TOOLBAR_TEXT.filteredCount(filtered.length, rows.length)

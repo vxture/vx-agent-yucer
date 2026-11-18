@@ -129,8 +129,8 @@ export function JudgementWorkspace({
         }
         description={HOME_TEXT.leadSub(scanned, judgements.length)}
         help={BOARD_TEXT.analysisNote}
-        action={
-          <Stack gap="xs" className="flex-row flex-wrap items-center">
+        pageActions={{ context: (
+          <>
             <SegmentedControl
               ariaLabel={HOME_TEXT.scopeLabel}
               value={scope}
@@ -173,8 +173,8 @@ export function JudgementWorkspace({
                 },
               ]}
             />
-          </Stack>
-        }
+          </>
+        ) }}
       />
 
       {shown.length === 0 ? (

@@ -21,7 +21,7 @@ function walk(dir) {
   }
 }
 walk(root);
-const tags = new Set(["Button", "DestructiveButton", "Input", "NativeSelect", "Combobox", "SelectTrigger", "Textarea", "TabsList", "TabsTrigger", "SegmentedControl", "Toggle", "ToggleGroupItem", "DialogForm", "Drawer", "ActionMenu", "ConfirmDestructive", "button", "input", "select", "textarea", "CollapsibleTrigger", "PopoverTrigger", "DialogTrigger", "DropdownMenuTrigger", "AlertDialogTrigger", "Pagination", "BulkActionBar", "FilterBar", "ViewModeSwitch"]);
+const tags = new Set(["Button", "DestructiveButton", "Input", "NativeSelect", "Combobox", "SelectTrigger", "Textarea", "TabsList", "TabsTrigger", "SegmentedControl", "Toggle", "ToggleGroupItem", "DialogForm", "Drawer", "ActionMenu", "ConfirmDestructive", "button", "input", "select", "textarea", "CollapsibleTrigger", "PopoverTrigger", "DialogTrigger", "DropdownMenuTrigger", "AlertDialogTrigger", "Pagination", "BulkActionBar", "FilterBar", "ViewModeSwitch", "PageActionButton", "NewEntryButton", "NewEntryLink"]);
 function visit(n, cb) {
   if (!n || typeof n !== "object") return;
   cb(n);
@@ -43,6 +43,11 @@ for (const f of files) {
     const importSource = ["ImportDeclaration", "ExportNamedDeclaration", "ExportAllDeclaration", "ImportExpression"].includes(n.type)
       ? n.source?.value
       : n.type === "CallExpression" && (n.callee?.type === "Import" || n.callee?.name === "require") ? n.arguments?.[0]?.value : null;
+    if (file.startsWith("(app)/") && file !== "(app)/components/business-controls.tsx" &&
+      n.type === "ImportDeclaration" && /^@vxture\/design-(ui|system)(\/|$)/.test(importSource ?? "") &&
+      n.specifiers.some((entry) => entry.imported?.name === "ViewHeader" || entry.imported?.value === "ViewHeader")) {
+      errors.push(`${file}:${n.loc.start.line}: business page headers must use the shared ViewHeader and pageActions slots`);
+    }
     if (importSource?.startsWith(".")) {
       const base = path.resolve(path.dirname(f), importSource);
       const dst = [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`].find((p) => fs.existsSync(p) && fs.statSync(p).isFile());

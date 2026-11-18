@@ -1,3 +1,4 @@
+import { PageActionCrumbs } from "../../components/page-header-actions";
 import { MemberName } from "../../lib/member-names";
 import {
   EmptyState,
@@ -1345,9 +1346,10 @@ export default async function AccountDetailPage({
             AccountSidebarPortal - 这里已经是 page.tsx 直接渲染的内容区,
             不需要传送门。 ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
-          <div className="flex items-center justify-between gap-sm">
-            <ChainCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
-            <AccountHeaderMenu />
+          <div>
+            <PageActionCrumbs more={canWrite ? <AccountHeaderMenu /> : undefined}>
+              <ChainCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
+            </PageActionCrumbs>
             {/* The three editors, shared with the panels' own menus
                 (account-edit-context.tsx) - rendered here, inside the
                 centre pane, so they add no child to the shell's row. */}

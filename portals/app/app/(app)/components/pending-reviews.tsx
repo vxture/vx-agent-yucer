@@ -235,6 +235,7 @@ export function PendingReviews({
           population, a scope swaps the population. 待复盘 / 全部复盘 swaps it,
           so it belongs in `scope`. */}
       <FilterBar
+        heading={{ title: TABLE_TOOLBAR_TEXT.reviews, icon: "list-checks" }}
         view={view}
         onViewChange={setView}
         count={filtering ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, population.length) : PIPELINE_TEXT.rowCount(population.length)}

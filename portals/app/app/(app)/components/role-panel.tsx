@@ -4,7 +4,6 @@ import { DataTable, FilterBar } from "./business-controls";
 
 import {
   BulkActionBar,
-  Button,
   EmptyState,
   Input,
   ListCard,
@@ -88,7 +87,7 @@ export function RolePanel({
   /** The workspace's roster, for 查看成员 (everyone) and 关联成员 (editors only). */
   readonly members: readonly RoleMemberSummary[];
 }) {
-  const { DATA_TABLE_LABELS, DS_LABELS, ROLE_ERROR, ROLE_TEXT, ROW_OPS } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, ROLE_ERROR, ROLE_TEXT, ROW_OPS, TABLE_TOOLBAR_TEXT } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
@@ -287,6 +286,7 @@ export function RolePanel({
     <Section id="roles">
       {rows.length > 0 ? (
         <FilterBar
+          heading={{ title: TABLE_TOOLBAR_TEXT.roles, icon: "list-checks" }}
           count={
             searching
               ? ROLE_TEXT.toolbarFilteredCount(filtered.length, rows.length)
@@ -311,7 +311,6 @@ export function RolePanel({
           }
           onReset={searching ? () => { setQuery(""); setLineFilter(""); setRankFilter(""); pagination.resetPage(); } : undefined}
           resetLabel={ROLE_TEXT.resetFilters}
-          actions={editable ? <Button onClick={() => router.push("/admin/roles/new")}>{ROLE_TEXT.newRole}</Button> : undefined}
         >
           {lineOptions.length > 0 ? (
             <FilterSlot width="w-[9rem]">
@@ -403,19 +402,20 @@ export function RolePanel({
         <div
           className={
             `[&_table]:table-fixed`
-            + " [&_thead_th:nth-child(3)]:w-[30%]"
-            + " [&_thead_th:nth-child(4)]:w-[8%]"
+            + " [&_thead_th:nth-child(2)]:w-[30%]"
+            + " [&_thead_th:nth-child(3)]:w-[8%]"
+            + " [&_thead_th:nth-child(4)]:w-[10%]"
             + " [&_thead_th:nth-child(5)]:w-[10%]"
-            + " [&_thead_th:nth-child(6)]:w-[10%]"
+            + " [&_thead_th:nth-child(6)]:w-[8%]"
             + " [&_thead_th:nth-child(7)]:w-[8%]"
-            + " [&_thead_th:nth-child(8)]:w-[8%]"
-            + " [&_thead_th:nth-child(9)]:w-[26%]"
+            + " [&_thead_th:nth-child(8)]:w-[26%]"
           }
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
             indexStart={pagination.indexStart}
-            selectedKeys={selected}
+            compactSelection={{ label: row => TABLE_TOOLBAR_TEXT.selectRecord(row.name) }}
+            selectedKeys={editable ? selected : undefined}
             onSelectionChange={(keys) => setSelected([...keys])}
             rowActions={actionsFor}
             rowKey={(r: RoleRow) => r.code}

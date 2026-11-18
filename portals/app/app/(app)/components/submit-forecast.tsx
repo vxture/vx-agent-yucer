@@ -1,5 +1,6 @@
 "use client";
 
+import { PageActionButton } from "./page-header-actions";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -117,15 +118,12 @@ export function SubmitForecast({
 
   if (!canSubmit) {
     return (
-      <Button
-        size="xl"
-        className="font-medium"
-        variant="outline"
+      <PageActionButton intent="primary"
         disabled
         title={PIPELINE_TEXT.snapshotDenied}
       >
         {T.submit}
-      </Button>
+      </PageActionButton>
     );
   }
 
@@ -172,9 +170,7 @@ export function SubmitForecast({
       {done && !error ? (
         <StatusBadge tone="success">{T.submitDone}</StatusBadge>
       ) : null}
-      <Button
-        size="xl"
-        className="font-medium"
+      <PageActionButton intent="primary"
         disabled={pending}
         onClick={() => {
           setError(null);
@@ -184,7 +180,7 @@ export function SubmitForecast({
         }}
       >
         {pending ? T.submitPending : T.submit}
-      </Button>
+      </PageActionButton>
       {open ? (
         <DialogForm
           open

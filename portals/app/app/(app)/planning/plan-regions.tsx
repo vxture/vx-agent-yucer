@@ -145,30 +145,27 @@ export function PlanRegions({
       : []),
   ];
   return (
-    <Section
-      icon="map-pin"
-      title={T.regions}
-      help={T.regionsHint}
-      action={
-        <RowActions
-          label={`${T.regions} · ${DS_LABELS.actionMenu}`}
-          items={[
-            {
-              id: "configure",
-              label: T.configure,
-              icon: "settings",
-              onSelect: () =>
-                window.open("/admin/division", "_blank", "noopener,noreferrer"),
-            },
-          ]}
-        />
-      }
-    >
+    <Section>
       <div className="flex flex-col gap-md">
         <FilterBar
+          heading={{ title: T.regions, icon: "map-pin", help: T.regionsHint }}
           view={view}
           onViewChange={setView}
           count={T.regionCount(regions.length)}
+          actions={
+            <RowActions
+              label={`${T.regions} · ${DS_LABELS.actionMenu}`}
+              items={[
+                {
+                  id: "configure",
+                  label: T.configure,
+                  icon: "settings",
+                  onSelect: () =>
+                    window.open("/admin/division", "_blank", "noopener,noreferrer"),
+                },
+              ]}
+            />
+          }
         />
         {view === "list" ? (
           <Table className="table-fixed min-w-panel-lg" aria-label={T.regions}>

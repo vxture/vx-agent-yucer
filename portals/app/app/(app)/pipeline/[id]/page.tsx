@@ -1,3 +1,4 @@
+import { PageActionCrumbs } from "../../components/page-header-actions";
 import { MemberName } from "../../lib/member-names";
 import { Section } from "../../components/help-section";
 import type { ReactNode } from "react";
@@ -1541,9 +1542,10 @@ export default async function OpportunityDetailPage({
           <div className="flex min-w-0 flex-col gap-lg">
             {/* Crumbs INSIDE 栏2 (owner, 2026-09-24: 只有 header 可以跨栏), the
                 page's editors on the right - the customer page's crumbs row. */}
-            <div className="flex items-center justify-between gap-sm">
-              <PageCrumbs trail={[{ label: DOMAIN_LABEL.pipeline, href: "/pipeline" }]} current={opportunity.name} />
-              <DealHeaderMenu linesHref={linesHref} />
+            <div>
+              <PageActionCrumbs more={<DealHeaderMenu linesHref={linesHref} />}>
+                <PageCrumbs trail={[{ label: DOMAIN_LABEL.pipeline, href: "/pipeline" }]} current={opportunity.name} />
+              </PageActionCrumbs>
               {/* The editors, shared by the crumbs "⋮" and the panels' own -
                   rendered here so they add no child to the shell's row. */}
               <DealTerms

@@ -43,7 +43,7 @@ export default async function AttainmentCoveragePage({ searchParams }: {
         description={`${scopeName} \u00b7 ${selection.period}`}
         help={T.coveragePageHint}
         divider
-        action={<PeriodTabs value={selection.period} periods={periods.quarters} yearLabel={periods.year} yearText={T.periodYear} compact resetParams={["snapshot", "planRevision"]} />}
+        pageActions={{ context: <PeriodTabs value={selection.period} periods={periods.quarters} yearLabel={periods.year} yearText={T.periodYear} compact resetParams={["snapshot", "planRevision"]} /> }}
       />
       <AttainmentProgress selection={selection} />
       <footer className="mt-xl border-t border-dashed border-border pt-lg pb-xl text-body-small text-muted-foreground" data-attainment-cutoff>

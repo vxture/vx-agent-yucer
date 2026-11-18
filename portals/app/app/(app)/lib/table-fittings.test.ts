@@ -3,44 +3,11 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-// 表格三件标配 - owner ruling, 2026-09-06.
-//
-// Every table carries a 选择列, a 序号列 and a right-pinned 操作列, and the
-// action column is there even when the reader has nothing to do in it. The
-// rule is about the GRID: two tables in this product should not disagree
-// about where things sit, and a column that appears for one reader and not
-// another is the same disagreement inside one table.
-//
-// WHAT THIS ASKS, and what it deliberately cannot:
-//   - `selectedKeys` (or the DS `leadingSpacer`, which holds that column's
-//     width without offering the control) - checked.
-//   - `indexStart` - checked.
-//   - `rowActions` PRESENT AS A PROP - checked. Whether it is present for
-//     every READER is a runtime question a text scan cannot answer, so the
-//     second rule below reads the one thing that gives it away: a
-//     `rowActions={...}` whose value is a conditional ending in `undefined`.
-//     `RowActions` (components/table-fittings.tsx) is how a table renders the
-//     empty case instead - an empty, disabled DS trigger.
-//
-// TABLES NOT YET CONVERTED ARE NAMED, NOT EXEMPTED. Every entry below belongs
-// to a module the sidebar rebuild has not reached; the batch that rebuilds it
-// converts its tables and deletes the line. A name still here when its module
-// has been rebuilt is a miss, not a decision.
-
+// Business lists reserve an index and a trailing row-menu column. Selection is
+// conditional on a real bulk action or comparison; named exceptions below
+// also capture tables that use a business identifier in place of the index.
 const LIB = import.meta.dirname;
 const COMPONENTS = join(LIB, "..", "components");
-
-/**
- * Tables whose module has not been rebuilt yet.
- *
- * The five 战略武备域 modules were converted with the ruling (2026-09-06):
- * product-roster, catalog-type-config, catalog-status-config, solution-roster,
- * segment-roster, plan-roster, price-book. 战果沉淀域 is being converted a
- * module at a time and renewal-roster was the first. Everything below is in a
- * domain whose turn has not come.
- */
-const NOT_YET_CONVERTED: Record<string, string> = {
-};
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
@@ -65,10 +32,9 @@ test("the sweep found the tables at all - guards against an empty run", () => {
   assert.ok(TABLES.length > 20, `expected many tables, found ${TABLES.length}`);
 });
 
-test("every converted table carries the three standard fittings", () => {
+test("business tables carry the required edge fittings", () => {
   const missing: string[] = [];
   for (const t of TABLES) {
-    if (t.name in NOT_YET_CONVERTED) continue;
     const exempt = FITTING_EXEMPTIONS[t.name]?.skip ?? [];
     const has = {
       选择: exempt.includes("选择") || t.text.includes("selectedKeys") || t.text.includes("leadingSpacer"),
@@ -83,7 +49,7 @@ test("every converted table carries the three standard fittings", () => {
   assert.deepEqual(
     missing,
     [],
-    `每张表都要有 选择列 / 序号列 / 操作列 (owner, 2026-09-06):\n  ${missing.join("\n  ")}`,
+    `清单缺少必要的选择 / 序号 / 操作位置：\n  ${missing.join("\n  ")}`,
   );
 });
 
@@ -116,6 +82,12 @@ const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[
     skip: ["\u9009\u62e9"],
     reason: "Solutions have no batch action; cards and list offer the same per-record actions.",
   },
+  "forecast-roster.tsx": { skip: ["选择"], reason: "Forecast discrepancies are reviewed individually in the row menu." },
+  "collection-roster.tsx": { skip: ["选择"], reason: "Each payment item has individual actions; there is no batch action." },
+  "delivery-roster.tsx": { skip: ["选择"], reason: "Rows expand the project plan and have individual actions; there is no batch selection." },
+  "renewal-roster.tsx": { skip: ["选择"], reason: "Renewal actions apply to individual records." },
+  "vocabulary-config.tsx": { skip: ["选择"], reason: "Vocabulary entries have individual lifecycle and order actions." },
+  "member-panel.tsx": { skip: ["选择"], reason: "Member details, configuration and handovers are per record in list view. The organisation view has its own bulk actions." },
   "account-table.tsx": {
     skip: ["选择"],
     reason: "客户列表不设选择列 - 没有作用于多个客户的操作 (同报价管理 / 商机列表的裁定, owner 2026-09-26: 可以不要选择列)",
@@ -171,7 +143,7 @@ const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[
 test("the action column does not vanish for a reader who cannot act", () => {
   const vanishing: string[] = [];
   for (const t of TABLES) {
-    if (t.name in NOT_YET_CONVERTED || t.name in ACTIONS_REPLACED) continue;
+    if (t.name in ACTIONS_REPLACED) continue;
     // A `rowActions` prop whose value can be undefined, or a
     // `const rowActions = cond ? fn : undefined` feeding one.
     if (
@@ -189,10 +161,9 @@ test("the action column does not vanish for a reader who cannot act", () => {
   );
 });
 
-test("every registry entry (backlog or by-design) still names a table that exists", () => {
+test("every exception still names a table that exists", () => {
   const names = new Set(TABLES.map((t) => t.name));
   const stale: string[] = [];
-  for (const n of Object.keys(NOT_YET_CONVERTED)) if (!names.has(n)) stale.push(`NOT_YET_CONVERTED.${n}`);
   for (const n of Object.keys(ACTIONS_REPLACED)) if (!names.has(n)) stale.push(`ACTIONS_REPLACED.${n}`);
   for (const n of Object.keys(FITTING_EXEMPTIONS)) if (!names.has(n)) stale.push(`FITTING_EXEMPTIONS.${n}`);
   for (const n of Object.keys(WIDTH_EXEMPTIONS)) if (!names.has(n)) stale.push(`WIDTH_EXEMPTIONS.${n}`);

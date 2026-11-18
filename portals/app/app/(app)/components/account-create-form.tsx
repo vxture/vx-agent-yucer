@@ -1,5 +1,6 @@
 "use client";
 
+import { PageActionButton } from "./page-header-actions";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -192,7 +193,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   };
   return <div className={`flex min-w-0 flex-col gap-lg ${FORM_ENTRY_CLASS}`} data-business-form data-account-registration>
     <ViewHeader icon="user-plus" title={B.createTitle} help={T.createHelp}
-      action={<Button size="xl" disabled={busy || !values.name.trim()} onClick={review}>{T.reviewSubmit}</Button>} />
+      pageActions={{ primary: <PageActionButton intent="primary" disabled={busy || !values.name.trim()} onClick={review}>{T.reviewSubmit}</PageActionButton> }} />
     <AccountRegistrationAssistant {...assistantProps} compact={!!assistantSlot} />
     {assistantSlot ? createPortal(<AccountRegistrationAssistant {...assistantProps} dock />, assistantSlot) : null}
     <Card className="flex w-full flex-col gap-lg p-lg">

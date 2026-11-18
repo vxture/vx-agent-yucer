@@ -1,5 +1,6 @@
+import { NewEntryLink } from "../../components/form-page";
 import { ViewHeader } from "../../components/business-controls";
-import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
@@ -88,13 +89,11 @@ export default async function MembersPage() {
         title={DOMAIN_LABEL.members}
         help={PAGE_BRIEF.adminMembers}
         secondary={<Tag tone="info">{MEMBER_TEXT.count(active, rows.length - active)}</Tag>}
-        action={
+        pageActions={{ primary:
           canManage && inviteUrl ? (
-            <Button asChild variant="secondary">
-              <a href={inviteUrl} target="_blank" rel="noreferrer">{MEMBER_TEXT.invite}</a>
-            </Button>
+            <NewEntryLink href={inviteUrl} label={MEMBER_TEXT.invite} newTab />
           ) : null
-        }
+        }}
       />
       <MemberPanel
         rows={rows}

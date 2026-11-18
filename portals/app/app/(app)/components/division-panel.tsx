@@ -86,7 +86,7 @@ export function DivisionPanel(
     readonly editable: boolean;
   },
 ) {
-  const { DATA_TABLE_LABELS, DS_LABELS, PLANNING_TEXT, ROW_OPS, TERRITORY_ERROR } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, PLANNING_TEXT, ROW_OPS, TERRITORY_ERROR, TABLE_TOOLBAR_TEXT } = useMessages();
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [view, setView] = useState<FilterBarView>("list");
@@ -213,6 +213,7 @@ export function DivisionPanel(
     <Section id="divisions">
       {rows.length > 0 ? (
         <FilterBar
+          heading={{ title: TABLE_TOOLBAR_TEXT.divisions, icon: "list-checks" }}
           count={
             searching
               ? PLANNING_TEXT.divisionToolbarFilteredCount(filtered.length, rows.length)
@@ -237,7 +238,6 @@ export function DivisionPanel(
           }
           onReset={searching ? () => { setQuery(""); setSourceFilter(""); pagination.resetPage(); } : undefined}
           resetLabel={PLANNING_TEXT.divisionResetFilters}
-          actions={editable ? <Button onClick={() => router.push("/admin/division/new")}>{PLANNING_TEXT.divisionNew}</Button> : undefined}
         >
           <FilterSlot width="w-[9rem]">
             <NativeSelect
@@ -323,16 +323,17 @@ export function DivisionPanel(
         <div
           className={
             `[&_table]:table-fixed`
-            + " [&_thead_th:nth-child(3)]:w-[40%]"
+            + " [&_thead_th:nth-child(2)]:w-[40%]"
+            + " [&_thead_th:nth-child(3)]:w-[10%]"
             + " [&_thead_th:nth-child(4)]:w-[10%]"
-            + " [&_thead_th:nth-child(5)]:w-[10%]"
-            + " [&_thead_th:nth-child(6)]:w-[40%]"
+            + " [&_thead_th:nth-child(5)]:w-[40%]"
           }
         >
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={pagination.indexStart}
-          selectedKeys={selected}
+          compactSelection={{ label: row => TABLE_TOOLBAR_TEXT.selectRecord(row.name) }}
+          selectedKeys={editable ? selected : undefined}
           onSelectionChange={(keys) => setSelected([...keys])}
           rowActions={actionsFor}
           rowKey={(r: DivisionRow) => r.code}

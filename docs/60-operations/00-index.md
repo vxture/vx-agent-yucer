@@ -2215,6 +2215,13 @@ DialogForm、ConfirmDestructive 与 Popover。只绑定 DS 单行操作 slot、�
 不修改 DS 源码或添加私有字阶；退出条件补充为 DS 支持资料表单的 label/value 字阶策略，
 并能对组合字段与 portal 保持一致。筛选与普通按钮仍按原 12px 规则。
 
+2026-11-18 补充：有实际批量、比较或定价分析用途的清单可用
+`business-controls.DataTable` 的 `compactSelection` 合并序号与勾选。
+当前 DS 没有合并入口，暂用公开 `columns` 渲染 DS Checkbox；宽度使用原生
+64px 表格列 token。仅表格普通单元格代理到本行复选框；链接、菜单、文本
+选择及展开型表格保留原交互。退出条件：DS DataTable 提供共用的序号/勾选
+槽位及可选的普通行点击行为，届时移除产品适配和对应样式。
+
 
 ### TD-039 - DS Progress 缺少语义颜色和多档节点接口
 

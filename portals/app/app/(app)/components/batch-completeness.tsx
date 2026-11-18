@@ -62,6 +62,7 @@ export function BatchCompleteness({
     COMPLETENESS_TEXT,
     DATA_TABLE_LABELS,
     DS_LABELS,
+    TABLE_TOOLBAR_TEXT,
   } = useMessages();
   const sorted = useTableSort(rows, SORT_ON);
   const router = useRouter();
@@ -185,9 +186,9 @@ export function BatchCompleteness({
             sort={sorted.sort}
             onSortChange={sorted.onSortChange}
             rowKey={(row) => row.key}
-            selectedKeys={[...selected]}
+            compactSelection={{ label: row => TABLE_TOOLBAR_TEXT.selectRecord(row.accountName) }}
+            selectedKeys={canApply ? [...selected] : undefined}
             onSelectionChange={(keys) => setSelected(new Set(keys))}
-            isRowSelectable={() => canApply}
             rowActions={(row: BatchGapRow) => (
               <RowActions
                 label={DS_LABELS.actionMenu}

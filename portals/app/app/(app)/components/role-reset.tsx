@@ -1,9 +1,9 @@
 "use client";
 
+import { PageActionButton } from "./page-header-actions";
 import { useState } from "react";
 import {
   Banner,
-  Button,
   useToast,
 } from "@vxture/design-ui";
 import { ConfirmDestructive } from "./confirm-destructive";
@@ -51,9 +51,9 @@ export function RoleReset({ changed, missing }: {
 
   return (
     <>
-      <Button variant="secondary" onClick={() => setOpen(true)}>
+      <PageActionButton onClick={() => setOpen(true)}>
         {ROLE_TEXT.resetAllButton}
-      </Button>
+      </PageActionButton>
       <DialogForm
         open={open}
         onOpenChange={setOpen}

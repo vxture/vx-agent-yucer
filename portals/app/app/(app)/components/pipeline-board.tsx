@@ -325,6 +325,7 @@ export function PipelineBoard({
               FilterBar owns the arrangement - view switch left, count beside
               it - so the page does not invent a second toolbar grammar. */}
           <FilterBar
+            heading={{ title: TABLE_TOOLBAR_TEXT.opportunities, icon: "list-checks" }}
             view={view}
             onViewChange={setView}
             count={filtering ? TABLE_TOOLBAR_TEXT.filteredCount(visible.length, rows.length) : PIPELINE_TEXT.rowCount(rows.length)}

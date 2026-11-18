@@ -19,7 +19,6 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
   RowActions,
-  rowClickSelection,
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
@@ -86,7 +85,6 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
   const { toast } = useToast();
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
-  const [selected, setSelected] = useState<readonly string[]>([]);
 
   /* 工具行. The deal's name and number are the two free-text fields the row
      shows. The filter is 口径 - the FILED one, not the suggested one: this
@@ -235,17 +233,13 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
   /* THE FIXED COLUMNS ARE FIXED AND EVERYTHING ELSE IS DIVIDED EQUALLY
      (owner, 2026-09-06). */
   const table = (list: readonly ForecastRow[], empty: ReactNode) => {
-    const select = rowClickSelection();
     return (
       <div
-        ref={select.ref}
-        className={`[&_table]:table-fixed ${select.className}`}
+        className={`[&_table]:table-fixed`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={1}
-          selectedKeys={selected}
-          onSelectionChange={setSelected}
           rowKey={(r: ForecastRow) => r.opportunityId}
           rows={[...sorted.sortRows(list)]}
           sort={sorted.sort}
@@ -262,13 +256,11 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
     <>
       <Section
         id="forecast-disputed"
-        icon="scales"
-        title={FORECAST_RULE_TEXT.rosterDisputed}
-        help={FORECAST_RULE_TEXT.rosterDisputedWhy}
       >
         {/* One tool row for both tables; the agreed list below says on its
             own heading that this control is narrowing it. */}
         <FilterBar
+          heading={{ icon: "scales", title: FORECAST_RULE_TEXT.rosterDisputed, help: FORECAST_RULE_TEXT.rosterDisputedWhy }}
           count={
             narrowed
               ? TABLE_TOOLBAR_TEXT.filteredCount(disputed.length, disputedTotal)

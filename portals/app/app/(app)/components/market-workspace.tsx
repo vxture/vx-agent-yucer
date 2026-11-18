@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Drawer, EmptyState, ViewLayout } from "@vxture/design-ui";
+import { Drawer, EmptyState, ViewLayout } from "@vxture/design-ui";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { MarketLibrary } from "./market-library";
-import { CollectionHeadline, collectionDrawerWidth } from "./collection-layout";
+import { ModuleHeadline } from "./module-headline";
+import { PageActionButton } from "./page-header-actions";
+import { collectionDrawerWidth } from "./collection-layout";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 
 export function MarketWorkspace({ data, initialMarket }: { readonly data: Pick<StrategyWorkspaceData, "markets" | "canWriteMarket" | "segmentAdvice" | "at">; readonly initialMarket?: string }) {
@@ -13,12 +15,12 @@ export function MarketWorkspace({ data, initialMarket }: { readonly data: Pick<S
   const locale = useLocale();
   const [checks, setChecks] = useState(false);
   return <ViewLayout className="@container" data-market-workspace>
-    <CollectionHeadline moduleKey="segment" help={T.libraryWhy}
+    <ModuleHeadline moduleKey="segment" help={T.libraryWhy}
       create={data.canWriteMarket ? { href: "/segment/new", label: T.newMarket } : undefined} />
     {data.markets ? <MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} initialMarket={initialMarket}
-      actions={<Button size="xl" variant="outline" className="px-md" onClick={() => setChecks(true)}>{STRATEGY_TEXT.segmentAdviceTitle}
+      actions={<PageActionButton onClick={() => setChecks(true)}>{STRATEGY_TEXT.segmentAdviceTitle}
         <span className="text-body-small text-muted-foreground tabular-nums">{data.segmentAdvice.length}</span>
-      </Button>} /> : <EmptyState title={T.unknown} />}
+      </PageActionButton>} /> : <EmptyState title={T.unknown} />}
     <footer className="border-t border-dashed border-primary/10 pt-lg pb-2xl text-body-small text-muted-foreground">
       {T.dataAt} {new Date(data.at).toLocaleString(locale)}
     </footer>

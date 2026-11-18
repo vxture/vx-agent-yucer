@@ -87,7 +87,7 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
 }
 
 export function MarketLibrary({ markets, canWrite, initialMarket, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly initialMarket?: string; readonly actions?: ReactNode }) {
-  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS } = useMessages();
+  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS, TABLE_TOOLBAR_TEXT } = useMessages();
   const [query, setQuery] = useState("");
   const [view, setView] = useCollectionView("cards");
   const [status,setStatus] = useState("");
@@ -126,6 +126,7 @@ export function MarketLibrary({ markets, canWrite, initialMarket, actions }: { r
     ]} />;
   const empty = <EmptyState title={markets.length ? T.noMatches : T.noMarkets} description={T.noMarketsWhy} />;
   const table = (rows: readonly MarketView[]) => <CollectionTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
+    compactSelection={{ label: m => TABLE_TOOLBAR_TEXT.selectRecord(m.name), alwaysVisible: true }}
     rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
     columns={[
       {id:"name",header:T.marketName,track:"subject",sortable:true,cell:m=><CollectionTitleCell title={m.name} description={m.segmentCode}

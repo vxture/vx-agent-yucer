@@ -72,6 +72,7 @@ export default async function NamedAccountPage() {
     named.map((a) => a.id),
   ).catch(() => null);
 
+  const editable = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
   return (
     <ViewLayout>
       {/* NO FOLD: this list IS a filter of the customer roster - one bucket
@@ -80,7 +81,8 @@ export default async function NamedAccountPage() {
         moduleKey="namedAccount"
         brief="named"
         tags={<StatusBadge tone="success">{NAMED_ACCOUNT_TEXT.tagNamed(named.length)}</StatusBadge>}
-        action={can(session.authz, session.entitlement, "account.upsert", "ui").allowed ? <NamedAccountActions accounts={result.value.map(({ id, name, accountNo, tier, ownerSub }) => ({ id, name, accountNo, tier, ownerSub, levelName: levelOf?.get(id)?.name }))} /> : undefined}
+        create={editable ? { href: "/account/new?tier=strategic", label: NAMED_ACCOUNT_TEXT.create, newTab: true } : undefined}
+        pageActions={{ secondary: editable ? <NamedAccountActions accounts={result.value.map(({ id, name, accountNo, tier, ownerSub }) => ({ id, name, accountNo, tier, ownerSub, levelName: levelOf?.get(id)?.name }))} /> : undefined }}
       />
       {named.length === 0 ? <EmptyState title={NAMED_ACCOUNT_TEXT.none} description={NAMED_ACCOUNT_TEXT.noneWhy} /> : <AccountTable
         rows={named}

@@ -173,12 +173,10 @@ export default async function AttainmentPage({
   return (
     <ViewLayout className="pb-3xl">
       <ModuleHeadline
-        className="[&>div:last-child]:max-w-full [&>div:last-child>div]:min-w-0 [&>div:last-child>div]:max-w-full"
         moduleKey="attainment"
         help={T.why}
-        action={
-          <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-sm"
-            data-attainment-actions>
+        pageActions={{
+          context: (
             <AttainmentControls
               period={selection.period}
               perspective={selection.perspective}
@@ -192,6 +190,8 @@ export default async function AttainmentPage({
               territories={territories}
               allowWorkspace={session.scope.kind === "workspace"}
             />
+          ),
+          view: (
             <AttainmentViewActions
               value={selection.view}
               reportingScope={
@@ -204,9 +204,9 @@ export default async function AttainmentPage({
                       : "personal"
               }
             />
-            {submit}
-          </div>
-        }
+          ),
+          primary: submit,
+        }}
       />
       {selection.view !== "history" &&
       (selection.period !== "all" || selection.view === "progress") ? (

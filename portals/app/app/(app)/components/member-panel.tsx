@@ -1,7 +1,7 @@
 "use client";
 import { MemberName } from "../lib/member-names";
 import { MemberPicker } from "./member-picker";
-import { DataTable } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import {
   Button,
@@ -82,10 +82,9 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
   /** The workspace's roles, in its order - 添加到单位's 新角色. */
   readonly roleOptions: readonly { readonly code: string; readonly name: string; readonly admin: boolean }[];
 }) {
-  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROW_OPS } = useMessages();
+  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROW_OPS, TABLE_TOOLBAR_TEXT } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
-  const [selected, setSelected] = useState<string[]>([]);
   const sorted = useTableSort<MemberRow>(rows, SORT_ON);
   /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5) - 这一份只管 list 视图；org
      树形视图是另一份数据源，在 member-org-view.tsx 自己接。 */
@@ -201,14 +200,16 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         />
       ) : (
         <div className="gap-md flex flex-col">
-        <div className="gap-sm flex items-center">
-          <MemberViewSwitch
+        <FilterBar
+          heading={{ title: TABLE_TOOLBAR_TEXT.members, icon: "list-checks" }}
+          scope={<MemberViewSwitch
             value={view}
             onChange={setView}
             ariaLabel={MEMBER_TEXT.viewAria}
             labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }}
-          />
-        </div>
+          />}
+          count={rows.length}
+        />
         <div
           className={
             /* 首列 30% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 -
@@ -216,17 +217,15 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
                角色列继续留白自适应，撑起表格宽度守卫要求的"至少一列不钉
                宽度"。 */
             `[&_table]:table-fixed`
-            + " [&_thead_th:nth-child(3)]:w-[30%]"
-            + " [&_thead_th:nth-child(5)]:w-[9rem]"
-            + " [&_thead_th:nth-child(6)]:w-[7rem]"
-            + " [&_thead_th:nth-child(7)]:w-[6rem]"
+            + " [&_thead_th:nth-child(2)]:w-[30%]"
+            + " [&_thead_th:nth-child(4)]:w-[9rem]"
+            + " [&_thead_th:nth-child(5)]:w-[7rem]"
+            + " [&_thead_th:nth-child(6)]:w-[6rem]"
           }
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
             indexStart={pagination.indexStart}
-            selectedKeys={selected}
-            onSelectionChange={(keys) => setSelected([...keys])}
             sort={sorted.sort}
             onSortChange={sorted.onSortChange}
             rowActions={(r: MemberRow) => (

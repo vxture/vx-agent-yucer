@@ -1,9 +1,9 @@
 "use client";
 
+import { PageActionButton } from "./page-header-actions";
 import { useState } from "react";
 import {
   Banner,
-  Button,
   Checkbox,
   RadioGroup,
   RadioGroupItem,
@@ -118,9 +118,9 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
 
   return (
     <>
-      <Button variant="secondary" disabled={templates.length === 0} onClick={() => setOpen(true)}>
+      <PageActionButton disabled={templates.length === 0} onClick={() => setOpen(true)}>
         {ORG_TEXT.templateReset}
-      </Button>
+      </PageActionButton>
       <DialogForm
         open={open}
         onOpenChange={setOpen}

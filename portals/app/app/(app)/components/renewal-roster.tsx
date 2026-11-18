@@ -18,7 +18,6 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
   RowActions,
-  rowClickSelection,
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
@@ -76,7 +75,6 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One state
   // across both tables: the keys are project ids.
-  const [selected, setSelected] = useState<readonly string[]>([]);
   const sorted = useTableSort<RenewalRow>([], SORT_ON);
   const { toast } = useToast();
 
@@ -337,17 +335,13 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const DUE_WIDTHS = "[&_thead_th:last-child]:w-[8rem]";
 
   const table = (list: readonly RenewalRow[], empty: ReactNode, due: boolean) => {
-    const select = rowClickSelection();
     return (
       <div
-        ref={select.ref}
-        className={`[&_table]:table-fixed ${due ? DUE_WIDTHS : ""} ${select.className}`}
+        className={`[&_table]:table-fixed ${due ? DUE_WIDTHS : ""}`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={1}
-          selectedKeys={selected}
-          onSelectionChange={setSelected}
           rowKey={(r: RenewalRow) => r.projectId}
           rows={[...sorted.sortRows(list)]}
           sort={sorted.sort}
@@ -364,13 +358,11 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
     <>
       <Section
         id="renewal"
-        icon="calendar"
-        title={RENEWAL_TEXT.rosterDue}
-        help={RENEWAL_TEXT.rosterDueWhy}
       >
         {/* One tool row for both tables; the 未到期 list below says on its own
             heading that this control is narrowing it. */}
         <FilterBar
+          heading={{ icon: "calendar", title: RENEWAL_TEXT.rosterDue, help: RENEWAL_TEXT.rosterDueWhy }}
           count={
             narrowed
               ? TABLE_TOOLBAR_TEXT.filteredCount(due.length, dueTotal)

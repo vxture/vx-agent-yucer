@@ -19,7 +19,6 @@ import { accountLevelBadges } from "../../domains/account/lib/importance";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
 import { accountFootprintAction, deleteAccountAction } from "./actions";
-import { NewEntryLink } from "../components/form-page";
 import { listSegments } from "../../domains/strategy/service";
 import { OverdueCommitments } from "../components/overdue-commitments";
 
@@ -130,13 +129,8 @@ export default async function AccountPage() {
           going wrong, and that is what the badges and the panel beneath say. */}
       <ModuleHeadline
         moduleKey="account"
-        // 新建客户 (owner, 2026-09-23) - the list's own create entry, the same
-        // NewEntryLink every other module headline carries.
-        action={
-          can(session.authz, session.entitlement, "account.upsert", "ui").allowed ? (
-            <NewEntryLink href="/account/new" label={ACCOUNT_BASICS_TEXT.createButton} />
-          ) : null
-        }
+        create={can(session.authz, session.entitlement, "account.upsert", "ui").allowed
+          ? { href: "/account/new", label: ACCOUNT_BASICS_TEXT.createButton } : undefined}
         tags={
           <>
             <StatusBadge tone="success">

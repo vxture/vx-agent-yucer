@@ -1,6 +1,8 @@
 "use client";
 
 import { ViewHeader } from "./business-controls";
+import type { PageHeaderActions } from "./page-header-actions";
+import { NewEntryLink } from "./form-page";
 
 import type { ReactNode } from "react";
 
@@ -18,7 +20,8 @@ export function ModuleHeadline({
   description,
   help,
   tags,
-  action,
+  pageActions,
+  create,
   className,
 }: {
   /** The nav entry this page IS. Its icon and its NAME both come from the
@@ -33,8 +36,9 @@ export function ModuleHeadline({
   readonly help?: ReactNode;
   /** StatusBadges beside the title - the key figures, toned. */
   readonly tags?: ReactNode;
-  /** The one button this page's header may carry. */
-  readonly action?: ReactNode;
+  /** Page-wide controls. List filters and selection actions belong below. */
+  readonly pageActions?: PageHeaderActions;
+  readonly create?: { readonly href: string; readonly label?: string; readonly newTab?: boolean };
   readonly className?: string;
 }) {
   const { DOMAIN_LABEL, PAGE_BRIEF } = useMessages();
@@ -47,7 +51,7 @@ export function ModuleHeadline({
       help={help ?? (description === undefined ? PAGE_BRIEF[brief ?? moduleKey] : undefined)}
       secondary={tags ? <span className="flex flex-wrap items-center gap-xs">{tags}</span> : undefined}
       divider
-      action={action}
+      pageActions={create ? { ...pageActions, primary: <NewEntryLink {...create} /> } : pageActions}
     />
   );
 }

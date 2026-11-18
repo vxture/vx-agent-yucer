@@ -19,7 +19,7 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
-import { ActionMenu } from "./business-controls";
+import { ActionMenu, FilterBar } from "./business-controls";
 import { DialogForm } from "./dialog-form";
 import type { SignalRecord } from "../../domains/signal/store";
 import { SIGNAL_DISMISS_REASONS, type ExitReason } from "../../domains/shared/funnel-exit";
@@ -200,7 +200,7 @@ export function SignalQueue({
   campaignNames = {},
   focusId,
 }: SignalQueueProps) {
-  const { DS_LABELS, EXIT_REASON_LABEL, SIGNAL_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
+  const { DS_LABELS, EXIT_REASON_LABEL, SIGNAL_TEXT, SIGNAL_ACTION_ERROR, TABLE_TOOLBAR_TEXT } = useMessages();
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string>(focusId ?? "");
@@ -232,17 +232,8 @@ export function SignalQueue({
   }
 
   return (
-    /* A named section, like every other block in the product. It was a bare div
-       of grouped cards, so the page went from its headline straight into three
-       unlabelled panels - the reader had to infer what they were a list OF. */
-    <Section
-      icon="newspaper"
-      title={SIGNAL_TEXT.title}
-      /* NO DESCRIPTION HERE ANY MORE. The module header above carries it, and
-         printing the same sentence twice on one screen makes a reader check
-         whether the two agree instead of reading either. The TITLE stays: this
-         page holds two lists, and it is what says which one this is. */
-    >
+    <Section>
+      <FilterBar heading={{ title: TABLE_TOOLBAR_TEXT.signals, icon: "newspaper" }} count={groups.reduce((total, group) => total + group.items.length, 0)} />
       {dismissing ? (
         <DialogForm
           open

@@ -9,7 +9,6 @@ import {
   type CollectionRow,
 } from "../components/collection-roster";
 import { ModuleHeadline } from "../components/module-headline";
-import { NewEntryLink } from "../components/form-page";
 import { CollectionOverview } from "../components/collection-overview";
 import { collectionStats } from "../../domains/delivery/lib/collection-stats";
 import { deleteInstalment, moveInstalment } from "../delivery/actions";
@@ -123,11 +122,8 @@ export default async function CollectionPage({
     <ViewLayout>
       <ModuleHeadline
         moduleKey="collection"
-        action={
-          can(session.authz, session.entitlement, "delivery.revenue.upsert", "ui").allowed ? (
-            <NewEntryLink href="/collection/instalment" label={DELIVERY_TEXT.newInstalment} />
-          ) : null
-        }
+        create={can(session.authz, session.entitlement, "delivery.revenue.upsert", "ui").allowed
+          ? { href: "/collection/instalment", label: DELIVERY_TEXT.newInstalment } : undefined}
         tags={
           <>
             <StatusBadge tone="success">{DELIVERY_TEXT.tagCollectDue(open.length)}</StatusBadge>
