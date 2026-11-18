@@ -8996,7 +8996,6 @@ export const ATTAINMENT_PLAN_TEXT = {
 } as const;
 
 export const MARKET_STRATEGY_TEXT = {
-  strategySummary: "\u6218\u7565",
   strategyType: "\u6218\u7565\u7c7b\u578b",
   typeUnclassified: "\u672a\u8bbe\u7c7b\u578b",
   typeSelect: "\u9009\u62e9\u6218\u7565\u7c7b\u578b",
