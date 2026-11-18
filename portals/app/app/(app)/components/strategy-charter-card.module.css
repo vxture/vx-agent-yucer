@@ -10,19 +10,19 @@
   z-index: -1;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(110deg, color-mix(in srgb, currentColor 3%, transparent), transparent 48%, color-mix(in srgb, currentColor 8%, transparent));
+  background: linear-gradient(110deg, color-mix(in srgb, currentColor 1%, transparent), transparent 48%, color-mix(in srgb, currentColor 3%, transparent));
 }
 
 .illustration {
   position: absolute;
   z-index: -1;
   inset: 0 0 0 auto;
-  width: 54%;
+  width: 34%;
   background: currentColor;
-  opacity: .1;
+  opacity: .035;
   mask-repeat: no-repeat;
   mask-position: right center;
-  mask-size: auto 115%;
+  mask-size: contain;
   pointer-events: none;
 }
 
@@ -48,7 +48,7 @@
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   grid-template-rows: repeat(3, auto);
   align-items: stretch;
-  gap: var(--space-lg) var(--space-2xl);
+  gap: var(--space-md) var(--space-2xl);
 }
 
 .body[data-goal-count="4"] {
@@ -62,8 +62,11 @@
 }
 
 .objective {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
 }
 
 .relations {
@@ -76,7 +79,7 @@
 
 .relation {
   display: grid;
-  grid-template-columns: 7em minmax(0, 1fr);
+  grid-template-columns: 5em minmax(0, 1fr);
   align-items: center;
   gap: var(--space-sm);
 }
@@ -127,10 +130,9 @@
 }
 
 .metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  flex: 1;
-  gap: var(--space-lg);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xl);
 }
 
 @container (max-width: 40rem) {
@@ -138,10 +140,9 @@
   .relations, .outcome { grid-column: auto; grid-row: auto; grid-template-rows: none; gap: var(--space-lg); }
   .outcome { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
   .goals { grid-row: auto; grid-template-rows: none; gap: var(--space-lg); }
-  .illustration { width: 80%; opacity: .09; }
+  .illustration { display: none; }
 }
 
 @container (max-width: 36rem) {
   .relations { grid-template-columns: minmax(0, 1fr); }
-  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); flex-basis: 100%; }
 }
