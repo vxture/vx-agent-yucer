@@ -84,7 +84,10 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
         <div className={`${styles.relations} text-foreground`}>
           <div className={styles.relation} data-strategy-card-direction>
             <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground">{T.strategyPosition}{":"}</span>
-            <p title={p.objective || undefined} className={`${styles.objective} ${styles.referenceText} ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
+            <div className="flex min-w-0 items-center gap-xs">
+              <Icon name="lightbulb" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
+              <p title={p.objective || undefined} className={`${styles.objective} ${styles.referenceText} ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
+            </div>
           </div>
           {relation(T.targetMarketsTitle,markets?.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment?market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
           {relation(T.productSolutionsTitle,offerings,T.offeringEmpty)}
