@@ -12,6 +12,7 @@ import { BusinessCodeCollision, BusinessRecordMissing, type BusinessWrite } from
 // a record that stops being current keeps existing. Downstream data is
 // accomplished fact and a tidy-up upstream must not erase it.
 
+import { defaultStrategyOptions } from "./lib/strategy-options";
 import { DEFAULT_STRATEGY_TYPES, type StrategyType } from "./lib/strategy-type";
 import type { ProductReference, SolutionReference } from "../catalog/service";
 import { money, type Money } from "../shared/money";
@@ -31,6 +32,8 @@ import type { NewCampaignDraft } from "./lib/campaign";
 import { asc, by, desc } from "../shared/order";
 
 export interface PlanRecord {
+  resultOptions?: readonly import("./lib/strategy-result").StrategyOption[];
+  result?: import("./lib/strategy-result").StrategyResult | null;
   expectations?: readonly import("./lib/expectations").StrategicExpectation[];
   id: string;
   workspaceId: string;
@@ -57,6 +60,8 @@ export interface PlanRecord {
 }
 
 export interface StrategyPublication {
+  options?: readonly import("./lib/strategy-result").StrategyOption[];
+  result?: import("./lib/strategy-result").StrategyResult | null;
   expectations?: readonly import("./lib/expectations").StrategicExpectation[];
   schemaVersion: 1;
   legacy: boolean;
@@ -88,7 +93,7 @@ export interface PublishPlanCommand {
   ownerName: string | null;
 }
 export function captureStrategyPublication(plan: PlanRecord, solutions: readonly SolutionReference[], at: Date, legacy = false, ownerName: string | null = null, products: readonly ProductReference[] = []): StrategyPublication {
-  return structuredClone({expectations:plan.expectations ?? [],schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
+  return structuredClone({result:plan.result ?? null,options:plan.resultOptions ?? [],expectations:plan.expectations ?? [],schemaVersion:1,legacy,capturedAt:at.toISOString(),name:plan.name,period:plan.period,
     strategyTypeId:plan.strategyTypeId ?? null,strategyType:plan.strategyType ?? null,objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
     targetMarkets:plan.targetMarkets ?? [],solutions});
 }
@@ -181,6 +186,8 @@ export interface TerritoryAttainmentSnapshotInput {
 }
 
 export interface StrategyStore {
+  listStrategyOptions(workspaceId: string): Promise<import("./lib/strategy-result").StrategyOption[]>;
+  saveStrategyOption(workspaceId: string, input: import("./lib/strategy-result").StrategyOption): Promise<void>;
   listStrategyTypes(workspaceId: string): Promise<StrategyType[]>;
   saveStrategyType(workspaceId: string, input: StrategyType): Promise<void>;
   listPlans(workspaceId: string, filter?: { period?: string; status?: PlanStatus }): Promise<PlanRecord[]>;
@@ -207,6 +214,8 @@ export interface StrategyStore {
     workspaceId: string,
     id: string,
     patch: {
+      result?: import("./lib/strategy-result").StrategyResult | null;
+      expectations?: readonly import("./lib/expectations").StrategicExpectation[];
       status?: PlanStatus;
       approvedAt?: Date | null;
       name?: string;
@@ -294,6 +303,9 @@ export interface StrategyStore {
 }
 
 export class InMemoryStrategyStore implements StrategyStore {
+  private options = new Map<string,import("./lib/strategy-result").StrategyOption[]>();
+  async listStrategyOptions(ws:string) { if(!this.options.has(ws))this.options.set(ws,defaultStrategyOptions());return structuredClone(this.options.get(ws)!); }
+  async saveStrategyOption(ws:string,input:import("./lib/strategy-result").StrategyOption) {const rows=await this.listStrategyOptions(ws);this.options.set(ws,[...rows.filter(r=>r.id!==input.id),structuredClone(input)]);}
   private plans = new Map<string, PlanRecord>();
   private seq = 0;
   private campaigns = new Map<string, CampaignRecord>();
@@ -383,13 +395,13 @@ export class InMemoryStrategyStore implements StrategyStore {
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
     const p = this.plans.get(id);
     if (p?.workspaceId !== workspaceId) return null;
-    return structuredClone({...p, strategyType: p.publishedSnapshot ? p.publishedSnapshot.strategyType ?? null : (await this.listStrategyTypes(workspaceId)).find(t=>t.id===p.strategyTypeId) ?? null});
+    return structuredClone({...p, resultOptions:p.publishedSnapshot?.options ?? await this.listStrategyOptions(workspaceId), strategyType: p.publishedSnapshot ? p.publishedSnapshot.strategyType ?? null : (await this.listStrategyTypes(workspaceId)).find(t=>t.id===p.strategyTypeId) ?? null});
   }
 
   async updatePlan(workspaceId: string, id: string, patch: Partial<PlanRecord>, guard: PlanWriteGuard = {}): Promise<boolean> {
     const p = this.plans.get(id);
     if (!p || p.workspaceId !== workspaceId || (guard.expectedEditToken !== undefined && guard.expectedEditToken !== (p.editToken ?? 1)) || (guard.expectedStatus !== undefined && p.status !== guard.expectedStatus)) return false;
-    if (["expectations", "strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
+    if (["result", "expectations", "strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) && p.status !== "draft") return false;
     if (patch.expectations?.some(e => [...this.plans.values()].some(old => old.workspaceId === workspaceId && (old.lineageId ?? old.id) === (p.lineageId ?? p.id) && old.expectations?.some(x => x.id === e.id && x.metric !== e.metric)))) throw new StrategyVersionError("expectations_invalid");
     if (patch.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {
       throw new PlanMarketUnavailableError();
@@ -427,7 +439,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     const status=latest?.status==="active"?"active":"approved";
     if(latest)Object.assign(latest,{status:"closed",editToken:(latest.editToken ?? 1)+1});
     Object.assign(draft,{status,versionNo:(latest?.versionNo ?? 0)+1,approvedAt:command.at,publishedBySub:command.actorSub,
-      publishedSnapshot:captureStrategyPublication({...draft,strategyType:(this.strategyTypes.get(workspaceId) ?? DEFAULT_STRATEGY_TYPES).find(t=>t.id===draft.strategyTypeId) ?? null},command.solutions,command.at,false,command.ownerName,command.products),editToken:(draft.editToken ?? 1)+1});
+      publishedSnapshot:captureStrategyPublication({...draft,resultOptions:await this.listStrategyOptions(workspaceId),strategyType:(this.strategyTypes.get(workspaceId) ?? DEFAULT_STRATEGY_TYPES).find(t=>t.id===draft.strategyTypeId) ?? null},command.solutions,command.at,false,command.ownerName,command.products),editToken:(draft.editToken ?? 1)+1});
     return (await this.getPlan(workspaceId,draft.id))!;
   }
 

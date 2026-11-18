@@ -49,12 +49,13 @@ function StrategySelectionGrid({ children, count, kind, detail }: {
 }
 
 // Shared read/draft presentation; mutation controls are supplied only by the editor.
-export function StrategyMarketCards({ markets, actions, detail }: {
+export function StrategyMarketCards({ markets, actions, detail, attributes }: {
   readonly markets: readonly SelectedMarket[] | null;
   readonly actions?: (market: SelectedMarket) => ReactNode;
+  readonly attributes?: (market: SelectedMarket) => ReactNode;
   readonly detail?: boolean;
 }) {
-  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT } = useMessages();
   if (markets === null || !markets.length) return <p className="text-body-small text-muted-foreground">{markets === null ? T.unknown : T.noPlanMarkets}</p>;
   return <StrategySelectionGrid kind="market" count={markets.length} detail={detail}>
     {markets.map(m => <Card key={m.segmentId} className="min-w-0 gap-lg py-lg" data-strategy-target-market>
@@ -63,6 +64,7 @@ export function StrategyMarketCards({ markets, actions, detail }: {
         <div className="flex min-h-control-md min-w-0 flex-1 flex-wrap items-center justify-between gap-sm">
           <CardTitle className="min-w-0"><Link className="break-words transition-colors hover:text-primary-text" href={`/segment?market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
           <div className="flex shrink-0 flex-wrap items-center gap-xs"><Tag tone={m.intent === "focus" ? "success" : "neutral"}>{m.intent === "focus" ? T.focusMarket : m.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</Tag>
+            {attributes?.(m)}
             {m.status && m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
           </div>
         </div>
@@ -71,7 +73,8 @@ export function StrategyMarketCards({ markets, actions, detail }: {
         <span className="size-icon-lg shrink-0" aria-hidden="true"/>
         <dl className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start items-baseline gap-x-sm gap-y-md text-body-small" data-strategy-market-facts>
           <dt className="text-muted-foreground">{T.criteria}</dt>
-          <dd className="min-w-0 break-words">{m.criteria ? [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions].join(" / ") || T.undefined : T.unknown}</dd>
+          <dd className="min-w-0 break-words">{m.criteria ? [...m.criteria.industries, ...m.criteria.regions].join(" / ") || T.undefined : T.unknown}</dd>
+          <dt className="text-muted-foreground">{R.sizes}</dt><dd>{m.criteria?.sizes?.join(" / ") || R.unlimitedSize}</dd>
           {m.criteria?.customerNeed ? <><dt className="text-muted-foreground">{T.customerNeed}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{m.criteria.customerNeed}</dd></> : null}
           <dt className="text-muted-foreground">{T.marketApproach}</dt>
           <dd className={`min-w-0 whitespace-pre-wrap break-words ${m.approach ? "" : "text-muted-foreground"}`}>{m.approach || T.noMarketApproach}</dd>
@@ -97,9 +100,10 @@ export function StrategyMarketCards({ markets, actions, detail }: {
   </StrategySelectionGrid>;
 }
 
-export function StrategySolutionCards({ solutions, products = [], markets, sharedIds, sharedProductIds, detail }: {
+export function StrategySolutionCards({ solutions, products = [], markets, sharedIds, sharedProductIds, detail, actions }: {
   readonly products?: readonly ProductReference[] | null;
   readonly sharedProductIds?: readonly string[];
+  readonly actions?: (row: {id:string;kind:"product"|"solution"})=>ReactNode;
   readonly solutions: readonly SolutionReference[] | null;
   readonly markets: readonly { marketName: string; solutionIds?: readonly string[]; productIds?: readonly string[] }[];
   readonly sharedIds: readonly string[] | undefined;
@@ -124,7 +128,7 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
             {scopes.length ? <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-sm">
               <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt><dd className="break-words">{scopes.map(m=>m.marketName).join(" / ")}</dd>
             </dl> : null}
-          </div></div></CardContent></Card>;
+          </div></div></CardContent>{actions?<CardFooter>{actions(row)}</CardFooter>:null}</Card>;
       })}
     </StrategySelectionGrid>
   </>;

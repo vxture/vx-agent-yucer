@@ -1,5 +1,6 @@
 "use client";
 import { StrategyFulfillmentPanel } from "./strategy-fulfillment-panel";
+import { StrategyGoals, StrategyAdvanced, StrategyNovelty } from "./strategy-result-fields";
 import { StrategyExpectations } from "./strategy-expectations";
 
 import Link from "next/link";
@@ -33,7 +34,7 @@ import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrateg
 
 export type StrategyTab = "overview" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
-  const { MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
   const router=useRouter(), params=useSearchParams();
   const [layout,setLayout]=useCollectionView("cards");
@@ -168,26 +169,28 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       </div>}/>
       <CollapsibleContent><Card className="py-lg" data-strategy-basic-card><CardContent><div className="flex flex-col gap-lg">
         <DetailList columns={3} data-strategy-basic-facts>
+          <DetailRow label={R.value}>{detail.resultOptions?.find(o=>o.id===detail.result?.valuePropositionId)?.name ?? "-"}</DetailRow>
           <DetailRow label={T.strategyType}>{detail.strategyType?.name ?? T.typeUnclassified}</DetailRow>
           <DetailRow label={T.executionWindow}><span className="inline-flex min-h-control-md items-center tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></DetailRow>
           <DetailRow label={T.owner}><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></DetailRow>
           <DetailRow label={T.publishedAt}><span className="inline-flex min-h-control-md items-center tabular-nums">{detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale) : "-"}</span></DetailRow>
         </DetailList>
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-md gap-y-md border-t border-dashed border-primary/10 pt-md text-body-small" data-strategy-detail-direction>
-          <dt className="text-muted-foreground">{T.direction}</dt><dd className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</dd>
+          <dt className="text-muted-foreground">{R.positioning}</dt><dd className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</dd>
           {detail.changeReason ? <><dt className="text-muted-foreground">{T.changeReason}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{detail.changeReason}</dd></> : null}
         </dl>
       </div></CardContent></Card></CollapsibleContent>
     </Collapsible>
-    <StrategyExpectations value={detail.expectations ?? []}/>
+    {detail.result?<StrategyGoals value={detail.result}/>:<StrategyExpectations value={detail.expectations ?? []}/>}
     <Section title={T.targetMarketsTitle} icon="target" help={T.targetMarketBasis}>
-      <StrategyMarketCards detail markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
+      <StrategyMarketCards detail attributes={detail.result?m=><StrategyNovelty value={detail.result?.markets.find(x=>x.id===m.segmentId)?.novelty ?? "unknown"}/>:undefined} markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
         ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
     </Section>
     <Section title={T.featuredSolutions} icon="squares-four">
-      <StrategySolutionCards detail products={detail.products} sharedProductIds={detail.sharedProducts?.map(p=>p.id)} solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
+      <StrategySolutionCards detail actions={detail.result?row=><StrategyNovelty value={detail.result?.offerings.find(x=>x.id===row.id && x.kind===row.kind)?.novelty ?? "unknown"}/>:undefined} products={detail.products} sharedProductIds={detail.sharedProducts?.map(p=>p.id)} solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
         markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, productIds:m.products?.map(p=>p.id), solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
     </Section>
+    {detail.result?<StrategyAdvanced value={detail.result} options={detail.resultOptions ?? []} currency={data.currency}/>:null}
     <StrategyFulfillmentPanel rows={data.fulfillment?.filter(r => r.acceptance.lineageId === (detail.lineageId ?? detail.id)) ?? null}/>
     <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">
       <Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>
@@ -218,6 +221,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           secondary: <>
             <PageActionButton asChild><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></PageActionButton>
             {checkButton}
+            {detail.status==="draft" && data.canEdit ? <PageActionButton asChild><Link href={`/strategy/new?id=${encodeURIComponent(detail.id)}`}><Icon name="edit" size="sm" aria-hidden="true"/>{R.edit}</Link></PageActionButton> : null}
           </>,
           primary: detail.status === "draft" && data.canApprove
             ? <PageActionButton intent="primary" disabled={pending} onClick={() => openPublication(detail)}>{detail.basePlanId ? T.publishNext : T.publishVersion}</PageActionButton>

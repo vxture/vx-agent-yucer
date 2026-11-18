@@ -1,5 +1,6 @@
 "use server";
 
+import { goalExpectations, validStrategyResult } from "../../domains/strategy/lib/strategy-result";
 import { getAuthzStore } from "../../authz/store";
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
@@ -88,7 +89,7 @@ export async function createStrategyPlan(input: NewPlanDraft, autoNumber = false
       catalog: getCatalogStore(),
       memberDirectory: getAuthzStore(),
     },
-    input,
+    await strategyInput(input),
     { autoNumber: autoNumber === true },
   );
 
@@ -129,7 +130,7 @@ export async function savePlan(
       memberDirectory: getAuthzStore(),
     },
     id,
-    input,
+    await strategyInput(input),
     {expectedEditToken:editToken},
   );
 
@@ -289,4 +290,14 @@ export async function deleteSegment(
   revalidatePath("/segment");
   revalidatePath("/strategy", "layout");
   return { ok: true };
+}
+
+async function strategyInput<T extends PlanEdit>(input:T):Promise<T> {
+ if(input.result===undefined)return input;
+ const result=input.result;
+ if(!validStrategyResult(result))return input;
+ const session=await resolveAppSession();
+ if(!session)return input;
+ const policy=await getCatalogStore().getPricingPolicy(session.workspaceId);
+ return {...input,result,expectations:goalExpectations(result,policy.defaultCurrency)};
 }

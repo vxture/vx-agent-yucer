@@ -121,7 +121,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_gtm.org_unit": ["name", "kind_id", "parent_id", "leader_sub", "sort_order", "updated_at"],
   // incr/0109 created_by_sub is insert-only; never add it to this whitelist.
   "yucer_gtm.strategy_type": ["name", "description", "theme", "enabled", "sort_order", "updated_at"],
+  "yucer_gtm.strategy_option": ["name", "enabled", "sort_order", "updated_at"],
   "yucer_gtm.strategy_plan": [
+    "result",
     "expectations",
     "strategy_type_code",
     "strategy_type_id",

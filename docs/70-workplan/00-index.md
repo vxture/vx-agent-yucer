@@ -1,5 +1,9 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 战略制定结果
+
+[90-strategy-result.md](90-strategy-result.md) 记录结构化战略目标、高级设置及统一助手回填，本轮尚未发布。
+
 ## 战略预期到承诺兑现
 
 [85-strategy-planning-fulfillment.md](85-strategy-planning-fulfillment.md) 记录战略预期、规划核定、季度区域拆解与兑现证据闭环。

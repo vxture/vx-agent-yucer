@@ -1,3 +1,4 @@
+import { validStrategyResult } from "./strategy-result";
 import { validExpectations } from "./expectations";
 import { parseStrategyPeriod } from "./plan-period";
 // D1 strategy and D3 campaign lifecycles.
@@ -223,6 +224,7 @@ export interface NewPlanDraft extends PlanEdit {
  * target starts as a draft and a deal starts at qualify.
  */
 export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { status: "draft" }> {
+  if(input.result != null && !validStrategyResult(input.result))return fail(violation("strategy_result_invalid","invalid strategy result","result"));
   const planNo = input.planNo.trim();
   if (input.expectations !== undefined && !validExpectations(input.expectations)) return fail(violation("expectations_invalid", "set valid business expectations", "expectations"));
   const name = input.name.trim();
@@ -268,6 +270,7 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
  */
 export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResult<PlanEdit> {
   if (input.expectations !== undefined && !validExpectations(input.expectations)) return fail(violation("expectations_invalid", "set valid business expectations", "expectations"));
+  if(input.result != null && !validStrategyResult(input.result))return fail(violation("strategy_result_invalid","invalid strategy result","result"));
   const name = input.name.trim();
   const period = input.period.trim();
 
@@ -282,6 +285,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
   return ok({
     name,
     period,
+    ...(input.result === undefined ? {} : {result:input.result}),
     ...(input.expectations === undefined ? {} : {expectations: input.expectations}),
     ...(input.changeReason === undefined ? {} : {changeReason:input.changeReason.trim()}),
     objective: input.objective?.trim() || null,
@@ -294,6 +298,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
 }
 
 export interface PlanEdit {
+  result?: import("./strategy-result").StrategyResult | null;
   expectations?: readonly import("./expectations").StrategicExpectation[];
   strategyTypeId?: string | null;
   changeReason?: string;

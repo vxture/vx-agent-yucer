@@ -60,7 +60,7 @@ export function PageAssistantOutlet({ children }: { readonly children: ReactNode
   const pathname = usePathname();
   // This route's form owns the conversation, including its server render.
   // Waiting for its registration effect would flash the generic capture first.
-  const ownsConversation = pathname === "/account/new" || pathname === "/segment/new" || !!ctx?.conversationOwner;
+  const ownsConversation = pathname === "/account/new" || pathname === "/segment/new" || pathname === "/strategy/new" || !!ctx?.conversationOwner;
   if (!ctx || !ownsConversation) return children;
   return <div ref={ctx.setConversationSlot} className="flex min-h-0 flex-1 flex-col" data-page-assistant-slot />;
 }

@@ -639,7 +639,23 @@ model StrategyType {
   @@schema("yucer_gtm")
 }
 
+model StrategyOption {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  kind String @db.VarChar(16)
+  code String @db.VarChar(64)
+  name String @db.VarChar(64)
+  enabled Boolean @default(true)
+  sortOrder Int @default(0) @map("sort_order")
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  @@unique([workspaceId, kind, code])
+  @@unique([workspaceId, id])
+  @@map("strategy_option")
+  @@schema("yucer_gtm")
+}
+
 model StrategyPlan {
+  result Json? @db.JsonB
   expectations Json @default("[]") @db.JsonB
   strategyTypeId String? @map("strategy_type_id") @db.Uuid
   strategyType StrategyType? @relation(fields: [workspaceId, strategyTypeId], references: [workspaceId, id], onDelete: NoAction, onUpdate: NoAction, map: "fk_strategy_type_id")

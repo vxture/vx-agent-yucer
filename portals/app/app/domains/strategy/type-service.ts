@@ -20,3 +20,15 @@ export async function saveStrategyType(ctx: StrategyContext, input: StrategyType
   });
   return ok(null);
 }
+
+export async function listStrategyOptions(ctx:StrategyContext):Promise<RuleResult<import("./lib/strategy-result").StrategyOption[]>> {
+ const gate=can(ctx.holder,ctx.entitlement,"strategy.type.view","data");if(!gate.allowed)return denied(gate);
+ return ok(await ctx.store.listStrategyOptions(ctx.workspaceId));
+}
+export async function saveStrategyOption(ctx:StrategyContext,input:import("./lib/strategy-result").StrategyOption):Promise<RuleResult<null>> {
+ const gate=can(ctx.holder,ctx.entitlement,"strategy.type.update","data");if(!gate.allowed)return denied(gate);
+ if(!input || !["value","path"].includes(input.kind) || !/^[a-z][a-z0-9-]{0,63}$/.test(input.code) || typeof input.name!=="string" || !input.name.trim() || input.name.length>64 || typeof input.enabled!=="boolean" || !Number.isSafeInteger(input.sortOrder) || input.sortOrder<0 || input.sortOrder>9999)return fail(violation("strategy_type_invalid","invalid strategy option","option"));
+ const rows=await ctx.store.listStrategyOptions(ctx.workspaceId);
+ const existing=rows.find(o=>o.kind===input.kind && o.code===input.code);
+ await ctx.store.saveStrategyOption(ctx.workspaceId,{...input,id:existing?.id ?? crypto.randomUUID(),name:input.name.trim()});return ok(null);
+}
