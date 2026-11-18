@@ -6,11 +6,12 @@ import {
   Button,
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuCheckboxItem,
   DatePicker,
   InputGroup,
   InputGroupInput,
@@ -23,7 +24,6 @@ import {
   FieldLabel,
   Icon,
   Input,
-  NativeSelect,
   Table,
   TableBody,
   TableCell,
@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { FormChoice } from "./form-choice";
 import { StrategyDateRange } from "./strategy-date-range";
 import { MemberPicker } from "./member-picker";
 import { MemberName } from "../lib/member-names";
@@ -71,57 +72,13 @@ export function StrategyPaths({
   const rows = options.filter(
     (o) => o.kind === "path" && (o.enabled || value.pathIds.includes(o.id)),
   );
-  const selected = rows
-    .filter((o) => value.pathIds.includes(o.id))
-    .map((o) => o.name);
-  if (!onChange)
-    return <span className="text-body">{selected.join(" / ") || "-"}</span>;
-  return (
-    <Field>
-      <FieldLabel htmlFor="strategy-paths">{T.paths}</FieldLabel>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            id="strategy-paths"
-            type="button"
-            size="md"
-            variant="outline"
-            className="w-full justify-between font-normal"
-            aria-label={T.paths}
-          >
-            <span
-              className={`min-w-0 truncate ${!selected.length ? "text-muted-foreground" : ""}`}
-            >
-              {selected.join(" / ") || T.choose}
-            </span>
-            <Icon name="chevron-down" size="sm" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
-        >
-          {rows.map((o) => (
-            <DropdownMenuCheckboxItem
-              key={o.id}
-              checked={value.pathIds.includes(o.id)}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={(checked) =>
-                onChange({
-                  ...value,
-                  pathIds: checked
-                    ? [...value.pathIds, o.id]
-                    : value.pathIds.filter((id) => id !== o.id),
-                })
-              }
-            >
-              {o.name}
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </Field>
-  );
+  const selected = rows.filter(o => value.pathIds.includes(o.id)).map(o => o.name);
+  if (!onChange) return <span className="text-body">{selected.join(" / ") || "-"}</span>;
+  return <Field>
+    <FieldLabel htmlFor="strategy-paths">{T.paths}</FieldLabel>
+    <FormChoice id="strategy-paths" label={T.paths} options={rows.map(o => ({ value: o.id, label: o.name }))}
+      values={value.pathIds} multiple placeholder={T.choose} onChange={pathIds => onChange({ ...value, pathIds })} />
+  </Field>;
 }
 
 export function StrategyGoals({
@@ -354,28 +311,26 @@ function AdvancedPart({
   readonly children: ReactNode;
 }) {
   return (
-    <Collapsible className="flex flex-col gap-md">
-      <CollapsibleTrigger asChild>
-        <Button
-          type="button"
-          size="md"
-          variant="ghost"
-          className="group w-full justify-between px-0"
-        >
-          <span
-            className={`flex items-center gap-sm ${filled ? "text-foreground" : "text-muted-foreground"}`}
-          >
-            <Icon name={icon} size="sm" />
-            {title}
-          </span>
-          <Icon
-            name="chevron-down"
-            size="sm"
-            className="transition-transform group-data-[state=open]:rotate-180"
-          />
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>{children}</CollapsibleContent>
+    <Collapsible defaultOpen asChild>
+      <Card className="w-full min-w-0 gap-0 py-lg" data-strategy-advanced-card>
+        <CardHeader>
+          <div className="flex min-h-control-md items-center justify-between gap-md">
+            <CardTitle className={`flex items-center gap-sm text-body font-medium ${filled ? "text-foreground" : "text-muted-foreground"}`}>
+              <Icon name={icon} size="sm" />{title}
+            </CardTitle>
+            <CollapsibleTrigger asChild>
+              <Button type="button" size="icon-md" variant="ghost" className="group shrink-0" aria-label={title}>
+                <Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="pt-lg">
+            <div className="border-t border-dashed border-border pt-lg">{children}</div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
     </Collapsible>
   );
 }
@@ -399,11 +354,7 @@ export function StrategyAdvanced({
     (m) => m.name || m.startOn || m.endOn || m.deliverable || m.ownerSub,
   );
   const resources = (
-    <Card className="py-lg">
-      <CardContent
-        className="@container grid grid-cols-1 gap-lg @xl:grid-cols-3"
-        data-strategy-resources
-      >
+    <div className="@container grid grid-cols-1 gap-lg @xl:grid-cols-3" data-strategy-resources>
         {(["people", "funds", "technology"] as const).map((k) => (
           <div key={k} className="flex min-w-0 flex-col gap-md">
             <Field>
@@ -466,8 +417,7 @@ export function StrategyAdvanced({
             </Field>
           </div>
         ))}
-      </CardContent>
-    </Card>
+    </div>
   );
   const timeline = (
     <ol
@@ -516,8 +466,7 @@ export function StrategyAdvanced({
             ),
           });
         return (
-          <Card key={m.id} className="py-lg">
-            <CardContent className="@container flex flex-col gap-md">
+          <div key={m.id} className="@container flex flex-col gap-md border-t border-dashed border-border pt-lg first:border-0 first:pt-0" data-strategy-stage>
               <div
                 className="grid grid-cols-1 gap-lg @xl:grid-cols-3"
                 data-strategy-milestone-fields
@@ -580,8 +529,7 @@ export function StrategyAdvanced({
                   <Icon name="trash" size="sm" />
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+          </div>
         );
       })}
       <Button
@@ -635,14 +583,14 @@ export function StrategyAdvanced({
           <Section title={T.advanced} icon="faders">
             <div className="@container flex flex-col gap-xl">
               {resource ? (
-                <Section title={T.resources} icon="wallet">
+                <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
                   {resources}
-                </Section>
+                </AdvancedPart>
               ) : null}
               {milestones.length ? (
-                <Section title={T.milestones} icon="flag">
+                <AdvancedPart title={T.milestones} icon="flag" filled={!!milestones.length}>
                   {timeline}
-                </Section>
+                </AdvancedPart>
               ) : null}
             </div>
           </Section>
@@ -699,24 +647,17 @@ export function StrategyAdvanced({
 export function StrategyNovelty({
   value,
   onChange,
+  label,
 }: {
+  readonly label?: string;
   readonly value: Novelty;
   readonly onChange?: (v: Novelty) => void;
 }) {
   const { STRATEGY_RESULT_TEXT: T } = useMessages();
   return onChange ? (
-    <NativeSelect
-      aria-label={T.offeringAttribute}
-      value={value}
-      onChange={(e) => onChange(e.target.value as Novelty)}
-      className="w-auto"
-    >
-      {(["unknown", "existing", "new"] as const).map((k) => (
-        <option key={k} value={k}>
-          {T[k]}
-        </option>
-      ))}
-    </NativeSelect>
+    <FormChoice label={label ?? T.offeringAttribute} values={[value]} placeholder={T.unknown}
+      options={(["unknown", "existing", "new"] as const).map(k => ({ value: k, label: T[k] }))}
+      onChange={values => onChange(values[0] as Novelty)} />
   ) : (
     <span className="text-body-small text-muted-foreground">{T[value]}</span>
   );

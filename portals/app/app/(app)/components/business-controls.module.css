@@ -111,7 +111,17 @@
 ) {
   font-size: var(--body-font-size);
   line-height: var(--body-line-height);
+  font-weight: var(--body-font-weight);
   color: var(--foreground);
+}
+.controls :is([data-business-form], [data-business-fields]) :is([data-form-value], [data-slot="native-select"], [role="combobox"])[data-form-placeholder="true"] {
+  color: var(--muted-foreground);
+}
+/* Body-mounted choice panels belong to form content, including member search. */
+.controls [data-form-choice-panel] :is([role="option"], [cmdk-input]) {
+  font-size: var(--body-font-size);
+  line-height: var(--body-line-height);
+  font-weight: var(--body-font-weight);
 }
 .controls :is([data-business-form], [data-business-fields]) [data-invalid="true"] :is(
   [data-slot="field-label"], [data-slot="field-label-text"]

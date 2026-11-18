@@ -1,5 +1,6 @@
 "use client";
 
+import { FormChoice } from "./form-choice";
 import { StrategyGoals, StrategyAdvanced, StrategyConsistency, StrategyPaths } from "./strategy-result-fields";
 import { StrategyDraftAssistant } from "./strategy-draft-assistant";
 import { strategyToday, resultFromExpectations, strategyResultIssues, validStrategyResult, goalExpectations, type StrategyResult, type StrategyOption } from "../../domains/strategy/lib/strategy-result";
@@ -11,7 +12,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   Button, Card, CardContent,
   Field,
-  FieldLabel, FieldError, NativeSelect,
+  FieldLabel, FieldError,
   Input,
   StatusBadge, Popover, PopoverTrigger, PopoverContent,
 } from "@vxture/design-ui";
@@ -85,10 +86,9 @@ function StrategyTypeField({types,value,existing,disabled,onChange}: {
 }) {
   const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T }=useMessages();
   return <Field><FieldLabel required htmlFor="strategy-type">{T.strategyType}</FieldLabel>
-    <NativeSelect id="strategy-type" value={value} disabled={disabled || types===null} onChange={e=>onChange(e.target.value)}>
-      <option value="">{R.choose}</option>
-      {types?.filter(t=>t.enabled || t.id===existing).map(t=><option key={t.id} value={t.id}>{t.name}{t.enabled ? "" : ` (${T.typeDisabledLabel})`}</option>)}
-    </NativeSelect>
+    <FormChoice id="strategy-type" label={T.strategyType} values={value ? [value] : []} disabled={disabled || types === null}
+      options={types?.filter(t => t.enabled || t.id === existing).flatMap(t => t.id ? [{ value: t.id, label: `${t.name}${t.enabled ? "" : ` (${T.typeDisabledLabel})`}` }] : []) ?? []}
+      placeholder={R.choose} onChange={values => onChange(values[0] ?? "")} />
   </Field>;
 }
 
@@ -232,7 +232,9 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
                 <StrategyPeriodField value={period} onChange={setPeriod} disabled={submit.pending}/>
                 <Field><FieldLabel required>{STRATEGY_TEXT.newPlanOwner}</FieldLabel><MemberPicker options={ownerOptions} value={ownerSub} onValueChange={setOwnerSub} label={STRATEGY_TEXT.newPlanOwner} disabled={submit.pending}/>{requiredError("ownerSub")}</Field>
                 <div><StrategyTypeField types={strategyTypes} value={strategyTypeId} existing={initial?.strategyTypeId} disabled={submit.pending} onChange={setStrategyTypeId}/>{requiredError("strategyTypeId")}</div>
-                <Field><FieldLabel required htmlFor="strategy-value">{R.value}</FieldLabel><NativeSelect id="strategy-value" value={result.valuePropositionId??""} onChange={e=>setResult({...result,valuePropositionId:e.target.value||null})}><option value="">{R.choose}</option>{strategyOptions.filter(o=>o.kind==="value"&&(o.enabled||o.id===result.valuePropositionId)).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</NativeSelect>{issues.some(e=>e.field==="valuePropositionId")?<FieldError>{R.required}</FieldError>:null}</Field>
+                <Field><FieldLabel required htmlFor="strategy-value">{R.value}</FieldLabel><FormChoice id="strategy-value" label={R.value} values={result.valuePropositionId ? [result.valuePropositionId] : []}
+                  options={strategyOptions.filter(o => o.kind === "value" && (o.enabled || o.id === result.valuePropositionId)).map(o => ({ value: o.id, label: o.name }))}
+                  placeholder={R.choose} onChange={values => setResult({ ...result, valuePropositionId: values[0] ?? null })} />{issues.some(e=>e.field==="valuePropositionId")?<FieldError>{R.required}</FieldError>:null}</Field>
                 <StrategyPaths value={result} options={strategyOptions} onChange={setResult}/>
                 <Field className="col-span-full"><FieldLabel required htmlFor="strategy-direction">{R.positioning}</FieldLabel><Input id="strategy-direction" maxLength={100} placeholder={R.positioningExample} value={objective} onChange={e=>setObjective(e.target.value)}/>{requiredError("objective")}</Field>
                 {initial?.basePlanId ? <Field className="col-span-full"><FieldLabel htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>

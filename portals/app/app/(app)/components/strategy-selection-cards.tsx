@@ -112,16 +112,17 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
       {rows.map(row => {
         const shared=(row.kind === "product" ? sharedProductIds : sharedIds)?.includes(row.id);
         const scopes=markets.filter(m=>(row.kind === "product" ? m.productIds : m.solutionIds)?.includes(row.id));
+        const marketLabel = shared ? T.sharedScope : scopes.length ? scopes.map(m=>m.marketName).join(" / ") : T.noPlanMarkets;
         return <Card key={row.key} className="min-w-0 gap-md py-lg" data-strategy-offering={row.kind}><CardHeader>
           <div className="flex items-start gap-sm"><Icon name={row.icon} size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
             <div className="flex min-w-0 flex-col gap-xs"><CardTitle><Link href={row.href} className="break-words transition-colors hover:text-primary">{row.name}</Link></CardTitle>
-              <span className="text-body-small text-muted-foreground">{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span></div>
-          </div></CardHeader><CardContent><div className="flex min-w-0 gap-sm"><span className="size-icon-lg shrink-0" aria-hidden="true"/><div className="flex min-w-0 flex-1 flex-col gap-sm text-body-small">
-            <div className="flex flex-wrap items-center gap-sm">{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}{shared ? <span className="text-muted-foreground">{T.sharedScope}</span> : null}</div>
-            {scopes.length ? <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-sm">
-              <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt><dd className="break-words">{scopes.map(m=>m.marketName).join(" / ")}</dd>
-            </dl> : null}
-          </div></div></CardContent>{actions?<CardFooter>{actions(row)}</CardFooter>:null}</Card>;
+              <span className="flex flex-wrap items-center gap-xs text-body-small text-muted-foreground"><span>{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span>{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}</span></div>
+          </div></CardHeader><CardContent className="mt-auto"><div className="flex min-w-0 gap-sm"><span className="size-icon-lg shrink-0" aria-hidden="true"/>
+            <dl className="flex min-w-0 flex-1 flex-col gap-xs text-body-small" data-strategy-offering-market>
+              <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt>
+              <dd title={marketLabel} className={`line-clamp-2 min-h-[2lh] break-words ${shared || scopes.length ? "text-foreground" : "text-muted-foreground"}`}>{marketLabel}</dd>
+            </dl>
+          </div></CardContent>{actions?<CardFooter>{actions(row)}</CardFooter>:null}</Card>;
       })}
     </StrategySelectionGrid>
   </>;

@@ -58,6 +58,8 @@ export function StrategyDateRange({
             size="md"
             variant="outline"
             className="w-full justify-between font-normal"
+            data-form-value
+            data-form-placeholder={!startOn && !endOn}
             data-strategy-date-range
           >
             <span className="flex min-w-0 items-center gap-xs">

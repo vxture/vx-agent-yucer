@@ -1,9 +1,10 @@
 "use client";
 
+import { FormChoice } from "./form-choice";
 import { StrategyNovelty } from "./strategy-result-fields";
 import type { Novelty } from "../../domains/strategy/lib/strategy-result";
 import { useState } from "react";
-import { Button, Checkbox, Drawer, EmptyState, Field, FieldError, FieldLabel, Icon, Input, NativeSelect, Textarea } from "@vxture/design-ui";
+import { Button, Checkbox, Drawer, EmptyState, Field, FieldError, FieldLabel, Icon, Input, Textarea } from "@vxture/design-ui";
 import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import type { PlanRelationChange, TargetMarketDraft, TargetMarketIntent } from "../../domains/strategy/lib/lifecycle";
 import type { MarketView } from "../lib/market-strategy";
@@ -115,11 +116,12 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
         </div>}
         {task.kind === "markets" && originalIds.some(id => !selected.includes(id)) ? <p className="text-body-small text-muted-foreground">{T.relationRemoveHint}</p> : null}
       </> : target ? <>
-        {onMarketNoveltyChange?<Field><FieldLabel>{R.marketAttribute}</FieldLabel><StrategyNovelty value={novelty} onChange={setNovelty}/></Field>:null}
-        <Field><FieldLabel>{T.marketIntent}</FieldLabel><NativeSelect value={intent ?? ""} aria-label={T.marketIntent} disabled={pending} onChange={e => setIntent(e.target.value as TargetMarketIntent)}>
-          {intent === null ? <option value="" disabled>{T.unclassifiedMarket}</option> : null}
-          <option value="focus">{T.focusMarket}</option><option value="validate">{T.validateMarket}</option>
-        </NativeSelect></Field>
+        {onMarketNoveltyChange?<Field><FieldLabel>{R.marketAttribute}</FieldLabel><StrategyNovelty label={R.marketAttribute} value={novelty} onChange={setNovelty}/></Field>:null}
+        <Field><FieldLabel htmlFor="strategy-market-intent">{T.marketIntent}</FieldLabel>
+          <FormChoice id="strategy-market-intent" label={T.marketIntent} values={intent ? [intent] : []} disabled={pending}
+            options={[{ value: "focus", label: T.focusMarket }, { value: "validate", label: T.validateMarket }]} placeholder={T.unclassifiedMarket}
+            onChange={values => setIntent(values[0] as TargetMarketIntent)} />
+        </Field>
         <Field><FieldLabel>{T.marketApproach}</FieldLabel><Textarea rows={3} maxLength={4000} aria-label={T.marketApproach} value={approach}
           disabled={pending} placeholder={T.marketApproachHint} onChange={e => setApproach(e.target.value)}/></Field>
         <Field><FieldLabel>{T.primarySolutions}</FieldLabel><OfferingSelectionList productOptions={productOptions} productIds={productIds} onProductChange={setProductIds} options={solutionOptions} ids={solutionIds} onChange={setSolutionIds} disabled={pending}/></Field>
