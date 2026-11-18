@@ -77,11 +77,14 @@ export function StrategyDateRange({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-auto p-md"
+          width="xl"
+          className="w-auto max-w-[calc(100vw-var(--space-lg)*2)] p-md"
+          data-strategy-date-range-panel
           aria-label={T.dateRange}
         >
           <Calendar
             mode="range"
+            numberOfMonths={2}
             selected={range}
             defaultMonth={range.from}
             onSelect={(next) => setRange(next ?? { from: undefined })}
