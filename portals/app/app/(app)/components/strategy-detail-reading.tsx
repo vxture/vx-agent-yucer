@@ -27,8 +27,8 @@ export function StrategyDetailBasic({ plan:p }: { readonly plan:StrategyView }) 
   return <Collapsible defaultOpen className="flex min-w-0 flex-col gap-md" data-strategy-basic-section>
     <SectionHeader title={R.basic} icon="clipboard" action={<CollapsibleTrigger asChild><Button size="icon-md" variant="ghost" className="group" aria-label={R.basic}><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/></Button></CollapsibleTrigger>}/>
     <CollapsibleContent>
-      <Card className="min-w-0 py-lg" data-strategy-basic-card><CardContent className="flex min-w-0 flex-col gap-lg">
-        <dl className={styles.facts} data-strategy-basic-facts>{facts.map(f=><div key={f.label} className="flex min-w-0 flex-col gap-xs"><dt className="text-body-small text-muted-foreground">{f.label}</dt><dd className="break-words text-body">{f.value}</dd></div>)}</dl>
+      <Card className="min-w-0 py-lg" data-strategy-basic-card><CardContent className="flex min-w-0 flex-col gap-md">
+        <dl className={styles.facts} data-strategy-basic-facts>{facts.map(f=><div key={f.label} className={styles.fieldRow}><dt className="text-body-small text-muted-foreground">{f.label}</dt><dd className="min-w-0 break-words text-body">{f.value}</dd></div>)}</dl>
         <div className={styles.position} data-strategy-detail-direction><span className="text-body-small text-muted-foreground">{T.strategyPosition}</span><p className="whitespace-pre-wrap break-words text-body">{p.objective || T.directionEmpty}</p></div>
         <div className="flex flex-wrap items-center justify-between gap-md text-body-small text-muted-foreground" data-strategy-publication-meta>
           <span>{T.publishedAt}<span className="ml-sm tabular-nums">{p.approvedAt?new Date(p.approvedAt).toLocaleDateString(locale):"-"}</span></span>
@@ -54,7 +54,7 @@ export function StrategyDetailGoals({ plan:p }: { readonly plan:StrategyView }) 
       <TableBody>{goals.map((g,i)=><TableRow key={g.id}>
         <TableCell className="text-center tabular-nums text-muted-foreground">{i+1}</TableCell>
         <TableCell><span className="line-clamp-2 text-body" title={g.name}>{g.name || R.untitled}</span></TableCell>
-        <TableCell><div className="flex min-w-0 flex-col gap-xs"><span className="text-body font-medium tabular-nums">{format(g.target)}{g.target.trim()?<span className="ml-xs text-body-small font-normal text-muted-foreground">{g.unit}</span>:null}</span>{g.baseline.trim()?<span className="text-body-small text-muted-foreground">{R.baseline} {format(g.baseline)} {g.unit}</span>:null}</div></TableCell>
+        <TableCell><div className="flex min-w-0 flex-wrap items-baseline gap-x-md gap-y-xs"><span className="text-body font-medium tabular-nums">{format(g.target)}{g.target.trim()?<span className="ml-xs text-body-small font-normal text-muted-foreground">{g.unit}</span>:null}</span>{g.baseline.trim()?<span className="text-body-small text-muted-foreground">{R.baseline} {format(g.baseline)} {g.unit}</span>:null}</div></TableCell>
         <TableCell className="text-body-small tabular-nums">{g.dueOn || "-"}</TableCell>
         <TableCell><span className="line-clamp-2 whitespace-normal text-body-small text-muted-foreground" title={g.criterion || undefined}>{g.criterion || "-"}</span></TableCell>
       </TableRow>)}</TableBody>
@@ -102,9 +102,8 @@ export function StrategyDetailOfferings({ plan:p }: { readonly plan:StrategyView
         const scope=shared?T.sharedScope:markets?.length?markets.map(m=>m.marketName).join(" / "):p.targetMarkets===null?T.unknown:T.noPlanMarkets;
         return <Card key={row.key} className="min-w-0 gap-0 py-lg" data-strategy-offering={row.kind}><CardContent className="flex min-w-0 flex-1 flex-col gap-md">
           <Link href={row.href} className="inline-flex min-w-0 items-start gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name={row.icon} size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words" title={row.name}>{row.name}</span></Link>
-          <div className="flex min-w-0 flex-wrap items-center gap-xs text-body-small text-muted-foreground"><span>{row.kind==="product"?T.productKind:T.solutionKind}</span>{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}{row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}</div>
-          <span className="truncate text-body-small text-muted-foreground" title={row.code}>{row.code}</span>
-          <div className="mt-auto border-t border-dashed border-border pt-md"><span className="text-body-small text-muted-foreground">{T.targetMarketsTitle}</span><p className="line-clamp-2 min-h-[2lh] break-words text-body-small" title={scope}>{scope}</p></div>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-sm gap-y-xs text-body-small text-muted-foreground"><span>{row.kind==="product"?T.productKind:T.solutionKind}</span>{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}{row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}<span className="min-w-0 truncate" title={row.code}>{row.code}</span></div>
+          <div className="mt-auto border-t border-dashed border-border pt-md"><div className={styles.fieldRow}><span className="text-body-small text-muted-foreground">{T.targetMarketsTitle}</span><p className="line-clamp-2 min-w-0 break-words text-body" title={scope}>{scope}</p></div></div>
         </CardContent></Card>;
       })}</RelatedDisclosure>
     </>}
@@ -117,10 +116,16 @@ export function StrategyDetailHandoff({ plan:p, rows, children }: { readonly pla
   return <Section title={T.handoff} icon="workflow" help={H.resultHelp}>
     <Card className="min-w-0 py-lg" data-strategy-handoff-card><CardContent className="flex min-w-0 flex-col gap-lg">
     <div className={styles.handoff}>
-      <div className="flex min-w-0 flex-col gap-sm"><div className="flex items-center justify-between gap-md"><span className="text-body font-medium">{T.openPlanning}</span><Button asChild size="md" variant="ghost"><Link href="/planning">{D.viewPlanning}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button></div>
-        {linked.length?<div className="flex flex-wrap gap-sm">{linked.map(r=><Link key={r.revisionId} href={`/planning?year=${r.year}&revision=${r.revisionId}`} className="text-body-small text-muted-foreground transition-colors hover:text-primary-text">{r.year} / V{r.version}</Link>)}</div>:<p className="text-body-small text-muted-foreground">{rows===null?T.unknown:H.none}</p>}
+      <div className={styles.handoffRow}>
+        <span className="text-body-small text-muted-foreground">{T.openPlanning}</span>
+        {linked.length?<div className="flex min-w-0 flex-wrap gap-sm">{linked.map(r=><Link key={r.revisionId} href={`/planning?year=${r.year}&revision=${r.revisionId}`} className="text-body transition-colors hover:text-primary-text">{r.year} / V{r.version}</Link>)}</div>:<p className="text-body">{rows===null?T.unknown:H.none}</p>}
+        <Button asChild size="md" variant="ghost"><Link href="/planning">{D.viewPlanning}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
       </div>
-      <div className="flex min-w-0 flex-col gap-sm"><div className="flex items-center justify-between gap-md"><span className="text-body font-medium">{T.openCampaigns}<span className="ml-sm text-body-small font-normal tabular-nums text-muted-foreground">{p.campaigns?.length ?? "-"}</span></span><Button asChild size="md" variant="ghost"><Link href="/campaign">{D.viewCampaigns}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button></div><p className="line-clamp-2 text-body-small text-muted-foreground" title={p.campaigns?.map(c=>c.name).join(" / ")}>{p.campaigns?.map(c=>c.name).join(" / ") || (p.campaigns===null?T.unknown:T.noCampaigns)}</p></div>
+      <div className={styles.handoffRow}>
+        <span className="text-body-small text-muted-foreground">{T.openCampaigns}<span className="ml-xs tabular-nums">{p.campaigns?.length ?? "-"}</span></span>
+        <p className="line-clamp-2 min-w-0 text-body" title={p.campaigns?.map(c=>c.name).join(" / ")}>{p.campaigns?.map(c=>c.name).join(" / ") || (p.campaigns===null?T.unknown:T.noCampaigns)}</p>
+        <Button asChild size="md" variant="ghost"><Link href="/campaign">{D.viewCampaigns}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
+      </div>
     </div>
     {rows?.length?<Collapsible className="flex flex-col gap-md"><CollapsibleTrigger asChild><Button size="md" variant="ghost" className="group self-start"><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/>{D.handoffDetails}</Button></CollapsibleTrigger><CollapsibleContent>{children}</CollapsibleContent></Collapsible>:null}
     </CardContent></Card>

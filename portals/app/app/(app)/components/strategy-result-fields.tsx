@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import readingStyles from "./strategy-detail-reading.module.css";
 import { FormChoice } from "./form-choice";
 import { StrategyDateRange } from "./strategy-date-range";
 import { MemberPicker } from "./member-picker";
@@ -578,16 +579,16 @@ export function StrategyAdvanced({
     </Section>
   ) : null;
   const resourceSummary = (
-    <dl className="grid grid-cols-1 gap-lg @xl:grid-cols-3" data-strategy-resources>
+    <dl className="grid grid-cols-1 gap-md @xl:grid-cols-3" data-strategy-resources>
       {(["people", "funds", "technology"] as const)
         .filter(k => value.resources[k].trim() || value.resources[`${k}Note`].trim())
-        .map(k => <div key={k} className="flex min-w-0 flex-col gap-xs">
+        .map(k => <div key={k} className={readingStyles.fieldRow}>
           <dt className="text-body-small text-muted-foreground">{T[k]}</dt>
-          {value.resources[k].trim() ? <dd className="text-body tabular-nums">
+          {value.resources[k].trim() ? <dd className="min-w-0 break-words text-body tabular-nums">
             {value.resources[k]}
             {k === "funds" ? <span className="ml-xs text-body-small text-muted-foreground">{currency}</span> : null}
           </dd> : null}
-          {value.resources[`${k}Note`].trim() ? <dd className="whitespace-pre-wrap break-words text-body-small text-muted-foreground">
+          {value.resources[`${k}Note`].trim() ? <dd className={`${readingStyles.resourceNote} whitespace-pre-wrap break-words text-body-small text-muted-foreground`}>
             {value.resources[`${k}Note`]}
           </dd> : null}
         </div>)}

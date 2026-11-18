@@ -1,13 +1,21 @@
 .facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-lg);
+  gap: var(--space-md) var(--space-lg);
 }
+.fieldRow {
+  display: grid;
+  grid-template-columns: calc(var(--space-xl) * 2) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.fieldRow > :first-child { white-space: nowrap; }
 .position {
   display: grid;
-  grid-template-columns: 5em minmax(0, 1fr);
+  grid-template-columns: calc(var(--space-xl) * 2) minmax(0, 1fr);
   align-items: baseline;
-  gap: var(--space-md);
+  gap: var(--space-sm);
   border-top: 1px dashed var(--border);
   padding-top: var(--space-md);
 }
@@ -19,7 +27,12 @@
 .goalDateColumn { width: 18%; }
 .relatedGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
 .referenceFact { display: grid; grid-template-columns: 5em minmax(0, 1fr); gap: var(--space-sm); }
-.handoff { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); }
+.handoff { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-lg); }
+.handoffRow { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-md); min-width: 0; }
+.handoffRow > :first-child { white-space: nowrap; }
+.resourceNote { grid-column: 2; min-width: 0; }
+@container (max-width: 54rem) { .handoff { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 24rem) { .handoffRow { grid-template-columns: max-content minmax(0, 1fr); } .handoffRow > :last-child { grid-column: 2; justify-self: start; } }
 @container (min-width: 42rem) { .relatedGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container (min-width: 70rem) { :global([data-workspace-full-width]) .relatedGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @container (max-width: 54rem) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
