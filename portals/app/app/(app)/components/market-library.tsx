@@ -3,9 +3,11 @@
 import { Section } from "./help-section";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-import { Button, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, NativeSelect, TableTitleCell, useListPagination, useToast, type FilterBarView } from "@vxture/design-ui";
+import { Button, DetailList, DetailRow, Drawer, EmptyState, Icon, Input, NativeSelect, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
 import { DataTable, FilterBar } from "./business-controls";
 import { CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
+import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import { useCollectionView } from "./collection-view-provider";
 import { FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { strategyOfferings } from "../lib/strategy-offerings";
 import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
@@ -87,7 +89,7 @@ export function MarketDetails({ market, canWrite, onClose }: { readonly market: 
 export function MarketLibrary({ markets, canWrite, initialMarket, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly initialMarket?: string; readonly actions?: ReactNode }) {
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS } = useMessages();
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<FilterBarView>("cards");
+  const [view, setView] = useCollectionView("cards");
   const [status,setStatus] = useState("");
   const [selected,setSelected] = useState<readonly string[]>([]);
   const [comparing,setComparing] = useState(false);
@@ -123,19 +125,19 @@ export function MarketLibrary({ markets, canWrite, initialMarket, actions }: { r
       ] : []),
     ]} />;
   const empty = <EmptyState title={markets.length ? T.noMatches : T.noMarkets} description={T.noMarketsWhy} />;
-  const table = (rows: readonly MarketView[]) => <DataTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
+  const table = (rows: readonly MarketView[]) => <CollectionTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
     rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
-    className="[&_table]:min-w-(--container-3xl)"
     columns={[
-      {id:"name",header:T.marketName,align:"left",width:"md",sortable:true,cell:m=><TableTitleCell className="w-48 max-w-full" tooltip={m.criteria.customerNeed || m.name} title={<Button variant="link" size="md" className="max-w-full truncate p-0 text-foreground hover:text-primary hover:no-underline" onClick={()=>setDetail(m.id)}>{m.name}</Button>} description={m.criteria.customerNeed || m.segmentCode}/>},
-      {id:"criteria",header:T.criteria,align:"left",width:"md",cell:m=><span className="line-clamp-2 text-body-small" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>{[...m.criteria.industries,...(m.criteria.sizes ?? []),...m.criteria.regions].join(" / ") || T.undefined}</span>},
-      {id:"buying",header:T.buyingEntry,align:"left",width:"md",cell:m=><div className="flex min-w-0 flex-col gap-xs">
-        <span className="line-clamp-2 text-body-small" title={m.criteria.buyingScenario}>{m.criteria.buyingScenario || T.notProvided}</span>
+      {id:"name",header:T.marketName,track:"subject",sortable:true,cell:m=><CollectionTitleCell title={m.name} description={m.segmentCode}
+        tooltip={[m.name,m.segmentCode,m.criteria.customerNeed].filter(Boolean).join(" / ")} onTitleClick={()=>setDetail(m.id)}/>},
+      {id:"criteria",header:T.criteria,align:"left",track:"criteria",cell:m=><span className="line-clamp-2" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>{[...m.criteria.industries,...(m.criteria.sizes ?? []),...m.criteria.regions].join(" / ") || T.undefined}</span>},
+      {id:"buying",header:T.buyingEntry,align:"left",cell:m=><div className="flex min-w-0 flex-col gap-xs">
+        <span className="line-clamp-2" title={m.criteria.buyingScenario}>{m.criteria.buyingScenario || T.notProvided}</span>
         {m.criteria.expectedOutcome ? <span className="line-clamp-1 text-body-small text-muted-foreground" title={`${T.expectedOutcome}: ${m.criteria.expectedOutcome}`}>{T.expectedOutcome} {m.criteria.expectedOutcome}</span> : null}
       </div>},
-      {id:"customers",header:T.customers,align:"left",sortable:true,width:"sm",cell:m=><div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs tabular-nums"><span className="font-medium">{m.matched ?? T.unknown}</span>{m.missing!==null && m.missing>0?<span className="whitespace-nowrap text-body-small text-muted-foreground">{T.missing} {m.missing}</span>:null}</div>},
-      {id:"plan",header:T.linkedPlan,align:"left",width:"md",cell:m=><div className="text-body-small text-muted-foreground"><StrategyReferences market={m} compact/></div>},
-      {id:"status",header:T.status,width:"xs",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
+      {id:"customers",header:T.customers,sortable:true,track:"count",cell:m=><div className="flex flex-wrap items-baseline justify-center gap-x-sm gap-y-xs tabular-nums"><span className="font-medium">{m.matched ?? T.unknown}</span>{m.missing!==null && m.missing>0?<span className="whitespace-nowrap text-body-small text-muted-foreground">{T.missing} {m.missing}</span>:null}</div>},
+      {id:"plan",header:T.linkedPlan,align:"left",track:"reference",cell:m=><div className="text-muted-foreground"><StrategyReferences market={m} compact/></div>},
+      {id:"status",header:T.status,track:"state",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
     ]}
     rowActions={rowActions}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}

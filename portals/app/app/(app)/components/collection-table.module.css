@@ -1,0 +1,31 @@
+/* Keep DS edge columns and horizontal scrolling. Place width hints on the
+ * business columns by role so selection and operation columns can come and go. */
+.table > div > table {
+  --collection-compact-col: calc(var(--vx-spacing) * 22);
+  table-layout: fixed;
+  min-width: var(--vx-container-4xl);
+  font-size: var(--body-font-size);
+  line-height: var(--body-line-height);
+}
+
+.table th:has([data-collection-align]) {
+  white-space: normal;
+}
+
+.table th:has([data-collection-align]) button {
+  min-height: var(--space-control-md);
+  height: auto;
+}
+
+.table th:has([data-collection-align="left"]) { text-align: start; }
+.table th:has([data-collection-track="direction"]) { width: 18%; }
+.table th:has([data-collection-track="subject"]) { width: 23%; }
+.table th:has([data-collection-track="criteria"]) { width: 15%; }
+.table th:has([data-collection-track="reference"]) { width: 12%; }
+.table th:has([data-collection-track="category"]) { width: 16%; }
+.table th:has([data-collection-track="count"]),
+.table th:has([data-collection-track="state"]),
+.table th:has([data-collection-track="unit"]) { width: var(--collection-compact-col); }
+.table th:has([data-collection-track="composition"]) { width: calc(var(--vx-spacing) * 34); }
+.table th:has([data-collection-track="price"]) { width: calc(var(--vx-spacing) * 52); }
+.table th:has([data-collection-track="amount"]) { width: calc(var(--vx-spacing) * 36); }

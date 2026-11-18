@@ -3,6 +3,8 @@
 import { Section } from "./help-section";
 import { DataTable } from "./business-controls";
 import { CollectionHeadline, CollectionHistory, CollectionToolbar } from "./collection-layout";
+import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import { useCollectionView } from "./collection-view-provider";
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -15,9 +17,7 @@ import {
   Icon,
   Input,
   ListCard,
-  TableTitleCell,
   useToast,
-  type FilterBarView,
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
 import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
@@ -141,7 +141,7 @@ export function ProductRoster({
      for. The 分类 filter is the second axis because it is the only column
      with a small, closed set of values. */
   const [query, setQuery] = useState(() => products.find(p => p.id === params.get("product"))?.name ?? "");
-  const [view, setView] = useState<FilterBarView>("list");
+  const [view, setView] = useCollectionView("list");
   const [typeFilter, setTypeFilter] = useState("");
   const family = typeFilter === "" ? null : typeFamily(types, typeFilter);
   const match = (p: ProductRecord) => {
@@ -197,29 +197,24 @@ export function ProductRoster({
   const columns = [
     {
       id: "name",
-  sortable: true,
+      sortable: true,
       header: CATALOG_TEXT.colName,
-      /* THE DS'S OWN TITLE CELL (design-ui 8.0.0 `TableTitleCell`), not a
-         hand-rolled flex-col. Same story as MoneyCell: the owner's 16/14
-         ruling of 2026-09-06 is the component's `size="lg"` default as of
-         2026-09-07, so eight tables were each re-deriving it. What the local
-         version could not do is PIN THE TWO LINE HEIGHTS - the DS fixes them
-         at 20px / 16px with a 4px gap so a title lines up with the titles in
-         the rows around it and a subtitle with the subtitles, which is what
-         makes a row readable straight across. */
       cell: (r: ProductRecord) => (
-        <TableTitleCell title={r.name} description={r.productCode} tooltip={r.name} />
+        <CollectionTitleCell title={r.name} description={r.productCode} tooltip={`${r.name} / ${r.productCode}`} />
       ),
     },
     {
       id: "type",
       header: CATALOG_TEXT.colType,
+      align: "left" as const,
+      track: "category" as const,
       cell: (r: ProductRecord) =>
-        typeNameOf(r.typeId),
+        <span className="line-clamp-2 wrap-anywhere" title={typeNameOf(r.typeId)}>{typeNameOf(r.typeId)}</span>,
     },
     {
       id: "unit",
       header: CATALOG_TEXT.colUnitPrice,
+      track: "unit" as const,
       /* THE NAME, resolved from the vocabulary (0037). The row carries a uuid;
          printing it would be a column of hex. A product whose unit row was
          deleted underneath it cannot exist - fk_product_unit RESTRICTs - so
@@ -229,7 +224,7 @@ export function ProductRoster({
     ...(pricing ? [{
       id: "list",
       header: `${CATALOG_TEXT.productPrices} (${pricing.currency})`,
-      width: "md" as const,
+      track: "price" as const,
       sortable: true,
       align: "center" as const,
       cell: (row: ProductRecord) => <ProductPriceValues price={priceByProduct.get(row.id)} currency={pricing.currency} />,
@@ -237,6 +232,7 @@ export function ProductRoster({
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
+      track: "state" as const,
       cell: statusBadge,
     },
   ];
@@ -326,22 +322,15 @@ export function ProductRoster({
     ),
   };
 
+  const RosterTable = variant === "sort" ? DataTable<ProductRecord> : CollectionTable<ProductRecord>;
   const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn, retiredGroup = false) => {
     const select = click(rows);
     return (
-    /* The config tables' geometry, applied here too (owner ruling; TD-022):
-       the pricing roster uses native automatic columns and a DS width floor
-       so three prices stay readable in narrow panes; the sort variant stays
-       fixed. The name column takes the lion's share, and the
-       trailing column is token-fixed - the DS edge token for the single-
-       trigger action slot, a wider fixed box for the sort page's two arrows.
-       Counted FROM THE LEFT, and the leading pair is now 选择 | 序号, so the
-       first business column is nth-child(3) rather than (2). */
     <div
       ref={select.ref}
-      className={`${pricing ? "[&_table]:min-w-(--vx-container-4xl)" : "[&_table]:table-fixed"} [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ""}`}
+      className={`${select.className} ${variant === "sort" ? "[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%]" : ""} ${extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ""}`}
     >
-      <DataTable
+      <RosterTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
         selectedKeys={selected}

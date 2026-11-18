@@ -5,12 +5,14 @@ import { StrategyExpectations } from "./strategy-expectations";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, SegmentedControl, ViewLayout, useToast, type ActionMenuItem, type FilterBarView } from "@vxture/design-ui";
-import { DataTable, ViewHeader } from "./business-controls";
+import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, SegmentedControl, ViewLayout, useToast, type ActionMenuItem } from "@vxture/design-ui";
+import { ViewHeader } from "./business-controls";
 import { Section, SectionHeader } from "./help-section";
 import { TitleHelp } from "./title-help";
 import { FilterSlot, RowActions, SearchSlot } from "./table-fittings";
 import { CollectionHeadline, CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
+import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import { useCollectionView } from "./collection-view-provider";
 import { PageCrumbs } from "./page-crumbs";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -32,7 +34,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const { MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
   const router=useRouter(), params=useSearchParams();
-  const [layout,setLayout]=useState<FilterBarView>("cards");
+  const [layout,setLayout]=useCollectionView("cards");
   const [query,setQuery]=useState("");
   const period=params.get("period") ?? "";
   const setPeriod=(value:string)=>{
@@ -81,18 +83,19 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       onSelect:()=>p.status==="draft"&&s==="archived"?openPublication(p,true):run(p.id,s)})) : []),
   ];
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
-  const number=(n:number|null|undefined)=>n==null ? T.unknown:n.toLocaleString(locale);
+  const number=(n:number|null|undefined)=><span className="tabular-nums">{n==null ? T.unknown:n.toLocaleString(locale)}</span>;
   const money=(n:number,currency:string)=>new Intl.NumberFormat(locale,{style:"currency",currency,maximumFractionDigits:0}).format(n);
   const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} actions={<RowActions items={items(p)} disabled={pending}/>} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
-  const table=(rows:StrategyView[])=><DataTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1}
-    className="[&_table]:min-w-(--container-3xl)" columns={[
-      {id:"name",header:T.strategy,align:"left",width:"lg",cell:p=><div className="flex flex-col gap-xs"><Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link><span className="text-body-small text-muted-foreground">{strategyPeriodLabel(p.period)}{" \u00b7 "}{p.planNo} {p.versionNo ? `\u00b7 V${p.versionNo}` : ""}</span></div>},
-      {id:"direction",header:T.direction,align:"left",width:"lg",cell:p=><span className="line-clamp-2 text-body-small" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
-      {id:"markets",header:T.marketCount,cell:p=>number(p.marketIds?.length)},
-      {id:"customers",header:T.customerCount,cell:p=>number(p.customerCount)},
-      {id:"solutions",header:T.solutionCount,cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length)},
-      {id:"campaigns",header:T.campaignCount,cell:p=>number(p.campaigns?.length)},
-      {id:"status",header:T.status,cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
+  const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className="block truncate transition-colors hover:text-primary-text">{p.name}</Link>;
+  const planCode=(p:StrategyView)=>[strategyPeriodLabel(p.period),p.planNo,p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
+  const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1} columns={[
+      {id:"name",header:T.strategy,cell:p=><CollectionTitleCell title={planTitle(p)} description={planCode(p)} tooltip={`${p.name} / ${planCode(p)}`}/>},
+      {id:"direction",header:T.direction,align:"left",track:"direction",cell:p=><span className="line-clamp-2" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
+      {id:"markets",header:T.marketCount,track:"count",cell:p=>number(p.marketIds?.length)},
+      {id:"customers",header:T.customerCount,track:"count",cell:p=>number(p.customerCount)},
+      {id:"solutions",header:T.solutionCount,track:"count",cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length)},
+      {id:"campaigns",header:T.campaignCount,track:"count",cell:p=>number(p.campaigns?.length)},
+      {id:"status",header:T.status,track:"state",cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
     ]} rowActions={p=><RowActions items={items(p)} disabled={pending}/>}
     empty={<EmptyState title={T.noMatches}/>}/>
   ;
@@ -143,18 +146,13 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const results=(selected:readonly StrategyView[])=>{
     const rows=selected.flatMap(p=>(p.results?.length?p.results:[null]).map(r=>({plan:p,result:r,empty:p.results===null?T.unknown:T.none,key:`${p.id}:${r?.currency ?? "empty"}`})));
     return <div className="flex min-w-0 flex-col gap-md" data-strategy-results>
-      <DataTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={r=>r.key} indexStart={1}
-        className="[&_table]:min-w-(--container-3xl)" columns={[
-          {id:"strategy",header:T.strategy,align:"left" as const,width:"lg" as const,cell:({plan:p}:typeof rows[number])=><div className="flex flex-col gap-xs">
-            <Link href={`/strategy/${p.id}`} className="font-medium transition-colors hover:text-primary">{p.name}</Link>
-            <div className="flex flex-wrap items-center gap-xs"><span className="text-body-small text-muted-foreground">{strategyPeriodLabel(p.period)}{p.versionNo ? ` \u00b7 V${p.versionNo}` : ""}</span>
-              {hasResultGaps(p) ? <Tag tone="warning">{T.resultsPartial}</Tag> : null}
-            </div>
-          </div>},
-          {id:"currency",header:T.currency,width:"xs",cell:({result:r,empty})=>r?.currency ?? empty},
-          {id:"pipeline",header:T.pipeline,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.open,r.currency):empty},
-          {id:"won",header:T.won,align:"numeric",width:"sm",cell:({result:r,empty})=>r?money(r.won,r.currency):empty},
-          {id:"rate",header:T.winRate,align:"numeric",width:"sm",cell:({result:r,empty})=><span className="inline-flex flex-col gap-xs"><span>{r && r.wonCount+r.lostCount>0?`${Math.round(r.wonCount/(r.wonCount+r.lostCount)*100)}%`:empty}</span>{r?<span className="text-body-small text-muted-foreground" title={T.sample}>{r.wonCount} / {r.lostCount}</span>:null}</span>},
+      <CollectionTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={r=>r.key} indexStart={1} columns={[
+          {id:"strategy",header:T.strategy,cell:({plan:p})=><CollectionTitleCell title={planTitle(p)} description={planCode(p)}
+            titleSuffix={hasResultGaps(p) ? <Tag tone="warning">{T.resultsPartial}</Tag> : null} tooltip={`${p.name} / ${planCode(p)}`}/>},
+          {id:"currency",header:T.currency,track:"unit",cell:({result:r,empty})=>r?.currency ?? empty},
+          {id:"pipeline",header:T.pipeline,align:"numeric",track:"amount",cell:({result:r,empty})=>r?money(r.open,r.currency):empty},
+          {id:"won",header:T.won,align:"numeric",track:"amount",cell:({result:r,empty})=>r?money(r.won,r.currency):empty},
+          {id:"rate",header:T.winRate,track:"count",cell:({result:r,empty})=><span className="inline-flex flex-col gap-xs tabular-nums"><span>{r && r.wonCount+r.lostCount>0?`${Math.round(r.wonCount/(r.wonCount+r.lostCount)*100)}%`:empty}</span>{r?<span className="text-body-small text-muted-foreground" title={T.sample}>{r.wonCount} / {r.lostCount}</span>:null}</span>},
         ]} rowActions={({plan:p})=><RowActions items={[{id:"view",label:T.openPlan,onSelect:()=>router.push(`/strategy/${p.id}`)}]}/>}/>
       {selected.some(p=>p.results===null)?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:null}
     </div>;

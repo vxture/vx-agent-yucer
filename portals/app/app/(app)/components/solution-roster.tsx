@@ -1,7 +1,8 @@
 "use client";
 
-import { DataTable } from "./business-controls";
 import { CollectionHeadline, CollectionHistory, CollectionToolbar } from "./collection-layout";
+import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import { useCollectionView } from "./collection-view-provider";
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -9,12 +10,10 @@ import {
   EmptyState,
   Input,
   StatusBadge,
-  TableTitleCell,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   useToast,
-  type FilterBarView,
 } from "@vxture/design-ui";
 import type {
   ProductTypeRecord,
@@ -110,7 +109,7 @@ export function SolutionRoster({
     ...SORT_ON,
     total: (r: SolutionView) => factsOf(r).prices.listPrice ?? null,
   });
-  const [view, setView] = useState<FilterBarView>("cards");
+  const [view, setView] = useCollectionView("cards");
   // Full names, 软件产品-基础软件 (incr/0100).
   const typeName = new Map(types.map((t) => [t.id, typeLabel(types, t.id)?.name ?? t.name]));
   const { toast } = useToast();
@@ -163,7 +162,7 @@ export function SolutionRoster({
       sortable: true,
       header: CATALOG_TEXT.colName,
       cell: (r: SolutionView) => (
-        <TableTitleCell
+        <CollectionTitleCell
           title={r.solution.name}
           description={r.solution.solutionCode}
           tooltip={`${r.solution.name} - ${CATALOG_TEXT.solutionDetailsHint}`}
@@ -174,14 +173,16 @@ export function SolutionRoster({
     {
       id: "types",
       header: CATALOG_TEXT.solutionContents,
+      align: "left" as const,
+      track: "category" as const,
       cell: (r: SolutionView) => <CoveredTypes ids={factsOf(r).typeIds} names={typeName} />,
     },
     {
       id: "composition",
       header: CATALOG_TEXT.colComposition,
-      width: "sm" as const,
+      track: "composition" as const,
       cell: (r: SolutionView) => (
-        <span className="text-body-small tabular-nums whitespace-nowrap">
+        <span className="tabular-nums">
           {CATALOG_TEXT.compositionCount(
             r.items.filter((item) => !item.optional).length,
             r.items.filter((item) => item.optional).length,
@@ -192,6 +193,7 @@ export function SolutionRoster({
     {
       id: "unit",
       header: CATALOG_TEXT.colUnitPrice,
+      track: "unit" as const,
       cell: () => (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -206,7 +208,7 @@ export function SolutionRoster({
       header: `${CATALOG_TEXT.productPrices} (${currency})`,
       align: "center" as const,
       sortable: true,
-      width: "md" as const,
+      track: "price" as const,
       cell: (r: SolutionView) => (
         <ProductPriceValues price={factsOf(r).prices} missing={factsOf(r).missing} currency={currency} />
       ),
@@ -214,7 +216,7 @@ export function SolutionRoster({
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
-      width: "sm" as const,
+      track: "state" as const,
       cell: (r: SolutionView) =>
         r.solution.status === "retired" ? (
           <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag>
@@ -276,8 +278,7 @@ export function SolutionRoster({
 
   // Use the DS table's own horizontal scroll when the pane is narrow.
   const table = (rows: readonly SolutionView[], retiredGroup = false) => (
-    <div className="[&_table]:min-w-(--vx-container-4xl) [&_thead_th:nth-child(2)]:w-[34%]">
-      <DataTable
+      <CollectionTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
         rowKey={(r: SolutionView) => r.solution.id}
@@ -300,7 +301,6 @@ export function SolutionRoster({
           )
         }
       />
-    </div>
   );
 
   const render = (rows: readonly SolutionView[]) => view === "list" ? table(rows)
@@ -391,12 +391,10 @@ function CoveredTypes({
   readonly names: ReadonlyMap<string, string>;
 }) {
   if (ids.length === 0) return <span className="text-muted-foreground">-</span>;
-  // Each name WHOLE, wrapping between names rather than inside one - a narrow
-  // column broke 实施服务 into 实 / 施服务 (seen 2026-09-29).
   return (
-    <span className="flex flex-wrap justify-center gap-x-xs text-body-small">
+    <span className="flex flex-wrap gap-x-xs gap-y-2xs">
       {ids.map((id) => (
-        <span key={id} className="whitespace-nowrap">
+        <span key={id} className="max-w-full truncate" title={names.get(id)}>
           {names.get(id) ?? ""}
         </span>
       ))}
