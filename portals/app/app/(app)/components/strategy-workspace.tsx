@@ -14,6 +14,7 @@ import { ModuleHeadline } from "./module-headline";
 import { CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
+import { PageActionButton } from "./page-header-actions";
 import { PageCrumbs } from "./page-crumbs";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -125,7 +126,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     items={views.filter(v=>v.allowed).map(v=>({value:v.id,label:v.label,icon:v.icon,disabled:pending}))}/> : null;
   const visiblePlanAdvice=data.planAdvice.filter(a=>!detailId || a.planId===detailId);
   const visibleSegmentAdvice=data.segmentAdvice.filter(a=>!detailId || detail?.marketIds?.includes(a.segmentId));
-  const checkButton = <Button size="xl" variant="outline" className="px-md" onClick={()=>setChecks(true)}>{T.checks}<span className="text-body-small text-muted-foreground tabular-nums">{(data.canPlan?visiblePlanAdvice.length:0)+(data.canMarkets?visibleSegmentAdvice.length:0)}</span></Button>;
+  const checkCount = (data.canPlan ? visiblePlanAdvice.length : 0) + (data.canMarkets ? visibleSegmentAdvice.length : 0);
+  const checkButton = <PageActionButton onClick={() => setChecks(true)}>{T.checks}<span className="text-muted-foreground tabular-nums">{checkCount}</span></PageActionButton>;
   const periodFilter = <FilterSlot><NativeSelect aria-label={T.period} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{T.allPeriods}</option>{[...new Set(data.plans?.map(p=>p.period))].map(p=><option key={p} value={p}>{strategyPeriodLabel(p)}</option>)}</NativeSelect></FilterSlot>;
   const validationPlanFilter=<FilterSlot width="w-48 max-w-full"><NativeSelect aria-label={T.strategy} value={planFilter} onChange={e=>{
     const q=new URLSearchParams(params);if(e.target.value)q.set("plan",e.target.value);else q.delete("plan");
@@ -206,19 +208,28 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
     return <EmptyState title={filtered ? T.noMatches : T.noPlans} description={filtered ? undefined : T.noPlansWhy}/>;
   };
   const createAction = data.canCreate ? {href:"/strategy/new",label:T.newPlan} : undefined;
+  const detailMenu = detail ? items(detail).filter(item => !["view", "publish", "revise"].includes(item.id)) : [];
   return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/>
       <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
-        className="grid grid-cols-[auto_minmax(0,1fr)] [&>div:last-child]:col-start-2 [&>div:last-child]:justify-end @4xl:grid-cols-[auto_minmax(0,1fr)_auto] @4xl:[&>div:last-child]:col-start-3"
         secondary={<span className="flex flex-wrap items-center gap-sm">{versionBadge(detail)}<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>{detail.versionNo && !isLatest(detail)?<Tag>{T.historicalVersion}</Tag>:null}</span>}
         description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.period} <span className="text-foreground">{strategyPeriodLabel(detail.period)}</span></span><span>{detail.planNo}</span></span>}
-        action={<div className="flex max-w-full flex-wrap items-center gap-sm">
-          <Button asChild variant="secondary" size="xl"><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></Button>
-          {detail.status==="draft" && data.canApprove ? <Button size="xl" disabled={pending} onClick={()=>openPublication(detail)}>{detail.basePlanId?T.publishNext:T.publishVersion}</Button>:null}
-          {detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status) ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>revise(detail)}>{draftFor(detail)?T.resumeDraft:T.reviseStrategy}</Button>:null}
-          {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>!["view","publish","revise"].includes(item.id))}/>
-        </div>}/></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
-      action={<>{viewActions}{view==="overview" && data.canEdit ? <Button asChild size="xl" variant="outline" className="px-md"><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></Button>:null}</>}/>}
+        pageActions={{
+          secondary: <>
+            <PageActionButton asChild><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></PageActionButton>
+            {checkButton}
+          </>,
+          primary: detail.status === "draft" && data.canApprove
+            ? <PageActionButton intent="primary" disabled={pending} onClick={() => openPublication(detail)}>{detail.basePlanId ? T.publishNext : T.publishVersion}</PageActionButton>
+            : detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status)
+              ? <PageActionButton intent="primary" disabled={pending} onClick={() => revise(detail)}>{draftFor(detail) ? T.resumeDraft : T.reviseStrategy}</PageActionButton>
+              : undefined,
+          more: detailMenu.length ? <RowActions disabled={pending} items={detailMenu} /> : undefined,
+        }} /></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
+        pageActions={{
+          view: viewActions,
+          secondary: view === "overview" && data.canEdit ? <PageActionButton asChild><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></PageActionButton> : undefined,
+        }} />}
     {!detail && view==="validation" ? <CollectionToolbar title={activeView.label} icon={activeView.icon} help={resultHelp} count={plans.length} actions={checkButton}>
       {periodFilter}{validationPlanFilter}
     </CollectionToolbar> : null}

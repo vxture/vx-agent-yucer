@@ -1,6 +1,7 @@
 "use client";
 
 import { ViewHeader } from "./business-controls";
+import type { PageHeaderActions } from "./page-header-actions";
 import { NewEntryLink } from "./form-page";
 
 import type { ReactNode } from "react";
@@ -19,7 +20,7 @@ export function ModuleHeadline({
   description,
   help,
   tags,
-  action,
+  pageActions,
   create,
   className,
 }: {
@@ -36,7 +37,7 @@ export function ModuleHeadline({
   /** StatusBadges beside the title - the key figures, toned. */
   readonly tags?: ReactNode;
   /** Page-wide controls. List filters and selection actions belong below. */
-  readonly action?: ReactNode;
+  readonly pageActions?: PageHeaderActions;
   readonly create?: { readonly href: string; readonly label?: string; readonly newTab?: boolean };
   readonly className?: string;
 }) {
@@ -50,7 +51,7 @@ export function ModuleHeadline({
       help={help ?? (description === undefined ? PAGE_BRIEF[brief ?? moduleKey] : undefined)}
       secondary={tags ? <span className="flex flex-wrap items-center gap-xs">{tags}</span> : undefined}
       divider
-      action={action || create ? <>{action}{create ? <NewEntryLink {...create} /> : null}</> : undefined}
+      pageActions={create ? { ...pageActions, primary: <NewEntryLink {...create} /> } : pageActions}
     />
   );
 }

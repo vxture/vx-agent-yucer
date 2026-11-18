@@ -89,11 +89,11 @@ export default async function MembersPage() {
         title={DOMAIN_LABEL.members}
         help={PAGE_BRIEF.adminMembers}
         secondary={<Tag tone="info">{MEMBER_TEXT.count(active, rows.length - active)}</Tag>}
-        action={
+        pageActions={{ primary:
           canManage && inviteUrl ? (
             <NewEntryLink href={inviteUrl} label={MEMBER_TEXT.invite} newTab />
           ) : null
-        }
+        }}
       />
       <MemberPanel
         rows={rows}

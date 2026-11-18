@@ -1,5 +1,6 @@
 "use client";
 
+import { PageActionButton } from "./page-header-actions";
 import { useState, useTransition } from "react";
 import {
   Button,
@@ -80,8 +81,7 @@ export function MarketScopeControl({
 
   return (
     <>
-      <Button
-        variant="secondary"
+      <PageActionButton
         disabled={!editable}
         onClick={() => {
           reset();
@@ -89,7 +89,7 @@ export function MarketScopeControl({
         }}
       >
         {PLANNING_TEXT.scopeButton(current(scope))}
-      </Button>
+      </PageActionButton>
       <Drawer
         open={open}
         onClose={() => setOpen(false)}

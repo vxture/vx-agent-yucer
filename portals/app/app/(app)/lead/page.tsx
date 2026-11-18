@@ -155,7 +155,7 @@ export default async function LeadPage() {
             ) : null}
           </>
         }
-        action={<RoutingAnalyseButton />}
+        pageActions={{ secondary: <RoutingAnalyseButton /> }}
         create={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed
           ? { href: "/lead/new", label: LEAD_TEXT.addLead } : undefined}
       />

@@ -1,9 +1,9 @@
 "use client";
 
+import { PageActionButton } from "./page-header-actions";
 import { useState } from "react";
 import {
   Banner,
-  Button,
   RadioGroup,
   RadioGroupItem,
   useToast,
@@ -73,8 +73,7 @@ export function DivisionImport(
 
   return (
     <>
-      <Button
-        variant="secondary"
+      <PageActionButton
         onClick={() => {
           /* RE-READ THE LIST ON OPEN. The frame can change while this button
              is mounted (the drawer beside it does exactly that), and the
@@ -86,7 +85,7 @@ export function DivisionImport(
         }}
       >
         {PLANNING_TEXT.templateReset}
-      </Button>
+      </PageActionButton>
       <DialogForm
         open={open}
         onOpenChange={setOpen}

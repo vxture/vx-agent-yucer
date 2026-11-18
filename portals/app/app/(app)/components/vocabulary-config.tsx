@@ -386,7 +386,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           icon={page.icon}
           title={text.title}
           help={text.why}
-          action={add}
+          pageActions={{ primary: add }}
         />
       ) : null}
       {page ? (

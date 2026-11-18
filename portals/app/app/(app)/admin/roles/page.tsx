@@ -1,7 +1,8 @@
+import { PageActionButton } from "../../components/page-header-actions";
 import { NewEntryLink } from "../../components/form-page";
 import Link from "next/link";
 import { ViewHeader } from "../../components/business-controls";
-import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -97,15 +98,15 @@ export default async function RolesPage() {
             {ROLE_TEXT.coverage(rows.length, custom, PERM_CODES.length)}
           </StatusBadge>
         }
-        action={
-          editable ? (
-            <>
-              <Button asChild size="xl" variant="outline"><Link href="/admin/roles/groups">{ROLE_TEXT.groupsButton}</Link></Button>
-              <RoleReset changed={changed} missing={missing} />
-              <NewEntryLink href="/admin/roles/new" label={ROLE_TEXT.newRole} />
-            </>
-          ) : null
-        }
+        pageActions={{
+          secondary: editable ? (
+              <>
+                <PageActionButton asChild><Link href="/admin/roles/groups">{ROLE_TEXT.groupsButton}</Link></PageActionButton>
+                <RoleReset changed={changed} missing={missing} />
+              </>
+            ) : null,
+          primary: editable ? <NewEntryLink href="/admin/roles/new" label={ROLE_TEXT.newRole} /> : undefined,
+        }}
       />
       <RolePanel rows={rows} total={PERM_CODES.length} editable={editable} members={roster} />
     </ViewLayout>

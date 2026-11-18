@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Banner, Button, DestructiveButton, FieldGroup, Icon, type DestructiveConfirm } from "@vxture/design-ui";
+import { PageActionButton } from "./page-header-actions";
 import { AssistantSection } from "./assistant";
 import { useFormAssistSlot } from "./form-assist-slot";
 import { useMessages } from "../lib/i18n/provider";
@@ -66,11 +67,11 @@ type NewEntry = { readonly label?: string };
 export function NewEntryLink({ href, label, newTab }: NewEntry & { readonly href: string; readonly newTab?: boolean }) {
   const { ASSIST_TEXT } = useMessages();
   return (
-    <Button asChild size="xl" className="shrink-0 px-md" data-business-create>
+    <PageActionButton asChild intent="primary" data-business-create>
       <Link href={href} target={newTab ? "_blank" : undefined} rel={newTab ? "noopener noreferrer" : undefined}>
         <Icon name="plus" size="sm" aria-hidden="true" />{label ?? ASSIST_TEXT.newEntry}
       </Link>
-    </Button>
+    </PageActionButton>
   );
 }
 
@@ -80,9 +81,9 @@ export function NewEntryButton({ onClick, disabled, label }: NewEntry & {
 }) {
   const { ASSIST_TEXT } = useMessages();
   return (
-    <Button type="button" size="xl" className="shrink-0 px-md" data-business-create disabled={disabled} onClick={onClick}>
+    <PageActionButton type="button" intent="primary" data-business-create disabled={disabled} onClick={onClick}>
       <Icon name="plus" size="sm" aria-hidden="true" />{label ?? ASSIST_TEXT.newEntry}
-    </Button>
+    </PageActionButton>
   );
 }
 

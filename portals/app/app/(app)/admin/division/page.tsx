@@ -126,29 +126,29 @@ export default async function DivisionPage() {
             {PLANNING_TEXT.divisionCoverage(placed.size, rows.length, unassigned.length, noun)}
           </StatusBadge>
         }
-        action={
-          upsert ? (
-            <>
-              {/* THE FRAME IS A BUTTON THAT OPENS A PANEL (owner, 2026-09-09),
-                  beside the other way to change what the roster says. A
-                  display page states; configuration happens in what it opens. */}
-              <MarketScopeControl scope={frame} editable={upsert} />
-              <DivisionImport
-                currentDivisions={rows.length}
-                customCount={
-                  rows.filter((d) => !isSystemDivision(carves, d.code, d.name, d.members.map((m) => m.key))).length
-                }
-                templates={carves.map((t) => ({
-                  key: t.key,
-                  label: t.name,
-                  divisions: t.divisions.length,
-                  names: t.divisions.map((d) => d.name),
-                }))}
-              />
-              <NewEntryLink href="/admin/division/new" label={PLANNING_TEXT.divisionNew} />
-            </>
-          ) : null
-        }
+        pageActions={{
+          secondary: upsert ? (
+              <>
+                {/* THE FRAME IS A BUTTON THAT OPENS A PANEL (owner, 2026-09-09),
+                    beside the other way to change what the roster says. A
+                    display page states; configuration happens in what it opens. */}
+                <MarketScopeControl scope={frame} editable={upsert} />
+                <DivisionImport
+                  currentDivisions={rows.length}
+                  customCount={
+                    rows.filter((d) => !isSystemDivision(carves, d.code, d.name, d.members.map((m) => m.key))).length
+                  }
+                  templates={carves.map((t) => ({
+                    key: t.key,
+                    label: t.name,
+                    divisions: t.divisions.length,
+                    names: t.divisions.map((d) => d.name),
+                  }))}
+                />
+              </>
+            ) : null,
+          primary: upsert ? <NewEntryLink href="/admin/division/new" label={PLANNING_TEXT.divisionNew} /> : undefined,
+        }}
       />
       <DivisionPanel
         rows={rows.map((d) => ({

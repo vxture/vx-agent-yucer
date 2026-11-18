@@ -15,6 +15,7 @@ import {
   cn,
 } from "@vxture/design-ui";
 import { useLocale, useMessages } from "../lib/i18n/provider";
+import { PageActionRow, type PageHeaderActions } from "./page-header-actions";
 import { SectionHeader } from "./help-section";
 import { TitleHelp } from "./title-help";
 import styles from "./business-controls.module.css";
@@ -70,12 +71,15 @@ export function TabsList({
 
 // Open page titles share the native DS divider, padding and 32px action row.
 export function ViewHeader({
-  action,
+  pageActions,
   className,
   help,
   secondary,
   ...props
-}: ComponentProps<typeof DSViewHeader> & { readonly help?: ReactNode }) {
+}: Omit<ComponentProps<typeof DSViewHeader>, "action"> & {
+  readonly help?: ReactNode;
+  readonly pageActions?: PageHeaderActions;
+}) {
   return (
     <DSViewHeader
       {...props}
@@ -84,9 +88,7 @@ export function ViewHeader({
         <TitleHelp topic={typeof props.title === "string" ? props.title : undefined}>{help}</TitleHelp>
         {secondary}
       </> : secondary}
-      action={
-        action ? <div className={styles.primary} data-business-page-actions>{action}</div> : undefined
-      }
+      action={pageActions && Object.values(pageActions).some(Boolean) ? <PageActionRow {...pageActions} /> : undefined}
     />
   );
 }

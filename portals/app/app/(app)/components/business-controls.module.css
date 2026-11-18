@@ -135,20 +135,42 @@
   gap: var(--space-sm);
 }
 
-.pageHeader > :last-child:has(> .primary) {
+.pageHeader {
+  column-gap: var(--space-lg);
+  row-gap: var(--space-sm);
+}
+
+/* Preserve enough room for the title before the action area moves to its own line. */
+.pageHeader:has(> div > .pageActions) > div:has(> div > h1) {
+  flex-basis: max-content;
+}
+
+.pageHeader > :last-child:has(> .pageActions) {
   max-width: 100%;
   min-width: 0;
   margin-inline-start: auto;
   align-self: center;
 }
 
-.primary {
+.pageActions, .pageActionGroup, .pageActionCrumbs {
   display: flex;
   min-width: 0;
+  max-width: 100%;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--space-sm);
+}
+
+.pageActions, .pageActionGroup { justify-content: flex-end; }
+.pageActionGroup:empty, .pageActions:not(:has(> :not(:empty))) { display: none; }
+
+.pageActionCrumbs > .pageActions { margin-inline-start: auto; }
+.pageActionCrumbs > :first-child { flex: 1 1 auto; }
+
+.pageActionButton {
+  flex-shrink: 0;
+  padding-inline: var(--space-md);
+  white-space: nowrap;
 }
 
 .overflow {

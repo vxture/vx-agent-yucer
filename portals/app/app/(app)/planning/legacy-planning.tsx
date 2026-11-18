@@ -1,12 +1,12 @@
 import Link from "next/link";
 import {
   EmptyState,
-  buttonVariants,
   Section,
   StatusBadge,
   ViewLayout,
 } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
+import { PageActionButton } from "../components/page-header-actions";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
@@ -201,9 +201,11 @@ export default async function LegacyPlanningPage() {
               "planning.division.upsert",
               "ui",
             ).allowed ? (
-              <Link className={buttonVariants({ variant: "secondary", size: "lg" })} href="/admin/division" target="_blank" rel="noopener noreferrer">
-                {PLANNING_TEXT.territoryNewEntry}
-              </Link>
+              <PageActionButton asChild>
+                <Link href="/admin/division" target="_blank" rel="noopener noreferrer">
+                  {PLANNING_TEXT.territoryNewEntry}
+                </Link>
+              </PageActionButton>
             ) : null
           }
         />

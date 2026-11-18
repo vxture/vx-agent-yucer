@@ -31,16 +31,22 @@ export function inspectPageControls() {
     );
     const target = compact ? 24 : 32, font = primary || formValue ? 14 : 12;
     const labelFonts = [...e.querySelectorAll('[class~="text-label"]')].filter(visible).map(label => getComputedStyle(label).fontSize);
+    const actionSlot = e.closest("[data-page-action-slot]")?.dataset.pageActionSlot;
+    const variant = e.dataset.variant;
     const issues = preserve ? [] : [
       ...((menu ? r.height < target - 0.6 : Math.abs(r.height - target) > 0.6) ? ["height"] : []),
       ...(labelFonts.some(value => Math.abs(parseFloat(value) - font) > 0.1) ? ["label-font"] : []),
       ...(Math.abs(parseFloat(s.fontSize) - font) > 0.1 ? ["font"] : []),
       ...(e.dataset.size?.startsWith("icon-") && Math.abs(r.width - target) > 0.6 ? ["icon-width"] : []),
+      ...(e.dataset.slot === "button" && actionSlot === "primary" && (!primary || variant !== "default") ? ["page-primary-style"] : []),
+      ...(e.dataset.slot === "button" && actionSlot === "secondary" && (primary || variant !== "outline") ? ["page-secondary-style"] : []),
+      ...(actionSlot === "more" && e.matches('button[aria-haspopup="menu"]') &&
+        Math.abs((e.querySelector("svg")?.getBoundingClientRect().width ?? 0) - 20) > 0.6 ? ["page-more-icon"] : []),
     ];
     return {
       slot: e.dataset.slot ?? e.getAttribute("role") ?? e.dataset.controlKind,
       text: (e.textContent || e.getAttribute("aria-label") || e.getAttribute("placeholder") || "").trim().slice(0, 90),
-      h: r.height, w: r.width, font: s.fontSize, preserve, compact, primary, formValue, labelFonts, issues,
+      h: r.height, w: r.width, font: s.fontSize, preserve, compact, primary, formValue, labelFonts, actionSlot, variant, issues,
     };
   });
   const native = [...document.querySelectorAll('button:not([data-slot]):not([data-control-kind])')].filter(visible).map((e) => ({

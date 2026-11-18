@@ -30,6 +30,7 @@ import {
 import { ConfirmDestructive } from "../components/confirm-destructive";
 import { RowActions } from "../components/table-fittings";
 import { Tag } from "../components/tag";
+import { PageActionButton } from "../components/page-header-actions";
 import { NewEntryButton } from "../components/form-page";
 import { ModuleHeadline } from "../components/module-headline";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -514,140 +515,59 @@ export function PlanningVersionPanel({
             ) : null}
           </>
         }
-        action={
-          <div className="flex w-64 flex-wrap items-center gap-sm sm:w-auto">
-            <NativeSelect
-              wrapperClassName="w-28"
-              aria-label={T.year}
-              value={year}
-              disabled={pending || dirty}
-              onChange={(e) => router.push(`/planning?year=${e.target.value}`)}
-            >
-              {[year - 1, year, year + 1].map((y) => (
-                <option key={y} value={y}>
-                  Y{y}
-                </option>
-              ))}
-            </NativeSelect>
-            <NativeSelect
-              wrapperClassName="w-40"
-              aria-label={T.version}
-              value={view}
-              disabled={pending || dirty}
-              onChange={(e) => choose(e.target.value)}
-            >
-              <option value="current">
-                {T.current}
-                {state.current ? ` · V${state.current.version}` : ""}
-              </option>
-              {state.baseline ? (
-                <option value="baseline">
-                  {T.baseline} · V{state.baseline.version}
-                </option>
-              ) : null}
-              {plan?.revisions
-                .filter(
-                  (r) =>
-                    r.state === "sealed" ||
-                    (editing && r.id === state.draft?.id),
-                )
-                .map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.state === "draft"
-                      ? T.draft
-                      : `V${r.version} · ${r.id === state.scheduled?.id ? T.scheduled : T.snapshot}`}
+        pageActions={{
+          context: (
+            <>
+              <NativeSelect
+                wrapperClassName="w-28"
+                aria-label={T.year}
+                value={year}
+                disabled={pending || dirty}
+                onChange={(e) => router.push(`/planning?year=${e.target.value}`)}
+              >
+                {[year - 1, year, year + 1].map((y) => (
+                  <option key={y} value={y}>
+                    Y{y}
                   </option>
                 ))}
-            </NativeSelect>
-            <Button
-              size="lg"
-              variant="secondary"
-              onClick={() => {
-                if (editing && dirty)
-                  run(
-                    {
-                      kind: "save",
-                      revisionId: state.draft!.id,
-                      editToken: state.draft!.editToken,
-                      content: c!,
-                    },
-                    "check",
-                  );
-                else if (editing && plan)
-                  transition(async () => {
-                    await checkDraft(plan, false);
-                  });
-                else {
-                  setCheckError("");
-                  setChecksOpen(true);
-                }
-              }}
-              disabled={!c || pending}
-            >
-              {T.insights}
-              {findings?.length ? ` · ${findings.length}` : ""}
-            </Button>
-            {canEdit && !editing && !state.closed ? (
-              state.draft || state.current ? (
-                <Button size="xl" disabled={pending} onClick={() =>
-                  state.draft ? choose(state.draft.id) : run({
-                    kind: "draft",
-                    content: {} as PlanContent,
-                    scope: "company",
-                  })
-                }>
-                  {state.draft ? T.resume : T.adjustCompany}
-                </Button>
-              ) : (
-                <NewEntryButton label={T.create} disabled={pending} onClick={() =>
-                  run({ kind: "draft", content: {} as PlanContent, scope: "company" })
-                } />
-              )
-            ) : null}
-            {!editing &&
-            !state.draft &&
-            state.current &&
-            canEdit &&
-            !state.closed ? (
-              <Button
-                size="lg"
-                variant="secondary"
-                disabled={pending}
-                onClick={() => {
-                  setReason(T.planRegions);
-                  run({
-                    kind: "draft",
-                    content: {} as PlanContent,
-                    scope: "regions",
-                  });
-                }}
+              </NativeSelect>
+              <NativeSelect
+                wrapperClassName="w-40"
+                aria-label={T.version}
+                value={view}
+                disabled={pending || dirty}
+                onChange={(e) => choose(e.target.value)}
               >
-                {T.planRegions}
-              </Button>
-            ) : null}
-            {editing ? (
-              <Button
-                size="lg"
-                variant="secondary"
-                disabled={pending || !dirty}
-                onClick={() =>
-                  run({
-                    kind: "save",
-                    revisionId: state.draft!.id,
-                    editToken: state.draft!.editToken,
-                    content: c!,
-                  })
-                }
-              >
-                {T.save}
-              </Button>
-            ) : null}
-            {editing ? (
-              <Button
-                size="xl"
-                disabled={pending}
+                <option value="current">
+                  {T.current}
+                  {state.current ? ` · V${state.current.version}` : ""}
+                </option>
+                {state.baseline ? (
+                  <option value="baseline">
+                    {T.baseline} · V{state.baseline.version}
+                  </option>
+                ) : null}
+                {plan?.revisions
+                  .filter(
+                    (r) =>
+                      r.state === "sealed" ||
+                      (editing && r.id === state.draft?.id),
+                  )
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.state === "draft"
+                        ? T.draft
+                        : `V${r.version} · ${r.id === state.scheduled?.id ? T.scheduled : T.snapshot}`}
+                    </option>
+                  ))}
+              </NativeSelect>
+            </>
+          ),
+          secondary: (
+            <>
+              <PageActionButton
                 onClick={() => {
-                  if (dirty)
+                  if (editing && dirty)
                     run(
                       {
                         kind: "save",
@@ -655,24 +575,111 @@ export function PlanningVersionPanel({
                         editToken: state.draft!.editToken,
                         content: c!,
                       },
-                      "publish",
+                      "check",
                     );
-                  else if (plan)
+                  else if (editing && plan)
                     transition(async () => {
-                      await checkDraft(plan, true);
+                      await checkDraft(plan, false);
                     });
+                  else {
+                    setCheckError("");
+                    setChecksOpen(true);
+                  }
                 }}
+                disabled={!c || pending}
               >
-                {publishLabel}
-              </Button>
-            ) : null}
+                {T.insights}
+                {findings?.length ? ` · ${findings.length}` : ""}
+              </PageActionButton>
+              {!editing &&
+              !state.draft &&
+              state.current &&
+              canEdit &&
+              !state.closed ? (
+                <PageActionButton
+                  disabled={pending}
+                  onClick={() => {
+                    setReason(T.planRegions);
+                    run({
+                      kind: "draft",
+                      content: {} as PlanContent,
+                      scope: "regions",
+                    });
+                  }}
+                >
+                  {T.planRegions}
+                </PageActionButton>
+              ) : null}
+              {editing ? (
+                <PageActionButton
+                  disabled={pending || !dirty}
+                  onClick={() =>
+                    run({
+                      kind: "save",
+                      revisionId: state.draft!.id,
+                      editToken: state.draft!.editToken,
+                      content: c!,
+                    })
+                  }
+                >
+                  {T.save}
+                </PageActionButton>
+              ) : null}
+            </>
+          ),
+          primary: (
+            <>
+              {canEdit && !editing && !state.closed ? (
+                state.draft || state.current ? (
+                  <PageActionButton intent="primary" disabled={pending} onClick={() =>
+                    state.draft ? choose(state.draft.id) : run({
+                      kind: "draft",
+                      content: {} as PlanContent,
+                      scope: "company",
+                    })
+                  }>
+                    {state.draft ? T.resume : T.adjustCompany}
+                  </PageActionButton>
+                ) : (
+                  <NewEntryButton label={T.create} disabled={pending} onClick={() =>
+                    run({ kind: "draft", content: {} as PlanContent, scope: "company" })
+                  } />
+                )
+              ) : null}
+              {editing ? (
+                <PageActionButton
+                  intent="primary"
+                  disabled={pending}
+                  onClick={() => {
+                    if (dirty)
+                      run(
+                        {
+                          kind: "save",
+                          revisionId: state.draft!.id,
+                          editToken: state.draft!.editToken,
+                          content: c!,
+                        },
+                        "publish",
+                      );
+                    else if (plan)
+                      transition(async () => {
+                        await checkDraft(plan, true);
+                      });
+                  }}
+                >
+                  {publishLabel}
+                </PageActionButton>
+              ) : null}
+            </>
+          ),
+          more: auxiliaryActions.length ? (
             <RowActions
               label={`${T.version} · Y${year}`}
               items={auxiliaryActions}
               disabled={pending}
             />
-          </div>
-        }
+          ) : undefined,
+        }}
       />
       {error ? (
         <p className="text-body-small text-destructive" role="alert">

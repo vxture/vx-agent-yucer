@@ -1,7 +1,8 @@
+import { PageActionButton } from "../../components/page-header-actions";
 import { NewEntryLink } from "../../components/form-page";
 import Link from "next/link";
 import { ViewHeader } from "../../components/business-controls";
-import { Button, EmptyState, Tooltip, TooltipContent, TooltipTrigger, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Tooltip, TooltipContent, TooltipTrigger, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -153,34 +154,34 @@ export default async function OrgPage() {
         title={ORG_TEXT.title}
         help={PAGE_BRIEF.adminOrg}
         secondary={<Tag tone="info">{ORG_TEXT.count(rows.length, placed)}</Tag>}
-        action={
-          editable ? (
-            <>
-              <Button asChild size="xl" variant="outline"><Link href="/admin/org/kinds">{ORG_TEXT.kindsButton}</Link></Button>
-              <OrgTemplateReset
-                templates={(templates.ok ? templates.value : []).map((t) => ({
-                  key: t.key, name: t.name, description: t.description, isDefault: t.isDefault, units: t.units.length,
-                }))}
-                currentUnits={rows.length}
-                placed={placed}
-                divisionTemplates={(carves.ok ? carves.value : []).map((t) => ({
-                  key: t.key, name: t.name, divisions: t.divisions.length,
-                }))}
-                currentDivisions={divisions.ok ? divisions.value.length : 0}
-                regionAwareOrgKeys={Object.keys(REGION_AWARE_ORG_TEMPLATES)}
-              />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button variant="secondary" disabled>{ORG_TEXT.thirdParty}</Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{ORG_TEXT.thirdPartyHint}</TooltipContent>
-              </Tooltip>
-              <NewEntryLink href="/admin/org/new" label={ORG_TEXT.newUnit} />
-            </>
-          ) : null
-        }
+        pageActions={{
+          secondary: editable ? (
+              <>
+                <PageActionButton asChild><Link href="/admin/org/kinds">{ORG_TEXT.kindsButton}</Link></PageActionButton>
+                <OrgTemplateReset
+                  templates={(templates.ok ? templates.value : []).map((t) => ({
+                    key: t.key, name: t.name, description: t.description, isDefault: t.isDefault, units: t.units.length,
+                  }))}
+                  currentUnits={rows.length}
+                  placed={placed}
+                  divisionTemplates={(carves.ok ? carves.value : []).map((t) => ({
+                    key: t.key, name: t.name, divisions: t.divisions.length,
+                  }))}
+                  currentDivisions={divisions.ok ? divisions.value.length : 0}
+                  regionAwareOrgKeys={Object.keys(REGION_AWARE_ORG_TEMPLATES)}
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <PageActionButton disabled>{ORG_TEXT.thirdParty}</PageActionButton>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{ORG_TEXT.thirdPartyHint}</TooltipContent>
+                </Tooltip>
+              </>
+            ) : null,
+          primary: editable ? <NewEntryLink href="/admin/org/new" label={ORG_TEXT.newUnit} /> : undefined,
+        }}
       />
       <OrgPanel rows={rows} editable={editable} members={memberRoster} />
     </ViewLayout>

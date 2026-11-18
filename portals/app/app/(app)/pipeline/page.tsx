@@ -172,7 +172,7 @@ export default async function PipelinePage({
           it, so those are badges. */}
       <ModuleHeadline
         moduleKey="pipeline"
-        action={<PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact allLabel={PIPELINE_TEXT.periodAll} />}
+        pageActions={{ context: <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact allLabel={PIPELINE_TEXT.periodAll} /> }}
         create={can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui").allowed
           ? { href: "/pipeline/new", label: PIPELINE_TEXT.newTitle } : undefined}
         tags={

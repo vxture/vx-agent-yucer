@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@vxture/design-ui";
+import { PageActionButton } from "./page-header-actions";
 import { useMessages } from "../lib/i18n/provider";
 import { ROUTING_ANALYSE_EVENT } from "../lib/routing-signal";
 
@@ -15,12 +15,10 @@ import { ROUTING_ANALYSE_EVENT } from "../lib/routing-signal";
 export function RoutingAnalyseButton() {
   const { ROUTING_TEXT } = useMessages();
   return (
-    <Button
-      size="xl"
-      variant="outline"
+    <PageActionButton
       onClick={() => window.dispatchEvent(new CustomEvent(ROUTING_ANALYSE_EVENT))}
     >
       {ROUTING_TEXT.assignRun}
-    </Button>
+    </PageActionButton>
   );
 }

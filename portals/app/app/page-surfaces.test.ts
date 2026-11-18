@@ -93,3 +93,11 @@ test("reexports and literal dynamic imports count as runtime reachability", () =
   put("(app)/lazy.tsx", "export const lazy = true;");
   assert.deepEqual(inspectPageSurfaces(root, manifest).errors, []);
 }));
+
+test("a business header cannot bypass the shared page action layout via a DS import", () => fixture((root, manifest, put) => {
+  put("(app)/sample/page.tsx", 'import { ViewHeader as Heading } from "@vxture/design-ui"; export default function Page(){return <Heading title="Sample"/>}');
+  assert.match(inspectPageSurfaces(root, manifest).errors.join("\n"), /shared ViewHeader and pageActions slots/);
+  put("(app)/sample/page.tsx", 'import { ViewHeader } from "../components/business-controls"; export default function Page(){return <ViewHeader title="Sample"/>}');
+  put("(app)/components/business-controls.tsx", 'import { ViewHeader as DSViewHeader } from "@vxture/design-ui"; export const ViewHeader = DSViewHeader;');
+  assert.deepEqual(inspectPageSurfaces(root, manifest).errors, []);
+}));
