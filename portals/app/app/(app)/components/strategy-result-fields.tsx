@@ -576,27 +576,19 @@ export function StrategyAdvanced({
     </Section>
   ) : null;
   if (!onChange)
-    return (
-      <>
-        {count ? (
-          <Section title={T.advanced} icon="faders">
-            <div className="@container flex flex-col gap-xl">
-              {resource ? (
-                <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
-                  {resources}
-                </AdvancedPart>
-              ) : null}
-              {milestones.length ? (
-                <AdvancedPart title={T.milestones} icon="flag" filled={!!milestones.length}>
-                  {timeline}
-                </AdvancedPart>
-              ) : null}
-            </div>
-          </Section>
-        ) : null}
-        {legacy}
-      </>
-    );
+    return <>
+      {resource?<Section title={T.resources} icon="wallet">
+        <dl className="grid grid-cols-1 gap-lg @xl:grid-cols-3" data-strategy-resources>
+          {(["people","funds","technology"] as const).filter(k=>value.resources[k].trim() || value.resources[`${k}Note`].trim()).map(k=><div key={k} className="flex min-w-0 flex-col gap-xs">
+            <dt className="text-body-small text-muted-foreground">{T[k]}</dt>
+            {value.resources[k].trim()?<dd className="text-body tabular-nums">{value.resources[k]}{k==="funds"?<span className="ml-xs text-body-small text-muted-foreground">{currency}</span>:null}</dd>:null}
+            {value.resources[`${k}Note`].trim()?<dd className="whitespace-pre-wrap break-words text-body-small text-muted-foreground">{value.resources[`${k}Note`]}</dd>:null}
+          </div>)}
+        </dl>
+      </Section>:null}
+      {milestones.length?<Section title={T.milestones} icon="flag">{timeline}</Section>:null}
+      {legacy}
+    </>;
   return (
     <>
       <Collapsible

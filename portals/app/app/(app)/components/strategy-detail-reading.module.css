@@ -1,0 +1,26 @@
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.5fr);
+  gap: var(--space-lg);
+}
+.position {
+  display: grid;
+  grid-template-columns: 5em minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-md);
+  border-top: 1px dashed var(--border);
+  padding-top: var(--space-md);
+}
+.goalTable { min-width: 0; overflow-x: auto; }
+.goalTable table { width: 100%; min-width: 40rem; table-layout: fixed; }
+.indexColumn { width: calc(var(--space-lg) * 2 + var(--space-md)); }
+.goalNameColumn { width: 22%; }
+.goalValueColumn { width: 23%; }
+.goalDateColumn { width: 18%; }
+.relatedGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
+.referenceFact { display: grid; grid-template-columns: 5em minmax(0, 1fr); gap: var(--space-sm); }
+.handoff { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); }
+@container (min-width: 42rem) { .relatedGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (min-width: 70rem) { :global([data-workspace-full-width]) .relatedGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (max-width: 54rem) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 32rem) { .facts, .handoff { grid-template-columns: minmax(0, 1fr); } }

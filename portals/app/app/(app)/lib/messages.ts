@@ -9577,3 +9577,15 @@ export const DATE_RANGE_TEXT = {
   clear: "\u6e05\u7a7a\u65e5\u671f",
   apply: "\u5e94\u7528\u65e5\u671f",
 } as const;
+
+export const STRATEGY_DETAIL_TEXT = {
+  emptyGoals: "\u5c1a\u672a\u8bbe\u5b9a\u6218\u7565\u76ee\u6807",
+  viewPlanning: "\u67e5\u770b\u89c4\u5212",
+  viewCampaigns: "\u67e5\u770b\u6d3b\u52a8",
+  goals: "\u6218\u7565\u76ee\u6807",
+  order: "\u5e8f\u53f7",
+  allRelated: "\u67e5\u770b\u5168\u90e8",
+  collapse: "\u6536\u8d77\u6761\u76ee",
+  handoffDetails: "\u627f\u63a5\u660e\u7ec6",
+  relatedHelp: "\u8fd9\u91cc\u53ea\u5c55\u793a\u5173\u8054\u5185\u5bb9\u7684\u6458\u8981\u3002\u70b9\u51fb\u540d\u79f0\u67e5\u770b\u5b8c\u6574\u8d44\u6599\uff1b\u8d85\u8fc7\u4e09\u9879\u65f6\u53ef\u5c55\u5f00\u6e05\u5355\u3002",
+} as const;

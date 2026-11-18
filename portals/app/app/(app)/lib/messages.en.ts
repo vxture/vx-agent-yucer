@@ -7698,6 +7698,17 @@ export const en: Dictionary = {
     turn_failed: "The draft did not complete (the model is unavailable) - try again later",
     unknown: "The draft did not complete - try again later",
   },
+  STRATEGY_DETAIL_TEXT: {
+  emptyGoals: "No strategic goals set",
+  viewPlanning: "View planning",
+  viewCampaigns: "View campaigns",
+  goals: "Strategic goals",
+  order: "Order",
+  allRelated: "View all",
+  collapse: "Show fewer",
+  handoffDetails: "Handoff details",
+  relatedHelp: "Related cards show summaries. Open the name for full details, or expand the list when more than three records are linked.",
+  },
   MARKET_STRATEGY_TEXT: {
   strategyType: "Strategy type",
   typeUnclassified: "Unclassified",
