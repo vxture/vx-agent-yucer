@@ -75,10 +75,14 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
           <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground" data-strategy-card-meta>
             <span>{p.planNo}</span>
             <span className="inline-flex items-center gap-xs tabular-nums" title={strategyPeriodRangeLabel(p.period) ?? undefined}>{strategyPeriodLabel(p.period)}</span>
-            <span className="inline-flex min-w-0 items-center gap-xs"><MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/></span>
           </div>
         </div>
-        <div className="text-foreground">{actions}</div>
+        <div className={styles.headingActions}>
+          <div className={`${styles.owner} text-body-small text-muted-foreground`} aria-label={T.owner} data-strategy-card-owner>
+            <MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/>
+          </div>
+          <div className="shrink-0 text-foreground">{actions}</div>
+        </div>
       </div>
       <div className={styles.body} data-strategy-card-body data-goal-count={visibleGoalCount}>
         <div className={`${styles.relations} text-foreground`}>

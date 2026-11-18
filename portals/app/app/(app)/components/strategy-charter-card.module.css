@@ -41,6 +41,19 @@
   padding-bottom: var(--space-md);
 }
 
+.headingActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.owner {
+  min-width: 0;
+  max-width: 18ch;
+  overflow: hidden;
+}
+
 .emblem {
   margin-top: var(--space-xs);
 }
@@ -146,5 +159,7 @@
 }
 
 @container (max-width: 36rem) {
+  .heading { grid-template-columns: auto minmax(0, 1fr); }
+  .headingActions { grid-column: 2; justify-self: end; gap: var(--space-md); }
   .relations { grid-template-columns: minmax(0, 1fr); }
 }
