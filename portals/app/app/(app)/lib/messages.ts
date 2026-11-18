@@ -9097,8 +9097,8 @@ export const MARKET_STRATEGY_TEXT = {
   annual: "\u5e74\u5ea6",
 
   relationApply: "\u5e94\u7528\u4fee\u6539",
-  linkMarketAction: "\u5173\u8054\u5e02\u573a",
-  linkMarkets: "\u5173\u8054\u76ee\u6807\u5e02\u573a",
+  linkMarketAction: "\u5173\u8054\u7ec6\u5206\u5e02\u573a",
+  linkMarkets: "\u5173\u8054\u7ec6\u5206\u5e02\u573a",
   linkSolutions: "\u5173\u8054\u4ea7\u54c1\u65b9\u6848",
   marketSettings: "\u5e02\u573a\u8bbe\u7f6e",
   relationSave: "\u4fdd\u5b58\u5173\u8054",

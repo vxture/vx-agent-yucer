@@ -7799,8 +7799,8 @@ export const en: Dictionary = {
     marketScope: "Target market",
     annual: "Annual",
 
-    linkMarketAction: "Link markets",
-    linkMarkets: "Link target markets",
+    linkMarketAction: "Link market segments",
+    linkMarkets: "Link market segments",
     linkSolutions: "Link products & solutions",
     marketSettings: "Market settings",
     relationSave: "Save links",
