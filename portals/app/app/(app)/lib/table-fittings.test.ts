@@ -54,7 +54,12 @@ function walk(dir: string, out: string[] = []): string[] {
 const TABLES = walk(COMPONENTS)
   .filter((p) => p.endsWith(".tsx") && !p.endsWith(".test.tsx"))
   .map((p) => ({ name: relative(COMPONENTS, p), text: readFileSync(p, "utf8") }))
-  .filter((f) => f.text.includes("<DataTable"));
+  // CollectionTable forwards the fittings from its callers. RosterTable in
+  // the product roster selects between CollectionTable and DataTable for sort mode.
+  .filter((f) => f.name !== "collection-table.tsx" && (
+    /<(DataTable|CollectionTable)(?=[\s<>])/.test(f.text) ||
+    (f.name === "product-roster.tsx" && /<RosterTable(?=[\s<>])/.test(f.text))
+  ));
 
 test("the sweep found the tables at all - guards against an empty run", () => {
   assert.ok(TABLES.length > 20, `expected many tables, found ${TABLES.length}`);
