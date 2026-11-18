@@ -41,6 +41,7 @@ export interface StrategyResult {
     startOn: string;
     endOn: string;
     deliverable: string;
+    ownerSub?: string | null;
   }[];
   risks: readonly {
     id: string;
@@ -246,6 +247,7 @@ export function validStrategyResult(v: unknown): v is StrategyResult {
         m &&
         text(m.name, 100) &&
         text(m.deliverable, 1000) &&
+        (m.ownerSub == null || text(m.ownerSub,128)) &&
         [m.startOn, m.endOn].every(
           (d) => text(d, 10) && (!d || validDate(d)),
         ) &&
@@ -357,17 +359,8 @@ export function strategyResultIssues(
   });
   return errors;
 }
-export function advancedFilled(x: StrategyResult): number {
-  return (
-    Number(x.pathIds.length > 0) +
-    Number(Object.values(x.resources).some((v) => v.trim() !== "")) +
-    Number(
-      x.milestones.some(
-        (m) => m.name.trim() || m.startOn || m.endOn || m.deliverable.trim(),
-      ),
-    ) +
-    Number(x.risks.some((r) => r.description.trim() || r.response.trim()))
-  );
+export function advancedFilled(x:StrategyResult):number {
+  return Number(Object.values(x.resources).some(v=>v.trim()!=="")) + Number(x.milestones.some(m=>m.name.trim()||m.startOn||m.endOn||m.deliverable.trim()||m.ownerSub));
 }
 export function consistencyWarnings(
   code: string | null | undefined,

@@ -6,7 +6,15 @@ import {
   Button,
   Card,
   CardContent,
-  Checkbox,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DatePicker,
+  InputGroup,
+  InputGroupInput,
+  InputGroupAddon,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -23,6 +31,9 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { StrategyDateRange } from "./strategy-date-range";
+import { MemberPicker } from "./member-picker";
+import { MemberName } from "../lib/member-names";
 import { Section, SectionHeader } from "./help-section";
 import { useMessages } from "../lib/i18n/provider";
 import {
@@ -36,6 +47,83 @@ import {
 } from "../../domains/strategy/lib/strategy-result";
 import type { StrategicMetric } from "../../domains/strategy/lib/expectations";
 
+function dateValue(value: string): Date | undefined {
+  if (!value) return undefined;
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y!, m! - 1, d!);
+}
+function dateKey(date?: Date): string {
+  return date
+    ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+    : "";
+}
+
+export function StrategyPaths({
+  value,
+  options,
+  onChange,
+}: {
+  readonly value: StrategyResult;
+  readonly options: readonly StrategyOption[];
+  readonly onChange?: (value: StrategyResult) => void;
+}) {
+  const { STRATEGY_RESULT_TEXT: T } = useMessages();
+  const rows = options.filter(
+    (o) => o.kind === "path" && (o.enabled || value.pathIds.includes(o.id)),
+  );
+  const selected = rows
+    .filter((o) => value.pathIds.includes(o.id))
+    .map((o) => o.name);
+  if (!onChange)
+    return <span className="text-body">{selected.join(" / ") || "-"}</span>;
+  return (
+    <Field>
+      <FieldLabel htmlFor="strategy-paths">{T.paths}</FieldLabel>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            id="strategy-paths"
+            type="button"
+            size="md"
+            variant="outline"
+            className="w-full justify-between font-normal"
+            aria-label={T.paths}
+          >
+            <span
+              className={`min-w-0 truncate ${!selected.length ? "text-muted-foreground" : ""}`}
+            >
+              {selected.join(" / ") || T.choose}
+            </span>
+            <Icon name="chevron-down" size="sm" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
+        >
+          {rows.map((o) => (
+            <DropdownMenuCheckboxItem
+              key={o.id}
+              checked={value.pathIds.includes(o.id)}
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={(checked) =>
+                onChange({
+                  ...value,
+                  pathIds: checked
+                    ? [...value.pathIds, o.id]
+                    : value.pathIds.filter((id) => id !== o.id),
+                })
+              }
+            >
+              {o.name}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </Field>
+  );
+}
+
 export function StrategyGoals({
   value,
   onChange,
@@ -48,16 +136,34 @@ export function StrategyGoals({
   readonly currency?: string;
 }) {
   const { STRATEGY_RESULT_TEXT: T } = useMessages();
-  const [preset, setPreset] = useState<StrategicMetric | "custom">("revenue");
   const patch = (id: string, p: Partial<StrategyGoal>) =>
     onChange?.({
       ...value,
       goals: value.goals.map((g) => (g.id === id ? { ...g, ...p } : g)),
     });
+  const unit = (g: StrategyGoal) =>
+    g.metric === "revenue" ? currency : g.unit || T.count;
   const error = (id: string, k: string) => {
     const e = issues.find((e) => e.field === `goal.${id}.${k}`);
     return e ? <FieldError>{T[e.code]}</FieldError> : null;
   };
+  const add = (preset: StrategicMetric | "custom") =>
+    onChange?.({
+      ...value,
+      goals: [
+        ...value.goals,
+        {
+          id: crypto.randomUUID(),
+          name: preset === "custom" ? "" : T[preset],
+          metric: preset === "custom" ? null : preset,
+          baseline: "",
+          target: "",
+          unit: preset === "revenue" ? currency : T.count,
+          dueOn: "",
+          criterion: "",
+        },
+      ],
+    });
   return (
     <Section
       title={T.goals}
@@ -65,63 +171,36 @@ export function StrategyGoals({
       help={T.fullHelp}
       action={
         onChange ? (
-          <div className="flex items-center gap-sm">
-            <NativeSelect
-              aria-label={T.addGoal}
-              value={preset}
-              onChange={(e) => setPreset(e.target.value as typeof preset)}
-            >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="md"
+                variant="secondary"
+                disabled={value.goals.length >= 30}
+                data-strategy-add-goal
+              >
+                <Icon name="plus" size="sm" />
+                {T.addGoal}
+                <Icon name="chevron-down" size="sm" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
               {(
                 ["revenue", "channels", "reference_cases", "custom"] as const
               ).map((k) => (
-                <option
+                <DropdownMenuItem
                   key={k}
-                  value={k}
                   disabled={
                     k !== "custom" && value.goals.some((g) => g.metric === k)
                   }
+                  onSelect={() => add(k)}
                 >
                   {T[k]}
-                </option>
+                </DropdownMenuItem>
               ))}
-            </NativeSelect>
-            <Button
-              type="button"
-              size="md"
-              variant="secondary"
-              disabled={
-                value.goals.length >= 30 ||
-                (preset !== "custom" &&
-                  value.goals.some((g) => g.metric === preset))
-              }
-              onClick={() =>
-                onChange({
-                  ...value,
-                  goals: [
-                    ...value.goals,
-                    {
-                      id: crypto.randomUUID(),
-                      name: preset === "custom" ? "" : T[preset],
-                      metric: preset === "custom" ? null : preset,
-                      baseline: "",
-                      target: "",
-                      unit:
-                        preset === "revenue"
-                          ? currency
-                          : preset === "custom"
-                            ? ""
-                            : T.count,
-                      dueOn: "",
-                      criterion: "",
-                    },
-                  ],
-                })
-              }
-            >
-              <Icon name="plus" size="sm" />
-              {T.addGoal}
-            </Button>
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : undefined
       }
     >
@@ -133,69 +212,85 @@ export function StrategyGoals({
           {value.goals.map((g, i) => (
             <Card key={g.id} className="py-lg">
               <CardContent className="@container flex flex-col gap-md">
-                <div className="flex items-start gap-md">
-                  <span className="pt-sm text-body-small tabular-nums text-muted-foreground">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div className="grid min-w-0 flex-1 grid-cols-1 gap-md @xl:grid-cols-2 @3xl:grid-cols-4">
-                    {(
-                      ["name", "baseline", "target", "unit", "dueOn"] as const
-                    ).map((k) => (
-                      <Field
-                        key={k}
-                        className={k === "name" ? "@3xl:col-span-2" : undefined}
-                      >
-                        <FieldLabel required htmlFor={`goal-${g.id}-${k}`}>
-                          {T[k]}
-                        </FieldLabel>
-                        <Input
+                <div
+                  className="grid grid-cols-1 gap-md @md:grid-cols-2 @2xl:grid-cols-4"
+                  data-strategy-goal-fields
+                >
+                  <Field>
+                    <FieldLabel required htmlFor={`goal-${g.id}-name`}>
+                      {T.name}
+                    </FieldLabel>
+                    <Input
+                      id={`goal-${g.id}-name`}
+                      value={g.name}
+                      maxLength={100}
+                      placeholder={T.goalExample}
+                      onChange={(e) => patch(g.id, { name: e.target.value })}
+                    />
+                    {error(g.id, "name")}
+                  </Field>
+                  {(["baseline", "target"] as const).map((k) => (
+                    <Field key={k}>
+                      <FieldLabel required htmlFor={`goal-${g.id}-${k}`}>
+                        {T[k]}
+                      </FieldLabel>
+                      <InputGroup>
+                        <InputGroupInput
                           id={`goal-${g.id}-${k}`}
                           value={g[k]}
-                          readOnly={k === "unit" && g.metric === "revenue"}
-                          aria-invalid={issues.some(
-                            (e) => e.field === `goal.${g.id}.${k}`,
-                          )}
-                          type={k === "dueOn" ? "date" : "text"}
-                          inputMode={
-                            k === "baseline" || k === "target"
-                              ? "decimal"
-                              : undefined
-                          }
-                          maxLength={
-                            k === "name" ? 100 : k === "unit" ? 24 : 32
-                          }
-                          placeholder={
-                            k === "name"
-                              ? T.goalExample
-                              : k === "baseline" || k === "target"
-                                ? "0"
-                                : undefined
+                          inputMode="decimal"
+                          placeholder="0"
+                          maxLength={32}
+                          aria-invalid={
+                            !!issues.find(
+                              (e) => e.field === `goal.${g.id}.${k}`,
+                            )
                           }
                           onChange={(e) => patch(g.id, { [k]: e.target.value })}
                         />
-                        {error(g.id, k)}
-                      </Field>
-                    ))}
-                    <Field className="@xl:col-span-2">
-                      <FieldLabel htmlFor={`goal-${g.id}-criterion`}>
-                        {T.criterion}
-                      </FieldLabel>
-                      <Input
-                        id={`goal-${g.id}-criterion`}
-                        maxLength={1000}
-                        placeholder={T.criterionExample}
-                        value={g.criterion}
-                        onChange={(e) =>
-                          patch(g.id, { criterion: e.target.value })
-                        }
-                      />
+                        <InputGroupAddon
+                          align="end"
+                          className="text-body-small text-muted-foreground"
+                        >
+                          {unit(g)}
+                        </InputGroupAddon>
+                      </InputGroup>
+                      {error(g.id, k)}
                     </Field>
-                  </div>
+                  ))}
+                  <Field>
+                    <FieldLabel required>{T.dueOn}</FieldLabel>
+                    <DatePicker
+                      value={dateValue(g.dueOn)}
+                      placeholder={T.choose}
+                      onValueChange={(date) =>
+                        patch(g.id, { dueOn: dateKey(date) })
+                      }
+                      className="w-full"
+                    />
+                    {error(g.id, "dueOn")}
+                  </Field>
+                </div>
+                <div className="flex items-end gap-md">
+                  <Field className="min-w-0 flex-1">
+                    <FieldLabel htmlFor={`goal-${g.id}-criterion`}>
+                      {T.criterion}
+                    </FieldLabel>
+                    <Input
+                      id={`goal-${g.id}-criterion`}
+                      value={g.criterion}
+                      maxLength={1000}
+                      placeholder={T.criterionExample}
+                      onChange={(e) =>
+                        patch(g.id, { criterion: e.target.value })
+                      }
+                    />
+                  </Field>
                   <Button
                     type="button"
-                    variant="ghost"
                     size="icon-md"
-                    aria-label={T.remove}
+                    variant="ghost"
+                    aria-label={`${T.remove} ${i + 1}`}
                     onClick={() =>
                       onChange({
                         ...value,
@@ -233,7 +328,7 @@ export function StrategyGoals({
                   </TableCell>
                   <TableCell className="tabular-nums">
                     {g.target || "-"}{" "}
-                    <span className="text-muted-foreground">{g.unit}</span>
+                    <span className="text-muted-foreground">{unit(g)}</span>
                   </TableCell>
                   <TableCell>{g.dueOn || "-"}</TableCell>
                   <TableCell>{g.criterion || "-"}</TableCell>
@@ -249,25 +344,28 @@ export function StrategyGoals({
 
 function AdvancedPart({
   title,
+  icon,
   filled,
   children,
 }: {
   readonly title: string;
+  readonly icon: "wallet" | "flag";
   readonly filled: boolean;
   readonly children: ReactNode;
 }) {
   return (
-    <Collapsible className="flex flex-col gap-md border-t border-dashed border-border pt-lg">
+    <Collapsible className="flex flex-col gap-md">
       <CollapsibleTrigger asChild>
         <Button
           type="button"
           size="md"
           variant="ghost"
-          className="group w-full justify-between"
+          className="group w-full justify-between px-0"
         >
           <span
-            className={filled ? "text-foreground" : "text-muted-foreground"}
+            className={`flex items-center gap-sm ${filled ? "text-foreground" : "text-muted-foreground"}`}
           >
+            <Icon name={icon} size="sm" />
             {title}
           </span>
           <Icon
@@ -277,115 +375,101 @@ function AdvancedPart({
           />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="flex flex-col gap-lg">
-        {children}
-      </CollapsibleContent>
+      <CollapsibleContent>{children}</CollapsibleContent>
     </Collapsible>
   );
 }
 export function StrategyAdvanced({
   value,
-  options,
   onChange,
   currency = "CNY",
+  ownerOptions,
 }: {
-  readonly currency?: string;
   readonly value: StrategyResult;
-  readonly options: readonly StrategyOption[];
   readonly onChange?: (value: StrategyResult) => void;
+  readonly currency?: string;
+  readonly ownerOptions?: readonly { value: string; label: string }[] | null;
 }) {
   const { STRATEGY_RESULT_TEXT: T } = useMessages();
   const count = advancedFilled(value);
-  if (!onChange && !count) return null;
+  const risks = value.risks.filter((r) => r.description || r.response);
+  if (!onChange && !count && !risks.length) return null;
   const resource = Object.values(value.resources).some((v) => v.trim());
   const milestones = value.milestones.filter(
-    (m) => m.name || m.startOn || m.endOn || m.deliverable,
-  );
-  const risks = value.risks.filter((r) => r.description || r.response);
-  const paths = (
-    <div className="flex flex-wrap gap-lg">
-      {options
-        .filter(
-          (o) =>
-            o.kind === "path" && (o.enabled || value.pathIds.includes(o.id)),
-        )
-        .map((o) =>
-          onChange ? (
-            <label
-              key={o.id}
-              className="inline-flex items-center gap-sm text-body"
-            >
-              <Checkbox
-                checked={value.pathIds.includes(o.id)}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    ...value,
-                    pathIds: checked
-                      ? [...value.pathIds, o.id]
-                      : value.pathIds.filter((id) => id !== o.id),
-                  })
-                }
-              />
-              {o.name}
-            </label>
-          ) : value.pathIds.includes(o.id) ? (
-            <span key={o.id}>{o.name}</span>
-          ) : null,
-        )}
-    </div>
+    (m) => m.name || m.startOn || m.endOn || m.deliverable || m.ownerSub,
   );
   const resources = (
-    <div className="grid grid-cols-1 gap-lg @xl:grid-cols-3">
-      {(["people", "funds", "technology"] as const).map((k) => (
-        <div key={k} className="flex flex-col gap-md">
-          <Field>
-            <FieldLabel htmlFor={`resource-${k}`}>{T[k]}</FieldLabel>
-            {onChange ? (
-              <Input
-                id={`resource-${k}`}
-                inputMode="decimal"
-                placeholder="0"
-                value={value.resources[k]}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    resources: { ...value.resources, [k]: e.target.value },
-                  })
-                }
-              />
-            ) : (
-              <span>{value.resources[k] || "-"}</span>
-            )}
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={`resource-${k}-note`}>
-              {T[`${k}Note`]}
-            </FieldLabel>
-            {onChange ? (
-              <Input
-                id={`resource-${k}-note`}
-                maxLength={1000}
-                placeholder={T.noteExample}
-                value={value.resources[`${k}Note`]}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    resources: {
-                      ...value.resources,
-                      [`${k}Note`]: e.target.value,
-                    },
-                  })
-                }
-              />
-            ) : (
-              <p className="text-body">{value.resources[`${k}Note`] || "-"}</p>
-            )}
-          </Field>
-        </div>
-      ))}
-    </div>
+    <Card className="py-lg">
+      <CardContent
+        className="@container grid grid-cols-1 gap-lg @xl:grid-cols-3"
+        data-strategy-resources
+      >
+        {(["people", "funds", "technology"] as const).map((k) => (
+          <div key={k} className="flex min-w-0 flex-col gap-md">
+            <Field>
+              <FieldLabel htmlFor={`resource-${k}`}>{T[k]}</FieldLabel>
+              {onChange ? (
+                <InputGroup>
+                  <InputGroupInput
+                    id={`resource-${k}`}
+                    value={value.resources[k]}
+                    inputMode="decimal"
+                    placeholder="0"
+                    onChange={(e) =>
+                      onChange({
+                        ...value,
+                        resources: { ...value.resources, [k]: e.target.value },
+                      })
+                    }
+                  />
+                  {k === "funds" ? (
+                    <InputGroupAddon
+                      align="end"
+                      className="text-body-small text-muted-foreground"
+                    >
+                      {currency}
+                    </InputGroupAddon>
+                  ) : null}
+                </InputGroup>
+              ) : (
+                <span className="text-body">
+                  {value.resources[k] || "-"}
+                  {k === "funds" ? ` ${currency}` : ""}
+                </span>
+              )}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`resource-${k}-note`}>
+                {T[`${k}Note`]}
+              </FieldLabel>
+              {onChange ? (
+                <Input
+                  id={`resource-${k}-note`}
+                  value={value.resources[`${k}Note`]}
+                  maxLength={1000}
+                  placeholder={T.noteExample}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      resources: {
+                        ...value.resources,
+                        [`${k}Note`]: e.target.value,
+                      },
+                    })
+                  }
+                />
+              ) : (
+                <p className="text-body-small text-muted-foreground">
+                  {value.resources[`${k}Note`] || "-"}
+                </p>
+              )}
+            </Field>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
-  const milestoneContent = !onChange ? (
+  const timeline = (
     <ol
       className="ml-sm border-l border-border"
       data-strategy-milestone-timeline
@@ -408,12 +492,9 @@ export function StrategyAdvanced({
             <div className="flex flex-wrap items-baseline gap-md">
               <span className="text-body font-medium">{m.name || "-"}</span>
               <span className="text-body-small tabular-nums text-muted-foreground">
-                <time dateTime={m.startOn || undefined}>
-                  {m.startOn || "-"}
-                </time>
-                {" ~ "}
-                <time dateTime={m.endOn || undefined}>{m.endOn || "-"}</time>
+                {m.startOn || "-"} ~ {m.endOn || "-"}
               </span>
+              {m.ownerSub ? <MemberName sub={m.ownerSub} /> : null}
             </div>
             {m.deliverable ? (
               <p className="text-body-small text-muted-foreground">
@@ -423,255 +504,195 @@ export function StrategyAdvanced({
           </li>
         ))}
     </ol>
-  ) : (
-    <div className="flex flex-col gap-lg">
-      {value.milestones.map((m, i) => (
-        <div key={m.id} className="flex items-start gap-md">
-          <Icon
-            name="calendar"
-            size="sm"
-            className="mt-sm shrink-0 text-primary-text"
-          />
-          <div className="grid min-w-0 flex-1 grid-cols-1 gap-md @xl:grid-cols-3">
-            {(["name", "startOn", "endOn", "deliverable"] as const).map((k) => (
-              <Field
-                key={k}
-                className={k === "deliverable" ? "col-span-full" : undefined}
+  );
+  const stages = onChange ? (
+    <div className="flex flex-col gap-md" data-strategy-milestones>
+      {value.milestones.map((m, i) => {
+        const patch = (p: Partial<typeof m>) =>
+          onChange({
+            ...value,
+            milestones: value.milestones.map((x) =>
+              x.id === m.id ? { ...x, ...p } : x,
+            ),
+          });
+        return (
+          <Card key={m.id} className="py-lg">
+            <CardContent className="@container flex flex-col gap-md">
+              <div
+                className="grid grid-cols-1 gap-lg @xl:grid-cols-3"
+                data-strategy-milestone-fields
               >
-                <FieldLabel htmlFor={`milestone-${m.id}-${k}`}>
-                  {k === "name"
-                    ? T.stage
-                    : k === "startOn"
-                      ? T.start
-                      : k === "endOn"
-                        ? T.end
-                        : T.deliverable}
-                </FieldLabel>
-                {onChange ? (
+                <Field>
+                  <FieldLabel htmlFor={`milestone-${m.id}-name`}>
+                    {T.stage}
+                  </FieldLabel>
                   <Input
-                    id={`milestone-${m.id}-${k}`}
-                    type={k.endsWith("On") ? "date" : "text"}
-                    maxLength={k === "name" ? 100 : 1000}
-                    value={m[k]}
-                    min={k === "endOn" ? m.startOn : undefined}
-                    onChange={(e) =>
-                      onChange({
-                        ...value,
-                        milestones: value.milestones.map((r, n) =>
-                          i === n ? { ...r, [k]: e.target.value } : r,
-                        ),
-                      })
+                    id={`milestone-${m.id}-name`}
+                    value={m.name}
+                    maxLength={100}
+                    placeholder={T.stageExample}
+                    onChange={(e) => patch({ name: e.target.value })}
+                  />
+                </Field>
+                <StrategyDateRange
+                  id={`milestone-${m.id}-dates`}
+                  startOn={m.startOn}
+                  endOn={m.endOn}
+                  onChange={(startOn, endOn) => patch({ startOn, endOn })}
+                />
+                <Field>
+                  <FieldLabel>{T.owner}</FieldLabel>
+                  <MemberPicker
+                    label={T.owner}
+                    value={m.ownerSub}
+                    options={ownerOptions}
+                    onValueChange={(ownerSub) =>
+                      patch({ ownerSub: ownerSub || null })
                     }
                   />
-                ) : (
-                  <span className="text-body">{m[k] || "-"}</span>
-                )}
-              </Field>
-            ))}
-          </div>
-          {onChange ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-md"
-              aria-label={T.remove}
-              onClick={() =>
-                onChange({
-                  ...value,
-                  milestones: value.milestones.filter((r) => r.id !== m.id),
-                })
-              }
-            >
-              <Icon name="trash" size="sm" />
-            </Button>
-          ) : null}
-        </div>
-      ))}
-      {onChange ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="md"
-          className="self-start"
-          disabled={value.milestones.length >= 30}
-          onClick={() =>
-            onChange({
-              ...value,
-              milestones: [
-                ...value.milestones,
-                {
-                  id: crypto.randomUUID(),
-                  name: "",
-                  startOn: "",
-                  endOn: "",
-                  deliverable: "",
-                },
-              ],
-            })
-          }
-        >
-          {T.addStage}
-        </Button>
-      ) : null}
-    </div>
-  );
-  const riskContent = (
-    <div className="flex flex-col gap-lg">
-      {(onChange ? value.risks : risks).map((r) => (
-        <div key={r.id} className="flex items-start gap-md">
-          <div className="grid min-w-0 flex-1 grid-cols-1 gap-md @xl:grid-cols-3">
-            <Field>
-              <FieldLabel>{T.risks}</FieldLabel>
-              {onChange ? (
-                <NativeSelect
-                  aria-label={T.risks}
-                  value={r.kind}
-                  onChange={(e) =>
+                </Field>
+              </div>
+              <div className="flex items-end gap-md">
+                <Field className="min-w-0 flex-1">
+                  <FieldLabel htmlFor={`milestone-${m.id}-deliverable`}>
+                    {T.deliverable}
+                  </FieldLabel>
+                  <Input
+                    id={`milestone-${m.id}-deliverable`}
+                    value={m.deliverable}
+                    maxLength={1000}
+                    placeholder={T.deliverableExample}
+                    onChange={(e) => patch({ deliverable: e.target.value })}
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  size="icon-md"
+                  variant="ghost"
+                  aria-label={`${T.remove} ${i + 1}`}
+                  onClick={() =>
                     onChange({
                       ...value,
-                      risks: value.risks.map((x) =>
-                        x.id === r.id
-                          ? { ...x, kind: e.target.value as typeof r.kind }
-                          : x,
-                      ),
+                      milestones: value.milestones.filter((x) => x.id !== m.id),
                     })
                   }
                 >
-                  <option value="assumption">{T.assumption}</option>
-                  <option value="risk">{T.risk}</option>
-                </NativeSelect>
-              ) : (
-                <span>{T[r.kind]}</span>
-              )}
-            </Field>
-            {(["description", "response"] as const).map((k) => (
-              <Field key={k}>
-                <FieldLabel htmlFor={`risk-${r.id}-${k}`}>{T[k]}</FieldLabel>
-                {onChange ? (
-                  <Input
-                    id={`risk-${r.id}-${k}`}
-                    maxLength={1000}
-                    value={r[k]}
-                    onChange={(e) =>
-                      onChange({
-                        ...value,
-                        risks: value.risks.map((x) =>
-                          x.id === r.id ? { ...x, [k]: e.target.value } : x,
-                        ),
-                      })
-                    }
-                  />
-                ) : (
-                  <p className="text-body">{r[k] || "-"}</p>
-                )}
-              </Field>
-            ))}
-          </div>
-          {onChange ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-md"
-              aria-label={T.remove}
-              onClick={() =>
-                onChange({
-                  ...value,
-                  risks: value.risks.filter((x) => x.id !== r.id),
-                })
-              }
-            >
-              <Icon name="trash" size="sm" />
-            </Button>
-          ) : null}
-        </div>
-      ))}
-      {onChange ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="md"
-          className="self-start"
-          disabled={value.risks.length >= 30}
-          onClick={() =>
-            onChange({
-              ...value,
-              risks: [
-                ...value.risks,
-                {
-                  id: crypto.randomUUID(),
-                  kind: "assumption",
-                  description: "",
-                  response: "",
-                },
-              ],
-            })
-          }
-        >
-          {T.addRisk}
-        </Button>
-      ) : null}
+                  <Icon name="trash" size="sm" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+      <Button
+        type="button"
+        size="md"
+        variant="secondary"
+        className="self-start"
+        disabled={value.milestones.length >= 30}
+        onClick={() =>
+          onChange({
+            ...value,
+            milestones: [
+              ...value.milestones,
+              {
+                id: crypto.randomUUID(),
+                name: "",
+                startOn: "",
+                endOn: "",
+                ownerSub: null,
+                deliverable: "",
+              },
+            ],
+          })
+        }
+      >
+        <Icon name="plus" size="sm" />
+        {T.addStage}
+      </Button>
     </div>
+  ) : (
+    timeline
   );
-  const parts = [
-    { key: "paths" as const, filled: !!value.pathIds.length, content: paths },
-    { key: "resources" as const, filled: resource, content: resources },
-    {
-      key: "milestones" as const,
-      filled: !!milestones.length,
-      content: milestoneContent,
-    },
-    { key: "risks" as const, filled: !!risks.length, content: riskContent },
-  ];
-  const content = parts
-    .filter((p) => onChange || p.filled)
-    .map((p) =>
-      onChange ? (
-        <AdvancedPart key={p.key} title={T[p.key]} filled={p.filled}>
-          {p.content}
-        </AdvancedPart>
-      ) : (
-        <Section key={p.key} title={T[p.key]}>
-          {p.content}
-        </Section>
-      ),
-    );
+  const legacy = risks.length ? (
+    <Section title={T.risks} icon="shield">
+      <div className="flex flex-col gap-md">
+        {risks.map((r) => (
+          <div key={r.id} className="grid grid-cols-1 gap-md @xl:grid-cols-2">
+            <p className="text-body">{r.description}</p>
+            <p className="text-body-small text-muted-foreground">
+              {r.response}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Section>
+  ) : null;
   if (!onChange)
     return (
-      <Section title={T.advanced} icon="faders">
-        <div className="@container flex flex-col gap-xl">{content}</div>
-      </Section>
+      <>
+        {count ? (
+          <Section title={T.advanced} icon="faders">
+            <div className="@container flex flex-col gap-xl">
+              {resource ? (
+                <Section title={T.resources} icon="wallet">
+                  {resources}
+                </Section>
+              ) : null}
+              {milestones.length ? (
+                <Section title={T.milestones} icon="flag">
+                  {timeline}
+                </Section>
+              ) : null}
+            </div>
+          </Section>
+        ) : null}
+        {legacy}
+      </>
     );
   return (
-    <Collapsible
-      className="@container flex flex-col gap-md"
-      data-strategy-advanced
-    >
-      <SectionHeader
-        title={`${T.advanced} (${T.filled} ${count}/4)`}
-        icon="faders"
-        help={T.advancedHelp}
-        action={
-          <CollapsibleTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-md"
-              className="group"
-              aria-label={T.advanced}
-            >
-              <Icon
-                name="chevron-down"
-                size="sm"
-                className="transition-transform group-data-[state=open]:rotate-180"
-              />
-            </Button>
-          </CollapsibleTrigger>
-        }
-      />
-      <CollapsibleContent className="flex flex-col gap-lg">
-        {content}
-      </CollapsibleContent>
-    </Collapsible>
+    <>
+      <Collapsible
+        className="@container flex flex-col gap-md"
+        data-strategy-advanced
+      >
+        <SectionHeader
+          title={`${T.advanced} (${T.filled} ${count}/2)`}
+          icon="faders"
+          help={T.advancedHelp}
+          action={
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                size="icon-md"
+                variant="ghost"
+                className="group"
+                aria-label={T.advanced}
+              >
+                <Icon
+                  name="chevron-down"
+                  size="sm"
+                  className="transition-transform group-data-[state=open]:rotate-180"
+                />
+              </Button>
+            </CollapsibleTrigger>
+          }
+        />
+        <CollapsibleContent className="flex flex-col gap-lg">
+          <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
+            {resources}
+          </AdvancedPart>
+          <AdvancedPart
+            title={T.milestones}
+            icon="flag"
+            filled={!!milestones.length}
+          >
+            {stages}
+          </AdvancedPart>
+        </CollapsibleContent>
+      </Collapsible>
+      {legacy}
+    </>
   );
 }
 

@@ -294,10 +294,11 @@ export async function deleteSegment(
 
 async function strategyInput<T extends PlanEdit>(input:T):Promise<T> {
  if(input.result===undefined)return input;
- const result=input.result;
+ let result=input.result;
  if(!validStrategyResult(result))return input;
  const session=await resolveAppSession();
  if(!session)return input;
  const policy=await getCatalogStore().getPricingPolicy(session.workspaceId);
+ result={...result,goals:result.goals.map(g=>({...g,unit:g.metric==="revenue"?policy.defaultCurrency:g.unit||"count"}))};
  return {...input,result,expectations:goalExpectations(result,policy.defaultCurrency)};
 }

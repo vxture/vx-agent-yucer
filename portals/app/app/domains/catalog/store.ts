@@ -7,6 +7,7 @@ import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy
 // an opportunity is; the line lives on the pipeline side and points in.
 
 export interface ProductRecord {
+  novelty?: "existing" | "new" | null;
   id: string;
   workspaceId: string;
   productCode: string;
@@ -76,6 +77,7 @@ export interface ProductStatusRecord {
 }
 
 export interface SolutionRecord {
+  novelty?: "existing" | "new" | null;
   id: string;
   workspaceId: string;
   solutionCode: string;

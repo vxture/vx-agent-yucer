@@ -112,18 +112,18 @@ export async function listSolutions(
 }
 
 /** Cross-domain selectors need names and status, not composition or prices. */
-export type SolutionReference = Pick<SolutionRecord, "id" | "solutionCode" | "name" | "status">;
+export type SolutionReference = Pick<SolutionRecord, "id" | "solutionCode" | "name" | "status" | "novelty">;
 
 export async function listSolutionReferences(
   ctx: Omit<CatalogContext, "store"> & { store: Pick<CatalogStore, "listSolutions"> },
 ): Promise<RuleResult<SolutionReference[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.view", "data");
   if (!gate.allowed) return denied(gate);
-  return ok((await ctx.store.listSolutions(ctx.workspaceId)).map(({ id, solutionCode, name, status }) => ({ id, solutionCode, name, status })));
+  return ok((await ctx.store.listSolutions(ctx.workspaceId)).map(({ id, solutionCode, name, status, novelty }) => ({ id, solutionCode, name, status, ...(novelty?{novelty}:{}) })));
 }
 
 /** Products remain distinct from solutions even when selected together. */
-export type ProductReference = { id: string; productCode: string; name: string; status: "active" | "retired" };
+export type ProductReference = { novelty?:"existing"|"new"|null; id: string; productCode: string; name: string; status: "active" | "retired" };
 export async function listProductReferences(
   ctx: Omit<CatalogContext, "store"> & { store: Pick<CatalogStore, "listProducts" | "listStatusConfigs"> },
 ): Promise<RuleResult<ProductReference[]>> {
@@ -131,7 +131,8 @@ export async function listProductReferences(
   if (!gate.allowed) return denied(gate);
   const [products, statuses] = await Promise.all([ctx.store.listProducts(ctx.workspaceId), ctx.store.listStatusConfigs(ctx.workspaceId)]);
   const byStatus = new Map(statuses.map(s => [s.id, s.statusCode]));
-  return ok(products.map(({ id, productCode, name, statusId }) => ({
+  return ok(products.map(({ id, productCode, name, statusId, novelty }) => ({
+    ...(novelty?{novelty}:{}),
     id, productCode, name, status: byStatus.get(statusId) === "retired" ? "retired" : "active",
   })));
 }
@@ -212,6 +213,7 @@ export async function dealApprovals(ctx: CatalogContext, opportunityId: string):
 export async function upsertProduct(
   ctx: CatalogContext,
   input: {
+    novelty?:"existing"|"new"|null;
     productCode: string;
     name: string;
     typeId?: string | null;
@@ -295,6 +297,7 @@ export async function upsertProduct(
   const plan = planProduct({
     productCode,
     name: input.name,
+      novelty: input.novelty===undefined?existing?.novelty:input.novelty,
     typeId: input.typeId ?? null,
     unitId: input.unitId,
     statusId,
@@ -762,6 +765,7 @@ export async function moveProductStatus(
 export async function upsertSolution(
   ctx: CatalogContext,
   input: {
+    novelty?:"existing"|"new"|null;
     solutionCode: string;
     name: string;
     summary?: string | null;
@@ -799,6 +803,7 @@ export async function upsertSolution(
     {
       solutionCode: existing?.solutionCode ?? (mode === "create" ? nextBusinessCode("SOL", codes) : input.solutionCode),
       name: input.name,
+      novelty: input.novelty===undefined?existing?.novelty:input.novelty,
       summary: input.summary ?? null,
       scenario: input.scenario ?? null,
       status: input.status ?? existing?.status ?? "active",

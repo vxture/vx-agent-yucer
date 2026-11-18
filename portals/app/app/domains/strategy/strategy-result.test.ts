@@ -25,6 +25,7 @@ import {
   validStrategyResult,
   type StrategyResult,
 } from "./lib/strategy-result";
+import { InMemoryCatalogStore } from "../catalog/store";
 import { readPlanDraft, type PlanVocabulary } from "./plan-assist-service";
 
 function goal() {
@@ -239,8 +240,10 @@ test("advanced filled count preserves zeros and independent sections", () => {
         },
       ],
     }),
-    2,
+    1,
   );
+  assert.equal(advancedFilled({...emptyStrategyResult(),pathIds:[randomUUID()]}),0);
+
 });
 
 test("Ansoff checks are contextual, nonblocking, and never infer unknown as existing", () => {
@@ -506,4 +509,32 @@ test("assistant removal aligns retained metadata without accepting invented expl
 
 test("goal calendar follows the established workspace business date across UTC midnight", () => {
   assert.equal(strategyToday(new Date("2026-11-18T18:00:00Z")), "2026-11-19");
+});
+
+
+test("milestone owners use workspace members; retained inactive owners do not break unrelated edits",async()=>{
+  const c=context(),id=randomUUID();
+  const base={planNo:"STAGES",name:"Stages",period:"2099",objective:null,ownerSub:null};
+  const data={...emptyStrategyResult(),milestones:[{id,name:"Pilot",startOn:"2099-01-01",endOn:"2099-03-31",deliverable:"Pilot acceptance",ownerSub:"stranger"}]};
+  assert.equal((await createPlan(c,{...base,result:data})).ok,false);
+  data.milestones[0].ownerSub="owner";
+  const p=unwrap(await createPlan(c,{...base,result:data}));
+  c.memberDirectory={listMembers:async()=>[]};
+  assert.equal((await editPlan(c,p.id,{...p,result:data})).ok,true);
+  assert.equal(validStrategyResult({...data,milestones:[{...data.milestones[0],ownerSub:42}]}),false);
+});
+
+
+test("strategy and assistant read product attributes from the catalog instead of the draft",async()=>{
+  const c=context(),catalog=new InMemoryCatalogStore(),product=randomUUID();
+  catalog.seed({products:[{id:product,workspaceId:c.workspaceId,productCode:"PRD-NEW",name:"New POS",unitId:"unit",statusId:"status",typeId:null,sortOrder:1,novelty:"new"}],statuses:[{id:"status",workspaceId:c.workspaceId,statusCode:"active",name:"Active",description:null,sortOrder:1}]});
+  c.catalog=catalog;
+  const data={...emptyStrategyResult(),offerings:[{id:product,kind:"product" as const,novelty:"existing" as const}]};
+  const p=unwrap(await createPlan(c,{planNo:"CAT-OWNED",name:"Plan",period:"2099",ownerSub:null,objective:null,productIds:[product],result:data}));
+  assert.equal(p.result?.offerings[0].novelty,"new");
+  const current={...p,result:data};
+  const v:PlanVocabulary={types:[],options:await c.store.listStrategyOptions(c.workspaceId),members:[],markets:[],products:[{id:product,name:"POS",novelty:"new"}],solutions:[],currency:"USD"};
+  const read=readPlanDraft(JSON.stringify({fields:{name:"Revised"}}),current,v);
+  assert.equal(read?.patch.result?.offerings[0].novelty,"new");
+  assert.equal((await catalog.listProducts(c.workspaceId))[0].novelty,"new");
 });

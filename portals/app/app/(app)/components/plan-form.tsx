@@ -1,6 +1,6 @@
 "use client";
 
-import { StrategyGoals, StrategyAdvanced, StrategyConsistency, StrategyNovelty } from "./strategy-result-fields";
+import { StrategyGoals, StrategyAdvanced, StrategyConsistency, StrategyPaths } from "./strategy-result-fields";
 import { StrategyDraftAssistant } from "./strategy-draft-assistant";
 import { strategyToday, resultFromExpectations, strategyResultIssues, validStrategyResult, goalExpectations, type StrategyResult, type StrategyOption } from "../../domains/strategy/lib/strategy-result";
 import type { PlanAssistInput, PlanAssistResult } from "../../domains/strategy/plan-assist-service";
@@ -177,8 +177,8 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
   const planNo = initial?.planNo ?? manualPlanNo ?? nextNo;
   const selectedResult={...result,
     markets:targets.map(t=>({id:t.segmentId,novelty:result.markets.find(m=>m.id===t.segmentId)?.novelty ?? "unknown" as const})),
-    offerings:[...[...new Set([...(productIds ?? []),...targets.flatMap(t=>t.productIds ?? [])])].map(id=>({id,kind:"product" as const,novelty:result.offerings.find(o=>o.kind==="product" && o.id===id)?.novelty ?? "unknown" as const})),
-      ...[...new Set([...(solutionIds ?? []),...targets.flatMap(t=>t.solutionIds ?? [])])].map(id=>({id,kind:"solution" as const,novelty:result.offerings.find(o=>o.kind==="solution" && o.id===id)?.novelty ?? "unknown" as const}))],
+    offerings:[...[...new Set([...(productIds ?? []),...targets.flatMap(t=>t.productIds ?? [])])].map(id=>({id,kind:"product" as const,novelty:productOptions?.find(p=>p.id===id)?.novelty ?? "unknown" as const})),
+      ...[...new Set([...(solutionIds ?? []),...targets.flatMap(t=>t.solutionIds ?? [])])].map(id=>({id,kind:"solution" as const,novelty:solutionOptions?.find(p=>p.id===id)?.novelty ?? "unknown" as const}))],
   };
   const draft:PlanEdit={name,period,objective,ownerSub,strategyTypeId:strategyTypeId || null,result:selectedResult,expectations,changeReason,productIds,solutionIds,targetMarkets:targets};
   const signature=JSON.stringify({...draft,planNo});const originalSignature=useRef(signature);const bypassLeave=useRef(false);
@@ -225,21 +225,17 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
           <Section title={R.basic} icon="clipboard" help={<><p>{T.draftOnlyHint}</p><p>{T.numberHint}</p></>}
             action={<span className="inline-flex items-center gap-sm text-body-small text-muted-foreground">{T.creator} <MemberName sub={creatorSub} fallback={T.creatorUnknown}/></span>}>
             <Card className="py-lg" data-strategy-basic-card><CardContent>
-              <div className="grid grid-cols-1 gap-x-lg gap-y-lg @xl:grid-cols-2 @3xl:grid-cols-3">
-                <Field className="@3xl:col-span-2"><FieldLabel required htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
-                  <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e => setName(e.target.value)} aria-required="true"/>
+              <div className="grid grid-cols-1 gap-x-lg gap-y-lg @2xl:grid-cols-3">
+                <Field><FieldLabel required htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
+                  <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e=>setName(e.target.value)} aria-required="true"/>
                 </Field>
+                <StrategyPeriodField value={period} onChange={setPeriod} disabled={submit.pending}/>
+                <Field><FieldLabel required>{STRATEGY_TEXT.newPlanOwner}</FieldLabel><MemberPicker options={ownerOptions} value={ownerSub} onValueChange={setOwnerSub} label={STRATEGY_TEXT.newPlanOwner} disabled={submit.pending}/>{requiredError("ownerSub")}</Field>
                 <div><StrategyTypeField types={strategyTypes} value={strategyTypeId} existing={initial?.strategyTypeId} disabled={submit.pending} onChange={setStrategyTypeId}/>{requiredError("strategyTypeId")}</div>
-                <Field><FieldLabel required htmlFor="strategy-value">{R.value}</FieldLabel><NativeSelect id="strategy-value" value={result.valuePropositionId ?? ""} onChange={e=>setResult({...result,valuePropositionId:e.target.value || null})}><option value="">{R.choose}</option>{strategyOptions.filter(o=>o.kind==="value" && (o.enabled || o.id===result.valuePropositionId)).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</NativeSelect>{issues.some(e=>e.field==="valuePropositionId")?<FieldError>{R.required}</FieldError>:null}</Field>
-                <Field><FieldLabel required>{STRATEGY_TEXT.newPlanOwner}</FieldLabel>
-                  <MemberPicker options={ownerOptions} value={ownerSub} onValueChange={setOwnerSub}
-                    label={STRATEGY_TEXT.newPlanOwner} disabled={submit.pending}/>{requiredError("ownerSub")}
-                </Field>
-                <div><StrategyPeriodField value={period} onChange={setPeriod} disabled={submit.pending}/></div>
-                <Field className="@xl:col-span-2 @3xl:col-span-3"><FieldLabel required htmlFor="strategy-direction">{R.positioning}</FieldLabel>
-                  <Input id="strategy-direction" maxLength={100} placeholder={R.positioningExample} value={objective} disabled={submit.pending} onChange={e => setObjective(e.target.value)}/>{requiredError("objective")}
-                </Field>
-                {initial?.basePlanId ? <Field className="@xl:col-span-2 @3xl:col-span-3"><FieldLabel htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>
+                <Field><FieldLabel required htmlFor="strategy-value">{R.value}</FieldLabel><NativeSelect id="strategy-value" value={result.valuePropositionId??""} onChange={e=>setResult({...result,valuePropositionId:e.target.value||null})}><option value="">{R.choose}</option>{strategyOptions.filter(o=>o.kind==="value"&&(o.enabled||o.id===result.valuePropositionId)).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</NativeSelect>{issues.some(e=>e.field==="valuePropositionId")?<FieldError>{R.required}</FieldError>:null}</Field>
+                <StrategyPaths value={result} options={strategyOptions} onChange={setResult}/>
+                <Field className="col-span-full"><FieldLabel required htmlFor="strategy-direction">{R.positioning}</FieldLabel><Input id="strategy-direction" maxLength={100} placeholder={R.positioningExample} value={objective} onChange={e=>setObjective(e.target.value)}/>{requiredError("objective")}</Field>
+                {initial?.basePlanId ? <Field className="col-span-full"><FieldLabel htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>
                   <Input id="strategy-change-reason" value={changeReason} maxLength={4000} disabled={submit.pending} placeholder={T.changeReasonHint} onChange={e=>setChangeReason(e.target.value)}/>
                 </Field> : null}
               </div>
@@ -256,18 +252,18 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
               status: marketOptions.find(m => m.id === t.segmentId)?.status,
               products: t.productIds === undefined || productOptions === null ? null : productOptions.filter(p => t.productIds?.includes(p.id)),
               solutions: t.solutionIds === undefined || solutionOptions === null ? null : solutionOptions.filter(s => t.solutionIds?.includes(s.id)),
-            }))} actions={m => <div className="flex items-center gap-sm"><StrategyNovelty value={result.markets.find(x=>x.id===m.segmentId)?.novelty ?? "unknown"} onChange={novelty=>setResult({...selectedResult,markets:selectedResult.markets.map(x=>x.id===m.segmentId?{...x,novelty}:x)})}/><Button type="button" size="md" variant="secondary" disabled={submit.pending} onClick={() => setRelationTask({kind:"market",segmentId:m.segmentId})}>{T.marketSettings}</Button></div>}/>
+            }))} actions={m => <Button type="button" size="md" variant="ghost" disabled={submit.pending} onClick={()=>setRelationTask({kind:"market",segmentId:m.segmentId})}>{T.marketSettings}</Button>}/>
           </Section>
           <Section id="primary-solutions" title={T.linkSolutions} icon="squares-four" help={T.sharedSolutionsHint}
             action={<Button type="button" size="xl" variant="secondary" disabled={submit.pending || ((solutionOptions === null || solutionIds === undefined) && (productOptions === null || productIds === undefined))} onClick={() => setRelationTask({kind:"solutions"})}>{T.linkSolutions}</Button>}>
-            <StrategySolutionCards actions={row=><StrategyNovelty value={result.offerings.find(x=>x.id===row.id && x.kind===row.kind)?.novelty ?? "unknown"} onChange={novelty=>setResult({...selectedResult,offerings:selectedResult.offerings.map(x=>x.id===row.id && x.kind===row.kind?{...x,novelty}:x)})}/>} products={productOptions === null || productIds === undefined || targets.some(t => t.productIds === undefined) ? null
+            <StrategySolutionCards products={productOptions === null || productIds === undefined || targets.some(t => t.productIds === undefined) ? null
               : productOptions.filter(p => productIds.includes(p.id) || targets.some(t => t.productIds?.includes(p.id)))} sharedProductIds={productIds} solutions={solutionOptions === null || solutionIds === undefined || targets.some(t => t.solutionIds === undefined) ? null
               : solutionOptions.filter(s => solutionIds.includes(s.id) || targets.some(t => t.solutionIds?.includes(s.id)))} markets={targets} sharedIds={solutionIds}/>
             <StrategyConsistency code={strategyTypes?.find(t=>t.id===strategyTypeId)?.code} value={selectedResult} userKey={userKey}/>
           </Section>
-          <StrategyAdvanced value={result} options={strategyOptions} currency={currency} onChange={setResult}/>
+          <StrategyAdvanced value={result} currency={currency} onChange={setResult} ownerOptions={ownerOptions}/>
           </fieldset>
-            {relationTask ? <StrategyRelationsDrawer draft key={JSON.stringify(relationTask)} task={relationTask} planName={name || STRATEGY_TEXT.newPlanTitle}
+            {relationTask ? <StrategyRelationsDrawer draft marketNovelty={relationTask.kind==="market"?result.markets.find(m=>m.id===relationTask.segmentId)?.novelty:undefined} onMarketNoveltyChange={novelty=>{if(relationTask.kind==="market")setResult(current=>({...current,markets:selectedResult.markets.map(m=>m.id===relationTask.segmentId?{...m,novelty}:m)}));}} key={JSON.stringify(relationTask)} task={relationTask} planName={name || STRATEGY_TEXT.newPlanTitle}
               targets={targets} sharedSolutionIds={solutionIds} sharedProductIds={productIds} productOptions={productOptions} marketOptions={marketOptions} solutionOptions={solutionOptions}
               onSave={saveRelations} onClose={() => setRelationTask(null)}/> : null}
             <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-sm border-t border-dashed border-border bg-background/95 py-lg" data-strategy-save-bar>

@@ -1705,6 +1705,7 @@ model Product {
   /// The status association - a uuid like the type's (0029).
   statusId    String   @map("status_id") @db.Uuid
   sortOrder   Int      @default(0) @map("sort_order")
+  novelty String? @db.VarChar(16)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
@@ -1807,6 +1808,7 @@ model Solution {
   scenario     String?  @db.VarChar(255)
   status       String   @default("active") @db.VarChar(16)
   sortOrder    Int      @default(0) @map("sort_order")
+  novelty String? @db.VarChar(16)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 

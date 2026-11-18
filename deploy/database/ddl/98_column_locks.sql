@@ -299,3 +299,5 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 -- incr/0122 grants strategy_plan.expectations for guarded draft updates.
 
 -- incr/0123 strategic_result is append-only (SELECT/INSERT, no UPDATE or DELETE).
+
+-- incr/0126 grants catalog-owned product and solution novelty.

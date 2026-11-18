@@ -56,6 +56,7 @@ export class PrismaCatalogStore implements CatalogStore {
   }
 
   private toProduct(row: {
+    novelty?:string|null;
     id: string;
     workspaceId: string;
     productCode: string;
@@ -87,6 +88,7 @@ export class PrismaCatalogStore implements CatalogStore {
   }
 
   private toSolution(row: {
+    novelty?:string|null;
     id: string;
     workspaceId: string;
     solutionCode: string;
@@ -196,6 +198,7 @@ export class PrismaCatalogStore implements CatalogStore {
     const update = {
       ...(mode && mode !== "create" ? { productCode: input.productCode } : {}),
       name: input.name,
+      ...(input.novelty===undefined?{}:{novelty:input.novelty}),
       typeId: input.typeId,
       unitId: input.unitId,
       statusId: input.statusId,
@@ -559,6 +562,7 @@ export class PrismaCatalogStore implements CatalogStore {
     const p = await getPrismaClient();
     const update = {
       name: input.name,
+      ...(input.novelty===undefined?{}:{novelty:input.novelty}),
       summary: input.summary,
       scenario: input.scenario,
       status: input.status,

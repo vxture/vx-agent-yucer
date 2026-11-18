@@ -53,6 +53,7 @@ async function context() {
 }
 
 export async function saveProduct(input: {
+  novelty?:"existing"|"new"|null;
   editId?: string;
   productCode: string;
   name: string;
@@ -79,6 +80,7 @@ export async function saveProduct(input: {
 }
 
 export async function saveSolution(input: {
+  novelty?:"existing"|"new"|null;
   editId?: string;
   name: string;
   summary: string | null;

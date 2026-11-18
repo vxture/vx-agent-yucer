@@ -161,3 +161,10 @@ permission denied。这是有意的失败模式：让遗漏在开发期暴露，
 保留 `expectations` 作为三个既有指标向销售规划的兼容投影，目标 UUID 不变；数据库核对投影一致。
 `strategy_option` 按 workspace + kind + code 唯一，标识 UUID，允许修改名称、启用状态与顺序；
 服务角色无删除、无更换标识授权。目标市场、人员与产品方案仍沿用原有关系，不另造客户规模关系。
+
+
+## 产品方案新旧属性（incr/0126）
+
+`product.novelty` 与 `solution.novelty` 为可空目录属性，只接受 existing/new，
+未配置为 NULL。关联均以 UUID 识别，属性不改变关联标识。服务角色拥有列级 UPDATE；
+战略编辑与助手只能读取目录值，不能通过战略关联回写目录。发布快照冻结已关联产品方案的属性。

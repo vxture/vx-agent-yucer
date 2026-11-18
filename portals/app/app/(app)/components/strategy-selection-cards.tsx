@@ -71,22 +71,15 @@ export function StrategyMarketCards({ markets, actions, detail, attributes }: {
       </div></CardHeader>
       <CardContent className="flex-1"><div className="flex min-w-0 gap-sm">
         <span className="size-icon-lg shrink-0" aria-hidden="true"/>
-        <dl className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start items-baseline gap-x-sm gap-y-md text-body-small" data-strategy-market-facts>
-          <dt className="text-muted-foreground">{T.criteria}</dt>
-          <dd className="min-w-0 break-words">{m.criteria ? [...m.criteria.industries, ...m.criteria.regions].join(" / ") || T.undefined : T.unknown}</dd>
-          <dt className="text-muted-foreground">{R.sizes}</dt><dd>{m.criteria?.sizes?.join(" / ") || R.unlimitedSize}</dd>
-          {m.criteria?.customerNeed ? <><dt className="text-muted-foreground">{T.customerNeed}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{m.criteria.customerNeed}</dd></> : null}
-          <dt className="text-muted-foreground">{T.marketApproach}</dt>
-          <dd className={`min-w-0 whitespace-pre-wrap break-words ${m.approach ? "" : "text-muted-foreground"}`}>{m.approach || T.noMarketApproach}</dd>
-          <dt className="text-muted-foreground">{T.featuredSolutions}</dt>
-          <dd className="flex min-w-0 flex-col items-start gap-xs">
-            {strategyOfferings(m.solutions, m.products).map(row => <Link key={row.key} href={row.href}
-              className="inline-flex min-w-0 items-start gap-xs break-words transition-colors hover:text-primary-text" title={row.kind === "product" ? T.productKind : T.solutionKind}>
-              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span>{row.name}</span>
-            </Link>)}
-            {m.solutions === null || m.products === null ? <span className="text-muted-foreground">{T.unknown}</span>
-              : !m.solutions?.length && !m.products?.length ? <span className="text-muted-foreground">{T.noPlanSolutions}</span> : null}
-          </dd>
+        <dl className="grid min-w-0 flex-1 grid-cols-2 content-start gap-x-lg gap-y-lg text-body-small" data-strategy-market-facts>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.criteria}</dt><dd className="break-words text-foreground">{m.criteria?[...m.criteria.industries,...m.criteria.regions].join(" / ")||T.undefined:T.unknown}</dd></div>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{R.sizes}</dt><dd className="break-words text-foreground">{m.criteria?.sizes?.join(" / ")||R.unlimitedSize}</dd></div>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.marketApproach}</dt><dd className={`break-words ${m.approach?"text-foreground":"text-muted-foreground"}`}>{m.approach||T.noMarketApproach}</dd></div>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.featuredSolutions}</dt><dd className="flex min-w-0 flex-col items-start gap-xs">
+            {strategyOfferings(m.solutions,m.products).map(row=><Link key={row.key} href={row.href} className="inline-flex min-w-0 items-start gap-xs break-words transition-colors hover:text-primary-text" title={row.kind==="product"?T.productKind:T.solutionKind}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span>{row.name}</span></Link>)}
+            {m.solutions===null||m.products===null?<span className="text-muted-foreground">{T.unknown}</span>:!m.solutions?.length&&!m.products?.length?<span className="text-muted-foreground">{T.noPlanSolutions}</span>:null}
+          </dd></div>
+          {m.criteria?.customerNeed?<div className="col-span-full flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.customerNeed}</dt><dd className="break-words">{m.criteria.customerNeed}</dd></div>:null}
         </dl>
       </div></CardContent>
       {m.matched !== undefined || actions ? <CardFooter className="mt-auto"><span className="size-icon-lg shrink-0" aria-hidden="true"/><div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-sm" data-strategy-market-footer>
@@ -109,7 +102,7 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
   readonly sharedIds: readonly string[] | undefined;
   readonly detail?: boolean;
 }) {
-  const { MARKET_STRATEGY_TEXT: T } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T } = useMessages();
   const rows = strategyOfferings(solutions, products);
   return <>
     {solutions === null ? <p className="text-body-small text-muted-foreground">{T.solutionOptionsUnavailable}</p> : null}
@@ -124,7 +117,7 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
             <div className="flex min-w-0 flex-col gap-xs"><CardTitle><Link href={row.href} className="break-words transition-colors hover:text-primary">{row.name}</Link></CardTitle>
               <span className="text-body-small text-muted-foreground">{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span></div>
           </div></CardHeader><CardContent><div className="flex min-w-0 gap-sm"><span className="size-icon-lg shrink-0" aria-hidden="true"/><div className="flex min-w-0 flex-1 flex-col gap-sm text-body-small">
-            {shared ? <span className="text-muted-foreground">{T.sharedScope}</span> : null}
+            <div className="flex flex-wrap items-center gap-sm">{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}{shared ? <span className="text-muted-foreground">{T.sharedScope}</span> : null}</div>
             {scopes.length ? <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-sm">
               <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt><dd className="break-words">{scopes.map(m=>m.marketName).join(" / ")}</dd>
             </dl> : null}

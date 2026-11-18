@@ -1,5 +1,7 @@
 "use client";
 
+import { StrategyNovelty } from "./strategy-result-fields";
+import type { Novelty } from "../../domains/strategy/lib/strategy-result";
 import { useState } from "react";
 import { Button, Checkbox, Drawer, EmptyState, Field, FieldError, FieldLabel, Icon, Input, NativeSelect, Textarea } from "@vxture/design-ui";
 import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
@@ -15,7 +17,9 @@ export type RelationTarget = TargetMarketDraft & { marketName: string };
 export type RelationTask = { kind: "markets" } | { kind: "solutions" } | { kind: "market"; segmentId: string };
 
 // Mounted per task: reopening starts from current links, never a cancelled draft.
-export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutionIds, sharedProductIds, marketOptions, solutionOptions, productOptions, onSave, onClose, draft = false }: {
+export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutionIds, sharedProductIds, marketOptions, solutionOptions, productOptions, onSave, onClose, draft = false, marketNovelty, onMarketNoveltyChange }: {
+  readonly marketNovelty?:Novelty;
+  readonly onMarketNoveltyChange?:(value:Novelty)=>void;
   readonly task: RelationTask;
   readonly planName: string;
   readonly targets: readonly RelationTarget[];
@@ -28,9 +32,10 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
   readonly onClose: () => void;
   readonly draft?: boolean;
 }) {
-  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, PLAN_ERROR } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, PLAN_ERROR } = useMessages();
   const target = task.kind === "market" ? targets.find(t => t.segmentId === task.segmentId) : undefined;
   const [selected, setSelected] = useState<readonly string[]>(task.kind === "markets" ? targets.map(t => t.segmentId) : sharedSolutionIds ?? []);
+  const [novelty,setNovelty]=useState(marketNovelty??"unknown");
   const [intent, setIntent] = useState(target?.intent ?? null);
   const [approach, setApproach] = useState(target?.approach ?? "");
   const [productIds, setProductIds] = useState(task.kind === "solutions" ? sharedProductIds : target?.productIds);
@@ -41,7 +46,7 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
   const originalIds = task.kind === "markets" ? targets.map(t => t.segmentId) : sharedSolutionIds ?? [];
   const solutionChanged = JSON.stringify(solutionIds) !== JSON.stringify(task.kind === "solutions" ? sharedSolutionIds : target?.solutionIds);
   const productChanged = JSON.stringify(productIds) !== JSON.stringify(task.kind === "solutions" ? sharedProductIds : target?.productIds);
-  const dirty = task.kind === "market" ? intent !== target?.intent || approach !== (target?.approach ?? "") || solutionChanged || productChanged
+  const dirty = task.kind === "market" ? novelty!==(marketNovelty??"unknown") || intent !== target?.intent || approach !== (target?.approach ?? "") || solutionChanged || productChanged
     : task.kind === "solutions" ? solutionChanged || productChanged : selected.length !== originalIds.length || selected.some(id => !originalIds.includes(id));
   const unavailable = task.kind === "markets" ? marketOptions === null
     : task.kind === "solutions" ? (solutionOptions === null || sharedSolutionIds === undefined) && (productOptions === null || sharedProductIds === undefined) : !target;
@@ -62,7 +67,7 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
     setPending(true);setError(null);
     try {
       const result = await onSave(change);
-      if (result.ok) onClose();
+      if (result.ok) {if(task.kind==="market")onMarketNoveltyChange?.(novelty);onClose();}
       else setError(PLAN_ERROR[result.error ?? "denied"] ?? PLAN_ERROR.denied);
     } catch { setError(PLAN_ERROR.denied); }
     finally { setPending(false); }
@@ -110,6 +115,7 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
         </div>}
         {task.kind === "markets" && originalIds.some(id => !selected.includes(id)) ? <p className="text-body-small text-muted-foreground">{T.relationRemoveHint}</p> : null}
       </> : target ? <>
+        {onMarketNoveltyChange?<Field><FieldLabel>{R.marketAttribute}</FieldLabel><StrategyNovelty value={novelty} onChange={setNovelty}/></Field>:null}
         <Field><FieldLabel>{T.marketIntent}</FieldLabel><NativeSelect value={intent ?? ""} aria-label={T.marketIntent} disabled={pending} onChange={e => setIntent(e.target.value as TargetMarketIntent)}>
           {intent === null ? <option value="" disabled>{T.unclassifiedMarket}</option> : null}
           <option value="focus">{T.focusMarket}</option><option value="validate">{T.validateMarket}</option>

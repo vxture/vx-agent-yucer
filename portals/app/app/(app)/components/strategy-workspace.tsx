@@ -1,6 +1,6 @@
 "use client";
 import { StrategyFulfillmentPanel } from "./strategy-fulfillment-panel";
-import { StrategyGoals, StrategyAdvanced, StrategyNovelty } from "./strategy-result-fields";
+import { StrategyGoals, StrategyAdvanced, StrategyPaths } from "./strategy-result-fields";
 import { StrategyExpectations } from "./strategy-expectations";
 
 import Link from "next/link";
@@ -172,6 +172,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           <DetailRow label={R.value}>{detail.resultOptions?.find(o=>o.id===detail.result?.valuePropositionId)?.name ?? "-"}</DetailRow>
           <DetailRow label={T.strategyType}>{detail.strategyType?.name ?? T.typeUnclassified}</DetailRow>
           <DetailRow label={T.executionWindow}><span className="inline-flex min-h-control-md items-center tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></DetailRow>
+          <DetailRow label={R.paths}>{detail.result?<StrategyPaths value={detail.result} options={detail.resultOptions??[]}/>:"-"}</DetailRow>
           <DetailRow label={T.owner}><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></DetailRow>
           <DetailRow label={T.publishedAt}><span className="inline-flex min-h-control-md items-center tabular-nums">{detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale) : "-"}</span></DetailRow>
         </DetailList>
@@ -181,16 +182,16 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
         </dl>
       </div></CardContent></Card></CollapsibleContent>
     </Collapsible>
-    {detail.result?<StrategyGoals value={detail.result}/>:<StrategyExpectations value={detail.expectations ?? []}/>}
+    {detail.result?<StrategyGoals value={detail.result} currency={data.currency}/>:<StrategyExpectations value={detail.expectations ?? []}/>}
     <Section title={T.targetMarketsTitle} icon="target" help={T.targetMarketBasis}>
-      <StrategyMarketCards detail attributes={detail.result?m=><StrategyNovelty value={detail.result?.markets.find(x=>x.id===m.segmentId)?.novelty ?? "unknown"}/>:undefined} markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
+      <StrategyMarketCards detail markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
         ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
     </Section>
     <Section title={T.featuredSolutions} icon="squares-four">
-      <StrategySolutionCards detail actions={detail.result?row=><StrategyNovelty value={detail.result?.offerings.find(x=>x.id===row.id && x.kind===row.kind)?.novelty ?? "unknown"}/>:undefined} products={detail.products} sharedProductIds={detail.sharedProducts?.map(p=>p.id)} solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
+      <StrategySolutionCards detail products={detail.products} sharedProductIds={detail.sharedProducts?.map(p=>p.id)} solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
         markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, productIds:m.products?.map(p=>p.id), solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
     </Section>
-    {detail.result?<StrategyAdvanced value={detail.result} options={detail.resultOptions ?? []} currency={data.currency}/>:null}
+    {detail.result?<StrategyAdvanced value={detail.result} currency={data.currency}/>:null}
     <StrategyFulfillmentPanel rows={data.fulfillment?.filter(r => r.acceptance.lineageId === (detail.lineageId ?? detail.id)) ?? null}/>
     <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">
       <Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>

@@ -257,6 +257,12 @@ export async function listPlans(
  * `approved_at`.
  */
 
+async function catalogResult(ctx:StrategyContext,input:PlanEdit):Promise<PlanEdit> {
+  if(!input.result)return input;
+  const [products,solutions]=await Promise.all([ctx.catalog?.listProducts&&ctx.catalog?.listStatusConfigs?listProductReferences({...ctx,store:{listProducts:ctx.catalog.listProducts.bind(ctx.catalog),listStatusConfigs:ctx.catalog.listStatusConfigs.bind(ctx.catalog)}}):null,ctx.catalog?listSolutionReferences({...ctx,store:ctx.catalog}):null]);
+  const result={...input.result,offerings:input.result.offerings.map(o=>({...o,novelty:((o.kind==="product"?(products?.ok?products.value:[]):(solutions?.ok?solutions.value:[])).find(row=>row.id===o.id)?.novelty??"unknown") as import("./lib/strategy-result").Novelty}))};
+  return {...input,result};
+}
 async function validateResult(ctx:StrategyContext,input:import("./lib/lifecycle").PlanEdit,previous?:PlanRecord):Promise<RuleResult<true>> {
   if(input.result===undefined){
     if(previous?.result && input.expectations!==undefined && JSON.stringify(input.expectations)!==JSON.stringify(previous.expectations))return fail(violation("expectations_invalid","edit goals together","expectations"));
@@ -266,6 +272,9 @@ async function validateResult(ctx:StrategyContext,input:import("./lib/lifecycle"
   if(!resultRelationsMatch(input.result,input,previous))return fail(violation("strategy_result_invalid","result references unselected relations","result"));
   const issues=strategyResultIssues(input.result,{today:strategyToday(),previous:previous?.result});
   if(issues.length)return fail(violation("strategy_result_invalid","invalid goal date",issues[0].field));
+  for(const m of input.result.milestones){
+    if(m.ownerSub && m.ownerSub!==previous?.result?.milestones.find(old=>old.id===m.id)?.ownerSub){const owner=await validatePlanOwner(ctx,m.ownerSub);if(!owner.ok)return owner;}
+  }
   const options=await ctx.store.listStrategyOptions(ctx.workspaceId);
   for(const [kind,ids] of [["value",input.result.valuePropositionId?[input.result.valuePropositionId]:[]],["path",input.result.pathIds]] as const){
     if(ids.some(id=>!options.some(o=>o.id===id && o.kind===kind && (o.enabled || previous?.result?.valuePropositionId===id || previous?.result?.pathIds.includes(id)))))return fail(violation("strategy_option_unavailable","option unavailable","result"));
@@ -284,6 +293,7 @@ export async function createPlan(
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.create", "data");
   if (!gate.allowed) return denied(gate);
 
+  input=await catalogResult(ctx,input) as NewPlanDraft;
   const resultCheck=await validateResult(ctx,input);if(!resultCheck.ok)return resultCheck;
   const autoNumber = options.autoNumber === true;
   const codes = autoNumber ? (await ctx.store.listPlans(ctx.workspaceId)).map(p => p.planNo) : [];
@@ -347,7 +357,7 @@ async function applyPlanEdit(
   const resolved = resolveInput(plan);
   if (!resolved.ok) return resolved;
   const raw = resolved.value;
-  const input = raw.result === undefined && plan.result ? {...raw,result:alignResultRelations(plan.result,raw,plan)} : raw;
+  const input = await catalogResult(ctx,raw.result === undefined && plan.result ? {...raw,result:alignResultRelations(plan.result,raw,plan)} : raw);
   const resultCheck=await validateResult(ctx,input,plan);if(!resultCheck.ok)return resultCheck;
   const edit = planPlanEdit(input, plan.period);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;

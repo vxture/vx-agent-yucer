@@ -318,7 +318,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0028 added sort_order (manual catalogue order); 0029 replaced category
   // and status with the two uuid joins (internal keys are uuids - owner,
   // 2026-09-05).
-  "yucer_catalog.product": ["product_code", "name", "sort_order", "type_id", "status_id", "unit_id", "updated_at"],
+  "yucer_catalog.product": ["novelty", "product_code", "name", "sort_order", "type_id", "status_id", "unit_id", "updated_at"],
   // 0028. type_code is the workspace's anchor vocabulary - the join key is
   // the uuid, but the code is still what imports and upserts match on.
   /* 0036. 大区 - the tenant may RENAME and REORDER a division. Not the code:
@@ -391,7 +391,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_core.market_scope": ["scope_kind", "scope_province", "updated_at"],
   // 0031 added the customisation half: the scenario a solution is shaped for,
   // and the manual order the roster is presented in.
-  "yucer_catalog.solution": ["name", "summary", "status", "scenario", "sort_order", "updated_at"],
+  "yucer_catalog.solution": ["novelty", "name", "summary", "status", "scenario", "sort_order", "updated_at"],
   // 0031. optional/note are the tailoring inside the combination.
   "yucer_catalog.solution_item": ["quantity", "optional", "note"],
   // incr/0010. 0007 revoked UPDATE here and granted nothing back, so the table
