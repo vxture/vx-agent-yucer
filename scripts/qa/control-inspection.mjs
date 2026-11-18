@@ -1,5 +1,13 @@
+/** Compare measured page-header controls against the shared action roles. */
+export function pageHeaderControlIssues({ actionSlot, isButton, primary, variant, opensMenu, iconWidth }) {
+  if (actionSlot === "primary" && isButton && (!primary || variant !== "default")) return ["page-primary-style"];
+  if (actionSlot === "secondary" && isButton && (primary || variant !== "outline")) return ["page-secondary-style"];
+  if (actionSlot === "more" && opensMenu && Math.abs(iconWidth - 20) > 0.6) return ["page-more-icon"];
+  return [];
+}
+
 /** Serialize this read-only DOM inspection into a dedicated review tab. */
-export function inspectPageControls() {
+export function inspectPageControls(checkPageHeaderControl = pageHeaderControlIssues) {
   const visible = (e) => {
     const r = e.getBoundingClientRect(), s = getComputedStyle(e);
     return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none";
@@ -38,10 +46,11 @@ export function inspectPageControls() {
       ...(labelFonts.some(value => Math.abs(parseFloat(value) - font) > 0.1) ? ["label-font"] : []),
       ...(Math.abs(parseFloat(s.fontSize) - font) > 0.1 ? ["font"] : []),
       ...(e.dataset.size?.startsWith("icon-") && Math.abs(r.width - target) > 0.6 ? ["icon-width"] : []),
-      ...(e.dataset.slot === "button" && actionSlot === "primary" && (!primary || variant !== "default") ? ["page-primary-style"] : []),
-      ...(e.dataset.slot === "button" && actionSlot === "secondary" && (primary || variant !== "outline") ? ["page-secondary-style"] : []),
-      ...(actionSlot === "more" && e.matches('button[aria-haspopup="menu"]') &&
-        Math.abs((e.querySelector("svg")?.getBoundingClientRect().width ?? 0) - 20) > 0.6 ? ["page-more-icon"] : []),
+      ...checkPageHeaderControl({
+        actionSlot, isButton: e.dataset.slot === "button", primary, variant,
+        opensMenu: e.matches('button[aria-haspopup="menu"]'),
+        iconWidth: e.querySelector("svg")?.getBoundingClientRect().width ?? 0,
+      }),
     ];
     return {
       slot: e.dataset.slot ?? e.getAttribute("role") ?? e.dataset.controlKind,
@@ -61,4 +70,4 @@ export function inspectPageControls() {
   };
 }
 
-export const inspectionExpression = `(${inspectPageControls.toString()})()`;
+export const inspectionExpression = `(${inspectPageControls.toString()})(${pageHeaderControlIssues.toString()})`;
