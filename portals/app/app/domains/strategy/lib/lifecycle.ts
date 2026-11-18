@@ -1,3 +1,4 @@
+import { validExpectations } from "./expectations";
 import { parseStrategyPeriod } from "./plan-period";
 // D1 strategy and D3 campaign lifecycles.
 //
@@ -223,6 +224,7 @@ export interface NewPlanDraft extends PlanEdit {
  */
 export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { status: "draft" }> {
   const planNo = input.planNo.trim();
+  if (input.expectations !== undefined && !validExpectations(input.expectations)) return fail(violation("expectations_invalid", "set valid business expectations", "expectations"));
   const name = input.name.trim();
   const period = input.period.trim();
 
@@ -265,6 +267,7 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
  * owner and the objective.
  */
 export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResult<PlanEdit> {
+  if (input.expectations !== undefined && !validExpectations(input.expectations)) return fail(violation("expectations_invalid", "set valid business expectations", "expectations"));
   const name = input.name.trim();
   const period = input.period.trim();
 
@@ -279,6 +282,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
   return ok({
     name,
     period,
+    ...(input.expectations === undefined ? {} : {expectations: input.expectations}),
     ...(input.changeReason === undefined ? {} : {changeReason:input.changeReason.trim()}),
     objective: input.objective?.trim() || null,
     ownerSub: input.ownerSub?.trim() || null,
@@ -290,6 +294,7 @@ export function planPlanEdit(input: PlanEdit, existingPeriod?: string): RuleResu
 }
 
 export interface PlanEdit {
+  expectations?: readonly import("./expectations").StrategicExpectation[];
   strategyTypeId?: string | null;
   changeReason?: string;
   name: string;

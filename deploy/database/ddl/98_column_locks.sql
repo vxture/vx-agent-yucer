@@ -294,3 +294,7 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 -- events remain append-only through the controlled recording function.
 -- incr/0121 adds writable account.region_id. The old region label is retained
 -- for compatibility and for historical names with no unambiguous match.
+
+-- incr/0122 grants strategy_plan.expectations for guarded draft updates.
+
+-- incr/0123 strategic_result is append-only (SELECT/INSERT, no UPDATE or DELETE).

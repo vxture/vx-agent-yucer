@@ -346,6 +346,7 @@ export async function ensurePlanningDemoData(
   const key = workspaceId + "|" + new Date().getUTCFullYear();
   if (!runs.has(key)) {
     const stores = {
+      strategy: getStrategyStore(),
       plans: getSalesPlanStore(),
       planning: getPlanningStore(),
       account: getAccountStore(),

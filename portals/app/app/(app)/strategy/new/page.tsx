@@ -104,6 +104,7 @@ export default async function NewPlanPage({
           editable
             ? {
                 id: found.id,
+                expectations:found.expectations,
                 editToken:found.editToken ?? 1,basePlanId:found.basePlanId ?? null,changeReason:found.changeReason ?? "",
                 planNo: found.planNo,
                 name: found.name,

@@ -24,7 +24,7 @@ const looks: Record<StrategyTheme | "corporate", {icon: IconName; color: string}
 export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   readonly plan: StrategyView; readonly actions: ReactNode; readonly draftAvailable: boolean;
 }) {
-  const { MARKET_STRATEGY_TEXT:T, PLAN_STATUS_LABEL }=useMessages();
+  const { STRATEGY_HANDOFF_TEXT:H, MARKET_STRATEGY_TEXT:T, PLAN_STATUS_LABEL }=useMessages();
   const locale=useLocale();
   const theme=p.strategyType?.theme ?? "corporate";
   const look=looks[theme] ?? looks.corporate;
@@ -73,6 +73,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
             <span className="text-body-small text-muted-foreground">{T.strategyPosition}</span>
             <p className={`${styles.objective} text-heading-3 ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
           </div>
+          {p.expectations?.length ? <div className="flex flex-wrap items-baseline gap-x-xl gap-y-sm" data-strategy-expectation-summary>{p.expectations.map(x => <span key={x.id} className="text-body-small text-muted-foreground">{H[x.metric]}<strong className="ml-sm text-heading-3 text-foreground tabular-nums">{Number(x.amount).toLocaleString(locale)}</strong><span className="ml-xs">{x.currency ?? H.count}</span></span>)}</div> : null}
           <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground">
             <span>{p.planNo}</span>
             <span className="inline-flex items-center gap-xs">{T.owner}<MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/></span>

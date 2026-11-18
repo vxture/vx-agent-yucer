@@ -1,3 +1,6 @@
+import { listPlans } from "../../domains/strategy/service";
+import { currentStrategyPlans, type PlanRecord } from "../../domains/strategy/store";
+import { verifyStrategyAcceptance } from "../../domains/planning/strategy-handoff";
 import { can } from "../../authz/decide";
 import { getAuthzStore } from "../../authz/store";
 import {
@@ -6,6 +9,7 @@ import {
 } from "../../domains/account/service";
 import { listOrgUnits, listTerritories } from "../../domains/planning/service";
 import {
+  getStrategyStore,
   getCatalogStore,
   getPlanningStore,
   getSalesPlanStore,
@@ -19,6 +23,9 @@ import {
 } from "../../domains/planning/plan-model";
 import type { AppSession } from "../lib/session";
 export type PlanSources = {
+  strategies?: Pick<PlanRecord, "id" | "lineageId" | "versionNo" | "name" | "period" | "expectations" | "ownerSub">[];
+  currentSub?: string;
+  canStrategy?: boolean;
   regions: {
     id: string;
     divisionId: string;
@@ -41,6 +48,7 @@ export function salesPlanContext(s: AppSession) {
     entitlement: s.entitlement,
     scope: s.scope,
     store: getSalesPlanStore(),
+    strategy: getStrategyStore(),
   };
 }
 export async function loadPlanSources(s: AppSession): Promise<PlanSources> {
@@ -81,8 +89,13 @@ export async function loadPlanSources(s: AppSession): Promise<PlanSources> {
       (!units || units.ok),
     "source_read_failed",
   );
+  const canStrategy = can(s.authz, s.entitlement, "strategy.plan.view", "data").allowed;
+  const strategies = canStrategy ? await listPlans({ ...base, store: getStrategyStore() }) : null;
+  demand(!strategies || strategies.ok, "source_read_failed");
   const ts = salesRegionTerritories(divisions.value, territories.value);
   return {
+    canStrategy, currentSub: s.user.sub,
+    strategies: strategies?.ok ? currentStrategyPlans(strategies.value).filter(p => p.versionNo && ["approved", "active"].includes(p.status)).map(p => ({ id:p.id,lineageId:p.lineageId,versionNo:p.versionNo,name:p.publishedSnapshot?.name ?? p.name,period:p.publishedSnapshot?.period ?? p.period,expectations:p.publishedSnapshot?.expectations ?? [],ownerSub:p.ownerSub })) : [],
     regions: divisions.value.map((d) => {
       const t = ts.find((t) => t.divisionIds.includes(d.id));
       demand(t, "region_unknown");
@@ -109,6 +122,7 @@ export async function loadPlanSources(s: AppSession): Promise<PlanSources> {
   };
 }
 export function checkPlanRead(s: AppSession, content: PlanContent) {
+  demand(!content.strategyAcceptances?.length || can(s.authz, s.entitlement, "strategy.plan.view", "data").allowed, "strategy_source_permission");
   demand(
     !content.budgets.length ||
       can(s.authz, s.entitlement, "account.view", "data").allowed,
@@ -140,6 +154,10 @@ export async function verifyPlanSources(
 ) {
   checkPlanRead(s, content);
   const before = await getSalesPlanStore().read(s.workspaceId, content.year);
+  for (const x of content.strategyAcceptances ?? []) {
+    verifyStrategyAcceptance(x, await getStrategyStore().getPlan(s.workspaceId, x.strategyId), content.year);
+    for (const sub of [x.ownerSub, ...x.allocations.map(a => a.ownerSub)]) demand(!sub || sources.members.some(m => m.sub === sub), "member_unknown");
+  }
   const oldRegions = before?.revisions.flatMap((r) => r.content.regions) ?? [];
   for (const r of content.regions) {
     demand(

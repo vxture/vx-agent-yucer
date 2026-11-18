@@ -1,3 +1,5 @@
+import { captureStrategyPublication, type InMemoryStrategyStore, type PlanRecord } from "../strategy/store";
+import { allocateStrategicTarget } from "../planning/strategy-autofill";
 // Repeatable current-year planning and execution fixtures. Memory stores only.
 import { randomUUID } from "node:crypto";
 import {
@@ -24,6 +26,7 @@ import { money } from "./money";
 
 export type PlanningDemoStores = {
   plans: InMemorySalesPlanStore;
+  strategy?: InMemoryStrategyStore;
   planning: InMemoryPlanningStore;
   account: InMemoryAccountStore;
   pipeline: InMemoryPipelineStore;
@@ -56,6 +59,7 @@ export async function seedPlanningDemo(
   now = new Date(),
 ): Promise<void> {
   const year = now.getUTCFullYear();
+  const strategicId = id(workspaceId, "strategic-plan|" + year);
   const units = await stores.planning.listOrgUnits(workspaceId);
   const placements = await stores.planning.listOrgMembers(workspaceId);
   const headquarters = units.find((u) => u.unitCode === "headquarters");
@@ -292,7 +296,7 @@ export async function seedPlanningDemo(
           name: region.name + " " + T.deals[k] + " " + period,
           accountId: customer.id,
           accountName: customer.name,
-          planId: null,
+          planId: stores.strategy && i < 2 ? strategicId : null,
           campaignId: null,
           territoryId: region.id,
           ownerSub,
@@ -336,6 +340,19 @@ export async function seedPlanningDemo(
     services: [T.servicePremise],
   });
   content.allocationNote = T.allocationNote;
+  if (stores.strategy) {
+    const source: PlanRecord = { id:strategicId,workspaceId,planNo:`STR-DEMO-${year}`,name:"\u91cd\u70b9\u884c\u4e1a\u589e\u957f\u6218\u7565",period:String(year),objective:null,ownerSub:reviewer.sub,createdBySub:reviewer.sub,status:"active",approvedAt:new Date(version1At),versionNo:1,lineageId:strategicId,solutionIds:[],expectations:[
+      {id:id(workspaceId,"expect-revenue"),metric:"revenue",amount:"32000000",currency:"CNY",criterion:"\u5b8c\u6210\u6210\u4ea4"},
+      {id:id(workspaceId,"expect-channels"),metric:"channels",amount:"3",currency:null,criterion:"\u5408\u4f5c\u7b7e\u7ea6\u5e76\u5b8c\u6210\u9996\u5355"},
+      {id:id(workspaceId,"expect-cases"),metric:"reference_cases",amount:"2",currency:null,criterion:"\u5b8c\u6210\u9a8c\u6536\u5e76\u83b7\u5f97\u5ba2\u6237\u6848\u4f8b\u6388\u6743"},
+    ]};
+    Object.assign(source,{publishedSnapshot:captureStrategyPublication(source,[],new Date(version1At))});
+    stores.strategy.seed({plans:[source]});
+    content.strategyAcceptances=source.expectations!.map(e => allocateStrategicTarget(content,{
+      key:id(workspaceId,"acceptance|"+e.id),strategyId:source.id,lineageId:source.id,version:1,name:source.name,period:source.period,expectation:e,
+      amount:e.metric==="revenue" ? "28000000" : e.amount,ownerSub:reviewer.sub,note:"",allocations:[],
+    },randomUUID));
+  }
   validateContent(content, true);
   const first = structuredClone(content);
   first.targets

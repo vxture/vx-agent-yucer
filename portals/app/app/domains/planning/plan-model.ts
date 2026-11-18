@@ -1,3 +1,4 @@
+import { validateStrategyAcceptances } from "./strategy-handoff";
 // Versioned, atomic D2 planning aggregate. Decimal amounts are canonical strings.
 import { createHash, randomUUID } from "node:crypto";
 import { periodRange } from "../shared/period";
@@ -77,6 +78,7 @@ export interface PlanAction {
 }
 export interface PlanContent {
   schemaVersion: 1;
+  strategyAcceptances?: import("./strategy-handoff").StrategyAcceptance[];
   releaseScope?: "company" | "regions";
   companyRevisionId?: string;
   year: number;
@@ -334,6 +336,7 @@ export function validateContent(c: PlanContent, publish: boolean): void {
         r.id,
       );
   }
+  validateStrategyAcceptances(c, publish);
   const sum = (rows: PlanTarget[], tier: "floor" | "target" | "stretch") =>
     rows.reduce((n, t) => n + (t[tier] === null ? 0n : minor(t[tier]!)), 0n);
   for (const t of c.targets)
@@ -503,6 +506,10 @@ export function closedSlice(c: PlanContent, period: string) {
       .sort((a, b) => canonical(a).localeCompare(canonical(b))),
     regions: c.regions.map((r) => ({ ...r })),
     actions: c.actions.filter((a) => p.start <= a.due && a.due < p.end),
+    strategyAcceptances: (c.strategyAcceptances ?? []).flatMap(x => {
+      const allocations = x.allocations.filter(a => within.has(a.period));
+      return allocations.length ? [{ key:x.key,strategyId:x.strategyId,lineageId:x.lineageId,version:x.version,period:x.period,expectation:x.expectation,allocations }] : [];
+    }),
   };
 }
 export function validateRevision(

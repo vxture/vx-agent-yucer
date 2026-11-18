@@ -138,7 +138,7 @@ export function strategyViews(plans: readonly PlanRecord[], markets: readonly Ma
         matched: accounts === null ? null : count, missing: accounts === null ? null : missing }];
     });
     const credited = deals ? strategyResults(p.id, deals, campaigns) : null;
-    return { ...p, ...(frozen ? {name:frozen.name,period:frozen.period,objective:frozen.objective,ownerSub:frozen.ownerSub,strategyType:frozen.strategyType ?? null}:{}),
+    return { ...p, ...(frozen ? {expectations:frozen.expectations ?? [],name:frozen.name,period:frozen.period,objective:frozen.objective,ownerSub:frozen.ownerSub,strategyType:frozen.strategyType ?? null}:{}),
       snapshotLegacy:frozen?.legacy ?? false,publishedOwnerName:frozen?.ownerName ?? null,approvedAt: approvedAt?.toISOString() ?? null,
       sharedProducts: visibleProducts(productIds),
       products: markets === null && targetMarkets.length ? null : visibleProducts([...productIds, ...targetMarkets.flatMap(m => m.productIds ?? [])]),
