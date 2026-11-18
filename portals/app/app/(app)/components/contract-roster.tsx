@@ -1,4 +1,5 @@
 "use client";
+import { DateRangeField } from "./date-range-field";
 import { MemberName } from "../lib/member-names";
 
 import type { RenewalRisk, RenewalRiskLevel } from "../../domains/delivery/lib/renewal-risk";
@@ -683,14 +684,8 @@ function ContractDrawer({
           <FieldLabel>{CONTRACT_TEXT.fieldCurrency}</FieldLabel>
           <Input value={form.currency} onChange={set("currency")} disabled={pending} />
         </Field>
-        <Field>
-          <FieldLabel>{CONTRACT_TEXT.fieldTermStart}</FieldLabel>
-          <Input type="date" value={form.termStart} onChange={set("termStart")} disabled={pending} />
-        </Field>
-        <Field>
-          <FieldLabel>{CONTRACT_TEXT.fieldTermEnd}</FieldLabel>
-          <Input type="date" value={form.termEnd} onChange={set("termEnd")} disabled={pending} />
-        </Field>
+        <DateRangeField id="contract-term-range" startOn={form.termStart} endOn={form.termEnd} allowPartial disabled={pending}
+          onChange={(termStart, termEnd) => setForm(current => ({ ...current, termStart, termEnd }))} />
         <Field>
           <FieldLabel>{CONTRACT_TEXT.fieldNotice}</FieldLabel>
           <Input type="number" min="0" max="365" value={form.noticeDays} onChange={set("noticeDays")} disabled={pending} />

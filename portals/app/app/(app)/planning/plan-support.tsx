@@ -1,4 +1,5 @@
 "use client";
+import { DateRangeField } from "../components/date-range-field";
 import { MemberPicker } from "../components/member-picker";
 import { MemberName } from "../lib/member-names";
 import { useEffect, useRef, useState } from "react";
@@ -833,26 +834,8 @@ export function PlanSupport({
                       }
                     />
                   </Field>
-                  <div className="grid grid-cols-2 gap-md">
-                    <Field>
-                      <FieldLabel htmlFor="plan-start">{T.start}</FieldLabel>
-                      <Input
-                        type="date"
-                        id="plan-start"
-                        value={start}
-                        onChange={(e) => setStart(e.target.value)}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="plan-end">{T.end}</FieldLabel>
-                      <Input
-                        type="date"
-                        id="plan-end"
-                        value={end}
-                        onChange={(e) => setEnd(e.target.value)}
-                      />
-                    </Field>
-                  </div>
+                  <DateRangeField id="plan-team-range" startOn={start} endOn={end} allowPartial
+                    onChange={(start, end) => { setStart(start);setEnd(end); }} />
                 </>
               ) : (
                 <>

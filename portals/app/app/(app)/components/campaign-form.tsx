@@ -1,4 +1,6 @@
 "use client";
+
+import { DateRangeField } from "./date-range-field";
 import { MemberPicker } from "./member-picker";
 
 import { useMemo, useState } from "react";
@@ -178,14 +180,8 @@ export function CampaignForm({
                 <FieldLabel>{CAMPAIGN_TEXT.formCurrency}</FieldLabel>
                 <Input value={currency} onChange={(e) => setCurrency(e.target.value)} />
               </Field>
-              <Field>
-                <FieldLabel>{CAMPAIGN_TEXT.formStarts}</FieldLabel>
-                <Input type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel>{CAMPAIGN_TEXT.formEnds}</FieldLabel>
-                <Input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
-              </Field>
+              <DateRangeField id="campaign-date-range" startOn={startsAt} endOn={endsAt} allowPartial disabled={submit.pending}
+                onChange={(start, end) => { setStartsAt(start);setEndsAt(end); }} />
             </FormFields>
             {initial ? null : <p className="text-muted-foreground text-body-small">{CAMPAIGN_TEXT.formAnchor}</p>}
             <div className="flex items-center gap-md">

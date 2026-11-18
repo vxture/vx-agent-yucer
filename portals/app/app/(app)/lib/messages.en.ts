@@ -8147,4 +8147,11 @@ export const en: Dictionary = {
   "catalogNovelty": "Product attribute",
   "unmarked": "Unmarked",
 },
+  DATE_RANGE_TEXT: {
+    label: "Date range",
+    start: "Start date",
+    end: "End date",
+    clear: "Clear dates",
+    apply: "Apply dates",
+  },
 };

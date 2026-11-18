@@ -9569,3 +9569,11 @@ export const STRATEGY_RESULT_TEXT = {
   "catalogNovelty": "\u4ea7\u54c1\u5c5e\u6027",
   "unmarked": "\u672a\u6807\u8bb0",
 } as const;
+
+export const DATE_RANGE_TEXT = {
+  label: "\u8d77\u6b62\u65e5\u671f",
+  start: "\u5f00\u59cb\u65e5\u671f",
+  end: "\u7ed3\u675f\u65e5\u671f",
+  clear: "\u6e05\u7a7a\u65e5\u671f",
+  apply: "\u5e94\u7528\u65e5\u671f",
+} as const;
