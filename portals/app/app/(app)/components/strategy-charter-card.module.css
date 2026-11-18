@@ -56,9 +56,9 @@
 }
 
 .referenceText {
-  font-size: var(--heading-2-font-size);
+  font-size: var(--body-font-size);
   font-weight: var(--body-font-weight);
-  line-height: var(--heading-2-line-height);
+  line-height: var(--body-line-height);
 }
 
 .objective {
