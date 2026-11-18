@@ -56,12 +56,12 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   const relation=(title:string,icon:IconName,rows:readonly {id:string;name:string;href:string;icon?:IconName}[] | null | undefined,empty:string)=>
     <div className={styles.relation}>
       <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name={icon} size="sm" aria-hidden="true"/>{title}{":"}</span>
-      <div className="flex flex-wrap items-center gap-x-md gap-y-sm text-body">
-        {rows?.slice(0,3).map(row=><Link key={`${row.icon ?? "market"}:${row.id}`} href={row.href} className="inline-flex min-w-0 max-w-full items-center gap-xs transition-colors hover:text-primary-text focus-visible:text-primary-text" title={row.name}>
+      <div className={`${styles.referenceText} flex flex-wrap items-center gap-x-md gap-y-sm`}>
+        {rows?.slice(0,3).map(row=><Link key={`${row.icon ?? "market"}:${row.id}`} href={row.href} className={`${styles.referenceText} inline-flex min-w-0 max-w-full items-center gap-xs transition-colors hover:text-primary-text focus-visible:text-primary-text`} title={row.name}>
           {row.icon ? <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/>:null}<span className="min-w-0 truncate">{row.name}</span>
         </Link>)}
         {rows && rows.length>3 ? <Link href={href} className="text-body-small text-primary-text tabular-nums" title={rows.slice(3).map(r=>r.name).join(" / ")}>+{rows.length-3}</Link>:null}
-        {!rows?.length ? <span className="text-body-small text-muted-foreground">{rows===null?T.unknown:empty}</span>:null}
+        {!rows?.length ? <span className={`${styles.referenceText} text-muted-foreground`}>{rows===null?T.unknown:empty}</span>:null}
       </div>
     </div>;
   return <Card className={`${styles.charter} ${look.color}`} surface="soft" data-strategy-card data-strategy-theme={theme}>
@@ -90,9 +90,9 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
         <div className={`${styles.relations} text-foreground`}>
           <div className={styles.relation} data-strategy-card-direction>
             <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="lightbulb" size="sm" aria-hidden="true"/>{T.strategyPosition}{":"}</span>
-            <p className={`${styles.objective} text-body ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
+            <p className={`${styles.objective} ${styles.referenceText} ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
           </div>
-          {relation(T.targetMarketsTitle,"target",markets?.map(m=>({id:m.segmentId,name:m.marketName,href:`/segment?market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
+          {relation(T.targetMarketsTitle,"target",markets?.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment?market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
           {relation(T.productSolutionsTitle,"squares-four",offerings,T.offeringEmpty)}
         </div>
         <div className={styles.outcome} data-strategy-expectation-summary>

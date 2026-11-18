@@ -55,8 +55,13 @@
   grid-template-rows: repeat(4, auto);
 }
 
+.referenceText {
+  font-size: var(--heading-2-font-size);
+  font-weight: var(--body-font-weight);
+  line-height: var(--heading-2-line-height);
+}
+
 .objective {
-  line-height: 1.65;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -100,10 +105,15 @@
 }
 
 .goalNumber {
-  font-size: var(--display-xs-font-size);
+  font-size: var(--heading-1-font-size);
   font-weight: var(--heading-1-font-weight);
-  line-height: var(--display-xs-line-height);
+  line-height: var(--heading-1-line-height);
+  color: color-mix(in srgb, var(--foreground) 80%, var(--primary-text) 20%);
   overflow-wrap: anywhere;
+}
+
+.goalNumber:global(.text-muted-foreground) {
+  color: var(--muted-foreground);
 }
 
 .footer {
