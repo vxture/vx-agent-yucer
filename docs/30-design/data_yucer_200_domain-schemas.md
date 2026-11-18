@@ -21,6 +21,7 @@
 | 表 | 说明 | 业务号 |
 |----|------|-------|
 | `strategy_plan` | 战略及其草稿/版本，lineage 归组（incr/0110） | `plan_no`（战略根唯一） |
+| `strategy_option` | 工作区价值主张与实现路径配置，UUID 引用（incr/0125） | kind + code |
 | `strategy_plan_event` | 修订、发布、放弃事件，只读授权服务角色（incr/0110） | - |
 | `market_segment` | 可复用的细分市场（`criteria` 保存过滤条件与场景说明） | `segment_code` |
 | `market_segment_solution` | 市场默认方案；独立维护、供战略首次选入继承（incr/0112） | - |
@@ -150,3 +151,20 @@ permission denied。这是有意的失败模式：让遗漏在开发期暴露，
 `lineage_id`、`base_plan_id` 使用工作空间复合外键；每个 lineage 至多一份草稿，版本号唯一。
 `published_snapshot` 只在受控发布事务冻结；所有关系行随父版本锁定，事件只可通过受控函数追加。
 下游 `plan_id` 保持指向具体版本。旧正式记录采用 legacy V1 快照，保留原状态与引用。
+
+
+## 战略制定结果（incr/0125）
+
+`strategy_plan.result` 是草稿/版本聚合内的 JSONB：价值主张 UUID、结构化目标、路径 UUID、
+资源预算、里程时间、风险假设和关联新旧属性。目标、里程和风险条目具有独立 UUID。
+发布快照冻结完整结果与已选字典名称，修订复制全部结果，原版本不修改。
+保留 `expectations` 作为三个既有指标向销售规划的兼容投影，目标 UUID 不变；数据库核对投影一致。
+`strategy_option` 按 workspace + kind + code 唯一，标识 UUID，允许修改名称、启用状态与顺序；
+服务角色无删除、无更换标识授权。目标市场、人员与产品方案仍沿用原有关系，不另造客户规模关系。
+
+
+## 产品方案新旧属性（incr/0126）
+
+`product.novelty` 与 `solution.novelty` 为可空目录属性，只接受 existing/new，
+未配置为 NULL。关联均以 UUID 识别，属性不改变关联标识。服务角色拥有列级 UPDATE；
+战略编辑与助手只能读取目录值，不能通过战略关联回写目录。发布快照冻结已关联产品方案的属性。

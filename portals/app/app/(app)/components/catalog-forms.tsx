@@ -84,6 +84,7 @@ export function NewProductForm({
   /** Status transitions remain in the list; either form can set the number. */
   readonly initial?: ProductRecord;
   readonly onSave: (input: {
+    novelty?:"existing"|"new"|null;
     editId?: string;
     productCode: string;
     name: string;
@@ -92,9 +93,10 @@ export function NewProductForm({
     statusId?: string;
   }) => Promise<Saved>;
 }) {
-  const { CATALOG_TEXT, CATALOG_ERROR } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, CATALOG_TEXT, CATALOG_ERROR } = useMessages();
   const editing = initial !== undefined;
   const [code, setCode] = useState(initial?.productCode ?? generatedCode);
+  const [novelty,setNovelty]=useState<"existing"|"new"|null>(initial?.novelty??null);
   const [name, setName] = useState(initial?.name ?? "");
   // TWO FIELDS, ONE TYPE (incr/0100; owner, 2026-09-29: 两个字段，连接显示).
   // 一级类 first, then an optional 二级类 under it; the product carries the
@@ -189,7 +191,8 @@ export function NewProductForm({
                 </NativeSelect>
               )}
             </Field>
-            </FormFields>
+            <Field><FieldLabel htmlFor="product-novelty">{R.catalogNovelty}</FieldLabel><NativeSelect id="product-novelty" value={novelty??""} disabled={submit.pending} onChange={e=>setNovelty(e.target.value as "existing"|"new"||null)}><option value="">{R.unmarked}</option><option value="existing">{R.existing}</option><option value="new">{R.new}</option></NativeSelect></Field>
+</FormFields>
           </CardContent></Card>
             <div className="flex flex-wrap items-center justify-end gap-sm">
               <Button asChild size="md" variant="secondary"><Link href="/catalog">{CATALOG_TEXT.cancelProductEdit}</Link></Button>
@@ -199,6 +202,7 @@ export function NewProductForm({
                   submit.run(
                     () =>
                       onSave({
+                        novelty,
                         editId: initial?.id,
                         productCode: savedCode,
                         name: name.trim(),
@@ -245,6 +249,7 @@ export function NewSolutionForm({
     readonly items: readonly SolutionItemRecord[];
   };
   readonly onSave: (input: {
+    novelty?:"existing"|"new"|null;
     editId?: string;
     name: string;
     summary: string | null;
@@ -257,8 +262,9 @@ export function NewSolutionForm({
     }[];
   }) => Promise<Saved>;
 }) {
-  const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
   const code = initial?.solution.solutionCode ?? generatedCode;
+  const [novelty,setNovelty]=useState<"existing"|"new"|null>(initial?.solution.novelty??null);
   const [name, setName] = useState(initial?.solution.name ?? "");
   const [summary, setSummary] = useState(initial?.solution.summary ?? "");
   const [scenario, setScenario] = useState(initial?.solution.scenario ?? "");
@@ -366,7 +372,8 @@ export function NewSolutionForm({
               />
               <FieldDescription>{CATALOG_TEXT.scenarioHint}</FieldDescription>
             </Field>
-          </FormFields>
+          <Field><FieldLabel htmlFor="solution-novelty">{R.catalogNovelty}</FieldLabel><NativeSelect id="solution-novelty" value={novelty??""} disabled={submit.pending} onChange={e=>setNovelty(e.target.value as "existing"|"new"||null)}><option value="">{R.unmarked}</option><option value="existing">{R.existing}</option><option value="new">{R.new}</option></NativeSelect></Field>
+</FormFields>
 
           {/* THE COMBINATION, and the customisation of each line beside it. */}
           <div className="mt-lg flex flex-col gap-md">
@@ -474,6 +481,7 @@ export function NewSolutionForm({
                   submit.run(
                     () =>
                       onSave({
+                        novelty,
                         editId: initial?.solution.id,
                         name: name.trim(),
                         summary: summary.trim() === "" ? null : summary.trim(),

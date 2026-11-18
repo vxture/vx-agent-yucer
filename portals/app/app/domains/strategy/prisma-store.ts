@@ -1,3 +1,5 @@
+import { defaultStrategyOptions } from "./lib/strategy-options";
+import type { StrategyOption } from "./lib/strategy-result";
 import type { Prisma } from "@prisma/client";
 import { createBusinessRow, editBusinessRow, type BusinessWrite } from "../shared/business-code";
 import { DEFAULT_STRATEGY_TYPES, type StrategyType, type StrategyTheme } from "./lib/strategy-type";
@@ -83,6 +85,15 @@ function foreignKeyFailure(error: unknown) {
 }
 
 export class PrismaStrategyStore implements StrategyStore {
+  async listStrategyOptions(workspaceId:string):Promise<StrategyOption[]> {
+    const p=await getPrismaClient();
+    await p.strategyOption.createMany({data:defaultStrategyOptions().map(({id:_id,...x})=>({...x,workspaceId})),skipDuplicates:true});
+    return (await p.strategyOption.findMany({where:{workspaceId},orderBy:{sortOrder:"asc"}})).map(x=>({...x,kind:x.kind as StrategyOption["kind"]}));
+  }
+  async saveStrategyOption(workspaceId:string,input:StrategyOption):Promise<void> {
+    const p=await getPrismaClient();const {id:_id,kind,code,...fields}=input;
+    await p.strategyOption.upsert({where:{workspaceId_kind_code:{workspaceId,kind,code}},create:{workspaceId,kind,code,...fields},update:{...fields,updatedAt:new Date()}});
+  }
   async listStrategyTypes(workspaceId: string): Promise<StrategyType[]> {
     const p = await getPrismaClient();
     await p.strategyType.createMany({data:DEFAULT_STRATEGY_TYPES.map(({ id: _id, ...t })=>({...t,workspaceId})),skipDuplicates:true});
@@ -109,7 +120,8 @@ export class PrismaStrategyStore implements StrategyStore {
       orderBy: [{ period: "desc" }, { createdAt: "desc" }],
       include: PLAN_SELECTION,
     });
-    return rows.map((r: Record<string, unknown>) => toPlan(r));
+    const options=await this.listStrategyOptions(workspaceId);
+    return rows.map((r: Record<string, unknown>) => ({...toPlan(r),resultOptions:(r.publishedSnapshot as StrategyPublication | null)?.options ?? options}));
   }
 
   async createPlan(workspaceId: string, input: PlanCreate): Promise<PlanRecord | null> {
@@ -133,6 +145,7 @@ export class PrismaStrategyStore implements StrategyStore {
           name: input.name,
           period: input.period,
           strategyTypeId: input.strategyTypeId ?? null,
+          result:input.result == null ? undefined : input.result as unknown as Prisma.InputJsonValue,
           expectations: [...(input.expectations ?? [])] as unknown as Prisma.InputJsonValue,
           objective: input.objective,
           ownerSub: input.ownerSub,
@@ -165,13 +178,14 @@ export class PrismaStrategyStore implements StrategyStore {
       where: { id, workspaceId },
       include: PLAN_SELECTION,
     });
-    return row ? toPlan(row as Record<string, unknown>) : null;
+    return row ? {...toPlan(row as Record<string, unknown>),resultOptions:(row.publishedSnapshot as StrategyPublication | null)?.options ?? await this.listStrategyOptions(workspaceId)} : null;
   }
 
   async updatePlan(
     workspaceId: string,
     id: string,
     patch: {
+      result?: import("./lib/strategy-result").StrategyResult | null;
       expectations?: readonly import("./lib/expectations").StrategicExpectation[];
       status?: PlanStatus;
       approvedAt?: Date | null;
@@ -189,8 +203,8 @@ export class PrismaStrategyStore implements StrategyStore {
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const { solutionIds, productIds, targetMarkets, ...fields } = patch;
-    const { expectations, ...rest } = fields;
-    const data = { ...rest, ...(expectations === undefined ? {} : { expectations: [...expectations] as unknown as Prisma.InputJsonValue }), updatedAt: new Date() };
+    const { result, expectations, ...rest } = fields;
+    const data = { ...rest, ...(result === undefined ? {} : {result: result as unknown as Prisma.InputJsonValue}), ...(expectations === undefined ? {} : { expectations: [...expectations] as unknown as Prisma.InputJsonValue }), updatedAt: new Date() };
 
     const guard = assertWritable(PLAN_TABLE, data);
     if (!guard.ok) {
@@ -199,7 +213,7 @@ export class PrismaStrategyStore implements StrategyStore {
       );
     }
 
-    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["expectations", "strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
+    const where = { id, workspaceId, ...(writeGuard.expectedEditToken === undefined ? {} : { editToken:writeGuard.expectedEditToken }), ...(writeGuard.expectedStatus === undefined ? {} : { status:writeGuard.expectedStatus }), ...(["result", "expectations", "strategyTypeId", "changeReason", "name", "period", "objective", "ownerSub", "solutionIds", "productIds", "targetMarkets"].some(key => key in patch) ? { status: "draft" } : {}) };
     if (solutionIds === undefined && productIds === undefined && targetMarkets === undefined) {
       return (await p.strategyPlan.updateMany({ where, data })).count > 0;
     }
@@ -574,6 +588,8 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     period: String(r.period),
     strategyTypeId: (r.strategyTypeId as string | null) ?? null,
     strategyType,
+    result:(r.result ?? null) as PlanRecord["result"],
+    resultOptions:(r.publishedSnapshot as StrategyPublication | null)?.options,
     expectations: (r.expectations ?? []) as import("./lib/expectations").StrategicExpectation[],
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,

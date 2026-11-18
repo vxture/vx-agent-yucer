@@ -17,7 +17,7 @@ const draft={name:"Industry expansion",period:"2027",planNo:"TYPE-2027",objectiv
 
 test("type presets are workspace scoped; renaming/disabling never overwrites them on read",async()=>{
   const c=context();const types=unwrap(await listStrategyTypes(c));
-  assert.equal(types.length,5);
+  assert.equal(types.length,8);
   unwrap(await saveStrategyType(c,{...types[0],name:"Priority industries",enabled:false}));
   assert.equal(unwrap(await listStrategyTypes(c))[0].name,"Priority industries");
   assert.equal(unwrap(await listStrategyTypes({...c,workspaceId:"other"}))[0].name,types[0].name);

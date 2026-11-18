@@ -21,7 +21,7 @@ async function cleanup(){await pg(async c=>{
 test("real database freezes type metadata and artwork, inherits revisions, and rejects cross-workspace types",{skip},async()=>{
   await cleanup();try{
     const store=new PrismaStrategyStore();const types=await store.listStrategyTypes(WS);
-    assert.equal(types.length,5);const type=types[1];
+    assert.equal(types.length,8);const type=types[1];
     const first=await store.createPlan(WS,{name:"Expansion",planNo:"TYPE-2027",period:"2027",ownerSub:null,objective:"New markets",strategyTypeId:type.id});
     assert.equal(first?.strategyType?.name,type.name);
     let row=(await store.getPlan(WS,first!.id))!;assert.equal(row.strategyType?.theme,type.theme);
@@ -47,7 +47,7 @@ test("config seeding is concurrent-safe and preserves custom and disabled types"
   await cleanup();try{
     const store=new PrismaStrategyStore();
     const results=await Promise.all([store.listStrategyTypes(WS),store.listStrategyTypes(WS)]);
-    assert.equal(results[0].length,5);assert.equal(results[1].length,5);
+    assert.equal(results[0].length,8);assert.equal(results[1].length,8);
     await store.saveStrategyType(WS,{...results[0][0],enabled:false,name:"Custom name"});
     const after=await store.listStrategyTypes(WS);
     assert.equal(after[0].enabled,false);assert.equal(after[0].name,"Custom name");

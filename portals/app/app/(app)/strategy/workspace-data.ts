@@ -56,6 +56,7 @@ export const strategyWorkspaceData = cache(async () => {
     }])),
   }) : [];
   return { session, plansRead: plans, marketsRead: segments, data: {
+    currency:(await getCatalogStore().getPricingPolicy(session.workspaceId)).defaultCurrency,
     fulfillment: canPlan ? await loadStrategyFulfillment(session) : null,
     plans: canPlan ? planRows : null, markets: canMarkets ? markets : null,
     productOptions: products?.ok ? products.value : null,

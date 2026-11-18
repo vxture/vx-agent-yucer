@@ -1,3 +1,4 @@
+import { strategyResultIssues, validStrategyResult, goalExpectations, strategyToday, alignResultRelations, resultRelationsMatch } from "./lib/strategy-result";
 import { businessRecordMissing, nextBusinessCode, saveBusinessRecord, type BusinessWrite } from "../shared/business-code";
 import { parseStrategyPeriod } from "./lib/plan-period";
 import { nextStrategyNumber } from "./lib/plan-number";
@@ -255,6 +256,35 @@ export async function listPlans(
  * below owns every move after this one, including the approval that stamps
  * `approved_at`.
  */
+
+async function catalogResult(ctx:StrategyContext,input:PlanEdit):Promise<PlanEdit> {
+  if(!input.result)return input;
+  const [products,solutions]=await Promise.all([ctx.catalog?.listProducts&&ctx.catalog?.listStatusConfigs?listProductReferences({...ctx,store:{listProducts:ctx.catalog.listProducts.bind(ctx.catalog),listStatusConfigs:ctx.catalog.listStatusConfigs.bind(ctx.catalog)}}):null,ctx.catalog?listSolutionReferences({...ctx,store:ctx.catalog}):null]);
+  const result={...input.result,offerings:input.result.offerings.map(o=>({...o,novelty:((o.kind==="product"?(products?.ok?products.value:[]):(solutions?.ok?solutions.value:[])).find(row=>row.id===o.id)?.novelty??"unknown") as import("./lib/strategy-result").Novelty}))};
+  return {...input,result};
+}
+async function validateResult(ctx:StrategyContext,input:import("./lib/lifecycle").PlanEdit,previous?:PlanRecord):Promise<RuleResult<true>> {
+  if(input.result===undefined){
+    if(previous?.result && input.expectations!==undefined && JSON.stringify(input.expectations)!==JSON.stringify(previous.expectations))return fail(violation("expectations_invalid","edit goals together","expectations"));
+    return ok(true);
+  }
+  if(!validStrategyResult(input.result))return fail(violation("strategy_result_invalid","invalid result","result"));
+  if(!resultRelationsMatch(input.result,input,previous))return fail(violation("strategy_result_invalid","result references unselected relations","result"));
+  const issues=strategyResultIssues(input.result,{today:strategyToday(),previous:previous?.result});
+  if(issues.length)return fail(violation("strategy_result_invalid","invalid goal date",issues[0].field));
+  for(const m of input.result.milestones){
+    if(m.ownerSub && m.ownerSub!==previous?.result?.milestones.find(old=>old.id===m.id)?.ownerSub){const owner=await validatePlanOwner(ctx,m.ownerSub);if(!owner.ok)return owner;}
+  }
+  const options=await ctx.store.listStrategyOptions(ctx.workspaceId);
+  for(const [kind,ids] of [["value",input.result.valuePropositionId?[input.result.valuePropositionId]:[]],["path",input.result.pathIds]] as const){
+    if(ids.some(id=>!options.some(o=>o.id===id && o.kind===kind && (o.enabled || previous?.result?.valuePropositionId===id || previous?.result?.pathIds.includes(id)))))return fail(violation("strategy_option_unavailable","option unavailable","result"));
+  }
+  if(input.expectations!==undefined){
+    const currency=input.expectations.find(e=>e.metric==="revenue")?.currency ?? "CNY";
+    if(JSON.stringify(goalExpectations(input.result,currency))!==JSON.stringify(input.expectations))return fail(violation("expectations_invalid","goal projection differs","expectations"));
+  }
+  return ok(true);
+}
 export async function createPlan(
   ctx: StrategyContext,
   input: NewPlanDraft,
@@ -263,6 +293,8 @@ export async function createPlan(
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.create", "data");
   if (!gate.allowed) return denied(gate);
 
+  input=await catalogResult(ctx,input) as NewPlanDraft;
+  const resultCheck=await validateResult(ctx,input);if(!resultCheck.ok)return resultCheck;
   const autoNumber = options.autoNumber === true;
   const codes = autoNumber ? (await ctx.store.listPlans(ctx.workspaceId)).map(p => p.planNo) : [];
   const plan = planNewPlan(autoNumber ? { ...input, planNo: nextStrategyNumber(input.period, codes) } : input);
@@ -324,7 +356,9 @@ async function applyPlanEdit(
   if(guard.expectedEditToken !== undefined && guard.expectedEditToken !== (plan.editToken ?? 1))return fail(violation("strategy_draft_conflict","draft changed; reload before saving","editToken"));
   const resolved = resolveInput(plan);
   if (!resolved.ok) return resolved;
-  const input = resolved.value;
+  const raw = resolved.value;
+  const input = await catalogResult(ctx,raw.result === undefined && plan.result ? {...raw,result:alignResultRelations(plan.result,raw,plan)} : raw);
+  const resultCheck=await validateResult(ctx,input,plan);if(!resultCheck.ok)return resultCheck;
   const edit = planPlanEdit(input, plan.period);
   if (!edit.ok) return edit as RuleResult<PlanRecord>;
 
@@ -419,6 +453,11 @@ export async function publishStrategy(ctx:StrategyContext,id:string,expectedEdit
   if(!parseStrategyPeriod(plan.period))return fail(violation("period_invalid","set execution dates before publication","period"));
   if((plan.editToken ?? 1)!==expectedEditToken)return fail(violation("strategy_draft_conflict","draft changed; reload before publishing","editToken"));
   if(plan.basePlanId && !plan.changeReason?.trim())return fail(violation("strategy_reason_required","describe the revision before publishing","changeReason"));
+  if(plan.result){
+    const issues=strategyResultIssues(plan.result,{publish:true});
+    if(!plan.strategyTypeId || !plan.ownerSub || !plan.objective?.trim() || plan.objective.length>100 || !plan.targetMarkets?.length || issues.length)return fail(violation("strategy_incomplete","complete required strategy fields before publishing",issues[0]?.field ?? "result"));
+    const owner=await validatePlanOwner(ctx,plan.ownerSub);if(!owner.ok)return owner;
+  }
   if((plan.targetMarkets?.length ?? 0)>0){const marketGate=can(ctx.holder,ctx.entitlement,"strategy.segment.view","data");if(!marketGate.allowed)return denied(marketGate);}
   const ids=new Set([...plan.solutionIds,...(plan.targetMarkets ?? []).flatMap(t=>t.solutionIds)]);
   let solutions: import("../catalog/service").SolutionReference[]=[];

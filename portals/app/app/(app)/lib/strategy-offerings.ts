@@ -6,6 +6,7 @@ export interface StrategyOffering {
   id: string;
   name: string;
   code: string;
+  novelty?:"existing"|"new"|null;
   status: "active" | "retired";
   icon: "cube" | "stack";
   href: string;
@@ -14,8 +15,8 @@ export interface StrategyOffering {
 export function strategyOfferings(solutions: readonly SolutionReference[] | null | undefined, products: readonly ProductReference[] | null | undefined): StrategyOffering[] {
   return [
     ...(solutions ?? []).map(s => ({ key: `solution:${s.id}`, kind: "solution" as const, id: s.id, name: s.name,
-      code: s.solutionCode, status: s.status, icon: "stack" as const, href: `/solution?solution=${encodeURIComponent(s.id)}` })),
+      code: s.solutionCode, novelty:s.novelty, status: s.status, icon: "stack" as const, href: `/solution?solution=${encodeURIComponent(s.id)}` })),
     ...(products ?? []).map(p => ({ key: `product:${p.id}`, kind: "product" as const, id: p.id, name: p.name,
-      code: p.productCode, status: p.status, icon: "cube" as const, href: `/catalog?product=${encodeURIComponent(p.id)}` })),
+      code: p.productCode, novelty:p.novelty, status: p.status, icon: "cube" as const, href: `/catalog?product=${encodeURIComponent(p.id)}` })),
   ];
 }

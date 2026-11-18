@@ -49,12 +49,13 @@ function StrategySelectionGrid({ children, count, kind, detail }: {
 }
 
 // Shared read/draft presentation; mutation controls are supplied only by the editor.
-export function StrategyMarketCards({ markets, actions, detail }: {
+export function StrategyMarketCards({ markets, actions, detail, attributes }: {
   readonly markets: readonly SelectedMarket[] | null;
   readonly actions?: (market: SelectedMarket) => ReactNode;
+  readonly attributes?: (market: SelectedMarket) => ReactNode;
   readonly detail?: boolean;
 }) {
-  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT } = useMessages();
   if (markets === null || !markets.length) return <p className="text-body-small text-muted-foreground">{markets === null ? T.unknown : T.noPlanMarkets}</p>;
   return <StrategySelectionGrid kind="market" count={markets.length} detail={detail}>
     {markets.map(m => <Card key={m.segmentId} className="min-w-0 gap-lg py-lg" data-strategy-target-market>
@@ -63,27 +64,22 @@ export function StrategyMarketCards({ markets, actions, detail }: {
         <div className="flex min-h-control-md min-w-0 flex-1 flex-wrap items-center justify-between gap-sm">
           <CardTitle className="min-w-0"><Link className="break-words transition-colors hover:text-primary-text" href={`/segment?market=${encodeURIComponent(m.segmentId)}`}>{m.marketName}</Link></CardTitle>
           <div className="flex shrink-0 flex-wrap items-center gap-xs"><Tag tone={m.intent === "focus" ? "success" : "neutral"}>{m.intent === "focus" ? T.focusMarket : m.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</Tag>
+            {attributes?.(m)}
             {m.status && m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
           </div>
         </div>
       </div></CardHeader>
       <CardContent className="flex-1"><div className="flex min-w-0 gap-sm">
         <span className="size-icon-lg shrink-0" aria-hidden="true"/>
-        <dl className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-start items-baseline gap-x-sm gap-y-md text-body-small" data-strategy-market-facts>
-          <dt className="text-muted-foreground">{T.criteria}</dt>
-          <dd className="min-w-0 break-words">{m.criteria ? [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions].join(" / ") || T.undefined : T.unknown}</dd>
-          {m.criteria?.customerNeed ? <><dt className="text-muted-foreground">{T.customerNeed}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{m.criteria.customerNeed}</dd></> : null}
-          <dt className="text-muted-foreground">{T.marketApproach}</dt>
-          <dd className={`min-w-0 whitespace-pre-wrap break-words ${m.approach ? "" : "text-muted-foreground"}`}>{m.approach || T.noMarketApproach}</dd>
-          <dt className="text-muted-foreground">{T.featuredSolutions}</dt>
-          <dd className="flex min-w-0 flex-col items-start gap-xs">
-            {strategyOfferings(m.solutions, m.products).map(row => <Link key={row.key} href={row.href}
-              className="inline-flex min-w-0 items-start gap-xs break-words transition-colors hover:text-primary-text" title={row.kind === "product" ? T.productKind : T.solutionKind}>
-              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span>{row.name}</span>
-            </Link>)}
-            {m.solutions === null || m.products === null ? <span className="text-muted-foreground">{T.unknown}</span>
-              : !m.solutions?.length && !m.products?.length ? <span className="text-muted-foreground">{T.noPlanSolutions}</span> : null}
-          </dd>
+        <dl className="grid min-w-0 flex-1 grid-cols-2 content-start gap-x-lg gap-y-lg text-body-small" data-strategy-market-facts>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.criteria}</dt><dd className="break-words text-foreground">{m.criteria?[...m.criteria.industries,...m.criteria.regions].join(" / ")||T.undefined:T.unknown}</dd></div>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{R.sizes}</dt><dd className="break-words text-foreground">{m.criteria?.sizes?.join(" / ")||R.unlimitedSize}</dd></div>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.marketApproach}</dt><dd className={`break-words ${m.approach?"text-foreground":"text-muted-foreground"}`}>{m.approach||T.noMarketApproach}</dd></div>
+          <div className="flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.featuredSolutions}</dt><dd className="flex min-w-0 flex-col items-start gap-xs">
+            {strategyOfferings(m.solutions,m.products).map(row=><Link key={row.key} href={row.href} className="inline-flex min-w-0 items-start gap-xs break-words transition-colors hover:text-primary-text" title={row.kind==="product"?T.productKind:T.solutionKind}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span>{row.name}</span></Link>)}
+            {m.solutions===null||m.products===null?<span className="text-muted-foreground">{T.unknown}</span>:!m.solutions?.length&&!m.products?.length?<span className="text-muted-foreground">{T.noPlanSolutions}</span>:null}
+          </dd></div>
+          {m.criteria?.customerNeed?<div className="col-span-full flex min-w-0 flex-col gap-xs"><dt className="text-muted-foreground">{T.customerNeed}</dt><dd className="break-words">{m.criteria.customerNeed}</dd></div>:null}
         </dl>
       </div></CardContent>
       {m.matched !== undefined || actions ? <CardFooter className="mt-auto"><span className="size-icon-lg shrink-0" aria-hidden="true"/><div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-sm" data-strategy-market-footer>
@@ -97,15 +93,16 @@ export function StrategyMarketCards({ markets, actions, detail }: {
   </StrategySelectionGrid>;
 }
 
-export function StrategySolutionCards({ solutions, products = [], markets, sharedIds, sharedProductIds, detail }: {
+export function StrategySolutionCards({ solutions, products = [], markets, sharedIds, sharedProductIds, detail, actions }: {
   readonly products?: readonly ProductReference[] | null;
   readonly sharedProductIds?: readonly string[];
+  readonly actions?: (row: {id:string;kind:"product"|"solution"})=>ReactNode;
   readonly solutions: readonly SolutionReference[] | null;
   readonly markets: readonly { marketName: string; solutionIds?: readonly string[]; productIds?: readonly string[] }[];
   readonly sharedIds: readonly string[] | undefined;
   readonly detail?: boolean;
 }) {
-  const { MARKET_STRATEGY_TEXT: T } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T } = useMessages();
   const rows = strategyOfferings(solutions, products);
   return <>
     {solutions === null ? <p className="text-body-small text-muted-foreground">{T.solutionOptionsUnavailable}</p> : null}
@@ -115,16 +112,17 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
       {rows.map(row => {
         const shared=(row.kind === "product" ? sharedProductIds : sharedIds)?.includes(row.id);
         const scopes=markets.filter(m=>(row.kind === "product" ? m.productIds : m.solutionIds)?.includes(row.id));
+        const marketLabel = shared ? T.sharedScope : scopes.length ? scopes.map(m=>m.marketName).join(" / ") : T.noPlanMarkets;
         return <Card key={row.key} className="min-w-0 gap-md py-lg" data-strategy-offering={row.kind}><CardHeader>
           <div className="flex items-start gap-sm"><Icon name={row.icon} size="lg" className="shrink-0 text-muted-foreground" aria-hidden="true"/>
             <div className="flex min-w-0 flex-col gap-xs"><CardTitle><Link href={row.href} className="break-words transition-colors hover:text-primary">{row.name}</Link></CardTitle>
-              <span className="text-body-small text-muted-foreground">{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span></div>
-          </div></CardHeader><CardContent><div className="flex min-w-0 gap-sm"><span className="size-icon-lg shrink-0" aria-hidden="true"/><div className="flex min-w-0 flex-1 flex-col gap-sm text-body-small">
-            {shared ? <span className="text-muted-foreground">{T.sharedScope}</span> : null}
-            {scopes.length ? <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-sm">
-              <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt><dd className="break-words">{scopes.map(m=>m.marketName).join(" / ")}</dd>
-            </dl> : null}
-          </div></div></CardContent></Card>;
+              <span className="flex flex-wrap items-center gap-xs text-body-small text-muted-foreground"><span>{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span>{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}</span></div>
+          </div></CardHeader><CardContent className="mt-auto"><div className="flex min-w-0 gap-sm"><span className="size-icon-lg shrink-0" aria-hidden="true"/>
+            <dl className="flex min-w-0 flex-1 flex-col gap-xs text-body-small" data-strategy-offering-market>
+              <dt className="text-muted-foreground">{T.targetMarketsTitle}</dt>
+              <dd title={marketLabel} className={`line-clamp-2 min-h-[2lh] break-words ${shared || scopes.length ? "text-foreground" : "text-muted-foreground"}`}>{marketLabel}</dd>
+            </dl>
+          </div></CardContent>{actions?<CardFooter>{actions(row)}</CardFooter>:null}</Card>;
       })}
     </StrategySelectionGrid>
   </>;

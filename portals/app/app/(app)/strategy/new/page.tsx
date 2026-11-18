@@ -12,7 +12,8 @@ import { listAccounts } from "../../../domains/account/service";
 import { marketViews } from "../../lib/market-strategy";
 import { listPlans, listSegments } from "../../../domains/strategy/service";
 import { NewPlanForm } from "../../components/plan-form";
-import { listStrategyTypes } from "../../../domains/strategy/type-service";
+import { assistStrategyDraft } from "./assist-action";
+import { listStrategyOptions, listStrategyTypes } from "../../../domains/strategy/type-service";
 import { createStrategyPlan, savePlan } from "../actions";
 
 // 新建 / 修改战略计划 - a page since 2026-09-05 (owner ruling; see /catalog/new
@@ -76,14 +77,14 @@ export default async function NewPlanPage({
       ? listProductReferences({ ...base, store: getCatalogStore() }).catch(() => null) : null,
     listStrategyTypes({...base,store:getStrategyStore()}).catch(()=>null),
   ]);
+  const optionRead=await listStrategyOptions({...base,store:getStrategyStore()});
+  const policy=await getCatalogStore().getPricingPolicy(session.workspaceId);
   const customerRows = accounts?.ok ? accounts.value.map(({ id, name, accountNo, segmentId, industry, region, customerSize }) =>
     ({ id, name, accountNo, segmentId, industry, region, customerSize: customerSize ?? null })) : null;
   const marketOptions = segments?.ok ? marketViews(segments.value, null, customerRows)
     .map(({ id, name, segmentCode, status, criteria, matched, missing, solutionIds, productIds }) => ({ id, name, segmentCode, status, criteria, matched, missing, solutionIds, productIds })) : null;
   const solutionOptions = solutions?.ok ? solutions.value : null;
   const productOptions = products?.ok ? products.value : null;
-  const visibleProducts = new Set(productOptions?.map(p => p.id));
-  const visibleSolutions = new Set(solutionOptions?.map(s => s.id));
 
   return (
     <ViewLayout>
@@ -93,6 +94,7 @@ export default async function NewPlanPage({
       />
       <NewPlanForm
         key={editable ? found.id : "new"}
+        strategyOptions={optionRead.ok ? optionRead.value : []} currency={policy.defaultCurrency} userKey={`${session.workspaceId}:${session.user.sub}`} canAssist={can(session.authz,session.entitlement,"copilot.ask","ui").allowed} onAssist={assistStrategyDraft}
         existingPlanNos={rows.map((p) => p.planNo)}
         strategyTypes={strategyTypes?.ok ? strategyTypes.value : null}
         solutionOptions={solutionOptions}
@@ -104,7 +106,7 @@ export default async function NewPlanPage({
           editable
             ? {
                 id: found.id,
-                expectations:found.expectations,
+                result:found.result,expectations:found.expectations,
                 editToken:found.editToken ?? 1,basePlanId:found.basePlanId ?? null,changeReason:found.changeReason ?? "",
                 planNo: found.planNo,
                 name: found.name,
@@ -112,13 +114,13 @@ export default async function NewPlanPage({
                 strategyTypeId: found.strategyTypeId ?? null,
                 objective: found.objective,
                 ownerSub: found.ownerSub,
-                productIds: productOptions && (found.productIds ?? []).every(id => visibleProducts.has(id)) ? found.productIds ?? [] : undefined,
-                solutionIds: solutionOptions && found.solutionIds.every(id => visibleSolutions.has(id)) ? found.solutionIds : undefined,
-                targetMarkets: marketOptions ? found.targetMarkets?.map(({ segmentId, intent, approach, solutionIds, productIds = [], marketName, criteria }) => ({
-                  segmentId, intent, approach, marketName, criteria,
-                  ...((!productIds.length || (productOptions && productIds.every(id => visibleProducts.has(id)))) ? { productIds } : {}),
-                  ...((!solutionIds.length || (solutionOptions && solutionIds.every(id => visibleSolutions.has(id)))) ? { solutionIds } : {}),
-                })) ?? [] : [],
+                productIds: found.productIds ?? [],
+                solutionIds: found.solutionIds,
+                // Keep saved UUID references even when the catalog cannot be read.
+                // Drawers still gate editing; a basic edit must never erase links.
+                targetMarkets: found.targetMarkets?.map(({ segmentId, intent, approach, solutionIds, productIds = [], marketName, criteria }) => ({
+                  segmentId, intent, approach, marketName, criteria, solutionIds, productIds,
+                })) ?? [],
               }
             : undefined
         }

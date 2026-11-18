@@ -164,6 +164,7 @@ export function byProduct(
 // --- catalogue writes (batch 6b-1b) -----------------------------------------
 
 export interface ProductDraft {
+  novelty?: "existing" | "new" | null;
   productCode: string;
   name: string;
   /** The type association, by uuid (incr/0029). */
@@ -190,6 +191,7 @@ export interface ProductDraft {
  * SERVICE does that, exactly as it does for statusId.
  */
 export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
+  if(input.novelty!=null && !["existing","new"].includes(input.novelty))return fail(violation("product_novelty_invalid","invalid catalog attribute","novelty"));
   if (!input.productCode.trim()) {
     return fail(violation("code_required", "a product needs a code", "productCode"));
   }
@@ -211,6 +213,7 @@ export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
 }
 
 export interface SolutionDraft {
+  novelty?: "existing" | "new" | null;
   solutionCode: string;
   name: string;
   summary: string | null;
@@ -241,6 +244,7 @@ export function planSolution(
   input: SolutionDraft,
   items: readonly SolutionItemDraft[],
 ): RuleResult<{ solution: SolutionDraft; items: SolutionItemDraft[] }> {
+  if(input.novelty!=null && !["existing","new"].includes(input.novelty))return fail(violation("product_novelty_invalid","invalid catalog attribute","novelty"));
   if (!input.solutionCode.trim()) {
     return fail(violation("code_required", "a solution needs a code", "solutionCode"));
   }
