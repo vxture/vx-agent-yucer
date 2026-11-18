@@ -58,9 +58,16 @@
 
 .relations {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-lg);
+}
+
+.relation {
+  display: grid;
+  grid-template-columns: 6em minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-sm);
 }
 
 .outcome {

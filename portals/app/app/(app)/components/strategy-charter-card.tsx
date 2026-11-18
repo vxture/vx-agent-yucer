@@ -46,16 +46,15 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
     ...goalMetrics.filter(metric=>!selectedGoals.some(g=>g.metric===metric)).map(metric=>({key:metric,name:H[metric],goal:undefined})),
   ].slice(0,visibleGoalCount);
   const otherGoals=orderedGoals.slice(visibleGoalCount);
-  const value=p.resultOptions?.find(o=>o.id===p.result?.valuePropositionId)?.name;
   const metrics=[
     {key:"markets",icon:"globe",label:T.marketCount,value:p.marketIds?.length},
     {key:"customers",icon:"users",label:T.customerCount,value:p.customerCount},
     {key:"offerings",icon:"stack",label:T.solutionCount,value:offerings?.length},
     {key:"campaigns",icon:"megaphone",label:T.campaignCount,value:p.campaigns?.length},
   ] as const;
-  const relation=(title:string,icon:IconName,rows:readonly {id:string;name:string;href:string;icon?:IconName}[] | null | undefined,empty:string)=>
-    <div className="flex min-w-0 flex-col gap-sm">
-      <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name={icon} size="sm" aria-hidden="true"/>{title}</span>
+  const relation=(title:string,rows:readonly {id:string;name:string;href:string;icon?:IconName}[] | null | undefined,empty:string)=>
+    <div className={styles.relation}>
+      <span className="text-body-small text-muted-foreground">{title}{":"}</span>
       <div className="flex flex-wrap items-center gap-x-md gap-y-sm text-body">
         {rows?.slice(0,3).map(row=><Link key={`${row.icon ?? "market"}:${row.id}`} href={row.href} className="inline-flex min-w-0 max-w-full items-center gap-xs transition-colors hover:text-primary-text focus-visible:text-primary-text" title={row.name}>
           {row.icon ? <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/>:null}<span className="min-w-0 truncate">{row.name}</span>
@@ -88,13 +87,12 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
       </div>
       <div className={styles.body} data-strategy-card-body>
         <div className={`${styles.relations} text-foreground`}>
-          <div className="flex min-w-0 flex-col gap-sm" data-strategy-card-direction>
-            <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="lightbulb" size="sm" aria-hidden="true"/>{T.strategyPosition}</span>
+          <div className={styles.relation} data-strategy-card-direction>
+            <span className="text-body-small text-muted-foreground">{T.strategySummary}{":"}</span>
             <p className={`${styles.objective} text-body ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
-            {value ? <span className="text-body-small text-muted-foreground">{R.value}<span className="ml-sm text-foreground">{value}</span></span>:null}
           </div>
-          {relation(T.targetMarketsTitle,"target",markets?.map(m=>({id:m.segmentId,name:m.marketName,href:`/segment?market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
-          {relation(T.featuredSolutions,"squares-four",offerings,T.offeringEmpty)}
+          {relation(T.targetMarketsTitle,markets?.map(m=>({id:m.segmentId,name:m.marketName,href:`/segment?market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
+          {relation(T.productSolutionsTitle,offerings,T.offeringEmpty)}
         </div>
         <div className={styles.outcome} data-strategy-expectation-summary>
           <dl className={styles.goals}>

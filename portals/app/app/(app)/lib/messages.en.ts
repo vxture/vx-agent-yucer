@@ -7699,6 +7699,7 @@ export const en: Dictionary = {
     unknown: "The draft did not complete - try again later",
   },
   MARKET_STRATEGY_TEXT: {
+  strategySummary: "Strategy",
   strategyType: "Strategy type",
   typeUnclassified: "Unclassified",
   typeSelect: "Select strategy type",
