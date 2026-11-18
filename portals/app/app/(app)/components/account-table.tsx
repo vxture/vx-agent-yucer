@@ -139,15 +139,6 @@ export function AccountTable({
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        title={ACCOUNT_TEXT.emptyTitle}
-        description={ACCOUNT_TEXT.emptyDescription}
-      />
-    );
-  }
-
   function recompute(id: string, name: string) {
     setBusyId(id);
     start(async () => {
@@ -241,7 +232,7 @@ export function AccountTable({
         <TableTitleCell
           className="min-w-0"
           title={
-            <Link href={`/account/${row.id}`} className="hover:underline">
+            <Link href={`/account/${row.id}`} className="no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text">
               {row.name}
             </Link>
           }
@@ -323,6 +314,7 @@ export function AccountTable({
           FilterBar owns the arrangement, so the page does not invent a second
           toolbar grammar. */}
       <FilterBar
+        heading={{ title: TABLE_TOOLBAR_TEXT.accounts, icon: "list-checks" }}
         view={view}
         onViewChange={setView}
         count={filtering ? TABLE_TOOLBAR_TEXT.filteredCount(visible.length, rows.length) : ACCOUNT_TEXT.rowCount(rows.length)}
@@ -376,7 +368,7 @@ export function AccountTable({
       {/* ONLY THE TABLE IS IN A CARD, not the section: the section is a heading
           and its tools, the card is the surface the rows sit on. */}
         {visible.length === 0 ? (
-          <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
+          <EmptyState title={rows.length ? TABLE_TOOLBAR_TEXT.noMatch : ACCOUNT_TEXT.emptyTitle} description={rows.length ? TABLE_TOOLBAR_TEXT.noMatchWhy : ACCOUNT_TEXT.emptyDescription} />
         ) : view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
@@ -397,7 +389,7 @@ export function AccountTable({
               <ListCard
                 key={row.id}
                 title={
-                  <Link href={`/account/${row.id}`} className="hover:underline">
+                  <Link href={`/account/${row.id}`} className="no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text">
                     {row.name}
                   </Link>
                 }

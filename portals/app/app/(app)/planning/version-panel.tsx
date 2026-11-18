@@ -30,6 +30,7 @@ import {
 import { ConfirmDestructive } from "../components/confirm-destructive";
 import { RowActions } from "../components/table-fittings";
 import { Tag } from "../components/tag";
+import { NewEntryButton } from "../components/form-page";
 import { ModuleHeadline } from "../components/module-headline";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import {
@@ -587,25 +588,21 @@ export function PlanningVersionPanel({
               {findings?.length ? ` · ${findings.length}` : ""}
             </Button>
             {canEdit && !editing && !state.closed ? (
-              <Button
-                size="lg"
-                disabled={pending}
-                onClick={() =>
-                  state.draft
-                    ? choose(state.draft.id)
-                    : run({
-                        kind: "draft",
-                        content: {} as PlanContent,
-                        scope: "company",
-                      })
-                }
-              >
-                {state.draft
-                  ? T.resume
-                  : state.current
-                    ? T.adjustCompany
-                    : T.create}
-              </Button>
+              state.draft || state.current ? (
+                <Button size="xl" disabled={pending} onClick={() =>
+                  state.draft ? choose(state.draft.id) : run({
+                    kind: "draft",
+                    content: {} as PlanContent,
+                    scope: "company",
+                  })
+                }>
+                  {state.draft ? T.resume : T.adjustCompany}
+                </Button>
+              ) : (
+                <NewEntryButton label={T.create} disabled={pending} onClick={() =>
+                  run({ kind: "draft", content: {} as PlanContent, scope: "company" })
+                } />
+              )
             ) : null}
             {!editing &&
             !state.draft &&

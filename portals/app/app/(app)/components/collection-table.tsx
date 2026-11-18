@@ -1,7 +1,7 @@
 "use client";
 
-import { TableTitleCell, cn, type DataTableColumn, type DataTableProps, type TableTitleCellProps } from "@vxture/design-ui";
-import { DataTable } from "./business-controls";
+import { TableTitleCell, cn, type DataTableColumn, type TableTitleCellProps } from "@vxture/design-ui";
+import { DataTable, type BusinessDataTableProps } from "./business-controls";
 import styles from "./collection-table.module.css";
 
 type Track = "direction" | "subject" | "criteria" | "reference" | "category" | "count" | "unit" | "state" | "composition" | "price" | "amount";
@@ -11,7 +11,7 @@ export function CollectionTitleCell(props: Omit<TableTitleCellProps, "size">) {
   return <TableTitleCell {...props} size="lg" />;
 }
 
-export function CollectionTable<Row>({ columns, className, ...props }: Omit<DataTableProps<Row>, "columns"> & {
+export function CollectionTable<Row>({ columns, className, ...props }: Omit<BusinessDataTableProps<Row>, "columns"> & {
   readonly columns: readonly Column<Row>[];
 }) {
   return <DataTable {...props} className={cn(styles.table, className)} columns={columns.map(({ track, header, ...column }, index) => ({

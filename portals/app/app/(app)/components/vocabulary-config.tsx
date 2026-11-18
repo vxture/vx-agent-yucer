@@ -1,11 +1,11 @@
 "use client";
 
 import { DataTable, FilterBar, ViewHeader } from "./business-controls";
+import { NewEntryButton } from "./form-page";
 
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Button,
   Icon,
   ListCard,
   ListCardGrid,
@@ -30,7 +30,6 @@ import {
   RowActions,
   SearchSlot,
   moveItems,
-  rowClickSelection,
   useTableSort,
 } from "./table-fittings";
 import { Tag } from "./tag";
@@ -245,7 +244,6 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   const [dialog, setDialog] = useState<
     { mode: "create" | "rename"; code: string; name: string; extra: E } | null
   >(null);
-  const [selected, setSelected] = useState<readonly string[]>([]);
   const [view, setView] = useState<FilterBarView>("list");
   /* 搜索 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐) - by
      name or code, front-end only: every vocabulary here is a handful of rows
@@ -261,7 +259,6 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5) - 8 个调用方共用这一处,
      不用各自接一遍。 */
   const pagination = useListPagination(sortedFiltered, 20);
-  const select = rowClickSelection();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -283,16 +280,13 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
     });
 
   const add = (
-    <Button
+    <NewEntryButton
+      label={text.add}
       disabled={!editable}
-      onClick={() =>
-        customDialog
-          ? customDialog.onAdd()
-          : setDialog({ mode: "create", code: "", name: "", extra: extraDefaults })
-      }
-    >
-      {text.add}
-    </Button>
+      onClick={() => customDialog
+        ? customDialog.onAdd()
+        : setDialog({ mode: "create", code: "", name: "", extra: extraDefaults })}
+    />
   );
 
   /* Shared between the table row and the card - same menu either way (owner:
@@ -380,10 +374,10 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
      branches instead of interpolating the number. */
   const titleWidthClass =
     businessColumns <= 2
-      ? "[&_thead_th:nth-child(3)]:w-[50%]"
+      ? "[&_thead_th:nth-child(2)]:w-[50%]"
       : businessColumns <= 4
-        ? "[&_thead_th:nth-child(3)]:w-[40%]"
-        : "[&_thead_th:nth-child(3)]:w-[30%]";
+        ? "[&_thead_th:nth-child(2)]:w-[40%]"
+        : "[&_thead_th:nth-child(2)]:w-[30%]";
 
   return (
     <>
@@ -392,133 +386,100 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           icon={page.icon}
           title={text.title}
           help={text.why}
-          secondary={<Tag>{page.count(rows.length)}</Tag>}
+          action={add}
         />
       ) : null}
       {page ? (
         <FilterBar
+          heading={{ title: text.noun, icon: "list-checks" }}
           count={count}
           view={view}
           onViewChange={(v) => {
             setView(v);
-            setSelected([]);
           }}
           search={search}
-          actions={add}
         />
       ) : null}
-    <Section
-      title={page ? undefined : text.title}
-      description={page ? undefined : text.why}
-      icon={page ? undefined : icon}
-    >
-      {/* The same two constraints from outside every config table carries
-          (TD-022), so they line up column for column. icon 缩进 (owner
-          ruling, batch 2, 统一到 org-unit-form.tsx 的 部门设置/关联区域 同一
-          个样式 - level 2, 24px icon, 不单独降级) - 一个跟标题同名同尺寸的
-          隐形占位图标，让内容列跟标题文字对齐而不是跟 Section 左边缘对齐；
-          没有 icon 的调用方(page 模式、或还没选图标的堆叠调用方) 这层 flex
-          退化成单子元素，布局不变。
-
-          THE TOOLBAR AND THE PAGINATION FOOTER ARE INSIDE THIS INDENT TOO
-          (owner, 2026-09-16: 表格已经缩进，但是表格顶部操作行、底部翻页行
-          没有缩进 - 普遍存在). They used to sit OUTSIDE the spacer, as
-          Section's direct children beside this div, so every icon-mode
-          vocabulary page (产品配置's three, 商机配置's six, 客户分类's four,
-          ...) showed the table shifted right of its own toolbar and its own
-          pagination row by exactly the spacer's width. Moving both inside
-          fixes every one of them from this one place, rather than patching
-          each call site. */}
-      <div className="gap-lg flex">
-        {!page && icon ? (
-          <span className="invisible shrink-0" aria-hidden="true">
-            <Icon name={icon} size="lg" />
-          </span>
+    <Section>
+      <div className="flex min-w-0 flex-col gap-md">
+        {!page ? (
+          <FilterBar
+            heading={{ title: text.title, icon, help: text.why }}
+            count={count}
+            view={view}
+            onViewChange={setView}
+            search={search}
+            actions={add}
+          />
         ) : null}
-        <div className="min-w-0 flex flex-1 flex-col gap-md">
-          {page ? null : (
-            <FilterBar
-              count={count}
-              view={view}
-              onViewChange={(v) => {
-                setView(v);
-                setSelected([]);
-              }}
-              search={search}
-              actions={add}
-            />
-          )}
-          {view === "cards" ? (
-            <ListCardGrid>
-              {pagination.pageRows.map((r) => (
-                <ListCard
-                  key={r.id}
-                  title={r.name}
-                  description={r.code !== r.name ? r.code : undefined}
-                  status={nameSuffix ? nameSuffix(r) : undefined}
-                  actions={actionsFor(r)}
-                  meta={
-                    columns.length > 0 ? (
-                      <div className="gap-xs flex flex-wrap items-center">
-                        {columns.map((c) => (
-                          <span key={c.id} className="text-muted-foreground text-body-small">
-                            {c.cell(r)}
-                          </span>
-                        ))}
-                      </div>
-                    ) : undefined
-                  }
-                />
-              ))}
-            </ListCardGrid>
-          ) : (
-            <div
-              ref={select.ref}
-              className={`[&_table]:table-fixed ${titleWidthClass} ${leadingColumn ? "[&_thead_th:nth-child(2)]:w-[6rem]" : ""} ${select.className}`}
-            >
-              <DataTable
-                labels={DATA_TABLE_LABELS}
-                indexStart={leadingColumn ? undefined : pagination.indexStart}
-                selectedKeys={selected}
-                onSelectionChange={setSelected}
-                rowKey={(r: T) => r.id}
-                rows={pagination.pageRows}
-                sort={sorted.sort}
-                onSortChange={sorted.onSortChange}
-                columns={[
-                  ...(leadingColumn ? [leadingColumn] : []),
-                  {
-                    id: "name",
-                    sortable: true,
-                    header: text.colName,
-                    /* The code is omitted when it equals the name - a second line
-                       repeating the first costs height and says nothing. */
-                    cell: (r: T) =>
-                      nameSuffix ? (
-                        <TableTitleCell title={r.name} tooltip={r.name} titleSuffix={nameSuffix(r)} />
-                      ) : (
-                        <TableTitleCell
-                          title={r.name}
-                          description={r.code !== r.name ? r.code : undefined}
-                          tooltip={r.name}
-                        />
-                      ),
-                  },
-                  ...columns,
-                ]}
-                rowActions={actionsFor}
+        {view === "cards" ? (
+          <ListCardGrid>
+            {pagination.pageRows.map((r) => (
+              <ListCard
+                key={r.id}
+                title={r.name}
+                description={r.code !== r.name ? r.code : undefined}
+                status={nameSuffix ? nameSuffix(r) : undefined}
+                actions={actionsFor(r)}
+                meta={
+                  columns.length > 0 ? (
+                    <div className="gap-xs flex flex-wrap items-center">
+                      {columns.map((c) => (
+                        <span key={c.id} className="text-muted-foreground text-body-small">
+                          {c.cell(r)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : undefined
+                }
               />
-            </div>
-          )}
-          {filtered.length > 0 ? (
-            <PaginationFooter
-              pagination={pagination}
-              total={rows.length}
-              filteredTotal={filtered.length !== rows.length ? filtered.length : undefined}
+            ))}
+          </ListCardGrid>
+        ) : (
+          <div
+            className={`[&_table]:table-fixed ${titleWidthClass} ${leadingColumn ? "[&_thead_th:nth-child(1)]:w-[6rem]" : ""}`}
+          >
+            <DataTable
+              labels={DATA_TABLE_LABELS}
+              indexStart={leadingColumn ? undefined : pagination.indexStart}
+              rowKey={(r: T) => r.id}
+              rows={pagination.pageRows}
+              sort={sorted.sort}
+              onSortChange={sorted.onSortChange}
+              columns={[
+                ...(leadingColumn ? [leadingColumn] : []),
+                {
+                  id: "name",
+                  sortable: true,
+                  header: text.colName,
+                  /* The code is omitted when it equals the name - a second line
+                     repeating the first costs height and says nothing. */
+                  cell: (r: T) =>
+                    nameSuffix ? (
+                      <TableTitleCell title={r.name} tooltip={r.name} titleSuffix={nameSuffix(r)} />
+                    ) : (
+                      <TableTitleCell
+                        title={r.name}
+                        description={r.code !== r.name ? r.code : undefined}
+                        tooltip={r.name}
+                      />
+                    ),
+                },
+                ...columns,
+              ]}
+              rowActions={actionsFor}
             />
-          ) : null}
-        </div>
+          </div>
+        )}
+        {filtered.length > 0 ? (
+          <PaginationFooter
+            pagination={pagination}
+            total={rows.length}
+            filteredTotal={filtered.length !== rows.length ? filtered.length : undefined}
+          />
+        ) : null}
       </div>
+    </Section>
 
       <DialogForm
         open={dialog !== null}
@@ -566,7 +527,6 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
             : null}
         </FieldGroup>
       </DialogForm>
-    </Section>
     </>
   );
 }

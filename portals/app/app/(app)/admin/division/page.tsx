@@ -1,3 +1,4 @@
+import { NewEntryLink } from "../../components/form-page";
 import { ViewHeader } from "../../components/business-controls";
 import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -125,12 +126,6 @@ export default async function DivisionPage() {
             {PLANNING_TEXT.divisionCoverage(placed.size, rows.length, unassigned.length, noun)}
           </StatusBadge>
         }
-        /* 新建区域 MOVED OUT (owner, 2026-09-11: 添加表操作行，模式按照组织
-           架构，包括按钮调整) - it is a row-level create now, primary in
-           DivisionPanel's own FilterBar, the same split org-panel.tsx made
-           (层级设置/应用模版/三方接入 stayed in the page header, 新建单位
-           moved into the panel). 市场范围/应用模版 stay here - neither is a
-           row a new division becomes. */
         action={
           upsert ? (
             <>
@@ -150,6 +145,7 @@ export default async function DivisionPage() {
                   names: t.divisions.map((d) => d.name),
                 }))}
               />
+              <NewEntryLink href="/admin/division/new" label={PLANNING_TEXT.divisionNew} />
             </>
           ) : null
         }

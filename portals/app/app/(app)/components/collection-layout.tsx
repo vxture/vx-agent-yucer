@@ -1,35 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type ComponentProps, type ReactNode } from "react";
 import {
-  Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, ViewModeSwitch,
+  Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon,
   type DrawerWidth, type FilterBarView, type IconName,
 } from "@vxture/design-ui";
-import { useLocale, useMessages } from "../lib/i18n/provider";
+import { useLocale } from "../lib/i18n/provider";
 import { FilterBar } from "./business-controls";
-import { SectionHeader } from "./help-section";
-import { ModuleHeadline } from "./module-headline";
 
 export const collectionDrawerWidth = {
   standard: "md",
   wide: "lg",
 } as const satisfies Record<string, DrawerWidth>;
-
-export function CollectionHeadline({ moduleKey, help, actions, create }: {
-  readonly moduleKey: string;
-  readonly help?: ReactNode;
-  readonly actions?: ReactNode;
-  readonly create?: { readonly href: string; readonly label: string };
-}) {
-  return <ModuleHeadline moduleKey={moduleKey} help={help} className="[&>div:last-child]:max-w-full"
-    action={actions || create ? <div className="flex min-w-0 flex-wrap items-center justify-end gap-sm" data-collection-global-actions>
-      {actions}
-      {create ? <Button asChild size="xl" className="px-md"><Link href={create.href}>
-        <Icon name="plus" size="sm" aria-hidden="true" />{create.label}
-      </Link></Button> : null}
-    </div> : undefined} />;
-}
 
 type CollectionToolbarProps = Pick<ComponentProps<typeof FilterBar>, "id" | "actions" | "children" | "onReset" | "search"> & {
   readonly title: string;
@@ -41,19 +23,8 @@ type CollectionToolbarProps = Pick<ComponentProps<typeof FilterBar>, "id" | "act
 };
 
 export function CollectionToolbar({ title, icon, help, mode, count, notice, ...props }: CollectionToolbarProps) {
-  const { MARKET_STRATEGY_TEXT: T, TABLE_TOOLBAR_TEXT } = useMessages();
-  const locale = useLocale();
-  return <FilterBar {...props} resetLabel={TABLE_TOOLBAR_TEXT.resetFilters} data-collection-toolbar
-    className="[&>div:first-child]:min-w-0 [&>div:first-child]:shrink [&>div:last-child]:ml-auto"
-    scope={<div className="flex min-w-0 flex-wrap items-center gap-x-lg gap-y-sm">
-      <SectionHeader level={2} icon={icon} title={title} help={help} divider={false} />
-      <div className="flex flex-wrap items-center gap-sm">
-        {mode ? <ViewModeSwitch value={mode.value} onChange={mode.onChange}
-          ariaLabel={T.layout} labels={{ list: T.listView, cards: T.cardsView }} /> : null}
-        {count !== undefined ? <span className="text-body-small tabular-nums text-muted-foreground" aria-live="polite">{count.toLocaleString(locale)}</span> : null}
-        {notice}
-      </div>
-    </div>} />;
+  return <FilterBar {...props} data-collection-toolbar
+    heading={{ title, icon, help }} view={mode?.value} onViewChange={mode?.onChange} count={count} notice={notice} />;
 }
 
 // History is a compact table in both views. Entering list mode shows the

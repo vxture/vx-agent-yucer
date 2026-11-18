@@ -21,7 +21,6 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
   RowActions,
-  rowClickSelection,
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
@@ -95,7 +94,6 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One state
   // across both tables: the keys are instalment ids.
-  const [selected, setSelected] = useState<readonly string[]>([]);
   const [settling, setSettling] = useState<CollectionRow | null>(null);
   const [amount, setAmount] = useState("");
   // 工具行. One query across both tables, as on 项目交付: somebody chasing one
@@ -318,17 +316,13 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
      (owner, 2026-09-06). 选择 / 序号 / 操作 carry a width and no other column
      does; table-fixed hands out the remainder in equal shares by itself. */
   const table = (list: readonly CollectionRow[], empty: ReactNode) => {
-    const select = rowClickSelection();
     return (
       <div
-        ref={select.ref}
-        className={`[&_table]:table-fixed [&_thead_th:last-child]:w-[8rem] ${select.className}`}
+        className={`[&_table]:table-fixed [&_thead_th:last-child]:w-[8rem]`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={1}
-          selectedKeys={selected}
-          onSelectionChange={setSelected}
           rowKey={(r: CollectionRow) => r.id}
           rows={[...sorted.sortRows(list)]}
           sort={sorted.sort}
@@ -345,21 +339,12 @@ export function CollectionRoster({ rows, canWrite, onMove, onDelete }: Collectio
 
   return (
     <>
-      <Section
-        id="collections"
-        icon="coins"
-        title={DELIVERY_TEXT.rosterOpen}
-        help={DELIVERY_TEXT.rosterOpenWhy}
-        action={
-          overdue > 0 ? (
-            <StatusBadge tone="danger">{DELIVERY_TEXT.overdueCount(overdue)}</StatusBadge>
-          ) : undefined
-        }
-      >
-        {/* ONE TOOL ROW FOR BOTH TABLES, sitting with the open list because
-            that is the one people work. The settled list below says so on its
-            own heading rather than narrowing in silence. */}
+      <Section id="collections">
         <FilterBar
+          heading={{ icon: "coins", title: DELIVERY_TEXT.rosterOpen, help: DELIVERY_TEXT.rosterOpenWhy }}
+          scope={overdue > 0 ? (
+            <StatusBadge tone="danger">{DELIVERY_TEXT.overdueCount(overdue)}</StatusBadge>
+          ) : undefined}
           count={
             narrowed
               ? TABLE_TOOLBAR_TEXT.filteredCount(open.length, openTotal)

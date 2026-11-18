@@ -1,6 +1,7 @@
 "use client";
 
-import { CollectionHeadline, CollectionHistory, CollectionToolbar } from "./collection-layout";
+import { ModuleHeadline } from "./module-headline";
+import { CollectionHistory, CollectionToolbar } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 
@@ -339,7 +340,7 @@ export function SolutionRoster({
 
   return (
     <>
-      <CollectionHeadline moduleKey="solution"
+      <ModuleHeadline moduleKey="solution"
         help={<><p>{CATALOG_TEXT.rosterSolutionWhy}</p><p>{CATALOG_TEXT.solutionPricesHint}</p></>}
         create={canWrite ? { href: "/solution/new", label: CATALOG_TEXT.newSolutionEntry } : undefined} />
       {detail ? <SolutionDetails view={detail} products={products} facts={factsOf(detail)} currency={currency}

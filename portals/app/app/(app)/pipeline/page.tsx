@@ -12,7 +12,6 @@ import {
 } from "../../domains/shared/registry";
 import { importanceScheme, listAccounts } from "../../domains/account/service";
 import { dealPriorityOf } from "../../domains/account/lib/importance";
-import { NewEntryLink } from "../components/form-page";
 import {
   listPipeline,
   listStageDefinitions,
@@ -173,12 +172,9 @@ export default async function PipelinePage({
           it, so those are badges. */}
       <ModuleHeadline
         moduleKey="pipeline"
-        action={
-          <div className="flex flex-wrap items-center gap-sm">
-            <PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact allLabel={PIPELINE_TEXT.periodAll} />
-            {can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui").allowed ? <NewEntryLink href="/pipeline/new" primary /> : null}
-          </div>
-        }
+        action={<PeriodTabs value={period} periods={offeredPeriods().quarters} yearLabel={offeredPeriods().year} compact allLabel={PIPELINE_TEXT.periodAll} />}
+        create={can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui").allowed
+          ? { href: "/pipeline/new", label: PIPELINE_TEXT.newTitle } : undefined}
         tags={
           <>
             <StatusBadge tone="success">{PIPELINE_TEXT.tagOpen(openCount)}</StatusBadge>

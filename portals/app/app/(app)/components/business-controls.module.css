@@ -119,10 +119,35 @@
 
 .toolbar { align-items: center; }
 
-.primary {
+.toolbar > div:first-child {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.toolbar > div:first-child:empty { display: none; }
+.toolbar > div:last-child { margin-inline-start: auto; }
+
+.toolbarHeading {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
   align-items: center;
+  gap: var(--space-sm);
+}
+
+.pageHeader > :last-child:has(> .primary) {
+  max-width: 100%;
+  min-width: 0;
+  margin-inline-start: auto;
+  align-self: center;
+}
+
+.primary {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: var(--space-sm);
 }
 
@@ -142,4 +167,42 @@
 .indexThird > div:first-child > table > thead > tr > th:nth-child(3),
 .indexFourth > div:first-child > table > thead > tr > th:nth-child(4) {
   visibility: hidden;
+}
+
+/* TD-038: bind DS Checkbox through the public column renderer until DataTable
+ * offers a single selection/index slot. Keep that track at the DS edge width. */
+.compactSelection > div > div > table > :is(thead, tbody) > tr > :is(th, td):has(> [data-compact-index]) {
+  width: var(--spacing-table-col-fixed);
+  min-width: var(--spacing-table-col-fixed);
+  padding-inline: 0;
+  text-align: center;
+}
+
+.compactSelection > div > div > table > tbody > tr:has(> td > .compactToggle > .compactCheck) {
+  cursor: pointer;
+}
+
+.compactSelection > div > div > table > tbody > tr:has(> td > .compactToggle > .compactCheck[data-state="checked"]) > td {
+  background-color: var(--surface-selected);
+}
+.compactSelection > div > div > table > tbody > tr:has(> td > .compactToggle > .compactCheck[data-state="checked"]) > td:global(.sticky) {
+  background-color: var(--vx-table-sticky-bg, var(--background));
+  background-image: linear-gradient(var(--surface-selected), var(--surface-selected));
+}
+
+.compactSelection [data-compact-index] {
+  display: grid;
+  place-items: center;
+}
+
+.compactToggle > * { grid-area: 1 / 1; }
+.compactNumber { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.compactSelection:not([data-show-selection]) .compactCheck { opacity: 0; }
+.compactSelection .compactCheck:focus-visible { opacity: 1; }
+.compactToggle:has(.compactCheck:focus-visible) .compactNumber,
+.compactSelection[data-show-selection] .compactToggle:has(.compactCheck) .compactNumber { opacity: 0; }
+
+@media (hover: hover) {
+  .compactSelection > div > div > table > :is(thead, tbody) > tr:hover > :is(td, th) > [data-compact-index] > .compactCheck { opacity: 1; }
+  .compactSelection > div > div > table > tbody > tr:hover > td > .compactToggle:has(.compactCheck) > .compactNumber { opacity: 0; }
 }

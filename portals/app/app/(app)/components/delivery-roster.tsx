@@ -20,7 +20,6 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   FilterSlot,
   RowActions,
-  rowClickSelection,
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
@@ -161,7 +160,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
   const sorted = useTableSort<DeliveryRow>([], SORT_ON);
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
-  const [selected, setSelected] = useState<readonly string[]>([]);
   // WHICH PLANS ARE OPEN. Controlled by the caller, as the DS requires when
   // expandedContent is used, because "expand everything" has to be pressable
   // from outside the table.
@@ -406,17 +404,13 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
      (owner, 2026-09-06). 选择 / 序号 / 操作 carry a width and no other column
      does; table-fixed hands out the remainder in equal shares by itself. */
   const table = (list: readonly DeliveryRow[], empty: ReactNode) => {
-    const select = rowClickSelection();
     return (
       <div
-        ref={select.ref}
-        className={`[&_table]:table-fixed ${select.className}`}
+        className={`[&_table]:table-fixed`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={1}
-          selectedKeys={selected}
-          onSelectionChange={setSelected}
           rowKey={(r: DeliveryRow) => r.id}
           rows={[...sorted.sortRows(list)]}
           sort={sorted.sort}
@@ -436,9 +430,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
     <>
       <Section
         id="delivery"
-        icon="package"
-        title={DELIVERY_TEXT.rosterRunning}
-        help={DELIVERY_TEXT.rosterRunningWhy}
       >
         {/* ONE TOOL ROW FOR BOTH TABLES, and it lives with the running one
             because that is the list people work. A keyword narrows the
@@ -447,6 +438,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile, onCancel 
             have to guess before typing. The archive says so itself rather
             than narrowing silently: its own heading carries the note. */}
         <FilterBar
+          heading={{ icon: "package", title: DELIVERY_TEXT.rosterRunning, help: DELIVERY_TEXT.rosterRunningWhy }}
           count={
             narrowed
               ? TABLE_TOOLBAR_TEXT.filteredCount(running.length, inFlight)

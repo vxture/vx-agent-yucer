@@ -1,3 +1,5 @@
+import { NewEntryLink } from "../../components/form-page";
+import Link from "next/link";
 import { ViewHeader } from "../../components/business-controls";
 import { Button, EmptyState, Tooltip, TooltipContent, TooltipTrigger, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -13,7 +15,6 @@ import { REGION_AWARE_ORG_TEMPLATES, effectiveTerritoryIds, territoriesWorkedBy 
 import { listCarves, listMarketDivisions } from "../../../domains/account/service";
 import { OrgPanel, type OrgMemberSummary, type OrgUnitRow } from "../../components/org-panel";
 import { OrgTemplateReset } from "../../components/org-template-reset";
-import { NewEntryLink } from "../../components/form-page";
 import { Tag } from "../../components/tag";
 
 // 组织结构 - the fourth axis (incr/0051; owner, 2026-09-10: 完全可以自定义；平台
@@ -155,7 +156,7 @@ export default async function OrgPage() {
         action={
           editable ? (
             <>
-              <NewEntryLink href="/admin/org/kinds" label={ORG_TEXT.kindsButton} />
+              <Button asChild size="xl" variant="outline"><Link href="/admin/org/kinds">{ORG_TEXT.kindsButton}</Link></Button>
               <OrgTemplateReset
                 templates={(templates.ok ? templates.value : []).map((t) => ({
                   key: t.key, name: t.name, description: t.description, isDefault: t.isDefault, units: t.units.length,
@@ -176,6 +177,7 @@ export default async function OrgPage() {
                 </TooltipTrigger>
                 <TooltipContent>{ORG_TEXT.thirdPartyHint}</TooltipContent>
               </Tooltip>
+              <NewEntryLink href="/admin/org/new" label={ORG_TEXT.newUnit} />
             </>
           ) : null
         }

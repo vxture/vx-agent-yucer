@@ -188,7 +188,7 @@ export function PermissionTree({
   /** role code -> the permissions it holds. */
   readonly holds: Readonly<Record<string, readonly string[]>>;
 }) {
-  const { DATA_TABLE_LABELS, PERMISSION_TREE_TEXT: T } = useMessages();
+  const { DATA_TABLE_LABELS, PERMISSION_TREE_TEXT: T, TABLE_TOOLBAR_TEXT } = useMessages();
   const { title, subtitle } = useNodeCopy();
   const { toast } = useToast();
   // Open to the pages by default: the shape is visible, the operations are
@@ -317,6 +317,7 @@ export function PermissionTree({
           一起靠左"、并且排在 `count` 之后 - 与展开层级完全同一件事，不是
           "在同一份数据里少看几行"的筛选，不该再另起一行。按钮组本身不变。 */}
       <FilterBar
+        heading={{ title: TABLE_TOOLBAR_TEXT.permissions, icon: "list-checks" }}
         count={shown === total ? T.toolbarCount(total) : T.toolbarFilteredCount(shown, total)}
         scope={
           <span className="gap-sm flex items-center">

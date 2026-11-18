@@ -160,7 +160,7 @@ export function OrgPanel({
   /** The workspace's roster, for 查看成员 (everyone) and 添加成员 (editors only). */
   readonly members: readonly OrgMemberSummary[];
 }) {
-  const { DATA_TABLE_LABELS, DS_LABELS, ORG_ERROR, ORG_TEXT, ROW_OPS } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, ORG_ERROR, ORG_TEXT, ROW_OPS, TABLE_TOOLBAR_TEXT } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
@@ -397,6 +397,7 @@ export function OrgPanel({
     <Section id="org">
       {rows.length > 0 ? (
         <FilterBar
+          heading={{ title: TABLE_TOOLBAR_TEXT.org, icon: "list-checks" }}
           count={
             searching
               ? ORG_TEXT.toolbarFilteredCount(searchFiltered.length, rows.length)
@@ -439,7 +440,6 @@ export function OrgPanel({
           }
           onReset={searching ? () => { setQuery(""); setKindFilter(""); pagination.resetPage(); } : undefined}
           resetLabel={ORG_TEXT.resetFilters}
-          actions={editable ? <Button onClick={() => router.push("/admin/org/new")}>{ORG_TEXT.newUnit}</Button> : undefined}
         >
           {kindOptions.length > 0 ? (
             <FilterSlot width="w-[10rem]">
@@ -546,16 +546,17 @@ export function OrgPanel({
                WIDTH_EXEMPTIONS for exactly this reason, not left for the
                heuristic to (incorrectly) flag. */
             `[&_table]:table-fixed`
-            + " [&_thead_th:nth-child(3)]:w-[30%]"
-            + " [&_thead_th:nth-child(4)]:w-[11.6667%] [&_thead_th:nth-child(5)]:w-[11.6667%]"
-            + " [&_thead_th:nth-child(6)]:w-[11.6667%] [&_thead_th:nth-child(7)]:w-[11.6667%]"
-            + " [&_thead_th:nth-child(8)]:w-[11.6667%] [&_thead_th:nth-child(9)]:w-[11.6667%]"
+            + " [&_thead_th:nth-child(2)]:w-[30%]"
+            + " [&_thead_th:nth-child(3)]:w-[11.6667%] [&_thead_th:nth-child(4)]:w-[11.6667%]"
+            + " [&_thead_th:nth-child(5)]:w-[11.6667%] [&_thead_th:nth-child(6)]:w-[11.6667%]"
+            + " [&_thead_th:nth-child(7)]:w-[11.6667%] [&_thead_th:nth-child(8)]:w-[11.6667%]"
           }
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
             indexStart={pagination.indexStart}
-            selectedKeys={selected}
+            compactSelection={{ label: row => TABLE_TOOLBAR_TEXT.selectRecord(row.name) }}
+            selectedKeys={editable ? selected : undefined}
             onSelectionChange={(keys) => setSelected([...keys])}
             rowActions={actionsFor}
             rowKey={(r: OrgUnitRow) => r.unitCode}

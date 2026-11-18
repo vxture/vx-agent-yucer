@@ -10,7 +10,8 @@ import { ViewHeader } from "./business-controls";
 import { Section, SectionHeader } from "./help-section";
 import { TitleHelp } from "./title-help";
 import { FilterSlot, RowActions, SearchSlot } from "./table-fittings";
-import { CollectionHeadline, CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
+import { ModuleHeadline } from "./module-headline";
+import { CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 import { PageCrumbs } from "./page-crumbs";
@@ -216,8 +217,8 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
           {detail.status==="draft" && data.canApprove ? <Button size="xl" disabled={pending} onClick={()=>openPublication(detail)}>{detail.basePlanId?T.publishNext:T.publishVersion}</Button>:null}
           {detail.versionNo && data.canEdit && isLatest(detail) && ["approved","active"].includes(detail.status) ? <Button size="xl" variant="secondary" disabled={pending} onClick={()=>revise(detail)}>{draftFor(detail)?T.resumeDraft:T.reviseStrategy}</Button>:null}
           {checkButton}<RowActions disabled={pending} items={items(detail).filter(item=>!["view","publish","revise"].includes(item.id))}/>
-        </div>}/></> : <CollectionHeadline moduleKey="strategy" help={T.brief} create={createAction}
-      actions={<>{viewActions}{view==="overview" && data.canEdit ? <Button asChild size="xl" variant="outline" className="px-md"><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></Button>:null}</>}/>}
+        </div>}/></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
+      action={<>{viewActions}{view==="overview" && data.canEdit ? <Button asChild size="xl" variant="outline" className="px-md"><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></Button>:null}</>}/>}
     {!detail && view==="validation" ? <CollectionToolbar title={activeView.label} icon={activeView.icon} help={resultHelp} count={plans.length} actions={checkButton}>
       {periodFilter}{validationPlanFilter}
     </CollectionToolbar> : null}

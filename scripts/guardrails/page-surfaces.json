@@ -97,7 +97,7 @@
       "file": "(app)/admin/division/new/page.tsx",
       "kind": "context",
       "entry": {
-        "file": "(app)/components/division-panel.tsx",
+        "file": "(app)/admin/division/page.tsx",
         "needle": "/admin/division/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
@@ -202,7 +202,7 @@
       "file": "(app)/admin/org/new/page.tsx",
       "kind": "context",
       "entry": {
-        "file": "(app)/components/org-panel.tsx",
+        "file": "(app)/admin/org/page.tsx",
         "needle": "/admin/org/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
@@ -293,7 +293,7 @@
       "file": "(app)/admin/roles/new/page.tsx",
       "kind": "context",
       "entry": {
-        "file": "(app)/components/role-panel.tsx",
+        "file": "(app)/admin/roles/page.tsx",
         "needle": "/admin/roles/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
@@ -524,7 +524,7 @@
       "file": "(app)/lead/new/page.tsx",
       "kind": "context",
       "entry": {
-        "file": "(app)/components/lead-list.tsx",
+        "file": "(app)/lead/page.tsx",
         "needle": "/lead/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",

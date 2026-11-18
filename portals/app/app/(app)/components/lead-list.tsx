@@ -7,6 +7,7 @@ import { MemberName, useMemberName } from "../lib/member-names";
 import { useMemo, useState, useTransition } from "react";
 import {
   Button,
+  DestructiveButton,
   EmptyState,
   Field,
   FieldLabel,
@@ -25,7 +26,6 @@ import { DialogForm } from "./dialog-form";
 import {
   FilterSlot,
   PaginationFooter,
-  rowClickSelection,
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
@@ -128,6 +128,7 @@ export function LeadList({
     LEAD_TEXT,
     PIPELINE_TEXT,
     SIGNAL_ACTION_ERROR,
+    TABLE_TOOLBAR_TEXT,
   } = useMessages();
   const nameOf = useMemberName();
   const sorted = useTableSort<LeadRecord>([], SORT_ON);
@@ -146,7 +147,7 @@ export function LeadList({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // 选择列的状态 - one of the three standard fittings, and what 删除线索 acts on.
+  // The selection is only used by the guarded bulk delete.
   const [selected, setSelected] = useState<readonly string[]>([]);
   // list / cards, the tool row's leftmost control.
   const [view, setView] = useState<"list" | "cards">("list");
@@ -587,50 +588,32 @@ export function LeadList({
   const ordered = sorted.sortRows(visible);
   const pagination = useListPagination(ordered, 20);
 
-  // 选择列 - one of the three standard fittings. Row click toggles it; the
-  // checkbox alone is too small to aim at (owner, 2026-09-06).
-  // It clicks the row's own checkbox (see table-fittings.tsx), so sorting and
-  // paging cannot make it tick a different lead.
-  const select = rowClickSelection();
-
-  const listActions = (
-    <span className="flex items-center gap-xs">
-      {/* 表格级操作 (owner, 2026-09-06). 添加线索 is always offered - a lead
-          from a stand or a phone call has no signal behind it, and before
-          this the only way one could exist was for the machine to find it.
-          删除 acts on the SELECTION, so it appears only when there is one:
-          a destructive control with nothing to destroy is a trap. */}
-      {canTriage ? (
-        <Button size="md" variant="secondary" onClick={() => (window.location.href = "/lead/new")}>
-          {LEAD_TEXT.addLead}
-        </Button>
-      ) : null}
-      {canTriage && selected.length > 0 ? (
-        <Button
-          size="md"
-          variant="ghost"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              // ONE AT A TIME, and the loop is here rather than in the
-              // action: each row has its own rule (a converted lead is
-              // refused), so one round trip would report one outcome for
-              // many different answers.
-              let refused = 0;
-              for (const id of selected) {
-                const r = await onRemove(id);
-                if (!r.ok) refused += 1;
-              }
-              setSelected([]);
-              setError(refused > 0 ? LEAD_TEXT.bulkRefused(refused) : null);
-            })
+  const listActions = canTriage && selected.length ? (
+    <>
+      <Button size="xl" variant="ghost" onClick={() => setSelected([])}>{TABLE_TOOLBAR_TEXT.clearSelection}</Button>
+      <DestructiveButton size="xl" disabled={pending} confirm={{
+        verb: LEAD_TEXT.remove,
+        target: LEAD_TEXT.bulkTarget(selected.length),
+        consequence: LEAD_TEXT.bulkRemoveConsequence,
+        titleTemplate: DS_LABELS.confirmTitleTemplate,
+        cancelLabel: DS_LABELS.confirmCancel,
+        pendingLabel: DS_LABELS.confirmPending,
+        onConfirm: async () => {
+          // Each record still goes through its existing server-side gate.
+          let refused = 0;
+          for (const id of selected) {
+            try {
+              if (!(await onRemove(id)).ok) refused++;
+            } catch {
+              refused++;
+            }
           }
-        >
-          {LEAD_TEXT.deleteSelected(selected.length)}
-        </Button>
-      ) : null}
-    </span>
-  );
+          setSelected([]);
+          setError(refused > 0 ? LEAD_TEXT.bulkRefused(refused) : null);
+        },
+      }}>{LEAD_TEXT.deleteSelected(selected.length)}</DestructiveButton>
+    </>
+  ) : undefined;
 
   return (
     <Section>
@@ -788,9 +771,10 @@ export function LeadList({
           which is behaviour the component owns rather than measurements I
           have to keep re-taking. */}
         <FilterBar
+          heading={{ title: TABLE_TOOLBAR_TEXT.leads, icon: "list-checks" }}
           actions={listActions}
           view={view}
-          onViewChange={setView}
+          onViewChange={next => { setView(next); setSelected([]); }}
           count={
             // SAYS WHAT IS FILTERED OUT, not just what is left. "6 条" beside a
             // narrowed list reads as the whole list to somebody who has
@@ -861,7 +845,7 @@ export function LeadList({
            block; a card inside it was a second frame around the same content,
            and the table's own borders make a third.
 
-           除了固定的，其余均分: 选择 / 序号 / 操作 carry a width and no other
+           除了固定的，其余均分: 序号（同列选择） / 操作 carry a width and no other
            column does, so under table-fixed the browser shares out the rest in
            equal parts by itself. */
         visible.length === 0 ? (
@@ -870,11 +854,10 @@ export function LeadList({
         <>
         {view === "list" ? (
         <div
-          /* 公司 gets a quarter of the width (nth-child(3): 选择 | 序号 come
+          /* 公司 gets a quarter of the width (nth-child(2): the combined selection/index comes
              first); the rest still share out equally. Equal shares clipped the
              lead number under the company name to "LEAD-001...". */
-          className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[24%] ${select.className}`}
-          ref={select.ref}
+          className="[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[24%]"
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
@@ -887,7 +870,8 @@ export function LeadList({
               pagination.resetPage();
             }}
             rowKey={(row) => row.id}
-            selectedKeys={selected}
+            compactSelection={{ label: row => TABLE_TOOLBAR_TEXT.selectRecord(row.companyName) }}
+            selectedKeys={canTriage ? selected : undefined}
             onSelectionChange={setSelected}
             rowActions={(row) => <LeadActions row={row} />}
           />

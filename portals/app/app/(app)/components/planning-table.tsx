@@ -63,6 +63,8 @@ function scopeLabel(
 }
 
 export interface PlanningTableProps {
+  readonly actions?: React.ReactNode;
+  readonly context?: string;
   readonly rows: readonly AttainmentRow[];
   /** territoryId -> name, resolved on the page. Empty when unreadable. */
   readonly territoryNames?: ReadonlyMap<string, string>;
@@ -79,6 +81,8 @@ export interface PlanningTableProps {
 export function PlanningTable({
   rows,
   territoryNames,
+  actions: tableActions,
+  context,
   canUpdate = false,
   onUpdate,
   onDelete,
@@ -295,6 +299,8 @@ export function PlanningTable({
   return (
     <>
       <FilterBar
+        heading={{ title: PLANNING_TEXT.targetRoster, icon: "target", help: context }}
+        actions={tableActions}
         view={view}
         onViewChange={setView}
         count={PLANNING_TEXT.rowCount(rows.length)}

@@ -1,5 +1,7 @@
+import { NewEntryLink } from "../../components/form-page";
+import Link from "next/link";
 import { ViewHeader } from "../../components/business-controls";
-import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -12,7 +14,6 @@ import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgMembers, listOrgUnits } from "../../../domains/planning/service";
 import { RolePanel } from "../../components/role-panel";
 import { RoleReset } from "../../components/role-reset";
-import { NewEntryLink } from "../../components/form-page";
 
 // 角色管理 - the workspace's own roles (incr/0046).
 //
@@ -99,13 +100,9 @@ export default async function RolesPage() {
         action={
           editable ? (
             <>
-              {/* The two vocabularies' own page (0047): configuration beside
-                  the other ways to change what the roster says. 新建角色
-                  itself lives in RolePanel's own FilterBar now - the same
-                  split org/division already have between page-level actions
-                  here and "new row" in the toolbar. */}
-              <NewEntryLink href="/admin/roles/groups" label={ROLE_TEXT.groupsButton} />
+              <Button asChild size="xl" variant="outline"><Link href="/admin/roles/groups">{ROLE_TEXT.groupsButton}</Link></Button>
               <RoleReset changed={changed} missing={missing} />
+              <NewEntryLink href="/admin/roles/new" label={ROLE_TEXT.newRole} />
             </>
           ) : null
         }

@@ -1,6 +1,6 @@
 "use client";
 import { MemberName } from "../lib/member-names";
-import { DataTable } from "./business-controls";
+import { DataTable, FilterBar } from "./business-controls";
 
 import {
   BulkActionBar,
@@ -107,14 +107,13 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
   readonly onConfigure: (sub: string) => void;
   readonly onReactivate: (sub: string) => void;
 }) {
-  const { DATA_TABLE_LABELS, DS_LABELS, MEMBER_ERROR, MEMBER_TEXT, ORG_TEXT, ROW_OPS } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, MEMBER_ERROR, MEMBER_TEXT, ORG_TEXT, ROW_OPS, TABLE_TOOLBAR_TEXT } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
   const [pending, start] = useTransition();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string[]>([]);
   const [showInactive, setShowInactive] = useState(false);
-  const [selectedInactive, setSelectedInactive] = useState<string[]>([]);
   const inactiveRows = useMemo<OrgViewRow[]>(
     () => inactive.map((p) => ({ kind: "person", id: personRowId(null, p.sub), sub: p.sub, name: p.name, picture: p.picture, status: p.status, depth: 0, unitId: null, scope: p.scope, territories: p.territories })),
     [inactive],
@@ -397,30 +396,27 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
 
   return (
     <div className="gap-md flex flex-col">
-      {/* THE TOOLBAR (point 5, revised 2026-09-12): the switch and 展开到
-          both belong to "这张表长什么样" - a view-state cluster, not a
-          command - so both sit at the left end, the same side org-panel.tsx's
-          FilterBar keeps its own `scope`; 添加成员, the one thing here that
-          DOES something, stands alone at the right. */}
-      <div className="gap-sm flex items-center justify-between">
-        <div className="gap-sm flex items-center">
-          <MemberViewSwitch value={viewValue} onChange={onViewChange} ariaLabel={MEMBER_TEXT.viewAria} labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }} />
+      <FilterBar
+        heading={{ title: TABLE_TOOLBAR_TEXT.members, icon: "list-checks" }}
+        scope={<MemberViewSwitch value={viewValue} onChange={onViewChange} ariaLabel={MEMBER_TEXT.viewAria} labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }} />}
+        count={roster.length}
+        actions={<>
           <span className="text-muted-foreground text-body-small">{MEMBER_TEXT.orgExpandTo}</span>
           <ButtonGroup>
             {levels.map((lvl) => (
-              <Button key={lvl} variant="secondary" size="md" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
+              <Button key={lvl} variant="secondary" size="lg" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
                 {MEMBER_TEXT.orgLevelLabel(lvl)}
               </Button>
             ))}
-            <Button variant="secondary" size="md" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
+            <Button variant="secondary" size="lg" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
               {MEMBER_TEXT.orgCollapseAll}
             </Button>
           </ButtonGroup>
-        </div>
-        {canManage ? (
-          <Button size="md" onClick={() => open({ kind: "place", unitId: units[0]?.id ?? null, mode: "add", unitName: "" })}>{MEMBER_TEXT.orgAdd}</Button>
-        ) : null}
-      </div>
+          {canManage ? (
+            <Button variant="secondary" size="lg" onClick={() => open({ kind: "place", unitId: units[0]?.id ?? null, mode: "add", unitName: "" })}>{MEMBER_TEXT.orgAdd}</Button>
+          ) : null}
+        </>}
+      />
       {canManage ? (
         <BulkActionBar
           count={selectedItems.length}
@@ -452,11 +448,13 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
       {/* 首列 40% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 - 名称/
           关联区域/数据范围/角色四个业务列落在 "2-4 列→40%" 这档). 关联区域、
           角色两列继续留白自适应。 */}
-      <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+      <div className={`[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[40%] [&_thead_th:nth-child(4)]:w-[7rem]`}>
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={pagination.indexStart}
-          selectedKeys={selected}
+          compactSelection={{ label: row => TABLE_TOOLBAR_TEXT.selectRecord(row.name) }}
+          selectedKeys={canManage ? selected : undefined}
+          isRowSelectable={row => row.kind === "person"}
           onSelectionChange={(keys) => setSelected([...keys])}
           rowKey={(r: OrgViewRow) => r.id}
           rows={pagination.pageRows}
@@ -492,12 +490,10 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             }
           >
             <CollapsibleContent>
-              <div className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+              <div className={`[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[40%] [&_thead_th:nth-child(4)]:w-[7rem]`}>
                 <DataTable
                   labels={DATA_TABLE_LABELS}
                   indexStart={inactivePagination.indexStart}
-                  selectedKeys={selectedInactive}
-                  onSelectionChange={(keys) => setSelectedInactive([...keys])}
                   rowKey={(r: OrgViewRow) => r.id}
                   rows={inactivePagination.pageRows}
                   rowActions={(r: OrgViewRow) => (

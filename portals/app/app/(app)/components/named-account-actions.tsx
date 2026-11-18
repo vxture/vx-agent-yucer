@@ -3,6 +3,7 @@ import { DataTable } from "./business-controls";
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { NewEntryLink } from "./form-page";
 import { useRouter } from "next/navigation";
 import { Button, Drawer, Field, FieldLabel, Input, Separator, TableTitleCell, useListPagination, useToast } from "@vxture/design-ui";
 import type { AccountRecord } from "../../domains/account/store";
@@ -87,8 +88,8 @@ export function NamedAccountActions({ accounts }: { readonly accounts: readonly 
   return (
     <>
       <div className="flex flex-wrap items-center gap-sm">
-        <Button size="xl" onClick={() => { setQuery(""); setPicked(null); pagination.resetPage(); setOpen(true); }}>{text.link}</Button>
-        <Button asChild variant="secondary" size="xl"><a href="/account/new?tier=strategic" target="_blank" rel="noopener noreferrer">{text.create}</a></Button>
+        <Button size="xl" variant="outline" onClick={() => { setQuery(""); setPicked(null); pagination.resetPage(); setOpen(true); }}>{text.link}</Button>
+        <NewEntryLink href="/account/new?tier=strategic" label={text.create} newTab />
       </div>
       <Drawer open={open} onClose={() => { if (!pending) setOpen(false); }} width="md" title={text.linkTitle} description={text.linkWhy} closeLabel={DS_LABELS.confirmCancel}>
         <div className="flex flex-col gap-lg">

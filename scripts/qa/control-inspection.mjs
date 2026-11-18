@@ -26,7 +26,10 @@ export function inspectPageControls() {
     const compact = e.dataset.controlSize === "compact" || e.matches(compactBuiltIns);
     const menu = ["menuitem", "menuitemcheckbox", "menuitemradio", "option"].includes(e.getAttribute("role"));
     const primary = e.dataset.controlEmphasis === "primary" || e.dataset.slot === "button" && e.dataset.variant === "default" && (e.dataset.size === "xl" || e.type === "submit");
-    const target = compact ? 24 : 32, font = primary ? 14 : 12;
+    const formValue = !!e.closest('[data-business-form], [data-business-fields]') && e.matches(
+      '[data-slot="input"], [data-slot="native-select"], [data-slot="input-group-input"], [data-slot="textarea"], [data-form-value], [data-slot="field"] [role="combobox"]',
+    );
+    const target = compact ? 24 : 32, font = primary || formValue ? 14 : 12;
     const labelFonts = [...e.querySelectorAll('[class~="text-label"]')].filter(visible).map(label => getComputedStyle(label).fontSize);
     const issues = preserve ? [] : [
       ...((menu ? r.height < target - 0.6 : Math.abs(r.height - target) > 0.6) ? ["height"] : []),
@@ -37,7 +40,7 @@ export function inspectPageControls() {
     return {
       slot: e.dataset.slot ?? e.getAttribute("role") ?? e.dataset.controlKind,
       text: (e.textContent || e.getAttribute("aria-label") || e.getAttribute("placeholder") || "").trim().slice(0, 90),
-      h: r.height, w: r.width, font: s.fontSize, preserve, compact, primary, labelFonts, issues,
+      h: r.height, w: r.width, font: s.fontSize, preserve, compact, primary, formValue, labelFonts, issues,
     };
   });
   const native = [...document.querySelectorAll('button:not([data-slot]):not([data-control-kind])')].filter(visible).map((e) => ({

@@ -1,6 +1,7 @@
 "use client";
 
 import { ViewHeader } from "./business-controls";
+import { NewEntryLink } from "./form-page";
 
 import type { ReactNode } from "react";
 
@@ -19,6 +20,7 @@ export function ModuleHeadline({
   help,
   tags,
   action,
+  create,
   className,
 }: {
   /** The nav entry this page IS. Its icon and its NAME both come from the
@@ -33,8 +35,9 @@ export function ModuleHeadline({
   readonly help?: ReactNode;
   /** StatusBadges beside the title - the key figures, toned. */
   readonly tags?: ReactNode;
-  /** The one button this page's header may carry. */
+  /** Page-wide controls. List filters and selection actions belong below. */
   readonly action?: ReactNode;
+  readonly create?: { readonly href: string; readonly label?: string; readonly newTab?: boolean };
   readonly className?: string;
 }) {
   const { DOMAIN_LABEL, PAGE_BRIEF } = useMessages();
@@ -47,7 +50,7 @@ export function ModuleHeadline({
       help={help ?? (description === undefined ? PAGE_BRIEF[brief ?? moduleKey] : undefined)}
       secondary={tags ? <span className="flex flex-wrap items-center gap-xs">{tags}</span> : undefined}
       divider
-      action={action}
+      action={action || create ? <>{action}{create ? <NewEntryLink {...create} /> : null}</> : undefined}
     />
   );
 }

@@ -4941,6 +4941,22 @@ export const SCREEN_TEXT = {
 } as const;
 
 export const TABLE_TOOLBAR_TEXT = {
+  accounts: "客户清单",
+  opportunities: "商机清单",
+  selectedRecords: (n: number) => `已选 ${n} 项`,
+  selectRecord: (name: string) => `选择 ${name}`,
+  clearSelection: "清除选择",
+  campaigns: "战役清单",
+  leads: "线索清单",
+  quotes: "报价清单",
+  reviews: "复盘清单",
+  audit: "审计记录",
+  divisions: "区域清单",
+  org: "组织清单",
+  roles: "角色清单",
+  permissions: "权限清单",
+  members: "成员清单",
+  signals: "信号清单",
   searchLabel: "检索",
   resetFilters: "清空筛选",
   /** Beside a narrowed list. Both numbers, because "6 条" alone reads as the
@@ -6563,6 +6579,8 @@ export const LEAD_TEXT = {
   hintConvertedKept: "已转商机的线索不能删除——它是那个商机来源的唯一记录",
   bulkRefused: (n: number) => `有 ${n} 条没有删除`,
 
+  bulkTarget: (n: number) => `已选的 ${n} 条线索`,
+  bulkRemoveConsequence: "删除后无法恢复，已转为商机的线索会保留。",
   deleteSelected: (n: number) => `删除 ${n} 条`,
   columnRegion: "区域",
   noRegion: "无区域",

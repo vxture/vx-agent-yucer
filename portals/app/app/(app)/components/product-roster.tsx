@@ -2,12 +2,13 @@
 
 import { Section } from "./help-section";
 import { DataTable } from "./business-controls";
-import { CollectionHeadline, CollectionHistory, CollectionToolbar } from "./collection-layout";
+import { ModuleHeadline } from "./module-headline";
+import { CollectionHistory, CollectionToolbar } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 
 import { useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { inForceByProduct } from "../../domains/catalog/lib/pricing";
 import { ProductPriceValues } from "./product-price-values";
 import { ProductPricePanel, type ProductPricing } from "./product-price-panel";
@@ -23,7 +24,6 @@ import { statusTone } from "./status-label";
 import { typeFamily, typeLabel } from "../../domains/catalog/lib/type-vocab";
 import {
   RowActions,
-  rowClickSelection,
   SearchSlot,
   useTableSort,
   moveItems,
@@ -98,34 +98,28 @@ export function ProductRoster({
 }: ProductRosterProps) {
   const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
     useMessages();
-  const router = useRouter();
-  const pathname = usePathname();
   const params = useSearchParams();
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const historyId = params.get("priceHistory");
   const historyProduct = products.find((p) => p.id === historyId);
   const showHistory = historyId === "all" || historyProduct !== undefined;
   const priceByProduct = inForceByProduct(pricing?.prices ?? [], pricing?.currency ?? "", pricing?.now ?? 0);
-  const openHistory = (productId: string | null) => {
-    const next = new URLSearchParams(params.toString());
-    if (productId) next.set("priceHistory", productId);
-    else next.delete("priceHistory");
-    router.replace(`${pathname}${next.size ? `?${next}` : ""}`, { scroll: false });
+  const updateQuery = (key: string, value: string | null) => {
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+    // Only the client roster and the analysis link read these two parameters.
+    window.history.replaceState(null, "", url);
   };
+  const openHistory = (productId: string | null) => updateQuery("priceHistory", productId);
   const [pending, startTransition] = useTransition();
-  // 选择列 - one of the three standard fittings (table-fittings.tsx). Held
-  // across BOTH rosters because the keys are product ids: a selection is of
-  // products, not of whichever half of the page they were shown in.
+  // Product UUIDs feed the price analysis in the parallel assistant pane.
   const [selected, setSelected] = useState<readonly string[]>(() =>
     (params.get("sel")?.split(",") ?? []).filter((id) => products.some((p) => p.id === id)));
   const sorted = useTableSort<ProductRecord>([], {
     ...SORT_ON,
     ...(pricing ? { list: (row: ProductRecord) => priceByProduct.get(row.id)?.listPrice ?? -1 } : {}),
   });
-  // Clicking the row toggles it - the checkbox is too small a target
-  // (owner, 2026-09-06). Bound per table because each has its own row order.
-  const click = (list: readonly ProductRecord[]) =>
-    rowClickSelection();
   const { toast } = useToast();
 
   // 类别 reads 软件产品-基础软件 for a 二级类 (owner, 2026-09-29: 两个字段，
@@ -158,6 +152,13 @@ export function ProductRoster({
   const isRetired = (p: ProductRecord) => codeOf(p) === "retired";
 
   const shown = products.filter(match);
+  const currentIds = new Set(products.filter(p => !isRetired(p)).map(p => p.id));
+  const selectedProducts = selected.filter(id => currentIds.has(id));
+  const changeSelection = (keys: readonly string[]) => {
+    const ids = keys.filter(id => currentIds.has(id));
+    setSelected(ids);
+    updateQuery("sel", ids.length ? ids.join(",") : null);
+  };
   const live = shown.filter((p) => !isRetired(p));
   const retired = shown.filter(isRetired);
 
@@ -200,7 +201,8 @@ export function ProductRoster({
       sortable: true,
       header: CATALOG_TEXT.colName,
       cell: (r: ProductRecord) => (
-        <CollectionTitleCell title={r.name} description={r.productCode} tooltip={`${r.name} / ${r.productCode}`} />
+        <CollectionTitleCell title={r.name} description={r.productCode} tooltip={`${r.name} / ${r.productCode}`}
+          onTitleClick={pricing ? () => openHistory(r.id) : undefined} />
       ),
     },
     {
@@ -324,25 +326,17 @@ export function ProductRoster({
 
   const RosterTable = variant === "sort" ? DataTable<ProductRecord> : CollectionTable<ProductRecord>;
   const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn, retiredGroup = false) => {
-    const select = click(rows);
+    const selectable = variant === "full" && Boolean(pricing) && !retiredGroup;
     return (
     <div
-      ref={select.ref}
-      className={`${select.className} ${variant === "sort" ? "[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%]" : ""} ${extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ""}`}
+      className={`${variant === "sort" ? "[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[34%]" : ""} ${extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ""}`}
     >
       <RosterTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
-        selectedKeys={selected}
-        onSelectionChange={(keys) => {
-          setSelected(keys);
-          if (!pricing) return;
-          const next = new URLSearchParams(params.toString());
-          const ids = keys.filter((id) => live.some((row) => row.id === id));
-          if (ids.length) next.set("sel", ids.join(","));
-          else next.delete("sel");
-          router.replace(`${pathname}${next.size ? `?${next}` : ""}`, { scroll: false });
-        }}
+        compactSelection={selectable ? { label: row => TABLE_TOOLBAR_TEXT.selectRecord(row.name) } : undefined}
+        selectedKeys={selectable ? selectedProducts : undefined}
+        onSelectionChange={selectable ? changeSelection : undefined}
         rowKey={(r: ProductRecord) => r.id}
         rows={[...sorted.sortRows(rows)]}
           sort={sorted.sort}
@@ -392,7 +386,7 @@ export function ProductRoster({
 
   return (
     <>
-      <CollectionHeadline moduleKey="catalog" help={CATALOG_TEXT.rosterLiveWhy}
+      <ModuleHeadline moduleKey="catalog" help={CATALOG_TEXT.rosterLiveWhy}
         create={canWrite ? { href: "/catalog/new", label: CATALOG_TEXT.newProduct } : undefined} />
       <CollectionToolbar
         id="products"
@@ -400,9 +394,12 @@ export function ProductRoster({
         icon="list-checks"
         mode={{ value: view, onChange: setView }}
         count={shown.length}
-        actions={pricing ? <Button size="xl" variant="outline" className="px-md" onClick={() => openHistory("all")}>
+        notice={selectedProducts.length ? <span className="text-body-small text-muted-foreground" role="status">{TABLE_TOOLBAR_TEXT.selectedRecords(selectedProducts.length)}</span> : undefined}
+        actions={pricing ? <>
+          {selectedProducts.length ? <Button size="xl" variant="ghost" onClick={() => changeSelection([])}>{TABLE_TOOLBAR_TEXT.clearSelection}</Button> : null}
+          <Button size="xl" variant="outline" className="px-md" onClick={() => openHistory("all")}>
           <Icon name="clock-counter-clockwise" size="sm" aria-hidden="true" />{CATALOG_TEXT.priceHistory}
-        </Button> : undefined}
+        </Button></> : undefined}
         search={
           <SearchSlot>
             <Input

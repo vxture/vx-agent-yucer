@@ -64,7 +64,7 @@ const SORT_ON = {
   };
 
 export function CampaignTable({ rows, canMove, canEdit = false, onMove }: CampaignTableProps) {
-  const { DATA_TABLE_LABELS, DS_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } =
+  const { DATA_TABLE_LABELS, DS_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT, TABLE_TOOLBAR_TEXT } =
     useMessages();
   const router = useRouter();
   const [view, setView] = useState<FilterBarView>("list");
@@ -166,6 +166,7 @@ export function CampaignTable({ rows, canMove, canEdit = false, onMove }: Campai
     <>
       {/* The tool row, same grammar as every other list in the product. */}
       <FilterBar
+        heading={{ title: TABLE_TOOLBAR_TEXT.campaigns, icon: "list-checks" }}
         view={view}
         onViewChange={setView}
         count={CAMPAIGN_TEXT.rowCount(rows.length)}

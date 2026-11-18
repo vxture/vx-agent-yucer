@@ -1,5 +1,7 @@
+import Link from "next/link";
 import {
   EmptyState,
+  buttonVariants,
   Section,
   StatusBadge,
   ViewLayout,
@@ -131,6 +133,11 @@ export default async function LegacyPlanningPage() {
       r.measurement.code === "no_snapshot",
   ).length;
 
+  const targetActions =
+    can(session.authz, session.entitlement, "planning.target.create", "ui").allowed
+      ? <NewEntryLink href="/planning/new" label={PLANNING_TEXT.targetNew} />
+      : null;
+
   return (
     <ViewLayout>
       {/* THE MODULE HEADER (design_yucer_100). The title was the PERIOD, which
@@ -194,10 +201,9 @@ export default async function LegacyPlanningPage() {
               "planning.division.upsert",
               "ui",
             ).allowed ? (
-              <NewEntryLink
-                href="/admin/division"
-                label={PLANNING_TEXT.territoryNewEntry}
-              />
+              <Link className={buttonVariants({ variant: "secondary", size: "lg" })} href="/admin/division" target="_blank" rel="noopener noreferrer">
+                {PLANNING_TEXT.territoryNewEntry}
+              </Link>
             ) : null
           }
         />
@@ -215,25 +221,10 @@ export default async function LegacyPlanningPage() {
         />
       )}
 
-      <Section
-        icon="target"
-        title={PLANNING_TEXT.targetRoster}
-        description={leadLine}
-        action={
-          can(
-            session.authz,
-            session.entitlement,
-            "planning.target.create",
-            "ui",
-          ).allowed ? (
-            <NewEntryLink
-              href="/planning/new"
-              label={PLANNING_TEXT.targetNew}
-            />
-          ) : null
-        }
-      >
+      <Section>
         <PlanningTable
+          context={leadLine}
+          actions={targetActions}
           rows={result.value}
           territoryNames={territoryNames}
           /* Decided here, re-decided inside the action. This only chooses

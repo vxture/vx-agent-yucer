@@ -99,7 +99,7 @@ const SORT_ON = {
 type SignatureFilter = "" | "awaiting" | "clear";
 
 export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS }: QuoteTableProps) {
-  const { DATA_TABLE_LABELS, DS_LABELS, QUOTE_TEXT, STAGE_LABEL } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, QUOTE_TEXT, STAGE_LABEL, TABLE_TOOLBAR_TEXT } = useMessages();
   const locale = useLocale();
   const router = useRouter();
   const [view, setView] = useState<"list" | "cards">("list");
@@ -235,6 +235,7 @@ export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS 
   return (
     <Section id="quotes" icon="receipt">
       <FilterBar
+        heading={{ title: TABLE_TOOLBAR_TEXT.quotes, icon: "list-checks" }}
         view={view}
         onViewChange={setView}
         count={filtering ? QUOTE_TEXT.filteredCount(visible.length, rows.length) : QUOTE_TEXT.rowCount(rows.length)}

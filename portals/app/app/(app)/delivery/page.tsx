@@ -15,7 +15,6 @@ import { deliveryStats } from "../../domains/delivery/lib/delivery-stats";
 import { milestoneSlippage } from "../../domains/delivery/lib/milestone";
 import { reconcileHealth } from "./actions";
 import { cancelProjectAction } from "./project/actions";
-import { NewEntryLink } from "../components/form-page";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
@@ -139,11 +138,8 @@ export default async function DeliveryPage() {
     <ViewLayout>
       <ModuleHeadline
         moduleKey="delivery"
-        action={
-          can(session.authz, session.entitlement, "delivery.project.upsert", "ui").allowed ? (
-            <NewEntryLink href="/delivery/project" label={DELIVERY_TEXT.newProject} />
-          ) : null
-        }
+        create={can(session.authz, session.entitlement, "delivery.project.upsert", "ui").allowed
+          ? { href: "/delivery/project", label: DELIVERY_TEXT.newProject } : undefined}
         tags={
           <>
             <StatusBadge tone="success">

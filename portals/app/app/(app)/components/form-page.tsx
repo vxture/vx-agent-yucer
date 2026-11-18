@@ -2,8 +2,9 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Banner, Button, DestructiveButton, FieldGroup, type DestructiveConfirm } from "@vxture/design-ui";
+import { Banner, Button, DestructiveButton, FieldGroup, Icon, type DestructiveConfirm } from "@vxture/design-ui";
 import { AssistantSection } from "./assistant";
 import { useFormAssistSlot } from "./form-assist-slot";
 import { useMessages } from "../lib/i18n/provider";
@@ -60,35 +61,27 @@ export function FormFieldWide({ children }: { readonly children: ReactNode }) {
   return <div className="col-span-full min-w-0">{children}</div>;
 }
 
-/**
- * WHERE A DISPLAY PAGE PUTS ITS ACTIONS - one row, one spacing, everywhere.
- *
- * It used to be the wrapper inside NewEntryLink, which worked while every page
- * had exactly one doorway and broke the moment /territory had three: that page
- * grew its own flex row with its own gap and its own raw Buttons, and the
- * result was two conventions on one screen. The row is a component now, so a
- * page with three actions and a page with one are laid out by the same code.
- */
-/* EntryActions IS GONE (owner, 2026-09-08: 表格有操作行样式规范，找 DS 模版).
- *
- * It was a `div.mt-md.flex` that each page dropped wherever it happened to
- * read well - under the table on /pipeline and /campaign, between two panels
- * on /planning, inside a Section on the same page. Four placements for one
- * kind of control.
- *
- * The DS already answers this and has all along: `ViewHeader`/`Section` take
- * an `action` slot (the header's right side, aligned to the description's
- * baseline - "按钮属于接下来做什么，挂在页头的收束线上"), and a list-level
- * 新建 belongs in `FilterBar.actions` where a page has a filter row. So the
- * button goes into the header of whatever owns the table, and this positioner
- * has nothing left to do.
- */
+type NewEntry = { readonly label?: string };
 
-export function NewEntryLink({ href, label, primary = false }: { readonly href: string; readonly label?: string; readonly primary?: boolean }) {
+export function NewEntryLink({ href, label, newTab }: NewEntry & { readonly href: string; readonly newTab?: boolean }) {
   const { ASSIST_TEXT } = useMessages();
   return (
-    <Button asChild size="xl" variant={primary ? "default" : "secondary"}>
-      <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
+    <Button asChild size="xl" className="shrink-0 px-md" data-business-create>
+      <Link href={href} target={newTab ? "_blank" : undefined} rel={newTab ? "noopener noreferrer" : undefined}>
+        <Icon name="plus" size="sm" aria-hidden="true" />{label ?? ASSIST_TEXT.newEntry}
+      </Link>
+    </Button>
+  );
+}
+
+export function NewEntryButton({ onClick, disabled, label }: NewEntry & {
+  readonly onClick: () => void;
+  readonly disabled?: boolean;
+}) {
+  const { ASSIST_TEXT } = useMessages();
+  return (
+    <Button type="button" size="xl" className="shrink-0 px-md" data-business-create disabled={disabled} onClick={onClick}>
+      <Icon name="plus" size="sm" aria-hidden="true" />{label ?? ASSIST_TEXT.newEntry}
     </Button>
   );
 }

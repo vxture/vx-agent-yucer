@@ -383,10 +383,55 @@ export function ProposalQueue({
   ];
 
   return (
-    <Section
-      title={PROPOSAL_TEXT.title}
-      help={PROPOSAL_TEXT.description}
-    >
+    <Section>
+      {/* 按需: search + 状态 filter + count. No view switch - a proposal is
+          read as a row against its neighbours (confidence, who decided, when),
+          and a grid of cards loses exactly that comparison. */}
+      <FilterBar
+          heading={{ title: PROPOSAL_TEXT.title, icon: "list-checks", help: PROPOSAL_TEXT.description }}
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, actions.length)
+              : PROPOSAL_TEXT.rowCount(actions.length)
+          }
+          search={actions.length > 0 ? (
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={PROPOSAL_TEXT.searchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          ) : undefined}
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setStatusFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          {actions.length > 0 ? <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={statusFilter}
+              aria-label={PROPOSAL_TEXT.filterAllStatus}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">{PROPOSAL_TEXT.filterAllStatus}</option>
+              {Object.entries(ACTION_STATUS_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot> : null}
+      </FilterBar>
+
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {notice ? <StatusBadge tone="info">{notice}</StatusBadge> : null}
       {/* The bar takes data now, not three JSX slots, and returns null itself
@@ -442,55 +487,6 @@ export function ProposalQueue({
           error={error}
           onConfirm={() => apply(confirming)}
         />
-      ) : null}
-
-      {/* 按需: search + 状态 filter + count. No view switch - a proposal is
-          read as a row against its neighbours (confidence, who decided, when),
-          and a grid of cards loses exactly that comparison. */}
-      {actions.length > 0 ? (
-        <FilterBar
-          count={
-            narrowed
-              ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, actions.length)
-              : PROPOSAL_TEXT.rowCount(actions.length)
-          }
-          search={
-            <SearchSlot>
-              <Input
-                type="search"
-                className="w-full"
-                value={query}
-                placeholder={PROPOSAL_TEXT.searchHint}
-                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </SearchSlot>
-          }
-          onReset={
-            narrowed
-              ? () => {
-                  setQuery("");
-                  setStatusFilter("");
-                }
-              : undefined
-          }
-          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
-        >
-          <FilterSlot width="w-[9rem]">
-            <NativeSelect
-              value={statusFilter}
-              aria-label={PROPOSAL_TEXT.filterAllStatus}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">{PROPOSAL_TEXT.filterAllStatus}</option>
-              {Object.entries(ACTION_STATUS_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </NativeSelect>
-          </FilterSlot>
-        </FilterBar>
       ) : null}
 
       {actions.length === 0 ? (
