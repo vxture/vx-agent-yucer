@@ -139,7 +139,6 @@ export function StrategyGoals({
               >
                 <Icon name="plus" size="sm" />
                 {T.addGoal}
-                <Icon name="chevron-down" size="sm" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
