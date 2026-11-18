@@ -22,7 +22,8 @@ export function DateRangeCalendar({ startOn, endOn, onChange, month, onMonthChan
   readonly onMonthChange?: (month: Date) => void;
 }) {
   const locale = useLocale();
-  return <Calendar mode="range" numberOfMonths={2} fixedWeeks
+  return <Calendar mode="range" numberOfMonths={2} fixedWeeks className="p-0"
+    classNames={{ week: "mt-2xs flex w-full" }}
     selected={{ from: calendarDate(startOn), to: calendarDate(endOn) }}
     defaultMonth={calendarDate(startOn)} month={month} onMonthChange={onMonthChange}
     formatters={{
@@ -61,7 +62,7 @@ export function DateRangeField({ id, label, startOn, endOn, onChange, disabled, 
         className="w-auto max-w-[calc(100vw-var(--space-lg)*2)] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-md" aria-label={label ?? T.label}
         data-date-range-panel>
         <DateRangeCalendar {...dates} onChange={(startOn, endOn) => setDates({ startOn, endOn })} />
-        <div className="flex justify-end gap-sm border-t border-border pt-md">
+        <div className="mt-md flex justify-end gap-sm border-t border-border pt-sm">
           <Button type="button" size="md" variant="ghost" onClick={() => { onChange("", ""); setOpen(false); }}>{T.clear}</Button>
           <Button type="button" size="md" variant="secondary" disabled={!allowPartial && (!dates.startOn || !dates.endOn)}
             onClick={() => { onChange(dates.startOn, dates.endOn); setOpen(false); }}>{T.apply}</Button>

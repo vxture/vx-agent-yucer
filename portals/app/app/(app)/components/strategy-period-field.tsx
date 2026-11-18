@@ -44,7 +44,7 @@ export function StrategyPeriodField({value,onChange,disabled}:{readonly value:st
       </Button></PopoverTrigger>
       <PopoverContent align="start" aria-label={T.executionPeriod} collisionPadding={16} width="xl" data-date-range-panel
         className="w-auto max-w-[calc(100vw-var(--space-lg)*2)] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-md">
-        <div className="flex flex-col gap-lg" data-business-form data-strategy-period-editor>
+        <div className="flex flex-col gap-md" data-business-form data-strategy-period-editor>
           <div className="flex items-center gap-xs" data-strategy-period-presets>
             <Input id="strategy-period-year" aria-label={T.year} type="number" min={1900} max={9999} step={1} inputMode="numeric" value={year} className="w-20 shrink-0" onChange={e=>setYear(e.target.value)}/>
             <SegmentedControl ariaLabel={T.periodShortcuts} fill value={candidate ?? ""} onChange={fill}
@@ -53,9 +53,8 @@ export function StrategyPeriodField({value,onChange,disabled}:{readonly value:st
           </div>
           <DateRangeCalendar startOn={startOn} endOn={endOn} month={month} onMonthChange={setMonth}
             onChange={(start, end) => { setStartOn(start);setEndOn(end);setAttempted(false); }} />
-          <output className="text-body-small tabular-nums text-muted-foreground" aria-live="polite">{startOn || T.startDate}{" ~ "}{endOn || T.endDate}</output>
           {!parsed && (attempted || startOn || endOn)?<FieldError role="status">{error}</FieldError>:null}
-          <div className="flex justify-end gap-sm">
+          <div className="flex justify-end gap-sm border-t border-border pt-sm">
             <Button type="button" size="md" variant="secondary" onClick={()=>setOpen(false)}>{T.relationCancel}</Button>
             <Button type="button" size="md" variant="secondary" aria-disabled={!parsed} onClick={()=>{setAttempted(true);if(candidate){onChange(!datesChanged?value:candidate);setOpen(false);}}}>{T.periodApply}</Button>
           </div>
