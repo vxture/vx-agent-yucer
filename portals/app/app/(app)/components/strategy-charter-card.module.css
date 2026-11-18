@@ -19,7 +19,7 @@
   inset: 0 0 0 auto;
   width: 54%;
   background: currentColor;
-  opacity: .16;
+  opacity: .1;
   mask-repeat: no-repeat;
   mask-position: right center;
   mask-size: auto 115%;
@@ -32,25 +32,50 @@
   gap: var(--space-xl);
 }
 
+.heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-md);
+}
+
+.emblem {
+  margin-top: var(--space-xs);
+}
+
 .body {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, .32fr);
   align-items: start;
-  gap: var(--space-2xl);
+  gap: var(--space-xl);
 }
 
 .objective {
-  max-width: 46ch;
   line-height: 1.65;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
 .relations {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+
+.outcome {
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: var(--space-xl);
-  padding-top: var(--space-xs);
+  gap: var(--space-sm);
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-xl);
+}
+
+.goalNumber {
+  font-size: var(--display-xs-font-size);
+  font-weight: var(--heading-1-font-weight);
+  line-height: var(--display-xs-line-height);
+  overflow-wrap: anywhere;
 }
 
 .footer {
@@ -70,13 +95,13 @@
   gap: var(--space-lg);
 }
 
-@container (max-width: 44rem) {
+@container (max-width: 56rem) {
   .body { grid-template-columns: minmax(0, 1fr); }
-  .relations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .outcome { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
   .illustration { width: 80%; opacity: .09; }
-  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); flex-basis: 100%; }
 }
 
-@container (max-width: 26rem) {
+@container (max-width: 36rem) {
   .relations { grid-template-columns: minmax(0, 1fr); }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); flex-basis: 100%; }
 }
