@@ -37,8 +37,15 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   const goals=p.result?.goals.map(g=>({id:g.id,name:g.name,amount:g.target,unit:g.unit,metric:g.metric}))
     ?? p.expectations?.map(g=>({id:g.id,name:H[g.metric],amount:g.amount,unit:g.currency ?? H.count,metric:g.metric})) ?? [];
   const completedGoals=goals.filter(g=>g.amount.trim()!=="" && Number.isFinite(Number(g.amount)));
-  const primaryGoal=completedGoals.find(g=>g.metric==="revenue") ?? completedGoals[0];
-  const supportingGoals=completedGoals.filter(g=>g.id!==primaryGoal?.id);
+  const goalMetrics=["revenue","channels","reference_cases"] as const;
+  const orderedGoals=[...goalMetrics.flatMap(metric=>completedGoals.filter(g=>g.metric===metric)),...completedGoals.filter(g=>!g.metric)];
+  const visibleGoalCount=orderedGoals.length>=4?4:3;
+  const selectedGoals=orderedGoals.slice(0,visibleGoalCount);
+  const displayGoals=[
+    ...selectedGoals.map(goal=>({key:goal.id,name:goal.name,goal})),
+    ...goalMetrics.filter(metric=>!selectedGoals.some(g=>g.metric===metric)).map(metric=>({key:metric,name:H[metric],goal:undefined})),
+  ].slice(0,visibleGoalCount);
+  const otherGoals=orderedGoals.slice(visibleGoalCount);
   const value=p.resultOptions?.find(o=>o.id===p.result?.valuePropositionId)?.name;
   const metrics=[
     {key:"markets",icon:"globe",label:T.marketCount,value:p.marketIds?.length},
@@ -90,15 +97,16 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
           {relation(T.featuredSolutions,"squares-four",offerings,T.offeringEmpty)}
         </div>
         <div className={styles.outcome} data-strategy-expectation-summary>
-          <span className="text-body-small text-muted-foreground">{primaryGoal?.name || T.expectedGoal}</span>
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-sm gap-y-xs" data-strategy-primary-goal>
-            <strong className={`${styles.goalNumber} tabular-nums ${primaryGoal?"":"text-muted-foreground"}`} title={primaryGoal ? `${Number(primaryGoal.amount).toLocaleString(locale)} ${primaryGoal.unit}`:undefined}>{primaryGoal ? Number(primaryGoal.amount).toLocaleString(locale,{notation:Math.abs(Number(primaryGoal.amount))>=100_000_000?"compact":"standard",maximumFractionDigits:2}):"\u2014"}</strong>
-            {primaryGoal ? <span className="text-body-small text-muted-foreground">{primaryGoal.unit}</span>:null}
-          </div>
-          {supportingGoals.length ? <dl className="flex flex-wrap gap-x-lg gap-y-sm text-body-small text-muted-foreground">
-            {supportingGoals.slice(0,2).map(g=><div key={g.id} className="inline-flex flex-wrap items-baseline gap-xs"><dt>{g.name}</dt><dd className="tabular-nums text-foreground">{Number(g.amount).toLocaleString(locale)}<span className="ml-xs text-muted-foreground">{g.unit}</span></dd></div>)}
-          </dl>:null}
-          {supportingGoals.length>2 ? <Link href={href} className="text-body-small hover:text-primary-text" title={supportingGoals.slice(2).map(g=>`${g.name} ${Number(g.amount).toLocaleString(locale)} ${g.unit}`).join(" / ")}>+{supportingGoals.length-2}</Link>:null}
+          <dl className={styles.goals}>
+            {displayGoals.map(({key,name,goal})=><div key={key} className={styles.goal} data-strategy-goal={goal?.metric ?? key}>
+              <dt className="text-body-small text-muted-foreground">{goal?.name || name}</dt>
+              <dd className="flex min-w-0 flex-wrap items-baseline justify-end gap-x-sm gap-y-xs">
+                <strong className={`${styles.goalNumber} tabular-nums ${goal?"":"text-muted-foreground"}`} title={goal ? `${Number(goal.amount).toLocaleString(locale)} ${goal.unit}`:undefined}>{goal ? Number(goal.amount).toLocaleString(locale,{notation:Math.abs(Number(goal.amount))>=100_000_000?"compact":"standard",maximumFractionDigits:2}):"\u2014"}</strong>
+                {goal ? <span className="text-body-small text-muted-foreground">{goal.unit}</span>:null}
+              </dd>
+            </div>)}
+          </dl>
+          {otherGoals.length ? <Link href={href} className="text-body-small text-muted-foreground hover:text-primary-text" title={otherGoals.map(g=>`${g.name} ${Number(g.amount).toLocaleString(locale)} ${g.unit}`).join(" / ")}>+{otherGoals.length} {R.goals}</Link>:null}
         </div>
       </div>
       <div className={styles.footer}>

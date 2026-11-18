@@ -45,9 +45,9 @@
 
 .body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(12rem, .32fr);
-  align-items: start;
-  gap: var(--space-xl);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-2xl);
 }
 
 .objective {
@@ -59,6 +59,7 @@
 .relations {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
   gap: var(--space-lg);
 }
 
@@ -66,9 +67,21 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--space-sm);
-  border-left: 1px solid var(--border);
-  padding-left: var(--space-xl);
+  gap: var(--space-md);
+  border-left: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
+  padding-left: var(--space-2xl);
+}
+
+.goals {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.goal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  align-items: baseline;
+  gap: var(--space-md);
 }
 
 .goalNumber {
@@ -95,8 +108,9 @@
   gap: var(--space-lg);
 }
 
-@container (max-width: 56rem) {
+@container (max-width: 40rem) {
   .body { grid-template-columns: minmax(0, 1fr); }
+  .relations { grid-template-columns: minmax(0, 1fr); }
   .outcome { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
   .illustration { width: 80%; opacity: .09; }
 }
