@@ -8,6 +8,7 @@ import type { MarketView } from "../lib/market-strategy";
 import { OfferingSelectionList } from "./offering-selection-list";
 import { TitleHelp } from "./title-help";
 import { useMessages } from "../lib/i18n/provider";
+import { collectionDrawerWidth } from "./collection-layout";
 
 export type RelationMarketOption = Pick<MarketView, "id" | "name" | "segmentCode" | "status" | "criteria" | "matched" | "missing" | "solutionIds" | "productIds">;
 export type RelationTarget = TargetMarketDraft & { marketName: string };
@@ -70,7 +71,7 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
   const markets = marketOptions?.filter(m => (m.status === "active" || originalIds.includes(m.id)) &&
     (!q || `${m.name} ${m.segmentCode} ${JSON.stringify(m.criteria)}`.toLocaleLowerCase().includes(q))) ?? [];
   const title = task.kind === "markets" ? T.linkMarkets : task.kind === "solutions" ? T.linkSolutions : T.marketSettings;
-  return <Drawer open onClose={close} width="md" className="max-w-full"
+  return <Drawer open onClose={close} width={collectionDrawerWidth.standard} className="max-w-full"
     title={<span className="inline-flex items-center gap-xs">{title}<TitleHelp topic={title}>
       <p>{task.kind === "markets" ? T.relationMarketsHint : task.kind === "market" ? T.relationMarketHint : T.sharedSolutionsHint}</p>
       <p>{draft ? T.relationNewPlanHint : T.relationScopeHint}</p>

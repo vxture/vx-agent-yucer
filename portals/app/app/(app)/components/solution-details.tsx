@@ -2,6 +2,7 @@
 
 import { Section } from "./help-section";
 import { DetailList, DetailRow, Drawer } from "@vxture/design-ui";
+import { collectionDrawerWidth } from "./collection-layout";
 import type { ProductRecord } from "../../domains/catalog/store";
 import type { SolutionFacts } from "../lib/solution-prices";
 import { useMessages } from "../lib/i18n/provider";
@@ -20,7 +21,7 @@ export function SolutionDetails({ view, products, facts, currency, onClose }: {
   const { CATALOG_TEXT: T, DS_LABELS } = useMessages();
   const byId = new Map(products.map((p) => [p.id, p]));
   return (
-    <Drawer open onClose={onClose} width="lg" title={view.solution.name}
+    <Drawer open onClose={onClose} width={collectionDrawerWidth.wide} title={view.solution.name}
       description={view.solution.solutionCode} closeLabel={DS_LABELS.confirmCancel}>
       <div className="flex flex-col gap-xl">
         <DetailList columns={1}>

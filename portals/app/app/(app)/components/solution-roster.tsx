@@ -1,21 +1,19 @@
 "use client";
 
-import { Section } from "./help-section";
-import { DataTable, FilterBar } from "./business-controls";
+import { CollectionHeadline, CollectionHistory, CollectionToolbar } from "./collection-layout";
+import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import { useCollectionView } from "./collection-view-provider";
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
-  Button,
   EmptyState,
   Input,
   StatusBadge,
-  TableTitleCell,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   useToast,
-  type FilterBarView,
 } from "@vxture/design-ui";
 import type {
   ProductTypeRecord,
@@ -111,7 +109,7 @@ export function SolutionRoster({
     ...SORT_ON,
     total: (r: SolutionView) => factsOf(r).prices.listPrice ?? null,
   });
-  const [view, setView] = useState<FilterBarView>("cards");
+  const [view, setView] = useCollectionView("cards");
   // Full names, 软件产品-基础软件 (incr/0100).
   const typeName = new Map(types.map((t) => [t.id, typeLabel(types, t.id)?.name ?? t.name]));
   const { toast } = useToast();
@@ -164,7 +162,7 @@ export function SolutionRoster({
       sortable: true,
       header: CATALOG_TEXT.colName,
       cell: (r: SolutionView) => (
-        <TableTitleCell
+        <CollectionTitleCell
           title={r.solution.name}
           description={r.solution.solutionCode}
           tooltip={`${r.solution.name} - ${CATALOG_TEXT.solutionDetailsHint}`}
@@ -175,14 +173,16 @@ export function SolutionRoster({
     {
       id: "types",
       header: CATALOG_TEXT.solutionContents,
+      align: "left" as const,
+      track: "category" as const,
       cell: (r: SolutionView) => <CoveredTypes ids={factsOf(r).typeIds} names={typeName} />,
     },
     {
       id: "composition",
       header: CATALOG_TEXT.colComposition,
-      width: "sm" as const,
+      track: "composition" as const,
       cell: (r: SolutionView) => (
-        <span className="text-body-small tabular-nums whitespace-nowrap">
+        <span className="tabular-nums">
           {CATALOG_TEXT.compositionCount(
             r.items.filter((item) => !item.optional).length,
             r.items.filter((item) => item.optional).length,
@@ -193,6 +193,7 @@ export function SolutionRoster({
     {
       id: "unit",
       header: CATALOG_TEXT.colUnitPrice,
+      track: "unit" as const,
       cell: () => (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -207,7 +208,7 @@ export function SolutionRoster({
       header: `${CATALOG_TEXT.productPrices} (${currency})`,
       align: "center" as const,
       sortable: true,
-      width: "md" as const,
+      track: "price" as const,
       cell: (r: SolutionView) => (
         <ProductPriceValues price={factsOf(r).prices} missing={factsOf(r).missing} currency={currency} />
       ),
@@ -215,7 +216,7 @@ export function SolutionRoster({
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
-      width: "sm" as const,
+      track: "state" as const,
       cell: (r: SolutionView) =>
         r.solution.status === "retired" ? (
           <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag>
@@ -226,8 +227,8 @@ export function SolutionRoster({
   ];
 
   // Every reader can open details; write actions retain their original gate.
-  const rowActions = (row: SolutionView, rowIndex: number) => {
-    const list = row.solution.status === "retired" ? retired : live;
+  const rowActions = (row: SolutionView) => {
+    const group = solutions.filter(({ solution }) => solution.status === row.solution.status);
     return (
       <RowActions
         disabled={pending}
@@ -256,7 +257,7 @@ export function SolutionRoster({
                     ),
                   ),
               },
-              ...moveItems(ROW_OPS, rowIndex, list.length, (d) => run(onMove(row.solution.id, d))),
+              ...moveItems(ROW_OPS, group.findIndex(({ solution }) => solution.id === row.solution.id), group.length, (d) => run(onMove(row.solution.id, d))),
               {
                 id: "delete",
                 label: ROW_OPS.remove(CATALOG_TEXT.solutionNoun),
@@ -277,8 +278,7 @@ export function SolutionRoster({
 
   // Use the DS table's own horizontal scroll when the pane is narrow.
   const table = (rows: readonly SolutionView[], retiredGroup = false) => (
-    <div className="[&_table]:min-w-(--vx-container-4xl) [&_thead_th:nth-child(2)]:w-[34%]">
-      <DataTable
+      <CollectionTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
         rowKey={(r: SolutionView) => r.solution.id}
@@ -301,21 +301,20 @@ export function SolutionRoster({
           )
         }
       />
-    </div>
   );
 
-  const render = (rows: readonly SolutionView[], retiredGroup = false) => view === "list" ? table(rows, retiredGroup)
-    : !rows.length ? <CardsEmpty narrowed={narrowed} title={retiredGroup ? CATALOG_TEXT.noRetiredSolutions : CATALOG_TEXT.noSolutions}
-      description={retiredGroup ? "" : CATALOG_TEXT.rosterSolutionWhy} />
-    : <div className="flex flex-col gap-lg">{rows.map((row, i) => {
+  const render = (rows: readonly SolutionView[]) => view === "list" ? table(rows)
+    : !rows.length ? <CardsEmpty narrowed={narrowed} title={CATALOG_TEXT.noSolutions}
+      description={CATALOG_TEXT.rosterSolutionWhy} />
+    : <div className="flex flex-col gap-lg">{sorted.sortRows(rows).map((row) => {
       const { solution, items } = row;
       const contents = items.map(it => products.find(p => p.id === it.productId)?.name).filter(Boolean).join(" / ");
       const composition = CATALOG_TEXT.compositionCount(items.filter(it => !it.optional).length, items.filter(it => it.optional).length);
       const scenario = solution.scenario || solution.summary;
       const markets = marketsBySolution[solution.id] ?? [];
       return <MarketOfferingCard key={solution.id} kind="solution" name={solution.name} number={solution.solutionCode}
-        status={retiredGroup ? <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag> : <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
-        actions={rowActions(row, i)} openLabel={ROW_OPS.details(CATALOG_TEXT.solutionNoun)} onOpen={() => setDetailId(solution.id)}
+        status={<StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
+        actions={rowActions(row)} openLabel={ROW_OPS.details(CATALOG_TEXT.solutionNoun)} onOpen={() => setDetailId(solution.id)}
         summary={<>
           <p className="text-body-small text-muted-foreground">{CATALOG_TEXT.colScenario}</p>
           <p className="line-clamp-2 text-body" title={scenario ?? undefined}>{scenario || "-"}</p>
@@ -340,30 +339,17 @@ export function SolutionRoster({
 
   return (
     <>
+      <CollectionHeadline moduleKey="solution"
+        help={<><p>{CATALOG_TEXT.rosterSolutionWhy}</p><p>{CATALOG_TEXT.solutionPricesHint}</p></>}
+        create={canWrite ? { href: "/solution/new", label: CATALOG_TEXT.newSolutionEntry } : undefined} />
       {detail ? <SolutionDetails view={detail} products={products} facts={factsOf(detail)} currency={currency}
         onClose={() => setDetailId(null)} /> : null}
-      {/* THE DS TOOL ROW (owner, 2026-09-29): 列表/卡片 | 搜索 · 产品类型 ·
-          【新建方案】, one row for both rosters - the retired list says on
-          its own heading that this control is narrowing it. The create
-          button moved here from the section header; disabled, not hidden,
-          without the permission. */}
-      <FilterBar
-        view={view}
-        onViewChange={setView}
-        actions={
-          canWrite ? (
-            <Button asChild>
-              <a href="/solution/new">{CATALOG_TEXT.newSolutionEntry}</a>
-            </Button>
-          ) : (
-            <Button disabled>{CATALOG_TEXT.newSolutionEntry}</Button>
-          )
-        }
-        count={
-          narrowed
-            ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, solutions.length)
-            : CATALOG_TEXT.solutionCount(solutions.length)
-        }
+      <CollectionToolbar
+        id="solutions"
+        title={CATALOG_TEXT.solutionRoster}
+        icon="list-checks"
+        mode={{ value: view, onChange: setView }}
+        count={shown.length}
         search={
           <SearchSlot>
             <Input
@@ -384,34 +370,14 @@ export function SolutionRoster({
               }
             : undefined
         }
-        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
       >
         <TypeFilter types={types} value={typeFilter} onChange={setTypeFilter} />
-      </FilterBar>
-
-      <Section
-        id="solutions"
-        icon="list-checks"
-        title={CATALOG_TEXT.rosterSolution}
-        help={`${CATALOG_TEXT.rosterSolutionWhy} ${CATALOG_TEXT.solutionPricesHint}`}
-      >
-        {render(live)}
-      </Section>
-
-      {/* The archive remains visible even when empty or filtered out. */}
-      <Section
-        id="solutions-retired"
-        icon="archive"
-        title={CATALOG_TEXT.rosterSolutionRetired}
-        help={CATALOG_TEXT.rosterSolutionRetiredWhy}
-        action={
-          narrowed ? (
-            <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
-          ) : undefined
-        }
-      >
-        {render(retired, true)}
-      </Section>
+      </CollectionToolbar>
+      {live.length || !retired.length ? render(live) : null}
+      <CollectionHistory id="solutions-retired" title={CATALOG_TEXT.rosterSolutionRetired} count={retired.length} mode={view}
+        revealMatches={narrowed && !live.length}>
+        {table(retired, true)}
+      </CollectionHistory>
     </>
   );
 }
@@ -425,12 +391,10 @@ function CoveredTypes({
   readonly names: ReadonlyMap<string, string>;
 }) {
   if (ids.length === 0) return <span className="text-muted-foreground">-</span>;
-  // Each name WHOLE, wrapping between names rather than inside one - a narrow
-  // column broke 实施服务 into 实 / 施服务 (seen 2026-09-29).
   return (
-    <span className="flex flex-wrap justify-center gap-x-xs text-body-small">
+    <span className="flex flex-wrap gap-x-xs gap-y-2xs">
       {ids.map((id) => (
-        <span key={id} className="whitespace-nowrap">
+        <span key={id} className="max-w-full truncate" title={names.get(id)}>
           {names.get(id) ?? ""}
         </span>
       ))}

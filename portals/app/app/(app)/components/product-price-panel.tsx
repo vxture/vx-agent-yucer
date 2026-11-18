@@ -9,6 +9,7 @@ import {
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 import { productPriceVersions, suggestedProductPrices } from "../lib/product-prices";
 import { useMessages } from "../lib/i18n/provider";
+import { collectionDrawerWidth } from "./collection-layout";
 import { DialogForm } from "./dialog-form";
 import { ProductPriceValues } from "./product-price-values";
 import { RowActions } from "./table-fittings";
@@ -76,7 +77,7 @@ export function ProductPricePanel({ product, products, pricing, current, mode, o
   const stateLabel = { current: T.priceStateCurrent, scheduled: T.priceStateScheduled, historical: T.priceStateHistorical };
 
   if (mode === "history") return (
-    <Drawer open onClose={onClose} width="lg" title={T.priceHistory}
+    <Drawer open onClose={onClose} width={collectionDrawerWidth.wide} title={T.priceHistory}
       description={product ? `${product.name} \u00b7 ${product.productCode}` : T.priceHistoryWhy}
       closeLabel={DS_LABELS.confirmCancel}>
       <DataTable

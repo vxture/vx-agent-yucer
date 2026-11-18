@@ -20,6 +20,8 @@ import { can } from "../authz/decide";
 import { consoleUrl } from "./lib/console-url";
 import { AssistantProvider } from "./components/assistant-provider";
 import { AppShell } from "./components/app-shell";
+import { CollectionViewProvider } from "./components/collection-view-provider";
+import { COLLECTION_VIEW_COOKIE, collectionViewPreference } from "./lib/collection-view";
 import { ASSISTANT_WIDTH_COOKIE, BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
 import { SignedOut } from "./components/signed-out";
@@ -340,7 +342,9 @@ export default async function AppLayout({
         // in and once as what you pay for, which are different facts.
         workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
       >
-        {children}
+        <CollectionViewProvider initial={collectionViewPreference(jar.get(COLLECTION_VIEW_COOKIE)?.value)}>
+          {children}
+        </CollectionViewProvider>
       </AppShell>
       </AssistantProvider>
       </MemberNamesProvider>
