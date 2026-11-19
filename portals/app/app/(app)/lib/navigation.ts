@@ -19,7 +19,7 @@
 
 // Imports the PURE decision module, never authz/context.ts: this file is read by
 // client components, and context.ts carries the database client behind it.
-import type { Entitlement } from "../../entitlement/types";
+import { hasProductAccess, type Entitlement } from "../../entitlement/types";
 import type { Decision } from "../../authz/gate";
 import type { ActionId } from "../../authz/actions";
 import { can, type PermissionHolder } from "../../authz/decide";
@@ -360,30 +360,18 @@ export function isFullyLockedOut(
 }
 
 /**
- * WHY nothing is reachable, which decides what to offer.
- *
- * The two causes need opposite remedies and were previously collapsed into one
- * "go subscribe" screen:
- *
- *   no_entitlement - the workspace has not bought anything. Buying is the fix.
- *   no_roles       - the workspace HAS bought, and this member holds no role.
- *                    Telling them to subscribe is worse than useless: they
- *                    cannot fix it by paying, and the thing they need is an
- *                    administrator, not a checkout page.
- *
- * The two are told apart by the shape of `resolved`, and that follows from the
- * gate's own ordering. A permission gap is dropped from the list while an
- * entitlement gap is kept as `locked`, so an EMPTY list means every domain was
- * refused on permission - which is only possible once entitlement has already
- * passed, since the entitlement half is evaluated first.
+ * Subscription and role gaps need different remedies. Use the product UI gate,
+ * never the shape of navigation: on a lower tier, locked premium entries can
+ * coexist with every entitled entry being hidden for missing permissions.
  */
 export type LockoutReason = "no_entitlement" | "no_roles";
 
 export function lockoutReason(
   resolved: readonly ResolvedNavEntry[],
+  entitlement: Entitlement,
 ): LockoutReason | null {
   if (!isFullyLockedOut(resolved)) return null;
-  return resolved.length === 0 ? "no_roles" : "no_entitlement";
+  return hasProductAccess(entitlement) ? "no_roles" : "no_entitlement";
 }
 
 /**

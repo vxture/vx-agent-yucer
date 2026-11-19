@@ -135,7 +135,10 @@ export async function resolveAuthzContext(
     permissions: new Set(permissions),
     isWorkspaceOwner: user.isWorkspaceOwner,
   };
-  cache.set(k, { value, defaultEligible, expiresAt: now + TTL_MS });
+  // A member at the role gate must see a new grant on their next recheck,
+  // including grants made on another instance. Never retain a roleless result.
+  if (roles.length > 0) cache.set(k, { value, defaultEligible, expiresAt: now + TTL_MS });
+  else cache.delete(k);
   return value;
 }
 

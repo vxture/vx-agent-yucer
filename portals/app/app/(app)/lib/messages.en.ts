@@ -404,9 +404,9 @@ export const en: Dictionary = {
       "Sign in with your Vxture account to use this product.",
     noAccessTitle: "This workspace has no subscription",
         subscribeCta: "Subscribe",
-    noRolesTitle: "No role has been assigned to you yet",
+    noRolesTitle: "No access is currently available",
     noRolesDescription:
-      "Ask whoever opened the subscription to assign you a role.",
+      "Ask your workspace administrator to check your roles and permissions.",
     loadFailed: "Could not load the data",
     backUp: "Back",
     expandNav: "Expand navigation",
@@ -2478,8 +2478,8 @@ export const en: Dictionary = {
   },
 
   NO_ROLES_TEXT: {
-    badge: "No role",
-    ariaLabel: "No role has been assigned to you yet",
+    badge: "Access restricted",
+    ariaLabel: "No access is currently available",
     identityLabel: "Signed in as",
     workspaceLabel: "Workspace",
     recheck: "Check again",
