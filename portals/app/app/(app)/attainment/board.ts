@@ -156,7 +156,7 @@ export const loadAttainmentTeam = cache(async () => {
   const [units, placements, members] = await Promise.all([
     listOrgUnits(ctx),
     listOrgMembers(ctx),
-    listWorkspaceMembers({ ...data.base, store: getAuthzStore() }),
+    listWorkspaceMembers({ ...data.base, orgId: data.session.user.activeOrg, store: getAuthzStore() }),
   ]);
   const self = {
     sub: data.session.user.sub,

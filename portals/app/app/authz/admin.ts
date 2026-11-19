@@ -27,6 +27,7 @@ import { fail, ok, violation, type RuleResult } from "../domains/shared/result";
 import type { Decision } from "./gate";
 import { recordAuditEvent } from "../audit/lib/record";
 import type { AuditOutcome } from "../audit/lib/store";
+import { readProductRoster, type ProductRosterItem } from "../platform/product-roster";
 
 /**
  * A gate refusal. Defined here rather than imported from a domain service:
@@ -65,6 +66,8 @@ function audit(ctx: AdminContext, action: string, objectId: string, outcome: Aud
 
 export interface AdminContext {
   workspaceId: string;
+  /** Verified active organization, needed by the platform roster ticket. */
+  orgId?: string | null;
   /** The administrator performing the change, from the session. Never a param. */
   sub: string;
   holder: PermissionHolder;
@@ -78,10 +81,36 @@ function adminRoles(roles: readonly WorkspaceRole[]): Set<string> {
   return new Set(roles.filter((r) => r.permissions.includes("admin.manage")).map((r) => r.code));
 }
 
-export async function listWorkspaceMembers(ctx: AdminContext): Promise<RuleResult<MemberRecord[]>> {
+export async function listWorkspaceMembers(
+  ctx: AdminContext,
+  readRoster: (workspaceId: string, orgId?: string | null) => Promise<ProductRosterItem[] | null> = readProductRoster,
+): Promise<RuleResult<MemberRecord[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
   if (!gate.allowed) return denied(gate);
-  const members = await ctx.store.listMembers(ctx.workspaceId);
+  let roster;
+  try {
+    roster = await readRoster(ctx.workspaceId, ctx.orgId);
+  } catch {
+    // A failed authority read is never an empty or silently stale roster.
+    return fail(violation("product_roster_unavailable", "authorized members could not be read; retry the request", "platform"));
+  }
+  let authorized: Set<string> | null = null;
+  if (roster !== null) {
+    authorized = new Set(roster.map((m) => m.subject));
+    // Seed the local display/role directory without granting a role. Platform
+    // authorization and Yucer's product role are deliberately separate.
+    // Bound database concurrency for a large workspace. The entire platform
+    // snapshot was validated before any local materialization began.
+    for (let offset = 0; offset < roster.length; offset += 8) {
+      await Promise.all(roster.slice(offset, offset + 8).map((m) => ctx.store.seeMember({
+        workspaceId: ctx.workspaceId,
+        sub: m.subject,
+        displayName: m.displayName ?? undefined,
+      })));
+    }
+  }
+  const members = (await ctx.store.listMembers(ctx.workspaceId))
+    .filter((member) => authorized === null || authorized.has(member.sub));
   // Stable order so a grant does not reshuffle the table under the click that
   // caused it.
   return ok([...members].sort((a, b) => a.sub.localeCompare(b.sub)));

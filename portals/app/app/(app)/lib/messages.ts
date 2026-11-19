@@ -1254,6 +1254,7 @@ export const CATALOG_TEXT = {
  * graph" - still overrides it. The shared default is the floor, not a ceiling.
  */
 const GATE_ERROR = {
+  product_roster_unavailable: "\u6682\u65f6\u65e0\u6cd5\u83b7\u53d6\u5df2\u6388\u6743\u6210\u5458\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5",
   not_authenticated: "登录状态已失效，请重新登录",
   permission_denied: "你没有执行这个操作的权限",
   feature_not_in_tier: "当前档位不含这个能力",
@@ -2050,7 +2051,7 @@ export const MEMBER_TEXT = {
   revoke: "移除",
   assignPlaceholder: "选择角色",
   emptyTitle: "还没有成员",
-  emptyDescription: "成员在首次登录后才会出现在这里。",
+  emptyDescription: "\u5f53\u524d\u5de5\u4f5c\u7a7a\u95f4\u8fd8\u6ca1\u6709\u83b7\u6388\u6743\u4f7f\u7528\u672c\u4ea7\u54c1\u7684\u6210\u5458\u3002",
   readOnly: "你没有管理成员角色的权限。",
   adminBadge: "可管理成员",
   lastAdminHint: "这是工作区最后一位管理员，移除后将无人能再分配角色",

@@ -13,6 +13,7 @@ import { authDropSnapshot } from "./auth-failures";
 import type { RpSession } from "./session-store";
 import type { OidcConfig } from "./config";
 import type { TokenSet } from "./oidc";
+import { toAuthUser } from "./claims";
 
 // The product's one login state (owner rulings, 2026-09-29), pinned rule by
 // rule: accounts is the only authority; one checker; asked on activity only;
@@ -77,6 +78,32 @@ function record(inSeconds: number, extra: Partial<RpSession> = {}): RpSession {
 }
 
 const counts = () => authDropSnapshot().counts;
+
+test("token renewal preserves platform organization presentation and the actual workspace context", async () => {
+  const idp = rotatingIdp();
+  const renewedClaims = {
+    ...CLAIMS,
+    active_org: "org-next",
+    active_org_name: "Acme Holdings Limited",
+    active_org_display_name: "Acme",
+    active_org_logo_url: "https://accounts.example.test/logo?v=2",
+    active_workspace: "workspace-next",
+    active_workspace_name: "Regional Sales",
+  };
+  const w = world(record(-5), (now) => grantAuthority({
+    ...idp,
+    verifyToken: (async () => renewedClaims) as never,
+  }, now));
+  const state = await resolveLoginState(cfg, "r1", { activity: true }, w.deps);
+  assert.ok(state);
+  const user = toAuthUser(state.claims);
+  assert.equal(user.activeOrgName, "Acme Holdings Limited");
+  assert.equal(user.activeOrgDisplayName, "Acme");
+  assert.equal(user.activeOrgLogoUrl, "https://accounts.example.test/logo?v=2");
+  assert.equal(user.activeOrg, "org-next");
+  assert.equal(user.activeWorkspace, "workspace-next");
+  assert.equal(user.activeWorkspaceName, "Regional Sales");
+});
 
 test("many sections resolving at once, check due: accounts is asked ONCE and nobody is signed out", async () => {
   const idp = rotatingIdp();

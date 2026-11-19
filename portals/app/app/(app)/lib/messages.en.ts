@@ -54,6 +54,7 @@ import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/
  */
 
 const GATE_ERROR = {
+  product_roster_unavailable: "Unable to read authorized members. Please try again.",
   not_authenticated: "Your session has expired - please sign in again",
   permission_denied: "You cannot perform this action",
   feature_not_in_tier: "Your tier does not include this capability",
@@ -6521,7 +6522,7 @@ export const en: Dictionary = {
     revoke: "Remove",
     assignPlaceholder: "Pick a role",
     emptyTitle: "No members yet",
-    emptyDescription: "Members appear here after their first sign-in.",
+    emptyDescription: "No members in this workspace are currently authorized to use this product.",
     readOnly: "You hold no permission to manage member roles.",
     adminBadge: "Can manage members",
     lastAdminHint:

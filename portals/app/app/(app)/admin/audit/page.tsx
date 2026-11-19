@@ -60,7 +60,7 @@ export default async function AuditPage() {
   }
 
   const base = {
-    workspaceId: session.workspaceId,
+    workspaceId: session.workspaceId, orgId: session.user.activeOrg,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,

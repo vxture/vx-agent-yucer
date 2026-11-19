@@ -3,10 +3,10 @@
 // usage/lib/store.ts): an in-memory implementation for the offline path and
 // tests, a Prisma implementation when DATABASE_URL is set.
 //
-// Membership is LAZY (docs/20-specs/50-role-permission-catalog.md, "runtime
-// discipline"): a row appears on the first sighting of (workspace_id, sub) at
-// login. local_authz.member is not a real-time mirror of the platform's
-// workspace membership, and nothing here tries to make it one.
+// A row is materialized at login or from a verified platform product roster.
+// local_authz.member retains product role/state/profile records; the platform
+// remains authoritative for current product eligibility. Historical rows are
+// never deleted when a person leaves the live roster.
 
 import { recordAuditEvent } from "../audit/lib/record";
 import { prismaEnabled } from "../lib/db";

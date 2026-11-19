@@ -16,6 +16,7 @@ import { makePlatformConsume, flushUsage } from "../usage/lib/flush";
 import { InMemoryUsageStore } from "../usage/lib/store";
 import { makeProvisioningAck } from "../provisioning/lib/ack";
 import { pollProvisioning } from "../provisioning/lib/poll";
+import { fetchProductRoster } from "./product-roster";
 import { InMemoryProvisioningStore } from "../provisioning/lib/store";
 
 test("real HTTP uses scoped Bearer for C2/C3/ack and a separate reader; malformed receipt retries same key", async () => {
@@ -63,4 +64,51 @@ test("real HTTP uses scoped Bearer for C2/C3/ack and a separate reader; malforme
     assert.equal(mint, 2);
     assert.deepEqual(serverErrors, []);
   } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+});
+
+test("real roster HTTP uses an organization-bound product service ticket and sends only paging selectors", async () => {
+  resetChannelTokens();
+  const workspaceId = "11111111-1111-4111-8111-111111111111";
+  const orgId = "22222222-2222-4222-8222-222222222222";
+  const subject = "usr_33333333-3333-4333-8333-333333333333";
+  const errors: unknown[] = [];
+  const server = createServer(async (req, res) => {
+    try {
+      res.setHeader("content-type", "application/json");
+      if (req.url === "/oidc/token") {
+        let raw = "";
+        for await (const part of req) raw += part;
+        const body = new URLSearchParams(raw);
+        assert.equal(body.get("audience"), "vxture");
+        assert.equal(body.get("workspace_id"), workspaceId);
+        assert.equal(body.get("org_id"), orgId);
+        assert.equal(body.has("subject_token"), false);
+        res.end(JSON.stringify({ access_token: "roster-ticket", token_type: "Bearer", expires_in: 300 }));
+        return;
+      }
+      assert.equal(req.headers.authorization, "Bearer roster-ticket");
+      assert.equal(req.url, "/platform/product-roster?limit=200");
+      res.end(JSON.stringify({
+        org_id: orgId, workspace_id: workspaceId, product: "yucer",
+        authorization_mode: "assigned_seats", version: "a".repeat(32),
+        items: [{ subject, display_name: "New Person", eligible: true }], nextCursor: null,
+      }));
+    } catch (error) {
+      errors.push(error);
+      res.statusCode = 500;
+      res.end("{}");
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const config = { tokenUrl: `${baseUrl}/oidc/token`, clientId: "yucer", clientSecret: "test-secret", productCode: "yucer", enabled: true };
+  try {
+    assert.deepEqual(await fetchProductRoster({
+      baseUrl, orgId, workspaceId, product: "yucer",
+      accessToken: () => mintChannelToken(workspaceId, { orgId, config }),
+    }), [{ subject, displayName: "New Person" }]);
+    assert.deepEqual(errors, []);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });

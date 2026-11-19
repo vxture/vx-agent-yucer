@@ -67,7 +67,7 @@ export async function handOverBook(from: string, to: string): Promise<HandoverRe
   if (from === to) return { ok: false, error: "same_owner" };
 
   const base = {
-    workspaceId: session.workspaceId,
+    workspaceId: session.workspaceId, orgId: session.user.activeOrg,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,

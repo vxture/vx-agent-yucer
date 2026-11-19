@@ -30,13 +30,14 @@ export function resetChannelTokens(): void { tickets.clear(); pending.clear(); }
  */
 export async function mintChannelToken(
   workspaceId: string | null,
-  opts: { config?: S2SConfig; fetchImpl?: FetchLike; now?: () => number } = {},
+  opts: { config?: S2SConfig; fetchImpl?: FetchLike; now?: () => number; orgId?: string } = {},
 ): Promise<string> {
   const cfg = opts.config ?? getS2SConfig();
   if (!cfg.enabled || !cfg.clientSecret || workspaceId === "") throw new Error("Platform channel credentials or workspace missing");
   const now = opts.now ?? Date.now;
   const secretKey = createHash("sha256").update(cfg.clientSecret).digest("hex");
-  const key = JSON.stringify([cfg.tokenUrl, cfg.clientId, cfg.productCode, secretKey, workspaceId]);
+  if (workspaceId === null && opts.orgId !== undefined) throw new Error("Provisioning reader cannot carry organization context");
+  const key = JSON.stringify([cfg.tokenUrl, cfg.clientId, cfg.productCode, secretKey, workspaceId, opts.orgId]);
   const hit = tickets.get(key);
   if (hit && hit.expiresAt - 30_000 > now()) return hit.value;
   let flight = pending.get(key);
@@ -47,6 +48,7 @@ export async function mintChannelToken(
         audience: "vxture",
         requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
         ...(workspaceId === null ? { scope: "provisioning:read" } : { workspace_id: workspaceId }),
+        ...(opts.orgId !== undefined ? { org_id: opts.orgId } : {}),
       });
       const started = now();
       const res = await (opts.fetchImpl ?? fetch)(assertInternalTarget(cfg.tokenUrl).toString(), {

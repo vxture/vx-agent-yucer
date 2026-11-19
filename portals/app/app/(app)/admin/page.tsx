@@ -62,7 +62,7 @@ export default async function AdminHomePage() {
   // CRITERION instead. Telling someone what a page measures by is honest and
   // cheap; making them wait for a number they came here to go and read is not.
   const members = await listWorkspaceMembers({
-    workspaceId: session.workspaceId,
+    workspaceId: session.workspaceId, orgId: session.user.activeOrg,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,

@@ -5,6 +5,8 @@ import { unwrap } from "../domains/shared/result";
 import { permissionsForRoles, type RoleCode } from "./catalog";
 import { InMemoryAuthzStore } from "./store";
 import { InMemoryAuditStore, setAuditStore } from "../audit/lib/store";
+import { resolveAuthzContext, resetAuthzCache } from "./context";
+import { toAuthUser } from "../auth/lib/claims";
 import {
   assignRole,
   deactivateMember,
@@ -30,6 +32,69 @@ function ctx(role: RoleCode | null, tier: Entitlement["tier"], store: InMemoryAu
 async function rolesOf(store: InMemoryAuthzStore, sub: string): Promise<string[]> {
   return [...(await store.rolesOf(WS, sub))].sort();
 }
+
+test("platform-authorized people appear before first login without changing local roles or profile details", async () => {
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_admin", ["sales_leader"]);
+  store.seed(WS, "usr_custom", ["viewer"]);
+  await store.seeMember({ workspaceId: WS, sub: "usr_custom", email: "member@example.test", pictureUrl: "https://example.test/avatar" });
+  await store.setScope(WS, "usr_custom", { kind: "own", territoryIds: [] });
+  const rows = unwrap(await listWorkspaceMembers(ctx("sales_leader", "pro", store), async (workspace) => {
+    assert.equal(workspace, WS);
+    return [{ subject: "usr_new", displayName: "New Person" }, { subject: "usr_custom", displayName: "Updated Person" }];
+  }));
+  assert.deepEqual(rows.map((m) => m.sub), ["usr_custom", "usr_new"]);
+  const member = rows.find((m) => m.sub === "usr_custom")!;
+  assert.equal(member.scope, "own");
+  assert.equal(member.email, "member@example.test");
+  assert.equal(member.pictureUrl, "https://example.test/avatar");
+  assert.deepEqual(member.roles, ["viewer"]);
+  assert.deepEqual(rows.find((m) => m.sub === "usr_new")!.roles, []);
+  assert.equal((await store.listMembers(WS)).some((m) => m.sub === "usr_admin"), true, "historical signatures survive roster removal");
+});
+
+test("roster import preserves inactivity and an administrator's explicit role removal", async () => {
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_inactive", ["sales_rep"]);
+  await store.setMemberStatus(WS, "usr_inactive", "inactive");
+  const rows = unwrap(await listWorkspaceMembers(ctx("sales_leader", "pro", store), async () => [
+    { subject: "usr_inactive", displayName: "Inactive" },
+  ]));
+  assert.equal(rows[0]!.status, "inactive");
+});
+
+test("a roster sighting still initializes the ordinary sales role on first verified login", async () => {
+  resetAuthzCache();
+  const store = new InMemoryAuthzStore();
+  const c = ctx("sales_leader", "pro", store);
+  unwrap(await listWorkspaceMembers(c, async () => [{ subject: "usr_new", displayName: "New Person" }]));
+  // A roster import precedes login, so created=false must not suppress defaults.
+  await store.seedPresetRoles(WS);
+  const user = toAuthUser({ sub: "usr_new", active_workspace: WS, name: "New Person", roles: ["workspace:member"] });
+  const authz = await resolveAuthzContext(user, store, c.entitlement);
+  assert.deepEqual(authz?.roles, ["sales_rep"]);
+  resetAuthzCache();
+});
+
+test("member administration refuses a failed live roster instead of returning cached people", async () => {
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_admin", ["sales_leader"]);
+  const result = await listWorkspaceMembers(ctx("sales_leader", "pro", store), async () => { throw new Error("transport failed"); });
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.violations[0]!.code, "product_roster_unavailable");
+});
+
+test("unauthorized readers cannot call the platform roster or materialize members", async () => {
+  const store = new InMemoryAuthzStore();
+  let called = false;
+  const result = await listWorkspaceMembers(ctx("sales_rep", "pro", store), async () => {
+    called = true;
+    return [{ subject: "usr_new", displayName: "New Person" }];
+  });
+  assert.equal(result.ok, false);
+  assert.equal(called, false);
+  assert.deepEqual(await store.listMembers(WS), []);
+});
 
 // --- Both gates ------------------------------------------------------------
 
