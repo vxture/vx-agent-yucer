@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { StrategyDetailLabel } from "./strategy-detail-label";
 import readingStyles from "./strategy-detail-reading.module.css";
 import { FormChoice } from "./form-choice";
 import { StrategyDateRange } from "./strategy-date-range";
@@ -583,7 +584,7 @@ export function StrategyAdvanced({
       {(["people", "funds", "technology"] as const)
         .filter(k => value.resources[k].trim() || value.resources[`${k}Note`].trim())
         .map(k => <div key={k} className={readingStyles.fieldRow}>
-          <dt className="text-body-small text-muted-foreground">{T[k]}</dt>
+          <dt><StrategyDetailLabel icon={k === "people" ? "users" : k === "funds" ? "coins" : "cpu"}>{T[k]}</StrategyDetailLabel></dt>
           {value.resources[k].trim() ? <dd className="min-w-0 break-words text-body tabular-nums">
             {value.resources[k]}
             {k === "funds" ? <span className="ml-xs text-body-small text-muted-foreground">{currency}</span> : null}

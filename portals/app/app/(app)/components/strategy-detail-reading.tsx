@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Children, type ReactNode } from "react";
+import { Children, type ReactNode, type ComponentProps } from "react";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@vxture/design-ui";
 import { Section, SectionHeader } from "./help-section";
 import { MemberName } from "../lib/member-names";
@@ -10,6 +10,7 @@ import { strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period
 import { strategyOfferings } from "../lib/strategy-offerings";
 import type { StrategyView } from "../lib/market-strategy";
 import type { FulfillmentRow } from "../lib/strategy-fulfillment";
+import { StrategyDetailLabel } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import styles from "./strategy-detail-reading.module.css";
 
@@ -17,24 +18,24 @@ export function StrategyDetailBasic({ plan:p }: { readonly plan:StrategyView }) 
   const { MARKET_STRATEGY_TEXT:T, STRATEGY_RESULT_TEXT:R, STRATEGY_TEXT:S }=useMessages();
   const locale=useLocale();
   const facts=[
-    {label:S.newPlanName,value:p.name},
-    {label:R.period,value:strategyPeriodRangeLabel(p.period) ?? T.periodNeedsDates},
+    {label:S.newPlanName,icon:"text-t",value:p.name},
+    {label:R.period,icon:"calendar",value:strategyPeriodRangeLabel(p.period) ?? T.periodNeedsDates},
     {label:S.newPlanOwner,value:<MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/>},
-    {label:T.strategyType,value:p.strategyType?.name ?? T.typeUnclassified},
-    {label:R.value,value:p.resultOptions?.find(o=>o.id===p.result?.valuePropositionId)?.name ?? "-"},
-    {label:R.paths,value:p.resultOptions?.filter(o=>o.kind==="path" && p.result?.pathIds.includes(o.id)).map(o=>o.name).join(" / ") || "-"},
-  ];
+    {label:T.strategyType,icon:"tree-structure",value:p.strategyType?.name ?? T.typeUnclassified},
+    {label:R.value,icon:"seal-check",value:p.resultOptions?.find(o=>o.id===p.result?.valuePropositionId)?.name ?? "-"},
+    {label:R.paths,icon:"git-branch",value:p.resultOptions?.filter(o=>o.kind==="path" && p.result?.pathIds.includes(o.id)).map(o=>o.name).join(" / ") || "-"},
+  ] satisfies {label:string;icon?:ComponentProps<typeof Icon>["name"];value:ReactNode}[];
   return <Collapsible defaultOpen className="flex min-w-0 flex-col gap-md" data-strategy-basic-section>
     <SectionHeader title={R.basic} icon="clipboard" action={<CollapsibleTrigger asChild><Button size="icon-md" variant="ghost" className="group" aria-label={R.basic}><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/></Button></CollapsibleTrigger>}/>
     <CollapsibleContent>
       <Card className="min-w-0 py-lg" data-strategy-basic-card><CardContent className="flex min-w-0 flex-col gap-md">
-        <dl className={styles.facts} data-strategy-basic-facts>{facts.map(f=><div key={f.label} className={styles.fieldRow}><dt className="text-body-small text-muted-foreground">{f.label}</dt><dd className="min-w-0 break-words text-body">{f.value}</dd></div>)}</dl>
-        <div className={styles.position} data-strategy-detail-direction><span className="text-body-small text-muted-foreground">{T.strategyPosition}</span><p className="whitespace-pre-wrap break-words text-body">{p.objective || T.directionEmpty}</p></div>
+        <dl className={styles.facts} data-strategy-basic-facts>{facts.map(f=><div key={f.label} className={styles.fieldRow}><dt><StrategyDetailLabel icon={"icon" in f ? f.icon : undefined}>{f.label}</StrategyDetailLabel></dt><dd className="min-w-0 break-words text-body">{f.value}</dd></div>)}</dl>
+        <div className={styles.position} data-strategy-detail-direction><StrategyDetailLabel icon="lightbulb">{T.strategyPosition}</StrategyDetailLabel><p className="whitespace-pre-wrap break-words text-body">{p.objective || T.directionEmpty}</p></div>
         <div className="flex flex-wrap items-center justify-between gap-md text-body-small text-muted-foreground" data-strategy-publication-meta>
-          <span>{T.publishedAt}<span className="ml-sm tabular-nums">{p.approvedAt?new Date(p.approvedAt).toLocaleDateString(locale):"-"}</span></span>
-          {p.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs">{T.creator}<MemberName sub={p.createdBySub}/></span>:null}
+          <span className="inline-flex items-center gap-xs"><StrategyDetailLabel icon="clock">{T.publishedAt}</StrategyDetailLabel><span className="tabular-nums">{p.approvedAt?new Date(p.approvedAt).toLocaleDateString(locale):"-"}</span></span>
+          {p.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={p.createdBySub}/></span>:null}
         </div>
-        {p.changeReason?<div className={styles.position}><span className="text-body-small text-muted-foreground">{T.changeReason}</span><p className="whitespace-pre-wrap break-words text-body">{p.changeReason}</p></div>:null}
+        {p.changeReason?<div className={styles.position}><StrategyDetailLabel icon="file-text">{T.changeReason}</StrategyDetailLabel><p className="whitespace-pre-wrap break-words text-body">{p.changeReason}</p></div>:null}
       </CardContent></Card>
     </CollapsibleContent>
   </Collapsible>;
@@ -72,9 +73,9 @@ export function StrategyDetailMarkets({ plan:p, actions }: { readonly plan:Strat
       const facts=[{label:F.industries,value:m.criteria.industries.join(" / ")},{label:F.regions,value:m.criteria.regions.join(" / ")},{label:R.sizes,value:m.criteria.sizes?.join(" / ")||R.unlimitedSize}].filter(f=>f.value);
       return <Card key={m.segmentId} className="min-w-0 gap-0 py-lg" data-strategy-target-market><CardContent className="flex min-w-0 flex-1 flex-col gap-md">
         <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment?market=${encodeURIComponent(m.segmentId)}`} className="inline-flex min-w-0 items-start gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name="globe" size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words" title={m.marketName}>{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{m.intent==="focus"?T.focusMarket:m.intent==="validate"?T.validateMarket:T.unclassifiedMarket}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
-        <dl className="flex min-w-0 flex-col gap-xs" data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt className="text-body-small text-muted-foreground">{f.label}</dt><dd className="truncate text-body-small" title={f.value}>{f.value}</dd></div>)}</dl>
+        <dl className="flex min-w-0 flex-col gap-xs" data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd className="truncate text-body-small" title={f.value}>{f.value}</dd></div>)}</dl>
         <p className="line-clamp-2 text-body-small text-muted-foreground" title={m.approach || undefined}>{m.approach || T.noMarketApproach}</p>
-        <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm border-t border-dashed border-border pt-md"><span className="text-body-small text-muted-foreground">{T.customerCount}<span className="ml-sm tabular-nums text-foreground">{m.matched ?? T.unknown}</span></span>{actions?.(m.segmentId)}</div>
+        <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm border-t border-dashed border-border pt-md"><span className="inline-flex items-center gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><span className="tabular-nums text-body-small">{m.matched ?? T.unknown}</span></span>{actions?.(m.segmentId)}</div>
       </CardContent></Card>;
     })}</RelatedDisclosure>}
   </Section>;
@@ -103,7 +104,7 @@ export function StrategyDetailOfferings({ plan:p }: { readonly plan:StrategyView
         return <Card key={row.key} className="min-w-0 gap-0 py-lg" data-strategy-offering={row.kind}><CardContent className="flex min-w-0 flex-1 flex-col gap-md">
           <Link href={row.href} className="inline-flex min-w-0 items-start gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name={row.icon} size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words" title={row.name}>{row.name}</span></Link>
           <div className="flex min-w-0 flex-wrap items-center gap-x-sm gap-y-xs text-body-small text-muted-foreground"><span>{row.kind==="product"?T.productKind:T.solutionKind}</span>{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}{row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}<span className="min-w-0 truncate" title={row.code}>{row.code}</span></div>
-          <div className="mt-auto border-t border-dashed border-border pt-md"><div className={styles.fieldRow}><span className="text-body-small text-muted-foreground">{T.targetMarketsTitle}</span><p className="line-clamp-2 min-w-0 break-words text-body" title={scope}>{scope}</p></div></div>
+          <div className="mt-auto border-t border-dashed border-border pt-md"><div className={styles.fieldRow}><StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel><p className="line-clamp-2 min-w-0 break-words text-body" title={scope}>{scope}</p></div></div>
         </CardContent></Card>;
       })}</RelatedDisclosure>
     </>}
@@ -117,12 +118,12 @@ export function StrategyDetailHandoff({ plan:p, rows, children }: { readonly pla
     <Card className="min-w-0 py-lg" data-strategy-handoff-card><CardContent className="flex min-w-0 flex-col gap-lg">
     <div className={styles.handoff}>
       <div className={styles.handoffRow}>
-        <span className="text-body-small text-muted-foreground">{T.openPlanning}</span>
+        <StrategyDetailLabel icon="chart-bar">{T.openPlanning}</StrategyDetailLabel>
         {linked.length?<div className="flex min-w-0 flex-wrap gap-sm">{linked.map(r=><Link key={r.revisionId} href={`/planning?year=${r.year}&revision=${r.revisionId}`} className="text-body transition-colors hover:text-primary-text">{r.year} / V{r.version}</Link>)}</div>:<p className="text-body">{rows===null?T.unknown:H.none}</p>}
         <Button asChild size="md" variant="ghost"><Link href="/planning">{D.viewPlanning}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
       </div>
       <div className={styles.handoffRow}>
-        <span className="text-body-small text-muted-foreground">{T.openCampaigns}<span className="ml-xs tabular-nums">{p.campaigns?.length ?? "-"}</span></span>
+        <StrategyDetailLabel icon="ticket">{T.openCampaigns}<span className="ml-xs tabular-nums">{p.campaigns?.length ?? "-"}</span></StrategyDetailLabel>
         <p className="line-clamp-2 min-w-0 text-body" title={p.campaigns?.map(c=>c.name).join(" / ")}>{p.campaigns?.map(c=>c.name).join(" / ") || (p.campaigns===null?T.unknown:T.noCampaigns)}</p>
         <Button asChild size="md" variant="ghost"><Link href="/campaign">{D.viewCampaigns}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
       </div>
