@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 import type { ReactNode } from "react";
-import { Card, CardContent, Icon, ViewLayout, type IconName } from "@vxture/design-ui";
+import { Icon, ViewLayout, type IconName } from "@vxture/design-ui";
 import type { MarketStrategyReference, MarketView } from "../lib/market-strategy";
 import { strategyOfferings } from "../lib/strategy-offerings";
 import { strategyPeriodLabel, strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
@@ -15,6 +16,7 @@ import { Section } from "./help-section";
 import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { MarketCustomers } from "./market-customers";
 import { Tag } from "./tag";
+import layout from "./strategy-info-card.module.css";
 import styles from "./market-detail.module.css";
 
 /** The segment owns its definition. Related records stay bounded references. */
@@ -46,7 +48,7 @@ export function MarketDetail({ market, canWrite, at }: {
       help={D.help} divider={false}
       pageActions={{ primary: canWrite ? <PageActionButton asChild><Link href={`/segment/new?id=${encodeURIComponent(market.id)}`}><Icon name="edit" size="sm" aria-hidden="true" />{T.editMarket}</Link></PageActionButton> : undefined }} />
     <Section title={F.conditions} icon="filter" help={<><p>{F.conditionRule}</p><p>{F.noConditions}</p></>}>
-      <Card className="min-w-0 py-lg"><CardContent>
+      <Card className="min-w-0"><CardContent>
         <dl className={styles.conditions}>{conditions.map(row => <div key={row.label} className={styles.field}>
           <dt><StrategyDetailLabel icon={row.icon}>{row.label}</StrategyDetailLabel></dt>
           <dd className="min-w-0 break-words text-body">{row.value.join(" / ") || (defined ? T.unlimited : T.undefined)}</dd>
@@ -54,7 +56,7 @@ export function MarketDetail({ market, canWrite, at }: {
       </CardContent></Card>
     </Section>
     {needSummary || insightRows.length ? <Section title={F.insights} icon="lightbulb" help={<><p>{F.help.needSummary}</p><p>{T.marketInsightHint}</p><p>{T.qualitativeHint}</p></>}>
-      <Card className="min-w-0 py-lg"><CardContent>
+      <Card className="min-w-0"><CardContent>
         <dl className={styles.insights}>
           <div className={`${styles.insight} col-span-full`} data-market-detail-summary>
             <dt><StrategyDetailLabel icon="clipboard">{F.needSummary}</StrategyDetailLabel></dt>
@@ -67,15 +69,15 @@ export function MarketDetail({ market, canWrite, at }: {
       </CardContent></Card>
     </Section> : null}
     <Section title={T.productSolutionsTitle} icon="squares-four" help={T.marketDefaultSolutionsHint}>
-      {offerings.length ? <div className={styles.references} data-market-detail-offerings>{offerings.map(row => <Card key={row.key} className="min-w-0 py-lg">
-        <CardContent className="flex min-w-0 flex-col gap-md">
+      {offerings.length ? <div className={styles.references} data-market-detail-offerings>{offerings.map(row => <Card variant="reference" key={row.key} className="min-w-0">
+        <CardContent>
           <Link href={row.href} className="flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={row.name}>
-            <Icon name={row.icon} size="md" className="shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="line-clamp-2 min-w-0 break-words">{row.name}</span>
             <Icon name="arrow-right" size="sm" className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" />
           </Link>
           <p className="line-clamp-1 min-w-0 text-body-small text-muted-foreground" title={row.code}>{row.code}</p>
-          <div className="mt-auto flex flex-wrap items-center gap-sm border-t border-dashed border-border pt-sm text-body-small text-muted-foreground">
+          <div className={`mt-auto flex flex-wrap items-center gap-sm text-body-small text-muted-foreground ${layout.divider}`}>
             <span>{row.kind === "product" ? T.productKind : T.solutionKind}</span>
             {row.novelty ? <Tag>{R[row.novelty]}</Tag> : null}
             {row.status === "retired" ? <Tag>{T.retiredSolution}</Tag> : null}
@@ -85,7 +87,7 @@ export function MarketDetail({ market, canWrite, at }: {
       {market.defaultSolutions == null || market.defaultProducts == null ? <DetailEmpty>{T.unknown}</DetailEmpty> : null}
     </Section>
     <Section title={D.strategies} icon="flag" help={D.strategyHelp}>
-      {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card key={plan.id} className="min-w-0 py-lg"><CardContent className="flex min-w-0 flex-col gap-md">
+      {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card variant="reference" key={plan.id} className="min-w-0"><CardContent>
         <div className="flex min-w-0 items-center gap-sm" data-market-strategy-heading>
           <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 flex-1 items-center gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
             <Icon name="graph" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate">{plan.name}</span>
@@ -109,7 +111,7 @@ export function MarketDetail({ market, canWrite, at }: {
       </CardContent></Card>)}</div> : <DetailEmpty>{market.plans === null ? T.unknown : D.noStrategies}</DetailEmpty>}
     </Section>
     <Section title={D.coverage} icon="users" help={<><p>{D.coverageHelp}</p><p>{T.previewWhy}</p><p>{T.baseOnly}</p></>}>
-      <Card className="min-w-0 py-lg"><CardContent className="flex min-w-0 flex-col gap-lg">
+      <Card className="min-w-0"><CardContent className="flex min-w-0 flex-col gap-lg">
         <dl className={styles.coverage}>{[
           { label: T.customerCount, value: market.matched },
           { label: T.assigned, value: market.assigned },
@@ -123,5 +125,5 @@ export function MarketDetail({ market, canWrite, at }: {
 }
 
 function DetailEmpty({ children }: { readonly children: ReactNode }) {
-  return <Card className="min-w-0 py-lg"><CardContent className="text-body text-muted-foreground">{children}</CardContent></Card>;
+  return <Card className="min-w-0"><CardContent className="text-body text-muted-foreground">{children}</CardContent></Card>;
 }

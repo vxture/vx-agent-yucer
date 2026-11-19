@@ -1,11 +1,11 @@
 "use client";
 
+import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
+
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Banner,
   Button,
-  Card,
-  CardContent,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -168,7 +168,7 @@ export function StrategyGoals({
       {onChange ? (
         <div className="flex flex-col gap-md" data-strategy-goal-editor>
           {value.goals.map((g, i) => (
-            <Card key={g.id} className="py-lg">
+            <Card key={g.id} >
               <CardContent className="@container flex flex-col gap-md">
                 <div
                   className="grid grid-cols-1 gap-md @md:grid-cols-2 @2xl:grid-cols-4"
@@ -314,9 +314,9 @@ function SupplementSection({
 }) {
   return (
     <Section title={title} icon={icon} help={help} data-strategy-supplement={icon === "wallet" ? "resources" : "milestones"}>
-      {preview ? <StrategyPreviewCard title={title} detail={preview} className="w-full min-w-0 py-lg">
+      {preview ? <StrategyPreviewCard variant="detail" title={title} detail={preview} className="w-full min-w-0">
         <CardContent>{children}</CardContent>
-      </StrategyPreviewCard> : <Card className="w-full min-w-0 py-lg">
+      </StrategyPreviewCard> : <Card className="w-full min-w-0">
         <CardContent>{children}</CardContent>
       </Card>}
     </Section>
@@ -415,7 +415,7 @@ export function StrategyAdvanced({
         .map((m) => (
           <li
             key={m.id}
-            className="relative flex flex-col gap-sm pb-xl pl-xl last:pb-0"
+            className="relative flex flex-col gap-sm pb-lg pl-lg last:pb-0"
           >
             <span
               className="absolute -left-2 top-xs size-4 rounded-full border border-primary/20 bg-background"
@@ -423,15 +423,15 @@ export function StrategyAdvanced({
             >
               <span className="m-1 block size-2 rounded-full bg-primary" />
             </span>
-            <div className="flex flex-wrap items-center gap-x-md gap-y-xs text-sm" data-strategy-milestone-heading>
-              <span className="min-w-0 break-words text-sm font-medium">{m.name || "-"}</span>
-              <span className="text-sm tabular-nums text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-md gap-y-xs text-body" data-strategy-milestone-heading>
+              <span className="min-w-0 break-words text-body font-medium">{m.name || "-"}</span>
+              <span className="text-body tabular-nums text-muted-foreground">
                 {m.startOn || "-"} ~ {m.endOn || "-"}
               </span>
               {m.ownerSub ? <MemberName sub={m.ownerSub} /> : null}
             </div>
             {m.deliverable ? (
-              <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">
+              <p className="whitespace-pre-wrap break-words text-body text-muted-foreground">
                 {m.deliverable}
               </p>
             ) : null}
@@ -548,7 +548,7 @@ export function StrategyAdvanced({
   );
   const legacy = risks.length ? (
     <Section title={T.risks} icon="shield">
-      <Card className="min-w-0 py-lg"><CardContent>
+      <Card className="min-w-0"><CardContent>
       <div className="flex flex-col gap-md">
         {risks.map((r) => (
           <div key={r.id} className="grid grid-cols-1 gap-md @xl:grid-cols-2">
@@ -563,15 +563,15 @@ export function StrategyAdvanced({
     </Section>
   ) : null;
   const resourceSummary = (expanded = false) => (
-    <dl className={`grid grid-cols-1 gap-lg text-sm ${expanded ? "" : "@xl:grid-cols-3"}`} data-strategy-resources>
+    <dl className={`grid grid-cols-1 gap-md text-body ${expanded ? "" : "@xl:grid-cols-3"}`} data-strategy-resources>
       {(["people", "funds", "technology"] as const)
         .filter(k => value.resources[k].trim() || value.resources[`${k}Note`].trim())
         .map(k => <div key={k} className={readingStyles.resourceFact}>
           <dt><StrategyDetailLabel icon={k === "people" ? "users" : k === "funds" ? "coins" : "cpu"}>{T[k]}</StrategyDetailLabel></dt>
-          {value.resources[k].trim() ? <dd className="min-w-0 break-words text-sm tabular-nums">
+          {value.resources[k].trim() ? <dd className="min-w-0 break-words text-body tabular-nums">
             <StrategyQuantity value={Number(value.resources[k]).toLocaleString(locale,{maximumFractionDigits:2})} unit={resourceUnits[k]}/>
           </dd> : null}
-          {value.resources[`${k}Note`].trim() ? <dd className={`${readingStyles.resourceNote} min-w-0 whitespace-pre-wrap break-words text-sm text-muted-foreground ${expanded ? "" : "line-clamp-2"}`}>
+          {value.resources[`${k}Note`].trim() ? <dd className={`${readingStyles.resourceNote} min-w-0 whitespace-pre-wrap break-words text-body text-muted-foreground ${expanded ? "" : "line-clamp-2"}`}>
             {value.resources[`${k}Note`]}
           </dd> : null}
         </div>)}

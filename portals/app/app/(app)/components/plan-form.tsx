@@ -1,5 +1,7 @@
 "use client";
 
+import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
+
 import { FormChoice } from "./form-choice";
 import { StrategyGoals, StrategyAdvanced, StrategyConsistency, StrategyPaths } from "./strategy-result-fields";
 import { StrategyDraftAssistant } from "./strategy-draft-assistant";
@@ -10,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
-  Button, Card, CardContent,
+  Button,
   Field,
   FieldLabel, FieldError,
   Input,
@@ -224,7 +226,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
           <fieldset disabled={saving || assisting} className="flex min-w-0 flex-col gap-xl">
           <Section title={R.basic} icon="clipboard" help={<><p>{T.draftOnlyHint}</p><p>{T.numberHint}</p></>}
             action={<span className="inline-flex items-center gap-sm text-body-small text-muted-foreground">{T.creator} <MemberName sub={creatorSub} fallback={T.creatorUnknown}/></span>}>
-            <Card className="py-lg" data-strategy-basic-card><CardContent>
+            <Card data-strategy-basic-card><CardContent>
               <div className="grid grid-cols-1 gap-x-lg gap-y-lg @2xl:grid-cols-3">
                 <Field><FieldLabel required htmlFor="strategy-name">{STRATEGY_TEXT.newPlanName}</FieldLabel>
                   <Input id="strategy-name" value={name} disabled={submit.pending} onChange={e=>setName(e.target.value)} aria-required="true"/>

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 import type { ReactNode } from "react";
-import { Card, CardContent, Icon, type IconName } from "@vxture/design-ui";
+import { Icon, type IconName } from "@vxture/design-ui";
 import { StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import { MemberName } from "../lib/member-names";
@@ -60,7 +61,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
         {!rows?.length ? <span className={`${styles.referenceText} text-muted-foreground`}>{rows===null?T.unknown:empty}</span>:null}
       </div>
     </div>;
-  return <Card className={`${styles.charter} ${look.color}`} surface="soft" data-strategy-card data-strategy-theme={theme}>
+  return <Card variant="overview" className={`${styles.charter} ${look.color}`} surface="soft" data-strategy-card data-strategy-theme={theme}>
     <div className={styles.ambience} aria-hidden="true"/>
     <div className={styles.illustration} style={{maskImage:`url(/assets/strategy/${theme}.svg)`}} aria-hidden="true"/>
     <CardContent className={styles.content}>
@@ -114,7 +115,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
         <dl className={styles.metrics} data-strategy-metrics>
           {metrics.map(m=><div key={m.key} className="flex min-w-0 items-center gap-sm" data-strategy-metric>
             <dt className="truncate text-body-small text-muted-foreground">{m.label}</dt>
-            <dd className="text-heading-3 tabular-nums text-foreground">{m.value==null?<span title={T.unknown} aria-label={T.unknown}>&mdash;</span>:<StrategyQuantity value={m.value.toLocaleString(locale)} unit={m.unit}/>}</dd>
+            <dd className="text-body font-medium tabular-nums text-foreground">{m.value==null?<span title={T.unknown} aria-label={T.unknown}>&mdash;</span>:<StrategyQuantity value={m.value.toLocaleString(locale)} unit={m.unit}/>}</dd>
           </div>)}
         </dl>
       </div>

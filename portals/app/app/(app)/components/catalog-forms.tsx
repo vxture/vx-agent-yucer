@@ -1,11 +1,13 @@
 "use client";
 
+import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
+
 import { Section } from "./help-section";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Button, Card, CardContent,
+  Button,
   Field,
   FieldDescription,
   FieldLabel,
@@ -130,7 +132,7 @@ export function NewProductForm({
     <FormPage
       form={
         <div className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]">
-          <Card className="py-lg" data-product-basic-card><CardContent>
+          <Card data-product-basic-card><CardContent>
             <FormFields>
               <Field>
                 <FieldLabel htmlFor="product-name">{CATALOG_TEXT.colName} <span aria-hidden="true">*</span></FieldLabel>

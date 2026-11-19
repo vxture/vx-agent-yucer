@@ -1,0 +1,56 @@
+.card {
+  min-width: 0;
+  gap: 0;
+  padding-block: var(--strategy-card-inset);
+}
+
+.overview, .detail {
+  --strategy-card-inset: var(--space-lg);
+  --strategy-card-row-gap: var(--space-md);
+  --strategy-card-section-gap: var(--space-lg);
+}
+
+.reference {
+  --strategy-card-inset: var(--space-md);
+  --strategy-card-row-gap: var(--space-sm);
+  --strategy-card-section-gap: var(--space-md);
+}
+
+.content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--strategy-card-row-gap);
+  padding-inline: var(--strategy-card-inset);
+  font-size: var(--body-font-size);
+  line-height: var(--body-line-height);
+}
+
+.field {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: var(--strategy-label-width, 7em) minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: var(--space-sm);
+  row-gap: var(--space-xs);
+}
+
+.field > :first-child { white-space: nowrap; }
+.field > :last-child { min-width: 0; overflow-wrap: anywhere; }
+
+.divider {
+  border-top: 1px dashed var(--border);
+  padding-top: var(--strategy-card-row-gap, var(--space-md));
+}
+
+.drawer {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding-bottom: var(--space-lg);
+  font-size: var(--body-font-size);
+  line-height: var(--body-line-height);
+}
+
+:global(html:lang(en)) .field { --strategy-label-width: 11em; }

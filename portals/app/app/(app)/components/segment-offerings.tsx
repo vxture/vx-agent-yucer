@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { Button, Card, CardHeader, CardTitle, Drawer, Icon, Section, SectionHeader } from "@vxture/design-ui";
+import Link from "next/link";
+import { Button, Drawer, Icon, Section, SectionHeader } from "@vxture/design-ui";
+import { StrategyInfoCard, StrategyInfoContent } from "./strategy-info-card";
+import { collectionDrawerWidth } from "./collection-layout";
 import type { SegmentVocabulary } from "../../domains/strategy/lib/segment-draft";
 import { useMessages } from "../lib/i18n/provider";
 import { strategyOfferings, type StrategyOffering } from "../lib/strategy-offerings";
@@ -38,15 +41,12 @@ export function SegmentOfferings({ vocabulary, selection, disabled, help, onChan
       </Button> : undefined} />
     {selected.length ? <div className="@container">
       <div className="grid grid-cols-1 gap-lg @xl:grid-cols-2 @5xl:in-data-workspace-full-width:grid-cols-3" data-segment-offering-grid>
-        {selected.map(row => <Card key={row.key} className="min-w-0 gap-sm py-md" data-segment-offering={row.kind}>
-          <CardHeader><div className="flex min-w-0 items-start gap-sm">
-            <Icon name={row.icon} size="lg" aria-hidden="true" className={row.kind === "product" ? "shrink-0 text-muted-foreground" : "shrink-0 text-primary-text"} />
-            <div className="flex min-w-0 flex-col gap-xs">
-              <CardTitle className="break-words">{row.name}</CardTitle>
-              <span className="break-words text-body-small text-muted-foreground">{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span>
-            </div>
-          </div></CardHeader>
-        </Card>)}
+        {selected.map(row => <StrategyInfoCard key={row.key} variant="reference" data-segment-offering={row.kind}><StrategyInfoContent>
+          <Link href={row.href} className="inline-flex min-w-0 items-start gap-xs text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline">
+            <Icon name={row.icon} size="sm" aria-hidden="true" className="shrink-0 text-muted-foreground" /><span className="line-clamp-2 break-words">{row.name}</span>
+          </Link>
+          <span className="break-words text-body-small text-muted-foreground">{row.kind === "product" ? T.productKind : T.solutionKind}{` \u00b7 ${row.code}`}{row.status === "retired" ? ` \u00b7 ${T.retiredSolution}` : ""}</span>
+        </StrategyInfoContent></StrategyInfoCard>)}
       </div>
     </div> : vocabulary.solutions !== null && vocabulary.products !== null
       ? <p className="text-body-small text-muted-foreground">{F.noneSelected}</p> : null}
@@ -70,7 +70,7 @@ function OfferingDrawer({ vocabulary, original, draft, onChange, onClose, onAppl
   const count = rows.filter(row => draft[selectionKey(row.kind)].includes(row.id)).length;
   const dirty = (["productIds", "solutionIds"] as const).some(key =>
     original[key].length !== draft[key].length || draft[key].some(value => !original[key].includes(value)));
-  return <Drawer open onClose={onClose} width="md" className="max-w-full" title={F.offerings} closeLabel={T.closed}
+  return <Drawer open onClose={onClose} width={collectionDrawerWidth.standard} className="max-w-full" title={F.offerings} closeLabel={T.closed}
     footer={<div className="flex w-full flex-wrap items-center justify-between gap-sm">
       <output className="text-body-small text-muted-foreground">{T.relationSelectedCount} {count}</output>
       <div className="ml-auto flex gap-sm"><Button type="button" size="xl" variant="secondary" onClick={onClose}>{T.relationCancel}</Button>

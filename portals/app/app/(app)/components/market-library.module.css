@@ -4,18 +4,13 @@
 }
 
 .field {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-sm);
-  min-width: 0;
+  composes: field from "./strategy-info-card.module.css";
 }
 
 .label {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  padding-block: var(--space-2xs);
   white-space: nowrap;
   font-size: var(--body-small-font-size);
   line-height: var(--body-line-height);

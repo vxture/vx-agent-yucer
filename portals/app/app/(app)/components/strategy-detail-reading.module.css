@@ -4,20 +4,10 @@
   gap: var(--space-md) var(--space-lg);
 }
 .fieldRow {
-  display: grid;
-  grid-template-columns: var(--strategy-label-width, calc(var(--space-xl) * 2 + var(--space-lg))) minmax(0, 1fr);
-  align-items: baseline;
-  gap: var(--space-sm);
-  min-width: 0;
+  composes: field from "./strategy-info-card.module.css";
 }
-.fieldRow > :first-child { white-space: nowrap; }
 .position {
-  display: grid;
-  grid-template-columns: var(--strategy-label-width, calc(var(--space-xl) * 2 + var(--space-lg))) minmax(0, 1fr);
-  align-items: baseline;
-  gap: var(--space-sm);
-  border-top: 1px dashed var(--border);
-  padding-top: var(--space-md);
+  composes: field divider from "./strategy-info-card.module.css";
 }
 .goalTable { min-width: 0; overflow-x: auto; }
 .goalTable table { width: 100%; min-width: 40rem; table-layout: fixed; }
@@ -26,12 +16,11 @@
 .goalValueColumn { width: 23%; }
 .goalDateColumn { width: 18%; }
 .relatedGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
-.referenceFact { display: grid; grid-template-columns: var(--strategy-label-width, calc(var(--space-xl) * 2 + var(--space-lg))) minmax(0, 1fr); gap: var(--space-sm); }
+.referenceFact { composes: field from "./strategy-info-card.module.css"; }
 .handoff { display: grid; align-items: start; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-lg); }
-.handoffRow { display: grid; grid-template-columns: var(--strategy-label-width, calc(var(--space-xl) * 2 + var(--space-lg))) minmax(0, 1fr) auto; align-items: start; gap: var(--space-md); min-width: 0; }
-.handoffRow > :not(:last-child) { margin-top: var(--space-2xs); }
+.handoffRow { display: grid; grid-template-columns: var(--strategy-label-width, 7em) minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm); min-width: 0; }
 .handoffRow > :first-child { white-space: nowrap; }
-.resourceFact { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: var(--space-sm); min-width: 0; }
+.resourceFact { composes: field from "./strategy-info-card.module.css"; }
 .resourceNote { grid-column: 1 / -1; min-width: 0; }
 .previewCard { position: relative; }
 .previewCard .previewTrigger {
@@ -52,7 +41,7 @@
 .previewCard a, .previewCard [data-preview-actions] { position: relative; z-index: 2; }
 .previewCard a, .previewCard a:hover { text-decoration: none; }
 .previewFacts { display: flex; flex-direction: column; gap: var(--space-md); }
-.previewFacts > div { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--space-md); }
+.previewFact { composes: field from "./strategy-info-card.module.css"; }
 .previewFacts dt { display: flex; align-items: start; }
 .previewFacts dd { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .previewLinks { display: flex; flex-direction: column; gap: var(--space-sm); }

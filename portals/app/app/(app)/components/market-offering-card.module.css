@@ -27,11 +27,12 @@
 }
 
 .body {
+  composes: divider from "./strategy-info-card.module.css";
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: var(--space-lg);
+  gap: var(--strategy-card-row-gap) var(--strategy-card-section-gap);
 }
-.marketBody { grid-template-columns: minmax(0, 1fr); gap: var(--space-md); }
+.marketBody { grid-template-columns: minmax(0, 1fr); }
 .card[data-market-offering-card="market"] .art { opacity: .06; }
 
 @container (max-width: 40rem) {
