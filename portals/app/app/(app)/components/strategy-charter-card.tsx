@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Card, CardContent, Icon, type IconName } from "@vxture/design-ui";
+import { StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -24,7 +25,7 @@ const looks: Record<StrategyTheme | "corporate", {icon: IconName; color: string}
 export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   readonly plan: StrategyView; readonly actions: ReactNode; readonly draftAvailable: boolean;
 }) {
-  const { STRATEGY_HANDOFF_TEXT:H, STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T, PLAN_STATUS_LABEL }=useMessages();
+  const { STRATEGY_HANDOFF_TEXT:H, STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T, STRATEGY_DETAIL_TEXT:D, PLAN_STATUS_LABEL }=useMessages();
   const locale=useLocale();
   const theme=p.strategyType?.theme ?? "corporate";
   const look=looks[theme] ?? looks.corporate;
@@ -32,7 +33,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   const markets=p.targetMarkets?.toSorted((a,b)=>Number(b.intent==="focus")-Number(a.intent==="focus"));
   const offerings=p.solutions===null || p.products===null ? null : strategyOfferings(p.solutions,p.products);
 
-  const goals=p.result?.goals.map(g=>({id:g.id,name:g.name,amount:g.target,unit:g.unit,metric:g.metric}))
+  const goals=p.result?.goals.map(g=>({id:g.id,name:g.name,amount:g.target,unit:g.unit && g.unit!=="count"?g.unit:R.count,metric:g.metric}))
     ?? p.expectations?.map(g=>({id:g.id,name:H[g.metric],amount:g.amount,unit:g.currency ?? H.count,metric:g.metric})) ?? [];
   const completedGoals=goals.filter(g=>g.amount.trim()!=="" && Number.isFinite(Number(g.amount)));
   const goalMetrics=["revenue","channels","reference_cases"] as const;
@@ -45,8 +46,8 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
   ].slice(0,visibleGoalCount);
   const otherGoals=orderedGoals.slice(visibleGoalCount);
   const metrics=[
-    {key:"customers",label:T.customerCount,value:p.customerCount},
-    {key:"campaigns",label:T.campaignCount,value:p.campaigns?.length},
+    {key:"customers",label:T.customerCount,unit:D.customerUnit,value:p.customerCount},
+    {key:"campaigns",label:T.campaignCount,unit:D.campaignUnit,value:p.campaigns?.length},
   ] as const;
   const relation=(title:string,rows:readonly {id:string;name:string;href:string;icon?:IconName}[] | null | undefined,empty:string)=>
     <div className={styles.relation}>
@@ -113,7 +114,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
         <dl className={styles.metrics} data-strategy-metrics>
           {metrics.map(m=><div key={m.key} className="flex min-w-0 items-center gap-sm" data-strategy-metric>
             <dt className="truncate text-body-small text-muted-foreground">{m.label}</dt>
-            <dd className="text-heading-3 tabular-nums text-foreground">{m.value==null?<span title={T.unknown} aria-label={T.unknown}>&mdash;</span>:m.value.toLocaleString(locale)}</dd>
+            <dd className="text-heading-3 tabular-nums text-foreground">{m.value==null?<span title={T.unknown} aria-label={T.unknown}>&mdash;</span>:<StrategyQuantity value={m.value.toLocaleString(locale)} unit={m.unit}/>}</dd>
           </div>)}
         </dl>
       </div>
