@@ -1,14 +1,13 @@
 "use client";
 import { StrategyFulfillmentPanel } from "./strategy-fulfillment-panel";
-import { StrategyGoals, StrategyAdvanced, StrategyPaths } from "./strategy-result-fields";
-import { StrategyExpectations } from "./strategy-expectations";
+import { StrategyAdvanced } from "./strategy-result-fields";
+import { StrategyDetailBasic, StrategyDetailGoals, StrategyDetailMarkets, StrategyDetailOfferings, StrategyDetailHandoff } from "./strategy-detail-reading";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Collapsible, CollapsibleContent, CollapsibleTrigger, DetailList, DetailRow, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, SegmentedControl, ViewLayout, useToast, type ActionMenuItem } from "@vxture/design-ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, SegmentedControl, ViewLayout, useToast, type ActionMenuItem } from "@vxture/design-ui";
 import { ViewHeader } from "./business-controls";
-import { Section, SectionHeader } from "./help-section";
 import { TitleHelp } from "./title-help";
 import { FilterSlot, RowActions, SearchSlot } from "./table-fittings";
 import { ModuleHeadline } from "./module-headline";
@@ -17,14 +16,14 @@ import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 import { PageActionButton } from "./page-header-actions";
 import { PageCrumbs } from "./page-crumbs";
+import { StrategyDetailLabel } from "./strategy-detail-label";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
 import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
-import { StrategyMarketCards, StrategySolutionCards } from "./strategy-selection-cards";
 import { DialogForm } from "./dialog-form";
-import { strategyPeriodRangeLabel, strategyPeriodLabel } from "../../domains/strategy/lib/plan-period";
+import { strategyPeriodLabel } from "../../domains/strategy/lib/plan-period";
 import { currentStrategyPlans } from "../../domains/strategy/store";
 import { StrategyCharterCard } from "./strategy-charter-card";
 import { Tag } from "./tag";
@@ -161,47 +160,14 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       {selected.some(p=>p.results===null)?<p className="text-body-small text-muted-foreground">{T.unknown}</p>:null}
     </div>;
   };
+  const detailFulfillment=detail ? data.fulfillment?.filter(r=>r.acceptance.lineageId===(detail.lineageId ?? detail.id)) ?? null : null;
   const detailContent=detail?<>
-    <Collapsible defaultOpen className="flex flex-col gap-md" data-strategy-basic-section>
-      <SectionHeader title={T.basicInfo} icon="clipboard" action={<div className="flex items-center gap-md">
-        {detail.createdBySub ? <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground">{T.creator}<MemberName sub={detail.createdBySub}/></span> : null}
-        <CollapsibleTrigger asChild><Button size="icon-xl" variant="ghost" className="group" aria-label={T.basicInfo}><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/></Button></CollapsibleTrigger>
-      </div>}/>
-      <CollapsibleContent><Card className="py-lg" data-strategy-basic-card><CardContent><div className="flex flex-col gap-lg">
-        <DetailList columns={3} data-strategy-basic-facts>
-          <DetailRow label={R.value}>{detail.resultOptions?.find(o=>o.id===detail.result?.valuePropositionId)?.name ?? "-"}</DetailRow>
-          <DetailRow label={T.strategyType}>{detail.strategyType?.name ?? T.typeUnclassified}</DetailRow>
-          <DetailRow label={T.executionWindow}><span className="inline-flex min-h-control-md items-center tabular-nums">{strategyPeriodRangeLabel(detail.period) ?? T.periodNeedsDates}</span></DetailRow>
-          <DetailRow label={R.paths}>{detail.result?<StrategyPaths value={detail.result} options={detail.resultOptions??[]}/>:"-"}</DetailRow>
-          <DetailRow label={T.owner}><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></DetailRow>
-          <DetailRow label={T.publishedAt}><span className="inline-flex min-h-control-md items-center tabular-nums">{detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString(locale) : "-"}</span></DetailRow>
-        </DetailList>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-md gap-y-md border-t border-dashed border-primary/10 pt-md text-body-small" data-strategy-detail-direction>
-          <dt className="text-muted-foreground">{R.positioning}</dt><dd className="min-w-0 whitespace-pre-wrap break-words text-body">{detail.objective || T.directionEmpty}</dd>
-          {detail.changeReason ? <><dt className="text-muted-foreground">{T.changeReason}</dt><dd className="min-w-0 whitespace-pre-wrap break-words">{detail.changeReason}</dd></> : null}
-        </dl>
-      </div></CardContent></Card></CollapsibleContent>
-    </Collapsible>
-    {detail.result?<StrategyGoals value={detail.result} currency={data.currency}/>:<StrategyExpectations value={detail.expectations ?? []}/>}
-    <Section title={T.targetMarketsTitle} icon="target" help={T.targetMarketBasis}>
-      <StrategyMarketCards detail markets={detail.targetMarkets} actions={m => data.canCreateCampaign && detail.status === "active" && detail.targetMarkets?.find(t => t.segmentId === m.segmentId)?.status === "active"
-        ? <Button asChild size="md" variant="secondary"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(m.segmentId)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button> : null}/>
-    </Section>
-    <Section title={T.productSolutionsTitle} icon="squares-four">
-      <StrategySolutionCards detail products={detail.products} sharedProductIds={detail.sharedProducts?.map(p=>p.id)} solutions={detail.solutions} sharedIds={detail.sharedSolutions?.map(s => s.id)}
-        markets={detail.targetMarkets?.map(m => ({marketName:m.marketName, productIds:m.products?.map(p=>p.id), solutionIds:m.solutions?.map(s => s.id)})) ?? []}/>
-    </Section>
+    <StrategyDetailGoals plan={detail}/>
+    <StrategyDetailMarkets plan={detail} actions={id=>data.canCreateCampaign && detail.status==="active" && detail.targetMarkets?.find(m=>m.segmentId===id)?.status==="active"
+      ? <Button asChild size="md" variant="ghost"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(id)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button>:null}/>
+    <StrategyDetailOfferings plan={detail}/>
     {detail.result?<StrategyAdvanced value={detail.result} currency={data.currency}/>:null}
-    <StrategyFulfillmentPanel rows={data.fulfillment?.filter(r => r.acceptance.lineageId === (detail.lineageId ?? detail.id)) ?? null}/>
-    <Section title={T.handoff} icon="workflow" action={<div className="flex flex-wrap items-center gap-sm">
-      <Button asChild variant="secondary" size="md"><Link href="/planning">{T.openPlanning}</Link></Button>
-      <Button asChild variant="secondary" size="md"><Link href="/campaign">{T.openCampaigns}</Link></Button>
-    </div>}>
-      <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
-        <span>{T.campaignCount} {number(detail.campaigns?.length)}</span>
-        {detail.campaigns?.length ? detail.campaigns.map(c=><Tag key={c.id}>{c.name}</Tag>) : <span>{detail.campaigns===null?T.unknown:T.noCampaigns}</span>}
-      </div>
-    </Section>
+    <StrategyDetailHandoff plan={detail} rows={detailFulfillment}><StrategyFulfillmentPanel rows={detailFulfillment}/></StrategyDetailHandoff>
   </>:null;
   const workspaceContent = () => {
     if (detail) return detailContent;
@@ -215,9 +181,10 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const detailMenu = detail ? items(detail).filter(item => !["view", "publish", "revise"].includes(item.id)) : [];
   return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/>
-      <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
+      <div className="flex min-w-0 flex-col gap-lg" data-strategy-detail-intro>
+      <ViewHeader icon="graph" title={detail.name} divider={false} data-strategy-detail-header
         secondary={<span className="flex flex-wrap items-center gap-sm">{versionBadge(detail)}<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>{detail.versionNo && !isLatest(detail)?<Tag>{T.historicalVersion}</Tag>:null}</span>}
-        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.period} <span className="text-foreground">{strategyPeriodLabel(detail.period)}</span></span><span>{detail.planNo}</span></span>}
+        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{detail.planNo}</span>{detail.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs text-body"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={detail.createdBySub}/></span>:null}</span>}
         pageActions={{
           secondary: <>
             <PageActionButton asChild><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></PageActionButton>
@@ -230,7 +197,9 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
               ? <PageActionButton intent="primary" disabled={pending} onClick={() => revise(detail)}>{draftFor(detail) ? T.resumeDraft : T.reviseStrategy}</PageActionButton>
               : undefined,
           more: detailMenu.length ? <RowActions disabled={pending} items={detailMenu} /> : undefined,
-        }} /></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
+        }} />
+      <StrategyDetailBasic plan={detail}/>
+      </div></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
         pageActions={{
           view: viewActions,
           secondary: view === "overview" && data.canEdit ? <PageActionButton asChild><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></PageActionButton> : undefined,

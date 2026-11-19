@@ -31,6 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { StrategyDetailLabel } from "./strategy-detail-label";
+import readingStyles from "./strategy-detail-reading.module.css";
 import { FormChoice } from "./form-choice";
 import { StrategyDateRange } from "./strategy-date-range";
 import { MemberPicker } from "./member-picker";
@@ -563,6 +565,7 @@ export function StrategyAdvanced({
   );
   const legacy = risks.length ? (
     <Section title={T.risks} icon="shield">
+      <Card className="min-w-0 py-lg"><CardContent>
       <div className="flex flex-col gap-md">
         {risks.map((r) => (
           <div key={r.id} className="grid grid-cols-1 gap-md @xl:grid-cols-2">
@@ -573,33 +576,28 @@ export function StrategyAdvanced({
           </div>
         ))}
       </div>
+      </CardContent></Card>
     </Section>
   ) : null;
-  if (!onChange)
-    return (
-      <>
-        {count ? (
-          <Section title={T.advanced} icon="faders">
-            <div className="@container flex flex-col gap-xl">
-              {resource ? (
-                <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
-                  {resources}
-                </AdvancedPart>
-              ) : null}
-              {milestones.length ? (
-                <AdvancedPart title={T.milestones} icon="flag" filled={!!milestones.length}>
-                  {timeline}
-                </AdvancedPart>
-              ) : null}
-            </div>
-          </Section>
-        ) : null}
-        {legacy}
-      </>
-    );
+  const resourceSummary = (
+    <dl className="grid grid-cols-1 gap-md @xl:grid-cols-3" data-strategy-resources>
+      {(["people", "funds", "technology"] as const)
+        .filter(k => value.resources[k].trim() || value.resources[`${k}Note`].trim())
+        .map(k => <div key={k} className={readingStyles.fieldRow}>
+          <dt><StrategyDetailLabel icon={k === "people" ? "users" : k === "funds" ? "coins" : "cpu"}>{T[k]}</StrategyDetailLabel></dt>
+          {value.resources[k].trim() ? <dd className="min-w-0 break-words text-body tabular-nums">
+            {value.resources[k]}
+            {k === "funds" ? <span className="ml-xs text-body-small text-muted-foreground">{currency}</span> : null}
+          </dd> : null}
+          {value.resources[`${k}Note`].trim() ? <dd className={`${readingStyles.resourceNote} whitespace-pre-wrap break-words text-body-small text-muted-foreground`}>
+            {value.resources[`${k}Note`]}
+          </dd> : null}
+        </div>)}
+    </dl>
+  );
   return (
     <>
-      <Collapsible
+      {onChange || count ? <Collapsible
         className="@container flex flex-col gap-md"
         data-strategy-advanced
       >
@@ -626,18 +624,18 @@ export function StrategyAdvanced({
           }
         />
         <CollapsibleContent className="flex flex-col gap-lg">
-          <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
-            {resources}
-          </AdvancedPart>
-          <AdvancedPart
+          {onChange || resource ? <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
+            {onChange ? resources : resourceSummary}
+          </AdvancedPart> : null}
+          {onChange || milestones.length ? <AdvancedPart
             title={T.milestones}
             icon="flag"
             filled={!!milestones.length}
           >
             {stages}
-          </AdvancedPart>
+          </AdvancedPart> : null}
         </CollapsibleContent>
-      </Collapsible>
+      </Collapsible> : null}
       {legacy}
     </>
   );

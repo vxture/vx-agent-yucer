@@ -93,7 +93,7 @@ export const PAGE_BRIEF: Record<string, string> = {
   pricebook: "产品的标价与底价。",
   renewal: "订阅项目到期前的续约提醒。",
   lead: "新进线索的分派与跟进。",
-  campaign: "营销战役，以及它带来的线索。",
+  campaign: "\u8425\u9500\u6d3b\u52a8\uff0c\u4ee5\u53ca\u5b83\u5e26\u6765\u7684\u7ebf\u7d22\u3002",
   named: "重点盯防的指名客户。",
   delivery: "合同签下之后，项目交付得怎么样。",
   account: "全部客户，一处查看。",
@@ -718,7 +718,7 @@ export const DOMAIN_FACT_LABEL: Record<string, string> = {
   solutions: "解决方案",
   unpricedProducts: "未定价的产品",
   // recon
-  runningCampaigns: "进行中的战役",
+  runningCampaigns: "\u8fdb\u884c\u4e2d\u7684\u8425\u9500\u6d3b\u52a8",
   untriagedSignals: "待分诊的信号",
   stalledLeads: "已合格未转化的线索",
   // position
@@ -925,7 +925,7 @@ export const ASSIST_TEXT = {
   territoryUnsetWhy: "没有目标的区域在达成页上是「未设定」，不是零——先把空格点出来，数字由你定。",
   // 战场侦察域 / 战果沉淀域 / 阵地经营域（#186 批次）
   campaignEmpty: (name: string) => `${name} 还没有任何执行项`,
-  campaignEmptyWhy: "执行项是战役的血肉：完成要靠它们清零，回报也按它们计。进行中却没有一项，是还没拆成活的动作。",
+  campaignEmptyWhy: "\u6267\u884c\u9879\u662f\u8425\u9500\u6d3b\u52a8\u7684\u8840\u8089\uff1a\u5b8c\u6210\u8981\u9760\u5b83\u4eec\u6e05\u96f6\uff0c\u56de\u62a5\u4e5f\u6309\u5b83\u4eec\u8ba1\u3002\u8fdb\u884c\u4e2d\u5374\u6ca1\u6709\u4e00\u9879\uff0c\u662f\u8fd8\u6ca1\u62c6\u6210\u6d3b\u7684\u52a8\u4f5c\u3002",
   assigneeKnown: (v: string) => `常用负责人：${v}`,
   assigneeKnownWhy: "沿用已有写法，按人汇总时不会分家。",
   projectUnchecked: (name: string) => `${name} 还没有里程碑`,
@@ -2420,7 +2420,7 @@ export const SIGNIN_TEXT = {
   // are the long forms of the two that were short. Labels track the domain
   // vocabulary in 20-capability-domains.md - renaming a domain renames a stop.
   chainLabel: "全链路",
-  chain: ["市场战略", "销售规划", "市场战役", "商机信号", "销售线索", "商机管理", "交付项目", "回款到账"],
+  chain: ["\u5e02\u573a\u6218\u7565", "\u9500\u552e\u89c4\u5212", "\u8425\u9500\u6d3b\u52a8", "\u5546\u673a\u4fe1\u53f7", "\u9500\u552e\u7ebf\u7d22", "\u5546\u673a\u7ba1\u7406", "\u4ea4\u4ed8\u9879\u76ee", "\u56de\u6b3e\u5230\u8d26"],
 } as const;
 
 /**
@@ -2568,7 +2568,7 @@ export const BOARD_TEXT = {
     "signal.triage": "信号分拣",
     "pricing.discount_approval": "折扣审批",
     "delivery.payment_risk": "回款风险",
-    "campaign.return": "战役回报",
+    "campaign.return": "\u8425\u9500\u6d3b\u52a8\u56de\u62a5",
     "account.upsell": "增购机会",
     "account.consistency": "说法核对",
     "deal.evidence": "证据抽取",
@@ -2585,7 +2585,7 @@ export const BOARD_TEXT = {
   dealsOpen: "在办",
   dealsWorth: "金额",
   plans: "计划",
-  campaigns: "战役",
+  campaigns: "\u8425\u9500\u6d3b\u52a8",
   targets: "目标",
   territories: "区域",
   accounts: "客户",
@@ -3265,7 +3265,7 @@ export const PIPELINE_TEXT = {
   newSave: "建立商机",
   newMade: (no: string) => `已建立 ${no}`,
   newSelfSourced:
-    "从这里建立的商机归因为「自拓」，且创建后不可更改——归因键没有 UPDATE 授权。战役来源的商机应当由线索转化产生。",
+    "\u4ece\u8fd9\u91cc\u5efa\u7acb\u7684\u5546\u673a\u5f52\u56e0\u4e3a\u300c\u81ea\u62d3\u300d\uff0c\u4e14\u521b\u5efa\u540e\u4e0d\u53ef\u66f4\u6539\u2014\u2014\u5f52\u56e0\u952e\u6ca1\u6709 UPDATE \u6388\u6743\u3002\u8425\u9500\u6d3b\u52a8\u6765\u6e90\u7684\u5546\u673a\u5e94\u5f53\u7531\u7ebf\u7d22\u8f6c\u5316\u4ea7\u751f\u3002",
   productSplit: "承诺的构成",
   productSplitWhy: "按产品行项拆开。一个总额说不出这笔钱要交付什么。",
   needsApproval: "折扣待批",
@@ -3283,8 +3283,8 @@ export const LIFECYCLE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   illegal_transition: "当前状态不能直接变更为该状态",
   unknown_status: "未知状态",
-  executions_outstanding: "还有未完成的执行项；先完成或跳过它们再结束战役",
-  invalid_window: "战役的起止时间不合法",
+  executions_outstanding: "\u8fd8\u6709\u672a\u5b8c\u6210\u7684\u6267\u884c\u9879\uff1b\u5148\u5b8c\u6210\u6216\u8df3\u8fc7\u5b83\u4eec\u518d\u7ed3\u675f\u8425\u9500\u6d3b\u52a8",
+  invalid_window: "\u8425\u9500\u6d3b\u52a8\u7684\u8d77\u6b62\u65f6\u95f4\u4e0d\u5408\u6cd5",
   window_inverted: "结束时间不能早于开始时间",
   start_required: "写了结束时间就必须写开始时间",
   not_found: "记录不存在，或不属于当前工作区",
@@ -3569,9 +3569,9 @@ export const OPPORTUNITY_TEXT = {
   expectedClose: "预计成交",
   owner: "负责人",
   account: "客户",
-  campaign: "来源战役",
+  campaign: "\u6765\u6e90\u8425\u9500\u6d3b\u52a8",
   closedAt: "成交/关闭时间",
-  noAttribution: "无归因（非战役来源）",
+  noAttribution: "\u65e0\u5f52\u56e0\uff08\u975e\u8425\u9500\u6d3b\u52a8\u6765\u6e90\uff09",
   attributionFrozen: "归因键创建后不可修改，更正需走 db-init 数据订正",
 
   journeyTitle: "阶段轨迹",
@@ -4410,7 +4410,7 @@ export const UPGRADE_TEXT = {
     "copilot.suggest": "会话里让参谋动手",
     "strategy.plan": "市场战略",
     "strategy.segment": "细分市场",
-    "campaign.execute": "战役执行",
+    "campaign.execute": "\u8425\u9500\u6d3b\u52a8\u6267\u884c",
     "signal.external_feed": "外部信号源",
     "pipeline.winloss": "赢丢复盘",
     "delivery.revenue": "回款管理",
@@ -4445,19 +4445,19 @@ export const UPGRADE_TEXT = {
       advisor: { name: "区域达成趋势", body: "按区域看达成走势，哪里在掉队、差多少。" },
     },
     strategy: {
-      pitch: "战略是全链路的起点：写下要打哪些市场、怎么打，下游的战役、线索、商机都能回指到它。",
+      pitch: "\u6218\u7565\u662f\u5168\u94fe\u8def\u7684\u8d77\u70b9\uff1a\u5199\u4e0b\u8981\u6253\u54ea\u4e9b\u5e02\u573a\u3001\u600e\u4e48\u6253\uff0c\u4e0b\u6e38\u7684\u8425\u9500\u6d3b\u52a8\u3001\u7ebf\u7d22\u3001\u5546\u673a\u90fd\u80fd\u56de\u6307\u5230\u5b83\u3002",
       points: [
         { title: "战略方案", body: "分期写清目标、重点市场与打法，版本留痕。" },
-        { title: "细分市场", body: "把要打的市场切成有名字的块并排优先级，客户与战役都指向它。" },
-        { title: "全链回指", body: "战役、线索、商机都能追到它服务的是哪条战略。" },
+        { title: "\u7ec6\u5206\u5e02\u573a", body: "\u628a\u8981\u6253\u7684\u5e02\u573a\u5207\u6210\u6709\u540d\u5b57\u7684\u5757\u5e76\u6392\u4f18\u5148\u7ea7\uff0c\u5ba2\u6237\u4e0e\u8425\u9500\u6d3b\u52a8\u90fd\u6307\u5411\u5b83\u3002" },
+        { title: "\u5168\u94fe\u56de\u6307", body: "\u8425\u9500\u6d3b\u52a8\u3001\u7ebf\u7d22\u3001\u5546\u673a\u90fd\u80fd\u8ffd\u5230\u5b83\u670d\u52a1\u7684\u662f\u54ea\u6761\u6218\u7565\u3002" },
       ],
     },
     segment: {
-      pitch: "把要打的市场切成有名字的块，按优先级排；客户身上的细分、战役瞄准的目标，从此都有着落。",
+      pitch: "\u628a\u8981\u6253\u7684\u5e02\u573a\u5207\u6210\u6709\u540d\u5b57\u7684\u5757\uff0c\u6309\u4f18\u5148\u7ea7\u6392\uff1b\u5ba2\u6237\u8eab\u4e0a\u7684\u7ec6\u5206\u3001\u8425\u9500\u6d3b\u52a8\u7784\u51c6\u7684\u76ee\u6807\uff0c\u4ece\u6b64\u90fd\u6709\u7740\u843d\u3002",
       points: [
         { title: "命名与优先级", body: "每个细分有名字、定义和排序，工作区统一口径。" },
         { title: "客户归属", body: "客户按细分归档，哪块市场覆盖了多少客户一目了然。" },
-        { title: "战役瞄准", body: "战役可以瞄准其中一块，投入与回报按细分对得上。" },
+        { title: "\u8425\u9500\u6d3b\u52a8\u7784\u51c6", body: "\u8425\u9500\u6d3b\u52a8\u53ef\u4ee5\u7784\u51c6\u5176\u4e2d\u4e00\u5757\uff0c\u6295\u5165\u4e0e\u56de\u62a5\u6309\u7ec6\u5206\u5bf9\u5f97\u4e0a\u3002" },
       ],
       advisor: { name: "细分市场覆盖趋势", body: "每块市场的覆盖在变好还是变差。" },
     },
@@ -4476,7 +4476,7 @@ export const UPGRADE_TEXT = {
         { title: "来源归因", body: "活动带来的信号、线索、商机都回指这场活动。" },
         { title: "回报核算", body: "按赢单收入算回报，投入产出逐场对得上。" },
       ],
-      advisor: { name: "战役回报", body: "哪场活动在出单、哪场只在造管道。" },
+      advisor: { name: "\u8425\u9500\u6d3b\u52a8\u56de\u62a5", body: "\u54ea\u573a\u6d3b\u52a8\u5728\u51fa\u5355\u3001\u54ea\u573a\u53ea\u5728\u9020\u7ba1\u9053\u3002" },
     },
     signal: {
       pitch: "不等销售录入，主动发现商机线索；评分越高越值得先看。",
@@ -4492,7 +4492,7 @@ export const UPGRADE_TEXT = {
       points: [
         { title: "线索台账", body: "每条线索的来源、状态和负责人，一处看清。" },
         { title: "智能分配", body: "按区域和负载建议该谁接，采纳与否由你定。" },
-        { title: "转化商机", body: "合格即转成商机，来源战役与信号一路带过去。" },
+        { title: "\u8f6c\u5316\u5546\u673a", body: "\u5408\u683c\u5373\u8f6c\u6210\u5546\u673a\uff0c\u6765\u6e90\u8425\u9500\u6d3b\u52a8\u4e0e\u4fe1\u53f7\u4e00\u8def\u5e26\u8fc7\u53bb\u3002" },
       ],
     },
     funnel: {
@@ -4687,7 +4687,7 @@ export const AGENT_SUBJECT_LABEL: Record<string, string> = {
   lead: "线索",
   opportunity: "商机",
   project: "项目",
-  campaign: "战役",
+  campaign: "\u8425\u9500\u6d3b\u52a8",
   plan: "战略",
 };
 
@@ -4947,7 +4947,7 @@ export const TABLE_TOOLBAR_TEXT = {
   selectedRecords: (n: number) => `已选 ${n} 项`,
   selectRecord: (name: string) => `选择 ${name}`,
   clearSelection: "清除选择",
-  campaigns: "战役清单",
+  campaigns: "\u8425\u9500\u6d3b\u52a8\u6e05\u5355",
   leads: "线索清单",
   quotes: "报价清单",
   reviews: "复盘清单",
@@ -5147,7 +5147,7 @@ export const PLAYBOOK_TEXT = {
 export const PLAYBOOK_SCOPE_LABEL: Record<string, string> = {
   strategy: "战略",
   planning: "目标",
-  campaign: "战役",
+  campaign: "\u8425\u9500\u6d3b\u52a8",
   account: "客户",
   signal: "信号",
   pipeline: "商机",
@@ -6282,7 +6282,7 @@ export const STRATEGY_TEXT = {
   segmentAdviceOpenAccounts: "去客户管理",
   segmentsTitle: "细分市场",
   segmentsWhy:
-    "把要打的市场切成有名字的块，按优先级排。客户身上的细分代码指向这里，战役也可以瞄准其中一块——在此之前这些指向都是悬空的。",
+    "\u628a\u8981\u6253\u7684\u5e02\u573a\u5207\u6210\u6709\u540d\u5b57\u7684\u5757\uff0c\u6309\u4f18\u5148\u7ea7\u6392\u3002\u5ba2\u6237\u8eab\u4e0a\u7684\u7ec6\u5206\u4ee3\u7801\u6307\u5411\u8fd9\u91cc\uff0c\u8425\u9500\u6d3b\u52a8\u4e5f\u53ef\u4ee5\u7784\u51c6\u5176\u4e2d\u4e00\u5757\u2014\u2014\u5728\u6b64\u4e4b\u524d\u8fd9\u4e9b\u6307\u5411\u90fd\u662f\u60ac\u7a7a\u7684\u3002",
   segmentsNone: "还没有细分市场",
   segmentsNoneWhy:
     "客户档案里已经在用细分代码了，但它们还没有对应的定义。在下面建一个，代码对上就能连起来。",
@@ -6322,9 +6322,9 @@ export const STRATEGY_TEXT = {
   newPlanAnchor:
     "\u7f16\u53f7\u5728\u5de5\u4f5c\u7a7a\u95f4\u5185\u552f\u4e00\u4e14\u521b\u5efa\u540e\u56fa\u5b9a\uff1b\u5148\u4fdd\u5b58\u8349\u7a3f\uff0c\u518d\u6279\u51c6\u542f\u7528\u3002",
   title: "市场战略",
-  description: "战略是全链路的起点：下游的战役、线索、商机都能回指到它。",
-  leadNoCampaignRead: "没有战役读取权限，无法统计下游归属。",
-  columnCampaigns: "下游战役",
+  description: "\u6218\u7565\u662f\u5168\u94fe\u8def\u7684\u8d77\u70b9\uff1a\u4e0b\u6e38\u7684\u8425\u9500\u6d3b\u52a8\u3001\u7ebf\u7d22\u3001\u5546\u673a\u90fd\u80fd\u56de\u6307\u5230\u5b83\u3002",
+  leadNoCampaignRead: "\u6ca1\u6709\u8425\u9500\u6d3b\u52a8\u8bfb\u53d6\u6743\u9650\uff0c\u65e0\u6cd5\u7edf\u8ba1\u4e0b\u6e38\u5f52\u5c5e\u3002",
+  columnCampaigns: "\u4e0b\u6e38\u8425\u9500\u6d3b\u52a8",
   ownerNone: "未指派",
   columnName: "战略",
   columnPeriod: "周期",
@@ -6335,8 +6335,8 @@ export const STRATEGY_TEXT = {
   // --- the module page (2026-09-05) -----------------------------------------
   tagPlanRunning: (n: number) => `${n} 个执行中`,
   tagPlanSettled: (n: number) => `${n} 个已收口`,
-  tagPlanOrphan: (n: number) => `${n} 场战役无归属`,
-  planStatCampaigns: (period: string) => `${period} · 下游战役`,
+  tagPlanOrphan: (n: number) => `${n} \u573a\u8425\u9500\u6d3b\u52a8\u65e0\u5f52\u5c5e`,
+  planStatCampaigns: (period: string) => `${period} \u00b7 \u4e0b\u6e38\u8425\u9500\u6d3b\u52a8`,
   planStatEmpty: "当前没有执行中的计划，头部不做拆解。",
   rosterPlan: "战略计划",
   rosterPlanWhy:
@@ -6356,7 +6356,7 @@ export const STRATEGY_TEXT = {
   planAdviceTitle: "计划检查",
   planAdviceClear: "这批计划没有需要处理的地方。",
   planAdviceOpen: "打开计划",
-  planAdviceOpenCampaigns: "查看战役",
+  planAdviceOpenCampaigns: "\u67e5\u770b\u6d3b\u52a8",
   planAdviceOpenSegments: "查看细分",
   planAdviceApprove: "批准",
   planAdviceApproved: "已批准",
@@ -6364,8 +6364,8 @@ export const STRATEGY_TEXT = {
   planAdviceDraftStarted: (name: string) => `「${name}」的周期已经开始，它还是草稿。`,
   planAdviceNotActive: (name: string) => `「${name}」已批准，周期也开始了，但一直没有启用。`,
   planAdviceEarlyWork: (name: string, n: number) =>
-    `「${name}」还没有启用，底下已经挂了 ${n} 场战役。`,
-  planAdviceNoCampaign: (name: string) => `「${name}」在执行中，底下一场战役都没有。`,
+    `\u300c${name}\u300d\u8fd8\u6ca1\u6709\u542f\u7528\uff0c\u5e95\u4e0b\u5df2\u7ecf\u6302\u4e86 ${n} \u573a\u8425\u9500\u6d3b\u52a8\u3002`,
+  planAdviceNoCampaign: (name: string) => `\u300c${name}\u300d\u5728\u6267\u884c\u4e2d\uff0c\u5e95\u4e0b\u4e00\u573a\u8425\u9500\u6d3b\u52a8\u90fd\u6ca1\u6709\u3002`,
   planAdviceNoSegment: (name: string) => `「${name}」在执行中，但没有任何细分市场指向它。`,
   planAdviceNoObjective: (name: string) => `「${name}」没有写目标陈述。`,
   segmentCount: (n: number) => `${n} 个分层`,
@@ -6380,15 +6380,15 @@ export const PLAN_STATUS_LABEL: Record<string, string> = {
 };
 
 export const CAMPAIGN_TEXT = {
-  newCampaign: "新建战役",
+  newCampaign: "\u65b0\u5efa\u6d3b\u52a8",
   newExecution: "新增执行项",
-  editCampaign: "编辑战役",
-  newCampaignTitle: "新建战役",
-  newCampaignWhy: "战役是线索和商机归因的锚点：线索来自哪场战役，这里说了算。新建的战役先是草稿，之后在列表里排期、开始或取消。",
+  editCampaign: "\u7f16\u8f91\u6d3b\u52a8",
+  newCampaignTitle: "\u65b0\u5efa\u6d3b\u52a8",
+  newCampaignWhy: "\u8425\u9500\u6d3b\u52a8\u662f\u7ebf\u7d22\u548c\u5546\u673a\u5f52\u56e0\u7684\u951a\u70b9\uff1a\u7ebf\u7d22\u6765\u81ea\u54ea\u573a\u8425\u9500\u6d3b\u52a8\uff0c\u8fd9\u91cc\u8bf4\u4e86\u7b97\u3002\u65b0\u5efa\u7684\u8425\u9500\u6d3b\u52a8\u5148\u662f\u8349\u7a3f\uff0c\u4e4b\u540e\u5728\u5217\u8868\u91cc\u6392\u671f\u3001\u5f00\u59cb\u6216\u53d6\u6d88\u3002",
   editCampaignWhy: "改名称、归属计划和细分、渠道、预算、负责人、起止日。编号和状态不在这里改。",
-  formNo: "战役编号",
+  formNo: "\u6d3b\u52a8\u7f16\u53f7",
   formNoFixed: "编号登记后不能改",
-  formName: "战役名称",
+  formName: "\u6d3b\u52a8\u540d\u79f0",
   formPlan: "所属战略计划",
   formNoTargetMarkets: "\u8fd9\u4efd\u6218\u7565\u5c1a\u672a\u9009\u62e9\u76ee\u6807\u5e02\u573a\uff0c\u4ecd\u53ef\u5b89\u6392\u6218\u7565\u7ea7\u6d3b\u52a8\u3002",
   formSegment: "目标细分市场",
@@ -6400,21 +6400,21 @@ export const CAMPAIGN_TEXT = {
   formEnds: "结束日",
   formNone: "不指定",
   formAnchor: "编号是线索和商机归因引用的锚点，登记后不能再改，请先想好。",
-  formCreate: "创建战役",
+  formCreate: "\u521b\u5efa\u6d3b\u52a8",
   formSave: "保存修改",
-  tagCount: (n: number) => `${n} 个战役`,
+  tagCount: (n: number) => `${n} \u4e2a\u8425\u9500\u6d3b\u52a8`,
   tagSpend: (budget: string, won: string) => `投入 ${budget} · 赢回 ${won}`,
-  executionsTitle: "战役执行项",
+  executionsTitle: "\u8425\u9500\u6d3b\u52a8\u6267\u884c\u9879",
   executionsWhy:
-    "一场战役由哪些动作构成。上面那列「N/M 完成」就是从这里数出来的——而且还有未完成项时，战役无法标记完成。",
+    "\u4e00\u573a\u8425\u9500\u6d3b\u52a8\u7531\u54ea\u4e9b\u52a8\u4f5c\u6784\u6210\u3002\u4e0a\u9762\u90a3\u5217\u300cN/M \u5b8c\u6210\u300d\u5c31\u662f\u4ece\u8fd9\u91cc\u6570\u51fa\u6765\u7684\u2014\u2014\u800c\u4e14\u8fd8\u6709\u672a\u5b8c\u6210\u9879\u65f6\uff0c\u8425\u9500\u6d3b\u52a8\u65e0\u6cd5\u6807\u8bb0\u5b8c\u6210\u3002",
   executionsNone: "还没有执行项",
-  executionsNoneWhy: "先把要做的动作列出来，战役才能被推进和收尾。",
-  executionCampaign: "战役",
-  executionPickCampaign: "选择战役",
+  executionsNoneWhy: "\u5148\u628a\u8981\u505a\u7684\u52a8\u4f5c\u5217\u51fa\u6765\uff0c\u8425\u9500\u6d3b\u52a8\u624d\u80fd\u88ab\u63a8\u8fdb\u548c\u6536\u5c3e\u3002",
+  executionCampaign: "\u8425\u9500\u6d3b\u52a8",
+  executionPickCampaign: "\u9009\u62e9\u6d3b\u52a8",
   executionTitle: "动作",
   executionEdit: "编辑执行项",
-  executionEditDenied: "你没有编辑战役执行项的权限",
-  executionEditFrozen: "战役已完成，执行项已冻结",
+  executionEditDenied: "\u4f60\u6ca1\u6709\u7f16\u8f91\u6d3b\u52a8\u6267\u884c\u9879\u7684\u6743\u9650",
+  executionEditFrozen: "\u8425\u9500\u6d3b\u52a8\u5df2\u5b8c\u6210\uff0c\u6267\u884c\u9879\u5df2\u51bb\u7ed3",
   executionType: "类型",
   executionTypeLabel: {
     outreach: "外呼触达",
@@ -6435,24 +6435,24 @@ export const CAMPAIGN_TEXT = {
   executionEditing: "编辑哪一项",
   executionNew: "新建执行项",
   executionDelete: "删除执行项",
-  executionDeleteConsequence: "这一项会从战役里删掉，不可恢复。已完成的战役不能删。",
+  executionDeleteConsequence: "\u8fd9\u4e00\u9879\u4f1a\u4ece\u8425\u9500\u6d3b\u52a8\u91cc\u5220\u6389\uff0c\u4e0d\u53ef\u6062\u590d\u3002\u5df2\u5b8c\u6210\u7684\u8425\u9500\u6d3b\u52a8\u4e0d\u80fd\u5220\u3002",
   executionSave: "保存执行项",
   executionSaved: "已保存",
-  executionsDenied: "你没有维护战役执行项的权限",
+  executionsDenied: "\u4f60\u6ca1\u6709\u7ef4\u62a4\u8425\u9500\u6d3b\u52a8\u6267\u884c\u9879\u7684\u6743\u9650",
   executionBlocks:
-    "「未开始」和「进行中」都算未完成——只要还有一项，这场战役就不能标记为已完成。做完或跳过它，两者都算结清。已完成的战役其执行项被冻结：它们正是这场战役据以收尾的记录。",
+    "\u300c\u672a\u5f00\u59cb\u300d\u548c\u300c\u8fdb\u884c\u4e2d\u300d\u90fd\u7b97\u672a\u5b8c\u6210\u2014\u2014\u53ea\u8981\u8fd8\u6709\u4e00\u9879\uff0c\u8fd9\u573a\u8425\u9500\u6d3b\u52a8\u5c31\u4e0d\u80fd\u6807\u8bb0\u4e3a\u5df2\u5b8c\u6210\u3002\u505a\u5b8c\u6216\u8df3\u8fc7\u5b83\uff0c\u4e24\u8005\u90fd\u7b97\u7ed3\u6e05\u3002\u5df2\u5b8c\u6210\u7684\u8425\u9500\u6d3b\u52a8\u5176\u6267\u884c\u9879\u88ab\u51bb\u7ed3\uff1a\u5b83\u4eec\u6b63\u662f\u8fd9\u573a\u8425\u9500\u6d3b\u52a8\u636e\u4ee5\u6536\u5c3e\u7684\u8bb0\u5f55\u3002",
   title: "营销活动",
   description:
-    "战役是归因的锚点。回报按赢单收入计，不按管道额——未成交的管道还不是回报。",
+    "\u8425\u9500\u6d3b\u52a8\u662f\u5f52\u56e0\u7684\u951a\u70b9\u3002\u56de\u62a5\u6309\u8d62\u5355\u6536\u5165\u8ba1\uff0c\u4e0d\u6309\u7ba1\u9053\u989d\u2014\u2014\u672a\u6210\u4ea4\u7684\u7ba1\u9053\u8fd8\u4e0d\u662f\u56de\u62a5\u3002",
   // The headline. The page's central claim is the RETURN RULE, and it lived
   // only in a code comment and a section subtitle - so a reader could take the
   // ROI column at face value without ever meeting the caveat that makes it
   // mean something. It goes where the numbers are.
-  lead: (n: number) => `${n} 场战役`,
+  lead: (n: number) => `${n} \u573a\u8425\u9500\u6d3b\u52a8`,
   leadSpend: (budget: string, won: string) => `预算 ${budget} · 已回收 ${won}`,
   leadRule: "回报只计赢单收入。管道额不算回报——未成交的钱还不是钱。",
-  rowCount: (n: number) => `${n} 场战役`,
-  columnName: "战役",
+  rowCount: (n: number) => `${n} \u573a\u8425\u9500\u6d3b\u52a8`,
+  columnName: "\u8425\u9500\u6d3b\u52a8",
   columnChannel: "渠道",
   // campaign.channel is an open code (VARCHAR, no CHECK); these are the ones
   // seen so far, and an unknown code prints as itself rather than a blank.
@@ -6462,7 +6462,7 @@ export const CAMPAIGN_TEXT = {
   columnProgress: "执行进度",
   columnStatus: "状态",
   columnReturn: "回报",
-  emptyTitle: "还没有战役",
+  emptyTitle: "\u8fd8\u6ca1\u6709\u8425\u9500\u6d3b\u52a8",
   emptyDescription: "把战略与细分市场变成具体的触达动作。",
   progress: (done: number, total: number, skipped: number) =>
     skipped > 0
@@ -6546,7 +6546,7 @@ export const LEAD_TEXT = {
   noMatch: "没有匹配的线索",
   noMatchWhy: "换个关键词，或把筛选条件放宽。",
   startWork: "开始跟进",
-  convertWhy: (company: string) => `把「${company}」转成商机。转化这一刻来源战役被复制到商机上并冻结，之后改不了。`,
+  convertWhy: (company: string) => `\u628a\u300c${company}\u300d\u8f6c\u6210\u5546\u673a\u3002\u8f6c\u5316\u8fd9\u4e00\u523b\u6765\u6e90\u8425\u9500\u6d3b\u52a8\u88ab\u590d\u5236\u5230\u5546\u673a\u4e0a\u5e76\u51bb\u7ed3\uff0c\u4e4b\u540e\u6539\u4e0d\u4e86\u3002`,
   convertRequirement: "客户需求",
   convertRequirementHint: "客户要解决什么问题",
   convertRequirementWhy: "商机必须说清客户要什么——没坐在那场会里的人，靠这句话判断该不该投入。之后可以改。",
@@ -6590,14 +6590,14 @@ export const LEAD_TEXT = {
   tagUnowned: (n: number) => `${n} 条无人认领`,
   tagConverted: (n: number) => `${n} 条已转商机`,
   description:
-    "线索合格后转化为商机。转化那一刻，来源战役被复制到商机上并冻结——归因不靠事后填写。",
+    "\u7ebf\u7d22\u5408\u683c\u540e\u8f6c\u5316\u4e3a\u5546\u673a\u3002\u8f6c\u5316\u90a3\u4e00\u523b\uff0c\u6765\u6e90\u8425\u9500\u6d3b\u52a8\u88ab\u590d\u5236\u5230\u5546\u673a\u4e0a\u5e76\u51bb\u7ed3\u2014\u2014\u5f52\u56e0\u4e0d\u9760\u4e8b\u540e\u586b\u5199\u3002",
   columnCompany: "公司",
   columnScore: "评分",
   columnSource: "来源",
   columnOwner: "负责人",
   columnStatus: "状态",
-  sourceCampaign: "战役",
-  sourceSignalCampaign: "信号所属战役",
+  sourceCampaign: "\u8425\u9500\u6d3b\u52a8",
+  sourceSignalCampaign: "\u4fe1\u53f7\u6240\u5c5e\u8425\u9500\u6d3b\u52a8",
   sourceSelf: "自拓",
   qualify: "标记合格",
   disqualify: "判定不合格",
@@ -6984,8 +6984,8 @@ export const EXECUTION_ERROR: Record<string, string> = {
   title_required: "执行项需要一个动作名称",
   unknown_action_type: "未知的动作类型",
   unknown_status: "未知的执行状态",
-  campaign_completed: "这场战役已完成，它的执行项是它据以收尾的记录，不能再改",
-  not_found: "战役不存在，或这一项不属于它",
+  campaign_completed: "\u8fd9\u573a\u8425\u9500\u6d3b\u52a8\u5df2\u5b8c\u6210\uff0c\u5b83\u7684\u6267\u884c\u9879\u662f\u5b83\u636e\u4ee5\u6536\u5c3e\u7684\u8bb0\u5f55\uff0c\u4e0d\u80fd\u518d\u6539",
+  not_found: "\u8425\u9500\u6d3b\u52a8\u4e0d\u5b58\u5728\uff0c\u6216\u8fd9\u4e00\u9879\u4e0d\u5c5e\u4e8e\u5b83",
 };
 
 export const SEGMENT_ERROR: Record<string, string> = {
@@ -7020,19 +7020,19 @@ export const SEGMENT_ERROR: Record<string, string> = {
 
 export const CAMPAIGN_FORM_ERROR: Record<string, string> = {
   ...GATE_ERROR,
-  campaign_no_required: "战役需要一个编号",
-  campaign_no_taken: "这个战役编号已被占用，换一个",
-  name_required: "战役需要一个名称",
+  campaign_no_required: "\u8425\u9500\u6d3b\u52a8\u9700\u8981\u4e00\u4e2a\u7f16\u53f7",
+  campaign_no_taken: "\u8fd9\u4e2a\u6d3b\u52a8\u7f16\u53f7\u5df2\u88ab\u5360\u7528\uff0c\u6362\u4e00\u4e2a",
+  name_required: "\u8425\u9500\u6d3b\u52a8\u9700\u8981\u4e00\u4e2a\u540d\u79f0",
   budget_negative: "预算不能为负",
   window_inverted: "结束日不能早于开始日",
   currency_required: "请填写币种",
   invalid_date: "日期格式不对",
   plan_not_found: "选的战略计划不存在，刷新后再选",
-  plan_not_accepting: "只有执行中的战略计划能挂新战役",
+  plan_not_accepting: "\u53ea\u6709\u6267\u884c\u4e2d\u7684\u6218\u7565\u8ba1\u5212\u80fd\u6302\u65b0\u8425\u9500\u6d3b\u52a8",
   segment_not_in_strategy: "\u8bf7\u9009\u62e9\u8be5\u6218\u7565\u5df2\u7eb3\u5165\u7684\u76ee\u6807\u5e02\u573a\u3002",
   segment_not_found: "选的细分市场不存在，刷新后再选",
-  campaign_settled: "已完成或已取消的战役是记录，不能再改",
-  not_found: "这场战役已不存在，刷新后再试",
+  campaign_settled: "\u5df2\u5b8c\u6210\u6216\u5df2\u53d6\u6d88\u7684\u8425\u9500\u6d3b\u52a8\u662f\u8bb0\u5f55\uff0c\u4e0d\u80fd\u518d\u6539",
+  not_found: "\u8fd9\u573a\u8425\u9500\u6d3b\u52a8\u5df2\u4e0d\u5b58\u5728\uff0c\u5237\u65b0\u540e\u518d\u8bd5",
 };
 
 export const PLAN_ERROR: Record<string, string> = {
@@ -7999,7 +7999,7 @@ export const DEAL_PAGE_TEXT = {
   factContractType: "签约类型",
   factBusinessForm: "业务形态",
   factSource: "来源",
-  sourceCampaign: (name: string) => `战役 · ${name}`,
+  sourceCampaign: (name: string) => `\u8425\u9500\u6d3b\u52a8 \u00b7 ${name}`,
   sourceDirect: "直接录入",
   // The DEAL's sales territory - not the customer's region (客户信息 carries that).
   factTerritory: "销售区域",
@@ -9576,4 +9576,16 @@ export const DATE_RANGE_TEXT = {
   end: "\u7ed3\u675f\u65e5\u671f",
   clear: "\u6e05\u7a7a\u65e5\u671f",
   apply: "\u5e94\u7528\u65e5\u671f",
+} as const;
+
+export const STRATEGY_DETAIL_TEXT = {
+  emptyGoals: "\u5c1a\u672a\u8bbe\u5b9a\u6218\u7565\u76ee\u6807",
+  viewPlanning: "\u67e5\u770b\u89c4\u5212",
+  viewCampaigns: "\u67e5\u770b\u6d3b\u52a8",
+  goals: "\u6218\u7565\u76ee\u6807",
+  order: "\u5e8f\u53f7",
+  allRelated: "\u67e5\u770b\u5168\u90e8",
+  collapse: "\u6536\u8d77\u6761\u76ee",
+  handoffDetails: "\u627f\u63a5\u660e\u7ec6",
+  relatedHelp: "\u8fd9\u91cc\u53ea\u5c55\u793a\u5173\u8054\u5185\u5bb9\u7684\u6458\u8981\u3002\u70b9\u51fb\u540d\u79f0\u67e5\u770b\u5b8c\u6574\u8d44\u6599\uff1b\u8d85\u8fc7\u4e09\u9879\u65f6\u53ef\u5c55\u5f00\u6e05\u5355\u3002",
 } as const;
