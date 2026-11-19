@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
-import { StrategyDetailLabel } from "./strategy-detail-label";
+import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { StrategyPreviewCard } from "./strategy-preview-card";
 import readingStyles from "./strategy-detail-reading.module.css";
 import { FormChoice } from "./form-choice";
@@ -38,7 +38,7 @@ import { MemberPicker } from "./member-picker";
 import { MemberName } from "../lib/member-names";
 import { Section } from "./help-section";
 import { TitleHelp } from "./title-help";
-import { useMessages } from "../lib/i18n/provider";
+import { useLocale, useMessages } from "../lib/i18n/provider";
 import {
   advancedFilled,
   consistencyWarnings,
@@ -101,7 +101,7 @@ export function StrategyGoals({
       goals: value.goals.map((g) => (g.id === id ? { ...g, ...p } : g)),
     });
   const unit = (g: StrategyGoal) =>
-    g.metric === "revenue" ? currency : g.unit || T.count;
+    g.metric === "revenue" ? currency : !g.unit || g.unit==="count" ? T.count : g.unit;
   const error = (id: string, k: string) => {
     const e = issues.find((e) => e.field === `goal.${id}.${k}`);
     return e ? <FieldError>{T[e.code]}</FieldError> : null;
@@ -282,11 +282,10 @@ export function StrategyGoals({
                     {g.name || T.untitled}
                   </TableCell>
                   <TableCell className="tabular-nums">
-                    {g.baseline || "-"}
+                    <StrategyQuantity value={g.baseline || "-"} unit={g.baseline ? unit(g) : undefined}/>
                   </TableCell>
                   <TableCell className="tabular-nums">
-                    {g.target || "-"}{" "}
-                    <span className="text-muted-foreground">{unit(g)}</span>
+                    <StrategyQuantity value={g.target || "-"} unit={g.target ? unit(g) : undefined}/>
                   </TableCell>
                   <TableCell>{g.dueOn || "-"}</TableCell>
                   <TableCell>{g.criterion || "-"}</TableCell>
@@ -336,6 +335,8 @@ export function StrategyAdvanced({
 }) {
   const { STRATEGY_RESULT_TEXT: T } = useMessages();
   const count = advancedFilled(value);
+  const locale = useLocale();
+  const resourceUnits = { people:T.peopleUnit, funds:currency, technology:T.technologyUnit };
   const risks = value.risks.filter((r) => r.description || r.response);
   if (!onChange && !count && !risks.length) return null;
   const resource = Object.values(value.resources).some((v) => v.trim());
@@ -362,19 +363,13 @@ export function StrategyAdvanced({
                       })
                     }
                   />
-                  {k === "funds" ? (
-                    <InputGroupAddon
-                      align="end"
-                      className="text-body-small text-muted-foreground"
-                    >
-                      {currency}
-                    </InputGroupAddon>
-                  ) : null}
+                  <InputGroupAddon align="end" className="text-body-small text-muted-foreground">
+                    {resourceUnits[k]}
+                  </InputGroupAddon>
                 </InputGroup>
               ) : (
                 <span className="text-body">
-                  {value.resources[k] || "-"}
-                  {k === "funds" ? ` ${currency}` : ""}
+                  <StrategyQuantity value={value.resources[k] || "-"} unit={value.resources[k] ? resourceUnits[k] : undefined}/>
                 </span>
               )}
             </Field>
@@ -574,8 +569,7 @@ export function StrategyAdvanced({
         .map(k => <div key={k} className={readingStyles.resourceFact}>
           <dt><StrategyDetailLabel icon={k === "people" ? "users" : k === "funds" ? "coins" : "cpu"}>{T[k]}</StrategyDetailLabel></dt>
           {value.resources[k].trim() ? <dd className="min-w-0 break-words text-sm tabular-nums">
-            {value.resources[k]}
-            {k === "funds" ? <span className="ml-xs text-body-small text-muted-foreground">{currency}</span> : null}
+            <StrategyQuantity value={Number(value.resources[k]).toLocaleString(locale,{maximumFractionDigits:2})} unit={resourceUnits[k]}/>
           </dd> : null}
           {value.resources[`${k}Note`].trim() ? <dd className={`${readingStyles.resourceNote} min-w-0 whitespace-pre-wrap break-words text-sm text-muted-foreground ${expanded ? "" : "line-clamp-2"}`}>
             {value.resources[`${k}Note`]}

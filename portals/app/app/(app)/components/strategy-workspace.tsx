@@ -16,7 +16,7 @@ import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 import { PageActionButton } from "./page-header-actions";
 import { PageCrumbs } from "./page-crumbs";
-import { StrategyDetailLabel } from "./strategy-detail-label";
+import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
@@ -33,7 +33,7 @@ import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrateg
 
 export type StrategyTab = "overview" | "validation";
 export function StrategyWorkspace({ data, view, detailId }: { readonly data: StrategyWorkspaceData; readonly view: StrategyTab; readonly detailId?: string }) {
-  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, STRATEGY_DETAIL_TEXT:D, MARKET_STRATEGY_TEXT: T, PLAN_STATUS_LABEL, PLAN_ERROR, STRATEGY_TEXT, DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
   const locale=useLocale();
   const router=useRouter(), params=useSearchParams();
   const [layout,setLayout]=useCollectionView("cards");
@@ -85,18 +85,18 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
       onSelect:()=>p.status==="draft"&&s==="archived"?openPublication(p,true):run(p.id,s)})) : []),
   ];
   const versionBadge=(p:StrategyView)=><>{p.versionNo ? <Tag>{`V${p.versionNo}`}</Tag> : p.basePlanId ? <Tag>{T.revisionDraft}</Tag>:null}</>;
-  const number=(n:number|null|undefined)=><span className="tabular-nums">{n==null ? T.unknown:n.toLocaleString(locale)}</span>;
-  const money=(n:number,currency:string)=>new Intl.NumberFormat(locale,{style:"currency",currency,maximumFractionDigits:0}).format(n);
+  const number=(n:number|null|undefined,unit:string)=><StrategyQuantity value={n==null ? T.unknown:n.toLocaleString(locale)} unit={n==null?undefined:unit}/>;
+  const money=(n:number,currency:string)=><StrategyQuantity value={n.toLocaleString(locale,{maximumFractionDigits:0})} unit={currency}/>;
   const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} actions={<RowActions items={items(p)} disabled={pending}/>} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
   const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className="block truncate transition-colors hover:text-primary-text">{p.name}</Link>;
   const planCode=(p:StrategyView)=>[strategyPeriodLabel(p.period),p.planNo,p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
   const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1} columns={[
       {id:"name",header:T.strategy,cell:p=><CollectionTitleCell title={planTitle(p)} description={planCode(p)} tooltip={`${p.name} / ${planCode(p)}`}/>},
       {id:"direction",header:T.direction,align:"left",track:"direction",cell:p=><span className="line-clamp-2" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
-      {id:"markets",header:T.marketCount,track:"count",cell:p=>number(p.marketIds?.length)},
-      {id:"customers",header:T.customerCount,track:"count",cell:p=>number(p.customerCount)},
-      {id:"solutions",header:T.solutionCount,track:"count",cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length)},
-      {id:"campaigns",header:T.campaignCount,track:"count",cell:p=>number(p.campaigns?.length)},
+      {id:"markets",header:T.marketCount,track:"count",cell:p=>number(p.marketIds?.length,D.recordUnit)},
+      {id:"customers",header:T.customerCount,track:"count",cell:p=>number(p.customerCount,D.customerUnit)},
+      {id:"solutions",header:T.solutionCount,track:"count",cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length,D.recordUnit)},
+      {id:"campaigns",header:T.campaignCount,track:"count",cell:p=>number(p.campaigns?.length,D.campaignUnit)},
       {id:"status",header:T.status,track:"state",cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
     ]} rowActions={p=><RowActions items={items(p)} disabled={pending}/>}
     empty={<EmptyState title={T.noMatches}/>}/>
