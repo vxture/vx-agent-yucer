@@ -8061,7 +8061,7 @@ export const en: Dictionary = {
   "codeConflict": "This code is already in use. Choose another.",
   "help": {
     "code": "A unique reference, prefilled for new markets. You can change it before saving; saved codes are fixed.",
-    "name": "Name the customer group and its distinguishing business context, e.g. medium retail chains in the East.",
+    "name": "Name the customer group and its core characteristic. Prefer 30 characters or fewer, up to 50. Put background and business explanations in the needs fields.",
     "priority": "Controls list order: smaller numbers appear first. Keep 0 unless you need another order. This is not customer or strategic value.",
     "status": "Active markets can be selected in strategies. Pause temporary exclusions; retire markets to retain history without further use.",
     "industries": "Select customer industry categories. Empty means any industry. A market can span multiple industries.",
