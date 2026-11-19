@@ -1,0 +1,22 @@
+.portrait {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.offering {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  text-decoration: none;
+}
+.offering:hover, .offering:focus-visible { color: var(--primary-text); text-decoration: none; }

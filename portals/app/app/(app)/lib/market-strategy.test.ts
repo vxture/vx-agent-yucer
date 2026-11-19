@@ -80,3 +80,29 @@ test("published views freeze reference names and never serialize hidden snapshot
   assert.equal(JSON.stringify(hidden).includes("Original market"), false);
   assert.equal("publishedSnapshot" in hidden, false);
 });
+
+test("market references retain the published strategy and its market-specific approach", () => {
+  const target = { segmentId: segment.id, marketName: segment.name, intent: "focus" as const, approach: "Start with a store pilot", criteria, solutionIds: [] };
+  const original = { ...plan, objective: "Improve retail operations", targetMarkets: [target] };
+  const published = { ...original, versionNo: 2, publishedSnapshot: captureStrategyPublication(original, [], new Date("2026-11-14")) };
+  const changed = { ...published, name: "Later draft name", objective: "Unpublished direction", period: "2027", targetMarkets: [{ ...target, segmentId: "another-market", approach: "Unpublished approach" }] };
+  const market = marketViews([segment], [changed], [account])[0];
+  const reference = market.plans![0];
+  assert.equal(reference.name, original.name);
+  assert.equal(reference.period, original.period);
+  assert.equal(reference.objective, original.objective);
+  assert.equal(reference.approach, target.approach);
+  assert.equal(reference.intent, "focus");
+  assert.equal(reference.versionNo, 2);
+  assert.equal(reference.planNo, plan.planNo);
+  assert.equal("publishedSnapshot" in reference, false);
+  assert.equal(JSON.stringify(reference).includes("Unpublished"), false);
+  assert.equal(marketViews([segment], null, [account])[0].plans, null);
+});
+
+test("duplicate market selections do not repeat or inflate adopting strategy cards", () => {
+  const target = { segmentId: segment.id, marketName: segment.name, intent: null, approach: null, criteria, solutionIds: [] };
+  const market = marketViews([segment], [{ ...plan, targetMarkets: [target, target] }], [account])[0];
+  assert.equal(market.plans!.length, 1);
+  assert.equal(market.plans![0].intent, null);
+});

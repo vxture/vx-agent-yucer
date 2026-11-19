@@ -20,7 +20,7 @@ import styles from "./market-detail.module.css";
 export function MarketDetail({ market, canWrite, at }: {
   readonly market: MarketView; readonly canWrite: boolean; readonly at: string;
 }) {
-  const { MARKET_STRATEGY_TEXT: T, SEGMENT_FORM_TEXT: F, SEGMENT_DETAIL_TEXT: D, STRATEGY_RESULT_TEXT: R, STRATEGY_TEXT: S } = useMessages();
+  const { MARKET_STRATEGY_TEXT: T, SEGMENT_FORM_TEXT: F, SEGMENT_DETAIL_TEXT: D, STRATEGY_RESULT_TEXT: R, STRATEGY_TEXT: S, PLAN_STATUS_LABEL } = useMessages();
   const locale = useLocale();
   const defined = [...market.criteria.industries, ...market.criteria.regions, ...(market.criteria.sizes ?? [])].length > 0;
   const conditions = [
@@ -81,7 +81,19 @@ export function MarketDetail({ market, canWrite, at }: {
         <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
           <Icon name="graph" size="md" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="line-clamp-2 min-w-0 break-words">{plan.name}</span><Icon name="arrow-right" size="sm" className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" />
         </Link>
-        <div className="mt-auto flex min-w-0 items-start gap-sm border-t border-dashed border-border pt-sm text-body-small text-muted-foreground"><Icon name="calendar" size="sm" className="shrink-0" aria-hidden="true" /><span className="min-w-0 break-words">{strategyPeriodRangeLabel(plan.period) ?? plan.period}</span></div>
+        <div className="flex min-w-0 flex-wrap items-center gap-sm">
+          {plan.strategyTypeName ? <Tag>{plan.strategyTypeName}</Tag> : null}
+          <Tag tone={plan.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[plan.status]}{plan.versionNo ? ` V${plan.versionNo}` : ""}</Tag>
+          {plan.intent ? <Tag>{plan.intent === "focus" ? T.focusMarket : T.validateMarket}</Tag> : null}
+        </div>
+        <dl className={styles.strategySummary}>
+          {plan.objective ? <div className={styles.insight}><dt><StrategyDetailLabel icon="lightbulb">{T.strategyPosition}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={plan.objective}>{plan.objective}</dd></div> : null}
+          {plan.approach ? <div className={styles.insight}><dt><StrategyDetailLabel icon="target">{T.marketApproach}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={plan.approach}>{plan.approach}</dd></div> : null}
+        </dl>
+        <div className="mt-auto flex min-w-0 flex-col gap-xs border-t border-dashed border-border pt-sm text-body-small text-muted-foreground">
+          <span className="truncate" title={plan.planNo}>{plan.planNo}</span>
+          <span className="inline-flex min-w-0 items-start gap-sm"><Icon name="calendar" size="sm" className="shrink-0" aria-hidden="true" /><span className="min-w-0 break-words">{strategyPeriodRangeLabel(plan.period) ?? plan.period}</span></span>
+        </div>
       </CardContent></Card>)}</div> : <DetailEmpty>{market.plans === null ? T.unknown : D.noStrategies}</DetailEmpty>}
     </Section>
     <Section title={D.coverage} icon="users" help={<><p>{D.coverageHelp}</p><p>{T.previewWhy}</p><p>{T.baseOnly}</p></>}>

@@ -19,9 +19,15 @@ export function marketMatch(a: MarketAccount, c: SegmentCriteria): MarketMatch {
 export interface MarketView extends Omit<SegmentRecord, "workspaceId"> {
   defaultProducts?: readonly ProductReference[] | null;
   defaultSolutions?: readonly SolutionReference[] | null;
-  plans: { id: string; name: string; period: string }[] | null;
+  plans: MarketStrategyReference[] | null;
   customers: (MarketAccount & { match: MarketMatch; assigned: boolean })[] | null;
   matched: number | null; missing: number | null; assigned: number | null;
+}
+export interface MarketStrategyReference {
+  id: string; name: string; period: string; planNo: string;
+  status: PlanRecord["status"]; versionNo: number | null;
+  strategyTypeName: string | null; objective: string | null;
+  intent: TargetMarket["intent"]; approach: string | null;
 }
 export interface StrategyResult {
   currency: string; open: number; won: number;
@@ -79,10 +85,19 @@ export function strategyResults(planId: string, deals: readonly OpportunityRecor
 }
 export function marketViews(segments: readonly SegmentRecord[], plans: readonly PlanRecord[] | null, accounts: readonly MarketAccount[] | null): MarketView[] {
   const adoption = new Map<string, NonNullable<MarketView["plans"]>>();
-  for (const { id, name, period, targetMarkets } of plans ?? []) {
-    for (const { segmentId } of targetMarkets ?? []) {
+  for (const plan of plans ?? []) {
+    // A published relationship must use the same frozen content as its detail.
+    const published = plan.publishedSnapshot;
+    const seen = new Set<string>();
+    for (const { segmentId, intent, approach } of published?.targetMarkets ?? plan.targetMarkets ?? []) {
+      if (seen.has(segmentId)) continue;
+      seen.add(segmentId);
       const rows = adoption.get(segmentId) ?? [];
-      rows.push({ id, name, period });
+      rows.push({ id: plan.id, planNo: plan.planNo, status: plan.status, versionNo: plan.versionNo ?? null,
+        name: published?.name ?? plan.name, period: published?.period ?? plan.period,
+        objective: published ? published.objective : plan.objective,
+        strategyTypeName: (published ? published.strategyType : plan.strategyType)?.name ?? null,
+        intent, approach });
       adoption.set(segmentId, rows);
     }
   }
