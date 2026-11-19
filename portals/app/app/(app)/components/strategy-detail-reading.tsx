@@ -12,6 +12,7 @@ import type { StrategyView } from "../lib/market-strategy";
 import type { FulfillmentRow } from "../lib/strategy-fulfillment";
 import { StrategyDetailLabel } from "./strategy-detail-label";
 import { Tag } from "./tag";
+import { StrategyPreviewCard } from "./strategy-preview-card";
 import styles from "./strategy-detail-reading.module.css";
 
 export function StrategyDetailBasic({ plan:p }: { readonly plan:StrategyView }) {
@@ -60,14 +61,26 @@ export function StrategyDetailMarkets({ plan:p, actions }: { readonly plan:Strat
   const { MARKET_STRATEGY_TEXT:T, STRATEGY_RESULT_TEXT:R, STRATEGY_TEXT:S, SEGMENT_FORM_TEXT:F, STRATEGY_DETAIL_TEXT:D }=useMessages();
   const rows=p.targetMarkets;
   return <Section id="target-markets" title={T.targetMarketsTitle} icon="target" help={D.relatedHelp}>
-    {!rows?.length?<Card className="py-lg"><CardContent className="text-body-small text-muted-foreground">{rows===null?T.unknown:T.noPlanMarkets}</CardContent></Card>:<RelatedDisclosure count={rows.length} label={T.targetMarketsTitle}>{rows.map(m=>{
+    {!rows?.length?<Card className="py-lg"><CardContent className="text-sm text-muted-foreground">{rows===null?T.unknown:T.noPlanMarkets}</CardContent></Card>:<RelatedDisclosure count={rows.length} label={T.targetMarketsTitle}>{rows.map(m=>{
       const facts=[{label:F.industries,value:m.criteria.industries.join(" / ")},{label:F.regions,value:m.criteria.regions.join(" / ")},{label:R.sizes,value:m.criteria.sizes?.join(" / ")||R.unlimitedSize}].filter(f=>f.value);
-      return <Card key={m.segmentId} className="min-w-0 gap-0 py-lg" data-strategy-target-market><CardContent className="flex min-w-0 flex-1 flex-col gap-md">
-        <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment?market=${encodeURIComponent(m.segmentId)}`} className="inline-flex min-w-0 items-start gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name="globe" size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words" title={m.marketName}>{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{m.intent==="focus"?T.focusMarket:m.intent==="validate"?T.validateMarket:T.unclassifiedMarket}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
-        <dl className="flex min-w-0 flex-col gap-xs" data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd className="truncate text-body" title={f.value}>{f.value}</dd></div>)}</dl>
-        <p className="line-clamp-2 text-body text-muted-foreground" title={m.approach || undefined}>{m.approach || T.noMarketApproach}</p>
-        <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm border-t border-dashed border-border pt-md"><span className="inline-flex items-center gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><span className="tabular-nums text-body">{m.matched ?? T.unknown}</span></span>{actions?.(m.segmentId)}</div>
-      </CardContent></Card>;
+      const context=[{label:T.marketApproach,value:m.approach},{label:F.customerNeed,value:m.criteria.customerNeed},{label:F.buyingScenario,value:m.criteria.buyingScenario},{label:F.expectedOutcome,value:m.criteria.expectedOutcome},{label:F.entryBarrier,value:m.criteria.entryBarrier}].filter(f=>f.value);
+      const offerings=strategyOfferings(m.solutions,m.products);
+      const detail=<>
+        <div className="flex flex-wrap gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{m.intent==="focus"?T.focusMarket:m.intent==="validate"?T.validateMarket:T.unclassifiedMarket}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div>
+        <dl className={styles.previewFacts}>
+          {[...facts,...context,{label:T.customerCount,value:String(m.matched ?? T.unknown)}].map(f=><div key={f.label}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd>{f.value}</dd></div>)}
+        </dl>
+        <div className="flex flex-col gap-sm border-t border-dashed border-border pt-md"><StrategyDetailLabel>{T.productSolutionsTitle}</StrategyDetailLabel><div className={styles.previewLinks}>
+          {offerings.map(row=><Link key={row.key} href={row.href} className="transition-colors hover:text-primary-text"><Icon name={row.icon} size="md" className="shrink-0 text-muted-foreground"/><span>{row.name}</span></Link>)}
+          {!offerings.length?<p className="text-muted-foreground">{m.products===null||m.solutions===null?T.unknown:T.noPlanSolutions}</p>:null}
+        </div></div>
+      </>;
+      return <StrategyPreviewCard key={m.segmentId} title={m.marketName} detail={detail} className="min-w-0 gap-0 py-lg" data-strategy-target-market><CardContent className="flex min-w-0 flex-1 flex-col gap-md text-sm">
+        <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment?market=${encodeURIComponent(m.segmentId)}`} className="inline-flex min-w-0 items-start gap-sm text-sm font-medium no-underline transition-colors hover:text-primary-text hover:no-underline"><Icon name="globe" size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{m.intent==="focus"?T.focusMarket:m.intent==="validate"?T.validateMarket:T.unclassifiedMarket}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
+        <dl className="flex min-w-0 flex-col gap-xs" data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd className="line-clamp-2 break-words text-sm">{f.value}</dd></div>)}</dl>
+        {context.slice(0,2).map(f=><div key={f.label} className={styles.referenceFact}><StrategyDetailLabel>{f.label}</StrategyDetailLabel><p className="line-clamp-2 min-w-0 whitespace-pre-wrap break-words text-sm text-muted-foreground">{f.value}</p></div>)}
+        <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm border-t border-dashed border-border pt-md"><span className="inline-flex items-center gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><span className="tabular-nums text-sm">{m.matched ?? T.unknown}</span></span><span data-preview-actions>{actions?.(m.segmentId)}</span></div>
+      </CardContent></StrategyPreviewCard>;
     })}</RelatedDisclosure>}
   </Section>;
 }
@@ -92,11 +105,20 @@ export function StrategyDetailOfferings({ plan:p }: { readonly plan:StrategyView
         const shared=(row.kind==="product"?p.sharedProducts:p.sharedSolutions)?.some(x=>x.id===row.id);
         const markets=p.targetMarkets?.filter(m=>(row.kind==="product"?m.products:m.solutions)?.some(x=>x.id===row.id));
         const scope=shared?T.sharedScope:markets?.length?markets.map(m=>m.marketName).join(" / "):p.targetMarkets===null?T.unknown:T.noPlanMarkets;
-        return <Card key={row.key} className="min-w-0 gap-0 py-lg" data-strategy-offering={row.kind}><CardContent className="flex min-w-0 flex-1 flex-col gap-md">
-          <Link href={row.href} className="inline-flex min-w-0 items-start gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name={row.icon} size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words" title={row.name}>{row.name}</span></Link>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-sm gap-y-xs text-body-small text-muted-foreground"><span>{row.kind==="product"?T.productKind:T.solutionKind}</span>{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}{row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}<span className="min-w-0 truncate" title={row.code}>{row.code}</span></div>
-          <div className="mt-auto border-t border-dashed border-border pt-md"><div className={styles.fieldRow}><StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel><p className="line-clamp-2 min-w-0 break-words text-body" title={scope}>{scope}</p></div></div>
-        </CardContent></Card>;
+        const titleLink=<Link href={row.href} className="inline-flex min-w-0 items-start gap-sm text-sm font-medium no-underline transition-colors hover:text-primary-text hover:no-underline"><Icon name={row.icon} size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{row.name}</span></Link>;
+        const detail=<>
+          {row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}
+          <dl className={styles.previewFacts}>
+            <div><dt>{row.kind==="product"?T.productKind:T.solutionKind}</dt><dd>{row.code}</dd></div>
+            {row.novelty?<div><dt><StrategyDetailLabel>{R.offeringAttribute}</StrategyDetailLabel></dt><dd>{R[row.novelty]}</dd></div>:null}
+            <div><dt><StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel></dt><dd className={styles.previewLinks}>{shared?<span>{T.sharedScope}</span>:null}{markets?.length?markets.map(m=><Link key={m.segmentId} href={`/segment?market=${encodeURIComponent(m.segmentId)}`} className="transition-colors hover:text-primary-text"><Icon name="globe" size="md" className="shrink-0 text-muted-foreground"/><span>{m.marketName}</span></Link>):!shared?scope:null}</dd></div>
+          </dl>
+        </>;
+        return <StrategyPreviewCard key={row.key} title={row.name} detail={detail} className="min-w-0 gap-0 py-lg" data-strategy-offering={row.kind}><CardContent className="flex min-w-0 flex-1 flex-col gap-md text-sm">
+          {titleLink}
+          <div className="flex min-w-0 flex-wrap items-center gap-x-sm gap-y-xs text-sm text-muted-foreground"><span>{row.kind==="product"?T.productKind:T.solutionKind}</span>{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}{row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}<span className="min-w-0 truncate">{row.code}</span></div>
+          <div className="mt-auto border-t border-dashed border-border pt-md"><div className={styles.fieldRow}><StrategyDetailLabel>{T.targetMarketsTitle}</StrategyDetailLabel><p className="line-clamp-2 min-w-0 break-words text-sm">{scope}</p></div></div>
+        </CardContent></StrategyPreviewCard>;
       })}</RelatedDisclosure>
     </>}
   </Section>;

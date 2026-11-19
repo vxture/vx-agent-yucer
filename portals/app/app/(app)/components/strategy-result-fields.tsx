@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@vxture/design-ui";
 import { StrategyDetailLabel } from "./strategy-detail-label";
+import { StrategyPreviewCard } from "./strategy-preview-card";
 import readingStyles from "./strategy-detail-reading.module.css";
 import { FormChoice } from "./form-choice";
 import { StrategyDateRange } from "./strategy-date-range";
@@ -303,16 +304,20 @@ function SupplementSection({
   title,
   icon,
   children,
+  preview,
 }: {
   readonly title: string;
   readonly icon: "wallet" | "flag";
   readonly children: ReactNode;
+  readonly preview?: ReactNode;
 }) {
   return (
     <Section title={title} icon={icon} data-strategy-supplement={icon === "wallet" ? "resources" : "milestones"}>
-      <Card className="w-full min-w-0 py-lg">
+      {preview ? <StrategyPreviewCard title={title} detail={preview} className="w-full min-w-0 py-lg">
         <CardContent>{children}</CardContent>
-      </Card>
+      </StrategyPreviewCard> : <Card className="w-full min-w-0 py-lg">
+        <CardContent>{children}</CardContent>
+      </Card>}
     </Section>
   );
 }
@@ -421,15 +426,15 @@ export function StrategyAdvanced({
             >
               <span className="m-1 block size-2 rounded-full bg-primary" />
             </span>
-            <div className="flex flex-wrap items-baseline gap-md">
-              <span className="text-body font-medium">{m.name || "-"}</span>
-              <span className="text-body-small tabular-nums text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-md gap-y-xs text-sm" data-strategy-milestone-heading>
+              <span className="min-w-0 break-words text-sm font-medium">{m.name || "-"}</span>
+              <span className="text-sm tabular-nums text-muted-foreground">
                 {m.startOn || "-"} ~ {m.endOn || "-"}
               </span>
               {m.ownerSub ? <MemberName sub={m.ownerSub} /> : null}
             </div>
             {m.deliverable ? (
-              <p className="text-body-small text-muted-foreground">
+              <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">
                 {m.deliverable}
               </p>
             ) : null}
@@ -560,25 +565,25 @@ export function StrategyAdvanced({
       </CardContent></Card>
     </Section>
   ) : null;
-  const resourceSummary = (
-    <dl className="grid grid-cols-1 gap-md @xl:grid-cols-3" data-strategy-resources>
+  const resourceSummary = (expanded = false) => (
+    <dl className={`grid grid-cols-1 gap-lg text-sm ${expanded ? "" : "@xl:grid-cols-3"}`} data-strategy-resources>
       {(["people", "funds", "technology"] as const)
         .filter(k => value.resources[k].trim() || value.resources[`${k}Note`].trim())
-        .map(k => <div key={k} className={readingStyles.fieldRow}>
+        .map(k => <div key={k} className={readingStyles.resourceFact}>
           <dt><StrategyDetailLabel icon={k === "people" ? "users" : k === "funds" ? "coins" : "cpu"}>{T[k]}</StrategyDetailLabel></dt>
-          {value.resources[k].trim() ? <dd className="min-w-0 break-words text-body tabular-nums">
+          {value.resources[k].trim() ? <dd className="min-w-0 break-words text-sm tabular-nums">
             {value.resources[k]}
             {k === "funds" ? <span className="ml-xs text-body-small text-muted-foreground">{currency}</span> : null}
           </dd> : null}
-          {value.resources[`${k}Note`].trim() ? <dd className={`${readingStyles.resourceNote} whitespace-pre-wrap break-words text-body-small text-muted-foreground`}>
+          {value.resources[`${k}Note`].trim() ? <dd className={`${readingStyles.resourceNote} min-w-0 whitespace-pre-wrap break-words text-sm text-muted-foreground ${expanded ? "" : "line-clamp-2"}`}>
             {value.resources[`${k}Note`]}
           </dd> : null}
         </div>)}
     </dl>
   );
   const sections = <>
-    {onChange || resource ? <SupplementSection title={T.resources} icon="wallet">
-      {onChange ? resources : resourceSummary}
+    {onChange || resource ? <SupplementSection title={T.resources} icon="wallet" preview={onChange ? undefined : resourceSummary(true)}>
+      {onChange ? resources : resourceSummary()}
     </SupplementSection> : null}
     {onChange || milestones.length ? <SupplementSection title={T.milestones} icon="flag">
       {stages}

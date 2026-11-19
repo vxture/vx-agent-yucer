@@ -7701,6 +7701,7 @@ export const en: Dictionary = {
     unknown: "The draft did not complete - try again later",
   },
   STRATEGY_DETAIL_TEXT: {
+  preview: "View details",
   emptyGoals: "No strategic goals set",
   viewPlanning: "View planning",
   viewCampaigns: "View campaigns",
@@ -7709,7 +7710,7 @@ export const en: Dictionary = {
   allRelated: "View all",
   collapse: "Show fewer",
   handoffDetails: "Handoff details",
-  relatedHelp: "Related cards show summaries. Open the name for full details, or expand the list when more than three records are linked.",
+  relatedHelp: "Cards show key summaries. Click a card to preview all details, or its name to open the related module. Expand the list when more than three records are linked.",
   },
   MARKET_STRATEGY_TEXT: {
   strategyType: "Strategy type",
