@@ -32,7 +32,7 @@ export function MarketOfferingCard({ kind, name, number, status, actions, summar
         </div>
         <div className="flex items-center gap-sm">{status}{actions}</div>
       </div>
-      <div className={styles.body}>
+      <div className={`${styles.body} ${kind === "market" ? styles.marketBody : ""}`}>
         <div className="min-w-0 space-y-xs">{summary}</div>
         <div className="min-w-0 space-y-xs">{context}</div>
       </div>

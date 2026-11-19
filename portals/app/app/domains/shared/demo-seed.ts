@@ -298,6 +298,11 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         approvedAt: daysAgo(60),
         result: {
           ...emptyStrategyResult(),
+          goals: [
+            { id: "9e96c782-7089-4878-a88d-8c5f9db20e01", name: "revenue", metric: "revenue", baseline: "0", target: "2400000", unit: "CNY", dueOn: "2026-12-31", criterion: "" },
+            { id: "9e96c782-7089-4878-a88d-8c5f9db20e02", name: "channels", metric: "channels", baseline: "0", target: "3", unit: "count", dueOn: "2026-12-31", criterion: "" },
+            { id: "9e96c782-7089-4878-a88d-8c5f9db20e03", name: "reference_cases", metric: "reference_cases", baseline: "0", target: "2", unit: "count", dueOn: "2026-12-31", criterion: "" },
+          ],
           resources: { ...DEMO_STRATEGY_RESOURCES },
           milestones: DEMO_STRATEGY_STAGES.map((stage, index) => ({
             ...stage,

@@ -31,6 +31,8 @@
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   gap: var(--space-lg);
 }
+.marketBody { grid-template-columns: minmax(0, 1fr); gap: var(--space-md); }
+.card[data-market-offering-card="market"] .art { opacity: .06; }
 
 @container (max-width: 40rem) {
   .body { grid-template-columns: minmax(0, 1fr); }

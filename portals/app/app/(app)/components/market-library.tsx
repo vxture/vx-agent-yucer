@@ -11,11 +11,12 @@ import { useCollectionView } from "./collection-view-provider";
 import { FilterSlot, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { strategyOfferings } from "../lib/strategy-offerings";
 import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
-import { StrategyQuantity } from "./strategy-detail-label";
+import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketView } from "../lib/market-strategy";
 import { changeSegmentStatus, deleteSegment, moveSegmentRow } from "../strategy/actions";
+import styles from "./market-library.module.css";
 
 function StrategyReferences({ market }: { readonly market: MarketView }) {
   const { MARKET_STRATEGY_TEXT: T } = useMessages();
@@ -84,23 +85,24 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
       return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode}
         status={<Tag tone={m.status === "active" ? "success" : "neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>}
         actions={rowActions(m)} openLabel={T.openMarket} href={`/segment/${encodeURIComponent(m.id)}`}
-        summary={<>
-          <p className="text-body-small text-muted-foreground">{T.customerNeed}</p>
-          <p className="line-clamp-2 text-body" title={m.criteria.customerNeed || m.criteria.buyingScenario}>{m.criteria.customerNeed || m.criteria.buyingScenario || T.notProvided}</p>
-          {criteria && <p className="line-clamp-1 text-body-small text-muted-foreground" title={criteria}>{criteria}</p>}
-        </>}
-        context={<>
-          <p className="text-body-small text-muted-foreground">{T.marketDefaultSolutions}</p>
-          <div className="flex flex-wrap items-center gap-x-md gap-y-xs text-body-small">
-            {offerings.slice(0, 3).map(row => <Link key={row.key} href={row.href} className="inline-flex min-w-0 items-center gap-xs transition-colors hover:text-primary" title={row.name}>
-              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="truncate">{row.name}</span>
+        summary={<dl className={styles.portrait} data-market-card-portrait>
+          <div className={styles.field}><dt><StrategyDetailLabel icon="users">{D.audience}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={criteria}>{criteria || T.undefined}</dd></div>
+          <div className={styles.field}><dt><StrategyDetailLabel icon="lightbulb">{T.customerNeed}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={m.criteria.customerNeed}>{m.criteria.customerNeed || T.notProvided}</dd></div>
+          <div className={styles.field}><dt><StrategyDetailLabel icon={m.criteria.buyingScenario ? "ticket" : "chart-line-up"}>{m.criteria.buyingScenario ? T.buyingScenario : T.expectedOutcome}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={m.criteria.buyingScenario || m.criteria.expectedOutcome}>{m.criteria.buyingScenario || m.criteria.expectedOutcome || T.notProvided}</dd></div>
+        </dl>}
+        context={<div className={styles.field} data-market-card-offerings>
+          <StrategyDetailLabel icon="squares-four">{T.productSolutionsTitle}</StrategyDetailLabel>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-lg gap-y-sm">
+            {offerings.slice(0, 3).map(row => <Link key={row.key} href={row.href} className={styles.offering} title={row.name}>
+              <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate text-body">{row.name}</span>
             </Link>)}
-            {offerings.length > 3 && <Button size="sm" variant="ghost" onClick={() => router.push(`/segment/${encodeURIComponent(m.id)}`)}>+{offerings.length - 3}</Button>}
-            {!offerings.length && <span>{m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : T.noPlanSolutions}</span>}
+            {!offerings.length && <p className="text-body text-muted-foreground">{m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : T.noPlanSolutions}</p>}
+            {offerings.length > 3 && <Link href={`/segment/${encodeURIComponent(m.id)}`} className="text-body-small text-muted-foreground no-underline transition-colors hover:text-primary-text hover:no-underline">+{offerings.length - 3}</Link>}
           </div>
-        </>}
+        </div>}
         facts={<>
           <LibraryCardFact icon="users" label={T.customerCount}><StrategyQuantity value={m.matched ?? "-"} unit={m.matched === null ? undefined : D.customerUnit}/></LibraryCardFact>
+          <LibraryCardFact icon="squares-four" label={T.productSolutionsTitle}><StrategyQuantity value={m.defaultSolutions == null || m.defaultProducts == null ? "-" : offerings.length} unit={m.defaultSolutions == null || m.defaultProducts == null ? undefined : D.recordUnit}/></LibraryCardFact>
           <LibraryCardFact icon="flag" label={T.linkedPlan}><StrategyQuantity value={m.plans?.length ?? "-"} unit={m.plans === null ? undefined : D.strategyUnit}/></LibraryCardFact>
         </>}
       />;

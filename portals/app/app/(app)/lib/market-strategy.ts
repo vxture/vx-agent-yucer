@@ -2,6 +2,7 @@ import type { PlanRecord, SegmentRecord, CampaignRecord } from "../../domains/st
 import type { SegmentCriteria, TargetMarket } from "../../domains/strategy/lib/lifecycle";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
+import type { StrategicMetric } from "../../domains/strategy/lib/expectations";
 
 export type MarketMatch = "match" | "miss" | "missing" | "undefined";
 export interface MarketAccount {
@@ -19,9 +20,16 @@ export function marketMatch(a: MarketAccount, c: SegmentCriteria): MarketMatch {
 export interface MarketView extends Omit<SegmentRecord, "workspaceId"> {
   defaultProducts?: readonly ProductReference[] | null;
   defaultSolutions?: readonly SolutionReference[] | null;
-  plans: { id: string; name: string; period: string }[] | null;
+  plans: MarketStrategyReference[] | null;
   customers: (MarketAccount & { match: MarketMatch; assigned: boolean })[] | null;
   matched: number | null; missing: number | null; assigned: number | null;
+}
+export interface MarketStrategyReference {
+  id: string; name: string; period: string; planNo: string;
+  status: PlanRecord["status"]; versionNo: number | null;
+  strategyTypeName: string | null; objective: string | null;
+  ownerSub: string | null; ownerName: string | null;
+  goals: { id: string; name: string | null; metric: StrategicMetric | null; target: string; unit: string | null }[];
 }
 export interface StrategyResult {
   currency: string; open: number; won: number;
@@ -79,10 +87,24 @@ export function strategyResults(planId: string, deals: readonly OpportunityRecor
 }
 export function marketViews(segments: readonly SegmentRecord[], plans: readonly PlanRecord[] | null, accounts: readonly MarketAccount[] | null): MarketView[] {
   const adoption = new Map<string, NonNullable<MarketView["plans"]>>();
-  for (const { id, name, period, targetMarkets } of plans ?? []) {
-    for (const { segmentId } of targetMarkets ?? []) {
+  for (const plan of plans ?? []) {
+    // A published relationship must use the same frozen content as its detail.
+    const published = plan.publishedSnapshot;
+    const result = published ? published.result : plan.result;
+    const expectations = published ? published.expectations : plan.expectations;
+    const goals = (result?.goals.map(g => ({ id: g.id, name: g.name, metric: g.metric, target: g.target, unit: g.unit }))
+      ?? expectations?.map(g => ({ id: g.id, name: null, metric: g.metric, target: g.amount, unit: g.currency })) ?? [])
+      .filter(g => g.target.trim() !== "" && Number.isFinite(Number(g.target)));
+    const seen = new Set<string>();
+    for (const { segmentId } of published?.targetMarkets ?? plan.targetMarkets ?? []) {
+      if (seen.has(segmentId)) continue;
+      seen.add(segmentId);
       const rows = adoption.get(segmentId) ?? [];
-      rows.push({ id, name, period });
+      rows.push({ id: plan.id, planNo: plan.planNo, status: plan.status, versionNo: plan.versionNo ?? null,
+        name: published?.name ?? plan.name, period: published?.period ?? plan.period,
+        objective: published ? published.objective : plan.objective,
+        strategyTypeName: (published ? published.strategyType : plan.strategyType)?.name ?? null,
+        ownerSub: published ? published.ownerSub : plan.ownerSub, ownerName: published?.ownerName ?? null, goals });
       adoption.set(segmentId, rows);
     }
   }

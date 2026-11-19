@@ -3,9 +3,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Card, CardContent, Icon, ViewLayout, type IconName } from "@vxture/design-ui";
-import type { MarketView } from "../lib/market-strategy";
+import type { MarketStrategyReference, MarketView } from "../lib/market-strategy";
 import { strategyOfferings } from "../lib/strategy-offerings";
-import { strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
+import { strategyPeriodLabel, strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
+import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { ViewHeader } from "./business-controls";
 import { PageCrumbs } from "./page-crumbs";
@@ -20,7 +21,7 @@ import styles from "./market-detail.module.css";
 export function MarketDetail({ market, canWrite, at }: {
   readonly market: MarketView; readonly canWrite: boolean; readonly at: string;
 }) {
-  const { MARKET_STRATEGY_TEXT: T, SEGMENT_FORM_TEXT: F, SEGMENT_DETAIL_TEXT: D, STRATEGY_RESULT_TEXT: R, STRATEGY_TEXT: S } = useMessages();
+  const { MARKET_STRATEGY_TEXT: T, SEGMENT_FORM_TEXT: F, SEGMENT_DETAIL_TEXT: D, STRATEGY_RESULT_TEXT: R, STRATEGY_HANDOFF_TEXT: H, STRATEGY_TEXT: S, PLAN_STATUS_LABEL } = useMessages();
   const locale = useLocale();
   const defined = [...market.criteria.industries, ...market.criteria.regions, ...(market.criteria.sizes ?? [])].length > 0;
   const conditions = [
@@ -36,6 +37,7 @@ export function MarketDetail({ market, canWrite, at }: {
   ] as const;
   const offerings = strategyOfferings(market.defaultSolutions, market.defaultProducts);
   const insightRows = insights.filter(row => market.criteria[row.key]?.trim());
+  const goalLabel = (goal: MarketStrategyReference["goals"][number]) => goal.name && goal.name !== goal.metric ? goal.name : goal.metric ? H[goal.metric] : R.goals;
   return <ViewLayout className="@container" data-market-detail>
     <PageCrumbs trail={[{ label: T.markets, href: "/segment" }]} current={market.name} />
     <ViewHeader icon="chart-pie-slice" title={market.name} description={market.segmentCode}
@@ -78,10 +80,26 @@ export function MarketDetail({ market, canWrite, at }: {
     </Section>
     <Section title={D.strategies} icon="flag" help={D.strategyHelp}>
       {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card key={plan.id} className="min-w-0 py-lg"><CardContent className="flex min-w-0 flex-col gap-md">
-        <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
-          <Icon name="graph" size="md" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="line-clamp-2 min-w-0 break-words">{plan.name}</span><Icon name="arrow-right" size="sm" className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" />
-        </Link>
-        <div className="mt-auto flex min-w-0 items-start gap-sm border-t border-dashed border-border pt-sm text-body-small text-muted-foreground"><Icon name="calendar" size="sm" className="shrink-0" aria-hidden="true" /><span className="min-w-0 break-words">{strategyPeriodRangeLabel(plan.period) ?? plan.period}</span></div>
+        <div className="flex min-w-0 items-center gap-sm" data-market-strategy-heading>
+          <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 flex-1 items-center gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
+            <Icon name="graph" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate">{plan.name}</span>
+          </Link>
+          <span className="inline-flex max-w-1/4 shrink-0 items-center gap-xs text-body-small text-muted-foreground" title={strategyPeriodRangeLabel(plan.period) ?? plan.period}><Icon name="calendar" size="xs" className="shrink-0" aria-hidden="true" /><span className="min-w-0 truncate">{strategyPeriodLabel(plan.period)}</span></span>
+          <span className="flex min-w-0 max-w-1/4 shrink-0 items-center text-body-small text-muted-foreground" aria-label={T.owner}><MemberName sub={plan.ownerSub} name={plan.ownerName} fallback={T.noOwner} /></span>
+          <Tag tone={plan.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[plan.status]}{plan.versionNo ? ` V${plan.versionNo}` : ""}</Tag>
+        </div>
+        <div className="flex min-w-0 items-center gap-sm text-body" data-market-strategy-objective>
+          {plan.strategyTypeName ? <Tag>{plan.strategyTypeName}</Tag> : null}
+          <p className={`min-w-0 truncate ${plan.objective ? "" : "text-muted-foreground"}`} title={plan.objective || undefined}>{plan.objective || T.directionEmpty}</p>
+        </div>
+        <div className="flex min-w-0 items-center gap-sm overflow-x-auto" data-market-strategy-meta aria-label={R.goals} tabIndex={plan.goals.length ? 0 : undefined}>
+          {plan.goals.length ? plan.goals.map(goal => <Tag key={goal.id}>
+            <span className="inline-flex items-baseline gap-sm whitespace-nowrap" title={`${goalLabel(goal)}: ${Number(goal.target).toLocaleString(locale)} ${goal.unit && goal.unit !== "count" ? goal.unit : R.count}`}>
+              <span className="text-body-small font-normal text-muted-foreground">{goalLabel(goal)}</span>
+              <span className="text-body font-medium text-foreground"><StrategyQuantity value={Number(goal.target).toLocaleString(locale, { maximumFractionDigits: 2 })} unit={goal.unit && goal.unit !== "count" ? goal.unit : R.count} /></span>
+            </span>
+          </Tag>) : <span className="truncate text-body-small text-muted-foreground">{H.empty}</span>}
+        </div>
       </CardContent></Card>)}</div> : <DetailEmpty>{market.plans === null ? T.unknown : D.noStrategies}</DetailEmpty>}
     </Section>
     <Section title={D.coverage} icon="users" help={<><p>{D.coverageHelp}</p><p>{T.previewWhy}</p><p>{T.baseOnly}</p></>}>

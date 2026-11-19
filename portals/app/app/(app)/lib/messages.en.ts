@@ -7716,6 +7716,7 @@ export const en: Dictionary = {
   relatedHelp: "Cards show key summaries. Click a card to preview all details, or its name to open the related module. Expand the list when more than three records are linked.",
   },
   SEGMENT_DETAIL_TEXT: {
+    audience: "Target customers",
     help: "A segment defines customers worth serving. Review their criteria and buying needs, available offerings, adopting strategies and customer coverage. Use Edit market to change its definition.",
     strategies: "Related strategies",
     strategyHelp: "Shows accessible strategies that explicitly adopt this segment. Each strategy maintains its own approach and offerings; changes here do not rewrite published strategies.",
