@@ -8065,7 +8065,7 @@ export const en: Dictionary = {
     "industries": "Select customer industry categories. Empty means any industry. A market can span multiple industries.",
     "regions": "Choose sales regions defined in Settings, not company departments or provinces. Empty means any region.",
     "sizes": "Select customer size classifications. Empty means any size. Matching uses the size registered on each customer.",
-    "needSummary": "Summarize the shared problem and desired value in one sentence, preferably 30-50 characters, up to 60. Used beneath titles and in card/list previews. Keep detailed analysis in Customer pain.",
+    "needSummary": "Summarize the shared problem and desired value in one sentence, preferably 30-50 characters, up to 60. Shown in the first full-width row of Needs and buying and in card/list previews. Keep detailed analysis in Customer pain.",
     "customerNeed": "What problem do these customers have, and how does it affect their business? One or two concrete sentences.",
     "buyingScenario": "What triggers a purchase, and who is involved? For example, new stores or replacement projects reviewed by operations and IT.",
     "expectedOutcome": "What improvement do customers want? Avoid unsupported numeric promises.",

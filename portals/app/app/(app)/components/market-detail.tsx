@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { Card, CardContent, Icon, ViewLayout, type IconName } from "@vxture/design-ui";
 import type { MarketStrategyReference, MarketView } from "../lib/market-strategy";
 import { strategyOfferings } from "../lib/strategy-offerings";
-import { segmentSummary } from "../../domains/strategy/lib/segment-summary";
 import { strategyPeriodLabel, strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -37,11 +36,12 @@ export function MarketDetail({ market, canWrite, at }: {
     { key: "entryBarrier", icon: "shield-check" },
   ] as const;
   const offerings = strategyOfferings(market.defaultSolutions, market.defaultProducts);
+  const needSummary = market.criteria.needSummary?.trim();
   const insightRows = insights.filter(row => market.criteria[row.key]?.trim());
   const goalLabel = (goal: MarketStrategyReference["goals"][number]) => goal.name && goal.name !== goal.metric ? goal.name : goal.metric ? H[goal.metric] : R.goals;
   return <ViewLayout className="@container" data-market-detail>
     <PageCrumbs trail={[{ label: T.markets, href: "/segment" }]} current={market.name} />
-    <ViewHeader icon="chart-pie-slice" title={market.name} description={<span className="flex min-w-0 flex-col gap-sm"><span className="text-body-small">{market.segmentCode}</span><span className="text-body text-muted-foreground" data-market-detail-summary>{segmentSummary(market.criteria) || T.notProvided}</span></span>}
+    <ViewHeader icon="chart-pie-slice" title={market.name} description={market.segmentCode}
       secondary={<Tag tone={market.status === "active" ? "success" : "neutral"}>{S.segmentStatusLabel[market.status]}</Tag>}
       help={D.help} divider={false}
       pageActions={{ primary: canWrite ? <PageActionButton asChild><Link href={`/segment/new?id=${encodeURIComponent(market.id)}`}><Icon name="edit" size="sm" aria-hidden="true" />{T.editMarket}</Link></PageActionButton> : undefined }} />
@@ -53,9 +53,14 @@ export function MarketDetail({ market, canWrite, at }: {
         </div>)}</dl>
       </CardContent></Card>
     </Section>
-    {insightRows.length ? <Section title={F.insights} icon="lightbulb" help={<><p>{T.marketInsightHint}</p><p>{T.qualitativeHint}</p></>}>
+    {needSummary || insightRows.length ? <Section title={F.insights} icon="lightbulb" help={<><p>{F.help.needSummary}</p><p>{T.marketInsightHint}</p><p>{T.qualitativeHint}</p></>}>
       <Card className="min-w-0 py-lg"><CardContent>
-        <dl className={styles.insights}>{insightRows.map(row => <div key={row.key} className={styles.insight}>
+        <dl className={styles.insights}>
+          <div className={`${styles.insight} col-span-full`} data-market-detail-summary>
+            <dt><StrategyDetailLabel icon="clipboard">{F.needSummary}</StrategyDetailLabel></dt>
+            <dd className={`min-w-0 break-words text-body ${needSummary ? "" : "text-muted-foreground"}`}>{needSummary || T.notProvided}</dd>
+          </div>
+          {insightRows.map(row => <div key={row.key} className={styles.insight}>
           <dt><StrategyDetailLabel icon={row.icon}>{F[row.key]}</StrategyDetailLabel></dt>
           <dd className="min-w-0 whitespace-pre-wrap break-words text-body">{market.criteria[row.key]}</dd>
         </div>)}</dl>

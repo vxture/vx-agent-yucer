@@ -133,17 +133,18 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
               <Field>{label("priority", true)}<Input id={`${id}-priority`} required type="number" min={0} max={9999} step={1} placeholder={T.examples.priority} value={priority} onChange={e => setPriority(e.target.value)} /></Field>
               </div>
             </FormFields>
-            <Field>
-              <div className="flex items-center justify-between gap-sm">{label("needSummary")}<span id={`${id}-summary-count`} className="text-body-small tabular-nums text-muted-foreground">{values.needSummary.length}/{SEGMENT_SUMMARY_LIMIT}</span></div>
-              <Input id={`${id}-needSummary`} maxLength={SEGMENT_SUMMARY_LIMIT} aria-describedby={`${id}-summary-count`} placeholder={T.examples.needSummary} value={values.needSummary} onChange={e => change("needSummary", e.target.value)} />
-            </Field>
           </Section>
           <Section>{title("conditions", "filter")}
             <FormFields>{(["industries", "sizes", "regions"] as const).map(key => <Field key={key}>{label(key)}<SegmentChoices id={`${id}-${key}`} label={T[key]} values={values[key]} options={vocabulary[key]} disabled={busy} onChange={v => change(key, v)} /></Field>)}</FormFields>
             <p className="text-body-small text-muted-foreground">{values.industries.length || values.regions.length || values.sizes.length ? T.conditionRule : T.noConditions}</p>
           </Section>
           <Section>{title("insights", "lightbulb")}
-            <div className="@container"><div className="grid min-w-0 grid-cols-1 gap-lg @xl:grid-cols-2">{(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <Field key={key}>{label(key)}<Textarea id={`${id}-${key}`} rows={3} maxLength={2000} placeholder={T.examples[key]} value={values[key]} onChange={e => change(key, e.target.value)} /></Field>)}</div></div>
+            <div className="@container"><div className="grid min-w-0 grid-cols-1 gap-lg @xl:grid-cols-2">
+              <Field className="col-span-full" data-segment-summary-field>
+                <div className="flex items-center gap-xs"><Icon name="clipboard" size="xs" className="shrink-0 text-muted-foreground" aria-hidden="true" />{label("needSummary")}<span id={`${id}-summary-count`} className="ml-auto text-body-small tabular-nums text-muted-foreground">{values.needSummary.length}/{SEGMENT_SUMMARY_LIMIT}</span></div>
+                <Input id={`${id}-needSummary`} maxLength={SEGMENT_SUMMARY_LIMIT} aria-describedby={`${id}-summary-count`} placeholder={T.examples.needSummary} value={values.needSummary} onChange={e => change("needSummary", e.target.value)} />
+              </Field>
+              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <Field key={key}>{label(key)}<Textarea id={`${id}-${key}`} rows={3} maxLength={2000} placeholder={T.examples[key]} value={values[key]} onChange={e => change(key, e.target.value)} /></Field>)}</div></div>
           </Section>
           <SegmentOfferings vocabulary={vocabulary} selection={values} disabled={busy}
             help={<SegmentHelp label={T.offerings}>{T.help.offerings}</SegmentHelp>}
