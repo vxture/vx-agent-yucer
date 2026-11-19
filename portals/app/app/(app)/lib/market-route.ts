@@ -9,3 +9,8 @@ export function legacyMarketDestination(values: Readonly<Record<string, string |
   }
   return query.size ? `/segment?${query}` : "/segment";
 }
+
+/** Legacy numbers are accepted only at entry; every relation retains its UUID. */
+export function resolveMarketId(markets: readonly { readonly id: string; readonly segmentCode: string }[], reference: string): string | null {
+  return (markets.find(m => m.id === reference) ?? markets.find(m => m.segmentCode === reference))?.id ?? null;
+}

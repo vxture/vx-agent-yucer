@@ -685,6 +685,17 @@
       "sample": "/segment/new"
     },
     {
+      "route": "/segment/[id]",
+      "file": "(app)/segment/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/market-library.tsx",
+        "needle": "/segment/${"
+      },
+      "reason": "Market titles and view actions open the read-only segment detail page.",
+      "sample": "/segment/seg_demo_2"
+    },
+    {
       "route": "/segment",
       "file": "(app)/segment/page.tsx",
       "kind": "navigation",

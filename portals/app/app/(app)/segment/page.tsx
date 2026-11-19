@@ -1,3 +1,5 @@
+import { notFound, redirect } from "next/navigation";
+import { resolveMarketId } from "../lib/market-route";
 import { EmptyState } from "@vxture/design-ui";
 import { MarketWorkspace } from "../components/market-workspace";
 import { lockedPage } from "../components/locked-page";
@@ -18,5 +20,10 @@ export default async function SegmentPage({ searchParams }: { readonly searchPar
   }
   const { market } = await searchParams;
   const { markets, canWriteMarket, segmentAdvice, at } = bundle.data;
-  return <MarketWorkspace data={{ markets, canWriteMarket, segmentAdvice, at }} initialMarket={market} />;
+  if (market) {
+    const id = resolveMarketId(markets ?? [], market);
+    if (!id) notFound();
+    redirect(`/segment/${encodeURIComponent(id)}`);
+  }
+  return <MarketWorkspace data={{ markets, canWriteMarket, segmentAdvice, at }} />;
 }

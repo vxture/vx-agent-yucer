@@ -26,6 +26,8 @@
 .table th:has([data-collection-track="count"]),
 .table th:has([data-collection-track="state"]),
 .table th:has([data-collection-track="unit"]) { width: var(--collection-compact-col); }
+/* A sortable count heading also needs room for the DS sort indicator. */
+.table th:has([data-collection-track="count"]):has(button) { width: calc(var(--vx-spacing) * 28); }
 .table th:has([data-collection-track="composition"]) { width: calc(var(--vx-spacing) * 34); }
 .table th:has([data-collection-track="price"]) { width: calc(var(--vx-spacing) * 52); }
 .table th:has([data-collection-track="amount"]) { width: calc(var(--vx-spacing) * 36); }
