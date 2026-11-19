@@ -52,7 +52,8 @@
 .previewCard a, .previewCard [data-preview-actions] { position: relative; z-index: 2; }
 .previewCard a, .previewCard a:hover { text-decoration: none; }
 .previewFacts { display: flex; flex-direction: column; gap: var(--space-md); }
-.previewFacts > div { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: var(--space-md); }
+.previewFacts > div { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--space-md); }
+.previewFacts dt { display: flex; align-items: start; }
 .previewFacts dd { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .previewLinks { display: flex; flex-direction: column; gap: var(--space-sm); }
 .previewLinks a { display: inline-flex; align-items: start; gap: var(--space-xs); text-decoration: none; }
