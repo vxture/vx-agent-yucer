@@ -4,6 +4,7 @@ import { marketMatch, marketViews, strategyResults, strategyViews, type MarketAc
 import { captureStrategyPublication, type PlanRecord, type SegmentRecord, type CampaignRecord } from "../../domains/strategy/store";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { money } from "../../domains/shared/money";
+import { resultFromExpectations } from "../../domains/strategy/lib/strategy-result";
 
 const account: MarketAccount = { id:"a",name:"A",accountNo:"A1",industry:"software",region:null,customerSize:"large",segmentId:null };
 const criteria = { industries:["software"],regions:[],sizes:["large"] };
@@ -105,4 +106,20 @@ test("duplicate market selections do not repeat or inflate adopting strategy car
   const market = marketViews([segment], [{ ...plan, targetMarkets: [target, target] }], [account])[0];
   assert.equal(market.plans!.length, 1);
   assert.equal(market.plans![0].ownerSub, null);
+});
+
+test("market strategy metrics use published targets, retain zero and exclude incomplete amounts", () => {
+  const target = { segmentId: segment.id, marketName: segment.name, intent: null, approach: null, criteria, solutionIds: [] };
+  const expectations = [{ id: "revenue", metric: "revenue" as const, amount: "1200000", currency: "CNY", criterion: "" }];
+  const result = resultFromExpectations(expectations, "2026-12-31");
+  const original = { ...plan, result: { ...result, goals: [result.goals[0], { ...result.goals[0], id: "zero", target: "0" }, { ...result.goals[0], id: "blank", target: " " }] }, targetMarkets: [target] };
+  const published = { ...original, publishedSnapshot: captureStrategyPublication(original, [], new Date("2026-11-14")) };
+  const changed = { ...published, result: { ...result, goals: [{ ...result.goals[0], target: "9999999" }] } };
+  const goals = marketViews([segment], [changed], [account])[0].plans![0].goals;
+  assert.deepEqual(goals.map(g => g.target), ["1200000", "0"]);
+  assert.equal(goals[0].unit, "CNY");
+  assert.equal("criterion" in goals[0], false);
+  const legacy = marketViews([segment], [{ ...plan, expectations, targetMarkets: [target] }], [account])[0].plans![0].goals;
+  assert.equal(legacy[0].target, "1200000");
+  assert.equal(legacy[0].metric, "revenue");
 });
