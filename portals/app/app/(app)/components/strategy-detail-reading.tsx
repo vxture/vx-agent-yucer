@@ -19,7 +19,7 @@ export function StrategyDetailBasic({ plan:p }: { readonly plan:StrategyView }) 
   const locale=useLocale();
   const facts=[
     {label:R.period,icon:"calendar",value:strategyPeriodRangeLabel(p.period) ?? T.periodNeedsDates},
-    {label:S.newPlanOwner,value:<MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/>},
+    {label:S.newPlanOwner,icon:"user-circle",value:<MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/>},
     {label:T.publishedAt,icon:"clock",value:<span className="tabular-nums">{p.approvedAt?new Date(p.approvedAt).toLocaleDateString(locale):"-"}</span>},
     {label:T.strategyType,icon:"tree-structure",value:p.strategyType?.name ?? T.typeUnclassified},
     {label:R.value,icon:"seal-check",value:p.resultOptions?.find(o=>o.id===p.result?.valuePropositionId)?.name ?? "-"},
@@ -47,8 +47,8 @@ export function StrategyDetailGoals({ plan:p }: { readonly plan:StrategyView }) 
         <TableCell className="text-center tabular-nums text-muted-foreground">{i+1}</TableCell>
         <TableCell><span className="line-clamp-2 text-body" title={g.name}>{g.name || R.untitled}</span></TableCell>
         <TableCell><div className="flex min-w-0 flex-wrap items-baseline gap-x-md gap-y-xs"><span className="text-body font-medium tabular-nums">{format(g.target)}{g.target.trim()?<span className="ml-xs text-body-small font-normal text-muted-foreground">{g.unit}</span>:null}</span>{g.baseline.trim()?<span className="text-body-small text-muted-foreground">{R.baseline} {format(g.baseline)} {g.unit}</span>:null}</div></TableCell>
-        <TableCell className="text-body-small tabular-nums">{g.dueOn || "-"}</TableCell>
-        <TableCell><span className="line-clamp-2 whitespace-normal text-body-small text-muted-foreground" title={g.criterion || undefined}>{g.criterion || "-"}</span></TableCell>
+        <TableCell className="text-body tabular-nums">{g.dueOn || "-"}</TableCell>
+        <TableCell><span className="line-clamp-2 whitespace-normal text-body text-muted-foreground" title={g.criterion || undefined}>{g.criterion || "-"}</span></TableCell>
       </TableRow>)}</TableBody>
     </Table></div>}
     </CardContent></Card>
@@ -64,9 +64,9 @@ export function StrategyDetailMarkets({ plan:p, actions }: { readonly plan:Strat
       const facts=[{label:F.industries,value:m.criteria.industries.join(" / ")},{label:F.regions,value:m.criteria.regions.join(" / ")},{label:R.sizes,value:m.criteria.sizes?.join(" / ")||R.unlimitedSize}].filter(f=>f.value);
       return <Card key={m.segmentId} className="min-w-0 gap-0 py-lg" data-strategy-target-market><CardContent className="flex min-w-0 flex-1 flex-col gap-md">
         <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment?market=${encodeURIComponent(m.segmentId)}`} className="inline-flex min-w-0 items-start gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name="globe" size="md" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words" title={m.marketName}>{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{m.intent==="focus"?T.focusMarket:m.intent==="validate"?T.validateMarket:T.unclassifiedMarket}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
-        <dl className="flex min-w-0 flex-col gap-xs" data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd className="truncate text-body-small" title={f.value}>{f.value}</dd></div>)}</dl>
-        <p className="line-clamp-2 text-body-small text-muted-foreground" title={m.approach || undefined}>{m.approach || T.noMarketApproach}</p>
-        <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm border-t border-dashed border-border pt-md"><span className="inline-flex items-center gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><span className="tabular-nums text-body-small">{m.matched ?? T.unknown}</span></span>{actions?.(m.segmentId)}</div>
+        <dl className="flex min-w-0 flex-col gap-xs" data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd className="truncate text-body" title={f.value}>{f.value}</dd></div>)}</dl>
+        <p className="line-clamp-2 text-body text-muted-foreground" title={m.approach || undefined}>{m.approach || T.noMarketApproach}</p>
+        <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm border-t border-dashed border-border pt-md"><span className="inline-flex items-center gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><span className="tabular-nums text-body">{m.matched ?? T.unknown}</span></span>{actions?.(m.segmentId)}</div>
       </CardContent></Card>;
     })}</RelatedDisclosure>}
   </Section>;

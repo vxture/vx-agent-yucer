@@ -10,7 +10,7 @@ export function StrategyDetailLabel({ children, icon }: {
   readonly icon?: ComponentProps<typeof Icon>["name"];
 }) {
   const locale = useLocale();
-  return <span className="inline-flex items-center gap-xs whitespace-nowrap text-body-small font-normal text-muted-foreground" data-strategy-detail-label>
+  return <span className="inline-flex items-center gap-xs whitespace-nowrap text-body font-normal text-muted-foreground" data-strategy-detail-label>
     {icon ? <Icon name={icon} size="xs" aria-hidden="true"/> : null}
     <span>{children}{locale.startsWith("zh") ? "\uFF1A" : ":"}</span>
   </span>;
