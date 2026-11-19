@@ -18,23 +18,19 @@ export function StrategyDetailBasic({ plan:p }: { readonly plan:StrategyView }) 
   const { MARKET_STRATEGY_TEXT:T, STRATEGY_RESULT_TEXT:R, STRATEGY_TEXT:S }=useMessages();
   const locale=useLocale();
   const facts=[
-    {label:S.newPlanName,icon:"text-t",value:p.name},
     {label:R.period,icon:"calendar",value:strategyPeriodRangeLabel(p.period) ?? T.periodNeedsDates},
     {label:S.newPlanOwner,value:<MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/>},
+    {label:T.publishedAt,icon:"clock",value:<span className="tabular-nums">{p.approvedAt?new Date(p.approvedAt).toLocaleDateString(locale):"-"}</span>},
     {label:T.strategyType,icon:"tree-structure",value:p.strategyType?.name ?? T.typeUnclassified},
     {label:R.value,icon:"seal-check",value:p.resultOptions?.find(o=>o.id===p.result?.valuePropositionId)?.name ?? "-"},
     {label:R.paths,icon:"git-branch",value:p.resultOptions?.filter(o=>o.kind==="path" && p.result?.pathIds.includes(o.id)).map(o=>o.name).join(" / ") || "-"},
   ] satisfies {label:string;icon?:ComponentProps<typeof Icon>["name"];value:ReactNode}[];
   return <Collapsible defaultOpen className="flex min-w-0 flex-col gap-md" data-strategy-basic-section>
-    <SectionHeader title={R.basic} icon="clipboard" action={<CollapsibleTrigger asChild><Button size="icon-md" variant="ghost" className="group" aria-label={R.basic}><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/></Button></CollapsibleTrigger>}/>
+    <SectionHeader title={R.basic} icon="clipboard" action={<div className="flex min-w-0 items-center gap-md">{p.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={p.createdBySub}/></span>:null}<CollapsibleTrigger asChild><Button size="icon-md" variant="ghost" className="group" aria-label={R.basic}><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/></Button></CollapsibleTrigger></div>}/>
     <CollapsibleContent>
       <Card className="min-w-0 py-lg" data-strategy-basic-card><CardContent className="flex min-w-0 flex-col gap-md">
         <dl className={styles.facts} data-strategy-basic-facts>{facts.map(f=><div key={f.label} className={styles.fieldRow}><dt><StrategyDetailLabel icon={"icon" in f ? f.icon : undefined}>{f.label}</StrategyDetailLabel></dt><dd className="min-w-0 break-words text-body">{f.value}</dd></div>)}</dl>
         <div className={styles.position} data-strategy-detail-direction><StrategyDetailLabel icon="lightbulb">{T.strategyPosition}</StrategyDetailLabel><p className="whitespace-pre-wrap break-words text-body">{p.objective || T.directionEmpty}</p></div>
-        <div className="flex flex-wrap items-center justify-between gap-md text-body-small text-muted-foreground" data-strategy-publication-meta>
-          <span className="inline-flex items-center gap-xs"><StrategyDetailLabel icon="clock">{T.publishedAt}</StrategyDetailLabel><span className="tabular-nums">{p.approvedAt?new Date(p.approvedAt).toLocaleDateString(locale):"-"}</span></span>
-          {p.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={p.createdBySub}/></span>:null}
-        </div>
         {p.changeReason?<div className={styles.position}><StrategyDetailLabel icon="file-text">{T.changeReason}</StrategyDetailLabel><p className="whitespace-pre-wrap break-words text-body">{p.changeReason}</p></div>:null}
       </CardContent></Card>
     </CollapsibleContent>
