@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Banner, Button, Card, Field, FieldLabel, Icon, Input, NativeSelect, Section, SectionHeader, Textarea, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import { Banner, Button, Card, Field, FieldError, FieldLabel, Icon, Input, NativeSelect, Section, SectionHeader, Textarea, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import { SegmentOfferings } from "./segment-offerings";
 import { FormFields, FormPage, useFormSubmit } from "./form-page";
 import { SegmentChoices } from "./segment-choices";
@@ -10,8 +10,8 @@ import { usePageAssistantSlot } from "./form-assist-slot";
 import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assistant-conversation";
 import { useMessages } from "../lib/i18n/provider";
 import type { SegmentCriteria } from "../../domains/strategy/lib/lifecycle";
-import { segmentFillValues, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "../../domains/strategy/lib/segment-draft";
-import { SEGMENT_SUMMARY_LIMIT } from "../../domains/strategy/lib/segment-summary";
+import { SEGMENT_TEXT_FIELDS, segmentFillValues, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "../../domains/strategy/lib/segment-draft";
+import { SEGMENT_TEXT_LIMITS, type SegmentTextField } from "../../domains/strategy/lib/segment-text-limits";
 import type { SegmentAssistInput, SegmentAssistResult } from "../../domains/strategy/segment-assist-service";
 
 export interface SegmentFormRow {
@@ -56,7 +56,8 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
   const returnTo = original ? `/segment/${encodeURIComponent(original.id)}` : "/segment";
   const submit = useFormSubmit(returnTo);
   const busy = assisting || submit.pending;
-  const ready = !!values.name.trim() && Number.isInteger(Number(priority)) && Number(priority) >= 0 && Number(priority) <= 9999;
+  const textOverLimit = SEGMENT_TEXT_FIELDS.some(key => values[key].length > SEGMENT_TEXT_LIMITS[key]);
+  const ready = !textOverLimit && !!values.name.trim() && Number.isInteger(Number(priority)) && Number(priority) >= 0 && Number(priority) <= 9999;
   function change<K extends SegmentFillField>(key: K, value: SegmentFillValues[K]) {
     if (hasAssisted.current) manual.current.add(key);
     setValues(current => ({ ...current, [key]: value }));
@@ -87,6 +88,10 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
     <FieldLabel htmlFor={`${id}-${key}`} required={required}>{T[key]}</FieldLabel>
     <SegmentHelp label={`${T[key]} \u00b7 ${H.help}`}>{T.help[key]}</SegmentHelp>
   </div>;
+  const overLimit = (key: SegmentTextField) => values[key].length > SEGMENT_TEXT_LIMITS[key];
+  const textCount = (key: SegmentTextField) => <span id={`${id}-${key}-count`} data-segment-text-count={key} className={`ml-auto text-body-small tabular-nums ${overLimit(key) ? "text-destructive-text" : "text-muted-foreground"}`}>{values[key].length}/{SEGMENT_TEXT_LIMITS[key]}</span>;
+  const textError = (key: SegmentTextField) => overLimit(key) ? <FieldError id={`${id}-${key}-error`} role="alert">{T.tooLong(SEGMENT_TEXT_LIMITS[key])}</FieldError> : null;
+  const textAttributes = (key: SegmentTextField) => ({ "aria-invalid": overLimit(key) || undefined, "aria-describedby": [`${id}-${key}-count`, ...(overLimit(key) ? [`${id}-${key}-error`] : [])].join(" ") });
   const changedLabel = (field: SegmentFillField) => field === "productIds" || field === "solutionIds" ? T.offerings : T[field];
   const feedback = <>
     {assistError ? <Banner tone="warning" title={assistError} /> : null}
@@ -99,7 +104,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
       {messages.map((message, i) => <AssistantMessage key={i} role={message.role}><p className="whitespace-pre-wrap break-words">{message.text}</p></AssistantMessage>)}
       {feedback}
     </AssistantTranscript>
-    <AssistantComposer id={`${id}-dock`} value={text} onChange={setText} onSend={() => void send()} disabled={!canAssist} busy={busy} placeholder={T.assistExample} />
+    <AssistantComposer id={`${id}-dock`} value={text} onChange={setText} onSend={() => void send()} disabled={!canAssist} busy={busy} placeholder={T.assistExample} extra={<span className="mr-auto text-body-small tabular-nums text-muted-foreground">{text.length}/4000</span>} />
   </div>, slot) : null;
   const title = (key: "basic" | "conditions" | "insights", icon: "clipboard" | "filter" | "lightbulb") =>
     <SectionHeader title={T[key]} icon={icon} />;
@@ -113,6 +118,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
             <Field className="min-w-0 flex-1"><FieldLabel htmlFor={`${id}-assist`} className="sr-only">{T.assist}</FieldLabel><Input id={`${id}-assist`} placeholder={T.assistExample} value={text} maxLength={4000} disabled={busy} onChange={event => setText(event.target.value)} /></Field>
             <Button size="xl" type="submit" disabled={busy || !text.trim()}><Icon name={assisting ? "spinner" : "magic-wand"} size="sm" className={assisting ? "animate-spin" : undefined} />{assistError ? T.retry : messages.length ? T.send : T.begin}</Button>
           </form>
+          <p className="text-right text-body-small tabular-nums text-muted-foreground">{text.length}/4000</p>
           {!slot ? <div className="flex max-h-48 flex-col gap-sm overflow-y-auto">{messages.map((message, i) => <AssistantMessage key={i} role={message.role}>{message.text}</AssistantMessage>)}{feedback}</div> : null}
         </> : <p className="text-body-small text-muted-foreground">{T.assistDenied}</p>}
       </Card>
@@ -126,7 +132,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
         <fieldset disabled={busy} className="flex min-w-0 flex-col gap-xl">
           <Section>{title("basic", "clipboard")}
             <FormFields>
-              <Field>{label("name", true)}<Input id={`${id}-name`} required maxLength={200} placeholder={T.examples.name} value={values.name} onChange={e => change("name", e.target.value)} /></Field>
+              <Field data-invalid={overLimit("name") || undefined}><div className="flex items-center gap-xs">{label("name", true)}{textCount("name")}</div><Input id={`${id}-name`} required {...textAttributes("name")} placeholder={T.examples.name} value={values.name} onChange={e => change("name", e.target.value)} />{textError("name")}</Field>
               <Field>{label("code")}<Input id={`${id}-code`} readOnly value={code} /></Field>
               <div className="grid grid-cols-2 items-start gap-md">
               <Field>{label("status", true)}<NativeSelect id={`${id}-status`} required value={status} onChange={e => setStatus(e.target.value)}>{Object.entries(T.statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</NativeSelect></Field>
@@ -140,11 +146,11 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
           </Section>
           <Section>{title("insights", "lightbulb")}
             <div className="@container"><div className="grid min-w-0 grid-cols-1 gap-lg @xl:grid-cols-2">
-              <Field className="col-span-full" data-segment-summary-field>
-                <div className="flex items-center gap-xs"><Icon name="clipboard" size="xs" className="shrink-0 text-muted-foreground" aria-hidden="true" />{label("needSummary")}<span id={`${id}-summary-count`} className="ml-auto text-body-small tabular-nums text-muted-foreground">{values.needSummary.length}/{SEGMENT_SUMMARY_LIMIT}</span></div>
-                <Input id={`${id}-needSummary`} maxLength={SEGMENT_SUMMARY_LIMIT} aria-describedby={`${id}-summary-count`} placeholder={T.examples.needSummary} value={values.needSummary} onChange={e => change("needSummary", e.target.value)} />
+              <Field className="col-span-full" data-invalid={overLimit("needSummary") || undefined} data-segment-summary-field>
+                <div className="flex items-center gap-xs"><Icon name="clipboard" size="xs" className="shrink-0 text-muted-foreground" aria-hidden="true" />{label("needSummary")}{textCount("needSummary")}</div>
+                <Input id={`${id}-needSummary`} {...textAttributes("needSummary")} placeholder={T.examples.needSummary} value={values.needSummary} onChange={e => change("needSummary", e.target.value)} />{textError("needSummary")}
               </Field>
-              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <Field key={key}>{label(key)}<Textarea id={`${id}-${key}`} rows={3} maxLength={2000} placeholder={T.examples[key]} value={values[key]} onChange={e => change(key, e.target.value)} /></Field>)}</div></div>
+              {(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => <Field key={key} data-invalid={overLimit(key) || undefined}><div className="flex items-center gap-xs">{label(key)}{textCount(key)}</div><Textarea id={`${id}-${key}`} rows={3} {...textAttributes(key)} placeholder={T.examples[key]} value={values[key]} onChange={e => change(key, e.target.value)} />{textError(key)}</Field>)}</div></div>
           </Section>
           <SegmentOfferings vocabulary={vocabulary} selection={values} disabled={busy}
             help={<SegmentHelp label={T.offerings}>{T.help.offerings}</SegmentHelp>}

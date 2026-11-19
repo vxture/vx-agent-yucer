@@ -1,7 +1,7 @@
 import { validStrategyResult } from "./strategy-result";
 import { validExpectations } from "./expectations";
 import { parseStrategyPeriod } from "./plan-period";
-import { SEGMENT_SUMMARY_LIMIT } from "./segment-summary";
+import { SEGMENT_TEXT_LIMITS } from "./segment-text-limits";
 // D1 strategy and D3 campaign lifecycles.
 //
 // These two domains share a file because they share a shape: both own an object
@@ -479,8 +479,11 @@ export function planSegment(input: SegmentDraft): RuleResult<SegmentDraft> {
   if (!name) {
     return fail(violation("name_required", "a segment needs a name", "name"));
   }
-  if (criteria.needSummary && criteria.needSummary.length > SEGMENT_SUMMARY_LIMIT) {
-    return fail(violation("need_summary_too_long", "shared needs summary exceeds 60 characters", "criteria.needSummary"));
+  for (const key of Object.keys(SEGMENT_TEXT_LIMITS) as (keyof typeof SEGMENT_TEXT_LIMITS)[]) {
+    const value = key === "name" ? name : criteria[key];
+    if (value && value.length > SEGMENT_TEXT_LIMITS[key]) {
+      return fail(violation(key === "needSummary" ? "need_summary_too_long" : "segment_text_too_long", `${key} exceeds ${SEGMENT_TEXT_LIMITS[key]} characters`, key === "name" ? key : `criteria.${key}`));
+    }
   }
   if (!(SEGMENT_STATUSES as readonly string[]).includes(input.status)) {
     return fail(

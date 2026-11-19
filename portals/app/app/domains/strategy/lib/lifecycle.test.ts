@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
+import { SEGMENT_TEXT_LIMITS } from "./segment-text-limits";
 import {
   accountMatchesCriteria,
   planExecution,
@@ -254,7 +255,7 @@ const DRAFT = {
 };
 
 test("shared needs accepts 60 characters, preserves full analysis, and rejects oversized summaries", () => {
-  const criteria = { ...DRAFT.criteria, needSummary: "  " + "x".repeat(60) + "  ", customerNeed: "Analysis ".repeat(100) };
+  const criteria = { ...DRAFT.criteria, needSummary: "  " + "x".repeat(60) + "  ", customerNeed: "Analysis ".repeat(20) };
   const accepted = planSegment({ ...DRAFT, criteria });
   assert.ok(accepted.ok);
   assert.equal(accepted.value.criteria.needSummary, "x".repeat(60));
@@ -262,6 +263,19 @@ test("shared needs accepts 60 characters, preserves full analysis, and rejects o
   const rejected = planSegment({ ...DRAFT, criteria: { ...criteria, needSummary: "x".repeat(61) } });
   assert.ok(!rejected.ok);
   assert.equal(rejected.violations[0].code, "need_summary_too_long");
+});
+
+test("all market text limits accept the boundary and reject excess without cutting content", () => {
+  for (const key of Object.keys(SEGMENT_TEXT_LIMITS) as (keyof typeof SEGMENT_TEXT_LIMITS)[]) {
+    const limit = SEGMENT_TEXT_LIMITS[key];
+    const draft = (value: string) => key === "name" ? { ...DRAFT, name: value } : { ...DRAFT, criteria: { ...DRAFT.criteria, [key]: value } };
+    const accepted = planSegment(draft("x".repeat(limit)));
+    assert.ok(accepted.ok, key);
+    assert.equal((key === "name" ? accepted.value.name : accepted.value.criteria[key])?.length, limit);
+    const rejected = planSegment(draft("x".repeat(limit + 1)));
+    assert.ok(!rejected.ok, key);
+    assert.equal(rejected.violations[0].field, key === "name" ? key : `criteria.${key}`);
+  }
 });
 
 test("a segment needs a code and a name", () => {

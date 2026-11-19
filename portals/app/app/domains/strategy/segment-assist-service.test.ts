@@ -60,6 +60,18 @@ test("configured vocabulary exists with no customers and without catalog access"
   assert.equal(vocab.products, null); assert.equal(vocab.solutions, null);
   assert.equal((await h.account.listAccounts(h.ctx.workspaceId)).length, 0);
 });
+
+test("legacy long text reaches the assistant intact so it can be condensed into the new limit", async () => {
+  const h = harness();
+  const legacy = "Detailed context ".repeat(160) + "important final condition";
+  h.reply('{"fields":{"customerNeed":"Concise business pain"}}');
+  const result = await prepareSegmentDraft(h.ctx, { text: "Shorten customer pain", values: { ...values, customerNeed: legacy } }, h.deps);
+  assert.ok(result.ok);
+  assert.equal(result.patch.customerNeed, "Concise business pain");
+  assert.ok(h.prompts[0].includes(legacy));
+  assert.match(h.prompts[0], /Maximum characters per field/);
+  assert.equal((await h.strategy.listSegments(h.ctx.workspaceId)).length, 0);
+});
 test("write permission, assistant permission and tenant are checked before model spending", async () => {
   const h = harness();
   const holders: PermissionHolder[] = [{ permissions: new Set() }, { permissions: new Set(["strategy.write"]) }];

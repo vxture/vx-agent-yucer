@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readSegmentDraft, segmentDraftFrame, segmentFillValues, type SegmentVocabulary } from "./segment-draft";
 import { segmentSummary } from "./segment-summary";
+import { SEGMENT_TEXT_LIMITS } from "./segment-text-limits";
 const vocab: SegmentVocabulary = { industries: ["Retail", "Manufacturing"], regions: ["East", "West"], sizes: ["Medium"],
   solutions: [{ id: "same", solutionCode: "SOL-1", name: "Retail suite", status: "active" }, { id: "s2", solutionCode: "SOL-2", name: "Legacy", status: "retired" }],
   products: [{ id: "same", productCode: "P1", name: "Store POS", status: "active" }, { id: "p2", productCode: "P2", name: "Inventory", status: "active" }] };
@@ -41,7 +42,7 @@ test("framing supplies complete field meaning, configured choices, tools and dra
 });
 
 test("assistant fills the summary independently, rejects excess length, and retains manual edits", () => {
-  const fields = { needSummary: "x".repeat(60), customerNeed: "Full analysis ".repeat(20).trim() };
+  const fields = { needSummary: "x".repeat(60), customerNeed: "Full analysis ".repeat(10).trim() };
   assert.deepEqual(readSegmentDraft(JSON.stringify({ fields }), vocab, blank)?.patch, fields);
   const result = readSegmentDraft(JSON.stringify({ fields: { ...fields, needSummary: "x".repeat(61) } }), vocab, blank)!;
   assert.deepEqual(result.rejected, ["needSummary"]);
@@ -49,6 +50,15 @@ test("assistant fills the summary independently, rejects excess length, and reta
   const current = { ...blank, needSummary: "Human summary" };
   assert.deepEqual(readSegmentDraft(JSON.stringify({ fields }), vocab, current, ["needSummary"])?.patch, { customerNeed: fields.customerNeed.trim() });
   assert.deepEqual(readSegmentDraft('{"fields":{},"clearFields":["needSummary"]}', vocab, current)?.patch, { needSummary: "" });
+});
+
+test("assistant text is validated by each field limit, never silently truncated", () => {
+  const fields = Object.fromEntries(Object.entries(SEGMENT_TEXT_LIMITS).map(([key, limit]) => [key, "x".repeat(limit)]));
+  assert.deepEqual(readSegmentDraft(JSON.stringify({ fields }), vocab, blank)?.patch, fields);
+  const excessive = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value + "x"]));
+  const result = readSegmentDraft(JSON.stringify({ fields: excessive }), vocab, blank)!;
+  assert.deepEqual(result.patch, {});
+  assert.deepEqual(result.rejected, Object.keys(SEGMENT_TEXT_LIMITS));
 });
 
 test("previews prefer authored summaries and bound legacy analysis without changing it", () => {

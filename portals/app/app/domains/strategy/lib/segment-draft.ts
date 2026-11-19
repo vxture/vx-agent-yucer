@@ -1,6 +1,7 @@
 import type { ProductReference, SolutionReference } from "../../catalog/service";
 import type { SegmentCriteria } from "./lifecycle";
 import { SEGMENT_SUMMARY_LIMIT } from "./segment-summary";
+import { SEGMENT_TEXT_LIMITS } from "./segment-text-limits";
 
 export const SEGMENT_TEXT_FIELDS = ["name", "needSummary", "customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const;
 export const SEGMENT_LIST_FIELDS = ["industries", "regions", "sizes", "solutionIds", "productIds"] as const;
@@ -29,7 +30,7 @@ export function readSegmentDraft(answer: string, vocab: SegmentVocabulary, curre
   for (const key of SEGMENT_TEXT_FIELDS) {
     if (!(key in fields) || manualFields.includes(key)) continue;
     const value = fields[key];
-    if (typeof value !== "string" || value.length > (key === "name" ? 200 : key === "needSummary" ? SEGMENT_SUMMARY_LIMIT : 2000)) { rejected.push(key); continue; }
+    if (typeof value !== "string" || value.trim().length > SEGMENT_TEXT_LIMITS[key]) { rejected.push(key); continue; }
     // Silence is not an instruction to erase a user's draft.
     if (value.trim() && value.trim() !== current[key]) patch[key] = value.trim();
   }
@@ -61,7 +62,8 @@ export function segmentDraftFrame(vocab: SegmentVocabulary, current: SegmentFill
   return `[segment-draft] Help a sales person create or refine a reusable market segment. Reply in ${locale} with ONLY JSON: {"message":"Concise business guidance, no claim of saving or successful filling", "fields":{"name":"...","industries":[],"regions":[],"sizes":[],"needSummary":"...","customerNeed":"...","buyingScenario":"...","expectedOutcome":"...","entryBarrier":"...","solutionIds":[],"productIds":[]}}.
 Fill a comprehensive draft first; do not interview the user field by field. Customer/industry hints guide your analysis. Use existing Atlas/Runos tools to research public industry context when useful. Internal CRM is not internet research. Do not claim research succeeded if tools return no substantive facts.
 Name the customer group, not just the industry. Explain a concrete business pain, buying trigger and buying roles, desired improvement, and necessary entry/delivery requirements. Draft these as concise business hypotheses (mark unverified claims as hypotheses); do not invent quantified benefits, market sizes or verified sources.
-Always propose needSummary when analyzing or changing customer needs: a readable one-sentence synthesis of the shared problem and desired value, at most ${SEGMENT_SUMMARY_LIMIT} characters, for both card and list previews. Synthesize instead of clipping the first paragraph. Keep detailed analysis and sources in customerNeed and other detailed fields; never discard them to meet the summary limit. Respect manual corrections to needSummary.
+Always propose needSummary when analyzing or changing customer needs: a readable one-sentence synthesis of the shared problem and desired value, at most ${SEGMENT_SUMMARY_LIMIT} characters, for both card and list previews. Synthesize instead of clipping the first paragraph. Respect manual corrections to needSummary.
+Maximum characters per field: ${JSON.stringify(SEGMENT_TEXT_LIMITS)}. Write concise business conclusions within these limits, not research essays. Retain key facts, uncertainty and brief source references; put longer research in the conversation. When asked to shorten an existing long field, read its full supplied value and synthesize the important meaning instead of truncating it. Never silently replace unrelated manually corrected fields.
 Industries, sizes and regions are optional multi-selects: use exact configured names from vocabulary, or leave unspecified. Regions are SALES REGIONS, not departments or provinces. Empty criteria do NOT automatically match customers. Values within a dimension are OR; specified dimensions are AND.
 Link multiple relevant active products and solutions from the supplied catalog using exact IDs. Infer suitability from names but do not fabricate features or select unrelated entries merely to fill the field. No match may remain empty. Never create catalog entries.
 Do not change code, availability or display order. Never save, publish or call mutation tools. Apply requested refinements to the current draft; retain manually corrected fields including deliberate blanks. Omit untouched fields. Do not return empty fields as placeholders. For a user request to remove a condition or link, put its field key in an optional clearFields array. Answer business questions in message while retaining the fields object; do not expose technical field keys in message.

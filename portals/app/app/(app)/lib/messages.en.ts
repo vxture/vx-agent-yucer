@@ -3182,6 +3182,7 @@ export const en: Dictionary = {
     unknown: "Could not load the data. Please try again.",
   },
   SEGMENT_ERROR: {
+  segment_text_too_long: "Text exceeds its limit. Check each field count and shorten it before saving.",
   need_summary_too_long: "Shared needs must be at most 60 characters.",
     number_taken: "This number is in use. Refresh and try again.",
   number_busy: "Number allocation is busy. Try saving again.",
@@ -8010,6 +8011,7 @@ export const en: Dictionary = {
   noSelection: "Select a strategy",
 },
   SEGMENT_FORM_TEXT: {
+  tooLong: (limit: number) => "Use at most " + limit + " characters. Shorten this field before saving.",
   "chooseOfferings": "Select links",
   "manageOfferings": "Edit links",
   "basic": "Basic information",

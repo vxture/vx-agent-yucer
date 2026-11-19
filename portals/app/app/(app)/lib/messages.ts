@@ -6980,6 +6980,7 @@ export const EXECUTION_ERROR: Record<string, string> = {
 };
 
 export const SEGMENT_ERROR: Record<string, string> = {
+  segment_text_too_long: "\u6587\u5b57\u8d85\u51fa\u4e0a\u9650\uff0c\u8bf7\u6309\u5404\u5b57\u6bb5\u5b57\u6570\u63d0\u793a\u7cbe\u7b80\u540e\u4fdd\u5b58\u3002",
   need_summary_too_long: "\u5171\u6027\u9700\u6c42\u6700\u591a60\u5b57\uff0c\u8bf7\u7cbe\u7b80\u540e\u4fdd\u5b58\u3002",
   number_taken: "\u7f16\u53f7\u5df2\u88ab\u4f7f\u7528\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5\u3002",
   number_busy: "\u5f53\u524d\u7f16\u53f7\u5206\u914d\u7e41\u5fd9\uff0c\u8bf7\u518d\u4fdd\u5b58\u4e00\u6b21\u3002",
@@ -9317,6 +9318,7 @@ export const ACCOUNT_REGISTRATION_TEXT = {
 } as const;
 
 export const SEGMENT_FORM_TEXT = {
+  tooLong: (limit: number) => "\u6700\u591a" + limit + "\u5b57\uff0c\u8bf7\u7cbe\u7b80\u540e\u4fdd\u5b58\u3002",
   "chooseOfferings": "\u9009\u62e9\u5173\u8054",
   "manageOfferings": "\u8c03\u6574\u5173\u8054",
   "basic": "\u57fa\u672c\u4fe1\u606f",
