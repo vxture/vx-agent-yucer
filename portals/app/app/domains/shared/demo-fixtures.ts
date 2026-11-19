@@ -161,7 +161,7 @@ export const DEMO_PLANS = [
 ] as const;
 
 export const DEMO_CAMPAIGNS = [
-  "零售 POS 替换 - 外呼战役",
+  "\u96f6\u552e POS \u66ff\u6362 - \u5916\u547c\u8425\u9500\u6d3b\u52a8",
   "制造业线上研讨会系列",
   "华南区域巡展",
 ] as const;
