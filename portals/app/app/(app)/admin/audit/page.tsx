@@ -36,6 +36,7 @@ import { Tag } from "../../components/tag";
 export const dynamic = "force-dynamic";
 
 const CONFIG_ACTIONS = [
+  "admin.member.role.default",
   "admin.member.role.assign",
   "admin.member.role.revoke",
   "admin.member.deactivate",

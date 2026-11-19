@@ -1,22 +1,15 @@
 // Member and role administration.
 //
-// The port has had grantRole / revokeRole / listMembers since batch 2 and the
-// only caller was the workspace-owner bootstrap in context.ts. That left the
-// product usable by exactly ONE human per workspace: every other member's row
-// is created lazily on first sighting with `roles: []`, permissionsOf returns
-// nothing, resolveNavigation hides all eight domains, and the shell renders the
-// locked-out state. The workspace had already paid; the rep simply could not be
-// given a role, because the screen that grants one was never built.
+// Entitled ordinary members start as sales representatives (0127). These
+// explicit administrator decisions complete role setup, so subsequent sign-ins
+// cannot undo a downgrade, full revoke or deactivation through that default.
 //
 // Two rules here are load-bearing:
 //
-//   1. THE LAST ADMINISTRATOR CANNOT BE REMOVED. The owner bootstrap runs on
-//      the first sighting only - deliberately, so it cannot resurrect a role an
-//      admin removed on purpose - which means a workspace with nobody holding
-//      admin.manage has NO path back. Not through a later login, not through
-//      the platform. Refusing the last revoke is the difference between a
-//      recoverable mistake and a workspace that must be repaired by hand
-//      against the database.
+//   1. THE LAST ADMINISTRATOR CANNOT BE REMOVED. Ordinary member defaults do
+//      not grant admin.manage. Owner recovery is a separate platform contract,
+//      not a reason to let an administrator remove the workspace's last
+//      administrator while that owner might be absent or inactive.
 //
 //   2. A ROLE IS ONE OF THE WORKSPACE'S OWN (incr/0046). A code the workspace
 //      does not have is refused here, in the product's words, rather than

@@ -28,7 +28,7 @@ type GroupRow = { id: string; workspaceId: string; name: string; sortOrder: numb
 const toGroup = (r: GroupRow): RoleGroup => ({ id: r.id, code: r.lineCode ?? r.rankCode ?? "", name: r.name, sortOrder: r.sortOrder });
 
 export class PrismaAuthzStore implements AuthzStore {
-  async seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean }> {
+  async seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean; status: string }> {
     const p = await getPrismaClient();
     const where = { workspaceId_sub: { workspaceId: m.workspaceId, sub: m.sub } };
 
@@ -42,7 +42,7 @@ export class PrismaAuthzStore implements AuthzStore {
       if (Object.keys(changed).length > 0) {
         await p.member.update({ where, data: { ...changed, updatedAt: new Date() } });
       }
-      return { memberId: existing.id, created: false };
+      return { memberId: existing.id, created: false, status: existing.status };
     }
 
     try {
@@ -58,15 +58,32 @@ export class PrismaAuthzStore implements AuthzStore {
           pictureUrl: m.pictureUrl ?? null,
         },
       });
-      return { memberId: row.id, created: true };
+      return { memberId: row.id, created: true, status: row.status };
     } catch {
       // Lost a race against a concurrent first login (uidx_member_ws_sub). The
       // row exists now and this caller is NOT the creator - reporting created
       // here would run the owner bootstrap twice.
       const row = await p.member.findUnique({ where });
       if (!row) throw new Error("member upsert failed and the row is still absent");
-      return { memberId: row.id, created: false };
+      return { memberId: row.id, created: false, status: row.status };
     }
+  }
+
+  async initializeMemberRole(workspaceId: string, sub: string, role: string, ownerRecovery = false): Promise<void> {
+    const p = await getPrismaClient();
+    await p.$transaction(async (tx) => {
+      // Same member lock as explicit grant/revoke/status writes. Recheck after waiting.
+      await tx.$queryRaw`SELECT id FROM local_authz.member WHERE workspace_id = ${workspaceId}::uuid AND sub = ${sub} FOR UPDATE`;
+      const member = await tx.member.findUnique({ where: { workspaceId_sub: { workspaceId, sub } } });
+      if (!member || member.status !== "active" || (!ownerRecovery && member.roleSetupComplete)) return;
+      if (await tx.memberRole.count({ where: { memberId: member.id } })) return;
+      const roleRow = await tx.workspaceRole.findUnique({ where: { workspaceId_roleCode: { workspaceId, roleCode: role } } });
+      if (!roleRow) return;
+      await tx.memberRole.create({ data: { memberId: member.id, roleId: roleRow.id } });
+      await tx.member.update({ where: { id: member.id }, data: { roleSetupComplete: true, updatedAt: new Date() } });
+      await tx.auditEvent.create({ data: { workspaceId, actorId: sub, actorConsole: "yucer",
+        objectType: "member", objectId: sub, action: "admin.member.role.default", outcome: "success" } });
+    });
   }
 
   async rolesOf(workspaceId: string, sub: string): Promise<string[]> {
@@ -83,7 +100,7 @@ export class PrismaAuthzStore implements AuthzStore {
     const member = await p.member.findUnique({
       where: { workspaceId_sub: { workspaceId, sub } },
     });
-    if (!member) return [];
+    if (!member || member.status !== "active") return [];
 
     const links = await p.memberRole.findMany({ where: { memberId: member.id } });
     if (links.length === 0) return [];
@@ -116,12 +133,10 @@ export class PrismaAuthzStore implements AuthzStore {
       where: { workspaceId_roleCode: { workspaceId, roleCode: role } },
     });
     if (!roleRow) throw new Error(`role ${role} is not a role of this workspace`);
-    try {
-      await p.memberRole.create({ data: { memberId, roleId: roleRow.id } });
-    } catch {
-      // uidx_member_role_member_role - already granted, which is the desired end
-      // state. member_role has no UPDATE grant, so there is nothing else to do.
-    }
+    await p.$transaction(async (tx) => {
+      await tx.member.update({ where: { id: memberId }, data: { roleSetupComplete: true, updatedAt: new Date() } });
+      await tx.memberRole.createMany({ data: [{ memberId, roleId: roleRow.id }], skipDuplicates: true });
+    });
   }
 
   async revokeRole(workspaceId: string, sub: string, role: string): Promise<void> {
@@ -133,8 +148,10 @@ export class PrismaAuthzStore implements AuthzStore {
     const roleRow = await p.workspaceRole.findUnique({
       where: { workspaceId_roleCode: { workspaceId, roleCode: role } },
     });
-    if (!roleRow) return;
-    await p.memberRole.deleteMany({ where: { memberId: member.id, roleId: roleRow.id } });
+    await p.$transaction(async (tx) => {
+      await tx.member.update({ where: { id: member.id }, data: { roleSetupComplete: true, updatedAt: new Date() } });
+      if (roleRow) await tx.memberRole.deleteMany({ where: { memberId: member.id, roleId: roleRow.id } });
+    });
   }
 
   /* --- 角色 (incr/0046) ---------------------------------------------------- */
@@ -379,7 +396,7 @@ export class PrismaAuthzStore implements AuthzStore {
     // not an error, it is a request that has already been satisfied.
     await p.member.updateMany({
       where: { workspaceId, sub },
-      data: { status, updatedAt: new Date() },
+      data: { status, roleSetupComplete: true, updatedAt: new Date() },
     });
   }
 

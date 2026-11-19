@@ -2990,6 +2990,7 @@ export const AUDIT_TEXT = {
     error: "出错",
   } as Record<string, string>,
   actionLabel: {
+    "admin.member.role.default": "\u9ed8\u8ba4\u5206\u914d\u89d2\u8272",
     "admin.member.role.assign": "分配角色",
     "admin.member.role.revoke": "撤销角色",
     "admin.member.deactivate": "停用成员",

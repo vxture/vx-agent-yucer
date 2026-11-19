@@ -42,3 +42,5 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-039 | [批准后的战略内容保持锁定](ADR-039-approved-strategy-content-stays-locked.md) | accepted | 2026-11-14 |
 
 | ADR-040 | [战略类型与视觉表达](ADR-040-strategy-intent-and-visual-identity.md) | accepted | 2026-11-17 |
+
+| ADR-043 | [默认销售角色只做初始化](ADR-043-default-sales-role-is-initialization.md) | accepted | 2026-11-18 |

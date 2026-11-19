@@ -290,3 +290,127 @@ test("listWorkspaces returns each workspace with a member once - the jobs' enume
     await cleanup2();
   }
 });
+
+// --- One-time default assignment (0127) ---------------------------------------
+
+test("concurrent default initialization grants once and audits once, with the actual workspace role", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await s.seeMember({ workspaceId: WS, sub: SUB });
+    await s.seedPresetRoles(WS);
+    const before = await withPg(async (c) => Number((await c.query(
+      "SELECT count(*) FROM local_audit.event WHERE workspace_id=$1 AND object_id=$2 AND action='admin.member.role.default'", [WS, SUB],
+    )).rows[0].count));
+    await Promise.all(Array.from({ length: 8 }, () => s.initializeMemberRole(WS, SUB, "sales_rep")));
+    assert.deepEqual(await s.rolesOf(WS, SUB), ["sales_rep"]);
+    await withPg(async (c) => {
+      const result = await c.query("SELECT role_setup_complete FROM local_authz.member WHERE workspace_id=$1 AND sub=$2", [WS, SUB]);
+      assert.equal(result.rows[0].role_setup_complete, true);
+      const events = await c.query("SELECT count(*) FROM local_audit.event WHERE workspace_id=$1 AND object_id=$2 AND action='admin.member.role.default'", [WS, SUB]);
+      assert.equal(Number(events.rows[0].count), before + 1);
+    });
+  } finally { await cleanup(); }
+});
+
+test("explicit role removal and inactive status cannot be undone by default initialization", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await s.grantRole(WS, SUB, "viewer");
+    await s.revokeRole(WS, SUB, "viewer");
+    await s.initializeMemberRole(WS, SUB, "sales_rep");
+    assert.deepEqual(await s.rolesOf(WS, SUB), []);
+    const inactive = `${SUB}_inactive`;
+    await s.seeMember({ workspaceId: WS, sub: inactive });
+    await s.setMemberStatus(WS, inactive, "inactive");
+    await s.initializeMemberRole(WS, inactive, "sales_rep");
+    await s.initializeMemberRole(WS, inactive, "sales_leader", true);
+    assert.deepEqual(await s.rolesOf(WS, inactive), []);
+    await s.setMemberStatus(WS, inactive, "active");
+    await s.initializeMemberRole(WS, inactive, "sales_rep");
+    assert.deepEqual(await s.rolesOf(WS, inactive), []);
+  } finally { await cleanup(); }
+});
+
+test("an existing role or a missing default role is left alone", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await s.grantRole(WS, SUB, "viewer");
+    await s.initializeMemberRole(WS, SUB, "sales_rep");
+    assert.deepEqual(await s.rolesOf(WS, SUB), ["viewer"]);
+    await s.removeRole(WS, "sales_rep");
+    const newcomer = `${SUB}_new`;
+    await s.seeMember({ workspaceId: WS, sub: newcomer });
+    await s.initializeMemberRole(WS, newcomer, "sales_rep");
+    assert.deepEqual(await s.rolesOf(WS, newcomer), []);
+    assert.ok(!(await s.listRoles(WS)).some((r) => r.code === "sales_rep"));
+  } finally { await cleanup(); }
+});
+
+test("an administrator revoke holding the member lock wins over a waiting default initializer", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const { memberId } = await s.seeMember({ workspaceId: WS, sub: SUB });
+    await s.seedPresetRoles(WS);
+    await withPg(async (c) => {
+      await c.query("BEGIN");
+      await c.query("SELECT id FROM local_authz.member WHERE id=$1 FOR UPDATE", [memberId]);
+      const pending = s.initializeMemberRole(WS, SUB, "sales_rep");
+      await c.query("UPDATE local_authz.member SET role_setup_complete=true WHERE id=$1", [memberId]);
+      await c.query("COMMIT");
+      await pending;
+    });
+    assert.deepEqual(await s.rolesOf(WS, SUB), []);
+    // Both orderings of the real methods leave the explicit revoke in force.
+    await Promise.all([s.initializeMemberRole(WS, SUB, "sales_rep"), s.revokeRole(WS, SUB, "sales_rep")]);
+    assert.deepEqual(await s.rolesOf(WS, SUB), []);
+  } finally { await cleanup(); }
+});
+
+test("default role, initialization marker and audit roll back together if audit recording fails", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await s.seeMember({ workspaceId: WS, sub: SUB });
+    await s.seedPresetRoles(WS);
+    // Reject only this fixture's audit event to prove the whole grant rolls back.
+    // Other test workspaces are unaffected.
+    await withPg(async (c) => {
+      await c.query(`CREATE OR REPLACE FUNCTION local_audit.test_reject_default_role() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN IF NEW.workspace_id='${WS}'::uuid AND NEW.action='admin.member.role.default' THEN
+          RAISE EXCEPTION 'audit fault fixture'; END IF; RETURN NEW; END $$`);
+      await c.query("CREATE TRIGGER test_reject_default_role BEFORE INSERT ON local_audit.event FOR EACH ROW EXECUTE FUNCTION local_audit.test_reject_default_role()");
+    });
+    try {
+      await assert.rejects(() => s.initializeMemberRole(WS, SUB, "sales_rep"), /audit fault fixture/);
+      assert.deepEqual(await s.rolesOf(WS, SUB), []);
+      await withPg(async (c) => {
+        const rows = await c.query("SELECT role_setup_complete FROM local_authz.member WHERE workspace_id=$1 AND sub=$2", [WS, SUB]);
+        assert.equal(rows.rows[0].role_setup_complete, false);
+      });
+    } finally {
+      await withPg(async (c) => {
+        await c.query("DROP TRIGGER test_reject_default_role ON local_audit.event");
+        await c.query("DROP FUNCTION local_audit.test_reject_default_role()");
+      });
+    }
+  } finally { await cleanup(); }
+});
+
+test("service role may update initialization state but not member identity", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const { memberId } = await s.seeMember({ workspaceId: WS, sub: SUB });
+    await withPg(async (c) => {
+      await c.query("SET ROLE yucer_svc");
+      try {
+        await c.query("UPDATE local_authz.member SET role_setup_complete=true WHERE id=$1", [memberId]);
+        await assert.rejects(() => c.query("UPDATE local_authz.member SET sub='rewritten' WHERE id=$1", [memberId]), /permission denied/);
+      } finally { await c.query("RESET ROLE"); }
+    });
+  } finally { await cleanup(); }
+});
