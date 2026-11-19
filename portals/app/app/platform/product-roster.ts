@@ -26,6 +26,79 @@ export interface ProductRosterFetchOptions {
   fetchImpl?: FetchLike;
 }
 
+interface RosterPage {
+  version: string;
+  items: ProductRosterItem[];
+  nextCursor: string | null;
+}
+
+function parseItem(raw: unknown): ProductRosterItem {
+  if (!raw || typeof raw !== "object") throw new Error("Invalid product roster item");
+  const row = raw as Record<string, unknown>;
+  if (typeof row.subject !== "string" || !SUBJECT.test(row.subject) || row.eligible !== true ||
+      (row.display_name !== null && typeof row.display_name !== "string")) {
+    throw new Error("Invalid product roster identity");
+  }
+  return {
+    subject: row.subject,
+    displayName: typeof row.display_name === "string" ? row.display_name.trim() || null : null,
+  };
+}
+
+function parsePage(raw: unknown, cfg: ProductRosterConfig, version: string | null): RosterPage {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid product roster response");
+  const body = raw as Record<string, unknown>;
+  const sameScope = body.workspace_id === cfg.workspaceId && body.product === cfg.product &&
+    body.org_id === cfg.orgId && typeof body.org_id === "string" && UUID.test(body.org_id);
+  const sameRevision = typeof body.version === "string" && VERSION.test(body.version) &&
+    (version === null || body.version === version);
+  if (!sameScope || !sameRevision || body.authorization_mode !== "assigned_seats" ||
+      !Array.isArray(body.items) || body.items.length > 200) {
+    throw new Error("Invalid product roster scope or revision");
+  }
+  const next = body.nextCursor;
+  if (next !== null && (typeof next !== "string" || !/^[A-Za-z0-9_-]{1,1024}$/.test(next))) {
+    throw new Error("Invalid product roster cursor");
+  }
+  return { version: body.version as string, items: body.items.map(parseItem), nextCursor: next as string | null };
+}
+
+function appendItems(items: Map<string, ProductRosterItem>, rows: ProductRosterItem[]): void {
+  for (const row of rows) {
+    if (items.has(row.subject)) throw new Error("Invalid duplicate product roster identity");
+    items.set(row.subject, row);
+  }
+}
+
+/** Null means a concurrent platform change invalidated this entire snapshot. */
+async function readSnapshot(
+  endpoint: URL, cfg: ProductRosterConfig, token: string, fetchImpl: FetchLike, signal: AbortSignal,
+): Promise<ProductRosterItem[] | null> {
+  const items = new Map<string, ProductRosterItem>();
+  const cursors = new Set<string>();
+  let cursor: string | null = null;
+  let version: string | null = null;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const url = new URL(endpoint);
+    url.searchParams.set("limit", "200");
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const res = await fetchImpl(url.toString(), {
+      headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+      cache: "no-store", redirect: "error", signal,
+    });
+    if (res.status === 409) return null;
+    if (!res.ok) throw new Error(`product roster endpoint ${res.status}`);
+    const data = parsePage(await res.json(), cfg, version);
+    version = data.version;
+    appendItems(items, data.items);
+    if (data.nextCursor === null) return [...items.values()];
+    if (cursors.has(data.nextCursor) || !data.items.length) throw new Error("Invalid product roster cursor");
+    cursors.add(data.nextCursor);
+    cursor = data.nextCursor;
+  }
+  throw new Error("Product roster exceeded pagination bound");
+}
+
 /**
  * Follow opaque, version-bound cursors without ever accepting an identity
  * selector from a browser. A concurrent membership change discards all partial
@@ -37,61 +110,12 @@ export async function fetchProductRoster(
 ): Promise<ProductRosterItem[]> {
   const endpoint = assertInternalTarget(`${cfg.baseUrl.replace(/\/$/, "")}/platform/product-roster`);
   const token = await cfg.accessToken();
-  const fetchImpl = opts.fetchImpl ?? fetch;
   const signal = AbortSignal.timeout(20_000);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const items = new Map<string, ProductRosterItem>();
-    const cursors = new Set<string>();
-    let cursor: string | null = null;
-    let org: string | null = null;
-    let version: string | null = null;
-    for (let page = 0; page < MAX_PAGES; page += 1) {
-      const url = new URL(endpoint);
-      url.searchParams.set("limit", "200");
-      if (cursor) url.searchParams.set("cursor", cursor);
-      const res = await fetchImpl(url.toString(), {
-        headers: { authorization: `Bearer ${token}`, accept: "application/json" },
-        cache: "no-store", redirect: "error", signal,
-      });
-      if (res.status === 409 && attempt === 0) break;
-      if (!res.ok) throw new Error(`product roster endpoint ${res.status}`);
-      const raw: unknown = await res.json();
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid product roster response");
-      const body = raw as Record<string, unknown>;
-      if (body.workspace_id !== cfg.workspaceId || body.product !== cfg.product ||
-          body.org_id !== cfg.orgId || typeof body.org_id !== "string" || !UUID.test(body.org_id) ||
-          (org !== null && body.org_id !== org) ||
-          body.authorization_mode !== "assigned_seats" ||
-          typeof body.version !== "string" || !VERSION.test(body.version) ||
-          (version !== null && body.version !== version) ||
-          !Array.isArray(body.items) || body.items.length > 200) {
-        throw new Error("Invalid product roster scope or revision");
-      }
-      org = body.org_id;
-      version = body.version;
-      for (const entry of body.items) {
-        if (!entry || typeof entry !== "object") throw new Error("Invalid product roster item");
-        const row = entry as Record<string, unknown>;
-        if (typeof row.subject !== "string" || !SUBJECT.test(row.subject) || row.eligible !== true ||
-            (row.display_name !== null && typeof row.display_name !== "string") || items.has(row.subject)) {
-          throw new Error("Invalid product roster identity");
-        }
-        items.set(row.subject, {
-          subject: row.subject,
-          displayName: typeof row.display_name === "string" ? row.display_name.trim() || null : null,
-        });
-      }
-      const next = body.nextCursor;
-      if (next === null) return [...items.values()];
-      if (typeof next !== "string" || !/^[A-Za-z0-9_-]{1,1024}$/.test(next) || cursors.has(next) || !body.items.length) {
-        throw new Error("Invalid product roster cursor");
-      }
-      cursors.add(next);
-      cursor = next;
-      if (page === MAX_PAGES - 1) throw new Error("Product roster exceeded pagination bound");
-    }
+    const result = await readSnapshot(endpoint, cfg, token, opts.fetchImpl ?? fetch, signal);
+    if (result !== null) return result;
   }
-  throw new Error("Product roster changed repeatedly");
+  throw new Error("product roster endpoint 409: roster changed repeatedly");
 }
 
 export function getProductRosterConfig(
