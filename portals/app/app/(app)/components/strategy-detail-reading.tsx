@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Children, type ReactNode, type ComponentProps } from "react";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@vxture/design-ui";
-import { Section, SectionHeader } from "./help-section";
+import { Section } from "./help-section";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
@@ -25,16 +25,11 @@ export function StrategyDetailBasic({ plan:p }: { readonly plan:StrategyView }) 
     {label:R.value,icon:"seal-check",value:p.resultOptions?.find(o=>o.id===p.result?.valuePropositionId)?.name ?? "-"},
     {label:R.paths,icon:"git-branch",value:p.resultOptions?.filter(o=>o.kind==="path" && p.result?.pathIds.includes(o.id)).map(o=>o.name).join(" / ") || "-"},
   ] satisfies {label:string;icon?:ComponentProps<typeof Icon>["name"];value:ReactNode}[];
-  return <Collapsible defaultOpen className="flex min-w-0 flex-col gap-md" data-strategy-basic-section>
-    <SectionHeader title={R.basic} icon="clipboard" action={<div className="flex min-w-0 items-center gap-md">{p.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={p.createdBySub}/></span>:null}<CollapsibleTrigger asChild><Button size="icon-md" variant="ghost" className="group" aria-label={R.basic}><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/></Button></CollapsibleTrigger></div>}/>
-    <CollapsibleContent>
-      <Card className="min-w-0 py-lg" data-strategy-basic-card><CardContent className="flex min-w-0 flex-col gap-md">
+  return <Card className="min-w-0 py-lg" aria-label={R.basic} data-strategy-basic-card data-strategy-basic-section><CardContent className="flex min-w-0 flex-col gap-md">
         <dl className={styles.facts} data-strategy-basic-facts>{facts.map(f=><div key={f.label} className={styles.fieldRow}><dt><StrategyDetailLabel icon={"icon" in f ? f.icon : undefined}>{f.label}</StrategyDetailLabel></dt><dd className="min-w-0 break-words text-body">{f.value}</dd></div>)}</dl>
         <div className={styles.position} data-strategy-detail-direction><StrategyDetailLabel icon="lightbulb">{T.strategyPosition}</StrategyDetailLabel><p className="whitespace-pre-wrap break-words text-body">{p.objective || T.directionEmpty}</p></div>
         {p.changeReason?<div className={styles.position}><StrategyDetailLabel icon="file-text">{T.changeReason}</StrategyDetailLabel><p className="whitespace-pre-wrap break-words text-body">{p.changeReason}</p></div>:null}
-      </CardContent></Card>
-    </CollapsibleContent>
-  </Collapsible>;
+  </CardContent></Card>;
 }
 
 export function StrategyDetailGoals({ plan:p }: { readonly plan:StrategyView }) {

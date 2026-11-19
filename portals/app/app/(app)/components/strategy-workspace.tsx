@@ -16,6 +16,7 @@ import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 import { PageActionButton } from "./page-header-actions";
 import { PageCrumbs } from "./page-crumbs";
+import { StrategyDetailLabel } from "./strategy-detail-label";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
@@ -161,7 +162,6 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   };
   const detailFulfillment=detail ? data.fulfillment?.filter(r=>r.acceptance.lineageId===(detail.lineageId ?? detail.id)) ?? null : null;
   const detailContent=detail?<>
-    <StrategyDetailBasic plan={detail}/>
     <StrategyDetailGoals plan={detail}/>
     <StrategyDetailMarkets plan={detail} actions={id=>data.canCreateCampaign && detail.status==="active" && detail.targetMarkets?.find(m=>m.segmentId===id)?.status==="active"
       ? <Button asChild size="md" variant="ghost"><Link href={`/campaign/create?plan=${encodeURIComponent(detail.id)}&market=${encodeURIComponent(id)}`}>{CAMPAIGN_TEXT.newCampaign}</Link></Button>:null}/>
@@ -181,12 +181,12 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const detailMenu = detail ? items(detail).filter(item => !["view", "publish", "revise"].includes(item.id)) : [];
   return <ViewLayout className="@container" data-strategy-workspace>
     {detail ? <><PageCrumbs trail={[{label:T.strategy,href:"/strategy"}]} current={detail.name}/>
-      <ViewHeader icon="graph" title={detail.name} divider data-strategy-detail-header
+      <div className="flex min-w-0 flex-col gap-lg" data-strategy-detail-intro>
+      <ViewHeader icon="graph" title={detail.name} divider={false} data-strategy-detail-header
         secondary={<span className="flex flex-wrap items-center gap-sm">{versionBadge(detail)}<Tag tone={detail.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[detail.status]}</Tag>{detail.versionNo && !isLatest(detail)?<Tag>{T.historicalVersion}</Tag>:null}</span>}
-        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.period} <span className="text-foreground">{strategyPeriodLabel(detail.period)}</span></span><span>{detail.planNo}</span></span>}
+        description={<span className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{detail.planNo}</span>{detail.createdBySub?<span className="inline-flex min-w-0 items-center gap-xs"><StrategyDetailLabel>{T.creator}</StrategyDetailLabel><MemberName sub={detail.createdBySub}/></span>:null}</span>}
         pageActions={{
           secondary: <>
-            <span className="mr-md inline-flex min-w-0 items-center text-body-small text-muted-foreground" aria-label={T.owner} data-strategy-detail-owner><MemberName sub={detail.ownerSub} name={detail.publishedOwnerName} fallback={T.noOwner}/></span>
             <PageActionButton asChild><Link href={`/strategy?${new URLSearchParams({view:"validation",period:detail.period,plan:detail.id})}`}><Icon name="chart-line" size="sm" aria-hidden="true"/>{T.validation}</Link></PageActionButton>
             {checkButton}
             {detail.status==="draft" && data.canEdit ? <PageActionButton asChild><Link href={`/strategy/new?id=${encodeURIComponent(detail.id)}`}><Icon name="edit" size="sm" aria-hidden="true"/>{R.edit}</Link></PageActionButton> : null}
@@ -197,7 +197,9 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
               ? <PageActionButton intent="primary" disabled={pending} onClick={() => revise(detail)}>{draftFor(detail) ? T.resumeDraft : T.reviseStrategy}</PageActionButton>
               : undefined,
           more: detailMenu.length ? <RowActions disabled={pending} items={detailMenu} /> : undefined,
-        }} /></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
+        }} />
+      <StrategyDetailBasic plan={detail}/>
+      </div></> : <ModuleHeadline moduleKey="strategy" help={T.brief} create={createAction}
         pageActions={{
           view: viewActions,
           secondary: view === "overview" && data.canEdit ? <PageActionButton asChild><Link href="/admin/strategy" target="_blank" rel="noopener noreferrer"><Icon name="settings" size="sm" aria-hidden="true"/>{T.typeConfig}</Link></PageActionButton> : undefined,
