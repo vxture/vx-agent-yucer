@@ -39,7 +39,7 @@ export interface RoleChangeResult {
 
 function ctx(session: NonNullable<Awaited<ReturnType<typeof resolveAppSession>>>) {
   return {
-    workspaceId: session.workspaceId,
+    workspaceId: session.workspaceId, orgId: session.user.activeOrg,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,

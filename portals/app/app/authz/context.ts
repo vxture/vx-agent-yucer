@@ -89,10 +89,11 @@ export async function resolveAuthzContext(
 
   // THE ROSTER'S NAMES COME FROM HERE (2026-09-29). Every "who" outside the
   // header reads local_authz.member.display_name (lib/member-names.tsx), and
-  // this sighting - the only one on a deployed stage - never passed it, so in
+  // this login sighting originally never passed it, so in
   // production every member rendered as their bare sub. The platform releases
-  // the name on the access token and offers no directory to ask instead, so
-  // each member's own sign-in refreshes their row. A token with no name
+  // the name on the access token; the platform product roster now also updates
+  // names when an authorized manager reads it. Each member's own sign-in still
+  // refreshes the complete profile. A token with no name
   // (displayName fell back to the sub) leaves a good cached value alone.
   //
   // The rest of the display cache (incr/0103) rides along. phone, email and

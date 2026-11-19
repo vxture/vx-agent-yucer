@@ -30,7 +30,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
   if (!can(session.authz, session.entitlement, "admin.member.role.assign", "ui").allowed) {
     redirect("/admin/members");
   }
-  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const base = { workspaceId: session.workspaceId, orgId: session.user.activeOrg, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const authz = { ...base, store: getAuthzStore() };
   const planning = { ...base, store: getPlanningStore() };
   const [members, roles, units, placements, territories] = await Promise.all([

@@ -29,7 +29,7 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
   if (!can(session.authz, session.entitlement, "admin.org.upsert", "ui").allowed) {
     redirect("/admin/org");
   }
-  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const base = { workspaceId: session.workspaceId, orgId: session.user.activeOrg, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const planning = { ...base, store: getPlanningStore() };
   const account = { ...base, store: session.stores.account() };
   const [units, kinds, members, linksResult, divisionsResult] = await Promise.all([

@@ -13,6 +13,21 @@ import type { S2SConfig, FetchLike } from "./s2s";
 const config: S2SConfig = { tokenUrl: "https://idp.test/oidc/token", clientId: "yucer", clientSecret: "test-secret", productCode: "yucer", enabled: true };
 beforeEach(resetChannelTokens);
 
+test("organization-bound roster tickets do not reuse workspace-only or another organization's tickets", async () => {
+  const calls: URLSearchParams[] = [];
+  const fetchImpl: FetchLike = async (_url, init) => {
+    calls.push(new URLSearchParams(String(init.body)));
+    return Response.json({ access_token: `ticket-${calls.length}`, token_type: "Bearer", expires_in: 300 });
+  };
+  assert.equal(await mintChannelToken("workspace", { config, fetchImpl }), "ticket-1");
+  assert.equal(await mintChannelToken("workspace", { config, fetchImpl, orgId: "org-a" }), "ticket-2");
+  assert.equal(await mintChannelToken("workspace", { config, fetchImpl, orgId: "org-b" }), "ticket-3");
+  assert.equal(await mintChannelToken("workspace", { config, fetchImpl, orgId: "org-a" }), "ticket-2");
+  assert.equal(calls[1]!.get("org_id"), "org-a");
+  assert.equal(calls[2]!.get("org_id"), "org-b");
+  await assert.rejects(() => mintChannelToken(null, { config, fetchImpl, orgId: "org-a" }), /Provisioning reader/);
+});
+
 test("service requests send flat workspace only; reader scope never inherits workspace or secret", async () => {
   const calls: URLSearchParams[] = [];
   const fetchImpl: FetchLike = async (_url, init) => {

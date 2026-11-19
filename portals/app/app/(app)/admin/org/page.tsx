@@ -43,7 +43,7 @@ export default async function OrgPage() {
   if (!can(session.authz, session.entitlement, "admin.member.view", "ui").allowed) {
     return <EmptyState title={ADMIN_TEXT.emptyTitle} description={ADMIN_TEXT.emptyDescription} />;
   }
-  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const base = { workspaceId: session.workspaceId, orgId: session.user.activeOrg, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const planning = { ...base, store: getPlanningStore() };
   const account = { ...base, store: session.stores.account() };
   const authz = { ...base, store: getAuthzStore() };

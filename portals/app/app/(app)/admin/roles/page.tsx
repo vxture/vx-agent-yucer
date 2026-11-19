@@ -44,7 +44,7 @@ export default async function RolesPage() {
     return <EmptyState title={ADMIN_TEXT.emptyTitle} description={ADMIN_TEXT.emptyDescription} />;
   }
 
-  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const base = { workspaceId: session.workspaceId, orgId: session.user.activeOrg, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const ctx = { ...base, store: getAuthzStore() };
   const planning = { ...base, store: getPlanningStore() };
   const [roles, presets, members, placements, units] = await Promise.all([

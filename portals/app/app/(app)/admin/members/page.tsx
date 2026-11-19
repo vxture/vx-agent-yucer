@@ -26,10 +26,9 @@ import { Tag } from "../../components/tag";
 // names only. The panel switches; this page supplies both the rows and the
 // unit tree they are placed in (several units per person since 0053).
 //
-// Membership is LAZY: a row appears on the first sighting of (workspace, sub)
-// at login, with no roles. So this list is "everyone who has ever signed in",
-// not "everyone the platform says belongs here". INVITING IS A PLATFORM ACT -
-// seats and who may sign in are the platform's - so 邀请成员 is a link out.
+// The platform product roster supplies current authorized people, including
+// those who have not signed in yet. Product roles, units and data scopes remain
+// local; inviting and application authorization remain platform operations.
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +39,7 @@ export default async function MembersPage() {
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
   // screen and never mounts this page when there is no session. Kept
   // only because TypeScript needs it to narrow `session` below.
-  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const base = { workspaceId: session.workspaceId, orgId: session.user.activeOrg, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const authz = { ...base, store: getAuthzStore() };
   const planning = { ...base, store: getPlanningStore() };
   const [result, roles, units, placements, territories] = await Promise.all([
