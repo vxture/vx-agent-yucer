@@ -6,8 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -37,7 +35,8 @@ import { FormChoice } from "./form-choice";
 import { StrategyDateRange } from "./strategy-date-range";
 import { MemberPicker } from "./member-picker";
 import { MemberName } from "../lib/member-names";
-import { Section, SectionHeader } from "./help-section";
+import { Section } from "./help-section";
+import { TitleHelp } from "./title-help";
 import { useMessages } from "../lib/i18n/provider";
 import {
   advancedFilled,
@@ -300,39 +299,21 @@ export function StrategyGoals({
   );
 }
 
-function AdvancedPart({
+function SupplementSection({
   title,
   icon,
-  filled,
   children,
 }: {
   readonly title: string;
   readonly icon: "wallet" | "flag";
-  readonly filled: boolean;
   readonly children: ReactNode;
 }) {
   return (
-    <Collapsible defaultOpen asChild>
-      <Card className="w-full min-w-0 gap-0 py-lg" data-strategy-advanced-card>
-        <CardHeader>
-          <div className="flex min-h-control-md items-center justify-between gap-md">
-            <CardTitle className={`flex items-center gap-sm text-body font-medium ${filled ? "text-foreground" : "text-muted-foreground"}`}>
-              <Icon name={icon} size="sm" />{title}
-            </CardTitle>
-            <CollapsibleTrigger asChild>
-              <Button type="button" size="icon-md" variant="ghost" className="group shrink-0" aria-label={title}>
-                <Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180" />
-              </Button>
-            </CollapsibleTrigger>
-          </div>
-        </CardHeader>
-        <CollapsibleContent>
-          <CardContent className="pt-lg">
-            <div className="border-t border-dashed border-border pt-lg">{children}</div>
-          </CardContent>
-        </CollapsibleContent>
+    <Section title={title} icon={icon} data-strategy-supplement={icon === "wallet" ? "resources" : "milestones"}>
+      <Card className="w-full min-w-0 py-lg">
+        <CardContent>{children}</CardContent>
       </Card>
-    </Collapsible>
+    </Section>
   );
 }
 export function StrategyAdvanced({
@@ -595,25 +576,32 @@ export function StrategyAdvanced({
         </div>)}
     </dl>
   );
+  const sections = <>
+    {onChange || resource ? <SupplementSection title={T.resources} icon="wallet">
+      {onChange ? resources : resourceSummary}
+    </SupplementSection> : null}
+    {onChange || milestones.length ? <SupplementSection title={T.milestones} icon="flag">
+      {stages}
+    </SupplementSection> : null}
+  </>;
   return (
     <>
-      {onChange || count ? <Collapsible
+      {onChange ? <Collapsible
         className="@container flex flex-col gap-md"
         data-strategy-advanced
       >
-        <SectionHeader
-          title={`${T.advanced} (${T.filled} ${count}/2)`}
-          icon="faders"
-          help={T.advancedHelp}
-          action={
+        <div className="flex items-center gap-xs">
             <CollapsibleTrigger asChild>
               <Button
                 type="button"
-                size="icon-md"
+                size="md"
                 variant="ghost"
-                className="group"
+                className="group text-body-small font-normal text-muted-foreground"
                 aria-label={T.advanced}
               >
+                <Icon name="faders" size="sm" aria-hidden="true" />
+                {T.advanced}
+                <span className="tabular-nums">({T.filled} {count}/2)</span>
                 <Icon
                   name="chevron-down"
                   size="sm"
@@ -621,21 +609,12 @@ export function StrategyAdvanced({
                 />
               </Button>
             </CollapsibleTrigger>
-          }
-        />
+            <TitleHelp topic={T.advanced}>{T.advancedHelp}</TitleHelp>
+        </div>
         <CollapsibleContent className="flex flex-col gap-lg">
-          {onChange || resource ? <AdvancedPart title={T.resources} icon="wallet" filled={resource}>
-            {onChange ? resources : resourceSummary}
-          </AdvancedPart> : null}
-          {onChange || milestones.length ? <AdvancedPart
-            title={T.milestones}
-            icon="flag"
-            filled={!!milestones.length}
-          >
-            {stages}
-          </AdvancedPart> : null}
+          {sections}
         </CollapsibleContent>
-      </Collapsible> : null}
+      </Collapsible> : sections}
       {legacy}
     </>
   );

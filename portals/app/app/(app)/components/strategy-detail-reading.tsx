@@ -115,10 +115,10 @@ export function StrategyDetailHandoff({ plan:p, rows, children }: { readonly pla
       </div>
     {rows?.length?<Collapsible className="flex flex-col gap-md"><CollapsibleTrigger asChild><Button size="md" variant="ghost" className="group self-start"><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/>{D.handoffDetails}</Button></CollapsibleTrigger><CollapsibleContent>{children}</CollapsibleContent></Collapsible>:null}
       </CardContent></Card>
-      <Card className="min-w-0 py-lg" data-strategy-handoff-card="campaign"><CardContent>
+      <Card className="min-w-0 py-lg" data-strategy-handoff-card="campaign"><CardContent className="flex min-w-0 flex-col gap-md">
       <div className={styles.handoffRow}>
-        <StrategyDetailLabel icon="ticket">{T.openCampaigns}<span className="ml-xs tabular-nums">{p.campaigns?.length ?? "-"}</span></StrategyDetailLabel>
-        <p className="line-clamp-2 min-w-0 text-body" title={p.campaigns?.map(c=>c.name).join(" / ")}>{p.campaigns?.map(c=>c.name).join(" / ") || (p.campaigns===null?T.unknown:T.noCampaigns)}</p>
+        <StrategyDetailLabel icon="ticket">{T.openCampaigns}</StrategyDetailLabel>
+        <div className="flex min-w-0 items-start gap-sm text-body"><span className="shrink-0 tabular-nums text-muted-foreground">{p.campaigns?.length ?? "-"}</span><p className="line-clamp-2 min-w-0" title={p.campaigns?.map(c=>c.name).join(" / ")}>{p.campaigns?.map(c=>c.name).join(" / ") || (p.campaigns===null?T.unknown:T.noCampaigns)}</p></div>
         <Button asChild size="md" variant="ghost"><Link href="/campaign">{D.viewCampaigns}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
       </div>
       </CardContent></Card>
