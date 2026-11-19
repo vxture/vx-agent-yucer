@@ -28,7 +28,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // decision somebody makes about a colleague, not a fact about them.
   // phone / email / user_no / picture_url joined in incr/0103: the platform
   // display cache, refreshed from the member's own token like display_name.
-  "local_authz.member": ["display_name", "avatar_hash", "phone", "email", "user_no", "picture_url", "status", "scope", "updated_at"],
+  "local_authz.member": ["display_name", "avatar_hash", "phone", "email", "user_no", "picture_url", "status", "scope", "updated_at", "role_setup_complete"],
   // incr/0046 - the workspace's own roles. role_code is the anchor every
   // member link and every reset keys on, and is deliberately not here.
   "local_authz.workspace_role": [

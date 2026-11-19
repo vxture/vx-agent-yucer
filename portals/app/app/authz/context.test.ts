@@ -1,9 +1,10 @@
-import { test } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { type AuthUser, toAuthUser } from "../auth/lib/claims";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../entitlement/types";
 import { InMemoryAuthzStore } from "./store";
-import { OWNER_BOOTSTRAP_ROLE, permissionsForRoles } from "./catalog";
+import { InMemoryAuditStore, setAuditStore } from "../audit/lib/store";
+import { DEFAULT_MEMBER_ROLE, OWNER_BOOTSTRAP_ROLE, permissionsForRoles } from "./catalog";
 import { resolveAuthzContext, can, decisionsFor, invalidateAuthz, resetAuthzCache } from "./context";
 
 const WS = "11111111-1111-1111-1111-111111111111";
@@ -64,7 +65,7 @@ test("a sighting caches phone, email and face; a claim gone clears it; user_no i
   assert.deepEqual([m.phone, m.pictureUrl, m.userNo], [null, null, "1000010000"]);
 });
 
-test("a plain member starts with no roles and therefore no permissions", async () => {
+test("a member without confirmed product access is not assigned the ordinary default", async () => {
   const store = fresh();
   const ctx = await resolveAuthzContext(user(), store);
   assert.deepEqual(ctx!.roles, []);
@@ -80,9 +81,7 @@ test("a platform workspace:owner is bootstrapped to the default product role", a
 });
 
 test("the owner bootstrap does not resurrect a revoked role on later logins", async () => {
-  // This is the whole reason seeMember reports `created` rather than being a
-  // plain upsert: re-applying the default every login would silently undo an
-  // administrator's decision.
+  // Holding an explicitly assigned role preserves the administrator's choice.
   const store = fresh();
   const owner = toAuthUser({ sub: "usr_owner", active_workspace: WS, roles: ["workspace:owner"] });
   await resolveAuthzContext(owner, store);
@@ -130,7 +129,7 @@ test("an owner stripped of every role is healed; one who was merely moved is not
   assert.deepEqual(healed!.roles, [OWNER_BOOTSTRAP_ROLE], "nothing left to administer the workspace with");
 });
 
-test("a non-owner is never bootstrapped, however many governance roles they carry", async () => {
+test("non-owner governance claims do not bootstrap an administrator", async () => {
   const store = fresh();
   const manager = toAuthUser({
     sub: "usr_mgr",
@@ -221,4 +220,106 @@ test("decisionsFor answers a whole surface in one pass, agreeing with can()", as
   }
   assert.equal(all["pipeline.view"].allowed, true);
   assert.equal(all["pipeline.forecast.snapshot"].allowed, false);
+});
+
+// Ordinary defaults are separate from owner recovery and from role definitions.
+afterEach(() => setAuditStore(null));
+
+test("an entitled ordinary member receives the workspace sales role with customer, opportunity and quote access", async () => {
+  const store = fresh();
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const e = ent({ tier: "pro" });
+  const ctx = (await resolveAuthzContext(user(), store, e))!;
+  assert.deepEqual(ctx.roles, [DEFAULT_MEMBER_ROLE]);
+  assert.deepEqual([...ctx.permissions], await store.permissionsOf(WS, "usr_1"));
+  for (const permission of ["account.read", "account.write", "pipeline.read", "pipeline.write", "catalog.read", "copilot.use"] as const) {
+    assert.ok(ctx.permissions.has(permission), permission);
+  }
+  for (const permission of ["admin.manage", "catalog.price", "pipeline.discount", "strategy.approve"] as const) {
+    assert.ok(!ctx.permissions.has(permission), permission);
+  }
+  assert.deepEqual(await store.getScope(WS, "usr_1"), { kind: "workspace", territoryIds: [] });
+  resetAuthzCache();
+  await resolveAuthzContext(user(), store, e);
+  assert.equal(audit.rows.length, 1, "repeat logins do not reassign or re-audit");
+  assert.equal(audit.rows[0].action, "admin.member.role.default");
+  assert.equal(audit.rows[0].objectId, "usr_1");
+});
+
+test("unconfigured existing members are healed when product access arrives, even with a cached roleless context", async () => {
+  const store = fresh();
+  for (const e of [ent(), ent({ bundled: true }), ent({ tier: "pro", workspace_id: "other" }), ent({ tier: "pro", product: "other" })]) {
+    const ctx = await resolveAuthzContext(user(), store, e);
+    assert.deepEqual(ctx!.roles, []);
+  }
+  const ctx = await resolveAuthzContext(user(), store, ent({ tier: "pro" }));
+  assert.deepEqual(ctx!.roles, [DEFAULT_MEMBER_ROLE]);
+});
+
+test("default assignment reads the tenant's customized sales role instead of copying a permission set", async () => {
+  const store = fresh();
+  await store.seedPresetRoles(WS);
+  await store.upsertRole(WS, { code: DEFAULT_MEMBER_ROLE, name: "Local sales", description: "", lineId: null, rankId: null, permissions: ["account.read", "account.write"] });
+  const ctx = await resolveAuthzContext(user(), store, ent({ tier: "pro" }));
+  assert.deepEqual([...ctx!.permissions], ["account.read", "account.write"]);
+});
+
+test("a viewer assignment or explicit removal of all roles survives subsequent entitled logins", async () => {
+  const store = fresh();
+  const e = ent({ tier: "pro" });
+  await resolveAuthzContext(user(), store, e);
+  await store.grantRole(WS, "usr_1", "viewer");
+  await store.revokeRole(WS, "usr_1", DEFAULT_MEMBER_ROLE);
+  invalidateAuthz(WS);
+  assert.deepEqual((await resolveAuthzContext(user(), store, e))!.roles, ["viewer"]);
+  await store.revokeRole(WS, "usr_1", "viewer");
+  invalidateAuthz(WS);
+  const ctx = await resolveAuthzContext(user(), store, e);
+  assert.deepEqual(ctx!.roles, []);
+  assert.equal(ctx!.permissions.size, 0);
+});
+
+test("an administrator's decision before the first entitled visit suppresses the default", async () => {
+  const store = fresh();
+  await store.grantRole(WS, "usr_1", "viewer");
+  await store.revokeRole(WS, "usr_1", "viewer");
+  const ctx = await resolveAuthzContext(user(), store, ent({ tier: "pro" }));
+  assert.deepEqual(ctx!.roles, []);
+});
+
+test("inactive members, including owners, have no permissions and are not bootstrapped", async () => {
+  for (const isWorkspaceOwner of [false, true]) {
+    const store = fresh();
+    await store.grantRole(WS, "usr_1", "sales_leader");
+    await store.setMemberStatus(WS, "usr_1", "inactive");
+    const ctx = await resolveAuthzContext(user({ isWorkspaceOwner }), store, ent({ tier: "pro" }));
+    assert.deepEqual(ctx!.roles, []);
+    assert.equal(ctx!.permissions.size, 0);
+    assert.equal((await store.listMembers(WS))[0].status, "inactive");
+  }
+});
+
+test("reactivating an unconfigured member does not silently grant a role", async () => {
+  const store = fresh();
+  await store.seeMember({ workspaceId: WS, sub: "usr_1" });
+  await store.setMemberStatus(WS, "usr_1", "inactive");
+  await store.setMemberStatus(WS, "usr_1", "active");
+  assert.deepEqual((await resolveAuthzContext(user(), store, ent({ tier: "pro" })))!.roles, []);
+});
+
+test("a removed default role is not recreated over the tenant's configuration", async () => {
+  const store = fresh();
+  await store.seedPresetRoles(WS);
+  await store.removeRole(WS, DEFAULT_MEMBER_ROLE);
+  assert.deepEqual((await resolveAuthzContext(user(), store, ent({ tier: "pro" })))!.roles, []);
+  assert.ok(!(await store.listRoles(WS)).some((r) => r.code === DEFAULT_MEMBER_ROLE));
+});
+
+test("a change in owner claims does not reuse a stale ordinary-member context", async () => {
+  const store = fresh();
+  await resolveAuthzContext(user(), store);
+  const ctx = await resolveAuthzContext(user({ isWorkspaceOwner: true }), store);
+  assert.ok(ctx!.isWorkspaceOwner);
+  assert.ok(ctx!.permissions.has("admin.manage"));
 });

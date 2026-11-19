@@ -12,7 +12,8 @@
 // the top of that file for what happens if the two are conflated.
 
 import type { AuthUser } from "../auth/lib/claims";
-import { OWNER_BOOTSTRAP_ROLE, type PermCode } from "./catalog";
+import { hasProductAccess, type Entitlement } from "../entitlement/types";
+import { DEFAULT_MEMBER_ROLE, OWNER_BOOTSTRAP_ROLE, type PermCode } from "./catalog";
 import { getAuthzStore, type AuthzStore } from "./store";
 
 // Re-exported so a server caller holding a context keeps one import site. The
@@ -39,6 +40,7 @@ const TTL_MS = 45_000;
 interface Entry {
   value: AuthzContext;
   expiresAt: number;
+  defaultEligible: boolean;
 }
 
 const cache = new Map<string, Entry>();
@@ -64,7 +66,7 @@ export function resetAuthzCache(): void {
 
 /**
  * Resolve the member for the active workspace, creating the local_authz row on
- * first sighting and applying the workspace-owner bootstrap exactly once.
+ * first sighting and initializing the appropriate product role.
  *
  * Returns null when the token carries no active workspace: there is no such
  * thing as a permission outside a workspace, and defaulting to "some workspace"
@@ -73,14 +75,17 @@ export function resetAuthzCache(): void {
 export async function resolveAuthzContext(
   user: AuthUser,
   store: AuthzStore = getAuthzStore(),
+  entitlement?: Entitlement,
 ): Promise<AuthzContext | null> {
   const workspaceId = user.activeWorkspace;
   if (!workspaceId) return null;
 
+  const defaultEligible = entitlement?.workspace_id === workspaceId && entitlement.product === "yucer" && hasProductAccess(entitlement);
   const k = cacheKey(workspaceId, user.sub);
   const now = Date.now();
   const hit = cache.get(k);
-  if (hit && hit.expiresAt > now) return hit.value;
+  if (hit && hit.expiresAt > now && hit.defaultEligible === defaultEligible
+    && hit.value.isWorkspaceOwner === user.isWorkspaceOwner) return hit.value;
 
   // THE ROSTER'S NAMES COME FROM HERE (2026-09-29). Every "who" outside the
   // header reads local_authz.member.display_name (lib/member-names.tsx), and
@@ -95,7 +100,7 @@ export async function resolveAuthzContext(
   // means "has none" and clears a stale value. user_no is not on the token
   // yet: absent means "not told", and a cached value is kept.
   const name = user.displayName !== user.sub ? user.displayName : undefined;
-  const { created } = await store.seeMember({
+  const { created, status } = await store.seeMember({
     workspaceId,
     sub: user.sub,
     displayName: name,
@@ -112,38 +117,16 @@ export async function resolveAuthzContext(
   // is left exactly as it is - the store's own rule.
   if (created) await store.seedPresetRoles(workspaceId);
 
-  // THE OWNER BOOTSTRAP: whoever opened the subscription is this product's
-  // super administrator, and walks in able to configure it and hand out roles.
-  // `workspace:owner` is the platform's answer to "who is the first admin"
-  // (auth/lib/claims.ts), and OWNER_BOOTSTRAP_ROLE carries all 25 grants.
-  //
-  // THE CONDITION IS "HOLDS NOTHING", NOT "IS NEW" (2026-09-15). It read
-  // `created && isWorkspaceOwner`, i.e. first sighting only, and that left the
-  // super administrator strandable: a member row is created by the FIRST page
-  // load in a workspace - including the one that answers "this workspace has
-  // no subscription" - so anyone who looked at the product before owning it,
-  // or who was made owner afterwards, had already spent their one chance. From
-  // then on they saw the no-role screen forever, and the screen's advice is to
-  // ask an administrator, which is them.
-  //
-  // Re-applying on every login was never the alternative, and is still not:
-  // that is what would resurrect a role an administrator deliberately revoked.
-  // An owner who was moved to `viewer` keeps `viewer` - they hold a role, so
-  // nothing is applied. What heals is only the state nobody can intend: the
-  // workspace's owner holding NO role at all, in a workspace where they may be
-  // the only person who could have granted one.
-  let [roles, permissions] = await Promise.all([
+  // Owner recovery remains a separate platform contract. Ordinary defaults run
+  // only after product access is confirmed and never undo an admin decision.
+  if (status === "active" && (user.isWorkspaceOwner || defaultEligible)) {
+    await store.initializeMemberRole(workspaceId, user.sub,
+      user.isWorkspaceOwner ? OWNER_BOOTSTRAP_ROLE : DEFAULT_MEMBER_ROLE, user.isWorkspaceOwner);
+  }
+  const [roles, permissions] = status === "active" ? await Promise.all([
     store.rolesOf(workspaceId, user.sub),
     store.permissionsOf(workspaceId, user.sub),
-  ]);
-
-  if (user.isWorkspaceOwner && roles.length === 0) {
-    await store.grantRole(workspaceId, user.sub, OWNER_BOOTSTRAP_ROLE);
-    [roles, permissions] = await Promise.all([
-      store.rolesOf(workspaceId, user.sub),
-      store.permissionsOf(workspaceId, user.sub),
-    ]);
-  }
+  ]) : [[], []];
 
   const value: AuthzContext = {
     workspaceId,
@@ -152,7 +135,7 @@ export async function resolveAuthzContext(
     permissions: new Set(permissions),
     isWorkspaceOwner: user.isWorkspaceOwner,
   };
-  cache.set(k, { value, expiresAt: now + TTL_MS });
+  cache.set(k, { value, defaultEligible, expiresAt: now + TTL_MS });
   return value;
 }
 

@@ -6733,6 +6733,7 @@ export const en: Dictionary = {
       error: "Errored",
     } as Record<string, string>,
     actionLabel: {
+      "admin.member.role.default": "Default role assigned",
       "admin.member.role.assign": "Assign a role",
       "admin.member.role.revoke": "Revoke a role",
       "admin.member.deactivate": "Deactivate a member",

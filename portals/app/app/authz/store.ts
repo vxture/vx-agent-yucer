@@ -8,6 +8,7 @@
 // login. local_authz.member is not a real-time mirror of the platform's
 // workspace membership, and nothing here tries to make it one.
 
+import { recordAuditEvent } from "../audit/lib/record";
 import { prismaEnabled } from "../lib/db";
 import { PrismaAuthzStore } from "./prisma-store";
 import { DEFAULT_ROLE_LINES, DEFAULT_ROLE_RANKS, PERM_CODES, presetRoles, type PermCode, type PresetRole } from "./catalog";
@@ -85,11 +86,12 @@ export type RoleGroupKind = "line" | "rank";
 
 export interface AuthzStore {
   /**
-   * Lazy upsert on sighting. `created` is true only on the very first sighting,
-   * which is what the workspace-owner bootstrap keys off - re-running it on
-   * every login would resurrect a role an admin deliberately removed.
+   * Lazy upsert of the platform display cache. Never changes status or roles.
+   * The separate initializer persists whether role setup has been completed.
    */
-  seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean }>;
+  seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean; status: string }>;
+  /** Assign once to an active, never-configured member. Owner recovery is explicit. */
+  initializeMemberRole(workspaceId: string, sub: string, role: string, ownerRecovery?: boolean): Promise<void>;
   rolesOf(workspaceId: string, sub: string): Promise<string[]>;
   /**
    * Effective permissions: the union of what the member's WORKSPACE roles
@@ -210,6 +212,7 @@ type StoredRole = Omit<WorkspaceRole, "line" | "rank"> & { lineId: string | null
 
 export class InMemoryAuthzStore implements AuthzStore {
   private members = new Map<string, MemberRecord>();
+  private roleSetupComplete = new Set<string>();
   /** workspaceId -> its roles, by code, in insertion order (sorted on read).
    *  The group is held by id and resolved on read, like the table does. */
   private roles = new Map<string, Map<string, StoredRole>>();
@@ -251,13 +254,13 @@ export class InMemoryAuthzStore implements AuthzStore {
     return this.groupRows(workspaceId, kind).find((g) => g.code === code)?.id ?? null;
   }
 
-  async seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean }> {
+  async seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean; status: string }> {
     const k = key(m.workspaceId, m.sub);
     const existing = this.members.get(k);
     if (existing) {
       // Refresh the platform display cache; never touch roles or status.
       Object.assign(existing, profileChanges(m, existing));
-      return { memberId: existing.memberId, created: false };
+      return { memberId: existing.memberId, created: false, status: existing.status };
     }
     const record: MemberRecord = {
       memberId: `mem_${this.nextId++}`,
@@ -276,7 +279,26 @@ export class InMemoryAuthzStore implements AuthzStore {
       territoryIds: [],
     };
     this.members.set(k, record);
-    return { memberId: record.memberId, created: true };
+    return { memberId: record.memberId, created: true, status: record.status };
+  }
+
+  async initializeMemberRole(workspaceId: string, sub: string, role: string, ownerRecovery = false): Promise<void> {
+    const k = key(workspaceId, sub);
+    const m = this.members.get(k);
+    if (!m || m.status !== "active" || m.roles.length > 0) return;
+    if (!ownerRecovery && this.roleSetupComplete.has(k)) return;
+    if (!this.roles.get(workspaceId)?.has(role)) return;
+    const wasComplete = this.roleSetupComplete.has(k);
+    this.roleSetupComplete.add(k);
+    m.roles.push(role);
+    try {
+      await recordAuditEvent({ workspaceId, actorId: sub, objectType: "member", objectId: sub,
+        action: "admin.member.role.default", outcome: "success" });
+    } catch (error) {
+      m.roles = m.roles.filter((r) => r !== role);
+      if (!wasComplete) this.roleSetupComplete.delete(k);
+      throw error;
+    }
   }
 
   async rolesOf(workspaceId: string, sub: string): Promise<string[]> {
@@ -284,6 +306,7 @@ export class InMemoryAuthzStore implements AuthzStore {
   }
 
   async permissionsOf(workspaceId: string, sub: string): Promise<PermCode[]> {
+    if (this.members.get(key(workspaceId, sub))?.status !== "active") return [];
     const held = new Set(await this.rolesOf(workspaceId, sub));
     const out = new Set<PermCode>();
     for (const r of await this.listRoles(workspaceId)) {
@@ -304,12 +327,14 @@ export class InMemoryAuthzStore implements AuthzStore {
     }
     const { memberId } = await this.seeMember({ workspaceId, sub });
     const record = [...this.members.values()].find((r) => r.memberId === memberId)!;
+    this.roleSetupComplete.add(key(workspaceId, sub));
     if (!record.roles.includes(role)) record.roles.push(role);
   }
 
   async revokeRole(workspaceId: string, sub: string, role: string): Promise<void> {
     const record = this.members.get(key(workspaceId, sub));
     if (!record) return;
+    this.roleSetupComplete.add(key(workspaceId, sub));
     record.roles = record.roles.filter((r) => r !== role);
   }
 
@@ -432,6 +457,7 @@ export class InMemoryAuthzStore implements AuthzStore {
   ): Promise<void> {
     const record = this.members.get(key(workspaceId, sub));
     if (!record) return;
+    this.roleSetupComplete.add(key(workspaceId, sub));
     record.status = status;
   }
 
@@ -486,6 +512,7 @@ export class InMemoryAuthzStore implements AuthzStore {
       }
     }
     const k = key(workspaceId, sub);
+    if (roles.length > 0) this.roleSetupComplete.add(k);
     this.members.set(k, {
       memberId: `mem_${this.nextId++}`,
       workspaceId,

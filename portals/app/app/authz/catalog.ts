@@ -702,11 +702,10 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
   ],
 };
 
-/**
- * Default product role for a platform workspace:owner on first login. This is an
- * INITIALIZATION default only (catalog doc, "relation to platform roles"); it is
- * freely reassignable afterwards and is never re-applied on later logins.
- */
+/** Ordinary member initialization; permissions remain owned by workspace roles. */
+export const DEFAULT_MEMBER_ROLE: RoleCode = "sales_rep";
+
+/** Owner baseline; an active roleless owner can recover workspace administration. */
 export const OWNER_BOOTSTRAP_ROLE: RoleCode = "sales_leader";
 
 /**

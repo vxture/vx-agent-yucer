@@ -178,12 +178,9 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
   const workspaceId = user.activeWorkspace;
   if (!workspaceId) return null;
 
-  // Entitlement and membership resolve independently; both are needed before a
-  // single gate can be evaluated, so they run together rather than in series.
-  const [entitlement, authz] = await Promise.all([
-    getEntitlementResolver().resolve(workspaceId),
-    resolveAuthzContext(user),
-  ]);
+  // Confirm product access before initializing the ordinary member's role.
+  const entitlement = await getEntitlementResolver().resolve(workspaceId);
+  const authz = await resolveAuthzContext(user, getAuthzStore(), entitlement);
   if (!authz) return null;
 
   // Offline demo path only. No-op unless YUCER_DEMO_DATA is explicitly "on" AND

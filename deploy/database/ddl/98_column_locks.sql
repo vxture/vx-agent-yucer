@@ -301,3 +301,5 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 -- incr/0123 strategic_result is append-only (SELECT/INSERT, no UPDATE or DELETE).
 
 -- incr/0126 grants catalog-owned product and solution novelty.
+
+-- incr/0127 adds member.role_setup_complete and grants its UPDATE after creation.
