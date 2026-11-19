@@ -28,11 +28,16 @@
 .relatedGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
 .referenceFact { display: grid; grid-template-columns: var(--strategy-label-width, calc(var(--space-xl) * 2 + var(--space-lg))) minmax(0, 1fr); gap: var(--space-sm); }
 .handoff { display: grid; align-items: start; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-lg); }
-.handoffRow { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-md); min-width: 0; }
+.handoffRow { display: grid; grid-template-columns: var(--strategy-label-width, calc(var(--space-xl) * 2 + var(--space-lg))) minmax(0, 1fr) auto; align-items: start; gap: var(--space-md); min-width: 0; }
+.handoffRow > :not(:last-child) { margin-top: var(--space-2xs); }
 .handoffRow > :first-child { white-space: nowrap; }
 .resourceNote { grid-column: 2; min-width: 0; }
 @container (max-width: 54rem) { .handoff { grid-template-columns: minmax(0, 1fr); } }
-@container (max-width: 24rem) { .handoffRow { grid-template-columns: max-content minmax(0, 1fr); } .handoffRow > :last-child { grid-column: 2; justify-self: start; } }
+@container (max-width: 24rem) {
+  .handoffRow { grid-template-columns: minmax(0, 1fr) auto; }
+  .handoffRow > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .handoffRow > :last-child { grid-column: 2; grid-row: 1; }
+}
 @container (min-width: 42rem) { .relatedGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container (min-width: 70rem) { :global([data-workspace-full-width]) .relatedGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @container (max-width: 54rem) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -40,4 +45,5 @@
 
 :global(html:lang(en)) .fieldRow,
 :global(html:lang(en)) .position,
-:global(html:lang(en)) .referenceFact { --strategy-label-width: 11em; }
+:global(html:lang(en)) .referenceFact,
+:global(html:lang(en)) .handoffRow { --strategy-label-width: 11em; }
