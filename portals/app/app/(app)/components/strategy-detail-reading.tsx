@@ -106,20 +106,22 @@ export function StrategyDetailHandoff({ plan:p, rows, children }: { readonly pla
   const { MARKET_STRATEGY_TEXT:T, STRATEGY_HANDOFF_TEXT:H, STRATEGY_DETAIL_TEXT:D }=useMessages();
   const linked=[...new Map(rows?.map(r=>[r.revisionId,r]) ?? []).values()];
   return <Section title={T.handoff} icon="workflow" help={H.resultHelp}>
-    <Card className="min-w-0 py-lg" data-strategy-handoff-card><CardContent className="flex min-w-0 flex-col gap-lg">
-    <div className={styles.handoff}>
+    <div className={styles.handoff} data-strategy-handoff>
+      <Card className="min-w-0 py-lg" data-strategy-handoff-card="planning"><CardContent className="flex min-w-0 flex-col gap-md">
       <div className={styles.handoffRow}>
         <StrategyDetailLabel icon="chart-bar">{T.openPlanning}</StrategyDetailLabel>
         {linked.length?<div className="flex min-w-0 flex-wrap gap-sm">{linked.map(r=><Link key={r.revisionId} href={`/planning?year=${r.year}&revision=${r.revisionId}`} className="text-body transition-colors hover:text-primary-text">{r.year} / V{r.version}</Link>)}</div>:<p className="text-body">{rows===null?T.unknown:H.none}</p>}
         <Button asChild size="md" variant="ghost"><Link href="/planning">{D.viewPlanning}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
       </div>
+    {rows?.length?<Collapsible className="flex flex-col gap-md"><CollapsibleTrigger asChild><Button size="md" variant="ghost" className="group self-start"><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/>{D.handoffDetails}</Button></CollapsibleTrigger><CollapsibleContent>{children}</CollapsibleContent></Collapsible>:null}
+      </CardContent></Card>
+      <Card className="min-w-0 py-lg" data-strategy-handoff-card="campaign"><CardContent>
       <div className={styles.handoffRow}>
         <StrategyDetailLabel icon="ticket">{T.openCampaigns}<span className="ml-xs tabular-nums">{p.campaigns?.length ?? "-"}</span></StrategyDetailLabel>
         <p className="line-clamp-2 min-w-0 text-body" title={p.campaigns?.map(c=>c.name).join(" / ")}>{p.campaigns?.map(c=>c.name).join(" / ") || (p.campaigns===null?T.unknown:T.noCampaigns)}</p>
         <Button asChild size="md" variant="ghost"><Link href="/campaign">{D.viewCampaigns}<Icon name="arrow-right" size="sm" aria-hidden="true"/></Link></Button>
       </div>
+      </CardContent></Card>
     </div>
-    {rows?.length?<Collapsible className="flex flex-col gap-md"><CollapsibleTrigger asChild><Button size="md" variant="ghost" className="group self-start"><Icon name="chevron-down" size="sm" className="transition-transform group-data-[state=open]:rotate-180"/>{D.handoffDetails}</Button></CollapsibleTrigger><CollapsibleContent>{children}</CollapsibleContent></Collapsible>:null}
-    </CardContent></Card>
   </Section>;
 }
