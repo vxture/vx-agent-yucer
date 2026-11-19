@@ -8125,6 +8125,8 @@ export const en: Dictionary = {
   "existing-product": "Existing offering selected",
   "help": "Define the direction and goals, then link markets and offerings. Save incomplete drafts; published versions are stable. Adjustments create revision drafts.",
   "advancedHelp": "Add resources and milestones as needed. Assign a date range and owner to each stage; collapsing preserves the draft.",
+  "resourcesHelp": "Record the people, funds and technical support needed for this strategy. Enter quantities and describe their use, estimates and budget boundaries. These are planned investments, not actual spending. The detail page shows two lines of notes; click the card to read the full text.",
+  "milestonesHelp": "Break delivery into reviewable stages. Set a name, date range, owner and deliverable for each stage. The end cannot precede the start. Details appear in start-date order so it is clear who delivers what and when.",
   "goalExample": "For example: new strategic customers",
   "positioningExample": "For example: win mid-market retailers through POS replacement",
   "criterionExample": "For example: signed and in production",

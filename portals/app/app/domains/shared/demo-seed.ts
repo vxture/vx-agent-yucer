@@ -21,6 +21,7 @@
 // All display copy lives in demo-fixtures.ts so this file stays ASCII.
 
 import { DEFAULT_STRATEGY_TYPES } from "../strategy/lib/strategy-type";
+import { emptyStrategyResult } from "../strategy/lib/strategy-result";
 import { money } from "./money";
 import { periodRange } from "./period";
 import {
@@ -50,6 +51,8 @@ import {
   DEMO_TENDER_SIGNALS,
   DEMO_OPPORTUNITIES,
   DEMO_PLANS,
+  DEMO_STRATEGY_RESOURCES,
+  DEMO_STRATEGY_STAGES,
   DEMO_PLAYBOOKS,
   DEMO_PROJECTS,
   DEMO_RATIONALES,
@@ -293,6 +296,17 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         ownerSub: CRO,
         status: "active",
         approvedAt: daysAgo(60),
+        result: {
+          ...emptyStrategyResult(),
+          resources: { ...DEMO_STRATEGY_RESOURCES },
+          milestones: DEMO_STRATEGY_STAGES.map((stage, index) => ({
+            ...stage,
+            id: `07ac6bc5-bbed-4ff7-8fc7-3af58ce8c00${index}`,
+            startOn: ["2026-07-01", "2026-09-01", "2026-12-01"][index]!,
+            endOn: ["2026-08-31", "2026-11-30", "2026-12-31"][index]!,
+            ownerSub: [REP1, REP2, CRO][index]!,
+          })),
+        },
         solutionIds: [],
         targetMarkets: DEMO_SEGMENTS.slice(0, 2).map((segment, index) => ({
           segmentId: `seg_demo_${index + 1}`, marketName: segment.name,

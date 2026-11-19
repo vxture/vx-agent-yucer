@@ -303,16 +303,18 @@ export function StrategyGoals({
 function SupplementSection({
   title,
   icon,
+  help,
   children,
   preview,
 }: {
   readonly title: string;
   readonly icon: "wallet" | "flag";
+  readonly help: string;
   readonly children: ReactNode;
   readonly preview?: ReactNode;
 }) {
   return (
-    <Section title={title} icon={icon} data-strategy-supplement={icon === "wallet" ? "resources" : "milestones"}>
+    <Section title={title} icon={icon} help={help} data-strategy-supplement={icon === "wallet" ? "resources" : "milestones"}>
       {preview ? <StrategyPreviewCard title={title} detail={preview} className="w-full min-w-0 py-lg">
         <CardContent>{children}</CardContent>
       </StrategyPreviewCard> : <Card className="w-full min-w-0 py-lg">
@@ -582,10 +584,10 @@ export function StrategyAdvanced({
     </dl>
   );
   const sections = <>
-    {onChange || resource ? <SupplementSection title={T.resources} icon="wallet" preview={onChange ? undefined : resourceSummary(true)}>
+    {onChange || resource ? <SupplementSection title={T.resources} icon="wallet" help={T.resourcesHelp} preview={onChange ? undefined : resourceSummary(true)}>
       {onChange ? resources : resourceSummary()}
     </SupplementSection> : null}
-    {onChange || milestones.length ? <SupplementSection title={T.milestones} icon="flag">
+    {onChange || milestones.length ? <SupplementSection title={T.milestones} icon="flag" help={T.milestonesHelp}>
       {stages}
     </SupplementSection> : null}
   </>;
