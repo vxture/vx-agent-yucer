@@ -11,6 +11,7 @@ import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assi
 import { useMessages } from "../lib/i18n/provider";
 import type { SegmentCriteria } from "../../domains/strategy/lib/lifecycle";
 import { segmentFillValues, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "../../domains/strategy/lib/segment-draft";
+import { SEGMENT_SUMMARY_LIMIT } from "../../domains/strategy/lib/segment-summary";
 import type { SegmentAssistInput, SegmentAssistResult } from "../../domains/strategy/segment-assist-service";
 
 export interface SegmentFormRow {
@@ -118,7 +119,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
       <form className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]" onSubmit={event => {
         event.preventDefault(); if (!ready || busy) return;
         submit.run(() => onSave({ editId: original?.id, name: values.name.trim(), priority: Number(priority), status,
-          criteria: { industries: values.industries, regions: values.regions, sizes: values.sizes, customerNeed: values.customerNeed, buyingScenario: values.buyingScenario, expectedOutcome: values.expectedOutcome, entryBarrier: values.entryBarrier },
+          criteria: { industries: values.industries, regions: values.regions, sizes: values.sizes, needSummary: values.needSummary, customerNeed: values.customerNeed, buyingScenario: values.buyingScenario, expectedOutcome: values.expectedOutcome, entryBarrier: values.entryBarrier },
           ...(vocabulary.solutions === null ? {} : { solutionIds: values.solutionIds }), ...(vocabulary.products === null ? {} : { productIds: values.productIds }),
         }), key => SEGMENT_ERROR[key] ?? SEGMENT_ERROR.denied);
       }}>
@@ -132,6 +133,10 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
               <Field>{label("priority", true)}<Input id={`${id}-priority`} required type="number" min={0} max={9999} step={1} placeholder={T.examples.priority} value={priority} onChange={e => setPriority(e.target.value)} /></Field>
               </div>
             </FormFields>
+            <Field>
+              <div className="flex items-center justify-between gap-sm">{label("needSummary")}<span id={`${id}-summary-count`} className="text-body-small tabular-nums text-muted-foreground">{values.needSummary.length}/{SEGMENT_SUMMARY_LIMIT}</span></div>
+              <Input id={`${id}-needSummary`} maxLength={SEGMENT_SUMMARY_LIMIT} aria-describedby={`${id}-summary-count`} placeholder={T.examples.needSummary} value={values.needSummary} onChange={e => change("needSummary", e.target.value)} />
+            </Field>
           </Section>
           <Section>{title("conditions", "filter")}
             <FormFields>{(["industries", "sizes", "regions"] as const).map(key => <Field key={key}>{label(key)}<SegmentChoices id={`${id}-${key}`} label={T[key]} values={values[key]} options={vocabulary[key]} disabled={busy} onChange={v => change(key, v)} /></Field>)}</FormFields>

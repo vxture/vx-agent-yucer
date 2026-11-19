@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Card, CardContent, Icon, ViewLayout, type IconName } from "@vxture/design-ui";
 import type { MarketStrategyReference, MarketView } from "../lib/market-strategy";
 import { strategyOfferings } from "../lib/strategy-offerings";
+import { segmentSummary } from "../../domains/strategy/lib/segment-summary";
 import { strategyPeriodLabel, strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -40,7 +41,7 @@ export function MarketDetail({ market, canWrite, at }: {
   const goalLabel = (goal: MarketStrategyReference["goals"][number]) => goal.name && goal.name !== goal.metric ? goal.name : goal.metric ? H[goal.metric] : R.goals;
   return <ViewLayout className="@container" data-market-detail>
     <PageCrumbs trail={[{ label: T.markets, href: "/segment" }]} current={market.name} />
-    <ViewHeader icon="chart-pie-slice" title={market.name} description={market.segmentCode}
+    <ViewHeader icon="chart-pie-slice" title={market.name} description={<span className="flex min-w-0 flex-col gap-sm"><span className="text-body-small">{market.segmentCode}</span><span className="text-body text-muted-foreground" data-market-detail-summary>{segmentSummary(market.criteria) || T.notProvided}</span></span>}
       secondary={<Tag tone={market.status === "active" ? "success" : "neutral"}>{S.segmentStatusLabel[market.status]}</Tag>}
       help={D.help} divider={false}
       pageActions={{ primary: canWrite ? <PageActionButton asChild><Link href={`/segment/new?id=${encodeURIComponent(market.id)}`}><Icon name="edit" size="sm" aria-hidden="true" />{T.editMarket}</Link></PageActionButton> : undefined }} />

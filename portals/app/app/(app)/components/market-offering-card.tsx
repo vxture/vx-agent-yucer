@@ -6,10 +6,11 @@ import { Button, Card, CardContent, Icon, type IconName } from "@vxture/design-u
 import styles from "./market-offering-card.module.css";
 
 /** A quieter companion to the strategy charter, shared by both library views. */
-export function MarketOfferingCard({ kind, name, number, status, actions, summary, context, facts, openLabel, onOpen, href }: {
+export function MarketOfferingCard({ kind, name, number, description, status, actions, summary, context, facts, openLabel, onOpen, href }: {
   readonly kind: "market" | "solution";
   readonly name: string;
   readonly number: string;
+  readonly description?: ReactNode;
   readonly status: ReactNode;
   readonly actions: ReactNode;
   readonly summary: ReactNode;
@@ -29,6 +30,7 @@ export function MarketOfferingCard({ kind, name, number, status, actions, summar
         <div className="min-w-0">
           <h3>{href ? <Link href={href} title={name} className={`${kind === "market" ? "line-clamp-2 " : ""}break-words text-heading-2 no-underline transition-colors hover:text-primary-text hover:no-underline`}>{name}</Link> : <Button type="button" size="md" variant="ghost" className="h-auto min-h-0 max-w-full justify-start whitespace-normal p-0 text-left text-foreground hover:bg-transparent hover:text-primary-text" onClick={onOpen}><span className="break-words text-heading-2">{name}</span></Button>}</h3>
           <p className="break-words text-body-small tabular-nums text-muted-foreground">{number}</p>
+          {description ? <p className="mt-sm line-clamp-2 min-w-0 break-words text-body text-muted-foreground" data-market-card-description>{description}</p> : null}
         </div>
         <div className="flex items-center gap-sm">{status}{actions}</div>
       </div>

@@ -253,6 +253,17 @@ const DRAFT = {
   criteria: { industries: [], regions: [] },
 };
 
+test("shared needs accepts 60 characters, preserves full analysis, and rejects oversized summaries", () => {
+  const criteria = { ...DRAFT.criteria, needSummary: "  " + "x".repeat(60) + "  ", customerNeed: "Analysis ".repeat(100) };
+  const accepted = planSegment({ ...DRAFT, criteria });
+  assert.ok(accepted.ok);
+  assert.equal(accepted.value.criteria.needSummary, "x".repeat(60));
+  assert.equal(accepted.value.criteria.customerNeed, criteria.customerNeed.trim());
+  const rejected = planSegment({ ...DRAFT, criteria: { ...criteria, needSummary: "x".repeat(61) } });
+  assert.ok(!rejected.ok);
+  assert.equal(rejected.violations[0].code, "need_summary_too_long");
+});
+
 test("a segment needs a code and a name", () => {
   assert.equal(planSegment({ ...DRAFT, segmentCode: "  " }).ok, false);
   assert.equal(planSegment({ ...DRAFT, name: "\t" }).ok, false);

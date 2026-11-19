@@ -10,6 +10,7 @@ import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 import { FilterSlot, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { strategyOfferings } from "../lib/strategy-offerings";
+import { segmentSummary } from "../../domains/strategy/lib/segment-summary";
 import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
 import { StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
@@ -28,7 +29,7 @@ function StrategyReferences({ market }: { readonly market: MarketView }) {
 }
 
 export function MarketLibrary({ markets, canWrite, actions }: { readonly markets: readonly MarketView[]; readonly canWrite: boolean; readonly actions?: ReactNode }) {
-  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS, TABLE_TOOLBAR_TEXT, SEGMENT_DETAIL_TEXT: D } = useMessages();
+  const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, DATA_TABLE_LABELS, SEGMENT_ERROR, ROW_OPS, TABLE_TOOLBAR_TEXT, SEGMENT_DETAIL_TEXT: D, SEGMENT_FORM_TEXT: F } = useMessages();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [view, setView] = useCollectionView("cards");
@@ -43,7 +44,7 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
     try {const r=await action();if(!r.ok)toast({tone:"danger",title:SEGMENT_ERROR[r.error ?? "denied"] ?? SEGMENT_ERROR.denied});}
     catch {toast({tone:"danger",title:SEGMENT_ERROR.denied});}
   });
-  const filtered = markets.filter(m => (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.plans?.map(p => p.name).join(" ") ?? ""} ${m.criteria.customerNeed ?? ""} ${m.criteria.buyingScenario ?? ""} ${m.criteria.expectedOutcome ?? ""} ${m.criteria.entryBarrier ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
+  const filtered = markets.filter(m => (!status || m.status === status) && (!query.trim() || `${m.name} ${m.segmentCode} ${m.plans?.map(p => p.name).join(" ") ?? ""} ${m.criteria.needSummary ?? ""} ${m.criteria.customerNeed ?? ""} ${m.criteria.buyingScenario ?? ""} ${m.criteria.expectedOutcome ?? ""} ${m.criteria.entryBarrier ?? ""} ${[...m.criteria.industries,...m.criteria.regions,...(m.criteria.sizes ?? [])].join(" ")}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const live = filtered.filter(m=>m.status === "active"), shelved = filtered.filter(m=>m.status !== "active");
   const mode = comparing ? "list" : view;
   const chosen = markets.filter(m => selected.includes(m.id));
@@ -64,7 +65,7 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
     compactSelection={{ label: m => TABLE_TOOLBAR_TEXT.selectRecord(m.name), alwaysVisible: true }}
     rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
     columns={[
-      {id:"name",header:T.marketName,track:"subject",sortable:true,cell:m=><CollectionTitleCell title={<Link href={`/segment/${encodeURIComponent(m.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{m.name}</Link>} description={m.segmentCode}
+      {id:"name",header:T.marketName,track:"subject",sortable:true,cell:m=><CollectionTitleCell title={<Link href={`/segment/${encodeURIComponent(m.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{m.name}</Link>} description={<span className="flex min-w-0 items-baseline gap-sm"><span className="shrink-0 text-body-small">{m.segmentCode}</span><span className="truncate text-body" data-market-list-summary title={segmentSummary(m.criteria)}>{segmentSummary(m.criteria)}</span></span>}
         tooltip={[m.name,m.segmentCode].filter(Boolean).join(" / ")} />},
       {id:"criteria",header:T.criteria,track:"criteria",align:"left",cell:m=><div className="flex min-w-0 flex-col gap-xs" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>
         <span className="line-clamp-1">{m.criteria.industries.join(" / ") || ([...m.criteria.regions,...(m.criteria.sizes ?? [])].length ? T.unlimited : T.undefined)}</span>
@@ -82,9 +83,8 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
     <div className="flex flex-col gap-lg">{sorted.sortRows(rows).map(m => {
       const offerings = strategyOfferings(m.defaultSolutions, m.defaultProducts);
       const criteria = [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions];
-      const need = m.criteria.customerNeed || m.criteria.expectedOutcome || m.criteria.buyingScenario || T.notProvided;
-      const excerpt = Array.from(need.replace(/\s+/g, " ").trim());
-      return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode}
+      const need = segmentSummary(m.criteria);
+      return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode} description={need || T.notProvided}
         status={<Tag tone={m.status === "active" ? "success" : "neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>}
         actions={rowActions(m)} openLabel={T.openMarket} href={`/segment/${encodeURIComponent(m.id)}`}
         summary={<div className={styles.portrait} data-market-card-portrait>
@@ -96,7 +96,6 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
               {!criteria.length ? <span className="text-body-small text-muted-foreground">{T.undefined}</span> : null}
             </div>
           </div>
-          <div className={styles.field}><span className={styles.label}><Icon name="lightbulb" size="xs" aria-hidden="true" />{T.customerNeed}</span><p className={`${styles.need} text-body`} data-market-card-need>{excerpt.slice(0, 120).join("")}{excerpt.length > 120 ? "\u2026" : ""}</p></div>
         </div>}
         context={<div className={styles.field} data-market-card-offerings>
           <span className={styles.label}><Icon name="squares-four" size="xs" aria-hidden="true" />{T.productSolutionsTitle}</span>
@@ -123,7 +122,7 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
     } })),
     { id: "matched", label: T.customerCount, render: m => m.matched ?? T.unknown },
     { id: "missing", label: T.missing, render: m => m.missing ?? T.unknown },
-    ...(["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => ({ id: key, label: T[key], render: (m: MarketView) => m.criteria[key] || T.notProvided })),
+    ...(["needSummary", "customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const).map(key => ({ id: key, label: F[key], render: (m: MarketView) => m.criteria[key] || T.notProvided })),
     { id: "plans", label: T.linkedPlan, render: m => <StrategyReferences market={m}/> },
     { id: "status", label: T.status, render: m => STRATEGY_TEXT.segmentStatusLabel[m.status] },
     { id: "preview", label: T.openMarket, render: m => <Button asChild variant="secondary" size="md"><Link href={`/segment/${encodeURIComponent(m.id)}`}>{T.openMarket}</Link></Button> },

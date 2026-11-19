@@ -9,6 +9,7 @@ import { runCopilotTurn } from "../copilot/turn-service";
 import type { CopilotStore } from "../copilot/store";
 import { listSegments, type StrategyContext } from "./service";
 import { readSegmentDraft, segmentDraftFrame, SEGMENT_FILL_FIELDS, SEGMENT_LIST_FIELDS, SEGMENT_TEXT_FIELDS, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "./lib/segment-draft";
+import { SEGMENT_SUMMARY_LIMIT } from "./lib/segment-summary";
 
 export interface SegmentAssistInput {
   text: string; editId?: string; sessionId?: string; retryMessageId?: string;
@@ -53,7 +54,7 @@ export async function prepareSegmentDraft(ctx: StrategyContext, input: SegmentAs
     if (input.editId && !original) return { ok: false, error: "not_found" };
     const vocab = await segmentVocabulary(deps.account, deps.catalog);
     const current = {} as SegmentFillValues;
-    for (const key of SEGMENT_TEXT_FIELDS) current[key] = typeof input.values?.[key] === "string" ? input.values[key].slice(0, key === "name" ? 200 : 2000) : "";
+    for (const key of SEGMENT_TEXT_FIELDS) current[key] = typeof input.values?.[key] === "string" ? input.values[key].slice(0, key === "name" ? 200 : key === "needSummary" ? SEGMENT_SUMMARY_LIMIT : 2000) : "";
     for (const key of SEGMENT_LIST_FIELDS) {
       const choices = key === "solutionIds" ? [...(vocab.solutions ?? []).map(r => r.id), ...(original?.solutionIds ?? [])]
         : key === "productIds" ? [...(vocab.products ?? []).map(r => r.id), ...(original?.productIds ?? [])]
