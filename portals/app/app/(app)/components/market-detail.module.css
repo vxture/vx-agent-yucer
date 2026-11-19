@@ -13,8 +13,6 @@
 .insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); }
 .insight { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: var(--space-sm); }
 .references { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); }
-.strategySummary { display: grid; gap: var(--space-md); }
-.strategySummary:empty { display: none; }
 @container (min-width: 42rem) { .references { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container (min-width: 70rem) { :global([data-workspace-full-width]) .references { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @container (max-width: 54rem) { .conditions { grid-template-columns: minmax(0, 1fr); } }

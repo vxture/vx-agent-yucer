@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { Card, CardContent, Icon, ViewLayout, type IconName } from "@vxture/design-ui";
 import type { MarketView } from "../lib/market-strategy";
 import { strategyOfferings } from "../lib/strategy-offerings";
-import { strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
+import { strategyPeriodLabel, strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
+import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { ViewHeader } from "./business-controls";
 import { PageCrumbs } from "./page-crumbs";
@@ -78,21 +79,22 @@ export function MarketDetail({ market, canWrite, at }: {
     </Section>
     <Section title={D.strategies} icon="flag" help={D.strategyHelp}>
       {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card key={plan.id} className="min-w-0 py-lg"><CardContent className="flex min-w-0 flex-col gap-md">
-        <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
-          <Icon name="graph" size="md" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="line-clamp-2 min-w-0 break-words">{plan.name}</span><Icon name="arrow-right" size="sm" className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" />
-        </Link>
-        <div className="flex min-w-0 flex-wrap items-center gap-sm">
+        <div className="flex min-w-0 items-center gap-sm" data-market-strategy-heading>
+          <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 flex-1 items-center gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
+            <Icon name="graph" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate">{plan.name}</span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-xs">
           {plan.strategyTypeName ? <Tag>{plan.strategyTypeName}</Tag> : null}
           <Tag tone={plan.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[plan.status]}{plan.versionNo ? ` V${plan.versionNo}` : ""}</Tag>
-          {plan.intent ? <Tag>{plan.intent === "focus" ? T.focusMarket : T.validateMarket}</Tag> : null}
+          </div>
         </div>
-        <dl className={styles.strategySummary}>
-          {plan.objective ? <div className={styles.insight}><dt><StrategyDetailLabel icon="lightbulb">{T.strategyPosition}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={plan.objective}>{plan.objective}</dd></div> : null}
-          {plan.approach ? <div className={styles.insight}><dt><StrategyDetailLabel icon="target">{T.marketApproach}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={plan.approach}>{plan.approach}</dd></div> : null}
-        </dl>
-        <div className="mt-auto flex min-w-0 flex-col gap-xs border-t border-dashed border-border pt-sm text-body-small text-muted-foreground">
-          <span className="truncate" title={plan.planNo}>{plan.planNo}</span>
-          <span className="inline-flex min-w-0 items-start gap-sm"><Icon name="calendar" size="sm" className="shrink-0" aria-hidden="true" /><span className="min-w-0 break-words">{strategyPeriodRangeLabel(plan.period) ?? plan.period}</span></span>
+        <div className="flex min-w-0 items-center gap-sm text-body" data-market-strategy-objective>
+          <Icon name="lightbulb" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" />
+          <p className={`min-w-0 truncate ${plan.objective ? "" : "text-muted-foreground"}`} title={plan.objective || undefined}>{plan.objective || T.directionEmpty}</p>
+        </div>
+        <div className="flex min-w-0 items-center justify-between gap-md text-body text-muted-foreground" data-market-strategy-meta>
+          <span className="inline-flex min-w-0 items-center gap-xs" title={strategyPeriodRangeLabel(plan.period) ?? plan.period}><Icon name="calendar" size="sm" className="shrink-0" aria-hidden="true" /><span className="min-w-0 truncate">{strategyPeriodLabel(plan.period)}</span></span>
+          <span className="flex min-w-0 items-center gap-xs" aria-label={T.owner}><MemberName sub={plan.ownerSub} name={plan.ownerName} fallback={T.noOwner} /></span>
         </div>
       </CardContent></Card>)}</div> : <DetailEmpty>{market.plans === null ? T.unknown : D.noStrategies}</DetailEmpty>}
     </Section>

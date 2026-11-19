@@ -27,7 +27,7 @@ export interface MarketStrategyReference {
   id: string; name: string; period: string; planNo: string;
   status: PlanRecord["status"]; versionNo: number | null;
   strategyTypeName: string | null; objective: string | null;
-  intent: TargetMarket["intent"]; approach: string | null;
+  ownerSub: string | null; ownerName: string | null;
 }
 export interface StrategyResult {
   currency: string; open: number; won: number;
@@ -89,7 +89,7 @@ export function marketViews(segments: readonly SegmentRecord[], plans: readonly 
     // A published relationship must use the same frozen content as its detail.
     const published = plan.publishedSnapshot;
     const seen = new Set<string>();
-    for (const { segmentId, intent, approach } of published?.targetMarkets ?? plan.targetMarkets ?? []) {
+    for (const { segmentId } of published?.targetMarkets ?? plan.targetMarkets ?? []) {
       if (seen.has(segmentId)) continue;
       seen.add(segmentId);
       const rows = adoption.get(segmentId) ?? [];
@@ -97,7 +97,7 @@ export function marketViews(segments: readonly SegmentRecord[], plans: readonly 
         name: published?.name ?? plan.name, period: published?.period ?? plan.period,
         objective: published ? published.objective : plan.objective,
         strategyTypeName: (published ? published.strategyType : plan.strategyType)?.name ?? null,
-        intent, approach });
+        ownerSub: published ? published.ownerSub : plan.ownerSub, ownerName: published?.ownerName ?? null });
       adoption.set(segmentId, rows);
     }
   }
