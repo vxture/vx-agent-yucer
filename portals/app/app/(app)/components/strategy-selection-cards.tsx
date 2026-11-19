@@ -68,7 +68,7 @@ export function StrategyMarketCards({ markets, actions, detail, attributes }: {
           {attributes?.(m)}{m.status && m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
         </div>
       </div>
-      <dl className="flex min-w-0 flex-col gap-sm" data-strategy-market-facts>
+      <dl className={layout.rows} data-strategy-market-facts>
         <div className={layout.field}><dt><StrategyDetailLabel>{T.criteria}</StrategyDetailLabel></dt><dd className="line-clamp-2">{m.criteria?[...m.criteria.industries,...m.criteria.regions].join(" / ")||T.undefined:T.unknown}</dd></div>
         <div className={layout.field}><dt><StrategyDetailLabel>{R.sizes}</StrategyDetailLabel></dt><dd className="line-clamp-2">{m.criteria?.sizes?.join(" / ")||R.unlimitedSize}</dd></div>
         <div className={layout.field}><dt><StrategyDetailLabel>{T.marketApproach}</StrategyDetailLabel></dt><dd className={`line-clamp-2 ${m.approach?"":"text-muted-foreground"}`}>{m.approach||T.noMarketApproach}</dd></div>

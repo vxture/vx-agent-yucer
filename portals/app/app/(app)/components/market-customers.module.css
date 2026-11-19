@@ -1,0 +1,6 @@
+.toolbarScroll { min-width: 0; overflow-x: auto; }
+.toolbar { min-width: max-content; flex-wrap: nowrap; }
+.toolbar > div:last-child { flex-wrap: nowrap; flex-shrink: 0; }
+.stats { display: flex; align-items: center; white-space: nowrap; }
+.stat { display: flex; align-items: baseline; gap: var(--space-xs); }
+.stat + .stat { border-inline-start: 1px solid var(--border); margin-inline-start: var(--space-md); padding-inline-start: var(--space-md); }

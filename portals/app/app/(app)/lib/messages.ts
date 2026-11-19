@@ -1108,6 +1108,7 @@ export const CATALOG_TEXT = {
   colSolutionName: "方案名称",
   solutionContents: "方案内容",
   solutionUnit: "套",
+  solutionPriceBasis: "\u4ef7\u683c\u57fa\u51c6",
   solutionUnitHint: "每份完整标配组合的参考价格，不含可选项；各产品保留原计价单位。",
   solutionDetailsHint: "查看适用场景与产品组合",
   solutionPrices: "标配价格合计",

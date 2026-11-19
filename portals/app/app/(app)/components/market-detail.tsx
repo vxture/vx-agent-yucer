@@ -87,7 +87,7 @@ export function MarketDetail({ market, canWrite, at }: {
       {market.defaultSolutions == null || market.defaultProducts == null ? <DetailEmpty>{T.unknown}</DetailEmpty> : null}
     </Section>
     <Section title={D.strategies} icon="flag" help={D.strategyHelp}>
-      {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card variant="reference" key={plan.id} className="min-w-0"><CardContent>
+      {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card variant="reference" key={plan.id} className="min-w-0"><CardContent className={layout.rows}>
         <div className="flex min-w-0 items-center gap-sm" data-market-strategy-heading>
           <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 flex-1 items-center gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
             <Icon name="graph" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate">{plan.name}</span>
@@ -112,11 +112,6 @@ export function MarketDetail({ market, canWrite, at }: {
     </Section>
     <Section title={D.coverage} icon="users" help={<><p>{D.coverageHelp}</p><p>{T.previewWhy}</p><p>{T.baseOnly}</p></>}>
       <Card className="min-w-0"><CardContent className="flex min-w-0 flex-col gap-lg">
-        <dl className={styles.coverage}>{[
-          { label: T.customerCount, value: market.matched },
-          { label: T.assigned, value: market.assigned },
-          { label: T.missing, value: market.missing },
-        ].map(row => <div key={row.label} className="flex min-w-0 items-baseline gap-sm"><dt className="text-body text-muted-foreground">{row.label}</dt><dd className="text-body font-medium"><StrategyQuantity value={row.value ?? "-"} unit={row.value === null ? undefined : D.customerUnit} /></dd></div>)}</dl>
         <MarketCustomers market={market} />
       </CardContent></Card>
     </Section>

@@ -12,7 +12,7 @@
 
 .reference {
   --strategy-card-inset: var(--space-md);
-  --strategy-card-row-gap: var(--space-sm);
+  --strategy-card-row-gap: var(--space-md);
   --strategy-card-section-gap: var(--space-md);
 }
 
@@ -30,13 +30,22 @@
   display: grid;
   min-width: 0;
   grid-template-columns: var(--strategy-label-width, 7em) minmax(0, 1fr);
-  align-items: baseline;
+  align-items: start;
   column-gap: var(--space-sm);
   row-gap: var(--space-xs);
 }
 
-.field > :first-child { white-space: nowrap; }
+.field > :first-child { display: flex; align-items: start; line-height: inherit; white-space: nowrap; }
 .field > :last-child { min-width: 0; overflow-wrap: anywhere; }
+
+.rows {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.rows > * { min-height: 1lh; }
 
 .divider {
   border-top: 1px dashed var(--border);

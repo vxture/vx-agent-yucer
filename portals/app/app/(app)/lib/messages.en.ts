@@ -1996,6 +1996,7 @@ export const en: Dictionary = {
     colSolutionName: "Solution",
     solutionContents: "Solution contents",
     solutionUnit: "Set",
+    solutionPriceBasis: "Price basis",
     solutionUnitHint: "Reference price per complete standard bundle, excluding optional items. Products retain their own units.",
     solutionDetailsHint: "View scenario and product composition",
     solutionPrices: "Standard item totals",

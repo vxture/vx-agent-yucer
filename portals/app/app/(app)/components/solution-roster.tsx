@@ -30,7 +30,7 @@ import {
   useTableSort,
   moveItems,
 } from "./table-fittings";
-import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
+import { MarketOfferingCard } from "./market-offering-card";
 import { Tag } from "./tag";
 import layout from "./strategy-info-card.module.css";
 import { SolutionDetails } from "./solution-details";
@@ -315,6 +315,8 @@ export function SolutionRoster({
       const composition = CATALOG_TEXT.compositionCount(items.filter(it => !it.optional).length, items.filter(it => it.optional).length);
       const scenario = solution.scenario || solution.summary;
       const markets = marketsBySolution[solution.id] ?? [];
+      const primaryPrice = factsOf(row).prices.listPrice;
+      const unpriced = factsOf(row).missing.listPrice;
       return <MarketOfferingCard key={solution.id} kind="solution" name={solution.name} number={solution.solutionCode}
         status={<StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>}
         actions={rowActions(row)} openLabel={ROW_OPS.details(CATALOG_TEXT.solutionNoun)} onOpen={() => setDetailId(solution.id)}
@@ -323,18 +325,25 @@ export function SolutionRoster({
           {solution.scenario && solution.summary && solution.summary !== scenario && <div className={layout.field}><span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="lightbulb" size="xs" aria-hidden="true" />{CATALOG_TEXT.solutionSummary}</span><p className="line-clamp-2 text-body text-muted-foreground" title={solution.summary}>{solution.summary}</p></div>}
         </>}
         context={<>
-          <div className={layout.field}><span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="cube" size="xs" aria-hidden="true" />{CATALOG_TEXT.solutionContents}</span><div className="flex min-w-0 flex-col gap-xs"><p className="text-body font-medium">{composition}</p>
-          {contents && <p className="line-clamp-2 text-body text-muted-foreground" title={contents}>{contents}</p>}</div></div>
-          {markets.length > 0 && <div className={layout.field}>
-            <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="target" size="xs" aria-hidden="true" />{MARKET_STRATEGY_TEXT.markets}</span><div className="flex min-w-0 flex-wrap items-baseline gap-x-sm gap-y-xs text-body">
+          <div className={layout.field} data-solution-card-markets>
+            <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="target" size="xs" aria-hidden="true" />{MARKET_STRATEGY_TEXT.targetMarketsTitle}</span><div className="flex min-w-0 flex-wrap items-baseline gap-x-sm gap-y-xs text-body">
             {markets.slice(0, 2).map(m => <Link key={m.id} href={`/segment/${encodeURIComponent(m.id)}`} className="min-w-0 max-w-full truncate hover:text-primary-text" title={m.name}>{m.name}</Link>)}
             {markets.length > 2 && <span title={markets.slice(2).map(m => m.name).join(" / ")}>+{markets.length - 2}</span>}
-          </div></div>}
+            {!markets.length ? <span className="text-muted-foreground">-</span> : null}
+          </div></div>
+          <div className={layout.field} data-solution-card-price>
+            <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="coins" size="xs" aria-hidden="true" />{CATALOG_TEXT.solutionPriceBasis}</span>
+            <span className="inline-flex min-w-0 flex-wrap items-baseline gap-xs text-body" title={unpriced ? CATALOG_TEXT.listTotalPartial(unpriced) : CATALOG_TEXT.solutionUnitHint}>
+              <span className="font-medium tabular-nums">{primaryPrice == null ? CATALOG_TEXT.unpricedShort : primaryPrice.toLocaleString()}</span>
+              {primaryPrice != null ? <span className="text-body-small text-muted-foreground">{currency} / {CATALOG_TEXT.solutionUnit}</span> : null}
+              {unpriced > 0 ? <Icon name="warning" size="xs" className="self-center text-warning-text" aria-label={CATALOG_TEXT.listTotalPartial(unpriced)} /> : null}
+            </span>
+          </div>
         </>}
-        facts={<>
-          <LibraryCardFact icon="package" label={CATALOG_TEXT.colUnitPrice}>{CATALOG_TEXT.solutionUnit}</LibraryCardFact>
-          <ProductPriceValues price={factsOf(row).prices} missing={factsOf(row).missing} currency={currency} />
-        </>}
+        facts={<div className={layout.field} data-solution-card-products>
+          <span className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="cube" size="xs" aria-hidden="true" />{CATALOG_TEXT.colComposition}</span>
+          <div className="flex min-w-0 items-baseline gap-sm"><span className="max-w-1/2 shrink-0 truncate text-body-small text-muted-foreground" title={composition}>{composition}</span><p className="min-w-0 truncate text-body" title={contents || undefined}>{contents || "-"}</p></div>
+        </div>}
       />;
     })}</div>;
 

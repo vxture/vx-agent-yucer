@@ -8,6 +8,8 @@ import { useMessages } from "../lib/i18n/provider";
 import { DataTable, FilterBar } from "./business-controls";
 import { FilterSlot, PaginationFooter, RowActions, SearchSlot } from "./table-fittings";
 import { Tag } from "./tag";
+import { StrategyQuantity } from "./strategy-detail-label";
+import styles from "./market-customers.module.css";
 
 export function MarketCustomers({ market }: { readonly market: MarketView }) {
   const { MARKET_STRATEGY_TEXT: T, DATA_TABLE_LABELS, SEGMENT_DETAIL_TEXT: D } = useMessages();
@@ -17,13 +19,21 @@ export function MarketCustomers({ market }: { readonly market: MarketView }) {
   const pagination = useListPagination(rows, 10);
   if (market.customers === null) return <p className="text-body text-muted-foreground">{T.unknown}</p>;
   return <div className="flex min-w-0 flex-col gap-md" data-market-customer-coverage>
-    <FilterBar search={<SearchSlot><Input type="search" aria-label={T.searchCustomers} placeholder={T.searchCustomers} value={query} onChange={e => setQuery(e.target.value)} /></SearchSlot>}
+    <div className={styles.toolbarScroll}>
+    <FilterBar className={styles.toolbar} data-market-customer-toolbar
+      scope={<dl className={styles.stats} data-market-customer-stats>{[
+        { label: T.customerCount, value: market.matched },
+        { label: T.assigned, value: market.assigned },
+        { label: T.missing, value: market.missing },
+      ].map(row => <div key={row.label} className={styles.stat}><dt className="text-body-small text-muted-foreground">{row.label}</dt><dd className="text-body font-medium"><StrategyQuantity value={row.value ?? "-"} unit={row.value == null ? undefined : D.customerUnit} /></dd></div>)}</dl>}
+      search={<SearchSlot><Input type="search" aria-label={T.searchCustomers} placeholder={T.searchCustomers} value={query} onChange={e => setQuery(e.target.value)} /></SearchSlot>}
       onReset={query || match ? () => { setQuery(""); setMatch(""); } : undefined}>
       <FilterSlot><NativeSelect aria-label={T.assessment} value={match} onChange={e => setMatch(e.target.value)}>
         <option value="">{T.allCustomers}</option>
         {(["match", "assigned", "missing", "miss", "undefined"] as const).map(key => <option key={key} value={key}>{T[key]}</option>)}
       </NativeSelect></FilterSlot>
     </FilterBar>
+    </div>
     <DataTable className="[&_tbody]:text-body" labels={DATA_TABLE_LABELS} rows={pagination.pageRows} rowKey={a => a.id} indexStart={pagination.indexStart}
       columns={[
         { id: "name", header: T.customerName, align: "left", width: "md", cell: a => <TableTitleCell title={<Link href={`/account/${encodeURIComponent(a.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{a.name}</Link>} description={a.accountNo} /> },

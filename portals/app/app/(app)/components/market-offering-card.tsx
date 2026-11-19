@@ -41,8 +41,8 @@ export function MarketOfferingCard({ kind, name, number, description, status, ac
         <div className="flex min-w-0 flex-col gap-md">{context}</div>
       </div>
       <div className={`flex flex-wrap items-center justify-between gap-sm ${layout.divider}`}>
-        <div className="flex min-w-0 flex-wrap items-center gap-x-xl gap-y-xs">{facts}</div>
-        <Button size="md" variant="ghost" onClick={href ? undefined : onOpen} asChild={!!href}>{href ? <Link href={href}>{openLabel}<Icon name="arrow-right" size="sm" aria-hidden="true" /></Link> : <>{openLabel}<Icon name="arrow-right" size="sm" aria-hidden="true" /></>}</Button>
+        <div className={kind === "solution" ? "min-w-0 flex-1" : "flex min-w-0 flex-wrap items-center gap-x-xl gap-y-xs"}>{facts}</div>
+        {kind === "market" ? <Button size="md" variant="ghost" onClick={href ? undefined : onOpen} asChild={!!href}>{href ? <Link href={href}>{openLabel}<Icon name="arrow-right" size="sm" aria-hidden="true" /></Link> : <>{openLabel}<Icon name="arrow-right" size="sm" aria-hidden="true" /></>}</Button> : null}
       </div>
     </CardContent>
   </Card>;
