@@ -22,6 +22,7 @@ Domain documents use the strict org underscore family `{kind}_{domain}_{NNN}_{sl
 | `data_yucer_200_domain-schemas.md` | 产品域数据模型：表清单、命名与类型约定、不可变约束、变更通道（**数字已陈旧**，见文件内注） |
 | `design_yucer_210_regional-sales-planning.md` | 区域规划对象模型、完整版本、生效事件、历史目标绑定与旧目标接管 |
 | `design_yucer_220_market-strategy-workspace.md` | 市场战略整合设计及首轮本地实现：市场库、客群、打法、版本与执行验证；区分已实现与后续模型 |
+| `design_yucer_225_strategy-card-layout.md` | 战略、市场、方案、产品的三类卡片布局：行距、内边距、分隔线、关联摘要与抽屉 |
 
 ## Subdirectories
 

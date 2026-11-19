@@ -10,6 +10,8 @@ import { useCollectionView } from "./collection-view-provider";
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { inForceByProduct } from "../../domains/catalog/lib/pricing";
+import { StrategyInfoCard, StrategyInfoContent } from "./strategy-info-card";
+import layout from "./strategy-info-card.module.css";
 import { ProductPriceValues } from "./product-price-values";
 import { ProductPricePanel, type ProductPricing } from "./product-price-panel";
 import {
@@ -17,7 +19,6 @@ import {
   EmptyState,
   Icon,
   Input,
-  ListCard,
   useToast,
 } from "@vxture/design-ui";
 import { statusTone } from "./status-label";
@@ -374,12 +375,18 @@ export function ProductRoster({
   const renderLive = () => view === "list" || !live.length ? table(live) : (
     <div className="@container">
       <div className="grid min-w-0 grid-cols-1 gap-lg @2xl:grid-cols-2 @5xl:grid-cols-3" data-product-cards>
-        {sorted.sortRows(live).map((product) => <ListCard key={product.id} title={product.name}
-          description={product.productCode} icon="cube" status={statusBadge(product)}
-          actions={rowActions(product)} meta={<div className="flex w-full flex-wrap items-center justify-between gap-sm">
-            <span>{[typeNameOf(product.typeId), unitName.get(product.unitId)].filter(Boolean).join(" \u00b7 ")}</span>
-            {pricing ? <ProductPriceValues price={priceByProduct.get(product.id)} currency={pricing.currency} /> : null}
-          </div>} />)}
+        {sorted.sortRows(live).map((product) => <StrategyInfoCard key={product.id} variant="overview" surface="soft" data-product-card>
+          <StrategyInfoContent>
+            <div className="flex min-w-0 items-start justify-between gap-sm">
+              <CollectionTitleCell title={product.name} description={product.productCode} icon="cube" />
+              <div className="flex shrink-0 items-center gap-xs">{statusBadge(product)}{rowActions(product)}</div>
+            </div>
+            <div className={`flex min-w-0 flex-wrap items-center justify-between gap-sm text-body ${layout.divider}`}>
+              <span className="text-muted-foreground">{[typeNameOf(product.typeId), unitName.get(product.unitId)].filter(Boolean).join(" \u00b7 ")}</span>
+              {pricing ? <ProductPriceValues price={priceByProduct.get(product.id)} currency={pricing.currency} /> : null}
+            </div>
+          </StrategyInfoContent>
+        </StrategyInfoCard>)}
       </div>
     </div>
   );

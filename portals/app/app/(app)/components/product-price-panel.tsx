@@ -77,7 +77,7 @@ export function ProductPricePanel({ product, products, pricing, current, mode, o
   const stateLabel = { current: T.priceStateCurrent, scheduled: T.priceStateScheduled, historical: T.priceStateHistorical };
 
   if (mode === "history") return (
-    <Drawer open onClose={onClose} width={collectionDrawerWidth.wide} title={T.priceHistory}
+    <Drawer open onClose={onClose} width={collectionDrawerWidth.wide} className="max-w-full" title={T.priceHistory}
       description={product ? `${product.name} \u00b7 ${product.productCode}` : T.priceHistoryWhy}
       closeLabel={DS_LABELS.confirmCancel}>
       <DataTable

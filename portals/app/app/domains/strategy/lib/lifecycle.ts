@@ -1,6 +1,7 @@
 import { validStrategyResult } from "./strategy-result";
 import { validExpectations } from "./expectations";
 import { parseStrategyPeriod } from "./plan-period";
+import { SEGMENT_TEXT_LIMITS } from "./segment-text-limits";
 // D1 strategy and D3 campaign lifecycles.
 //
 // These two domains share a file because they share a shape: both own an object
@@ -421,6 +422,7 @@ export interface SegmentCriteria {
   /** Optional: a criteria row written before sizes existed has none. */
   sizes?: readonly string[];
   /** Qualitative context; never used as an automatic match filter. */
+  needSummary?: string;
   customerNeed?: string;
   buyingScenario?: string;
   /** Desired customer improvement; a hypothesis, not a promised result. */
@@ -462,7 +464,7 @@ export function planSegment(input: SegmentDraft): RuleResult<SegmentDraft> {
   // Trimmed and de-duplicated, not merely accepted: " 零售" would never match
   // an account whose industry is "零售", and nothing downstream would say why.
   const criteria: SegmentCriteria = {
-    ...Object.fromEntries((["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
+    ...Object.fromEntries((["needSummary", "customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
       .map(key => [key, input.criteria[key]?.trim()]).filter(([, value]) => value)),
     industries: [...new Set(input.criteria.industries.map((v) => v.trim()).filter(Boolean))],
     regions: [...new Set(input.criteria.regions.map((v) => v.trim()).filter(Boolean))],
@@ -476,6 +478,12 @@ export function planSegment(input: SegmentDraft): RuleResult<SegmentDraft> {
   }
   if (!name) {
     return fail(violation("name_required", "a segment needs a name", "name"));
+  }
+  for (const key of Object.keys(SEGMENT_TEXT_LIMITS) as (keyof typeof SEGMENT_TEXT_LIMITS)[]) {
+    const value = key === "name" ? name : criteria[key];
+    if (value && value.length > SEGMENT_TEXT_LIMITS[key]) {
+      return fail(violation(key === "needSummary" ? "need_summary_too_long" : "segment_text_too_long", `${key} exceeds ${SEGMENT_TEXT_LIMITS[key]} characters`, key === "name" ? key : `criteria.${key}`));
+    }
   }
   if (!(SEGMENT_STATUSES as readonly string[]).includes(input.status)) {
     return fail(

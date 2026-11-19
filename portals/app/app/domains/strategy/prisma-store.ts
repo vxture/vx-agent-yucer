@@ -647,7 +647,7 @@ function readCriteria(criteria: unknown): SegmentCriteria {
     industries: Array.isArray(raw.industries) ? raw.industries.map(String) : [],
     regions: Array.isArray(raw.regions) ? raw.regions.map(String) : [],
     sizes: Array.isArray(raw.sizes) ? raw.sizes.map(String) : [],
-    ...Object.fromEntries((["customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
+    ...Object.fromEntries((["needSummary", "customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
       .map(key => [key, raw[key]]).filter(([, value]) => typeof value === "string")),
   };
 }

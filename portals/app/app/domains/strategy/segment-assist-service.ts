@@ -9,6 +9,7 @@ import { runCopilotTurn } from "../copilot/turn-service";
 import type { CopilotStore } from "../copilot/store";
 import { listSegments, type StrategyContext } from "./service";
 import { readSegmentDraft, segmentDraftFrame, SEGMENT_FILL_FIELDS, SEGMENT_LIST_FIELDS, SEGMENT_TEXT_FIELDS, type SegmentFillField, type SegmentFillValues, type SegmentVocabulary } from "./lib/segment-draft";
+import { SEGMENT_TEXT_LIMITS } from "./lib/segment-text-limits";
 
 export interface SegmentAssistInput {
   text: string; editId?: string; sessionId?: string; retryMessageId?: string;
@@ -53,7 +54,8 @@ export async function prepareSegmentDraft(ctx: StrategyContext, input: SegmentAs
     if (input.editId && !original) return { ok: false, error: "not_found" };
     const vocab = await segmentVocabulary(deps.account, deps.catalog);
     const current = {} as SegmentFillValues;
-    for (const key of SEGMENT_TEXT_FIELDS) current[key] = typeof input.values?.[key] === "string" ? input.values[key].slice(0, key === "name" ? 200 : 2000) : "";
+    // Preserve legacy long values as context so the assistant can condense them.
+    for (const key of SEGMENT_TEXT_FIELDS) current[key] = typeof input.values?.[key] === "string" ? input.values[key] : "";
     for (const key of SEGMENT_LIST_FIELDS) {
       const choices = key === "solutionIds" ? [...(vocab.solutions ?? []).map(r => r.id), ...(original?.solutionIds ?? [])]
         : key === "productIds" ? [...(vocab.products ?? []).map(r => r.id), ...(original?.productIds ?? [])]
@@ -69,7 +71,7 @@ export async function prepareSegmentDraft(ctx: StrategyContext, input: SegmentAs
       reviewAnswer: answer => {
         const draft = readSegmentDraft(answer, vocab, current, manualFields);
         return { answer, ...(!draft ? { feedback: "Return the requested JSON fields object, not a prose claim of filling. Fill a useful draft using the supplied vocabulary." }
-          : draft.rejected.length ? { feedback: `Correct invalid fields ${draft.rejected.join(", ")}. Use exact configured names and catalog IDs. Return the complete corrected JSON fields object.` } : {}) };
+          : draft.rejected.length ? { feedback: `Correct invalid fields ${draft.rejected.join(", ")}. Use exact configured names and catalog IDs. Condense text within these character limits: ${JSON.stringify(SEGMENT_TEXT_LIMITS)}. Return the complete corrected JSON fields object.` } : {}) };
       },
     }, { atlasClient: deps.atlasClient, runosClient: deps.runosClient, meter: deps.meter });
     if (!turn.ok) return { ok: false, error: turn.violations[0]?.code ?? "turn_failed", recovery: turn.recovery };

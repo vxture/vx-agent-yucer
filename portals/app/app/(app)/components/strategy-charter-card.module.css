@@ -29,7 +29,7 @@
 .content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--strategy-card-row-gap);
 }
 
 .heading {
@@ -37,8 +37,6 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
   gap: var(--space-md);
-  border-bottom: 1px dashed var(--border);
-  padding-bottom: var(--space-md);
 }
 
 .headingActions {
@@ -59,11 +57,12 @@
 }
 
 .body {
+  composes: divider from "./strategy-info-card.module.css";
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   grid-template-rows: repeat(3, auto);
   align-items: stretch;
-  gap: var(--space-md) var(--space-2xl);
+  gap: var(--strategy-card-row-gap) var(--strategy-card-section-gap);
 }
 
 .body[data-goal-count="4"] {
@@ -95,7 +94,7 @@
 .relation {
   display: grid;
   grid-template-columns: 5em minmax(0, 1fr);
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-sm);
 }
 
@@ -106,7 +105,7 @@
   grid-row: 1 / -1;
   grid-template-rows: subgrid;
   border-left: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
-  padding-left: var(--space-2xl);
+  padding-left: var(--strategy-card-section-gap);
 }
 
 .goals {
@@ -135,26 +134,25 @@
 }
 
 .footer {
+  composes: divider from "./strategy-info-card.module.css";
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-lg);
-  border-top: 1px dashed var(--border);
-  padding-top: var(--space-lg);
+  gap: var(--strategy-card-row-gap);
 }
 
 .metrics {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2xl);
+  gap: var(--strategy-card-section-gap);
 }
 
 @container (max-width: 40rem) {
   .body, .body[data-goal-count="4"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
-  .relations, .outcome { grid-column: auto; grid-row: auto; grid-template-rows: none; gap: var(--space-lg); }
+  .relations, .outcome { grid-column: auto; grid-row: auto; grid-template-rows: none; gap: var(--strategy-card-row-gap); }
   .outcome { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
-  .goals { grid-row: auto; grid-template-rows: none; gap: var(--space-lg); }
+  .goals { grid-row: auto; grid-template-rows: none; gap: var(--strategy-card-row-gap); }
   .illustration { display: none; }
 }
 
