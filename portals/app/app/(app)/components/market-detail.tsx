@@ -80,21 +80,21 @@ export function MarketDetail({ market, canWrite, at }: {
     <Section title={D.strategies} icon="flag" help={D.strategyHelp}>
       {market.plans?.length ? <div className={styles.references} data-market-detail-strategies>{market.plans.map(plan => <Card key={plan.id} className="min-w-0 py-lg"><CardContent className="flex min-w-0 flex-col gap-md">
         <div className="flex min-w-0 items-center gap-sm" data-market-strategy-heading>
-          <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 flex-1 items-center gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
-            <Icon name="graph" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate">{plan.name}</span>
-          </Link>
-          <div className="flex shrink-0 items-center gap-xs">
-          {plan.strategyTypeName ? <Tag>{plan.strategyTypeName}</Tag> : null}
-          <Tag tone={plan.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[plan.status]}{plan.versionNo ? ` V${plan.versionNo}` : ""}</Tag>
+          <div className="flex min-w-0 flex-1 items-center gap-lg">
+            <Link href={`/strategy/${encodeURIComponent(plan.id)}`} className="flex min-w-0 items-center gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline" title={plan.name}>
+              <Icon name="graph" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate">{plan.name}</span>
+            </Link>
+            <span className="flex min-w-0 max-w-1/3 shrink-0 items-center text-body text-muted-foreground" aria-label={T.owner}><MemberName sub={plan.ownerSub} name={plan.ownerName} fallback={T.noOwner} /></span>
           </div>
+          <Tag tone={plan.status === "active" ? "success" : "neutral"}>{PLAN_STATUS_LABEL[plan.status]}{plan.versionNo ? ` V${plan.versionNo}` : ""}</Tag>
         </div>
         <div className="flex min-w-0 items-center gap-sm text-body" data-market-strategy-objective>
           <Icon name="lightbulb" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" />
           <p className={`min-w-0 truncate ${plan.objective ? "" : "text-muted-foreground"}`} title={plan.objective || undefined}>{plan.objective || T.directionEmpty}</p>
         </div>
-        <div className="flex min-w-0 items-center justify-between gap-md text-body text-muted-foreground" data-market-strategy-meta>
+        <div className="flex min-w-0 items-center gap-lg text-body text-muted-foreground" data-market-strategy-meta>
           <span className="inline-flex min-w-0 items-center gap-xs" title={strategyPeriodRangeLabel(plan.period) ?? plan.period}><Icon name="calendar" size="sm" className="shrink-0" aria-hidden="true" /><span className="min-w-0 truncate">{strategyPeriodLabel(plan.period)}</span></span>
-          <span className="flex min-w-0 items-center gap-xs" aria-label={T.owner}><MemberName sub={plan.ownerSub} name={plan.ownerName} fallback={T.noOwner} /></span>
+          {plan.strategyTypeName ? <Tag>{plan.strategyTypeName}</Tag> : null}
         </div>
       </CardContent></Card>)}</div> : <DetailEmpty>{market.plans === null ? T.unknown : D.noStrategies}</DetailEmpty>}
     </Section>
