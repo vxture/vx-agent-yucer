@@ -82,6 +82,10 @@ const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[
     skip: ["\u9009\u62e9"],
     reason: "Solutions have no batch action; cards and list offer the same per-record actions.",
   },
+  "market-customers.tsx": {
+    skip: ["\u9009\u62e9"],
+    reason: "Segment customer coverage is a read-only preview with per-customer navigation and no bulk operation, matching account-table.tsx.",
+  },
   "forecast-roster.tsx": { skip: ["选择"], reason: "Forecast discrepancies are reviewed individually in the row menu." },
   "collection-roster.tsx": { skip: ["选择"], reason: "Each payment item has individual actions; there is no batch action." },
   "delivery-roster.tsx": { skip: ["选择"], reason: "Rows expand the project plan and have individual actions; there is no batch selection." },

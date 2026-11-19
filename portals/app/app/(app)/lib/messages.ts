@@ -9320,7 +9320,7 @@ export const SEGMENT_FORM_TEXT = {
   "manageOfferings": "\u8c03\u6574\u5173\u8054",
   "basic": "\u57fa\u672c\u4fe1\u606f",
   "conditions": "\u5ba2\u7fa4\u6761\u4ef6",
-  "insights": "\u75db\u70b9\u4e0e\u91c7\u8d2d",
+  "insights": "\u9700\u6c42\u91c7\u8d2d",
   "offerings": "\u5173\u8054\u4ea7\u54c1\u65b9\u6848",
   "code": "\u7cfb\u7edf\u5728\u4fdd\u5b58\u65f6\u81ea\u52a8\u5206\u914d\u7f16\u53f7\u3002",
   "name": "\u5e02\u573a\u540d\u79f0",

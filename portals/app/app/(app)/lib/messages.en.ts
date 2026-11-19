@@ -8012,7 +8012,7 @@ export const en: Dictionary = {
   "manageOfferings": "Edit links",
   "basic": "Basic information",
   "conditions": "Customer criteria",
-  "insights": "Pains and buying",
+  "insights": "Needs and buying",
   "offerings": "Linked products & solutions",
   "code": "Automatically assigned when saved.",
   "name": "Market name",
