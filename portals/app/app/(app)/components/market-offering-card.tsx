@@ -27,7 +27,7 @@ export function MarketOfferingCard({ kind, name, number, status, actions, summar
       <div className={styles.header}>
         <Icon name={icon} size="xl" className={`shrink-0 ${color}`} aria-hidden="true" />
         <div className="min-w-0">
-          <h3>{href ? <Link href={href} className="break-words text-heading-2 no-underline transition-colors hover:text-primary-text hover:no-underline">{name}</Link> : <Button type="button" size="md" variant="ghost" className="h-auto min-h-0 max-w-full justify-start whitespace-normal p-0 text-left text-foreground hover:bg-transparent hover:text-primary-text" onClick={onOpen}><span className="break-words text-heading-2">{name}</span></Button>}</h3>
+          <h3>{href ? <Link href={href} title={name} className={`${kind === "market" ? "line-clamp-2 " : ""}break-words text-heading-2 no-underline transition-colors hover:text-primary-text hover:no-underline`}>{name}</Link> : <Button type="button" size="md" variant="ghost" className="h-auto min-h-0 max-w-full justify-start whitespace-normal p-0 text-left text-foreground hover:bg-transparent hover:text-primary-text" onClick={onOpen}><span className="break-words text-heading-2">{name}</span></Button>}</h3>
           <p className="break-words text-body-small tabular-nums text-muted-foreground">{number}</p>
         </div>
         <div className="flex items-center gap-sm">{status}{actions}</div>

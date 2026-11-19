@@ -11,7 +11,7 @@ import { useCollectionView } from "./collection-view-provider";
 import { FilterSlot, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { strategyOfferings } from "../lib/strategy-offerings";
 import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
-import { StrategyDetailLabel, StrategyQuantity } from "./strategy-detail-label";
+import { StrategyQuantity } from "./strategy-detail-label";
 import { Tag } from "./tag";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketView } from "../lib/market-strategy";
@@ -60,13 +60,13 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
       ] : []),
     ]} />;
   const empty = <EmptyState title={markets.length ? T.noMatches : T.noMarkets} description={T.noMarketsWhy} />;
-  const table = (rows: readonly MarketView[]) => <CollectionTable labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
+  const table = (rows: readonly MarketView[]) => <CollectionTable className={styles.table} labels={DATA_TABLE_LABELS} indexStart={1} rowKey={m=>m.id}
     compactSelection={{ label: m => TABLE_TOOLBAR_TEXT.selectRecord(m.name), alwaysVisible: true }}
     rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
     columns={[
       {id:"name",header:T.marketName,track:"subject",sortable:true,cell:m=><CollectionTitleCell title={<Link href={`/segment/${encodeURIComponent(m.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{m.name}</Link>} description={m.segmentCode}
-        tooltip={[m.name,m.segmentCode,m.criteria.customerNeed].filter(Boolean).join(" / ")} />},
-      {id:"criteria",header:T.criteria,align:"left",cell:m=><div className="flex min-w-0 flex-col gap-xs" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>
+        tooltip={[m.name,m.segmentCode].filter(Boolean).join(" / ")} />},
+      {id:"criteria",header:T.criteria,track:"criteria",align:"left",cell:m=><div className="flex min-w-0 flex-col gap-xs" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>
         <span className="line-clamp-1">{m.criteria.industries.join(" / ") || ([...m.criteria.regions,...(m.criteria.sizes ?? [])].length ? T.unlimited : T.undefined)}</span>
         <span className="line-clamp-1 text-body-small text-muted-foreground">{[m.criteria.sizes?.join(" / "),m.criteria.regions.join(" / ")].filter(Boolean).join(" \u00b7 ") || T.unlimited}</span>
       </div>},
@@ -81,23 +81,31 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
   const render = (rows: readonly MarketView[]) => mode === "list" ? table(rows) : rows.length ? (
     <div className="flex flex-col gap-lg">{sorted.sortRows(rows).map(m => {
       const offerings = strategyOfferings(m.defaultSolutions, m.defaultProducts);
-      const criteria = [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions].join(" / ");
+      const criteria = [...m.criteria.industries, ...(m.criteria.sizes ?? []), ...m.criteria.regions];
+      const need = m.criteria.customerNeed || m.criteria.expectedOutcome || m.criteria.buyingScenario || T.notProvided;
+      const excerpt = Array.from(need.replace(/\s+/g, " ").trim());
       return <MarketOfferingCard key={m.id} kind="market" name={m.name} number={m.segmentCode}
         status={<Tag tone={m.status === "active" ? "success" : "neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>}
         actions={rowActions(m)} openLabel={T.openMarket} href={`/segment/${encodeURIComponent(m.id)}`}
-        summary={<dl className={styles.portrait} data-market-card-portrait>
-          <div className={styles.field}><dt><StrategyDetailLabel icon="users">{D.audience}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={criteria}>{criteria || T.undefined}</dd></div>
-          <div className={styles.field}><dt><StrategyDetailLabel icon="lightbulb">{T.customerNeed}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={m.criteria.customerNeed}>{m.criteria.customerNeed || T.notProvided}</dd></div>
-          <div className={styles.field}><dt><StrategyDetailLabel icon={m.criteria.buyingScenario ? "ticket" : "chart-line-up"}>{m.criteria.buyingScenario ? T.buyingScenario : T.expectedOutcome}</StrategyDetailLabel></dt><dd className="line-clamp-2 min-w-0 break-words text-body" title={m.criteria.buyingScenario || m.criteria.expectedOutcome}>{m.criteria.buyingScenario || m.criteria.expectedOutcome || T.notProvided}</dd></div>
-        </dl>}
+        summary={<div className={styles.portrait} data-market-card-portrait>
+          <div className={styles.field}>
+            <span className={styles.label}><Icon name="users" size="xs" aria-hidden="true" />{D.audience}</span>
+            <div className="flex min-w-0 flex-wrap items-center gap-xs" data-market-card-audience>
+              {criteria.slice(0, 3).map((value, index) => <Tag key={`${index}:${value}`}>{value}</Tag>)}
+              {criteria.length > 3 ? <Link href={`/segment/${encodeURIComponent(m.id)}`} className="text-body-small text-muted-foreground no-underline transition-colors hover:text-primary-text hover:no-underline" title={criteria.slice(3).join(" / ")}>+{criteria.length - 3}</Link> : null}
+              {!criteria.length ? <span className="text-body-small text-muted-foreground">{T.undefined}</span> : null}
+            </div>
+          </div>
+          <div className={styles.field}><span className={styles.label}><Icon name="lightbulb" size="xs" aria-hidden="true" />{T.customerNeed}</span><p className={`${styles.need} text-body`} data-market-card-need>{excerpt.slice(0, 120).join("")}{excerpt.length > 120 ? "\u2026" : ""}</p></div>
+        </div>}
         context={<div className={styles.field} data-market-card-offerings>
-          <StrategyDetailLabel icon="squares-four">{T.productSolutionsTitle}</StrategyDetailLabel>
+          <span className={styles.label}><Icon name="squares-four" size="xs" aria-hidden="true" />{T.productSolutionsTitle}</span>
           <div className="flex min-w-0 flex-wrap items-center gap-x-lg gap-y-sm">
-            {offerings.slice(0, 3).map(row => <Link key={row.key} href={row.href} className={styles.offering} title={row.name}>
+            {offerings.slice(0, 2).map(row => <Link key={row.key} href={row.href} className={styles.offering} title={row.name}>
               <Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 truncate text-body">{row.name}</span>
             </Link>)}
             {!offerings.length && <p className="text-body text-muted-foreground">{m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : T.noPlanSolutions}</p>}
-            {offerings.length > 3 && <Link href={`/segment/${encodeURIComponent(m.id)}`} className="text-body-small text-muted-foreground no-underline transition-colors hover:text-primary-text hover:no-underline">+{offerings.length - 3}</Link>}
+            {offerings.length > 2 && <Link href={`/segment/${encodeURIComponent(m.id)}`} className="text-body-small text-muted-foreground no-underline transition-colors hover:text-primary-text hover:no-underline">+{offerings.length - 2}</Link>}
           </div>
         </div>}
         facts={<>

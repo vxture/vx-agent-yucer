@@ -6,10 +6,38 @@
 .field {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
+  align-items: start;
   gap: var(--space-sm);
   min-width: 0;
 }
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-block: var(--space-2xs);
+  white-space: nowrap;
+  font-size: var(--body-small-font-size);
+  line-height: var(--body-line-height);
+  color: var(--muted-foreground);
+}
+
+.need {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Keep role widths stable regardless of the shared collection CSS load order. */
+div.table > div > table { min-width: var(--vx-container-5xl); }
+div.table th:has([data-collection-track="subject"]) { width: 34%; }
+div.table th:has([data-collection-track="criteria"]) { width: auto; }
+div.table th:has([data-collection-track="count"]),
+div.table th:has([data-collection-track="state"]) { width: calc(var(--vx-spacing) * 24); }
+div.table th:has([data-collection-track="count"]):has(button) { width: calc(var(--vx-spacing) * 28); }
 
 .offering {
   display: inline-flex;
