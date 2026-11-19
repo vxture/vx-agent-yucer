@@ -141,17 +141,16 @@ export default async function AppLayout({
   );
 
   const nav = resolveNavigation(session.authz, session.entitlement);
-  const lockout = lockoutReason(nav);
+  const lockout = lockoutReason(nav, session.entitlement);
 
   // Nothing reachable. WHICH nothing decides what to offer: a member whose
   // workspace has already paid cannot fix a missing role by paying again, and
   // sending them to checkout is worse than saying nothing.
   if (lockout === "no_roles") {
-    // The workspace has paid; this member has not been given a role. The one
-    // refusal its reader cannot act on, so the screen names who can - whoever
-    // opened the subscription is this product's super administrator
-    // (authz/context.ts bootstraps them) - and shows the identity that
-    // administrator will be searching a roster for.
+    // Role initialization already ran inside resolveAppSession, before this
+    // gate. Ordinary entitled members get sales_rep there. This fallback is
+    // for explicit restrictions or unavailable role configuration, not first
+    // use; it must never bypass a revoke or a deactivation.
     return protect(
       <>
         <NoRoles

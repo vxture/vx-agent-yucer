@@ -142,20 +142,23 @@ test("non-owner governance claims do not bootstrap an administrator", async () =
 
 test("the context is cached, and invalidation makes a role change visible at once", async () => {
   const store = fresh();
+  await store.grantRole(WS, "usr_1", "viewer");
   await resolveAuthzContext(user(), store);
 
   await store.grantRole(WS, "usr_1", "sales_rep");
   const stale = await resolveAuthzContext(user(), store);
-  assert.deepEqual(stale!.roles, [], "cache should still be serving the old answer");
+  assert.deepEqual(stale!.roles, ["viewer"], "cache should still be serving the old answer");
 
   invalidateAuthz(WS, "usr_1");
   const fresh1 = await resolveAuthzContext(user(), store);
-  assert.deepEqual(fresh1!.roles, ["sales_rep"]);
+  assert.deepEqual(fresh1!.roles, ["viewer", "sales_rep"]);
 });
 
 test("workspace-wide invalidation drops every member of that workspace only", async () => {
   const store = fresh();
   const other = "22222222-2222-2222-2222-222222222222";
+  await store.grantRole(WS, "usr_1", "sales_rep");
+  await store.grantRole(other, "usr_3", "sales_rep");
   await resolveAuthzContext(user(), store);
   await resolveAuthzContext(user({ sub: "usr_2" }), store);
   await resolveAuthzContext(user({ sub: "usr_3", activeWorkspace: other }), store);
@@ -164,10 +167,10 @@ test("workspace-wide invalidation drops every member of that workspace only", as
   await store.grantRole(other, "usr_3", "viewer");
   invalidateAuthz(WS);
 
-  assert.deepEqual((await resolveAuthzContext(user(), store))!.roles, ["viewer"]);
+  assert.deepEqual((await resolveAuthzContext(user(), store))!.roles, ["sales_rep", "viewer"]);
   // The other workspace's entry was not evicted, so it still serves the old value.
   const otherCtx = await resolveAuthzContext(user({ sub: "usr_3", activeWorkspace: other }), store);
-  assert.deepEqual(otherCtx!.roles, []);
+  assert.deepEqual(otherCtx!.roles, ["sales_rep"]);
 });
 
 // --- can() : the two gates against a named action ---------------------------
@@ -322,4 +325,17 @@ test("a change in owner claims does not reuse a stale ordinary-member context", 
   const ctx = await resolveAuthzContext(user({ isWorkspaceOwner: true }), store);
   assert.ok(ctx!.isWorkspaceOwner);
   assert.ok(ctx!.permissions.has("admin.manage"));
+});
+
+test("rechecking the role gate sees a grant made outside this instance without waiting for the TTL", async () => {
+  const store = fresh();
+  const e = ent({ tier: "pro" });
+  await store.grantRole(WS, "usr_1", "viewer");
+  await store.revokeRole(WS, "usr_1", "viewer");
+  assert.deepEqual((await resolveAuthzContext(user(), store, e))!.roles, []);
+  // Store-level write simulates another app instance; no local invalidation.
+  await store.grantRole(WS, "usr_1", "sales_rep");
+  const recovered = await resolveAuthzContext(user(), store, e);
+  assert.deepEqual(recovered!.roles, ["sales_rep"]);
+  assert.ok(recovered!.permissions.has("account.write"));
 });

@@ -2360,12 +2360,8 @@ export const SHELL_TEXT = {
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
   noAccessTitle: "当前工作区未订阅",
   subscribeCta: "前往订阅",
-  noRolesTitle: "还没有为你分配角色",
-  // Names WHO, because "an administrator" is not a person anybody can go and
-  // find. Opening the subscription makes you this product's super
-  // administrator (auth/lib/claims.ts: the platform's workspace:owner is the
-  // first-login super-admin), so the reader knows exactly whom to ask.
-  noRolesDescription: "请联系开通订阅的管理员为你分配角色。",
+  noRolesTitle: "\u5f53\u524d\u6682\u65e0\u53ef\u7528\u6743\u9650",
+  noRolesDescription: "\u8bf7\u8054\u7cfb\u5de5\u4f5c\u533a\u7ba1\u7406\u5458\u68c0\u67e5\u4f60\u7684\u89d2\u8272\u4e0e\u6743\u9650\u3002",
   loadFailed: "数据加载失败",
   /** 面包屑前的返回按钮：纯图标，可访问名在这里。 */
   backUp: "返回上一级",
@@ -2463,20 +2459,13 @@ export const SIGNED_OUT_TEXT = {
   toConsole: "前往账号中心",
 } as const;
 
-/**
- * A member with no role, in a workspace that HAS subscribed.
- *
- * The one gate screen whose reader can do nothing about it themselves - which
- * is why it says who can, by name of position rather than by the word
- * "administrator". Whoever opened the subscription is this product's super
- * administrator; everyone else waits for them.
- */
+/** Fallback for restricted access after default role initialization. */
 export const NO_ROLES_TEXT = {
   // Short, because it hangs off the corner of the title as a label - the same
   // shape and the same length as the sibling screen's, which is what "the same
   // format" means here.
-  badge: "无角色",
-  ariaLabel: "还没有为你分配角色",
+  badge: "\u8bbf\u95ee\u53d7\u9650",
+  ariaLabel: "\u5f53\u524d\u6682\u65e0\u53ef\u7528\u6743\u9650",
   identityLabel: "登录身份",
   workspaceLabel: "当前工作区",
   recheck: "重新检查",

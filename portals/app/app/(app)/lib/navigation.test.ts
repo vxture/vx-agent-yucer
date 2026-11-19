@@ -321,7 +321,7 @@ test("a roleless member is not told to go and subscribe", () => {
   // problem is a missing role sends them somewhere that cannot help, and the
   // remedy they need - an administrator - is never named.
   const nav = resolveNavigation(ctx(), ent({ tier: "enterprise" }));
-  assert.equal(lockoutReason(nav), "no_roles");
+  assert.equal(lockoutReason(nav, ent({ tier: "enterprise" })), "no_roles");
 });
 
 test("an unsubscribed workspace still gets the subscribe remedy", () => {
@@ -330,7 +330,7 @@ test("an unsubscribed workspace still gets the subscribe remedy", () => {
   // that, an admin of an unpaid workspace would land in a shell containing only
   // the members screen and never see the conversion exit.
   const admin = resolveNavigation(ctx("sales_leader"), ent({ tier: null }));
-  assert.equal(lockoutReason(admin), "no_entitlement");
+  assert.equal(lockoutReason(admin, ent()), "no_entitlement");
   assert.equal(admin.find((e) => e.key === "members")?.state, "locked");
 });
 
@@ -338,12 +338,12 @@ test("both gaps at once is an entitlement problem first", () => {
   // The gates are ordered, so a member with neither is told about the tier.
   // Fixing roles first would leave them exactly as locked out.
   const nav = resolveNavigation(ctx(), ent({ tier: null }));
-  assert.equal(lockoutReason(nav), "no_entitlement");
+  assert.equal(lockoutReason(nav, ent()), "no_entitlement");
 });
 
 test("nothing is reported as a lockout while anything is reachable", () => {
   const nav = resolveNavigation(ctx("sales_rep"), ent({ tier: "free" }));
-  assert.equal(lockoutReason(nav), null);
+  assert.equal(lockoutReason(nav, ent({ tier: "free" })), null);
 });
 
 test("an administrator of a paid workspace can always reach the members screen", () => {
@@ -413,4 +413,46 @@ test("a locked entry carries the tier that would unlock it, so the CTA can be sp
     );
     assert.equal(e.decision.remedy, "upgrade");
   }
+});
+
+
+test("an entitled roleless member is never sent to checkout because locked premium entries remain", () => {
+  for (const tier of ["free", "starter", "pro", "business", "enterprise"] as const) {
+    const e = ent({ tier });
+    const nav = resolveNavigation(ctx(), e);
+    assert.equal(lockoutReason(nav, e), "no_roles", tier);
+    assert.equal(lockoutReason(resolveNavigation(ctx("sales_rep"), e), e), null, tier);
+  }
+});
+
+test("bundled-only coverage remains a subscription gate rather than a missing-role gate", () => {
+  const e = ent({ bundled: true });
+  assert.equal(lockoutReason(resolveNavigation(ctx(), e), e), "no_entitlement");
+});
+
+test("the actual entry chain heals stranded sales members before the role gate on every product tier", async () => {
+  const { toAuthUser } = await import("../../auth/lib/claims");
+  const { InMemoryAuthzStore } = await import("../../authz/store");
+  const { resolveAuthzContext, resetAuthzCache, invalidateAuthz } = await import("../../authz/context");
+  const user = toAuthUser({ sub: "usr_entry_gate", active_workspace: "ws", roles: [] });
+  for (const tier of ["free", "starter", "pro", "business", "enterprise"] as const) {
+    resetAuthzCache();
+    const store = new InMemoryAuthzStore();
+    const e = ent({ tier });
+    const stranded = (await resolveAuthzContext(user, store))!;
+    assert.equal(lockoutReason(resolveNavigation(stranded, e), e), "no_roles", tier);
+    const recovered = (await resolveAuthzContext(user, store, e))!;
+    const nav = resolveNavigation(recovered, e);
+    assert.deepEqual(recovered.roles, ["sales_rep"]);
+    assert.equal(lockoutReason(nav, e), null, tier);
+    assert.ok(defaultLandingHref(nav));
+    for (const key of ["account", "pipeline"]) {
+      assert.ok(nav.some((entry) => entry.key === key && entry.state === "visible"), `${tier}: ${key}`);
+    }
+    await store.revokeRole("ws", user.sub, "sales_rep");
+    invalidateAuthz("ws", user.sub);
+    const revoked = (await resolveAuthzContext(user, store, e))!;
+    assert.equal(lockoutReason(resolveNavigation(revoked, e), e), "no_roles", `${tier}: preserve revoke`);
+  }
+  resetAuthzCache();
 });
