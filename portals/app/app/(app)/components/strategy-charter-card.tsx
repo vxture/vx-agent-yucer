@@ -94,7 +94,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
               <p title={p.objective || undefined} className={`${styles.objective} ${styles.referenceText} ${p.objective?"text-foreground":"text-muted-foreground"}`}>{p.objective || T.directionEmpty}</p>
             </div>
           </div>
-          {relation(T.targetMarketsTitle,markets?.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment?market=${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
+          {relation(T.targetMarketsTitle,markets?.map(m=>({id:m.segmentId,name:m.marketName,icon:"globe",href:`/segment/${encodeURIComponent(m.segmentId)}`})),T.marketEmpty)}
           {relation(T.productSolutionsTitle,offerings,T.offeringEmpty)}
         </div>
         <div className={styles.outcome} data-strategy-expectation-summary>

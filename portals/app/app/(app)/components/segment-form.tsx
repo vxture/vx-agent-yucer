@@ -52,7 +52,8 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
   const hasAssisted = useRef(false);
   const inFlight = useRef(false);
   const slot = usePageAssistantSlot();
-  const submit = useFormSubmit("/segment");
+  const returnTo = original ? `/segment/${encodeURIComponent(original.id)}` : "/segment";
+  const submit = useFormSubmit(returnTo);
   const busy = assisting || submit.pending;
   const ready = !!values.name.trim() && Number.isInteger(Number(priority)) && Number(priority) >= 0 && Number(priority) <= 9999;
   function change<K extends SegmentFillField>(key: K, value: SegmentFillValues[K]) {
@@ -147,7 +148,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
             }} />
         </fieldset>
         <div className="flex items-center justify-end gap-sm border-t border-dashed border-border pt-lg">
-          <Button type="button" size="xl" variant="secondary" disabled={busy} asChild><a href="/segment">{T.cancel}</a></Button>
+          <Button type="button" size="xl" variant="secondary" disabled={busy} asChild><a href={returnTo}>{T.cancel}</a></Button>
           <Button type="submit" size="xl" disabled={busy || !ready}>{T.save}</Button>
         </div>
         {submit.err ? <Banner tone="danger" title={submit.err} /> : null}

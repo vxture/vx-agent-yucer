@@ -10,14 +10,14 @@ import { PageActionButton } from "./page-header-actions";
 import { collectionDrawerWidth } from "./collection-layout";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 
-export function MarketWorkspace({ data, initialMarket }: { readonly data: Pick<StrategyWorkspaceData, "markets" | "canWriteMarket" | "segmentAdvice" | "at">; readonly initialMarket?: string }) {
+export function MarketWorkspace({ data }: { readonly data: Pick<StrategyWorkspaceData, "markets" | "canWriteMarket" | "segmentAdvice" | "at"> }) {
   const { MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT } = useMessages();
   const locale = useLocale();
   const [checks, setChecks] = useState(false);
   return <ViewLayout className="@container" data-market-workspace>
     <ModuleHeadline moduleKey="segment" help={T.libraryWhy}
       create={data.canWriteMarket ? { href: "/segment/new", label: T.newMarket } : undefined} />
-    {data.markets ? <MarketLibrary markets={data.markets} canWrite={data.canWriteMarket} initialMarket={initialMarket}
+    {data.markets ? <MarketLibrary markets={data.markets} canWrite={data.canWriteMarket}
       actions={<PageActionButton onClick={() => setChecks(true)}>{STRATEGY_TEXT.segmentAdviceTitle}
         <span className="text-body-small text-muted-foreground tabular-nums">{data.segmentAdvice.length}</span>
       </PageActionButton>} /> : <EmptyState title={T.unknown} />}

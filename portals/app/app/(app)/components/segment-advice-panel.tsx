@@ -37,7 +37,7 @@ export function SegmentAdvicePanel({ advice }: { readonly advice: readonly Segme
         : "info",
     link: {
       label: STRATEGY_TEXT.segmentAdviceOpen,
-      href: `/segment?market=${encodeURIComponent(a.segmentId)}`,
+      href: `/segment/${encodeURIComponent(a.segmentId)}`,
     },
     more: [
       { id: "accounts", label: STRATEGY_TEXT.segmentAdviceOpenAccounts, href: "/account" },
