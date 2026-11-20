@@ -13,6 +13,7 @@ import { BusinessCodeCollision, BusinessRecordMissing, type BusinessWrite } from
 // accomplished fact and a tidy-up upstream must not erase it.
 
 import { defaultStrategyOptions } from "./lib/strategy-options";
+import { diagnosticBasis, type DiagnosticBasis } from "./lib/diagnostic-snapshots";
 import { DEFAULT_STRATEGY_TYPES, type StrategyType } from "./lib/strategy-type";
 import type { ProductReference, SolutionReference } from "../catalog/service";
 import { money, type Money } from "../shared/money";
@@ -171,9 +172,10 @@ export interface SegmentCoverageSnapshotInput {
   segmentId: string;
   snapshotedAt: Date;
   matchedAccountCount: number;
-  openPipelineAmount: number;
-  wonAmount: number;
+  openPipelineAmount: number | null;
+  wonAmount: number | null;
   currency: string;
+  basis?: DiagnosticBasis | null;
 }
 
 export interface TerritoryAttainmentSnapshotInput {
@@ -181,9 +183,12 @@ export interface TerritoryAttainmentSnapshotInput {
   period: string;
   snapshotedAt: Date;
   targetAmount: number;
-  attainedAmount: number;
+  attainedAmount: number | null;
   currency: string;
+  basis?: DiagnosticBasis | null;
 }
+
+export interface DiagnosticSnapshotFilter { trustedOnly?: boolean; since?: Date }
 
 export interface StrategyStore {
   listStrategyOptions(workspaceId: string): Promise<import("./lib/strategy-result").StrategyOption[]>;
@@ -296,10 +301,10 @@ export interface StrategyStore {
 
   /** The newest segment coverage snapshots, newest first, at most `limit`
    *  (the 战略诊断 screen's read - it used to query Prisma itself). */
-  listSegmentCoverageSnapshots(workspaceId: string, limit: number): Promise<SegmentCoverageSnapshotInput[]>;
+  listSegmentCoverageSnapshots(workspaceId: string, limit: number, filter?: DiagnosticSnapshotFilter): Promise<SegmentCoverageSnapshotInput[]>;
 
   /** The newest territory attainment snapshots, newest first, at most `limit`. */
-  listTerritoryAttainmentSnapshots(workspaceId: string, limit: number): Promise<TerritoryAttainmentSnapshotInput[]>;
+  listTerritoryAttainmentSnapshots(workspaceId: string, limit: number, filter?: DiagnosticSnapshotFilter): Promise<TerritoryAttainmentSnapshotInput[]>;
 }
 
 export class InMemoryStrategyStore implements StrategyStore {
@@ -617,17 +622,19 @@ export class InMemoryStrategyStore implements StrategyStore {
     this.territorySnapshots.push({ ...row, workspaceId });
   }
 
-  async listSegmentCoverageSnapshots(workspaceId: string, limit: number): Promise<SegmentCoverageSnapshotInput[]> {
+  async listSegmentCoverageSnapshots(workspaceId: string, limit: number, filter: DiagnosticSnapshotFilter = {}): Promise<SegmentCoverageSnapshotInput[]> {
     return this.segmentSnapshots
       .filter((s) => s.workspaceId === workspaceId)
+      .filter(s => (!filter.trustedOnly || diagnosticBasis(s.basis)?.kind === "criteria") && (!filter.since || s.snapshotedAt >= filter.since))
       .sort((a, b) => b.snapshotedAt.getTime() - a.snapshotedAt.getTime())
       .slice(0, limit)
       .map(({ workspaceId: _w, ...row }) => row);
   }
 
-  async listTerritoryAttainmentSnapshots(workspaceId: string, limit: number): Promise<TerritoryAttainmentSnapshotInput[]> {
+  async listTerritoryAttainmentSnapshots(workspaceId: string, limit: number, filter: DiagnosticSnapshotFilter = {}): Promise<TerritoryAttainmentSnapshotInput[]> {
     return this.territorySnapshots
       .filter((s) => s.workspaceId === workspaceId)
+      .filter(s => (!filter.trustedOnly || diagnosticBasis(s.basis)?.kind === "published_plan") && (!filter.since || s.snapshotedAt >= filter.since))
       .sort((a, b) => b.snapshotedAt.getTime() - a.snapshotedAt.getTime())
       .slice(0, limit)
       .map(({ workspaceId: _w, ...row }) => row);

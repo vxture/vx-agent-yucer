@@ -1,21 +1,14 @@
 import type { PlanRecord, SegmentRecord, CampaignRecord } from "../../domains/strategy/store";
-import type { SegmentCriteria, TargetMarket } from "../../domains/strategy/lib/lifecycle";
+import type { TargetMarket } from "../../domains/strategy/lib/lifecycle";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import type { StrategicMetric } from "../../domains/strategy/lib/expectations";
 
-export type MarketMatch = "match" | "miss" | "missing" | "undefined";
+import { marketMatch, type MarketMatch } from "../../domains/strategy/lib/market-match";
+export { marketMatch, type MarketMatch } from "../../domains/strategy/lib/market-match";
 export interface MarketAccount {
   id: string; name: string; accountNo: string; segmentId: string | null;
   industry: string | null; region: string | null; customerSize: string | null;
-}
-// A known mismatch wins over missing information in another dimension.
-export function marketMatch(a: MarketAccount, c: SegmentCriteria): MarketMatch {
-  const pairs = [[c.industries, a.industry], [c.regions, a.region], [c.sizes ?? [], a.customerSize]] as const;
-  const limited = pairs.filter(([values]) => values.length > 0);
-  if (!limited.length) return "undefined";
-  if (limited.some(([values, value]) => value != null && value !== "" && !values.includes(value))) return "miss";
-  return limited.some(([, value]) => value == null || value === "") ? "missing" : "match";
 }
 export interface MarketView extends Omit<SegmentRecord, "workspaceId"> {
   defaultProducts?: readonly ProductReference[] | null;

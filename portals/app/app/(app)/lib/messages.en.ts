@@ -6829,6 +6829,10 @@ export const en: Dictionary = {
   },
 
   STRATEGY_DIAG_TEXT: {
+    helpCoverage: "Coverage matches the market criteria; explicit assignment is recorded separately. Amounts include matching customers in the workspace currency, without conversion.",
+    helpAttainment: "Territory comparisons show this quarter against the currently effective published sales plan. Won amounts use the deal territory and close date. Missing facts display --; a zero target has no attainment percentage.",
+    helpHistory: "Trends use comparable records with the same definition, currency and target revision. Definition changes start a new series. History is not reconstructed and insufficient observations do not imply a clear warning check.",
+    insufficientTrend: "Not enough comparable observations to assess warnings",
     title: "Strategy Diagnostics",
     subtitle: "Strategy Diagnostics",
     home: "Home",
@@ -6841,13 +6845,13 @@ export const en: Dictionary = {
     panelAttainmentWhy: "How each territory tracks against its target",
     panelFalseFat: "False-fat warning",
     panelFalseFatWhy: "Segments where pipeline grows but account count does not",
-    heroSegments: "Active segments",
-    heroTerritories: "Territories with targets",
+    heroSegments: "Observed markets",
+    heroTerritories: "Observed territories",
     heroAvgCoverage: "Avg coverage",
     heroAvgAttainment: "Avg attainment",
     noSnapshots: "No snapshot data yet. The scheduler will generate it automatically.",
-    noSegments: "No segment snapshots yet",
-    noTerritories: "No territory snapshots yet",
+    noSegments: "No comparable market snapshots yet",
+    noTerritories: "No comparable territory snapshots yet",
     noFalseFat: "No false-fat signals",
     falseFatHint: (name: string, pipelinePct: string, countDelta: number) =>
       `${name}: pipeline ${pipelinePct}, accounts ${countDelta >= 0 ? "+" : ""}${countDelta}`,

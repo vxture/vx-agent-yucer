@@ -693,16 +693,21 @@ test("a plan in another workspace reads as not found", async () => {
 
 test("战略诊断 snapshots: read through the store, newest first, behind strategy.plan.view", async () => {
   const store = new InMemoryStrategyStore();
+  const trusted = { version: 2 as const, kind: "criteria" as const, comparisonKey: "a".repeat(64), assignedAccounts: 1, incompleteAccounts: 0, unpricedOpen: 0, unpricedWon: 0, undatedWon: 0, excludedCurrencyDeals: 0 };
+  const territoryBasis = { version: 2 as const, kind: "published_plan" as const, comparisonKey: "b".repeat(64), planId: "p", revisionId: "r", revisionVersion: 1, lineKey: "line", periodStart: "2026-07-01", periodEnd: "2026-10-01", incompleteDeals: 0, excludedCurrencyDeals: 0 };
   const at = (d: string) => new Date(d);
-  await store.appendSegmentCoverageSnapshot(WS, { segmentId: "seg_1", snapshotedAt: at("2026-08-01"), matchedAccountCount: 3, openPipelineAmount: 100, wonAmount: 0, currency: "CNY" });
-  await store.appendSegmentCoverageSnapshot(WS, { segmentId: "seg_1", snapshotedAt: at("2026-08-08"), matchedAccountCount: 4, openPipelineAmount: 150, wonAmount: 10, currency: "CNY" });
-  await store.appendSegmentCoverageSnapshot("ws_other", { segmentId: "seg_x", snapshotedAt: at("2026-08-09"), matchedAccountCount: 9, openPipelineAmount: 1, wonAmount: 0, currency: "CNY" });
-  await store.appendTerritoryAttainmentSnapshot(WS, { territoryId: "ter_1", period: "2026Q3", snapshotedAt: at("2026-08-08"), targetAmount: 1000, attainedAmount: 400, currency: "CNY" });
+  await store.appendSegmentCoverageSnapshot(WS, { segmentId: "seg_1", snapshotedAt: at("2026-08-01"), matchedAccountCount: 3, openPipelineAmount: 100, wonAmount: 0, currency: "CNY", basis: trusted });
+  await store.appendSegmentCoverageSnapshot(WS, { segmentId: "seg_1", snapshotedAt: at("2026-08-08"), matchedAccountCount: 4, openPipelineAmount: 150, wonAmount: 10, currency: "CNY", basis: trusted });
+  await store.appendSegmentCoverageSnapshot("ws_other", { segmentId: "seg_x", snapshotedAt: at("2026-08-09"), matchedAccountCount: 9, openPipelineAmount: 1, wonAmount: 0, currency: "CNY", basis: trusted });
+  await store.appendTerritoryAttainmentSnapshot(WS, { territoryId: "ter_1", period: "2026Q3", snapshotedAt: at("2026-08-08"), targetAmount: 1000, attainedAmount: 400, currency: "CNY", basis: territoryBasis });
 
+  await store.appendSegmentCoverageSnapshot(WS, { segmentId: "legacy", snapshotedAt: at("2026-08-10"), matchedAccountCount: 999, openPipelineAmount: 999, wonAmount: 999, currency: "CNY" });
   const r = unwrap(await strategyDiagnosticSnapshots(ctx("sales_leader", "business", store), 10));
   assert.deepEqual(r.segments.map((s) => s.matchedAccountCount), [4, 3], "newest first, and another workspace's row stays out");
   assert.equal(r.territories.length, 1);
   assert.equal(unwrap(await strategyDiagnosticSnapshots(ctx("sales_leader", "business", store), 1)).segments.length, 1, "the limit holds");
+  assert.equal(unwrap(await strategyDiagnosticSnapshots(ctx("sales_leader", "business", store), 10, at("2026-08-07"))).segments.length, 1, "window applies before pagination");
+  assert.equal((await store.listSegmentCoverageSnapshots(WS, 10)).length, 3, "legacy remains available to raw audit reads");
   // The same two gates as the plan list: a tier without the feature is refused.
   assert.equal((await strategyDiagnosticSnapshots(ctx("sales_leader", "pro", store))).ok, false);
 });

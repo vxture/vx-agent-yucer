@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Icon, type IconName } from "@vxture/design-ui";
-import { useMessages } from "../../(app)/lib/i18n/provider";
+import { TitleHelp } from "../../(app)/components/title-help";
+import { useLocale, useMessages } from "../../(app)/lib/i18n/provider";
 import { TitleDot } from "./screen-charts";
 import { ScreenHex } from "./screen-hex";
 import { carryForward, carriedPath, railX } from "../lib/carried";
@@ -19,15 +20,15 @@ export interface SegmentTrendRow {
   readonly segmentId: string;
   readonly name: string;
   readonly currentCount: number;
-  readonly countDelta: number;
-  readonly currentPipeline: number;
-  readonly pipelineDelta: number;
-  readonly pipelinePctChange: number;
+  readonly countDelta: number | null;
+  readonly currentPipeline: number | null;
+  readonly pipelineDelta: number | null;
+  readonly pipelinePctChange: number | null;
   readonly series: readonly {
     readonly at: string;
     readonly count: number;
-    readonly pipeline: number;
-    readonly won: number;
+    readonly pipeline: number | null;
+    readonly won: number | null;
   }[];
   readonly isFalseFat: boolean;
 }
@@ -37,12 +38,12 @@ export interface TerritoryAttainmentRow {
   readonly name: string;
   readonly period: string;
   readonly targetAmount: number;
-  readonly attainedAmount: number;
-  readonly attainmentPct: number;
+  readonly attainedAmount: number | null;
+  readonly attainmentPct: number | null;
   readonly series: readonly {
     readonly at: string;
     readonly target: number;
-    readonly attained: number;
+    readonly attained: number | null;
   }[];
 }
 
@@ -50,11 +51,14 @@ export interface StrategyDiagScreenProps {
   readonly segments: readonly SegmentTrendRow[];
   readonly territories: readonly TerritoryAttainmentRow[];
   readonly windowDays: number;
+  readonly currency: string;
+  readonly period: string;
+  readonly warningsMeasured: boolean;
   readonly totals: {
     readonly segments: number;
     readonly territories: number;
-    readonly avgCoverage: number;
-    readonly avgAttainment: number;
+    readonly avgCoverage: number | null;
+    readonly avgAttainment: number | null;
   };
 }
 
@@ -84,7 +88,8 @@ function Mod({
   );
 }
 
-function DeltaBadge({ delta }: { delta: number }) {
+function DeltaBadge({ delta }: { readonly delta: number | null }) {
+  if (delta === null) return <span className="sd-delta sd-delta--flat">--</span>;
   if (delta > 0) return <span className="sd-delta sd-delta--up">+{delta}</span>;
   if (delta < 0) return <span className="sd-delta sd-delta--down">{delta}</span>;
   return <span className="sd-delta sd-delta--flat">--</span>;
@@ -119,16 +124,19 @@ export function StrategyDiagScreen({
   territories,
   windowDays,
   totals,
+  currency,
+  period,
+  warningsMeasured,
 }: StrategyDiagScreenProps) {
   const { STRATEGY_DIAG_TEXT: T } = useMessages();
+  const locale = useLocale();
 
-  const money = (v: number) => {
-    if (Math.abs(v) >= 1e8) return T.moneyYi(v);
-    if (Math.abs(v) >= 1e4) return T.moneyWan(v);
-    return `${Math.round(v)}`;
-  };
+  // The panel identifies the currency; compact units keep the row legible.
+  const money = (v: number | null) => v === null ? "--" : new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(v);
+  const fullMoney = (v: number | null) => v === null ? "--" : new Intl.NumberFormat(locale, { style: "currency", currency, currencyDisplay: "code", maximumFractionDigits: 2 }).format(v);
+  const percent = (v: number | null) => v === null ? "--" : T.attainmentPct(v);
 
-  const falseFatSegments = segments.filter((s) => s.isFalseFat);
+  const falseFatSegments = segments.filter((s) => s.isFalseFat && s.pipelinePctChange !== null);
 
   return (
     <div className="screen strategy-diag">
@@ -157,6 +165,7 @@ export function StrategyDiagScreen({
           <h1>
             {T.title}
             <TitleDot />
+            <TitleHelp topic={T.title}><p>{T.helpCoverage}</p><p>{T.helpAttainment}</p><p>{T.helpHistory}</p></TitleHelp>
           </h1>
           <p>{T.subtitle}</p>
         </div>
@@ -194,14 +203,14 @@ export function StrategyDiagScreen({
 
         {/* Panel 02: Territory attainment comparison */}
         <Mod step="02" icon="chart-bar" title={T.panelAttainment}>
-          <p className="sd-why">{T.panelAttainmentWhy}</p>
+          <p className="sd-why">{period} {"\u00b7"} {currency}</p>
           {territories.length === 0 ? (
             <div className="sd-empty">{T.noTerritories}</div>
           ) : (
             <div className="sd-attain-list">
               {territories.slice(0, 10).map((t) => {
-                const pct = Math.min(t.attainmentPct, 100);
-                const over = t.attainmentPct > 100;
+                const pct = t.attainmentPct === null ? null : Math.min(t.attainmentPct, 100);
+                const over = t.attainmentPct !== null && t.attainmentPct > 100;
                 return (
                   <div className="sd-attain-row" key={`${t.territoryId}-${t.period}`}>
                     <span className="sd-attain-name" title={t.name}>
@@ -211,13 +220,13 @@ export function StrategyDiagScreen({
                     <span className="sd-attain-track">
                       <span
                         className={`sd-attain-fill${over ? " sd-attain-fill--over" : ""}`}
-                        style={{ width: `${Math.max(2, pct)}%` }}
+                        style={{ width: `${pct === null ? 0 : Math.max(0, pct)}%` }}
                       />
                     </span>
                     <span className="sd-attain-pct">
-                      {T.attainmentPct(t.attainmentPct)}
+                      {percent(t.attainmentPct)}
                     </span>
-                    <span className="sd-attain-amounts">
+                    <span className="sd-attain-amounts" title={`${fullMoney(t.attainedAmount)} / ${fullMoney(t.targetAmount)}`}>
                       {money(t.attainedAmount)} / {money(t.targetAmount)}
                     </span>
                   </div>
@@ -231,7 +240,7 @@ export function StrategyDiagScreen({
         <Mod step="03" icon="warning" title={T.panelFalseFat}>
           <p className="sd-why">{T.panelFalseFatWhy}</p>
           {falseFatSegments.length === 0 ? (
-            <div className="sd-empty">{T.noFalseFat}</div>
+            <div className="sd-empty">{warningsMeasured ? T.noFalseFat : T.insufficientTrend}</div>
           ) : (
             <div className="sd-warn-list">
               {falseFatSegments.map((s) => (
@@ -240,8 +249,8 @@ export function StrategyDiagScreen({
                   <span className="sd-warn-name">{s.name}</span>
                   <span className="sd-warn-detail">
                     <span className="sd-warn-pipeline">
-                      {T.pipelineLabel} {s.pipelinePctChange >= 0 ? "+" : ""}
-                      {s.pipelinePctChange.toFixed(0)}%
+                      {T.pipelineLabel} {s.pipelinePctChange !== null && s.pipelinePctChange >= 0 ? "+" : ""}
+                      {s.pipelinePctChange?.toFixed(0) ?? "--"}%
                     </span>
                     <span className="sd-warn-count">
                       {T.countLabel}{" "}
@@ -267,13 +276,13 @@ export function StrategyDiagScreen({
             </div>
             <div className="sd-hero-cell">
               <div className="sd-hero-v">
-                {T.coverageUnit(totals.avgCoverage)}
+                {totals.avgCoverage === null ? "--" : T.coverageUnit(totals.avgCoverage)}
               </div>
               <div className="sd-hero-k">{T.heroAvgCoverage}</div>
             </div>
             <div className="sd-hero-cell">
               <div className="sd-hero-v hi">
-                {T.attainmentPct(totals.avgAttainment)}
+                {percent(totals.avgAttainment)}
               </div>
               <div className="sd-hero-k">{T.heroAvgAttainment}</div>
             </div>
