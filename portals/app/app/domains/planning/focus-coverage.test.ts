@@ -115,3 +115,19 @@ test("failed role-link source does not erase known no-opportunity gaps", async (
   await readFocusCoverage(ctx, rows);
   assert.equal(rows[0].coverage.state, "unavailable"); assert.equal(rows[1].coverage.state, "ready");
 });
+
+test("relationship reads use at most six workers and finish all visible customers", async () => {
+  const { ctx, rows, pipeline, deal, accounts } = fixture();
+  const batch = Array.from({ length: 20 }, (_, index) => ({ ...rows[0], id: `customer-${index}` }));
+  accounts.seed({ accounts: batch.map(row => ({ id: row.id, workspaceId: "ws", name: row.id } as AccountRecord)) });
+  pipeline.seed(batch.map(row => deal(`deal-${row.id}`, row.id)));
+  let active = 0, maximum = 0, finished = 0;
+  accounts.listContacts = async () => {
+    active++; maximum = Math.max(maximum, active);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    active--; finished++; return [];
+  };
+  await readFocusCoverage(ctx, batch);
+  assert.equal(finished, 20); assert.equal(maximum, 6);
+  assert.ok(batch.every(row => row.coverage.state === "ready"));
+});

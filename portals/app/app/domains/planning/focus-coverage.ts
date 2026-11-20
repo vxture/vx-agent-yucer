@@ -50,9 +50,13 @@ async function projectCoverage(ctx: FocusContext, rows: FocusRow[], source: (Dea
     group.push(link); byDeal.set(link.opportunityId, group);
   }
   const pending = rows.filter(row => byAccount.has(row.id));
-  for (let start = 0; start < pending.length; start += 6) {
-    await Promise.all(pending.slice(start, start + 6).map(row => readAccount(ctx, row, byAccount.get(row.id)!, byDeal)));
-  }
+  const workers = Array.from({ length: Math.min(6, pending.length) }, async function next(): Promise<void> {
+    const row = pending.shift();
+    if (!row) return;
+    await readAccount(ctx, row, byAccount.get(row.id)!, byDeal);
+    return next();
+  });
+  await Promise.all(workers);
 }
 
 async function readAccount(ctx: FocusContext, row: FocusRow, deals: Deal[], links: Map<string, Links>) {
