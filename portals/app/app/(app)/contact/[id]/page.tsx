@@ -20,7 +20,8 @@ export default async function ContactDetailPage({ params, searchParams }: Readon
     const result = await readContactView({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement, store: session.stores.account() }, account, id);
     if (!result.ok) return <EmptyState title={T.unavailable}/>;
     const accountHref = `/account/${encodeURIComponent(account)}`;
-    const editHref = `/contact/new?account=${encodeURIComponent(account)}&edit=${encodeURIComponent(id)}&back=${encodeURIComponent(`/contact/${encodeURIComponent(id)}?account=${encodeURIComponent(account)}`)}`;
+    const currentHref = `/contact/${encodeURIComponent(id)}?account=${encodeURIComponent(account)}`;
+    const editHref = `/contact/new?account=${encodeURIComponent(account)}&edit=${encodeURIComponent(id)}&back=${encodeURIComponent(currentHref)}`;
     return <ViewLayout><PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }, { label: result.value.accountName, href: accountHref }]} current={result.value.contact.name}/>
       <ViewHeader title={result.value.contact.name} icon="user" divider pageActions={{ secondary: <PageActionButton asChild><Link href={accountHref}>{T.openAccount}</Link></PageActionButton>, primary: can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed ? <PageActionButton intent="primary" asChild><Link href={editHref}>{T.edit}</Link></PageActionButton> : undefined }}/>
       <ContactDetails accountId={account} {...result.value}/>

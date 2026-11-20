@@ -39,9 +39,9 @@ export function ContactPreview({ accountId, summary }: Readonly<{ accountId: str
 function ContactRosterPanel({ reply, total, onOpen, onRetry }: Readonly<{ reply: RosterReply | null; total: number; onOpen: (id: string) => void; onRetry: () => void }>) {
   const { CONTACT_VIEW_TEXT: T, ACCOUNT_TEXT: A } = useMessages();
   return <div className="flex flex-col gap-sm text-body"><span className="text-muted-foreground">{A.contactsTitle} / {T.total(reply?.ok ? reply.data.contacts.length : total)}</span>
-    {!reply ? <span role="status">{T.loading}</span> : null}
+    {!reply ? <output>{T.loading}</output> : null}
     {reply?.ok ? <div className="flex max-h-panel-xs flex-col gap-xs overflow-y-auto">{reply.data.contacts.length ? reply.data.contacts.map(c => <ContactRosterItem key={c.id} contact={c} onOpen={onOpen}/>) : <span>{T.none}</span>}</div> : null}
-    {reply && !reply.ok ? <><span role="status" className="text-muted-foreground">{T.unavailable}</span><Button variant="secondary" size="sm" onClick={onRetry}>{T.retry}</Button></> : null}
+    {reply && !reply.ok ? <><output className="text-muted-foreground">{T.unavailable}</output><Button variant="secondary" size="sm" onClick={onRetry}>{T.retry}</Button></> : null}
   </div>;
 }
 
@@ -60,9 +60,9 @@ function ContactPreviewDrawer({ accountId, contactId, onClose }: Readonly<{ acco
   }, [accountId, contactId, attempt]);
   return <Drawer open width={collectionDrawerWidth.standard} title={T.detail} closeLabel={T.close} onClose={onClose}>
     <div className="flex min-w-0 flex-col gap-lg">
-      {!reply ? <p role="status" className="text-body text-muted-foreground">{T.loading}</p> : null}
+      {!reply ? <output className="text-body text-muted-foreground">{T.loading}</output> : null}
       {reply?.ok ? <><ContactDetails accountId={accountId} {...reply.data}/><div className="flex justify-end"><ContactFullLink accountId={accountId} contactId={contactId}/></div></> : null}
-      {reply && !reply.ok ? <><p role="status" className="text-body text-muted-foreground">{T.unavailable}</p><Button variant="secondary" onClick={() => setAttempt(value => value + 1)}><Icon name="refresh" size="sm"/>{T.retry}</Button></> : null}
+      {reply && !reply.ok ? <><output className="text-body text-muted-foreground">{T.unavailable}</output><Button variant="secondary" onClick={() => setAttempt(value => value + 1)}><Icon name="refresh" size="sm"/>{T.retry}</Button></> : null}
     </div>
   </Drawer>;
 }
