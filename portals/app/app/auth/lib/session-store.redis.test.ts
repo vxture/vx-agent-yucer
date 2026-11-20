@@ -87,3 +87,24 @@ test("real Redis: back-channel revocation racing with updates always wins", { sk
     await releaseCheckLock(cid, rp, lease);
   }
 });
+
+
+test("real Redis: a delayed invalid status cannot delete a newer checked context", { skip: !url }, async () => {
+  const rp = "ended-context-race";
+  const before = { ...session, sid: "ended-context-race" };
+  await putSession(cid, rp, before, 60);
+  const expired = await acquireCheckLock(cid, rp, 1);
+  assert.ok(expired);
+  await new Promise(resolve => setTimeout(resolve, 1100));
+  const current = await acquireCheckLock(cid, rp, 20);
+  assert.ok(current);
+  const next = { ...before, claims: { sub: before.sub, active_workspace: "next-workspace" } };
+  assert.equal(await updateSession(cid, rp, before, next, 60, current), true);
+  await deleteSession(cid, rp, { session: before, lease: expired });
+  assert.equal((await getSession(cid, rp))?.claims?.active_workspace, "next-workspace");
+  await deleteSession(cid, rp, { session: before, lease: current });
+  assert.ok(await getSession(cid, rp), "an owned lease still must match the checked record");
+  await deleteSession(cid, rp, { session: next, lease: current });
+  assert.equal(await getSession(cid, rp), null);
+  await releaseCheckLock(cid, rp, current);
+});

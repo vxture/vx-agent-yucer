@@ -54,7 +54,9 @@ function world(record: RpSession | null, authorityOf: (now: () => number) => Log
       if (JSON.stringify(map.get(id)) !== JSON.stringify(before)) return false;
       map.set(id, data); return true;
     },
-    deleteSession: async (_c, id) => void map.delete(id),
+    deleteSession: async (_c, id, expected) => {
+      if (!expected || (locked && JSON.stringify(map.get(id)) === JSON.stringify(expected.session))) map.delete(id);
+    },
     acquireCheckLock: async () => locked ? null : (locked = true, "lease"),
     releaseCheckLock: async () => void (locked = false),
     authority: authorityOf(now),
@@ -307,4 +309,122 @@ test("forced foreground checks still report real user activity", async () => {
   }, now));
   assert.equal((await resolveLoginState(cfg, "r1", { activity: true, forceCheck: true }, w.deps))?.claims.sub, "u1");
   assert.deepEqual(seen, [{ sid: "sid-1", active: true }]);
+});
+
+
+test("foreground return receives current workspace even while old token and status remain fresh", async () => {
+  const idp = rotatingIdp();
+  let current = { ...CLAIMS, active_org: "organization", active_workspace: "workspace-b" };
+  const w = world(record(600), (now) => accountsStatusAuthority("u", {
+    ...idp, verifyToken: (async () => current) as never,
+    fetch: statusFetch({ body: { valid: true, next_check_at: NOW + 900 } }),
+  }, now));
+  for (const selection of [
+    { active_org: "organization", active_workspace: "workspace-b" },
+    { active_org: "personal", active_workspace: "personal-default" },
+    { active_org: "organization", active_workspace: "workspace-a" },
+  ]) {
+    current = { ...CLAIMS, ...selection };
+    w.advance(1);
+    const state = await resolveLoginState(cfg, "r1", { activity: true, forceCheck: true, syncContext: true }, w.deps);
+    assert.equal(state?.claims.active_org, selection.active_org);
+    assert.equal(state?.claims.active_workspace, selection.active_workspace);
+    assert.equal(w.peek()?.contextUnavailable, false);
+  }
+  assert.deepEqual(idp.calls, ["rt-0", "rt-1", "rt-2"]);
+  await resolveLoginState(cfg, "r1", { activity: false }, w.deps);
+  assert.equal(idp.calls.length, 3, "ordinary reads never trigger foreground refresh");
+});
+
+test("concurrent foreground returns share one refresh of a fresh token without replay", async () => {
+  const idp = rotatingIdp({ latencyMs: 30 });
+  const w = world(record(600), (now) => accountsStatusAuthority("u", {
+    ...idp, fetch: statusFetch({ body: { valid: true, next_check_at: NOW + 900 } }),
+  }, now));
+  const results = await Promise.all(Array.from({ length: 8 }, () =>
+    resolveLoginState(cfg, "r1", { activity: false, forceCheck: true, syncContext: true }, w.deps)));
+  assert.equal(results.every(r => r?.claims.sub === CLAIMS.sub), true);
+  assert.deepEqual(idp.calls, ["rt-0"]);
+});
+
+test("failed context refresh keeps credentials, blocks old scope and recovers only with a successful foreground retry", async () => {
+  for (const fail of ["refuse", "network"] as const) {
+    let down = true;
+    const idp = rotatingIdp({ fail });
+    const good = rotatingIdp();
+    const w = world(record(600), (now) => accountsStatusAuthority("u", {
+      refreshTokens: (c, token) => (down ? idp : good).refreshTokens(c, token),
+      verifyToken: good.verifyToken,
+      fetch: statusFetch({ body: { valid: true, next_check_at: NOW + 900 } }),
+    }, now));
+    await assert.rejects(resolveLoginState(cfg, "r1", { activity: false, syncContext: true }, w.deps), LoginStateUnavailableError);
+    assert.ok(w.peek()?.refreshToken, "failed renewal is not proof of central logout");
+    await assert.rejects(resolveLoginState(cfg, "r1", { activity: false }, w.deps), LoginStateUnavailableError);
+    await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
+    down = false;
+    assert.equal((await resolveLoginState(cfg, "r1", { activity: false, syncContext: true }, w.deps))?.claims.sub, CLAIMS.sub);
+  }
+});
+
+test("business resolution cannot authorize old workspace while foreground context request is pending", async () => {
+  let finish!: () => void;
+  let started!: () => void;
+  const entered = new Promise<void>(r => { started = r; });
+  const gate = new Promise<void>(r => { finish = r; });
+  const w = world(record(600), () => ({
+    check: async (_cfg, session) => ({ kind: "valid", session }),
+    freshToken: async (_cfg, session) => {
+      started(); await gate;
+      return { kind: "valid", session: { ...session, claims: { ...CLAIMS, active_workspace: "next" } } };
+    },
+  }));
+  const pending = resolveLoginState(cfg, "r1", { activity: false, syncContext: true }, w.deps);
+  await entered;
+  await assert.rejects(resolveLoginState(cfg, "r1", { activity: false }, w.deps), LoginStateUnavailableError);
+  await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
+  finish();
+  assert.equal((await pending)?.claims.active_workspace, "next");
+});
+
+test("a request bound to old claims cannot obtain another workspace's OBO token after renewal", async () => {
+  const idp = rotatingIdp();
+  const w = world(record(-5, { nextCheckAt: NOW + 900 }), (now) => accountsStatusAuthority("u", {
+    ...idp, verifyToken: (async () => ({ ...CLAIMS, active_workspace: "new-workspace" })) as never,
+    fetch: statusFetch({ body: { valid: true } }),
+  }, now));
+  await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
+  assert.equal(w.peek()?.claims?.active_workspace, "new-workspace");
+  await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
+  assert.equal(await accessTokenFor(cfg, "r1", w.deps, { ...CLAIMS, active_workspace: "new-workspace" }), "at-1");
+});
+
+test("unverified refreshed claims never replace the verified workspace", async () => {
+  const idp = rotatingIdp();
+  const w = world(record(600), (now) => accountsStatusAuthority("u", {
+    ...idp, verifyToken: (async () => { throw new Error("bad signature"); }) as never,
+    fetch: statusFetch({ body: { valid: true } }),
+  }, now));
+  await assert.rejects(resolveLoginState(cfg, "r1", { activity: false, syncContext: true }, w.deps), LoginStateUnavailableError);
+  assert.equal(w.peek()?.claims?.active_workspace, CLAIMS.active_workspace);
+  assert.equal(w.peek()?.contextUnavailable, true);
+});
+
+test("context refresh cannot resurrect a session deleted by logout", async () => {
+  const w = world(record(600), () => ({
+    check: async (_cfg, session) => ({ kind: "valid", session }),
+    freshToken: async (_cfg, session) => {
+      await w.deps.deleteSession(cfg.clientId, "r1");
+      return { kind: "valid", session: { ...session, claims: { ...CLAIMS, active_workspace: "late" } } };
+    },
+  }));
+  assert.equal(await resolveLoginState(cfg, "r1", { activity: false, syncContext: true }, w.deps), null);
+  assert.equal(w.peek(), null);
+});
+
+
+test("a request with resolved scope cannot fall back to service credentials after its login was deleted", async () => {
+  const w = world(null, (now) => accountsStatusAuthority("u", {
+    ...rotatingIdp(), fetch: statusFetch({ body: { valid: false } }),
+  }, now));
+  await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
 });

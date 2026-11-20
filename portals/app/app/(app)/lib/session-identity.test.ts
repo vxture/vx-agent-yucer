@@ -9,3 +9,11 @@ test("a changed user, organization or workspace requires discarding previous-use
     assert.equal(sameSessionIdentity(current, { ...current, ...other }), false);
   }
 });
+
+
+test("governance role or account-status changes discard the old shell even within the same workspace", () => {
+  const identity = { sub: "a", activeOrg: "org", activeWorkspace: "workspace", roles: ["workspace:member", "org:member"], accountStatus: "active" };
+  assert.equal(sameSessionIdentity(identity, { ...identity, roles: [...identity.roles].reverse() }), true);
+  assert.equal(sameSessionIdentity(identity, { ...identity, roles: ["workspace:readonly"] }), false);
+  assert.equal(sameSessionIdentity(identity, { ...identity, accountStatus: "suspended" }), false);
+});

@@ -182,3 +182,20 @@ test("a cancelled subscription is a real answer and is cached like one", async (
   assert.equal(result.tier, null);
   assert.equal(result.status, "cancelled", "the reason survives even though the decision matches");
 });
+
+test("an old response cannot refill the cache after foreground context invalidation", async () => {
+  let release!: (value: { entitlement: Entitlement; ttlMs: number }) => void;
+  const pending = new Promise<{ entitlement: Entitlement; ttlMs: number }>(resolve => { release = resolve; });
+  let calls = 0;
+  const r = new PlatformEntitlementResolver(CFG, {
+    now: at(1_000),
+    fetchImpl: async () => ++calls === 1 ? pending : { entitlement: ent({ tier: "business" }), ttlMs: 45_000 },
+  });
+  const old = r.resolve(WS);
+  r.invalidate(WS);
+  assert.equal((await r.resolve(WS)).tier, "business");
+  release({ entitlement: ent({ tier: "starter" }), ttlMs: 45_000 });
+  await old;
+  assert.equal((await r.resolve(WS)).tier, "business");
+  assert.equal(calls, 2);
+});

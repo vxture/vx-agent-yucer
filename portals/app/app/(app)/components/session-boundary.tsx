@@ -23,14 +23,15 @@ export function SessionBoundary({ identity, enabled, children }: {
   }, []);
   const inFlight = useRef<AbortController | null>(null);
   const sequence = useRef(0);
-  const check = useCallback(async (force: boolean) => {
+  const check = useCallback(async (force: boolean, syncContext = false) => {
     if (inFlight.current && !force) return;
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
     const request = ++sequence.current;
     try {
-      const response = await fetch(`/auth/session${force ? "?force=1" : ""}`, {
+      const response = await fetch(`/auth/session${force && !syncContext ? "?force=1" : ""}`, {
+        method: syncContext ? "POST" : "GET",
         cache: "no-store", credentials: "same-origin", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
       });
       const body = await response.json();
@@ -55,17 +56,24 @@ export function SessionBoundary({ identity, enabled, children }: {
   useEffect(() => {
     if (!enabled) return;
     void check(true);
-    const focus = () => { if (document.visibilityState === "visible") void check(true); };
-    const pageShow = (event: PageTransitionEvent) => { if (event.persisted) void check(true); };
+    // Browsers often emit focus and visibilitychange for the same return.
+    // Coalesce that burst, while keeping the scheduled GET read-only.
+    let foregroundTimer: ReturnType<typeof setTimeout> | undefined;
+    const sync = () => {
+      clearTimeout(foregroundTimer);
+      if (document.visibilityState === "visible") foregroundTimer = setTimeout(() => void check(true, true), 100);
+    };
+    const pageShow = (event: PageTransitionEvent) => { if (event.persisted) sync(); };
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void check(false); }, 15000);
-    window.addEventListener("focus", focus);
+    window.addEventListener("focus", sync);
     window.addEventListener("pageshow", pageShow);
-    document.addEventListener("visibilitychange", focus);
+    document.addEventListener("visibilitychange", sync);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("focus", focus);
+      clearTimeout(foregroundTimer);
+      window.removeEventListener("focus", sync);
       window.removeEventListener("pageshow", pageShow);
-      document.removeEventListener("visibilitychange", focus);
+      document.removeEventListener("visibilitychange", sync);
       sequence.current++;
       inFlight.current?.abort();
     };
@@ -73,6 +81,6 @@ export function SessionBoundary({ identity, enabled, children }: {
 
   if (state === "reloading") return <SessionUpdating />;
   if (state === "ended") return <SignIn resume />;
-  if (state === "unavailable") return <SessionUnavailable retry={() => void check(true)} />;
+  if (state === "unavailable") return <SessionUnavailable retry={() => void check(true, true)} />;
   return children;
 }

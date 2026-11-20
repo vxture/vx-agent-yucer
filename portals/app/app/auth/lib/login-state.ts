@@ -9,6 +9,7 @@ import {
   type RpSession,
 } from "./session-store";
 import type { AccessClaims } from "./claims";
+import { sameAccessScope } from "./session-context";
 import { describeError, noteLoginState } from "./auth-failures";
 
 // Accounts is the sole login authority. Status checks (including background
@@ -200,6 +201,7 @@ export class LoginStateUnavailableError extends Error {
 export interface LoginState {
   readonly session: RpSession;
   readonly claims: AccessClaims;
+  readonly previousClaims?: AccessClaims;
 }
 
 function due(session: RpSession, now: number): boolean {
@@ -214,7 +216,7 @@ function due(session: RpSession, now: number): boolean {
 async function checkOnce(
   cfg: OidcConfig,
   rpsid: string,
-  purpose: "status" | "token",
+  purpose: "status" | "token" | "context",
   deps: LoginStateDeps,
   ask: (session: RpSession) => Promise<CheckResult>,
   onlyIf: (session: RpSession) => boolean,
@@ -223,33 +225,70 @@ async function checkOnce(
   if (!lease) return "busy";
   try {
     // RE-READ INSIDE THE LOCK: whoever held it last may already have asked.
-    const current = await deps.getSession(cfg.clientId, rpsid);
+    let current = await deps.getSession(cfg.clientId, rpsid);
     if (!current) return null;
     if (!onlyIf(current)) return current;
-    const result = await ask(current);
-    if (result.kind === "valid") {
-      const next = purpose === "status"
-        ? { ...result.session, checkedAt: deps.now(), statusUnavailable: false }
-        : result.session;
-      const saved = await deps.updateSession(cfg.clientId, rpsid, current, next, cfg.sessionTtlSeconds, lease);
-      return saved ? next : (await deps.getSession(cfg.clientId, rpsid)) ? "busy" : null;
+    if (purpose === "context") {
+      // Other requests must not authorize old claims during this round trip.
+      const pending = { ...current, contextUnavailable: true };
+      const saved = await deps.updateSession(cfg.clientId, rpsid, current, pending, cfg.sessionTtlSeconds, lease);
+      if (!saved) return busyOrGone(cfg, rpsid, deps);
+      current = pending;
     }
-    if (result.kind === "ended") {
-      noteLoginState("ended_by_accounts", result.detail);
-      await deps.deleteSession(cfg.clientId, rpsid).catch(() => undefined);
-      return null;
-    }
-    noteLoginState(purpose === "status" ? "check_unavailable" : "token_unavailable", "central request unavailable");
-    // Keep credentials for recovery, but never render stale protected content
-    // as if a failed central validation had succeeded.
-    const kept = purpose === "status"
-      ? { ...current, nextCheckAt: deps.now() + RETRY_SECONDS + EARLY_SECONDS, statusUnavailable: true }
-      : current;
-    const saved = await deps.updateSession(cfg.clientId, rpsid, current, kept, cfg.sessionTtlSeconds, lease);
-    return saved ? kept : (await deps.getSession(cfg.clientId, rpsid)) ? "busy" : null;
+    return await applyCheckedResult(cfg, rpsid, current, await ask(current), purpose, lease, deps);
   } finally {
     await deps.releaseCheckLock(cfg.clientId, rpsid, lease).catch(() => undefined);
   }
+}
+
+async function busyOrGone(cfg: OidcConfig, rpsid: string, deps: LoginStateDeps): Promise<"busy" | null> {
+  return (await deps.getSession(cfg.clientId, rpsid)) ? "busy" : null;
+}
+
+async function applyCheckedResult(
+  cfg: OidcConfig, rpsid: string, current: RpSession, result: CheckResult,
+  purpose: "status" | "token" | "context", lease: string, deps: LoginStateDeps,
+): Promise<RpSession | null | "busy"> {
+  if (result.kind === "ended") {
+    noteLoginState("ended_by_accounts", result.detail);
+    await deps.deleteSession(cfg.clientId, rpsid, { session: current, lease });
+    return busyOrGone(cfg, rpsid, deps);
+  }
+  let next: RpSession;
+  if (result.kind === "valid") {
+    next = checkedRecord(result.session, purpose, deps.now());
+  } else {
+    noteLoginState(purpose === "status" ? "check_unavailable" : "token_unavailable", "central request unavailable");
+    // Keep recovery credentials, but never authorize an unchecked old scope.
+    next = purpose === "status"
+      ? { ...current, nextCheckAt: deps.now() + RETRY_SECONDS + EARLY_SECONDS, statusUnavailable: true }
+      : current;
+  }
+  const saved = await deps.updateSession(cfg.clientId, rpsid, current, next, cfg.sessionTtlSeconds, lease);
+  return saved ? next : busyOrGone(cfg, rpsid, deps);
+}
+
+function checkedRecord(session: RpSession, purpose: "status" | "token" | "context", now: number): RpSession {
+  if (purpose === "status") return { ...session, checkedAt: now, statusUnavailable: false };
+  if (purpose === "context") return { ...session, contextCheckedAt: now, contextUnavailable: false };
+  return session;
+}
+
+async function settleCheck(
+  cfg: OidcConfig, rpsid: string, purpose: "status" | "context", deps: LoginStateDeps,
+  initial: RpSession, ask: (s: RpSession) => Promise<CheckResult>, onlyIf: (s: RpSession) => boolean,
+): Promise<RpSession | null> {
+  let session = initial;
+  for (let attempt = 0; onlyIf(session); attempt++) {
+    const after = await checkOnce(cfg, rpsid, purpose, deps, ask, onlyIf);
+    if (after !== "busy") return after;
+    if (attempt >= 119) throw new LoginStateUnavailableError();
+    await new Promise((r) => setTimeout(r, 50));
+    const current = await deps.getSession(cfg.clientId, rpsid);
+    if (!current) return null;
+    session = current;
+  }
+  return session;
 }
 
 /**
@@ -260,7 +299,7 @@ async function checkOnce(
 export async function resolveLoginState(
   cfg: OidcConfig,
   rpsid: string,
-  opts: { activity: boolean; forceCheck?: boolean },
+  opts: { activity: boolean; forceCheck?: boolean; syncContext?: boolean },
   deps: LoginStateDeps = defaultDeps(cfg),
 ): Promise<LoginState | null> {
   let session = await deps.getSession(cfg.clientId, rpsid);
@@ -269,25 +308,26 @@ export async function resolveLoginState(
     return null;
   }
 
+  const previousClaims = session.claims;
   const requestedAt = deps.now();
   const shouldCheck = (s: RpSession) => due(s, deps.now()) || (!!opts.forceCheck && (s.statusUnavailable || (s.checkedAt ?? 0) < requestedAt));
-  for (let attempt = 0; shouldCheck(session); attempt++) {
-    const after = await checkOnce(
-      cfg, rpsid, "status", deps,
-      (s) => deps.authority.check(cfg, s, opts.activity), shouldCheck,
-    );
-    if (after === null) return null;
-    if (after !== "busy") { session = after; break; }
-    if (attempt >= 119) throw new LoginStateUnavailableError();
-    await new Promise((r) => setTimeout(r, 50));
-    const current = await deps.getSession(cfg.clientId, rpsid);
-    if (!current) return null;
-    session = current;
-  }
+  session = await settleCheck(cfg, rpsid, "status", deps, session,
+    (s) => deps.authority.check(cfg, s, opts.activity), shouldCheck);
+  if (!session) return null;
   if (session.statusUnavailable) throw new LoginStateUnavailableError();
 
-  if (!session.claims) return null; // pre-existing record, check in flight elsewhere
-  return { session, claims: session.claims };
+  // Foreground entry/refocus is separate from read-only login validation.
+  // A still-fresh access token is a signed snapshot, not the current selection.
+  // Overlapping tabs share the existing lease and the completed refresh.
+  const needsContext = (s: RpSession) => !!s.contextUnavailable || (s.contextCheckedAt ?? 0) < requestedAt;
+  if (opts.syncContext) {
+    session = await settleCheck(cfg, rpsid, "context", deps, session,
+      (s) => deps.authority.freshToken(cfg, s), needsContext);
+    if (!session) return null;
+  }
+  if (session.contextUnavailable) throw new LoginStateUnavailableError();
+  if (!session.claims) return null;
+  return { session, claims: session.claims, previousClaims };
 }
 
 /**
@@ -299,11 +339,25 @@ export async function accessTokenFor(
   cfg: OidcConfig,
   rpsid: string,
   deps: LoginStateDeps = defaultDeps(cfg),
+  expectedClaims?: AccessClaims,
 ): Promise<string | null> {
   const fresh = (s: RpSession) => s.accessExpiresAt - deps.now() > EARLY_SECONDS;
   const session = await deps.getSession(cfg.clientId, rpsid);
-  if (!session) return null;
-  if (fresh(session)) return session.accessToken;
+  if (!session) {
+    if (expectedClaims) throw new LoginStateUnavailableError();
+    return null;
+  }
+  const usableToken = (s: RpSession): string | null => {
+    // A request resolved its data scope before requesting an OBO ticket.
+    // A concurrent context refresh cannot lend it another workspace's token.
+    if (s.statusUnavailable || s.contextUnavailable
+      || (expectedClaims && (!s.claims || !sameAccessScope(expectedClaims, s.claims)))) {
+      throw new LoginStateUnavailableError();
+    }
+    return fresh(s) ? s.accessToken : null;
+  };
+  const existing = usableToken(session);
+  if (existing) return existing;
 
   for (let attempt = 0; attempt < 10; attempt++) {
     const after = await checkOnce(
@@ -311,12 +365,15 @@ export async function accessTokenFor(
       (s) => deps.authority.freshToken(cfg, s),
       (s) => !fresh(s),
     );
-    if (after === null) return null;
-    if (after !== "busy") return fresh(after) ? after.accessToken : null;
+    if (after === null) {
+      if (expectedClaims) throw new LoginStateUnavailableError();
+      return null;
+    }
+    if (after !== "busy") return usableToken(after);
     // Somebody else is renewing: wait for their result rather than racing it.
     await new Promise((r) => setTimeout(r, 300));
     const now = await deps.getSession(cfg.clientId, rpsid);
-    if (now && fresh(now)) return now.accessToken;
+    if (now && fresh(now)) return usableToken(now);
   }
   noteLoginState("token_unavailable", "renewal busy too long");
   return null;

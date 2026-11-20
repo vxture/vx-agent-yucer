@@ -2344,8 +2344,9 @@ export const BATCH_COMPLETE_TEXT = {
 export const SHELL_TEXT = {
   sessionUpdating: "\u6b63\u5728\u66f4\u65b0\u8d26\u53f7",
   sessionUnavailable: "\u6682\u65f6\u65e0\u6cd5\u786e\u8ba4\u767b\u5f55\u72b6\u6001",
-  sessionRetryDescription: "\u8bf7\u7a0d\u540e\u91cd\u8bd5\uff0c\u65e0\u9700\u91cd\u65b0\u767b\u5f55\u3002",
+  sessionRetryDescription: "\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002\u82e5\u4ecd\u65e0\u6cd5\u6062\u590d\uff0c\u53ef\u91cd\u65b0\u8fde\u63a5\u8d26\u53f7\u3002",
   sessionRetry: "\u91cd\u65b0\u68c0\u67e5",
+  sessionReconnect: "\u91cd\u65b0\u8fde\u63a5",
   // Full spoken form, for contexts that need one string (the tab title, its
   // aria-label, the meta description) - see metadata.ts.
   brandName: "聿策销售智能体",

@@ -339,3 +339,30 @@ test("rechecking the role gate sees a grant made outside this instance without w
   assert.deepEqual(recovered!.roles, ["sales_rep"]);
   assert.ok(recovered!.permissions.has("account.write"));
 });
+
+test("an in-flight role lookup cannot restore stale permissions after invalidation", async () => {
+  const store = fresh();
+  await store.seeMember({ workspaceId: WS, sub: "usr_1" });
+  await store.seedPresetRoles(WS);
+  await store.grantRole(WS, "usr_1", "viewer");
+  let release!: () => void;
+  let started!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const entered = new Promise<void>(resolve => { started = resolve; });
+  const original = store.rolesOf.bind(store);
+  let calls = 0;
+  store.rolesOf = async (workspace, sub) => {
+    const roles = await original(workspace, sub);
+    if (++calls === 1) { started(); await gate; }
+    return roles;
+  };
+  const stale = resolveAuthzContext(user(), store);
+  await entered;
+  await store.grantRole(WS, "usr_1", "sales_rep");
+  invalidateAuthz(WS, "usr_1");
+  const freshContext = await resolveAuthzContext(user(), store);
+  assert.ok(freshContext?.roles.includes("sales_rep"));
+  release();
+  await stale;
+  assert.ok((await resolveAuthzContext(user(), store))?.roles.includes("sales_rep"));
+});

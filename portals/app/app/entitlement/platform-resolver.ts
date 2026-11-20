@@ -28,6 +28,7 @@ export interface PlatformResolverDeps {
 
 export class PlatformEntitlementResolver implements EntitlementResolver {
   private cache = new Map<string, Entry>();
+  private readonly generations = new Map<string, symbol>();
   private readonly fetchImpl: typeof fetchEntitlement;
   private readonly now: () => number;
 
@@ -40,23 +41,27 @@ export class PlatformEntitlementResolver implements EntitlementResolver {
   }
 
   async resolve(workspaceId: string): Promise<Entitlement> {
+    const generation = this.generations.get(workspaceId);
     const now = this.now();
     const hit = this.cache.get(workspaceId);
     if (hit && hit.expiresAt > now) return hit.value;
 
     try {
       const { entitlement, ttlMs } = await this.fetchImpl(this.cfg, workspaceId);
-      this.cache.set(workspaceId, { value: entitlement, expiresAt: now + ttlMs });
+      if (this.generations.get(workspaceId) === generation) {
+        this.cache.set(workspaceId, { value: entitlement, expiresAt: now + ttlMs });
+      }
       return entitlement;
     } catch {
       // Stale-on-error: last good value, else a no-coverage default (fail-closed
       // to no access, not fail-open).
-      if (hit) return hit.value;
+      if (hit && this.generations.get(workspaceId) === generation) return hit.value;
       return makeEntitlement(workspaceId, this.cfg.product);
     }
   }
 
   invalidate(workspaceId: string): void {
+    this.generations.set(workspaceId, Symbol());
     this.cache.delete(workspaceId);
   }
 }

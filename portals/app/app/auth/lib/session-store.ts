@@ -63,6 +63,10 @@ export interface RpSession {
   /** Last successful central validation; never a local login lifetime. */
   checkedAt?: number;
   statusUnavailable?: boolean;
+  /** Last verified foreground context refresh; not a login lifetime. */
+  contextCheckedAt?: number;
+  /** A failed context refresh must not silently authorize the old workspace. */
+  contextUnavailable?: boolean;
 }
 
 export async function putAuthState(
@@ -122,15 +126,20 @@ export async function getSession(cid: string, rpsid: string): Promise<RpSession 
   return raw ? (JSON.parse(raw) as RpSession) : null;
 }
 
-export async function deleteSession(cid: string, rpsid: string): Promise<void> {
+export async function deleteSession(
+  cid: string, rpsid: string, expected?: { session: RpSession; lease: string },
+): Promise<void> {
   await redis().eval(`
+    if ARGV[3] ~= '' and redis.call('GET', KEYS[2]) ~= ARGV[3] then return 0 end
     local raw = redis.call('GET', KEYS[1])
+    if ARGV[3] ~= '' and raw ~= ARGV[4] then return 0 end
     if raw then
       local data = cjson.decode(raw)
       if data.sid then redis.call('SREM', ARGV[1] .. data.sid, ARGV[2]) end
     end
     redis.call('DEL', KEYS[1])
-  `, 1, k.sess(cid, rpsid), `vx:rp:${cid}:sididx:`, rpsid);
+  `, 2, k.sess(cid, rpsid), k.check(cid, rpsid), `vx:rp:${cid}:sididx:`, rpsid,
+  expected?.lease ?? "", expected ? JSON.stringify(expected.session) : "");
 }
 
 /** Atomic and idempotent: failures remain retryable; no pre-claimed jti can

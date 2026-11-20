@@ -44,12 +44,14 @@ interface Entry {
 }
 
 const cache = new Map<string, Entry>();
+let invalidationGeneration = 0;
 
 function cacheKey(workspaceId: string, sub: string): string {
   return `${workspaceId} ${sub}`;
 }
 
 export function invalidateAuthz(workspaceId: string, sub?: string): void {
+  invalidationGeneration++;
   if (sub) {
     cache.delete(cacheKey(workspaceId, sub));
     return;
@@ -61,6 +63,7 @@ export function invalidateAuthz(workspaceId: string, sub?: string): void {
 
 /** Tests and the offline path: drop everything. */
 export function resetAuthzCache(): void {
+  invalidationGeneration++;
   cache.clear();
 }
 
@@ -82,6 +85,7 @@ export async function resolveAuthzContext(
 
   const defaultEligible = entitlement?.workspace_id === workspaceId && entitlement.product === "yucer" && hasProductAccess(entitlement);
   const k = cacheKey(workspaceId, user.sub);
+  const generation = invalidationGeneration;
   const now = Date.now();
   const hit = cache.get(k);
   if (hit && hit.expiresAt > now && hit.defaultEligible === defaultEligible
@@ -138,8 +142,10 @@ export async function resolveAuthzContext(
   };
   // A member at the role gate must see a new grant on their next recheck,
   // including grants made on another instance. Never retain a roleless result.
-  if (roles.length > 0) cache.set(k, { value, defaultEligible, expiresAt: now + TTL_MS });
-  else cache.delete(k);
+  if (invalidationGeneration === generation) {
+    if (roles.length > 0) cache.set(k, { value, defaultEligible, expiresAt: now + TTL_MS });
+    else cache.delete(k);
+  }
   return value;
 }
 

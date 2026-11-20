@@ -12,7 +12,13 @@ export function SessionUnavailable({ retry }: { readonly retry: () => void }) {
     <GateFrame ariaLabel={SHELL_TEXT.sessionUnavailable}>
       <div className={styles.gateBody} role="alert">
         <GateHeading title={SHELL_TEXT.sessionUnavailable} description={SHELL_TEXT.sessionRetryDescription} />
-        <Button onClick={retry}>{SHELL_TEXT.sessionRetry}</Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={retry}>{SHELL_TEXT.sessionRetry}</Button>
+          <Button variant="outline" onClick={() => {
+            const here = window.location.pathname + window.location.search;
+            window.location.assign(`/auth/login?returnTo=${encodeURIComponent(here)}`);
+          }}>{SHELL_TEXT.sessionReconnect}</Button>
+        </div>
       </div>
     </GateFrame>
   );
