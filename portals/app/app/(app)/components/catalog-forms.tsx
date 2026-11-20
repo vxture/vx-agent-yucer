@@ -3,7 +3,7 @@
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 
 import { Section } from "./help-section";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   Button,
@@ -18,7 +18,10 @@ import { ProductPriceValues } from "./product-price-values";
 import { solutionPricingFacts } from "../lib/solution-prices";
 import type { PriceValues } from "../lib/product-prices";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormFields, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
+import { FormFields, FormPage, useFormSubmit } from "./form-page";
+import { FormDraftAssistant } from "./form-draft-assistant";
+import type { CatalogAssistInput, CatalogAssistResult } from "../../domains/catalog/catalog-assist-service";
+import type { CatalogDraftField } from "../../domains/catalog/lib/catalog-draft";
 import type {
   ProductRecord,
   ProductStatusRecord,
@@ -42,6 +45,17 @@ import type {
 
 type Saved = { ok: boolean; error?: string };
 
+function useCatalogManualEdits() {
+  const applied = useRef(false), manual = useRef(new Set<CatalogDraftField>());
+  return { manual, applied: () => { applied.current = true; }, touch: (field: CatalogDraftField) => {
+    if (applied.current) manual.current.add(field);
+  } };
+}
+type CatalogAssistProps = {
+  readonly canAssist: boolean;
+  readonly onAssist: (input: CatalogAssistInput) => Promise<CatalogAssistResult>;
+};
+
 // --- 新建产品 ---------------------------------------------------------------
 
 export function NewProductForm({
@@ -51,7 +65,8 @@ export function NewProductForm({
   units,
   initial,
   onSave,
-}: {
+  canAssist, onAssist,
+}: CatalogAssistProps & {
   readonly generatedCode: string;
   /** The workspace's type vocabulary - the type field selects from it. */
   readonly types: readonly ProductTypeRecord[];
@@ -101,6 +116,9 @@ export function NewProductForm({
     () => statuses.find((r) => r.statusCode === "active")?.id ?? "",
   );
   const submit = useFormSubmit("/catalog");
+  const [assisting, setAssisting] = useState(false);
+  const edits = useCatalogManualEdits();
+  const busy = submit.pending || assisting;
 
   const ready = (!editing || code.trim() !== "") && name.trim() !== "" && unitId !== "";
   const savedCode = !editing && code.trim() === generatedCode ? "" : code.trim();
@@ -108,20 +126,39 @@ export function NewProductForm({
   return (
     <FormPage
       form={
-        <div className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]">
+        <div className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]" onChangeCapture={e => {
+          const input = e.target;
+          if (!(input instanceof HTMLElement)) return;
+          const field = input.id === "product-name" ? "name" : input.id === "product-unit" ? "unitId"
+            : input.id === "product-novelty" ? "novelty" : input.tagName === "SELECT" && !input.id ? "typeId" : null;
+          if (field) edits.touch(field);
+        }}>
+          <FormDraftAssistant values={{ name, novelty, typeId, unitId }} editId={initial?.id}
+            enabled={canAssist && !submit.pending} example={CATALOG_TEXT.productAssistExample} task={CATALOG_TEXT.productAssistTask} welcome={CATALOG_TEXT.catalogAssistWelcome}
+            onAssist={input => onAssist({ ...input, manualFields: [...edits.manual.current] })}
+            errorOf={code => CATALOG_ERROR[code] ?? R.assistError}
+            describeApplied={patch => CATALOG_TEXT.catalogAssistApplied(Object.keys(patch).length)}
+            onBusy={setAssisting} onApply={patch => {
+              if (patch.name !== undefined) setName(patch.name);
+              if (patch.novelty !== undefined) setNovelty(patch.novelty);
+              if (patch.unitId !== undefined) setUnitId(patch.unitId);
+              if (patch.typeId !== undefined) { setLevel1Id(parentOf(patch.typeId) ?? patch.typeId); setLevel2Id(parentOf(patch.typeId) ? patch.typeId : ""); }
+              edits.applied();
+            }}/>
+
           <Card data-product-basic-card><CardContent>
             <FormFields>
               <Field>
                 <FieldLabel htmlFor="product-name">{CATALOG_TEXT.colName} <span aria-hidden="true">*</span></FieldLabel>
-                <Input id="product-name" aria-required="true" value={name} placeholder={CATALOG_TEXT.productNameExample} disabled={submit.pending} onChange={e => setName(e.target.value)} />
+                <Input id="product-name" aria-required="true" value={name} placeholder={CATALOG_TEXT.productNameExample} disabled={busy} onChange={e => setName(e.target.value)} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="product-code">{CATALOG_TEXT.productNumber}{editing && <span aria-hidden="true"> *</span>}</FieldLabel>
-                <Input id="product-code" value={code} placeholder={generatedCode} title={CATALOG_TEXT.productNumberHint} maxLength={64} aria-required={editing} disabled={submit.pending} onChange={e => setCode(e.target.value)} />
+                <Input id="product-code" value={code} placeholder={generatedCode} title={CATALOG_TEXT.productNumberHint} maxLength={64} aria-required={editing} disabled={busy} onChange={e => setCode(e.target.value)} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="product-unit">{CATALOG_TEXT.colUnit} <span aria-hidden="true">*</span></FieldLabel>
-                <NativeSelect id="product-unit" aria-required="true" value={unitId} disabled={submit.pending} onChange={e => setUnitId(e.target.value)}>
+                <NativeSelect id="product-unit" aria-required="true" value={unitId} disabled={busy} onChange={e => setUnitId(e.target.value)}>
                   {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </NativeSelect>
               </Field>
@@ -134,7 +171,7 @@ export function NewProductForm({
                 <NativeSelect
                   value={level1Id}
                   aria-label={CATALOG_TEXT.typeLevel1}
-                  disabled={submit.pending}
+                  disabled={busy}
                   onChange={(e) => {
                     setLevel1Id(e.target.value);
                     setLevel2Id("");
@@ -150,7 +187,7 @@ export function NewProductForm({
                 <NativeSelect
                   value={level2Id}
                   aria-label={CATALOG_TEXT.typeLevel2}
-                  disabled={submit.pending || level2Options.length === 0}
+                  disabled={busy || level2Options.length === 0}
                   onChange={(e) => setLevel2Id(e.target.value)}
                 >
                   <option value="">{CATALOG_TEXT.typeLevel2None}</option>
@@ -165,18 +202,18 @@ export function NewProductForm({
             <Field>
               <FieldLabel htmlFor="product-status">{CATALOG_TEXT.newStatus}</FieldLabel>
               {editing ? <Input id="product-status" readOnly value={currentStatus?.name ?? "-"} /> : (
-                <NativeSelect id="product-status" value={statusId} disabled={submit.pending} onChange={e => setStatusId(e.target.value)}>
+                <NativeSelect id="product-status" value={statusId} disabled={busy} onChange={e => setStatusId(e.target.value)}>
                   {birthable.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
                 </NativeSelect>
               )}
             </Field>
-            <Field><FieldLabel htmlFor="product-novelty">{R.catalogNovelty}</FieldLabel><NativeSelect id="product-novelty" value={novelty??""} disabled={submit.pending} onChange={e=>setNovelty(e.target.value as "existing"|"new"||null)}><option value="">{R.unmarked}</option><option value="existing">{R.existing}</option><option value="new">{R.new}</option></NativeSelect></Field>
+            <Field><FieldLabel htmlFor="product-novelty">{R.catalogNovelty}</FieldLabel><NativeSelect id="product-novelty" value={novelty??""} disabled={busy} onChange={e=>setNovelty(e.target.value as "existing"|"new"||null)}><option value="">{R.unmarked}</option><option value="existing">{R.existing}</option><option value="new">{R.new}</option></NativeSelect></Field>
 </FormFields>
           </CardContent></Card>
             <div className="flex flex-wrap items-center justify-end gap-sm">
               <Button asChild size="md" variant="secondary"><Link href="/catalog">{CATALOG_TEXT.cancelProductEdit}</Link></Button>
               <Button size="xl"
-                disabled={submit.pending || !ready}
+                disabled={busy || !ready}
                 onClick={() =>
                   submit.run(
                     () =>
@@ -215,7 +252,8 @@ export function NewSolutionForm({
   currency,
   initial,
   onSave,
-}: {
+  canAssist, onAssist,
+}: CatalogAssistProps & {
   readonly generatedCode: string;
   readonly products: readonly ProductRecord[];
   readonly statuses: readonly ProductStatusRecord[];
@@ -241,7 +279,7 @@ export function NewSolutionForm({
     }[];
   }) => Promise<Saved>;
 }) {
-  const { STRATEGY_RESULT_TEXT:R, CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
+  const { STRATEGY_RESULT_TEXT:R, CATALOG_TEXT, CATALOG_ERROR } = useMessages();
   const code = initial?.solution.solutionCode ?? generatedCode;
   const [novelty,setNovelty]=useState<"existing"|"new"|null>(initial?.solution.novelty??null);
   const [name, setName] = useState(initial?.solution.name ?? "");
@@ -266,32 +304,15 @@ export function NewSolutionForm({
         [{ productId: "", quantity: "1", optional: false, note: "" }],
   );
   const submit = useFormSubmit("/solution");
+  const [assisting, setAssisting] = useState(false);
+  const edits = useCatalogManualEdits();
+  const busy = submit.pending || assisting;
 
   const onSaleId = statuses.find((r) => r.statusCode === "active")?.id ?? null;
   const active = products.filter((p) => p.statusId === onSaleId);
   const productName = new Map(products.map((p) => [p.id, p.name]));
-  const chosen = new Set(items.map((i) => i.productId).filter(Boolean));
-
-  const suggestions: AssistSuggestion[] = [];
-  // The actives NOT yet in the bundle - the likely next line, one click
-  // instead of a scroll through the select.
-  for (const p of active.filter((p) => !chosen.has(p.id)).slice(0, 3)) {
-    suggestions.push({
-      id: `add-${p.id}`,
-      label: ASSIST_TEXT.bundleAdd(p.name),
-      reason: ASSIST_TEXT.bundleAddWhy,
-      apply: () =>
-        setItems((prev) => {
-          const blank = prev.findIndex((i) => i.productId === "");
-          if (blank >= 0) {
-            return prev.map((it, j) => (j === blank ? { ...it, productId: p.id } : it));
-          }
-          return [...prev, { productId: p.id, quantity: "1", optional: false, note: "" }];
-        }),
-    });
-  }
-
   function patch(i: number, next: Partial<Row>) {
+    edits.touch("items");
     setItems(items.map((it, j) => (j === i ? { ...it, ...next } : it)));
   }
   const parsed = items
@@ -319,7 +340,26 @@ export function NewSolutionForm({
         /* No heading of its own: the page's header already says 新建方案 /
            修改方案 and what a solution is (owner 2026-09-28: 标题重复). */
         <Section>
-          <fieldset disabled={submit.pending} className="min-w-0 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+          <FormDraftAssistant values={{ name, novelty, summary, scenario, items: parsed.map(item => ({ ...item, note: item.note ?? "" })) }} editId={initial?.solution.id}
+            enabled={canAssist && !submit.pending} example={CATALOG_TEXT.solutionAssistExample} task={CATALOG_TEXT.solutionAssistTask} welcome={CATALOG_TEXT.catalogAssistWelcome}
+            onAssist={input => onAssist({ ...input, manualFields: [...edits.manual.current] })}
+            errorOf={code => CATALOG_ERROR[code] ?? R.assistError}
+            describeApplied={patch => CATALOG_TEXT.catalogAssistApplied(Object.keys(patch).length)}
+            onBusy={setAssisting} onApply={patch => {
+              if (patch.name !== undefined) setName(patch.name);
+              if (patch.novelty !== undefined) setNovelty(patch.novelty);
+              if (patch.summary !== undefined) setSummary(patch.summary);
+              if (patch.scenario !== undefined) setScenario(patch.scenario);
+              if (patch.items !== undefined) setItems(patch.items.map(item => ({ ...item, quantity: String(item.quantity) })));
+              edits.applied();
+            }}/>
+          <fieldset onChangeCapture={e => {
+            const input = e.target;
+          if (!(input instanceof HTMLElement)) return;
+            const field = input.id === "sol-name" ? "name" : input.id === "sol-summary" ? "summary" : input.id === "sol-scenario" ? "scenario"
+              : input.id === "solution-novelty" ? "novelty" : input.id.startsWith("sol-") && input.id !== "sol-code" ? "items" : null;
+            if (field) edits.touch(field);
+          }} disabled={busy} className="min-w-0 pb-[calc(3rem+env(safe-area-inset-bottom))]">
           <FormFields>
             <Field>
               <FieldLabel htmlFor="sol-code">{CATALOG_TEXT.colCode}</FieldLabel>
@@ -352,7 +392,7 @@ export function NewSolutionForm({
               />
               <FieldDescription>{CATALOG_TEXT.scenarioHint}</FieldDescription>
             </Field>
-          <Field><FieldLabel htmlFor="solution-novelty">{R.catalogNovelty}</FieldLabel><NativeSelect id="solution-novelty" value={novelty??""} disabled={submit.pending} onChange={e=>setNovelty(e.target.value as "existing"|"new"||null)}><option value="">{R.unmarked}</option><option value="existing">{R.existing}</option><option value="new">{R.new}</option></NativeSelect></Field>
+          <Field><FieldLabel htmlFor="solution-novelty">{R.catalogNovelty}</FieldLabel><NativeSelect id="solution-novelty" value={novelty??""} disabled={busy} onChange={e=>setNovelty(e.target.value as "existing"|"new"||null)}><option value="">{R.unmarked}</option><option value="existing">{R.existing}</option><option value="new">{R.new}</option></NativeSelect></Field>
 </FormFields>
 
           {/* THE COMBINATION, and the customisation of each line beside it. */}
@@ -415,7 +455,7 @@ export function NewSolutionForm({
                     <Button
                       size="md"
                       variant="ghost"
-                      onClick={() => setItems(items.filter((_, j) => j !== i))}
+                      onClick={() => { edits.touch("items"); setItems(items.filter((_, j) => j !== i)); }}
                     >
                       {CATALOG_TEXT.removeItem}
                     </Button>
@@ -448,15 +488,15 @@ export function NewSolutionForm({
               <Button
                 size="xl"
                 variant="secondary"
-                onClick={() =>
-                  setItems([...items, { productId: "", quantity: "1", optional: false, note: "" }])
-                }
+                onClick={() => {
+                  edits.touch("items"); setItems([...items, { productId: "", quantity: "1", optional: false, note: "" }]);
+                }}
               >
                 {CATALOG_TEXT.addItem}
               </Button>
               <Button
                 size="xl"
-                disabled={submit.pending || !ready}
+                disabled={busy || !ready}
                 onClick={() =>
                   submit.run(
                     () =>
@@ -483,7 +523,6 @@ export function NewSolutionForm({
           </fieldset>
         </Section>
       }
-      assist={<AssistPanel suggestions={suggestions} />}
     />
   );
 }

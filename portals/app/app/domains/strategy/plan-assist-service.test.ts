@@ -222,3 +222,13 @@ test("failed shared model turns retain retry identity and recover without duplic
     1,
   );
 });
+
+test("human corrections survive another model turn without freezing unrelated resource fields", async () => {
+  const h = harness();
+  const current = { ...h.values, name: "Human title", result: { ...h.values.result, resources: { ...h.values.result.resources, fundsNote: "Human budget" } } };
+  h.setReply(JSON.stringify({ fields: { name: "Model title", ownerSub: "invented", result: { ...h.values.result, resources: { ...h.values.result.resources, people: "3", fundsNote: "Model budget" } } } }));
+  const r = await preparePlanDraft(h.ctx, { text: "Improve staffing", values: current, manualFields: ["name", "ownerSub", "result.resources.fundsNote"] }, h.deps);
+  assert.ok(r.ok);assert.equal(r.patch.name, "Human title");assert.equal(r.patch.ownerSub, null);
+  assert.equal(r.patch.result?.resources.fundsNote, "Human budget");assert.equal(r.patch.result?.resources.people, "3");
+  assert.equal((await h.ctx.store.listPlans(h.ctx.workspaceId)).length, 0);
+});

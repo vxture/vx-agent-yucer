@@ -1,3 +1,4 @@
+import { assistSolutionDraft } from "./assist-action";
 import { nextBusinessCode } from "../../../domains/shared/business-code";
 import { ViewHeader } from "../../components/business-controls";
 
@@ -47,6 +48,8 @@ export default async function NewSolutionPage({
               currentPrices={Object.fromEntries(inForceByProduct(prices, policy.defaultCurrency, Date.now()))}
               currency={policy.defaultCurrency}
               initial={found}
+              canAssist={can(authz, entitlement, "copilot.ask", "ui").allowed}
+              onAssist={assistSolutionDraft}
               onSave={saveSolution}
             />
           </>
