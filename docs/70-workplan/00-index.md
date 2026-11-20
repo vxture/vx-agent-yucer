@@ -1,5 +1,10 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 作战部署域四板块
+
+[100-deployment-workspace.md](100-deployment-workspace.md) 记录 DD-00–DD-06 的现状、布局交互与验收批次。
+用户已确认销售规划、重点客户、承诺达成、赢丢复盘归集；DD-00 规划已形成，功能改造待实施。
+
 ## 战略装备域精细化修正
 
 [95-strategic-equipment-refinement.md](95-strategic-equipment-refinement.md) 定义 SE-01 至 SE-06
