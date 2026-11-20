@@ -5,21 +5,9 @@ import type {
   PlanTarget,
   TeamAllocation,
 } from "../../domains/planning/plan-model";
+import { prunePlanningBudgets } from "../../domains/planning/plan-entry-state";
+export { planningEntryLocked, prunePlanningBudgets } from "../../domains/planning/plan-entry-state";
 import { demand, minor } from "../../domains/planning/plan-values";
-
-export function prunePlanningBudgets(
-  content: PlanContent,
-  previous: PlanContent,
-): PlanContent {
-  return {
-    ...content,
-    budgets: content.budgets.filter(
-      (budget) =>
-        !previous.contributions.some((line) => line.budgetKey === budget.key) ||
-        content.contributions.some((line) => line.budgetKey === budget.key),
-    ),
-  };
-}
 
 // Removing an annual auxiliary metric also removes its time breakdown. Actions
 // survive with their optional target link cleared; dangling references cannot save.
@@ -204,27 +192,6 @@ export function validatePlanningAction(content: PlanContent, line: PlanAction) {
       `${content.year}-01-01` <= line.due &&
       line.due < `${content.year + 1}-01-01`,
     "invalid_action",
-  );
-}
-
-export function planningEntryLocked(
-  content: PlanContent,
-  locked: readonly string[],
-  line: PlanTarget | TeamAllocation | PlanAction,
-) {
-  return content.periods.some(
-    (period) =>
-      locked.includes(period.key) &&
-      ("period" in line
-        ? content.periods.some(
-            (child) =>
-              child.key === line.period &&
-              period.start <= child.start &&
-              child.end <= period.end,
-          )
-        : "due" in line
-          ? period.start <= line.due && line.due < period.end
-          : line.start < period.end && period.start < line.end),
   );
 }
 

@@ -206,10 +206,7 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
        account.upsert. Present at every tier because account.view is, and
        absent only on a permission gap. */
     "industry",
-    // /named rides account.view: the roster is a filtered account list, so
-    // whoever may read accounts may read which of them are named. The TIER is
-    // written under account.upsert on the detail page.
-    "namedAccount",
+    // Period-specific focus accounts now require the planning read gate.
     // 全国态势屏 rides account.view like /home does, and for the same reason as
     // /attainment: it is the arithmetic of rows the reader can already see. It
     // hands out no paid capability - the page itself additionally requires

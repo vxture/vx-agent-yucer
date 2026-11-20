@@ -257,7 +257,7 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   // its own tooling for being regular is written in the wrong shape.
   { key: "segment", href: "/segment", icon: "chart-pie-slice", action: "strategy.segment.view" },
   { key: "solution", href: "/solution", icon: "puzzle", action: "catalog.solution.view" },
-  { key: "namedAccount", href: "/named", icon: "star", action: "account.view" },
+  { key: "namedAccount", href: "/named", icon: "star", action: "planning.target.view" },
   { key: "winLossReview", href: "/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
   { key: "quote", href: "/quote", icon: "file-text", action: "pipeline.view" },
   // 线索管理 - its own module since 2026-09-06 (design_yucer_110). It used to

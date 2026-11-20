@@ -136,8 +136,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       // /account/[id]; what was missing was the ROSTER - who our named
       // accounts are, together - and a control on a detail page is not a
       // surface.
-      // Start with the target. DD-03 will replace tier maintenance with
-      // period-specific focus; do not relabel the old roster prematurely.
+      // Focus accounts are a period-specific planning view, not tier maintenance.
       built("planning"),
       built("namedAccount"),
       // Forecast review is an internal view of attainment, not a second module.

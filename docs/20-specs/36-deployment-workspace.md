@@ -1,7 +1,7 @@
 # 作战部署域：目标、客户部署、达成与复盘
 
 状态：2026-11-19（America/Los_Angeles）用户确认四板块归集，本文定义目标行为；
-当前运行基线 v0.1.120，导航、重点客户及集中复盘改造尚未实施。跟踪 [#697](https://github.com/vxture/vx-agent-yucer/issues/697)。
+当前运行基线 v0.1.120；DD-01/02 已合并，DD-03 重点客户已实现并完成本地验证（PR #701，最终合并记录见 #697），集中复盘待 DD-05。跟踪 [#697](https://github.com/vxture/vx-agent-yucer/issues/697)。
 设计见 [工作区设计](../30-design/design_yucer_230_deployment-workspace.md)，
 实施见 [分批计划](../70-workplan/100-deployment-workspace.md)。
 
