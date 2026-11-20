@@ -30,7 +30,7 @@ export function SessionBoundary({ identity, enabled, children }: {
     inFlight.current = controller;
     const request = ++sequence.current;
     try {
-      const response = await fetch(`/auth/session${force && !syncContext ? "?force=1" : ""}`, {
+      const response = await fetch(`/auth/session${force ? "?force=1" : ""}`, {
         method: syncContext ? "POST" : "GET",
         cache: "no-store", credentials: "same-origin", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
       });

@@ -23,6 +23,8 @@ export type CheckResult =
   | { readonly kind: "ended"; readonly detail: string }
   | { readonly kind: "unavailable"; readonly detail: string };
 
+type CheckPurpose = "status" | "token" | "context";
+
 export interface LoginAuthority {
   /** Ask accounts whether this login still holds. `activity`: the member is
    *  actually using the product right now (accounts may renew on it). */
@@ -216,7 +218,7 @@ function due(session: RpSession, now: number): boolean {
 async function checkOnce(
   cfg: OidcConfig,
   rpsid: string,
-  purpose: "status" | "token" | "context",
+  purpose: CheckPurpose,
   deps: LoginStateDeps,
   ask: (session: RpSession) => Promise<CheckResult>,
   onlyIf: (session: RpSession) => boolean,
@@ -247,7 +249,7 @@ async function busyOrGone(cfg: OidcConfig, rpsid: string, deps: LoginStateDeps):
 
 async function applyCheckedResult(
   cfg: OidcConfig, rpsid: string, current: RpSession, result: CheckResult,
-  purpose: "status" | "token" | "context", lease: string, deps: LoginStateDeps,
+  purpose: CheckPurpose, lease: string, deps: LoginStateDeps,
 ): Promise<RpSession | null | "busy"> {
   if (result.kind === "ended") {
     noteLoginState("ended_by_accounts", result.detail);
@@ -268,7 +270,7 @@ async function applyCheckedResult(
   return saved ? next : busyOrGone(cfg, rpsid, deps);
 }
 
-function checkedRecord(session: RpSession, purpose: "status" | "token" | "context", now: number): RpSession {
+function checkedRecord(session: RpSession, purpose: CheckPurpose, now: number): RpSession {
   if (purpose === "status") return { ...session, checkedAt: now, statusUnavailable: false };
   if (purpose === "context") return { ...session, contextCheckedAt: now, contextUnavailable: false };
   return session;
@@ -279,16 +281,16 @@ async function settleCheck(
   initial: RpSession, ask: (s: RpSession) => Promise<CheckResult>, onlyIf: (s: RpSession) => boolean,
 ): Promise<RpSession | null> {
   let session = initial;
-  for (let attempt = 0; onlyIf(session); attempt++) {
+  for (let attempt = 0; attempt < 120; attempt++) {
+    if (!onlyIf(session)) return session;
     const after = await checkOnce(cfg, rpsid, purpose, deps, ask, onlyIf);
     if (after !== "busy") return after;
-    if (attempt >= 119) throw new LoginStateUnavailableError();
     await new Promise((r) => setTimeout(r, 50));
     const current = await deps.getSession(cfg.clientId, rpsid);
     if (!current) return null;
     session = current;
   }
-  return session;
+  throw new LoginStateUnavailableError();
 }
 
 /**
