@@ -80,5 +80,5 @@ async function sanitizedCurrent(ctx: CatalogContext, kind: CatalogDraftKind, val
     prior.unitId = original.unitId;
   }
   const sanitized = readCatalogDraft(JSON.stringify({ fields: values }), kind, vocab, prior);
-  return Object.assign({ name: "", novelty: null }, sanitized?.patch) as CatalogDraftValues;
+  return { name: "", novelty: null, ...sanitized?.patch } as CatalogDraftValues;
 }
