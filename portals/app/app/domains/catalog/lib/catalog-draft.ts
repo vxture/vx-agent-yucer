@@ -1,3 +1,4 @@
+import { readAssistantFields } from "../../shared/assistant-fields";
 import type { ProductRecord, ProductTypeRecord, ProductUnitRecord } from "../store";
 
 export type CatalogDraftKind = "product" | "solution";
@@ -24,40 +25,47 @@ export const catalogDraftFields = (kind: CatalogDraftKind) => kind === "product"
 /** Decode actual fields; an assistant's claim of filling is never a patch. */
 export function readCatalogDraft(answer: string, kind: CatalogDraftKind, vocab: CatalogDraftVocabulary,
   current: CatalogDraftValues, manual: readonly CatalogDraftField[] = []) {
-  let raw: unknown;
-  try { raw = JSON.parse(answer.replace(/^\s*```(?:json)?\s*/, "").replace(/\s*```\s*$/, "")); } catch { return null; }
-  if (!raw || typeof raw !== "object" || !("fields" in raw) || !raw.fields || typeof raw.fields !== "object" || Array.isArray(raw.fields)) return null;
-  const fields = raw.fields as Record<string, unknown>;
+  const raw = readAssistantFields(answer);
+  if (!raw) return null;
   const patch: Partial<CatalogDraftValues> = {}, rejected: string[] = [];
-  const clear = "clearFields" in raw && Array.isArray(raw.clearFields) ? raw.clearFields : [];
   for (const key of catalogDraftFields(kind)) {
-    if (manual.includes(key) || !(key in fields)) continue;
-    const value = fields[key];
-    if (key === "items") {
-      const items = readItems(value, vocab, current);
-      if (!items) rejected.push(key);
-      else if (items.length && JSON.stringify(items) !== JSON.stringify(current.items)) patch.items = items;
-    } else if (key === "novelty") {
-      if (value === "existing" || value === "new") patch.novelty = value;
-      else if (value !== null && value !== "") rejected.push(key);
-    } else if (typeof value !== "string" || value.trim().length > 2000) rejected.push(key);
-    else if (key === "typeId" || key === "unitId") {
-      const choices = key === "typeId" ? vocab.types.filter(t => t.status === "active").map(t => t.id) : vocab.units.map(u => u.id);
-      if (value && (choices.includes(value) || current[key] === value)) patch[key] = value;
-      else if (value) rejected.push(key);
-    } else if (value.trim() && value.trim() !== current[key]) patch[key] = value.trim();
+    if (manual.includes(key) || !(key in raw.fields)) continue;
+    const value = readField(key, raw.fields[key], vocab, current);
+    if (value === false) rejected.push(key);
+    else if (value !== undefined) Object.assign(patch, { [key]: value });
   }
   for (const key of catalogDraftFields(kind)) {
-    if (!clear.includes(key) || manual.includes(key)) continue;
+    if (!raw.clearFields.includes(key) || manual.includes(key)) continue;
     if (key === "novelty") patch.novelty = null;
     else if (key === "summary" || key === "scenario" || key === "typeId") patch[key] = "";
   }
   for (const key of catalogDraftFields(kind)) {
     if (JSON.stringify(patch[key]) === JSON.stringify(current[key])) delete patch[key];
   }
-  const message = "message" in raw && typeof raw.message === "string" ? raw.message.trim().slice(0, 1500) : "";
-  return { patch, rejected, message };
+  return { patch, rejected, message: raw.message };
 }
+
+/** false means invalid; undefined means retain the current draft. */
+function readField(key: CatalogDraftField, value: unknown, vocab: CatalogDraftVocabulary, current: CatalogDraftValues): CatalogDraftValues[CatalogDraftField] | false {
+  if (key === "items") {
+    const items = readItems(value, vocab, current);
+    if (!items) return false;
+    return items.length ? items : undefined;
+  }
+  if (key === "novelty") {
+    if (value === "existing" || value === "new") return value;
+    return value === null || value === "" ? undefined : false;
+  }
+  if (typeof value !== "string" || value.trim().length > 2000) return false;
+  if (key === "typeId" || key === "unitId") return readReference(key, value, vocab, current);
+  return value.trim() || undefined;
+}
+function readReference(key: "typeId" | "unitId", value: string, vocab: CatalogDraftVocabulary, current: CatalogDraftValues) {
+  const choices = key === "typeId" ? vocab.types.filter(t => t.status === "active").map(t => t.id) : vocab.units.map(u => u.id);
+  if (!value) return undefined;
+  return choices.includes(value) || current[key] === value ? value : false;
+}
+
 function readItems(value: unknown, vocab: CatalogDraftVocabulary, current: CatalogDraftValues): CatalogDraftItem[] | null {
   if (!Array.isArray(value) || value.length > 100) return null;
   const allowed = new Set([...vocab.products.map(p => p.id), ...(current.items ?? []).map(i => i.productId)]);

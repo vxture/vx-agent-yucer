@@ -45,6 +45,22 @@ import type {
 
 type Saved = { ok: boolean; error?: string };
 
+function productManualField(target: EventTarget): CatalogDraftField | undefined {
+  if (!(target instanceof HTMLElement)) return;
+  if (target.id === "product-name") return "name";
+  if (target.id === "product-unit") return "unitId";
+  if (target.id === "product-novelty") return "novelty";
+  if (target.tagName === "SELECT" && !target.id) return "typeId";
+}
+function solutionManualField(target: EventTarget): CatalogDraftField | undefined {
+  if (!(target instanceof HTMLElement)) return;
+  if (target.id === "sol-name") return "name";
+  if (target.id === "sol-summary") return "summary";
+  if (target.id === "sol-scenario") return "scenario";
+  if (target.id === "solution-novelty") return "novelty";
+  if (target.id.startsWith("sol-") && target.id !== "sol-code") return "items";
+}
+
 function useCatalogManualEdits() {
   const applied = useRef(false), manual = useRef(new Set<CatalogDraftField>());
   return { manual, applied: () => { applied.current = true; }, touch: (field: CatalogDraftField) => {
@@ -127,10 +143,7 @@ export function NewProductForm({
     <FormPage
       form={
         <div className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]" onChangeCapture={e => {
-          const input = e.target;
-          if (!(input instanceof HTMLElement)) return;
-          const field = input.id === "product-name" ? "name" : input.id === "product-unit" ? "unitId"
-            : input.id === "product-novelty" ? "novelty" : input.tagName === "SELECT" && !input.id ? "typeId" : null;
+          const field = productManualField(e.target);
           if (field) edits.touch(field);
         }}>
           <FormDraftAssistant values={{ name, novelty, typeId, unitId }} editId={initial?.id}
@@ -354,10 +367,7 @@ export function NewSolutionForm({
               edits.applied();
             }}/>
           <fieldset onChangeCapture={e => {
-            const input = e.target;
-          if (!(input instanceof HTMLElement)) return;
-            const field = input.id === "sol-name" ? "name" : input.id === "sol-summary" ? "summary" : input.id === "sol-scenario" ? "scenario"
-              : input.id === "solution-novelty" ? "novelty" : input.id.startsWith("sol-") && input.id !== "sol-code" ? "items" : null;
+            const field = solutionManualField(e.target);
             if (field) edits.touch(field);
           }} disabled={busy} className="min-w-0 pb-[calc(3rem+env(safe-area-inset-bottom))]">
           <FormFields>

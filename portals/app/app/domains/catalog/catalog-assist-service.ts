@@ -20,17 +20,14 @@ export async function prepareCatalogDraft(ctx: CatalogContext, kind: CatalogDraf
   tenantId: string | null; subjectToken?: string; locale: string; copilotStore: CopilotStore;
   atlasClient: AtlasClient; runosClient: RunosClient; meter?: TurnMeter;
 }): Promise<CatalogAssistResult> {
-  const gate = kind === "product" ? "catalog.product.upsert" : "catalog.solution.upsert";
-  if (!can(ctx.holder, ctx.entitlement, gate, "data").allowed || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) return { ok: false, error: "denied" };
-  if (typeof input?.text !== "string" || !input.text.trim() || input.text.length > 4000 || !input.values ||
-    [input.editId, input.sessionId, input.retryMessageId].some(id => id !== undefined && (typeof id !== "string" || id.length > 128))) return { ok: false, error: "invalid_input" };
-  if (!can(ctx.holder, ctx.entitlement, "catalog.product.view", "data").allowed) return { ok: false, error: "denied" };
+  const error = requestError(ctx, kind, input, deps.tenantId);
+  if (error) return { ok: false, error };
   if (!deps.tenantId) return { ok: false, error: "no_active_tenant" };
   try {
     const title = `[catalog-${kind}-draft]`;
     if (input.sessionId) {
       const session = await deps.copilotStore.getSession(ctx.workspaceId, input.sessionId);
-      if (!session || session.actorSub !== ctx.sub || !session.title?.startsWith(title)) return { ok: false, error: "not_found" };
+      if (!session || session.actorSub !== ctx.sub || !session?.title?.startsWith(title)) return { ok: false, error: "not_found" };
     }
     // Bound to this workspace after the same write gate as the form; reference
     // reads need their own view permission before being sent to the model.
@@ -56,15 +53,26 @@ export async function prepareCatalogDraft(ctx: CatalogContext, kind: CatalogDraf
       tenantId: deps.tenantId, subjectToken: deps.subjectToken, profile: "drafting",
       framing: catalogDraftFrame(kind, vocab, current, manual, deps.locale), draftOnly: true, readOnlyTools: true, autopilotActive: false,
       capabilityQuery: "product solution industry research web search",
-      reviewAnswer: answer => {
-        const draft = readCatalogDraft(answer, kind, vocab, current, manual);
-        return { answer, ...(!draft ? { feedback: "Return the requested JSON fields object, not a prose claim of filling." }
-          : draft.rejected.length ? { feedback: `Correct invalid fields ${draft.rejected.join(", ")}. Use exact configured UUIDs and positive quantities, retain at least one standard product. Return a corrected JSON fields object.` } : {}) };
-      },
+      reviewAnswer: answer => reviewDraft(answer, kind, vocab, current, manual),
     }, { atlasClient: deps.atlasClient, runosClient: deps.runosClient, meter: deps.meter });
     if (!turn.ok) return { ok: false, error: turn.violations[0]?.code ?? "turn_failed", recovery: turn.recovery };
     const draft = readCatalogDraft(turn.value.answer, kind, vocab, current, manual);
     if (!draft) return { ok: false, error: "invalid_draft", sessionId: turn.value.session.id };
     return { ok: true, sessionId: turn.value.session.id, message: draft.message, patch: draft.patch };
   } catch { return { ok: false, error: "turn_failed" }; }
+}
+
+function requestError(ctx: CatalogContext, kind: CatalogDraftKind, input: CatalogAssistInput, tenantId: string | null): string | undefined {
+  const gate = kind === "product" ? "catalog.product.upsert" : "catalog.solution.upsert";
+  if (!can(ctx.holder, ctx.entitlement, gate, "data").allowed || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) return "denied";
+  if (typeof input?.text !== "string" || !input.text.trim() || input.text.length > 4000 || !input.values ||
+    [input.editId, input.sessionId, input.retryMessageId].some(id => id !== undefined && (typeof id !== "string" || id.length > 128))) return "invalid_input";
+  if (!can(ctx.holder, ctx.entitlement, "catalog.product.view", "data").allowed) return "denied";
+  if (!tenantId) return "no_active_tenant";
+}
+function reviewDraft(answer: string, kind: CatalogDraftKind, vocab: CatalogDraftVocabulary, current: CatalogDraftValues, manual: readonly CatalogDraftField[]) {
+  const draft = readCatalogDraft(answer, kind, vocab, current, manual);
+  if (!draft) return { answer, feedback: "Return the requested JSON fields object, not a prose claim of filling." };
+  if (draft.rejected.length) return { answer, feedback: `Correct invalid fields ${draft.rejected.join(", ")}. Use exact configured UUIDs and positive quantities, retain at least one standard product. Return a corrected JSON fields object.` };
+  return { answer };
 }

@@ -35,7 +35,7 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
   const slot = usePageAssistantSlot();
   const [text, setText] = useState(""),
     [messages, setMessages] = useState<
-      { role: "user" | "assistant"; text: string }[]
+      { id: string; role: "user" | "assistant"; text: string }[]
     >([]),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -54,7 +54,8 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
     setError("");
     const question = text.trim();
     const retry = recovery?.text === question ? recovery : undefined;
-    if (!retry) setMessages((m) => [...m, { role: "user", text: question }]);
+    const userMessage = { id: crypto.randomUUID(), role: "user" as const, text: question };
+    if (!retry) setMessages((m) => [...m, userMessage]);
     try {
       const result = await onAssist({
         text: question,
@@ -72,9 +73,10 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
       setSessionId(result.sessionId);
       setRecovery(undefined);
       onApply(result.patch);
+      const assistantMessageId = crypto.randomUUID();
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: [result.message, describeApplied?.(result.patch)].filter(Boolean).join("\n") || T.assistUpdated },
+        { id: assistantMessageId, role: "assistant", text: [result.message, describeApplied?.(result.patch)].filter(Boolean).join("\n") || T.assistUpdated },
       ]);
       setText("");
     } catch {
@@ -123,8 +125,8 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
         </form>
         {!slot ? (
           <div className="flex max-h-64 flex-col gap-md overflow-y-auto">
-            {messages.map((m, i) => (
-              <AssistantMessage key={i} role={m.role}>
+            {messages.map((m) => (
+              <AssistantMessage key={m.id} role={m.role}>
                 {m.text}
               </AssistantMessage>
             ))}
@@ -145,8 +147,8 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
                     {welcome ?? T.assistWelcome}
                   </p>
                 ) : null}
-                {messages.map((m, i) => (
-                  <AssistantMessage key={i} role={m.role}>
+                {messages.map((m) => (
+                  <AssistantMessage key={m.id} role={m.role}>
                     <p className="whitespace-pre-wrap">{m.text}</p>
                   </AssistantMessage>
                 ))}
