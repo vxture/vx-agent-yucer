@@ -15,7 +15,7 @@ function fixture() {
   const accounts = new InMemoryAccountStore(), pipeline = new InMemoryPipelineStore();
   accounts.seed({ accounts: ["a", "b"].map(id => ({ id, workspaceId: "ws", name: id, ownerSub: "rep" } as AccountRecord)) });
   const ctx: FocusContext = { store: new InMemorySalesPlanStore(), scope: { kind: "workspace" }, workspaceId: "ws", sub: "ops", accounts, pipeline, holder: { permissions: new Set(permissionsForRoles(["sales_ops"])) }, entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: "ws", product: "yucer", tier: "enterprise" } };
-  const rows: FocusRow[] = ["a", "b"].map(id => ({ id, name: id, accountNo: id, tier: "key", ownerSub: "rep", regions: [], actions: [], contributions: [], unallocated: [], revenue: [{ currency: "CNY", amount: "100.00" }], coverage: { state: "unavailable" } }));
+  const rows: FocusRow[] = ["a", "b"].map(id => ({ id, name: id, accountNo: id, tier: "key", ownerSub: "rep", regions: [], actions: [], contributions: [], unallocated: [], revenue: [{ currency: "CNY", amount: "100.00" }], coverage: { state: "unavailable" }, contacts: { state: "unavailable" } }));
   const deal = (id: string, accountId = "a", status = "open", workspaceId = "ws") => ({ id, accountId, status, workspaceId, name: id, expectedCloseAt: new Date("2028-01-01") } as OpportunityRecord);
   const person = (id: string, status = "active", accountId = "a") => ({ id, accountId, status, workspaceId: "ws", name: `Private ${id}` } as ContactRecord);
   const link = (personId: string, buyingRole: OpportunityContactRecord["buyingRole"], opportunityId = "d1") => ({ workspaceId: "ws", opportunityId, personId, buyingRole, influence: null, stance: null } as OpportunityContactRecord);

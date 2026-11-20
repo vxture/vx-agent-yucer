@@ -9835,3 +9835,21 @@ export const FOCUS_TEXT = {
   "personUnit": "\u4eba",
   "notPublished": "\u5c1a\u672a\u53d1\u5e03"
 } as const;
+
+export const CONTACT_VIEW_TEXT = {
+  summaryUnavailable: "\u8054\u7cfb\u4eba\u5f85\u6838\u67e5",
+  "detail": "\u8054\u7cfb\u4eba\u8be6\u60c5",
+  "fullDetail": "\u5b8c\u6574\u8be6\u60c5",
+  "account": "\u6240\u5c5e\u5ba2\u6237",
+  "notRecorded": "\u672a\u767b\u8bb0",
+  "unknownStatus": "\u5f85\u6838\u5b9e",
+  "unavailable": "\u8054\u7cfb\u4eba\u4fe1\u606f\u6682\u4e0d\u53ef\u67e5\u770b\uff0c\u8bf7\u91cd\u8bd5\u6216\u6838\u5bf9\u8bbf\u95ee\u6743\u9650",
+  "none": "\u672a\u767b\u8bb0\u8054\u7cfb\u4eba",
+  "loading": "\u6b63\u5728\u8bfb\u53d6\u8054\u7cfb\u4eba",
+  "retry": "\u91cd\u65b0\u8bfb\u53d6",
+  "close": "\u5173\u95ed",
+  "openAccount": "\u5ba2\u6237\u6863\u6848",
+  "edit": "\u7f16\u8f91\u8d44\u6599",
+  total: (n: number) => `\u5171 ${n} \u4eba`,
+  openSummary: (name: string, n: number) => `${name}\uff0c\u5171 ${n} \u4f4d\u8054\u7cfb\u4eba\uff0c\u70b9\u51fb\u67e5\u770b\u8be6\u60c5`,
+} as const;

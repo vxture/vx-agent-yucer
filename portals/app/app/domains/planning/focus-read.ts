@@ -1,3 +1,4 @@
+import { readFocusContacts } from "./focus-contacts";
 import { readFocusCoverage } from "./focus-coverage";
 import type { PipelineContext } from "../pipeline/service";
 import { can } from "../../authz/decide";
@@ -39,7 +40,7 @@ function visibleRows(ctx: FocusContext, content: PlanContent, candidates: FocusW
     if (!rowAllowed(ctx.scope, a, content, a.id)) return [];
     const ownSub = ctx.scope.kind === "own" ? ctx.scope.sub : null;
     const accountRegions = ownSub ? new Set(content.actions.filter(action => action.accountId === a.id && action.ownerSub === ownSub && ids.has(action.regionId)).map(action => action.regionId)) : ids;
-    const row = projectRow(content, { id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub, contributions: [], actions: [], unallocated: [], revenue: [], regions: [], coverage: { state: "unavailable" } }, period, accountRegions);
+    const row = projectRow(content, { id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub, contributions: [], actions: [], unallocated: [], revenue: [], regions: [], coverage: { state: "unavailable" }, contacts: { state: "unavailable" } }, period, accountRegions);
     if (ownSub) row.actions = row.actions.filter(action => action.ownerSub === ownSub);
     if (ctx.scope.kind !== "workspace") row.contributions = row.contributions.map(c => ({ ...c, budget: { ...c.budget, amount: null, note: "", sourcePlanId: null, sourceReadAt: "" } }));
     if (ctx.scope.kind !== "workspace") row.actions = row.actions.map(a => ({ ...a, evidenceRefs: [] }));
@@ -76,7 +77,8 @@ export async function readFocusWorkspace(ctx: FocusContext, query: FocusQuery): 
   const ids = new Set(regions.filter(r => !query.regionId || r.id === query.regionId).map(r => r.id));
   const candidates = accounts.value.filter(a => rowAllowed(ctx.scope, a, content, a.id)).map(a => ({ id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub }));
   const rows = visibleRows(ctx, content, candidates, period, ids, canTeam, query.regionId);
-  await readFocusCoverage(ctx, rows);
+  const contactCache = await readFocusContacts(ctx, rows);
+  await readFocusCoverage(ctx, rows, contactCache);
   const visibleRegions = ctx.scope.kind === "own" ? regions.filter(r => rows.some(row => row.regions.some(region => region.id === r.id))) : regions;
   return { ...empty, rows, candidates: writer ? candidates : [], regions: visibleRegions.map(({ id, name }) => ({ id, name })), periods: content.periods.map(({ key, start, end }) => ({ key, start, end })),
     revision: revisionLabel(plan, selected, state?.current?.id),
