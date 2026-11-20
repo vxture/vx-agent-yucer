@@ -1,7 +1,7 @@
 import { can } from "../../authz/decide";
 import { analyzeChain, REQUIRED_ROLES } from "../account/lib/health";
 import { chainForOpportunity } from "../account/lib/buying-role";
-import type { AccountStore } from "../account/store";
+import type { AccountStore, ContactRecord } from "../account/store";
 import { listPipeline } from "../pipeline/service";
 import type { FocusContext } from "./focus-read";
 import type { FocusCoverage, FocusRow } from "./focus-model";
@@ -14,7 +14,7 @@ type Links = Awaited<ReturnType<AccountStore["listOpportunityContactsFor"]>>;
  * session-scoped; never read role links for arbitrary or hidden opportunity IDs.
  * Read opportunities and role links once; bound per-account graph concurrency.
  */
-export async function readFocusCoverage(ctx: FocusContext, rows: FocusRow[]) {
+export async function readFocusCoverage(ctx: FocusContext, rows: FocusRow[], contacts?: ReadonlyMap<string, ContactRecord[]>) {
   if (!rows.length) return;
   for (const row of rows) row.coverage = { state: "unavailable" };
   const allowed = ["account.graph.view", "pipeline.view"] as const;
@@ -26,13 +26,13 @@ export async function readFocusCoverage(ctx: FocusContext, rows: FocusRow[]) {
   try {
     const result = await listPipeline({ ...ctx, store: ctx.pipeline }, { includeClosed: false });
     if (!result.ok) return;
-    await projectCoverage(ctx, rows, result.value);
+    await projectCoverage(ctx, rows, result.value, contacts);
   } catch {
     // Keep unavailable distinct from genuine zero coverage; preserve readable rows.
   }
 }
 
-async function projectCoverage(ctx: FocusContext, rows: FocusRow[], source: (Deal & { status: string })[]) {
+async function projectCoverage(ctx: FocusContext, rows: FocusRow[], source: (Deal & { status: string })[], contacts?: ReadonlyMap<string, ContactRecord[]>) {
   const ids = new Set(rows.map(row => row.id));
   const deals = source.filter(deal => deal.status === "open" && ids.has(deal.accountId));
   const byAccount = new Map<string, Deal[]>();
@@ -53,16 +53,16 @@ async function projectCoverage(ctx: FocusContext, rows: FocusRow[], source: (Dea
   const workers = Array.from({ length: Math.min(6, pending.length) }, async function next(): Promise<void> {
     const row = pending.shift();
     if (!row) return;
-    await readAccount(ctx, row, byAccount.get(row.id)!, byDeal);
+    await readAccount(ctx, row, byAccount.get(row.id)!, byDeal, contacts);
     return next();
   });
   await Promise.all(workers);
 }
 
-async function readAccount(ctx: FocusContext, row: FocusRow, deals: Deal[], links: Map<string, Links>) {
+async function readAccount(ctx: FocusContext, row: FocusRow, deals: Deal[], links: Map<string, Links>, cache?: ReadonlyMap<string, ContactRecord[]>) {
   try {
     const [contacts, relations] = await Promise.all([
-      ctx.accounts.listContacts(ctx.workspaceId, row.id),
+      cache ? cachedContacts(cache, row.id) : ctx.accounts.listContacts(ctx.workspaceId, row.id),
       ctx.accounts.listRelations(ctx.workspaceId, row.id),
     ]);
     const chains = deals.map(deal => {
@@ -92,3 +92,9 @@ function summarize(
     chains: established, totalChains: chains.length, completeChains: complete, unreachableChains: unreachable };
 }
 
+
+function cachedContacts(cache: ReadonlyMap<string, ContactRecord[]>, id: string) {
+  const rows = cache.get(id);
+  if (!rows) throw new Error("contacts_unavailable");
+  return rows;
+}

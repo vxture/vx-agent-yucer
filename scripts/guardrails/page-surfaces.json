@@ -917,6 +917,17 @@
       },
       "reason": "Period/version-specific customer deployment detail from focus card and table titles.",
       "sample": "/named/acc_demo_1?year=2026"
+    },
+    {
+      "route": "/contact/[id]",
+      "file": "(app)/contact/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/contact-details.tsx",
+        "needle": "/contact/${"
+      },
+      "reason": "Read-only customer-linked contact detail, reached through the contact preview drawer.",
+      "sample": "/contact/ct_1?account=acc_demo_1"
     }
   ],
   "preservedControls": {

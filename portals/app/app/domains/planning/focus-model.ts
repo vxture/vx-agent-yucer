@@ -4,8 +4,10 @@ export type FocusContribution = CustomerContribution & { budget: Omit<CustomerBu
 export type FocusCoverage =
   | { state: "denied" | "unavailable" }
   | { state: "ready"; keyPeople: number; coveredRoles: number; requiredRoles: number; chains: number; totalChains: number; completeChains: number; unreachableChains: number };
+export type FocusContacts = import("../account/contact-read").ContactRosterSummary;
 export type FocusRow = FocusAccount & {
   coverage: FocusCoverage;
+  contacts: FocusContacts;
   regions: Pick<PlanRegion, "id" | "name" | "ownerSub">[];
   contributions: FocusContribution[];
   unallocated: CustomerBudget[];

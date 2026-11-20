@@ -18,6 +18,7 @@ import { planningHref } from "../lib/planning-workspace";
 import type { FocusRow, FocusWorkspace } from "../../domains/planning/focus-model";
 import { focusNeedsAttention } from "../../domains/planning/focus-attention";
 import { RevenueValue, KeyCoverage, DecisionChains, CoverageAttention } from "./coverage";
+import { ContactPreview } from "../components/contact-preview";
 import { FocusEditor } from "./editor";
 import { startFocusDraft } from "./focus-actions";
 
@@ -91,18 +92,18 @@ function FocusPrimaryAction({ workspace: w, busy, onAdd, onStart }: Readonly<{ w
   return <PageActionButton intent="primary" asChild><Link href={href}>{T.continueDraft}</Link></PageActionButton>;
 }
 function focusColumns(w: FocusWorkspace, text: ReturnType<typeof useMessages>): ComponentProps<typeof CollectionTable<FocusRow>>["columns"] {
-  const { FOCUS_TEXT: T, POSITION_TEXT: P } = text;
+  const { FOCUS_TEXT: T, POSITION_TEXT: P, ACCOUNT_TEXT: A } = text;
   return [
     { id: "name", header: T.customer, track: "subject", sortable: true, cell: r => <CollectionTitleCell title={<Link href={focusHref({ ...w, revisionId: w.revision?.id, accountId: r.id })} className="hover:text-primary-text">{r.name}</Link>} description={<>{r.accountNo} / {tierLabel(r.tier, P)}</>}/> },
     { id: "region", header: T.region, track: "count", sortable: true, cell: r => r.regions.map(r => r.name).join(" / ") || T.regionPending },
     { id: "revenue", header: T.revenue, track: "amount", align: "numeric", sortable: true, cell: r => <RevenueValue row={r}/> },
-    { id: "coverage", header: T.relationshipCoverage, track: "coverage", sortable: true, cell: r => <div className="flex flex-col gap-xs text-body"><div className="flex flex-wrap items-center gap-xs"><span className="text-muted-foreground">{T.keyCoverage}:</span><KeyCoverage coverage={r.coverage}/></div><div className="flex flex-wrap items-center gap-xs"><span className="text-muted-foreground">{T.decisionChains}:</span><DecisionChains coverage={r.coverage}/></div></div> },
+    { id: "coverage", header: T.relationshipCoverage, track: "coverage", sortable: true, cell: r => <div className="flex flex-col gap-xs text-body"><div className="flex min-w-0 items-center gap-xs"><span className="shrink-0 text-muted-foreground">{A.contactsTitle}:</span><ContactPreview accountId={r.id} summary={r.contacts}/></div><div className="flex flex-wrap items-center gap-xs"><span className="text-muted-foreground">{T.keyCoverage}:</span><KeyCoverage coverage={r.coverage}/></div><div className="flex flex-wrap items-center gap-xs"><span className="text-muted-foreground">{T.decisionChains}:</span><DecisionChains coverage={r.coverage}/></div></div> },
     { id: "next", header: T.next, track: "direction", sortable: true, cell: r => <NextAction row={r}/> },
     { id: "status", header: T.status, track: "attention", sortable: true, cell: r => <div className="flex flex-col items-start gap-xs"><Tag>{r.actions.length ? T.withAction : T.withoutAction}</Tag><CoverageAttention row={r}/></div> },
   ];
 }
 function FocusResults({ workspace: w, rows, view, actions }: Readonly<{ workspace: FocusWorkspace; rows: FocusRow[]; view: string; actions: (row: FocusRow) => ReactNode }>) {
-  const messages = useMessages(), { FOCUS_TEXT: T, POSITION_TEXT: P, DATA_TABLE_LABELS } = messages;
+  const messages = useMessages(), { FOCUS_TEXT: T, POSITION_TEXT: P, ACCOUNT_TEXT: A, DATA_TABLE_LABELS } = messages;
   const table = useTableSort(rows, { name: r => r.name, region: r => r.regions.map(r => r.name).join(" "), revenue: r => r.revenue.length === 1 ? Number(r.revenue[0].amount) : null, coverage: r => coverageRatio(r), next: r => [...r.actions].sort((a,b) => a.due.localeCompare(b.due))[0]?.due ?? null, status: r => r.actions.length });
 
   const link = (r: FocusRow) => focusHref({ ...w, revisionId: w.revision?.id, accountId: r.id });
@@ -111,7 +112,7 @@ function FocusResults({ workspace: w, rows, view, actions }: Readonly<{ workspac
   return <div className="@container"><div className="grid grid-cols-1 gap-md @3xl:grid-cols-2 @7xl:grid-cols-3">{rows.map(r => <MetricListCard key={r.id}
       title={<Link href={link(r)} className="line-clamp-2 text-body font-semibold hover:text-primary-text">{r.name}</Link>} actions={actions(r)}
       note={<span className="flex flex-wrap items-center gap-sm"><span>{r.accountNo}</span><Tag>{tierLabel(r.tier, P)}</Tag></span>}
-      footer={<div className="flex w-full min-w-0 flex-col gap-md text-body"><div className="flex items-start gap-sm"><Icon name="map-pin" size="sm" className="mt-2xs shrink-0 text-muted-foreground"/><span className="text-muted-foreground">{T.region}:</span><span className="line-clamp-2">{r.regions.map(r => r.name).join(" / ") || T.regionPending}</span></div><div className="flex items-center gap-sm"><Icon name="user" size="sm" className="text-muted-foreground"/><span className="text-muted-foreground">{T.accountOwner}:</span><MemberName sub={r.ownerSub}/></div><div className="flex items-center justify-between gap-sm border-t border-border pt-md"><span className="text-muted-foreground">{T.revenue}:</span><RevenueValue row={r}/></div><div className="flex flex-wrap items-center justify-between gap-sm"><span className="text-muted-foreground">{T.keyCoverage}:</span><KeyCoverage coverage={r.coverage}/></div><div className="flex flex-wrap items-center justify-between gap-sm"><span className="text-muted-foreground">{T.decisionChains}:</span><DecisionChains coverage={r.coverage}/></div><CoverageAttention row={r}/><div className="border-t border-border pt-md"><NextAction row={r}/></div></div>}/>)}</div></div>;
+      footer={<div className="flex w-full min-w-0 flex-col gap-md text-body"><div className="flex items-start gap-sm"><Icon name="map-pin" size="sm" className="mt-2xs shrink-0 text-muted-foreground"/><span className="text-muted-foreground">{T.region}:</span><span className="line-clamp-2">{r.regions.map(r => r.name).join(" / ") || T.regionPending}</span></div><div className="flex items-center gap-sm"><Icon name="user" size="sm" className="text-muted-foreground"/><span className="text-muted-foreground">{T.accountOwner}:</span><MemberName sub={r.ownerSub}/></div><div className="flex items-center justify-between gap-sm border-t border-border pt-md"><span className="text-muted-foreground">{T.revenue}:</span><RevenueValue row={r}/></div><div className="flex min-w-0 items-center justify-between gap-sm"><span className="shrink-0 text-muted-foreground">{A.contactsTitle}:</span><ContactPreview accountId={r.id} summary={r.contacts}/></div><div className="flex flex-wrap items-center justify-between gap-sm"><span className="text-muted-foreground">{T.keyCoverage}:</span><KeyCoverage coverage={r.coverage}/></div><div className="flex flex-wrap items-center justify-between gap-sm"><span className="text-muted-foreground">{T.decisionChains}:</span><DecisionChains coverage={r.coverage}/></div><CoverageAttention row={r}/><div className="border-t border-border pt-md"><NextAction row={r}/></div></div>}/>)}</div></div>;
 }
 
 function coverageRatio(row: FocusRow) {
