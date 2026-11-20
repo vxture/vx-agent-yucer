@@ -26,10 +26,7 @@ export function CompanyTargetSummary({
 }) {
   const locale = useLocale();
   const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P } = useMessages();
-  const format = (value: string | number | null | undefined) =>
-    value == null
-      ? "\u2014"
-      : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
+  const format = planningNumberFormatter(locale);
   const members = new Set(
     content.team.filter((t) => t.memberSub).map((t) => t.memberSub),
   ).size;
@@ -154,10 +151,7 @@ export function CompanyTargetAllocation({
 }) {
   const locale = useLocale();
   const { PLAN_VERSION_TEXT: T } = useMessages();
-  const format = (value: string | number | null | undefined) =>
-    value == null
-      ? "\u2014"
-      : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
+  const format = planningNumberFormatter(locale);
   const { allocated, balance, unknown } = companyAllocation(content, target);
   const { PLAN_WORKSPACE_TEXT: W } = useMessages();
 
@@ -177,4 +171,9 @@ export function CompanyTargetAllocation({
       {unknown ? <span>{W.unknownTargets} {unknown}</span> : null}
     </span>
   );
+}
+
+function planningNumberFormatter(locale: string) {
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+  return (value: string | number | null | undefined) => value == null ? "\u2014" : number.format(Number(value));
 }

@@ -138,7 +138,7 @@ function MarketOfferings({ market:m }: { readonly market: SelectedMarket }) {
   const unavailable = m.solutions === null || m.products === null;
   const empty = !unavailable && !rows.length;
   return <>
-    {rows.slice(0,2).map(row=><Link key={row.key} href={row.href} className="inline-flex min-w-0 items-start gap-xs transition-colors hover:text-primary-text" title={row.name}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span className="line-clamp-1 break-words">{row.name}</span></Link>)}
+    {rows.slice(0,2).map(row=><Link key={row.key} href={row.kind === "product" ? `/catalog?product=${encodeURIComponent(row.id)}` : `/solution?solution=${encodeURIComponent(row.id)}`} className="inline-flex min-w-0 items-start gap-xs transition-colors hover:text-primary-text" title={row.name}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span className="line-clamp-1 break-words">{row.name}</span></Link>)}
     {rows.length>2?<Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className="text-body-small text-muted-foreground hover:text-primary-text">+{rows.length-2}</Link>:null}
     {unavailable ? <span className="text-muted-foreground">{T.unknown}</span> : null}
     {empty ? <span className="text-muted-foreground">{T.noPlanSolutions}</span> : null}

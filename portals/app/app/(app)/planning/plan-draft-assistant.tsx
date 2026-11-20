@@ -6,10 +6,10 @@ import type { PlanningDraftContext } from "../../domains/planning/plan-assist-dr
 import type { PlanContent } from "../../domains/planning/plan-model";
 import { assistPlanningDraft } from "./assist-action";
 
-export function PlanDraftAssistant({ content, context, edit, disabled, onBusy }: {
+export function PlanDraftAssistant({ content, context, edit, disabled, onBusy }: Readonly<{
   content: PlanContent; context: PlanningDraftContext; edit: (c: PlanContent) => void; disabled: boolean;
   onBusy: (busy: boolean) => void;
-}) {
+}>) {
   const { PLAN_WORKSPACE_TEXT: W, PLAN_VERSION_ERROR: E } = useMessages();
   const current = useRef(content); current.current = content;
   const values = { name: [String(context.year), content.regions.find(r => r.id === context.regionId)?.name].filter(Boolean).join(" \u00b7 "), content };

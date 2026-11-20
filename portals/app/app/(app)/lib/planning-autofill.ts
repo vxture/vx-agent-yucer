@@ -165,7 +165,7 @@ export function updatePlanningAmount(
               t.scope === line.scope &&
               t.metric === line.metric &&
               t.currency === line.currency &&
-              new RegExp(`^${content.year}Q[1-3]$`).test(t.period),
+              [1, 2, 3].some(q => t.period === `${content.year}Q${q}`),
           )
           .reduce(
             (sum, t) => sum + (t[field] === null ? 0n : minor(t[field]!)),

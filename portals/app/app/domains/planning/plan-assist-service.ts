@@ -65,6 +65,6 @@ function planningAssistRequestError(ctx: SalesPlanContext, input: PlanningAssist
 function validAssistDraft(plan: SalesPlan | null, input: PlanningAssistInput, at: string) {
   if (!plan) return null;
   const state = planVersions(plan, at), draft = state.draft;
-  if (!draft || draft.id !== input.revisionId || draft.editToken !== input.editToken || state.closed || draft.baseId !== (state.current?.id ?? null)) return null;
+  if (draft?.id !== input.revisionId || draft.editToken !== input.editToken || state.closed || draft.baseId !== (state.current?.id ?? null)) return null;
   return draft;
 }

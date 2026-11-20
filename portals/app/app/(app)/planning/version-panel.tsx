@@ -165,7 +165,8 @@ export function PlanningVersionPanel({
       : plan && state.current
         ? companyPlanningRevision(plan, state.current)
         : null;
-  const regionalBasis = plan && revision ? regionalPlanningRevision(plan, revision.state === "draft" ? state.current ?? revision : revision) : null;
+  const regionalReference = revision?.state === "draft" ? state.current ?? revision : revision;
+  const regionalBasis = plan && regionalReference ? regionalPlanningRevision(plan, regionalReference) : null;
   const managedLegacyIds =
     companyEditing && !c?.regions.length ? legacyCompanyIds : legacyIds;
   const publishLabel = companyEditing
@@ -173,6 +174,9 @@ export function PlanningVersionPanel({
     : regionalEditing
       ? T.publishRegions
       : T.publish;
+  let draftStateLabel: string = T.draft;
+  if (companyEditing) draftStateLabel = W.scopeCompany;
+  if (regionalEditing) draftStateLabel = W.scopeRegions;
   const dirty =
     editing && JSON.stringify(c) !== JSON.stringify(state.draft?.content);
   const [diffSection, setDiffSection] = useState("all");
@@ -226,9 +230,24 @@ export function PlanningVersionPanel({
       event.preventDefault();
       event.returnValue = "";
     };
+    const leavePage = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = (event.target as Element)?.closest("a");
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const destination = new URL(link.href, window.location.href);
+      if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+      if (!window.confirm(W.leaveDraft)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [dirty]);
+    document.addEventListener("click", leavePage, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", leavePage, true);
+    };
+  }, [dirty, W.leaveDraft]);
   const inFlight = useRef(false);
   const requests = useRef(new Map<string, string>());
   const edit = editing
@@ -529,7 +548,7 @@ export function PlanningVersionPanel({
             {state.closed ? <Tag>{T.closed}</Tag> : null}
             {editing ? (
               <StatusBadge tone="warning">
-                {dirty ? T.dirty : companyEditing ? W.scopeCompany : regionalEditing ? W.scopeRegions : T.draft}
+                {dirty ? T.dirty : draftStateLabel}
               </StatusBadge>
             ) : revision ? (
               <StatusBadge tone="info">

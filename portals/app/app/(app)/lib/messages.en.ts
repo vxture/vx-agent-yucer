@@ -147,6 +147,7 @@ export const en: Dictionary = {
   "progress": "Fulfillment progress"
 },
   PLAN_WORKSPACE_TEXT: {
+    leaveDraft: "This draft has unsaved changes. Leave and discard those changes?",
     regionsHelp: "Regional targets follow the published company plan. Customer support uses annual revenue contributions only, without adding quarters. Missing support is unknown, not zero. Customers are deduplicated by UUID, including action-only customers. Assign regional owners explicitly.",
     deployedCustomers: "Deployed customers", deployment: "Deployment",
     searchRegions: "Search region or province", allRegions: "All regions", customerSupport: "Customer support", supportGap: "Support gap", ownerPending: "Owner unassigned", customerUnit: "customers", actionUnit: "actions", unknownTargets: "Unconfirmed regions",

@@ -79,7 +79,7 @@ test("another editor's save during a model call cannot return a stale patch", as
 test("prose claims/unknown fields/invalid amounts fail; a failed turn provides retry recovery", async () => {
   const h = await harness(); h.reply("Saved your plan");
   assert.equal((await preparePlanningDraft(h.ctx, h.input, h.deps)).ok, false);
-  for (const fields of [{ publish: true }, { targets: [{ metric: "revenue", value: "-1" }] }, { targets: [{ metric: "new_logo", value: "1.2" }] }])
+  for (const fields of [{ targets: [{ metric: ["revenue"], value: "1" }] }, { publish: true }, { targets: [{ metric: "revenue", value: "-1" }] }, { targets: [{ metric: "new_logo", value: "1.2" }] }])
     assert.equal(readPlanningDraft(JSON.stringify({ fields })), null);
   h.fail(); const failure = await preparePlanningDraft(h.ctx, h.input, h.deps);
   assert.ok(!failure.ok && "recovery" in failure && failure.recovery);
