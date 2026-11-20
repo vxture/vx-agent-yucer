@@ -54,11 +54,7 @@ export async function prepareFocusDraft(ctx: SalesPlanContext, input: FocusAssis
     const target = draft.content.targets.find(t => t.key === input.targetKey && t.scope === `territory:${input.regionId}`);
     if (!region || (input.targetKey && !target)) return { ok: false as const, error: "invalid_input" };
     const title = `[focus-draft] ${digest({ workspace: ctx.workspaceId, actor: ctx.sub, year: input.year, revision: draft.id, token: draft.editToken, account: input.accountId, region: input.regionId, target: input.targetKey }).slice(0,24)}`;
-    if (input.sessionId) {
-      const session = await deps.copilotStore.getSession(ctx.workspaceId, input.sessionId);
-      if (session?.actorSub !== ctx.sub || session.title !== title) return { ok: false as const, error: "not_found" };
-    }
-    const sessionId = input.sessionId ?? (await deps.copilotStore.createSession(ctx.workspaceId, { actorSub: ctx.sub, title, subjectType: "account", subjectId: input.accountId })).id;
+    const sessionId = await focusSession(ctx, deps.copilotStore, input, title);
     const framing = `${title}
 Prepare the customer deployment form, never save or publish. Reply in ${deps.locale}.
 Context: ${JSON.stringify({ account: deps.account, year: input.year, region: { id: region.id, name: region.name }, target, existing: input.values })}
@@ -83,4 +79,11 @@ function responseError(parsed: ReturnType<typeof readFocusDraft>, metric: string
 
 function assistAllowed(ctx: SalesPlanContext) {
   return ctx.scope.kind === "workspace" && can(ctx.holder, ctx.entitlement, "planning.target.update", "data").allowed && can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed;
+}
+
+async function focusSession(ctx: SalesPlanContext, store: CopilotStore, input: FocusAssistInput, title: string) {
+  if (!input.sessionId) return (await store.createSession(ctx.workspaceId, { actorSub: ctx.sub, title, subjectType: "account", subjectId: input.accountId })).id;
+  const session = await store.getSession(ctx.workspaceId, input.sessionId);
+  if (session?.actorSub !== ctx.sub || session.title !== title) throw new PlanError("not_found");
+  return input.sessionId;
 }
