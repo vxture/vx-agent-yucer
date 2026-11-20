@@ -1750,6 +1750,15 @@ export const en: Dictionary = {
   },
 
   CATALOG_ERROR: {
+  invalid_input: "Enter a valid business request of up to 4000 characters.",
+  no_active_tenant: "Choose an organization and workspace first.",
+  invalid_draft: "No reliable draft fields were returned. Your form is retained; try again.",
+  empty_question: "Describe the product or solution use case first.",
+  invalid_retry: "The conversation has advanced. Send your request again.",
+  quota_exceeded: "The workspace assistant quota is exhausted.",
+  tenant_required: "Choose an organization and workspace first.",
+  turn_failed: "Filling did not complete. Your form is retained; try again.",
+  turn_in_progress: "The assistant is working. Wait for this turn to finish.",
   product_novelty_invalid: "Choose a valid product attribute",
   number_taken: "This number is already in use. Enter another.",
   number_busy: "Number allocation is busy. Try saving again.",
@@ -1849,6 +1858,13 @@ export const en: Dictionary = {
     accept: "Accept",
   },
   CATALOG_TEXT: {
+  catalogAssistApplied: (count: number) => count ? `Updated ${count} fields. Review and save when ready.` : "No form changes this turn. Existing values are retained.",
+  productAssistTask: "Product draft",
+  productAssistExample: "Example: Add an enterprise knowledge software subscription per user; complete its name and category",
+  solutionAssistTask: "Solution draft",
+  solutionAssistExample: "Example: Prepare a store digitization bundle for midmarket retailers with suitable products, quantities and optional services",
+  catalogAssistWelcome: "Describe the use case. I will prepare a draft from the existing catalog for your review and save.",
+
   productNameExample: "E.g. store management software",
   productNumber: "Product number",
   productNumberHint: "Use the suggested number or enter your own product number.",

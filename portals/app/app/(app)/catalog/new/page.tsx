@@ -1,3 +1,4 @@
+import { assistProductDraft } from "./assist-action";
 import { nextBusinessCode } from "../../../domains/shared/business-code";
 import { ViewHeader } from "../../components/business-controls";
 
@@ -59,6 +60,8 @@ export default async function NewProductPage({
               statuses={statuses}
               units={units}
               initial={initial}
+              canAssist={can(authz, entitlement, "copilot.ask", "ui").allowed}
+              onAssist={assistProductDraft}
               onSave={saveProduct}
             />
             {!editing ? (

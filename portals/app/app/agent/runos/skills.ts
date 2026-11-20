@@ -43,7 +43,9 @@ export interface SkillBundle {
   frontmatter: SkillFrontmatter;
   /** sha256 recorded at registration; present on every distributed result. */
   digest?: string;
-  /** True when we recomputed the digest over the content and it matched. */
+  /** Digest of the delivered package, distinct from registration identity. */
+  deliveryDigest?: string;
+  /** True only when the declared delivery format covers all received bytes. */
   digestVerified: boolean;
   callId?: string;
   fetchedAt: number;
@@ -92,20 +94,48 @@ export function readDistribution(
     return typeof value.uri === "string" && typeof value.text === "string" && typeof value.mimeType === "string"
       ? [{ uri: value.uri, mimeType: value.mimeType, text: value.text }] : [];
   });
+  const deliveryDigest = typeof result.meta.delivery_digest === "string" ? result.meta.delivery_digest : undefined;
+  const version = typeof result.meta.version_resolved === "string" ? result.meta.version_resolved : opts.requestedVersion ?? "stable";
+  let digestVerified = false;
+  if (deliveryDigest && result.meta.delivery_digest_format === "skill-package-v1") {
+    if (result.content[0]?.type !== "text" || result.content.length !== resources.length + 1) {
+      throw new SkillDistributionError(`${capabilityId} distributed an invalid package layout`);
+    }
+    const prefix = `skill://${capabilityId}/${version}/`;
+    if (resources.some(resource => !resource.uri.startsWith(prefix))) {
+      throw new SkillDistributionError(`${capabilityId} distributed a resource outside its package`);
+    }
+    const actual = skillDeliveryDigest(content, resources.map(resource => ({
+      path: resource.uri.slice(prefix.length), mimeType: resource.mimeType, text: resource.text,
+    })));
+    if (actual !== deliveryDigest.toLowerCase().replace(/^sha256:/, "")) {
+      throw new SkillDistributionError(`${capabilityId} distributed a package with a mismatched delivery digest`);
+    }
+    digestVerified = true;
+  }
   return {
     capabilityId,
-    version: (result.meta.version_resolved as string) ?? opts.requestedVersion ?? "stable",
+    version,
     content,
     resources,
     frontmatter: parseFrontmatter(content),
     digest,
-    digestVerified: digest ? sha256(content) === digest.toLowerCase().replace(/^sha256:/, "") : false,
+    deliveryDigest,
+    digestVerified,
     callId: typeof result.meta.call_id === "string" ? result.meta.call_id : undefined,
     // Stamped from the CALLER's clock, not Date.now(): SkillLoader's TTL is
     // compared against this value, so the two must be the same clock or entries
     // never expire.
     fetchedAt: (opts.now ?? Date.now)(),
   };
+}
+
+/** skill-package-v1: fixed JSON key order is the canonical ordinal order.
+ * Preserve exact text, array order, path and MIME type; do not normalize. */
+export function skillDeliveryDigest(content: string, resources: readonly { path: string; mimeType: string; text: string }[]): string {
+  return sha256(JSON.stringify({ content, resources: resources.map(resource => ({
+    mimeType: resource.mimeType, path: resource.path, text: resource.text,
+  })) }));
 }
 
 export function sha256(text: string): string {
@@ -136,14 +166,9 @@ export function parseFrontmatter(md: string): SkillFrontmatter {
   return out;
 }
 
-/**
- * Fetch-and-cache for skills.
- *
- * Cached by (capability_id, resolved version, digest): the digest is what makes
- * the cache safe, because a re-registered skill under the same version string
- * changes the digest and therefore misses. TTL exists only to pick up a
- * republish within the same version, not to guard correctness.
- */
+/** Cache within the tenant/workspace and caller authorization context. A new
+ * ticket/delegation gets a fresh gateway decision. TTL refreshes moving aliases;
+ * registration and delivery digests have different scopes, never interchange. */
 export class SkillLoader {
   private cache = new Map<string, SkillBundle>();
 
@@ -158,7 +183,8 @@ export class SkillLoader {
     ctx: RunosContext,
     version: VersionRef = "stable",
   ): Promise<SkillBundle> {
-    const key = `${capabilityId}@${version}`;
+    const key = JSON.stringify([capabilityId, version, ctx.tenantId, ctx.workspaceId,
+      sha256(ctx.subjectToken ?? ""), sha256(ctx.delegationToken ?? "")]);
     const hit = this.cache.get(key);
     if (hit && this.now() - hit.fetchedAt < this.ttlMs) return hit;
 
@@ -190,7 +216,7 @@ export class SkillLoader {
       return;
     }
     for (const k of [...this.cache.keys()]) {
-      if (k.startsWith(`${capabilityId}@`)) this.cache.delete(k);
+      if ((JSON.parse(k) as string[])[0] === capabilityId) this.cache.delete(k);
     }
   }
 }
