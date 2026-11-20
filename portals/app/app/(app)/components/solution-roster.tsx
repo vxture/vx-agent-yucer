@@ -82,6 +82,7 @@ export interface SolutionRosterProps {
    renders - a money cell sorts on the raw amount, not its formatted string. */
 const SORT_ON = {
   name: (r: SolutionView) => r.solution.name,
+  composition: (r: SolutionView) => r.items.length,
 };
 
 const EMPTY_FACTS: SolutionFacts = {
@@ -182,6 +183,7 @@ export function SolutionRoster({
     },
     {
       id: "composition",
+      sortable: true,
       header: CATALOG_TEXT.colComposition,
       track: "composition" as const,
       cell: (r: SolutionView) => (

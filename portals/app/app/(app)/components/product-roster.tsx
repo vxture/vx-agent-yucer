@@ -119,7 +119,10 @@ export function ProductRoster({
     (params.get("sel")?.split(",") ?? []).filter((id) => products.some((p) => p.id === id)));
   const sorted = useTableSort<ProductRecord>([], {
     ...SORT_ON,
-    ...(pricing ? { list: (row: ProductRecord) => priceByProduct.get(row.id)?.listPrice ?? -1 } : {}),
+    type: (row: ProductRecord) => typeLabel(types,row.typeId)?.name ?? null,
+    unit: (row: ProductRecord) => units.find(unit=>unit.id===row.unitId)?.name ?? null,
+    status: (row: ProductRecord) => statuses.find(status=>status.id===row.statusId)?.sortOrder ?? null,
+    ...(pricing ? { list: (row: ProductRecord) => priceByProduct.get(row.id)?.listPrice ?? null } : {}),
   });
   const { toast } = useToast();
 
@@ -208,6 +211,7 @@ export function ProductRoster({
     },
     {
       id: "type",
+      sortable: true,
       header: CATALOG_TEXT.colType,
       align: "left" as const,
       track: "category" as const,
@@ -216,6 +220,7 @@ export function ProductRoster({
     },
     {
       id: "unit",
+      sortable: true,
       header: CATALOG_TEXT.colUnitPrice,
       track: "unit" as const,
       /* THE NAME, resolved from the vocabulary (0037). The row carries a uuid;
@@ -234,6 +239,7 @@ export function ProductRoster({
     }] : []),
     {
       id: "status",
+      sortable: true,
       header: CATALOG_TEXT.colStatus,
       track: "state" as const,
       cell: statusBadge,

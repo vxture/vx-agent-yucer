@@ -10,6 +10,7 @@ import { CollectionTable, CollectionTitleCell } from "./collection-table";
 import { useCollectionView } from "./collection-view-provider";
 import { FilterSlot, RowActions, SearchSlot, moveItems, useTableSort } from "./table-fittings";
 import { strategyOfferings } from "../lib/strategy-offerings";
+import { marketSortAccessors } from "../lib/collection-sort";
 import { segmentSummary } from "../../domains/strategy/lib/segment-summary";
 import { LibraryCardFact, MarketOfferingCard } from "./market-offering-card";
 import { StrategyQuantity } from "./strategy-detail-label";
@@ -39,7 +40,7 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
   const [compare,setCompare] = useState(false);
   const [pending,start] = useTransition();
   const {toast} = useToast();
-  const sorted = useTableSort<MarketView>([],{name:m=>m.name,customers:m=>m.matched});
+  const sorted = useTableSort<MarketView>([],marketSortAccessors);
   const run = (action: () => Promise<{ok:boolean;error?:string}>) => start(async () => {
     try {const r=await action();if(!r.ok)toast({tone:"danger",title:SEGMENT_ERROR[r.error ?? "denied"] ?? SEGMENT_ERROR.denied});}
     catch {toast({tone:"danger",title:SEGMENT_ERROR.denied});}
@@ -72,9 +73,9 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
         <span className="line-clamp-1 text-body-small text-muted-foreground">{[m.criteria.sizes?.join(" / "),m.criteria.regions.join(" / ")].filter(Boolean).join(" \u00b7 ") || T.unlimited}</span>
       </div>},
       {id:"customers",header:T.customerCount,sortable:true,track:"count",cell:m=><StrategyQuantity value={m.matched ?? "-"} unit={m.matched === null ? undefined : D.customerUnit}/>},
-      {id:"offerings",header:T.productSolutionsTitle,track:"count",cell:m=>m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : <StrategyQuantity value={m.defaultSolutions.length + m.defaultProducts.length} unit={D.recordUnit}/>},
-      {id:"plan",header:T.linkedPlan,track:"count",cell:m=><span title={m.plans?.map(p=>p.name).join(" / ")}><StrategyQuantity value={m.plans?.length ?? "-"} unit={m.plans === null ? undefined : D.strategyUnit}/></span>},
-      {id:"status",header:T.status,track:"state",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
+      {id:"offerings",sortable:true,header:T.productSolutionsTitle,track:"count",cell:m=>m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : <StrategyQuantity value={m.defaultSolutions.length + m.defaultProducts.length} unit={D.recordUnit}/>},
+      {id:"plan",sortable:true,header:T.linkedPlan,track:"count",cell:m=><span title={m.plans?.map(p=>p.name).join(" / ")}><StrategyQuantity value={m.plans?.length ?? "-"} unit={m.plans === null ? undefined : D.strategyUnit}/></span>},
+      {id:"status",sortable:true,header:T.status,track:"state",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
     ]}
     rowActions={rowActions}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}
