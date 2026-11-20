@@ -1,3 +1,5 @@
+import { currentStrategyPlans } from "./lib/current-plans";
+export { currentStrategyPlans } from "./lib/current-plans";
 import { BusinessCodeCollision, BusinessRecordMissing, type BusinessWrite } from "../shared/business-code";
 // D1 strategy and D3 campaign persistence port.
 //
@@ -98,16 +100,6 @@ export function captureStrategyPublication(plan: PlanRecord, solutions: readonly
     strategyTypeId:plan.strategyTypeId ?? null,strategyType:plan.strategyType ?? null,objective:plan.objective,ownerSub:plan.ownerSub,ownerName,sharedSolutionIds:plan.solutionIds,sharedProductIds:plan.productIds ?? [],products,
     targetMarkets:plan.targetMarkets ?? [],solutions});
 }
-/** One overview entry per lineage. A revision draft never displaces a publication. */
-export function currentStrategyPlans<T extends Pick<PlanRecord,"id"|"lineageId"|"versionNo"|"status">>(plans: readonly T[]): T[] {
-  const groups = new Map<string,T[]>();
-  for (const p of plans) {const key=p.lineageId ?? p.id;groups.set(key,[...(groups.get(key) ?? []),p]);}
-  return [...groups.values()].flatMap(rows=>{
-    const published=rows.filter(p=>p.versionNo != null).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0));
-    return published[0] ? [published[0]] : [rows.find(p=>p.status==="draft") ?? rows[0]!];
-  });
-}
-
 /** A selected catalog row disappeared between validation and the write. */
 export class PlanSolutionUnavailableError extends Error {}
 export class PlanProductUnavailableError extends Error {}
