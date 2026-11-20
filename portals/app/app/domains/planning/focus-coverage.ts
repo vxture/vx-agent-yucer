@@ -33,26 +33,26 @@ export async function readFocusCoverage(ctx: FocusContext, rows: FocusRow[]) {
 }
 
 async function projectCoverage(ctx: FocusContext, rows: FocusRow[], source: (Deal & { status: string })[]) {
-    const ids = new Set(rows.map(row => row.id));
-    const deals = source.filter(deal => deal.status === "open" && ids.has(deal.accountId));
-    const byAccount = new Map<string, Deal[]>();
-    for (const deal of deals) {
-      const group = byAccount.get(deal.accountId) ?? [];
-      group.push(deal); byAccount.set(deal.accountId, group);
-    }
-    // Empty opportunity sets are known gaps, independent of the links source.
-    for (const row of rows) if (!byAccount.has(row.id)) row.coverage = summarize([]);
-    if (!deals.length) return;
-    const links = await ctx.accounts.listOpportunityContactsFor(ctx.workspaceId, deals.map(deal => deal.id));
-    const byDeal = new Map<string, Links>();
-    for (const link of links) {
-      const group = byDeal.get(link.opportunityId) ?? [];
-      group.push(link); byDeal.set(link.opportunityId, group);
-    }
-    const pending = rows.filter(row => byAccount.has(row.id));
-    for (let start = 0; start < pending.length; start += 6) {
-      await Promise.all(pending.slice(start, start + 6).map(row => readAccount(ctx, row, byAccount.get(row.id)!, byDeal)));
-    }
+  const ids = new Set(rows.map(row => row.id));
+  const deals = source.filter(deal => deal.status === "open" && ids.has(deal.accountId));
+  const byAccount = new Map<string, Deal[]>();
+  for (const deal of deals) {
+    const group = byAccount.get(deal.accountId) ?? [];
+    group.push(deal); byAccount.set(deal.accountId, group);
+  }
+  // Empty opportunity sets are known gaps, independent of the links source.
+  for (const row of rows) if (!byAccount.has(row.id)) row.coverage = summarize([]);
+  if (!deals.length) return;
+  const links = await ctx.accounts.listOpportunityContactsFor(ctx.workspaceId, deals.map(deal => deal.id));
+  const byDeal = new Map<string, Links>();
+  for (const link of links) {
+    const group = byDeal.get(link.opportunityId) ?? [];
+    group.push(link); byDeal.set(link.opportunityId, group);
+  }
+  const pending = rows.filter(row => byAccount.has(row.id));
+  for (let start = 0; start < pending.length; start += 6) {
+    await Promise.all(pending.slice(start, start + 6).map(row => readAccount(ctx, row, byAccount.get(row.id)!, byDeal)));
+  }
 }
 
 async function readAccount(ctx: FocusContext, row: FocusRow, deals: Deal[], links: Map<string, Links>) {

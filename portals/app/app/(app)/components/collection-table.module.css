@@ -56,3 +56,9 @@
  * full text before the sticky action column. Existing TD-038 width adapter. */
 .table th:has([data-collection-track="coverage"]) { width: calc(var(--vx-spacing) * 56); }
 .table th:has([data-collection-track="attention"]) { width: calc(var(--vx-spacing) * 40); }
+
+/* This schema has relationship summaries as well as next-action text. Keep
+ * both readable and let the DS table scroll within its own viewport. */
+.table > div > table:has([data-collection-track="coverage"]) {
+  min-width: var(--vx-container-7xl);
+}

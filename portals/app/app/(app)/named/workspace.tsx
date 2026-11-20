@@ -61,7 +61,7 @@ export function FocusWorkspaceView({ workspace: w }: { readonly workspace: Focus
 function NextAction({ row }: { readonly row: FocusRow }) {
   const { FOCUS_TEXT: T } = useMessages();
   const next = [...row.actions].sort((a,b) => a.due.localeCompare(b.due))[0];
-  return next ? <div className="flex min-w-0 flex-col gap-xs text-body"><span className="line-clamp-2">{next.objective}</span><span className="flex flex-wrap items-center gap-sm text-body text-muted-foreground"><MemberName sub={next.ownerSub}/><span>{next.due}</span></span></div> : <span className="text-body text-muted-foreground">{T.noAction}</span>;
+  return next ? <div className="flex min-w-0 flex-col gap-xs text-body"><span className="line-clamp-2">{next.objective}</span><span className="flex flex-wrap items-center gap-sm text-body text-muted-foreground"><MemberName sub={next.ownerSub}/><span className="whitespace-nowrap">{next.due}</span></span></div> : <span className="text-body text-muted-foreground">{T.noAction}</span>;
 }
 
 type FocusText = ReturnType<typeof useMessages>["FOCUS_TEXT"];
