@@ -3,9 +3,8 @@
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 
 import { Section } from "./help-section";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Button,
   Field,
@@ -19,7 +18,7 @@ import { ProductPriceValues } from "./product-price-values";
 import { solutionPricingFacts } from "../lib/solution-prices";
 import type { PriceValues } from "../lib/product-prices";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormFields, FormPage, type AssistSuggestion } from "./form-page";
+import { AssistPanel, FormFields, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
 import type {
   ProductRecord,
   ProductStatusRecord,
@@ -42,28 +41,6 @@ import type {
 // here after saving would ask them to find their own way back.
 
 type Saved = { ok: boolean; error?: string };
-
-function useSubmit(onDone: string) {
-  const router = useRouter();
-  const [err, setErr] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  return {
-    err,
-    pending,
-    run(fn: () => Promise<Saved>, errorOf: (code: string) => string) {
-      start(() => {
-        void fn().then((r) => {
-          if (r.ok) {
-            router.push(onDone);
-            router.refresh();
-          } else {
-            setErr(errorOf(r.error ?? "denied"));
-          }
-        });
-      });
-    },
-  };
-}
 
 // --- 新建产品 ---------------------------------------------------------------
 
@@ -123,7 +100,7 @@ export function NewProductForm({
   const [statusId, setStatusId] = useState(
     () => statuses.find((r) => r.statusCode === "active")?.id ?? "",
   );
-  const submit = useSubmit("/catalog");
+  const submit = useFormSubmit("/catalog");
 
   const ready = (!editing || code.trim() !== "") && name.trim() !== "" && unitId !== "";
   const savedCode = !editing && code.trim() === generatedCode ? "" : code.trim();
@@ -288,7 +265,7 @@ export function NewSolutionForm({
         // teaches that.
         [{ productId: "", quantity: "1", optional: false, note: "" }],
   );
-  const submit = useSubmit("/solution");
+  const submit = useFormSubmit("/solution");
 
   const onSaleId = statuses.find((r) => r.statusCode === "active")?.id ?? null;
   const active = products.filter((p) => p.statusId === onSaleId);
@@ -342,6 +319,7 @@ export function NewSolutionForm({
         /* No heading of its own: the page's header already says 新建方案 /
            修改方案 and what a solution is (owner 2026-09-28: 标题重复). */
         <Section>
+          <fieldset disabled={submit.pending} className="min-w-0 pb-[calc(3rem+env(safe-area-inset-bottom))]">
           <FormFields>
             <Field>
               <FieldLabel htmlFor="sol-code">{CATALOG_TEXT.colCode}</FieldLabel>
@@ -502,6 +480,7 @@ export function NewSolutionForm({
               {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
             </div>
           </div>
+          </fieldset>
         </Section>
       }
       assist={<AssistPanel suggestions={suggestions} />}

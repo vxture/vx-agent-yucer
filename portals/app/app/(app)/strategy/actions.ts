@@ -3,6 +3,7 @@
 import { goalExpectations, validStrategyResult } from "../../domains/strategy/lib/strategy-result";
 import { getAuthzStore } from "../../authz/store";
 import { revalidatePath } from "next/cache";
+import { revalidateEquipmentConsumers } from "../lib/equipment-revalidation";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getStrategyStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
@@ -64,8 +65,7 @@ export async function movePlan(id: string, to: string, editToken?: number): Prom
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/strategy", "layout");
-  revalidatePath("/segment", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -96,8 +96,7 @@ export async function createStrategyPlan(input: NewPlanDraft, autoNumber = false
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy", "layout");
-  revalidatePath("/segment", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true, id:result.value.id };
 }
 
@@ -137,8 +136,7 @@ export async function savePlan(
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy", "layout");
-  revalidatePath("/segment", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -153,7 +151,7 @@ export async function publishStrategyVersion(id:string,editToken:number):Promise
   const result=await publishStrategy({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,
     store:getStrategyStore(),catalog:getCatalogStore(),memberDirectory:getAuthzStore()},id,editToken);
   if(!result.ok)return {ok:false,error:result.violations[0]?.code ?? "denied"};
-  revalidatePath("/strategy","layout");revalidatePath("/campaign");revalidatePath("/segment", "layout");return {ok:true};
+  revalidateEquipmentConsumers();revalidatePath("/campaign");revalidatePath("/planning");revalidatePath("/attainment");return {ok:true};
 }
 
 export async function discardStrategyVersion(id: string, editToken: number): Promise<TransitionResult> {
@@ -202,8 +200,7 @@ export async function saveSegment(input: {
   if (!result.ok) {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
-  revalidatePath("/strategy", "layout");
-  revalidatePath("/segment", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -224,8 +221,7 @@ export async function changeSegmentStatus(
     { segmentId, status },
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/segment", "layout");
-  revalidatePath("/strategy", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -246,8 +242,7 @@ export async function moveSegmentRow(
     { segmentId, direction },
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/segment", "layout");
-  revalidatePath("/strategy", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -287,8 +282,7 @@ export async function deleteSegment(
     { segmentId, accountsCarrying: carrying },
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/segment", "layout");
-  revalidatePath("/strategy", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 

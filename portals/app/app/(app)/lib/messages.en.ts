@@ -54,6 +54,7 @@ import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/
  */
 
 const GATE_ERROR = {
+  save_failed: "Save failed. Check your connection and try again.",
   product_roster_unavailable: "Unable to read authorized members. Please try again.",
   not_authenticated: "Your session has expired - please sign in again",
   permission_denied: "You cannot perform this action",
