@@ -81,7 +81,7 @@ export const GROUP_ORDER: readonly string[] = [
  *  not filed under any of the five). */
 export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   armory: ["strategy", "segment", "solution", "catalog"],
-  deployment: ["namedAccount", "planning", "attainment"],
+  deployment: ["planning", "namedAccount", "attainment"],
   recon: ["campaign", "signal", "lead", "funnel"],
   position: ["account", "pipeline", "quote", "winLossReview"],
   settlement: ["delivery", "collection", "renewal", "contract"],

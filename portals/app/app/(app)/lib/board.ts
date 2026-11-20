@@ -563,7 +563,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     ? categories.value.filter((c) => c.verdict.kind === "suggested" && !c.verdict.agrees)
     : [];
   const dueRenewals = renewals.ok ? renewals.value.filter((r) => r.verdict.kind === "due") : [];
-  const namedAccounts = accounts.ok ? accounts.value.filter((a) => a.tier !== "standard") : [];
   const inDelivery = projects.ok
     ? projects.value.filter((p) => p.status === "active" || p.status === "on_hold")
     : [];
@@ -578,11 +577,9 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
 
     // 作战部署域
     territory: { metrics: count(territories, BOARD_TEXT.territories) },
-    namedAccount: {
-      metrics: accounts.ok
-        ? [{ label: BOARD_TEXT.namedAccounts, value: String(namedAccounts.length) }]
-        : [],
-    },
+    // Period-specific deployment is not the customer tier roster. No count
+    // until the board carries the exact planning year/revision/scope context.
+    namedAccount: { metrics: [] },
     planning: { metrics: count(targets, BOARD_TEXT.targets) },
     forecastRule: {
       // The DISAGREEMENTS, not the deal count. A forecast-rule page with

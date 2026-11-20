@@ -906,6 +906,17 @@
       },
       "reason": "Workspace strategy type configuration; reachable from configuration navigation and strategy overview.",
       "sample": "/admin/strategy"
+    },
+    {
+      "route": "/named/[id]",
+      "file": "(app)/named/[id]/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/lib/focus-workspace.ts",
+        "needle": "/named/${"
+      },
+      "reason": "Period/version-specific customer deployment detail from focus card and table titles.",
+      "sample": "/named/acc_demo_1?year=2026"
     }
   ],
   "preservedControls": {

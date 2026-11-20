@@ -551,22 +551,3 @@ export async function deleteAccountAction(accountId: string): Promise<{ ok: bool
   revalidatePath("/named");
   return { ok: true };
 }
-
-/** Read a visible customer's operating fields for the shared link drawer. */
-export async function loadAccountOperatingAction(accountId: string): Promise<
-  { ok: true; plan: (AccountPlanDraft & { status: "active" | "closed"; closeReason: string | null }) | null } |
-  { ok: false; error: string }
-> {
-  const session = await resolveAppSession();
-  if (!session) return { ok: false, error: "not_authenticated" };
-  const result = await accountPlanState({
-    workspaceId: session.workspaceId, sub: session.user.sub,
-    holder: session.authz, entitlement: session.entitlement, store: session.stores.account(),
-  }, accountId);
-  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  const plan = result.value;
-  return { ok: true, plan: plan ? {
-    period: plan.period, targetAmount: plan.targetAmount, contactCadenceDays: plan.contactCadenceDays,
-    execCadenceDays: plan.execCadenceDays, status: plan.status, closeReason: plan.closeReason ?? null,
-  } : null };
-}
