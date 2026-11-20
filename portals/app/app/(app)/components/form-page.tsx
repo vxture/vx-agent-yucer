@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -213,19 +213,29 @@ export function useFormSubmit(onDone: string) {
   const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Lock synchronously: two clicks can arrive before React commits disabled.
+  const inFlight = useRef(false);
   return {
     err,
     pending,
     run(fn: () => Promise<{ ok: boolean; error?: string }>, errorOf: (code: string) => string) {
-      start(() => {
-        void fn().then((r) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      setErr(null);
+      start(async () => {
+        try {
+          const r = await fn();
           if (r.ok) {
             router.push(onDone);
             router.refresh();
           } else {
             setErr(errorOf(r.error ?? "denied"));
           }
-        });
+        } catch {
+          setErr(errorOf("save_failed"));
+        } finally {
+          inFlight.current = false;
+        }
       });
     },
   };

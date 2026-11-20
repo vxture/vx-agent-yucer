@@ -1255,6 +1255,7 @@ export const CATALOG_TEXT = {
  * graph" - still overrides it. The shared default is the floor, not a ceiling.
  */
 const GATE_ERROR = {
+  save_failed: "\u4fdd\u5b58\u672a\u5b8c\u6210\uff0c\u8bf7\u68c0\u67e5\u7f51\u7edc\u540e\u91cd\u8bd5\u3002",
   product_roster_unavailable: "\u6682\u65f6\u65e0\u6cd5\u83b7\u53d6\u5df2\u6388\u6743\u6210\u5458\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5",
   not_authenticated: "登录状态已失效，请重新登录",
   permission_denied: "你没有执行这个操作的权限",

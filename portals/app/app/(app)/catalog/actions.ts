@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateEquipmentConsumers } from "../lib/equipment-revalidation";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore } from "../../domains/shared/registry";
 import {
@@ -73,9 +74,7 @@ export async function saveProduct(input: {
   // rendered verbatim inside a Chinese page. The code is a key; the sentence
   // belongs to the dictionary.
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
-  revalidatePath("/solution");
-  revalidatePath("/strategy", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -103,8 +102,7 @@ export async function saveSolution(input: {
   // rendered verbatim inside a Chinese page. The code is a key; the sentence
   // belongs to the dictionary.
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/solution");
-  revalidatePath("/strategy", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -116,8 +114,7 @@ export async function changeSolutionStatus(
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await setSolutionStatus(ctx, { solutionId, status });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/solution");
-  revalidatePath("/strategy", "layout");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -129,7 +126,7 @@ export async function moveSolutionRow(
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await moveSolution(ctx, { solutionId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/solution");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -138,7 +135,7 @@ export async function deleteSolution(solutionId: string): Promise<CatalogResult>
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await removeSolution(ctx, { solutionId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/solution");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -159,7 +156,7 @@ export async function savePrice(input: {
   // rendered verbatim inside a Chinese page. The code is a key; the sentence
   // belongs to the dictionary.
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -173,7 +170,7 @@ export async function changeProductStatus(
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await setProductStatus(ctx, { productId, statusId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -185,7 +182,7 @@ export async function moveProductRow(
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await moveProduct(ctx, { productId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/catalog/new");
   return { ok: true };
 }
@@ -195,7 +192,7 @@ export async function deleteProduct(productId: string): Promise<CatalogResult> {
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await removeProduct(ctx, { productId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
 
@@ -212,7 +209,7 @@ export async function saveProductTypes(input: {
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await saveProductTypesVerb(ctx, input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   return { ok: true };
 }
@@ -225,7 +222,7 @@ export async function setProductTypeStatusRow(
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await setProductTypeStatus(ctx, { typeId, status });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   return { ok: true };
 }
@@ -235,7 +232,7 @@ export async function deleteProductType(typeId: string): Promise<CatalogResult> 
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await removeProductType(ctx, { typeId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   return { ok: true };
 }
@@ -254,7 +251,7 @@ export async function saveUnitRow(input: {
      product surface - the roster's 单位 column and the quote line's "12 套" -
      so a rename that only invalidated the page it was typed on would leave the
      catalogue showing the old word. */
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   return { ok: true };
 }
@@ -267,7 +264,7 @@ export async function moveUnitRow(
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await moveProductUnit(ctx, { unitId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   return { ok: true };
 }
@@ -277,7 +274,7 @@ export async function deleteUnitRow(unitId: string): Promise<CatalogResult> {
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await removeProductUnit(ctx, { unitId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   return { ok: true };
 }
@@ -293,7 +290,7 @@ export async function saveStatusRow(input: {
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await saveProductStatus(ctx, input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   revalidatePath("/catalog/new");
   return { ok: true };
@@ -304,7 +301,7 @@ export async function deleteStatusRow(statusId: string): Promise<CatalogResult> 
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await removeProductStatus(ctx, { statusId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   revalidatePath("/catalog/new");
   return { ok: true };
@@ -318,7 +315,7 @@ export async function moveStatusRow(
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await moveProductStatus(ctx, { statusId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   revalidatePath("/admin/product");
   return { ok: true };
 }
@@ -328,6 +325,6 @@ export async function deletePriceEntry(priceId: string): Promise<CatalogResult> 
   if (!ctx) return { ok: false, error: "not_authenticated" };
   const r = await removePrice(ctx, { priceId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidateEquipmentConsumers();
   return { ok: true };
 }
