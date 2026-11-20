@@ -20,7 +20,7 @@ export default async function FocusDetailPage({ params, searchParams }: Readonly
     const data = await readFocusDetail(focusContext(session), { ...query, accountId: id });
     const range = data.workspace.periods.find(p => p.key === data.workspace.period)!;
     const canPipeline = can(session.authz, session.entitlement, "pipeline.view", "data").allowed;
-    const deals = canPipeline ? await listPipeline({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement, store: session.stores.pipeline() }, { accountId: id }) : null;
+    const deals = canPipeline ? await relatedPipeline({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement, store: session.stores.pipeline() }, id) : null;
     const opportunities = deals?.ok ? deals.value.filter(d => {
       const date = d.status === "open" ? d.expectedCloseAt : d.closedAt;
       return date && date.toISOString().slice(0, 10) >= range.start && date.toISOString().slice(0, 10) < range.end;
@@ -29,4 +29,9 @@ export default async function FocusDetailPage({ params, searchParams }: Readonly
     if (canPipeline) pipelineState = deals?.ok ? "ready" : "failed";
     return <ViewLayout><PageCrumbs trail={[{ label: DOMAIN_LABEL.namedAccount, href: focusHref({ ...data.workspace, revisionId: data.workspace.revision?.id }) }]} current={data.row.name}/><FocusDetailView key={`${data.workspace.revision?.id}:${data.workspace.editToken}:${data.workspace.eventNo}`} {...data} opportunities={opportunities} pipelineState={pipelineState}/></ViewLayout>;
   } catch (e) { return <EmptyState title={T.notFound} description={E[e instanceof PlanError ? e.code : "source_read_failed"] ?? T.error}/>; }
+}
+
+async function relatedPipeline(ctx: Parameters<typeof listPipeline>[0], accountId: string) {
+  try { return await listPipeline(ctx, { accountId }); }
+  catch { return null; } // Keep deployment readable while live evidence is unavailable.
 }

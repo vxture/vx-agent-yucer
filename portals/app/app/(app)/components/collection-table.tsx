@@ -4,7 +4,7 @@ import { TableTitleCell, cn, type DataTableColumn, type TableTitleCellProps } fr
 import { DataTable, type BusinessDataTableProps } from "./business-controls";
 import styles from "./collection-table.module.css";
 
-type Track = "direction" | "subject" | "criteria" | "reference" | "category" | "count" | "unit" | "state" | "composition" | "price" | "amount";
+type Track = "direction" | "subject" | "criteria" | "reference" | "category" | "count" | "unit" | "state" | "composition" | "price" | "amount" | "coverage" | "attention";
 type Column<Row> = Omit<DataTableColumn<Row>, "width"> & { readonly track?: Track };
 
 export function CollectionTitleCell(props: Omit<TableTitleCellProps, "size">) {
