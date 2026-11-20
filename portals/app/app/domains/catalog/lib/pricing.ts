@@ -236,6 +236,30 @@ export interface SolutionItemDraft {
   note?: string | null;
 }
 
+function solutionItemsViolation(
+  items: readonly SolutionItemDraft[],
+  previous?: readonly SolutionItemDraft[],
+) {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+      return violation("quantity_positive", `${item.productId} needs a quantity above zero`, "quantity");
+    }
+    if (!validSolutionQuantity(item.quantity)) {
+      return violation("quantity_precision", "quantity must fit NUMERIC(12,2)", "quantity");
+    }
+    const previousNote = previous?.find(row => row.productId === item.productId)?.note;
+    if (catalogTextTooLong("note", item.note, previousNote)) {
+      return violation("catalog_text_too_long", "solution item note exceeds its display limit", "note");
+    }
+    if (seen.has(item.productId)) {
+      return violation("duplicate_product", `${item.productId} appears twice; use one line with the total`, "productId");
+    }
+    seen.add(item.productId);
+  }
+  return null;
+}
+
 /**
  * A solution is a bundle, so it must contain something.
  *
@@ -264,24 +288,8 @@ export function planSolution(
       violation("items_required", "a solution with no products is a name, not a bundle", "items"),
     );
   }
-  const seen = new Set<string>();
-  for (const it of items) {
-    if (!Number.isFinite(it.quantity) || it.quantity <= 0) {
-      return fail(
-        violation("quantity_positive", `${it.productId} needs a quantity above zero`, "quantity"),
-      );
-    }
-    if (!validSolutionQuantity(it.quantity)) return fail(violation("quantity_precision", "quantity must fit NUMERIC(12,2)", "quantity"));
-    if (catalogTextTooLong("note", it.note, previous?.items.find(row => row.productId === it.productId)?.note)) {
-      return fail(violation("catalog_text_too_long", "solution item note exceeds its display limit", "note"));
-    }
-    if (seen.has(it.productId)) {
-      return fail(
-        violation("duplicate_product", `${it.productId} appears twice; use one line with the total`, "productId"),
-      );
-    }
-    seen.add(it.productId);
-  }
+  const itemViolation = solutionItemsViolation(items, previous?.items);
+  if (itemViolation) return fail(itemViolation);
   // A SOLUTION NEEDS A STANDARD CORE (incr/0031). Everything optional is a
   // menu - a list of things that could be bought - and quoting from it starts
   // from nothing. What makes a bundle a solution is that some of it is the
