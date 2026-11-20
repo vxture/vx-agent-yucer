@@ -27,7 +27,7 @@ export async function prepareCatalogDraft(ctx: CatalogContext, kind: CatalogDraf
     const title = `[catalog-${kind}-draft]`;
     if (input.sessionId) {
       const session = await deps.copilotStore.getSession(ctx.workspaceId, input.sessionId);
-      if (!session || session.actorSub !== ctx.sub || !session?.title?.startsWith(title)) return { ok: false, error: "not_found" };
+      if (session?.actorSub !== ctx.sub || !session.title?.startsWith(title)) return { ok: false, error: "not_found" };
     }
     // Bound to this workspace after the same write gate as the form; reference
     // reads need their own view permission before being sent to the model.
@@ -40,13 +40,7 @@ export async function prepareCatalogDraft(ctx: CatalogContext, kind: CatalogDraf
     if (input.editId && !original) return { ok: false, error: "not_found" };
     const activeId = statuses.find(s => s.statusCode === "active")?.id;
     const vocab: CatalogDraftVocabulary = { types, units, products: kind === "solution" ? products.filter(p => p.statusId === activeId) : [] };
-    const existingItems = kind === "solution" && original ? await ctx.store.listSolutionItems(ctx.workspaceId, original.id) : [];
-    const current: CatalogDraftValues = { name: "", novelty: null };
-    // Do not let caller-supplied IDs create their own allowlist. Existing retired
-    // references may survive only when loaded from this record on the server.
-    const sanitized = readCatalogDraft(JSON.stringify({ fields: input.values }), kind, vocab,
-      { name: "", novelty: null, ...(kind === "product" && original && "unitId" in original ? { typeId: original.typeId ?? "", unitId: original.unitId } : {}), items: existingItems.map(i => ({ ...i, note: i.note ?? "" })) });
-    Object.assign(current, sanitized?.patch);
+    const current = await sanitizedCurrent(ctx, kind, input.values, vocab, original);
     const manual = Array.isArray(input.manualFields) ? catalogDraftFields(kind).filter(key => input.manualFields!.includes(key)) : [];
     const turn = await runCopilotTurn({ workspaceId: ctx.workspaceId, sub: ctx.sub, holder: ctx.holder, entitlement: ctx.entitlement, store: deps.copilotStore }, {
       question: input.text.trim(), sessionId: input.sessionId, retryMessageId: input.retryMessageId,
@@ -75,4 +69,16 @@ function reviewDraft(answer: string, kind: CatalogDraftKind, vocab: CatalogDraft
   if (!draft) return { answer, feedback: "Return the requested JSON fields object, not a prose claim of filling." };
   if (draft.rejected.length) return { answer, feedback: `Correct invalid fields ${draft.rejected.join(", ")}. Use exact configured UUIDs and positive quantities, retain at least one standard product. Return a corrected JSON fields object.` };
   return { answer };
+}
+
+async function sanitizedCurrent(ctx: CatalogContext, kind: CatalogDraftKind, values: CatalogDraftValues, vocab: CatalogDraftVocabulary,
+  original: { id: string; typeId?: string | null; unitId?: string } | undefined) {
+  const existingItems = kind === "solution" && original ? await ctx.store.listSolutionItems(ctx.workspaceId, original.id) : [];
+  const prior: CatalogDraftValues = { name: "", novelty: null, items: existingItems.map(i => ({ ...i, note: i.note ?? "" })) };
+  if (kind === "product" && original?.unitId) {
+    prior.typeId = original.typeId ?? "";
+    prior.unitId = original.unitId;
+  }
+  const sanitized = readCatalogDraft(JSON.stringify({ fields: values }), kind, vocab, prior);
+  return Object.assign({ name: "", novelty: null }, sanitized?.patch) as CatalogDraftValues;
 }

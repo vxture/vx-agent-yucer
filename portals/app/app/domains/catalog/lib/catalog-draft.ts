@@ -34,11 +34,7 @@ export function readCatalogDraft(answer: string, kind: CatalogDraftKind, vocab: 
     if (value === false) rejected.push(key);
     else if (value !== undefined) Object.assign(patch, { [key]: value });
   }
-  for (const key of catalogDraftFields(kind)) {
-    if (!raw.clearFields.includes(key) || manual.includes(key)) continue;
-    if (key === "novelty") patch.novelty = null;
-    else if (key === "summary" || key === "scenario" || key === "typeId") patch[key] = "";
-  }
+  clearDraftFields(patch, kind, raw.clearFields, manual);
   for (const key of catalogDraftFields(kind)) {
     if (JSON.stringify(patch[key]) === JSON.stringify(current[key])) delete patch[key];
   }
@@ -90,4 +86,12 @@ Retain human corrections listed below, including deliberate blanks. Omit untouch
 Configured vocabulary: ${JSON.stringify(vocabulary)}
 Current draft: ${JSON.stringify(current)}
 Manual corrections to retain: ${JSON.stringify(manual)}`;
+}
+
+function clearDraftFields(patch: Partial<CatalogDraftValues>, kind: CatalogDraftKind, clear: readonly unknown[], manual: readonly CatalogDraftField[]) {
+  for (const key of catalogDraftFields(kind)) {
+    if (!clear.includes(key) || manual.includes(key)) continue;
+    if (key === "novelty") patch.novelty = null;
+    else if (key === "summary" || key === "scenario" || key === "typeId") patch[key] = "";
+  }
 }
