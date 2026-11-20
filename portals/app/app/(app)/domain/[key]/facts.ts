@@ -8,16 +8,16 @@ import {
   getPipelineStore,
   getSignalStore,
   getDeliveryStore,
-  getPlanningStore,
+  getSalesPlanStore,
   getStrategyStore,
 } from "../../../domains/shared/registry";
 import { listCampaigns, listPlans, listSegments } from "../../../domains/strategy/service";
 import { listPrices, listProducts, listProductStatuses, listSolutions } from "../../../domains/catalog/service";
 import { listSignals, listLeads } from "../../../domains/signal/service";
 import { listPendingReviews, listPipeline } from "../../../domains/pipeline/service";
-import { attainment, listTerritories } from "../../../domains/planning/service";
+import type { DataScope } from "../../../authz/scope";
+import { readDeploymentOverview } from "./deployment-data";
 import { listProjects, projectView } from "../../../domains/delivery/service";
-import { defaultPeriod } from "../../lib/periods";
 import { listCommitments } from "../../../domains/account/field-service";
 import { accountStatuses, listAccounts } from "../../../domains/account/service";
 import { accountMatchesCriteria } from "../../../domains/strategy/lib/lifecycle";
@@ -46,6 +46,7 @@ export interface FactsContext {
    * UNSCOPED one - a domain summary that counted rows its reader may not see.
    */
   stores: AppSession["stores"];
+  scope: DataScope;
 }
 
 const len = <T,>(r: { ok: boolean; value?: T[] }): number | null =>
@@ -152,32 +153,23 @@ async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
   ]);
 }
 
-/** Who carries the number, and where the ground is cut. */
+/** The same current publication and source gates as the planning workspace. */
 async function deploymentFacts(ctx: FactsContext): Promise<DomainFact[]> {
-  const [targets, territories] = await Promise.all([
-    attainment({ ...ctx, store: getPlanningStore() }, defaultPeriod()),
-    listTerritories({ ...ctx, store: getPlanningStore() }, { includeRetired: false }),
-  ]);
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const summary = await readDeploymentOverview({ ...ctx, store: getSalesPlanStore() }, year, now.toISOString());
+  return deploymentOverviewFacts(summary, year);
+}
 
-  // The fact neither page holds alone: a territory nobody has a target for is
-  // ground assigned to no number, and a target scoped to a territory that has
-  // been retired is a number pointing at nothing. /planning knows the first
-  // half, /planning the second.
-  const rows = targets.ok ? targets.value : null;
-  const covered = new Set(
-    (rows ?? [])
-      .map((r) => r.target.territoryId)
-      .filter((v): v is string => Boolean(v)),
-  );
-  const uncovered = territories.ok
-    ? territories.value.filter((t) => !covered.has(t.id)).length
-    : null;
-
-  return visibleFacts([
-    fact("territories", territories.ok ? territories.value.length : null, "/planning"),
-    fact("activeTargets", rows ? rows.length : null, "/planning"),
-    fact("uncoveredTerritories", uncovered, "/planning", true),
-  ]);
+export function deploymentOverviewFacts(summary: Awaited<ReturnType<typeof readDeploymentOverview>>, year: number): DomainFact[] {
+  if (summary.status !== "published" || summary.regionalVersion === null) return [];
+  const href = `/planning?year=${year}&revision=${encodeURIComponent(summary.revisionId)}`;
+  return [
+    fact("deployedRegions", summary.regions, href),
+    fact("plannedCustomers", summary.customers, href),
+    fact("regionsWithoutOwner", summary.regionsWithoutOwner, href, true),
+    fact("customersWithoutAction", summary.customersWithoutAction, href, true),
+  ];
 }
 
 /** What was promised, and whether the money arrived. */
