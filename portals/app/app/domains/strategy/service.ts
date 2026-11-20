@@ -691,12 +691,13 @@ export async function removeExecution(
 export async function strategyDiagnosticSnapshots(
   ctx: StrategyContext,
   limit = 500,
+  since?: Date,
 ): Promise<RuleResult<{ segments: SegmentCoverageSnapshotInput[]; territories: TerritoryAttainmentSnapshotInput[] }>> {
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data");
   if (!gate.allowed) return denied(gate);
   const [segments, territories] = await Promise.all([
-    ctx.store.listSegmentCoverageSnapshots(ctx.workspaceId, limit),
-    ctx.store.listTerritoryAttainmentSnapshots(ctx.workspaceId, limit),
+    ctx.store.listSegmentCoverageSnapshots(ctx.workspaceId, limit, { trustedOnly: true, since }),
+    ctx.store.listTerritoryAttainmentSnapshots(ctx.workspaceId, limit, { trustedOnly: true, since }),
   ]);
   return ok({ segments, territories });
 }

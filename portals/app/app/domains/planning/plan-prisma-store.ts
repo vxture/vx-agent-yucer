@@ -68,16 +68,19 @@ async function load(
     })),
   };
 }
+// Also used inside the diagnostic capture's repeatable-read transaction so
+// target versions, classifications and deals all come from one database view.
+export async function loadSalesPlans(db: Db, workspaceId: string): Promise<SalesPlan[]> {
+  const roots = await db.salesPlan.findMany({ where: { workspaceId } });
+  return (await Promise.all(roots.map((r) => load(db, workspaceId, r.year))))
+    .filter((p): p is SalesPlan => p !== null);
+}
+
 export class PrismaSalesPlanStore implements SalesPlanStore {
   async list(workspaceId: string) {
     const db = await getPrismaClient();
     return db.$transaction(
-      async (tx) => {
-        const roots = await tx.salesPlan.findMany({ where: { workspaceId } });
-        return (
-          await Promise.all(roots.map((r) => load(tx, workspaceId, r.year)))
-        ).filter((p): p is SalesPlan => p !== null);
-      },
+      (tx) => loadSalesPlans(tx, workspaceId),
       { isolationLevel: "RepeatableRead" },
     );
   }

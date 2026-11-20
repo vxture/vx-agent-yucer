@@ -1,5 +1,10 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 战略装备域精细化修正
+
+[95-strategic-equipment-refinement.md](95-strategic-equipment-refinement.md) 定义 SE-01 至 SE-06
+的顺序、验收出口和固定进度汇报方式；当前 SE-01 数据可信修正进行中。
+
 ## 战略制定结果
 
 [90-strategy-result.md](90-strategy-result.md) 记录结构化战略目标、高级设置及统一助手回填，本轮尚未发布。

@@ -1,4 +1,6 @@
 import { defaultStrategyOptions } from "./lib/strategy-options";
+import { diagnosticBasis } from "./lib/diagnostic-snapshots";
+import { readSegmentCriteria as readCriteria } from "./lib/market-match";
 import type { StrategyOption } from "./lib/strategy-result";
 import type { Prisma } from "@prisma/client";
 import { createBusinessRow, editBusinessRow, type BusinessWrite } from "../shared/business-code";
@@ -35,6 +37,7 @@ import {
   type StrategyStore,
   type SegmentRecord,
   type TerritoryAttainmentSnapshotInput,
+  type DiagnosticSnapshotFilter,
 } from "./store";
 
 // Prisma-backed StrategyStore over yucer_gtm (D1 plans, D3 campaigns).
@@ -500,6 +503,7 @@ export class PrismaStrategyStore implements StrategyStore {
         openPipelineAmount: row.openPipelineAmount,
         wonAmount: row.wonAmount,
         currency: row.currency,
+        basis: JSON.parse(JSON.stringify(row.basis ?? {})) as Prisma.InputJsonValue,
       },
     });
   }
@@ -518,14 +522,15 @@ export class PrismaStrategyStore implements StrategyStore {
         targetAmount: row.targetAmount,
         attainedAmount: row.attainedAmount,
         currency: row.currency,
+        basis: JSON.parse(JSON.stringify(row.basis ?? {})) as Prisma.InputJsonValue,
       },
     });
   }
 
-  async listSegmentCoverageSnapshots(workspaceId: string, limit: number): Promise<SegmentCoverageSnapshotInput[]> {
+  async listSegmentCoverageSnapshots(workspaceId: string, limit: number, filter: DiagnosticSnapshotFilter = {}): Promise<SegmentCoverageSnapshotInput[]> {
     const p = await getPrismaClient();
     const rows = await p.segmentCoverageSnapshot.findMany({
-      where: { workspaceId },
+      where: { workspaceId, ...(filter.trustedOnly ? { AND: [{ basis: { path: ["version"], equals: 2 } }, { basis: { path: ["kind"], equals: "criteria" } }] } : {}), ...(filter.since ? { snapshotedAt: { gte: filter.since } } : {}) },
       orderBy: { snapshotedAt: "desc" },
       take: limit,
     });
@@ -533,16 +538,17 @@ export class PrismaStrategyStore implements StrategyStore {
       segmentId: r.segmentId,
       snapshotedAt: r.snapshotedAt,
       matchedAccountCount: r.matchedAccountCount,
-      openPipelineAmount: Number(r.openPipelineAmount),
-      wonAmount: Number(r.wonAmount),
+      openPipelineAmount: r.openPipelineAmount === null ? null : Number(r.openPipelineAmount),
+      wonAmount: r.wonAmount === null ? null : Number(r.wonAmount),
       currency: r.currency,
+      basis: diagnosticBasis(r.basis),
     }));
   }
 
-  async listTerritoryAttainmentSnapshots(workspaceId: string, limit: number): Promise<TerritoryAttainmentSnapshotInput[]> {
+  async listTerritoryAttainmentSnapshots(workspaceId: string, limit: number, filter: DiagnosticSnapshotFilter = {}): Promise<TerritoryAttainmentSnapshotInput[]> {
     const p = await getPrismaClient();
     const rows = await p.territoryAttainmentSnapshot.findMany({
-      where: { workspaceId },
+      where: { workspaceId, ...(filter.trustedOnly ? { AND: [{ basis: { path: ["version"], equals: 2 } }, { basis: { path: ["kind"], equals: "published_plan" } }] } : {}), ...(filter.since ? { snapshotedAt: { gte: filter.since } } : {}) },
       orderBy: { snapshotedAt: "desc" },
       take: limit,
     });
@@ -551,8 +557,9 @@ export class PrismaStrategyStore implements StrategyStore {
       period: r.period,
       snapshotedAt: r.snapshotedAt,
       targetAmount: Number(r.targetAmount),
-      attainedAmount: Number(r.attainedAmount),
+      attainedAmount: r.attainedAmount === null ? null : Number(r.attainedAmount),
       currency: r.currency,
+      basis: diagnosticBasis(r.basis),
     }));
   }
 }
@@ -638,17 +645,6 @@ function toSegment(r: Record<string, unknown>): SegmentRecord {
     criteria: readCriteria(r.criteria),
     productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),
     solutionIds: ((r.solutionLinks ?? []) as { solutionId: string }[]).map(s => s.solutionId).sort(),
-  };
-}
-
-function readCriteria(criteria: unknown): SegmentCriteria {
-  const raw = (criteria ?? {}) as Partial<Record<keyof SegmentCriteria, unknown>>;
-  return {
-    industries: Array.isArray(raw.industries) ? raw.industries.map(String) : [],
-    regions: Array.isArray(raw.regions) ? raw.regions.map(String) : [],
-    sizes: Array.isArray(raw.sizes) ? raw.sizes.map(String) : [],
-    ...Object.fromEntries((["needSummary", "customerNeed", "buyingScenario", "expectedOutcome", "entryBarrier"] as const)
-      .map(key => [key, raw[key]]).filter(([, value]) => typeof value === "string")),
   };
 }
 

@@ -3089,6 +3089,10 @@ export const ENABLEMENT_TEXT = {
 } as const;
 
 export const STRATEGY_DIAG_TEXT = {
+    helpCoverage: "\u8986\u76d6\u5ba2\u6237\u6309\u7167\u5e02\u573a\u7684\u884c\u4e1a\u3001\u533a\u57df\u548c\u89c4\u6a21\u6761\u4ef6\u5339\u914d\uff0c\u660e\u786e\u5f52\u5c5e\u5355\u72ec\u8bb0\u5f55\uff1b\u91d1\u989d\u53ea\u7edf\u8ba1\u5339\u914d\u5ba2\u6237\u3001\u4f7f\u7528\u5168\u5c40\u5e01\u79cd\u7684\u5546\u673a\uff0c\u4e0d\u8fdb\u884c\u6362\u6c47\u3002",
+    helpAttainment: "\u533a\u57df\u5bf9\u6bd4\u5c55\u793a\u672c\u5b63\u5ea6\u6536\u5165\u76ee\u6807\uff0c\u4f7f\u7528\u5f53\u524d\u751f\u6548\u7684\u9500\u552e\u89c4\u5212\u53d1\u5e03\u7248\u672c\u3002\u6210\u4ea4\u989d\u6309\u5546\u673a\u533a\u57df\u548c\u6210\u4ea4\u65f6\u95f4\u7edf\u8ba1\uff1b\u5fc5\u8981\u4fe1\u606f\u7f3a\u5931\u65f6\u663e\u793a\u201c--\u201d\uff0c\u76ee\u6807\u4e3a\u96f6\u65f6\u4e0d\u8ba1\u7b97\u8fbe\u6210\u7387\u3002",
+    helpHistory: "\u8d8b\u52bf\u4ec5\u4f7f\u7528\u76f8\u540c\u5e02\u573a\u6761\u4ef6\u3001\u5e01\u79cd\u548c\u76ee\u6807\u7248\u672c\u4e0b\u7684\u53ef\u6bd4\u8bb0\u5f55\u3002\u53e3\u5f84\u6539\u53d8\u540e\u91cd\u65b0\u79ef\u7d2f\uff0c\u4e0d\u8865\u9020\u5386\u53f2\uff1b\u5c1a\u65e0\u53ef\u6bd4\u8bb0\u5f55\u65f6\u4e0d\u5224\u65ad\u589e\u957f\u6216\u9884\u8b66\u3002",
+    insufficientTrend: "\u53ef\u6bd4\u8bb0\u5f55\u4e0d\u8db3\uff0c\u6682\u4e0d\u5224\u65ad\u9884\u8b66",
   title: "战略诊断",
   subtitle: "Strategy Diagnostics",
   home: "平台首页",
@@ -3101,13 +3105,13 @@ export const STRATEGY_DIAG_TEXT = {
   panelAttainmentWhy: "各区域当前达成率与目标对比",
   panelFalseFat: "虚胖预警",
   panelFalseFatWhy: "管道金额在涨但覆盖客户数不涨的细分市场",
-  heroSegments: "在用细分",
-  heroTerritories: "有指标区域",
+  heroSegments: "\u89c2\u6d4b\u5e02\u573a",
+  heroTerritories: "\u89c2\u6d4b\u533a\u57df",
   heroAvgCoverage: "平均覆盖",
   heroAvgAttainment: "平均达成",
   noSnapshots: "还没有快照数据，调度任务运行后会自动生成",
-  noSegments: "还没有细分市场快照",
-  noTerritories: "还没有区域快照",
+  noSegments: "\u6682\u65e0\u53ef\u6bd4\u7684\u5e02\u573a\u5feb\u7167",
+  noTerritories: "\u6682\u65e0\u53ef\u6bd4\u7684\u533a\u57df\u5feb\u7167",
   noFalseFat: "没有虚胖信号",
   falseFatHint: (name: string, pipelinePct: string, countDelta: number) =>
     `${name}：管道 ${pipelinePct}，客户数 ${countDelta >= 0 ? "+" : ""}${countDelta}`,
