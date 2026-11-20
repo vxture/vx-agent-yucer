@@ -8,13 +8,33 @@
   line-height: var(--body-line-height);
 }
 
-.table th:has([data-collection-align]) {
-  white-space: normal;
+/* Wider schemas keep a readable name column before scrolling internally. */
+.table > div > table:has([data-collection-track="direction"]),
+.table > div > table:has([data-collection-track="composition"]) {
+  min-width: var(--vx-container-5xl);
+}
+
+/* Plain headings and DS sort controls reserve the same single-line slot.
+ * Include the index/selection and action headings in the shared row height. */
+.table > div > table > thead > tr > th {
+  height: calc(var(--space-control-md) + var(--space-sm) * 2);
+  padding-block: var(--space-sm);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.table [data-collection-align] {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-control-md);
+  line-height: var(--label-small-line-height);
+  white-space: nowrap;
 }
 
 .table th:has([data-collection-align]) button {
   min-height: var(--space-control-md);
-  height: auto;
+  height: var(--space-control-md);
+  white-space: nowrap;
 }
 
 .table th:has([data-collection-align="left"]) { text-align: start; }
@@ -26,8 +46,8 @@
 .table th:has([data-collection-track="count"]),
 .table th:has([data-collection-track="state"]),
 .table th:has([data-collection-track="unit"]) { width: var(--collection-compact-col); }
-/* A sortable count heading also needs room for the DS sort indicator. */
-.table th:has([data-collection-track="count"]):has(button) { width: calc(var(--vx-spacing) * 28); }
+/* Compact sortable headings also need room for the DS sort indicator. */
+.table th:is(:has([data-collection-track="count"]), :has([data-collection-track="state"]), :has([data-collection-track="unit"])):has(button) { width: calc(var(--vx-spacing) * 28); }
 .table th:has([data-collection-track="composition"]) { width: calc(var(--vx-spacing) * 34); }
 .table th:has([data-collection-track="price"]) { width: calc(var(--vx-spacing) * 52); }
 .table th:has([data-collection-track="amount"]) { width: calc(var(--vx-spacing) * 36); }

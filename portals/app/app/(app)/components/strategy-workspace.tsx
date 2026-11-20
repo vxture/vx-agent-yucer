@@ -9,7 +9,7 @@ import { useState, useTransition } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Drawer, EmptyState, FieldError, Icon, Input, NativeSelect, SegmentedControl, ViewLayout, useToast, type ActionMenuItem } from "@vxture/design-ui";
 import { ViewHeader } from "./business-controls";
 import { TitleHelp } from "./title-help";
-import { FilterSlot, RowActions, SearchSlot } from "./table-fittings";
+import { FilterSlot, RowActions, SearchSlot, useTableSort } from "./table-fittings";
 import { ModuleHeadline } from "./module-headline";
 import { CollectionHistory, CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
@@ -28,6 +28,7 @@ import { currentStrategyPlans } from "../../domains/strategy/store";
 import { StrategyCharterCard } from "./strategy-charter-card";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
+import { strategySortAccessors } from "../lib/collection-sort";
 import type { StrategyView } from "../lib/market-strategy";
 import { movePlan, startStrategyRevision, publishStrategyVersion, discardStrategyVersion } from "../strategy/actions";
 
@@ -38,6 +39,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const router=useRouter(), params=useSearchParams();
   const [layout,setLayout]=useCollectionView("cards");
   const [query,setQuery]=useState("");
+  const sorted=useTableSort<StrategyView>([],strategySortAccessors);
   const period=params.get("period") ?? "";
   const setPeriod=(value:string)=>{
     const q=new URLSearchParams(params);q.delete("plan");
@@ -90,20 +92,20 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const card = (p: StrategyView) => <StrategyCharterCard key={p.id} plan={p} actions={<RowActions items={items(p)} disabled={pending}/>} draftAvailable={!!draftFor(p) && p.status!=="draft"}/>;
   const planTitle=(p:StrategyView)=><Link href={`/strategy/${p.id}`} className="block truncate transition-colors hover:text-primary-text">{p.name}</Link>;
   const planCode=(p:StrategyView)=>[strategyPeriodLabel(p.period),p.planNo,p.versionNo ? `V${p.versionNo}` : null].filter(Boolean).join(" \u00b7 ");
-  const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={rows} rowKey={p=>p.id} indexStart={1} columns={[
-      {id:"name",header:T.strategy,cell:p=><CollectionTitleCell title={planTitle(p)} description={planCode(p)} tooltip={`${p.name} / ${planCode(p)}`}/>},
+  const table=(rows:StrategyView[])=><CollectionTable labels={DATA_TABLE_LABELS} rows={[...sorted.sortRows(rows)]} sort={sorted.sort} onSortChange={sorted.onSortChange} rowKey={p=>p.id} indexStart={1} columns={[
+      {id:"name",sortable:true,header:T.strategy,cell:p=><CollectionTitleCell title={planTitle(p)} description={planCode(p)} tooltip={`${p.name} / ${planCode(p)}`}/>},
       {id:"direction",header:T.direction,align:"left",track:"direction",cell:p=><span className="line-clamp-2" title={p.objective ?? undefined}>{p.objective || T.directionEmpty}</span>},
-      {id:"markets",header:T.marketCount,track:"count",cell:p=>number(p.marketIds?.length,D.recordUnit)},
-      {id:"customers",header:T.customerCount,track:"count",cell:p=>number(p.customerCount,D.customerUnit)},
-      {id:"solutions",header:T.solutionCount,track:"count",cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length,D.recordUnit)},
-      {id:"campaigns",header:T.campaignCount,track:"count",cell:p=>number(p.campaigns?.length,D.campaignUnit)},
-      {id:"status",header:T.status,track:"state",cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
+      {id:"markets",sortable:true,header:T.marketCount,track:"count",cell:p=>number(p.marketIds?.length,D.recordUnit)},
+      {id:"customers",sortable:true,header:T.customerCount,track:"count",cell:p=>number(p.customerCount,D.customerUnit)},
+      {id:"solutions",sortable:true,header:T.solutionCount,track:"count",cell:p=>number(p.solutions === null || p.products === null ? null : p.solutions.length + p.products.length,D.recordUnit)},
+      {id:"campaigns",sortable:true,header:T.campaignCount,track:"count",cell:p=>number(p.campaigns?.length,D.campaignUnit)},
+      {id:"status",sortable:true,header:T.status,track:"state",cell:p=><Tag tone={p.status==="active"?"success":"neutral"}>{PLAN_STATUS_LABEL[p.status]}</Tag>},
     ]} rowActions={p=><RowActions items={items(p)} disabled={pending}/>}
     empty={<EmptyState title={T.noMatches}/>}/>
   ;
   const current = plans.filter(p=>!["closed","archived"].includes(p.status));
   const history = plans.filter(p=>["closed","archived"].includes(p.status));
-  const cards = (rows:StrategyView[]) => <div className="grid min-w-0 grid-cols-1 gap-xl">{rows.map(card)}</div>;
+  const cards = (rows:StrategyView[]) => <div className="grid min-w-0 grid-cols-1 gap-xl">{sorted.sortRows(rows).map(card)}</div>;
   const views = [
     { id: "overview", label: T.overview, icon: "flag", allowed: data.canPlan },
     { id: "validation", label: T.validation, icon: "chart-line", allowed: data.canPlan },
