@@ -16,7 +16,6 @@ import type {
   ExecutionStatus,
   PlanStatus,
   SegmentDraft,
-  SegmentCriteria,
   SegmentStatus,
   TargetMarket,
 } from "./lib/lifecycle";
@@ -503,7 +502,7 @@ export class PrismaStrategyStore implements StrategyStore {
         openPipelineAmount: row.openPipelineAmount,
         wonAmount: row.wonAmount,
         currency: row.currency,
-        basis: JSON.parse(JSON.stringify(row.basis ?? {})) as Prisma.InputJsonValue,
+        basis: structuredClone(row.basis ?? {}) as unknown as Prisma.InputJsonValue,
       },
     });
   }
@@ -522,7 +521,7 @@ export class PrismaStrategyStore implements StrategyStore {
         targetAmount: row.targetAmount,
         attainedAmount: row.attainedAmount,
         currency: row.currency,
-        basis: JSON.parse(JSON.stringify(row.basis ?? {})) as Prisma.InputJsonValue,
+        basis: structuredClone(row.basis ?? {}) as unknown as Prisma.InputJsonValue,
       },
     });
   }

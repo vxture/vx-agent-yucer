@@ -88,7 +88,7 @@ function Mod({
   );
 }
 
-function DeltaBadge({ delta }: { delta: number | null }) {
+function DeltaBadge({ delta }: { readonly delta: number | null }) {
   if (delta === null) return <span className="sd-delta sd-delta--flat">--</span>;
   if (delta > 0) return <span className="sd-delta sd-delta--up">+{delta}</span>;
   if (delta < 0) return <span className="sd-delta sd-delta--down">{delta}</span>;

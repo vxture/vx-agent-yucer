@@ -57,9 +57,11 @@ export interface DiagnosticSource {
   plans: SalesPlan[];
 }
 
+// Code-unit order keeps signatures independent of locale/ICU versions.
+const compareNames = (a: string, b: string) => a < b ? -1 : Number(a > b);
 const key = (value: unknown) => createHash("sha256").update(canonical(value)).digest("hex");
 export const marketComparisonKey = (criteria: SegmentCriteria, currency: string) => key({
-  currency, industries: [...criteria.industries].sort(), regions: [...criteria.regions].sort(), sizes: [...(criteria.sizes ?? [])].sort(),
+  currency, industries: [...criteria.industries].sort(compareNames), regions: [...criteria.regions].sort(compareNames), sizes: [...(criteria.sizes ?? [])].sort(compareNames),
 });
 // NUMERIC(18,2), kept as integer cents until the port's existing number boundary.
 function cents(value: string): bigint {
@@ -102,15 +104,15 @@ function territorySnapshots(source: DiagnosticSource, now: Date): TerritoryAttai
   const rows: TerritoryAttainmentSnapshotInput[] = [];
   for (const plan of source.plans) {
     const revision = planVersions(plan, now.toISOString()).current;
-    if (!revision || revision.state !== "sealed" || revision.version === null) continue;
+    if (revision?.state !== "sealed" || revision.version === null) continue;
     for (const line of revision.content.targets) {
       if (line.metric !== "revenue" || line.target === null || !line.currency || !line.scope.startsWith("territory:")) continue;
       const territoryId = line.scope.slice(10);
-      const region = revision.content.regions.find(r => r.id === territoryId && r.included);
+      const included = revision.content.regions.some(r => r.id === territoryId && r.included);
       const range = periodRange(line.period);
       // Capture present facts only. Do not reconstruct past points from today's
       // mutable deals or create forecasts for periods that have not started.
-      if (!region || !range || !within(range, now)) continue;
+      if (!included || !range || !within(range, now)) continue;
       const scoped = unique(source.deals).filter(d => d.status === "won" &&
         (d.territoryId === territoryId || d.territoryId === null) &&
         (!d.closedAt || within(range, d.closedAt) && d.closedAt <= now));

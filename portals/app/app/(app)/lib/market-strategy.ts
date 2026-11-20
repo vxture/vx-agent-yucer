@@ -1,5 +1,5 @@
 import type { PlanRecord, SegmentRecord, CampaignRecord } from "../../domains/strategy/store";
-import type { SegmentCriteria, TargetMarket } from "../../domains/strategy/lib/lifecycle";
+import type { TargetMarket } from "../../domains/strategy/lib/lifecycle";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import type { ProductReference, SolutionReference } from "../../domains/catalog/service";
 import type { StrategicMetric } from "../../domains/strategy/lib/expectations";

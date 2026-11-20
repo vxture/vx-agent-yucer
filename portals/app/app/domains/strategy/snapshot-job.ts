@@ -23,7 +23,9 @@ export async function runStrategySnapshots(options: SnapshotOptions): Promise<Sn
   const store = options.store ?? getStrategyStore();
   const source = options.source ?? readDiagnosticSource;
   const ledger: SnapshotLedger = { segmentSnapshots: 0, territorySnapshots: 0, workspacesProcessed: 0, failed: 0 };
-  for (const { workspaceId } of options.workspaces) {
+  // Keep workspace captures serial to bound database pressure.
+  await options.workspaces.reduce(async (previous, { workspaceId }) => {
+    await previous;
     try {
       const rows = computeDiagnosticSnapshots(await source(workspaceId), now);
       for (const row of rows.segments) {
@@ -38,6 +40,6 @@ export async function runStrategySnapshots(options: SnapshotOptions): Promise<Sn
     } catch {
       ledger.failed += 1;
     }
-  }
+  }, Promise.resolve());
   return ledger;
 }
