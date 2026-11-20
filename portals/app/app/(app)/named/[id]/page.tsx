@@ -10,7 +10,7 @@ import { FocusDetailView } from "../detail";
 import { listPipeline } from "../../../domains/pipeline/service";
 import { can } from "../../../authz/decide";
 export const dynamic = "force-dynamic";
-export default async function FocusDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function FocusDetailPage({ params, searchParams }: Readonly<{ params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const session = await resolveAppSession();
   if (!session) return null;
   const { FOCUS_TEXT: T, PLAN_VERSION_ERROR: E, DOMAIN_LABEL } = await getMessages();
@@ -25,6 +25,8 @@ export default async function FocusDetailPage({ params, searchParams }: { params
       const date = d.status === "open" ? d.expectedCloseAt : d.closedAt;
       return date && date.toISOString().slice(0, 10) >= range.start && date.toISOString().slice(0, 10) < range.end;
     }).map(d => ({ id: d.id, name: d.name, status: d.status, amount: d.amount?.amount ?? null, currency: d.currency, date: (d.status === "open" ? d.expectedCloseAt : d.closedAt)!.toISOString().slice(0,10) })) : [];
-    return <ViewLayout><PageCrumbs trail={[{ label: DOMAIN_LABEL.namedAccount, href: focusHref({ ...data.workspace, revisionId: data.workspace.revision?.id }) }]} current={data.row.name}/><FocusDetailView key={`${data.workspace.revision?.id}:${data.workspace.editToken}:${data.workspace.eventNo}`} {...data} opportunities={opportunities} pipelineState={canPipeline ? deals?.ok ? "ready" : "failed" : "denied"}/></ViewLayout>;
+    let pipelineState: "ready" | "failed" | "denied" = "denied";
+    if (canPipeline) pipelineState = deals?.ok ? "ready" : "failed";
+    return <ViewLayout><PageCrumbs trail={[{ label: DOMAIN_LABEL.namedAccount, href: focusHref({ ...data.workspace, revisionId: data.workspace.revision?.id }) }]} current={data.row.name}/><FocusDetailView key={`${data.workspace.revision?.id}:${data.workspace.editToken}:${data.workspace.eventNo}`} {...data} opportunities={opportunities} pipelineState={pipelineState}/></ViewLayout>;
   } catch (e) { return <EmptyState title={T.notFound} description={E[e instanceof PlanError ? e.code : "source_read_failed"] ?? T.error}/>; }
 }

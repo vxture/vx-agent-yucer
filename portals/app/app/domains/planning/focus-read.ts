@@ -32,6 +32,25 @@ function projectRow(content: PlanContent, account: FocusRow, period: string, reg
   for (const c of contributions.filter(c => c.budget.metric === "revenue" && c.budget.currency)) sums.set(c.budget.currency!, (sums.get(c.budget.currency!) ?? 0n) + minor(c.amount));
   return { ...account, contributions, actions, regions, revenue: [...sums].map(([currency, value]) => ({ currency, amount: amount(value) })) };
 }
+function visibleRows(ctx: FocusContext, content: PlanContent, candidates: FocusWorkspace["candidates"], period: string, ids: ReadonlySet<string>, canTeam: boolean, regionId?: string) {
+  return candidates.flatMap(a => {
+    if (!rowAllowed(ctx.scope, a, content, a.id)) return [];
+    const ownSub = ctx.scope.kind === "own" ? ctx.scope.sub : null;
+    const accountRegions = ownSub ? new Set(content.actions.filter(action => action.accountId === a.id && action.ownerSub === ownSub && ids.has(action.regionId)).map(action => action.regionId)) : ids;
+    const row = projectRow(content, { id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub, contributions: [], actions: [], unallocated: [], revenue: [], regions: [] }, period, accountRegions);
+    if (ownSub) row.actions = row.actions.filter(action => action.ownerSub === ownSub);
+    if (ctx.scope.kind !== "workspace") row.contributions = row.contributions.map(c => ({ ...c, budget: { ...c.budget, amount: null, note: "", sourcePlanId: null, sourceReadAt: "" } }));
+    if (ctx.scope.kind !== "workspace") row.actions = row.actions.map(a => ({ ...a, evidenceRefs: [] }));
+    if (!canTeam) {
+      row.ownerSub = row.ownerSub === ctx.sub ? ctx.sub : null;
+      row.actions = row.actions.map(action => ({ ...action, ownerSub: action.ownerSub === ctx.sub ? ctx.sub : null }));
+      row.regions = row.regions.map(region => ({ ...region, ownerSub: region.ownerSub === ctx.sub ? ctx.sub : null }));
+    }
+    // Budgets without an allocation are visible only to workspace maintainers.
+    if (ctx.scope.kind === "workspace" && !regionId) row.unallocated = content.budgets.filter(b => b.accountId === a.id && b.period === period && !content.contributions.some(c => c.budgetKey === b.key));
+    return row.contributions.length || row.actions.length || row.unallocated.length ? [row] : [];
+  });
+}
 /** Scope and source gates apply before returning a customer-only projection. */
 export async function readFocusWorkspace(ctx: FocusContext, query: FocusQuery): Promise<FocusWorkspace> {
   demand(can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed && can(ctx.holder, ctx.entitlement, "account.view", "data").allowed, "plan_denied");
@@ -54,30 +73,13 @@ export async function readFocusWorkspace(ctx: FocusContext, query: FocusQuery): 
   demand(!query.regionId || regions.some(r => r.id === query.regionId), "region_unknown");
   const ids = new Set(regions.filter(r => !query.regionId || r.id === query.regionId).map(r => r.id));
   const candidates = accounts.value.filter(a => rowAllowed(ctx.scope, a, content, a.id)).map(a => ({ id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub }));
-  const rows = candidates.flatMap(a => {
-    if (!rowAllowed(ctx.scope, a, content, a.id)) return [];
-    const ownSub = ctx.scope.kind === "own" ? ctx.scope.sub : null;
-    const accountRegions = ownSub ? new Set(content.actions.filter(action => action.accountId === a.id && action.ownerSub === ownSub && ids.has(action.regionId)).map(action => action.regionId)) : ids;
-    const row = projectRow(content, { id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub, contributions: [], actions: [], unallocated: [], revenue: [], regions: [] }, period, accountRegions);
-    if (ownSub) row.actions = row.actions.filter(action => action.ownerSub === ownSub);
-    if (ctx.scope.kind !== "workspace") row.contributions = row.contributions.map(c => ({ ...c, budget: { ...c.budget, amount: null, note: "", sourcePlanId: null, sourceReadAt: "" } }));
-    if (ctx.scope.kind !== "workspace") row.actions = row.actions.map(a => ({ ...a, evidenceRefs: [] }));
-    if (!canTeam) {
-      row.ownerSub = row.ownerSub === ctx.sub ? ctx.sub : null;
-      row.actions = row.actions.map(action => ({ ...action, ownerSub: action.ownerSub === ctx.sub ? ctx.sub : null }));
-      row.regions = row.regions.map(region => ({ ...region, ownerSub: region.ownerSub === ctx.sub ? ctx.sub : null }));
-    }
-    // Budgets without an allocation are visible only to workspace maintainers.
-    if (ctx.scope.kind === "workspace" && !query.regionId) row.unallocated = content.budgets.filter(b => b.accountId === a.id && b.period === period && !content.contributions.some(c => c.budgetKey === b.key));
-    return row.contributions.length || row.actions.length || row.unallocated.length ? [row] : [];
-  });
-  const sourcesEditable = canTeam && (!content.strategyAcceptances?.length || can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data").allowed);
+  const rows = visibleRows(ctx, content, candidates, period, ids, canTeam, query.regionId);
   const visibleRegions = ctx.scope.kind === "own" ? regions.filter(r => rows.some(row => row.regions.some(region => region.id === r.id))) : regions;
   return { ...empty, rows, candidates: writer ? candidates : [], regions: visibleRegions.map(({ id, name }) => ({ id, name })), periods: content.periods.map(({ key, start, end }) => ({ key, start, end })),
     revision: revisionLabel(plan, selected, state?.current?.id),
     versions: plan.revisions.filter(r => r.state === "sealed" || (writer && r.state === "draft")).map(r => ({ id: r.id, version: r.version, draft: r.state === "draft" })),
     editToken: selected.state === "draft" && writer ? selected.editToken : null,
-    canEdit: writer && sourcesEditable && !state?.closed && (!state?.draft || state.draft.id === selected.id) && (selected.state === "draft" ? selected.content.releaseScope === "regions" && selected.baseId === (state?.current?.id ?? null) : selected.id === state?.current?.id),
+    canEdit: editableSelection(ctx, selected, state, writer, canTeam),
   };
 }
 
@@ -93,4 +95,12 @@ export async function readFocusDetail(ctx: FocusContext, query: FocusQuery & { a
 }
 function revisionLabel(plan: import("./plan-model").SalesPlan, selected: PlanRevision, currentId?: string) {
   return { id: selected.id, version: selected.version, draft: selected.state === "draft", current: selected.id === currentId, regionalVersion: regionalPlanningRevision(plan, selected)?.version ?? null };
+}
+
+function editableSelection(ctx: FocusContext, selected: PlanRevision, state: ReturnType<typeof planVersions> | null, writer: boolean, canTeam: boolean) {
+  if (!writer || !canTeam || state?.closed) return false;
+  if (selected.content.strategyAcceptances?.length && !can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data").allowed) return false;
+  if (state?.draft && state.draft.id !== selected.id) return false;
+  if (selected.state !== "draft") return selected.id === state?.current?.id;
+  return selected.content.releaseScope === "regions" && selected.baseId === (state?.current?.id ?? null);
 }

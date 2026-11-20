@@ -8,7 +8,7 @@ import { focusQuery } from "../lib/focus-workspace";
 import { lockedPage } from "../components/locked-page";
 import { FocusWorkspaceView } from "./workspace";
 export const dynamic = "force-dynamic";
-export default async function NamedAccountPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function NamedAccountPage({ searchParams }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const session = await resolveAppSession();
   if (!session) return null;
   const locked = lockedPage(session, "namedAccount");

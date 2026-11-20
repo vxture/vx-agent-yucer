@@ -3,7 +3,8 @@ export function focusHref({ year, revisionId, regionId, period, accountId }: { y
   if (revisionId) q.set("revision", revisionId);
   if (regionId) q.set("region", regionId);
   if (period) q.set("period", period);
-  return `${accountId ? `/named/${encodeURIComponent(accountId)}` : "/named"}?${q}`;
+  const path = accountId ? `/named/${encodeURIComponent(accountId)}` : "/named";
+  return `${path}?${q}`;
 }
 export function focusQuery(input: Record<string, string | string[] | undefined>) {
   if (Object.values(input).some(Array.isArray)) return null;
