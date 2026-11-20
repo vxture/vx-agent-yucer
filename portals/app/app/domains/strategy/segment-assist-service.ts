@@ -70,8 +70,9 @@ export async function prepareSegmentDraft(ctx: StrategyContext, input: SegmentAs
       capabilityQuery: "industry market research web search",
       reviewAnswer: answer => {
         const draft = readSegmentDraft(answer, vocab, current, manualFields);
-        return { answer, ...(!draft ? { feedback: "Return the requested JSON fields object, not a prose claim of filling. Fill a useful draft using the supplied vocabulary." }
-          : draft.rejected.length ? { feedback: `Correct invalid fields ${draft.rejected.join(", ")}. Use exact configured names and catalog IDs. Condense text within these character limits: ${JSON.stringify(SEGMENT_TEXT_LIMITS)}. Return the complete corrected JSON fields object.` } : {}) };
+        if (!draft) return { answer, feedback: "Return the requested JSON fields object, not a prose claim of filling. Fill a useful draft using the supplied vocabulary." };
+        if (draft.rejected.length) return { answer, feedback: `Correct invalid fields ${draft.rejected.join(", ")}. Use exact configured names and catalog IDs. Condense text within these character limits: ${JSON.stringify(SEGMENT_TEXT_LIMITS)}. Return the complete corrected JSON fields object.` };
+        return { answer };
       },
     }, { atlasClient: deps.atlasClient, runosClient: deps.runosClient, meter: deps.meter });
     if (!turn.ok) return { ok: false, error: turn.violations[0]?.code ?? "turn_failed", recovery: turn.recovery };

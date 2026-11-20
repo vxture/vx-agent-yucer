@@ -66,16 +66,12 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
     compactSelection={{ label: m => TABLE_TOOLBAR_TEXT.selectRecord(m.name), alwaysVisible: true }}
     rows={[...sorted.sortRows(rows)]} selectedKeys={comparing ? selected : undefined} onSelectionChange={comparing ? setSelected : undefined} sort={sorted.sort} onSortChange={sorted.onSortChange}
     columns={[
-      {id:"name",header:T.marketName,track:"subject",sortable:true,cell:m=><CollectionTitleCell title={<Link href={`/segment/${encodeURIComponent(m.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{m.name}</Link>} description={<span className="flex min-w-0 items-baseline gap-sm"><span className="shrink-0 text-body-small">{m.segmentCode}</span><span className="truncate text-body" data-market-list-summary title={segmentSummary(m.criteria)}>{segmentSummary(m.criteria)}</span></span>}
-        tooltip={[m.name,m.segmentCode].filter(Boolean).join(" / ")} />},
-      {id:"criteria",header:T.criteria,track:"criteria",align:"left",cell:m=><div className="flex min-w-0 flex-col gap-xs" title={`${T.industry}: ${m.criteria.industries.join(" / ") || T.unlimited}; ${T.size}: ${m.criteria.sizes?.join(" / ") || T.unlimited}; ${T.region}: ${m.criteria.regions.join(" / ") || T.unlimited}`}>
-        <span className="line-clamp-1">{m.criteria.industries.join(" / ") || ([...m.criteria.regions,...(m.criteria.sizes ?? [])].length ? T.unlimited : T.undefined)}</span>
-        <span className="line-clamp-1 text-body-small text-muted-foreground">{[m.criteria.sizes?.join(" / "),m.criteria.regions.join(" / ")].filter(Boolean).join(" \u00b7 ") || T.unlimited}</span>
-      </div>},
-      {id:"customers",header:T.customerCount,sortable:true,track:"count",cell:m=><StrategyQuantity value={m.matched ?? "-"} unit={m.matched === null ? undefined : D.customerUnit}/>},
-      {id:"offerings",sortable:true,header:T.productSolutionsTitle,track:"count",cell:m=>m.defaultSolutions == null || m.defaultProducts == null ? T.unknown : <StrategyQuantity value={m.defaultSolutions.length + m.defaultProducts.length} unit={D.recordUnit}/>},
-      {id:"plan",sortable:true,header:T.linkedPlan,track:"count",cell:m=><span title={m.plans?.map(p=>p.name).join(" / ")}><StrategyQuantity value={m.plans?.length ?? "-"} unit={m.plans === null ? undefined : D.strategyUnit}/></span>},
-      {id:"status",sortable:true,header:T.status,track:"state",cell:m=><Tag tone={m.status==="active"?"success":"neutral"}>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag>},
+      {id:"name",header:T.marketName,track:"subject",sortable:true,cell: marketNameCell},
+      {id:"criteria",header:T.criteria,track:"criteria",align:"left",cell:m=>marketCriteriaCell(m, T)},
+      {id:"customers",header:T.customerCount,sortable:true,track:"count",cell:m=>marketCountCell(m.matched, D.customerUnit)},
+      {id:"offerings",sortable:true,header:T.productSolutionsTitle,track:"count",cell:m=>marketOfferingCell(m, D.recordUnit, T.unknown)},
+      {id:"plan",sortable:true,header:T.linkedPlan,track:"count",cell:m=>marketPlanCell(m, D.strategyUnit)},
+      {id:"status",sortable:true,header:T.status,track:"state",cell:m=>marketStatusCell(m, STRATEGY_TEXT.segmentStatusLabel[m.status])},
     ]}
     rowActions={rowActions}
     empty={<EmptyState title={markets.length ? T.noMatches:T.noMarkets} description={T.noMarketsWhy} />}
@@ -154,4 +150,27 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
       </div>
     </Drawer>
   </div>;
+}
+
+function marketNameCell(m: MarketView) {
+  return <CollectionTitleCell title={<Link href={`/segment/${encodeURIComponent(m.id)}`} className="no-underline transition-colors hover:text-primary-text hover:no-underline">{m.name}</Link>} description={<span className="flex min-w-0 items-baseline gap-sm"><span className="shrink-0 text-body-small">{m.segmentCode}</span><span className="truncate text-body" data-market-list-summary title={segmentSummary(m.criteria)}>{segmentSummary(m.criteria)}</span></span>} tooltip={[m.name,m.segmentCode].filter(Boolean).join(" / ")} />;
+}
+function marketCriteriaCell(m: MarketView, text: { industry:string; size:string; region:string; unlimited:string; undefined:string }) {
+  return <div className="flex min-w-0 flex-col gap-xs" title={`${text.industry}: ${m.criteria.industries.join(" / ") || text.unlimited}; ${text.size}: ${m.criteria.sizes?.join(" / ") || text.unlimited}; ${text.region}: ${m.criteria.regions.join(" / ") || text.unlimited}`}>
+    <span className="line-clamp-1">{m.criteria.industries.join(" / ") || ([...m.criteria.regions,...(m.criteria.sizes ?? [])].length ? text.unlimited : text.undefined)}</span>
+    <span className="line-clamp-1 text-body-small text-muted-foreground">{[m.criteria.sizes?.join(" / "),m.criteria.regions.join(" / ")].filter(Boolean).join(" \u00b7 ") || text.unlimited}</span>
+  </div>;
+}
+function marketCountCell(value: number | null, unit: string) {
+  return <StrategyQuantity value={value ?? "-"} unit={value === null ? undefined : unit}/>;
+}
+function marketOfferingCell(m: MarketView, unit: string, unknown: string) {
+  if (m.defaultSolutions == null || m.defaultProducts == null) return unknown;
+  return <StrategyQuantity value={m.defaultSolutions.length + m.defaultProducts.length} unit={unit}/>;
+}
+function marketPlanCell(m: MarketView, unit: string) {
+  return <span title={m.plans?.map(p=>p.name).join(" / ")}><StrategyQuantity value={m.plans?.length ?? "-"} unit={m.plans === null ? undefined : unit}/></span>;
+}
+function marketStatusCell(m: MarketView, label: string) {
+  return <Tag tone={m.status === "active" ? "success" : "neutral"}>{label}</Tag>;
 }

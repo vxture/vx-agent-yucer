@@ -71,4 +71,4 @@ Owner 提供目录 `/Users/stonesmoker/MyWebSite/智能助手设计规范包-v1.
 - 浏览器问答和客户资料使用受控响应；只有授权偏好通过真实本地 server action 保存。不包含真实 Atlas 联网答案验收。
 - 本机证据：`/tmp/yucer-assistant-design-browser.json`、`/tmp/yucer-registration-fill-browser.json` 以及同名前缀日志；截图 `yucer-assistant-authorization.png`、`yucer-assistant-conversation-final.png`。
 - 无修改权限的菜单分支及高危确认 UI 已实现；尚未在本轮浏览器中以实际受限账号/高危业务对象验收。后端风险注册与高危拒绝自动执行有单元测试覆盖。
-- 尚未发布；生产仍为 v0.1.96。共享 DS 接口缺口与服务端专项分别保留在 #144 和 #652，不标为全部规范验收完成。
+- 本轮界面与授权模式已随 v0.1.97 上线，后续产品持续迭代至 v0.1.119。共享 DS 接口缺口与服务端专项分别保留在 #144 和 #652，不标为全部规范验收完成。SE-04 新增产品/方案实际草稿填写仍待合并部署与真实模型验收，见 [精细化批次](95-strategic-equipment-refinement.md)。
