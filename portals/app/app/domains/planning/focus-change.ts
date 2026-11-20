@@ -1,7 +1,7 @@
 import type { FocusChange } from "./focus-model";
 import type { PlanContent } from "./plan-model";
 import { demand, minor } from "./plan-values";
-import { planningEntryLocked, prunePlanningBudgets } from "../../(app)/lib/planning-operations";
+import { planningEntryLocked, prunePlanningBudgets } from "./plan-entry-state";
 
 /** Pure edits of the existing regional aggregate; never changes customer master data. */
 export function applyFocusChange(content: PlanContent, change: FocusChange, accounts: readonly { id: string; name: string; tier: string }[], locked: readonly string[], key: () => string, at: string) {
@@ -19,7 +19,7 @@ export function applyFocusChange(content: PlanContent, change: FocusChange, acco
       const old = change.kind === "action" && change.key ? next.actions.find(a => a.key === change.key && a.accountId === id) : null;
       demand(change.kind !== "action" || !change.key || old, "invalid_action");
       if (old) unlocked(old);
-      const action = { key: old?.key ?? key(), accountId: id, regionId: change.regionId, objective: change.objective.trim(), ownerSub: change.ownerSub, due: change.due, targetKey: old?.targetKey ?? null, evidenceRefs: old?.evidenceRefs ?? [] };
+      const action = { key: old?.key ?? key(), accountId: id, regionId: change.regionId, objective: change.objective.trim(), ownerSub: change.ownerSub, due: change.due, targetKey: old?.regionId === change.regionId ? old.targetKey : null, evidenceRefs: old?.evidenceRefs ?? [] };
       unlocked(action);
       if (old) Object.assign(old, action); else next.actions.push(action);
     }

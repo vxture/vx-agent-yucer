@@ -108,3 +108,9 @@ test("draft detail refuses mixing a changed team snapshot into the prior project
   ctx.store.read = async (...args) => { const p = await read(...args); if (++calls === 2 && p) p.revisions.find(r => r.id === "draft")!.editToken++; return p; };
   await assert.rejects(readFocusDetail(ctx, { year: 2026, revisionId: "draft", accountId: "a" }), /draft_conflict/);
 });
+test("moving an action clears an incompatible optional target link without changing evidence", () => {
+  const { content, east } = fixture();
+  content.actions[0].targetKey = east.key; content.actions[0].evidenceRefs = ["evidence"];
+  const next = applyFocusChange(content, { kind: "action", key: "ae", accountId: "a", regionId: "west", objective: "Review in west", ownerSub: "rep", due: "2026-08-01" }, [{ id: "a", name: "Ordinary", tier: "standard" }], [], () => "key", at);
+  assert.equal(next.actions[0].targetKey, null); assert.deepEqual(next.actions[0].evidenceRefs, ["evidence"]); validateContent(next, false);
+});
