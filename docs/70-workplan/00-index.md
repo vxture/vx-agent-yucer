@@ -3,7 +3,7 @@
 ## 战略装备域精细化修正
 
 [95-strategic-equipment-refinement.md](95-strategic-equipment-refinement.md) 定义 SE-01 至 SE-06
-的顺序、验收出口和固定进度汇报方式；当前 SE-01 数据可信修正进行中。
+的顺序、验收出口和固定进度汇报方式；六批实现已随 v0.1.120 上线，运行验收及明确后续项按该表继续跟踪。
 
 ## 战略制定结果
 
