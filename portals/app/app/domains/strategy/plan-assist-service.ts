@@ -1,3 +1,4 @@
+import { readAssistantFields } from "../shared/assistant-fields";
 import { preservePlanManualFields, PLAN_MANUAL_FIELDS, type PlanManualField } from "./lib/plan-manual-fields";
 import type { TurnMeter } from "../../usage/lib/copilot-turns";
 import type { AtlasClient } from "../../agent/atlas/client";
@@ -61,12 +62,8 @@ export function readPlanDraft(
   manual: readonly PlanManualField[] = [],
 ): { message: string; patch: PlanEdit } | null {
   try {
-    const cleaned = answer
-      .trim()
-      .replace(/^```(?:json)?\s*/, "")
-      .replace(/\s*```$/, "");
-    const doc = JSON.parse(cleaned);
-    if (!doc?.fields || typeof doc.fields !== "object" || Array.isArray(doc.fields)) return null;
+    const doc = readAssistantFields(answer);
+    if (!doc) return null;
     const f = preservePlanManualFields(doc.fields, current, manual);
     const patch: PlanEdit = { ...current };
     for (const key of [

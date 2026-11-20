@@ -599,14 +599,14 @@ function toPlan(r: Record<string, unknown>): PlanRecord {
     expectations: (r.expectations ?? []) as import("./lib/expectations").StrategicExpectation[],
     objective: (r.objective as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
-    productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),
+    productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(compareIdentifiers),
     solutionIds: (r.solutionLinks as { solutionId: string }[]).map(link => link.solutionId).sort((a, b) => a.localeCompare(b)),
     targetMarkets: (r.targetMarkets as Array<{
       segmentId: string; marketName: string; intent: TargetMarket["intent"]; approach: string | null;
       criteria: unknown; productLinks: { productId: string }[]; solutionLinks: { solutionId: string }[];
     }>).map(t => ({
       segmentId: t.segmentId, marketName: t.marketName, intent: t.intent, approach: t.approach,
-      productIds: (t.productLinks ?? []).map(p => p.productId).sort(),
+      productIds: (t.productLinks ?? []).map(p => p.productId).sort(compareIdentifiers),
       criteria: readCriteria(t.criteria), solutionIds: t.solutionLinks.map(s => s.solutionId).sort((a, b) => a.localeCompare(b)),
     })).sort((a, b) => a.marketName.localeCompare(b.marketName)),
     status: r.status as PlanStatus,
@@ -642,8 +642,8 @@ function toSegment(r: Record<string, unknown>): SegmentRecord {
     priority: Number(r.priority ?? 0),
     status: r.status as SegmentStatus,
     criteria: readCriteria(r.criteria),
-    productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(),
-    solutionIds: ((r.solutionLinks ?? []) as { solutionId: string }[]).map(s => s.solutionId).sort(),
+    productIds: ((r.productLinks ?? []) as { productId: string }[]).map(p => p.productId).sort(compareIdentifiers),
+    solutionIds: ((r.solutionLinks ?? []) as { solutionId: string }[]).map(s => s.solutionId).sort(compareIdentifiers),
   };
 }
 
@@ -675,3 +675,7 @@ async function writeProducts<T>(write: () => Promise<T>): Promise<T> {
     throw error;
   }
 }
+
+// Explicit UTF-16 code-unit order matches the previous default string sort.
+// Do not switch persisted UUID projections to locale/ICU-dependent ordering.
+function compareIdentifiers(a: string, b: string) { return a < b ? -1 : Number(a > b); }

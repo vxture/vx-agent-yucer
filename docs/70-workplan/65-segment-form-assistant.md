@@ -1,7 +1,7 @@
 # 细分市场表单与智能填写
 
 日期：2026-11-16。跟踪：[Issue #656](https://github.com/vxture/vx-agent-yucer/issues/656)。
-范围：`/segment/new` 和同一路由的 `?code=` 编辑模式。本轮本地实现，尚未发布。
+范围：`/segment/new`，编辑优先 `?id=` UUID，保留 `?code=` 兼容。已随 v0.1.99 上线；后续独立详情页 v0.1.115、内容与样式 v0.1.116–v0.1.117、排序 v0.1.119。当前本地与运行验收分层见 [精细化批次](95-strategic-equipment-refinement.md)，发布不等于真实模型逐项验收。
 
 ## 业务结构与字段清单
 

@@ -128,14 +128,14 @@ def inventory():
         app = next((name for name in candidates if name in names), None)
         report[product] = {
             "config_file_present": Path(f"/srv/md0/{product}/etc/.env").is_file(),
-            "app": attempt(lambda: app_config(app, product)) if app else
+            "app": attempt(lambda app=app, product=product: app_config(app, product)) if app else
                    {"status": "container_not_found"},
         }
     for product, queries in (("runos", RUNOS_QUERIES), ("atlas", ATLAS_QUERIES)):
         container = f"vx-{product}-postgres-db-prod"
         for section, sql in queries.items():
             report[product][section] = attempt(
-                lambda: query(container, f"vx_{product}_db", sql))
+                lambda container=container, product=product, sql=sql: query(container, f"vx_{product}_db", sql))
     return report
 
 

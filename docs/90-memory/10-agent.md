@@ -38,8 +38,8 @@ For the PRODUCT, authority is here and is layered:
 
 - Trunk-based: feature branch -> PR -> squash-merge -> delete branch. Never push
   `main` directly.
-- The five required CI checks are a stable contract: `quality-gate` / `build` /
-  `test-coverage` / `audit` / `gitleaks`. Do not rename the jobs that produce them.
+- The six required CI checks are a stable contract: `quality-gate` / `build` /
+  `test-coverage` / `audit` / `gitleaks` / `db-contract`. Do not rename the jobs that produce them.
 - Docs: numbered = formal, unnumbered = temporary. `lint:docs-numbering --strict`
   blocks unnumbered `.md`. Domain docs use `{kind}_{domain}_{NNN}_{slug}`; this
   product's domain code is `yucer`.

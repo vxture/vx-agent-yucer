@@ -58,34 +58,10 @@ export function StrategyMarketCards({ markets, actions, detail, attributes }: {
   readonly attributes?: (market: SelectedMarket) => ReactNode;
   readonly detail?: boolean;
 }) {
-  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT: T, STRATEGY_TEXT, STRATEGY_DETAIL_TEXT:D } = useMessages();
+  const { MARKET_STRATEGY_TEXT: T } = useMessages();
   if (markets === null || !markets.length) return <p className="text-body-small text-muted-foreground">{markets === null ? T.unknown : T.noPlanMarkets}</p>;
   return <StrategySelectionGrid kind="market" count={markets.length} detail={detail}>
-    {markets.map(m => <Card key={m.segmentId} variant="reference" data-strategy-target-market><CardContent>
-      <div className="flex min-w-0 items-start justify-between gap-sm">
-        <Link className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text" href={`/segment/${encodeURIComponent(m.segmentId)}`}><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link>
-        <div className="flex shrink-0 flex-wrap items-center gap-xs"><Tag tone={m.intent === "focus" ? "success" : "neutral"}>{m.intent === "focus" ? T.focusMarket : m.intent === "validate" ? T.validateMarket : T.unclassifiedMarket}</Tag>
-          {attributes?.(m)}{m.status && m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
-        </div>
-      </div>
-      <dl className={layout.rows} data-strategy-market-facts>
-        <div className={layout.field}><dt><StrategyDetailLabel>{T.criteria}</StrategyDetailLabel></dt><dd className="line-clamp-2">{m.criteria?[...m.criteria.industries,...m.criteria.regions].join(" / ")||T.undefined:T.unknown}</dd></div>
-        <div className={layout.field}><dt><StrategyDetailLabel>{R.sizes}</StrategyDetailLabel></dt><dd className="line-clamp-2">{m.criteria?.sizes?.join(" / ")||R.unlimitedSize}</dd></div>
-        <div className={layout.field}><dt><StrategyDetailLabel>{T.marketApproach}</StrategyDetailLabel></dt><dd className={`line-clamp-2 ${m.approach?"":"text-muted-foreground"}`}>{m.approach||T.noMarketApproach}</dd></div>
-        <div className={layout.field}><dt><StrategyDetailLabel>{T.featuredSolutions}</StrategyDetailLabel></dt><dd className="flex min-w-0 flex-col items-start gap-xs">
-          {strategyOfferings(m.solutions,m.products).slice(0,2).map(row=><Link key={row.key} href={row.href} className="inline-flex min-w-0 items-start gap-xs transition-colors hover:text-primary-text" title={row.name}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span className="line-clamp-1 break-words">{row.name}</span></Link>)}
-          {strategyOfferings(m.solutions,m.products).length>2?<Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className="text-body-small text-muted-foreground hover:text-primary-text">+{strategyOfferings(m.solutions,m.products).length-2}</Link>:null}
-          {m.solutions===null||m.products===null?<span className="text-muted-foreground">{T.unknown}</span>:!m.solutions?.length&&!m.products?.length?<span className="text-muted-foreground">{T.noPlanSolutions}</span>:null}
-        </dd></div>
-        {m.criteria?.customerNeed?<div className={layout.field}><dt><StrategyDetailLabel>{T.customerNeed}</StrategyDetailLabel></dt><dd className="line-clamp-2 break-words text-muted-foreground">{m.criteria.customerNeed}</dd></div>:null}
-      </dl>
-      {m.matched !== undefined || actions ? <div className={`mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm ${layout.divider}`} data-strategy-market-footer>
-        {m.matched !== undefined ? <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs">
-          <span className="inline-flex items-baseline gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><StrategyQuantity value={m.matched ?? T.unknown} unit={m.matched==null?undefined:D.customerUnit}/></span>
-          {m.missing ? <span className="text-body-small text-muted-foreground">{T.missing} <StrategyQuantity value={m.missing} unit={D.customerUnit}/></span> : null}
-        </div> : null}{actions?.(m)}
-      </div> : null}
-    </CardContent></Card>)}
+    {markets.map(m => <StrategyMarketCard key={m.segmentId} market={m} actions={actions} attributes={attributes}/>)}
   </StrategySelectionGrid>;
 }
 
@@ -108,7 +84,9 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
       {rows.map(row => {
         const shared=(row.kind === "product" ? sharedProductIds : sharedIds)?.includes(row.id);
         const scopes=markets.filter(m=>(row.kind === "product" ? m.productIds : m.solutionIds)?.includes(row.id));
-        const marketLabel = shared ? T.sharedScope : scopes.length ? scopes.map(m=>m.marketName).join(" / ") : T.noPlanMarkets;
+        let marketLabel = T.noPlanMarkets;
+        if (scopes.length) marketLabel = scopes.map(m => m.marketName).join(" / ");
+        if (shared) marketLabel = T.sharedScope;
         return <Card key={row.key} variant="reference" data-strategy-offering={row.kind}><CardContent className="h-full">
           <Link href={row.href} className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text"><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{row.name}</span></Link>
           <div className="flex min-w-0 flex-wrap items-center gap-xs text-body-small text-muted-foreground"><span>{row.kind === "product" ? T.productKind : T.solutionKind}</span><span className="truncate">{row.code}</span>{row.status === "retired" ? <Tag>{T.retiredSolution}</Tag>:null}{row.novelty?<Tag>{R[row.novelty]}</Tag>:null}</div>
@@ -121,4 +99,58 @@ export function StrategySolutionCards({ solutions, products = [], markets, share
       })}
     </StrategySelectionGrid>
   </>;
+}
+
+function StrategyMarketCard({ market: m, actions, attributes }: {
+  readonly market: SelectedMarket;
+  readonly actions?: (market: SelectedMarket) => ReactNode;
+  readonly attributes?: (market: SelectedMarket) => ReactNode;
+}) {
+  const { STRATEGY_RESULT_TEXT:R, MARKET_STRATEGY_TEXT:T, STRATEGY_TEXT } = useMessages();
+  return <Card key={m.segmentId} variant="reference" data-strategy-target-market><CardContent>
+      <div className="flex min-w-0 items-start justify-between gap-sm">
+        <Link className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text" href={`/segment/${encodeURIComponent(m.segmentId)}`}><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link>
+        <div className="flex shrink-0 flex-wrap items-center gap-xs"><Tag tone={m.intent === "focus" ? "success" : "neutral"}>{marketIntentLabel(m.intent, T)}</Tag>
+          {attributes?.(m)}{m.status && m.status !== "active" ? <Tag>{STRATEGY_TEXT.segmentStatusLabel[m.status]}</Tag> : null}
+        </div>
+      </div>
+      <dl className={layout.rows} data-strategy-market-facts>
+        <div className={layout.field}><dt><StrategyDetailLabel>{T.criteria}</StrategyDetailLabel></dt><dd className="line-clamp-2">{m.criteria?[...m.criteria.industries,...m.criteria.regions].join(" / ")||T.undefined:T.unknown}</dd></div>
+        <div className={layout.field}><dt><StrategyDetailLabel>{R.sizes}</StrategyDetailLabel></dt><dd className="line-clamp-2">{m.criteria?.sizes?.join(" / ")||R.unlimitedSize}</dd></div>
+        <div className={layout.field}><dt><StrategyDetailLabel>{T.marketApproach}</StrategyDetailLabel></dt><dd className={`line-clamp-2 ${m.approach?"":"text-muted-foreground"}`}>{m.approach||T.noMarketApproach}</dd></div>
+        <div className={layout.field}><dt><StrategyDetailLabel>{T.featuredSolutions}</StrategyDetailLabel></dt><dd className="flex min-w-0 flex-col items-start gap-xs">
+          <MarketOfferings market={m}/>
+        </dd></div>
+        {m.criteria?.customerNeed?<div className={layout.field}><dt><StrategyDetailLabel>{T.customerNeed}</StrategyDetailLabel></dt><dd className="line-clamp-2 break-words text-muted-foreground">{m.criteria.customerNeed}</dd></div>:null}
+      </dl>
+      <MarketFooter market={m} actions={actions}/>
+    </CardContent></Card>;
+}
+function marketIntentLabel(intent: TargetMarketIntent | null, text: { focusMarket: string; validateMarket: string; unclassifiedMarket: string }) {
+  if (intent === "focus") return text.focusMarket;
+  if (intent === "validate") return text.validateMarket;
+  return text.unclassifiedMarket;
+}
+
+function MarketOfferings({ market:m }: { readonly market: SelectedMarket }) {
+  const { MARKET_STRATEGY_TEXT:T } = useMessages();
+  const rows = strategyOfferings(m.solutions, m.products);
+  const unavailable = m.solutions === null || m.products === null;
+  const empty = !unavailable && !rows.length;
+  return <>
+    {rows.slice(0,2).map(row=><Link key={row.key} href={row.href} className="inline-flex min-w-0 items-start gap-xs transition-colors hover:text-primary-text" title={row.name}><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground"/><span className="line-clamp-1 break-words">{row.name}</span></Link>)}
+    {rows.length>2?<Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className="text-body-small text-muted-foreground hover:text-primary-text">+{rows.length-2}</Link>:null}
+    {unavailable ? <span className="text-muted-foreground">{T.unknown}</span> : null}
+    {empty ? <span className="text-muted-foreground">{T.noPlanSolutions}</span> : null}
+  </>;
+}
+
+function MarketFooter({ market:m, actions }: { readonly market: SelectedMarket; readonly actions?: (market: SelectedMarket) => ReactNode }) {
+  const { MARKET_STRATEGY_TEXT:T, STRATEGY_DETAIL_TEXT:D } = useMessages();
+  return m.matched !== undefined || actions ? <div className={`mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm ${layout.divider}`} data-strategy-market-footer>
+        {m.matched !== undefined ? <div className="flex flex-wrap items-baseline gap-x-sm gap-y-xs">
+          <span className="inline-flex items-baseline gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><StrategyQuantity value={m.matched ?? T.unknown} unit={m.matched==null?undefined:D.customerUnit}/></span>
+          {m.missing ? <span className="text-body-small text-muted-foreground">{T.missing} <StrategyQuantity value={m.missing} unit={D.customerUnit}/></span> : null}
+        </div> : null}{actions?.(m)}
+      </div> : null;
 }

@@ -68,7 +68,7 @@ export function StrategyDetailMarkets({ plan:p, actions }: { readonly plan:Strat
       const context=[{label:T.marketApproach,value:m.approach},{label:F.customerNeed,value:m.criteria.customerNeed},{label:F.buyingScenario,value:m.criteria.buyingScenario},{label:F.expectedOutcome,value:m.criteria.expectedOutcome},{label:F.entryBarrier,value:m.criteria.entryBarrier}].filter(f=>f.value);
       const offerings=strategyOfferings(m.solutions,m.products);
       const detail=<>
-        <div className="flex flex-wrap gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{m.intent==="focus"?T.focusMarket:m.intent==="validate"?T.validateMarket:T.unclassifiedMarket}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div>
+        <div className="flex flex-wrap gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{marketIntentLabel(m.intent, T)}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div>
         <dl className={styles.previewFacts}>
           {[...facts,...context,{label:T.customerCount,value:<StrategyQuantity value={m.matched ?? T.unknown} unit={m.matched==null?undefined:D.customerUnit}/>}].map(f=><div key={f.label} className={styles.previewFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd>{f.value}</dd></div>)}
         </dl>
@@ -78,7 +78,7 @@ export function StrategyDetailMarkets({ plan:p, actions }: { readonly plan:Strat
         </div></div>
       </>;
       return <StrategyPreviewCard key={m.segmentId} title={m.marketName} detail={detail} className="min-w-0 gap-0" data-strategy-target-market><CardContent className="flex-1">
-        <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className="inline-flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline"><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{m.intent==="focus"?T.focusMarket:m.intent==="validate"?T.validateMarket:T.unclassifiedMarket}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
+        <div className="flex min-w-0 items-start justify-between gap-sm"><Link href={`/segment/${encodeURIComponent(m.segmentId)}`} className="inline-flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline"><Icon name="globe" size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{m.marketName}</span></Link><div className="flex shrink-0 flex-col items-end gap-xs"><Tag tone={m.intent==="focus"?"success":"neutral"}>{marketIntentLabel(m.intent, T)}</Tag>{m.status!=="active"?<Tag>{S.segmentStatusLabel[m.status]}</Tag>:null}</div></div>
         <dl className={layout.rows} data-strategy-market-facts>{facts.map(f=><div key={f.label} className={styles.referenceFact}><dt><StrategyDetailLabel>{f.label}</StrategyDetailLabel></dt><dd className="line-clamp-2 break-words text-body">{f.value}</dd></div>)}</dl>
         {context.slice(0,2).map(f=><div key={f.label} className={styles.referenceFact}><StrategyDetailLabel>{f.label}</StrategyDetailLabel><p className="line-clamp-2 min-w-0 whitespace-pre-wrap break-words text-body text-muted-foreground">{f.value}</p></div>)}
         <div className={`mt-auto flex min-w-0 flex-wrap items-center justify-between gap-sm ${layout.divider}`}><span className="inline-flex items-center gap-xs"><StrategyDetailLabel>{T.customerCount}</StrategyDetailLabel><StrategyQuantity value={m.matched ?? T.unknown} unit={m.matched==null?undefined:D.customerUnit}/></span><span data-preview-actions>{actions?.(m.segmentId)}</span></div>
@@ -106,7 +106,7 @@ export function StrategyDetailOfferings({ plan:p }: { readonly plan:StrategyView
       <RelatedDisclosure count={rows.length} label={T.productSolutionsTitle}>{rows.map(row=>{
         const shared=(row.kind==="product"?p.sharedProducts:p.sharedSolutions)?.some(x=>x.id===row.id);
         const markets=p.targetMarkets?.filter(m=>(row.kind==="product"?m.products:m.solutions)?.some(x=>x.id===row.id));
-        const scope=shared?T.sharedScope:markets?.length?markets.map(m=>m.marketName).join(" / "):p.targetMarkets===null?T.unknown:T.noPlanMarkets;
+        const scope=offeringScope(shared, markets, p.targetMarkets === null, T);
         const titleLink=<Link href={row.href} className="inline-flex min-w-0 items-start gap-sm text-body font-medium no-underline transition-colors hover:text-primary-text hover:no-underline"><Icon name={row.icon} size="sm" className="shrink-0 text-muted-foreground" aria-hidden="true"/><span className="line-clamp-2 break-words">{row.name}</span></Link>;
         const detail=<>
           {row.status==="retired"?<Tag>{T.retiredSolution}</Tag>:null}
@@ -148,4 +148,15 @@ export function StrategyDetailHandoff({ plan:p, rows, children }: { readonly pla
       </CardContent></Card>
     </div>
   </Section>;
+}
+
+function marketIntentLabel(intent: string | null, text: { focusMarket: string; validateMarket: string; unclassifiedMarket: string }) {
+  if (intent === "focus") return text.focusMarket;
+  if (intent === "validate") return text.validateMarket;
+  return text.unclassifiedMarket;
+}
+function offeringScope(shared: boolean | undefined, markets: readonly { marketName: string }[] | undefined, unknown: boolean, text: { sharedScope: string; unknown: string; noPlanMarkets: string }) {
+  if (shared) return text.sharedScope;
+  if (markets?.length) return markets.map(m => m.marketName).join(" / ");
+  return unknown ? text.unknown : text.noPlanMarkets;
 }

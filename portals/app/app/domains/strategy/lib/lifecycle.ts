@@ -479,12 +479,8 @@ export function planSegment(input: SegmentDraft): RuleResult<SegmentDraft> {
   if (!name) {
     return fail(violation("name_required", "a segment needs a name", "name"));
   }
-  for (const key of Object.keys(SEGMENT_TEXT_LIMITS) as (keyof typeof SEGMENT_TEXT_LIMITS)[]) {
-    const value = key === "name" ? name : criteria[key];
-    if (value && value.length > SEGMENT_TEXT_LIMITS[key]) {
-      return fail(violation(key === "needSummary" ? "need_summary_too_long" : "segment_text_too_long", `${key} exceeds ${SEGMENT_TEXT_LIMITS[key]} characters`, key === "name" ? key : `criteria.${key}`));
-    }
-  }
+  const textError = segmentTextError(name, criteria);
+  if (textError) return fail(textError);
   if (!(SEGMENT_STATUSES as readonly string[]).includes(input.status)) {
     return fail(
       violation("unknown_status", `${String(input.status)} is not a segment status`, "status"),
@@ -518,4 +514,13 @@ export function planSegmentRemoval(refs: {
     );
   }
   return ok(true);
+}
+
+function segmentTextError(name: string, criteria: SegmentCriteria) {
+  for (const key of Object.keys(SEGMENT_TEXT_LIMITS) as (keyof typeof SEGMENT_TEXT_LIMITS)[]) {
+    const value = key === "name" ? name : criteria[key];
+    if (value && value.length > SEGMENT_TEXT_LIMITS[key]) {
+      return violation(key === "needSummary" ? "need_summary_too_long" : "segment_text_too_long", `${key} exceeds ${SEGMENT_TEXT_LIMITS[key]} characters`, key === "name" ? key : `criteria.${key}`);
+    }
+  }
 }

@@ -24,7 +24,7 @@ import { PlanAdvicePanel } from "./plan-advice-panel";
 import { SegmentAdvicePanel } from "./segment-advice-panel";
 import { DialogForm } from "./dialog-form";
 import { strategyPeriodLabel } from "../../domains/strategy/lib/plan-period";
-import { currentStrategyPlans } from "../../domains/strategy/store";
+import { currentStrategyPlans } from "../../domains/strategy/lib/current-plans";
 import { StrategyCharterCard } from "./strategy-charter-card";
 import { Tag } from "./tag";
 import type { StrategyWorkspaceData } from "../strategy/workspace-data";
