@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   EmptyState,
+  Icon,
   StatusBadge,
   ViewLayout,
 } from "@vxture/design-ui";
@@ -17,6 +18,9 @@ import {
   type ResolvedModule,
 } from "../../lib/functional-domains";
 import { factsFor } from "./facts";
+import { readDeploymentOverview } from "./deployment-data";
+import { DeploymentOverviewPanel, DeploymentYearControl } from "./deployment-overview";
+import { salesPlanContext } from "../../planning/plan-data";
 
 // A domain home.
 //
@@ -40,8 +44,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DomainHomePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ key: string }>;
+  searchParams: Promise<{ year?: string | string[] }>;
 }) {
   const { key } = await params;
   // The rule is the router: a domain with one route has no home, and asking
@@ -58,6 +64,7 @@ export default async function DomainHomePage({
     DOMAIN_HOME_TEXT,
     LAUNCHER_TEXT,
     TIER_LABEL,
+    DEPLOYMENT_HOME_TEXT,
   } = await getMessages();
 
   const session = await resolveAppSession();
@@ -73,18 +80,42 @@ export default async function DomainHomePage({
   // without listing what they cannot have.
   if (!domain) notFound();
 
-  const facts = await factsFor(key, {
+  const context = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     stores: session.stores,
-  });
+    scope: session.scope,
+  };
+  const rawYear = key === "deployment" ? (await searchParams).year : undefined;
+  if (rawYear !== undefined && (typeof rawYear !== "string" || !/^\d{4}$/.test(rawYear) || Number(rawYear) < 2000 || Number(rawYear) > 2200))
+    return <EmptyState title={DEPLOYMENT_HOME_TEXT.invalidYear} />;
+  const year = rawYear === undefined ? new Date().getUTCFullYear() : Number(rawYear);
+  const deployment = key === "deployment"
+    ? await readDeploymentOverview(salesPlanContext(session), year, new Date().toISOString())
+    : null;
+  const facts = deployment ? [] : await factsFor(key, context);
 
   const moduleLabel = (m: ResolvedModule) =>
     m.kind === "built"
       ? (DOMAIN_LABEL[m.key] ?? m.key)
       : (PLANNED_MODULE_LABEL[m.key] ?? m.key);
+
+  const moduleHref = (m: Exclude<ResolvedModule, { kind: "planned" }>) => {
+    if (deployment && m.key === "planning") return `/planning?year=${year}`;
+    if (deployment && m.key === "attainment") return `/attainment?period=Y${year}`;
+    return m.href;
+  };
+  const moduleDescription = (m: Exclude<ResolvedModule, { kind: "planned" }>) => {
+    if (m.kind === "section") return LAUNCHER_TEXT.section;
+    if (m.state === "locked") {
+      if (!m.requiredTier) return LAUNCHER_TEXT.lockedNoTier;
+      return LAUNCHER_TEXT.locked(TIER_LABEL[m.requiredTier] ?? m.requiredTier);
+    }
+    if (deployment) return DEPLOYMENT_HOME_TEXT.modules[m.key];
+    return m.href;
+  };
 
   return (
     <ViewLayout>
@@ -95,11 +126,14 @@ export default async function DomainHomePage({
         current={DOMAIN_GROUP_LABEL[key] ?? key}
       />
       <ViewHeader
+        icon={domain.icon}
         title={DOMAIN_GROUP_LABEL[key] ?? key}
         help={DOMAIN_GROUP_QUESTION[key] ?? ""}
+        divider
+        pageActions={deployment ? { context: <DeploymentYearControl year={year} label={DEPLOYMENT_HOME_TEXT.year} submit={DEPLOYMENT_HOME_TEXT.applyYear} /> } : undefined}
       />
 
-      <Section
+      {deployment ? <DeploymentOverviewPanel summary={deployment} year={year} canViewAttainment={domain.modules.some(m => m.kind === "built" && m.key === "attainment" && m.state === "visible")} /> : <Section
         icon="chart-bar"
         title={DOMAIN_HOME_TEXT.factsTitle}
         help={DOMAIN_HOME_TEXT.factsWhy}
@@ -139,11 +173,11 @@ export default async function DomainHomePage({
             ))}
           </div>
         )}
-      </Section>
+      </Section>}
 
       <Section
         icon="squares-four"
-        title={DOMAIN_HOME_TEXT.modulesTitle}
+        title={deployment ? DEPLOYMENT_HOME_TEXT.modulesTitle : DOMAIN_HOME_TEXT.modulesTitle}
         help={DOMAIN_HOME_TEXT.modulesWhy}
       >
         <div className="grid grid-cols-1 gap-sm md:grid-cols-3">
@@ -159,20 +193,12 @@ export default async function DomainHomePage({
             ) : (
               <Link
                 key={m.kind === "section" ? `section-${m.key}` : m.key}
-                href={m.href}
+                href={moduleHref(m)}
                 className="hover:border-primary flex flex-col gap-2xs rounded-md border p-md"
               >
-                <span className="text-foreground">{moduleLabel(m)}</span>
-                <span className="text-muted-foreground text-body-small">
-                  {m.kind === "section"
-                    ? LAUNCHER_TEXT.section
-                    : m.state === "locked"
-                      ? m.requiredTier
-                        ? LAUNCHER_TEXT.locked(
-                            TIER_LABEL[m.requiredTier] ?? m.requiredTier,
-                          )
-                        : LAUNCHER_TEXT.lockedNoTier
-                      : m.href}
+                <span className="flex items-center gap-xs text-body text-foreground"><Icon name={m.icon} size="sm" />{moduleLabel(m)}</span>
+                <span className={deployment ? "text-muted-foreground text-body" : "text-muted-foreground text-body-small"}>
+                  {moduleDescription(m)}
                 </span>
               </Link>
             ),

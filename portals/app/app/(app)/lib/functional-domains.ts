@@ -1,11 +1,11 @@
 // The five FUNCTIONAL domains - the launcher's map of the product.
 //
-// WHY THIS IS NOT THE EIGHT-DOMAIN LIST. ADR-001 splits the product into eight
-// CAPABILITY domains by object ownership: who owns the row, who may write it.
+// WHY THIS IS NOT THE CAPABILITY PARTITION LIST. The product has nine
+// CAPABILITY partitions by object ownership: who owns the row, who may write it.
 // That split is a data-governance answer and it is correct for what it decides.
 // It is the wrong shape for a person deciding where to go: "delivery" and
 // "pipeline" own different tables, but a rep chasing money owed after a win
-// crosses both without noticing, and "which of the eight owns this object" is
+// crosses both without noticing, and "which partition owns this object" is
 // not a question anyone standing in front of a menu is asking.
 //
 // So this file is a SECOND grouping over the same routes, for navigation only.
@@ -136,8 +136,10 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       // /account/[id]; what was missing was the ROSTER - who our named
       // accounts are, together - and a control on a detail page is not a
       // surface.
-      built("namedAccount"),
+      // Start with the target. DD-03 will replace tier maintenance with
+      // period-specific focus; do not relabel the old roster prematurely.
       built("planning"),
+      built("namedAccount"),
       // Forecast review is an internal view of attainment, not a second module.
       // Targets, commitments and forecast review share the deployment workflow.
       built("attainment"),
