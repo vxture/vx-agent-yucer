@@ -31,3 +31,13 @@ test("central unavailability returns retryable 503 and retains cookie for recove
   assert.deepEqual(await response.json(), { authenticated: null, code: "SESSION_STATUS_UNAVAILABLE", retryable: true });
   assert.equal(response.cookies.get(cfg.cookieName), undefined);
 });
+
+
+test("foreground context POST opts in to refresh without changing background GET semantics", async () => {
+  const response = await sessionResponse(cfg, "rp", true, async (_c, _r, options) => {
+    assert.deepEqual(options, { activity: false, forceCheck: true, syncContext: true });
+    return toAuthUser({ sub: "customer", active_workspace: "current" });
+  }, true);
+  assert.equal((await response.json()).user.activeWorkspace, "current");
+  assert.equal(response.headers.get("set-cookie"), null);
+});

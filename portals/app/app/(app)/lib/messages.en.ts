@@ -390,8 +390,9 @@ export const en: Dictionary = {
   SHELL_TEXT: {
     sessionUpdating: "Updating your account",
     sessionUnavailable: "Unable to confirm your sign-in",
-    sessionRetryDescription: "Try again shortly. You do not need to sign in again.",
+    sessionRetryDescription: "Please try again shortly. If recovery still fails, reconnect your account.",
     sessionRetry: "Try again",
+  sessionReconnect: "Reconnect",
     brandName: "Yucer Sales Agent",
     brandMark: "Yucer",
     brandTagline: "Sales Agent",

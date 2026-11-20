@@ -170,7 +170,9 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
   if (!rpsid) return null;
 
   const activity = await isMemberActivity();
-  const authSession = await getAuthSession(cfg, rpsid, { activity, forceCheck: activity });
+  const requestHeaders = await headers();
+  const syncContext = activity && requestHeaders.get("sec-fetch-dest") === "document";
+  const authSession = await getAuthSession(cfg, rpsid, { activity, forceCheck: activity, syncContext });
   if (!authSession) return null;
   const { user, accessToken } = authSession;
 

@@ -135,7 +135,7 @@ export default async function AppLayout({
     <MessagesProvider locale={locale}>
       <SessionBoundary
         enabled={oidc.enabled && jar.has(oidc.cookieName)}
-        identity={{ sub: session.user.sub, activeOrg: session.user.activeOrg, activeWorkspace: session.user.activeWorkspace }}
+        identity={{ sub: session.user.sub, activeOrg: session.user.activeOrg, activeWorkspace: session.user.activeWorkspace, roles: session.user.roles, accountStatus: session.user.accountStatus }}
       >{content}</SessionBoundary>
     </MessagesProvider>
   );

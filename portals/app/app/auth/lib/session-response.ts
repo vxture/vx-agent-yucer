@@ -5,10 +5,11 @@ import { getAuthUser } from "./session";
 export async function sessionResponse(
   cfg: OidcConfig, rpsid: string | undefined, forceCheck: boolean,
   resolve = getAuthUser,
+  syncContext = false,
 ): Promise<NextResponse> {
   const headers = { "Cache-Control": "private, no-store", Pragma: "no-cache" };
   try {
-    const user = rpsid ? await resolve(cfg, rpsid, { activity: false, forceCheck }) : null;
+    const user = rpsid ? await resolve(cfg, rpsid, { activity: false, forceCheck, ...(syncContext ? { syncContext: true } : {}) }) : null;
     const response = NextResponse.json(user ? { authenticated: true, user } : { authenticated: false }, { headers });
     // This is an asynchronous probe. Its old response must never erase the
     // cookie installed by a newer sign-in in another tab. Only top-level
