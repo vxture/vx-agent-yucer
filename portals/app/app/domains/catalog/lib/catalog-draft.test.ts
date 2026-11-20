@@ -48,3 +48,8 @@ test("frame states manual review, public/internal sources and actual allowed cat
   assert.match(frame, /existing Atlas\/Runos/); assert.match(frame, /not public internet/);
   assert.match(frame, /only persistence action/); assert.match(frame, /ERP-1/);
 });
+test("model text obeys the same field limits without silent clipping", () => {
+  const draft = read({ name: "N".repeat(81), summary: "S".repeat(121), scenario: "C".repeat(301), items: [{ productId: "p1", quantity: 1, optional: false, note: "n".repeat(301) }] }, "solution");
+  assert.deepEqual(draft.rejected, ["name", "summary", "scenario", "items"]);
+  assert.deepEqual(draft.patch, {});
+});

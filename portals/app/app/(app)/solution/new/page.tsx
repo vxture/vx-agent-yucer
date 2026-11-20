@@ -22,7 +22,7 @@ export default async function NewSolutionPage({
   const { id, code } = await searchParams;
   return (
     <CatalogPage
-      render={({ products, prices, policy, solutions, statuses, authz, entitlement }) => {
+      render={({ products, prices, policy, solutions, statuses, units, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.solution.upsert", "ui").allowed) {
           redirect("/solution");
         }
@@ -45,6 +45,7 @@ export default async function NewSolutionPage({
               generatedCode={nextBusinessCode("SOL", solutions.map(s => s.solution.solutionCode))}
               products={products}
               statuses={statuses}
+              units={units}
               currentPrices={Object.fromEntries(inForceByProduct(prices, policy.defaultCurrency, Date.now()))}
               currency={policy.defaultCurrency}
               initial={found}

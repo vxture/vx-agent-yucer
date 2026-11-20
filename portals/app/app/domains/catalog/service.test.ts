@@ -730,3 +730,35 @@ test("editing a retired solution does not put it back in front of customers", as
   });
   assert.equal(fresh.ok && fresh.value.status, "active");
 });
+
+test("new retired references are refused while existing UUID links survive unrelated edits", async () => {
+  const c = ctx("sales_leader", "enterprise");
+  await setProductStatus(c, { productId: "p1", statusId: "st_retired" });
+  const add = await upsertSolution(c, { solutionCode: "NEW", name: "New", items: [{ productId: "p1", quantity: 1 }] }, "create");
+  assert.equal(!add.ok && add.violations[0].code, "product_unavailable");
+  const edit = await upsertSolution(c, { solutionCode: "S-1", name: "Updated", items: [{ productId: "p1", quantity: 0.5 }] }, { editId: "s1" });
+  assert.equal(edit.ok, true);
+  assert.equal((await c.store.listSolutionItems(WS, "s1"))[0].productId, "p1");
+  await setProductTypeStatus(c, { typeId: "t_sw", status: "retired" });
+  const assign = await upsertProduct(c, { productCode: "NEW", name: "New", typeId: "t_sw", unitId: "u_seat" }, "create");
+  assert.equal(!assign.ok && assign.violations[0].code, "type_unavailable");
+  const keep = await upsertProduct(c, { productCode: "P-1", name: "Updated", typeId: "t_sw", unitId: "u_seat" }, { editId: "p1" });
+  assert.equal(keep.ok, true);
+});
+
+test("service derives legacy allowance from the stored record and rejects new oversized content without writes", async () => {
+  const c = ctx("sales_leader", "enterprise");
+  const legacy = "legacy".repeat(60);
+  const original = (await c.store.listProducts(WS)).find(p => p.id === "p1")!;
+  await c.store.upsertProduct(WS, { ...original, name: legacy }, { editId: "p1" });
+  const saved = await upsertProduct(c, { ...original, name: legacy, productCode: "CUSTOM" }, { editId: "p1" });
+  assert.ok(saved.ok); assert.equal(saved.value.name, legacy); assert.equal(saved.value.id, "p1");
+  const failed = await upsertProduct(c, { ...original, name: legacy + "changed" }, { editId: "p1" });
+  assert.equal(!failed.ok && failed.violations[0].code, "catalog_text_too_long");
+  assert.equal((await c.store.listProducts(WS)).find(p => p.id === "p1")?.name, legacy);
+  const solution = (await c.store.listSolutions(WS))[0];
+  const existingItems = await c.store.listSolutionItems(WS, solution.id);
+  await c.store.upsertSolution(WS, { ...solution, summary: legacy }, existingItems, { editId: solution.id });
+  assert.equal((await upsertSolution(c, { ...solution, name: "Edited", summary: legacy, items: existingItems }, { editId: solution.id })).ok, true);
+  assert.equal((await upsertSolution(c, { ...solution, summary: legacy + "changed", items: existingItems }, { editId: solution.id })).ok, false);
+});

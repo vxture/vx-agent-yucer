@@ -1,3 +1,4 @@
+import { catalogTextTooLong } from "./text-limits";
 import type { PriceEntryRecord } from "../store";
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 
@@ -190,7 +191,7 @@ export interface ProductDraft {
  * A pure rule cannot check the uuid against the workspace's vocabulary - the
  * SERVICE does that, exactly as it does for statusId.
  */
-export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
+export function planProduct(input: ProductDraft, previous?: Pick<ProductDraft, "name">): RuleResult<ProductDraft> {
   if(input.novelty!=null && !["existing","new"].includes(input.novelty))return fail(violation("product_novelty_invalid","invalid catalog attribute","novelty"));
   if (!input.productCode.trim()) {
     return fail(violation("code_required", "a product needs a code", "productCode"));
@@ -200,6 +201,9 @@ export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
   }
   if (!input.name.trim()) {
     return fail(violation("name_required", "a product needs a name", "name"));
+  }
+  if (catalogTextTooLong("name", input.name, previous?.name)) {
+    return fail(violation("catalog_text_too_long", "product name exceeds its display limit", "name"));
   }
   if (!input.unitId.trim()) {
     return fail(violation("unit_required", "a product needs a unit of sale", "unitId"));
@@ -243,6 +247,7 @@ export interface SolutionItemDraft {
 export function planSolution(
   input: SolutionDraft,
   items: readonly SolutionItemDraft[],
+  previous?: { solution: Pick<SolutionDraft, "name" | "summary" | "scenario">; items: readonly SolutionItemDraft[] },
 ): RuleResult<{ solution: SolutionDraft; items: SolutionItemDraft[] }> {
   if(input.novelty!=null && !["existing","new"].includes(input.novelty))return fail(violation("product_novelty_invalid","invalid catalog attribute","novelty"));
   if (!input.solutionCode.trim()) {
@@ -251,6 +256,11 @@ export function planSolution(
   if (!input.name.trim()) {
     return fail(violation("name_required", "a solution needs a name", "name"));
   }
+  for (const field of ["name", "summary", "scenario"] as const) {
+    if (catalogTextTooLong(field, input[field], previous?.solution[field])) {
+      return fail(violation("catalog_text_too_long", "solution text exceeds its display limit", field));
+    }
+  }
   if (items.length === 0) {
     return fail(
       violation("items_required", "a solution with no products is a name, not a bundle", "items"),
@@ -258,10 +268,13 @@ export function planSolution(
   }
   const seen = new Set<string>();
   for (const it of items) {
-    if (!(it.quantity > 0)) {
+    if (!Number.isFinite(it.quantity) || !(it.quantity > 0)) {
       return fail(
         violation("quantity_positive", `${it.productId} needs a quantity above zero`, "quantity"),
       );
+    }
+    if (catalogTextTooLong("note", it.note, previous?.items.find(row => row.productId === it.productId)?.note)) {
+      return fail(violation("catalog_text_too_long", "solution item note exceeds its display limit", "note"));
     }
     if (seen.has(it.productId)) {
       return fail(

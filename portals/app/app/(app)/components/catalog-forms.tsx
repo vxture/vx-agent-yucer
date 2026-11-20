@@ -9,6 +9,7 @@ import {
   Button,
   Field,
   FieldDescription,
+  FieldError,
   FieldLabel,
   Input,
   NativeSelect,
@@ -19,6 +20,7 @@ import { solutionPricingFacts } from "../lib/solution-prices";
 import type { PriceValues } from "../lib/product-prices";
 import { useMessages } from "../lib/i18n/provider";
 import { FormFields, FormPage, useFormSubmit } from "./form-page";
+import { CATALOG_TEXT_LIMITS, catalogTextTooLong, type CatalogTextField } from "../../domains/catalog/lib/text-limits";
 import { FormDraftAssistant } from "./form-draft-assistant";
 import type { CatalogAssistInput, CatalogAssistResult } from "../../domains/catalog/catalog-assist-service";
 import type { CatalogDraftField } from "../../domains/catalog/lib/catalog-draft";
@@ -42,6 +44,15 @@ import type {
 // ON SUCCESS, BACK TO THE LIST. A creation page is an errand, not a place: the
 // person came from the list and the finished row is best seen in it. Staying
 // here after saving would ask them to find their own way back.
+
+function CatalogTextCount({ field, value, previous }: { readonly field: CatalogTextField; readonly value: string; readonly previous?: string | null }) {
+  const { CATALOG_TEXT: T } = useMessages();
+  const invalid = catalogTextTooLong(field, value, previous);
+  return <div className="flex flex-wrap items-center justify-end gap-xs">
+    {invalid ? <FieldError role="alert">{T.textTooLong(CATALOG_TEXT_LIMITS[field])}</FieldError> : null}
+    <span className={`text-body-small tabular-nums ${invalid ? "text-destructive-text" : "text-muted-foreground"}`}>{value.trim().length}/{CATALOG_TEXT_LIMITS[field]}</span>
+  </div>;
+}
 
 type Saved = { ok: boolean; error?: string };
 
@@ -136,7 +147,7 @@ export function NewProductForm({
   const edits = useCatalogManualEdits();
   const busy = submit.pending || assisting;
 
-  const ready = (!editing || code.trim() !== "") && name.trim() !== "" && unitId !== "";
+  const ready = (!editing || code.trim() !== "") && name.trim() !== "" && unitId !== "" && !catalogTextTooLong("name", name, initial?.name);
   const savedCode = !editing && code.trim() === generatedCode ? "" : code.trim();
   const currentStatus = statuses.find(row => row.id === initial?.statusId);
   return (
@@ -163,7 +174,8 @@ export function NewProductForm({
             <FormFields>
               <Field>
                 <FieldLabel htmlFor="product-name">{CATALOG_TEXT.colName} <span aria-hidden="true">*</span></FieldLabel>
-                <Input id="product-name" aria-required="true" value={name} placeholder={CATALOG_TEXT.productNameExample} disabled={busy} onChange={e => setName(e.target.value)} />
+                <Input aria-invalid={catalogTextTooLong("name", name, initial?.name) || undefined} id="product-name" aria-required="true" value={name} placeholder={CATALOG_TEXT.productNameExample} disabled={busy} onChange={e => setName(e.target.value)} />
+                <CatalogTextCount field="name" value={name} previous={initial?.name}/>
               </Field>
               <Field>
                 <FieldLabel htmlFor="product-code">{CATALOG_TEXT.productNumber}{editing && <span aria-hidden="true"> *</span>}</FieldLabel>
@@ -258,6 +270,7 @@ export function NewProductForm({
 // --- 新建方案 ---------------------------------------------------------------
 
 export function NewSolutionForm({
+  units,
   products,
   generatedCode,
   statuses,
@@ -269,6 +282,7 @@ export function NewSolutionForm({
 }: CatalogAssistProps & {
   readonly generatedCode: string;
   readonly products: readonly ProductRecord[];
+  readonly units: readonly ProductUnitRecord[];
   readonly statuses: readonly ProductStatusRecord[];
   readonly currentPrices: Readonly<Record<string, PriceValues>>;
   readonly currency: string;
@@ -342,6 +356,10 @@ export function NewSolutionForm({
   );
   const ready =
     name.trim() !== "" &&
+    !catalogTextTooLong("name", name, initial?.solution.name) &&
+    !catalogTextTooLong("summary", summary, initial?.solution.summary) &&
+    !catalogTextTooLong("scenario", scenario, initial?.solution.scenario) &&
+    !items.some(it => catalogTextTooLong("note", it.note, initial?.items.find(row => row.productId === it.productId)?.note)) &&
     parsed.length > 0 &&
     parsed.every((it) => Number.isFinite(it.quantity) && it.quantity > 0) &&
     // Mirrors planSolution's rule so the button does not offer a refusal.
@@ -381,25 +399,30 @@ export function NewSolutionForm({
 
             </Field>
             <Field>
-              <FieldLabel htmlFor="sol-name">{CATALOG_TEXT.colSolutionName}</FieldLabel>
-              <Input id="sol-name" value={name} onChange={(e) => setName(e.target.value)} />
+              <FieldLabel required htmlFor="sol-name">{CATALOG_TEXT.colSolutionName}</FieldLabel>
+              <Input aria-required="true" aria-invalid={catalogTextTooLong("name", name, initial?.solution.name) || undefined} id="sol-name" value={name} onChange={(e) => setName(e.target.value)} />
+              <CatalogTextCount field="name" value={name} previous={initial?.solution.name}/>
             </Field>
             <Field>
               <FieldLabel htmlFor="sol-summary">{CATALOG_TEXT.solutionSummary}</FieldLabel>
               <Input
                 id="sol-summary"
+                aria-invalid={catalogTextTooLong("summary", summary, initial?.solution.summary) || undefined}
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
               />
+              <CatalogTextCount field="summary" value={summary} previous={initial?.solution.summary}/>
               <FieldDescription>{CATALOG_TEXT.summaryHint}</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="sol-scenario">{CATALOG_TEXT.colScenario}</FieldLabel>
               <Input
                 id="sol-scenario"
+                aria-invalid={catalogTextTooLong("scenario", scenario, initial?.solution.scenario) || undefined}
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
               />
+              <CatalogTextCount field="scenario" value={scenario} previous={initial?.solution.scenario}/>
               <FieldDescription>{CATALOG_TEXT.scenarioHint}</FieldDescription>
             </Field>
           <Field><FieldLabel htmlFor="solution-novelty">{R.catalogNovelty}</FieldLabel><NativeSelect id="solution-novelty" value={novelty??""} disabled={busy} onChange={e=>setNovelty(e.target.value as "existing"|"new"||null)}><option value="">{R.unmarked}</option><option value="existing">{R.existing}</option><option value="new">{R.new}</option></NativeSelect></Field>
@@ -433,18 +456,20 @@ export function NewSolutionForm({
                         )
                         .map((p) => (
                           <option key={p.id} value={p.id}>
-                            {productName.get(p.id) ?? p.name}
+                            {productName.get(p.id) ?? p.name}{statuses.find(row => row.id === p.statusId)?.statusCode === "retired" ? ` (${CATALOG_TEXT.retiredReference})` : ""}
                           </option>
                         ))}
                     </NativeSelect>
                   </Field>
                   <Field className="w-28">
-                    <FieldLabel htmlFor={`sol-quantity-${i}`}>{CATALOG_TEXT.solutionQuantity}</FieldLabel>
+                    <FieldLabel htmlFor={`sol-quantity-${i}`}>{CATALOG_TEXT.solutionQuantity}{it.productId ? ` / ${units.find(u => u.id === products.find(p => p.id === it.productId)?.unitId)?.name ?? "-"}` : ""}</FieldLabel>
                     <Input
                       id={`sol-quantity-${i}`}
                       className="h-control-xl"
                       type="number"
-                      min={1}
+                      min={0}
+                      step="any"
+                      aria-invalid={!Number.isFinite(Number(it.quantity)) || Number(it.quantity) <= 0 || undefined}
                       value={it.quantity}
                       onChange={(e) => patch(i, { quantity: e.target.value })}
                     />
@@ -479,7 +504,8 @@ export function NewSolutionForm({
                 ) : null}
                 <Field>
                   <FieldLabel htmlFor={`sol-note-${i}`}>{CATALOG_TEXT.colItemNote}</FieldLabel>
-                  <Input id={`sol-note-${i}`} className="h-control-xl" value={it.note} onChange={(e) => patch(i, { note: e.target.value })} />
+                  <Input aria-invalid={catalogTextTooLong("note", it.note, initial?.items.find(row => row.productId === it.productId)?.note) || undefined} id={`sol-note-${i}`} className="h-control-xl" value={it.note} onChange={(e) => patch(i, { note: e.target.value })} />
+                  <CatalogTextCount field="note" value={it.note} previous={initial?.items.find(row => row.productId === it.productId)?.note}/>
                   <FieldDescription>{CATALOG_TEXT.itemNoteHint}</FieldDescription>
                 </Field>
               </div>
