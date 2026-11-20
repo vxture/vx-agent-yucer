@@ -316,11 +316,14 @@ export function DomainLauncher({
           not 3xl because English module names run half again as long as the
           Chinese - three columns of 48rem truncated every one of them.
 
-          The panel keeps DS spacing and control tokens, with 40px rows and
-          extra bottom inset. Hairlines and no-autofocus behaviour stay the DS's. */}
+          Keep the panel outside the product's 32px operation-control tier.
+          A 40px DS row plus an 8px gap preserves the existing 48px reading
+          rhythm while giving hover and active states a larger hit area.
+          Hairlines, typography and no-autofocus behaviour stay the DS's. */}
       <ShellPanelContent
         align="start"
         aria-label={LAUNCHER_TEXT.panelLabel}
+        data-control-size="preserve"
         className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width) pb-xl bg-gradient-to-b from-gradient-card-from to-gradient-card-to"
       >
         {/* TWO GRIDS, ONE COLUMN TEMPLATE, and that is the whole alignment
@@ -341,7 +344,7 @@ export function DomainLauncher({
             It was a full-width section before all this: one row stretched
             across the whole panel with its label at the far left and nothing
             else on the line. */}
-        <div className="flex flex-col gap-lg">
+        <div className="flex flex-col gap-md">
           {crosscutting.length > 0 ? (
             <ShellPanelSection divided={false} className="gap-md">
               <div className={COLUMNS}>
@@ -359,7 +362,7 @@ export function DomainLauncher({
 
           <ShellPanelSection
             divided={crosscutting.length > 0}
-            className={crosscutting.length > 0 ? "pt-lg" : undefined}
+            className={crosscutting.length > 0 ? "pt-md" : undefined}
           >
             <div className={COLUMNS}>
               {domains.map((d, i) => (
@@ -369,8 +372,8 @@ export function DomainLauncher({
                       same component now, so the gap is the only thing saying
                       "these five belong under that one" - at the section's own
                       spacing the domain name read as the first of six rows. */}
-                  <div className="mt-md">
-                    <ShellPanelSection divided={false} className="gap-md">
+                  <div className="mt-xs">
+                    <ShellPanelSection divided={false}>
                       {d.modules.map(row)}
                     </ShellPanelSection>
                   </div>
