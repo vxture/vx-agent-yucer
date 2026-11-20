@@ -1,7 +1,11 @@
 import type { CustomerBudget, CustomerContribution, PlanAction, PlanRegion, PlanTarget, TeamAllocation } from "./plan-model";
 export type FocusAccount = { id: string; name: string; accountNo: string; tier: string; ownerSub: string | null };
 export type FocusContribution = CustomerContribution & { budget: Omit<CustomerBudget, "amount"> & { amount: string | null }; target: Pick<PlanTarget, "key" | "period" | "metric" | "currency"> };
+export type FocusCoverage =
+  | { state: "denied" | "unavailable" }
+  | { state: "ready"; keyPeople: number; coveredRoles: number; requiredRoles: number; chains: number; totalChains: number; completeChains: number; unreachableChains: number };
 export type FocusRow = FocusAccount & {
+  coverage: FocusCoverage;
   regions: Pick<PlanRegion, "id" | "name" | "ownerSub">[];
   contributions: FocusContribution[];
   unallocated: CustomerBudget[];

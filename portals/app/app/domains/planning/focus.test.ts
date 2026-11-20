@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { InMemoryAccountStore, type AccountRecord } from "../account/store";
+import { InMemoryPipelineStore } from "../pipeline/store";
 import { InMemorySalesPlanStore } from "./plan-store";
 import { emptyContent, validateContent, type PlanContent, type SalesPlan } from "./plan-model";
 import { readFocusWorkspace, readFocusDetail, type FocusContext } from "./focus-read";
@@ -22,7 +23,7 @@ function fixture() {
   const revision = { id: "r1", state: "sealed" as const, editToken: 2, version: 1, baseId: null, restoresId: null, content, contentHash: "hash", reason: "", createdBy: "ops", createdAt: at, sealedBy: "ops", sealedAt: at };
   const plan: SalesPlan = { id: "plan", workspaceId: "ws", year: 2026, revisions: [revision, { ...revision, id: "draft", state: "draft", editToken: 5, version: null, baseId: "r1", content: { ...structuredClone(content), assumptions: "private company assumptions" } }], events: [{ id: "e1", no: 1, kind: "release", revisionId: "r1", relatedId: null, period: null, at, effectiveAt: at, actor: "ops", reason: "", requestKey: "release1", requestHash: "hash" }], legacy: [] };
   store.seed([plan]);
-  const ctx: FocusContext = { workspaceId: "ws", sub: "ops", store, accounts, scope: { kind: "workspace" }, holder: { permissions: new Set(permissionsForRoles(["sales_ops"])) }, entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: "ws", product: "yucer", tier: "enterprise" }, now: () => new Date(at), members: async () => [{ sub: "rep", name: "Rep" }] };
+  const ctx: FocusContext = { workspaceId: "ws", sub: "ops", store, accounts, pipeline: new InMemoryPipelineStore(), scope: { kind: "workspace" }, holder: { permissions: new Set(permissionsForRoles(["sales_ops"])) }, entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: "ws", product: "yucer", tier: "enterprise" }, now: () => new Date(at), members: async () => [{ sub: "rep", name: "Rep" }] };
   let seq = 0;
   const apply = (change: Parameters<typeof applyFocusChange>[1], locked: string[] = []) => applyFocusChange(content, change, [{ id: "a", name: "Ordinary", tier: "standard" }, { id: "b", name: "Strategic", tier: "strategic" }], locked, () => `key${++seq}`, at);
   return { ctx, content, apply, plan, east, west };
