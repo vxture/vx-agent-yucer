@@ -5,7 +5,7 @@ import type {
   PlanTarget,
   TeamAllocation,
 } from "../../domains/planning/plan-model";
-import { planningEntryLocked, prunePlanningBudgets } from "../../domains/planning/plan-entry-state";
+import { prunePlanningBudgets } from "../../domains/planning/plan-entry-state";
 export { planningEntryLocked, prunePlanningBudgets } from "../../domains/planning/plan-entry-state";
 import { demand, minor } from "../../domains/planning/plan-values";
 

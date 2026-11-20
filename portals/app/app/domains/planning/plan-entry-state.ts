@@ -19,19 +19,12 @@ export function planningEntryLocked(
   locked: readonly string[],
   line: PlanTarget | TeamAllocation | PlanAction,
 ) {
-  return content.periods.some(
-    (period) =>
-      locked.includes(period.key) &&
-      ("period" in line
-        ? content.periods.some(
-            (child) =>
-              child.key === line.period &&
-              period.start <= child.start &&
-              child.end <= period.end,
-          )
-        : "due" in line
-          ? period.start <= line.due && line.due < period.end
-          : line.start < period.end && period.start < line.end),
-  );
+  return content.periods.some((period) => {
+    if (!locked.includes(period.key)) return false;
+    if ("period" in line) return content.periods.some(
+      child => child.key === line.period && period.start <= child.start && child.end <= period.end,
+    );
+    if ("due" in line) return period.start <= line.due && line.due < period.end;
+    return line.start < period.end && period.start < line.end;
+  });
 }
-

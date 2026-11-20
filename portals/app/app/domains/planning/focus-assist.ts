@@ -37,7 +37,7 @@ function validInput(input: FocusAssistInput, accountId: string) {
 }
 function currentDraft(state: ReturnType<typeof planVersions> | null, input: FocusAssistInput) {
   const draft = state?.draft;
-  if (!draft || draft.id !== input.revisionId || draft.editToken !== input.editToken || draft.baseId !== state?.current?.id || state.closed || draft.content.releaseScope !== "regions") return null;
+  if (draft?.id !== input.revisionId || draft.editToken !== input.editToken || draft.baseId !== state?.current?.id || state?.closed || draft.content.releaseScope !== "regions") return null;
   return draft;
 }
 export async function prepareFocusDraft(ctx: SalesPlanContext, input: FocusAssistInput, deps: {
@@ -45,7 +45,7 @@ export async function prepareFocusDraft(ctx: SalesPlanContext, input: FocusAssis
   account: { id: string; name: string; tier: string }; meter?: TurnMeter;
 }) {
   try {
-    if (ctx.scope.kind !== "workspace" || !can(ctx.holder, ctx.entitlement, "planning.target.update", "data").allowed || !can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed) return { ok: false as const, error: "plan_denied" };
+    if (!assistAllowed(ctx)) return { ok: false as const, error: "plan_denied" };
     if (!deps.tenantId || !validInput(input, deps.account.id)) return { ok: false as const, error: "invalid_input" };
     const plan = await readSalesPlan(ctx, input.year);
     const state = plan && planVersions(plan, (ctx.now?.() ?? new Date()).toISOString()), draft = currentDraft(state, input);
@@ -79,4 +79,8 @@ function responseError(parsed: ReturnType<typeof readFocusDraft>, metric: string
   if (parsed.patch.due && !parsed.patch.due.startsWith(`${year}-`)) return "invalid_action";
   if (metric === "new_logo" && [parsed.patch.budget, parsed.patch.amount].some(value => !!value && minor(value) % 100n !== 0n)) return "count_integer";
   return null;
+}
+
+function assistAllowed(ctx: SalesPlanContext) {
+  return ctx.scope.kind === "workspace" && can(ctx.holder, ctx.entitlement, "planning.target.update", "data").allowed && can(ctx.holder, ctx.entitlement, "copilot.ask", "data").allowed;
 }

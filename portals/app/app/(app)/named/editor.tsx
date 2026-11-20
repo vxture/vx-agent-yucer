@@ -21,13 +21,13 @@ export function FocusEditor({ workspace: w, row, actionKey, contributionKey, mod
   const [regionId, setRegionId] = useState(action?.regionId ?? contribution?.regionId ?? w.regionId ?? row?.regions[0]?.id ?? w.regions[0]?.id ?? "");
   const [objective, setObjective] = useState(action?.objective ?? ""), [ownerSub, setOwnerSub] = useState(action?.ownerSub ?? w.currentSub), [due, setDue] = useState(action?.due ?? "");
   const [budget, setBudget] = useState(contribution?.budget.amount ?? ""), [amount, setAmount] = useState(contribution?.amount ?? ""), [note, setNote] = useState(contribution?.budget.note ?? ""), [responsibility, setResponsibility] = useState<"primary" | "support">(contribution?.responsibility ?? "primary");
-  const [targets, setTargetKeys] = useState<PlanTarget[]>([]), [targetKey, setTargetKey] = useState(contribution?.targetKey ?? ""), [loading, setLoading] = useState(mode === "contribution");
+  const [targets, setTargets] = useState<PlanTarget[]>([]), [targetKey, setTargetKey] = useState(contribution?.targetKey ?? ""), [loading, setLoading] = useState(mode === "contribution");
   const [error, setError] = useState(""), [busy, setBusy] = useState(false), running = useRef(false), request = useRef<{ hash: string; key: string } | null>(null);
   const changed = useRef(false);
   const [candidates, setCandidates] = useState(w.candidates);
   const [refreshing, setRefreshing] = useState(false);
   const selectedTarget = targets.find(t => t.key === targetKey);
-  const unit = selectedTarget ? selectedTarget.currency ?? T.count : "";
+  const unit = targetUnit(selectedTarget, T.count);
   const [assistantBusy, setAssistantBusy] = useState(false);
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => { if (changed.current) { e.preventDefault(); } };
@@ -40,7 +40,7 @@ export function FocusEditor({ workspace: w, row, actionKey, contributionKey, mod
       if (!active) return;
       if (!r.ok) { setError(E[r.error] ?? T.error); return; }
       if (r.editToken !== w.editToken) { setError(T.stale); return; }
-      setTargetKeys(r.targets);
+      setTargets(r.targets);
     }).catch(() => { if (active) setError(T.sourceUnavailable); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [mode, regionId, w.year, w.revision, w.editToken, E, T]);
@@ -97,4 +97,9 @@ function validChange(change: FocusChange) {
   if (change.kind === "contribution") return !!change.targetKey && !!change.budget && !!change.amount;
   if (change.kind === "add" && !change.accountIds.length) return false;
   return !!change.objective.trim() && !!change.due;
+}
+
+function targetUnit(target: PlanTarget | undefined, countUnit: string) {
+  if (!target) return "";
+  return target.currency ?? countUnit;
 }
