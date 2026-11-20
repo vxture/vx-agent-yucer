@@ -1,5 +1,6 @@
 "use client";
 import { Icon, Input, MetricListCard } from "@vxture/design-ui";
+import { companyAllocation } from "../lib/planning-workspace";
 import { updatePlanningAmount } from "../lib/planning-autofill";
 import { planningTierPercent } from "../lib/planning-preview";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -27,7 +28,7 @@ export function CompanyTargetSummary({
   const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P } = useMessages();
   const format = (value: string | number | null | undefined) =>
     value == null
-      ? "—"
+      ? "\u2014"
       : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
   const members = new Set(
     content.team.filter((t) => t.memberSub).map((t) => t.memberSub),
@@ -157,16 +158,8 @@ export function CompanyTargetAllocation({
     value == null
       ? "\u2014"
       : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
-  const allocated = content.targets
-    .filter(
-      (t) =>
-        t.scope !== "workspace" &&
-        t.period === `Y${content.year}` &&
-        t.metric === "revenue" &&
-        t.currency === target?.currency &&
-        t.target != null,
-    )
-    .reduce((total, t) => total + Number(t.target), 0);
+  const { allocated, balance, unknown } = companyAllocation(content, target);
+  const { PLAN_WORKSPACE_TEXT: W } = useMessages();
 
   return (
     <span
@@ -178,11 +171,10 @@ export function CompanyTargetAllocation({
       </span>
       <span>
         {T.allocation}{" "}
-        {format(
-          target?.target == null ? null : Number(target.target) - allocated,
-        )}
+        {format(balance)}
       </span>
       <span>{target?.currency ?? currency}</span>
+      {unknown ? <span>{W.unknownTargets} {unknown}</span> : null}
     </span>
   );
 }

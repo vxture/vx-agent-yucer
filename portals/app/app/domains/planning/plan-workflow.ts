@@ -69,3 +69,16 @@ export function validatePlanningWorkflow(
     );
   }
 }
+
+/** Latest explicitly published regional slice carried by this revision. */
+export function regionalPlanningRevision(plan: SalesPlan, revision: PlanRevision) {
+  let regional = revision;
+  const visited = new Set<string>();
+  while (regional.content.releaseScope === "company" && regional.baseId && !visited.has(regional.id)) {
+    visited.add(regional.id);
+    const parent = plan.revisions.find(r => r.id === regional.baseId && r.state === "sealed");
+    if (!parent) break;
+    regional = parent;
+  }
+  return regional.content.releaseScope === "company" ? null : regional;
+}

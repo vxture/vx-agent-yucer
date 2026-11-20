@@ -38,6 +38,7 @@ export function PlanAssumptions({
       ...content,
       assumptions: writePrerequisites({ ...groups, [group]: items }),
     });
+  if (!edit && !prerequisiteGroups.some(group => groups[group].some(item => item.trim())) && !content.allocationNote.trim() && !content.capacityNote.trim()) return null;
   return (
     <Section
       icon="file-text"
@@ -65,7 +66,7 @@ export function PlanAssumptions({
         ) : null}
         <FieldGroup columns={2}>
           {prerequisiteGroups
-            .filter((group) => group !== "general" || groups.general.length > 0)
+            .filter((group) => edit ? group !== "general" || groups.general.length > 0 : groups[group].some(item => item.trim()))
             .map((group) => (
               <Field
                 key={group}
@@ -157,7 +158,7 @@ export function PlanAssumptions({
                           </Field>
                         ))
                       ) : (
-                        <ul className="list-disc space-y-sm pl-lg text-body-small">
+                        <ul className="list-disc space-y-sm pl-lg text-body">
                           {groups[group].map((item, i) => (
                             <li key={i} className="whitespace-pre-wrap">
                               {item || T.empty}
@@ -179,7 +180,7 @@ export function PlanAssumptions({
           columns={2}
           className="border-t border-dashed border-border pt-lg"
         >
-          {(["allocationNote", "capacityNote"] as const).map((field) => (
+          {(["allocationNote", "capacityNote"] as const).filter(field => edit || content[field].trim()).map((field) => (
             <Field key={field}>
               <FieldLabel htmlFor={`plan-${field}`}>{T[field]}</FieldLabel>
               <FieldDescription>
@@ -197,7 +198,7 @@ export function PlanAssumptions({
                   }
                 />
               ) : (
-                <p className="whitespace-pre-wrap text-body-small text-muted-foreground">
+                <p className="whitespace-pre-wrap text-body">
                   {content[field] || T.empty}
                 </p>
               )}

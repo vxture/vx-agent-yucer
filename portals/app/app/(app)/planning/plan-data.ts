@@ -124,12 +124,12 @@ export async function loadPlanSources(s: AppSession): Promise<PlanSources> {
 export function checkPlanRead(s: AppSession, content: PlanContent) {
   demand(!content.strategyAcceptances?.length || can(s.authz, s.entitlement, "strategy.plan.view", "data").allowed, "strategy_source_permission");
   demand(
-    !content.budgets.length ||
+    !(content.budgets.length || content.actions.some(a => a.accountId)) ||
       can(s.authz, s.entitlement, "account.view", "data").allowed,
     "plan_source_permission",
   );
   demand(
-    !(content.team.length || content.actions.length) ||
+    !(content.team.length || content.actions.length || content.regions.some(r => r.ownerSub)) ||
       can(s.authz, s.entitlement, "admin.member.view", "data").allowed,
     "plan_source_permission",
   );
