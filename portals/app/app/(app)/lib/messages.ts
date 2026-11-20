@@ -955,6 +955,7 @@ export const ASSISTANT_TEXT = {
 } as const;
 
 export const CATALOG_TEXT = {
+  quantityHint: "\u6b63\u6570\uff0c\u6700\u591a\u4e24\u4f4d\u5c0f\u6570\u3002",
   retiredReference: "\u5df2\u9000\u5f79",
   textTooLong: (limit: number) => `\u8bf7\u7cbe\u7b80\u81f3${limit}\u5b57\u4ee5\u5185\u3002`,
   catalogAssistApplied: (count: number) => count ? `\u5df2\u66f4\u65b0 ${count} \u9879\uff0c\u8bf7\u590d\u6838\u540e\u4fdd\u5b58\u3002` : "\u672c\u8f6e\u672a\u6539\u52a8\u8868\u5355\uff0c\u5df2\u586b\u5185\u5bb9\u4fdd\u7559\u3002",
@@ -1893,6 +1894,7 @@ export const CUSTOMER_NATURE_TEXT = {
 };
 
 export const CATALOG_ERROR: Record<string, string> = {
+  quantity_precision: "\u6570\u91cf\u6700\u591a\u4e24\u4f4d\u5c0f\u6570\uff0c\u4e14\u4e0d\u8d85\u8fc79,999,999,999.99\u3002",
   product_unavailable: "\u6b64\u4ea7\u54c1\u5df2\u9000\u5f79\uff0c\u8bf7\u5237\u65b0\u5e76\u9009\u62e9\u53ef\u7528\u4ea7\u54c1\u3002",
   type_unavailable: "\u6b64\u4ea7\u54c1\u7c7b\u578b\u5df2\u505c\u7528\uff0c\u8bf7\u9009\u62e9\u542f\u7528\u7684\u7c7b\u578b\u3002",
   catalog_text_too_long: "\u6587\u5b57\u8d85\u51fa\u4e0a\u9650\uff0c\u8bf7\u6309\u5b57\u6bb5\u5b57\u6570\u63d0\u793a\u7cbe\u7b80\u540e\u4fdd\u5b58\u3002",

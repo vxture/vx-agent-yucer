@@ -20,6 +20,7 @@ import { solutionPricingFacts } from "../lib/solution-prices";
 import type { PriceValues } from "../lib/product-prices";
 import { useMessages } from "../lib/i18n/provider";
 import { FormFields, FormPage, useFormSubmit } from "./form-page";
+import { validSolutionQuantity, SOLUTION_QUANTITY_MAX } from "../../domains/catalog/lib/quantity";
 import { CATALOG_TEXT_LIMITS, catalogTextTooLong, type CatalogTextField } from "../../domains/catalog/lib/text-limits";
 import { FormDraftAssistant } from "./form-draft-assistant";
 import type { CatalogAssistInput, CatalogAssistResult } from "../../domains/catalog/catalog-assist-service";
@@ -361,7 +362,7 @@ export function NewSolutionForm({
     !catalogTextTooLong("scenario", scenario, initial?.solution.scenario) &&
     !items.some(it => catalogTextTooLong("note", it.note, initial?.items.find(row => row.productId === it.productId)?.note)) &&
     parsed.length > 0 &&
-    parsed.every((it) => Number.isFinite(it.quantity) && it.quantity > 0) &&
+    parsed.every((it) => validSolutionQuantity(it.quantity)) &&
     // Mirrors planSolution's rule so the button does not offer a refusal.
     parsed.some((it) => !it.optional);
 
@@ -467,12 +468,15 @@ export function NewSolutionForm({
                       id={`sol-quantity-${i}`}
                       className="h-control-xl"
                       type="number"
-                      min={0}
-                      step="any"
-                      aria-invalid={!Number.isFinite(Number(it.quantity)) || Number(it.quantity) <= 0 || undefined}
+                      min={0.01}
+                      max={SOLUTION_QUANTITY_MAX}
+                      step={0.01}
+                      aria-describedby={`sol-quantity-${i}-hint`}
+                      aria-invalid={!validSolutionQuantity(Number(it.quantity)) || undefined}
                       value={it.quantity}
                       onChange={(e) => patch(i, { quantity: e.target.value })}
                     />
+                    <FieldDescription id={`sol-quantity-${i}-hint`}>{CATALOG_TEXT.quantityHint}</FieldDescription>
                   </Field>
                   <Field className="w-32">
                     <FieldLabel htmlFor={`sol-optional-${i}`}>{CATALOG_TEXT.colOptional}</FieldLabel>

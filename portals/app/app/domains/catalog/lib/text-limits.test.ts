@@ -33,3 +33,11 @@ test("quantities are positive finite values, including fractional sale units", (
     assert.equal(!r.ok && r.violations[0].code, "quantity_positive");
   }
 });
+
+test("quantity precision cannot silently change when persisted as NUMERIC(12,2)", () => {
+  for (const quantity of [0.29, 0.01, 9_999_999_999.99]) assert.equal(planSolution(solution, [{ ...items[0], quantity }]).ok, true);
+  for (const quantity of [0.001, 1.555, 10_000_000_000, Number.MAX_VALUE]) {
+    const r = planSolution(solution, [{ ...items[0], quantity }]);
+    assert.equal(!r.ok && r.violations[0].code, "quantity_precision");
+  }
+});

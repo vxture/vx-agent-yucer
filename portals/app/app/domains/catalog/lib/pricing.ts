@@ -1,3 +1,4 @@
+import { validSolutionQuantity } from "./quantity";
 import { catalogTextTooLong } from "./text-limits";
 import type { PriceEntryRecord } from "../store";
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
@@ -273,6 +274,7 @@ export function planSolution(
         violation("quantity_positive", `${it.productId} needs a quantity above zero`, "quantity"),
       );
     }
+    if (!validSolutionQuantity(it.quantity)) return fail(violation("quantity_precision", "quantity must fit NUMERIC(12,2)", "quantity"));
     if (catalogTextTooLong("note", it.note, previous?.items.find(row => row.productId === it.productId)?.note)) {
       return fail(violation("catalog_text_too_long", "solution item note exceeds its display limit", "note"));
     }
