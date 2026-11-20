@@ -146,6 +146,17 @@ export const en: Dictionary = {
   "sourceVersion": "Strategy version",
   "progress": "Fulfillment progress"
 },
+  PLAN_WORKSPACE_TEXT: {
+    leaveDraft: "This draft has unsaved changes. Leave and discard those changes?",
+    regionsHelp: "Regional targets follow the published company plan. Customer support uses annual revenue contributions only, without adding quarters. Missing support is unknown, not zero. Customers are deduplicated by UUID, including action-only customers. Assign regional owners explicitly.",
+    deployedCustomers: "Deployed customers", deployment: "Deployment",
+    searchRegions: "Search region or province", allRegions: "All regions", customerSupport: "Customer support", supportGap: "Support gap", ownerPending: "Owner unassigned", customerUnit: "customers", actionUnit: "actions", unknownTargets: "Unconfirmed regions",
+    companyBasis: "Company basis", regionalBasis: "Regional basis", noPublication: "No company plan published", noPublicationHint: "Create annual company targets and automatically split quarters. Save the draft, check and publish before deploying regions, customers and teams.",
+    draftAvailable: "A saved draft is available", scopeCompany: "Company draft", scopeRegions: "Regional draft", preview: "Read only",
+    assistantExample: "For example: annual revenue 10 million, 30 new customers, pipeline 30 million; split quarterly and add assumptions",
+    assistantNoChange: "No fields changed. Describe the target or assumption to fill.",
+    assistantTask: "Sales planning draft", assistantWelcome: "Describe your targets and deployment. I will fill this draft for your review and save.", assistantApplied: "Updated this draft. Review and save.", assistantStale: "The draft changed. Retry in the current draft.", assistantError: "Draft assistance failed. Your input is preserved; retry.",
+  },
   PLAN_VERSION_TEXT: {
     ...zh.PLAN_VERSION_TEXT,
     publishCompany: "Publish company plan",

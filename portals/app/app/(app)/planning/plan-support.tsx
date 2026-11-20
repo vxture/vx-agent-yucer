@@ -1,5 +1,6 @@
 "use client";
 import { DateRangeField } from "../components/date-range-field";
+import { Section } from "../components/help-section";
 import { MemberPicker } from "../components/member-picker";
 import { MemberName } from "../lib/member-names";
 import { useEffect, useRef, useState } from "react";
@@ -364,14 +365,7 @@ export function PlanSupport({
   );
   return (
     <div className="flex flex-col gap-xl">
-      <div className="flex flex-col gap-md">
-        <div className="flex items-center justify-between gap-md">
-          <div>
-            <h3 className="text-heading-3">{T.customers}</h3>
-            <p className="text-body-small text-muted-foreground">
-              {T.customerHint}
-            </p>
-          </div>
+      <Section title={T.customers} icon="building" help={T.customerHint} action={
           <RowActions
             label={T.addCustomer}
             disabled={disabled || !target}
@@ -388,7 +382,7 @@ export function PlanSupport({
                 : []
             }
           />
-        </div>
+      }>
         {c.contributions.some((x) => x.regionId === regionId) ? (
           <Table className="table-fixed min-w-panel-lg">
             <TableHeader>
@@ -482,15 +476,8 @@ export function PlanSupport({
             {T.customerEmpty}
           </p>
         )}
-      </div>
-      <div className="flex flex-col gap-md">
-        <div className="flex items-center justify-between gap-md">
-          <div>
-            <h3 className="text-heading-3">{T.team}</h3>
-            <p className="text-body-small text-muted-foreground">
-              {T.teamHint}
-            </p>
-          </div>
+      </Section>
+      <Section title={T.team} icon="users" help={T.teamHint} action={
           <RowActions
             label={T.addMember}
             disabled={disabled}
@@ -507,7 +494,7 @@ export function PlanSupport({
                 : []
             }
           />
-        </div>
+      }>
         {c.team.some((x) => x.regionId === regionId) ? (
           <Table className="table-fixed min-w-panel-lg">
             <TableHeader>
@@ -569,15 +556,8 @@ export function PlanSupport({
             {T.teamEmpty}
           </p>
         )}
-      </div>
-      <div className="flex flex-col gap-md">
-        <div className="flex items-center justify-between gap-md">
-          <div>
-            <h3 className="text-heading-3">{T.actions}</h3>
-            <p className="text-body-small text-muted-foreground">
-              {T.actionHint}
-            </p>
-          </div>
+      </Section>
+      <Section title={T.actions} icon="list-checks" help={T.actionHint} action={
           <RowActions
             label={T.addAction}
             disabled={disabled}
@@ -594,7 +574,7 @@ export function PlanSupport({
                 : []
             }
           />
-        </div>
+      }>
         {c.actions.some((x) => x.regionId === regionId) ? (
           <Table className="table-fixed min-w-panel-lg">
             <TableHeader>
@@ -623,8 +603,7 @@ export function PlanSupport({
                     </TableCell>
                     <TableCell>{x.objective}</TableCell>
                     <TableCell>
-                      {sources.members.find((m) => m.sub === x.ownerSub)
-                        ?.name ?? x.ownerSub}
+                      <MemberName sub={x.ownerSub} name={sources.members.find(m => m.sub === x.ownerSub)?.name}/>
                     </TableCell>
                     <TableCell>{x.due}</TableCell>
                     <TableCell className="w-table-col-fixed text-center">
@@ -651,7 +630,7 @@ export function PlanSupport({
             {T.actionEmpty}
           </p>
         )}
-      </div>
+      </Section>
       <Drawer
         open={mode !== null}
         onClose={close}

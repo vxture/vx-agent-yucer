@@ -1,401 +1,83 @@
 "use client";
-import { Section } from "../components/help-section";
-import { useState } from "react";
-import {
-  Icon,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  EmptyState,
-  Grid,
-  MetricListCard,
-  StatusBadge,
-  TableTitleCell,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  useMediaQuery,
-  type FilterBarView,
-} from "@vxture/design-ui";
-import { FilterBar } from "../components/business-controls";
+import { useState, type ReactNode } from "react";
+import { Button, EmptyState, Icon, Input, MetricListCard, NativeSelect, StatusBadge } from "@vxture/design-ui";
 import { Tag } from "../components/tag";
-import { RowActions } from "../components/table-fittings";
+import { Section } from "../components/help-section";
+import { CollectionToolbar } from "../components/collection-layout";
+import { CollectionTable, CollectionTitleCell } from "../components/collection-table";
+import { useCollectionView } from "../components/collection-view-provider";
+import { FilterSlot, RowActions, SearchSlot, useTableSort } from "../components/table-fittings";
+import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
+import { planningRegionRows } from "../lib/planning-workspace";
 import type { PlanContent } from "../../domains/planning/plan-model";
-import { planningTierPercent } from "../lib/planning-preview";
 import { PlanTargetLedger } from "./plan-targets";
 
-export function PlanRegions({
-  content,
-  onSelect,
-  editing = false,
-  disabled = false,
-  lockedPeriods = [],
-  onAttainment,
-}: {
-  content: PlanContent;
-  onSelect: (id: string) => void;
-  editing?: boolean;
-  disabled?: boolean;
-  lockedPeriods?: readonly string[];
-  onAttainment?: (id: string) => void;
-}) {
-  const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P, DS_LABELS } = useMessages();
+export function PlanRegions({ content, onSelect, editing = false, disabled = false, lockedPeriods = [], onAttainment, basis }: Readonly<{
+  content: PlanContent; onSelect: (id: string) => void; editing?: boolean; disabled?: boolean;
+  basis?: ReactNode; lockedPeriods?: readonly string[]; onAttainment?: (id: string) => void;
+}>) {
+  const { PLAN_VERSION_TEXT: T, PLAN_WORKSPACE_TEXT: W, DATA_TABLE_LABELS, DS_LABELS } = useMessages();
   const locale = useLocale();
-  const isWide = useMediaQuery("(min-width: 96rem)");
-  const [view, setView] = useState<FilterBarView>("cards");
+  const [view, setView] = useCollectionView("cards");
+  const [search, setSearch] = useState("");
+  const [participation, setParticipation] = useState("all");
   const [expanded, setExpanded] = useState<readonly string[]>([]);
-  const format = (v: string | null | undefined) =>
-    v == null
-      ? "—"
-      : Number(v).toLocaleString(locale, { maximumFractionDigits: 2 });
-  const metricLabels = {
-    revenue: P.metricRevenue,
-    new_logo: P.metricNewLogo,
-    pipeline: P.metricPipeline,
-    margin: P.metricMargin,
-  };
-  const regions = content.regions.map((r) => ({
-    ...r,
-    target: content.targets.find(
-      (t) =>
-        t.scope === `territory:${r.id}` &&
-        t.period === `Y${content.year}` &&
-        t.metric === "revenue",
-    ),
-    periods: content.targets
-      .filter(
-        (t) =>
-          t.scope === `territory:${r.id}` && t.period !== `Y${content.year}`,
-      )
-      .sort(
-        (a, b) =>
-          a.period.localeCompare(b.period) ||
-          a.metric.localeCompare(b.metric) ||
-          (a.currency ?? "").localeCompare(b.currency ?? ""),
-      ),
-    customers: new Set(
-      content.contributions
-        .filter((x) => x.regionId === r.id)
-        .map((x) => x.budgetKey),
-    ).size,
-    people: new Set(
-      content.team
-        .filter((x) => x.regionId === r.id && x.memberSub)
-        .map((x) => x.memberSub),
-    ).size,
-    actions: content.actions.filter((x) => x.regionId === r.id).length,
-  }));
-  type Region = (typeof regions)[number];
-  const status = (r: Region) =>
-    r.included ? (
-      <StatusBadge tone="info">{T.included}</StatusBadge>
-    ) : (
-      <Tag>{T.excluded}</Tag>
-    );
-  const regionTitle = (r: Region) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button data-control-kind="structural"
-          type="button"
-          className="text-left font-semibold transition-colors hover:text-primary"
-          onClick={() => onSelect(r.id)}
-        >
-          {r.name}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{r.provinces.join(" · ") || T.noCoverage}</TooltipContent>
-    </Tooltip>
-  );
-  const togglePeriods = (id: string) =>
-    setExpanded((keys) =>
-      keys.includes(id) ? keys.filter((key) => key !== id) : [...keys, id],
-    );
-  const regionActions = (r: Region) => [
-    ...(onAttainment
-      ? [
-          {
-            id: "attainment",
-            label: T.actual,
-            icon: "chart-line" as const,
-            onSelect: () => onAttainment(r.id),
-          },
-        ]
-      : []),
-    {
-      id: "open",
-      label: editing ? T.editRegion : T.regionDetail,
-      icon: "arrow-right" as const,
-      onSelect: () => onSelect(r.id),
-    },
-    ...(r.included
-      ? [
-          {
-            id: "periods",
-            label: expanded.includes(r.id)
-              ? T.collapsePeriods
-              : T.periodTargets,
-            icon: "calendar" as const,
-            onSelect: () => togglePeriods(r.id),
-          },
-        ]
-      : []),
-  ];
-  return (
-    <Section>
-      <div className="flex flex-col gap-md">
-        <FilterBar
-          heading={{ title: T.regions, icon: "map-pin", help: T.regionsHint }}
-          view={view}
-          onViewChange={setView}
-          count={T.regionCount(regions.length)}
-          actions={
-            <RowActions
-              label={`${T.regions} · ${DS_LABELS.actionMenu}`}
-              items={[
-                {
-                  id: "configure",
-                  label: T.configure,
-                  icon: "settings",
-                  onSelect: () =>
-                    window.open("/admin/division", "_blank", "noopener,noreferrer"),
-                },
-              ]}
-            />
-          }
-        />
-        {view === "list" ? (
-          <Table className="table-fixed min-w-panel-lg" aria-label={T.regions}>
-            <colgroup>
-              <col className="w-table-col-fixed" />
-              <col />
-              <col className="w-1/6" />
-              <col className="w-1/6" />
-              <col className="w-1/6" />
-              <col className="w-32" />
-              <col className="w-table-col-fixed" />
-            </colgroup>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-center first:pl-md"></TableHead>
-                <TableHead>{T.regions}</TableHead>
-                {(["floor", "target", "stretch"] as const).map((tier) => (
-                  <TableHead key={tier} className="text-right">
-                    {T[tier]}
-                  </TableHead>
-                ))}
-                <TableHead className="text-center">{T.participation}</TableHead>
-                <TableHead className="text-center last:pr-md">
-                  {T.operations}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            {regions.map((r, index) => {
-              const open = expanded.includes(r.id);
-              return (
-                <TableBody key={r.id}>
-                  <TableRow
-                    data-region-id={r.id}
-                    tabIndex={r.included ? 0 : undefined}
-                    aria-expanded={r.included ? open : undefined}
-                    onKeyDown={(event) => {
-                      if (
-                        event.target !== event.currentTarget ||
-                        !r.included ||
-                        !["Enter", " "].includes(event.key)
-                      )
-                        return;
-                      event.preventDefault();
-                      togglePeriods(r.id);
-                    }}
-                    className={`${r.included ? "cursor-pointer " : ""}${open ? "bg-accent hover:bg-accent" : "hover:bg-transparent"}`}
-                    onClick={(event) => {
-                      if (
-                        !r.included ||
-                        (event.target as HTMLElement).closest(
-                          'button,a,input,select,textarea,[role="menuitem"]',
-                        ) ||
-                        window.getSelection()?.toString()
-                      )
-                        return;
-                      togglePeriods(r.id);
-                    }}
-                  >
-                    <TableCell className="text-center text-muted-foreground first:pl-md">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell>
-                      <TableTitleCell
-                        title={regionTitle(r)}
-                        description={`${r.target?.currency ?? "—"} · ${T.customers} ${r.customers} · ${T.people} ${r.people} · ${T.actions} ${r.actions}`}
-                      />
-                    </TableCell>
-                    {(["floor", "target", "stretch"] as const).map((tier) => (
-                      <TableCell
-                        key={tier}
-                        data-plan-tier={tier}
-                        className="text-right tabular-nums font-semibold"
-                      >
-                        {format(r.target?.[tier])}
-                        {tier !== "target" ? (
-                          <span className="ml-xs text-body-small font-normal text-muted-foreground">
-                            {planningTierPercent(
-                              r.target?.[tier],
-                              r.target?.target,
-                              locale,
-                            )}
-                          </span>
-                        ) : null}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-center">{status(r)}</TableCell>
-                    <TableCell className="text-center last:pr-md">
-                      <RowActions
-                        label={`${DS_LABELS.actionMenu} · ${r.name}`}
-                        items={regionActions(r)}
-                        disabled={disabled}
-                      />
-                    </TableCell>
-                  </TableRow>
-                  {open
-                    ? r.periods.map((t, periodIndex) => (
-                        <TableRow
-                          key={t.key}
-                          id={
-                            periodIndex === 0
-                              ? `region-periods-${r.id}`
-                              : undefined
-                          }
-                          className="bg-accent hover:bg-accent"
-                        >
-                          <TableCell className="text-center text-muted-foreground first:pl-md">
-                            {index + 1}.{periodIndex + 1}
-                          </TableCell>
-                          <TableCell>
-                            <TableTitleCell
-                              title={t.period.replace(String(content.year), "")}
-                              description={
-                                t.metric === "revenue"
-                                  ? undefined
-                                  : metricLabels[t.metric]
-                              }
-                              tooltip={`${t.period} \u00b7 ${metricLabels[t.metric]} \u00b7 ${t.currency ?? T.count}`}
-                            />
-                          </TableCell>
-                          {(["floor", "target", "stretch"] as const).map(
-                            (tier) => (
-                              <TableCell
-                                key={tier}
-                                data-plan-tier={tier}
-                                className="text-right tabular-nums"
-                              >
-                                {format(t[tier])}
-                              </TableCell>
-                            ),
-                          )}
-                          <TableCell />
-                          <TableCell className="text-center last:pr-md">
-                            <RowActions
-                              label={`${DS_LABELS.actionMenu} · ${r.name} · ${t.period}`}
-                              disabled={disabled}
-                              items={[
-                                {
-                                  id: "open",
-                                  label: editing
-                                    ? T.editRegion
-                                    : T.regionDetail,
-                                  icon: "arrow-right",
-                                  onSelect: () => onSelect(r.id),
-                                },
-                              ]}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    : null}
-                  {open && !r.periods.length ? (
-                    <TableRow className="bg-accent hover:bg-accent">
-                      <TableCell colSpan={7}>
-                        <EmptyState title={T.noQuarters} />
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              );
-            })}
-            {!regions.length ? (
-              <TableBody>
-                <TableRow>
-                  <TableCell colSpan={7}>
-                    <EmptyState title={T.noRegions} />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            ) : null}
-          </Table>
-        ) : regions.length ? (
-          <Grid columns={isWide ? 2 : 1} gap="md" className="items-start">
-            {regions.map((r) => (
-              <MetricListCard
-                key={r.id}
-                title={
-                  <span className="flex h-control-xl min-w-0 items-center gap-sm">
-                    <Icon
-                      name="globe"
-                      size="md"
-                      className="shrink-0 text-muted-foreground"
-                    />
-                    {regionTitle(r)}
-                    {r.included ? (
-                      <span className="truncate text-body-small font-normal text-muted-foreground">
-                        {T.customers} {r.customers} · {T.people} {r.people} ·{" "}
-                        {T.actions} {r.actions}
-                      </span>
-                    ) : null}
-                  </span>
-                }
-                actions={
-                  <div className="flex items-center gap-sm">
-                    {status(r)}
-                    <RowActions
-                      label={`${DS_LABELS.actionMenu} · ${r.name}`}
-                      items={regionActions(r)}
-                      disabled={disabled}
-                    />
-                  </div>
-                }
-                note={!r.included ? r.reason || T.excluded : undefined}
-                footer={
-                  r.included ? (
-                    <div className="w-full min-w-0">
-                      <PlanTargetLedger
-                        content={content}
-                        scope={`territory:${r.id}`}
-                        edit={null}
-                        disabled={disabled}
-                        lockedPeriods={lockedPeriods}
-                        open={expanded.includes(r.id)}
-                        onOpenChange={(open) =>
-                          setExpanded((keys) =>
-                            open
-                              ? [...new Set([...keys, r.id])]
-                              : keys.filter((key) => key !== r.id),
-                          )
-                        }
-                      />
-                    </div>
-                  ) : undefined
-                }
-              />
-            ))}
-          </Grid>
-        ) : (
-          <EmptyState title={T.noRegions} />
-        )}
-      </div>
-    </Section>
-  );
+  const rows = planningRegionRows(content).filter(r =>
+    (participation === "all" || r.included === (participation === "included")) &&
+    `${r.name} ${r.code} ${r.provinces.join(" ")}`.toLocaleLowerCase(locale).includes(search.trim().toLocaleLowerCase(locale)));
+  type Region = (typeof rows)[number];
+  const table = useTableSort(rows, {
+    name: r => r.name, target: r => r.annual?.target == null ? null : Number(r.annual.target),
+    support: r => r.supported == null ? null : Number(r.supported), gap: r => r.gap == null ? null : Number(r.gap),
+    customers: r => r.customers, people: r => r.people, actions: r => r.actions,
+    status: r => r.included ? 1 : 0,
+  });
+  const format = (v: string | null | undefined) => v == null ? "\u2014" : Number(v).toLocaleString(locale, { maximumFractionDigits: 2 });
+  const money = (r: Region, value: string | null | undefined) => <span className="whitespace-nowrap tabular-nums">{format(value)}<span className="ml-xs text-body-small font-normal text-muted-foreground">{r.annual?.currency}</span></span>;
+  const status = (r: Region) => r.included ? <StatusBadge tone="info">{T.included}</StatusBadge> : <Tag>{T.excluded}</Tag>;
+  const title = (r: Region) => <button data-control-kind="structural" type="button" disabled={disabled} className="text-left font-semibold transition-colors hover:text-primary-text" onClick={() => onSelect(r.id)}>{r.name}</button>;
+  const toggle = (id: string) => setExpanded(keys => keys.includes(id) ? keys.filter(k => k !== id) : [...keys, id]);
+  const actions = (r: Region) => <RowActions label={`${DS_LABELS.actionMenu} \u00b7 ${r.name}`} disabled={disabled} items={[
+    { id: "open", label: editing ? T.editRegion : T.regionDetail, icon: "arrow-right", onSelect: () => onSelect(r.id) },
+    ...(onAttainment ? [{ id: "actual", label: T.actual, icon: "chart-line" as const, onSelect: () => onAttainment(r.id) }] : []),
+  ]}/>;
+  const cards = rows.length ? <div className="grid grid-cols-1 gap-md @3xl:grid-cols-2 @7xl:grid-cols-3">
+      {rows.map(r => <MetricListCard key={r.id} title={<span className="flex min-w-0 items-center gap-sm text-body"><Icon name="map-pin" size="sm" className="shrink-0 text-muted-foreground"/>{title(r)}</span>} actions={<span className="flex items-center gap-sm">{status(r)}{actions(r)}</span>}
+        note={!r.included ? r.reason || T.excluded : undefined} footer={<div className="flex w-full min-w-0 flex-col gap-md text-body">
+          <div className="flex items-center gap-sm"><Icon name="user" size="sm" className="text-muted-foreground"/><span className="text-muted-foreground">{T.owner}:</span><MemberName sub={r.ownerSub} fallback={W.ownerPending}/></div>
+          {r.included ? <>
+            <dl className="grid grid-cols-3 gap-sm border-t border-border pt-md">{[[T.target, r.annual?.target], [W.customerSupport, r.supported], [W.supportGap, r.gap]].map(([label, value]) => <div key={label} className="flex min-w-0 flex-col gap-xs"><dt className="text-body-small text-muted-foreground">{label}</dt><dd className="text-body font-semibold">{money(r, value)}</dd></div>)}</dl>
+            <div className="flex flex-wrap items-center gap-md border-t border-border pt-md text-muted-foreground"><span>{W.deployedCustomers} {r.customers} {W.customerUnit}</span><span>{T.people} {r.people} {T.personUnit}</span><span>{T.actions} {r.actions} {W.actionUnit}</span>
+              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => toggle(r.id)} aria-expanded={expanded.includes(r.id)}>{expanded.includes(r.id) ? T.collapsePeriods : T.periodTargets}</Button>
+            </div>
+            {expanded.includes(r.id) ? <PlanTargetLedger content={content} scope={`territory:${r.id}`} edit={null} disabled={disabled} lockedPeriods={lockedPeriods} open onOpenChange={() => toggle(r.id)}/> : null}
+          </> : null}
+        </div>}/>)}
+    </div> : <EmptyState title={T.noRegions}/>;
+  return <Section><div className="flex flex-col gap-md">
+    <CollectionToolbar title={T.regions} icon="map-pin" help={W.regionsHelp} mode={{ value: view, onChange: setView }} count={rows.length} notice={basis}
+      search={<SearchSlot><Input aria-label={W.searchRegions} placeholder={W.searchRegions} value={search} onChange={e => setSearch(e.target.value)}/></SearchSlot>}
+      actions={<RowActions label={`${T.regions} \u00b7 ${DS_LABELS.actionMenu}`} items={[{ id: "configure", label: T.configure, icon: "settings", onSelect: () => window.open("/admin/division", "_blank", "noopener,noreferrer") }]}/> }>
+      <FilterSlot><NativeSelect aria-label={T.participation} value={participation} onChange={e => setParticipation(e.target.value)}>
+        <option value="all">{W.allRegions}</option><option value="included">{T.included}</option><option value="excluded">{T.excluded}</option>
+      </NativeSelect></FilterSlot>
+    </CollectionToolbar>
+    {view === "list" ? <CollectionTable rows={table.rows} rowKey={r => r.id} indexStart={1} labels={DATA_TABLE_LABELS} sort={table.sort} onSortChange={table.onSortChange} empty={<EmptyState title={T.noRegions}/>} columns={[
+      { id: "name", header: T.regions, track: "subject", sortable: true, cell: r => renderRegionName(r, onSelect, disabled, W.ownerPending) },
+      { id: "target", header: T.target, track: "amount", align: "numeric", sortable: true, cell: r => r.included ? money(r, r.annual?.target) : "\u2014" },
+      { id: "support", header: W.customerSupport, track: "amount", align: "numeric", sortable: true, cell: r => r.included ? money(r, r.supported) : "\u2014" },
+      { id: "gap", header: W.supportGap, track: "amount", align: "numeric", sortable: true, cell: r => r.included ? money(r, r.gap) : "\u2014" },
+      { id: "deployment", header: W.deployment, track: "composition", cell: r => renderDeployment(r, W.customerUnit, T.personUnit, W.actionUnit) },
+      { id: "status", header: T.participation, track: "state", sortable: true, cell: status },
+    ]} rowActions={actions}/> : cards}
+  </div></Section>;
+}
+
+type RegionRow = ReturnType<typeof planningRegionRows>[number];
+function renderRegionName(row: RegionRow, onSelect: (id: string) => void, disabled: boolean, fallback: string) {
+  return <CollectionTitleCell title={<button data-control-kind="structural" type="button" disabled={disabled} className="text-left font-semibold transition-colors hover:text-primary-text" onClick={() => onSelect(row.id)}>{row.name}</button>} description={<MemberName sub={row.ownerSub} fallback={fallback}/>}/>;
+}
+function renderDeployment(row: RegionRow, customerUnit: string, personUnit: string, actionUnit: string) {
+  return <div className="flex flex-col gap-xs text-body"><span>{row.customers} {customerUnit}</span><span className="text-body-small text-muted-foreground">{row.people} {personUnit}{" \u00b7 "}{row.actions} {actionUnit}</span></div>;
 }

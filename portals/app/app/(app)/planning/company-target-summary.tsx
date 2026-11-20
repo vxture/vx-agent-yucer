@@ -1,5 +1,6 @@
 "use client";
 import { Icon, Input, MetricListCard } from "@vxture/design-ui";
+import { companyAllocation } from "../lib/planning-workspace";
 import { updatePlanningAmount } from "../lib/planning-autofill";
 import { planningTierPercent } from "../lib/planning-preview";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -25,10 +26,7 @@ export function CompanyTargetSummary({
 }) {
   const locale = useLocale();
   const { PLAN_VERSION_TEXT: T, PLANNING_TEXT: P } = useMessages();
-  const format = (value: string | number | null | undefined) =>
-    value == null
-      ? "—"
-      : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
+  const format = planningNumberFormatter(locale);
   const members = new Set(
     content.team.filter((t) => t.memberSub).map((t) => t.memberSub),
   ).size;
@@ -153,20 +151,9 @@ export function CompanyTargetAllocation({
 }) {
   const locale = useLocale();
   const { PLAN_VERSION_TEXT: T } = useMessages();
-  const format = (value: string | number | null | undefined) =>
-    value == null
-      ? "\u2014"
-      : Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
-  const allocated = content.targets
-    .filter(
-      (t) =>
-        t.scope !== "workspace" &&
-        t.period === `Y${content.year}` &&
-        t.metric === "revenue" &&
-        t.currency === target?.currency &&
-        t.target != null,
-    )
-    .reduce((total, t) => total + Number(t.target), 0);
+  const format = planningNumberFormatter(locale);
+  const { allocated, balance, unknown } = companyAllocation(content, target);
+  const { PLAN_WORKSPACE_TEXT: W } = useMessages();
 
   return (
     <span
@@ -178,11 +165,15 @@ export function CompanyTargetAllocation({
       </span>
       <span>
         {T.allocation}{" "}
-        {format(
-          target?.target == null ? null : Number(target.target) - allocated,
-        )}
+        {format(balance)}
       </span>
       <span>{target?.currency ?? currency}</span>
+      {unknown ? <span>{W.unknownTargets} {unknown}</span> : null}
     </span>
   );
+}
+
+function planningNumberFormatter(locale: string) {
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+  return (value: string | number | null | undefined) => value == null ? "\u2014" : number.format(Number(value));
 }

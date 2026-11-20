@@ -1,5 +1,6 @@
 import { readSalesPlan, type SalesPlanContext } from "../../../domains/planning/plan-service";
 import { PlanError, planVersions } from "../../../domains/planning/plan-model";
+import { regionalPlanningRevision } from "../../../domains/planning/plan-workflow";
 import { can } from "../../../authz/decide";
 
 export type DeploymentOverview = Awaited<ReturnType<typeof readDeploymentOverview>>;
@@ -14,13 +15,7 @@ export async function readDeploymentOverview(ctx: SalesPlanContext, year: number
     const content = current.content;
     // A company revision carries the previous regional slice unchanged.
     // Identify its actual publication rather than implying a new deployment.
-    let regional = current;
-    while (regional.content.releaseScope === "company" && regional.baseId) {
-      const parent = plan!.revisions.find(r => r.id === regional.baseId && r.state === "sealed");
-      if (!parent) break;
-      regional = parent;
-    }
-    const regionalVersion = regional.content.releaseScope === "company" ? null : regional.version;
+    const regionalVersion = regionalPlanningRevision(plan!, current)?.version ?? null;
     const regions = content.regions.filter(r => r.included);
     const customers = new Set([
       ...content.budgets.map(b => b.accountId),

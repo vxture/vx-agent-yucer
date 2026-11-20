@@ -64,7 +64,7 @@ export default async function PlanningPage({
     ]);
     for (const r of plan?.revisions ?? []) checkPlanRead(session, r.content);
     const selected = revision
-      ? plan?.revisions.find((r) => r.id === revision && r.state === "sealed")
+      ? plan?.revisions.find((r) => r.id === revision && (r.state === "sealed" || (r.state === "draft" && can(session.authz, session.entitlement, "planning.target.update", "ui").allowed)))
       : null;
     if (revision && !selected) return <EmptyState title={AT.contextMissing} />;
     const previewContent = freshPlan(year, sources);
@@ -103,7 +103,7 @@ export default async function PlanningPage({
     return (
       <ViewLayout>
         <PlanningVersionPanel
-          key={`${year}|${revision ?? "current"}|${region ?? "company"}|${period ?? ""}`}
+          key={year}
           initialRevision={revision}
           initialRegion={region}
           initialPeriod={period}

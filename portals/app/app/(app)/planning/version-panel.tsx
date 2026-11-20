@@ -1,6 +1,9 @@
 "use client";
 import { StrategyHandoffPanel } from "./strategy-handoff-panel";
-import { companyPlanningRevision } from "../../domains/planning/plan-workflow";
+import { companyPlanningRevision, regionalPlanningRevision } from "../../domains/planning/plan-workflow";
+import { PlanDraftAssistant } from "./plan-draft-assistant";
+import { MemberPicker } from "../components/member-picker";
+import { planningHref } from "../lib/planning-workspace";
 import { MemberName } from "../lib/member-names";
 import { Section } from "../components/help-section";
 import { TitleHelp } from "../components/title-help";
@@ -90,6 +93,7 @@ export function PlanningVersionPanel({
 }) {
   const locale = useLocale();
   const {
+    PLAN_WORKSPACE_TEXT: W,
     STRATEGY_HANDOFF_TEXT: H,
     PLAN_VERSION_TEXT: T,
     PLAN_VERSION_ERROR: E,
@@ -98,7 +102,9 @@ export function PlanningVersionPanel({
   } = useMessages();
   const router = useRouter();
   const [plan, setPlan] = useState(initialPlan);
-  const [pending, transition] = useTransition();
+  const [pendingCommand, transition] = useTransition();
+  const [assistantBusy, setAssistantBusy] = useState(false);
+  const pending = pendingCommand || assistantBusy;
   const [now, setNow] = useState(initialNow);
   const state = useMemo(
     () =>
@@ -159,6 +165,8 @@ export function PlanningVersionPanel({
       : plan && state.current
         ? companyPlanningRevision(plan, state.current)
         : null;
+  const regionalReference = revision?.state === "draft" ? state.current ?? revision : revision;
+  const regionalBasis = plan && regionalReference ? regionalPlanningRevision(plan, regionalReference) : null;
   const managedLegacyIds =
     companyEditing && !c?.regions.length ? legacyCompanyIds : legacyIds;
   const publishLabel = companyEditing
@@ -166,12 +174,19 @@ export function PlanningVersionPanel({
     : regionalEditing
       ? T.publishRegions
       : T.publish;
+  let draftStateLabel: string = T.draft;
+  if (companyEditing) draftStateLabel = W.scopeCompany;
+  if (regionalEditing) draftStateLabel = W.scopeRegions;
   const dirty =
     editing && JSON.stringify(c) !== JSON.stringify(state.draft?.content);
   const [diffSection, setDiffSection] = useState("all");
   const [regionId, setRegionId] = useState<string | null>(
     initialRegion ?? null,
   );
+  useEffect(() => {
+    setView(initialRevision ?? "current");
+    setRegionId(initialRegion ?? null);
+  }, [initialRevision, initialRegion]);
   const [reason, setReason] = useState("");
   const [effective, setEffective] = useState("");
   const [when, setWhen] = useState("immediate");
@@ -215,9 +230,25 @@ export function PlanningVersionPanel({
       event.preventDefault();
       event.returnValue = "";
     };
+    const leavePage = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = (event.target as Element)?.closest("a");
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const destination = new URL(link.href, window.location.href);
+      if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+      if (!window.confirm(W.leaveDraft)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [dirty]);
+    document.addEventListener("click", leavePage, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", leavePage, true);
+    };
+  }, [dirty, W.leaveDraft]);
+  const inFlight = useRef(false);
   const requests = useRef(new Map<string, string>());
   const edit = editing
     ? (next: PlanContent) => {
@@ -247,7 +278,9 @@ export function PlanningVersionPanel({
   const run = (
     command: PlanCommand,
     afterSave?: "publish" | "browse" | "check",
-  ) =>
+  ) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     transition(async () => {
       setError("");
       setMessage("");
@@ -273,12 +306,12 @@ export function PlanningVersionPanel({
         const s = planVersions(result.plan, new Date().toISOString());
         if (command.kind !== "cancel" && command.kind !== "lock") {
           setContent(s.draft?.content ?? null);
-          setView(
-            (command.kind === "draft" || command.kind === "save") &&
-              afterSave !== "browse"
-              ? (s.draft?.id ?? "current")
-              : "current",
-          );
+          const nextView = (command.kind === "draft" || command.kind === "save") && afterSave !== "browse" ? (s.draft?.id ?? "current") : "current";
+          setView(nextView);
+          const nextContent = nextView === "current" ? s.current?.content : s.draft?.content;
+          const nextRegion = nextContent?.regions.some(r => r.id === regionId) ? regionId : null;
+          setRegionId(nextRegion);
+          window.history.replaceState(null, "", planningHref({ year, revision: nextView, region: nextRegion, period: initialPeriod }));
         }
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
@@ -288,18 +321,27 @@ export function PlanningVersionPanel({
         router.refresh();
       } catch {
         setError(E.plan_save_failed!);
+      } finally {
+        inFlight.current = false;
       }
     });
+  };
   const choose = (value: string) => {
     if (dirty) {
       setError(T.saveFirst);
       return false;
     }
     setView(value);
+    const targetRevision = value === "baseline" ? state.baseline?.id : value;
+    window.history.replaceState(null, "", planningHref({ year, revision: targetRevision }));
     setError("");
     setMessage("");
     setRegionId(null);
     return true;
+  };
+  const selectRegion = (id: string | null) => {
+    setRegionId(id);
+    window.history.replaceState(null, "", planningHref({ year, revision: view === "baseline" ? state.baseline?.id : view, region: id, period: initialPeriod }));
   };
   const metricName: Record<string, string> = {
     revenue: P.metricRevenue,
@@ -313,11 +355,11 @@ export function PlanningVersionPanel({
       : Number(s).toLocaleString(locale, { maximumFractionDigits: 2 });
   const findings = useMemo(() => {
     try {
-      return c ? planningFindings(c) : [];
+      return revision ? planningFindings(c) : [];
     } catch {
       return null;
     }
-  }, [c]);
+  }, [c, revision]);
   const diff = c ? comparePlanContents(state.current?.content ?? null, c) : [];
   const sectionLabel: Record<string, string> = {
     regions: T.regions,
@@ -457,7 +499,7 @@ export function PlanningVersionPanel({
           },
         ]
       : []),
-    ...(c
+    ...(revision
       ? [
           {
             id: "diff",
@@ -506,7 +548,7 @@ export function PlanningVersionPanel({
             {state.closed ? <Tag>{T.closed}</Tag> : null}
             {editing ? (
               <StatusBadge tone="warning">
-                {dirty ? T.dirty : T.draft}
+                {dirty ? T.dirty : draftStateLabel}
               </StatusBadge>
             ) : revision ? (
               <StatusBadge tone="info">
@@ -586,7 +628,7 @@ export function PlanningVersionPanel({
                     setChecksOpen(true);
                   }
                 }}
-                disabled={!c || pending}
+                disabled={!revision || pending}
               >
                 {T.insights}
                 {findings?.length ? ` · ${findings.length}` : ""}
@@ -703,16 +745,22 @@ export function PlanningVersionPanel({
           <Button
             size="sm"
             variant="ghost"
+            disabled={pending}
             onClick={() => choose(state.scheduled!.id)}
           >
             {T.version}
           </Button>
         </p>
       ) : null}
-      {!c ? (
-        <EmptyState title={T.noRelease} description={T.noReleaseHint} />
+      {!revision && !editing ? (
+        <EmptyState title={W.noPublication} description={state.draft ? W.draftAvailable : W.noPublicationHint} />
       ) : (
         <>
+          {edit && (companyEditing || (regionalEditing && currentRegion?.included)) ? (
+            <PlanDraftAssistant key={`${state.draft!.id}|${state.draft!.editToken}|${regionId ?? "company"}`} content={c}
+              context={{ year, revisionId: state.draft!.id, editToken: state.draft!.editToken, regionId: regionId ?? undefined }}
+              edit={edit} disabled={pendingCommand} onBusy={setAssistantBusy}/>
+          ) : null}
           {needsSourceRefresh && edit && !companyEditing ? (
             <div className="flex items-center gap-md text-body-small text-muted-foreground">
               {T.sourceChanged}
@@ -742,7 +790,8 @@ export function PlanningVersionPanel({
                   <Button
                     size="md"
                     variant="secondary"
-                    onClick={() => setRegionId(null)}
+                    disabled={pending}
+                    onClick={() => selectRegion(null)}
                   >
                     {T.back}
                   </Button>
@@ -769,6 +818,12 @@ export function PlanningVersionPanel({
               </div>
             }
           >
+            {currentRegion && !edit ? (
+              <div className="mb-md flex flex-wrap items-center gap-sm text-body">
+                <span className="text-muted-foreground">{T.owner}:</span>
+                <MemberName sub={currentRegion.ownerSub} fallback={W.ownerPending}/>
+              </div>
+            ) : null}
             {currentRegion && edit ? (
               <div className="mb-lg flex flex-wrap items-end gap-md">
                 <Field>
@@ -814,6 +869,12 @@ export function PlanningVersionPanel({
                     <option value="yes">{T.included}</option>
                     <option value="no">{T.excluded}</option>
                   </NativeSelect>
+                </Field>
+                <Field className="min-w-48">
+                  <FieldLabel htmlFor="plan-region-owner">{T.owner}</FieldLabel>
+                  <MemberPicker id="plan-region-owner" label={T.owner} value={currentRegion.ownerSub} disabled={pending || !sources.canTeam || !!lockedPeriods.length}
+                    options={sources.canTeam ? sources.members.map(m => ({ value: m.sub, label: m.name })) : null}
+                    onValueChange={sub => edit({ ...c, regions: c.regions.map(r => r.id === currentRegion.id ? { ...r, ownerSub: sub || null } : r) })}/>
                 </Field>
                 {!currentRegion.included ? (
                   <Field className="flex-1">
@@ -900,7 +961,8 @@ export function PlanningVersionPanel({
           ) : c.regions.length ? (
             <PlanRegions
               content={c}
-              onSelect={setRegionId}
+              onSelect={selectRegion}
+              basis={regionalBasis ? <span className="text-body-small text-muted-foreground">{W.regionalBasis} V{regionalBasis.version}</span> : undefined}
               onAttainment={
                 !editing
                   ? (id) =>
@@ -1072,7 +1134,7 @@ export function PlanningVersionPanel({
                       size="md"
                       variant="secondary"
                       onClick={() => {
-                        setRegionId(f.regionId);
+                        selectRegion(f.regionId);
                         setChecksOpen(false);
                       }}
                     >

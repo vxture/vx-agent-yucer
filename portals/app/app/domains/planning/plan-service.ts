@@ -70,12 +70,12 @@ function gate(ctx: SalesPlanContext, write: boolean) {
 function sourceGate(ctx: SalesPlanContext, content: PlanContent) {
   demand(!content.strategyAcceptances?.length || can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data").allowed, "strategy_source_permission");
   demand(
-    !content.budgets.length ||
+    !(content.budgets.length || content.actions.some(a => a.accountId)) ||
       can(ctx.holder, ctx.entitlement, "account.view", "data").allowed,
     "plan_source_permission",
   );
   demand(
-    !(content.team.length || content.actions.length) ||
+    !(content.team.length || content.actions.length || content.regions.some(r => r.ownerSub)) ||
       can(ctx.holder, ctx.entitlement, "admin.member.view", "data").allowed,
     "plan_source_permission",
   );

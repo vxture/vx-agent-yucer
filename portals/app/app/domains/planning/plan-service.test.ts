@@ -615,3 +615,15 @@ test("regional planning cannot precede company publication", async () => {
     /company_release_required/,
   );
 });
+
+test("source read gates cover action-only customers and region-only owner identities", async () => {
+  for (const source of ["customer", "owner"] as const) {
+    const { ctx, change } = setup(); const c = content();
+    if (source === "customer") c.actions.push({ key: "action-1", regionId: "east", targetKey: null, accountId: "customer-uuid", objective: "Follow up", ownerSub: null, due: "2026-12-01", evidenceRefs: [] });
+    else c.regions[0].ownerSub = "member-uuid";
+    await change({ kind: "draft", content: c });
+    const permissions = new Set(ctx.holder.permissions);
+    permissions.delete(source === "customer" ? "account.read" : "admin.manage");
+    await assert.rejects(readSalesPlan({ ...ctx, holder: { permissions } }, 2026), /plan_source_permission/);
+  }
+});
