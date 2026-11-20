@@ -102,6 +102,21 @@ export default async function DomainHomePage({
       ? (DOMAIN_LABEL[m.key] ?? m.key)
       : (PLANNED_MODULE_LABEL[m.key] ?? m.key);
 
+  const moduleHref = (m: Exclude<ResolvedModule, { kind: "planned" }>) => {
+    if (deployment && m.key === "planning") return `/planning?year=${year}`;
+    if (deployment && m.key === "attainment") return `/attainment?period=Y${year}`;
+    return m.href;
+  };
+  const moduleDescription = (m: Exclude<ResolvedModule, { kind: "planned" }>) => {
+    if (m.kind === "section") return LAUNCHER_TEXT.section;
+    if (m.state === "locked") {
+      if (!m.requiredTier) return LAUNCHER_TEXT.lockedNoTier;
+      return LAUNCHER_TEXT.locked(TIER_LABEL[m.requiredTier] ?? m.requiredTier);
+    }
+    if (deployment) return DEPLOYMENT_HOME_TEXT.modules[m.key];
+    return m.href;
+  };
+
   return (
     <ViewLayout>
       {/* A DOMAIN HOME sits under the launcher, and the launcher lives on
@@ -178,20 +193,12 @@ export default async function DomainHomePage({
             ) : (
               <Link
                 key={m.kind === "section" ? `section-${m.key}` : m.key}
-                href={deployment && m.key === "planning" ? `/planning?year=${year}` : deployment && m.key === "attainment" ? `/attainment?period=Y${year}` : m.href}
+                href={moduleHref(m)}
                 className="hover:border-primary flex flex-col gap-2xs rounded-md border p-md"
               >
                 <span className="flex items-center gap-xs text-body text-foreground"><Icon name={m.icon} size="sm" />{moduleLabel(m)}</span>
                 <span className={deployment ? "text-muted-foreground text-body" : "text-muted-foreground text-body-small"}>
-                  {m.kind === "section"
-                    ? LAUNCHER_TEXT.section
-                    : m.state === "locked"
-                      ? m.requiredTier
-                        ? LAUNCHER_TEXT.locked(
-                            TIER_LABEL[m.requiredTier] ?? m.requiredTier,
-                          )
-                        : LAUNCHER_TEXT.lockedNoTier
-                      : deployment ? DEPLOYMENT_HOME_TEXT.modules[m.key] : m.href}
+                  {moduleDescription(m)}
                 </span>
               </Link>
             ),
