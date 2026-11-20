@@ -1,3 +1,5 @@
+import { validSolutionQuantity } from "./quantity";
+import { catalogTextTooLong } from "./text-limits";
 import type { PriceEntryRecord } from "../store";
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 
@@ -190,7 +192,7 @@ export interface ProductDraft {
  * A pure rule cannot check the uuid against the workspace's vocabulary - the
  * SERVICE does that, exactly as it does for statusId.
  */
-export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
+export function planProduct(input: ProductDraft, previous?: Pick<ProductDraft, "name">): RuleResult<ProductDraft> {
   if(input.novelty!=null && !["existing","new"].includes(input.novelty))return fail(violation("product_novelty_invalid","invalid catalog attribute","novelty"));
   if (!input.productCode.trim()) {
     return fail(violation("code_required", "a product needs a code", "productCode"));
@@ -200,6 +202,9 @@ export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
   }
   if (!input.name.trim()) {
     return fail(violation("name_required", "a product needs a name", "name"));
+  }
+  if (catalogTextTooLong("name", input.name, previous?.name)) {
+    return fail(violation("catalog_text_too_long", "product name exceeds its display limit", "name"));
   }
   if (!input.unitId.trim()) {
     return fail(violation("unit_required", "a product needs a unit of sale", "unitId"));
@@ -231,6 +236,30 @@ export interface SolutionItemDraft {
   note?: string | null;
 }
 
+function solutionItemsViolation(
+  items: readonly SolutionItemDraft[],
+  previous?: readonly SolutionItemDraft[],
+) {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+      return violation("quantity_positive", `${item.productId} needs a quantity above zero`, "quantity");
+    }
+    if (!validSolutionQuantity(item.quantity)) {
+      return violation("quantity_precision", "quantity must fit NUMERIC(12,2)", "quantity");
+    }
+    const previousNote = previous?.find(row => row.productId === item.productId)?.note;
+    if (catalogTextTooLong("note", item.note, previousNote)) {
+      return violation("catalog_text_too_long", "solution item note exceeds its display limit", "note");
+    }
+    if (seen.has(item.productId)) {
+      return violation("duplicate_product", `${item.productId} appears twice; use one line with the total`, "productId");
+    }
+    seen.add(item.productId);
+  }
+  return null;
+}
+
 /**
  * A solution is a bundle, so it must contain something.
  *
@@ -243,6 +272,7 @@ export interface SolutionItemDraft {
 export function planSolution(
   input: SolutionDraft,
   items: readonly SolutionItemDraft[],
+  previous?: { solution: Pick<SolutionDraft, "name" | "summary" | "scenario">; items: readonly SolutionItemDraft[] },
 ): RuleResult<{ solution: SolutionDraft; items: SolutionItemDraft[] }> {
   if(input.novelty!=null && !["existing","new"].includes(input.novelty))return fail(violation("product_novelty_invalid","invalid catalog attribute","novelty"));
   if (!input.solutionCode.trim()) {
@@ -251,25 +281,15 @@ export function planSolution(
   if (!input.name.trim()) {
     return fail(violation("name_required", "a solution needs a name", "name"));
   }
+  const textError = solutionTextError(input, previous?.solution);
+  if (textError) return fail(textError);
   if (items.length === 0) {
     return fail(
       violation("items_required", "a solution with no products is a name, not a bundle", "items"),
     );
   }
-  const seen = new Set<string>();
-  for (const it of items) {
-    if (!(it.quantity > 0)) {
-      return fail(
-        violation("quantity_positive", `${it.productId} needs a quantity above zero`, "quantity"),
-      );
-    }
-    if (seen.has(it.productId)) {
-      return fail(
-        violation("duplicate_product", `${it.productId} appears twice; use one line with the total`, "productId"),
-      );
-    }
-    seen.add(it.productId);
-  }
+  const itemViolation = solutionItemsViolation(items, previous?.items);
+  if (itemViolation) return fail(itemViolation);
   // A SOLUTION NEEDS A STANDARD CORE (incr/0031). Everything optional is a
   // menu - a list of things that could be bought - and quoting from it starts
   // from nothing. What makes a bundle a solution is that some of it is the
@@ -564,4 +584,12 @@ export function concessionSheet(
     rate: listAmount === null || listAmount === 0 || concession === null ? null : concession / listAmount,
     unpriced,
   };
+}
+
+function solutionTextError(input: SolutionDraft, previous?: Pick<SolutionDraft, "name" | "summary" | "scenario">) {
+  for (const field of ["name", "summary", "scenario"] as const) {
+    if (catalogTextTooLong(field, input[field], previous?.[field])) {
+      return violation("catalog_text_too_long", "solution text exceeds its display limit", field);
+    }
+  }
 }

@@ -1750,6 +1750,10 @@ export const en: Dictionary = {
   },
 
   CATALOG_ERROR: {
+  quantity_precision: "Quantity supports up to two decimals and a maximum of 9,999,999,999.99.",
+  product_unavailable: "This product is retired. Refresh and choose an available product.",
+  type_unavailable: "This type is retired. Choose an active type.",
+  catalog_text_too_long: "Text exceeds the field limit. Please shorten the highlighted fields.",
   invalid_input: "Enter a valid business request of up to 4000 characters.",
   no_active_tenant: "Choose an organization and workspace first.",
   invalid_draft: "No reliable draft fields were returned. Your form is retained; try again.",
@@ -1858,6 +1862,9 @@ export const en: Dictionary = {
     accept: "Accept",
   },
   CATALOG_TEXT: {
+  quantityHint: "Positive quantity, up to 2 decimals.",
+  retiredReference: "Retired",
+  textTooLong: (limit: number) => `Please shorten this field to ${limit} characters.`,
   catalogAssistApplied: (count: number) => count ? `Updated ${count} fields. Review and save when ready.` : "No form changes this turn. Existing values are retained.",
   productAssistTask: "Product draft",
   productAssistExample: "Example: Add an enterprise knowledge software subscription per user; complete its name and category",

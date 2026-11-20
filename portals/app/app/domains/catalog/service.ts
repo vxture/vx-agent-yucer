@@ -255,6 +255,10 @@ export async function upsertProduct(
   const [rows, vocab] = await Promise.all([ctx.store.listProducts(ctx.workspaceId), ensureStatusVocab(ctx)]);
   const existing = mode === "create" ? undefined : rows.find(p => mode ? p.id === mode.editId : p.productCode === input.productCode.trim());
   if (mode !== "create" && mode && !existing) return businessRecordMissing();
+  if (input.typeId && input.typeId !== existing?.typeId) {
+    const type = (await ctx.store.listProductTypes(ctx.workspaceId)).find(row => row.id === input.typeId);
+    if (type?.status === "retired") return fail(violation("type_unavailable", "a retired type cannot be newly assigned", "typeId"));
+  }
   const manualCode = input.productCode.trim();
   const codes = rows.map(p => p.productCode);
   const productCode = mode === "create" && !manualCode ? nextBusinessCode("PRD", codes) : manualCode;
@@ -301,7 +305,7 @@ export async function upsertProduct(
     typeId: input.typeId ?? null,
     unitId: input.unitId,
     statusId,
-  });
+  }, existing);
   if (!plan.ok) return plan as RuleResult<ProductRecord>;
 
   return saveBusinessRecord("PRD", codes, mode,
@@ -778,6 +782,11 @@ export async function upsertSolution(
   const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
+  const rows = await ctx.store.listSolutions(ctx.workspaceId);
+  const existing = mode === "create" ? undefined : rows.find(s => mode ? s.id === mode.editId : s.solutionCode === input.solutionCode.trim());
+  if (mode !== "create" && mode && !existing) return businessRecordMissing();
+  const existingItems = existing ? await ctx.store.listSolutionItems(ctx.workspaceId, existing.id) : [];
+
   // Every product in the bundle must be this workspace's own. A dangling id
   // would only fail at the FK; this names it.
   const products = await ctx.store.listProducts(ctx.workspaceId);
@@ -785,6 +794,12 @@ export async function upsertSolution(
   const stranger = input.items.find((i) => !known.has(i.productId));
   if (stranger) {
     return fail(violation("product_not_found", "no such product", "productId"));
+  }
+
+  const statuses = await ctx.store.listStatusConfigs(ctx.workspaceId);
+  const retired = statuses.find(row => row.statusCode === "retired")?.id;
+  if (input.items.some(item => products.find(p => p.id === item.productId)?.statusId === retired && !existingItems.some(row => row.productId === item.productId))) {
+    return fail(violation("product_unavailable", "a retired product cannot be added to a solution", "productId"));
   }
 
   // AN OMITTED STATUS KEEPS WHAT THE ROW HAS, and a new solution starts in
@@ -795,9 +810,6 @@ export async function upsertSolution(
   // it back in front of customers. upsertProduct closes exactly this door two
   // hundred lines up; this path had copied the form's half of the contract
   // without the service's half.
-  const rows = await ctx.store.listSolutions(ctx.workspaceId);
-  const existing = mode === "create" ? undefined : rows.find(s => mode ? s.id === mode.editId : s.solutionCode === input.solutionCode.trim());
-  if (mode !== "create" && mode && !existing) return businessRecordMissing();
   const codes = rows.map(s => s.solutionCode);
   const plan = planSolution(
     {
@@ -809,6 +821,7 @@ export async function upsertSolution(
       status: input.status ?? existing?.status ?? "active",
     },
     input.items,
+    existing ? { solution: existing, items: existingItems } : undefined,
   );
   if (!plan.ok) return plan as RuleResult<SolutionRecord>;
 
