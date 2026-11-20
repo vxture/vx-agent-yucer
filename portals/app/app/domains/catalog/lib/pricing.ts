@@ -257,11 +257,8 @@ export function planSolution(
   if (!input.name.trim()) {
     return fail(violation("name_required", "a solution needs a name", "name"));
   }
-  for (const field of ["name", "summary", "scenario"] as const) {
-    if (catalogTextTooLong(field, input[field], previous?.solution[field])) {
-      return fail(violation("catalog_text_too_long", "solution text exceeds its display limit", field));
-    }
-  }
+  const textError = solutionTextError(input, previous?.solution);
+  if (textError) return fail(textError);
   if (items.length === 0) {
     return fail(
       violation("items_required", "a solution with no products is a name, not a bundle", "items"),
@@ -269,7 +266,7 @@ export function planSolution(
   }
   const seen = new Set<string>();
   for (const it of items) {
-    if (!Number.isFinite(it.quantity) || !(it.quantity > 0)) {
+    if (!Number.isFinite(it.quantity) || it.quantity <= 0) {
       return fail(
         violation("quantity_positive", `${it.productId} needs a quantity above zero`, "quantity"),
       );
@@ -579,4 +576,12 @@ export function concessionSheet(
     rate: listAmount === null || listAmount === 0 || concession === null ? null : concession / listAmount,
     unpriced,
   };
+}
+
+function solutionTextError(input: SolutionDraft, previous?: Pick<SolutionDraft, "name" | "summary" | "scenario">) {
+  for (const field of ["name", "summary", "scenario"] as const) {
+    if (catalogTextTooLong(field, input[field], previous?.[field])) {
+      return violation("catalog_text_too_long", "solution text exceeds its display limit", field);
+    }
+  }
 }
