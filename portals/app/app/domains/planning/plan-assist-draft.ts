@@ -1,8 +1,10 @@
+import { validNewLogoEstimate, type NewLogoEstimate } from "./new-logo-estimate";
 import type { PlanContent } from "./plan-model";
 import { minor } from "./plan-values";
 import { readAssistantFields } from "../shared/assistant-fields";
 export type PlanningDraftPatch = {
   targets: { metric: "revenue" | "new_logo" | "pipeline" | "margin"; value: string }[];
+  newCustomerEstimate?: NewLogoEstimate;
   assumptions?: string; allocationNote?: string; capacityNote?: string;
 };
 export type PlanningDraftContext = { year: number; revisionId: string; editToken: number; regionId?: string };
@@ -17,13 +19,17 @@ export function readPlanningDraft(answer: string) {
   const targets = readTargets(raw.fields.targets);
   if (!targets) return null;
   patch.targets = targets;
+  if (raw.fields.newCustomerEstimate !== undefined) {
+    if (!validNewLogoEstimate(raw.fields.newCustomerEstimate)) return null;
+    patch.newCustomerEstimate = { ...raw.fields.newCustomerEstimate, automatic: true };
+  }
   for (const key of ["assumptions", "allocationNote", "capacityNote"] as const) {
     if (raw.fields[key] === undefined) continue;
     if (typeof raw.fields[key] !== "string" || raw.fields[key].length > 8000) return null;
     patch[key] = raw.fields[key];
   }
   // Unsupported UUID changes and claimed saves cannot masquerade as a patch.
-  if (Object.keys(raw.fields).some(k => !["targets", "assumptions", "allocationNote", "capacityNote"].includes(k))) return null;
+  if (Object.keys(raw.fields).some(k => !["targets", "newCustomerEstimate", "assumptions", "allocationNote", "capacityNote"].includes(k))) return null;
   return { patch, message: raw.message };
 }
 

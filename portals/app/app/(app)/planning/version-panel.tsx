@@ -1,4 +1,5 @@
 "use client";
+import { initializeNewLogoEstimates } from "../lib/planning-autofill";
 import { StrategyHandoffPanel } from "./strategy-handoff-panel";
 import { companyPlanningRevision, regionalPlanningRevision } from "../../domains/planning/plan-workflow";
 import { PlanDraftAssistant } from "./plan-draft-assistant";
@@ -205,6 +206,13 @@ export function PlanningVersionPanel({
   const lockedPeriods = (plan?.events ?? [])
     .filter((event) => event.kind === "lock")
     .map((event) => event.period!);
+  const estimatedDraft = useRef<string | null>(null);
+  useEffect(() => {
+    if (!companyEditing || !state.draft || estimatedDraft.current === state.draft.id) return;
+    estimatedDraft.current = state.draft.id;
+    const filled = initializeNewLogoEstimates(c, lockedPeriods);
+    if (filled !== c) setContent(filled);
+  }, [companyEditing, state.draft?.id]);
   const lockablePeriods =
     state.current?.content.periods.filter(
       (period) => period.parent && period.end <= now.slice(0, 10),

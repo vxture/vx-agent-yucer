@@ -5,6 +5,7 @@ import {
 } from "../../domains/planning/plan-assist-draft";
 import {
   addPlanningMetric,
+  updateNewLogoEstimate,
   updatePlanningMarginRate,
   updatePlanningAmount,
 } from "./planning-autofill";
@@ -47,6 +48,11 @@ export function applyPlanningDraft(
             locked,
           )
         : updatePlanningAmount(next, target.key, "target", row.value, locked);
+  }
+  if (patch.newCustomerEstimate && !patch.targets.some(t => t.metric === "new_logo")) {
+    next = addPlanningMetric(next, scope, "new_logo", locked);
+    const line = next.targets.find(t => t.scope === scope && t.metric === "new_logo" && t.period === `Y${next.year}`)!;
+    next = updateNewLogoEstimate(next, line.key, patch.newCustomerEstimate, locked);
   }
   for (const key of ["assumptions", "allocationNote", "capacityNote"] as const)
     if (patch[key] !== undefined) next[key] = patch[key];

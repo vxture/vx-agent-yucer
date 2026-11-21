@@ -1,3 +1,4 @@
+import { defaultNewLogoEstimate, estimateNewLogos, newLogoRevenue, type NewLogoEstimate } from "../../domains/planning/new-logo-estimate";
 import type {
   PlanContent,
   PlanTarget,
@@ -46,6 +47,7 @@ export function autofillPlanningQuarters(
     if (!row) {
       row = { ...annual, key: crypto.randomUUID(), period: p.key, note: "" };
       delete row.marginRates;
+      delete row.newLogoEstimate;
       next.targets.push(row);
     }
     return row;
@@ -104,6 +106,7 @@ export function updatePlanningAmount(
   const next = structuredClone(content);
   const line = next.targets.find((t) => t.key === key)!;
   line[tier] = value.trim() || null;
+  if (line.newLogoEstimate) line.newLogoEstimate.automatic = false;
   if (line.metric === "margin") delete line.marginRates; // Legacy amount callers remain explicitly amount-based.
   if (locked.includes(line.period)) return content;
   // Keep incomplete user input in the draft editor; saving still validates it.
@@ -119,6 +122,7 @@ export function updatePlanningAmount(
     }
     if (line.period === `Y${content.year}`) {
       let filled = autofillPlanningQuarters(next, line, locked);
+      if (line.metric === "revenue") filled = refreshNewLogoEstimates(filled, line.scope, locked);
       if (line.metric === "revenue") {
         const oldRevenue = content.targets.find((t) => t.key === line.key)!;
         const margin = filled.targets.find(
@@ -265,7 +269,10 @@ export function addPlanningMetric(
     stretch: null,
     note: "",
   };
-  // Unlike monetary metrics, a customer count has no meaningful conversion from revenue.
+  if (metric === "new_logo" && revenue) {
+    line.newLogoEstimate = defaultNewLogoEstimate(revenue.currency!);
+    fillNewLogoEstimate(line, revenue.target);
+  }
   if (metric === "margin") {
     line.marginRates = { ...defaultMarginRates };
     for (const tier of tiers)
@@ -359,6 +366,7 @@ export function autofillPlanningRegions(content: PlanContent): PlanContent {
     }));
     rows.forEach((row) => {
       delete row.marginRates;
+      delete row.newLogoEstimate;
     });
     const previous = rows.map(() => 0n);
     let previousTotal = 0n;
@@ -441,6 +449,42 @@ export function autofillPlanningRegions(content: PlanContent): PlanContent {
       }
       targetLeft -= target;
     });
+  }
+  return next;
+}
+
+function fillNewLogoEstimate(line: PlanTarget, revenue: string | null) {
+  if (!line.newLogoEstimate?.automatic) return;
+  const total = estimateNewLogos(revenue, line.newLogoEstimate);
+  line.target = total;
+  line.floor = weighted(total, 60, line);
+  line.stretch = weighted(total, 120, line);
+}
+function refreshNewLogoEstimates(content: PlanContent, scope: string, locked: readonly string[]) {
+  let next = content;
+  for (const line of next.targets.filter(t => t.scope === scope && t.period === `Y${next.year}` && t.newLogoEstimate?.automatic)) {
+    fillNewLogoEstimate(line, newLogoRevenue(next, line)?.target ?? null);
+    next = autofillPlanningQuarters(next, line, locked);
+  }
+  return next;
+}
+export function updateNewLogoEstimate(content: PlanContent, key: string, basis: NewLogoEstimate, locked: readonly string[] = []) {
+  const next = structuredClone(content), line = next.targets.find(t => t.key === key);
+  if (!line || line.metric !== "new_logo" || line.period !== `Y${next.year}` || locked.includes(line.period)) return content;
+  line.newLogoEstimate = { ...basis, automatic: true };
+  fillNewLogoEstimate(line, newLogoRevenue(next, line)?.target ?? null);
+  return autofillPlanningQuarters(next, line, locked);
+}
+// Seed only empty editable annual counts; explicit values and manual clears remain untouched.
+export function initializeNewLogoEstimates(content: PlanContent, locked: readonly string[] = []) {
+  let next = content;
+  for (const line of content.targets.filter(t => t.scope === "workspace" && t.metric === "new_logo" && t.period === `Y${content.year}` && t.target === null && !t.newLogoEstimate)) {
+    const revenue = newLogoRevenue(content, line);
+    const basis = revenue?.currency && defaultNewLogoEstimate(revenue.currency);
+    if (basis) {
+      try { next = updateNewLogoEstimate(next, line.key, basis, locked); }
+      catch { /* Locked history may require a higher annual total; leave it for explicit review. */ }
+    }
   }
   return next;
 }
