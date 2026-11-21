@@ -480,7 +480,7 @@ export function PlanTargetLedger({
               value={mode}
               onValueChange={(value) => changeMode(value as PeriodMode)}
             >
-              <SelectTrigger aria-label={C.periodMode} className="w-36">
+              <SelectTrigger aria-label={C.periodMode} className="w-auto border-0 !bg-transparent text-muted-foreground !shadow-none hover:text-foreground aria-expanded:bg-transparent dark:bg-transparent">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
