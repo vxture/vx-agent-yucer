@@ -72,6 +72,33 @@ const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account
 export const en: Dictionary = {
 
   ...(zh as unknown as Dictionary),
+  ATTAINMENT_DEPLOYMENT_TEXT: {
+  "title": "Comparison basis",
+  "help": "Targets use the selected released revision. Won and open opportunities are live authorized records, not historical snapshots. Won deals use actual close dates; open deals use expected close dates. Historical submissions retain their filed amounts and target basis. The original baseline is a comparison only. Change targets through a sales planning draft and release.",
+  "live": "Live progress",
+  "comparison": "Target revision",
+  "latest": "Current revision",
+  "historical": "Historical target comparison",
+  "legacy": "Explicit quota / legacy target",
+  "planning": "View plan",
+  "focus": "Focus accounts",
+  "chooseVersion": "Select target revision",
+  "missing": "The selected revision is unavailable. Return to the current revision.",
+  "historicalHint": "Live deals are compared with the selected target revision, not a historical business snapshot.",
+  "open": "Open opportunities",
+  "won": "Won deals",
+  "undated": "Missing dates",
+  "evidence": "Supporting deals",
+  "evidenceHelp": "Won deals use actual close dates; open deals use expected close dates. Missing-date deals are not assigned to any period totals. Currencies retain their original amounts without conversion.",
+  "undatedHint": "These deals have missing dates and are excluded from period totals.",
+  "date": "Actual / expected close",
+  "status": "Business status",
+  "assistantBasis": "Analyze the selected period, scope and target revision using evidence. Live category suggestions do not change released targets.",
+  "history": "Historical review",
+  "selectedTarget": "Comparison target",
+  "selectedBasis": "Live deals compared with the selected released target revision",
+  "allPeriods": "Period breakdown"
+},
   STRATEGY_HANDOFF_TEXT: {
   addAllocation: "Add allocation",
   removeAllocation: "Remove",

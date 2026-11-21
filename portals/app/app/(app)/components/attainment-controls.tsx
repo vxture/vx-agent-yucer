@@ -3,11 +3,12 @@ import { MemberPicker } from "./member-picker";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { Button, Icon, NativeSelect, Tabs, TabsTrigger, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import { Icon, NativeSelect, Tabs, TabsTrigger } from "@vxture/design-ui";
 import { TabsList } from "./business-controls";
 import { PeriodTabs } from "./period-tabs";
 import { useMemberName } from "../lib/member-names";
 import { useMessages } from "../lib/i18n/provider";
+import { PageActionButton } from "./page-header-actions";
 import {
   attainmentHref,
   ATTAINMENT_VIEWS,
@@ -26,6 +27,7 @@ export function AttainmentControls({
   territories,
   allowWorkspace = true,
   selfSub,
+  planRevision,
 }: {
   readonly period: string;
   readonly selection: string;
@@ -38,6 +40,7 @@ export function AttainmentControls({
   readonly territories: readonly { id: string; name: string }[];
   readonly allowWorkspace?: boolean;
   readonly selfSub: string;
+  readonly planRevision?: string | null;
 }) {
   const {
     ATTAINMENT_TEXT: { workspace: T },
@@ -56,13 +59,13 @@ export function AttainmentControls({
         : null;
   const select = (scope: string) =>
     start(() =>
-      router.push(attainmentHref({ period, scope, view, perspective }), {
+      router.push(attainmentHref({ period, scope, view, perspective, planRevision: perspective === "regions" ? planRevision : null }), {
         scroll: false,
       }),
     );
   return (
     <div
-      className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-sm"
+      className="flex min-w-0 max-w-full flex-wrap items-center gap-sm"
       aria-busy={pending}
     >
       <Tabs
@@ -78,7 +81,7 @@ export function AttainmentControls({
           if (scope)
             start(() =>
               router.push(
-                attainmentHref({ period, scope, view, perspective: p }),
+                attainmentHref({ period, scope, view, perspective: p, planRevision: p === "regions" ? planRevision : null }),
                 { scroll: false },
               ),
             );
@@ -147,7 +150,7 @@ export function AttainmentControls({
         yearLabel={year}
         yearText={P.periodYear}
         compact
-        resetParams={["snapshot", "planRevision"]}
+        resetParams={["snapshot", "evidence"]}
       />
     </div>
   );
@@ -162,6 +165,7 @@ export function AttainmentViewActions({
 }) {
   const {
     ATTAINMENT_TEXT: { workspace: T },
+    ATTAINMENT_DEPLOYMENT_TEXT: D,
   } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
@@ -187,21 +191,15 @@ export function AttainmentViewActions({
   return (
     <div className="flex shrink-0 items-center gap-2xs" role="group" aria-label={T.views} aria-busy={pending} data-attainment-view-actions>
       {ATTAINMENT_VIEWS.map((view) => (
-        <Tooltip key={view}>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon-xl"
-              variant={value === view ? "secondary" : "ghost"}
-              aria-label={T[view]}
+            <PageActionButton key={view}
+              intent={value === view ? "primary" : "secondary"}
+              aria-label={view === "history" ? D.history : T[view]}
               aria-pressed={value === view}
               disabled={pending}
               onClick={() => selectView(view)}
             >
-              <Icon name={icons[view]} size="md" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{T[view]}</TooltipContent>
-        </Tooltip>
+              <Icon name={icons[view]} size="sm" />{view === "history" ? D.history : T[view]}
+            </PageActionButton>
       ))}
     </div>
   );

@@ -8,7 +8,7 @@ import { ForecastBriefPanel } from "../../components/forecast-brief";
 import { AgentPanel } from "../../components/agent-panel";
 import { applySuggestedCategory } from "../../forecast/actions";
 import { briefForecast } from "../../forecast/brief-action";
-import { loadForecastWorkspace, loadAttainmentTeam } from "../../attainment/board";
+import { loadForecastWorkspace, loadAttainmentPlan, loadAttainmentTeam } from "../../attainment/board";
 import { deckBundle, recordAction } from "../deck-data";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +21,15 @@ export default async function AttainmentDeck({ searchParams }: { searchParams: P
   const validTeam = selected.perspective !== "team" ||
     !!team?.members.some(m => m.sub === selected.scope.ownerSub);
   const canView = can(session.authz, session.entitlement, "pipeline.forecast.view", "ui").allowed;
-  const board = validTeam && !selected.invalid && selected.period !== "all" && selected.view === "review" && canView ? await loadForecastWorkspace(selected.period, selected.scopeKey) : null;
+  const comparison = selected.planRevision ? await loadAttainmentPlan(Number(selected.period.replace(/^Y/, "").slice(0,4)), selected.planRevision) : null;
+  const validRevision = !selected.planRevision || comparison?.ok;
+  const board = validTeam && validRevision && !selected.invalid && selected.period !== "all" && selected.view === "review" && canView ? await loadForecastWorkspace(selected.period, selected.scopeKey) : null;
   const items = board?.ok ? board.inView.flatMap((p) => p.verdict.kind === "suggested" && !p.verdict.agrees ? [{
     opportunityId: p.opportunity.id, opportunityNo: p.opportunity.opportunityNo, dealName: p.opportunity.name,
     filed: p.opportunity.forecastCategory, suggested: p.verdict.category,
   }] : []) : [];
   const advisor = board?.ok ? <div className="flex min-w-0 flex-col gap-sm">
-    {canRunAdvisor(session.authz, session.entitlement, FORECAST_BRIEF_CAPABILITY, "ui").allowed ? <ForecastBriefPanel key={`${selected.period}|${selected.scopeKey}`} period={selected.period} scopeKey={selected.scopeKey} onBrief={briefForecast} /> : null}
+    {canRunAdvisor(session.authz, session.entitlement, FORECAST_BRIEF_CAPABILITY, "ui").allowed ? <ForecastBriefPanel key={`${selected.period}|${selected.scopeKey}|${selected.planRevision}`} period={selected.period} scopeKey={selected.scopeKey} planRevision={selected.planRevision} onBrief={briefForecast} /> : null}
     <ForecastAdvicePanel items={items} canApply={can(session.authz, session.entitlement, "pipeline.forecast.categorize", "ui").allowed} onApply={applySuggestedCategory} />
   </div> : null;
   return <AgentPanel data={bundle.agent} canRecord={bundle.canRecord} canAsk={bundle.canAsk} onRecord={recordAction("")} decisions={false} advisor={advisor} />;

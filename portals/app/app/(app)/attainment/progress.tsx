@@ -30,6 +30,7 @@ import {
   loadAttainmentComposition,
   loadAttainmentPlan,
 } from "./board";
+import { AttainmentEvidenceTabs } from "../components/attainment-evidence-tabs";
 
 export async function AttainmentProgress({
   selection,
@@ -44,6 +45,7 @@ export async function AttainmentProgress({
     SHELL_TEXT,
     LOAD_ERROR,
     ATTAINMENT_PLAN_TEXT: PT,
+    ATTAINMENT_DEPLOYMENT_TEXT: D,
   } = await getMessages();
   const locale = await resolveLocale();
   if (!data.deals.ok || !data.policy.ok)
@@ -60,27 +62,23 @@ export async function AttainmentProgress({
         )}
       />
     );
+  const defaultCurrency = data.policy.value.defaultCurrency;
+  const plan = await loadAttainmentPlan(
+    Number(selection.period.replace(/^Y/, "").slice(0, 4)), selection.planRevision,
+  );
+  if (!plan?.ok) return <EmptyState title={D.missing}/>;
+  const target = plan.value.targets.find(t => t.scope === selection.scopeKey && t.period === selection.period && t.currency === defaultCurrency)
+    ?? plan.value.targets.find(t => t.scope === selection.scopeKey && t.period === selection.period);
+  const currency = target?.currency ?? defaultCurrency;
   const slice = revenuePool(
     data.deals.value,
     selection.period,
     selection.scope,
-    data.policy.value.defaultCurrency,
+    currency,
   );
   if (!slice) return <EmptyState title={T.periodUnsupported} />;
   const totals = slice.totals.ok ? slice.totals.value : null;
-  const currency = data.policy.value.defaultCurrency;
   const money = (n: number) => formatMoney(n, currency, locale);
-  const plan = await loadAttainmentPlan(
-    Number(selection.period.replace(/^Y/, "").slice(0, 4)),
-  );
-  const target = plan?.ok
-    ? plan.value.targets.find(
-        (t) =>
-          t.scope === selection.scopeKey &&
-          t.period === selection.period &&
-          t.currency === currency,
-      )
-    : null;
   const sameCurrency = target?.currency === currency;
   const openAmount = totals
     ? totals.commitAmount.amount +
@@ -116,7 +114,8 @@ export async function AttainmentProgress({
       a.name,
     ]),
   );
-  const rows = [...slice.open]
+  const evidence = selection.evidence === "won" ? slice.won : selection.evidence === "undated" ? slice.undatedDeals : slice.open;
+  const rows = [...evidence]
     .sort(
       (a, b) =>
         (categoryOrder[a.forecastCategory] ?? 3) -
@@ -131,7 +130,8 @@ export async function AttainmentProgress({
       amount: d.amount?.amount ?? null,
       currency: d.currency,
       category: d.forecastCategory,
-      expectedCloseAt: d.expectedCloseAt?.toISOString().slice(0, 10) ?? null,
+      expectedCloseAt: (d.status === "won" ? d.closedAt : d.expectedCloseAt)?.toISOString().slice(0, 10) ?? null,
+      status: d.status,
       ownerSub: d.ownerSub,
     }));
   return (
@@ -208,6 +208,7 @@ export async function AttainmentProgress({
                 period: selection.period,
                 scope: selection.selection,
                 view: "review",
+                planRevision: selection.planRevision,
               })}
             >
               {T.reviewNext}
@@ -215,10 +216,13 @@ export async function AttainmentProgress({
           </Button>
         </div>
       </Section>
-      <Section icon="folder" title={T.dealsTitle} help={T.dealsHint}>
+      <Section icon="folder" title={D.evidence} help={D.evidenceHelp}>
+        <AttainmentEvidenceTabs period={selection.period} scope={selection.selection} planRevision={selection.planRevision} value={selection.evidence}
+          counts={{ open: slice.open.length, won: slice.won.length, undated: slice.undatedDeals.length }}/>
+        {selection.evidence === "undated" ? <p className="text-body text-warning-text">{D.undatedHint}</p> : null}
         <AttainmentDealTable rows={rows} />
       </Section>
-      <Collapsible>
+      {selection.evidence === "open" ? <Collapsible>
         <div className="flex items-center gap-xs">
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="xl">
@@ -271,7 +275,7 @@ export async function AttainmentProgress({
             )}
           </div>
         </CollapsibleContent>
-      </Collapsible>
+      </Collapsible> : null}
     </>
   );
 }

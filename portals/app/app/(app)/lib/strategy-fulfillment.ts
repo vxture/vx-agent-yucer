@@ -3,7 +3,7 @@ import type { AppSession } from "./session";
 import { listPlans, listCampaigns } from "../../domains/strategy/service";
 import { listPipeline } from "../../domains/pipeline/service";
 import { getSalesPlanStore, getStrategyStore } from "../../domains/shared/registry";
-import { planVersions } from "../../domains/planning/plan-state";
+import { activeReleases, planVersions } from "../../domains/planning/plan-state";
 import { listStrategicResults, type StrategicResult } from "../../domains/planning/strategic-results";
 import { strategicActual } from "../../domains/planning/strategic-actual";
 import { periodRange } from "../../domains/shared/period";
@@ -13,7 +13,7 @@ export interface FulfillmentRow {
   actual: string | null; target: string; evidence: StrategicResult[];
   allocations: { key: string; regionId: string; regionName: string; period: string }[];
 }
-export async function loadStrategyFulfillment(s: AppSession, filter: { year?: number; period?: string; strategyId?: string; regionId?: string } = {}): Promise<FulfillmentRow[] | null> {
+export async function loadStrategyFulfillment(s: AppSession, filter: { year?: number; period?: string; strategyId?: string; regionId?: string; revisionId?: string } = {}): Promise<FulfillmentRow[] | null> {
   if (s.scope.kind !== "workspace" || !["strategy.plan.view", "planning.target.view", "planning.attainment.view"].every(permission => can(s.authz,s.entitlement,permission as "strategy.plan.view","data").allowed)) return null;
   try {
   const base = { workspaceId:s.workspaceId,sub:s.user.sub,holder:s.authz,entitlement:s.entitlement };
@@ -25,7 +25,9 @@ export async function loadStrategyFulfillment(s: AppSession, filter: { year?: nu
   const source = plans.value.find(p => p.id === filter.strategyId);
   const rows: FulfillmentRow[] = [];
   for (const p of sales.filter(p => filter.year === undefined || p.year === filter.year)) {
-    const current = planVersions(p,new Date().toISOString()).current;
+    const at = new Date().toISOString();
+    const eligible = filter.revisionId && activeReleases(p, at).some(e => e.revisionId === filter.revisionId && e.effectiveAt <= at);
+    const current = filter.revisionId ? eligible ? p.revisions.find(r => r.id === filter.revisionId && r.state === "sealed") : null : planVersions(p,at).current;
     if (!current) continue;
     const range = periodRange(filter.period ?? `Y${p.year}`);
     if (!range) continue;

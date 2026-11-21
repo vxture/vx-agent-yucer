@@ -24,7 +24,7 @@ import {
   getPlanningStore,
   getSalesPlanStore,
 } from "../../domains/shared/registry";
-import { readAttainmentPlans } from "../../domains/planning/attainment-plan";
+import { readAttainmentPlan, readAttainmentPlans } from "../../domains/planning/attainment-plan";
 import { canReadReportingScope } from "../../authz/forecast-scope";
 import { salesRegionTerritories } from "../lib/sales-regions";
 import { resolveAppSession } from "../lib/session";
@@ -102,9 +102,16 @@ export const loadAttainmentBase = cache(async () => {
   };
 });
 
-export const loadAttainmentPlan = cache(async (year: number) => {
+export const loadAttainmentPlan = cache(async (year: number, revisionId?: string | null) => {
   const data = await loadAttainmentBase();
   if (!data) return null;
+  if (revisionId) {
+    try {
+      const value = await readAttainmentPlan({ ...data.base, scope: data.session.scope,
+        store: getSalesPlanStore(), targets: getPlanningStore(), now: () => new Date(data.observedAt) }, year, revisionId);
+      return { ok: true as const, value };
+    } catch { return { ok: false as const }; }
+  }
   if (!data.plans) return { ok: false as const };
   return {
     ok: true as const,

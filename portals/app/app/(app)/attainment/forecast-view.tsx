@@ -38,6 +38,7 @@ export async function AttainmentForecastView({
   selectionScope,
   canPlan,
   canViewTarget,
+  planRevision,
 }: {
   readonly period: string;
   readonly scopeKey: string;
@@ -47,6 +48,7 @@ export async function AttainmentForecastView({
   readonly selectionScope: string;
   readonly canPlan: boolean;
   readonly canViewTarget: boolean;
+  readonly planRevision?: string | null;
 }) {
   const board = await loadForecastWorkspace(period, scopeKey);
   if (!board) return null;
@@ -57,6 +59,7 @@ export async function AttainmentForecastView({
     PIPELINE_TEXT,
     PLAN_VERSION_TEXT: VT,
     ATTAINMENT_PLAN_TEXT: PT,
+    ATTAINMENT_DEPLOYMENT_TEXT: D,
   } = await getMessages();
   const locale = await resolveLocale();
   if (!board.ok)
@@ -88,7 +91,6 @@ export async function AttainmentForecastView({
     }));
     return (
       <>
-        <p className="text-body-small text-muted-foreground">{T.reviewHint}</p>
         {!board.score.ok ? (
           <EmptyState
             title={SHELL_TEXT.loadFailed}
@@ -131,7 +133,6 @@ export async function AttainmentForecastView({
         period={period}
         canPlan={canPlan}
       />
-      <p className="text-body-small text-muted-foreground">{T.historyHint}</p>
       {!board.history.ok ? (
         <EmptyState
           title={SHELL_TEXT.loadFailed}
@@ -188,7 +189,7 @@ export async function AttainmentForecastView({
           wan={money}
         />
       ) : null}
-      <Section icon="archive" title={T.historyTitle}>
+      <Section icon="archive" title={D.history}>
         {!board.history.ok ? null : board.points.length === 0 ? (
           <EmptyState title={T.noHistory} description={T.noHistoryHint} />
         ) : (
@@ -227,6 +228,7 @@ export async function AttainmentForecastView({
                         scope: selectionScope,
                         view: "history",
                         snapshot: snapshotKey(p),
+                        planRevision,
                       })}
                     >
                       {p.snapshotAt.toLocaleString(locale, { timeZone: "UTC" })}{" "}

@@ -61,3 +61,16 @@ test("admission keeps the board's numbers and known owners and deals, drops the 
 test("not the JSON asked for is no brief", () => {
   assert.equal(admitForecastBrief("本季形势良好。", input), null);
 });
+
+test("comparison context binds the exact released target without presenting live facts as historical or saved", () => {
+  const comparison = { scope: "territory:east", revisionId: "revision_1", version: 1, target: 25000000, currency: "CNY", observedAt: "2026-11-20T00:00:00Z" };
+  const question = forecastBriefQuestion({ ...input, comparison });
+  assert.match(question, /revision_1/);
+  assert.match(question, /territory:east/);
+  assert.match(question, /LIVE observed data, not a historical snapshot/);
+  assert.match(question, /Do not change or claim to save\/release the target/);
+  const changed = forecastBriefQuestion({ ...input, comparison: { ...comparison, revisionId: "revision_2", target: null } });
+  assert.notEqual(changed, question);
+  assert.match(changed, /"target":null/);
+  assert.match(changed, /Missing targets are unknown, not zero/);
+});

@@ -1,17 +1,16 @@
 "use client";
-import { DataTable } from "./business-controls";
+import { CollectionTable, CollectionTitleCell } from "./collection-table";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   EmptyState,
-  TableTitleCell,
   useListPagination,
 } from "@vxture/design-ui";
 import { useMessages, useLocale } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 import { dealWorkspaceHref } from "../lib/deal-workspace";
-import { PaginationFooter, RowActions } from "./table-fittings";
+import { PaginationFooter, RowActions, useTableSort } from "./table-fittings";
 import { Tag } from "./tag";
 import { MemberName, useMemberName } from "../lib/member-names";
 
@@ -27,6 +26,7 @@ export interface AttainmentDealRow {
   category: string;
   expectedCloseAt: string | null;
   ownerSub: string;
+  status?: string;
 }
 export function AttainmentDealTable({
   rows,
@@ -39,14 +39,17 @@ export function AttainmentDealTable({
     FORECAST_LABEL,
     PIPELINE_TEXT,
     ATTAINMENT_PLAN_TEXT: PT,
+    ATTAINMENT_DEPLOYMENT_TEXT: D,
   } = useMessages();
   const locale = useLocale();
   const router = useRouter();
   const nameOf = useMemberName();
-  const paging = useListPagination(rows);
+  const table = useTableSort(rows, { deal: r => r.name, amount: r => r.amount, category: r => r.category, date: r => r.expectedCloseAt, owner: r => nameOf(r.ownerSub) });
+  const paging = useListPagination(table.rows);
   return (
     <div className="flex min-w-0 flex-col gap-sm">
-      <DataTable
+      <CollectionTable
+        sort={table.sort} onSortChange={table.onSortChange}
         leadingSpacer
         indexStart={paging.indexStart}
         rowActions={(r: AttainmentDealRow) => (
@@ -67,9 +70,9 @@ export function AttainmentDealTable({
         columns={[
           {
             id: "deal",
-            header: T.deal,
+            header: T.deal, track: "subject", sortable: true,
             cell: (r: AttainmentDealRow) => (
-              <TableTitleCell
+              <CollectionTitleCell
                 title={
                   <Link
                     className={LINK}
@@ -93,7 +96,7 @@ export function AttainmentDealTable({
           },
           {
             id: "amount",
-            header: T.amount,
+            header: T.amount, track: "amount", align: "right", sortable: true,
             cell: (r: AttainmentDealRow) => (
               <span className="whitespace-nowrap tabular-nums">
                 {formatMoney(r.amount, r.currency, locale)}
@@ -102,22 +105,21 @@ export function AttainmentDealTable({
           },
           {
             id: "category",
-            header: T.category,
+            header: T.category, track: "category", sortable: true,
             cell: (r: AttainmentDealRow) => (
               <Tag>
-                {FORECAST_LABEL[r.category as keyof typeof FORECAST_LABEL] ??
-                  r.category}
+                {r.status === "won" ? D.won : FORECAST_LABEL[r.category as keyof typeof FORECAST_LABEL] ?? r.category}
               </Tag>
             ),
           },
           {
             id: "date",
-            header: T.expectedClose,
+            header: D.date, track: "reference", sortable: true,
             cell: (r: AttainmentDealRow) => r.expectedCloseAt ?? "-",
           },
           {
             id: "owner",
-            header: PT.owner,
+            header: PT.owner, track: "reference", sortable: true,
             cell: (r: AttainmentDealRow) => <MemberName sub={r.ownerSub}/>,
           },
         ]}

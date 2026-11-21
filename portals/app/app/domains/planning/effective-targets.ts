@@ -3,6 +3,7 @@ import { targetValue, type TargetScope } from "./lib/target";
 import type { PlanningStore, TargetFilter, TargetRecord } from "./store";
 import type { SalesPlanStore } from "./plan-store";
 import type { TargetBasis } from "./plan-service";
+import { activeReleases } from "./plan-state";
 // The registry caches the proxy across server entry points and dev reloads.
 // A module-local WeakMap can lose its association while that proxy is live,
 // causing an already projected target to be mistaken for an unadopted legacy row.
@@ -231,8 +232,22 @@ export async function readEffectiveTargetSnapshot(
   versions: SalesPlanStore,
   workspaceId: string,
   at: string,
+  selection?: { year: number; revisionId: string },
 ) {
   const plans = await versions.list(workspaceId);
   const legacy = await rawTargetStore(store).listTargets(workspaceId);
-  return { targets: effectiveTargets(legacy, plans, at), plans };
+  let targetPlans = plans;
+  if (selection) {
+    const plan = plans.find(p => p.year === selection.year);
+    const selected = plan?.revisions.find(r => r.id === selection.revisionId && r.state === "sealed");
+    const releases = plan ? activeReleases(plan, at).filter(e => e.effectiveAt <= at) : [];
+    demand(selected && releases.some(e => e.revisionId === selected.id), "attainment_revision_unavailable");
+    const baseline = planVersions(plan!, at).baseline;
+    // Preserve the immutable first release and chosen release. Later releases
+    // must not replace the explicitly selected comparison denominator.
+    targetPlans = plans.map(p => p !== plan ? p : { ...p, events: p.events.filter(e =>
+      e.kind !== "release" || e.revisionId === selected!.id || e.revisionId === baseline?.id,
+    ) });
+  }
+  return { targets: effectiveTargets(legacy, targetPlans, at), plans };
 }

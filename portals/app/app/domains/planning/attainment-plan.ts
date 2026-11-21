@@ -9,6 +9,7 @@ import {
 } from "./plan-model";
 import type { SalesPlanContext } from "./plan-service";
 import type { PlanningStore } from "./store";
+import { activeReleases } from "./plan-state";
 
 export type AttainmentRevision = {
   id: string;
@@ -32,6 +33,7 @@ export type AttainmentPlan = {
   year: number;
   observedAt: string;
   current: AttainmentRevision | null;
+  selected?: AttainmentRevision | null;
   baseline: AttainmentRevision | null;
   scheduled: AttainmentRevision | null;
   historical: AttainmentRevision[];
@@ -52,13 +54,15 @@ const normalized = (period: string) =>
 export async function readAttainmentPlan(
   ctx: SalesPlanContext & { targets: PlanningStore },
   year: number,
+  revisionId?: string | null,
 ): Promise<AttainmentPlan> {
-  return (await readAttainmentPlans(ctx, year))[0];
+  return (await readAttainmentPlans(ctx, year, revisionId))[0];
 }
 
 export async function readAttainmentPlans(
   ctx: SalesPlanContext & { targets: PlanningStore },
   requestedYear?: number,
+  revisionId?: string | null,
 ): Promise<AttainmentPlan[]> {
   demand(
     can(ctx.holder, ctx.entitlement, "planning.attainment.view", "data")
@@ -67,11 +71,13 @@ export async function readAttainmentPlans(
     "plan_denied",
   );
   const observedAt = (ctx.now?.() ?? new Date()).toISOString();
+  demand(!revisionId || (requestedYear !== undefined && ctx.scope.kind !== "own"), "attainment_revision_unavailable");
   const { targets, plans } = await readEffectiveTargetSnapshot(
     ctx.targets,
     ctx.store,
     ctx.workspaceId,
     observedAt,
+    revisionId ? { year: requestedYear!, revisionId } : undefined,
   );
   const periodYear = (p: string) =>
     /^(?:Y)?(\d{4})(?:$|Q[1-4]$|-(?:0[1-9]|1[0-2])$)/.exec(p)?.[1];
@@ -79,6 +85,7 @@ export async function readAttainmentPlans(
     (t) =>
       t.metric === "revenue" &&
       t.status !== "draft" &&
+      (!revisionId || t.managedBySalesPlan) &&
       canReadReportingScope(ctx.scope, t, ctx.sub),
   );
   const years =
@@ -114,7 +121,9 @@ export async function readAttainmentPlans(
       };
     };
     const current = revision(state?.current ?? null);
-    const content = state?.current?.content;
+    const chosen = revisionId ? plan?.revisions.find(r => r.id === revisionId) ?? null : state?.current ?? null;
+    const selected = revision(chosen);
+    const content = chosen?.content;
     const baselineContent = state?.baseline?.content;
     const rows: AttainmentTarget[] = visibleTargets.flatMap((t) => {
       if (
@@ -162,7 +171,7 @@ export async function readAttainmentPlans(
             JSON.stringify(boundary(content)) ===
             JSON.stringify(boundary(baselineContent)),
           source: line && t.managedBySalesPlan ? "sales_plan" : "legacy",
-          revision: line && t.managedBySalesPlan ? current : null,
+          revision: line && t.managedBySalesPlan ? selected : null,
         },
       ];
     });
@@ -179,15 +188,17 @@ export async function readAttainmentPlans(
       year,
       observedAt,
       current: ctx.scope.kind === "own" ? null : current,
+      selected: ctx.scope.kind === "own" ? null : selected,
       baseline:
         ctx.scope.kind === "own" ? null : revision(state?.baseline ?? null),
       scheduled:
         ctx.scope.kind === "own" ? null : revision(state?.scheduled ?? null),
       historical:
         ctx.scope.kind === "workspace"
-          ? (plan?.revisions ?? []).flatMap((r) =>
-              r.state === "sealed" ? [revision(r)!] : [],
-            )
+          ? (plan ? activeReleases(plan, observedAt) : []).flatMap(e => {
+              const r = plan?.revisions.find(r => r.id === e.revisionId && r.state === "sealed");
+              return r && e.effectiveAt <= observedAt ? [revision(r)!] : [];
+            })
           : [],
       targets: rows,
       regions: regions.map(({ id, name, provinces, included }) => ({
