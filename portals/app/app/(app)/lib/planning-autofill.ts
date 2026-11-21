@@ -197,7 +197,9 @@ export function addPlanningMetric(
   content: PlanContent,
   scope: string,
   metric: PlanTarget["metric"],
+  locked: readonly string[] = [],
 ) {
+  if (content.targets.some(t => t.scope === scope && t.period === `Y${content.year}` && t.metric === metric)) return content;
   const revenue = content.targets.find(
     (t) =>
       t.scope === scope &&
@@ -227,6 +229,7 @@ export function addPlanningMetric(
   return autofillPlanningQuarters(
     { ...content, targets: [...content.targets, line] },
     line,
+    locked,
   );
 }
 

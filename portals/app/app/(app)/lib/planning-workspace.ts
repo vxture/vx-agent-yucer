@@ -43,8 +43,8 @@ export function planningRegionRows(content: PlanContent) {
 /** Excluded regions and incompatible currencies cannot consume a company target. */
 export function companyAllocation(content: PlanContent, target: PlanTarget | undefined) {
   const included = content.regions.filter(r => r.included);
-  const rows = included.map(r => content.targets.find(t => t.scope === `territory:${r.id}` && t.period === `Y${content.year}` && t.metric === "revenue"));
+  const rows = included.map(r => content.targets.find(t => t.scope === `territory:${r.id}` && t.period === `Y${content.year}` && t.metric === target?.metric && t.currency === target.currency));
   const unknown = rows.filter(t => !target || !t || readMinor(t.target) == null || t.currency !== target.currency).length;
   const allocated = signed(rows.reduce((sum, t) => sum + (t?.currency === target?.currency ? readMinor(t?.target) ?? 0n : 0n), 0n));
-  return { allocated, unknown, balance: readMinor(target?.target) != null && !unknown ? signed(readMinor(target?.target)! - minor(allocated)) : null };
+  return { allocated, unknown, balance: readMinor(target?.target) != null ? signed(readMinor(target?.target)! - minor(allocated)) : null };
 }

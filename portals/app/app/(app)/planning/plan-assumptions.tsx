@@ -31,7 +31,7 @@ export function PlanAssumptions({
   disabled: boolean;
   onReview: () => void;
 }) {
-  const { PLAN_VERSION_TEXT: T, DS_LABELS } = useMessages();
+  const { PLAN_VERSION_TEXT: T, COMPANY_PLANNING_TEXT: C, DS_LABELS } = useMessages();
   const groups = readPrerequisites(content.assumptions);
   const update = (group: PrerequisiteGroup, items: string[]) =>
     edit?.({
@@ -180,11 +180,11 @@ export function PlanAssumptions({
           columns={2}
           className="border-t border-dashed border-border pt-lg"
         >
-          {(["allocationNote", "capacityNote"] as const).filter(field => edit || content[field].trim()).map((field) => (
+          {(["allocationNote", "capacityNote"] as const).filter(field => !(edit && content.releaseScope === "company" && field === "capacityNote") && (edit || content[field].trim())).map((field) => (
             <Field key={field}>
               <FieldLabel htmlFor={`plan-${field}`}>{T[field]}</FieldLabel>
               <FieldDescription>
-                {field === "allocationNote" ? T.allocationHint : T.capacityHint}
+                {field === "allocationNote" ? content.releaseScope === "company" ? C.companyAllocationHint : T.allocationHint : T.capacityHint}
               </FieldDescription>
               {edit ? (
                 <Textarea

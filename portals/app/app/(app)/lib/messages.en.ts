@@ -69,8 +69,34 @@ const GATE_ERROR = {
 
 const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account active" };
 
+
+const companyPlanningText = {
+  companyAllocationHint: "Explain any remaining quarterly balance. Company publication does not require regional allocation.",
+  "primaryMetric": "Primary operating metric",
+  "auxiliaryMetric": "Supporting metric",
+  "customerUnit": "customers",
+  "periodMode": "Period target mode",
+  "simpleMode": "Simple mode",
+  "completeMode": "Complete mode",
+  "industryPresets": "Industry combinations",
+  "presets": {
+    "general": "General sales",
+    "projects": "Project sales",
+    "products": "Product sales",
+    "services": "Subscription services"
+  },
+  "metricDescriptions": {
+    "revenue": "Recognized sales revenue for this period; the primary company target.",
+    "new_logo": "First-time won customers. Set an independent count, not a share of revenue.",
+    "pipeline": "Required opportunity coverage at the observation point; quarterly balances are not summed as actual annual sales.",
+    "margin": "Revenue less corresponding costs. Defaults to 30% / 40% / 50% of each revenue tier; editable."
+  },
+  "help": "Revenue is the primary operating metric. Add supporting annual metrics as needed; their quarterly targets fill automatically. Simple mode shows revenue quarters only; complete mode shows all metrics. Switching does not remove or change values. Other industry measures include bookings, collections, renewal rate and ARR; these require distinct contract, payment or subscription evidence and are not treated as revenue here. Allocation uses included regions and the same currency. Remaining = company target minus known allocations; unknown regions are marked separately and are not assumed to have zero targets. Company drafts publish independently and retain regional history for a subsequent regional release."
+};
+
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
+  COMPANY_PLANNING_TEXT: companyPlanningText,
   WINLOSS_WORKSPACE_TEXT: {
     owner: "Owner",
     leave: "Leave with unsaved review changes?",

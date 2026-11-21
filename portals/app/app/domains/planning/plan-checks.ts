@@ -1,4 +1,5 @@
 import type { PlanContent } from "./plan-model";
+import { planningValidationContent } from "./plan-validation-scope";
 import { amount, minor } from "./plan-values";
 export type PlanningFinding = {
   kind:
@@ -14,6 +15,7 @@ export type PlanningFinding = {
   evidenceKeys: string[];
 };
 export function planningFindings(content: PlanContent): PlanningFinding[] {
+  content = planningValidationContent(content);
   const out: PlanningFinding[] = [];
   const company = content.targets.find(
     (t) =>

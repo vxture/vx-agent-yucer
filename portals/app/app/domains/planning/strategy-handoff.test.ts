@@ -9,6 +9,7 @@ import { validateStrategicResult, type StrategicResult } from "./strategic-resul
 import { validExpectations } from "../strategy/lib/expectations";
 import { captureStrategyPublication, InMemoryStrategyStore, type PlanRecord, type CampaignRecord } from "../strategy/store";
 import { validatePlanningWorkflow } from "./plan-workflow";
+import { planningFindings } from "./plan-checks";
 import { comparePlanContents } from "./plan-state";
 import type { OpportunityRecord } from "../pipeline/store";
 import { money } from "../shared/money";
@@ -72,4 +73,23 @@ test("planning can turn an exploratory channel expectation into an explicit acce
  const {c,x}=fixture("channels");x.expectation.criterion="";
  assert.throws(()=>validateStrategyAcceptances(c,true),/strategy_owner_required/);
  x.note="Signed partner with the first order";validateStrategyAcceptances(c,true);
+});
+
+
+test("company revision validates its acceptance independently of carried regional allocations", () => {
+  const { c, x } = fixture();
+  Object.assign(x, allocateStrategicTarget(c, x, id));
+  const source = { id: id(), state: "sealed", content: structuredClone(c) } as PlanRevision;
+  const plan = { revisions: [source] } as SalesPlan;
+  const company = structuredClone(c);
+  company.releaseScope = "company";
+  company.targets.find(t => t.scope === "workspace")!.target = "500";
+  company.strategyAcceptances![0]!.amount = "400";
+  validateContent(company, true);
+  validatePlanningWorkflow(plan, company, source.id);
+  assert.deepEqual(planningFindings(company), []);
+  assert.deepEqual(company.strategyAcceptances![0]!.allocations, x.allocations);
+  assert.throws(() => validateContent({ ...company, releaseScope: "regions" }, true), /overallocated/);
+  company.strategyAcceptances![0]!.amount = "501";
+  assert.throws(() => validateContent(company, true), /strategy_overallocated/);
 });

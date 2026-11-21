@@ -1,3 +1,4 @@
+import { planningValidationContent } from "./plan-validation-scope";
 import { validateStrategyAcceptances } from "./strategy-handoff";
 // Versioned, atomic D2 planning aggregate. Decimal amounts are canonical strings.
 import { createHash, randomUUID } from "node:crypto";
@@ -195,6 +196,7 @@ export function validateContent(c: PlanContent, publish: boolean): void {
       field,
     );
   demand(JSON.stringify(c).length <= 1_000_000, "plan_too_large");
+  c = planningValidationContent(c);
   unique(
     c.periods.map((p) => p.key),
     "periods",

@@ -627,3 +627,26 @@ test("source read gates cover action-only customers and region-only owner identi
     await assert.rejects(readSalesPlan({ ...ctx, holder: { permissions } }, 2026), /plan_source_permission/);
   }
 });
+
+test("company changes publish below carried regional targets and preserve prior versions", async () => {
+  const { change } = setup();
+  let plan = await change({ kind: "draft", content: content() });
+  let draft = planVersions(plan, "2026-07-01T00:00:00Z").draft!;
+  plan = await change({ kind: "release", revisionId: draft.id, editToken: draft.editToken, reason: "" });
+  const original = structuredClone(planVersions(plan, "2026-07-01T00:00:00Z").current!);
+  plan = await change({ kind: "draft", scope: "company", content: content() });
+  draft = planVersions(plan, "2026-07-01T00:00:00Z").draft!;
+  const company = structuredClone(draft.content);
+  company.targets.find(t => t.scope === "workspace")!.target = "500"; company.allocationNote = "";
+  plan = await change({ kind: "save", revisionId: draft.id, editToken: draft.editToken, content: company });
+  draft = planVersions(plan, "2026-07-01T00:00:00Z").draft!;
+  const tampered = structuredClone(draft.content); tampered.targets.find(t => t.scope !== "workspace")!.target = "500";
+  await assert.rejects(change({ kind: "save", revisionId: draft.id, editToken: draft.editToken, content: tampered }), /regional_draft_required/);
+  plan = await change({ kind: "release", revisionId: draft.id, editToken: draft.editToken, reason: "Company only" });
+  const current = planVersions(plan, "2026-07-01T00:00:00Z").current!;
+  assert.equal(current.version, 2);
+  assert.equal(current.content.targets.find(t => t.scope === "workspace")!.target, "500");
+  assert.equal(current.content.targets.find(t => t.scope !== "workspace")!.target, "1000");
+  assert.deepEqual(plan.revisions.find(r => r.id === original.id), original);
+  assert.throws(() => validateContent({ ...current.content, releaseScope: "regions" }, true), /overallocated/);
+});

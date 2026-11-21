@@ -56,7 +56,6 @@ import type { PlanContent, SalesPlan } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
 import {
   CompanyTargetAllocation,
-  CompanyTargetSummary,
 } from "./company-target-summary";
 import { PlanTargets } from "./plan-targets";
 import { PlanSupport } from "./plan-support";
@@ -309,7 +308,7 @@ export function PlanningVersionPanel({
           const nextView = (command.kind === "draft" || command.kind === "save") && afterSave !== "browse" ? (s.draft?.id ?? "current") : "current";
           setView(nextView);
           const nextContent = nextView === "current" ? s.current?.content : s.draft?.content;
-          const nextRegion = nextContent?.regions.some(r => r.id === regionId) ? regionId : null;
+          const nextRegion = nextContent?.releaseScope !== "company" && nextContent?.regions.some(r => r.id === regionId) ? regionId : null;
           setRegionId(nextRegion);
           window.history.replaceState(null, "", planningHref({ year, revision: nextView, region: nextRegion, period: initialPeriod }));
         }
@@ -431,7 +430,7 @@ export function PlanningVersionPanel({
     }
     edit(next);
   };
-  const currentRegion = c?.regions.find((r) => r.id === regionId);
+  const currentRegion = companyEditing ? undefined : c?.regions.find((r) => r.id === regionId);
   const companyTarget = c?.targets.find(
     (t) =>
       t.scope === "workspace" &&
@@ -921,21 +920,7 @@ export function PlanningVersionPanel({
                     />
                   ) : undefined
                 }
-                summaryTargetKey={
-                  !currentRegion ? companyTarget?.key : undefined
-                }
-                summary={
-                  !currentRegion ? (
-                    <CompanyTargetSummary
-                      content={c}
-                      target={companyTarget}
-                      currency={sources.currency}
-                      edit={regionalEditing ? null : edit}
-                      disabled={pending}
-                      lockedPeriods={lockedPeriods}
-                    />
-                  ) : undefined
-                }
+
               />
             ) : (
               <p className="text-body-small text-muted-foreground">
