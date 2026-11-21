@@ -520,11 +520,14 @@ export function PlanTargetLedger({
                     className="hover:bg-transparent"
                   >
                     <TableCell>
-                      <span className="text-body font-medium">
+                      <span className="flex flex-wrap items-center gap-xs text-body font-medium">
+                        {base.metric === "revenue" ? (
+                          <Icon name="flag" size="sm" />
+                        ) : null}
                         {base.metric === "margin" ? P.metricMargin : labels[base.metric]}
-                      </span>
-                      <span className="ml-xs text-body-small text-muted-foreground">
-                        {base.currency ?? C.customerUnit}
+                        <span className="text-body-small font-normal text-muted-foreground">
+                          {base.currency ?? C.customerUnit}
+                        </span>
                       </span>
                     </TableCell>
                     {[1, 2, 3, 4].map((q) => {
