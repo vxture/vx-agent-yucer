@@ -15,8 +15,12 @@ import {
   InputGroupAddon,
   InputGroupInput,
   Textarea,
-  MetricListCard,
-  SegmentedControl,
+  PanelCard,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
   Table,
   TableBody,
   TableCell,
@@ -55,6 +59,7 @@ type Props = {
   disabled: boolean;
   lockedPeriods?: readonly string[];
   headerInfo?: ReactNode;
+  annualActions?: ReactNode;
   open?: boolean;
   initiallyOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -101,7 +106,7 @@ function TargetValue({
                 maximumFractionDigits: 2,
               })}
         </span>
-        <span className="w-10 shrink-0 text-right text-body-small text-muted-foreground">
+        <span className="w-8 shrink-0 text-right text-body-small text-muted-foreground">
           {ratio ?? "\u2014"}
         </span>
       </span>
@@ -129,7 +134,7 @@ function TargetValue({
         }
       />
       <InputGroupAddon align="end" className="text-body-small tabular-nums">
-        <span className="w-10 text-right">{ratio ?? "\u2014"}</span>
+        <span className="w-8 text-right">{ratio ?? "\u2014"}</span>
       </InputGroupAddon>
     </InputGroup>
   );
@@ -144,6 +149,7 @@ export function PlanTargetLedger({
   open: controlledOpen,
   initiallyOpen = false,
   onOpenChange,
+  annualActions,
 }: Props) {
   const locale = useLocale();
   const {
@@ -187,6 +193,9 @@ export function PlanTargetLedger({
     );
   const quarterly =
     mode === "complete" ? annual : annual.filter((t) => t.metric === "revenue");
+  const hasQuarters = content.targets.some(
+    (line) => line.scope === scope && /^\d{4}Q[1-4]$/.test(line.period),
+  );
   const ratio = (line: PlanTarget, tier: Tier) =>
     planningTierPercent(
       line[tier],
@@ -209,9 +218,9 @@ export function PlanTargetLedger({
     edit?.(next);
   };
   return (
-    <div className="flex min-w-0 flex-col gap-md">
+    <div className="flex w-full min-w-0 flex-col gap-md">
       <Table
-        className="min-w-panel-md table-fixed"
+        className="min-w-page-md table-fixed [&_tr>:first-child]:pl-md [&_tr>:last-child]:pr-md"
         aria-label={T.annualTargets}
       >
         <colgroup>
@@ -219,7 +228,7 @@ export function PlanTargetLedger({
           {tiers.map((t) => (
             <col key={t} />
           ))}
-          <col className="w-12" />
+          <col className="w-16" />
         </colgroup>
         <TableHeader>
           <TableRow>
@@ -341,6 +350,11 @@ export function PlanTargetLedger({
           ))}
         </TableBody>
       </Table>
+      {annualActions ? (
+        <div className="flex items-center pb-sm" data-plan-metric-actions>
+          {annualActions}
+        </div>
+      ) : null}
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex flex-wrap items-center justify-between gap-sm border-t border-border py-sm">
           <CollapsibleTrigger asChild>
@@ -349,23 +363,25 @@ export function PlanTargetLedger({
               {T.periodTargets}
             </Button>
           </CollapsibleTrigger>
-          <SegmentedControl<PeriodMode>
-            value={mode}
-            onChange={(value) => {
-              changeMode(value);
-              setOpen(true);
-            }}
-            ariaLabel={C.periodMode}
-            items={[
-              { value: "simple", label: C.simpleMode },
-              { value: "complete", label: C.completeMode },
-            ]}
-          />
+          {open && hasQuarters ? (
+            <Select
+              value={mode}
+              onValueChange={(value) => changeMode(value as PeriodMode)}
+            >
+              <SelectTrigger aria-label={C.periodMode} className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="simple">{C.simpleMode}</SelectItem>
+                <SelectItem value="complete">{C.completeMode}</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : null}
         </div>
         <CollapsibleContent>
           {quarterly.length ? (
             <Table
-              className="min-w-panel-md table-fixed"
+              className="min-w-page-md table-fixed [&_tr>:first-child]:pl-md [&_tr>:last-child]:pr-md"
               aria-label={T.periodTargets}
             >
               <colgroup>
@@ -535,7 +551,7 @@ function MetricSelection({
       <Button
         size="md"
         variant="secondary"
-        disabled={disabled || !available.length}
+        disabled={disabled}
         onClick={() => {
           setSelected([]);
           setOpen(true);
@@ -570,6 +586,11 @@ function MetricSelection({
               ))}
             </div>
           </div>
+          {!available.length ? (
+            <p className="text-body text-muted-foreground">
+              {C.allMetricsAdded}
+            </p>
+          ) : null}
           <div className="flex flex-col divide-y divide-border">
             {planningMetricOrder.map((metric) => (
               <label key={metric} className="flex items-start gap-sm py-md">
@@ -628,20 +649,15 @@ function MetricSelection({
 export function PlanTargets(props: Props) {
   const { PLAN_VERSION_TEXT: T, COMPANY_PLANNING_TEXT: C } = useMessages();
   return (
-    <MetricListCard
-      title={
-        <span className="inline-flex items-center gap-xs">
-          {T.annualTargets}
-          <TitleHelp topic={T.annualTargets}>{C.help}</TitleHelp>
-        </span>
-      }
-      actions={
-        <div className="flex flex-wrap items-center justify-end gap-md">
-          {props.headerInfo}
-          {props.edit ? <MetricSelection {...props} /> : null}
-        </div>
-      }
-      footer={<PlanTargetLedger {...props} />}
-    />
+    <PanelCard
+      title={T.annualTargets}
+      titleSuffix={<TitleHelp topic={T.annualTargets}>{C.help}</TitleHelp>}
+      action={props.headerInfo}
+    >
+      <PlanTargetLedger
+        {...props}
+        annualActions={props.edit ? <MetricSelection {...props} /> : undefined}
+      />
+    </PanelCard>
   );
 }

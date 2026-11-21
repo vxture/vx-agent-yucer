@@ -71,6 +71,7 @@ const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account
 
 
 const companyPlanningText = {
+  allMetricsAdded: "All available metrics have been added. Edit their values in the table, or remove a supporting metric through its row actions.",
   companyAllocationHint: "Explain any remaining quarterly balance. Company publication does not require regional allocation.",
   "primaryMetric": "Primary operating metric",
   "auxiliaryMetric": "Supporting metric",
