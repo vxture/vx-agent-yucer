@@ -101,9 +101,6 @@ jobs:
       - name: AI supply diagnostic safety checks
         run: python3 -m unittest discover -s scripts/qa -p 'test_ai_supply_check.py'
 
-      - name: Image reuse provenance regression checks
-        run: node --test scripts/ci/assert-image-provenance.test.mjs
-
       - name: Docs numbering guardrail (strict)
         run: node scripts/guardrails/check-docs-numbering.mjs --strict
 
@@ -259,6 +256,11 @@ jobs:
       # number rather than a gap, which is where TD-015 started.
       - name: Make coverage paths repo-root relative
         run: node scripts/ci/lcov-to-repo-root.mjs portals/app/coverage/lcov.info portals/app
+
+      - name: Image reuse provenance regression checks and coverage
+        run: |
+          node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination="$RUNNER_TEMP/image-provenance.info" scripts/ci/assert-image-provenance.test.mjs
+          node scripts/ci/merge-lcov.mjs portals/app/coverage/lcov.info portals/app/coverage/lcov.info "$RUNNER_TEMP/image-provenance.info"
 
       - name: Upload coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
