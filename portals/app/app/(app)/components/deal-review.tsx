@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Button, Input, Label, NativeSelect, StatusBadge, Textarea } from "@vxture/design-ui";
+import { useState } from "react";
+import { ReviewForm } from "./review-form";
+import { Button, StatusBadge } from "@vxture/design-ui";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 import { CollapsibleSection } from "./collapsible-section";
 import { useMessages } from "../lib/i18n/provider";
@@ -65,16 +66,10 @@ export function DealReview({
   canNarrate = false,
   onRecord,
 }: DealReviewProps) {
-  const { WINLOSS_TEXT, REVIEW_ERROR, DEAL_PAGE_TEXT, PANEL_MENU_TEXT } = useMessages();
+  const { WINLOSS_TEXT, DEAL_PAGE_TEXT, PANEL_MENU_TEXT } = useMessages();
   const won = status === "won";
   // The reasons that can explain THIS outcome - "not won" covers abandoned.
-  const fitting = reasons.filter((r) => (won ? r.forWon : r.forLost));
   const [editing, setEditing] = useState(review === null);
-  const [reason, setReason] = useState(review?.primaryReasonId ?? "");
-  const [competitor, setCompetitor] = useState(review?.competitor ?? "");
-  const [lessons, setLessons] = useState(review?.lessons ?? "");
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   const outcome = won
     ? WINLOSS_TEXT.outcomeWon
@@ -120,19 +115,6 @@ export function DealReview({
     );
   }
 
-  function submit() {
-    setError(null);
-    startTransition(() => {
-      void onRecord(opportunityId, { primaryReasonId: reason || null, competitor, lessons }).then((r) => {
-        if (!r.ok) {
-          setError(REVIEW_ERROR[r.error ?? "denied"] ?? REVIEW_ERROR.denied);
-          return;
-        }
-        setEditing(false);
-      });
-    });
-  }
-
   const reasonName = reasons.find((r) => r.id === (review?.primaryReasonId ?? ""))?.name ?? WINLOSS_TEXT.reasonNone;
 
   return (
@@ -156,59 +138,11 @@ export function DealReview({
         </Button>
       ) : null}
 
-      {editing && canRecord ? (
-        <>
-          <Label htmlFor="deal-review-reason">{WINLOSS_TEXT.reasonLabel}</Label>
-          <NativeSelect id="deal-review-reason" value={reason} onChange={(e) => setReason(e.currentTarget.value)} disabled={pending}>
-            <option value="">{WINLOSS_TEXT.reasonNone}</option>
-            {fitting.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </NativeSelect>
-          <Label htmlFor="deal-review-competitor">{WINLOSS_TEXT.competitorLabel}</Label>
-          <Input id="deal-review-competitor" list="deal-review-rivals" value={competitor} onChange={(e) => setCompetitor(e.currentTarget.value)} disabled={pending} />
-          <datalist id="deal-review-rivals">
-            {knownRivals.map((n) => (
-              <option key={n} value={n} />
-            ))}
-          </datalist>
-          <Label htmlFor="deal-review-lessons">{WINLOSS_TEXT.lessonsLabel}</Label>
-          <Textarea id="deal-review-lessons" value={lessons} onChange={(e) => setLessons(e.currentTarget.value)} disabled={pending} />
-          <div className="flex gap-sm">
-            {review ? (
-              <Button variant="ghost" onClick={() => setEditing(false)} disabled={pending}>
-                {WINLOSS_TEXT.cancel}
-              </Button>
-            ) : null}
-            <Button onClick={submit} disabled={pending}>
-              {WINLOSS_TEXT.save}
-            </Button>
-          </div>
-        </>
-      ) : null}
-
-      {!review && !canRecord ? <Tag>{WINLOSS_TEXT.recordHintDenied}</Tag> : null}
-      {draft && entitled ? (
-        <ReviewDraftSections
-          draft={draft}
-          opportunityId={opportunityId}
-          reasonName={new Map(reasons.map((r) => [r.id, r.name]))}
-          onNarrate={canNarrate ? onNarrate : undefined}
-          // 原因码不预选: the suggestion enters the form only when pressed, and
-          // the reviewer still saves it themselves.
-          onAdoptReason={
-            canRecord
-              ? (id) => {
-                  setReason(id);
-                  setEditing(true);
-                }
-              : undefined
-          }
-        />
-      ) : null}
-      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+      {editing && canRecord ? <ReviewForm opportunityId={opportunityId} status={status} review={review} reasons={reasons} knownRivals={knownRivals}
+        draft={draft} onNarrate={canNarrate ? onNarrate : undefined} onRecord={onRecord} onSaved={() => setEditing(false)}
+        onCancel={review ? () => setEditing(false) : undefined}/> : null}
+      {!editing && draft ? <ReviewDraftSections draft={draft} opportunityId={opportunityId} reasonName={new Map(reasons.map(r => [r.id, r.name]))}
+        onNarrate={canNarrate ? onNarrate : undefined}/> : null}
     </CollapsibleSection>
   );
 }

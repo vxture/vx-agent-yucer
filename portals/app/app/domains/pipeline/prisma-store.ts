@@ -778,6 +778,13 @@ export class PrismaPipelineStore implements PipelineStore {
     return row ? toReview(row as Record<string, unknown>) : null;
   }
 
+  async listWinLossReviews(workspaceId: string, opportunityIds: readonly string[]): Promise<WinLossReviewRecord[]> {
+    if (!opportunityIds.length) return [];
+    const p = await getPrismaClient();
+    const rows = await p.winLossReview.findMany({ where: { workspaceId, opportunityId: { in: [...opportunityIds] } } });
+    return rows.map(r => toReview(r as Record<string, unknown>));
+  }
+
   async saveWinLossReview(
     workspaceId: string,
     opportunityId: string,

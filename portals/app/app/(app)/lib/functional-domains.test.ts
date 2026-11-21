@@ -555,3 +555,9 @@ test("market and strategy launcher entries preserve their own gates and destinat
   assert.equal(locked.state,"locked");
   assert.equal(locked.href,"/strategy");
 });
+
+test("deployment owns the four workflow modules; win/loss keeps its existing route",()=>{
+ const d=FUNCTIONAL_DOMAINS.find(d=>d.key==="deployment");assert.ok(d);
+ assert.deepEqual(d.modules.filter(m=>m.kind==="built").map(m=>m.navKey),["planning","namedAccount","attainment","winLossReview"]);
+ assert.equal(activeDomainKey("winLossReview"),"deployment");
+});

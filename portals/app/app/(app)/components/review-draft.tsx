@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button, Icon, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
@@ -29,15 +29,16 @@ export function ReviewDraftSections({
   /** Puts the suggested reason into the form - pressed by the reviewer, never automatic. */
   readonly onAdoptReason?: (reasonId: string) => void;
 }) {
-  const { REVIEW_DRAFT_TEXT: T, DECISION_ROLE_LABEL, DIRECTION_LABEL, REVIEW_ERROR, COPILOT_TEXT } = useMessages();
+  const { REVIEW_DRAFT_TEXT: T, DECISION_ROLE_LABEL, DIRECTION_LABEL, REVIEW_ERROR, COPILOT_TEXT, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
   const [pending, start] = useTransition();
+  const inFlight = useRef(false);
   const [told, setTold] = useState<Extract<ReviewNarrativeResult, { ok: true }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const field = (f: string) => T.field[f] ?? f;
   return (
     <div className="border-border flex flex-col gap-2xs border-t pt-sm text-body-small">
       <p className="text-foreground font-medium">{T.title}</p>
-      <Part
+      {draft.unavailable?.includes("slip") ? <p>{T.slipTitle}: {W.noDraft}</p> : <Part
         title={T.slipTitle}
         line={draft.slip.firstAt ? T.slipLine(draft.slip.firstAt, draft.slip.stageThen, draft.slip.events.length) : T.slipNone}
         href={`/pipeline/${opportunityId}#progress`}
@@ -48,16 +49,16 @@ export function ReviewDraftSections({
             <span className="text-muted-foreground">{e.at}</span> {field(e.field)} {T.change(e.from ?? "-", e.to ?? "-")}
           </li>
         ))}
-      </Part>
-      <Part title={T.promisesTitle} line={draft.promises.length ? T.promisesLine(draft.promises.length) : T.promisesNone} more={T.more}>
+      </Part>}
+      {draft.unavailable?.includes("promises") ? <p>{T.promisesTitle}: {W.noDraft}</p> : <Part title={T.promisesTitle} line={draft.promises.length ? T.promisesLine(draft.promises.length) : T.promisesNone} more={T.more}>
         {draft.promises.map((p) => (
           <li key={p.id}>
             <span className="text-muted-foreground">{p.dueAt}</span> {DIRECTION_LABEL[p.direction] ?? p.direction} {p.statement} ·{" "}
             {T.state[p.state] ?? p.state}
           </li>
         ))}
-      </Part>
-      <Part
+      </Part>}
+      {draft.unavailable?.includes("coverage") ? <p>{T.coverageTitle}: {W.noDraft}</p> : <Part
         title={T.coverageTitle}
         line={
           draft.coverage.missingRoles.length || draft.coverage.cold.length
@@ -72,8 +73,8 @@ export function ReviewDraftSections({
             {c.name}（{DECISION_ROLE_LABEL[c.role] ?? c.role}）· {c.lastDays === null ? T.neverContacted : T.coldDays(c.lastDays)}
           </li>
         ))}
-      </Part>
-      <Part
+      </Part>}
+      {draft.unavailable?.includes("concessions") ? <p>{T.concessionTitle}: {W.noDraft}</p> : <Part
         title={T.concessionTitle}
         line={draft.concessions.rounds || draft.concessions.cuts.length ? T.concessionLine(draft.concessions.rounds, draft.concessions.cuts.length) : T.concessionNone}
         more={T.more}
@@ -88,7 +89,7 @@ export function ReviewDraftSections({
             <span className="text-muted-foreground">{c.at}</span> {field(c.field)} {T.change(c.from ?? "-", c.to ?? "-")}
           </li>
         ))}
-      </Part>
+      </Part>}
       {onNarrate ? (
         <div className="border-border mt-xs flex flex-col gap-xs rounded-md border border-dashed p-sm">
           <div className="flex items-center justify-between gap-sm">
@@ -100,21 +101,18 @@ export function ReviewDraftSections({
               size="md"
               variant="outline"
               disabled={pending}
-              onClick={() =>
+              onClick={() => {
+                if (inFlight.current) return;
+                inFlight.current = true;
                 start(async () => {
-                  const r = await onNarrate(opportunityId);
-                  if (r.ok) {
-                    setTold(r);
-                    setError(null);
-                  } else {
-                    setError(
-                      isModelPlaneError(r.error)
-                        ? explainModelPlaneError(r.error, COPILOT_TEXT)
-                        : (REVIEW_ERROR[r.error] ?? REVIEW_ERROR.unknown ?? r.error),
-                    );
-                  }
-                })
-              }
+                  try {
+                    const r = await onNarrate(opportunityId);
+                    if (r.ok) { setTold(r); setError(null); }
+                    else setError(isModelPlaneError(r.error) ? explainModelPlaneError(r.error, COPILOT_TEXT) : REVIEW_ERROR[r.error] ?? W.failed);
+                  } catch { setError(W.failed); }
+                  finally { inFlight.current = false; }
+                });
+              }}
             >
               {pending ? T.narrating : T.narrate}
             </Button>

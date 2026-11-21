@@ -10,6 +10,7 @@ import {
   advanceStage,
   dealExit,
   winLossReviewOf,
+  winLossWorkspace,
   listPendingReviews,
   listWinLossReasons,
   recordWinLossReview,
@@ -309,4 +310,14 @@ test("the pending list is the WHOLE debt - 60 owed reads as 60, and one review m
   unwrap(await recordWinLossReview(c, "closed_0", { primaryReasonId: await reasonId(c, "price") }));
   assert.equal(unwrap(await listPendingReviews(c)).length, 59);
   assert.equal(unwrap(await listPendingReviews(c, 10)).length, 10, "an explicit limit still holds");
+});
+
+test("workspace roster batches only closed reviews, respects gates and never creates a second record", async()=>{
+ const store=new InMemoryPipelineStore();store.seed([opp({id:"closed",status:"won"}),opp({id:"open"})]);
+ const c=ctx("sales_leader","business",store);
+ unwrap(await recordWinLossReview(c,"closed",{primaryReasonId:null,lessons:"First"}));
+ const result=unwrap(await winLossWorkspace(c));assert.deepEqual(result.closed.map(d=>d.id),["closed"]);assert.equal(result.reviews.length,1);
+ const refused=await winLossWorkspace(ctx("sales_leader","pro",store));assert.equal(refused.ok,false);
+ const huge=await recordWinLossReview(c,"closed",{primaryReasonId:null,lessons:"a".repeat(4001)});assert.equal(huge.ok,false);
+ assert.equal((await store.getWinLossReview(WS,"closed"))?.lessons,"First");
 });

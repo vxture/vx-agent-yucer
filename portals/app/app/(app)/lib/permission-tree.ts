@@ -81,9 +81,9 @@ export const GROUP_ORDER: readonly string[] = [
  *  not filed under any of the five). */
 export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   armory: ["strategy", "segment", "solution", "catalog"],
-  deployment: ["planning", "namedAccount", "attainment"],
+  deployment: ["planning", "namedAccount", "attainment", "winLossReview"],
   recon: ["campaign", "signal", "lead", "funnel"],
-  position: ["account", "pipeline", "quote", "winLossReview"],
+  position: ["account", "pipeline", "quote"],
   settlement: ["delivery", "collection", "renewal", "contract"],
   copilot: ["copilot"],
   admin: ["admin"],
@@ -149,7 +149,7 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "pipeline/exitcheck": { group: "position", module: "pipeline", page: "pipeline.opportunity" },
   "pipeline/discount": { group: "position", module: "pipeline", page: "pipeline.discount" },
   "pipeline/forecast": { group: "deployment", module: "attainment", page: "pipeline.forecast" },
-  "pipeline/winloss": { group: "position", module: "winLossReview", page: "pipeline.winloss" },
+  "pipeline/winloss": { group: "deployment", module: "winLossReview", page: "pipeline.winloss" },
   // incr/0057-0059: the stage catalog is pipeline configuration, same module
   // as pipeline.opportunity/pipeline.discount/pipeline.forecast - not its own
   // module, because it is a facet of the pipeline a tenant edits, not a

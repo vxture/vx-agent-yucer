@@ -62,3 +62,9 @@
 .table > div > table:has([data-collection-track="coverage"]) {
   min-width: var(--vx-container-7xl);
 }
+
+/* Review rows include outcome, date, reason and owner. Keep the date and
+ * person legible when either app sidebar is open; scroll the table itself. */
+.winLoss > div > table {
+  min-width: var(--vx-container-7xl);
+}

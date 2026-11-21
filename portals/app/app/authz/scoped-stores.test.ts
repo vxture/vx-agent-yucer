@@ -228,6 +228,9 @@ for (const port of PORTS) {
 
     for (const m of methods) {
       const { proxy, calls, sentinelFor } = recordingStore(port.scopedReads);
+      // Composite review reads check a visible parent or filter before limit;
+      // the dedicated review-scope test below covers their ordered behavior.
+      if (port.name === "PipelineStore" && ["getWinLossReview", "listWinLossReviews", "listUnreviewedClosed"].includes(m)) continue;
       const wrapped = port.wrap(proxy as never, MINE) as Record<
         string,
         (...a: readonly unknown[]) => Promise<unknown>
@@ -294,4 +297,16 @@ test("getLead lets an unowned lead through - the queue, by id as well as by list
   });
   const scoped = scopeSignalStore(inner, MINE);
   assert.equal((await scoped.getLead(WS, unowned.id))?.id, unowned.id);
+});
+
+test("review debt and review reads stay inside the deal scope, including when a queue limit is requested", async () => {
+  const inner = new InMemoryPipelineStore();
+  inner.seed([deal({id:"theirs",status:"lost",closedAt:new Date("2026-03-01")}),deal({id:"mine",ownerSub:"usr_me",status:"won",closedAt:new Date("2026-02-01")})]);
+  const scoped=scopePipelineStore(inner,MINE);
+  assert.deepEqual((await scoped.listUnreviewedClosed(WS,1)).map(d=>d.id),["mine"]);
+  await inner.saveWinLossReview(WS,"theirs",{outcome:"lost",primaryReasonId:null,reviewerSub:"usr_other"});
+  await inner.saveWinLossReview(WS,"mine",{outcome:"won",primaryReasonId:null,reviewerSub:"usr_me"});
+  assert.equal(await scoped.getWinLossReview(WS,"theirs"),null);
+  assert.deepEqual((await scoped.listWinLossReviews(WS,["mine","theirs"])).map(r=>r.opportunityId),["mine"]);
+  assert.deepEqual(await scoped.listWinLossReviews("ws_other",["mine"]),[]);
 });

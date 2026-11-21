@@ -126,16 +126,18 @@ class ScopedPipelineStore implements PipelineStore {
     this.inner.latestStageChangeAt(...a);
   listForecastSnapshots: PipelineStore["listForecastSnapshots"] = async (...a) =>
     (await this.inner.listForecastSnapshots(...a)).filter((row) => canReadReportingScope(this.scope, row, this.sub));
-  getWinLossReview: PipelineStore["getWinLossReview"] = (...a) => this.inner.getWinLossReview(...a);
+  getWinLossReview: PipelineStore["getWinLossReview"] = async (ws, id) =>
+    await this.getOpportunity(ws, id) ? this.inner.getWinLossReview(ws, id) : null;
+  listWinLossReviews: PipelineStore["listWinLossReviews"] = async (ws, ids) => {
+    const visible = new Set((await this.listOpportunities(ws, { includeClosed: true })).map(o => o.id));
+    return this.inner.listWinLossReviews(ws, ids.filter(id => visible.has(id)));
+  };
   listRenewalSourceProjectIds: PipelineStore["listRenewalSourceProjectIds"] = (...a) =>
     this.inner.listRenewalSourceProjectIds(...a);
 
-  // listUnreviewedClosed returns CLOSED deals owed a win/loss review. Left
-  // unscoped on purpose: the review debt is a workspace obligation, and hiding
-  // a colleague's unreviewed loss from the person chasing reviews would make
-  // the list wrong rather than private.
-  listUnreviewedClosed: PipelineStore["listUnreviewedClosed"] = (...a) =>
-    this.inner.listUnreviewedClosed(...a);
+  // Review debt follows the same deal scope as its drilldown and writes.
+  listUnreviewedClosed: PipelineStore["listUnreviewedClosed"] = async (ws, limit) =>
+    visibleRows(this.scope, await this.inner.listUnreviewedClosed(ws)).slice(0, limit);
 
   /* 赢丢原因 is CONFIGURATION, not rows a member owns: the vocabulary is the
      workspace's and everybody who may read a review may read the list it was
