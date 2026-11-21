@@ -63,7 +63,7 @@ export function StrategyHandoffPanel({ content, sources, edit, regionId, disable
         </div>)}{!totals.length ? <span className="text-body-small text-muted-foreground">{sources.canStrategy ? (eligible.length ? T.none : T.noSources) : T.sourceDenied}</span> : null}</dl>
         <div className={styles.headingActions}>
           {canEdit && company && sources.canStrategy ? <Button size="md" variant="secondary" disabled={disabled || !eligible.length} onClick={() => startCompany()}>{T.accept}</Button> : null}
-          <CollapsibleTrigger asChild><Button size="md" variant="ghost" className="text-muted-foreground" aria-label={open ? T.collapse : T.expand}>{open ? T.collapseLabel : T.expandLabel}<Icon name={open ? "chevron-up" : "chevron-down"} size="sm"/></Button></CollapsibleTrigger>
+          <CollapsibleTrigger asChild><Button size="md" variant="ghost" className="text-muted-foreground" data-handoff-toggle aria-label={open ? T.collapse : T.expand}>{open ? T.collapseLabel : T.expandLabel}<Icon name={open ? "chevron-up" : "chevron-down"} size="sm"/></Button></CollapsibleTrigger>
         </div>
       </div>
       <CollapsibleContent><div data-strategy-acceptances>{groups.map(group => {
