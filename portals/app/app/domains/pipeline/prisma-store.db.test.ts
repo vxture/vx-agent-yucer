@@ -442,7 +442,7 @@ test("listUnreviewedClosed excludes a closed deal once it has a review", { skip 
     assert.deepEqual(unreviewed.map((o) => o.id), [lost.id]);
     assert.deepEqual((await s.listWinLossReviews(WS, [won.id,lost.id])).map(r=>r.opportunityId),[won.id]);
     assert.deepEqual(await s.listWinLossReviews(WS, []),[]);
-    assert.deepEqual(await s.listWinLossReviews("other_workspace", [won.id]),[]);
+    assert.deepEqual(await s.listWinLossReviews("eeeeeeee-0000-0000-0000-000000000007", [won.id]),[]);
   } finally {
     await cleanup();
   }
