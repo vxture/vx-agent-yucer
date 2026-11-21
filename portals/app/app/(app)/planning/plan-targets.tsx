@@ -62,7 +62,6 @@ type Props = {
   disabled: boolean;
   lockedPeriods?: readonly string[];
   headerInfo?: ReactNode;
-  annualActions?: ReactNode;
   open?: boolean;
   initiallyOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -235,7 +234,6 @@ export function PlanTargetLedger({
   open: controlledOpen,
   initiallyOpen = false,
   onOpenChange,
-  annualActions,
 }: Props) {
   const locale = useLocale();
   const {
@@ -463,11 +461,6 @@ export function PlanTargetLedger({
           ))}
         </TableBody>
       </Table>
-      {annualActions ? (
-        <div className="flex items-center pb-sm" data-plan-metric-actions>
-          {annualActions}
-        </div>
-      ) : null}
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex flex-wrap items-center justify-between gap-sm border-t border-border py-sm">
           <CollapsibleTrigger asChild>
@@ -769,14 +762,18 @@ export function PlanTargets(props: Props) {
   const { PLAN_VERSION_TEXT: T, COMPANY_PLANNING_TEXT: C } = useMessages();
   return (
     <PanelCard
-      title={T.annualTargets}
-      titleSuffix={<TitleHelp topic={T.annualTargets}>{C.help}</TitleHelp>}
-      action={props.headerInfo}
+      title={
+        <span className="flex flex-wrap items-center gap-x-3xl gap-y-sm" data-plan-annual-heading>
+          <span className="inline-flex shrink-0 items-center gap-sm">
+            {T.annualTargets}
+            <TitleHelp topic={T.annualTargets}>{C.help}</TitleHelp>
+          </span>
+          {props.headerInfo ? <span className="min-w-0 font-normal">{props.headerInfo}</span> : null}
+        </span>
+      }
+      action={props.edit ? <MetricSelection {...props} /> : undefined}
     >
-      <PlanTargetLedger
-        {...props}
-        annualActions={props.edit ? <MetricSelection {...props} /> : undefined}
-      />
+      <PlanTargetLedger {...props} />
     </PanelCard>
   );
 }
