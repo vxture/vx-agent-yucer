@@ -122,8 +122,8 @@ function TargetValue({
         title={`${C.estimatedMargin} ${estimated}`}
         className="inline-flex min-w-0 items-baseline justify-end gap-2xs tabular-nums"
       >
-        <span className="font-medium text-foreground">{estimatedValue}</span>
-        <span className="text-body-small text-muted-foreground">
+        <span data-number-role="result">{estimatedValue}</span>
+        <span data-number-role="unit">
           {line.currency}
         </span>
       </span>
@@ -131,7 +131,7 @@ function TargetValue({
     if (!edit)
       return (
         <span className="flex items-baseline justify-between gap-xs tabular-nums">
-          <span className="text-muted-foreground">
+          <span data-number-role="value">
             {rate == null
               ? "\u2014"
               : `${Number(rate).toLocaleString(locale, { maximumFractionDigits: 2 })}%`}
@@ -156,7 +156,7 @@ function TargetValue({
           }
           placeholder="\u2014"
           readOnly={!annual}
-          className="w-12 flex-none pr-0 tabular-nums"
+          className="w-14 flex-none pr-0 tabular-nums"
           disabled={
             disabled || planningEntryLocked(content, lockedPeriods, line)
           }
@@ -176,7 +176,7 @@ function TargetValue({
           align="end"
           className="min-w-0 flex-1 justify-between gap-2xs"
         >
-          <span>%</span>
+          <span data-number-role="unit">%</span>
           {result}
         </InputGroupAddon>
       </InputGroup>
@@ -185,14 +185,14 @@ function TargetValue({
   if (!edit)
     return (
       <span className="flex items-baseline justify-between gap-sm tabular-nums">
-        <span className="font-medium text-foreground">
+        <span data-number-role="value">
           {line[tier] == null
             ? "\u2014"
             : Number(line[tier]).toLocaleString(locale, {
                 maximumFractionDigits: 2,
               })}
         </span>
-        <span className="w-8 shrink-0 text-right text-body-small text-muted-foreground">
+        <span data-number-role="unit" className="w-8 shrink-0 text-right">
           {ratio ?? "\u2014"}
         </span>
       </span>

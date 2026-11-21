@@ -2215,6 +2215,13 @@ DialogForm、ConfirmDestructive 与 Popover。只绑定 DS 单行操作 slot、�
 不修改 DS 源码或添加私有字阶；退出条件补充为 DS 支持资料表单的 label/value 字阶策略，
 并能对组合字段与 portal 保持一致。筛选与普通按钮仍按原 12px 规则。
 
+2026-11-21 补充：数值输入按 DS body（14px）/foreground/label 字重统一，
+显式数值角色 `data-number-role="value"` 同样适用；计算结果 `result` 和单位 `unit`
+按 body-small（12px）/muted-foreground/常规字重。组合输入附加区统一为 12px。
+只读不等于计算结果，锁定的业务目标仍为主值；不改变统计大数字、错误或超额警示。
+此规则在根级覆盖页面及 portal，报价小计/合计、方案合计预览和规划估算共用，
+不复制 DS 组件，继续沿用 TD-038 的退出条件。
+
 2026-11-18 补充：有实际批量、比较或定价分析用途的清单可用
 `business-controls.DataTable` 的 `compactSelection` 合并序号与勾选。
 当前 DS 没有合并入口，暂用公开 `columns` 渲染 DS Checkbox；宽度使用原生
