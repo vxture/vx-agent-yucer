@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Card, CardContent, Drawer, Field, FieldLabel, Icon, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect, StatusBadge, Textarea } from "@vxture/design-ui";
+import { Button, Card, CardContent, Drawer, Field, FieldLabel, Icon, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect, Textarea } from "@vxture/design-ui";
 import { MemberPicker } from "../components/member-picker";
+import { Tag } from "../components/tag";
 import { MemberName } from "../lib/member-names";
 import { StrategyQuantity } from "../components/strategy-detail-label";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -96,7 +97,7 @@ export function StrategyHandoffDrawer({ draft, content, members, options, region
             <div className="flex flex-wrap items-center justify-between gap-sm">
               <div className="flex min-w-0 flex-wrap items-center gap-sm">{canEdit && !locked ? <NativeSelect wrapperClassName="w-auto max-w-full" className="w-auto max-w-48" aria-label={`${T.period} ${a.period}`} value={`${a.regionId}|${a.period}`} disabled={disabled} onChange={e => { const [regionId, period] = e.target.value.split("|"); if (regionId && period) update({ regionId, period }); }}>{choices.map(cell => <option key={`${cell.regionId}|${cell.period}`} value={`${cell.regionId}|${cell.period}`}>{cell.name}{" \u00b7 "}{cell.period}</option>)}</NativeSelect> : <span className="text-body font-medium">{content.regions.find(r => r.id === a.regionId)?.name}{" \u00b7 "}{a.period}</span>}
                 <span className="inline-flex max-w-full" title={T.owner}>{canEdit && !locked ? <MemberPicker id={`handoff-owner-${a.key}`} className="w-auto max-w-48" label={`${T.owner} ${a.period}`} disabled={disabled} value={a.ownerSub} options={memberOptions} onValueChange={sub => update({ ownerSub: sub || null })}/> : <span className="text-body"><MemberName sub={a.ownerSub}/></span>}</span>
-                {locked ? <StatusBadge tone="neutral">{P.lockedPeriod}</StatusBadge> : null}
+                {locked ? <Tag>{P.lockedPeriod}</Tag> : null}
               </div>
               {canEdit ? <Button size="icon-sm" variant="ghost" aria-label={`${T.removeAllocation} ${a.period}`} title={T.removeAllocation} disabled={locked || disabled} onClick={() => onChange({ ...draft, allocations: draft.allocations.filter(y => y.key !== a.key) })}><Icon name="trash" size="sm"/></Button> : null}
             </div>
