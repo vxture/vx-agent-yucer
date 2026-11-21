@@ -147,7 +147,7 @@ function TargetValue({
           aria-describedby={`margin-result-${line.key}-${tier}`}
           inputMode="decimal"
           value={rate ?? ""}
-          placeholder="\u2014"
+          placeholder={"\u2014"}
           className="w-14 flex-none pr-0 tabular-nums"
           disabled={
             disabled || planningEntryLocked(content, lockedPeriods, line)
@@ -208,7 +208,7 @@ function TargetValue({
         title={line[tier] ?? undefined}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        placeholder="\u2014"
+        placeholder={"\u2014"}
         readOnly={readOnly || quarterlyMargin}
         disabled={disabled || planningEntryLocked(content, lockedPeriods, line)}
         className="min-w-0 px-xs tabular-nums"
