@@ -154,6 +154,21 @@
   color: var(--muted-foreground);
 }
 
+/* A value and its ratio/estimate are one reading group. Never distribute
+ * this pair to the ends of a table cell: the ratio would read with the next
+ * column's value. The shared target renderer uses this in every scope/view.
+ */
+.controls [data-number-pair] {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-sm);
+  row-gap: var(--space-xs);
+}
+.controls [data-number-pair] > * { min-width: 0; }
+.controls [data-number-pair] > [data-number-role="value"] { overflow-wrap: anywhere; }
+
 .toolbar { align-items: center; }
 
 .toolbar > div:first-child {

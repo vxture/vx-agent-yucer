@@ -20,7 +20,6 @@ import {
   EmptyState,
   Field,
   FieldLabel,
-  FieldGroup,
   Input,
   NativeSelect,
   StatusBadge,
@@ -786,11 +785,62 @@ export function PlanningVersionPanel({
             </div>
           ) : null}
           <Section
+            className="@container"
             icon="target"
             title={currentRegion ? currentRegion.name : regionalEditing ? R.basis : T.company}
             help={currentRegion ? R.regionHelp : regionalEditing ? R.companyReadOnly : T.targetHint}
             action={
-              <div className="flex items-center gap-md">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-sm">
+                {currentRegion ? <span className="inline-flex min-w-0 max-w-full flex-wrap items-center justify-end gap-sm" data-region-context-actions>
+                  {edit ? <>
+                  <NativeSelect
+                    id="plan-region-participation"
+                    aria-label={T.participation}
+                    wrapperClassName="w-auto shrink-0"
+                    className="w-auto"
+                    value={currentRegion.included ? "yes" : "no"}
+                    disabled={pending || !!lockedPeriods.length}
+                    title={lockedPeriods.length ? T.lockedHint : T.participation}
+                    onChange={(e) => {
+                      const included = e.target.value === "yes";
+                      const next = structuredClone(c);
+                      next.regions = next.regions.map((r) =>
+                        r.id === regionId ? { ...r, included } : r,
+                      );
+                      if (!included) {
+                        setExcludeId(currentRegion.id);
+                        return;
+                      } else if (
+                        !next.targets.some(
+                          (t) =>
+                            t.scope === `territory:${regionId}` &&
+                            t.period === `Y${year}` &&
+                            t.metric === "revenue",
+                        )
+                      )
+                        next.targets.push({
+                          key: crypto.randomUUID(),
+                          scope: `territory:${regionId}`,
+                          period: `Y${year}`,
+                          metric: "revenue",
+                          currency: sources.currency,
+                          floor: null,
+                          target: null,
+                          stretch: null,
+                          note: "",
+                        });
+                      edit(next);
+                    }}
+                  >
+                    <option value="yes">{T.included}</option>
+                    <option value="no">{T.excluded}</option>
+                  </NativeSelect>
+                  <span className="inline-flex min-w-0 max-w-full" title={T.owner}><MemberPicker id="plan-region-owner" className="w-auto max-w-56" label={T.owner} value={currentRegion.ownerSub} disabled={pending || !sources.canTeam || !!lockedPeriods.length}
+                    options={sources.canTeam ? sources.members.map(m => ({ value: m.sub, label: m.name })) : null}
+                    onValueChange={sub => edit({ ...c, regions: c.regions.map(r => r.id === currentRegion.id ? { ...r, ownerSub: sub || null } : r) })}/></span>
+                  </> : <span title={T.owner} className="text-body text-muted-foreground"><MemberName sub={currentRegion.ownerSub} fallback={W.ownerPending}/></span>}
+                </span> : null}
+
                 {!currentRegion && companyRevision ? (
                   <StatusBadge tone={companyEditing ? "warning" : "info"}>
                     {companyEditing ? T.draft : `${T.published} V${companyRevision.version}`}
@@ -828,66 +878,8 @@ export function PlanningVersionPanel({
               </div>
             }
           >
-            {currentRegion && !edit ? (
-              <div className="mb-md flex flex-wrap items-center gap-sm text-body">
-                <span className="text-muted-foreground">{T.owner}:</span>
-                <MemberName sub={currentRegion.ownerSub} fallback={W.ownerPending}/>
-              </div>
-            ) : null}
-            {currentRegion && edit ? (
-              <FieldGroup columns={2} className="mb-lg">
-                <Field>
-                  <FieldLabel htmlFor="plan-region-participation">
-                    {T.included}
-                  </FieldLabel>
-                  <NativeSelect
-                    id="plan-region-participation"
-                    value={currentRegion.included ? "yes" : "no"}
-                    disabled={pending || !!lockedPeriods.length}
-                    title={lockedPeriods.length ? T.lockedHint : undefined}
-                    onChange={(e) => {
-                      const included = e.target.value === "yes";
-                      const next = structuredClone(c);
-                      next.regions = next.regions.map((r) =>
-                        r.id === regionId ? { ...r, included } : r,
-                      );
-                      if (!included) {
-                        setExcludeId(currentRegion.id);
-                        return;
-                      } else if (
-                        !next.targets.some(
-                          (t) =>
-                            t.scope === `territory:${regionId}` &&
-                            t.period === `Y${year}` &&
-                            t.metric === "revenue",
-                        )
-                      )
-                        next.targets.push({
-                          key: crypto.randomUUID(),
-                          scope: `territory:${regionId}`,
-                          period: `Y${year}`,
-                          metric: "revenue",
-                          currency: sources.currency,
-                          floor: null,
-                          target: null,
-                          stretch: null,
-                          note: "",
-                        });
-                      edit(next);
-                    }}
-                  >
-                    <option value="yes">{T.included}</option>
-                    <option value="no">{T.excluded}</option>
-                  </NativeSelect>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="plan-region-owner">{T.owner}</FieldLabel>
-                  <MemberPicker id="plan-region-owner" label={T.owner} value={currentRegion.ownerSub} disabled={pending || !sources.canTeam || !!lockedPeriods.length}
-                    options={sources.canTeam ? sources.members.map(m => ({ value: m.sub, label: m.name })) : null}
-                    onValueChange={sub => edit({ ...c, regions: c.regions.map(r => r.id === currentRegion.id ? { ...r, ownerSub: sub || null } : r) })}/>
-                </Field>
-                {!currentRegion.included ? (
-                  <Field span="full">
+                {currentRegion && edit && !currentRegion.included ? (
+                  <Field className="w-full">
                     <FieldLabel htmlFor="plan-region-reason">
                       {T.exclusionReason}
                     </FieldLabel>
@@ -909,8 +901,6 @@ export function PlanningVersionPanel({
                     />
                   </Field>
                 ) : null}
-              </FieldGroup>
-            ) : null}
             {!currentRegion || currentRegion.included ? (
               <PlanTargets
                 key={currentRegion?.id ?? "workspace"}

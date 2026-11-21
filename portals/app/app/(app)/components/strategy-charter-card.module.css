@@ -116,8 +116,8 @@
 
 .goal {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  align-items: center;
+  grid-template-columns: 5em minmax(0, 1fr);
+  align-items: baseline;
   gap: var(--space-md);
 }
 

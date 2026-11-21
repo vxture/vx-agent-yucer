@@ -135,7 +135,7 @@ export function PlanningTargetValue({
     );
     if (!edit)
       return (
-        <span className="flex items-baseline justify-between gap-xs tabular-nums">
+        <span data-number-pair className="tabular-nums">
           <span data-number-role="value">
             {rate == null
               ? "\u2014"
@@ -190,7 +190,7 @@ export function PlanningTargetValue({
     : rawAmount;
   if (!edit)
     return (
-      <span className="flex items-baseline justify-between gap-sm tabular-nums">
+      <span data-number-pair className="tabular-nums">
         <span data-number-role="value">
           {line[tier] == null
             ? "\u2014"
@@ -198,7 +198,7 @@ export function PlanningTargetValue({
                 maximumFractionDigits: 2,
               })}
         </span>
-        <span data-number-role="unit" className="w-8 shrink-0 text-right">
+        <span data-number-role="unit" className="shrink-0">
           {effectiveRatio ?? "\u2014"}
         </span>
       </span>
