@@ -20,6 +20,8 @@ export function inspectBuiltPages(repo) {
   return { count: pages.length, missing };
 }
 
+/** @param {string} repo
+ * @param {{log: (message: string) => void, error: (message: string) => void}} output */
 export function reportBuiltPages(repo, output = console) {
   const { count, missing } = inspectBuiltPages(repo);
   if (missing.length) {
