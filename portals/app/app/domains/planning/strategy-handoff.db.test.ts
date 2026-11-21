@@ -85,3 +85,21 @@ test("Postgres: company acceptance can change without revalidating immutable reg
  invalid.strategyAcceptances![0]!.allocations[0]!.amount = "400";
  await rejected(c, "UPDATE yucer_gtm.sales_plan_revision SET content=$2 WHERE id=$1", [revision, JSON.stringify(invalid)], /regional_draft_required/);
 }));
+
+test("Postgres: company drafts can cancel a whole acceptance but cannot rewrite retained regional history", {skip}, async () => db(async c => {
+ const f = await seed(c, "revenue");
+ await c.query("UPDATE yucer_gtm.sales_plan_revision SET state='sealed',version_no=1,content_hash=$2,sealed_by_sub='owner',sealed_at=now() WHERE id=$1", [f.revision, "d".repeat(64)]);
+ const company={...structuredClone(f.content),releaseScope:"company" as const};
+ const revision=id();
+ await c.query("SET LOCAL ROLE yucer_svc");
+ await c.query("INSERT INTO yucer_gtm.sales_plan_revision(id,workspace_id,plan_id,base_revision_id,content,created_by_sub) VALUES($1,$2,$3,$4,$5,'owner')",[revision,f.ws,f.plan,f.revision,JSON.stringify(company)]);
+ const changed=structuredClone(company);changed.strategyAcceptances![0]!.allocations[0]!.amount="1";
+ await rejected(c,"UPDATE yucer_gtm.sales_plan_revision SET content=$2 WHERE id=$1",[revision,JSON.stringify(changed)],/regional_draft_required/);
+ company.strategyAcceptances=[];
+ await c.query("UPDATE yucer_gtm.sales_plan_revision SET content=$2 WHERE id=$1",[revision,JSON.stringify(company)]);
+ assert.equal((await c.query("SELECT jsonb_array_length(content->'strategyAcceptances') AS n FROM yucer_gtm.sales_plan_revision WHERE id=$1",[f.revision])).rows[0].n,1);
+ const regional={...structuredClone(company),releaseScope:"regions",companyRevisionId:f.revision};
+ await rejected(c,"INSERT INTO yucer_gtm.sales_plan_revision(id,workspace_id,plan_id,base_revision_id,content,created_by_sub) VALUES($1,$2,$3,$4,$5,'owner')",[id(),f.ws,f.plan,f.revision,JSON.stringify(regional)],/company_basis_changed/);
+ const tampered={...company,regions:[]};
+ await rejected(c,"UPDATE yucer_gtm.sales_plan_revision SET content=$2 WHERE id=$1",[revision,JSON.stringify(tampered)],/regional_draft_required/);
+}));

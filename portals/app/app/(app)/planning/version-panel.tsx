@@ -784,6 +784,7 @@ export function PlanningVersionPanel({
               </Button>
             </div>
           ) : null}
+          <StrategyHandoffPanel content={c} sources={sources} edit={edit} regionId={regionId} disabled={pending} lockedPeriods={lockedPeriods}/>
           <Section
             className="@container"
             icon="target"
@@ -931,7 +932,6 @@ export function PlanningVersionPanel({
               </p>
             )}
           </Section>
-          <StrategyHandoffPanel content={c} sources={sources} edit={edit} regionId={regionId} disabled={pending} lockedPeriods={lockedPeriods}/>
           {companyEditing ? null : currentRegion ? (
             currentRegion.included ? (
               <PlanSupport

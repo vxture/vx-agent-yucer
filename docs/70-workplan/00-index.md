@@ -1,5 +1,11 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 多战略承接汇总与集中编辑
+
+[110-strategy-acceptance-summary.md](110-strategy-acceptance-summary.md) 跟踪 SH-02 / #725：
+年度目标前折叠汇总、三类标准指标、按来源顺序集中编辑与直接取消承接。
+本地实现与双库验证完成，待 PR 检查及用户预览；未发布，不自动打标签。
+
 ## 区域拆分工作区
 
 [108-regional-planning-workspace.md](108-regional-planning-workspace.md) 跟踪 RP-01 / #720：
