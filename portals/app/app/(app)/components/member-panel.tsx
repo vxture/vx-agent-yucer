@@ -364,9 +364,9 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         closeLabel={MEMBER_TEXT.detailsDone}
         footer={
           <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" onClick={() => setDetails(null)}>{MEMBER_TEXT.detailsDone}</Button>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={() => setDetails(null)}>{MEMBER_TEXT.detailsDone}</Button>
             {canManage && details ? (
-              <Button onClick={() => router.push(`/admin/members/${details.memberId}`)}>{MEMBER_TEXT.detailsEdit}</Button>
+              <Button data-control-kind="drawer-action" size="xl" onClick={() => router.push(`/admin/members/${details.memberId}`)}>{MEMBER_TEXT.detailsEdit}</Button>
             ) : null}
           </div>
         }

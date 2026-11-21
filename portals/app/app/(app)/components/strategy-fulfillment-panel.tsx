@@ -47,7 +47,7 @@ export function StrategyFulfillmentPanel({ rows, canRecord = false }: { rows: Fu
           <Field><FieldLabel htmlFor="result-date">{T.date}</FieldLabel><Input id="result-date" type="date" max={new Date().toISOString().slice(0,10)} value={achievedOn} onChange={e => setDate(e.target.value)}/></Field>
           <Field><FieldLabel htmlFor="result-evidence">{T.evidence}</FieldLabel><Input id="result-evidence" type="url" placeholder={T.evidenceExample} maxLength={2000} value={url} onChange={e => setUrl(e.target.value)}/></Field>
           <Field><FieldLabel htmlFor="result-note">{T.memo}</FieldLabel><Input id="result-note" maxLength={2000} value={note} onChange={e => setNote(e.target.value)}/></Field>
-          <Button size="md" disabled={pending || !allocation || !url.trim() || !note.trim()} onClick={() => submit()}>{T.record}</Button>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending || !allocation || !url.trim() || !note.trim()} onClick={() => submit()}>{T.record}</Button>
         </> : canRecord ? <p className="text-body-small text-muted-foreground">{T.allocateFirst}</p> : null}
         {canRecord && !selected.allocations.length && selected.evidence.some(e => !e.voidsId) ? <Field><FieldLabel htmlFor="result-note">{T.memo}</FieldLabel><Input id="result-note" maxLength={2000} value={note} onChange={e => setNote(e.target.value)}/></Field> : null}
         {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}

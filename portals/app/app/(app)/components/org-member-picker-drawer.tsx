@@ -85,8 +85,8 @@ export function OrgMemberPickerDrawer({
       closeLabel={ORG_TEXT.cancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" disabled={pending} onClick={onClose}>{ORG_TEXT.cancel}</Button>
-          <Button disabled={pending} onClick={save}>{ORG_TEXT.addMembersSave}</Button>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={onClose}>{ORG_TEXT.cancel}</Button>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending} onClick={save}>{ORG_TEXT.addMembersSave}</Button>
         </div>
       }
     >

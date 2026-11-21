@@ -53,8 +53,8 @@ export function StrategyHandoffDrawer({ draft, content, members, regionId, canEd
     footer={<div className={styles.footer} data-handoff-footer>
       {error ? <p role="alert" className="text-body-small text-destructive">{error}</p> : null}
       <div className="flex flex-wrap items-center justify-end gap-sm">
-        <div className="flex items-center gap-sm"><Button size="md" variant="secondary" onClick={onClose}>{canEdit ? T.cancel : T.closeDetails}</Button>
-          {canEdit ? <Button size="md" disabled={disabled} onClick={onSave}>{company ? T.save : T.confirmBreakdown}</Button> : null}</div>
+        <div className="flex items-center gap-sm"><Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{canEdit ? T.cancel : T.closeDetails}</Button>
+          {canEdit ? <Button data-control-kind="drawer-action" size="xl" disabled={disabled} onClick={onSave}>{company ? T.save : T.confirmBreakdown}</Button> : null}</div>
       </div>
     </div>}>
     <div className={styles.content} data-business-fields data-handoff-drawer={company ? "company" : "region"}>

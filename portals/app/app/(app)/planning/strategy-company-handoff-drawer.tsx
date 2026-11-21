@@ -30,7 +30,7 @@ export function StrategyCompanyHandoffDrawer({ draft, members, year, lockedPerio
   return <Drawer open width="md" className="max-w-full" title={T.accept} description={`Y${year}`} closeLabel={T.closeDetails} onClose={onClose}
     footer={<div className={styles.footer} data-handoff-footer>
       {error ? <p role="alert" className="text-body-small text-destructive">{error}</p> : null}
-      <div className="flex items-center justify-end gap-sm"><Button size="md" variant="secondary" onClick={onClose}>{T.cancel}</Button><Button size="md" disabled={disabled} onClick={onSave}>{T.save}</Button></div>
+      <div className="flex items-center justify-end gap-sm"><Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{T.cancel}</Button><Button data-control-kind="drawer-action" size="xl" disabled={disabled} onClick={onSave}>{T.save}</Button></div>
     </div>}>
     <div className={`${styles.content} ${styles.companyContent}`} data-business-fields data-handoff-drawer="company">
       <Field><div className="flex items-center gap-xs"><FieldLabel htmlFor="handoff-source">{T.source}</FieldLabel><TitleHelp topic={T.source}>{T.companyHelp}{" "}{T.batchHint}</TitleHelp></div><NativeSelect id="handoff-source" value={draft.active} disabled={disabled} onChange={e => onChange({ ...draft, active: e.target.value })}>

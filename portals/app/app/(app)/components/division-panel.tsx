@@ -453,7 +453,7 @@ export function DivisionPanel(
         closeLabel={PLANNING_TEXT.divisionDetailsDone}
         footer={
           <div className="flex justify-end">
-            <Button variant="secondary" onClick={() => setDetails(null)}>{PLANNING_TEXT.divisionDetailsDone}</Button>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={() => setDetails(null)}>{PLANNING_TEXT.divisionDetailsDone}</Button>
           </div>
         }
       >

@@ -179,10 +179,10 @@ export function AccountBasicsForm({
       closeLabel={DS_LABELS.confirmCancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
             {ACCOUNT_BASICS_TEXT.cancel}
           </Button>
-          <Button disabled={pending || values.name.trim() === ""} onClick={submit}>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending || values.name.trim() === ""} onClick={submit}>
             {ACCOUNT_BASICS_TEXT.save}
           </Button>
         </div>

@@ -637,10 +637,10 @@ function ContractDrawer({
       closeLabel={DS_LABELS.confirmCancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" disabled={pending} onClick={onClose}>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={onClose}>
             {DS_LABELS.confirmCancel}
           </Button>
-          <Button disabled={pending} onClick={submit}>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending} onClick={submit}>
             {CONTRACT_TEXT.save}
           </Button>
         </div>
@@ -776,10 +776,10 @@ function OutcomeDrawer({
       closeLabel={DS_LABELS.confirmCancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" disabled={pending} onClick={onClose}>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={onClose}>
             {DS_LABELS.confirmCancel}
           </Button>
-          <Button disabled={pending || reason.trim() === ""} onClick={submit}>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending || reason.trim() === ""} onClick={submit}>
             {CONTRACT_TEXT.save}
           </Button>
         </div>
@@ -879,10 +879,10 @@ function LineDrawer({
       closeLabel={DS_LABELS.confirmCancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" disabled={pending} onClick={onClose}>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={onClose}>
             {DS_LABELS.confirmCancel}
           </Button>
-          <Button disabled={pending || productId === "" || unitPrice.trim() === ""} onClick={submit}>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending || productId === "" || unitPrice.trim() === ""} onClick={submit}>
             {CONTRACT_TEXT.save}
           </Button>
         </div>

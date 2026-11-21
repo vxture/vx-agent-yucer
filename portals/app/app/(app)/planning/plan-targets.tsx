@@ -626,15 +626,15 @@ export function PlanTargetLedger({
               />
             </Field>
             <div className="flex justify-end gap-sm pb-xl">
-              <Button
-                size="md"
+              <Button data-control-kind="drawer-action"
+                size="xl"
                 variant="secondary"
                 onClick={() => setNote(null)}
               >
                 {T.cancel}
               </Button>
-              <Button
-                size="md"
+              <Button data-control-kind="drawer-action"
+                size="xl"
                 disabled={disabled || !edit}
                 onClick={() => {
                   edit?.({
@@ -762,15 +762,15 @@ function MetricSelection({
             ))}
           </div>
           <div className="flex justify-end gap-sm pb-xl">
-            <Button
-              size="md"
+            <Button data-control-kind="drawer-action"
+              size="xl"
               variant="secondary"
               onClick={() => setOpen(false)}
             >
               {T.cancel}
             </Button>
-            <Button
-              size="md"
+            <Button data-control-kind="drawer-action"
+              size="xl"
               disabled={disabled || !selected.length}
               onClick={() => {
                 let next = content;

@@ -1,5 +1,11 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 抽屉操作按钮一致化
+
+[111-drawer-action-consistency.md](111-drawer-action-consistency.md) 跟踪 #727：
+全站业务抽屉保存、取消、确认等动作统一为 14px / 32px，保留行内工具的密度。
+与 #725 同在 PR #726 审查，停留本地预览，未发布。
+
 ## 多战略承接汇总与集中编辑
 
 [110-strategy-acceptance-summary.md](110-strategy-acceptance-summary.md) 跟踪 SH-02 / #725：

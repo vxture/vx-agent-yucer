@@ -99,10 +99,10 @@ export function MarketScopeControl({
         closeLabel={PLANNING_TEXT.scopeCancel}
         footer={
           <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" disabled={pending} onClick={() => setOpen(false)}>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={() => setOpen(false)}>
               {PLANNING_TEXT.scopeCancel}
             </Button>
-            <Button disabled={unchanged || pending} onClick={submit}>
+            <Button data-control-kind="drawer-action" size="xl" disabled={unchanged || pending} onClick={submit}>
               {pending ? DS_LABELS.confirmPending : PLANNING_TEXT.scopeConfirm}
             </Button>
           </div>

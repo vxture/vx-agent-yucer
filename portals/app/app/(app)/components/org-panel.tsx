@@ -708,9 +708,9 @@ export function OrgPanel({
         closeLabel={ORG_TEXT.detailsDone}
         footer={
           <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" onClick={() => setDetails(null)}>{ORG_TEXT.detailsDone}</Button>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={() => setDetails(null)}>{ORG_TEXT.detailsDone}</Button>
             {editable && details ? (
-              <Button onClick={() => router.push(`/admin/org/${details.id}`)}>{ORG_TEXT.detailsEdit}</Button>
+              <Button data-control-kind="drawer-action" size="xl" onClick={() => router.push(`/admin/org/${details.id}`)}>{ORG_TEXT.detailsEdit}</Button>
             ) : null}
           </div>
         }

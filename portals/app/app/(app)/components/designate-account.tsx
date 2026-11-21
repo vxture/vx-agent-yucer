@@ -116,10 +116,10 @@ export function DesignateAccount({
       closeLabel={DS_LABELS.confirmCancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
             {DS_LABELS.confirmCancel}
           </Button>
-          <Button disabled={pending} onClick={submit}>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending} onClick={submit}>
             {ACCOUNT_OPERATING_TEXT.save}
           </Button>
         </div>

@@ -92,6 +92,16 @@
   line-height: var(--label-line-height);
 }
 
+/* Drawer decisions share the primary action type tier, including cancel/close.
+ * Explicit markers keep row tools, disclosures and overlay glyphs compact.
+ */
+.controls [data-slot="button"][data-control-kind="drawer-action"] {
+  height: var(--space-control-xl);
+  min-width: var(--space-control-3xl);
+  font-size: var(--label-font-size);
+  line-height: var(--label-line-height);
+}
+
 /* Entry forms have a separate information hierarchy from operation rows.
  * Bind to DS semantic roles in the same scope as TD-038; avoid utility classes
  * being silently overridden by the global 12px operation-control rule above.

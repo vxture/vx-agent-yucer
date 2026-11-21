@@ -46,7 +46,7 @@ export function NewLogoEstimateDrawer({ content, line, disabled, locked, edit, o
       </div>
       <div className="flex items-baseline justify-between gap-md text-body"><span className="text-muted-foreground">{T.estimate}</span><span className="font-medium tabular-nums">{estimated === null ? "\u2014" : Number(estimated).toLocaleString(locale)}<span className="ml-xs text-body-small font-normal text-muted-foreground">{C.customerUnit}</span></span></div>
       {!valid || error ? <p role="alert" className="text-body-small text-destructive">{error || T.error}</p> : null}
-      <div className="flex justify-end gap-sm pb-xl"><Button size="md" variant="secondary" onClick={onClose}>{P.cancel}</Button><Button size="md" disabled={disabled || !valid || !newLogoRevenue(content, { ...line, newLogoEstimate: basis })} onClick={apply}>{T.apply}</Button></div>
+      <div className="flex justify-end gap-sm pb-xl"><Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{P.cancel}</Button><Button data-control-kind="drawer-action" size="xl" disabled={disabled || !valid || !newLogoRevenue(content, { ...line, newLogoEstimate: basis })} onClick={apply}>{T.apply}</Button></div>
     </div>
   </Drawer>;
 }

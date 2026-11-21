@@ -87,8 +87,8 @@ export function StrategyRelationsDrawer({ task, planName, targets, sharedSolutio
       {error ? <FieldError role="alert">{error}</FieldError> : null}
       <div className="flex items-center justify-between gap-sm">
         <output className="text-body-small text-muted-foreground">{task.kind !== "market" ? `${T.relationSelectedCount} ${task.kind === "solutions" ? (solutionIds?.length ?? 0) + (productIds?.length ?? 0) : selected.length}` : null}</output>
-        <div className="flex gap-sm"><Button size="xl" variant="secondary" disabled={pending} onClick={close}>{T.relationCancel}</Button>
-          <Button size="xl" disabled={pending || unavailable || !dirty} onClick={save}>{draft ? T.relationApply : T.relationSave}</Button></div>
+        <div className="flex gap-sm"><Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={close}>{T.relationCancel}</Button>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending || unavailable || !dirty} onClick={save}>{draft ? T.relationApply : T.relationSave}</Button></div>
       </div>
     </div>}>
     <div className="flex min-w-0 flex-col gap-lg" data-business-form data-strategy-relations-task={task.kind}>

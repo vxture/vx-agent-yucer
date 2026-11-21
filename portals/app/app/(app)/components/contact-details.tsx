@@ -30,5 +30,5 @@ export function ContactDetails({ accountId, accountName, contact: c }: Readonly<
 
 export function ContactFullLink({ accountId, contactId }: Readonly<{ accountId: string; contactId: string }>) {
   const { CONTACT_VIEW_TEXT: T } = useMessages();
-  return <Button asChild variant="secondary"><Link href={contactHref(accountId, contactId)} target="_blank" rel="noopener noreferrer">{T.fullDetail}<Icon name="external-link" size="sm"/></Link></Button>;
+  return <Button data-control-kind="drawer-action" size="xl" asChild variant="secondary"><Link href={contactHref(accountId, contactId)} target="_blank" rel="noopener noreferrer">{T.fullDetail}<Icon name="external-link" size="sm"/></Link></Button>;
 }

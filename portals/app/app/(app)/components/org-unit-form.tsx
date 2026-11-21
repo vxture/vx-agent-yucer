@@ -520,10 +520,10 @@ export function OrgUnitForm({
         closeLabel={ORG_TEXT.cancel}
         footer={
           <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" disabled={divisionPending} onClick={() => setDivisionDrawerOpen(false)}>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={divisionPending} onClick={() => setDivisionDrawerOpen(false)}>
               {ORG_TEXT.cancel}
             </Button>
-            <Button disabled={divisionPending} onClick={saveDivisions}>{ORG_TEXT.save}</Button>
+            <Button data-control-kind="drawer-action" size="xl" disabled={divisionPending} onClick={saveDivisions}>{ORG_TEXT.save}</Button>
           </div>
         }
       >

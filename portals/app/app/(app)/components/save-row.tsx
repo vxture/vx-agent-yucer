@@ -16,12 +16,13 @@ export interface SaveRowProps {
   readonly savedLabel: string;
   readonly disabled?: boolean;
   readonly onSave: () => void;
+  readonly drawerAction?: boolean;
 }
 
-export function SaveRow({ action, label, savedLabel, disabled, onSave }: SaveRowProps) {
+export function SaveRow({ action, label, savedLabel, disabled, onSave, drawerAction }: SaveRowProps) {
   return (
     <>
-      <Button disabled={disabled || action.pending} onClick={onSave}>
+      <Button size={drawerAction ? "xl" : undefined} data-control-kind={drawerAction ? "drawer-action" : undefined} disabled={disabled || action.pending} onClick={onSave}>
         {label}
       </Button>
       {action.err ? <StatusBadge tone="danger">{action.err}</StatusBadge> : null}

@@ -71,11 +71,11 @@ export function MeetingBriefButton({ accountId, contacts, onBuild }: MeetingBrie
         footer={
           <div className="gap-sm flex items-center justify-end">
             {brief ? (
-              <Button variant="secondary" onClick={() => setBrief(null)}>
+              <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={() => setBrief(null)}>
                 {MEETING_TEXT.repick}
               </Button>
             ) : (
-              <Button disabled={pending || chosen.size === 0} onClick={build}>
+              <Button data-control-kind="drawer-action" size="xl" disabled={pending || chosen.size === 0} onClick={build}>
                 {MEETING_TEXT.build}
               </Button>
             )}

@@ -53,7 +53,7 @@ export function DealImportanceDrawer({
       description={DEAL_PAGE_TEXT.importanceDescription}
       footer={
         <div className="flex justify-end">
-          <Button disabled={!chosen || chosen === current || pending} onClick={submit}>
+          <Button data-control-kind="drawer-action" size="xl" disabled={!chosen || chosen === current || pending} onClick={submit}>
             {pending ? DS_LABELS.confirmPending : DEAL_PAGE_TEXT.importanceConfirm}
           </Button>
         </div>
