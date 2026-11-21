@@ -7,33 +7,27 @@ import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
 import type { ReviewNarrativeResult } from "../pipeline/review-narrative-action";
 import type { ReviewDraft } from "../../domains/pipeline/lib/review-draft";
+import { useRequestLifetime } from "./use-request-lifetime";
 
 // 复盘底稿 on the review card (deal batch 12, YC-069 section 09): the rule's
 // four sections - 在哪开始滑、谁没兑现、覆盖缺谁、让了几轮 - each one line that
 // opens to the records it was built from. Written from the deal's own logs;
 // it suggests no reason code (原因码不预选).
 
-export function ReviewDraftSections({
-  draft,
-  opportunityId,
-  reasonName,
-  onNarrate,
-  onAdoptReason,
-}: {
+export function ReviewDraftSections(props: ReviewDraftSectionsProps) {
+  return <ReviewDraftContent key={JSON.stringify([props.opportunityId, props.draft, [...props.reasonName], !!props.onNarrate])} {...props}/>;
+}
+
+interface ReviewDraftSectionsProps {
   readonly draft: ReviewDraft;
   readonly opportunityId: string;
-  /** Reason id to its name, for the suggestion. */
   readonly reasonName: ReadonlyMap<string, string>;
-  /** 复盘叙述 (12b); absent when the member may not run it. */
   readonly onNarrate?: (opportunityId: string) => Promise<ReviewNarrativeResult>;
-  /** Puts the suggested reason into the form - pressed by the reviewer, never automatic. */
   readonly onAdoptReason?: (reasonId: string) => void;
-}) {
-  const { REVIEW_DRAFT_TEXT: T, DECISION_ROLE_LABEL, DIRECTION_LABEL, REVIEW_ERROR, COPILOT_TEXT, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
-  const [pending, start] = useTransition();
-  const inFlight = useRef(false);
-  const [told, setTold] = useState<Extract<ReviewNarrativeResult, { ok: true }> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+}
+
+function ReviewDraftContent({ draft, opportunityId, reasonName, onNarrate, onAdoptReason }: ReviewDraftSectionsProps) {
+  const { REVIEW_DRAFT_TEXT: T, DECISION_ROLE_LABEL, DIRECTION_LABEL, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
   const field = (f: string) => T.field[f] ?? f;
   return (
     <div className="border-border flex flex-col gap-2xs border-t pt-sm text-body-small">
@@ -90,54 +84,69 @@ export function ReviewDraftSections({
           </li>
         ))}
       </Part>}
-      {onNarrate ? (
-        <div className="border-border mt-xs flex flex-col gap-xs rounded-md border border-dashed p-sm">
-          <div className="flex items-center justify-between gap-sm">
-            <span className="text-foreground flex items-center gap-2xs font-medium">
-              <Icon name="sparkles" size="xs" />
-              {T.narrativeTitle}
-            </span>
-            <Button
-              size="md"
-              variant="outline"
-              disabled={pending}
-              onClick={() => {
-                if (inFlight.current) return;
-                inFlight.current = true;
-                start(async () => {
-                  try {
-                    const r = await onNarrate(opportunityId);
-                    if (r.ok) { setTold(r); setError(null); }
-                    else setError(isModelPlaneError(r.error) ? explainModelPlaneError(r.error, COPILOT_TEXT) : REVIEW_ERROR[r.error] ?? W.failed);
-                  } catch { setError(W.failed); }
-                  finally { inFlight.current = false; }
-                });
-              }}
-            >
-              {pending ? T.narrating : T.narrate}
-            </Button>
-          </div>
-          {error ? <StatusBadge tone="warning">{error}</StatusBadge> : null}
-          {told ? (
-            <>
-              {told.narrative.map((s) => (
-                <p key={s}>{s}</p>
-              ))}
-              {told.reasonId ? (
-                <p className="flex flex-wrap items-center gap-xs">
-                  <span className="text-muted-foreground">{T.suggested(reasonName.get(told.reasonId) ?? told.reasonId)}</span>
-                  {onAdoptReason ? (
-                    <Button size="md" variant="ghost" onClick={() => onAdoptReason(told.reasonId!)}>
-                      {T.adoptReason}
-                    </Button>
-                  ) : null}
-                </p>
+      {onNarrate ? <ReviewNarrative opportunityId={opportunityId} reasonName={reasonName} onNarrate={onNarrate} onAdoptReason={onAdoptReason}/> : null}
+    </div>
+  );
+}
+
+function ReviewNarrative({ opportunityId, reasonName, onNarrate, onAdoptReason }: Omit<ReviewDraftSectionsProps, "draft" | "onNarrate"> & {
+  readonly onNarrate: NonNullable<ReviewDraftSectionsProps["onNarrate"]>;
+}) {
+  const { REVIEW_DRAFT_TEXT: T, REVIEW_ERROR, COPILOT_TEXT, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
+  const [pending, start] = useTransition();
+  const inFlight = useRef(false);
+  const lifetime = useRequestLifetime();
+  const [told, setTold] = useState<Extract<ReviewNarrativeResult, { ok: true }> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function generate(signal: AbortSignal) {
+    try {
+      const r = await onNarrate(opportunityId);
+      if (signal.aborted) return;
+      if (r.ok) { setTold(r); setError(null); }
+      else setError(isModelPlaneError(r.error) ? explainModelPlaneError(r.error, COPILOT_TEXT) : REVIEW_ERROR[r.error] ?? W.failed);
+    } catch { if (!signal.aborted) setError(W.failed); }
+    finally { inFlight.current = false; }
+  }
+  function narrate() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    start(() => generate(lifetime.current.signal));
+  }
+  return (
+    <div className="border-border mt-xs flex flex-col gap-xs rounded-md border border-dashed p-sm">
+      <div className="flex items-center justify-between gap-sm">
+        <span className="text-foreground flex items-center gap-2xs font-medium">
+          <Icon name="sparkles" size="xs" />
+          {T.narrativeTitle}
+        </span>
+        <Button
+          size="md"
+          variant="outline"
+          disabled={pending}
+          onClick={narrate}
+        >
+          {pending ? T.narrating : T.narrate}
+        </Button>
+      </div>
+      {error ? <StatusBadge tone="warning">{error}</StatusBadge> : null}
+      {told ? (
+        <>
+          {told.narrative.map((s) => (
+            <p key={s}>{s}</p>
+          ))}
+          {told.reasonId ? (
+            <p className="flex flex-wrap items-center gap-xs">
+              <span className="text-muted-foreground">{T.suggested(reasonName.get(told.reasonId) ?? told.reasonId)}</span>
+              {onAdoptReason ? (
+                <Button size="md" variant="ghost" onClick={() => onAdoptReason(told.reasonId!)}>
+                  {T.adoptReason}
+                </Button>
               ) : null}
-              {told.dropped > 0 ? <p className="text-muted-foreground">{T.dropped(told.dropped)}</p> : null}
-              {told.cached ? <p className="text-muted-foreground">{T.cached}</p> : null}
-            </>
+            </p>
           ) : null}
-        </div>
+          {told.dropped > 0 ? <p className="text-muted-foreground">{T.dropped(told.dropped)}</p> : null}
+          {told.cached ? <p className="text-muted-foreground">{T.cached}</p> : null}
+        </>
       ) : null}
     </div>
   );

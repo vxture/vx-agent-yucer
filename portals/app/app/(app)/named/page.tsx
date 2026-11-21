@@ -18,6 +18,6 @@ export default async function NamedAccountPage({ searchParams }: Readonly<{ sear
   if (!query) return <EmptyState title={E.invalid_period}/>;
   try {
     const workspace = await readFocusWorkspace(focusContext(session), query);
-    return <ViewLayout><FocusWorkspaceView key={`${query.year}:${workspace.revision?.id}:${workspace.editToken}:${workspace.eventNo}`} workspace={workspace}/></ViewLayout>;
+    return <ViewLayout><FocusWorkspaceView key={`${query.year}:${workspace.period}:${workspace.regionId}:${workspace.revision?.id}:${workspace.editToken}:${workspace.eventNo}`} workspace={workspace}/></ViewLayout>;
   } catch (e) { return <EmptyState title={T.sourceUnavailable} description={E[e instanceof PlanError ? e.code : "source_read_failed"] ?? T.error}/>; }
 }

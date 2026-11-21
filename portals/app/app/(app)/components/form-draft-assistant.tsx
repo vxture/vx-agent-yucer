@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Banner, Button, Card, Icon, Input } from "@vxture/design-ui";
 import { usePageAssistantSlot } from "./form-assist-slot";
+import { useRequestLifetime } from "./use-request-lifetime";
 import {
   AssistantComposer,
   AssistantMessage,
@@ -46,9 +47,11 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
       text: string;
     }>();
   const running = useRef(false);
+  const lifetime = useRequestLifetime(() => { if (running.current) onBusy(false); });
   async function send() {
     if (!enabled || !text.trim() || running.current) return;
     running.current = true;
+    const signal = lifetime.current.signal;
     setBusy(true);
     onBusy(true);
     setError("");
@@ -64,6 +67,7 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
         sessionId: retry?.sessionId ?? sessionId,
         retryMessageId: retry?.messageId,
       });
+      if (signal.aborted) return;
       if (!result.ok) {
         setError(errorOf?.(result.error) ?? T.assistError);
         if (result.recovery)
@@ -80,11 +84,13 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
       ]);
       setText("");
     } catch {
-      setError(T.assistError);
+      if (!signal.aborted) setError(T.assistError);
     } finally {
-      running.current = false;
-      setBusy(false);
-      onBusy(false);
+      if (!signal.aborted) {
+        running.current = false;
+        setBusy(false);
+        onBusy(false);
+      }
     }
   }
   const feedback = error ? <Banner tone="warning" title={error} /> : null;
