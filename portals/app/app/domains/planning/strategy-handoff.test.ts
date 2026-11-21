@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID as id } from "node:crypto";
 import { closedSlice, emptyContent, validateContent, minor, type SalesPlan, type PlanRevision } from "./plan-model";
 import { validateStrategyAcceptances, verifyStrategyAcceptance, type StrategyAcceptance } from "./strategy-handoff";
-import { allocateStrategicTarget } from "./strategy-autofill";
+import { allocateRegionalStrategicTarget, allocateStrategicTarget } from "./strategy-autofill";
 import { strategicActual } from "./strategic-actual";
 import { validateStrategicResult, type StrategicResult } from "./strategic-results";
 import { validExpectations } from "../strategy/lib/expectations";
@@ -92,4 +92,46 @@ test("company revision validates its acceptance independently of carried regiona
   assert.throws(() => validateContent({ ...company, releaseScope: "regions" }, true), /overallocated/);
   company.strategyAcceptances![0]!.amount = "501";
   assert.throws(() => validateContent(company, true), /strategy_overallocated/);
+});
+
+
+test("regional strategic allocation preserves other regions and closed quarters", () => {
+  const { c, x } = fixture();
+  x.allocations = [
+    { key: id(), regionId: west, period: "2026Q2", amount: "400", ownerSub: "other" },
+    { key: id(), regionId: east, period: "2026Q1", amount: "100", ownerSub: "owner" },
+  ];
+  const before = structuredClone(x);
+  const next = allocateRegionalStrategicTarget(c, x, east, ["2026Q1"], id);
+  assert.deepEqual(next.allocations.filter(a => a.regionId === west || a.period === "2026Q1"), before.allocations);
+  assert.ok(next.allocations.filter(a => a.regionId === east && a.period !== "2026Q1").every(a => Number(a.amount) <= 125));
+  assert.equal(next.allocations.reduce((n, a) => n + Number(a.amount), 0), 875);
+  assert.deepEqual(x, before);
+});
+
+test("regional strategic counts remain whole and never reassign another region's items", () => {
+  const { c, x } = fixture("channels");
+  x.allocations = [{ key: id(), regionId: west, period: "2026Q1", amount: "2", ownerSub: "other" }];
+  const next = allocateRegionalStrategicTarget(c, x, east, [], id);
+  assert.deepEqual(next.allocations[0], x.allocations[0]);
+  assert.equal(next.allocations.reduce((n, a) => n + Number(a.amount), 0), 3);
+  assert.ok(next.allocations.every(a => Number.isInteger(Number(a.amount))));
+  c.strategyAcceptances = [next]; validateStrategyAcceptances(c, false);
+});
+
+test("regional strategic reallocation preserves a fully locked region and respects financial competitors", () => {
+  const { c, x } = fixture(); x.amount = "100";
+  x.allocations = [{ key: id(), regionId: east, period: "2026Q1", amount: "100", ownerSub: "owner" }];
+  assert.deepEqual(allocateRegionalStrategicTarget(c, x, east, ["2026Q1", "2026Q2", "2026Q3", "2026Q4"], id), x);
+  x.allocations = [];
+  c.strategyAcceptances!.push({ ...structuredClone(x), key: id(), lineageId: id(), amount: "500", allocations: [1,2,3,4].map(q => ({ key: id(), regionId: east, period: `2026Q${q}`, amount: "125", ownerSub: "other" })) });
+  assert.deepEqual(allocateRegionalStrategicTarget(c, x, east, [], id).allocations, []);
+});
+
+
+test("an invalid carried strategic balance is preserved for correction rather than silently deleting commitments", () => {
+  const { c, x } = fixture("channels");
+  x.amount = "1";
+  x.allocations = [{ key: id(), regionId: west, period: "2026Q1", amount: "2", ownerSub: "other" }];
+  assert.deepEqual(allocateRegionalStrategicTarget(c, x, east, [], id), x);
 });

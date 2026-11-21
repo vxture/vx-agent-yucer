@@ -44,6 +44,7 @@ export function autofillPlanningQuarters(
         t.currency === annual.currency &&
         t.period === p.key,
     );
+    if (!row && locked.includes(p.key)) return null;
     if (!row) {
       row = { ...annual, key: crypto.randomUUID(), period: p.key, note: "" };
       delete row.marginRates;
@@ -51,7 +52,7 @@ export function autofillPlanningQuarters(
       next.targets.push(row);
     }
     return row;
-  });
+  }).filter((row): row is PlanTarget => row !== null);
   const fixed = rows
     .filter((r) => locked.includes(r.period))
     .reduce((sum, r) => sum + (r.target === null ? 0n : minor(r.target)), 0n);
@@ -59,19 +60,24 @@ export function autofillPlanningQuarters(
   const available =
     annual.target === null ? null : minor(annual.target) - fixed;
   demand(available === null || available >= 0n, "closed_period_changed");
+  // Regional revenue follows the published company calendar; auxiliary
+  // metrics follow revenue within their own scope. Company values stay read-only.
+  const weightScope = annual.metric === "revenue" && annual.scope !== "workspace"
+    ? "workspace" : annual.scope;
   const revenueWeights = new Map(
     next.targets
       .filter(
         (t) =>
-          t.scope === annual.scope &&
+          t.scope === weightScope &&
           t.metric === "revenue" &&
+          (annual.currency === null || t.currency === annual.currency) &&
           t.period !== annual.period &&
           t.target !== null,
       )
       .map((t) => [t.period, minor(t.target!)]),
   );
   const useRevenue =
-    annual.metric !== "revenue" &&
+    (annual.metric !== "revenue" || annual.scope !== "workspace") &&
     editable.every((r) => revenueWeights.has(r.period)) &&
     editable.some((r) => revenueWeights.get(r.period)! > 0n);
   const weightFor = (r: PlanTarget) =>
@@ -269,6 +275,22 @@ export function addPlanningMetric(
     stretch: null,
     note: "",
   };
+  const company = scope === "workspace" ? null : content.targets.find(
+    t => t.scope === "workspace" && t.period === line.period && t.metric === metric,
+  );
+  if (company) {
+    line.currency = company.currency;
+    const baseline = content.targets.find(t => t.scope === "workspace" && t.period === line.period && t.metric === "revenue" && t.currency === revenue?.currency);
+    if (metric === "margin" && company.marginRates) {
+      line.marginRates = { ...company.marginRates };
+      for (const tier of tiers) line[tier] = marginAmount(revenue?.target ?? null, line.marginRates[tier]);
+    } else if (revenue?.target != null && baseline?.target != null && minor(baseline.target) > 0n) {
+      for (const tier of tiers) line[tier] = company[tier] === null ? null : displayAmount(
+        (minor(company[tier]!) * minor(revenue.target) / minor(baseline.target) / unit(line)) * unit(line), line,
+      );
+    }
+    return autofillPlanningQuarters({ ...content, targets: [...content.targets, line] }, line, locked);
+  }
   if (metric === "new_logo" && revenue) {
     line.newLogoEstimate = defaultNewLogoEstimate(revenue.currency!);
     fillNewLogoEstimate(line, revenue.target);
@@ -357,7 +379,7 @@ export function autofillPlanningRegions(content: PlanContent): PlanContent {
     (t) => t.scope === "workspace" || !missing.some((m) => matches(m, t)),
   );
   const generated = new Set<string>();
-  for (const source of company) {
+  for (const source of [...company].sort((a, b) => Number(b.period === `Y${next.year}`) - Number(a.period === `Y${next.year}`) || a.period.localeCompare(b.period))) {
     const rows = regions.map((r) => ({
       ...source,
       key: crypto.randomUUID(),
@@ -373,6 +395,11 @@ export function autofillPlanningRegions(content: PlanContent): PlanContent {
     for (const tier of tiers) {
       if (source[tier] === null) continue;
       const total = minor(source[tier]!);
+      if (source.metric === "new_logo" && source.period === `Y${next.year}`) {
+        const count = total / 100n, n = BigInt(rows.length);
+        rows.forEach((line, index) => { line[tier] = String(count / n + (BigInt(index) < count % n ? 1n : 0n)); });
+        continue;
+      }
       const delta = total - previousTotal;
       demand(delta >= 0n, "target_ladder");
       let assigned = 0n;
@@ -387,6 +414,7 @@ export function autofillPlanningRegions(content: PlanContent): PlanContent {
       });
       previousTotal = total;
     }
+    if (source.metric === "new_logo" && source.period !== `Y${next.year}` && source.target !== null) balanceQuarterCounts(next, source, rows);
     rows.forEach((line) => generated.add(line.key));
     next.targets.push(...rows);
   }
@@ -451,6 +479,26 @@ export function autofillPlanningRegions(content: PlanContent): PlanContent {
     });
   }
   return next;
+}
+
+// Whole customers are balanced against annual regional capacity, not all sent
+// to the final region each quarter when a quarterly total is smaller than N.
+function balanceQuarterCounts(content: PlanContent, source: PlanTarget, rows: PlanTarget[]) {
+  const capacities = rows.map(row => {
+    const annual = content.targets.find(t => t.scope === row.scope && t.period === `Y${content.year}` && t.metric === "new_logo");
+    const used = content.targets.filter(t => t.scope === row.scope && t.metric === "new_logo" && t.period !== `Y${content.year}`).reduce((n, t) => n + minor(t.target ?? "0") / 100n, 0n);
+    return { row, capacity: minor(annual?.target ?? "0") / 100n - used, count: 0n, remainder: 0n };
+  });
+  const capacity = capacities.reduce((n, item) => n + item.capacity, 0n);
+  const count = minor(source.target!) / 100n;
+  demand(count <= capacity, "overallocated");
+  if (capacity === 0n) return;
+  for (const item of capacities) { item.count = count * item.capacity / capacity; item.remainder = count * item.capacity % capacity; }
+  let rest = count - capacities.reduce((n, item) => n + item.count, 0n);
+  for (const item of [...capacities].sort((a, b) => a.remainder > b.remainder ? -1 : a.remainder < b.remainder ? 1 : 0)) {
+    if (rest > 0n) { item.count++; rest--; }
+    item.row.target = String(item.count);
+  }
 }
 
 function fillNewLogoEstimate(line: PlanTarget, revenue: string | null) {

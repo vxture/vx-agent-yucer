@@ -319,3 +319,70 @@ test("pipeline defaults to three times baseline revenue and preserves adjusted c
     ["4800.00", "8000.00", "9600.00"],
   );
 });
+
+test("regional revenue follows the published company calendar without changing company or locked quarters", () => {
+  let c = fixture();
+  c = updatePlanningAmount(c, c.targets[0].key, "target", "1000");
+  c.regions = ["east", "west"].map(id => ({ id, divisionId: id, code: id, name: id, provinces: [], included: true, reason: "", ownerSub: null }));
+  c.targets.filter(t => t.scope === "workspace" && t.period !== "Y2028").forEach((t, i) => { t.target = ["400", "100", "100", "400"][i]; });
+  c = autofillPlanningRegions(c);
+  const company = structuredClone(c.targets.filter(t => t.scope === "workspace"));
+  const annual = c.targets.find(t => t.scope === "territory:east" && t.period === "Y2028")!;
+  const before = structuredClone(c.targets.find(t => t.scope === annual.scope && t.period === "2028Q1")!);
+  c = updatePlanningAmount(c, annual.key, "target", "500", ["2028Q1"]);
+  assert.deepEqual(c.targets.filter(t => t.scope === "workspace"), company);
+  assert.deepEqual(c.targets.find(t => t.key === before.key), before);
+  assert.deepEqual(c.targets.filter(t => t.scope === annual.scope && t.period !== "Y2028").map(t => t.target), ["200.00", "50.00", "50.00", "200.00"]);
+  validateContent(c, true);
+});
+
+test("regional auxiliary metrics inherit company counts, rates and coverage instead of fresh independent estimates", () => {
+  let c = fixture();
+  c = updatePlanningAmount(c, c.targets[0].key, "target", "1000");
+  c = addPlanningMetric(c, "workspace", "new_logo");
+  c = updatePlanningAmount(c, c.targets.find(t => t.metric === "new_logo" && t.period === "Y2028")!.key, "target", "10");
+  c = addPlanningMetric(c, "workspace", "margin");
+  c = updatePlanningMarginRate(c, c.targets.find(t => t.metric === "margin" && t.period === "Y2028")!.key, "target", "45");
+  c = addPlanningMetric(c, "workspace", "pipeline");
+  c = updatePlanningAmount(c, c.targets.find(t => t.metric === "pipeline" && t.period === "Y2028")!.key, "target", "5000");
+  c.regions = [{ id: "east", divisionId: "d", code: "E", name: "East", provinces: [], included: true, reason: "", ownerSub: null }];
+  c.targets.push({ ...c.targets[0], key: "regional-revenue", scope: "territory:east", target: "200", floor: "120", stretch: "240" });
+  const company = structuredClone(c.targets.filter(t => t.scope === "workspace"));
+  c = autofillPlanningQuarters(c, c.targets.at(-1)!);
+  for (const metric of ["new_logo", "margin", "pipeline"] as const) c = addPlanningMetric(c, "territory:east", metric);
+  const regional = c.targets.filter(t => t.scope === "territory:east" && t.period === "Y2028");
+  const count = regional.find(t => t.metric === "new_logo")!;
+  assert.equal(count.target, "2"); assert.equal(count.newLogoEstimate, undefined);
+  const margin = regional.find(t => t.metric === "margin")!;
+  assert.equal(margin.marginRates?.target, "45"); assert.equal(margin.target, "90.00");
+  assert.equal(regional.find(t => t.metric === "pipeline")!.target, "1000.00");
+  assert.deepEqual(c.targets.filter(t => t.scope === "workspace"), company);
+  c.allocationNote = "Remaining quota stays at company level";
+  validateContent(c, true);
+});
+
+test("quarter autofill never invents a missing locked regional quarter", () => {
+  let c = fixture(); c = updatePlanningAmount(c, c.targets[0].key, "target", "1000");
+  c.regions = [{ id: "east", divisionId: "d", code: "E", name: "East", provinces: [], included: true, reason: "", ownerSub: null }];
+  const annual = { ...c.targets[0], key: "regional-revenue", scope: "territory:east", target: "500" };
+  c.targets.push(annual);
+  c = autofillPlanningQuarters(c, annual, ["2028Q1"]);
+  assert.ok(!c.targets.some(t => t.scope === annual.scope && t.period === "2028Q1"));
+  assert.equal(c.targets.filter(t => t.scope === annual.scope && t.period !== "Y2028").reduce((n, t) => n + minor(t.target!), 0n), 50000n);
+});
+
+test("small new-customer totals balance across regions while preserving every company quarter", () => {
+  for (const total of [0, 3, 5, 11]) {
+    let c = fixture(); c = updatePlanningAmount(c, c.targets[0].key, "target", "1000");
+    c = addPlanningMetric(c, "workspace", "new_logo");
+    c = updatePlanningAmount(c, c.targets.find(t => t.metric === "new_logo" && t.period === "Y2028")!.key, "target", String(total));
+    c.regions = ["a", "b", "c", "d", "e"].map(id => ({ id, divisionId: id, code: id, name: id, provinces: [], included: true, reason: "", ownerSub: null }));
+    c = autofillPlanningRegions(c);
+    const annuals = c.targets.filter(t => t.scope !== "workspace" && t.metric === "new_logo" && t.period === "Y2028");
+    const counts = annuals.map(t => Number(t.target));
+    assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, JSON.stringify(counts));
+    assert.equal(counts.reduce((a, b) => a + b, 0), total);
+    validateContent(c, true);
+    const before = structuredClone(c); assert.deepEqual(autofillPlanningRegions(c), before);
+  }
+});

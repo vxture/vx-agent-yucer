@@ -98,8 +98,25 @@ const companyPlanningText = {
 };
 
 export const en: Dictionary = {
-
   ...(zh as unknown as Dictionary),
+  REGIONAL_PLANNING_TEXT: {
+  "basis": "Company baseline",
+  "companyReadOnly": "Inherit the published company plan. Baseline targets are read-only; adjust regional allocations and quarters below.",
+  "allocationHelp": "Allocate regional annual targets against the company publication. Check each tier independently. Editing a target generates quarters using the company calendar; existing allocations are never silently redistributed.",
+  "metric": "Allocation metric",
+  "share": "Company share",
+  "pending": "Unconfirmed",
+  "configureTarget": "Set target",
+  "regionHelp": "This region inherits published company targets. Annual tiers and quarters use the company layout. Margin uses regional revenue; pipeline represents required opportunity stock. Resolve quarterly or annual over-allocation before saving.",
+  "inheritedMetrics": "Choose from metrics in the company plan. Add a new company metric by revising the company plan first.",
+  "companyTarget": "Company target",
+  "regionTarget": "Regional target",
+  "balanceHelp": "Balances compare matching metrics and currencies. Missing targets remain unconfirmed, zero stays zero, and negative balances indicate over-allocation.",
+  "allocationSave": "Allocation changes remain in the regional draft. Save and publish the regional plan explicitly.",
+  "noCompanyMetric": "This metric is absent from the company plan",
+  "unallocatedStrategy": "Unallocated"
+},
+
   NEW_LOGO_ESTIMATE_TEXT: {
   "settings": "New customer estimate",
   "share": "New customer revenue share",

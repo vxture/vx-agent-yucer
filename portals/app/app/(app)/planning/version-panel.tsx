@@ -20,6 +20,7 @@ import {
   EmptyState,
   Field,
   FieldLabel,
+  FieldGroup,
   Input,
   NativeSelect,
   StatusBadge,
@@ -57,6 +58,7 @@ import type { PlanContent, SalesPlan } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
 import {
   CompanyTargetAllocation,
+  RegionTargetAllocation,
 } from "./company-target-summary";
 import { PlanTargets } from "./plan-targets";
 import { PlanSupport } from "./plan-support";
@@ -94,6 +96,7 @@ export function PlanningVersionPanel({
   const locale = useLocale();
   const {
     PLAN_WORKSPACE_TEXT: W,
+    REGIONAL_PLANNING_TEXT: R,
     STRATEGY_HANDOFF_TEXT: H,
     PLAN_VERSION_TEXT: T,
     PLAN_VERSION_ERROR: E,
@@ -784,8 +787,8 @@ export function PlanningVersionPanel({
           ) : null}
           <Section
             icon="target"
-            title={currentRegion ? currentRegion.name : T.company}
-            help={regionalEditing ? T.regionFlowHint : T.targetHint}
+            title={currentRegion ? currentRegion.name : regionalEditing ? R.basis : T.company}
+            help={currentRegion ? R.regionHelp : regionalEditing ? R.companyReadOnly : T.targetHint}
             action={
               <div className="flex items-center gap-md">
                 {!currentRegion && companyRevision ? (
@@ -832,7 +835,7 @@ export function PlanningVersionPanel({
               </div>
             ) : null}
             {currentRegion && edit ? (
-              <div className="mb-lg flex flex-wrap items-end gap-md">
+              <FieldGroup columns={2} className="mb-lg">
                 <Field>
                   <FieldLabel htmlFor="plan-region-participation">
                     {T.included}
@@ -877,14 +880,14 @@ export function PlanningVersionPanel({
                     <option value="no">{T.excluded}</option>
                   </NativeSelect>
                 </Field>
-                <Field className="min-w-48">
+                <Field>
                   <FieldLabel htmlFor="plan-region-owner">{T.owner}</FieldLabel>
                   <MemberPicker id="plan-region-owner" label={T.owner} value={currentRegion.ownerSub} disabled={pending || !sources.canTeam || !!lockedPeriods.length}
                     options={sources.canTeam ? sources.members.map(m => ({ value: m.sub, label: m.name })) : null}
                     onValueChange={sub => edit({ ...c, regions: c.regions.map(r => r.id === currentRegion.id ? { ...r, ownerSub: sub || null } : r) })}/>
                 </Field>
                 {!currentRegion.included ? (
-                  <Field className="flex-1">
+                  <Field span="full">
                     <FieldLabel htmlFor="plan-region-reason">
                       {T.exclusionReason}
                     </FieldLabel>
@@ -906,7 +909,7 @@ export function PlanningVersionPanel({
                     />
                   </Field>
                 ) : null}
-              </div>
+              </FieldGroup>
             ) : null}
             {!currentRegion || currentRegion.included ? (
               <PlanTargets
@@ -926,7 +929,9 @@ export function PlanningVersionPanel({
                       target={companyTarget}
                       currency={sources.currency}
                     />
-                  ) : undefined
+                  ) : (
+                    <RegionTargetAllocation content={c} target={c.targets.find(t => t.scope === `territory:${currentRegion.id}` && t.period === `Y${year}` && t.metric === "revenue")}/>
+                  )
                 }
 
               />
@@ -955,7 +960,7 @@ export function PlanningVersionPanel({
             <PlanRegions
               content={c}
               onSelect={selectRegion}
-              basis={regionalBasis ? <span className="text-body-small text-muted-foreground">{W.regionalBasis} V{regionalBasis.version}</span> : undefined}
+              basis={regionalEditing && companyRevision ? <span className="text-body-small text-muted-foreground">{R.basis} V{companyRevision.version}</span> : regionalBasis ? <span className="text-body-small text-muted-foreground">{W.regionalBasis} V{regionalBasis.version}</span> : undefined}
               onAttainment={
                 !editing
                   ? (id) =>
@@ -969,6 +974,7 @@ export function PlanningVersionPanel({
                   : undefined
               }
               editing={editing}
+              edit={regionalEditing || editing && !c.releaseScope ? edit : null}
               disabled={pending}
               lockedPeriods={lockedPeriods}
             />
