@@ -1,5 +1,10 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 战略修订说明校验
+
+[109-strategy-revision-validation.md](109-strategy-revision-validation.md) 跟踪 #723：
+必填标识与保存校验前置、字段错误及定位、首版兼容；本地验收通过，待预览确认，尚未发布。
+
 ## 区域拆分工作区
 
 [108-regional-planning-workspace.md](108-regional-planning-workspace.md) 跟踪 RP-01 / #720：
