@@ -8,12 +8,51 @@ import { listStrategicResults, type StrategicResult } from "../../domains/planni
 import { strategicActual } from "../../domains/planning/strategic-actual";
 import { periodRange } from "../../domains/shared/period";
 import type { StrategyAcceptance } from "../../domains/planning/strategy-handoff";
+import type { SalesPlan, PlanRevision } from "../../domains/planning/plan-model";
 export interface FulfillmentRow {
   acceptance: StrategyAcceptance; planId: string; revisionId: string; version: number; year: number;
   actual: string | null; target: string; evidence: StrategicResult[];
   allocations: { key: string; regionId: string; regionName: string; period: string }[];
 }
-export async function loadStrategyFulfillment(s: AppSession, filter: { year?: number; period?: string; strategyId?: string; regionId?: string; revisionId?: string } = {}): Promise<FulfillmentRow[] | null> {
+type FulfillmentFilter = { year?: number; period?: string; strategyId?: string; regionId?: string; revisionId?: string };
+type FulfillmentSources = Pick<Parameters<typeof strategicActual>[1], "deals" | "campaigns" | "plans"> & { evidence: StrategicResult[] };
+
+function fulfillmentRevision(plan: SalesPlan, revisionId: string | undefined, at: string): PlanRevision | null {
+  if (!revisionId) return planVersions(plan, at).current;
+  if (!activeReleases(plan, at).some(e => e.revisionId === revisionId && e.effectiveAt <= at)) return null;
+  return plan.revisions.find(r => r.id === revisionId && r.state === "sealed") ?? null;
+}
+
+function fulfillmentRow(plan: SalesPlan, revision: PlanRevision, acceptance: StrategyAcceptance, filter: FulfillmentFilter, window: { start: string; end: string }, sources: FulfillmentSources): FulfillmentRow | null {
+  const { start, end } = window;
+  const allocations = acceptance.allocations.filter(a => (!filter.regionId || a.regionId === filter.regionId) && revision.content.periods.some(q => q.key === a.period && q.start < end && start < q.end));
+  if (filter.regionId && !allocations.length) return null;
+  const annual = !filter.regionId && (filter.period === undefined || /^Y?\d{4}$/.test(filter.period));
+  return {
+    acceptance, planId: plan.id, revisionId: revision.id, version: revision.version!, year: plan.year,
+    target: annual ? acceptance.amount : String(allocations.reduce((n, a) => n + Number(a.amount), 0)),
+    actual: strategicActual(acceptance, { ...window, regionId: filter.regionId, ...sources }),
+    allocations: allocations.map(a => ({ key: a.key, regionId: a.regionId, regionName: revision.content.regions.find(r => r.id === a.regionId)?.name ?? "-", period: a.period })),
+    evidence: sources.evidence.filter(e => e.lineageId === acceptance.lineageId && e.objectiveId === acceptance.expectation.id && (!filter.regionId || e.regionId === filter.regionId) && e.achievedOn >= start && e.achievedOn < end),
+  };
+}
+
+function fulfillmentPlanRows(plan: SalesPlan, filter: FulfillmentFilter, sourceLineage: string | undefined, sources: FulfillmentSources, at: string): FulfillmentRow[] {
+  const current = fulfillmentRevision(plan, filter.revisionId, at);
+  if (!current) return [];
+  const range = periodRange(filter.period ?? `Y${plan.year}`);
+  if (!range) return [];
+  const window = { start: range.start.toISOString().slice(0, 10), end: range.end.toISOString().slice(0, 10) };
+  const acceptances = (current.content.strategyAcceptances ?? []).filter(x => !filter.strategyId || x.lineageId === sourceLineage);
+  const rows: FulfillmentRow[] = [];
+  for (const x of acceptances) {
+    const row = fulfillmentRow(plan, current, x, filter, window, sources);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+export async function loadStrategyFulfillment(s: AppSession, filter: FulfillmentFilter = {}): Promise<FulfillmentRow[] | null> {
   if (s.scope.kind !== "workspace" || !["strategy.plan.view", "planning.target.view", "planning.attainment.view"].every(permission => can(s.authz,s.entitlement,permission as "strategy.plan.view","data").allowed)) return null;
   try {
   const base = { workspaceId:s.workspaceId,sub:s.user.sub,holder:s.authz,entitlement:s.entitlement };
@@ -23,29 +62,11 @@ export async function loadStrategyFulfillment(s: AppSession, filter: { year?: nu
   ]);
   if (!plans.ok) return null;
   const source = plans.value.find(p => p.id === filter.strategyId);
-  const rows: FulfillmentRow[] = [];
-  for (const p of sales.filter(p => filter.year === undefined || p.year === filter.year)) {
-    const at = new Date().toISOString();
-    const eligible = filter.revisionId && activeReleases(p, at).some(e => e.revisionId === filter.revisionId && e.effectiveAt <= at);
-    const current = filter.revisionId ? eligible ? p.revisions.find(r => r.id === filter.revisionId && r.state === "sealed") : null : planVersions(p,at).current;
-    if (!current) continue;
-    const range = periodRange(filter.period ?? `Y${p.year}`);
-    if (!range) continue;
-    const start = range.start.toISOString().slice(0,10), end = range.end.toISOString().slice(0,10);
-    for (const x of current.content.strategyAcceptances ?? []) {
-      if (filter.strategyId && (!source || x.lineageId !== (source.lineageId ?? source.id))) continue;
-      const allocations = x.allocations.filter(a => (!filter.regionId || a.regionId === filter.regionId) && current.content.periods.some(q => q.key === a.period && q.start < end && start < q.end));
-      if (filter.regionId && !allocations.length) continue;
-      const annual = !filter.regionId && (filter.period === undefined || /^Y?\d{4}$/.test(filter.period));
-      rows.push({ acceptance:x,planId:p.id,revisionId:current.id,version:current.version!,year:p.year,
-        target: annual ? x.amount : String(allocations.reduce((n,a) => n+Number(a.amount),0)),
-        actual: strategicActual(x,{start,end,regionId:filter.regionId,deals:deals.ok ? deals.value : null,campaigns:campaigns.ok ? campaigns.value : null,plans:plans.value,evidence}),
-        allocations:allocations.map(a => ({key:a.key,regionId:a.regionId,regionName:current.content.regions.find(r => r.id === a.regionId)?.name ?? "-",period:a.period})),
-        evidence:evidence.filter(e => e.lineageId === x.lineageId && e.objectiveId === x.expectation.id && (!filter.regionId || e.regionId === filter.regionId) && e.achievedOn >= start && e.achievedOn < end),
-      });
-    }
-  }
-  return rows;
+  const sourceLineage = source?.lineageId ?? source?.id;
+  const sources = { deals: deals.ok ? deals.value : null, campaigns: campaigns.ok ? campaigns.value : null, plans: plans.value, evidence };
+  const at = new Date().toISOString();
+  return sales.filter(p => filter.year === undefined || p.year === filter.year)
+    .flatMap(p => fulfillmentPlanRows(p, filter, sourceLineage, sources, at));
   } catch {
     console.error("Strategic fulfillment sources unavailable");
     return null;

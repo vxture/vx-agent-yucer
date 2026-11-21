@@ -36,7 +36,7 @@ import { sumMoney } from "../../domains/shared/money";
 const LINK =
   "no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text";
 
-function EvidenceLink({ row, kind, children }: { row: ExecutionRow; kind: "won" | "open"; children: React.ReactNode }) {
+function EvidenceLink({ row, kind, children }: { readonly row: ExecutionRow; readonly kind: "won" | "open"; readonly children: React.ReactNode }) {
   if (row.scope === "unallocated") return <>{children}</>;
   return <Link className={LINK} href={attainmentCoverageHref({ period: row.period, scope: row.scope, planRevision: row.planRevision, evidence: kind })}>{children}</Link>;
 }

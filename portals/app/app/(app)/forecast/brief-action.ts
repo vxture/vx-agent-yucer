@@ -13,11 +13,12 @@ import {
   type ForecastBriefInput,
 } from "../../domains/copilot/lib/forecast-brief";
 import type { UnverifiedReason } from "../../domains/pipeline/lib/unverified";
+import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { getCopilotStore, getPlanningStore, getSalesPlanStore } from "../../domains/shared/registry";
 import { readAttainmentPlan } from "../../domains/planning/attainment-plan";
 import { getAuthzStore } from "../../authz/store";
 import { ADVISOR_RUN_TURN_METER } from "../../usage/lib/copilot-turns";
-import { resolveAppSession, tenantIdOf } from "../lib/session";
+import { resolveAppSession, tenantIdOf, type AppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { periodRange } from "../../domains/shared/period";
 import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
@@ -41,6 +42,32 @@ export type ForecastBriefResult =
     }
   | { ok: false; error: string };
 
+async function readBriefComparison(session: AppSession, period: string, scope: string, currency: string, observedAt: string, revisionId?: string | null): Promise<ForecastBriefInput["comparison"]> {
+  try {
+    const plan = await readAttainmentPlan({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
+      entitlement: session.entitlement, scope: session.scope, store: getSalesPlanStore(), targets: getPlanningStore(), now: () => new Date(observedAt) },
+      Number(period.replace(/^Y/, "").slice(0, 4)), revisionId);
+    const target = plan.targets.find(t => t.scope === scope && t.period === period && t.currency === currency);
+    return { scope, revisionId: target?.revision?.id ?? null, version: target?.revision?.version ?? null,
+      target: target?.target ?? null, currency, observedAt };
+  } catch (error) {
+    if (revisionId) throw error;
+    return undefined;
+  }
+}
+
+function forecastOwners(deals: readonly OpportunityRecord[]) {
+  const owners = new Map<string, { commit: number; bestCase: number }>();
+  for (const o of deals) {
+    if (o.status !== "open" || !o.ownerSub) continue;
+    const held = owners.get(o.ownerSub) ?? { commit: 0, bestCase: 0 };
+    if (o.forecastCategory === "commit") held.commit += o.amount?.amount ?? 0;
+    if (o.forecastCategory === "best_case") held.bestCase += o.amount?.amount ?? 0;
+    owners.set(o.ownerSub, held);
+  }
+  return owners;
+}
+
 export async function briefForecast(periodRaw: string, scopeRaw: string, planRevision?: string | null): Promise<ForecastBriefResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -62,13 +89,8 @@ export async function briefForecast(periodRaw: string, scopeRaw: string, planRev
   const observedAt = new Date().toISOString();
   let comparison: ForecastBriefInput["comparison"];
   try {
-    const plan = await readAttainmentPlan({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz,
-      entitlement: session.entitlement, scope: session.scope, store: getSalesPlanStore(), targets: getPlanningStore(), now: () => new Date(observedAt) },
-      Number(period.replace(/^Y/, "").slice(0, 4)), planRevision);
-    const target = plan.targets.find(t => t.scope === scopeKey && t.period === period && t.currency === reportingCurrency);
-    comparison = { scope: scopeKey, revisionId: target?.revision?.id ?? null, version: target?.revision?.version ?? null,
-      target: target?.target ?? null, currency: reportingCurrency, observedAt };
-  } catch { if (planRevision) return { ok: false, error: "plan_denied" }; }
+    comparison = await readBriefComparison(session, period, scopeKey, reportingCurrency, observedAt, planRevision);
+  } catch { return { ok: false, error: "plan_denied" }; }
 
   const names = new Map(
     (await getAuthzStore().listMembers(session.workspaceId)).map((m) => [m.sub, m.displayName ?? m.sub] as const),
@@ -84,15 +106,7 @@ export async function briefForecast(periodRaw: string, scopeRaw: string, planRev
           ? U.exitUnreadable
           : U.risk(r.score);
 
-  const owners = new Map<string, { commit: number; bestCase: number }>();
-  for (const p of board.inView) {
-    const o = p.opportunity;
-    if (o.status !== "open" || !o.ownerSub) continue;
-    const held = owners.get(o.ownerSub) ?? { commit: 0, bestCase: 0 };
-    if (o.forecastCategory === "commit") held.commit += o.amount?.amount ?? 0;
-    if (o.forecastCategory === "best_case") held.bestCase += o.amount?.amount ?? 0;
-    owners.set(o.ownerSub, held);
-  }
+  const owners = forecastOwners(board.inView.map(p => p.opportunity));
   const current = board.score.value.current;
   const lastCall = [...board.points].reverse().find((p) => p.callAmount != null)?.callAmount?.amount ?? null;
   const change = board.change?.ok ? board.change.value : null;

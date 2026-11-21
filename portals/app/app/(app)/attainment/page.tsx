@@ -194,6 +194,9 @@ export default async function AttainmentPage({
               territories={territories}
               allowWorkspace={session.scope.kind === "workspace"}
             />);
+  let scopeName = PT.company;
+  if (selection.scope.scopeType === "territory") scopeName = territories.find(r => r.id === selection.scope.territoryId)?.name ?? PT.region;
+  if (selection.scope.scopeType === "owner") scopeName = PT.personal;
   return (
     <ViewLayout className="pb-3xl">
       <ModuleHeadline
@@ -219,7 +222,7 @@ export default async function AttainmentPage({
       />
       {selection.view === "history" || !plan?.ok ? controls : null}
       {selection.view !== "history" && plan?.ok ? <AttainmentContext controls={controls} period={selection.period} scope={selection.selection}
-        scopeName={selection.scope.scopeType === "territory" ? territories.find(r => r.id === selection.scope.territoryId)?.name ?? PT.region : selection.scope.scopeType === "owner" ? PT.personal : PT.company}
+        scopeName={scopeName}
         view={selection.view} selected={selectedRevision} current={plan.value.current} versions={plan.value.historical}
         canPlan={session.scope.kind === "workspace" && can(session.authz, session.entitlement, "planning.target.view", "ui").allowed}
         canFocus={can(session.authz, session.entitlement, "account.view", "ui").allowed}/>: null}

@@ -114,7 +114,7 @@ export async function AttainmentProgress({
       a.name,
     ]),
   );
-  const evidence = selection.evidence === "won" ? slice.won : selection.evidence === "undated" ? slice.undatedDeals : slice.open;
+  const evidence = { won: slice.won, undated: slice.undatedDeals, open: slice.open }[selection.evidence];
   const rows = [...evidence]
     .sort(
       (a, b) =>

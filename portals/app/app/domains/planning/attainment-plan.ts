@@ -182,6 +182,7 @@ export async function readAttainmentPlans(
         ctx.sub,
       ),
     );
+    const releases = plan ? activeReleases(plan, observedAt) : [];
     // Full supporting budgets/personnel currently require the same complete-release
     // access as planning. A scoped target reader receives no hidden support counts.
     return {
@@ -195,7 +196,7 @@ export async function readAttainmentPlans(
         ctx.scope.kind === "own" ? null : revision(state?.scheduled ?? null),
       historical:
         ctx.scope.kind === "workspace"
-          ? (plan ? activeReleases(plan, observedAt) : []).flatMap(e => {
+          ? releases.flatMap(e => {
               const r = plan?.revisions.find(r => r.id === e.revisionId && r.state === "sealed");
               return r && e.effectiveAt <= observedAt ? [revision(r)!] : [];
             })
