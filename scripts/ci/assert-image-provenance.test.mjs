@@ -44,11 +44,11 @@ test('workflow validates both configs before permitting reuse and runs regressio
   assert.ok(guard > workflow.indexOf('docker image inspect "${acr_repo}:${IMAGE_TAG}"'));
   assert.ok(guard < workflow.indexOf('echo "build=false"'));
   for (const key of ['APP_VERSION', 'DEPLOY_STAGE', 'GIT_SHA']) {
-    assert.match(workflow, new RegExp(`${key}: \\$\\{\\{ steps.prov.outputs\\.`));
+    assert.match(workflow, new RegExp(String.raw`${key}: \$\{\{ steps.prov.outputs\.`));
   }
   assert.match(workflow, /if \[ "\$ghcr_exists" != "\$acr_exists" \]; then[\s\S]*?exit 1/);
   const ci = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
-  assert.match(ci, /node --test scripts\/ci\/assert-image-provenance\.test\.mjs/);
+  assert.match(ci, /--test[^\n]*scripts\/ci\/assert-image-provenance\.test\.mjs/);
 });
 
 for (const [scenario, shouldPass, output] of [
@@ -79,15 +79,15 @@ if (args[0] === 'buildx') {
   ] } }]));
 }
 `;
-      writeFileSync(join(fixtureDir, 'docker'), docker, { mode: 0o755 });
+      writeFileSync(join(fixtureDir, 'docker.cjs'), docker);
       const workflow = readFileSync(new URL('../../.github/workflows/build.yml', import.meta.url), 'utf8');
       const step = workflow.split('      - name: Decide build vs retag')[1].split('      - name: Build and push image')[0];
-      const script = step.split('        run: |\n')[1].replace(/^          /gm, '');
+      const script = step.split('        run: |\n')[1].replace(/^ {10}/gm, '');
       const outputFile = join(fixtureDir, 'output');
       writeFileSync(outputFile, '');
-      const result = spawnSync('bash', ['-c', script], {
+      const result = spawnSync('/bin/bash', ['-c', 'docker() { "$NODE_BINARY" "$DOCKER_MOCK" "$@"; }\n' + script], {
         cwd: new URL('../../', import.meta.url),
-        env: { ...process.env, ...expected, PATH: `${fixtureDir}:${process.env.PATH}`,
+        env: { ...process.env, ...expected, NODE_BINARY: process.execPath, DOCKER_MOCK: join(fixtureDir, 'docker.cjs'),
           SCENARIO: scenario, GHCR_NAMESPACE: 'fixture', IMAGE: 'app', IMAGE_TAG: 'sha-1234567',
           ACR_REGISTRY: 'acr.example', ACR_NAMESPACE: 'fixture', GITHUB_OUTPUT: outputFile },
         encoding: 'utf8',
