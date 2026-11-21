@@ -1,5 +1,11 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 小聿统一协作建设
+
+[113-xiaoyu-collaboration.md](113-xiaoyu-collaboration.md) 跟踪 #732，记录 XY-00–XY-05：
+owner 已确认工作空间隔离、私人记忆不共享、来源与版本、现行记录优先及撤权失效五条铁律。
+本轮先固化规格与验收，运行时尚未实施；任务执行联动 #652，能力充分消费 Atlas 与 Runos。
+
 ## 发布镜像身份校验
 
 [112-image-reuse-provenance.md](112-image-reuse-provenance.md) 跟踪 #728：
