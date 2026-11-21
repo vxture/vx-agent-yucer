@@ -12,14 +12,19 @@ export function missingBuiltPages(pages, compiled, exists) {
   });
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export function inspectBuiltPages(repo) {
   const server = path.join(repo, "portals/app/.next/server");
   const { pages } = JSON.parse(fs.readFileSync(path.join(repo, "scripts/guardrails/page-surfaces.json"), "utf8"));
   const compiled = JSON.parse(fs.readFileSync(path.join(server, "app-paths-manifest.json"), "utf8"));
   const missing = missingBuiltPages(pages, compiled, artifact => fs.existsSync(path.join(server, artifact)));
+  return { count: pages.length, missing };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const { count, missing } = inspectBuiltPages(repo);
   if (missing.length) {
     console.error(`[built-pages] Missing compiled routes: ${missing.join(", ")}`);
     process.exitCode = 1;
-  } else console.log(`[built-pages] OK - ${pages.length} reviewed pages compiled and present.`);
+  } else console.log(`[built-pages] OK - ${count} reviewed pages compiled and present.`);
 }
