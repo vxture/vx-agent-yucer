@@ -15,6 +15,7 @@ export type ExecutionRow = {
   subtitle?: string;
   allocationExcess?: number;
   scope: string;
+  planRevision?: string | null;
   period: string;
   target: AttainmentTarget | null;
   currency: string;
@@ -87,6 +88,7 @@ export function executionRow(input: {
   target: AttainmentTarget | null;
   deals: readonly ForecastableOpportunity[] | null;
   defaultCurrency: string;
+  planRevision?: string | null;
 }): ExecutionRow {
   const { name, scope, period, target, deals } = input;
   const currency = target?.currency ?? input.defaultCurrency;
@@ -106,6 +108,7 @@ export function executionRow(input: {
     id: `${scope}|${period}`,
     name,
     scope,
+    planRevision: input.planRevision ?? target?.revision?.id ?? null,
     period,
     target,
     currency,

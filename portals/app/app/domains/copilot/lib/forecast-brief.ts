@@ -18,6 +18,7 @@ const MAX_QUESTIONS = 8;
 
 export interface ForecastBriefInput {
   readonly period: string;
+  readonly comparison?: { readonly scope: string; readonly revisionId: string | null; readonly version: number | null; readonly target: number | null; readonly currency: string; readonly observedAt: string };
   readonly totals: { readonly commit: number; readonly bestCase: number; readonly pipeline: number; readonly closed: number };
   /** The latest manager's call in the period, if one was given. */
   readonly call: number | null;
@@ -49,6 +50,9 @@ export function forecastBriefQuestion(input: ForecastBriefInput): string {
       .join(", ") || "none";
   return [
     `${FORECAST_BRIEF_MARK} Brief the forecast meeting for ${input.period}. Every figure below is the rule's; repeat them exactly and never invent one.`,
+    ...(input.comparison ? [
+      `Comparison context: ${JSON.stringify(input.comparison)}. The target is from this exact released revision (or an explicit legacy quota). Totals are LIVE observed data, not a historical snapshot of that revision. Do not change or claim to save/release the target. Missing targets are unknown, not zero.`,
+    ] : []),
     `Totals: commit ${input.totals.commit}, best case ${input.totals.bestCase}, pipeline ${input.totals.pipeline}, closed ${input.totals.closed}` +
       (input.call !== null ? `; the manager's latest call ${input.call}.` : "."),
     input.change
@@ -71,6 +75,7 @@ export function forecastBriefQuestion(input: ForecastBriefInput): string {
 
 export function briefFigures(input: ForecastBriefInput): AllowedFigures {
   const amounts: (number | null)[] = [input.totals.commit, input.totals.bestCase, input.totals.pipeline, input.totals.closed, input.call];
+  if (input.comparison) amounts.push(input.comparison.target, input.comparison.version);
   const ratios: (number | null)[] = [];
   if (input.change) {
     for (const c of [input.change.commit, input.change.bestCase]) {

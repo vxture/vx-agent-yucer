@@ -43,7 +43,7 @@ export function ForecastSnapshotBasis({
         {" \u00b7 "}
         {time}
       </p>
-      <dl className="grid grid-cols-2 gap-md text-body-small">
+      <dl className="grid grid-cols-1 gap-md text-body sm:grid-cols-2">
         {[
           [T.source, version],
           [

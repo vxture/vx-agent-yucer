@@ -34,7 +34,7 @@ export async function AttainmentOverview({
   const selectedPlan =
     period === "all"
       ? { ok: true as const, value: data.plans[0] }
-      : await loadAttainmentPlan(Number(period.replace(/^Y/, "").slice(0, 4)));
+      : await loadAttainmentPlan(Number(period.replace(/^Y/, "").slice(0, 4)), selection.planRevision);
   if (!selectedPlan?.ok) return <EmptyState title={T.loadFailed} />;
   const plan = selectedPlan.value;
   const plans = data.plans;
@@ -68,6 +68,7 @@ export async function AttainmentOverview({
         null,
       deals: data.deals.ok ? data.deals.value : null,
       defaultCurrency,
+      planRevision: scope.startsWith("owner:") ? null : p.selected?.id ?? p.current?.id,
     });
   const regionName = (id: string | null) =>
     plan.regions.find((r) => r.id === id)?.name ??
@@ -248,33 +249,6 @@ export async function AttainmentOverview({
   }
   return (
     <>
-      {selection.planRevision &&
-      !plan.historical.some((r) => r.id === selection.planRevision) ? (
-        <p role="status" className="text-body-small text-muted-foreground">
-          {T.contextMissing}
-        </p>
-      ) : selection.planRevision &&
-        selection.planRevision !== plan.current?.id ? (
-        <p className="text-body-small text-muted-foreground">
-          {T.contextHint}
-          {canPlan ? (
-            <>
-              {" "}
-              <Link
-                className="no-underline hover:text-primary-text"
-                href={planningHref(
-                  plan.year,
-                  selection.scope.territoryId,
-                  selection.planRevision,
-                  period,
-                )}
-              >
-                {T.planContext}
-              </Link>
-            </>
-          ) : null}
-        </p>
-      ) : null}
       {canReadSelection &&
       !row.target &&
       canPlan &&

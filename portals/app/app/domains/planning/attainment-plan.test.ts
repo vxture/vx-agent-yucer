@@ -193,3 +193,70 @@ test("a denied target reader cannot use the new projection to bypass the domain 
   ctx.holder = { permissions: new Set() };
   await assert.rejects(readAttainmentPlan(ctx, 2026), /plan_denied/);
 });
+
+test("an explicit released revision keeps its target and boundary while current stays separately identified", async () => {
+  const { ctx, content, change, release, time } = setup();
+  await change({ kind: "draft", content }); await release();
+  const original = (await readAttainmentPlan(ctx, 2026)).current!;
+  time("2026-07-03T00:00:00Z");
+  const revised = structuredClone(content);
+  revised.regions[0].provinces = ["east-new"];
+  for (const target of revised.targets) {
+    target.floor = String(Number(target.floor) * 2);
+    target.target = String(Number(target.target) * 2);
+    target.stretch = String(Number(target.stretch) * 2);
+  }
+  await change({ kind: "draft", content: revised });
+  const draft = (await ctx.store.read("ws", 2026))!.revisions.find(r => r.state === "draft")!;
+  await change({ kind: "save", revisionId: draft.id, editToken: draft.editToken, content: revised });
+  await release();
+  const current = await readAttainmentPlan(ctx, 2026);
+  const comparison = await readAttainmentPlan(ctx, 2026, original.id);
+  assert.equal(current.targets.find(t => t.scope === "workspace")!.target, 4000);
+  assert.equal(comparison.targets.find(t => t.scope === "workspace")!.target, 2000);
+  assert.equal(comparison.targets[0].revision?.id, original.id);
+  assert.equal(comparison.selected?.id, original.id);
+  assert.equal(comparison.current?.id, current.current?.id);
+  assert.equal(comparison.targets[0].baseline, 2000);
+  assert.deepEqual(comparison.regions[0].provinces, ["east"]);
+  assert.equal(comparison.targets[0].baselineComparable, true);
+  assert.equal(current.targets[0].baselineComparable, false);
+  assert.deepEqual((await readAttainmentPlan(ctx, 2026)).targets, current.targets);
+});
+
+test("draft, scheduled, foreign, wrong-year and cancelled revisions never silently become the current comparison", async () => {
+  const { ctx, content, change, release } = setup();
+  await change({ kind: "draft", content }); await release();
+  await change({ kind: "draft", content });
+  const draft = (await ctx.store.read("ws", 2026))!.revisions.find(r => r.state === "draft")!;
+  await assert.rejects(readAttainmentPlan(ctx, 2026, draft.id), /attainment_revision_unavailable/);
+  await change({ kind: "release", revisionId: draft.id, editToken: draft.editToken, reason: "scheduled", effectiveAt: "2026-08-01T00:00:00Z" });
+  await assert.rejects(readAttainmentPlan(ctx, 2026, draft.id), /attainment_revision_unavailable/);
+  assert.equal((await readAttainmentPlan(ctx, 2026)).historical.some(r => r.id === draft.id), false);
+  const first = (await readAttainmentPlan(ctx, 2026)).current!;
+  await assert.rejects(readAttainmentPlan(ctx, 2027, first.id), /attainment_revision_unavailable/);
+  await assert.rejects(readAttainmentPlan({ ...ctx, workspaceId: "other" }, 2026, first.id), /attainment_revision_unavailable/);
+  const plan = (await ctx.store.read("ws", 2026))!;
+  const releaseEvent = plan.events.find(e => e.revisionId === first.id && e.kind === "release")!;
+  plan.events.push({ ...releaseEvent, id: "cancelled-release", no: 10, kind: "cancel", relatedId: releaseEvent.id });
+  // In-memory fixture follows the persisted cancellation shape without issuing a business write.
+  const cancelled = new InMemorySalesPlanStore(); cancelled.seed([plan]);
+  await assert.rejects(readAttainmentPlan({ ...ctx, store: cancelled }, 2026, first.id), /attainment_revision_unavailable/);
+});
+
+test("selected historical projections keep regional scope and reject inferred personal quotas", async () => {
+  const { ctx, content, change, release } = setup();
+  await change({ kind: "draft", content }); await release();
+  const id = (await readAttainmentPlan(ctx, 2026)).current!.id;
+  ctx.targets.seed({ targets: [{ id: "current-only-quota", workspaceId: "ws", scopeType: "owner", ownerSub: "ops", territoryId: null,
+    metric: "revenue", period: "Y2026", status: "committed", planId: null, targetValue: { unit: "money", amount: 999, currency: "CNY" } }] });
+  assert.equal((await readAttainmentPlan(ctx, 2026)).targets.some(t => t.scope === "owner:ops"), true);
+  assert.equal((await readAttainmentPlan(ctx, 2026, id)).targets.some(t => t.scope === "owner:ops"), false);
+  ctx.scope = { kind: "territory", territoryIds: ["east"], accountIds: [], ownerSubs: [], unplacedAccountIds: [] };
+  const p = await readAttainmentPlan(ctx, 2026, id);
+  assert.deepEqual(p.targets.map(t => t.scope), ["territory:east"]);
+  assert.doesNotMatch(JSON.stringify(p.support), /west|2000/);
+  assert.deepEqual(p.support, { budgets: [], contributions: [], team: [], actions: [] });
+  ctx.scope = { kind: "own", sub: "ops", accountIds: [] };
+  await assert.rejects(readAttainmentPlan(ctx, 2026, id), /attainment_revision_unavailable/);
+});

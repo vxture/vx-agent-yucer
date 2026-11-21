@@ -4,15 +4,19 @@ import {
   rollUp,
   type ForecastableOpportunity,
   type ForecastScope,
+  type ForecastTotals,
 } from "../../domains/pipeline/lib/forecast";
 import type { SalesTarget } from "../../domains/planning/lib/target";
 import { periodRange } from "../../domains/shared/period";
 import { forecastScopeKey, parseForecastScope } from "./forecast-scope";
 import type { DataScope } from "../../authz/scope";
 import { canReadReportingScope } from "../../authz/forecast-scope";
+import { fail, violation } from "../../domains/shared/result";
 
 export const ATTAINMENT_VIEWS = ["progress", "review", "history"] as const;
 export type AttainmentView = (typeof ATTAINMENT_VIEWS)[number];
+export const ATTAINMENT_EVIDENCE = ["open", "won", "undated"] as const;
+export type AttainmentEvidence = (typeof ATTAINMENT_EVIDENCE)[number];
 export type AttainmentQuery = {
   period?: string | string[];
   perspective?: string | string[];
@@ -20,6 +24,7 @@ export type AttainmentQuery = {
   view?: string | string[];
   snapshot?: string | string[];
   planRevision?: string | string[];
+  evidence?: string | string[];
 };
 
 export function resolveAttainmentQuery(
@@ -84,6 +89,7 @@ export function resolveAttainmentQuery(
     snapshot: typeof query.snapshot === "string" ? query.snapshot : null,
     planRevision:
       typeof query.planRevision === "string" ? query.planRevision : null,
+    evidence: ATTAINMENT_EVIDENCE.includes(query.evidence as AttainmentEvidence) ? query.evidence as AttainmentEvidence : "open",
     invalid:
       (!(teamOverview && rawScope === "team" && visibleTeam) &&
         !canReadReportingScope(access, scope, sub)) ||
@@ -98,7 +104,10 @@ export function resolveAttainmentQuery(
       (perspective === "team" && scope.scopeType !== "owner") ||
       (perspective === "personal" && (!personal || scope.ownerSub !== sub)) ||
       Array.isArray(query.snapshot) ||
-      Array.isArray(query.planRevision),
+      Array.isArray(query.planRevision) ||
+      (!!query.planRevision && scope.scopeType === "owner") ||
+      Array.isArray(query.evidence) ||
+      (typeof query.evidence === "string" && !ATTAINMENT_EVIDENCE.includes(query.evidence as AttainmentEvidence)),
   };
 }
 
@@ -109,6 +118,7 @@ export function attainmentHref({
   view = "progress",
   snapshot,
   planRevision,
+  evidence,
 }: {
   period?: string;
   perspective?: "regions" | "team" | "personal";
@@ -116,11 +126,13 @@ export function attainmentHref({
   view?: AttainmentView;
   snapshot?: string | null;
   planRevision?: string | null;
+  evidence?: AttainmentEvidence;
 } = {}) {
   const query = new URLSearchParams({ period, scope, view });
   if (perspective) query.set("perspective", perspective);
   if (snapshot) query.set("snapshot", snapshot);
   if (planRevision) query.set("planRevision", planRevision);
+  if (evidence) query.set("evidence", evidence);
   return `/attainment?${query.toString()}`;
 }
 
@@ -226,6 +238,7 @@ export function legacyForecastHref(
     period: selection.period,
     scope: selection.invalid ? "personal" : selection.selection,
     view: "review",
+    planRevision: selection.planRevision,
   });
 }
 
@@ -243,7 +256,11 @@ export function revenuePool<T extends ForecastableOpportunity>(
   return {
     included,
     open: included.filter((d) => d.status === "open"),
+    won: included.filter(d => d.status === "won"),
+    undatedDeals: scoped.filter(d => (d.status === "open" && !d.expectedCloseAt) || (d.status === "won" && !d.closedAt)),
     undated: window.undated,
-    totals: rollUp(included, currency),
+    totals: included.some(d => d.amount === null)
+      ? fail<ForecastTotals>(violation("amount_missing", "included opportunity amount is unknown", "amount"))
+      : rollUp(included, currency),
   };
 }

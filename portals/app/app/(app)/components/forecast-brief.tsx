@@ -2,7 +2,7 @@
 
 import { Section } from "./help-section";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button, Card, Icon, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
@@ -16,13 +16,16 @@ export function ForecastBriefPanel({
   period,
   scopeKey,
   onBrief,
+  planRevision,
 }: {
   readonly period: string;
   readonly scopeKey: string;
-  readonly onBrief: (period: string, scopeKey: string) => Promise<ForecastBriefResult>;
+  readonly onBrief: (period: string, scopeKey: string, planRevision?: string | null) => Promise<ForecastBriefResult>;
+  readonly planRevision?: string | null;
 }) {
   const { FORECAST_BRIEF_TEXT: T, FORECAST_BRIEF_ERROR, COPILOT_TEXT } = useMessages();
   const [pending, start] = useTransition();
+  const inFlight = useRef(false);
   const [result, setResult] = useState<Extract<ForecastBriefResult, { ok: true }> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,9 +42,12 @@ export function ForecastBriefPanel({
           size="md"
           variant="outline"
           disabled={pending}
-          onClick={() =>
+          onClick={() => {
+            if (inFlight.current) return;
+            inFlight.current = true;
             start(async () => {
-              const r = await onBrief(period, scopeKey);
+              try {
+              const r = await onBrief(period, scopeKey, planRevision);
               if (r.ok) {
                 setResult(r);
                 setError(null);
@@ -52,8 +58,10 @@ export function ForecastBriefPanel({
                     : (FORECAST_BRIEF_ERROR[r.error] ?? FORECAST_BRIEF_ERROR.unknown ?? r.error),
                 );
               }
-            })
-          }
+              } catch { setError(FORECAST_BRIEF_ERROR.unknown); }
+              finally { inFlight.current = false; }
+            });
+          }}
         >
           <Icon name="sparkles" size="xs" />
           {pending ? T.running : T.run}

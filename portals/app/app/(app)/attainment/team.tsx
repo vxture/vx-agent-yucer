@@ -17,7 +17,7 @@ export async function AttainmentTeam({
   const [data, team, plan, { ATTAINMENT_PLAN_TEXT: T }] = await Promise.all([
     loadAttainmentBase(),
     loadAttainmentTeam(),
-    loadAttainmentPlan(Number(selection.period.replace(/^Y/, "").slice(0, 4))),
+    loadAttainmentPlan(Number(selection.period.replace(/^Y/, "").slice(0, 4)), selection.planRevision),
     getMessages(),
   ]);
   if (!data || !team) return null;

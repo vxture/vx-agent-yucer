@@ -135,6 +135,43 @@ test("target selection never substitutes a person, territory, metric, draft or a
   assert.equal(revenueTarget(targets, "2026Q4", territory), null);
 });
 
+test("evidence drilldowns preserve revision, region and period and reject invalid selectors", async () => {
+  const { attainmentCoverageHref } = await import("./attainment-workspace");
+  for (const evidence of ["won", "open", "undated"] as const) {
+    const href = attainmentCoverageHref({ period: "2026Q4", scope: "territory:east", planRevision: "rev&other=1", evidence });
+    const params = Object.fromEntries(new URL(href, "https://test.example").searchParams);
+    const selected = resolveAttainmentQuery(params, "ops");
+    assert.equal(selected.planRevision, "rev&other=1");
+    assert.equal(selected.scopeKey, "territory:east");
+    assert.equal(selected.period, "2026Q4");
+    assert.equal(selected.evidence, evidence);
+    assert.equal(selected.invalid, false);
+  }
+  assert.equal(resolveAttainmentQuery({ evidence: "lost" }, "ops").invalid, true);
+  assert.equal(resolveAttainmentQuery({ evidence: ["won", "open"] }, "ops").invalid, true);
+  assert.equal(resolveAttainmentQuery({ scope: "personal", planRevision: "company-revision" }, "ops").invalid, true);
+});
+
+test("evidence rows use actual won dates and expected open dates; missing dates and amounts are not zero", () => {
+  const deals = [
+    deal("won-in", { status: "won", forecastCategory: "closed", expectedCloseAt: new Date("2027-01-01"), closedAt: new Date("2026-12-01") }),
+    deal("won-out", { status: "won", forecastCategory: "closed", expectedCloseAt: new Date("2026-12-01"), closedAt: new Date("2027-01-01") }),
+    deal("open-in"),
+    deal("no-open-date", { expectedCloseAt: null }),
+    deal("no-won-date", { status: "won", forecastCategory: "closed", closedAt: null }),
+    deal("lost", { status: "lost", forecastCategory: "closed", closedAt: null }),
+    deal("hidden", { ownerSub: "rep_b", expectedCloseAt: null }),
+  ];
+  const slice = revenuePool(deals, "2026Q4", owner, "CNY")!;
+  assert.deepEqual(slice.won.map(d => d.id), ["won-in"]);
+  assert.deepEqual(slice.open.map(d => d.id), ["open-in"]);
+  assert.deepEqual(slice.undatedDeals.map(d => d.id), ["no-open-date", "no-won-date"]);
+  assert.equal(slice.undated, slice.undatedDeals.length);
+  assert.equal(revenuePool([deal("unknown", { amount: null })], "2026Q4", owner, "CNY")!.totals.ok, false);
+  const zero = revenuePool([deal("zero", { amount: { amount: 0, currency: "CNY" } })], "2026Q4", owner, "CNY")!.totals;
+  assert.equal(zero.ok && zero.value.commitAmount.amount, 0);
+});
+
 test("closed targets remain available for historical review while drafts stay excluded", () => {
   const closed = target({ period: "2025Q4", status: "closed" });
   const draft = target({ period: "2025Q3", status: "draft" });

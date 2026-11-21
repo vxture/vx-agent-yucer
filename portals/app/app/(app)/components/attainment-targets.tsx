@@ -16,12 +16,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Grid,
-  useMediaQuery,
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  type FilterBarView,
 } from "@vxture/design-ui";
 import type { AttainmentPlan } from "../../domains/planning/attainment-plan";
 import { attainmentBalance, type ExecutionRow, type SupportDeal } from "../lib/attainment-progress";
@@ -30,13 +27,19 @@ import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney, formatMoneyCompact } from "../lib/view-model";
 import { MemberName, useMemberName } from "../lib/member-names";
 import { RowActions } from "./table-fittings";
-import { FilterBar } from "./business-controls";
+import { CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
+import { useCollectionView } from "./collection-view-provider";
 import { AttainmentProgressBar } from "./attainment-progress-bar";
 import { periodRange, within } from "../../domains/shared/period";
 import { sumMoney } from "../../domains/shared/money";
 
 const LINK =
   "no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text";
+
+function EvidenceLink({ row, kind, children }: { readonly row: ExecutionRow; readonly kind: "won" | "open"; readonly children: React.ReactNode }) {
+  if (row.scope === "unallocated") return <>{children}</>;
+  return <Link className={LINK} href={attainmentCoverageHref({ period: row.period, scope: row.scope, planRevision: row.planRevision, evidence: kind })}>{children}</Link>;
+}
 
 function Balance({
   row,
@@ -98,7 +101,7 @@ function ExecutionMetricCells({ row }: { row: ExecutionRow }) {
         <div className="flex min-w-0 flex-col gap-sm">
           <span className="flex flex-wrap items-baseline justify-end gap-x-xs gap-y-2xs tabular-nums"
             title={`${T.currentClosed} ${money(row.closed)} / ${T.currentTarget} ${row.target ? money(row.target.target) : T.noTarget}`}>
-            <span className="font-medium">{money(row.closed)}</span>
+            <span className="font-medium"><EvidenceLink row={row} kind="won">{money(row.closed)}</EvidenceLink></span>
             <span className="text-body-small text-muted-foreground">/ {row.target ? money(row.target.target) : T.noTarget}</span>
           </span>
           <AttainmentProgressBar row={row} />
@@ -106,7 +109,7 @@ function ExecutionMetricCells({ row }: { row: ExecutionRow }) {
       </TableCell>
       <TableCell data-execution-cell="reserve">
         <div className="flex flex-col items-end gap-xs whitespace-nowrap tabular-nums">
-          <span className="font-medium">{money(row.open)}</span>
+          <span className="font-medium"><EvidenceLink row={row} kind="open">{money(row.open)}</EvidenceLink></span>
           <span className="inline-flex items-baseline gap-xs text-body-small text-muted-foreground">
             {T.coverageMultiple} {row.coverage === null ? row.gap === 0 ? T.met : "-" : <CoverageNote row={row} />}
           </span>
@@ -175,6 +178,7 @@ export function ExecutionTable({
                 href={attainmentHref({
                   period: r.period,
                   scope: scope ?? r.scope,
+                  planRevision: r.planRevision,
                 })}
               >
                 {r.id === overallId ? T.periodOverall : r.period}
@@ -193,6 +197,7 @@ export function ExecutionTable({
                         attainmentHref({
                           period: r.period,
                           scope: scope ?? r.scope,
+                  planRevision: r.planRevision,
                         }),
                       ),
                   },
@@ -244,7 +249,7 @@ export function ExecutionTargetCard({
   open: controlledOpen,
   onOpenChange,
 }: TargetProps) {
-  const { ATTAINMENT_PLAN_TEXT: T, PLAN_VERSION_TEXT: P } = useMessages();
+  const { ATTAINMENT_PLAN_TEXT: T, PLAN_VERSION_TEXT: P, ATTAINMENT_DEPLOYMENT_TEXT: D } = useMessages();
   const locale = useLocale();
   const router = useRouter();
   const [internalOpen, setInternalOpen] = useState(initiallyOpen);
@@ -257,11 +262,11 @@ export function ExecutionTargetCard({
     n === null ? "-" : formatMoney(n, row.currency, locale);
   const planning = planningHref(
     plan.year,
-    row.target?.revision && row.scope.startsWith("territory:")
+    row.planRevision && row.scope.startsWith("territory:")
       ? row.scope.slice(10)
       : null,
-    row.target?.revision?.id,
-    row.target?.revision ? row.period : null,
+    row.planRevision,
+    row.period,
   );
   const coverageLink = attainmentCoverageHref({ period: row.period, scope: selectionScope === "personal" ? "personal" : row.scope });
   const unallocated = row.scope === "unallocated";
@@ -272,7 +277,7 @@ export function ExecutionTargetCard({
       label: unallocated ? T.unallocatedTarget : T.currentTarget,
       value: row.target ? amount(row.target.target) : T.notSet,
     },
-    { key: "closed", label: T.currentClosed, value: amount(row.closed) },
+    { key: "closed", label: T.currentClosed, value: <EvidenceLink row={row} kind="won">{amount(row.closed)}</EvidenceLink> },
     {
       key: "rate",
       label: T.currentRate,
@@ -296,7 +301,7 @@ export function ExecutionTargetCard({
           {compact && !unallocated ? (
             <Link
               className={LINK}
-              href={attainmentHref({ period: row.period, scope: row.scope })}
+              href={attainmentHref({ period: row.period, scope: row.scope, planRevision: row.planRevision })}
             >
               {row.name}
             </Link>
@@ -367,6 +372,7 @@ export function ExecutionTargetCard({
                           attainmentHref({
                             period: row.period,
                             scope: row.scope,
+                            planRevision: row.planRevision,
                           }),
                         ),
                     },
@@ -390,7 +396,7 @@ export function ExecutionTargetCard({
         <div className="@container flex w-full min-w-0 flex-col gap-md">
           {!compact ? (
             <div
-              className="grid grid-cols-1 gap-md @xl:grid-cols-2 @3xl:grid-cols-4"
+              className="grid grid-cols-1 gap-md @xl:grid-cols-2 @5xl:grid-cols-4"
               data-attainment-summary
             >
               {metrics.map((m) => (
@@ -418,7 +424,7 @@ export function ExecutionTargetCard({
           ) : (
             <>
               <div
-                className="grid grid-cols-4 gap-sm px-lg"
+                className="grid grid-cols-2 gap-md px-lg @3xl:grid-cols-4"
                 data-region-metrics
               >
                 {metrics.map((m) => (
@@ -440,7 +446,7 @@ export function ExecutionTargetCard({
             <p className="text-body-small text-muted-foreground">{T.unallocatedHint}</p>
           ) : null}
           {row.allocationExcess ? (
-            <p role="status" className="text-body-small text-danger-text">{T.allocationExcess} {amount(row.allocationExcess)}</p>
+            <output className="text-body-small text-danger-text">{T.allocationExcess} {amount(row.allocationExcess)}</output>
           ) : null}
           {row.error ? (
             <p role="alert" className="text-body-small text-danger-text">
@@ -457,7 +463,7 @@ export function ExecutionTargetCard({
           ) : null}
           {!compact ? (
             <p className="text-body-small text-muted-foreground">
-              {T.currentBasis}
+              {plan.selected && plan.selected.id !== plan.current?.id ? D.selectedBasis : T.currentBasis}
             </p>
           ) : null}
           {periods.length ? (
@@ -532,10 +538,7 @@ export function AttainmentTargets({
     ATTAINMENT_TEXT: { workspace: W },
   } = useMessages();
   const router = useRouter();
-  const wide = useMediaQuery("(min-width: 96rem)");
-  const [view, setView] = useState<FilterBarView>(
-    groupKind === "member" ? "list" : "cards",
-  );
+  const [view, setView] = useCollectionView(groupKind === "member" ? "list" : "cards");
   const [listExpanded, setListExpanded] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<string[]>([]);
@@ -588,7 +591,7 @@ export function AttainmentTargets({
           onSelect: () => onPanel("support", r, plan),
         },
         { id: "risk", label: T.risk, onSelect: () => onPanel("risk", r, plan) },
-        { id: "coverage", label: T.coveragePage, onSelect: () => router.push(attainmentCoverageHref({ period: r.period, scope: r.scope })) }] : []),
+        { id: "coverage", label: T.coveragePage, onSelect: () => router.push(attainmentCoverageHref({ period: r.period, scope: r.scope, planRevision: r.planRevision })) }] : []),
         {
           id: "periods",
           label: isExpanded(r.id) ? T.collapse : T.expand,
@@ -624,23 +627,20 @@ export function AttainmentTargets({
         />
       ) : null}
       {regions.length ? (
-        <Section>
-          <FilterBar
-            heading={{
-              title: groupKind === "member" ? T.teamTitle : T.regions,
-              icon: groupKind === "member" ? "users" : "map-pin",
-              help: groupKind === "member" ? T.teamHint : T.regionsHint,
-            }}
-            view={view}
-            onViewChange={setView}
+        <Section className="@container">
+          <CollectionToolbar
+            title={groupKind === "member" ? T.teamTitle : T.regions}
+            icon={groupKind === "member" ? "users" : "map-pin"}
+            help={groupKind === "member" ? T.teamHint : T.regionsHint}
+            mode={{ value: view, onChange: setView }}
             count={regions.length}
             actions={
               view === "list" ? (
                 <span className="text-body-small text-muted-foreground">
                   {groupKind === "member"
                     ? T.memberBasis
-                    : plan.current
-                      ? `V${plan.current.version}`
+                    : (plan.selected ?? plan.current)
+                      ? `V${(plan.selected ?? plan.current)!.version}`
                       : T.legacy}
                   {" · "}{regions[0]?.currency}
                 </span>
@@ -648,7 +648,7 @@ export function AttainmentTargets({
             }
           />
           {view === "cards" ? (
-            <Grid columns={wide ? 2 : 1} gap="md" className="items-start">
+            <div className="@container grid grid-cols-1 items-start gap-md @4xl:grid-cols-2">
               {regions.map((r) => (
                 <div key={r.id} data-execution-card={r.scope}>
                 <ExecutionTargetCard
@@ -663,7 +663,7 @@ export function AttainmentTargets({
                 />
                 </div>
               ))}
-            </Grid>
+            </div>
           ) : (
             <Table className="min-w-panel-lg" data-execution-regions>
               <colgroup>
@@ -715,6 +715,7 @@ export function AttainmentTargets({
                         className={`${LINK} font-medium`}
                         href={attainmentHref({
                           scope: r.scope,
+                          planRevision: r.planRevision,
                           period: r.period,
                         })}
                       >
@@ -754,7 +755,7 @@ export function AttainmentTargets({
       <Drawer
         open={!!panel}
         onClose={() => setPanel(null)}
-        width="md"
+        width={collectionDrawerWidth.standard}
         title={
           panel?.kind === "support"
             ? T.support
@@ -797,6 +798,7 @@ function AttainmentSourceContent({
 }) {
   const {
     ATTAINMENT_PLAN_TEXT: T,
+    ATTAINMENT_DEPLOYMENT_TEXT: D,
     ATTAINMENT_TEXT: { workspace: W },
   } = useMessages();
   const locale = useLocale();
@@ -806,15 +808,15 @@ function AttainmentSourceContent({
     n === null ? T.notSet : formatMoney(n, row.currency, locale);
   const planning = planningHref(
     Number(row.period.replace(/^Y/, "").slice(0, 4)),
-    row.target?.revision && row.scope.startsWith("territory:")
+    row.planRevision && row.scope.startsWith("territory:")
       ? row.scope.slice(10)
       : null,
-    row.target?.revision?.id,
-    row.target?.revision ? row.period : null,
+    row.planRevision,
+    row.period,
   );
   if (kind === "risk")
     return (
-      <div className="flex flex-col gap-md text-body-small">
+      <div className="flex flex-col gap-md text-body">
         <p className="text-muted-foreground">{T.coverageHint}</p>
         <dl className="grid grid-cols-2 gap-md">
           {[
@@ -858,6 +860,7 @@ function AttainmentSourceContent({
             href={attainmentHref({
               period: row.period,
               scope: selectionScope === "personal" ? selectionScope : row.scope,
+              planRevision: row.planRevision,
               view: "review",
             })}
           >
@@ -870,10 +873,10 @@ function AttainmentSourceContent({
     return (
       <div className="flex flex-col gap-lg">
         <p className="text-body-small text-muted-foreground">{T.sourceHint}</p>
-        <dl className="grid grid-cols-2 gap-x-lg gap-y-md text-body-small">
+        <dl className="grid grid-cols-1 gap-x-lg gap-y-md text-body sm:grid-cols-2">
           {[
             [
-              T.current,
+              D.comparison,
               row.target?.revision
                 ? `V${row.target.revision.version}`
                 : row.target
