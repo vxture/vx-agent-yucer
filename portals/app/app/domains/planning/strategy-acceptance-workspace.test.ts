@@ -34,6 +34,10 @@ test("regional summary includes only local allocations and distinguishes absence
 test("group order follows strategic roster, retaining missing historic sources", () => {
   const a=source(),b=source(),old=source();const rows=[acceptance(b),acceptance(old),acceptance(a)];
   assert.deepEqual(groupAcceptances(rows,[a,b]).map(g=>g[0]!.strategyId),[a.id,b.id,old.id]);
+  const channels={...source("channels").expectations![0]!}, cases={...source("reference_cases").expectations![0]!};
+  a.expectations!.push(channels,cases);
+  const revenue=acceptance(a), channel=proposeAcceptance(content(),a,channels,null,id()), reference=proposeAcceptance(content(),a,cases,null,id());
+  assert.deepEqual(groupAcceptances([channel,reference,revenue],[a])[0]!.map(x=>x.expectation.metric),["revenue","channels","reference_cases"]);
 });
 test("proposal uses remaining company capacity and preserves the existing UUID, source and regional allocations", () => {
   const c=content(),p=source();c.targets[0]!.target="100";

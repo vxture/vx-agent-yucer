@@ -1,6 +1,7 @@
 # SH-02 多战略承接汇总与集中编辑
 
 Issue：[#725](https://github.com/vxture/vx-agent-yucer/issues/725)。
+PR：[#726](https://github.com/vxture/vx-agent-yucer/pull/726)。
 状态：实现与本地验证完成，待 PR 检查及用户预览；未发布。
 
 ## 本批边界

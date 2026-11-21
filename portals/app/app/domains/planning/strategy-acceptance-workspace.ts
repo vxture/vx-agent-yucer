@@ -15,7 +15,13 @@ export function acceptanceSources(sources: readonly AcceptanceSource[], year: nu
 
 export function groupAcceptances(rows: readonly StrategyAcceptance[], sources: readonly AcceptanceSource[]) {
   const order = new Map(sources.map((p, i) => [p.lineageId ?? p.id, i]));
-  const groups = [...new Set(rows.map(x => x.strategyId))].map(id => rows.filter(x => x.strategyId === id));
+  const groups = [...new Set(rows.map(x => x.strategyId))].map(id => {
+    const group = rows.filter(x => x.strategyId === id);
+    const source = sources.find(p => (p.lineageId ?? p.id) === group[0]!.lineageId);
+    const metrics = source?.expectations?.map(e => e.metric) ?? [];
+    const rank = (x: StrategyAcceptance) => { const i = metrics.indexOf(x.expectation.metric); return i < 0 ? metrics.length : i; };
+    return group.sort((a, b) => rank(a) - rank(b));
+  });
   // Historic sources absent from the current roster retain their stored order.
   return groups.sort((a, b) => (order.get(a[0]!.lineageId) ?? sources.length) - (order.get(b[0]!.lineageId) ?? sources.length));
 }

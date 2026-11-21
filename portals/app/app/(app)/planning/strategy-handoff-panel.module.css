@@ -93,14 +93,16 @@
   }
 }
 
-@container (max-width: 40rem) {
+@container (max-width: 60rem) {
   .summary {
     order: 1;
     flex-basis: 100%;
   }
 
+}
+
+@container (max-width: 40rem) {
   .summary > div {
     padding-inline: var(--space-sm);
   }
-
 }
