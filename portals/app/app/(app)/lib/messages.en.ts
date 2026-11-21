@@ -69,8 +69,37 @@ const GATE_ERROR = {
 
 const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account active" };
 
+
+const companyPlanningText = {
+  newCustomerBasis: "Distinct first-time won customers",
+  marginRate: "Gross margin rate", estimatedMargin: "Estimated margin", marginBasis: "Revenue baseline x margin rate", pipelineBasis: "Revenue baseline x coverage",
+  allMetricsAdded: "All available metrics have been added. Edit their values in the table, or remove a supporting metric through its row actions.",
+  companyAllocationHint: "Explain any remaining quarterly balance. Company publication does not require regional allocation.",
+  "primaryMetric": "Primary operating metric",
+  "auxiliaryMetric": "Supporting metric",
+  "customerUnit": "customers",
+  "periodMode": "Period target mode",
+  "simpleMode": "Simple mode",
+  "completeMode": "Complete mode",
+  "industryPresets": "Industry combinations",
+  "presets": {
+    "general": "General sales",
+    "projects": "Project sales",
+    "products": "Product sales",
+    "services": "Subscription services"
+  },
+  "metricDescriptions": {
+    "revenue": "Recognized sales revenue for this period; the primary company target.",
+    "new_logo": "First-time won customers. Set an independent count, not a share of revenue.",
+    "pipeline": "Baseline revenue target times pipeline coverage. Defaults to 3x, adjustable; opportunity stock is not expected closed revenue.",
+    "margin": "Set rates of 30% / 40% / 50% against the SAME baseline revenue target. Quarters inherit the target rate; percentages are never split."
+  },
+  "help": "Formal revenue is the common baseline. Gross margin rates of 30% / 40% / 50% estimate corresponding margin amounts against that SAME baseline. Quarterly amounts follow revenue timing; rates are never added. Pipeline defaults to 3x baseline revenue and represents opportunity stock, not closed revenue. Simple mode shows revenue quarters; complete mode shows all metrics, without changing data. Customer counts are independent. Company publication preserves regional history for subsequent regional allocation. Remaining allocation subtracts known compatible regional targets; unknown regions stay visible separately."
+};
+
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
+  COMPANY_PLANNING_TEXT: companyPlanningText,
   WINLOSS_WORKSPACE_TEXT: {
     owner: "Owner",
     leave: "Leave with unsaved review changes?",
@@ -347,6 +376,8 @@ export const en: Dictionary = {
     cancel: "Cancel",
   },
   PLAN_VERSION_ERROR: {
+  invalid_margin_rate: "Enter a gross margin rate from 0 to 100, with at most two decimal places.",
+  margin_rate_mismatch: "Estimated margin does not match the rate and baseline revenue. Enter the margin rate again.",
 
     ...zh.PLAN_VERSION_ERROR,
     strategy_result_duplicate: "Check strategic alignment: result duplicate",

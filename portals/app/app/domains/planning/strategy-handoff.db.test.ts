@@ -64,3 +64,24 @@ test("Postgres: planning can refine a missing non-financial acceptance criterion
  await rejected(c,seal,[f.revision,JSON.stringify(f.content),"b".repeat(64)],/strategy_owner_required/);
  x.note="Signed and accepted";await c.query(seal,[f.revision,JSON.stringify(f.content),"b".repeat(64)]);
 }));
+
+test("Postgres: company acceptance can change without revalidating immutable regional allocations", {skip}, async () => db(async c => {
+ const f = await seed(c, "revenue");
+ await c.query("UPDATE yucer_gtm.sales_plan_revision SET state='sealed',version_no=1,content_hash=$2,sealed_by_sub='owner',sealed_at=now() WHERE id=$1", [f.revision, "c".repeat(64)]);
+ const company = structuredClone(f.content);
+ company.releaseScope = "company";
+ company.targets.find(t => t.scope === "workspace")!.target = "500";
+ company.strategyAcceptances![0]!.amount = "400";
+ const revision = id();
+ await c.query("SET LOCAL ROLE yucer_svc");
+ await c.query("INSERT INTO yucer_gtm.sales_plan_revision(id,workspace_id,plan_id,base_revision_id,content,created_by_sub) VALUES($1,$2,$3,$4,$5,'owner')", [revision, f.ws, f.plan, f.revision, JSON.stringify(company)]);
+ await c.query("SELECT yucer_gtm.check_sales_plan_document($1,true)", [JSON.stringify(company)]);
+ const stored = (await c.query("SELECT content FROM yucer_gtm.sales_plan_revision WHERE id=$1", [revision])).rows[0].content;
+ assert.deepEqual(stored.strategyAcceptances[0].allocations, f.acceptance.allocations);
+ const invalid = structuredClone(company);
+ invalid.strategyAcceptances![0]!.amount = "501";
+ await rejected(c, "UPDATE yucer_gtm.sales_plan_revision SET content=$2 WHERE id=$1", [revision, JSON.stringify(invalid)], /strategy_overallocated/);
+ invalid.strategyAcceptances![0]!.amount = "400";
+ invalid.strategyAcceptances![0]!.allocations[0]!.amount = "400";
+ await rejected(c, "UPDATE yucer_gtm.sales_plan_revision SET content=$2 WHERE id=$1", [revision, JSON.stringify(invalid)], /regional_draft_required/);
+}));

@@ -39,10 +39,10 @@ test("company balance excludes nonparticipating regions and is exact to cents", 
   c.regions[0].included = false;
   assert.equal(companyAllocation(c, target).allocated, "0.00");
 });
-test("missing/incompatible regional targets never produce a known full balance", () => {
+test("unknown regions are identified separately from remaining known allocation", () => {
   const c = fixture(); const target = c.targets.find(t => t.scope === "workspace" && t.period === "Y2026");
   c.targets.find(t => t.scope === "territory:r" && t.period === "Y2026")!.currency = "USD";
-  assert.deepEqual(companyAllocation(c, target), { allocated: "0.00", unknown: 1, balance: null });
+  assert.deepEqual(companyAllocation(c, target), { allocated: "0.00", unknown: 1, balance: "100.01" });
 });
 test("planning links retain revision UUID, period and region without business code keys", () => {
   assert.equal(planningHref({ year: 2026, revision: "draft-uuid", region: "region-uuid", period: "2026Q2" }), "/planning?year=2026&revision=draft-uuid&region=region-uuid&period=2026Q2");
@@ -52,6 +52,17 @@ test("planning links retain revision UUID, period and region without business co
 test("incomplete decimal input keeps allocation unknown without crashing the form", () => {
   const c = fixture(); const target = c.targets.find(t => t.scope === "workspace" && t.period === "Y2026");
   c.targets.find(t => t.scope === "territory:r" && t.period === "Y2026")!.target = "1.";
-  assert.equal(companyAllocation(c, target).balance, null);
+  assert.equal(companyAllocation(c, target).balance, "100.01");
   assert.equal(planningRegionRows(c)[0].gap, null);
+});
+
+test("allocation follows the selected metric and preserves zero and negative balances", () => {
+  const c = fixture(); const revenue = c.targets.find(t => t.scope === "workspace")!;
+  const count = { ...revenue, key: "count", metric: "new_logo" as const, currency: null, target: "20" };
+  c.targets.push(count, { ...count, key: "regional-count", scope: "territory:r", target: "5" });
+  assert.deepEqual(companyAllocation(c, count), { allocated: "5.00", unknown: 0, balance: "15.00" });
+  revenue.target = "0"; assert.equal(companyAllocation(c, revenue).balance, "-80.01");
+  revenue.target = null; assert.equal(companyAllocation(c, revenue).balance, null);
+  c.targets = c.targets.filter(t => t.key !== "regional-count");
+  assert.deepEqual(companyAllocation(c, count), { allocated: "0.00", unknown: 1, balance: "20.00" });
 });

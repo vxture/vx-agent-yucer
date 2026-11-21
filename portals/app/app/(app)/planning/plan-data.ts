@@ -1,3 +1,4 @@
+import { planningValidationContent } from "../../domains/planning/plan-validation-scope";
 import { listPlans } from "../../domains/strategy/service";
 import { currentStrategyPlans, type PlanRecord } from "../../domains/strategy/store";
 import { verifyStrategyAcceptance } from "../../domains/planning/strategy-handoff";
@@ -153,6 +154,7 @@ export async function verifyPlanSources(
   stampSources = false,
 ) {
   checkPlanRead(s, content);
+  content = planningValidationContent(content);
   const before = await getSalesPlanStore().read(s.workspaceId, content.year);
   for (const x of content.strategyAcceptances ?? []) {
     verifyStrategyAcceptance(x, await getStrategyStore().getPlan(s.workspaceId, x.strategyId), content.year);

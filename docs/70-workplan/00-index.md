@@ -1,5 +1,10 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 公司规划工作区
+
+[105-company-planning-workspace.md](105-company-planning-workspace.md) 跟踪 CP-01 公司发布解耦、主辅指标矩阵、
+季度精简/完整模式及分配余额修正；关联 #710，本地验收通过，待 PR 检查，尚未发布。
+
 ## 作战部署域四板块
 
 [100-deployment-workspace.md](100-deployment-workspace.md) 记录 DD-00–DD-06 的现状、布局交互与验收批次。

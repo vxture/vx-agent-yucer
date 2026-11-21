@@ -1,3 +1,5 @@
+import { validateMarginRates, type MarginRates } from "./plan-margin";
+import { planningValidationContent } from "./plan-validation-scope";
 import { validateStrategyAcceptances } from "./strategy-handoff";
 // Versioned, atomic D2 planning aggregate. Decimal amounts are canonical strings.
 import { createHash, randomUUID } from "node:crypto";
@@ -21,6 +23,7 @@ export interface PlanRegion {
   ownerSub: string | null;
 }
 export interface PlanTarget {
+  marginRates?: MarginRates;
   key: string;
   scope: string;
   period: string;
@@ -195,6 +198,7 @@ export function validateContent(c: PlanContent, publish: boolean): void {
       field,
     );
   demand(JSON.stringify(c).length <= 1_000_000, "plan_too_large");
+  c = planningValidationContent(c);
   unique(
     c.periods.map((p) => p.key),
     "periods",
@@ -336,6 +340,7 @@ export function validateContent(c: PlanContent, publish: boolean): void {
         r.id,
       );
   }
+  validateMarginRates(c);
   validateStrategyAcceptances(c, publish);
   const sum = (rows: PlanTarget[], tier: "floor" | "target" | "stretch") =>
     rows.reduce((n, t) => n + (t[tier] === null ? 0n : minor(t[tier]!)), 0n);

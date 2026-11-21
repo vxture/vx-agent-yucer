@@ -13,6 +13,8 @@ test("assistant targets fill real annual and quarter fields with integer counts 
     assert.equal(quarters.length, 4); assert.ok(quarters.every(t => t.floor === null && t.stretch === null));
     assert.equal(quarters.reduce((sum, t) => sum + minor(t.target!), 0n), minor(next.targets.find(t => t.metric === metric && t.period === "Y2026")!.target!));
   }
+  assert.equal(next.targets.find(t => t.metric === "margin" && t.period === "Y2026")!.marginRates!.target, "40");
+  assert.equal(next.targets.find(t => t.metric === "margin" && t.period === "Y2026")!.target, "40.00");
   assert.equal(next.assumptions, "Fixture assumption"); assert.equal(c.targets[0].target, null);
 });
 test("region assistant preserves company targets, other regions and closed quarter amounts", () => {

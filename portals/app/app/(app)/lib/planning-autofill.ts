@@ -4,6 +4,12 @@ import type {
 } from "../../domains/planning/plan-model";
 import { amount, demand, minor } from "../../domains/planning/plan-values";
 
+import {
+  defaultMarginRates,
+  marginAmount,
+  planningMarginRate,
+} from "../../domains/planning/plan-margin";
+
 const tiers = ["floor", "target", "stretch"] as const;
 type Tier = (typeof tiers)[number];
 const unit = (line: PlanTarget) => (line.metric === "new_logo" ? 100n : 1n);
@@ -39,6 +45,7 @@ export function autofillPlanningQuarters(
     );
     if (!row) {
       row = { ...annual, key: crypto.randomUUID(), period: p.key, note: "" };
+      delete row.marginRates;
       next.targets.push(row);
     }
     return row;
@@ -97,6 +104,7 @@ export function updatePlanningAmount(
   const next = structuredClone(content);
   const line = next.targets.find((t) => t.key === key)!;
   line[tier] = value.trim() || null;
+  if (line.metric === "margin") delete line.marginRates; // Legacy amount callers remain explicitly amount-based.
   if (locked.includes(line.period)) return content;
   // Keep incomplete user input in the draft editor; saving still validates it.
   try {
@@ -124,13 +132,45 @@ export function updatePlanningAmount(
           for (const field of tiers) {
             const rate = { floor: 30, target: 40, stretch: 50 }[field];
             if (
+              margin.marginRates ||
               margin[field] === null ||
               margin[field] === weighted(oldRevenue[field], rate, line)
             )
-              margin[field] = weighted(line[field], rate, line);
+              margin[field] = margin.marginRates
+                ? marginAmount(line.target, margin.marginRates[field])
+                : weighted(line[field], rate, line);
           }
           filled = autofillPlanningQuarters(filled, margin, locked);
         }
+      }
+      if (line.metric === "revenue") {
+        const pipeline = filled.targets.find(
+          (t) =>
+            t.scope === line.scope &&
+            t.period === line.period &&
+            t.metric === "pipeline" &&
+            t.currency === line.currency,
+        );
+        const oldRevenue = content.targets.find((t) => t.key === line.key)!;
+        if (pipeline)
+          for (const field of tiers) {
+            if (pipeline[field] === null) {
+              const base = weighted(line.target, 300, line);
+              pipeline[field] =
+                field === "target"
+                  ? base
+                  : weighted(base, field === "floor" ? 60 : 120, line);
+            } else if (
+              oldRevenue.target !== null &&
+              minor(oldRevenue.target) > 0n &&
+              line.target !== null
+            ) {
+              pipeline[field] = amount(
+                (minor(pipeline[field]!) * minor(line.target)) /
+                  minor(oldRevenue.target),
+              );
+            }
+          }
       }
       if (line.metric === "revenue")
         for (const auxiliary of filled.targets.filter(
@@ -165,7 +205,7 @@ export function updatePlanningAmount(
               t.scope === line.scope &&
               t.metric === line.metric &&
               t.currency === line.currency &&
-              [1, 2, 3].some(q => t.period === `${content.year}Q${q}`),
+              [1, 2, 3].some((q) => t.period === `${content.year}Q${q}`),
           )
           .reduce(
             (sum, t) => sum + (t[field] === null ? 0n : minor(t[field]!)),
@@ -197,7 +237,17 @@ export function addPlanningMetric(
   content: PlanContent,
   scope: string,
   metric: PlanTarget["metric"],
+  locked: readonly string[] = [],
 ) {
+  if (
+    content.targets.some(
+      (t) =>
+        t.scope === scope &&
+        t.period === `Y${content.year}` &&
+        t.metric === metric,
+    )
+  )
+    return content;
   const revenue = content.targets.find(
     (t) =>
       t.scope === scope &&
@@ -216,18 +266,64 @@ export function addPlanningMetric(
     note: "",
   };
   // Unlike monetary metrics, a customer count has no meaningful conversion from revenue.
-  if (metric === "margin" && revenue) {
+  if (metric === "margin") {
+    line.marginRates = { ...defaultMarginRates };
     for (const tier of tiers)
-      line[tier] = weighted(
-        revenue[tier],
-        { floor: 30, target: 40, stretch: 50 }[tier],
-        revenue,
+      line[tier] = marginAmount(
+        revenue?.target ?? null,
+        line.marginRates[tier],
       );
+  }
+  if (metric === "pipeline" && revenue) {
+    line.target = weighted(revenue.target, 300, revenue);
+    line.floor = weighted(line.target, 60, revenue);
+    line.stretch = weighted(line.target, 120, revenue);
   }
   return autofillPlanningQuarters(
     { ...content, targets: [...content.targets, line] },
     line,
+    locked,
   );
+}
+
+export function updatePlanningMarginRate(
+  content: PlanContent,
+  key: string,
+  tier: Tier,
+  value: string,
+  locked: readonly string[] = [],
+): PlanContent {
+  const line = content.targets.find((t) => t.key === key);
+  if (
+    !line ||
+    line.metric !== "margin" ||
+    line.period !== `Y${content.year}` ||
+    locked.includes(line.period)
+  )
+    return content;
+  const next = structuredClone(content);
+  const margin = next.targets.find((t) => t.key === key)!;
+  margin.marginRates = Object.fromEntries(
+    tiers.map((field) => [field, planningMarginRate(content, line, field)]),
+  ) as NonNullable<PlanTarget["marginRates"]>;
+  margin.marginRates[tier] = value.trim() || null;
+  const revenue = next.targets.find(
+    (t) =>
+      t.scope === line.scope &&
+      t.period === line.period &&
+      t.metric === "revenue" &&
+      t.currency === line.currency,
+  );
+  try {
+    for (const field of tiers)
+      margin[field] = marginAmount(
+        revenue?.target ?? null,
+        margin.marginRates[field],
+      );
+    return autofillPlanningQuarters(next, margin, locked);
+  } catch {
+    return next;
+  }
 }
 
 // Allocate each company quarter first, then derive regional annual amounts.
@@ -261,6 +357,9 @@ export function autofillPlanningRegions(content: PlanContent): PlanContent {
       scope: `territory:${r.id}`,
       note: "",
     }));
+    rows.forEach((row) => {
+      delete row.marginRates;
+    });
     const previous = rows.map(() => 0n);
     let previousTotal = 0n;
     for (const tier of tiers) {

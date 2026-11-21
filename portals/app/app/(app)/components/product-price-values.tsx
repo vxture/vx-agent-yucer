@@ -10,10 +10,11 @@ const PRICE_ICONS: Record<keyof PriceValues, IconName> = {
 };
 
 /** Standard price leads; approval and minimum share a compact second line. */
-export function ProductPriceValues({ price, missing, currency }: {
+export function ProductPriceValues({ price, missing, currency, calculated = false }: {
   readonly price?: PriceValues;
   readonly missing?: Partial<Record<keyof PriceValues, number>>;
   readonly currency?: string;
+  readonly calculated?: boolean;
 }) {
   const { CATALOG_TEXT: T } = useMessages();
   const values = availablePrices(price);
@@ -38,7 +39,7 @@ export function ProductPriceValues({ price, missing, currency }: {
         <span tabIndex={0} role="group" aria-label={keys.map(detail).join("; ")}
           className="inline-flex flex-col items-center gap-2xs tabular-nums">
           {keys.includes("listPrice") ? (
-            <span className="text-body font-medium text-foreground">{value("listPrice")}</span>
+            <span data-number-role={calculated ? "result" : "value"}>{value("listPrice")}</span>
           ) : null}
           {keys.some((key) => key !== "listPrice") ? (
             <span className="inline-flex items-center gap-sm text-body-small text-muted-foreground">

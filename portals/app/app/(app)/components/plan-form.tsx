@@ -221,7 +221,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
       help={initial ? STRATEGY_TEXT.editPlanWhy : STRATEGY_TEXT.newPlanWhy} data-strategy-editor-header/>
     <FormPage
       form={
-        <div className="@container flex min-w-0 flex-col gap-xl pb-[calc(5rem+env(safe-area-inset-bottom))]" data-strategy-editor>
+        <div className="@container flex min-w-0 flex-col gap-xl" data-strategy-editor>
           <StrategyDraftAssistant values={draft} editId={initial?.id} enabled={canAssist && !saving} onAssist={onAssist} onApply={applyAssist} onBusy={setAssisting}/>
           <fieldset disabled={saving || assisting} className="flex min-w-0 flex-col gap-xl">
           <Section title={R.basic} icon="clipboard" help={<><p>{T.draftOnlyHint}</p><p>{T.numberHint}</p></>}

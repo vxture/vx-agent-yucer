@@ -127,6 +127,33 @@
   [data-slot="field-label"], [data-slot="field-label-text"]
 ) { color: var(--destructive-text); }
 
+
+/* Numeric entry has a value/result hierarchy across pages and body portals.
+ * A read-only field can still be a recorded target, so readOnly never implies
+ * a calculated result. Derived numbers opt in explicitly with number-role.
+ * Bind existing DS body (14px), body-small (12px) and label weight tokens.
+ */
+.controls :is([data-slot="input"], [data-slot="input-group-input"]):is(
+  [type="number"], [inputmode="decimal"], [inputmode="numeric"]
+),
+.controls [data-number-role="value"] {
+  font-size: var(--body-font-size);
+  line-height: var(--body-line-height);
+  font-weight: var(--label-font-weight);
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+.controls :is(
+  [data-slot="input-group-addon"],
+  [data-number-role="result"], [data-number-role="unit"]
+) {
+  font-size: var(--body-small-font-size);
+  line-height: var(--body-small-line-height);
+  font-weight: var(--body-small-font-weight);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
 .toolbar { align-items: center; }
 
 .toolbar > div:first-child {

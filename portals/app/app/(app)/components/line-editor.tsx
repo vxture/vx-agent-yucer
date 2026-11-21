@@ -340,7 +340,7 @@ export function LineEditor({
                 }
               />
               {/* The line's own subtotal, as it will be saved. */}
-              <span className="text-muted-foreground w-28 text-right text-body-small tabular-nums" aria-live="polite">
+              <span data-number-role="result" className="w-28 text-right" aria-live="polite">
                 {Number.isFinite(Number(d.quantity) * Number(d.unitPrice))
                   ? formatMoney(Number(d.quantity) * Number(d.unitPrice), currency)
                   : "-"}
@@ -421,7 +421,7 @@ export function LineEditor({
             {/* The running total, shown while they type. It is what the header
                 will BECOME - so the reader sees the consequence before they
                 commit to it rather than discovering it afterwards. */}
-            <span className="text-muted-foreground text-body-small tabular-nums">
+            <span data-number-role="result">
               {OPPORTUNITY_TEXT.lineAmount} {formatMoney(total, currency)}
             </span>
             {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}

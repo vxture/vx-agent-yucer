@@ -577,3 +577,34 @@ test(
     );
   },
 );
+
+test("Postgres: company release ignores carried allocations but cannot mutate regional history", { skip }, async () => {
+  const ctx = context(), year = new Date().getUTCFullYear();
+  const content = emptyContent(year, [{ id: randomUUID(), divisionId: randomUUID(), name: "East", code: "E", provinces: [], included: true, reason: "", ownerSub: null }], "CNY");
+  for (const line of content.targets) line.target = "1000";
+  const change = async (command: Parameters<typeof changeSalesPlan>[1]["command"]) => changeSalesPlan(ctx, { year,
+    expectedEventNo: (await ctx.store.read(ctx.workspaceId, year))?.events.at(-1)?.no ?? 0, requestKey: randomUUID(), command });
+  let plan = await change({ kind: "draft", content });
+  let draft = planVersions(plan, new Date().toISOString()).draft!;
+  plan = await change({ kind: "release", revisionId: draft.id, editToken: draft.editToken, reason: "" });
+  const original = structuredClone(planVersions(plan, new Date().toISOString()).current!);
+  plan = await change({ kind: "draft", scope: "company", content });
+  draft = planVersions(plan, new Date().toISOString()).draft!;
+  const revised = structuredClone(draft.content); revised.targets.find(t => t.scope === "workspace")!.target = "500";
+  plan = await change({ kind: "save", revisionId: draft.id, editToken: draft.editToken, content: revised });
+  draft = planVersions(plan, new Date().toISOString()).draft!;
+  await pg(async c => {
+    await c.query("SET ROLE yucer_svc");
+    const wrong = structuredClone(draft.content); wrong.targets.find(t => t.scope !== "workspace")!.target = "500";
+    await assert.rejects(c.query("UPDATE yucer_gtm.sales_plan_revision SET content=$2::jsonb WHERE id=$1", [draft.id, wrong]), /regional_draft_required/);
+    await c.query("SELECT yucer_gtm.check_sales_plan_document($1::jsonb,true)", [draft.content]);
+    await assert.rejects(c.query("SELECT yucer_gtm.check_sales_plan_document($1::jsonb,true)", [{ ...draft.content, releaseScope: "regions" }]), /overallocated/);
+    await c.query("RESET ROLE");
+  });
+  await change({ kind: "release", revisionId: draft.id, editToken: draft.editToken, reason: "Company only" });
+  const loaded = (await ctx.store.read(ctx.workspaceId, year))!;
+  assert.deepEqual(loaded.revisions.find(r => r.id === original.id), original);
+  const current = planVersions(loaded, new Date().toISOString()).current!;
+  assert.equal(current.version, 2);
+  assert.equal(current.content.targets.find(t => t.scope !== "workspace")!.target, "1000");
+});
