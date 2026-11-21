@@ -4,7 +4,9 @@
 **/dist
 **/out
 **/build
-**/coverage
+# Test reports only. Business routes can also be named coverage.
+coverage
+portals/app/coverage
 data
 *.log
 .env

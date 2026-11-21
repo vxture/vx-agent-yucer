@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack -p ${PORT:-4060}",
     "prisma:generate": "prisma generate",
-    "build": "prisma generate && next build --webpack",
+    "build": "prisma generate && next build --webpack && node ../../scripts/guardrails/check-built-pages.mjs",
     "start": "next start",
     "type-check": "prisma generate && tsc --noEmit",
     "test": "node --import tsx --test --experimental-test-coverage \"app/**/*.test.ts\"",
