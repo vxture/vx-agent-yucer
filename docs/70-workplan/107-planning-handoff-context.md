@@ -27,4 +27,7 @@
 - 无数据库变更。生产 0131 为 CP-02 变更，已由运行 44903141973 执行成功。
 
 状态：PR #719 已合并（`453aa36e`），六项必需检查、CodeQL 及 PR Sonar 通过；
-应用仍为 v0.1.123，待与 CP-02、RP-01 汇总发布。
+已与 CP-02、RP-01 汇总为 v0.1.124 上线，Issue #718 完成结项。
+应用运行 [44913929382](https://github.com/vxture/vx-agent-yucer/actions/runs/44913929382) 成功，
+线上 health 为 `v0.1.124 / 4275ba0e / production`；完整生产验证见
+[108-regional-planning-workspace.md](108-regional-planning-workspace.md)「上线验收与结项」。

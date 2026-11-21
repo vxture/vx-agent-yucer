@@ -1,8 +1,8 @@
 # 新客数量估算 CP-02
 
 跟踪 [Issue #716](https://github.com/vxture/vx-agent-yucer/issues/716)、
-[PR #717](https://github.com/vxture/vx-agent-yucer/pull/717)。状态：实现已合并，CI 已通过，应用待本轮销售规划修正汇总发布。
-生产增量 0131 已经 owner 审批并执行成功；应用仍为 v0.1.123。
+[PR #717](https://github.com/vxture/vx-agent-yucer/pull/717)。状态：已随 v0.1.124 上线，生产验证通过，Issue #716 完成结项。
+生产增量 0131 已经 owner 审批并执行成功。
 
 | 批次 | 内容 | 验收 |
 | --- | --- | --- |
@@ -29,4 +29,7 @@
 
 PR #717 已合并（`d0e9a311`），六项必需检查和 PR Sonar 通过。
 生产数据库运行 [44903141973](https://github.com/vxture/vx-agent-yucer/actions/runs/44903141973)
-已成功应用 0131（1 项新增、131 项已记录）。按用户要求汇总本轮问题统一发布，尚未创建 v0.1.124 标签。
+已成功应用 0131（1 项新增、131 项已记录）。按用户要求与 #718、#720 汇总为 v0.1.124。
+应用运行 [44913929382](https://github.com/vxture/vx-agent-yucer/actions/runs/44913929382) 已成功，
+线上 health 为 `v0.1.124 / 4275ba0e / production`。完整生产验证见
+[108-regional-planning-workspace.md](108-regional-planning-workspace.md)「上线验收与结项」。
