@@ -1,9 +1,14 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 公司战略承接修正
+
+[107-planning-handoff-context.md](107-planning-handoff-context.md) 跟踪 #718：
+公司总览核定战略承接，区域视图配置周期与区域；与 CP-02 汇总发布，当前待 PR CI。
+
 ## 新客数量估算
 
 [106-new-customer-estimate.md](106-new-customer-estimate.md) 跟踪 CP-02 自动估算、行业参考、人工覆盖及助手同步；
-Issue #716 / PR #717，实现与验收中，尚未上线。
+Issue #716 / PR #717 已合并，0131 已在生产执行；应用待本轮销售规划修正汇总发布。
 
 ## 公司规划工作区
 

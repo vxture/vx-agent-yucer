@@ -213,6 +213,9 @@ export const en: Dictionary = {
   "allPeriods": "Period breakdown"
 },
   STRATEGY_HANDOFF_TEXT: {
+  companyHelp: "Accept annual company targets, accountable owners and the basis from published strategic expectations. Regional planning allocates them by quarter after company publication. This section does not set regional targets.",
+  acceptanceDetails: "Alignment details",
+  editAllocation: "Edit allocation",
   addAllocation: "Add allocation",
   removeAllocation: "Remove",
   revenueTarget: "Revenue target",
