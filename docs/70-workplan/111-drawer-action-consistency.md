@@ -1,7 +1,7 @@
 # UI-DA 抽屉操作按钮一致化
 
 Issue：[#727](https://github.com/vxture/vx-agent-yucer/issues/727)。
-与 #725 一起由 [PR #726](https://github.com/vxture/vx-agent-yucer/pull/726) 审查。用户已确认发布，统一准备 v0.1.125，生产尚未变更。
+与 #725 一起由 [PR #726](https://github.com/vxture/vx-agent-yucer/pull/726) 审查。已随 v0.1.126 上线，Issue #727 完成结项。
 
 ## 原因与范围
 
@@ -31,4 +31,24 @@ Issue：[#727](https://github.com/vxture/vx-agent-yucer/issues/727)。
   取消 78px、确定承接 106px，同行对齐、间距 10px，无横向溢出；底部安全区 80px。
 - 其余代表性抽屉与最新 CI 结果回填 Issue #727。
 
-本批仅样式与显式控件标记，不触发生产发布。用户已确认本地预览，批量准备 v0.1.125。
+本项仅样式与显式控件标记，无 DDL；与战略承接、修订说明批量发布。
+
+## v0.1.126 上线结项（2026-11-21 UTC）
+
+- [应用运行 44943458799](https://github.com/vxture/vx-agent-yucer/actions/runs/44943458799)
+  经 owner 审批后成功，20:12 UTC 日志两次记录 `verify OK (health 200)`。
+- 线上 `/api/health`：`v0.1.126` / `9252b44d` / `production`；
+  完整提交为 `9252b44d37ee71195e8f66a8f41c71dc4bc3880a`。
+- 数据库 0132 由运行 44937351705 应用：1 applied / 132 already recorded；未重复升级。
+- 10 个业务入口未登录时正确跳往登录流程；登录页 200、22 个静态资源全部 200。
+  数据库、Redis、Atlas、Runos 连通。线上检查未写入生产业务数据，
+  不把入口及资源检查表述为登录后的编辑验收；交互验收沿用已审阅的本地记录。
+- PR #724、#726、#729、#730 合并；最终主分支六项必需检查及 CodeQL 通过，
+  PR #730 Sonar 质量门通过。主分支既有可靠性 E / 安全性 C 继续跟踪 #684，未放宽阈值。
+- v0.1.125 在生产审批前取消，未部署；本版使用新提交、新镜像，不移动旧标签。
+
+镜像 `sha-9252b44` 与 `v0.1.126` 的 manifest digest 一致：
+`sha256:670aa5d5df09c3622334fe91bb11011408fe44ef7e26b32b3374e35cdfd22386`。
+直接读取 registry runtime 配置确认 APP_VERSION / DEPLOY_STAGE / GIT_SHA 与线上一致。
+
+#723、#725、#727、#728 本批结项；#684 存量质量债、#697 作战部署域后续工作保持开放。
