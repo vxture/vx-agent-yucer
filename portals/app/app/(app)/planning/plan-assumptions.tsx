@@ -58,18 +58,20 @@ export function PlanAssumptions({
         />
       }
     >
-      <div className="flex flex-col gap-lg">
+      <div className="@container flex flex-col gap-lg">
         {edit && content.assumptions.length > 8000 ? (
           <FieldError id="plan-prerequisites-error">
             {T.prerequisitesTooLong}
           </FieldError>
         ) : null}
-        <FieldGroup columns={2}>
+        <FieldGroup columns={2} className="grid-cols-1 gap-md @md:grid-cols-2 @3xl:grid-cols-4" data-plan-prerequisites>
           {prerequisiteGroups
             .filter((group) => edit ? group !== "general" || groups.general.length > 0 : groups[group].some(item => item.trim()))
             .map((group) => (
               <Field
                 key={group}
+                className="min-w-0"
+                data-plan-prerequisite={group}
                 span={group === "general" ? "full" : undefined}
               >
                 <PanelCard
@@ -181,7 +183,7 @@ export function PlanAssumptions({
           className="border-t border-dashed border-border pt-lg"
         >
           {(["allocationNote", "capacityNote"] as const).filter(field => !(edit && content.releaseScope === "company" && field === "capacityNote") && (edit || content[field].trim())).map((field) => (
-            <Field key={field}>
+            <Field key={field} span={content.releaseScope === "company" && edit ? "full" : undefined}>
               <FieldLabel htmlFor={`plan-${field}`}>{T[field]}</FieldLabel>
               <FieldDescription>
                 {field === "allocationNote" ? content.releaseScope === "company" ? C.companyAllocationHint : T.allocationHint : T.capacityHint}
