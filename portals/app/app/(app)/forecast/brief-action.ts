@@ -2,8 +2,8 @@
 
 import { AtlasClient } from "../../agent/atlas/client";
 import { RunosClient } from "../../agent/runos/client";
-import { runAdvisor } from "../../domains/copilot/advisor";
-import { runCopilotTurn } from "../../domains/copilot/turn-service";
+import { runReadOnlyAdvisor } from "../../domains/copilot/read-only-advisor";
+import { fail, ok, violation } from "../../domains/shared/result";
 import { canRunAdvisor } from "../../domains/copilot/lib/advisor-gate";
 import {
   FORECAST_BRIEF_CAPABILITY,
@@ -17,7 +17,6 @@ import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { getCopilotStore, getPlanningStore, getSalesPlanStore } from "../../domains/shared/registry";
 import { readAttainmentPlan } from "../../domains/planning/attainment-plan";
 import { getAuthzStore } from "../../authz/store";
-import { ADVISOR_RUN_TURN_METER } from "../../usage/lib/copilot-turns";
 import { resolveAppSession, tenantIdOf, type AppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { periodRange } from "../../domains/shared/period";
@@ -150,31 +149,18 @@ export async function briefForecast(periodRaw: string, scopeRaw: string, planRev
     entitlement: session.entitlement,
     store: getCopilotStore(),
   };
-  const run = await runAdvisor<{ brief: ForecastBrief | null }>(copilotCtx, {
+  const run = await runReadOnlyAdvisor<ForecastBrief>(copilotCtx, {
     capability: FORECAST_BRIEF_CAPABILITY,
     kind: "forecast_brief",
     subject: { type: "forecast_scope", id: `${period}|${scopeKey}|${comparison?.revisionId ?? "live"}` },
-    input: { question },
-    generate: async ({ runId, atlas }) => {
-      const turn = await runCopilotTurn(
-        copilotCtx,
-        {
-          question,
-          tenantId,
-          autopilotActive: false,
-          capability: FORECAST_BRIEF_CAPABILITY,
-          // A briefing, not a proposal: nothing this turn suggests is filed.
-          admitProposal: () => false,
-          advisorRun: { featureId: atlas.featureId, runId },
-        },
-        { atlasClient: new AtlasClient(), runosClient: new RunosClient(), meter: ADVISOR_RUN_TURN_METER },
-      );
-      return turn.ok ? { ok: true as const, value: { brief: admitForecastBrief(turn.value.answer, input) } } : turn;
+    question, tenantId, subjectToken: (await session.accessToken()) ?? undefined, scope: session.scope,
+    admit: answer => {
+      const brief = admitForecastBrief(answer, input);
+      return brief ? ok(brief) : fail(violation("brief_empty", "the brief did not match the board", "answer"));
     },
-  });
+  }, { atlasClient: new AtlasClient(), runosClient: new RunosClient() });
   if (!run.ok) return { ok: false, error: run.violations[0]?.code ?? "denied" };
-  const brief = run.value.content.brief;
-  if (!brief) return { ok: false, error: "brief_empty" };
+  const brief = run.value.content;
   return {
     ok: true,
     summary: brief.summary,

@@ -7,7 +7,8 @@ import { permissionsForRoles } from "../../authz/catalog";
 import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
 import { InMemoryCopilotStore } from "../copilot/store";
 import { InMemorySalesPlanStore } from "./plan-store";
-import { changeSalesPlan, type SalesPlanContext } from "./plan-service";
+import { changeSalesPlan, readSalesPlan, type SalesPlanContext } from "./plan-service";
+import { applyPlanningDraft } from "../../(app)/lib/planning-assist";
 import { emptyContent } from "./plan-model";
 import { preparePlanningDraft } from "./plan-assist-service";
 import { readPlanningDraft } from "./plan-assist-draft";
@@ -43,6 +44,22 @@ test("planning drafting uses Atlas OBO, audit/session and usage without saving o
   assert.equal(h.contexts[0].applicationId, result.sessionId); assert.equal(h.charges(), 1);
   assert.ok(h.prompts[0].includes(h.input.revisionId));
   assert.deepEqual(await h.store.read("ws", 2026), before);
+});
+test("generated fields survive a human correction, explicit draft save and a fresh read", async () => {
+  const h = await harness(), result = await preparePlanningDraft(h.ctx, h.input, h.deps);
+  assert.ok(result.ok);
+  const filled = applyPlanningDraft(h.input.values, result.patch);
+  assert.equal(filled.targets.find(t => t.metric === "revenue" && t.period === "Y2026")?.target, "1000000");
+  const corrected = applyPlanningDraft(filled, { targets: [{ metric: "revenue", value: "1200000" }] });
+  const saved = await changeSalesPlan(h.ctx, { year: 2026, expectedEventNo: h.plan.events.at(-1)!.no,
+    requestKey: "human-save", command: { kind: "save", revisionId: h.input.revisionId, editToken: h.input.editToken, content: corrected } });
+  const reopened = await readSalesPlan(h.ctx, 2026), draft = reopened!.revisions.find(r => r.id === h.input.revisionId)!;
+  assert.deepEqual(draft.content, corrected); assert.equal(draft.state, "draft"); assert.equal(draft.version, null);
+  assert.equal(draft.content.targets.find(t => t.metric === "revenue" && t.period === "Y2026")?.target, "1200000");
+  assert.deepEqual(draft.content.targets.filter(t => t.metric === "new_logo").map(t => t.target), ["30", "3", "6", "9", "12"]);
+  assert.ok(!saved.events.some(e => e.kind === "release"));
+  assert.equal((await preparePlanningDraft(h.ctx, { ...h.input, editToken: draft.editToken, values: draft.content, sessionId: result.sessionId }, h.deps)).ok, false);
+  assert.equal(h.calls(), 1, "the saved draft cannot reuse the old assistant task");
 });
 test("write/read/assistant/scope/tenant gates run before model spending", async () => {
   const h = await harness();

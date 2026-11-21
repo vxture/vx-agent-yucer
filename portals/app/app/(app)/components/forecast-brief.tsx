@@ -7,6 +7,7 @@ import { Button, Card, Icon, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
 import type { ForecastBriefResult } from "../forecast/brief-action";
+import { useRequestLifetime } from "./use-request-lifetime";
 
 // 预测会简报 on 预测检视台 (deal batch 9e): one press, the admitted narrative
 // over the board's own figures, and what to ask each owner - grouped by owner,
@@ -26,6 +27,7 @@ export function ForecastBriefPanel({
   const { FORECAST_BRIEF_TEXT: T, FORECAST_BRIEF_ERROR, COPILOT_TEXT } = useMessages();
   const [pending, start] = useTransition();
   const inFlight = useRef(false);
+  const lifetime = useRequestLifetime();
   const [result, setResult] = useState<Extract<ForecastBriefResult, { ok: true }> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +47,11 @@ export function ForecastBriefPanel({
           onClick={() => {
             if (inFlight.current) return;
             inFlight.current = true;
+            const signal = lifetime.current.signal;
             start(async () => {
               try {
               const r = await onBrief(period, scopeKey, planRevision);
+              if (signal.aborted) return;
               if (r.ok) {
                 setResult(r);
                 setError(null);
@@ -58,7 +62,7 @@ export function ForecastBriefPanel({
                     : (FORECAST_BRIEF_ERROR[r.error] ?? FORECAST_BRIEF_ERROR.unknown ?? r.error),
                 );
               }
-              } catch { setError(FORECAST_BRIEF_ERROR.unknown); }
+              } catch { if (!signal.aborted) setError(FORECAST_BRIEF_ERROR.unknown); }
               finally { inFlight.current = false; }
             });
           }}

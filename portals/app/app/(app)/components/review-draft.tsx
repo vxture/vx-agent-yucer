@@ -7,31 +7,30 @@ import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
 import type { ReviewNarrativeResult } from "../pipeline/review-narrative-action";
 import type { ReviewDraft } from "../../domains/pipeline/lib/review-draft";
+import { useRequestLifetime } from "./use-request-lifetime";
 
 // 复盘底稿 on the review card (deal batch 12, YC-069 section 09): the rule's
 // four sections - 在哪开始滑、谁没兑现、覆盖缺谁、让了几轮 - each one line that
 // opens to the records it was built from. Written from the deal's own logs;
 // it suggests no reason code (原因码不预选).
 
-export function ReviewDraftSections({
-  draft,
-  opportunityId,
-  reasonName,
-  onNarrate,
-  onAdoptReason,
-}: {
+export function ReviewDraftSections(props: ReviewDraftSectionsProps) {
+  return <ReviewDraftContent key={JSON.stringify([props.opportunityId, props.draft, [...props.reasonName], !!props.onNarrate])} {...props}/>;
+}
+
+interface ReviewDraftSectionsProps {
   readonly draft: ReviewDraft;
   readonly opportunityId: string;
-  /** Reason id to its name, for the suggestion. */
   readonly reasonName: ReadonlyMap<string, string>;
-  /** 复盘叙述 (12b); absent when the member may not run it. */
   readonly onNarrate?: (opportunityId: string) => Promise<ReviewNarrativeResult>;
-  /** Puts the suggested reason into the form - pressed by the reviewer, never automatic. */
   readonly onAdoptReason?: (reasonId: string) => void;
-}) {
+}
+
+function ReviewDraftContent({ draft, opportunityId, reasonName, onNarrate, onAdoptReason }: ReviewDraftSectionsProps) {
   const { REVIEW_DRAFT_TEXT: T, DECISION_ROLE_LABEL, DIRECTION_LABEL, REVIEW_ERROR, COPILOT_TEXT, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
   const [pending, start] = useTransition();
   const inFlight = useRef(false);
+  const lifetime = useRequestLifetime();
   const [told, setTold] = useState<Extract<ReviewNarrativeResult, { ok: true }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const field = (f: string) => T.field[f] ?? f;
@@ -104,12 +103,14 @@ export function ReviewDraftSections({
               onClick={() => {
                 if (inFlight.current) return;
                 inFlight.current = true;
+                const signal = lifetime.current.signal;
                 start(async () => {
                   try {
                     const r = await onNarrate(opportunityId);
+                    if (signal.aborted) return;
                     if (r.ok) { setTold(r); setError(null); }
                     else setError(isModelPlaneError(r.error) ? explainModelPlaneError(r.error, COPILOT_TEXT) : REVIEW_ERROR[r.error] ?? W.failed);
-                  } catch { setError(W.failed); }
+                  } catch { if (!signal.aborted) setError(W.failed); }
                   finally { inFlight.current = false; }
                 });
               }}

@@ -2,8 +2,8 @@
 
 import { AtlasClient } from "../../agent/atlas/client";
 import { RunosClient } from "../../agent/runos/client";
-import { runAdvisor } from "../../domains/copilot/advisor";
-import { runCopilotTurn } from "../../domains/copilot/turn-service";
+import { runReadOnlyAdvisor } from "../../domains/copilot/read-only-advisor";
+import { fail, ok, violation } from "../../domains/shared/result";
 import { canRunAdvisor } from "../../domains/copilot/lib/advisor-gate";
 import {
   REVIEW_CAPABILITY,
@@ -14,7 +14,6 @@ import {
 import { getOpportunityDetail, listWinLossReasons } from "../../domains/pipeline/service";
 import { stageLabelFor } from "../lib/view-model";
 import { getCopilotStore } from "../../domains/shared/registry";
-import { ADVISOR_RUN_TURN_METER } from "../../usage/lib/copilot-turns";
 import { resolveAppSession, tenantIdOf } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { reviewDraftFor } from "./review-draft-data";
@@ -66,31 +65,17 @@ export async function draftReviewNarrative(opportunityId: string): Promise<Revie
   };
   const question = reviewQuestion(input);
   const copilotCtx = { ...base, store: getCopilotStore() };
-  const run = await runAdvisor<{ narrative: ReviewNarrative | null }>(copilotCtx, {
+  const run = await runReadOnlyAdvisor<ReviewNarrative>(copilotCtx, {
     capability: REVIEW_CAPABILITY,
     kind: "review_draft",
-    subject: { type: "opportunity", id: opportunityId },
-    input: { question },
-    generate: async ({ runId, atlas }) => {
-      const turn = await runCopilotTurn(
-        copilotCtx,
-        {
-          question,
-          tenantId,
-          subject: { type: "opportunity", id: opportunityId, summary: deal.value.name },
-          autopilotActive: false,
-          capability: REVIEW_CAPABILITY,
-          // A draft, not a proposal: nothing this turn suggests is filed.
-          admitProposal: () => false,
-          advisorRun: { featureId: atlas.featureId, runId },
-        },
-        { atlasClient: new AtlasClient(), runosClient: new RunosClient(), meter: ADVISOR_RUN_TURN_METER },
-      );
-      return turn.ok ? { ok: true as const, value: { narrative: admitReviewNarrative(turn.value.answer, input) } } : turn;
+    subject: { type: "opportunity", id: opportunityId, summary: deal.value.name },
+    question, tenantId, subjectToken: (await session.accessToken()) ?? undefined, scope: session.scope,
+    admit: answer => {
+      const narrative = admitReviewNarrative(answer, input);
+      return narrative ? ok(narrative) : fail(violation("review_narrative_empty", "the review did not match the draft", "answer"));
     },
-  });
+  }, { atlasClient: new AtlasClient(), runosClient: new RunosClient() });
   if (!run.ok) return { ok: false, error: run.violations[0]?.code ?? "denied" };
-  const n = run.value.content.narrative;
-  if (!n) return { ok: false, error: "review_narrative_empty" };
+  const n = run.value.content;
   return { ok: true, narrative: n.narrative, reasonId: n.reasonId, dropped: n.dropped, cached: run.value.cached };
 }
