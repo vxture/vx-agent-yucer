@@ -136,7 +136,7 @@ export async function AttainmentProgress({
     }));
   return (
     <>
-      <Section icon="chart-bar" title={T.liveTitle} help={T.liveHint}>
+      {selection.evidence === "open" ? <Section icon="chart-bar" title={T.liveTitle} help={T.liveHint}>
         {totals ? (
           <div className="grid grid-cols-1 gap-x-xl gap-y-md sm:grid-cols-3">
             {[
@@ -215,11 +215,12 @@ export async function AttainmentProgress({
             </Link>
           </Button>
         </div>
-      </Section>
+      </Section> : null}
       <Section icon="folder" title={D.evidence} help={D.evidenceHelp}>
         <AttainmentEvidenceTabs period={selection.period} scope={selection.selection} planRevision={selection.planRevision} value={selection.evidence}
           counts={{ open: slice.open.length, won: slice.won.length, undated: slice.undatedDeals.length }}/>
         {selection.evidence === "undated" ? <p className="text-body text-warning-text">{D.undatedHint}</p> : null}
+        {selection.evidence === "won" && totals ? <p className="text-body">{D.won}: <span className="font-medium tabular-nums">{money(totals.closedAmount.amount)}</span></p> : null}
         <AttainmentDealTable rows={rows} />
       </Section>
       {selection.evidence === "open" ? <Collapsible>

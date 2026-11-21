@@ -36,13 +36,14 @@ export default async function AttainmentCoveragePage({ searchParams }: {
   if (selection.planRevision && !selectedPlan?.ok) return <EmptyState title={T.contextMissing}/>;
   const back = attainmentHref({ period: selection.period, scope: selection.selection, perspective: selection.perspective, planRevision: selection.planRevision });
   const locale = await resolveLocale();
+  const revisionLabel = selectedPlan?.ok && selectedPlan.value.selected ? `V${selectedPlan.value.selected.version}` : null;
   return (
     <ViewLayout className="pb-3xl">
       <PageCrumbs trail={[{ label: DOMAIN_LABEL.attainment, href: back }]} current={D.evidence} />
       <ViewHeader
         icon="chart-pie-slice"
         title={D.evidence}
-        description={`${scopeName} / ${selection.period} / ${D.live}${selectedPlan?.ok && selectedPlan.value.selected ? ` / V${selectedPlan.value.selected.version}` : ""}`}
+        description={[scopeName, selection.period, D.live, revisionLabel].filter(Boolean).join(" / ")}
         help={D.evidenceHelp}
         divider
         pageActions={{ context: <PeriodTabs value={selection.period} periods={periods.quarters} yearLabel={periods.year} yearText={T.periodYear} compact resetParams={["snapshot"]} /> }}

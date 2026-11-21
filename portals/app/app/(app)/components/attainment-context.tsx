@@ -30,7 +30,7 @@ export function AttainmentContext({ period, scope, scopeName, view, selected, cu
       <Icon name="target" size="sm"/><span>{scopeName}</span><span className="text-muted-foreground">{period}</span>
       <Tag>{historical ? T.historical : T.live}</Tag>
       <TitleHelp topic={T.title}>{T.help}</TitleHelp>
-      {!personal && selected && versions.length > 1 ? <NativeSelect className="w-auto" aria-label={T.chooseVersion} value={selected.id} disabled={pending}
+      {!personal && selected && versions.length > 1 ? <NativeSelect wrapperClassName="w-auto shrink-0" aria-label={T.chooseVersion} value={selected.id} disabled={pending}
         onChange={e => start(() => router.push(attainmentHref({ period, scope, view, planRevision: e.target.value }), { scroll: false }))}>
         {versions.map(v => <option key={v.id} value={v.id}>V{v.version}{v.id === current?.id ? ` / ${T.latest}` : ""}</option>)}
       </NativeSelect> : <span className="text-muted-foreground">{personal || !selected ? T.legacy : `${T.comparison} V${selected.version}`}</span>}

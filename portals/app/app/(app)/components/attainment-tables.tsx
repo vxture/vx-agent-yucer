@@ -108,7 +108,7 @@ export function AttainmentDealTable({
             header: T.category, track: "category", sortable: true,
             cell: (r: AttainmentDealRow) => (
               <Tag>
-                {r.status === "won" ? D.won : FORECAST_LABEL[r.category as keyof typeof FORECAST_LABEL] ?? r.category}
+                {r.status === "won" ? FORECAST_LABEL.closed : FORECAST_LABEL[r.category as keyof typeof FORECAST_LABEL] ?? r.category}
               </Tag>
             ),
           },
