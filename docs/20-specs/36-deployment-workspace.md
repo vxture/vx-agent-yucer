@@ -1,8 +1,8 @@
 # 作战部署域：目标、客户部署、达成与复盘
 
 状态：2026-11-19（America/Los_Angeles）用户确认四板块归集，本文定义目标行为；
-DD-01–DD-06 已合并，v0.1.121 已部署；发布入口验收发现镜像误排除达成证据明细，
-修补跟踪 #707。真实 Accounts/模型及生产经营验收仍待完成，不以隔离演示代替。跟踪 [#697](https://github.com/vxture/vx-agent-yucer/issues/697)。
+DD-01–DD-06 及镜像修补已随 v0.1.122 上线；生产版本/提交、9 条公开入口及 22 个资源
+验证通过，达成明细缺页 #707 已修复。真实 Accounts/模型及生产经营验收仍待完成，不以隔离演示代替。跟踪 [#697](https://github.com/vxture/vx-agent-yucer/issues/697)。
 设计见 [工作区设计](../30-design/design_yucer_230_deployment-workspace.md)，
 实施见 [分批计划](../70-workplan/100-deployment-workspace.md)。
 
