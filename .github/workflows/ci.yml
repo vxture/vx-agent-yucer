@@ -101,6 +101,9 @@ jobs:
       - name: AI supply diagnostic safety checks
         run: python3 -m unittest discover -s scripts/qa -p 'test_ai_supply_check.py'
 
+      - name: Image reuse provenance regression checks
+        run: node --test scripts/ci/assert-image-provenance.test.mjs
+
       - name: Docs numbering guardrail (strict)
         run: node scripts/guardrails/check-docs-numbering.mjs --strict
 
