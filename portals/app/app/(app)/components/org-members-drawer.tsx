@@ -47,7 +47,7 @@ export function OrgMembersDrawer({
       closeLabel={ORG_TEXT.detailsDone}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" onClick={onClose}>{ORG_TEXT.detailsDone}</Button>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{ORG_TEXT.detailsDone}</Button>
         </div>
       }
     >

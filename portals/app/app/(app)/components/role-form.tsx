@@ -451,10 +451,10 @@ export function RoleForm({
           <div className="gap-sm flex items-center justify-between">
             <span className="text-muted-foreground text-body-small">{ROLE_TEXT.chosen(chosenList.length)}</span>
             <div className="gap-sm flex items-center">
-              <Button variant="secondary" onClick={() => setChosen(new Set())}>
+              <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={() => setChosen(new Set())}>
                 {ROLE_TEXT.pickClear}
               </Button>
-              <Button onClick={() => setPicking(false)}>{ROLE_TEXT.pickDone}</Button>
+              <Button data-control-kind="drawer-action" size="xl" onClick={() => setPicking(false)}>{ROLE_TEXT.pickDone}</Button>
             </div>
           </div>
         }

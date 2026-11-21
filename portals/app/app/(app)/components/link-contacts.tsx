@@ -110,7 +110,7 @@ export function LinkContacts({
       title={RELATION_TEXT.title}
       description={RELATION_TEXT.description}
       footer={
-        <Button
+        <Button data-control-kind="drawer-action" size="xl"
           onClick={submit}
           disabled={pending || from === "" || to === "" || from === to}
         >

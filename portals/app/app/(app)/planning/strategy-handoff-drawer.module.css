@@ -14,3 +14,22 @@
   /* Drawer already contributes lg to its footer's outer padding. */
   padding-bottom: calc(var(--space-6xl) - var(--space-lg) + env(safe-area-inset-bottom, 0px));
 }
+
+.companyMetric {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-sm);
+}
+
+.companyFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8rem;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.companyContent {
+  gap: var(--space-md);
+}

@@ -91,8 +91,8 @@ export function RoleMemberPickerDrawer({
       closeLabel={ROLE_TEXT.cancel}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" disabled={pending} onClick={onClose}>{ROLE_TEXT.cancel}</Button>
-          <Button disabled={pending} onClick={save}>{ROLE_TEXT.linkMembersSave}</Button>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={pending} onClick={onClose}>{ROLE_TEXT.cancel}</Button>
+          <Button data-control-kind="drawer-action" size="xl" disabled={pending} onClick={save}>{ROLE_TEXT.linkMembersSave}</Button>
         </div>
       }
     >

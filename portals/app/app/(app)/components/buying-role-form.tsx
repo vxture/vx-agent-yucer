@@ -154,6 +154,7 @@ export function BuyingRoleForm({
       </Field>
       </div>
       <SaveRow
+        drawerAction={hideTitle}
         action={save}
         label={BUYING_ROLE_TEXT.save}
         savedLabel={BUYING_ROLE_TEXT.saved}
@@ -166,7 +167,7 @@ export function BuyingRoleForm({
         }
       />
       {picked?.stated ? (
-        <Button
+        <Button data-control-kind="drawer-action" size="xl"
           variant="ghost"
           disabled={save.pending}
           onClick={() => save.run(() => onRemove(opportunityId, accountId, personId), () => setPersonId(""))}

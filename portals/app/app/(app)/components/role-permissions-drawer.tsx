@@ -56,9 +56,9 @@ export function RolePermissionsDrawer({
       closeLabel={ROLE_TEXT.detailsDone}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" onClick={onClose}>{ROLE_TEXT.detailsDone}</Button>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{ROLE_TEXT.detailsDone}</Button>
           {editHref ? (
-            <Button onClick={() => router.push(editHref)}>{ROLE_TEXT.detailsEdit}</Button>
+            <Button data-control-kind="drawer-action" size="xl" onClick={() => router.push(editHref)}>{ROLE_TEXT.detailsEdit}</Button>
           ) : null}
         </div>
       }

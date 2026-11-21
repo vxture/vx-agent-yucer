@@ -847,11 +847,11 @@ export function PlanSupport({
             </p>
           ) : null}
           <div className="flex justify-end gap-sm">
-            <Button size="md" variant="secondary" onClick={close}>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={close}>
               {T.cancel}
             </Button>
-            <Button
-              size="md"
+            <Button data-control-kind="drawer-action"
+              size="xl"
               disabled={disabled || sourceLoading || !edit}
               onClick={apply}
             >

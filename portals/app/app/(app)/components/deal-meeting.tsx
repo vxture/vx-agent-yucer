@@ -72,11 +72,11 @@ export function DealMeetingButton({
         footer={
           <div className="gap-sm flex items-center justify-end">
             {result ? (
-              <Button size="xl" variant="secondary" onClick={() => setResult(null)}>
+              <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={() => setResult(null)}>
                 {T.repick}
               </Button>
             ) : (
-              <Button size="xl" disabled={pending || chosen.size === 0} onClick={build}>
+              <Button data-control-kind="drawer-action" size="xl" disabled={pending || chosen.size === 0} onClick={build}>
                 {pending ? T.building : T.build}
               </Button>
             )}

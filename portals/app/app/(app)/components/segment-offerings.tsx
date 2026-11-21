@@ -73,8 +73,8 @@ function OfferingDrawer({ vocabulary, original, draft, onChange, onClose, onAppl
   return <Drawer open onClose={onClose} width={collectionDrawerWidth.standard} className="max-w-full" title={F.offerings} closeLabel={T.closed}
     footer={<div className="flex w-full flex-wrap items-center justify-between gap-sm">
       <output className="text-body-small text-muted-foreground">{T.relationSelectedCount} {count}</output>
-      <div className="ml-auto flex gap-sm"><Button type="button" size="xl" variant="secondary" onClick={onClose}>{T.relationCancel}</Button>
-        <Button type="button" size="xl" disabled={!dirty} onClick={onApply}>{T.relationApply}</Button></div>
+      <div className="ml-auto flex gap-sm"><Button data-control-kind="drawer-action" type="button" size="xl" variant="secondary" onClick={onClose}>{T.relationCancel}</Button>
+        <Button data-control-kind="drawer-action" type="button" size="xl" disabled={!dirty} onClick={onApply}>{T.relationApply}</Button></div>
     </div>}>
     <div className="flex min-w-0 flex-col gap-lg" data-business-form data-segment-offering-drawer>
       <OfferingSelectionList options={vocabulary.solutions} ids={draft.solutionIds}

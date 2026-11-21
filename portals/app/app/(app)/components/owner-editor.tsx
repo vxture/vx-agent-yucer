@@ -132,7 +132,7 @@ export function OwnerEditor({
         width="sm"
         title={COLLABORATOR_TEXT.title}
         footer={
-          <Button variant="ghost" size="md" onClick={openLinkDrawer}>
+          <Button data-control-kind="drawer-action" variant="ghost" size="xl" onClick={openLinkDrawer}>
             {COLLABORATOR_TEXT.linkButton}
           </Button>
         }
@@ -180,10 +180,10 @@ export function OwnerEditor({
         closeLabel={COLLABORATOR_TEXT.cancel}
         footer={
           <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" disabled={saving} onClick={() => setLinkOpen(false)}>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={saving} onClick={() => setLinkOpen(false)}>
               {COLLABORATOR_TEXT.cancel}
             </Button>
-            <Button disabled={!picked || saving} onClick={submit}>
+            <Button data-control-kind="drawer-action" size="xl" disabled={!picked || saving} onClick={submit}>
               {COLLABORATOR_TEXT.confirm}
             </Button>
           </div>

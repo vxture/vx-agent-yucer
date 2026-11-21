@@ -316,7 +316,7 @@ export function StageControl({
             </>
           ) : null}
 
-          <Button
+          <Button data-control-kind="drawer-action" size="xl"
             onClick={submit}
             // Disabled on the two conditions the server would refuse anyway.
             // Everything else is left enabled: a button disabled for a reason
@@ -339,13 +339,13 @@ export function StageControl({
             <StatusBadge tone="warning">{OPPORTUNITY_TEXT.abandonHint}</StatusBadge>
             {exitFields(OPPORTUNITY_ABANDON_REASONS, OPPORTUNITY_TEXT.abandonReason)}
             <div className="flex gap-sm">
-              <Button variant="outline" onClick={() => { setAbandoning(false); setExitCode(""); setExitNote(""); }} disabled={pending}>
+              <Button data-control-kind="drawer-action" size="xl" variant="outline" onClick={() => { setAbandoning(false); setExitCode(""); setExitNote(""); }} disabled={pending}>
                 {OPPORTUNITY_TEXT.abandonCancel}
               </Button>
               {/* The confirm step IS the reason form above: nobody reaches
                   this button without choosing why - the DS asks for that to
                   be said rather than silently skipped. */}
-              <Button
+              <Button data-control-kind="drawer-action" size="xl"
                 variant="destructive"
                 confirmExempt={OPPORTUNITY_TEXT.abandonExempt}
                 onClick={submitAbandon}
@@ -356,7 +356,7 @@ export function StageControl({
             </div>
           </>
         ) : (
-          <Button variant="ghost" onClick={() => { setAbandoning(true); setTo(""); setExitCode(""); }} disabled={pending}>
+          <Button data-control-kind="drawer-action" size="xl" variant="ghost" onClick={() => { setAbandoning(true); setTo(""); setExitCode(""); }} disabled={pending}>
             {OPPORTUNITY_TEXT.abandonOpen}
           </Button>
         )

@@ -106,10 +106,10 @@ export function LinkContactDrawer({ accountId, onSearch, onLink, openSignal }: L
         closeLabel={LINK_CONTACT_TEXT.cancel}
         footer={
           <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" disabled={linking} onClick={() => setOpen(false)}>
+            <Button data-control-kind="drawer-action" size="xl" variant="secondary" disabled={linking} onClick={() => setOpen(false)}>
               {LINK_CONTACT_TEXT.cancel}
             </Button>
-            <Button disabled={!picked || linking} onClick={submit}>
+            <Button data-control-kind="drawer-action" size="xl" disabled={!picked || linking} onClick={submit}>
               {LINK_CONTACT_TEXT.confirm}
             </Button>
           </div>

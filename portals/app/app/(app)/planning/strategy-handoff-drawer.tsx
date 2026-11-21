@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Card, CardContent, Drawer, Field, FieldLabel, Icon, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect, Textarea } from "@vxture/design-ui";
+import { Button, Card, CardContent, Drawer, Field, FieldLabel, Icon, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect } from "@vxture/design-ui";
 import { MemberPicker } from "../components/member-picker";
 import { Tag } from "../components/tag";
 import { MemberName } from "../lib/member-names";
@@ -14,22 +14,17 @@ import { expectationWindow } from "../../domains/strategy/lib/expectations";
 import type { PlanSources } from "./plan-data";
 import styles from "./strategy-handoff-drawer.module.css";
 
-type SourceOption = { value: string; label: string };
-
-export function StrategyHandoffDrawer({ draft, content, members, options, regionId, canEdit, disabled, lockedPeriods, error, onChange, onSourceChange, onSave, onRemove, onClose }: Readonly<{
+export function StrategyHandoffDrawer({ draft, content, members, regionId, canEdit, disabled, lockedPeriods, error, onChange, onSave, onClose }: Readonly<{
   draft: StrategyAcceptance;
   content: PlanContent;
   members: PlanSources["members"];
-  options: readonly SourceOption[];
   regionId?: string | null;
   canEdit: boolean;
   disabled?: boolean;
   lockedPeriods: readonly string[];
   error: string;
   onChange: (draft: StrategyAcceptance) => void;
-  onSourceChange: (value: string) => void;
   onSave: () => void;
-  onRemove: () => void;
   onClose: () => void;
 }>) {
   const { STRATEGY_HANDOFF_TEXT: T, PLAN_VERSION_TEXT: P } = useMessages();
@@ -53,35 +48,28 @@ export function StrategyHandoffDrawer({ draft, content, members, options, region
     <InputGroupInput id={id} inputMode={draft.expectation.metric === "revenue" ? "decimal" : "numeric"} value={value} disabled={disabled || locked} onChange={e => change(e.target.value)}/>
     <InputGroupAddon align="end">{unit}</InputGroupAddon>
   </InputGroup>;
-  return <Drawer open width="md" className="max-w-full" title={company ? (canEdit ? T.accept : T.acceptanceDetails) : canEdit ? T.editAllocation : T.details}
+  return <Drawer open width="md" className="max-w-full" title={company ? T.acceptanceDetails : canEdit ? T.editAllocation : T.details}
     description={`${region ? `${region.name} \u00b7 ` : ""}Y${content.year} \u00b7 ${metric}`} closeLabel={T.closeDetails} onClose={onClose}
     footer={<div className={styles.footer} data-handoff-footer>
       {error ? <p role="alert" className="text-body-small text-destructive">{error}</p> : null}
-      <div className="flex flex-wrap items-center justify-between gap-sm">
-        <span>{canEdit && company && !draft.allocations.length ? <Button size="md" variant="ghost" disabled={disabled} onClick={onRemove}>{T.remove}</Button> : null}</span>
-        <div className="flex items-center gap-sm"><Button size="md" variant="secondary" onClick={onClose}>{canEdit ? T.cancel : T.closeDetails}</Button>
-          {canEdit ? <Button size="md" disabled={disabled} onClick={onSave}>{company ? T.save : T.confirmBreakdown}</Button> : null}</div>
+      <div className="flex flex-wrap items-center justify-end gap-sm">
+        <div className="flex items-center gap-sm"><Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{canEdit ? T.cancel : T.closeDetails}</Button>
+          {canEdit ? <Button data-control-kind="drawer-action" size="xl" disabled={disabled} onClick={onSave}>{company ? T.save : T.confirmBreakdown}</Button> : null}</div>
       </div>
     </div>}>
     <div className={styles.content} data-business-fields data-handoff-drawer={company ? "company" : "region"}>
       <Card className="gap-0 py-md"><CardContent className="flex min-w-0 flex-col gap-md px-md">
-        {company && canEdit ? <Field><FieldLabel htmlFor="handoff-source">{T.source}</FieldLabel><NativeSelect id="handoff-source" disabled={disabled} value={`${draft.strategyId}|${draft.expectation.id}`} onChange={e => onSourceChange(e.target.value)}>
-          <option value={`${draft.strategyId}|${draft.expectation.id}`}>{draft.name}{" \u00b7 "}V{draft.version}{" \u00b7 "}{metric}</option>
-          {options.filter(o => o.value !== `${draft.strategyId}|${draft.expectation.id}`).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </NativeSelect></Field> : <Link href={`/strategy/${draft.strategyId}`} className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text"><Icon name="flag" size="sm" className="shrink-0 text-muted-foreground"/><span className="min-w-0 break-words">{draft.name}</span></Link>}
+        <Link href={`/strategy/${encodeURIComponent(draft.strategyId)}`} className="inline-flex min-w-0 items-start gap-xs text-body font-medium transition-colors hover:text-primary-text"><Icon name="flag" size="sm" className="shrink-0 text-muted-foreground"/><span className="min-w-0 break-words">{draft.name}</span></Link>
         <div className="flex flex-wrap items-center gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>V{draft.version}{" \u00b7 "}{draft.period}</span>{!company ? <span className="inline-flex items-center gap-xs" title={T.owner}><MemberName sub={draft.ownerSub}/></span> : null}</div>
         <dl className="flex flex-wrap gap-x-xl gap-y-md border-t border-border pt-md">
-          {[{ label: T.expected, value: draft.expectation.amount }, ...(!company || !canEdit ? [{ label: T.accepted, value: draft.amount }] : [])].map(item => <div key={item.label} className="flex min-w-0 flex-col gap-xs">
+          {[{ label: T.expected, value: draft.expectation.amount }, { label: T.accepted, value: draft.amount }].map(item => <div key={item.label} className="flex min-w-0 flex-col gap-xs">
             <dt className="text-body-small text-muted-foreground">{item.label}</dt><dd className="text-body font-medium"><StrategyQuantity value={format(item.value)} unit={unit}/></dd>
           </div>)}
         </dl>
       </CardContent></Card>
       {company ? <div className="flex flex-col gap-lg">
-        <div className="flex flex-wrap items-start gap-xl">
-          {canEdit ? <Field className="w-auto"><FieldLabel htmlFor="handoff-amount">{T.accepted}</FieldLabel>{amountInput("handoff-amount", draft.amount, amount => onChange({ ...draft, amount }))}</Field> : null}
-          <Field className="w-auto max-w-full"><FieldLabel htmlFor="handoff-owner">{T.owner}</FieldLabel>{canEdit ? <MemberPicker id="handoff-owner" className="w-auto max-w-56" label={T.owner} value={draft.ownerSub} options={memberOptions} disabled={disabled} onValueChange={sub => onChange({ ...draft, ownerSub: sub || null })}/> : <span className="text-body"><MemberName sub={draft.ownerSub}/></span>}</Field>
-        </div>
-        <Field><FieldLabel htmlFor="handoff-note">{draft.expectation.metric === "revenue" ? T.note : T.criterion}</FieldLabel>{canEdit ? <Textarea id="handoff-note" rows={3} disabled={disabled} maxLength={1000} value={draft.note} placeholder={draft.expectation.metric === "revenue" ? undefined : draft.expectation.criterion || T.criterionExample} onChange={e => onChange({ ...draft, note: e.target.value })}/> : <p className="whitespace-pre-wrap break-words text-body">{draft.note || draft.expectation.criterion || "\u2014"}</p>}</Field>
+        <Field className="self-end"><FieldLabel>{T.owner}</FieldLabel><span className="text-body"><MemberName sub={draft.ownerSub}/></span></Field>
+        <Field><FieldLabel>{draft.expectation.metric === "revenue" ? T.note : T.criterion}</FieldLabel><p className="whitespace-pre-wrap break-words text-body">{draft.note || draft.expectation.criterion || "\u2014"}</p></Field>
       </div> : <div className="flex flex-col gap-md">
         <div className="flex flex-wrap items-center justify-between gap-sm"><h3 className="text-body font-medium">{T.regionalBreakdown}</h3>{canEdit ? <div className="flex items-center gap-sm">
           <Button size="md" variant="secondary" disabled={disabled || !regionId || !openCells.length} onClick={() => { if (regionId) onChange(allocateRegionalStrategicTarget(content, draft, regionId, lockedPeriods, () => crypto.randomUUID())); }}><Icon name="magic-wand" size="sm"/>{T.auto}</Button>

@@ -55,7 +55,7 @@ export function RoleMembersDrawer({
       closeLabel={ROLE_TEXT.detailsDone}
       footer={
         <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" onClick={onClose}>{ROLE_TEXT.detailsDone}</Button>
+          <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={onClose}>{ROLE_TEXT.detailsDone}</Button>
         </div>
       }
     >

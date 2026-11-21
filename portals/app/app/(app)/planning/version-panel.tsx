@@ -784,6 +784,7 @@ export function PlanningVersionPanel({
               </Button>
             </div>
           ) : null}
+          <StrategyHandoffPanel content={c} sources={sources} edit={edit} regionId={regionId} disabled={pending} lockedPeriods={lockedPeriods}/>
           <Section
             className="@container"
             icon="target"
@@ -931,7 +932,6 @@ export function PlanningVersionPanel({
               </p>
             )}
           </Section>
-          <StrategyHandoffPanel content={c} sources={sources} edit={edit} regionId={regionId} disabled={pending} lockedPeriods={lockedPeriods}/>
           {companyEditing ? null : currentRegion ? (
             currentRegion.included ? (
               <PlanSupport
@@ -1201,8 +1201,8 @@ export function PlanningVersionPanel({
                     />
                   </Field>
                 ) : null}
-                <Button
-                  size="lg"
+                <Button data-control-kind="drawer-action"
+                  size="xl"
                   disabled={
                     pending ||
                     dirty ||
@@ -1215,8 +1215,8 @@ export function PlanningVersionPanel({
                 >
                   {publishLabel}
                 </Button>
-                <Button
-                  size="md"
+                <Button data-control-kind="drawer-action"
+                  size="xl"
                   variant="ghost"
                   disabled={pending}
                   onClick={() => confirmVersion("discard")}
@@ -1231,8 +1231,8 @@ export function PlanningVersionPanel({
               </p>
             ) : null}
             {state.scheduled ? (
-              <Button
-                size="md"
+              <Button data-control-kind="drawer-action"
+                size="xl"
                 variant="secondary"
                 disabled={pending || !reason.trim()}
                 onClick={() => confirmVersion("cancel")}
@@ -1241,8 +1241,8 @@ export function PlanningVersionPanel({
               </Button>
             ) : null}
             {revision?.state === "sealed" && !state.draft ? (
-              <Button
-                size="md"
+              <Button data-control-kind="drawer-action"
+                size="xl"
                 variant="secondary"
                 disabled={pending}
                 onClick={() =>
@@ -1280,8 +1280,8 @@ export function PlanningVersionPanel({
                     </option>
                   ))}
                 </NativeSelect>
-                <Button
-                  size="md"
+                <Button data-control-kind="drawer-action"
+                  size="xl"
                   variant="secondary"
                   disabled={
                     pending ||
@@ -1304,8 +1304,8 @@ export function PlanningVersionPanel({
                 >
                   {T.lock}
                 </Button>
-                <Button
-                  size="md"
+                <Button data-control-kind="drawer-action"
+                  size="xl"
                   variant="ghost"
                   disabled={pending || !reason.trim()}
                   onClick={() => confirmVersion("close")}
@@ -1484,16 +1484,16 @@ export function PlanningVersionPanel({
             </>
           ) : null}
           <div className="flex justify-end gap-sm">
-            <Button
-              size="md"
+            <Button data-control-kind="drawer-action"
+              size="xl"
               variant="secondary"
               disabled={pending}
               onClick={cancelConfirm}
             >
               {T.cancel}
             </Button>
-            <Button
-              size="md"
+            <Button data-control-kind="drawer-action"
+              size="xl"
               disabled={
                 pending ||
                 (confirm === "release" && managedLegacyIds.length > 0 && !adopt)

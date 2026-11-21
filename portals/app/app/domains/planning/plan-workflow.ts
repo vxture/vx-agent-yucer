@@ -1,3 +1,4 @@
+import { retainedRegionalBasis } from "./strategy-acceptance-workspace";
 import { companyAcceptances, regionalAcceptances } from "./strategy-handoff";
 import type { PlanContent, PlanRevision, SalesPlan } from "./plan-model";
 import { canonical, demand } from "./plan-values";
@@ -64,7 +65,7 @@ export function validatePlanningWorkflow(
     });
     demand(
       canonical(regionalSlice(content)) ===
-        canonical(regionalSlice(base?.content)),
+        canonical(regionalSlice(retainedRegionalBasis(base?.content, content))),
       "regional_draft_required",
     );
   }

@@ -1,71 +1,92 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button, Card, CardContent } from "@vxture/design-ui";
-import { Section } from "../components/help-section";
-import { MemberName } from "../lib/member-names";
+import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon } from "@vxture/design-ui";
+import { TitleHelp } from "../components/title-help";
+import { StrategyQuantity } from "../components/strategy-detail-label";
 import { useMessages, useLocale } from "../lib/i18n/provider";
 import type { PlanContent } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
 import { validateStrategyAcceptances, type StrategyAcceptance } from "../../domains/planning/strategy-handoff";
-import { expectationWindow } from "../../domains/strategy/lib/expectations";
-import metricLayout from "../components/strategy-metric-groups.module.css";
+import { planningValidationContent } from "../../domains/planning/plan-validation-scope";
+import { acceptanceSources, acceptanceSummary, groupAcceptances, proposeAcceptance } from "../../domains/planning/strategy-acceptance-workspace";
 import { StrategyHandoffDrawer } from "./strategy-handoff-drawer";
+import { StrategyCompanyHandoffDrawer, type CompanyHandoffDraft } from "./strategy-company-handoff-drawer";
+import styles from "./strategy-handoff-panel.module.css";
 
+const preferenceKey = "yucer.planning.strategy-handoff.expanded";
 export function StrategyHandoffPanel({ content, sources, edit, regionId, disabled, lockedPeriods = [] }: { content: PlanContent; sources: PlanSources; edit: ((c: PlanContent) => void) | null; regionId?: string | null; disabled?: boolean; lockedPeriods?: string[] }) {
   const { STRATEGY_HANDOFF_TEXT: T } = useMessages(), locale = useLocale();
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<StrategyAcceptance | null>(null);
+  const [companyDraft, setCompanyDraft] = useState<CompanyHandoffDraft | null>(null);
   const [error, setError] = useState("");
-  // The selected view owns presentation; releaseScope only guards edits.
+  useEffect(() => { try { setOpen(localStorage.getItem(preferenceKey) === "true"); } catch { /* Optional display preference. */ } }, []);
+  const changeOpen = (value: boolean) => { setOpen(value); try { localStorage.setItem(preferenceKey, String(value)); } catch { /* Optional display preference. */ } };
   const company = !regionId;
   const canEdit = !!edit && (company ? content.releaseScope !== "regions" : content.releaseScope !== "company");
   const rows = (content.strategyAcceptances ?? []).filter(x => !regionId || canEdit || x.allocations.some(a => a.regionId === regionId));
-  const options = (sources.strategies ?? []).filter(p => expectationWindow(p.period, content.year)).flatMap(p => (p.expectations ?? []).map(e => ({ p, e, value: `${p.id}|${e.id}` })));
-  const format = (value: string) => Number(value).toLocaleString(locale, { maximumFractionDigits: 2 });
-  const start = (value: string) => {
-    const o = options.find(x => x.value === value); if (!o) return;
-    const existing = (content.strategyAcceptances ?? []).find(x => x.lineageId === (o.p.lineageId ?? o.p.id) && x.expectation.metric === o.e.metric);
-    const revenue = content.targets.find(t => t.scope === "workspace" && t.period === `Y${content.year}` && t.metric === "revenue" && t.currency === o.e.currency);
-    const used = (content.strategyAcceptances ?? []).filter(x => x.key !== existing?.key && x.expectation.metric === "revenue" && x.expectation.currency === o.e.currency).reduce((n,x) => n + Number(x.amount), 0);
-    const w = expectationWindow(o.p.period, content.year)!;
-    // A multi-year expectation is proposed pro-rata; users explicitly accept the annual value.
-    const annualDays = (Date.parse(w.end) - Date.parse(w.start)) / 86400000 + 1;
-    const full = o.p.period.includes("/") ? o.p.period.split("/") : null;
-    const fullDays = full ? (Date.parse(full[1]!) - Date.parse(full[0]!)) / 86400000 + 1 : annualDays;
-    const proposed = Math.round(Number(o.e.amount) * annualDays / fullDays * 100) / 100;
-    const amount = o.e.metric === "revenue" ? Math.max(0, Math.min(proposed, Number(revenue?.target ?? 0) - used)) : Math.floor(proposed);
-    setDraft({ key: existing?.key ?? crypto.randomUUID(), strategyId: o.p.id, lineageId: o.p.lineageId ?? o.p.id, version: o.p.versionNo!, name: o.p.name, period: o.p.period, expectation: o.e, amount: existing?.amount ?? String(amount), ownerSub: existing?.ownerSub ?? o.p.ownerSub ?? sources.currentSub ?? null, note: existing?.note ?? "", allocations: existing?.allocations ?? [] });
+  const eligible = acceptanceSources(sources.strategies ?? [], content.year);
+  const groups = groupAcceptances(rows, sources.strategies ?? []);
+  const totals = acceptanceSummary(rows, regionId);
+  const format = (value: string) => {
+    const [whole, fraction] = value.split(".");
+    const decimal = new Intl.NumberFormat(locale).formatToParts(1.1).find(p => p.type === "decimal")?.value ?? ".";
+    return `${BigInt(whole!).toLocaleString(locale)}${fraction && Number(fraction) ? decimal + fraction.replace(/0+$/, "") : ""}`;
   };
-  const upsert = (x: StrategyAcceptance) => {
-    const previous = content.strategyAcceptances ?? [];
-    const next = { ...content, strategyAcceptances:previous.some(y => y.key === x.key) ? previous.map(y => y.key === x.key ? x : y) : [...previous,x] };
+  const saveRows = (nextRows: StrategyAcceptance[]) => {
     if (!canEdit || disabled) return;
-    try { validateStrategyAcceptances(next, false); edit?.(next); setError(""); setDraft(null); }
+    const next = { ...content, strategyAcceptances: nextRows };
+    try { validateStrategyAcceptances(planningValidationContent(next), false); edit?.(next); setError(""); setDraft(null); setCompanyDraft(null); }
     catch { setError(T.validation); }
   };
-  const groups = [...new Set(rows.map(x => x.strategyId))].map(id => rows.filter(x => x.strategyId === id));
-  return <Section className="@container" title={T.handoff} icon="workflow" help={company ? T.companyHelp : T.allocationHelp} action={canEdit && company && sources.canStrategy ? <Button size="md" variant="secondary" disabled={disabled || !options.length} onClick={() => start(options[0]?.value ?? "")}>{T.accept}</Button> : undefined}>
-    {rows.length ? <div className="grid gap-md" data-strategy-acceptances>{groups.map(group => {
-      const first = group[0]!;
-      const latest = sources.strategies?.find(p => (p.lineageId ?? p.id) === first.lineageId);
-      return <Card key={first.strategyId}><CardContent className="flex flex-col gap-lg pt-lg">
-        <div className="flex flex-wrap items-center justify-between gap-md"><Link href={`/strategy/${first.strategyId}`} className="text-body font-medium transition-colors hover:text-primary">{first.name}<span className="ml-sm text-body-small text-muted-foreground">V{first.version} · {first.period}</span></Link>
-          <div className="flex items-center gap-md"><MemberName sub={first.ownerSub}/>{latest && latest.id !== first.strategyId ? <span className="text-body-small text-muted-foreground" title={T.updated}>{T.newVersion}</span> : null}</div></div>
-        <div className={metricLayout.groups}>{group.map(x => {
-          const allocated = x.allocations.filter(a => !regionId || a.regionId === regionId).reduce((n,a) => n+Number(a.amount),0);
-          return <div key={x.key} className="flex min-w-0 flex-col gap-sm" data-strategy-acceptance-metric>
-            <div className="flex items-center justify-between gap-sm"><span className="text-body-small text-muted-foreground">{x.expectation.metric === "revenue" ? T.revenueTarget : T[x.expectation.metric]}</span><Button size="sm" variant="ghost" disabled={disabled} onClick={() => {setError(""); setDraft(structuredClone(x));}}>{canEdit ? (company ? T.edit : T.editAllocation) : (company ? T.acceptanceDetails : T.details)}</Button></div>
-            <strong className="text-heading-3 tabular-nums">{format(regionId ? String(allocated) : x.amount)}<span className="ml-sm text-body-small font-normal text-muted-foreground">{x.expectation.currency ?? T.count}</span></strong>
-            <div className="flex flex-wrap gap-x-lg gap-y-xs text-body-small text-muted-foreground"><span>{T.expected} {format(x.expectation.amount)}</span>{company ? <span>{T.accepted} {format(x.amount)}</span> : <><span>{T.allocated} {format(String(allocated))}</span><span>{T.unallocated} {format(String(Math.max(0,Number(x.amount)-x.allocations.reduce((n,a) => n+Number(a.amount),0))))}</span></>}</div>
-          </div>;
-        })}</div>
-      </CardContent></Card>;
-    })}</div> : <p className="text-body-small text-muted-foreground">{sources.canStrategy ? (options.length ? T.none : T.noSources) : T.sourceDenied}</p>}
-    {draft ? <StrategyHandoffDrawer draft={draft} content={content} members={sources.members} regionId={regionId}
-      options={options.map(o => ({ value: o.value, label: `${o.p.name} \u00b7 V${o.p.versionNo} \u00b7 ${T[o.e.metric]}` }))}
-      canEdit={canEdit} disabled={disabled} lockedPeriods={lockedPeriods} error={error}
-      onChange={setDraft} onSourceChange={start} onSave={() => upsert(draft)} onClose={() => setDraft(null)}
-      onRemove={() => { edit?.({ ...content, strategyAcceptances: (content.strategyAcceptances ?? []).filter(x => x.key !== draft.key) }); setDraft(null); }}/>
-    : null}
-  </Section>;
+  const startCompany = (strategyId?: string) => {
+    setError("");
+    const choices = [...(content.strategyAcceptances ?? []).map(x => structuredClone(x))];
+    for (const p of eligible) for (const e of p.expectations) {
+      const candidate = proposeAcceptance(content, p, e, sources.currentSub ?? null, crypto.randomUUID());
+      if (!choices.some(x => x.key === candidate.key)) choices.push(candidate);
+    }
+    const active = strategyId ?? choices.find(x => !(content.strategyAcceptances ?? []).some(y => y.key === x.key))?.strategyId ?? choices[0]?.strategyId;
+    if (!active) return;
+    const selected = (content.strategyAcceptances ?? []).map(x => x.key);
+    if (!strategyId) for (const x of choices.filter(x => x.strategyId === active)) if (!selected.includes(x.key)) selected.push(x.key);
+    setCompanyDraft({ active, choices, selected });
+  };
+  const canRemove = (x: StrategyAcceptance) => canEdit && company && !x.allocations.some(a => lockedPeriods.includes(a.period));
+  return <Card className={`${styles.panel} gap-0 border-primary/15 bg-primary/5 py-lg`} data-strategy-handoff>
+    <CardContent className="px-lg"><Collapsible open={open} onOpenChange={changeOpen}>
+      <div className={styles.heading}>
+        <div className="inline-flex shrink-0 items-center gap-sm"><Icon name="workflow" size="sm"/><span className="text-body font-medium">{T.handoff}</span><span className="text-body-small text-muted-foreground">{groups.length} {T.strategyCount}</span><TitleHelp topic={T.handoff}>{company ? T.companyHelp : T.allocationHelp}</TitleHelp></div>
+        <dl className={styles.summary} data-handoff-summary>{totals.map(t => <div key={`${t.metric}|${t.currency ?? ""}`}>
+          <dt className="whitespace-nowrap text-body-small text-muted-foreground">{t.metric === "revenue" ? T.revenueTarget : T[t.metric]}</dt><dd className="text-body font-semibold"><StrategyQuantity value={t.pending === rows.filter(x => x.expectation.metric === t.metric && x.expectation.currency === t.currency).length ? T.pendingAllocation : format(t.amount)} unit={t.currency ?? T.count}/></dd>
+        </div>)}{!totals.length ? <span className="text-body-small text-muted-foreground">{sources.canStrategy ? (eligible.length ? T.none : T.noSources) : T.sourceDenied}</span> : null}</dl>
+        <div className={styles.headingActions}>
+          {canEdit && company && sources.canStrategy ? <Button size="md" variant="secondary" disabled={disabled || !eligible.length} onClick={() => startCompany()}>{T.accept}</Button> : null}
+          <CollapsibleTrigger asChild><Button size="md" variant="ghost" className="text-muted-foreground" data-handoff-toggle aria-label={open ? T.collapse : T.expand}>{open ? T.collapseLabel : T.expandLabel}<Icon name={open ? "chevron-up" : "chevron-down"} size="sm"/></Button></CollapsibleTrigger>
+        </div>
+      </div>
+      <CollapsibleContent><div data-strategy-acceptances>{groups.map(group => {
+        const first = group[0]!, latest = sources.strategies?.find(p => (p.lineageId ?? p.id) === first.lineageId);
+        return <div key={first.strategyId} className={styles.strategy} data-handoff-strategy={first.strategyId}>
+          <div className="flex min-w-0 items-center justify-between gap-lg"><Link href={`/strategy/${encodeURIComponent(first.strategyId)}`} className="inline-flex min-w-0 items-center gap-sm text-body font-medium transition-colors hover:text-primary-text"><Icon name="flag" size="sm" className="shrink-0 text-muted-foreground"/><span className="truncate" title={first.name}>{first.name}</span></Link><span className="shrink-0 text-body-small text-muted-foreground">V{first.version}{" \u00b7 "}{first.period}{latest && latest.id !== first.strategyId ? <span className="ml-sm" title={T.updated}>{T.newVersion}</span> : null}</span></div>
+          <div className={styles.metrics}>{group.map(x => {
+            const allocations = x.allocations.filter(a => a.regionId === regionId);
+            const value = regionId ? acceptanceSummary([x], regionId)[0]!.amount : x.amount;
+            return <div key={x.key} className={styles.metric} data-strategy-acceptance-metric={x.expectation.metric}>
+              <span className="shrink-0 text-body-small text-muted-foreground">{x.expectation.metric === "revenue" ? T.revenueTarget : T[x.expectation.metric]}</span>
+              <strong className="text-body font-semibold"><StrategyQuantity value={regionId && !allocations.length ? T.pendingAllocation : format(value)} unit={x.expectation.currency ?? T.count}/></strong>
+              <span className={styles.actions}><Button size="sm" variant="secondary" className="text-muted-foreground" disabled={disabled} onClick={() => { setError(""); if (company && canEdit) startCompany(x.strategyId); else setDraft(structuredClone(x)); }}>{canEdit ? (company ? T.edit : T.editAllocation) : (company ? T.acceptanceDetails : T.details)}</Button>
+                {canEdit && company ? <Button size="icon-sm" variant="ghost" className="text-muted-foreground" title={canRemove(x) ? T.remove : T.removeLocked} aria-label={`${T.remove} ${T[x.expectation.metric]}`} disabled={disabled || !canRemove(x)} onClick={() => saveRows((content.strategyAcceptances ?? []).filter(y => y.key !== x.key))}><Icon name="x" size="xs"/></Button> : null}
+              </span>
+            </div>;
+          })}</div>
+        </div>;
+      })}</div></CollapsibleContent>
+      {error && !draft && !companyDraft ? <p role="alert" className="mt-sm text-body-small text-destructive">{error}</p> : null}
+    </Collapsible></CardContent>
+    {companyDraft ? <StrategyCompanyHandoffDrawer draft={companyDraft} members={sources.members} year={content.year} lockedPeriods={lockedPeriods} disabled={disabled} error={error} onChange={setCompanyDraft} onClose={() => { setCompanyDraft(null); setError(""); }} onSave={() => saveRows(companyDraft.choices.filter(x => companyDraft.selected.includes(x.key)))}/> : null}
+    {draft ? <StrategyHandoffDrawer draft={draft} content={content} members={sources.members} regionId={regionId} canEdit={canEdit} disabled={disabled} lockedPeriods={lockedPeriods} error={error}
+      onChange={setDraft} onSave={() => saveRows((content.strategyAcceptances ?? []).map(x => x.key === draft.key ? draft : x))} onClose={() => { setDraft(null); setError(""); }}/> : null}
+  </Card>;
 }

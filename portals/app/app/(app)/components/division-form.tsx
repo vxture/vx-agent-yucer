@@ -508,10 +508,10 @@ export function DivisionForm({
               {PLANNING_TEXT.divisionChosen(chosenList.length, noun)}
             </span>
             <div className="gap-sm flex items-center">
-              <Button variant="secondary" onClick={() => setChosen(new Set())}>
+              <Button data-control-kind="drawer-action" size="xl" variant="secondary" onClick={() => setChosen(new Set())}>
                 {PLANNING_TEXT.divisionPickClear}
               </Button>
-              <Button onClick={() => setPicking(false)}>
+              <Button data-control-kind="drawer-action" size="xl" onClick={() => setPicking(false)}>
                 {PLANNING_TEXT.divisionPickDone}
               </Button>
             </div>
