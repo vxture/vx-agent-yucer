@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@vxture/design-ui";
+import { NewLogoEstimateCaption, NewLogoEstimateDrawer } from "./new-logo-estimate-drawer";
 import { RowActions } from "../components/table-fittings";
 import { TitleHelp } from "../components/title-help";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -247,6 +248,7 @@ export function PlanTargetLedger({
     COMPANY_PLANNING_TEXT: C,
     PLANNING_TEXT: P,
     DS_LABELS,
+    NEW_LOGO_ESTIMATE_TEXT: N,
   } = useMessages();
   const labels = {
     revenue: P.metricRevenue,
@@ -256,6 +258,7 @@ export function PlanTargetLedger({
   };
   const [localOpen, setLocalOpen] = useState(initiallyOpen);
   const [mode, setMode] = useState<PeriodMode>("simple");
+  const [estimateKey, setEstimateKey] = useState<string | null>(null);
   const [note, setNote] = useState<{ key: string; value: string } | null>(null);
   useEffect(() => {
     try {
@@ -330,6 +333,7 @@ export function PlanTargetLedger({
   };
   return (
     <div className="flex w-full min-w-0 flex-col gap-md">
+      {estimateKey && edit && content.targets.some(t => t.key === estimateKey) ? <NewLogoEstimateDrawer key={estimateKey} content={content} line={content.targets.find(t => t.key === estimateKey)!} disabled={disabled} locked={lockedPeriods} edit={edit} onClose={() => setEstimateKey(null)}/> : null}
       <Table
         className="min-w-page-md table-fixed [&_tr>:first-child]:pl-md [&_tr>:last-child]:pr-md"
         aria-label={T.annualTargets}
@@ -380,7 +384,7 @@ export function PlanTargetLedger({
                     : line.metric === "pipeline"
                       ? C.pipelineBasis
                       : line.metric === "new_logo"
-                        ? C.newCustomerBasis
+                        ? <NewLogoEstimateCaption line={line}/>
                         : C.primaryMetric}
                 </span>
               </TableCell>
@@ -404,6 +408,7 @@ export function PlanTargetLedger({
                   items={
                     edit
                       ? [
+                          ...(line.metric === "new_logo" ? [{ id: "estimate", label: N.settings, icon: "settings" as const, disabled: planningEntryLocked(content, lockedPeriods, line), onSelect: () => setEstimateKey(line.key) }] : []),
                           {
                             id: "note",
                             label: T.note,

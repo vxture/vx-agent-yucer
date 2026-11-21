@@ -1,5 +1,10 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 新客数量估算
+
+[106-new-customer-estimate.md](106-new-customer-estimate.md) 跟踪 CP-02 自动估算、行业参考、人工覆盖及助手同步；
+Issue #716 / PR #717，实现与验收中，尚未上线。
+
 ## 公司规划工作区
 
 已随 v0.1.123 上线。[105-company-planning-workspace.md](105-company-planning-workspace.md) 跟踪 CP-01 公司发布解耦、主辅指标矩阵、

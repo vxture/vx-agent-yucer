@@ -90,15 +90,38 @@ const companyPlanningText = {
   },
   "metricDescriptions": {
     "revenue": "Recognized sales revenue for this period; the primary company target.",
-    "new_logo": "First-time won customers. Set an independent count, not a share of revenue.",
+    "new_logo": "Distinct first-time won customers, estimated from new customer revenue share and first-order average. Industry assumptions and counts are adjustable.",
     "pipeline": "Baseline revenue target times pipeline coverage. Defaults to 3x, adjustable; opportunity stock is not expected closed revenue.",
     "margin": "Set rates of 30% / 40% / 50% against the SAME baseline revenue target. Quarters inherit the target rate; percentages are never split."
   },
-  "help": "Formal revenue is the common baseline. Gross margin rates of 30% / 40% / 50% estimate corresponding margin amounts against that SAME baseline. Quarterly amounts follow revenue timing; rates are never added. Pipeline defaults to 3x baseline revenue and represents opportunity stock, not closed revenue. Simple mode shows revenue quarters; complete mode shows all metrics, without changing data. Customer counts are independent. Company publication preserves regional history for subsequent regional allocation. Remaining allocation subtracts known compatible regional targets; unknown regions stay visible separately."
+  "help": "Formal revenue is the common baseline. Gross margin rates of 30% / 40% / 50% estimate corresponding margin amounts against that SAME baseline. Quarterly amounts follow revenue timing; rates are never added. Pipeline defaults to 3x baseline revenue and represents opportunity stock, not closed revenue. Simple mode shows revenue quarters; complete mode shows all metrics, without changing data. Customer counts can be estimated from an adjustable new revenue share and first-order average; actual counts still deduplicate first wins. Company publication preserves regional history for subsequent regional allocation. Remaining allocation subtracts known compatible regional targets; unknown regions stay visible separately."
 };
 
 export const en: Dictionary = {
+
   ...(zh as unknown as Dictionary),
+  NEW_LOGO_ESTIMATE_TEXT: {
+  "settings": "New customer estimate",
+  "share": "New customer revenue share",
+  "firstOrder": "Expected first-order average",
+  "industry": "Industry reference",
+  "formula": "Revenue target x new customer revenue share / first-order average, rounded up. The first-order average means revenue recognized in this planning period. Quarters follow revenue timing with Q4 taking the remainder.",
+  "reference": "Editable CNY planning starting points, not verified industry averages. The assistant can refine them using business context.",
+  "otherCurrency": "No preset first-order average for this currency. Enter a local-currency amount; CNY references are never converted implicitly.",
+  "apply": "Apply estimate",
+  "automatic": "Automatic estimate",
+  "manual": "Manually adjusted",
+  "estimate": "Estimated customers",
+  "error": "Use a share from 0 to 100 and a positive first-order average, with at most two decimals.",
+  "general": "General sales",
+  "software": "Software services",
+  "projects": "Project delivery",
+  "equipment": "Equipment products",
+  "subscription": "Subscription services",
+  "custom": "Custom",
+  "compact": "New revenue share / first-order average",
+  "perCustomer": "/customer"
+},
   COMPANY_PLANNING_TEXT: companyPlanningText,
   WINLOSS_WORKSPACE_TEXT: {
     owner: "Owner",
@@ -376,6 +399,8 @@ export const en: Dictionary = {
     cancel: "Cancel",
   },
   PLAN_VERSION_ERROR: {
+  invalid_new_logo_estimate: "Use a share from 0 to 100 and a positive first-order average with at most two decimals.",
+  new_logo_basis_mismatch: "The customer count does not match its revenue basis. Apply the estimate again.",
   invalid_margin_rate: "Enter a gross margin rate from 0 to 100, with at most two decimal places.",
   margin_rate_mismatch: "Estimated margin does not match the rate and baseline revenue. Enter the margin rate again.",
 

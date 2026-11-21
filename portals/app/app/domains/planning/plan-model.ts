@@ -1,3 +1,4 @@
+import { validateNewLogoEstimates, type NewLogoEstimate } from "./new-logo-estimate";
 import { validateMarginRates, type MarginRates } from "./plan-margin";
 import { planningValidationContent } from "./plan-validation-scope";
 import { validateStrategyAcceptances } from "./strategy-handoff";
@@ -23,6 +24,7 @@ export interface PlanRegion {
   ownerSub: string | null;
 }
 export interface PlanTarget {
+  newLogoEstimate?: NewLogoEstimate;
   marginRates?: MarginRates;
   key: string;
   scope: string;
@@ -341,6 +343,7 @@ export function validateContent(c: PlanContent, publish: boolean): void {
       );
   }
   validateMarginRates(c);
+  validateNewLogoEstimates(c);
   validateStrategyAcceptances(c, publish);
   const sum = (rows: PlanTarget[], tier: "floor" | "target" | "stretch") =>
     rows.reduce((n, t) => n + (t[tier] === null ? 0n : minor(t[tier]!)), 0n);
