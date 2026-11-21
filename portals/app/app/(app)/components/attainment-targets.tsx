@@ -396,7 +396,7 @@ export function ExecutionTargetCard({
         <div className="@container flex w-full min-w-0 flex-col gap-md">
           {!compact ? (
             <div
-              className="grid grid-cols-1 gap-md @xl:grid-cols-2 @3xl:grid-cols-4"
+              className="grid grid-cols-1 gap-md @xl:grid-cols-2 @5xl:grid-cols-4"
               data-attainment-summary
             >
               {metrics.map((m) => (
