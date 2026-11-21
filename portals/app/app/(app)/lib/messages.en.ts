@@ -71,6 +71,8 @@ const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account
 
 
 const companyPlanningText = {
+  newCustomerBasis: "Distinct first-time won customers",
+  marginRate: "Gross margin rate", estimatedMargin: "Estimated margin", marginBasis: "Revenue baseline x margin rate", pipelineBasis: "Revenue baseline x coverage",
   allMetricsAdded: "All available metrics have been added. Edit their values in the table, or remove a supporting metric through its row actions.",
   companyAllocationHint: "Explain any remaining quarterly balance. Company publication does not require regional allocation.",
   "primaryMetric": "Primary operating metric",
@@ -89,10 +91,10 @@ const companyPlanningText = {
   "metricDescriptions": {
     "revenue": "Recognized sales revenue for this period; the primary company target.",
     "new_logo": "First-time won customers. Set an independent count, not a share of revenue.",
-    "pipeline": "Required opportunity coverage at the observation point; quarterly balances are not summed as actual annual sales.",
-    "margin": "Revenue less corresponding costs. Defaults to 30% / 40% / 50% of each revenue tier; editable."
+    "pipeline": "Baseline revenue target times pipeline coverage. Defaults to 3x, adjustable; opportunity stock is not expected closed revenue.",
+    "margin": "Set rates of 30% / 40% / 50% against the SAME baseline revenue target. Quarters inherit the target rate; percentages are never split."
   },
-  "help": "Revenue is the primary operating metric. Add supporting annual metrics as needed; their quarterly targets fill automatically. Simple mode shows revenue quarters only; complete mode shows all metrics. Switching does not remove or change values. Other industry measures include bookings, collections, renewal rate and ARR; these require distinct contract, payment or subscription evidence and are not treated as revenue here. Allocation uses included regions and the same currency. Remaining = company target minus known allocations; unknown regions are marked separately and are not assumed to have zero targets. Company drafts publish independently and retain regional history for a subsequent regional release."
+  "help": "Formal revenue is the common baseline. Gross margin rates of 30% / 40% / 50% estimate corresponding margin amounts against that SAME baseline. Quarterly amounts follow revenue timing; rates are never added. Pipeline defaults to 3x baseline revenue and represents opportunity stock, not closed revenue. Simple mode shows revenue quarters; complete mode shows all metrics, without changing data. Customer counts are independent. Company publication preserves regional history for subsequent regional allocation. Remaining allocation subtracts known compatible regional targets; unknown regions stay visible separately."
 };
 
 export const en: Dictionary = {
@@ -374,6 +376,8 @@ export const en: Dictionary = {
     cancel: "Cancel",
   },
   PLAN_VERSION_ERROR: {
+  invalid_margin_rate: "Enter a gross margin rate from 0 to 100, with at most two decimal places.",
+  margin_rate_mismatch: "Estimated margin does not match the rate and baseline revenue. Enter the margin rate again.",
 
     ...zh.PLAN_VERSION_ERROR,
     strategy_result_duplicate: "Check strategic alignment: result duplicate",

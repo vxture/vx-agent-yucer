@@ -10,6 +10,7 @@ import {
   autofillPlanningQuarters,
   autofillPlanningRegions,
   updatePlanningAmount,
+  updatePlanningMarginRate,
 } from "./planning-autofill";
 function fixture() {
   return emptyContent(2028, [], "CNY");
@@ -133,7 +134,7 @@ test("existing regional amounts are never silently overwritten", () => {
   assert.deepEqual(autofillPlanningRegions(c), c);
 });
 
-test("margin defaults use each income tier, updates follow revenue, manual overrides survive", () => {
+test("margin rates use baseline revenue and custom rate settings survive revenue changes", () => {
   let c = fixture();
   c = updatePlanningAmount(c, c.targets[0].key, "target", "1000");
   c = addPlanningMetric(c, "workspace", "margin");
@@ -142,7 +143,7 @@ test("margin defaults use each income tier, updates follow revenue, manual overr
   )!;
   assert.deepEqual(
     [margin.floor, margin.target, margin.stretch],
-    ["180.00", "400.00", "600.00"],
+    ["300.00", "400.00", "500.00"],
   );
   assert.deepEqual(
     c.targets
@@ -150,12 +151,12 @@ test("margin defaults use each income tier, updates follow revenue, manual overr
       .map((t) => t.target),
     ["40.00", "80.00", "120.00", "160.00"],
   );
-  c = updatePlanningAmount(c, margin.key, "target", "450");
+  c = updatePlanningMarginRate(c, margin.key, "target", "45");
   c = updatePlanningAmount(c, c.targets[0].key, "target", "2000");
   const updated = c.targets.find((t) => t.key === margin.key)!;
   assert.deepEqual(
     [updated.floor, updated.target, updated.stretch],
-    ["360.00", "450", "1200.00"],
+    ["600.00", "900.00", "1000.00"],
   );
 });
 test("all auxiliary quarters follow edited revenue timing, with Q4 retaining the exact balance", () => {
@@ -233,4 +234,88 @@ test("new company metrics auto-allocate without changing existing regional reven
     40000n,
   );
   validateContent(c, true);
+});
+
+test("margin rates use one baseline, survive zero revenue and remain constant across ordinary quarters", () => {
+  let c = fixture();
+  c.releaseScope = "company";
+  c = addPlanningMetric(c, "workspace", "margin");
+  const key = c.targets.find(
+    (t) => t.metric === "margin" && t.period === "Y2028",
+  )!.key;
+  c = updatePlanningMarginRate(c, key, "target", "42.5");
+  assert.equal(
+    c.targets.find((t) => t.key === key)!.marginRates!.target,
+    "42.5",
+  );
+  c = updatePlanningAmount(c, c.targets[0].key, "target", "1000000");
+  assert.deepEqual(
+    [
+      c.targets.find((t) => t.key === key)!.floor,
+      c.targets.find((t) => t.key === key)!.target,
+      c.targets.find((t) => t.key === key)!.stretch,
+    ],
+    ["300000.00", "425000.00", "500000.00"],
+  );
+  validateContent(c, true);
+  const quarters = c.targets.filter(
+    (t) => t.metric === "margin" && t.period !== "Y2028",
+  );
+  assert.deepEqual(
+    quarters.map((t) => t.target),
+    ["42500.00", "85000.00", "127500.00", "170000.00"],
+  );
+  assert.ok(quarters.every((t) => !t.marginRates));
+  c = updatePlanningAmount(c, c.targets[0].key, "target", "0");
+  assert.equal(
+    c.targets.find((t) => t.key === key)!.marginRates!.target,
+    "42.5",
+  );
+  assert.equal(c.targets.find((t) => t.key === key)!.target, "0.00");
+  validateContent(c, true);
+});
+test("invalid rate and forged derived amount cannot publish", () => {
+  let c = fixture();
+  c.releaseScope = "company";
+  c = updatePlanningAmount(c, c.targets[0].key, "target", "1000");
+  c = addPlanningMetric(c, "workspace", "margin");
+  const key = c.targets.find(
+    (t) => t.metric === "margin" && t.period === "Y2028",
+  )!.key;
+  assert.throws(
+    () =>
+      validateContent(updatePlanningMarginRate(c, key, "target", "101"), false),
+    /invalid_margin_rate/,
+  );
+  const forged = structuredClone(c);
+  forged.targets.find((t) => t.key === key)!.target = "401";
+  assert.throws(() => validateContent(forged, false), /margin_rate_mismatch/);
+  const locked = structuredClone(
+    c.targets.find((t) => t.metric === "margin" && t.period === "2028Q1")!,
+  );
+  c = updatePlanningMarginRate(c, key, "target", "45", ["2028Q1"]);
+  assert.deepEqual(
+    c.targets.find((t) => t.key === locked.key),
+    locked,
+  );
+  validateContent(c, true);
+});
+test("pipeline defaults to three times baseline revenue and preserves adjusted coverage", () => {
+  let c = fixture();
+  c = updatePlanningAmount(c, c.targets[0].key, "target", "1000");
+  c = addPlanningMetric(c, "workspace", "pipeline");
+  const key = c.targets.find(
+    (t) => t.metric === "pipeline" && t.period === "Y2028",
+  )!.key;
+  assert.equal(c.targets.find((t) => t.key === key)!.target, "3000.00");
+  c = updatePlanningAmount(c, key, "target", "4000");
+  c = updatePlanningAmount(c, c.targets[0].key, "target", "2000");
+  assert.deepEqual(
+    [
+      c.targets.find((t) => t.key === key)!.floor,
+      c.targets.find((t) => t.key === key)!.target,
+      c.targets.find((t) => t.key === key)!.stretch,
+    ],
+    ["4800.00", "8000.00", "9600.00"],
+  );
 });

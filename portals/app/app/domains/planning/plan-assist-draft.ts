@@ -42,6 +42,6 @@ function validTarget(row: unknown): row is PlanningDraftPatch["targets"][number]
   if (typeof row.metric !== "string" || !["revenue", "new_logo", "pipeline", "margin"].includes(row.metric) || typeof row.value !== "string") return false;
   try {
     const value = minor(row.value);
-    return row.metric !== "new_logo" || value % 100n === 0n;
+    return row.metric === "margin" ? value <= 10000n : row.metric !== "new_logo" || value % 100n === 0n;
   } catch { return false; }
 }
