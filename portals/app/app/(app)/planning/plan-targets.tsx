@@ -91,6 +91,9 @@ function TargetValue({
   readOnly?: boolean;
 }) {
   const locale = useLocale();
+  const [focused, setFocused] = useState(false);
+  const annual = line.period === `Y${content.year}`;
+  const quarterlyMargin = line.metric === "margin" && !annual;
   const {
     PLAN_VERSION_TEXT: T,
     PLANNING_TEXT: P,
@@ -100,11 +103,10 @@ function TargetValue({
     revenue: P.metricRevenue,
     new_logo: P.metricNewLogo,
     pipeline: P.metricPipeline,
-    margin: C.marginRate,
+    margin: annual ? C.marginRate : P.metricMargin,
   };
-  if (line.metric === "margin") {
+  if (line.metric === "margin" && annual) {
     const rate = planningMarginRate(content, line, tier);
-    const annual = line.period === `Y${content.year}`;
     const estimated =
       line[tier] == null
         ? "\u2014"
@@ -144,17 +146,8 @@ function TargetValue({
           aria-label={`${line.period} ${C.marginRate} ${T[tier]}`}
           aria-describedby={`margin-result-${line.key}-${tier}`}
           inputMode="decimal"
-          value={
-            annual
-              ? (rate ?? "")
-              : rate == null
-                ? ""
-                : Number(rate).toLocaleString(locale, {
-                    maximumFractionDigits: 2,
-                  })
-          }
+          value={rate ?? ""}
           placeholder="\u2014"
-          readOnly={!annual}
           className="w-14 flex-none pr-0 tabular-nums"
           disabled={
             disabled || planningEntryLocked(content, lockedPeriods, line)
@@ -181,6 +174,16 @@ function TargetValue({
       </InputGroup>
     );
   }
+  const effectiveRatio = quarterlyMargin
+    ? (() => {
+        const rate = planningMarginRate(content, line, tier);
+        return rate == null ? null : `${Number(rate).toLocaleString(locale, { maximumFractionDigits: 2 })}%`;
+      })()
+    : ratio;
+  const rawAmount = line[tier] ?? "";
+  const displayedAmount = !focused && /^\d+\.\d{1,2}$/.test(rawAmount)
+    ? rawAmount.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "")
+    : rawAmount;
   if (!edit)
     return (
       <span className="flex items-baseline justify-between gap-sm tabular-nums">
@@ -192,7 +195,7 @@ function TargetValue({
               })}
         </span>
         <span data-number-role="unit" className="w-8 shrink-0 text-right">
-          {ratio ?? "\u2014"}
+          {effectiveRatio ?? "\u2014"}
         </span>
       </span>
     );
@@ -201,11 +204,14 @@ function TargetValue({
       <InputGroupInput
         aria-label={`${line.period} ${labels[line.metric]} ${T[tier]}`}
         inputMode={line.metric === "new_logo" ? "numeric" : "decimal"}
-        value={line[tier] ?? ""}
+        value={displayedAmount ?? ""}
+        title={line[tier] ?? undefined}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder="\u2014"
-        readOnly={readOnly}
+        readOnly={readOnly || quarterlyMargin}
         disabled={disabled || planningEntryLocked(content, lockedPeriods, line)}
-        className="min-w-0 tabular-nums"
+        className="min-w-0 px-xs tabular-nums"
         onChange={(e) =>
           edit(
             updatePlanningAmount(
@@ -219,7 +225,7 @@ function TargetValue({
         }
       />
       <InputGroupAddon align="end" className="text-body-small tabular-nums">
-        <span className="w-8 text-right">{ratio ?? "\u2014"}</span>
+        <span className="w-8 text-right">{effectiveRatio ?? "\u2014"}</span>
       </InputGroupAddon>
     </InputGroup>
   );
@@ -333,7 +339,7 @@ export function PlanTargetLedger({
           {tiers.map((t) => (
             <col key={t} />
           ))}
-          <col className="w-16" />
+          <col className="w-table-col-fixed" />
         </colgroup>
         <TableHeader>
           <TableRow>
@@ -379,7 +385,7 @@ export function PlanTargetLedger({
                 </span>
               </TableCell>
               {tiers.map((tier) => (
-                <TableCell key={tier} data-plan-tier={tier}>
+                <TableCell key={tier} data-plan-tier={tier} className="px-sm">
                   <TargetValue
                     content={content}
                     line={line}
@@ -491,10 +497,11 @@ export function PlanTargetLedger({
               aria-label={T.periodTargets}
             >
               <colgroup>
-                <col className="w-1/6" />
+                <col className="w-1/5" />
                 {[1, 2, 3, 4].map((q) => (
                   <col key={q} />
                 ))}
+                <col className="w-table-col-fixed" />
               </colgroup>
               <TableHeader>
                 <TableRow>
@@ -502,6 +509,7 @@ export function PlanTargetLedger({
                   {[1, 2, 3, 4].map((q) => (
                     <TableHead key={q}>Q{q}</TableHead>
                   ))}
+                  <TableHead className="text-right">{T.operations}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -513,12 +521,10 @@ export function PlanTargetLedger({
                   >
                     <TableCell>
                       <span className="text-body font-medium">
-                        {labels[base.metric]}
+                        {base.metric === "margin" ? P.metricMargin : labels[base.metric]}
                       </span>
                       <span className="ml-xs text-body-small text-muted-foreground">
-                        {base.metric === "margin"
-                          ? "%"
-                          : (base.currency ?? C.customerUnit)}
+                        {base.currency ?? C.customerUnit}
                       </span>
                     </TableCell>
                     {[1, 2, 3, 4].map((q) => {
@@ -530,7 +536,7 @@ export function PlanTargetLedger({
                           t.period === `${content.year}Q${q}`,
                       );
                       return (
-                        <TableCell key={q}>
+                        <TableCell key={q} className="px-sm">
                           {line ? (
                             <TargetValue
                               content={content}
@@ -556,6 +562,25 @@ export function PlanTargetLedger({
                         </TableCell>
                       );
                     })}
+                    <TableCell className="text-right">
+                      <RowActions
+                        label={`${DS_LABELS.actionMenu} ${base.metric === "margin" ? P.metricMargin : labels[base.metric]} ${T.periodTargets}`}
+                        disabled={disabled}
+                        items={[1, 2, 3, 4].flatMap((q) => {
+                          const line = content.targets.find(
+                            (t) => t.scope === scope && t.metric === base.metric &&
+                              t.currency === base.currency && t.period === `${content.year}Q${q}`,
+                          );
+                          return line && (edit || line.note.trim()) ? [{
+                            id: line.key,
+                            label: `Q${q} ${T.note}`,
+                            icon: edit ? "edit" as const : "file-text" as const,
+                            disabled: Boolean(edit) && planningEntryLocked(content, lockedPeriods, line),
+                            onSelect: () => setNote({ key: line.key, value: line.note }),
+                          }] : [];
+                        })}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
