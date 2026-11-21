@@ -3658,7 +3658,7 @@ export const en: Dictionary = {
     strategy_not_found: "This strategy is unavailable in this workspace.",
     strategy_not_revisable: "Only the current published or active version can be revised.",
     strategy_draft_conflict: "This draft changed. Reload and review before saving again; nothing was overwritten.",
-    strategy_reason_required: "Edit the draft and enter a revision reason before publishing.",
+    strategy_reason_required: "Enter a revision reason.",
     strategy_base_conflict: "The base publication changed or closed. Review the revision basis.",
     draft_required: "This operation requires an unpublished draft.",
     invalid_publication: "Publication details are incomplete. Review the draft.",
@@ -8202,7 +8202,7 @@ export const en: Dictionary = {
   numberDone: "Done",
 
     changeReason: "Revision reason",
-    changeReasonHint: "Describe why this strategy changes; required before publishing",
+    changeReasonHint: "Describe why this strategy changes; required before saving",
     publishVersion: "Publish strategy",
     publishNext: "Publish new version",
     reviseStrategy: "Revise strategy",

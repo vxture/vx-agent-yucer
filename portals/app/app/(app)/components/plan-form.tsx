@@ -133,6 +133,10 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
   const expectations=goalExpectations(result,currency);
   const [objective, setObjective] = useState(initial?.objective ?? "");
   const [changeReason,setChangeReason]=useState(initial?.changeReason ?? "");
+  const [reasonTouched,setReasonTouched]=useState(false);
+  const reasonInput=useRef<HTMLInputElement>(null);
+  const reasonInvalid=!!initial?.basePlanId && !changeReason.trim();
+  const showReasonError=reasonInvalid && (checking || reasonTouched);
   const [ownerSub, setOwnerSub] = useState(initial?.ownerSub ?? "");
   const initialProductIds=initialSelection(initial,"productIds");
   const initialSolutionIds=initialSelection(initial,"solutionIds");
@@ -239,8 +243,11 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
                   placeholder={R.choose} onChange={values => setResult({ ...result, valuePropositionId: values[0] ?? null })} />{issues.some(e=>e.field==="valuePropositionId")?<FieldError>{R.required}</FieldError>:null}</Field>
                 <StrategyPaths value={result} options={strategyOptions} onChange={setResult}/>
                 <Field className="col-span-full"><FieldLabel required htmlFor="strategy-direction">{R.positioning}</FieldLabel><Input id="strategy-direction" maxLength={100} placeholder={R.positioningExample} value={objective} onChange={e=>setObjective(e.target.value)}/>{requiredError("objective")}</Field>
-                {initial?.basePlanId ? <Field className="col-span-full"><FieldLabel htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>
-                  <Input id="strategy-change-reason" value={changeReason} maxLength={4000} disabled={submit.pending} placeholder={T.changeReasonHint} onChange={e=>setChangeReason(e.target.value)}/>
+                {initial?.basePlanId ? <Field className="col-span-full" data-invalid={showReasonError || undefined}><FieldLabel required htmlFor="strategy-change-reason">{T.changeReason}</FieldLabel>
+                  <Input ref={reasonInput} id="strategy-change-reason" required aria-required="true" aria-invalid={showReasonError || undefined} aria-describedby={showReasonError ? "strategy-change-reason-error" : undefined}
+                    value={changeReason} maxLength={4000} disabled={submit.pending} placeholder={T.changeReasonHint} onBlur={()=>setReasonTouched(true)}
+                    onChange={e=>{setChangeReason(e.target.value);if(saveError===PLAN_ERROR.strategy_reason_required)setSaveError(null);}}/>
+                  {showReasonError ? <FieldError id="strategy-change-reason-error" role="alert">{PLAN_ERROR.strategy_reason_required}</FieldError> : null}
                 </Field> : null}
               </div>
             </CardContent></Card>
@@ -276,7 +283,14 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
               <Button
                 size="xl"
                 disabled={submit.pending || assisting || !ready}
-                onClick={() =>
+                onClick={() => {
+                  setReasonTouched(true);
+                  if(reasonInvalid){
+                    setSaveError(PLAN_ERROR.strategy_reason_required);
+                    reasonInput.current?.focus();
+                    reasonInput.current?.scrollIntoView({block:"center"});
+                    return;
+                  }
                   submit.run(() => {
                     if(!validStrategyResult(result)){setChecking(true);setSaveError(R.invalid);return Promise.resolve({ok:false,error:"strategy_result_invalid"});}
                     const fields = {
@@ -300,8 +314,8 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
                     return initial
                       ? onSave(initial.id, fields, initial.editToken)
                       : onCreate({ planNo: planNo.trim(), ...fields }, manualPlanNo === null);
-                  }, (c) => PLAN_ERROR[c] ?? PLAN_ERROR.denied)
-                }
+                  }, (c) => PLAN_ERROR[c] ?? PLAN_ERROR.denied);
+                }}
               >
                 {R.saveDraft}
               </Button>

@@ -1,7 +1,7 @@
 # UI-DA 抽屉操作按钮一致化
 
 Issue：[#727](https://github.com/vxture/vx-agent-yucer/issues/727)。
-与 #725 一起由 [PR #726](https://github.com/vxture/vx-agent-yucer/pull/726) 审查，停留本地预览，未发布。
+与 #725 一起由 [PR #726](https://github.com/vxture/vx-agent-yucer/pull/726) 审查。用户已确认发布，统一准备 v0.1.125，生产尚未变更。
 
 ## 原因与范围
 
@@ -31,4 +31,4 @@ Issue：[#727](https://github.com/vxture/vx-agent-yucer/issues/727)。
   取消 78px、确定承接 106px，同行对齐、间距 10px，无横向溢出；底部安全区 80px。
 - 其余代表性抽屉与最新 CI 结果回填 Issue #727。
 
-本批仅样式与显式控件标记，不触发生产发布。等待用户本地预览后批量安排上线。
+本批仅样式与显式控件标记，不触发生产发布。用户已确认本地预览，批量准备 v0.1.125。

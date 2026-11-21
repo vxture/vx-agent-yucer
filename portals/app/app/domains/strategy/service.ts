@@ -357,6 +357,9 @@ async function applyPlanEdit(
   const resolved = resolveInput(plan);
   if (!resolved.ok) return resolved;
   const raw = resolved.value;
+  if(plan.basePlanId && !(raw.changeReason ?? plan.changeReason)?.trim()) {
+    return fail(violation("strategy_reason_required", "describe the revision before saving", "changeReason"));
+  }
   const input = await catalogResult(ctx,raw.result === undefined && plan.result ? {...raw,result:alignResultRelations(plan.result,raw,plan)} : raw);
   const resultCheck=await validateResult(ctx,input,plan);if(!resultCheck.ok)return resultCheck;
   const edit = planPlanEdit(input, plan.period);
