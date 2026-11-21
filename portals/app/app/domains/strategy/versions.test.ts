@@ -62,6 +62,30 @@ test("publication needs a revision reason, draft saves reject stale tokens, and 
   const replacement=unwrap(await reviseStrategy(c,v1.id));assert.notEqual(replacement.id,draft.id);
 });
 
+test("revision saves require a nonblank reason and preserve it on partial edits", async () => {
+  const c=context();
+  const first=unwrap(await createPlan(c,input));
+  const edited=unwrap(await editPlan(c,first.id,edit(first)));
+  const v1=unwrap(await publishStrategy(c,edited.id,token(edited),AT));
+  const draft=unwrap(await reviseStrategy(c,v1.id));
+  for(const reason of [undefined,""," \t\n "]) {
+    const result=await editPlan(c,draft.id,{...edit(draft),name:"Unsaved change",changeReason:reason},{expectedEditToken:token(draft)});
+    assert.equal(code(result),"strategy_reason_required");
+    if(!result.ok)assert.equal(result.violations[0].field,"changeReason");
+    const unchanged=(await c.store.getPlan(WS,draft.id))!;
+    assert.equal(unchanged.name,draft.name);
+    assert.equal(token(unchanged),token(draft));
+  }
+  const saved=unwrap(await editPlan(c,draft.id,{...edit(draft),changeReason:"  Focus on repeat business  "}));
+  assert.equal(saved.changeReason,"Focus on repeat business");
+  const partial=unwrap(await editPlan(c,saved.id,{...edit(saved),name:"Repeat business"}));
+  assert.equal(partial.changeReason,saved.changeReason);
+  assert.equal(code(await editPlan(c,partial.id,{...edit(partial),changeReason:"   "})),"strategy_reason_required");
+  const v2=unwrap(await publishStrategy(c,partial.id,token(partial),AT));
+  assert.equal(v2.versionNo,2);
+  assert.equal(v2.changeReason,saved.changeReason);
+});
+
 test("a closed base invalidates a pending revision without changing either version",async()=>{
   const c=context();const v1=await published(c);unwrap(await transitionPlan(c,v1.id,"active"));
   const draft=unwrap(await reviseStrategy(c,v1.id));const saved=unwrap(await editPlan(c,draft.id,{...edit(draft),changeReason:"Ready"}));
