@@ -63,6 +63,8 @@ export function PendingReviews({ rows, summary, filter, datedCount, undatedCount
   const navigate = (changes: Partial<WinLossFilter>) => start(() => router.push(winLossHref(filter, changes), { scroll: false }));
   const year = Number(filter.period.replace(/^Y/, "").slice(0, 4));
   const periods = offeredPeriods(new Date(Date.UTC(year, 0, 1)));
+  const headings = { list: { title: T.list, icon: "list-checks" }, analysis: { title: T.analysis, icon: "chart-bar" } } as const;
+  const heading = headings[filter.view];
   const metrics = [[T.sample, `${summary.total} ${T.sampleUnit}`], [T.coverage, `${summary.reviewed}/${summary.total}`], [T.winRate, summary.winRate === null ? "-" : `${(summary.winRate * 100).toFixed(1)}%`]];
   const menu = (row: WinLossRow) => <RowActions items={[{ id: "view", label: T.detail, icon: "eye", onSelect: () => setTarget(row) }, { id: "deal", label: T.evidence, icon: "external-link", onSelect: () => router.push(`/pipeline/${encodeURIComponent(row.id)}#deal-review`) }]}/>;
   return <>
@@ -80,7 +82,7 @@ export function PendingReviews({ rows, summary, filter, datedCount, undatedCount
         <div className="flex flex-wrap gap-sm">{(["won", "lost", "abandoned"] as const).map(outcome => <Link key={outcome} className={LINK} href={winLossHref(filter, { outcome, view: "list" })}><Tag>{T[outcome]} {summary[outcome]}</Tag></Link>)}</div>
       </div>
     </CardContent></Card>
-    <CollectionToolbar title={filter.view === "analysis" ? T.analysis : T.list} icon={filter.view === "analysis" ? "chart-bar" : "list-checks"} help={T.help} count={rows.length}
+    <CollectionToolbar title={heading.title} icon={heading.icon} help={T.help} count={rows.length}
       mode={filter.view === "list" ? { value:view, onChange:setView } : undefined}
       notice={<div className="flex flex-wrap gap-sm text-body-small text-muted-foreground"><Link className={LINK} href={winLossHref(filter, { status:"pending", reason:"", view:"list" })}>{T.pending} {summary.pending}</Link><span aria-hidden="true">|</span><Link className={LINK} href={winLossHref(filter,{status:"all",reason:"unclassified",view:"list"})}>{T.unclassified} {summary.unclassified}</Link><span aria-hidden="true">|</span><Link className={LINK} href={winLossHref(filter,{status:"all",reason:"stale",view:"list"})}>{T.stale} {summary.stale}</Link></div>}
       search={<SearchSlot><form onSubmit={e => { e.preventDefault(); navigate({query}); }}><Input type="search" aria-label={T.search} placeholder={T.search} value={query} onChange={e=>setQuery(e.target.value)} disabled={pending}/></form></SearchSlot>}
