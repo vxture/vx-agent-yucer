@@ -42,21 +42,21 @@ export function StrategyCompanyHandoffDrawer({ draft, members, year, lockedPerio
         const unit = x.expectation.currency ?? T.count;
         const id = `handoff-${x.key}`;
         const reference = `${T.expected}: ${Number(x.expectation.amount).toLocaleString(locale)} ${unit}${x.expectation.criterion ? ` \u00b7 ${x.expectation.criterion}` : ""}`;
-        return <Card key={x.key} className="gap-0 py-md" data-company-handoff-metric={x.expectation.metric}><CardContent className="flex min-w-0 flex-col gap-sm px-md">
+        return <Card key={x.key} className="gap-0 py-md" data-company-handoff-metric={x.expectation.metric}><CardContent className={`${styles.companyMetric} px-md`}>
+          <div className="flex h-control-md items-center"><Checkbox id={`${id}-selected`} aria-label={`${T.accept} ${metric}`} checked={selected} disabled={disabled || locked} onCheckedChange={checked => onChange({ ...draft, selected: checked === true ? [...draft.selected, x.key] : draft.selected.filter(k => k !== x.key) })}/></div>
+          <div className="flex min-w-0 flex-col gap-sm">
             <div className={styles.companyFields}>
-              <div className="flex min-w-0 items-center gap-sm">
-                <Checkbox id={`${id}-selected`} aria-label={`${T.accept} ${metric}`} checked={selected} disabled={disabled || locked} onCheckedChange={checked => onChange({ ...draft, selected: checked === true ? [...draft.selected, x.key] : draft.selected.filter(k => k !== x.key) })}/>
                 <InputGroup>
                   <InputGroupAddon><FieldLabel htmlFor={`${id}-amount`} title={reference} className="whitespace-nowrap text-body font-normal">{metric}</FieldLabel></InputGroupAddon>
                   <InputGroupInput id={`${id}-amount`} aria-label={`${T.accepted} ${metric}`} inputMode={x.expectation.metric === "revenue" ? "decimal" : "numeric"} className="text-right font-medium tabular-nums" value={x.amount} disabled={disabled || !selected} onChange={e => update({ ...x, amount: e.target.value })}/><InputGroupAddon align="end">{unit}</InputGroupAddon>
                 </InputGroup>
-              </div>
               <MemberPicker id={`${id}-owner`} className="w-full min-w-0" label={`${T.owner} ${metric}`} options={memberOptions} value={x.ownerSub} disabled={disabled || !selected} onValueChange={sub => update({ ...x, ownerSub: sub || null })}/>
             </div>
           {selected ? <>
             <Textarea id={`${id}-note`} aria-label={`${metric} ${x.expectation.metric === "revenue" ? T.note : T.criterion}`} rows={1} className="min-h-control-md resize-none" maxLength={1000} disabled={disabled} value={x.note} placeholder={x.expectation.metric === "revenue" ? T.note : T.criterion} onChange={e => update({ ...x, note: e.target.value })}/>
             {locked ? <p className="inline-flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="lock" size="xs"/>{T.removeLocked}</p> : null}
           </> : null}
+          </div>
         </CardContent></Card>;
       })}
     </div>
