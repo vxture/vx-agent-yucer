@@ -230,6 +230,10 @@ export const en: Dictionary = {
   "allPeriods": "Period breakdown"
 },
   STRATEGY_HANDOFF_TEXT: {
+  regionalBreakdown: "Regional breakdown",
+  confirmBreakdown: "Confirm breakdown",
+  noAllocations: "No allocation for this region. Auto allocate or add a quarter.",
+  closeDetails: "Close",
   companyHelp: "Accept annual company targets, accountable owners and the basis from published strategic expectations. Regional planning allocates them by quarter after company publication. This section does not set regional targets.",
   acceptanceDetails: "Alignment details",
   editAllocation: "Edit allocation",
