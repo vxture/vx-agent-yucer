@@ -28,11 +28,17 @@ export function winLossRows(deals: readonly OpportunityRecord[], reviews: readon
       reasonName: r?.primaryReasonId ? names.get(r.primaryReasonId) ?? null : null, lessons: r?.lessons ?? null, stale }];
   });
 }
+function matchesDate(row: WinLossRow, dates: WinLossFilter["dates"], range: ReturnType<typeof periodRange>) {
+  if (dates === "undated") return row.closedAt === null;
+  if (!range || !row.closedAt) return false;
+  const closedAt = new Date(row.closedAt);
+  return closedAt >= range.start && closedAt < range.end;
+}
 export function filterWinLossRows(rows: readonly WinLossRow[], f: WinLossFilter) {
   const range = periodRange(f.period);
   const query = f.query.trim().toLocaleLowerCase();
   return rows.filter(r => {
-    if (f.dates === "undated" ? r.closedAt !== null : !range || !r.closedAt || new Date(r.closedAt) < range.start || new Date(r.closedAt) >= range.end) return false;
+    if (!matchesDate(r, f.dates, range)) return false;
     if (f.region && r.regionId !== f.region) return false;
     if (f.outcome !== "all" && r.outcome !== f.outcome) return false;
     if (f.status === "pending" && r.reviewId) return false;

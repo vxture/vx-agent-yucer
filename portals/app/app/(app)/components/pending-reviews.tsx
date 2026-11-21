@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ComponentProps, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, Drawer, EmptyState, Field, FieldLabel, Icon, Input, NativeSelect, useListPagination } from "@vxture/design-ui";
+import { Button, Card, CardContent, Drawer, EmptyState, Icon, Input, NativeSelect, useListPagination } from "@vxture/design-ui";
 import type { WinLossFilter, WinLossRow, summarizeWinLoss } from "../../domains/pipeline/lib/winloss-workspace";
 import { winLossHref } from "../lib/winloss-workspace";
 import { useMessages, useLocale } from "../lib/i18n/provider";
@@ -34,7 +34,8 @@ export function WinLossViews({ filter }: { readonly filter: WinLossFilter }) {
 }
 function Outcome({ value }: { readonly value: WinLossRow["outcome"] }) {
   const { WINLOSS_WORKSPACE_TEXT: T } = useMessages();
-  return <Tag tone={value === "won" ? "success" : value === "lost" ? "danger" : undefined}>{T[value]}</Tag>;
+  const tones = { won: "success", lost: "danger", abandoned: undefined } as const;
+  return <Tag tone={tones[value]}>{T[value]}</Tag>;
 }
 function ReviewState({ row }: { readonly row: WinLossRow }) {
   const { WINLOSS_WORKSPACE_TEXT: T } = useMessages();
@@ -49,7 +50,8 @@ export function PendingReviews({ rows, summary, filter, datedCount, undatedCount
   readonly reasons: readonly { readonly id: string; readonly name: string }[];
   readonly regions: readonly { readonly id: string; readonly name: string }[]; readonly canPlan: boolean;
 }) {
-  const { WINLOSS_WORKSPACE_TEXT: T, WINLOSS_TEXT: W, DATA_TABLE_LABELS } = useMessages();
+  const messages = useMessages();
+  const { WINLOSS_WORKSPACE_TEXT: T, WINLOSS_TEXT: W, DATA_TABLE_LABELS } = messages;
   const locale = useLocale(), nameOf = useMemberName(), router = useRouter();
   const [view, setView] = useCollectionView("list");
   const [pending, start] = useTransition();
@@ -99,26 +101,10 @@ export function PendingReviews({ rows, summary, filter, datedCount, undatedCount
     {filter.dates === "undated" ? <p className="text-body text-warning-text">{T.dateHelp}</p> : null}
     {filter.view === "analysis" ? <WinLossAnalysis summary={summary} filter={filter}/> : null}
     {filter.view === "list" && view === "cards" ? <div className="@container"><div className="grid grid-cols-1 gap-md @4xl:grid-cols-2">
-      {paging.pageRows.map(r=><Card key={r.id} onClick={()=>setTarget(r)} className="cursor-pointer" role="button" tabIndex={0} onKeyDown={e=>{if(e.target===e.currentTarget && ["Enter"," "].includes(e.key)){e.preventDefault();setTarget(r);}}}>
-        <CardContent className="flex flex-col gap-md text-body">
-          <div className="flex items-start justify-between gap-md"><Link className={`${LINK} min-w-0 font-medium line-clamp-2`} onClick={e=>e.stopPropagation()} href={`/pipeline/${encodeURIComponent(r.id)}`}>{r.name}</Link><div onClick={e=>e.stopPropagation()}>{menu(r)}</div></div>
-          <div className="flex flex-wrap items-center gap-sm"><Outcome value={r.outcome}/><ReviewState row={r}/><span className="text-body-small text-muted-foreground">{r.number}</span></div>
-          <div className="flex flex-wrap justify-between gap-sm border-t border-border pt-sm"><span className="font-medium tabular-nums">{formatMoney(r.amount,r.currency,locale)}</span><span className="text-muted-foreground">{r.closedAt?.slice(0,10) ?? T.undated}</span></div>
-          <div className="flex items-center justify-between gap-sm"><span className="min-w-0 truncate text-muted-foreground">{r.accountName ?? "-"}</span><MemberName sub={r.ownerSub}/></div>
-          <p className="line-clamp-2 text-muted-foreground">{r.reasonName ?? (r.reviewId ? T.unclassified : T.pending)}{r.lessons ? ` / ${r.lessons}` : ""}</p>
-        </CardContent>
-      </Card>)}
+      {paging.pageRows.map(row => <WinLossCard key={row.id} row={row} onOpen={setTarget} actions={menu(row)}/>)}
     </div></div> : null}
     {filter.view === "list" && view === "list" ? <CollectionTable className={tableStyles.winLoss} rows={[...paging.pageRows]} rowKey={r=>r.id} labels={DATA_TABLE_LABELS} leadingSpacer indexStart={paging.indexStart}
-      sort={table.sort} onSortChange={s=>{table.onSortChange(s);paging.resetPage();}} rowActions={menu} columns={[
-        {id:"name",header:W.columnOpportunity,track:"subject",sortable:true,cell:r=><CollectionTitleCell title={<Link className={LINK} href={`/pipeline/${encodeURIComponent(r.id)}`}>{r.name}</Link>} description={r.accountName ?? r.number}/>},
-        {id:"outcome",header:W.columnOutcome,track:"state",sortable:true,cell:r=><Outcome value={r.outcome}/>},
-        {id:"amount",header:W.columnAmount,track:"amount",align:"right",sortable:true,cell:r=><span className="whitespace-nowrap tabular-nums">{formatMoney(r.amount,r.currency,locale)}</span>},
-        {id:"closed",header:T.closed,track:"reference",sortable:true,cell:r=>r.closedAt?.slice(0,10) ?? T.undated},
-        {id:"reason",header:W.reasonLabel,track:"criteria",sortable:true,cell:r=><span className="line-clamp-2">{r.reasonName ?? (r.reasonId ? T.unknownReason : "-")}</span>},
-        {id:"owner",header:T.owner,track:"reference",sortable:true,cell:r=><MemberName sub={r.ownerSub}/>},
-        {id:"state",header:T.status,track:"state",sortable:true,cell:r=><ReviewState row={r}/>}
-      ]} empty={<EmptyState title={T.noSample} description={T.noSampleHint}/>}/> : null}
+      sort={table.sort} onSortChange={s=>{table.onSortChange(s);paging.resetPage();}} rowActions={menu} columns={reviewColumns(messages, locale)} empty={<EmptyState title={T.noSample} description={T.noSampleHint}/>}/> : null}
     {filter.view === "list" && rows.length ? <PaginationFooter pagination={paging} total={rows.length}/> : null}
     {!rows.length && !(filter.view === "list" && view === "list") ? <EmptyState title={T.noSample} description={T.noSampleHint}/> : null}
     <Drawer open={!!target} onClose={()=>{if(!dirty || window.confirm(T.leave))setTarget(null);}} width={collectionDrawerWidth.standard} title={T.detail} description={target?.name}>
@@ -128,46 +114,125 @@ export function PendingReviews({ rows, summary, filter, datedCount, undatedCount
 }
 
 function WinLossAnalysis({ summary, filter }: { readonly summary: Summary; readonly filter: WinLossFilter }) {
-  const { WINLOSS_WORKSPACE_TEXT:T, DATA_TABLE_LABELS } = useMessages();
+  const messages = useMessages();
+  const { WINLOSS_WORKSPACE_TEXT:T, DATA_TABLE_LABELS } = messages;
   const locale=useLocale();
   return <div className="flex flex-col gap-lg">
     <Card><CardContent className="flex flex-col gap-md text-body"><h3 className="flex items-center gap-sm font-medium"><Icon name="coins" size="sm"/>{T.money}<TitleHelp topic={T.money}>{T.moneyHelp}</TitleHelp></h3>
       {summary.money.map(m=><div key={m.currency} className="flex flex-wrap items-baseline gap-md"><span>{m.currency}</span><strong className="tabular-nums">{m.known ? formatMoney(Number(m.amount)/100,m.currency,locale):"-"}</strong><span className="text-muted-foreground">{T.missing} {m.missing} {T.sampleUnit}</span></div>)}
     </CardContent></Card>
     <CollectionToolbar title={T.reasonCount} icon="chart-bar" count={summary.reasons.length} help={T.reasonHelp}/>
-    <CollectionTable rows={summary.reasons} rowKey={r=>r.id} labels={DATA_TABLE_LABELS} columns={[
-      {id:"reason",header:T.reason,track:"subject",cell:r=><Link className={LINK} href={winLossHref(filter,{view:"list",reason:r.id})}>{r.name ?? T.unknownReason}</Link>},
-      {id:"count",header:T.sample,track:"count",align:"right",cell:r=><Link className={LINK} href={winLossHref(filter,{view:"list",reason:r.id})}>{r.count} {T.sampleUnit}</Link>},
-      ...(["won","lost","abandoned"] as const).map(o=>({id:o,header:T[o],track:"count" as const,align:"right" as const,cell:(r:Summary["reasons"][number])=>r[o]}))
-    ]} empty={<EmptyState title={T.noSample} description={T.reasonHelp}/>}/>
+    <CollectionTable rows={summary.reasons} rowKey={r=>r.id} labels={DATA_TABLE_LABELS} columns={reasonColumns(filter, messages)} empty={<EmptyState title={T.noSample} description={T.reasonHelp}/>}/>
   </div>;
 }
 
-function ReviewPreview({ row, filter, canPlan, onSaved, onDirtyChange }: { readonly row:WinLossRow; readonly filter:WinLossFilter; readonly canPlan:boolean; readonly onSaved:()=>void; readonly onDirtyChange:(dirty:boolean)=>void }) {
-  const { WINLOSS_WORKSPACE_TEXT:T, WINLOSS_TEXT:W }=useMessages();
-  const [data,setData]=useState<Awaited<ReturnType<typeof loadWinLossDetail>>>(null);
-  const [loading,setLoading]=useState(true),[failed,setFailed]=useState(false),[attempt,setAttempt]=useState(0),[editing,setEditing]=useState(false);
-  useEffect(()=>{let active=true;setLoading(true);setFailed(false);loadWinLossDetail(row.id).then(d=>{if(active){setData(d);setFailed(!d);}},()=>{if(active)setFailed(true);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[row.id,attempt]);
-  if(loading)return <p className="text-body text-muted-foreground">{T.loading}</p>;
-  if(failed || !data)return <div className="flex flex-col gap-md"><p role="alert">{T.failed}</p><Button onClick={()=>setAttempt(n=>n+1)}>{T.retry}</Button></div>;
-  const links=[{label:T.account,href:`/account/${encodeURIComponent(row.accountId)}`},...(row.planId?[{label:T.strategy,href:`/strategy/${encodeURIComponent(row.planId)}`}]:[]),...(row.campaignId?[{label:T.campaign,href:`/campaign?campaign=${encodeURIComponent(row.campaignId)}`}]:[])];
-  if(canPlan)links.push({label:T.planning,href:`/planning?year=${filter.period.replace(/^Y/,"").slice(0,4)}&period=${encodeURIComponent(filter.period)}${row.regionId?`&region=${encodeURIComponent(row.regionId)}`:""}`});
-  const record=data.review;
+type ReviewDetail = NonNullable<Awaited<ReturnType<typeof loadWinLossDetail>>>;
+type Messages = ReturnType<typeof useMessages>;
+
+function reviewColumns(messages: Messages, locale: string): ComponentProps<typeof CollectionTable<WinLossRow>>["columns"] {
+  const { WINLOSS_WORKSPACE_TEXT: T, WINLOSS_TEXT: W } = messages;
+  return [
+    {id:"name",header:W.columnOpportunity,track:"subject",sortable:true,cell:r=><CollectionTitleCell title={<Link className={LINK} href={`/pipeline/${encodeURIComponent(r.id)}`}>{r.name}</Link>} description={r.accountName ?? r.number}/>},
+    {id:"outcome",header:W.columnOutcome,track:"state",sortable:true,cell:r=><Outcome value={r.outcome}/>},
+    {id:"amount",header:W.columnAmount,track:"amount",align:"right",sortable:true,cell:r=><span className="whitespace-nowrap tabular-nums">{formatMoney(r.amount,r.currency,locale)}</span>},
+    {id:"closed",header:T.closed,track:"reference",sortable:true,cell:r=>r.closedAt?.slice(0,10) ?? T.undated},
+    {id:"reason",header:W.reasonLabel,track:"criteria",sortable:true,cell:r=><span className="line-clamp-2">{r.reasonName ?? (r.reasonId ? T.unknownReason : "-")}</span>},
+    {id:"owner",header:T.owner,track:"reference",sortable:true,cell:r=><MemberName sub={r.ownerSub}/>},
+    {id:"state",header:T.status,track:"state",sortable:true,cell:r=><ReviewState row={r}/>}
+  ];
+}
+
+function reasonColumns(filter: WinLossFilter, messages: Messages): ComponentProps<typeof CollectionTable<Summary["reasons"][number]>>["columns"] {
+  const { WINLOSS_WORKSPACE_TEXT: T } = messages;
+  return [
+    {id:"reason",header:T.reason,track:"subject",cell:r=><Link className={LINK} href={winLossHref(filter,{view:"list",reason:r.id})}>{r.name ?? T.unknownReason}</Link>},
+    {id:"count",header:T.sample,track:"count",align:"right",cell:r=><Link className={LINK} href={winLossHref(filter,{view:"list",reason:r.id})}>{r.count} {T.sampleUnit}</Link>},
+    ...(["won","lost","abandoned"] as const).map(outcome=>({id:outcome,header:T[outcome],track:"count" as const,align:"right" as const,cell:(row:Summary["reasons"][number])=>row[outcome]}))
+  ];
+}
+
+function WinLossCard({ row, onOpen, actions }: Readonly<{ row: WinLossRow; onOpen: (row: WinLossRow) => void; actions: ReactNode }>) {
+  const { WINLOSS_WORKSPACE_TEXT: T } = useMessages();
+  const locale = useLocale();
+  return <Card className="cursor-pointer" role="button" tabIndex={0}
+    onClick={event => { if (!(event.target as Element).closest("a,button,[role=menuitem]")) onOpen(row); }}
+    onKeyDown={event => { if (event.target === event.currentTarget && ["Enter", " "].includes(event.key)) { event.preventDefault(); onOpen(row); } }}>
+    <CardContent className="flex flex-col gap-md text-body">
+      <div className="flex items-start justify-between gap-md"><Link className={`${LINK} min-w-0 font-medium line-clamp-2`} href={`/pipeline/${encodeURIComponent(row.id)}`}>{row.name}</Link>{actions}</div>
+      <div className="flex flex-wrap items-center gap-sm"><Outcome value={row.outcome}/><ReviewState row={row}/><span className="text-body-small text-muted-foreground">{row.number}</span></div>
+      <div className="flex flex-wrap justify-between gap-sm border-t border-border pt-sm"><span className="font-medium tabular-nums">{formatMoney(row.amount,row.currency,locale)}</span><span className="text-muted-foreground">{row.closedAt?.slice(0,10) ?? T.undated}</span></div>
+      <div className="flex items-center justify-between gap-sm"><span className="min-w-0 truncate text-muted-foreground">{row.accountName ?? "-"}</span><MemberName sub={row.ownerSub}/></div>
+      <p className="line-clamp-2 text-muted-foreground">{row.reasonName ?? (row.reviewId ? T.unclassified : T.pending)}{row.lessons ? ` / ${row.lessons}` : ""}</p>
+    </CardContent>
+  </Card>;
+}
+
+function useReviewDetail(id: string) {
+  const [data, setData] = useState<ReviewDetail | null>(null);
+  const [loading, setLoading] = useState(true), [failed, setFailed] = useState(false), [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setLoading(true); setFailed(false);
+    loadWinLossDetail(id).then(detail => {
+      if (active) { setData(detail); setFailed(!detail); }
+    }, () => { if (active) setFailed(true); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [id, attempt]);
+  return { data, loading, failed, retry: () => setAttempt(n => n + 1) };
+}
+
+function relatedLinks(row: WinLossRow, filter: WinLossFilter, canPlan: boolean, text: Messages["WINLOSS_WORKSPACE_TEXT"]) {
+  const links = [{ label: text.account, href: `/account/${encodeURIComponent(row.accountId)}` }];
+  if (row.planId) links.push({ label: text.strategy, href: `/strategy/${encodeURIComponent(row.planId)}` });
+  if (row.campaignId) links.push({ label: text.campaign, href: `/campaign?campaign=${encodeURIComponent(row.campaignId)}` });
+  if (canPlan) {
+    const query = new URLSearchParams({ year: filter.period.replace(/^Y/, "").slice(0, 4), period: filter.period });
+    if (row.regionId) query.set("region", row.regionId);
+    links.push({ label: text.planning, href: `/planning?${query}` });
+  }
+  return links;
+}
+
+type PreviewProps = Readonly<{ row: WinLossRow; filter: WinLossFilter; canPlan: boolean; onSaved: () => void; onDirtyChange: (dirty: boolean) => void }>;
+function ReviewPreview({ row, filter, canPlan, onSaved, onDirtyChange }: PreviewProps) {
+  const { WINLOSS_WORKSPACE_TEXT: T } = useMessages();
+  const { data, loading, failed, retry } = useReviewDetail(row.id);
+  if (loading) return <p className="text-body text-muted-foreground">{T.loading}</p>;
+  if (failed || !data) return <div className="flex flex-col gap-md"><p role="alert">{T.failed}</p><Button onClick={retry}>{T.retry}</Button></div>;
+  const links = relatedLinks(row, filter, canPlan, T);
   return <div className="@container flex flex-col gap-lg pb-xl text-body" data-review-preview>
     <div className="flex flex-wrap items-center gap-sm"><Outcome value={data.status as WinLossRow["outcome"]}/><ReviewState row={row}/><span className="tabular-nums">{formatMoney(row.amount,row.currency)}</span></div>
-    {row.stale?<p className="text-warning-text">{T.staleHelp}</p>:null}
-    {!record || editing ? data.canRecord ? <ReviewForm opportunityId={row.id} status={data.status} review={record} reasons={data.reasons} knownRivals={data.knownRivals} draft={data.draft}
-      onNarrate={data.canNarrate?draftReviewNarrative:undefined} onRecord={recordReview} onSaved={onSaved} onDirtyChange={onDirtyChange} onCancel={record?()=>setEditing(false):undefined}/> : <p>{W.recordHintDenied}</p> : <>
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-md gap-y-sm">
-        <dt className="text-muted-foreground">{W.reasonLabel}:</dt><dd>{data.reasons.find(r=>r.id===record.primaryReasonId)?.name ?? (record.primaryReasonId?T.unknownReason:T.unclassified)}</dd>
-        <dt className="text-muted-foreground">{W.competitorLabel}:</dt><dd>{record.competitor ?? "-"}</dd>
-        <dt className="text-muted-foreground">{T.reviewer}:</dt><dd>{record.reviewerSub?<MemberName sub={record.reviewerSub}/>:"-"}</dd>
-        <dt className="text-muted-foreground">{T.closed}:</dt><dd>{row.closedAt?.slice(0,10)??T.undated}</dd>
-      </dl><p className="whitespace-pre-wrap break-words">{record.lessons ?? "-"}</p>
-      {data.canRecord?<Button variant="outline" onClick={()=>setEditing(true)}>{T.edit}</Button>:null}
-      {data.draft?<ReviewDraftSections draft={data.draft} opportunityId={row.id} reasonName={new Map(data.reasons.map(r=>[r.id,r.name]))} onNarrate={data.canNarrate?draftReviewNarrative:undefined}/>:<p className="text-muted-foreground">{T.noDraft}</p>}
-    </>}
+    {row.stale ? <p className="text-warning-text">{T.staleHelp}</p> : null}
+    <ReviewContents data={data} row={row} onSaved={onSaved} onDirtyChange={onDirtyChange}/>
     <div className="flex flex-wrap gap-sm border-t border-border pt-md"><Button asChild variant="outline"><Link href={`/pipeline/${encodeURIComponent(row.id)}#deal-review`}><Icon name="external-link" size="sm"/>{T.evidence}</Link></Button></div>
-    <div className="flex flex-col gap-sm border-t border-border pt-md"><h3 className="flex items-center gap-sm font-medium"><Icon name="link" size="sm"/>{T.source}<TitleHelp topic={T.source}>{T.sourceHelp}</TitleHelp></h3><div className="flex flex-wrap gap-md">{links.map(l=><Link className={LINK} key={l.href} href={l.href}>{l.label}</Link>)}</div></div>
+    <div className="flex flex-col gap-sm border-t border-border pt-md"><h3 className="flex items-center gap-sm font-medium"><Icon name="link" size="sm"/>{T.source}<TitleHelp topic={T.source}>{T.sourceHelp}</TitleHelp></h3><div className="flex flex-wrap gap-md">{links.map(link => <Link className={LINK} key={link.href} href={link.href}>{link.label}</Link>)}</div></div>
   </div>;
+}
+
+function ReviewContents({ data, row, onSaved, onDirtyChange }: Readonly<{ data: ReviewDetail; row: WinLossRow; onSaved: () => void; onDirtyChange: (dirty: boolean) => void }>) {
+  const { WINLOSS_TEXT: W } = useMessages();
+  const [editing, setEditing] = useState(false);
+  if (!data.review || editing) {
+    if (!data.canRecord) return <p>{W.recordHintDenied}</p>;
+    return <ReviewForm opportunityId={row.id} status={data.status} review={data.review} reasons={data.reasons} knownRivals={data.knownRivals} draft={data.draft}
+      onNarrate={data.canNarrate ? draftReviewNarrative : undefined} onRecord={recordReview} onSaved={onSaved} onDirtyChange={onDirtyChange} onCancel={data.review ? () => setEditing(false) : undefined}/>;
+  }
+  return <ReviewRecordView data={data} record={data.review} row={row} onEdit={() => setEditing(true)}/>;
+}
+
+function ReviewRecordView({ data, record, row, onEdit }: Readonly<{ data: ReviewDetail; record: NonNullable<ReviewDetail["review"]>; row: WinLossRow; onEdit: () => void }>) {
+  const { WINLOSS_WORKSPACE_TEXT: T, WINLOSS_TEXT: W } = useMessages();
+  const reason = data.reasons.find(item => item.id === record.primaryReasonId)?.name;
+  const reasonText = reason ?? (record.primaryReasonId ? T.unknownReason : T.unclassified);
+  return <>
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-md gap-y-sm">
+      <dt className="text-muted-foreground">{W.reasonLabel}:</dt><dd>{reasonText}</dd>
+      <dt className="text-muted-foreground">{W.competitorLabel}:</dt><dd>{record.competitor ?? "-"}</dd>
+      <dt className="text-muted-foreground">{T.reviewer}:</dt><dd>{record.reviewerSub ? <MemberName sub={record.reviewerSub}/> : "-"}</dd>
+      <dt className="text-muted-foreground">{T.closed}:</dt><dd>{row.closedAt?.slice(0,10) ?? T.undated}</dd>
+    </dl>
+    <p className="whitespace-pre-wrap break-words">{record.lessons ?? "-"}</p>
+    {data.canRecord ? <Button variant="outline" onClick={onEdit}>{T.edit}</Button> : null}
+    {data.draft ? <ReviewDraftSections draft={data.draft} opportunityId={row.id} reasonName={new Map(data.reasons.map(reason => [reason.id, reason.name]))} onNarrate={data.canNarrate ? draftReviewNarrative : undefined}/> : <p className="text-muted-foreground">{T.noDraft}</p>}
+  </>;
 }

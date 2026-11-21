@@ -32,14 +32,18 @@ export function reviewQuestion(input: ReviewNarrativeInput): string {
   const d = input.draft;
   const source = (key: NonNullable<ReviewDraft["unavailable"]>[number], lines: string[]) =>
     d.unavailable?.includes(key) ? [`${key}: source unavailable; do not infer absence or a negative result.`] : lines;
+  const stage = d.slip.stageThen ? ` in ${d.slip.stageThen}` : "";
+  const slipped = d.slip.firstAt ? `from ${d.slip.firstAt}${stage}` : "no change for the worse";
+  const cold = d.coverage.cold.map(person => `${person.name} (${person.role}, ${person.lastDays ?? "never"})`).join(", ") || "none";
+  const cuts = d.concessions.cuts.map(cut => `${cut.from} -> ${cut.to}`).join(", ") || "none";
   return [
     `${REVIEW_MARK} Write the review of the deal "${input.dealName}", closed as ${input.outcome}. Every fact below is the record's; use no other figure.`,
-    ...source("slip", [`Where it slipped: ${d.slip.firstAt ? `from ${d.slip.firstAt}${d.slip.stageThen ? ` in ${d.slip.stageThen}` : ""}` : "no change for the worse"}.`,
+    ...source("slip", [`Where it slipped: ${slipped}.`,
     ...d.slip.events.map((e) => `  ${e.at} ${e.field}: ${e.from ?? "-"} -> ${e.to ?? "-"}`)]),
     ...source("promises", [`Promises not kept: ${d.promises.length ? "" : "none"}`,
     ...d.promises.map((p) => `  ${p.dueAt} ${p.direction}: ${p.statement} (${p.state})`)]),
-    ...source("coverage", [`Missing roles: ${d.coverage.missingRoles.join(", ") || "none"}; cold before the close: ${d.coverage.cold.map((c) => `${c.name} (${c.role}, ${c.lastDays ?? "never"})`).join(", ") || "none"}.`]),
-    ...source("concessions", [`Discount signatures: ${d.concessions.rounds}; amount cuts: ${d.concessions.cuts.map((c) => `${c.from} -> ${c.to}`).join(", ") || "none"}.`,
+    ...source("coverage", [`Missing roles: ${d.coverage.missingRoles.join(", ") || "none"}; cold before the close: ${cold}.`]),
+    ...source("concessions", [`Discount signatures: ${d.concessions.rounds}; amount cuts: ${cuts}.`,
     ...d.concessions.signatures.map((s) => `  ${s.at} ${s.product}: ${s.belowFloor} below the floor`)]),
     `Reasons that can explain this outcome (id: name):`,
     ...input.reasons.map((r) => `  ${r.id}: ${r.name}`),

@@ -13,7 +13,7 @@ import { getPlanningStore } from "../../domains/shared/registry";
 import { can } from "../../authz/decide";
 
 export const dynamic = "force-dynamic";
-export default async function WinLossPage({ searchParams }: { searchParams: Promise<WinLossQuery> }) {
+export default async function WinLossPage({ searchParams }: { readonly searchParams: Promise<WinLossQuery> }) {
   const session = await resolveAppSession();
   if (!session) return null;
   const locked = lockedPage(session, "winLossReview");
