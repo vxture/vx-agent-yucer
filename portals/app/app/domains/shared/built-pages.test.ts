@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { inspectBuiltPages, missingBuiltPages } from "../../../../../scripts/guardrails/check-built-pages.mjs";
+import { inspectBuiltPages, missingBuiltPages, reportBuiltPages } from "../../../../../scripts/guardrails/check-built-pages.mjs";
 
 const pages = [
   { route: "/attainment", file: "(app)/attainment/page.tsx" },
@@ -30,8 +30,16 @@ test("build inspection reads the preserved inventory independently of the filter
     put("portals/app/.next/server/app-paths-manifest.json", JSON.stringify(compiled));
     for (const artifact of Object.values(compiled)) put(`portals/app/.next/server/${artifact}`, "compiled");
     assert.deepEqual(inspectBuiltPages(repo), { count: 3, missing: [] });
+    const logs: string[] = [], errors: string[] = [];
+    const output = { log: (message: string) => logs.push(message), error: (message: string) => errors.push(message) };
+    assert.equal(reportBuiltPages(repo, output), 0);
+    assert.deepEqual(logs, ["[built-pages] OK - 3 reviewed pages compiled and present."]);
+    assert.deepEqual(errors, []);
     rmSync(join(repo, "portals/app/.next/server/app/(app)/attainment/coverage"), { recursive: true });
     assert.deepEqual(inspectBuiltPages(repo), { count: 3, missing: ["/attainment/coverage"] });
+    assert.equal(reportBuiltPages(repo, output), 1);
+    assert.deepEqual(errors, ["[built-pages] Missing compiled routes: /attainment/coverage"]);
+    assert.equal(logs.length, 1);
     rmSync(join(repo, "portals/app/.next/server/app-paths-manifest.json"));
     assert.throws(() => inspectBuiltPages(repo), /ENOENT/);
   } finally { rmSync(repo, { recursive: true, force: true }); }

@@ -20,11 +20,16 @@ export function inspectBuiltPages(repo) {
   return { count: pages.length, missing };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export function reportBuiltPages(repo, output = console) {
   const { count, missing } = inspectBuiltPages(repo);
   if (missing.length) {
-    console.error(`[built-pages] Missing compiled routes: ${missing.join(", ")}`);
-    process.exitCode = 1;
-  } else console.log(`[built-pages] OK - ${count} reviewed pages compiled and present.`);
+    output.error(`[built-pages] Missing compiled routes: ${missing.join(", ")}`);
+    return 1;
+  }
+  output.log(`[built-pages] OK - ${count} reviewed pages compiled and present.`);
+  return 0;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = reportBuiltPages(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.."));
 }
