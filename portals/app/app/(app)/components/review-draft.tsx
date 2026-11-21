@@ -27,12 +27,7 @@ interface ReviewDraftSectionsProps {
 }
 
 function ReviewDraftContent({ draft, opportunityId, reasonName, onNarrate, onAdoptReason }: ReviewDraftSectionsProps) {
-  const { REVIEW_DRAFT_TEXT: T, DECISION_ROLE_LABEL, DIRECTION_LABEL, REVIEW_ERROR, COPILOT_TEXT, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
-  const [pending, start] = useTransition();
-  const inFlight = useRef(false);
-  const lifetime = useRequestLifetime();
-  const [told, setTold] = useState<Extract<ReviewNarrativeResult, { ok: true }> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { REVIEW_DRAFT_TEXT: T, DECISION_ROLE_LABEL, DIRECTION_LABEL, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
   const field = (f: string) => T.field[f] ?? f;
   return (
     <div className="border-border flex flex-col gap-2xs border-t pt-sm text-body-small">
@@ -89,56 +84,69 @@ function ReviewDraftContent({ draft, opportunityId, reasonName, onNarrate, onAdo
           </li>
         ))}
       </Part>}
-      {onNarrate ? (
-        <div className="border-border mt-xs flex flex-col gap-xs rounded-md border border-dashed p-sm">
-          <div className="flex items-center justify-between gap-sm">
-            <span className="text-foreground flex items-center gap-2xs font-medium">
-              <Icon name="sparkles" size="xs" />
-              {T.narrativeTitle}
-            </span>
-            <Button
-              size="md"
-              variant="outline"
-              disabled={pending}
-              onClick={() => {
-                if (inFlight.current) return;
-                inFlight.current = true;
-                const signal = lifetime.current.signal;
-                start(async () => {
-                  try {
-                    const r = await onNarrate(opportunityId);
-                    if (signal.aborted) return;
-                    if (r.ok) { setTold(r); setError(null); }
-                    else setError(isModelPlaneError(r.error) ? explainModelPlaneError(r.error, COPILOT_TEXT) : REVIEW_ERROR[r.error] ?? W.failed);
-                  } catch { if (!signal.aborted) setError(W.failed); }
-                  finally { inFlight.current = false; }
-                });
-              }}
-            >
-              {pending ? T.narrating : T.narrate}
-            </Button>
-          </div>
-          {error ? <StatusBadge tone="warning">{error}</StatusBadge> : null}
-          {told ? (
-            <>
-              {told.narrative.map((s) => (
-                <p key={s}>{s}</p>
-              ))}
-              {told.reasonId ? (
-                <p className="flex flex-wrap items-center gap-xs">
-                  <span className="text-muted-foreground">{T.suggested(reasonName.get(told.reasonId) ?? told.reasonId)}</span>
-                  {onAdoptReason ? (
-                    <Button size="md" variant="ghost" onClick={() => onAdoptReason(told.reasonId!)}>
-                      {T.adoptReason}
-                    </Button>
-                  ) : null}
-                </p>
+      {onNarrate ? <ReviewNarrative opportunityId={opportunityId} reasonName={reasonName} onNarrate={onNarrate} onAdoptReason={onAdoptReason}/> : null}
+    </div>
+  );
+}
+
+function ReviewNarrative({ opportunityId, reasonName, onNarrate, onAdoptReason }: Omit<ReviewDraftSectionsProps, "draft" | "onNarrate"> & {
+  readonly onNarrate: NonNullable<ReviewDraftSectionsProps["onNarrate"]>;
+}) {
+  const { REVIEW_DRAFT_TEXT: T, REVIEW_ERROR, COPILOT_TEXT, WINLOSS_WORKSPACE_TEXT: W } = useMessages();
+  const [pending, start] = useTransition();
+  const inFlight = useRef(false);
+  const lifetime = useRequestLifetime();
+  const [told, setTold] = useState<Extract<ReviewNarrativeResult, { ok: true }> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function generate(signal: AbortSignal) {
+    try {
+      const r = await onNarrate(opportunityId);
+      if (signal.aborted) return;
+      if (r.ok) { setTold(r); setError(null); }
+      else setError(isModelPlaneError(r.error) ? explainModelPlaneError(r.error, COPILOT_TEXT) : REVIEW_ERROR[r.error] ?? W.failed);
+    } catch { if (!signal.aborted) setError(W.failed); }
+    finally { inFlight.current = false; }
+  }
+  function narrate() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    start(() => generate(lifetime.current.signal));
+  }
+  return (
+    <div className="border-border mt-xs flex flex-col gap-xs rounded-md border border-dashed p-sm">
+      <div className="flex items-center justify-between gap-sm">
+        <span className="text-foreground flex items-center gap-2xs font-medium">
+          <Icon name="sparkles" size="xs" />
+          {T.narrativeTitle}
+        </span>
+        <Button
+          size="md"
+          variant="outline"
+          disabled={pending}
+          onClick={narrate}
+        >
+          {pending ? T.narrating : T.narrate}
+        </Button>
+      </div>
+      {error ? <StatusBadge tone="warning">{error}</StatusBadge> : null}
+      {told ? (
+        <>
+          {told.narrative.map((s) => (
+            <p key={s}>{s}</p>
+          ))}
+          {told.reasonId ? (
+            <p className="flex flex-wrap items-center gap-xs">
+              <span className="text-muted-foreground">{T.suggested(reasonName.get(told.reasonId) ?? told.reasonId)}</span>
+              {onAdoptReason ? (
+                <Button size="md" variant="ghost" onClick={() => onAdoptReason(told.reasonId!)}>
+                  {T.adoptReason}
+                </Button>
               ) : null}
-              {told.dropped > 0 ? <p className="text-muted-foreground">{T.dropped(told.dropped)}</p> : null}
-              {told.cached ? <p className="text-muted-foreground">{T.cached}</p> : null}
-            </>
+            </p>
           ) : null}
-        </div>
+          {told.dropped > 0 ? <p className="text-muted-foreground">{T.dropped(told.dropped)}</p> : null}
+          {told.cached ? <p className="text-muted-foreground">{T.cached}</p> : null}
+        </>
       ) : null}
     </div>
   );

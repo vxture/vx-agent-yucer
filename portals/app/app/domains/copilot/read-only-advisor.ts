@@ -27,7 +27,7 @@ export async function runReadOnlyAdvisor<T>(
     kind: input.kind,
     subject: input.subject,
     input: { question: input.question, workspaceId: ctx.workspaceId, tenantId: input.tenantId, actor: ctx.sub,
-      scope: input.scope, permissions: [...ctx.holder.permissions].sort() },
+      scope: input.scope, permissions: [...ctx.holder.permissions].sort((a, b) => a.localeCompare(b)) },
     generate: async ({ runId, atlas }) => {
       const turn = await runCopilotTurn(ctx, {
         question: input.question,
