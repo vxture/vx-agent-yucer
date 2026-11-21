@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { previewTargetDelta } from "./planning-preview";
+import { planningPipelineCoverage, previewTargetDelta } from "./planning-preview";
 import { targetDelta } from "../../domains/planning/plan-state";
 
 test("incomplete draft amounts do not interrupt the editor or loosen domain validation", () => {
@@ -32,4 +32,11 @@ test("valid previews retain exact cents and null versus zero semantics", () => {
   });
   assert.equal(previewTargetDelta(null, "1"), null);
   assert.equal(previewTargetDelta("1", null), null);
+});
+
+test("pipeline multiples use a formal revenue baseline and leave unknown or zero denominators unset", () => {
+  assert.equal(planningPipelineCoverage("3000000", "1000000", "en-US"), "3\u00d7");
+  assert.equal(planningPipelineCoverage("0", "1000000", "en-US"), "0\u00d7");
+  for (const baseline of [null, "0", "Infinity", "invalid"]) assert.equal(planningPipelineCoverage("300", baseline, "en-US"), null);
+  assert.equal(planningPipelineCoverage("invalid", "100", "en-US"), null);
 });

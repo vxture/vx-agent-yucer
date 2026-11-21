@@ -48,6 +48,15 @@ For the PRODUCT, authority is here and is layered:
 - Keep source, config, and root meta files ASCII-only. Files under `docs/` may use
   Chinese - the product spec does.
 
+## Product release review preference
+
+Owner instruction (2026-11-21): batch related product feedback instead of
+releasing once per question. Before an application release tag, stop at local
+preview, report the changes and any unresolved issues, and wait for the owner
+to confirm that the reviewed result is ready to release. A prior release request
+does not authorize automatically releasing subsequent preview corrections.
+Production GitHub deployment approval remains a separate owner action.
+
 ## Product rules that bite
 
 Read `CLAUDE.md` section "Product domain rules that are now rigid here" before

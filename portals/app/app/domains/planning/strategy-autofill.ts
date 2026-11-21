@@ -35,3 +35,23 @@ export function allocateStrategicTarget(c: PlanContent, x: StrategyAcceptance, k
       amount: count ? String(n) : amount(n), ownerSub: c.regions.find(r => r.id === regionId)?.ownerSub ?? x.ownerSub };
   }) };
 }
+
+/** A region can reallocate only its open quarters, preserving all other commitments. */
+export function allocateRegionalStrategicTarget(
+  c: PlanContent, x: StrategyAcceptance, regionId: string,
+  lockedPeriods: readonly string[], key: () => string,
+): StrategyAcceptance {
+  const fixed = x.allocations.filter(a => a.regionId !== regionId || lockedPeriods.includes(a.period));
+  const used = fixed.reduce((total, a) => total + minor(a.amount), 0n);
+  const available = minor(x.amount) - used;
+  if (available < 0n) return x;
+  const regional = {
+    ...c,
+    regions: c.regions.filter(r => r.id === regionId),
+    targets: c.targets.filter(t => !lockedPeriods.includes(t.period)),
+  };
+  const allocation = allocateStrategicTarget(regional, {
+    ...x, amount: x.expectation.metric === "revenue" ? amount(available) : String(available / 100n),
+  }, key);
+  return { ...x, allocations: [...fixed, ...allocation.allocations] };
+}

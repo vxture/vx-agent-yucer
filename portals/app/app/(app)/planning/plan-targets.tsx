@@ -47,7 +47,7 @@ import {
   updatePlanningAmount,
   updatePlanningMarginRate,
 } from "../lib/planning-autofill";
-import { planningTierPercent } from "../lib/planning-preview";
+import { planningPipelineCoverage, planningTierPercent } from "../lib/planning-preview";
 import {
   planningMetricOrder,
   planningMetricPresets,
@@ -66,13 +66,14 @@ type Props = {
   open?: boolean;
   initiallyOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  periodsOnly?: boolean;
 };
 const tiers = ["floor", "target", "stretch"] as const;
 type Tier = (typeof tiers)[number];
 type PeriodMode = "simple" | "complete";
 const modeKey = "yucer:planning:period-mode";
 
-function TargetValue({
+export function PlanningTargetValue({
   content,
   line,
   tier,
@@ -81,6 +82,7 @@ function TargetValue({
   disabled,
   lockedPeriods,
   readOnly = false,
+  labelPrefix,
 }: {
   content: PlanContent;
   line: PlanTarget;
@@ -90,6 +92,7 @@ function TargetValue({
   disabled: boolean;
   lockedPeriods: readonly string[];
   readOnly?: boolean;
+  labelPrefix?: string;
 }) {
   const locale = useLocale();
   const [focused, setFocused] = useState(false);
@@ -132,7 +135,7 @@ function TargetValue({
     );
     if (!edit)
       return (
-        <span className="flex items-baseline justify-between gap-xs tabular-nums">
+        <span data-number-pair className="tabular-nums">
           <span data-number-role="value">
             {rate == null
               ? "\u2014"
@@ -144,7 +147,7 @@ function TargetValue({
     return (
       <InputGroup className="min-w-0">
         <InputGroupInput
-          aria-label={`${line.period} ${C.marginRate} ${T[tier]}`}
+          aria-label={`${labelPrefix ? `${labelPrefix} ` : ""}${line.period} ${C.marginRate} ${T[tier]}`}
           aria-describedby={`margin-result-${line.key}-${tier}`}
           inputMode="decimal"
           value={rate ?? ""}
@@ -187,7 +190,7 @@ function TargetValue({
     : rawAmount;
   if (!edit)
     return (
-      <span className="flex items-baseline justify-between gap-sm tabular-nums">
+      <span data-number-pair className="tabular-nums">
         <span data-number-role="value">
           {line[tier] == null
             ? "\u2014"
@@ -195,7 +198,7 @@ function TargetValue({
                 maximumFractionDigits: 2,
               })}
         </span>
-        <span data-number-role="unit" className="w-8 shrink-0 text-right">
+        <span data-number-role="unit" className="shrink-0">
           {effectiveRatio ?? "\u2014"}
         </span>
       </span>
@@ -203,7 +206,7 @@ function TargetValue({
   return (
     <InputGroup className="min-w-0">
       <InputGroupInput
-        aria-label={`${line.period} ${labels[line.metric]} ${T[tier]}`}
+        aria-label={`${labelPrefix ? `${labelPrefix} ` : ""}${line.period} ${labels[line.metric]} ${T[tier]}`}
         inputMode={line.metric === "new_logo" ? "numeric" : "decimal"}
         value={displayedAmount ?? ""}
         title={line[tier] ?? undefined}
@@ -241,6 +244,7 @@ export function PlanTargetLedger({
   open: controlledOpen,
   initiallyOpen = false,
   onOpenChange,
+  periodsOnly = false,
 }: Props) {
   const locale = useLocale();
   const {
@@ -297,16 +301,7 @@ export function PlanTargetLedger({
         t.metric === "revenue" &&
         t.currency === line.currency,
     );
-    const value =
-      line[tier] == null ||
-      revenue?.target == null ||
-      !Number.isFinite(Number(line[tier])) ||
-      !(Number(revenue.target) > 0)
-        ? null
-        : Number(line[tier]) / Number(revenue.target);
-    return value === null
-      ? null
-      : `${value.toLocaleString(locale, { maximumFractionDigits: 2 })}\u00d7`;
+    return planningPipelineCoverage(line[tier], revenue?.target, locale);
   };
   const ratio = (line: PlanTarget, tier: Tier) =>
     line.metric === "pipeline"
@@ -334,7 +329,7 @@ export function PlanTargetLedger({
   return (
     <div className="flex w-full min-w-0 flex-col gap-md">
       {estimateKey && edit && content.targets.some(t => t.key === estimateKey) ? <NewLogoEstimateDrawer key={estimateKey} content={content} line={content.targets.find(t => t.key === estimateKey)!} disabled={disabled} locked={lockedPeriods} edit={edit} onClose={() => setEstimateKey(null)}/> : null}
-      <Table
+      {!periodsOnly ? <Table
         className="min-w-page-md table-fixed [&_tr>:first-child]:pl-md [&_tr>:last-child]:pr-md"
         aria-label={T.annualTargets}
       >
@@ -390,7 +385,7 @@ export function PlanTargetLedger({
               </TableCell>
               {tiers.map((tier) => (
                 <TableCell key={tier} data-plan-tier={tier} className="px-sm">
-                  <TargetValue
+                  <PlanningTargetValue
                     content={content}
                     line={line}
                     tier={tier}
@@ -471,15 +466,15 @@ export function PlanTargetLedger({
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </Table> : null}
       <Collapsible open={open} onOpenChange={setOpen}>
-        <div className="flex flex-wrap items-center justify-between gap-sm border-t border-border py-sm">
-          <CollapsibleTrigger asChild>
+        <div className={`flex flex-wrap items-center ${periodsOnly ? "justify-end" : "justify-between"} gap-sm border-t border-border py-sm`}>
+          {!periodsOnly ? <CollapsibleTrigger asChild>
             <Button variant="ghost" size="md">
               <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
               {T.periodTargets}
             </Button>
-          </CollapsibleTrigger>
+          </CollapsibleTrigger> : null}
           {open && hasQuarters ? (
             <Select
               value={mode}
@@ -546,7 +541,7 @@ export function PlanTargetLedger({
                       return (
                         <TableCell key={q} className="px-sm">
                           {line ? (
-                            <TargetValue
+                            <PlanningTargetValue
                               content={content}
                               line={line}
                               tier="target"
@@ -669,6 +664,7 @@ function MetricSelection({
   lockedPeriods = [],
 }: Props) {
   const {
+    REGIONAL_PLANNING_TEXT: R,
     COMPANY_PLANNING_TEXT: C,
     PLAN_VERSION_TEXT: T,
     PLANNING_TEXT: P,
@@ -684,9 +680,10 @@ function MetricSelection({
   const annual = content.targets.filter(
     (t) => t.scope === scope && t.period === `Y${content.year}`,
   );
-  const available = planningMetricOrder.filter(
-    (m) => !annual.some((t) => t.metric === m),
-  );
+  const metrics = planningMetricOrder.filter(m => scope === "workspace" || content.targets.some(
+    t => t.scope === "workspace" && t.period === `Y${content.year}` && t.metric === m,
+  ));
+  const available = metrics.filter((m) => !annual.some((t) => t.metric === m));
   const choosePreset = (preset: PlanningMetricPreset) =>
     setSelected(
       planningMetricPresets[preset].filter((m) => available.includes(m)),
@@ -713,6 +710,7 @@ function MetricSelection({
         closeLabel={T.cancel}
       >
         <div className="flex flex-col gap-lg">
+          {scope !== "workspace" ? <p className="text-body text-muted-foreground">{R.inheritedMetrics}</p> : null}
           <div className="flex flex-col gap-sm">
             <span className="text-body font-medium">{C.industryPresets}</span>
             <div className="grid grid-cols-2 gap-sm">
@@ -737,7 +735,7 @@ function MetricSelection({
             </p>
           ) : null}
           <div className="flex flex-col divide-y divide-border">
-            {planningMetricOrder.map((metric) => (
+            {metrics.map((metric) => (
               <label key={metric} className="flex items-start gap-sm py-md">
                 <Checkbox
                   checked={

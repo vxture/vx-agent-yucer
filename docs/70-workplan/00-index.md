@@ -1,9 +1,14 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 区域拆分工作区
+
+[108-regional-planning-workspace.md](108-regional-planning-workspace.md) 跟踪 RP-01 / #720：
+公司发布基准、区域多指标三档、季度节奏与单区域战略分解，随本轮销售规划统一验收发布。
+
 ## 公司战略承接修正
 
 [107-planning-handoff-context.md](107-planning-handoff-context.md) 跟踪 #718：
-公司总览核定战略承接，区域视图配置周期与区域；与 CP-02 汇总发布，当前待 PR CI。
+公司总览核定战略承接，区域视图配置周期与区域；PR #719 已合并，六项检查及 PR Sonar 通过，待汇总发布。
 
 ## 新客数量估算
 

@@ -102,3 +102,24 @@ test("prose claims/unknown fields/invalid amounts fail; a failed turn provides r
   assert.ok(!failure.ok && "recovery" in failure && failure.recovery);
   assert.equal((await h.store.read("ws", 2026))!.events.length, 1);
 });
+
+test("regional assistant receives the frozen company baseline and peer allocations through the existing Atlas path", async () => {
+  const h = await harness();
+  let plan = await changeSalesPlan(h.ctx, { year: 2026, expectedEventNo: h.plan.events.at(-1)!.no, requestKey: "company-save", command: { kind: "save", revisionId: h.input.revisionId, editToken: h.input.editToken, content: applyPlanningDraft(h.input.values, { targets: [{ metric: "revenue", value: "1000" }] }) } });
+  const draft = plan.revisions.find(r => r.state === "draft")!;
+  plan = await changeSalesPlan(h.ctx, { year: 2026, expectedEventNo: plan.events.at(-1)!.no, requestKey: "company-publish", command: { kind: "release", revisionId: draft.id, editToken: draft.editToken, reason: "Company baseline" } });
+  const company = plan.revisions.find(r => r.state === "sealed")!;
+  const regional = structuredClone(company.content);
+  regional.regions = [{ id: "east", divisionId: "division", code: "E", name: "East", provinces: [], included: true, reason: "", ownerSub: null }];
+  regional.targets.push({ ...regional.targets[0], key: "regional-quota", scope: "territory:east", target: "200", floor: "120", stretch: "240" });
+  plan = await changeSalesPlan(h.ctx, { year: 2026, expectedEventNo: plan.events.at(-1)!.no, requestKey: "region-draft", command: { kind: "draft", scope: "regions", content: regional } });
+  const regionDraft = plan.revisions.find(r => r.state === "draft")!;
+  h.reply('{"message":"Regional target prepared","fields":{"targets":[{"metric":"revenue","value":"200"}]}}');
+  const result = await preparePlanningDraft(h.ctx, { year: 2026, revisionId: regionDraft.id, editToken: regionDraft.editToken, regionId: "east", values: regionDraft.content, text: "Allocate my regional quota" }, h.deps);
+  assert.ok(result.ok);
+  const prompt = h.prompts[0];
+  assert.ok(prompt.includes("companyTargets") && prompt.includes("regionalTargets") && prompt.includes(company.id));
+  assert.ok(prompt.includes("published read-only limits") && prompt.includes("same-quarter remaining capacity"));
+  assert.equal(h.calls(), 1);
+  assert.deepEqual((await readSalesPlan(h.ctx, 2026))!.revisions.find(r => r.id === company.id), company);
+});
