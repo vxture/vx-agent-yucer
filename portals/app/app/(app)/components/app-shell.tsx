@@ -45,7 +45,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { ASSISTANT_WIDTH_COOKIE, BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX, type AssistantWidth } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { CENTRE_PANE_CLASS, ASSISTANT_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
+import { CENTRE_PANE_CLASS, ASSISTANT_PANE_CLASS, PAGE_SAFE_END_CLASS, isDossierRoute } from "../lib/sidebar-slot";
 import { FormAssistSlotProvider } from "./form-assist-slot";
 import workspaceInsets from "./workspace-insets.module.css";
 
@@ -551,7 +551,7 @@ export function AppShell({
       {isAdmin ? (
         <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}>
           <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <ShellPageContainer width="wide-2xl" className={workspaceInsets.adminContent}>{children}</ShellPageContainer>
+            <ShellPageContainer width="wide-2xl" className={`${workspaceInsets.adminContent} ${PAGE_SAFE_END_CLASS}`}>{children}</ShellPageContainer>
           </div>
         </div>
       ) : (

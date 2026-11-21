@@ -122,7 +122,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
           {!slot ? <div className="flex max-h-48 flex-col gap-sm overflow-y-auto">{messages.map((message, i) => <AssistantMessage key={i} role={message.role}>{message.text}</AssistantMessage>)}{feedback}</div> : null}
         </> : <p className="text-body-small text-muted-foreground">{T.assistDenied}</p>}
       </Card>
-      <form className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]" onSubmit={event => {
+      <form className="flex flex-col gap-xl" onSubmit={event => {
         event.preventDefault(); if (!ready || busy) return;
         submit.run(() => onSave({ editId: original?.id, name: values.name.trim(), priority: Number(priority), status,
           criteria: { industries: values.industries, regions: values.regions, sizes: values.sizes, needSummary: values.needSummary, customerNeed: values.customerNeed, buyingScenario: values.buyingScenario, expectedOutcome: values.expectedOutcome, entryBarrier: values.entryBarrier },

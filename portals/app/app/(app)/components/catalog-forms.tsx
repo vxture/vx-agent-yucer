@@ -154,7 +154,7 @@ export function NewProductForm({
   return (
     <FormPage
       form={
-        <div className="flex flex-col gap-xl pb-[calc(3rem+env(safe-area-inset-bottom))]" onChangeCapture={e => {
+        <div className="flex flex-col gap-xl" onChangeCapture={e => {
           const field = productManualField(e.target);
           if (field) edits.touch(field);
         }}>
@@ -388,7 +388,7 @@ export function NewSolutionForm({
           <fieldset onChangeCapture={e => {
             const field = solutionManualField(e.target);
             if (field) edits.touch(field);
-          }} disabled={busy} className="min-w-0 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+          }} disabled={busy} className="min-w-0">
           <FormFields>
             <Field>
               <FieldLabel htmlFor="sol-code">{CATALOG_TEXT.colCode}</FieldLabel>
