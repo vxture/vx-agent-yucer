@@ -1,7 +1,7 @@
 # 公司规划工作区 CP-01
 
 跟踪：[Issue #710](https://github.com/vxture/vx-agent-yucer/issues/710)。
-状态：实现及本地验收完成，待 PR 检查；尚未发布。生产需先执行增量 0129、0130。
+状态：已随 v0.1.123 上线，生产验证通过；增量 0129、0130 已执行。
 
 | 用户要求 | 交付与验收 |
 | --- | --- |
@@ -24,7 +24,7 @@
   保存公司草稿、独立发布 V1、刷新四项只读展示；1440/1024/720/390 宽度均无页面横向溢出。
 - 浏览器使用本机内存演示资料；本批不宣称完成生产业务数据或真实模型回合验收。
 
-Issue #710 保留发布记录；生产未执行增量 0129、0130，未打发布标签。
+Issue #710、#712 保留完整发布证据；生产增量与版本结果见文末。
 
 
 ## 页面评审修订
@@ -119,3 +119,23 @@ PR #711 已合并；PR 六项必需检查、CodeQL 与 Sonar 质量门通过，�
 生产数据库运行 44896317849 已批准并成功，0129、0130 两项新增，129 项已记录。
 主分支全库 Sonar 可靠性 E/安全 C 的存量继续跟踪 #684；本次新识别的金额尾零
 正则性能提示单独修正为固定长度匹配，保持数值显示与保存语义，随应用发布。
+
+## 上线验收与结项
+
+- 发布：`v0.1.123`，提交 `bb3c8fbdcf35c303f53295aeb602f13f0e677359`；
+  [PR #711](https://github.com/vxture/vx-agent-yucer/pull/711)、
+  [PR #714](https://github.com/vxture/vx-agent-yucer/pull/714) 已合并。
+- [数据库运行 44896317849](https://github.com/vxture/vx-agent-yucer/actions/runs/44896317849)
+  owner 批准后成功：0129、0130 两项新增，129 项已记录。
+- [应用运行 44897863698](https://github.com/vxture/vx-agent-yucer/actions/runs/44897863698)
+  owner 批准后成功；部署两次 `verify OK (health 200)`。
+- 公网 health 返回 `v0.1.123 / bb3c8fbd / production`；数据库、Redis、Atlas、Runos
+  连通正常。镜像内 83 个已登记页面完整；公开入口引用的 22 个 CSS/JS 资源均返回 200，
+  线上 CSS 已包含 DS `space-6xl` 与设备底部安全区规则。
+- 最终主分支六项必需检查通过，两个 PR 的 Sonar 质量门通过；本次正则性能提示
+  `AaH9vfC1IgZiFB_GxlKH` 已自动 CLOSED / FIXED，存量全库质量门继续 #684。
+- 业务交互使用发布前本地演示数据、模型夹具；没有在生产创建测试规划，不宣称完成
+  生产真实模型交互验收。
+
+[发布说明](https://github.com/vxture/vx-agent-yucer/releases/tag/v0.1.123)。
+Issue #710、#712 已按完成关闭；本批应用交付完成。

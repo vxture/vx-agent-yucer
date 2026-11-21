@@ -2,8 +2,8 @@
 
 ## 公司规划工作区
 
-[105-company-planning-workspace.md](105-company-planning-workspace.md) 跟踪 CP-01 公司发布解耦、主辅指标矩阵、
-季度精简/完整模式及分配余额修正；关联 #710，本地验收通过，待 PR 检查，尚未发布。
+已随 v0.1.123 上线。[105-company-planning-workspace.md](105-company-planning-workspace.md) 跟踪 CP-01 公司发布解耦、主辅指标矩阵、
+季度精简/完整模式及分配余额修正；关联 #710、#712，生产验证通过，两个 Issue 已关闭。
 
 ## 作战部署域四板块
 
