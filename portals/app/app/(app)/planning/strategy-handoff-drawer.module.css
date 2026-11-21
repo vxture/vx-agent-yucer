@@ -1,0 +1,16 @@
+.content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding-bottom: calc(var(--space-6xl) + env(safe-area-inset-bottom, 0px));
+}
+
+.footer {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: var(--space-sm);
+  /* Drawer already contributes lg to its footer's outer padding. */
+  padding-bottom: calc(var(--space-6xl) - var(--space-lg) + env(safe-area-inset-bottom, 0px));
+}

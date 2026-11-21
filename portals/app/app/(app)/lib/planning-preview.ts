@@ -35,3 +35,10 @@ export function planningTierPercent(
     maximumFractionDigits: 1,
   });
 }
+
+
+/** Opportunity stock as a multiple of the same formal revenue baseline. */
+export function planningPipelineCoverage(value: string | null | undefined, revenue: string | null | undefined, locale: string): string | null {
+  if (value == null || revenue == null || !Number.isFinite(Number(value)) || !(Number(revenue) > 0) || !Number.isFinite(Number(revenue))) return null;
+  return `${(Number(value) / Number(revenue)).toLocaleString(locale, { maximumFractionDigits: 2 })}\u00d7`;
+}

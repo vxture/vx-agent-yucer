@@ -102,7 +102,7 @@ export function StrategyCharterCard({plan:p,actions,draftAvailable}: {
           <dl className={styles.goals}>
             {displayGoals.map(({key,name,goal})=><div key={key} className={styles.goal} data-strategy-goal={goal?.metric ?? key}>
               <dt className="inline-flex items-center gap-xs text-body-small text-muted-foreground" title={goal?.name || name}>{goal?.metric ? H[goal.metric] : goal ? R.goals : name}{":"}</dt>
-              <dd className="flex min-w-0 flex-wrap items-baseline justify-end gap-x-sm gap-y-xs">
+              <dd className="flex min-w-0 flex-wrap items-baseline gap-x-sm gap-y-xs">
                 <strong className={`${styles.goalNumber} tabular-nums ${goal?"":"text-muted-foreground"}`} title={goal ? `${Number(goal.amount).toLocaleString(locale)} ${goal.unit}`:undefined}>{goal ? Number(goal.amount).toLocaleString(locale,{notation:Math.abs(Number(goal.amount))>=100_000_000?"compact":"standard",maximumFractionDigits:2}):"\u2014"}</strong>
                 {goal ? <span className="text-body-small text-muted-foreground">{goal.unit}</span>:null}
               </dd>

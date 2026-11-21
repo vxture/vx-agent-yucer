@@ -66,3 +66,16 @@ test("allocation follows the selected metric and preserves zero and negative bal
   c.targets = c.targets.filter(t => t.key !== "regional-count");
   assert.deepEqual(companyAllocation(c, count), { allocated: "0.00", unknown: 1, balance: "20.00" });
 });
+
+test("company allocation compares tiers independently and uses the selected quarter", () => {
+  const c = fixture();
+  const company = c.targets.find(t => t.scope === "workspace")!;
+  const region = c.targets.find(t => t.scope === "territory:r")!;
+  company.floor = "60"; company.stretch = "120"; region.floor = "50"; region.stretch = "90";
+  assert.equal(companyAllocation(c, company, "floor").balance, "10.00");
+  assert.equal(companyAllocation(c, company, "stretch").balance, "30.00");
+  const quarter = { ...company, key: "company-quarter", period: "2026Q1", target: "10" };
+  c.targets.push(quarter, { ...region, key: "region-quarter", period: quarter.period, target: "12" });
+  assert.deepEqual(companyAllocation(c, quarter), { allocated: "12.00", unknown: 0, balance: "-2.00" });
+  assert.equal(companyAllocation(c, company).balance, "20.00");
+});
