@@ -182,7 +182,7 @@ function TargetValue({
     : ratio;
   const rawAmount = line[tier] ?? "";
   const displayedAmount = !focused && /^\d+\.\d{1,2}$/.test(rawAmount)
-    ? rawAmount.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "")
+    ? rawAmount.replace(/\.00?$/, "").replace(/(\.\d)0$/, "$1")
     : rawAmount;
   if (!edit)
     return (
