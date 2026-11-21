@@ -17,13 +17,11 @@
 
 .companyFields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-lg);
+  grid-template-columns: minmax(0, 1fr) 8rem;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
-.companyOwner {
-  min-width: 0;
-  justify-self: end;
-  align-items: end;
+.companyContent {
+  gap: var(--space-md);
 }
