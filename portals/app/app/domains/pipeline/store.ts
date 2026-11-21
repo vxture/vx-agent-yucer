@@ -456,6 +456,7 @@ export interface PipelineStore {
   ): Promise<SnapshotRow[]>;
 
   getWinLossReview(workspaceId: string, opportunityId: string): Promise<WinLossReviewRecord | null>;
+  listWinLossReviews(workspaceId: string, opportunityIds: readonly string[]): Promise<WinLossReviewRecord[]>;
   /** Upsert on opportunity_id. A re-closed deal revises its review; it does not
    * accumulate several, and the unique index would reject one anyway. */
   saveWinLossReview(
@@ -1289,6 +1290,11 @@ export class InMemoryPipelineStore implements PipelineStore {
   ): Promise<WinLossReviewRecord | null> {
     const r = this.reviews.get(opportunityId);
     return r && r.workspaceId === workspaceId ? { ...r } : null;
+  }
+
+  async listWinLossReviews(workspaceId: string, opportunityIds: readonly string[]): Promise<WinLossReviewRecord[]> {
+    const ids = new Set(opportunityIds);
+    return [...this.reviews.values()].filter(r => r.workspaceId === workspaceId && ids.has(r.opportunityId));
   }
 
   async saveWinLossReview(

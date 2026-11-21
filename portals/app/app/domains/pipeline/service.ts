@@ -1218,7 +1218,22 @@ export async function winLossReviewOf(
 ): Promise<RuleResult<WinLossReviewRecord | null>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
   if (!gate.allowed) return denied(gate);
+  if (!await ctx.store.getOpportunity(ctx.workspaceId, opportunityId)) return fail(violation("not_found", "opportunity not found"));
   return ok(await ctx.store.getWinLossReview(ctx.workspaceId, opportunityId));
+}
+
+export async function winLossWorkspace(ctx: PipelineContext): Promise<RuleResult<{ closed: OpportunityRecord[]; reviews: WinLossReviewRecord[]; reasons: WinLossReasonRecord[] }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const all = await listPipeline(ctx, { includeClosed: true });
+  if (!all.ok) return all;
+  const closed = all.value.filter(o => o.status !== "open");
+  const [reviews, reasons] = await Promise.all([
+    ctx.store.listWinLossReviews(ctx.workspaceId, closed.map(o => o.id)),
+    listWinLossReasons(ctx),
+  ]);
+  if (!reasons.ok) return reasons;
+  return ok({ closed, reviews, reasons: reasons.value });
 }
 
 /**
@@ -1256,6 +1271,8 @@ export async function recordWinLossReview(
 ): Promise<RuleResult<WinLossReviewRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
   if (!gate.allowed) return denied(gate);
+
+  if ((input.lessons?.length ?? 0) > 4000 || (input.competitor?.length ?? 0) > 200) return fail(violation("review_too_long", "review text exceeds field limits"));
 
   const opportunity = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
   if (!opportunity) {

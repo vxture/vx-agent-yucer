@@ -30,15 +30,17 @@ export interface ReviewNarrative {
 
 export function reviewQuestion(input: ReviewNarrativeInput): string {
   const d = input.draft;
+  const source = (key: NonNullable<ReviewDraft["unavailable"]>[number], lines: string[]) =>
+    d.unavailable?.includes(key) ? [`${key}: source unavailable; do not infer absence or a negative result.`] : lines;
   return [
     `${REVIEW_MARK} Write the review of the deal "${input.dealName}", closed as ${input.outcome}. Every fact below is the record's; use no other figure.`,
-    `Where it slipped: ${d.slip.firstAt ? `from ${d.slip.firstAt}${d.slip.stageThen ? ` in ${d.slip.stageThen}` : ""}` : "no change for the worse"}.`,
-    ...d.slip.events.map((e) => `  ${e.at} ${e.field}: ${e.from ?? "-"} -> ${e.to ?? "-"}`),
-    `Promises not kept: ${d.promises.length ? "" : "none"}`,
-    ...d.promises.map((p) => `  ${p.dueAt} ${p.direction}: ${p.statement} (${p.state})`),
-    `Missing roles: ${d.coverage.missingRoles.join(", ") || "none"}; cold before the close: ${d.coverage.cold.map((c) => `${c.name} (${c.role}, ${c.lastDays ?? "never"})`).join(", ") || "none"}.`,
-    `Discount signatures: ${d.concessions.rounds}; amount cuts: ${d.concessions.cuts.map((c) => `${c.from} -> ${c.to}`).join(", ") || "none"}.`,
-    ...d.concessions.signatures.map((s) => `  ${s.at} ${s.product}: ${s.belowFloor} below the floor`),
+    ...source("slip", [`Where it slipped: ${d.slip.firstAt ? `from ${d.slip.firstAt}${d.slip.stageThen ? ` in ${d.slip.stageThen}` : ""}` : "no change for the worse"}.`,
+    ...d.slip.events.map((e) => `  ${e.at} ${e.field}: ${e.from ?? "-"} -> ${e.to ?? "-"}`)]),
+    ...source("promises", [`Promises not kept: ${d.promises.length ? "" : "none"}`,
+    ...d.promises.map((p) => `  ${p.dueAt} ${p.direction}: ${p.statement} (${p.state})`)]),
+    ...source("coverage", [`Missing roles: ${d.coverage.missingRoles.join(", ") || "none"}; cold before the close: ${d.coverage.cold.map((c) => `${c.name} (${c.role}, ${c.lastDays ?? "never"})`).join(", ") || "none"}.`]),
+    ...source("concessions", [`Discount signatures: ${d.concessions.rounds}; amount cuts: ${d.concessions.cuts.map((c) => `${c.from} -> ${c.to}`).join(", ") || "none"}.`,
+    ...d.concessions.signatures.map((s) => `  ${s.at} ${s.product}: ${s.belowFloor} below the floor`)]),
     `Reasons that can explain this outcome (id: name):`,
     ...input.reasons.map((r) => `  ${r.id}: ${r.name}`),
     ``,

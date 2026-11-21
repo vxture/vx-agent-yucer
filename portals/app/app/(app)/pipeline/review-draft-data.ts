@@ -46,7 +46,7 @@ export async function reviewDraftFor(
   const contactName = new Map((account.ok ? account.value.contacts : []).map((c) => [c.id, c.name]));
   const productName = new Map((products.ok ? products.value : []).map((p) => [p.id, p.name]));
   const catalog = stages.ok ? toStageCatalog(stages.value) : DEFAULT_STAGE_DEFINITIONS;
-  return reviewDraft({
+  const draft = reviewDraft({
     closedAt: o.closedAt ?? new Date(),
     claims: claims.ok ? claims.value.events : [],
     stageEvents: history.ok ? history.value : [],
@@ -64,4 +64,10 @@ export async function reviewDraftFor(
       approvedAt: a.approvedAt,
     })),
   });
+  const unavailable: NonNullable<ReviewDraft["unavailable"]>[number][] = [];
+  if (!claims.ok || !history.ok || !stages.ok) unavailable.push("slip");
+  if (!commitments.ok) unavailable.push("promises");
+  if (!chains?.ok || !recency?.ok || !account.ok || !o.closedAt) unavailable.push("coverage");
+  if (!approvals.ok || !products.ok || !claims.ok) unavailable.push("concessions");
+  return { ...draft, unavailable };
 }

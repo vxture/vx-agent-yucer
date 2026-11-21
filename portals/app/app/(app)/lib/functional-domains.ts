@@ -142,6 +142,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       // Forecast review is an internal view of attainment, not a second module.
       // Targets, commitments and forecast review share the deployment workflow.
       built("attainment"),
+      built("winLossReview"),
     ],
   },
   {
@@ -169,7 +170,6 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       built("account"),
       built("pipeline"),
       built("quote"),
-      built("winLossReview"),
     ],
   },
   {

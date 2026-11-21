@@ -21,6 +21,7 @@ export interface SlipEvent {
 }
 
 export interface ReviewDraft {
+  readonly unavailable?: readonly ("slip" | "promises" | "coverage" | "concessions")[];
   /** 在哪开始滑: every change for the worse, oldest first, and the stage the first one happened in. */
   readonly slip: { readonly firstAt: string | null; readonly stageThen: string | null; readonly events: readonly SlipEvent[] };
   /** 谁没兑现: promises not kept by the close - still open, missed, or met late. */

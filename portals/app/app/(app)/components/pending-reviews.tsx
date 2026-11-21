@@ -1,422 +1,173 @@
 "use client";
-
-import { DataTable, FilterBar, ActionMenu } from "./business-controls";
-
-import { useMemo, useState, useTransition } from "react";
-import {
-  EmptyState,
-  Field,
-  FieldLabel,
-  Input,
-  ListCard,
-  ListCardGrid,
-  NativeSelect,
-  Section,
-  SegmentedControl,
-  StatusBadge,
-  TableTitleCell,
-  Textarea,
-  useListPagination,
-  type DataTableColumn,
-} from "@vxture/design-ui";
-
-import { FilterSlot, PaginationFooter, SearchSlot, useTableSort } from "./table-fittings";
-import { DialogForm } from "./dialog-form";
-import { Tag } from "./tag";
-import type { OpportunityRecord } from "../../domains/pipeline/store";
-import { useMessages } from "../lib/i18n/provider";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Button, Card, CardContent, Drawer, EmptyState, Field, FieldLabel, Icon, Input, NativeSelect, useListPagination } from "@vxture/design-ui";
+import type { WinLossFilter, WinLossRow, summarizeWinLoss } from "../../domains/pipeline/lib/winloss-workspace";
+import { winLossHref } from "../lib/winloss-workspace";
+import { useMessages, useLocale } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
+import { MemberName, useMemberName } from "../lib/member-names";
+import { CollectionToolbar, collectionDrawerWidth } from "./collection-layout";
+import { useCollectionView } from "./collection-view-provider";
+import { CollectionTable, CollectionTitleCell } from "./collection-table";
+import { PaginationFooter, RowActions, SearchSlot, useTableSort } from "./table-fittings";
+import { Tag } from "./tag";
+import { PageActionButton } from "./page-header-actions";
+import { PeriodTabs } from "./period-tabs";
+import { offeredPeriods } from "../lib/periods";
+import { loadWinLossDetail } from "../winloss/detail-action";
+import { recordReview } from "../pipeline/winloss-action";
+import { draftReviewNarrative } from "../pipeline/review-narrative-action";
+import { ReviewForm } from "./review-form";
+import { ReviewDraftSections } from "./review-draft";
+import { TitleHelp } from "./title-help";
+import tableStyles from "./collection-table.module.css";
 
-// Closed deals still owing a post-mortem.
-//
-// The spec says entering a terminal stage MUST produce a review. Closing does
-// not block on it - blocking would push people to leave deals open instead, and
-// an open deal that is really lost distorts every forecast number. So the debt
-// is made VISIBLE here instead, which is what turns "must" from a sentence in a
-// document into something a person can act on.
-//
-// The form does not ask for the outcome. It is derived from the deal's own
-// status server-side: a review claiming "won" on a lost deal would corrupt the
-// dataset the whole learning loop reads.
-
-export interface PendingReviewsProps {
-  /** Closed and NOT yet reviewed - the debt the close rule creates. */
-  readonly opportunities: readonly OpportunityRecord[];
-  /**
-   * Every closed opportunity, reviewed or not.
-   *
-   * Passed in rather than fetched: the page already lists the pipeline with
-   * closed rows included, so a second query would ask the database for rows it
-   * had just handed us - and could answer differently if anything changed in
-   * between, which would put two figures on one screen that disagree.
-   */
-  readonly allClosed: readonly OpportunityRecord[];
-  readonly canRecord: boolean;
-  /**
-   * 赢丢原因, THE WORKSPACE'S OWN (incr/0039). It was six literals in this
-   * file; the list is rows now, and each row says which outcome it explains -
-   * so a loss-only reason is not offered on a win.
-   */
-  readonly reasons: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly forWon: boolean;
-    readonly forLost: boolean;
-  }[];
-  readonly onRecord: (
-    opportunityId: string,
-    input: {
-      primaryReasonId: string | null;
-      competitor?: string;
-      lessons?: string;
-    },
-  ) => Promise<{ ok: boolean; error?: string }>;
+const LINK = "no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text";
+type Summary = ReturnType<typeof summarizeWinLoss>;
+export function WinLossViews({ filter }: { readonly filter: WinLossFilter }) {
+  const { WINLOSS_WORKSPACE_TEXT: T } = useMessages();
+  return <>{(["list", "analysis"] as const).map(view => <PageActionButton asChild key={view} intent={filter.view === view ? "primary" : "secondary"}>
+    <Link href={winLossHref(filter, { view })}><Icon name={view === "list" ? "list-checks" : "chart-bar"} size="sm"/>{T[view]}</Link>
+  </PageActionButton>)}</>;
+}
+function Outcome({ value }: { readonly value: WinLossRow["outcome"] }) {
+  const { WINLOSS_WORKSPACE_TEXT: T } = useMessages();
+  return <Tag tone={value === "won" ? "success" : value === "lost" ? "danger" : undefined}>{T[value]}</Tag>;
+}
+function ReviewState({ row }: { readonly row: WinLossRow }) {
+  const { WINLOSS_WORKSPACE_TEXT: T } = useMessages();
+  if (row.stale) return <Tag tone="warning">{T.stale}</Tag>;
+  if (!row.reviewId) return <Tag tone="warning">{T.pending}</Tag>;
+  return <Tag>{row.reasonId ? T.reviewed : T.unclassified}</Tag>;
 }
 
-/* 排序取值: what each sortable column ORDERS ON, which is not always what
-   it renders - a badge sorts on the score inside it, a money cell on the raw
-   amount rather than its formatted string. */
-const SORT_ON = {
-    name: (r: OpportunityRecord) => r.name,
-    amount: (r: OpportunityRecord) => r.amount?.amount ?? null,
-  };
+export function PendingReviews({ rows, summary, filter, datedCount, undatedCount, reasons, regions, years, canPlan }: {
+  readonly rows: readonly WinLossRow[]; readonly summary: Summary; readonly filter: WinLossFilter;
+  readonly datedCount: number; readonly undatedCount: number; readonly years: readonly number[];
+  readonly reasons: readonly { readonly id: string; readonly name: string }[];
+  readonly regions: readonly { readonly id: string; readonly name: string }[]; readonly canPlan: boolean;
+}) {
+  const { WINLOSS_WORKSPACE_TEXT: T, WINLOSS_TEXT: W, DATA_TABLE_LABELS } = useMessages();
+  const locale = useLocale(), nameOf = useMemberName(), router = useRouter();
+  const [view, setView] = useCollectionView("list");
+  const [pending, start] = useTransition();
+  const [query, setQuery] = useState(filter.query);
+  const [target, setTarget] = useState<WinLossRow | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const table = useTableSort(rows, { name: r => r.name, outcome: r => T[r.outcome], amount: r => r.amount, closed: r => r.closedAt, reason: r => r.reasonName, owner: r => nameOf(r.ownerSub), state: r => r.reviewId ? 1 : 0 });
+  const paging = useListPagination(table.rows, 20);
+  const navigate = (changes: Partial<WinLossFilter>) => start(() => router.push(winLossHref(filter, changes), { scroll: false }));
+  const year = Number(filter.period.replace(/^Y/, "").slice(0, 4));
+  const periods = offeredPeriods(new Date(Date.UTC(year, 0, 1)));
+  const metrics = [[T.sample, `${summary.total} ${T.sampleUnit}`], [T.coverage, `${summary.reviewed}/${summary.total}`], [T.winRate, summary.winRate === null ? "-" : `${(summary.winRate * 100).toFixed(1)}%`]];
+  const menu = (row: WinLossRow) => <RowActions items={[{ id: "view", label: T.detail, icon: "eye", onSelect: () => setTarget(row) }, { id: "deal", label: T.evidence, icon: "external-link", onSelect: () => router.push(`/pipeline/${encodeURIComponent(row.id)}#deal-review`) }]}/>;
+  return <>
+    <Card><CardContent className="flex flex-col gap-md text-body">
+      <div className="flex flex-wrap items-center gap-md">
+        <div className="w-24"><NativeSelect aria-label={W.columnClosed} value={year} disabled={pending} onChange={e => navigate({ period: `Y${e.target.value}` })}>{years.map(y => <option value={y} key={y}>Y{y}</option>)}</NativeSelect></div>
+        <PeriodTabs value={filter.period} periods={periods.quarters} yearLabel={periods.year} compact yearText={T.period}/>
+        <NativeSelect wrapperClassName="w-auto" aria-label={T.region} value={filter.region} disabled={pending} onChange={e => navigate({ region: e.target.value })}>
+          <option value="">{T.region}</option>{regions.map(r => <option value={r.id} key={r.id}>{r.name}</option>)}
+        </NativeSelect>
+        <TitleHelp topic={T.analysis}>{T.help}{" "}{T.dateHelp}</TitleHelp>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-lg gap-y-sm border-t border-border pt-md">
+        {metrics.map(([label, value]) => <div key={label} className="inline-flex items-baseline gap-sm"><span className="text-muted-foreground">{label}</span><strong className="tabular-nums">{value}</strong></div>)}
+        <div className="flex flex-wrap gap-sm">{(["won", "lost", "abandoned"] as const).map(outcome => <Link key={outcome} className={LINK} href={winLossHref(filter, { outcome, view: "list" })}><Tag>{T[outcome]} {summary[outcome]}</Tag></Link>)}</div>
+      </div>
+    </CardContent></Card>
+    <CollectionToolbar title={filter.view === "analysis" ? T.analysis : T.list} icon={filter.view === "analysis" ? "chart-bar" : "list-checks"} help={T.help} count={rows.length}
+      mode={filter.view === "list" ? { value:view, onChange:setView } : undefined}
+      notice={<div className="flex flex-wrap gap-sm text-body-small text-muted-foreground"><Link className={LINK} href={winLossHref(filter, { status:"pending", reason:"", view:"list" })}>{T.pending} {summary.pending}</Link><span aria-hidden="true">|</span><Link className={LINK} href={winLossHref(filter,{status:"all",reason:"unclassified",view:"list"})}>{T.unclassified} {summary.unclassified}</Link><span aria-hidden="true">|</span><Link className={LINK} href={winLossHref(filter,{status:"all",reason:"stale",view:"list"})}>{T.stale} {summary.stale}</Link></div>}
+      search={<SearchSlot><form onSubmit={e => { e.preventDefault(); navigate({query}); }}><Input type="search" aria-label={T.search} placeholder={T.search} value={query} onChange={e=>setQuery(e.target.value)} disabled={pending}/></form></SearchSlot>}
+      onReset={() => navigate({ status:"all",outcome:"all",reason:"",region:"",query:"",dates:"period" })}>
+      <NativeSelect wrapperClassName="w-auto" aria-label={T.status} value={filter.status} onChange={e=>navigate({status:e.target.value as WinLossFilter["status"]})} disabled={pending}>
+        <option value="all">{T.all}</option><option value="pending">{T.pending}</option><option value="reviewed">{T.reviewed}</option>
+      </NativeSelect>
+      <NativeSelect wrapperClassName="w-auto" aria-label={T.outcomes} value={filter.outcome} onChange={e=>navigate({outcome:e.target.value as WinLossFilter["outcome"]})} disabled={pending}>
+        <option value="all">{T.outcomes}</option>{(["won","lost","abandoned"] as const).map(o=><option key={o} value={o}>{T[o]}</option>)}
+      </NativeSelect>
+      <NativeSelect wrapperClassName="w-auto" aria-label={T.reason} value={filter.reason} onChange={e=>navigate({reason:e.target.value})} disabled={pending}>
+        <option value="">{T.reason}</option><option value="unclassified">{T.unclassified}</option><option value="stale">{T.stale}</option>{reasons.map(r=><option value={r.id} key={r.id}>{r.name}</option>)}
+      </NativeSelect>
+      <NativeSelect wrapperClassName="w-auto" aria-label={T.closed} value={filter.dates} onChange={e=>navigate({dates:e.target.value as WinLossFilter["dates"]})} disabled={pending}>
+        <option value="period">{T.period} {datedCount}</option><option value="undated">{T.undated} {undatedCount}</option>
+      </NativeSelect>
+    </CollectionToolbar>
+    {filter.dates === "undated" ? <p className="text-body text-warning-text">{T.dateHelp}</p> : null}
+    {filter.view === "analysis" ? <WinLossAnalysis summary={summary} filter={filter}/> : null}
+    {filter.view === "list" && view === "cards" ? <div className="@container"><div className="grid grid-cols-1 gap-md @4xl:grid-cols-2">
+      {paging.pageRows.map(r=><Card key={r.id} onClick={()=>setTarget(r)} className="cursor-pointer" role="button" tabIndex={0} onKeyDown={e=>{if(e.target===e.currentTarget && ["Enter"," "].includes(e.key)){e.preventDefault();setTarget(r);}}}>
+        <CardContent className="flex flex-col gap-md text-body">
+          <div className="flex items-start justify-between gap-md"><Link className={`${LINK} min-w-0 font-medium line-clamp-2`} onClick={e=>e.stopPropagation()} href={`/pipeline/${encodeURIComponent(r.id)}`}>{r.name}</Link><div onClick={e=>e.stopPropagation()}>{menu(r)}</div></div>
+          <div className="flex flex-wrap items-center gap-sm"><Outcome value={r.outcome}/><ReviewState row={r}/><span className="text-body-small text-muted-foreground">{r.number}</span></div>
+          <div className="flex flex-wrap justify-between gap-sm border-t border-border pt-sm"><span className="font-medium tabular-nums">{formatMoney(r.amount,r.currency,locale)}</span><span className="text-muted-foreground">{r.closedAt?.slice(0,10) ?? T.undated}</span></div>
+          <div className="flex items-center justify-between gap-sm"><span className="min-w-0 truncate text-muted-foreground">{r.accountName ?? "-"}</span><MemberName sub={r.ownerSub}/></div>
+          <p className="line-clamp-2 text-muted-foreground">{r.reasonName ?? (r.reviewId ? T.unclassified : T.pending)}{r.lessons ? ` / ${r.lessons}` : ""}</p>
+        </CardContent>
+      </Card>)}
+    </div></div> : null}
+    {filter.view === "list" && view === "list" ? <CollectionTable className={tableStyles.winLoss} rows={[...paging.pageRows]} rowKey={r=>r.id} labels={DATA_TABLE_LABELS} leadingSpacer indexStart={paging.indexStart}
+      sort={table.sort} onSortChange={s=>{table.onSortChange(s);paging.resetPage();}} rowActions={menu} columns={[
+        {id:"name",header:W.columnOpportunity,track:"subject",sortable:true,cell:r=><CollectionTitleCell title={<Link className={LINK} href={`/pipeline/${encodeURIComponent(r.id)}`}>{r.name}</Link>} description={r.accountName ?? r.number}/>},
+        {id:"outcome",header:W.columnOutcome,track:"state",sortable:true,cell:r=><Outcome value={r.outcome}/>},
+        {id:"amount",header:W.columnAmount,track:"amount",align:"right",sortable:true,cell:r=><span className="whitespace-nowrap tabular-nums">{formatMoney(r.amount,r.currency,locale)}</span>},
+        {id:"closed",header:T.closed,track:"reference",sortable:true,cell:r=>r.closedAt?.slice(0,10) ?? T.undated},
+        {id:"reason",header:W.reasonLabel,track:"criteria",sortable:true,cell:r=><span className="line-clamp-2">{r.reasonName ?? (r.reasonId ? T.unknownReason : "-")}</span>},
+        {id:"owner",header:T.owner,track:"reference",sortable:true,cell:r=><MemberName sub={r.ownerSub}/>},
+        {id:"state",header:T.status,track:"state",sortable:true,cell:r=><ReviewState row={r}/>}
+      ]} empty={<EmptyState title={T.noSample} description={T.noSampleHint}/>}/> : null}
+    {filter.view === "list" && rows.length ? <PaginationFooter pagination={paging} total={rows.length}/> : null}
+    {!rows.length && !(filter.view === "list" && view === "list") ? <EmptyState title={T.noSample} description={T.noSampleHint}/> : null}
+    <Drawer open={!!target} onClose={()=>{if(!dirty || window.confirm(T.leave))setTarget(null);}} width={collectionDrawerWidth.standard} title={T.detail} description={target?.name}>
+      {target ? <ReviewPreview key={target.id} row={target} canPlan={canPlan} filter={filter} onDirtyChange={setDirty} onSaved={()=>{setTarget(null);router.refresh();}}/> : null}
+    </Drawer>
+  </>;
+}
 
-export function PendingReviews({
-  opportunities,
-  allClosed,
-  canRecord,
-  reasons,
-  onRecord,
-}: PendingReviewsProps) {
-  const {
-    DATA_TABLE_LABELS,
-    DS_LABELS,
-    PIPELINE_TEXT,
-    TABLE_TOOLBAR_TEXT,
-    WINLOSS_TEXT,
-    REVIEW_ERROR,
-  } = useMessages();
-  // Three outcomes since YC-065 R6: an abandoned deal is neither won nor lost
-  // to a buyer, and labelling it "lost" would put our own decision into the
-  // loss analysis.
-  // An abandoned outcome is a Tag: a neutral StatusBadge draws a dash icon.
-  const outcomeBadge = (status: string, dot: boolean) =>
-    status === "abandoned" ? (
-      <Tag>{WINLOSS_TEXT.outcomeAbandoned}</Tag>
-    ) : (
-      <StatusBadge tone={status === "won" ? "success" : "danger"} dot={dot}>
-        {status === "won" ? WINLOSS_TEXT.outcomeWon : WINLOSS_TEXT.outcomeLost}
-      </StatusBadge>
-    );
-  const sorted = useTableSort<OpportunityRecord>([], SORT_ON);
-  const [scope, setScope] = useState<"pending" | "all">("pending");
-  const [view, setView] = useState<"list" | "cards">("list");
-  // Pending is a SUBSET of all, so the two lists share every row object - the
-  // outstanding badge below reads the pending ids rather than a second flag.
-  const pendingIds = new Set(opportunities.map((o) => o.id));
-  const population = scope === "pending" ? opportunities : allClosed;
-  // 工具行 (module rebuild, 2026-09-27): search + 结果 filter + pager.
-  const [query, setQuery] = useState("");
-  const [outcome, setOutcome] = useState("");
-  const filtering = query !== "" || outcome !== "";
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return population.filter(
-      (o) =>
-        (q === "" || o.name.toLowerCase().includes(q) || o.opportunityNo.toLowerCase().includes(q)) &&
-        (outcome === "" || o.status === outcome),
-    );
-  }, [population, query, outcome]);
-  const ordered = useMemo(() => sorted.sortRows(shown), [sorted, shown]);
-  const pagination = useListPagination(ordered, 20);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [reason, setReason] = useState<string>("");
-  const [competitor, setCompetitor] = useState("");
-  const [lessons, setLessons] = useState("");
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+function WinLossAnalysis({ summary, filter }: { readonly summary: Summary; readonly filter: WinLossFilter }) {
+  const { WINLOSS_WORKSPACE_TEXT:T, DATA_TABLE_LABELS } = useMessages();
+  const locale=useLocale();
+  return <div className="flex flex-col gap-lg">
+    <Card><CardContent className="flex flex-col gap-md text-body"><h3 className="flex items-center gap-sm font-medium"><Icon name="coins" size="sm"/>{T.money}<TitleHelp topic={T.money}>{T.moneyHelp}</TitleHelp></h3>
+      {summary.money.map(m=><div key={m.currency} className="flex flex-wrap items-baseline gap-md"><span>{m.currency}</span><strong className="tabular-nums">{m.known ? formatMoney(Number(m.amount)/100,m.currency,locale):"-"}</strong><span className="text-muted-foreground">{T.missing} {m.missing} {T.sampleUnit}</span></div>)}
+    </CardContent></Card>
+    <CollectionToolbar title={T.reasonCount} icon="chart-bar" count={summary.reasons.length} help={T.reasonHelp}/>
+    <CollectionTable rows={summary.reasons} rowKey={r=>r.id} labels={DATA_TABLE_LABELS} columns={[
+      {id:"reason",header:T.reason,track:"subject",cell:r=><Link className={LINK} href={winLossHref(filter,{view:"list",reason:r.id})}>{r.name ?? T.unknownReason}</Link>},
+      {id:"count",header:T.sample,track:"count",align:"right",cell:r=><Link className={LINK} href={winLossHref(filter,{view:"list",reason:r.id})}>{r.count} {T.sampleUnit}</Link>},
+      ...(["won","lost","abandoned"] as const).map(o=>({id:o,header:T[o],track:"count" as const,align:"right" as const,cell:(r:Summary["reasons"][number])=>r[o]}))
+    ]} empty={<EmptyState title={T.noSample} description={T.reasonHelp}/>}/>
+  </div>;
+}
 
-  function submit(id: string) {
-    setError(null);
-    startTransition(() => {
-      void onRecord(id, { primaryReasonId: reason || null, competitor, lessons }).then(
-        (r) => {
-          if (!r.ok) {
-            setError(REVIEW_ERROR[r.error ?? "denied"] ?? REVIEW_ERROR.denied);
-            return;
-          }
-          setOpenId(null);
-          setCompetitor("");
-          setLessons("");
-        },
-      );
-    });
-  }
-
-  const recordMenu = (row: OpportunityRecord) => (
-    <ActionMenu
-      label={DS_LABELS.actionMenu}
-      items={[
-        {
-          id: "record",
-          label: WINLOSS_TEXT.record,
-          disabled: !canRecord || !pendingIds.has(row.id),
-          hint: !canRecord
-            ? WINLOSS_TEXT.recordHintDenied
-            : !pendingIds.has(row.id)
-              ? WINLOSS_TEXT.recordHintDone
-              : undefined,
-          onSelect: () => setOpenId(row.id),
-        },
-      ]}
-    />
-  );
-
-  const columns: readonly DataTableColumn<OpportunityRecord>[] = [
-    {
-      id: "name",
-  sortable: true,
-      header: WINLOSS_TEXT.columnOpportunity,
-      cell: (row) => (
-        <TableTitleCell title={row.name} description={row.opportunityNo} tooltip={row.name} />
-      ),
-    },
-    {
-      id: "outcome",
-      header: WINLOSS_TEXT.columnOutcome,
-      cell: (row) => (
-        outcomeBadge(row.status, true)
-      ),
-    },
-    {
-      id: "amount",
-      header: WINLOSS_TEXT.columnAmount,
-      sortable: true,
-      align: "money",
-      cell: (row) => formatMoney(row.amount?.amount ?? null, row.currency),
-    },
-    {
-      id: "closed",
-      header: WINLOSS_TEXT.columnClosed,
-      cell: (row) =>
-        row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-",
-    },
-    {
-      id: "state",
-      header: WINLOSS_TEXT.columnState,
-      /* State only. In the "all" view the two populations sit in one table, so
-         each row has to say which it is - otherwise a reviewed deal looks like
-         outstanding work. The VERB that used to share this cell moved to the
-         fixed action column, where a row action belongs. */
-      cell: (row) =>
-        !pendingIds.has(row.id) ? (
-          <StatusBadge tone="success">{WINLOSS_TEXT.reviewed}</StatusBadge>
-        ) : (
-          <StatusBadge tone="warning">{WINLOSS_TEXT.filterPending}</StatusBadge>
-        ),
-    },
-  ];
-
-  const target = opportunities.find((o) => o.id === openId) ?? null;
-
-  return (
-    <Section
-      /* The launcher lists this as a SECTION of /pipeline and links to
-         /pipeline#winloss. Without the id that link lands on the page and
-         scrolls nowhere: the 6d fix relabelled the module honestly and left
-         the destination it now promised unbuilt. */
-      id="winloss"
-      icon="lightbulb"
-    >
-      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-
-      {/* Tool row, same grammar as the board's: the DS keeps `scope` apart from
-          the filter group on the record - a filter shows fewer rows of one
-          population, a scope swaps the population. 待复盘 / 全部复盘 swaps it,
-          so it belongs in `scope`. */}
-      <FilterBar
-        heading={{ title: TABLE_TOOLBAR_TEXT.reviews, icon: "list-checks" }}
-        view={view}
-        onViewChange={setView}
-        count={filtering ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, population.length) : PIPELINE_TEXT.rowCount(population.length)}
-        search={
-          <SearchSlot>
-            <Input
-              type="search"
-              className="w-full"
-              value={query}
-              placeholder={WINLOSS_TEXT.searchHint}
-              aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                pagination.resetPage();
-              }}
-            />
-          </SearchSlot>
-        }
-        onReset={
-          filtering
-            ? () => {
-                setQuery("");
-                setOutcome("");
-                pagination.resetPage();
-              }
-            : undefined
-        }
-        resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
-        scope={
-          <SegmentedControl
-            size="sm"
-            ariaLabel={WINLOSS_TEXT.sectionTitle}
-            value={scope}
-            onChange={(v) => {
-              setScope(v);
-              pagination.resetPage();
-            }}
-            items={[
-              {
-                value: "pending",
-                label: WINLOSS_TEXT.filterPending,
-                count: opportunities.length,
-              },
-              {
-                value: "all",
-                label: WINLOSS_TEXT.filterAll,
-                count: allClosed.length,
-              },
-            ]}
-          />
-        }
-      >
-        <FilterSlot width="w-[7rem]">
-          <NativeSelect
-            value={outcome}
-            aria-label={WINLOSS_TEXT.filterOutcome}
-            onChange={(e) => {
-              setOutcome(e.target.value);
-              pagination.resetPage();
-            }}
-          >
-            <option value="">{WINLOSS_TEXT.filterAllOutcomes}</option>
-            <option value="won">{WINLOSS_TEXT.outcomeWon}</option>
-            <option value="lost">{WINLOSS_TEXT.outcomeLost}</option>
-            <option value="abandoned">{WINLOSS_TEXT.outcomeAbandoned}</option>
-          </NativeSelect>
-        </FilterSlot>
-      </FilterBar>
-
-      {population.length === 0 ? (
-        <EmptyState
-          title={
-            scope === "pending"
-              ? WINLOSS_TEXT.emptyTitle
-              : WINLOSS_TEXT.allEmptyTitle
-          }
-          description={
-            scope === "pending"
-              ? WINLOSS_TEXT.emptyDescription
-              : WINLOSS_TEXT.allEmptyDescription
-          }
-        />
-      ) : shown.length === 0 ? (
-        <EmptyState title={TABLE_TOOLBAR_TEXT.noMatch} description={TABLE_TOOLBAR_TEXT.noMatchWhy} />
-      ) : view === "list" ? (
-        /* NO CARD (design-ui 8.0.0 透明模式): a table floats on the page
-           canvas, its structure carried by the three rules the DS draws. */
-            <DataTable
-              /* Every DS copy outlet must be passed - the fallbacks are English
-               and exist so a missed prop renders something legible, not so
-               anyone can rely on them. This table shipped with an "Actions"
-               column header in a Chinese interface. */
-              labels={DATA_TABLE_LABELS}
-              indexStart={pagination.indexStart}
-              columns={columns}
-              rows={[...pagination.pageRows]}
-              sort={sorted.sort}
-              onSortChange={(s) => {
-                sorted.onSortChange(s);
-                pagination.resetPage();
-              }}
-              rowKey={(row) => row.id}
-              /* Pinned right, one trigger. Items stay VISIBLE and disabled
-                 rather than absent when they cannot be used, with the reason on
-                 the hint - a menu whose contents change per row teaches nobody
-                 what the product can do, and "why is it greyed" is answerable
-                 where "why is it missing" is not. */
-              rowActions={recordMenu}
-            />
-          ) : (
-            <ListCardGrid className="p-md">
-              {pagination.pageRows.map((row) => (
-                <ListCard
-                  key={row.id}
-                  title={row.name}
-                  description={row.opportunityNo}
-                  /* The record action in cards too - the card view had none -
-                     and the outcome in the meta row, not the status slot
-                     (it clipped the title in a 250px card). */
-                  actions={recordMenu(row)}
-                  meta={
-                    <>
-                      {outcomeBadge(row.status, false)}
-                      {!pendingIds.has(row.id) ? (
-                        <StatusBadge tone="success">{WINLOSS_TEXT.reviewed}</StatusBadge>
-                      ) : (
-                        <span>{row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-"}</span>
-                      )}
-                    </>
-                  }
-                />
-              ))}
-            </ListCardGrid>
-      )}
-      {shown.length > 0 ? (
-        <PaginationFooter pagination={pagination} total={population.length} filteredTotal={filtering ? shown.length : undefined} />
-      ) : null}
-
-      {/* THE REVIEW IN A DIALOG (module rebuild, 2026-09-27). It opened as a
-          section BELOW the table - with fifty rows, off-screen, so 记录复盘
-          looked like it did nothing. */}
-      {target ? (
-        <DialogForm
-          open
-          onOpenChange={(o: boolean) => {
-            if (!o) setOpenId(null);
-          }}
-          title={WINLOSS_TEXT.recordTitle(target.name)}
-          submitLabel={WINLOSS_TEXT.save}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!pending) submit(target.id);
-          }}
-        >
-          <Field>
-            <FieldLabel htmlFor="wlr-reason">{WINLOSS_TEXT.reasonLabel}</FieldLabel>
-            <NativeSelect id="wlr-reason" value={reason} onChange={(e) => setReason(e.currentTarget.value)}>
-              {/* The ones that can explain THIS outcome. Offering a loss-only
-                  reason on a win invites a review that says nothing, and the
-                  service refuses it anyway. */}
-              <option value="">{WINLOSS_TEXT.reasonNone}</option>
-              {reasons
-                .filter((r) => (target.status === "won" ? r.forWon : r.forLost))
-                .map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="wlr-competitor">{WINLOSS_TEXT.competitorLabel}</FieldLabel>
-            <Input id="wlr-competitor" value={competitor} onChange={(e) => setCompetitor(e.currentTarget.value)} />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="wlr-lessons">{WINLOSS_TEXT.lessonsLabel}</FieldLabel>
-            <Textarea id="wlr-lessons" value={lessons} onChange={(e) => setLessons(e.currentTarget.value)} />
-          </Field>
-          {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-        </DialogForm>
-      ) : null}
-    </Section>
-  );
+function ReviewPreview({ row, filter, canPlan, onSaved, onDirtyChange }: { readonly row:WinLossRow; readonly filter:WinLossFilter; readonly canPlan:boolean; readonly onSaved:()=>void; readonly onDirtyChange:(dirty:boolean)=>void }) {
+  const { WINLOSS_WORKSPACE_TEXT:T, WINLOSS_TEXT:W }=useMessages();
+  const [data,setData]=useState<Awaited<ReturnType<typeof loadWinLossDetail>>>(null);
+  const [loading,setLoading]=useState(true),[failed,setFailed]=useState(false),[attempt,setAttempt]=useState(0),[editing,setEditing]=useState(false);
+  useEffect(()=>{let active=true;setLoading(true);setFailed(false);loadWinLossDetail(row.id).then(d=>{if(active){setData(d);setFailed(!d);}},()=>{if(active)setFailed(true);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[row.id,attempt]);
+  if(loading)return <p className="text-body text-muted-foreground">{T.loading}</p>;
+  if(failed || !data)return <div className="flex flex-col gap-md"><p role="alert">{T.failed}</p><Button onClick={()=>setAttempt(n=>n+1)}>{T.retry}</Button></div>;
+  const links=[{label:T.account,href:`/account/${encodeURIComponent(row.accountId)}`},...(row.planId?[{label:T.strategy,href:`/strategy/${encodeURIComponent(row.planId)}`}]:[]),...(row.campaignId?[{label:T.campaign,href:`/campaign?campaign=${encodeURIComponent(row.campaignId)}`}]:[])];
+  if(canPlan)links.push({label:T.planning,href:`/planning?year=${filter.period.replace(/^Y/,"").slice(0,4)}&period=${encodeURIComponent(filter.period)}${row.regionId?`&region=${encodeURIComponent(row.regionId)}`:""}`});
+  const record=data.review;
+  return <div className="@container flex flex-col gap-lg pb-xl text-body" data-review-preview>
+    <div className="flex flex-wrap items-center gap-sm"><Outcome value={data.status as WinLossRow["outcome"]}/><ReviewState row={row}/><span className="tabular-nums">{formatMoney(row.amount,row.currency)}</span></div>
+    {row.stale?<p className="text-warning-text">{T.staleHelp}</p>:null}
+    {!record || editing ? data.canRecord ? <ReviewForm opportunityId={row.id} status={data.status} review={record} reasons={data.reasons} knownRivals={data.knownRivals} draft={data.draft}
+      onNarrate={data.canNarrate?draftReviewNarrative:undefined} onRecord={recordReview} onSaved={onSaved} onDirtyChange={onDirtyChange} onCancel={record?()=>setEditing(false):undefined}/> : <p>{W.recordHintDenied}</p> : <>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-md gap-y-sm">
+        <dt className="text-muted-foreground">{W.reasonLabel}:</dt><dd>{data.reasons.find(r=>r.id===record.primaryReasonId)?.name ?? (record.primaryReasonId?T.unknownReason:T.unclassified)}</dd>
+        <dt className="text-muted-foreground">{W.competitorLabel}:</dt><dd>{record.competitor ?? "-"}</dd>
+        <dt className="text-muted-foreground">{T.reviewer}:</dt><dd>{record.reviewerSub?<MemberName sub={record.reviewerSub}/>:"-"}</dd>
+        <dt className="text-muted-foreground">{T.closed}:</dt><dd>{row.closedAt?.slice(0,10)??T.undated}</dd>
+      </dl><p className="whitespace-pre-wrap break-words">{record.lessons ?? "-"}</p>
+      {data.canRecord?<Button variant="outline" onClick={()=>setEditing(true)}>{T.edit}</Button>:null}
+      {data.draft?<ReviewDraftSections draft={data.draft} opportunityId={row.id} reasonName={new Map(data.reasons.map(r=>[r.id,r.name]))} onNarrate={data.canNarrate?draftReviewNarrative:undefined}/>:<p className="text-muted-foreground">{T.noDraft}</p>}
+    </>}
+    <div className="flex flex-wrap gap-sm border-t border-border pt-md"><Button asChild variant="outline"><Link href={`/pipeline/${encodeURIComponent(row.id)}#deal-review`}><Icon name="external-link" size="sm"/>{T.evidence}</Link></Button></div>
+    <div className="flex flex-col gap-sm border-t border-border pt-md"><h3 className="flex items-center gap-sm font-medium"><Icon name="link" size="sm"/>{T.source}<TitleHelp topic={T.source}>{T.sourceHelp}</TitleHelp></h3><div className="flex flex-wrap gap-md">{links.map(l=><Link className={LINK} key={l.href} href={l.href}>{l.label}</Link>)}</div></div>
+  </div>;
 }

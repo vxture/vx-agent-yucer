@@ -127,11 +127,10 @@ async function reconFacts(ctx: FactsContext): Promise<DomainFact[]> {
 
 /** Who we are working, and what is owed on both sides. */
 async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
-  const [accounts, deals, overdue, reviews] = await Promise.all([
+  const [accounts, deals, overdue] = await Promise.all([
     listAccounts({ ...ctx, store: ctx.stores.account() }),
     listPipeline({ ...ctx, store: ctx.stores.pipeline() }),
     listCommitments({ ...ctx, store: getFieldStore() }, { overdueAt: new Date(), limit: 200 }),
-    listPendingReviews({ ...ctx, store: ctx.stores.pipeline() }),
   ]);
 
   const openDeals = deals.ok ? deals.value.filter((d) => d.status === "open").length : null;
@@ -149,7 +148,6 @@ async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
     fact("activeAccounts", activeAccounts, "/account"),
     fact("openDeals", openDeals, "/pipeline"),
     fact("overdueCommitments", len(overdue), "/account", true),
-    fact("pendingReviews", len(reviews), "/pipeline#winloss", true),
   ]);
 }
 
@@ -157,8 +155,12 @@ async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
 async function deploymentFacts(ctx: FactsContext): Promise<DomainFact[]> {
   const now = new Date();
   const year = now.getUTCFullYear();
-  const summary = await readDeploymentOverview({ ...ctx, store: getSalesPlanStore() }, year, now.toISOString());
-  return deploymentOverviewFacts(summary, year);
+  const [summary, reviews] = await Promise.all([
+    readDeploymentOverview({ ...ctx, store: getSalesPlanStore() }, year, now.toISOString()),
+    listPendingReviews({ ...ctx, store: ctx.stores.pipeline() }),
+  ]);
+  const count = reviews.ok ? reviews.value.filter(r => r.closedAt?.getUTCFullYear() === year).length : null;
+  return visibleFacts([...deploymentOverviewFacts(summary, year), fact("pendingReviews", count, `/winloss?period=Y${year}&status=pending`, true)]);
 }
 
 export function deploymentOverviewFacts(summary: Awaited<ReturnType<typeof readDeploymentOverview>>, year: number): DomainFact[] {

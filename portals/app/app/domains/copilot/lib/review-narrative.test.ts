@@ -44,3 +44,10 @@ test("figures only from the draft; a reason only from the offered list", () => {
   assert.equal(invented?.reasonId, null);
   assert.equal(invented?.dropped, 1);
 });
+
+test("unavailable evidence is named as unknown, never narrated as no problem",()=>{
+ const q=reviewQuestion({...input,draft:{...input.draft,unavailable:["coverage","promises"]}});
+ assert.match(q,/coverage: source unavailable/);assert.match(q,/promises: source unavailable/);
+ assert.doesNotMatch(q,/Missing roles:/);assert.doesNotMatch(q,/Promises not kept:/);
+ assert.match(q,/Where it slipped:/);
+});
