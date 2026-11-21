@@ -11,6 +11,7 @@ import type { PlanSources } from "./plan-data";
 import { validateStrategyAcceptances, type StrategyAcceptance } from "../../domains/planning/strategy-handoff";
 import { allocateRegionalStrategicTarget } from "../../domains/planning/strategy-autofill";
 import { expectationWindow } from "../../domains/strategy/lib/expectations";
+import metricLayout from "../components/strategy-metric-groups.module.css";
 
 export function StrategyHandoffPanel({ content, sources, edit, regionId, disabled, lockedPeriods = [] }: { content: PlanContent; sources: PlanSources; edit: ((c: PlanContent) => void) | null; regionId?: string | null; disabled?: boolean; lockedPeriods?: string[] }) {
   const { STRATEGY_HANDOFF_TEXT: T } = useMessages(), locale = useLocale();
@@ -56,7 +57,7 @@ export function StrategyHandoffPanel({ content, sources, edit, regionId, disable
       return <Card key={first.strategyId}><CardContent className="flex flex-col gap-lg pt-lg">
         <div className="flex flex-wrap items-center justify-between gap-md"><Link href={`/strategy/${first.strategyId}`} className="text-body font-medium transition-colors hover:text-primary">{first.name}<span className="ml-sm text-body-small text-muted-foreground">V{first.version} · {first.period}</span></Link>
           <div className="flex items-center gap-md"><MemberName sub={first.ownerSub}/>{latest && latest.id !== first.strategyId ? <span className="text-body-small text-muted-foreground" title={T.updated}>{T.newVersion}</span> : null}</div></div>
-        <div className="grid gap-xl @3xl:grid-cols-3">{group.map(x => {
+        <div className={metricLayout.groups}>{group.map(x => {
           const allocated = x.allocations.filter(a => !regionId || a.regionId === regionId).reduce((n,a) => n+Number(a.amount),0);
           return <div key={x.key} className="flex min-w-0 flex-col gap-sm" data-strategy-acceptance-metric>
             <div className="flex items-center justify-between gap-sm"><span className="text-body-small text-muted-foreground">{x.expectation.metric === "revenue" ? T.revenueTarget : T[x.expectation.metric]}</span><Button size="sm" variant="ghost" disabled={disabled} onClick={() => {setError(""); setDraft(structuredClone(x));}}>{canEdit ? (company ? T.edit : T.editAllocation) : (company ? T.acceptanceDetails : T.details)}</Button></div>
