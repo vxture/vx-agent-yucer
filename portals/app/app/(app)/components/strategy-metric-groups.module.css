@@ -17,6 +17,10 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .groups > * {
+    padding-inline: var(--space-2xl);
+  }
+
   .groups > * + * {
     border-block-start: 0;
     border-inline-start: 1px solid var(--border);
