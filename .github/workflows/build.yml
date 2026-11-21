@@ -166,14 +166,40 @@ jobs:
         shell: bash
         env:
           IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+          APP_VERSION: ${{ steps.prov.outputs.app_version }}
+          DEPLOY_STAGE: ${{ steps.prov.outputs.deploy_stage }}
+          GIT_SHA: ${{ steps.prov.outputs.git_sha }}
         run: |
           set -euo pipefail
           ghcr_repo="ghcr.io/${GHCR_NAMESPACE}/${IMAGE}"
           acr_repo="${ACR_REGISTRY}/${ACR_NAMESPACE}/${IMAGE}"
-          # Retag by digest if this exact commit was already built under a prior
-          # tag (check BOTH registries). Otherwise build.
-          if docker buildx imagetools inspect "${ghcr_repo}:${IMAGE_TAG}" >/dev/null 2>&1 \
-            && docker buildx imagetools inspect "${acr_repo}:${IMAGE_TAG}" >/dev/null 2>&1; then
+          # A sha tag is immutable, including the runtime identity baked into it.
+          # Refuse incompatible or partial builds instead of overwriting them.
+          image_exists() {
+            local result
+            if result=$(docker buildx imagetools inspect "$1" 2>&1); then
+              echo true
+            elif [[ "$result" == *"manifest unknown"* || "$result" == *"not found"* || "$result" == *"no such manifest"* ]]; then
+              echo false
+            else
+              echo "::error::Cannot verify immutable image existence: $1" >&2
+              return 1
+            fi
+          }
+          ghcr_exists=$(image_exists "${ghcr_repo}:${IMAGE_TAG}")
+          acr_exists=$(image_exists "${acr_repo}:${IMAGE_TAG}")
+          if [ "$ghcr_exists" != "$acr_exists" ]; then
+            echo "::error::Immutable image exists in only one registry; restore the missing copy before retrying."
+            exit 1
+          fi
+          if [ "$ghcr_exists" = true ]; then
+            inspect_dir=$(mktemp -d)
+            trap 'rm -rf "$inspect_dir"' EXIT
+            docker pull --quiet --platform linux/amd64 "${ghcr_repo}:${IMAGE_TAG}" >/dev/null
+            docker image inspect "${ghcr_repo}:${IMAGE_TAG}" > "$inspect_dir/ghcr.json"
+            docker pull --quiet --platform linux/amd64 "${acr_repo}:${IMAGE_TAG}" >/dev/null
+            docker image inspect "${acr_repo}:${IMAGE_TAG}" > "$inspect_dir/acr.json"
+            node scripts/ci/assert-image-provenance.mjs "$inspect_dir/ghcr.json" "$inspect_dir/acr.json"
             echo "build=false" >> "$GITHUB_OUTPUT"
           else
             echo "build=true" >> "$GITHUB_OUTPUT"
