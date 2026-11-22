@@ -1650,6 +1650,25 @@ model AgentTaskMemory {
   @@schema("yucer_agent")
 }
 
+model AgentJudgementTopic {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  judgementId String @map("judgement_id") @db.VarChar(256)
+  scope String @db.VarChar(8)
+  basisVersion String @map("basis_version") @db.VarChar(64)
+  accessVersion String @map("access_version") @db.VarChar(64)
+  revision Int @default(1)
+  status String @default("open") @db.VarChar(16)
+  taskId String? @map("task_id") @db.Uuid
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz()
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  @@unique([workspaceId,actorSub,judgementId,scope], map:"agent_judgement_topic_once")
+  @@map("agent_judgement_topic")
+  @@schema("yucer_agent")
+}
+
 model AgentBusinessKnowledge {
   id String @id @default(uuid()) @db.Uuid
   workspaceId String @map("workspace_id") @db.Uuid

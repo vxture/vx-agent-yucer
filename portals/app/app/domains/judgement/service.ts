@@ -36,6 +36,8 @@ import {
 } from "./lib/judgement";
 
 export interface JudgementContext {
+  stores?: {account: () => import("../account/store").AccountStore; pipeline: () => import("../pipeline/store").PipelineStore};
+  allowWorkspaceMetrics?: boolean;
   workspaceId: string;
   sub: string;
   holder: PermissionHolder;
@@ -111,6 +113,8 @@ export async function snoozeJudgement(
 const SNOOZE_DAYS = 7;
 
 export interface FeedOptions {
+  /** Internal source revalidation needs the raw authorized findings. */
+  includeSnoozed?: boolean;
   now?: Date;
   /**
    * "mine" restricts to accounts this member owns. Omit to let ownership
@@ -137,12 +141,14 @@ export async function judgementFeed(
 
   const now = options.now ?? new Date();
   const base = { workspaceId: ctx.workspaceId, sub: ctx.sub, holder: ctx.holder, entitlement: ctx.entitlement };
-  const accountCtx = { ...base, store: getAccountStore() };
+  const accountStore = ctx.stores?.account() ?? getAccountStore();
+  const pipelineStore = ctx.stores?.pipeline() ?? getPipelineStore();
+  const accountCtx = { ...base, store: accountStore };
   const fieldStore = getFieldStore();
 
   const [accountsResult, dealsResult, recencyPolicy, stageRows, lastMoved] = await Promise.all([
     listAccounts(accountCtx),
-    listPipeline({ ...base, store: getPipelineStore() }, { includeClosed: true }),
+    listPipeline({ ...base, store: pipelineStore }, { includeClosed: true }),
     // incr/0065. A plain store read, not the public contactRecencyPolicy()
     // verb - account.view already gated this whole call.
     fieldStore.getContactRecencyPolicy(ctx.workspaceId),
@@ -152,11 +158,11 @@ export async function judgementFeed(
     // stage's NAME. Feeds deriveJudgements' stageLabel below, so rule 1's
     // claim says "商务谈判", the workspace's own name for the code, rather than
     // the bare code itself.
-    getPipelineStore().listStageDefinitions(ctx.workspaceId),
+    pipelineStore.listStageDefinitions(ctx.workspaceId),
     // Days at stage come from the stage journal (YC-065 R3), the same source
     // the deal page and the forecast review use - not from createdAt, which
     // counted a deal that moved last week as having sat since it was opened.
-    getPipelineStore().latestStageChangeAt(ctx.workspaceId),
+    pipelineStore.latestStageChangeAt(ctx.workspaceId),
   ]);
   if (!accountsResult.ok) return accountsResult as RuleResult<JudgementFeed>;
 
@@ -203,7 +209,7 @@ export async function judgementFeed(
         a.id,
         open.map((d) => ({ id: d.id, name: d.name })),
       );
-      const contacts = chain.ok ? await getAccountStore().listContacts(ctx.workspaceId, a.id) : [];
+      const contacts = chain.ok ? await accountStore.listContacts(ctx.workspaceId, a.id) : [];
       // The coverage itself was being computed and thrown away - only `.ok` was
       // read. It is the most expensive call in this loop, and it is exactly
       // what the shell needs to say who is on our side, so it is carried out
@@ -215,7 +221,7 @@ export async function judgementFeed(
       // it needs to be USEFUL (contacts and their last-contact times) is
       // already in hand on this iteration.
       const plan =
-        a.tier === "strategic" ? await getAccountStore().getAccountPlan(ctx.workspaceId, a.id) : null;
+        a.tier === "strategic" ? await accountStore.getAccountPlan(ctx.workspaceId, a.id) : null;
 
       // Last contact with a DECISION MAKER, not with anyone. Computed from the
       // contacts already fetched: an account can be busy at working level for
@@ -273,7 +279,7 @@ export async function judgementFeed(
         // the feed already assembles one bundle per account, and N round trips
         // inside that loop would make the cost of the fix scale with the
         // pipeline rather than with the customer list.
-        buyingRoles: await getAccountStore().listOpportunityContactsFor(
+        buyingRoles: await accountStore.listOpportunityContactsFor(
           ctx.workspaceId,
           open.map((d) => d.id),
         ),
@@ -296,7 +302,7 @@ export async function judgementFeed(
   // The team judgement rides the adoption reading, which is admin-gated. A
   // member without admin.manage gets the object judgements and not that one -
   // the feed degrades rather than refusing.
-  const adoption = await captureAdoption({ ...base, store: fieldStore }, deals.map((d) => ({
+  const adoption = ctx.allowWorkspaceMetrics === false ? null : await captureAdoption({ ...base, store: fieldStore }, deals.map((d) => ({
     id: d.id,
     createdAt: d.createdAt,
     closedAt: d.closedAt,
@@ -313,7 +319,7 @@ export async function judgementFeed(
   const judgements = deriveJudgements(
     {
       accounts: inputs,
-      captureWeeks: adoption.ok ? adoption.value.weeks : undefined,
+      captureWeeks: adoption?.ok ? adoption.value.weeks : undefined,
       now,
     },
     recencyPolicy,
@@ -347,7 +353,7 @@ export async function judgementFeed(
   // a day and make the control useless, while the tier moves only when the
   // situation materially does. That is the event worth re-interrupting someone
   // for, and it is what stops "not now" from quietly becoming "never".
-  const visible = judgements.filter((j) => {
+  const visible = options.includeSnoozed ? judgements : judgements.filter((j) => {
     const at = snoozed.get(j.id);
     if (at === undefined) return true;
     return URGENCY_RANK[j.urgency] > URGENCY_RANK[at];

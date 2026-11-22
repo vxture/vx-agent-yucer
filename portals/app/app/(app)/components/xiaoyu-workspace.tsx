@@ -11,6 +11,7 @@ import { pageObject } from "../lib/xiaoyu-client";
 import { UUID } from "../../domains/copilot/lib/task-contract";
 import type { Dictionary } from "../lib/i18n/dictionary";
 import { ViewHeader } from "./business-controls";
+import { XiaoyuTopics } from "./xiaoyu-topics";
 import styles from "./xiaoyu-workspace.module.css";
 
 function errorText(code: string, t: Dictionary["XIAOYU_TEXT"]) {
@@ -74,6 +75,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
             {!full ? <div className="flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="map-pin" size="xs" /><span>{T.currentPage}: {currentLabel}</span>{currentObject && task ? <Button variant="ghost" size="md" className="ml-auto" disabled={frozen || ended || s.notesDirty} onClick={() => void client.change({action:"link",object:currentObject})}>{T.linkPage}</Button> : null}</div> : null}
             {targets.length ? <p className="text-body-small text-muted-foreground">{T.targets}: {targets.length}</p> : null}
           </div>
+          {full && !task ? <XiaoyuTopics /> : null}
           {s.error ? <Banner tone="warning" title={errorText(s.error, T)} /> : null}
           {s.notesDirty ? <output className="block text-body-small text-warning-text">{T.notesUnsaved}</output> : null}
           {bundle?.ruleChanged ? <Banner tone="warning" title={T.ruleChanged} /> : null}

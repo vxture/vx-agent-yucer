@@ -41,6 +41,7 @@ export interface TaskContext {
   memory?: MemoryStore;
   knowledge?: KnowledgeStore;
   knowledgeMembers?: () => Promise<{ sub: string; displayName: string | null }[]>;
+  judgementEvidence?: (objects: TaskSource[]) => Promise<unknown[]>;
   source: (object: TaskObject) => Promise<TaskSource | null>;
   // Must re-read current identity, entitlement, permissions and data scope.
   // An in-flight model result must not use a request-start permission snapshot.
@@ -521,6 +522,7 @@ export async function runPrivateTaskTurn(
         await meter.record(ctx.workspaceId, turn.userMessageId);
         const knowledge = await recallBusinessKnowledge(now, b, question);
         const memories = await recallPrivateMemories(now, b, question);
+        const judgements = now.judgementEvidence ? await now.judgementEvidence(b.references) : [];
         const result = await runTurn(
           {
             question,
@@ -532,6 +534,7 @@ export async function runPrivateTaskTurn(
               productName: "Yucer",
               permissions: [...now.holder.permissions],
               features: featureKeysFor(now.entitlement),
+              judgements,
               businessKnowledge: knowledge.map(r => ({id:r.id,revision:r.revision,title:r.title,text:r.text,kind:r.kind,updatedAt:r.updatedAt.toISOString(),sources:r.sources})),
               privateMemories: memories.map(r => ({id:r.id, revision:r.revision, text:r.text, kind:r.kind, createdAt:r.createdAt.toISOString(), updatedAt:r.updatedAt.toISOString(), sources:r.sources})),
               task: {

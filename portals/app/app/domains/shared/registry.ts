@@ -8,6 +8,8 @@
 // SERVER-ONLY, for the same reason authz/context.ts is: the Prisma adapters
 // reach the pg driver, which cannot be bundled for the browser.
 
+import { InMemoryTopicStore, type TopicStore } from "../judgement/topic-store";
+import { PrismaTopicStore } from "../judgement/topic-prisma-store";
 import { withSalesPlanTargets } from "../planning/effective-targets";
 import { seedPlanningDemo } from "./demo-planning";
 import { InMemorySalesPlanStore, type SalesPlanStore } from "../planning/plan-store";
@@ -132,6 +134,12 @@ export function getTaskStore(): TaskStore {
   const memo = memoTable();
   if (!memo.xiaoyuTasks) memo.xiaoyuTasks = prismaEnabled() ? new PrismaTaskStore() : new InMemoryTaskStore();
   return memo.xiaoyuTasks as TaskStore;
+}
+
+export function getTopicStore(): TopicStore {
+  const memo = memoTable();
+  if (!memo.xiaoyuTopics) memo.xiaoyuTopics = prismaEnabled() ? new PrismaTopicStore() : new InMemoryTopicStore();
+  return memo.xiaoyuTopics as TopicStore;
 }
 
 export function getKnowledgeStore(): KnowledgeStore {
