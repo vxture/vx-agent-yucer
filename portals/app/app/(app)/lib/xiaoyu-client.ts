@@ -91,7 +91,7 @@ export class XiaoyuClient {
     if (clear) {
       this.generation++;
       this.selectedId = null;
-      this.remember(null);
+      this.remember(recoveryTaskId);
     }
     this.update({ error: code, ...(clear ? { tasks: [], bundle: null, recoveryTaskId, notes: "", input: "", notesDirty: false, pending: null, creation: null, loading: false } : {}) });
   }

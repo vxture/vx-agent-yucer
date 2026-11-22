@@ -46,7 +46,7 @@ test("dirty notes and composer survive refresh; switching is blocked until expli
 test("permission/source rejection clears messages, notes, composer and pointers",async()=>{
   for(const [code,status]of [["source_changed",409],["memory_source_changed",409],["knowledge_source_changed",409],["POLICY_DENIED",403],["COPILOT_TASK_SOURCE_CHANGED",409],["COPILOT_TASK_NOT_FOUND",404]]as const){
     const f=await fixture();await f.client.start(f.task.id);f.client.setNotes("secret");f.client.setInput("secret");f.setHook(async()=>Response.json({code},{status}));await f.client.refresh();const s=f.client.getSnapshot();
-    assert.equal(s.bundle,null);assert.equal(s.notes,"");assert.equal(s.input,"");assert.deepEqual(s.tasks,[]);assert.equal(f.pointers.at(-1),null);
+    assert.equal(s.bundle,null);assert.equal(s.notes,"");assert.equal(s.input,"");assert.deepEqual(s.tasks,[]);assert.equal(f.pointers.at(-1), /^(?:COPILOT_TASK_)?SOURCE_CHANGED$/i.test(code) ? f.task.id : null);
   }
 });
 test("list access rejection also clears the already open task",async()=>{
@@ -95,6 +95,7 @@ test("changed business source keeps only an opaque receipt-recovery pointer; sco
   f.setHook(async()=>Response.json({code:"COPILOT_TASK_SOURCE_CHANGED"},{status:409}));
   await f.client.refresh();
   assert.equal(f.client.getSnapshot().recoveryTaskId,f.task.id);
+  assert.equal(f.pointers.at(-1),f.task.id);
   assert.equal(f.client.getSnapshot().bundle,null);
   assert.equal(f.client.getSnapshot().notes,"");
   f.client.newTask();
