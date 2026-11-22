@@ -37,6 +37,44 @@ owner's behalf. Record the run URL and safe findings in the linked Issues.
 Diagnostics do not satisfy the real internet research acceptance in Runos's
 `docs/60-operations/20-research-supply-acceptance.md`.
 
+## Xiaoyu consumer verification
+
+`xiaoyu-supply-check.yml` is a separate fixed operational consumer for XY-00B
+([#734](https://github.com/vxture/vx-agent-yucer/issues/734)). Unlike the inventory
+above, it mints normal workspace-bound service tickets inside the existing
+yucer container and makes metered requests. No credentials leave that process.
+It selects one recent successful consumer context, then checks current
+provisioning in a read-only transaction; absent or deprovisioned context fails.
+It reads no chat or CRM content and performs no business writes, configuration
+changes, deployments, restarts or grants. The real operational context is not
+an isolated test workspace; this distinction is recorded in the report.
+
+It pages all four Runos primitive types (20 per page, at most 200 pages each),
+resolves exact versions with four read workers, fetches one research Skill as
+distribution only, and invokes only the fixed Exa public search/read operations
+after checking their read-risk contracts. Only official Unitree HTTPS URLs
+without credentials or query strings are passed to page reading. Skill text is
+not executed or treated as trusted system instructions. Declared dependencies
+and actual Connector calls remain separate evidence.
+
+Atlas's granted catalog supplies active category-specific candidates. One short
+public-source summary, a two-text embedding and a two-candidate rerank are
+attempted only on granted routes. This does not validate every route, model tool
+use, quality of complex planning, user OBO, memory isolation or business saving.
+Missing/failed probes and incomplete catalogs produce partial/unavailable and a
+failed run, with safe findings retained. No automatic retry or upstream repair.
+
+```sh
+gh workflow run xiaoyu-supply-check.yml --ref main -f expected_sha=<main-sha>
+```
+
+The owner must approve the pinned production run. The safe JSON report is a
+14-day `xiaoyu-supply-report` Artifact; logs print only section status/counts.
+It contains context UUIDs, catalog metadata, exact versions, task/call/request
+IDs, elapsed time, token usage when returned, public source URLs and hashes;
+no prompts, tool-result bodies, credentials, raw errors or environment values.
+Unknown cost is null, not zero. Record safe findings in workplan 115 and #734.
+
 Local verification:
 
 ```sh
