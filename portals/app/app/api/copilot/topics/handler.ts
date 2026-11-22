@@ -37,11 +37,8 @@ export async function topicsHttp(
         ),
       );
     }
-    return taskResponse(
-      operation === "open"
-        ? await openTopic(ctx, body)
-        : await changeTopic(ctx, id, body),
-    );
+    if (operation === "open") return taskResponse(await openTopic(ctx, body));
+    return taskResponse(await changeTopic(ctx, id, body));
   } catch {
     return errorResponse(
       503,
