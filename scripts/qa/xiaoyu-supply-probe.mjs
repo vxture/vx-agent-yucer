@@ -38,29 +38,42 @@ export function publicUrls(text) {
   });
 }
 
+function appendCatalogPage(result, type, rows, ids, total) {
+  if (!Array.isArray(result?.capabilities)) fail("catalog_shape_invalid");
+  if (Number.isInteger(result.total) && total !== undefined && total !== result.total) fail("catalog_changed_or_invalid");
+  for (const row of result.capabilities) {
+    if (!id(row.capability_id) || row.primitive_type !== type || ids.has(row.capability_id)) fail("catalog_changed_or_invalid");
+    rows.push(row); ids.add(row.capability_id);
+  }
+  return Number.isInteger(result.total) ? result.total : total;
+}
+
 export async function paginate(discover, type) {
   const rows = [], cursors = new Set(), ids = new Set();
-  let cursor, total;
-  for (let page = 0; page < 200; page += 1) {
+  async function nextPage(page, cursor, total) {
+    if (page >= 200) fail("catalog_page_budget_exceeded");
     const result = await discover({ query: "*", filter: { primitive_type: type }, limit: 20,
       ...(cursor ? { cursor } : {}) });
-    if (!Array.isArray(result?.capabilities)) fail("catalog_shape_invalid");
-    if (Number.isInteger(result.total)) {
-      if (total !== undefined && total !== result.total) fail("catalog_changed_or_invalid");
-      total = result.total;
-    }
-    for (const row of result.capabilities) {
-      if (!id(row.capability_id) || row.primitive_type !== type || ids.has(row.capability_id)) fail("catalog_changed_or_invalid");
-      rows.push(row); ids.add(row.capability_id);
-    }
+    const actualTotal = appendCatalogPage(result, type, rows, ids, total);
     if (!result.next_cursor) {
-      if (total !== undefined && total !== rows.length) fail("catalog_truncated");
+      if (actualTotal !== undefined && actualTotal !== rows.length) fail("catalog_truncated");
       return { rows, pages: page + 1, total: rows.length, beyond_first_20: rows[20]?.capability_id ?? null };
     }
     if (typeof result.next_cursor !== "string" || cursors.has(result.next_cursor) || !result.capabilities.length) fail("catalog_cursor_invalid");
-    cursors.add(result.next_cursor); cursor = result.next_cursor;
+    cursors.add(result.next_cursor);
+    return nextPage(page + 1, result.next_cursor, actualTotal);
   }
-  fail("catalog_page_budget_exceeded");
+  return nextPage(0);
+}
+
+async function section(target, key, work) {
+  try { target[key] = { status: "ok", data: await work() }; }
+  catch (error) { target[key] = { status: "unavailable", reason: safeReason(error) }; }
+}
+
+// Sequence metered category probes rather than starting all of them at once.
+async function eachInOrder(values, work) {
+  return values.reduce((pending, value) => pending.then(() => work(value)), Promise.resolve());
 }
 
 export function safeContract(row, contract) {
@@ -157,10 +170,6 @@ export async function runProbe(context, env, request = fetch) {
         total_tokens: number(res.usage?.totalTokens) }, cost: null });
     return res;
   }
-  async function section(target, key, work) {
-    try { target[key] = { status: "ok", data: await work() }; }
-    catch (error) { target[key] = { status: "unavailable", reason: safeReason(error) }; }
-  }
   let routes = [];
   await section(report.atlas, "catalog", async () => {
     const result = await atlas("/v1/model-routes");
@@ -174,25 +183,23 @@ export async function runProbe(context, env, request = fetch) {
     return { routes, max_request_bytes: number(result.maxRequestBytes) };
   });
   const catalogs = new Map(), contracts = new Map();
-  for (const type of TYPES) await section(report.runos, type, async () => {
+  await eachInOrder(TYPES, type => section(report.runos, type, async () => {
     const page = await paginate(async args => unwrap(await runos("runos_discover", args)), type);
     catalogs.set(type, page.rows);
     const manifest = [];
     // Four bounded read-only workers; never execute catalog operations here.
-    let index = 0;
-    await Promise.all(Array.from({ length: 4 }, async () => {
-      while (index < page.rows.length) {
-        const row = page.rows[index++];
+    const lanes = Array.from({ length: 4 }, () => []);
+    page.rows.forEach((row, index) => lanes[index % lanes.length].push(row));
+    await Promise.all(lanes.map(lane => eachInOrder(lane, async row => {
         try {
           const contract = unwrap(await runos("runos_resolve", { capability_id: row.capability_id, version: "stable" }));
           manifest.push(safeContract(row, contract)); contracts.set(row.capability_id, contract);
         } catch (error) { manifest.push({ capability_id: row.capability_id, status: "unavailable", reason: safeReason(error) }); }
-      }
-    }));
+    })));
     manifest.sort((a, b) => a.capability_id.localeCompare(b.capability_id));
     return { total: page.total, pages: page.pages, beyond_first_20: page.beyond_first_20,
       resolved: manifest.filter(r => r.version).length, manifest_sha256: sha(JSON.stringify(manifest)), manifest };
-  });
+  }));
   let skillContext;
   await section(report.runos, "skill_sample", async () => {
     const rows = catalogs.get("skill") ?? [];
@@ -232,7 +239,7 @@ export async function runProbe(context, env, request = fetch) {
       fetch_sha256: sha(evidence), declared_skill_dependency_used: Boolean(dependency),
       business_saved: false };
   });
-  for (const category of ["chat", "embedding", "rerank"]) await section(report.atlas, `${category}_sample`, async () => {
+  await eachInOrder(["chat", "embedding", "rerank"], category => section(report.atlas, `${category}_sample`, async () => {
     const candidates = routes.filter(r => r.state === "active" && r.category === category);
     const route = candidates.find(r => r.endpoint_code === (env.ATLAS_ENDPOINT_CHAT || "chat/default")) ?? candidates[0];
     if (!route) fail("no_granted_route_for_category");
@@ -257,7 +264,7 @@ export async function runProbe(context, env, request = fetch) {
       candidates: [{ id: "market", text: "public market research" }, { id: "other", text: "calendar settings" }] });
     if (!Array.isArray(res.scores) || res.scores.length !== 2 || !["market", "other"].every(key => res.scores.some(s => s.id === key && Number.isFinite(s.score)))) fail("rerank_invalid");
     return { route: route.endpoint_code, scores: res.scores.map(s => ({ id: id(s.id), score: number(s.score) })) };
-  });
+  }));
   report.elapsed_ms = Date.now() - started;
   const failures = [...Object.values(report.atlas), ...Object.values(report.runos)].some(v => v.status !== "ok");
   const unresolved = TYPES.some(type => report.runos[type]?.data?.resolved !== report.runos[type]?.data?.total);

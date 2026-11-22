@@ -1,0 +1,7 @@
+[run]
+relative_files = True
+source = scripts/qa
+
+[report]
+include = scripts/qa/*supply*.py
+omit = scripts/qa/test_*.py
