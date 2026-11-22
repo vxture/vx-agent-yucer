@@ -31,21 +31,28 @@ export class PrismaTopicStore implements TopicStore {
       >,
   ) {
     const p = await getPrismaClient();
-    return row(
-      await p.agentJudgementTopic.upsert({
-        where: {
-          workspaceId_actorSub_judgementId_scope: {
-            workspaceId: input.workspaceId,
-            actorSub: input.actorSub,
-            judgementId: input.judgementId,
-            scope: input.scope,
-          },
-        },
-        create: input,
-        update: {},
-      }),
-    );
+    const key = {
+      workspaceId: input.workspaceId,
+      actorSub: input.actorSub,
+      judgementId: input.judgementId,
+      scope: input.scope,
+    };
+    const existing = await p.agentJudgementTopic.findFirst({ where: key });
+    if (existing) return row(existing);
+    try {
+      return row(await p.agentJudgementTopic.create({ data: input }));
+    } catch (error) {
+      if (
+        !error ||
+        typeof error !== "object" ||
+        !("code" in error) ||
+        error.code !== "P2002"
+      )
+        throw error;
+      return row(await p.agentJudgementTopic.findFirstOrThrow({ where: key }));
+    }
   }
+
   async change(
     owner: TaskScope,
     id: string,
