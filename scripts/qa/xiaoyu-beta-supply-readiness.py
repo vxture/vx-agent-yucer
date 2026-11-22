@@ -83,14 +83,14 @@ def configuration(values):
     }
 
 
-def check_container(name):
+def check_container(name, environment=None):
     # The projection excludes Config.Env, mounts, labels other than scope and
     # all raw error text. There is no exec or arbitrary container selector.
     result = subprocess.run(
         ["docker", "inspect", "--type", "container", "--format",
          '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}|'
          '{{index .Config.Labels "com.docker.compose.project"}}', name],
-        capture_output=True, text=True, timeout=15, check=False,
+        capture_output=True, text=True, timeout=15, check=False, env=environment,
     )
     if result.returncode:
         return {"inspected": False, "healthy": False, "scope_matches": False}

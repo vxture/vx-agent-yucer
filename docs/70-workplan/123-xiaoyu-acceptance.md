@@ -254,6 +254,30 @@ GitHub 配置入口：
 没有复制生产 secret、触发平台全量密钥 provision／重启、创建发布 tag 或修改生产数据库。
 当前需要的是 beta 的现成配置或正式平台交付，不是重新授权已授予的 Atlas 路由。
 
+### 平台登录后继续推进
+
+owner 已完成平台登录。经 Opera 现有产品及客户端只读接口核对，聿策仅有正式客户端
+`yucer`，未登记 `yucer-beta`；随后通过现有产品客户端创建接口补齐独立 beta 身份，
+返回 HTTP 201。产品仍为 `yucer`，渠道为 `beta`，机密客户端、PKCE 和四项 OIDC scope
+沿用现有契约；登录回调、登出回跳、后通道登出全部使用 beta origin。
+正式客户端及生产 webhook 未修改，未重新授权路由或绑定具体模型。
+
+新签发的 beta 凭据已通过 stdin 写入 GitHub beta Environment 的 `OIDC_CLIENT_SECRET`，
+没有进入对话、Issue 或日志；这只完成凭据保管，不代表完整运行配置已交付或服务已启动。
+Atlas／Runos 的非敏感服务位置取自公开状态接口，平台 API 内网地址仍需核对既有交接值。
+
+首次启动使用固定 `xiaoyu-beta-bootstrap.yml`，只允许精确 main 与已有 beta 目录／项目，
+从 beta Secret `ENV_FILE_BASE64` 接收完整配置。远端先复用就绪脚本验证作用域及 mock 关闭，
+再检查目录、配置、Compose、数据目录和已有容器；拒绝符号链接、非空旧数据、已有容器、
+不同的已有文件、Compose／Docker 位置覆盖及宿主环境变量影响。只在全新栈内创建配置和
+已审查 Compose，以 `--no-deps db redis` 启动两个数据服务并限时检查健康。
+配置通过 SSH stdin 传递，文件权限 0600；错误不透传命令输出。配置或启动失败时不删除
+数据、不覆盖原文件、不猜测成功；已有栈转用只读核验处理，不能把此入口当作重置命令。
+
+此流程不启动应用、不执行 SQL／DDL、不读取生产文件。数据库结构继续由原 `db-init.yml`
+应用，应用仍按统一预览和 tag 发布规则推进。beta 未登记独立 C3 webhook，本轮不改生产
+接收地址来凑测试，不将 beta 私有链路验收扩称为 C3 回调验收。
+
 最新本地内存预览保持在 `http://localhost:16414/copilot`，已放入明确标注的演示任务、私人假设记忆
 及独立业务假设知识；Chrome 核对 taskId 恢复、单活动输入及 1440px 无横溢出。状态为 dev＋mock，
 未配置数据库／Atlas／Runos，进程重启后清空；不计为真实 OBO、持久化或多人共享验收。
