@@ -43,12 +43,15 @@ Diagnostics do not satisfy the real internet research acceptance in Runos's
 ([#734](https://github.com/vxture/vx-agent-yucer/issues/734)). Unlike the inventory
 above, it mints normal workspace-bound service tickets inside the existing
 yucer container and makes metered requests. No credentials leave that process.
-It reads current provisioned product contexts in a read-only transaction and
-prefers a matching recent successful consumer context. Audit history is not an
-authorization source or a prerequisite: missing history and sentinel IDs fall
-back to the most recently updated valid current provisioning row. The complete
-tenant/workspace pair is kept together and the selection source is recorded.
-Unverifiable or absent current provisioning fails with a fixed safe stage code.
+It uses the existing product-scoped `provisioning:read` ticket and the canonical
+`GET /platform/provisioning` reader inside the consumer container. The full
+bounded scan validates tenant/workspace pairs and current states before choosing
+the most recently updated provisioned relation. It does not call reconciliation,
+ACK, usage, persistence or grant endpoints. Local nullable tenant projections and
+past audit rows are not context authorities. Invalid pages, missing current
+relations, duplicate workspaces/cursors and reader failures stop before any plane
+call with a fixed safe stage/code. Up to 100 pages of 200 rows are read within a
+two-minute context budget; incomplete scans cannot select a workspace.
 It reads no chat or CRM content and performs no business writes, configuration
 changes, deployments, restarts or grants. The real operational context is not
 an isolated test workspace; this distinction is recorded in the report.
@@ -66,7 +69,8 @@ public-source summary, a two-text embedding and a two-candidate rerank are
 attempted only on granted routes. This does not validate every route, model tool
 use, quality of complex planning, user OBO, memory isolation or business saving.
 Missing/failed probes and incomplete catalogs produce partial/unavailable and a
-failed run, with safe findings retained. No automatic retry or upstream repair.
+failed run, with safe findings retained. Canonical Runos error codes and failed
+invoke call IDs are preserved without raw error messages. No automatic retry or upstream repair.
 Only endpoint routes are selected; actual model IDs are audit metadata, never a
 consumer-side model grant or pin. Existing route authorization needs no repeat
 user confirmation. Production Environment approval is the separate workflow rule.

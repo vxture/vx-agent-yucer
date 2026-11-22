@@ -4,6 +4,12 @@ import { createHash, randomUUID } from "node:crypto";
 
 const TYPES = ["skill", "connector", "executor", "asset"];
 const RESEARCH = "exa.web-research";
+const RUNOS_ERRORS = new Set([
+  "CALLER_MISSING_METADATA", "CALLER_INVALID_ARGUMENTS", "CALLER_INVALID_DELEGATION",
+  "CALLER_UNKNOWN_CAPABILITY", "CALLER_VERSION_NOT_FOUND", "CALLER_UNSUPPORTED_OPERATION",
+  "NOT_ENTITLED", "POLICY_DENIED", "APPROVAL_REQUIRED", "QUOTA_EXCEEDED", "RATE_LIMITED",
+  "CAPABILITY_PROVIDER_UNAVAILABLE", "CAPABILITY_PROVIDER_ERROR", "CAPABILITY_CONTRACT_VIOLATION", "CAPABILITY_TIMEOUT",
+]);
 const sha = value => createHash("sha256").update(value).digest("hex");
 const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const id = value => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._:/@+-]{0,199}$/.test(value) ? value : null;
@@ -16,6 +22,90 @@ const http = value => {
 
 export class ProbeError extends Error {}
 function fail(code) { throw new ProbeError(code); }
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function credentials(env) {
+  const clientId = present(env.S2S_CLIENT_ID) || present(env.OIDC_CLIENT_ID) || "yucer";
+  const clientSecret = present(env.S2S_CLIENT_SECRET) || present(env.OIDC_CLIENT_SECRET);
+  const tokenUrl = http(env.S2S_TOKEN_URL) || `${(http(env.OIDC_ISSUER) || "https://accounts.vxture.com").replace(/\/$/, "")}/oidc/token`;
+  if (!clientSecret || (present(env.PRODUCT_CODE) || "yucer") !== "yucer") fail("consumer_not_configured");
+  return { clientId, clientSecret, tokenUrl };
+}
+function jsonReader(request, deadline) {
+  return async (url, init, plane, timeout = 45_000) => {
+    if (Date.now() >= deadline) fail("probe_budget_exceeded");
+    let res;
+    try { res = await request(url, { ...init, redirect: "error", signal: AbortSignal.timeout(Math.min(timeout, deadline - Date.now())) }); }
+    catch { fail(`${plane}_transport_failed`); }
+    if (!res.ok) fail(`${plane}_http_${res.status}`);
+    try { return await res.json(); } catch { fail(`${plane}_body_invalid`); }
+  };
+}
+
+function provisionPage(raw) {
+  if (!object(raw) || !Array.isArray(raw.items) || raw.items.length > 200 ||
+      !(raw.nextCursor === null || (typeof raw.nextCursor === "string" && raw.nextCursor.length > 0))) fail("platform_provisioning_page_invalid");
+  for (const row of raw.items) {
+    if (!object(row) || typeof row.tenant_id !== "string" || !UUID.test(row.tenant_id) ||
+        typeof row.workspace_id !== "string" || !UUID.test(row.workspace_id) ||
+        !["pending", "provisioned", "deprovisioned"].includes(row.state) ||
+        !Number.isSafeInteger(row.seq) || row.seq < 0 ||
+        typeof row.updated_at !== "string" || !Number.isFinite(Date.parse(row.updated_at))) fail("platform_provisioning_item_invalid");
+  }
+  return raw;
+}
+
+function appendProvisions(page, workspaces, active) {
+  for (const row of page.items) {
+    const key = row.workspace_id.toLowerCase();
+    if (workspaces.has(key)) fail("platform_provisioning_duplicate_workspace");
+    workspaces.add(key);
+    if (row.state === "provisioned") active.push(row);
+  }
+}
+
+async function readCurrentRelations(baseUrl, json, accessToken) {
+  const cursors = new Set(), workspaces = new Set(), active = [];
+  let cursor, pages = 0;
+  do {
+    if (pages >= 100) fail("platform_provisioning_page_budget_exceeded");
+    const url = new URL(`${baseUrl.replace(/\/$/, "")}/platform/provisioning`);
+    url.searchParams.set("limit", "200");
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const page = provisionPage(await json(url.toString(), { method: "GET", headers: {
+      authorization: `Bearer ${accessToken}`, accept: "application/json",
+    }, cache: "no-store" }, "platform_provisioning", 10_000));
+    pages++;
+    appendProvisions(page, workspaces, active);
+    cursor = page.nextCursor;
+    if (cursor && cursors.has(cursor)) fail("platform_provisioning_cursor_repeated");
+    if (cursor) cursors.add(cursor);
+  } while (cursor);
+  if (!active.length) fail("no_current_platform_provisioning_context");
+  return { active, pages, scanned: workspaces.size };
+}
+
+// Same product-scoped reader contract as platform/channel-token.ts and
+// provisioning/lib/poll.ts. Never infer tenant ownership from local projections
+// or historical calls, and never invoke the poller's persistence/ACK path.
+export async function currentContext(env, request = fetch) {
+  const { clientId, clientSecret, tokenUrl } = credentials(env);
+  if (!http(env.PLATFORM_API_URL)) fail("platform_reader_not_configured");
+  const json = jsonReader(request, Date.now() + 120_000);
+  const token = await json(tokenUrl, { method: "POST", headers: {
+    "content-type": "application/x-www-form-urlencoded",
+    authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
+  }, body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+    audience: "vxture", requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
+    scope: "provisioning:read" }).toString() }, "platform_identity", 10_000);
+  if (typeof token?.access_token !== "string" || !token.access_token.trim() ||
+      typeof token.token_type !== "string" || token.token_type.toLowerCase() !== "bearer" ||
+      !Number.isFinite(token.expires_in) || token.expires_in <= 0) fail("platform_reader_token_invalid");
+  const { active, pages, scanned } = await readCurrentRelations(env.PLATFORM_API_URL, json, token.access_token);
+  active.sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at) || a.workspace_id.localeCompare(b.workspace_id));
+  return { tenantId: active[0].tenant_id, workspaceId: active[0].workspace_id,
+    source: "platform_provisioning_reader", verification: { pages, scanned,
+      provisioned: active.length, selection: "latest_current_platform_relation" } };
+}
 export function safeReason(error) {
   return error instanceof ProbeError && /^[a-z][a-z0-9_]{0,90}$/.test(error.message)
     ? error.message : "probe_failed";
@@ -97,21 +187,12 @@ export async function runProbe(context, env, request = fetch) {
     context: { tenant_id: context.tenantId, workspace_id: context.workspaceId,
       mode: "service", source: context.source ?? "current_provisioning", business_writes: false },
     atlas: {}, runos: {}, calls: [], limitations: ["service_identity_not_user_obo", "not_business_form_acceptance"] };
-  const clientId = present(env.S2S_CLIENT_ID) || present(env.OIDC_CLIENT_ID) || "yucer";
-  const clientSecret = present(env.S2S_CLIENT_SECRET) || present(env.OIDC_CLIENT_SECRET);
-  const tokenUrl = http(env.S2S_TOKEN_URL) || `${(http(env.OIDC_ISSUER) || "https://accounts.vxture.com").replace(/\/$/, "")}/oidc/token`;
-  if (!context.tenantId || !context.workspaceId || !clientSecret ||
+  const { clientId, clientSecret, tokenUrl } = credentials(env);
+  if (!context.tenantId || !context.workspaceId ||
       !http(env.RUNOS_BASE_URL) || !http(env.ATLAS_BASE_URL) ||
       (present(env.PRODUCT_CODE) || "yucer") !== "yucer") fail("consumer_not_configured");
   const tokens = new Map(), minting = new Map();
-  async function json(url, init, plane, timeout = 45_000) {
-    if (Date.now() >= deadline) fail("probe_budget_exceeded");
-    let res;
-    try { res = await request(url, { ...init, redirect: "error", signal: AbortSignal.timeout(Math.min(timeout, deadline - Date.now())) }); }
-    catch { fail(`${plane}_transport_failed`); }
-    if (!res.ok) fail(`${plane}_http_${res.status}`);
-    try { return await res.json(); } catch { fail(`${plane}_body_invalid`); }
-  }
+  const json = jsonReader(request, deadline);
   async function token(audience) {
     const old = tokens.get(audience);
     if (old?.until > Date.now() + 30_000) return old.value;
@@ -146,7 +227,15 @@ export async function runProbe(context, env, request = fetch) {
           ...(skillContext ? { skill_context: skillContext } : {}) } },
       } }),
     }, "runos", 90_000);
-    if (rpc.error || rpc.result?.isError || !rpc.result) fail("runos_rejected");
+    if (rpc.result?.isError) {
+      const envelope = unwrap(rpc.result);
+      const code = RUNOS_ERRORS.has(envelope.code) ? envelope.code : null;
+      if (name === "runos_invoke") report.calls.push({ plane: "runos", capability_id: args.capability_id,
+        operation: args.operation, outcome: "failed", error_code: code, call_id: id(envelope.call_id),
+        latency_ms: Date.now() - callStarted, cost: null });
+      fail(code ? `runos_${code.toLowerCase()}` : "runos_rejected");
+    }
+    if (rpc.error || !rpc.result) fail("runos_rejected");
     if (name === "runos_invoke") {
       const meta = metadata(rpc.result);
       report.calls.push({ plane: "runos", capability_id: args.capability_id, operation: args.operation,
@@ -271,7 +360,19 @@ export async function runProbe(context, env, request = fetch) {
   return { status: failures || unresolved ? "partial" : "ok", data: report };
 }
 
-if (typeof SUPPLY_CONTEXT !== "undefined") {
-  try { console.log(JSON.stringify(await runProbe(SUPPLY_CONTEXT, process.env))); }
+export async function runConsumerProbe(env, request = fetch) {
+  let context;
+  try { context = await currentContext(env, request); }
+  catch (error) { return { status: "unavailable", stage: "context_verification", reason: safeReason(error) }; }
+  try {
+    const result = await runProbe(context, env, request);
+    return { ...result, context_verification: context.verification };
+  } catch (error) {
+    return { status: "unavailable", stage: "consumer_probe", reason: safeReason(error), context_verification: context.verification };
+  }
+}
+
+if (typeof SUPPLY_PRODUCTION !== "undefined") {
+  try { console.log(JSON.stringify(await runConsumerProbe(process.env))); }
   catch (error) { console.log(JSON.stringify({ status: "unavailable", reason: safeReason(error) })); }
 }

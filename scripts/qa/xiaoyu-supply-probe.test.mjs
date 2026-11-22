@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { paginate, publicUrls, runProbe, safeReason } from "./xiaoyu-supply-probe.mjs";
+import { currentContext, paginate, publicUrls, runConsumerProbe, runProbe, safeReason } from "./xiaoyu-supply-probe.mjs";
 
-const context = { tenantId: "tenant", workspaceId: "workspace" };
+const context = { tenantId: "11111111-1111-4111-8111-111111111111", workspaceId: "22222222-2222-4222-8222-222222222222" };
 const env = { OIDC_CLIENT_ID: "yucer", OIDC_CLIENT_SECRET: "private-credential",
-  RUNOS_BASE_URL: "https://runos.test", ATLAS_BASE_URL: "https://atlas.test" };
+  RUNOS_BASE_URL: "https://runos.test", ATLAS_BASE_URL: "https://atlas.test", PLATFORM_API_URL: "https://platform.test" };
+const provision = (overrides = {}) => ({ tenant_id: context.tenantId, workspace_id: context.workspaceId,
+  state: "provisioned", seq: 1, updated_at: "2026-11-21T12:00:00Z", ...overrides });
 const row = (capability_id, primitive_type) => ({ capability_id, primitive_type, summary: "public research" });
 const rows = { skill: Array.from({ length: 21 }, (_, n) => row(`public.research-${n}`, "skill")),
   connector: [row("exa.web-research", "connector")], executor: [], asset: [] };
@@ -21,11 +23,21 @@ function fixture(change = () => undefined) {
     if (overridden) return overridden;
     if (url.endsWith("/oidc/token")) {
       const form = new URLSearchParams(init.body);
+      if (form.get("audience") === "vxture") {
+        assert.equal(form.get("scope"), "provisioning:read");
+        for (const key of ["workspace_id", "tenant_id", "org_id", "act_sub", "subject_token"]) assert.equal(form.get(key), null);
+        return json({ access_token: "private-reader-token", token_type: "Bearer", expires_in: 300 });
+      }
       assert.equal(form.get("act_sub"), "yucer");
       assert.equal(form.get("tenant_id"), context.tenantId);
       assert.equal(form.get("workspace_id"), context.workspaceId);
       assert.equal(form.get("mode"), "service");
       return json({ access_token: "private-access-token", expires_in: 300 });
+    }
+    if (url.startsWith("https://platform.test/platform/provisioning?")) {
+      assert.equal(init.method, "GET");
+      assert.equal(init.headers.authorization, "Bearer private-reader-token");
+      return json({ items: [provision()], nextCursor: null });
     }
     if (url.endsWith("/v1/model-routes")) return json({ endpoints: ["chat", "embedding", "rerank"].map(category => ({
       endpointCode: category === "chat" ? "chat/default" : `${category}/default`, category, state: "active",
@@ -150,4 +162,100 @@ test("invalid fetched evidence prevents model use; a truncated model answer is i
     message: { content: "Truncated answer" }, finishReason: "length" }) : undefined);
   const result = await runProbe(context, env, truncated.request);
   assert.equal(result.data.atlas.chat_sample.reason, "model_receipt_invalid_or_incomplete");
+});
+
+test("production entry uses the current platform reader and then scoped plane identities", async () => {
+  const { request, requests } = fixture();
+  const result = await runConsumerProbe(env, request);
+  assert.equal(result.status, "ok");
+  assert.equal(result.data.context.source, "platform_provisioning_reader");
+  assert.deepEqual(result.context_verification, { pages: 1, scanned: 1, provisioned: 1, selection: "latest_current_platform_relation" });
+  assert.equal(requests.filter(r => r.url.startsWith("https://platform.test/")).length, 1);
+  assert.ok(!requests.some(r => /ack|usage|webhook|sql/.test(r.url)));
+  assert.ok(!JSON.stringify(result).includes("private-"));
+});
+
+test("all provisioning pages are validated before selecting a current tenant/workspace pair", async () => {
+  const { request, requests } = fixture(url => {
+    if (!url.startsWith("https://platform.test/")) return;
+    const next = new URL(url).searchParams.get("cursor");
+    assert.equal(new URL(url).searchParams.get("limit"), "200");
+    return next ? json({ items: [provision()], nextCursor: null }) : json({
+      items: [provision({ state: "deprovisioned", workspace_id: "33333333-3333-4333-8333-333333333333", updated_at: "2026-11-22T12:00:00Z" })], nextCursor: "next" });
+  });
+  const result = await currentContext(env, request);
+  assert.equal(result.workspaceId, context.workspaceId);
+  assert.equal(result.tenantId, context.tenantId);
+  assert.equal(result.verification.pages, 2);
+  assert.equal(requests.length, 3);
+});
+
+test("malformed, revoked, duplicate and incomplete provisioning cannot trigger plane calls", async () => {
+  const samples = [
+    { items: [], nextCursor: null },
+    { items: [provision({ state: "deprovisioned" })], nextCursor: null },
+    { items: [provision({ state: "pending" })], nextCursor: null },
+    { items: [provision({ tenant_id: null })], nextCursor: null },
+    { items: [provision({ tenant_id: [context.tenantId] })], nextCursor: null },
+    { items: [provision({ tenant_id: "none" })], nextCursor: null },
+    { items: [provision({ workspace_id: "'; SELECT secret; --" })], nextCursor: null },
+    { items: [provision({ seq: -1 })], nextCursor: null },
+    { items: [provision({ updated_at: "unknown" })], nextCursor: null },
+    { items: [provision(), provision()], nextCursor: null },
+    { items: [provision()] },
+    { items: [], nextCursor: "loop" },
+    { items: [provision(), provision({ tenant_id: "33333333-3333-4333-8333-333333333333" })], nextCursor: null },
+  ];
+  for (const raw of samples) {
+    const { request, requests } = fixture(url => url.startsWith("https://platform.test/") ? json(raw) : undefined);
+    const result = await runConsumerProbe(env, request);
+    assert.equal(result.status, "unavailable");
+    assert.equal(result.stage, "context_verification");
+    assert.ok(!requests.some(r => /atlas.test|runos.test/.test(r.url)));
+    assert.ok(!JSON.stringify(result).includes("private-"));
+  }
+});
+
+test("platform token and transport failures use fixed safe codes without credential leakage", async () => {
+  for (const raw of [{}, { access_token: "private-token", token_type: "wrong", expires_in: 300 },
+    { access_token: "private-token", token_type: "Bearer", expires_in: 0 }]) {
+    const f = fixture(url => url.endsWith("/oidc/token") ? json(raw) : undefined);
+    const result = await runConsumerProbe(env, f.request);
+    assert.equal(result.reason, "platform_reader_token_invalid");
+    assert.equal(f.requests.length, 1);
+  }
+  for (const response of [() => new Response("private-secret", { status: 401 }),
+    () => { throw Error("private-secret"); }, () => new Response("private-secret", { status: 200 })]) {
+    const f = fixture(url => url.startsWith("https://platform.test/") ? response() : undefined);
+    const result = await runConsumerProbe(env, f.request);
+    assert.equal(result.status, "unavailable");
+    assert.ok(!JSON.stringify(result).includes("private-"));
+  }
+  const missing = await runConsumerProbe({ ...env, PLATFORM_API_URL: "" }, () => { throw Error("must not fetch"); });
+  assert.equal(missing.reason, "platform_reader_not_configured");
+});
+
+test("latest active platform relation is selected deterministically without audit history", async () => {
+  const older = provision({ workspace_id: "33333333-3333-4333-8333-333333333333", updated_at: "2026-11-20T12:00:00Z" });
+  for (const items of [[older, provision()], [provision(), older]]) {
+    const f = fixture(url => url.startsWith("https://platform.test/") ? json({ items, nextCursor: null }) : undefined);
+    assert.equal((await currentContext(env, f.request)).workspaceId, context.workspaceId);
+  }
+});
+
+test("upstream Runos failures retain canonical code and call receipt without raw errors", async () => {
+  for (const code of ["CALLER_INVALID_ARGUMENTS", "CAPABILITY_PROVIDER_UNAVAILABLE", "private-secret"]) {
+    const f = fixture((url, init, body) => body?.params?.arguments?.operation === "web_search_exa" ? json({ result: {
+      isError: true, structuredContent: { code, message: "private-secret", call_id: "failed-call-1" },
+    } }) : undefined);
+    const result = await runConsumerProbe(env, f.request);
+    const reason = result.data.runos.public_research.reason;
+    assert.equal(reason, code === "private-secret" ? "runos_rejected" : `runos_${code.toLowerCase()}`);
+    assert.equal(result.data.calls.find(c => c.outcome === "failed").call_id, "failed-call-1");
+    assert.ok(!JSON.stringify(result).includes("private-"));
+  }
+  const f = fixture();
+  const result = await runConsumerProbe({ ...env, ATLAS_BASE_URL: "" }, f.request);
+  assert.equal(result.stage, "consumer_probe");
+  assert.equal(result.reason, "consumer_not_configured");
 });
