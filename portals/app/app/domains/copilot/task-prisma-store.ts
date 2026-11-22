@@ -420,7 +420,7 @@ export class PrismaTaskStore implements TaskStore {
                   ? "interrupted"
                   : "failed",
             assistantMessageId,
-            artifacts: "answer" in result && result.artifacts ? JSON.parse(JSON.stringify(result.artifacts)) as Prisma.InputJsonValue : {},
+            artifacts: "answer" in result && result.artifacts ? structuredClone(result.artifacts) as unknown as Prisma.InputJsonValue : {},
             errorCode: "errorCode" in result ? result.errorCode : null,
             finishedAt: new Date(),
           },

@@ -263,7 +263,14 @@ async function catalogResult(ctx:StrategyContext,input:PlanEdit):Promise<PlanEdi
     ? (await ctx.catalog.getPricingPolicy(ctx.workspaceId)).defaultCurrency
     : input.expectations?.find(e=>e.metric==="revenue")?.currency ?? "CNY";
   const [products,solutions]=await Promise.all([ctx.catalog?.listProducts&&ctx.catalog?.listStatusConfigs?listProductReferences({...ctx,store:{listProducts:ctx.catalog.listProducts.bind(ctx.catalog),listStatusConfigs:ctx.catalog.listStatusConfigs.bind(ctx.catalog)}}):null,ctx.catalog?listSolutionReferences({...ctx,store:ctx.catalog}):null]);
-  const result={...input.result,goals:input.result.goals.map(g=>({...g,unit:g.metric==="revenue"?currency:g.unit||"count"})),offerings:input.result.offerings.map(o=>({...o,novelty:((o.kind==="product"?(products?.ok?products.value:[]):(solutions?.ok?solutions.value:[])).find(row=>row.id===o.id)?.novelty??"unknown") as import("./lib/strategy-result").Novelty}))};
+  const novelty = new Map<string, import("./lib/strategy-result").Novelty>();
+  if(products?.ok)for(const row of products.value)novelty.set(`product:${row.id}`,row.novelty??"unknown");
+  if(solutions?.ok)for(const row of solutions.value)novelty.set(`solution:${row.id}`,row.novelty??"unknown");
+  const result={
+    ...input.result,
+    goals:input.result.goals.map(g=>({...g,unit:g.metric==="revenue"?currency:g.unit||"count"})),
+    offerings:input.result.offerings.map(o=>({...o,novelty:novelty.get(`${o.kind}:${o.id}`)??"unknown"})),
+  };
   // Every caller, including task execution, uses the same goal projection.
   // Explicit projections are still validated rather than silently replaced.
   return {...input,result,expectations:input.expectations??goalExpectations(result,currency)};

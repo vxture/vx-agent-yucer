@@ -333,7 +333,7 @@ export function businessBindings(
         form = { ...form, baseVersion: own.version };
         sources.push(own);
         const row = (await businessRecords(session, form.module, form.fields.year as number | undefined)).find(r => r.object.id === form.targetId)?.data;
-        if (!row || typeof row !== "object") throw Error("source_unavailable");
+        if (!row || typeof row !== "object") throw new Error("source_unavailable");
         let record = row as Record<string, unknown>;
         if (form.module === "solution") record = {...record, ...record.solution as Record<string, unknown>};
         if (form.module === "sales_plan") {

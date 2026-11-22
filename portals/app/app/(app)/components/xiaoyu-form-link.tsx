@@ -17,6 +17,10 @@ import {
   formChanges,
   formHref,
 } from "../../domains/copilot/lib/business-form";
+function fieldValue(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  return typeof value === "string" ? value : JSON.stringify(value) ?? "-";
+}
 export function XiaoyuFormLinks() {
   const { bundle } = useXiaoyu(),
     { XIAOYU_FORMS: T } = useMessages();
@@ -76,8 +80,8 @@ export function XiaoyuFormLinks() {
                             ) : null}
                           </dt>
                           <dd className="mt-xs space-y-xs break-words text-body">
-                            {changed && before !== undefined ? <div className="text-muted-foreground"><span>{T.before}: </span><span className="line-clamp-2">{typeof before === "object" ? JSON.stringify(before) : String(before)}</span></div> : null}
-                            <div><span className="text-muted-foreground">{changed ? T.after : T.unchanged}: </span><span className="line-clamp-3">{value === null ? "-" : typeof value === "object" ? JSON.stringify(value) : String(value)}</span></div>
+                            {changed && before !== undefined ? <div className="text-muted-foreground"><span>{T.before}: </span><span className="line-clamp-2">{fieldValue(before)}</span></div> : null}
+                            <div><span className="text-muted-foreground">{changed ? T.after : T.unchanged}: </span><span className="line-clamp-3">{fieldValue(value)}</span></div>
                           </dd>
                         </div>
                       ))}

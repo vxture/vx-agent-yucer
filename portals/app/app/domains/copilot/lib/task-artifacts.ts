@@ -27,7 +27,9 @@ export function publicSourceUrl(value: string): string | null {
 function links(content: string): string[] {
   const found = new Set<string>();
   for (const match of content.matchAll(/https?:\/\/[^\s<>"\\]+/gi)) {
-    const url = publicSourceUrl(match[0].replace(/[),.;]+$/, ""));
+    let end = match[0].length;
+    while (end > 0 && "),.;".includes(match[0][end - 1]!)) end--;
+    const url = publicSourceUrl(match[0].slice(0, end));
     if (url) found.add(url);
     if (found.size === 8) break;
   }

@@ -264,7 +264,7 @@ export function readBusinessForm(text: string): BusinessForm {
   )
     throw Error("invalid_form_fields");
   fieldsFor(v.module, v.fields);
-  if (v.baseline !== undefined && (!object(v.baseline) || JSON.stringify(v.baseline).length > 100000)) throw Error("invalid_form_fields");
+  if (v.baseline !== undefined && (!object(v.baseline) || JSON.stringify(v.baseline).length > 100000)) throw new Error("invalid_form_fields");
   return v as BusinessForm;
 }
 export function formHref(form: BusinessForm, taskId: string, key: string) {
