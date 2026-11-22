@@ -275,13 +275,13 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/supply-coverage"
           "$RUNNER_TEMP/supply-coverage/bin/python" -m pip install --disable-pip-version-check --no-deps coverage==7.6.12
           "$RUNNER_TEMP/supply-coverage/bin/python" -m coverage run -m unittest discover -s scripts/qa -p 'test_*supply*.py'
-          "$RUNNER_TEMP/supply-coverage/bin/python" -m coverage xml -o "$RUNNER_TEMP/coverage-python.xml"
+          "$RUNNER_TEMP/supply-coverage/bin/python" -m coverage xml -o "$RUNNER_TEMP/coverage.xml"
 
       - name: Upload Python diagnostic coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-python
-          path: ${{ runner.temp }}/coverage-python.xml
+          path: ${{ runner.temp }}/coverage.xml
           retention-days: 7
 
       - name: Upload coverage
