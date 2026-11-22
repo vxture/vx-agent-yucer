@@ -200,10 +200,11 @@ export class XiaoyuClient {
     const turn = this.state.bundle?.turns.find(t => t.requestId === pending.requestId);
     if (turn?.status === "running") return;
     if (turn) { this.update({ pending: null, input: pending.question, error: null }); return; }
-    this.update({ busy: true, error: null });
+    const replay = { ...pending, revision: task.revision };
+    this.update({ busy: true, error: null, pending: replay });
     const lifetime = this.lifetime;
     try {
-      await this.request(`/${task.id}/turn`, "POST", pending);
+      await this.request(`/${task.id}/turn`, "POST", replay);
       this.update({ pending: null });
     } catch (error) { this.fail(error); }
     finally {

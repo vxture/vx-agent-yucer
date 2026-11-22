@@ -69,3 +69,13 @@ test("missing receipt recovery explicitly replays the original key and revision"
 test("lost creation response retains the original key until explicit recovery",async()=>{
   const f=await fixture();await f.client.start(null);let lost=true;f.setHook(async(url,method)=>{if(method==="POST"&&url.endsWith("/tasks")&&lost){lost=false;throw new Error("lost");}});f.client.setInput("Question");await f.client.send();assert.ok(f.client.getSnapshot().creation);await f.client.refresh();assert.equal(f.calls.filter(c=>c.method==="POST").length,1);await f.client.send();const creates=f.calls.filter(c=>c.method==="POST"&&c.url.endsWith("/tasks"));assert.equal(creates.length,2);assert.deepEqual(creates[0].body,creates[1].body);
 });
+
+test("missing receipt can recover after a notes revision without changing its request key",async()=>{
+  const f=await fixture();await f.client.start(f.task.id);let lost=true;
+  f.setHook(async(_url,method)=>{if(method==="POST"&&lost){lost=false;throw new Error("not_delivered");}});
+  f.client.setInput("Question");await f.client.send();const original=f.calls.find(c=>c.method==="POST")!;
+  f.client.setNotes("Updated plan");await f.client.saveNotes();await f.client.continueAfterFailure();
+  const replay=f.calls.filter(c=>c.method==="POST").at(-1)!;
+  assert.equal(replay.body.requestId,original.body.requestId);assert.equal(replay.body.question,original.body.question);
+  assert.equal(replay.body.revision,Number(original.body.revision)+1);
+});
