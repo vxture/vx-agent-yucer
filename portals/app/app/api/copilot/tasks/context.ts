@@ -4,10 +4,6 @@ import {
   readTopicEvidence,
   type TopicContext,
 } from "../../../domains/judgement/topic-service";
-import {
-  getTopicStore,
-  getPlanningStore,
-} from "../../../domains/shared/registry";
 import { listTargets, attainment } from "../../../domains/planning/service";
 import { readProductRoster } from "../../../platform/product-roster";
 import { getAuthzStore } from "../../../authz/store";
@@ -29,6 +25,8 @@ import {
 } from "../../../domains/strategy/service";
 import { listProjects } from "../../../domains/delivery/service";
 import {
+  getTopicStore,
+  getPlanningStore,
   getCatalogStore,
   getCopilotStore,
   getDeliveryStore,

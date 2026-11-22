@@ -5,10 +5,9 @@ import {
   type FeedOptions,
 } from "./service";
 import type { Judgement, Scope } from "./lib/judgement";
-import { listTargets, attainment } from "../planning/service";
+import { listTargets, attainment, type AttainmentRow } from "../planning/service";
 import { getPlanningStore } from "../shared/registry";
 import { periodRange } from "../shared/period";
-import type { AttainmentRow } from "../planning/service";
 import { ok } from "../shared/result";
 
 export interface TopicFeed {

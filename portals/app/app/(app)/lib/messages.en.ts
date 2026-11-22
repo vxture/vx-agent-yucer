@@ -121,6 +121,7 @@ export const en: Dictionary = {
   "share": "Confirm sharing",
   "empty": "No accessible team knowledge. Changed or revoked sources stop being shown."
 },
+  XIAOYU_TOPICS: {title:"Today's findings",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
   XIAOYU_MEMORY: {
 
     older:"Older memories",newer:"Newer memories",refresh:"Reload",
