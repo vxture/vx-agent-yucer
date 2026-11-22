@@ -386,17 +386,26 @@ test("business resolution cannot authorize old workspace while foreground contex
   assert.equal((await pending)?.claims.active_workspace, "next");
 });
 
-test("a request bound to old claims cannot obtain another workspace's OBO token after renewal", async () => {
-  const idp = rotatingIdp();
-  const w = world(record(-5, { nextCheckAt: NOW + 900 }), (now) => accountsStatusAuthority("u", {
-    ...idp, verifyToken: (async () => ({ ...CLAIMS, active_workspace: "new-workspace" })) as never,
-    fetch: statusFetch({ body: { valid: true } }),
-  }, now));
-  await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
-  assert.equal(w.peek()?.claims?.active_workspace, "new-workspace");
-  await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
-  assert.equal(await accessTokenFor(cfg, "r1", w.deps, { ...CLAIMS, active_workspace: "new-workspace" }), "at-1");
-});
+for (const [name, change] of [
+  ["workspace", { active_workspace: "new-workspace" }],
+  ["tenant alone", { active_org: "tenant-b" }],
+  ["tenant and workspace", { active_org: "tenant-b", active_workspace: "tenant-b-workspace" }],
+] as const) {
+  test(`an old request cannot obtain the new ${name} OBO token after renewal`, async () => {
+    const previous = { ...CLAIMS, active_org: "tenant-a" };
+    const current = { ...previous, ...change };
+    const idp = rotatingIdp();
+    const w = world(record(-5, { nextCheckAt: NOW + 900, claims: previous }), (now) => accountsStatusAuthority("u", {
+      ...idp, verifyToken: (async () => current) as never,
+      fetch: statusFetch({ body: { valid: true } }),
+    }, now));
+    await assert.rejects(accessTokenFor(cfg, "r1", w.deps, previous), LoginStateUnavailableError);
+    assert.deepEqual(w.peek()?.claims, current);
+    await assert.rejects(accessTokenFor(cfg, "r1", w.deps, previous), LoginStateUnavailableError);
+    assert.equal(await accessTokenFor(cfg, "r1", w.deps, current), "at-1");
+    assert.deepEqual(idp.calls, ["rt-0"], "a rejected stale caller cannot renew again or fall back to a service token");
+  });
+}
 
 test("unverified refreshed claims never replace the verified workspace", async () => {
   const idp = rotatingIdp();

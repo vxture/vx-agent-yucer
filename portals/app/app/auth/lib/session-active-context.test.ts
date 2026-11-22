@@ -31,6 +31,17 @@ test("foreground refresh invalidates previous and current workspace gates before
   assert.deepEqual(f.bound, [newClaims], "OBO resolution binds to this render's verified claims and memoizes");
 });
 
+test("switching tenants invalidates both workspace gates and binds OBO to the new tenant", async () => {
+  const claims = { ...oldClaims, active_org: "tenant-b", active_workspace: "tenant-b-workspace" };
+  const f = fixture(claims);
+  const session = await getAuthSession(cfg, "rp", { activity: true, syncContext: true }, f.deps);
+  assert.deepEqual(f.invalidated, ["workspace-a:member", "tenant-b-workspace:member"]);
+  assert.equal(session?.user.activeOrg, "tenant-b");
+  assert.equal(session?.user.activeWorkspace, "tenant-b-workspace");
+  assert.equal(await session?.accessToken(), "server-only-ticket");
+  assert.deepEqual(f.bound, [claims]);
+});
+
 test("periodic status does not invalidate shared workspace caches or request OBO tokens", async () => {
   const f = fixture();
   await getAuthSession(cfg, "rp", { activity: false }, f.deps);
