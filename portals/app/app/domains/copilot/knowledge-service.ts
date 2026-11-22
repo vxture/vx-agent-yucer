@@ -163,7 +163,9 @@ async function fields(ctx: TaskContext, v: Record<string, unknown>) {
       ),
     "invalid_knowledge_request",
   );
-  const members = [...new Set(v.memberSubs as string[])].sort();
+  const members = [...new Set(v.memberSubs as string[])].sort((a, b) =>
+    a.localeCompare(b),
+  );
   demand(
     v.audience === "workspace" ? members.length === 0 : members.length > 0,
     "invalid_knowledge_request",
@@ -340,7 +342,7 @@ export async function changeBusinessKnowledge(
       await now.knowledge.change(now.workspaceId, id, r.revision, patch),
       "knowledge_conflict",
     );
-    now = await fresh(ctx);
+    await fresh(ctx);
     await recordAuditEvent({
       workspaceId: ctx.workspaceId,
       actorId: ctx.sub,

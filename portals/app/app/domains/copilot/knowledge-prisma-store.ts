@@ -77,8 +77,9 @@ export class PrismaKnowledgeStore implements KnowledgeStore {
   }
   async create(input: NewKnowledge) {
     const p = await getPrismaClient();
+    const requestKey = `${input.workspaceId}:${input.actorSub}:${input.requestId}`;
     return p.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("business_knowledge")}::int,hashtext(${`${input.workspaceId}:${input.actorSub}:${input.requestId}`})::int)`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("business_knowledge")}::int,hashtext(${requestKey})::int)`;
       const old = await tx.agentBusinessKnowledge.findFirst({
         where: {
           workspaceId: input.workspaceId,

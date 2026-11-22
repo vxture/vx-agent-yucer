@@ -217,8 +217,11 @@ export function XiaoyuKnowledge() {
         <Card className="space-y-md p-lg">
           <h2 className="text-heading-3">{editing ? T.edit : T.add}</h2>
           <Field>
-            <FieldLabel required htmlFor="knowledge-title">{T.name}</FieldLabel>
+            <FieldLabel required htmlFor="knowledge-title">
+              {T.name}
+            </FieldLabel>
             <Input
+              id="knowledge-title"
               value={title}
               maxLength={100}
               disabled={busy}
@@ -232,8 +235,11 @@ export function XiaoyuKnowledge() {
             </span>
           </Field>
           <Field>
-            <FieldLabel required htmlFor="knowledge-content">{T.content}</FieldLabel>
+            <FieldLabel required htmlFor="knowledge-content">
+              {T.content}
+            </FieldLabel>
             <Textarea
+              id="knowledge-content"
               value={text}
               maxLength={4000}
               rows={4}
@@ -487,77 +493,21 @@ export function XiaoyuKnowledge() {
       ) : null}
       <div className="grid items-start gap-md lg:grid-cols-2">
         {items.map((r) => (
-          <Card key={r.id} className="min-w-0 space-y-md p-lg">
-            <div className="flex items-center gap-sm">
-              <Icon name="book-open" size="sm" />
-              <h2 className="min-w-0 flex-1 truncate text-label-medium">
-                {r.title}
-              </h2>
-              <StatusBadge
-                tone={r.state === "active" ? "brand" : "neutral"}
-                icon={false}
-              >
-                {r.state === "active" ? M.active : M.stopped}
-              </StatusBadge>
-            </div>
-            <p className="line-clamp-3 whitespace-pre-wrap break-words text-body">
-              {r.text}
-            </p>
-            <div className="flex flex-wrap gap-md text-body-small text-muted-foreground">
-              <span>{M[r.kind]}</span>
-              <span>
-                {r.audience === "workspace"
-                  ? T.workspace
-                  : `${T.members} (${r.memberSubs.length})`}
-              </span>
-              <span>
-                {T.sources}: {r.sources.length}
-              </span>
-              <MemberName sub={r.actorSub} />
-              <span>v{r.revision}</span>
-              <time>{new Date(r.updatedAt).toLocaleDateString()}</time>
-            </div>
-            {r.sources.length ? (
-              <div className="flex flex-wrap gap-sm text-body-small text-muted-foreground">
-                {r.sources.map((o) => (
-                  <span
-                    key={`${o.kind}:${o.id}`}
-                    title={`${o.id} @ ${o.version}`}
-                  >
-                    {o.kind} {o.id.slice(0, 8)} / {o.version.slice(0, 8)}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {r.canManage ? (
-              <div className="flex flex-wrap justify-end gap-sm">
-                <Button
-                  size="md"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => edit(r)}
-                >
-                  {T.edit}
-                </Button>
-                <Button
-                  size="md"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void action(async () => {
-                      await call(`/${r.id}`, "PATCH", {
-                        revision: r.revision,
-                        action: r.state === "active" ? "stop" : "restore",
-                      });
-                      await load();
-                    })
-                  }
-                >
-                  {r.state === "active" ? M.stop : M.restore}
-                </Button>
-              </div>
-            ) : null}
-          </Card>
+          <KnowledgeCard
+            key={r.id}
+            r={r}
+            busy={busy}
+            onEdit={edit}
+            onToggle={(r) =>
+              void action(async () => {
+                await call(`/${r.id}`, "PATCH", {
+                  revision: r.revision,
+                  action: r.state === "active" ? "stop" : "restore",
+                });
+                await load();
+              })
+            }
+          />
         ))}
       </div>
       {!items.length && !error ? (
@@ -570,7 +520,7 @@ export function XiaoyuKnowledge() {
           disabled={busy || !offset}
           onClick={() => setOffset(Math.max(0, offset - 100))}
         >
-          {M.newer}
+          {T.newer}
         </Button>
         <Button
           size="md"
@@ -578,9 +528,83 @@ export function XiaoyuKnowledge() {
           disabled={busy || next === null}
           onClick={() => setOffset(next!)}
         >
-          {M.older}
+          {T.older}
         </Button>
       </div>
     </ViewLayout>
+  );
+}
+
+function KnowledgeCard({
+  r,
+  busy,
+  onEdit,
+  onToggle,
+}: {
+  readonly r: Item;
+  readonly busy: boolean;
+  readonly onEdit: (r: Item) => void;
+  readonly onToggle: (r: Item) => void;
+}) {
+  const { XIAOYU_KNOWLEDGE: T, XIAOYU_MEMORY: M } = useMessages();
+  return (
+    <Card className="min-w-0 space-y-md p-lg">
+      <div className="flex items-center gap-sm">
+        <Icon name="book-open" size="sm" />
+        <h2 className="min-w-0 flex-1 truncate text-label-medium">{r.title}</h2>
+        <StatusBadge
+          tone={r.state === "active" ? "brand" : "neutral"}
+          icon={false}
+        >
+          {r.state === "active" ? M.active : M.stopped}
+        </StatusBadge>
+      </div>
+      <p className="line-clamp-3 whitespace-pre-wrap break-words text-body">
+        {r.text}
+      </p>
+      <div className="flex flex-wrap gap-md text-body-small text-muted-foreground">
+        <span>{M[r.kind]}</span>
+        <span>
+          {r.audience === "workspace"
+            ? T.workspace
+            : `${T.members} (${r.memberSubs.length})`}
+        </span>
+        <span>
+          {T.sources}: {r.sources.length}
+        </span>
+        <MemberName sub={r.actorSub} />
+        <span>v{r.revision}</span>
+        <time>{new Date(r.updatedAt).toLocaleDateString()}</time>
+      </div>
+      {r.sources.length ? (
+        <div className="flex flex-wrap gap-sm text-body-small text-muted-foreground">
+          {r.sources.map((o) => (
+            <span key={`${o.kind}:${o.id}`} title={`${o.id} @ ${o.version}`}>
+              {o.kind} {o.id.slice(0, 8)} / {o.version.slice(0, 8)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {r.canManage ? (
+        <div className="flex flex-wrap justify-end gap-sm">
+          <Button
+            size="md"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => onEdit(r)}
+          >
+            {T.edit}
+          </Button>
+          <Button
+            size="md"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => onToggle(r)}
+          >
+            {r.state === "active" ? M.stop : M.restore}
+          </Button>
+        </div>
+      ) : null}
+    </Card>
   );
 }

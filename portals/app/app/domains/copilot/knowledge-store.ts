@@ -51,8 +51,8 @@ export interface KnowledgeStore {
 }
 const clone = <T>(v: T): T => structuredClone(v);
 export class InMemoryKnowledgeStore implements KnowledgeStore {
-  private rows = new Map<string, BusinessKnowledge>();
-  private refs = new Map<string, MemoryDependency[]>();
+  private readonly rows = new Map<string, BusinessKnowledge>();
+  private readonly refs = new Map<string, MemoryDependency[]>();
   async get(workspaceId: string, id: string) {
     const r = this.rows.get(id);
     return r?.workspaceId === workspaceId ? clone(r) : null;

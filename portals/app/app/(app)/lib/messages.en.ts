@@ -100,6 +100,7 @@ const companyPlanningText = {
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
   XIAOYU_KNOWLEDGE: {
+    newer: "Previous page", older: "Next page",
   "title": "Team knowledge",
   "description": "Maintain business knowledge independently of private memories.",
   "add": "New knowledge",

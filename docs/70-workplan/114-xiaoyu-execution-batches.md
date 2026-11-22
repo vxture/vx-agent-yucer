@@ -2,7 +2,7 @@
 
 总追踪：[#732](https://github.com/vxture/vx-agent-yucer/issues/732)。
 产品权威：[37](../20-specs/37-xiaoyu-collaboration.md)，设计：[240](../30-design/design_yucer_240_xiaoyu-collaboration.md)。
-状态：XY-00 规格和排期已合并；XY-00B 供给核验结项，存在明确上游缺口；XY-01A 底座实施完成、待预览 A 与实调验收；XY-01B 统一界面及本地贯穿已实现，待 owner 预览和真实 OBO／撤权验收；XY-02A 私人记忆已实现并进行提交检查，后续继续推进。
+状态：XY-00 规格和排期已合并；XY-00B 供给核验结项，存在明确上游缺口；XY-01A 底座实施完成、待预览 A 与实调验收；XY-01B 统一界面及本地贯穿已实现，待 owner 预览和真实 OBO／撤权验收；XY-02A 私人记忆已合并且工程检查通过；XY-02B 团队知识 PR #754 检查中，后续继续推进。
 本轮只交付预览，不触发发布。
 
 ## 一、组织方式

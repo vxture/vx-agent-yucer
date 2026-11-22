@@ -111,10 +111,16 @@ export async function memoryUsable(
     (!allowStopped && r.state !== "active") ||
     seen.has(r.id) ||
     seen.size >= 32
-  )
+  ) {
     return false;
+  }
   if (!(await validSources(ctx, r.sources))) return false;
-  try { await checkKnowledgeDependencies(ctx, r.knowledgeSources ?? []); } catch (e) { if (e instanceof KnowledgeRefusal) return false; throw e; }
+  try {
+    await checkKnowledgeDependencies(ctx, r.knowledgeSources ?? []);
+  } catch (e) {
+    if (e instanceof KnowledgeRefusal) return false;
+    throw e;
+  }
   const next = new Set(seen).add(r.id);
   for (const d of r.parents) {
     const parent = await ctx.memory.get(scope(ctx), d.id);
