@@ -27,11 +27,12 @@
 既有 `ai-supply-check.yml` 只做固定只读库存与历史调用元数据，不铸票、不实调，不能满足本批全部验收。
 生产核验走固定脚本、精确 main 提交和现有 production 审批；不绕过 owner 审批取得服务器凭据。
 
-`xiaoyu-supply-check.yml` 增加固定实调入口：从聿策当前 provisioning 为 provisioned/prod 的记录
-读取成对的真实 tenant/workspace，按更新时间排序；近三十日成功调用仅作优先选择依据，
-必须与当前 provisioning 的完整租户／空间对匹配。历史为空、失效或存在非 UUID 哨兵值，
-不因此阻断已授权的目录核验；无匹配时使用最新有效 provisioning，并记录实际选择来源。
-当前 provisioning 不可核验、为空或标识无效则停止，不伪造隔离键，不以历史记录放宽当前授权。
+`xiaoyu-supply-check.yml` 在聿策现有容器内，按已接入的产品级 `provisioning:read` 契约
+只读调用 `/platform/provisioning`。完整扫描当前关系后，选择更新时间最新且为 provisioned
+的真实 tenant/workspace；不从本地可空租户投影或调用历史推断归属。
+每页最多 200 条、最多 100 页，总上下文预算两分钟；分页截断、重复工作空间／游标、
+非法标识、响应异常或没有当前关系时，均在平台目录调用前停止。
+不调用产品 reconciliation、ACK、usage 或持久化路径，不伪造隔离键。
 此处复用实际运营上下文，只执行固定公开供给探针，并非隔离测试工作空间业务验收。
 真实报告记录所用上下文和 service 模式；用户 OBO、表单写入和隔离测试空间仍在后续批次验证。
 
@@ -43,14 +44,14 @@ Atlas 仅在实际获授且 active 的 chat、embedding、rerank 分类各选择
 无路由、调用失败、截断或缺失回执记录 partial，不将其他路由视为已验证。
 费用未由响应提供时记未知，不估算成零。报告以 14 天 Artifact 保存，不在 Actions 日志展开目录正文。
 
-本地验证为夹具，不是生产证据：Python 7 项边界测试、Node 8 项控制流／协议测试；
+本地验证为夹具，不是生产证据：Python 7 项边界测试、Node 14 项控制流／协议测试；
 原只读库存的 9 项安全测试继续保留。检查精确 main 门、只读事务、上下文 UUID、
-撤销 provisioning、分页截断、错误脱敏、写风险拒绝、分发／执行回执及无效资料不进入模型。
+平台撤销关系、完整分页、错误脱敏、写风险拒绝、分发／执行回执及无效资料不进入模型。
 
 PR #744 已合并，六项必需检查与 CodeQL 通过。其 Sonar 扫描任务成功但外部质量门失败，
 原因为诊断脚本测试报告未纳入覆盖率（显示 0%，并非测试没运行）；不能表述为质量门已通过。
 本批继续修正 Node／Python 覆盖率上报、Python 测试归类及新增可维护性提示，保持质量门阈值和源码分析范围。
-未因此发布版本或关闭 #734。生产供给核验仍待本批代码检查与 owner 审批。
+未因此发布版本或关闭 #734。后续检查和运行记录见下文。
 
 ### 首次生产运行与修正
 
@@ -64,6 +65,26 @@ Owner 已批准运行 [44985901980](https://github.com/vxture/vx-agent-yucer/act
 容器缺失／歧义、当前 provisioning 查询失败、无有效当前上下文和响应格式错误分别给固定安全码，
 不输出原始 stderr 或凭据。新增回归覆盖无历史、哨兵值、当前授权失效和租户／空间错配。
 当前 Python 21 项（含既有库存测试）、Node 8 项通过，Python 覆盖率约 95%；真实重试结果仍待回填。
+
+### 第二次运行与权威来源修正
+
+PR #746 已合并（`ee937a2c`），主分支六项必需检查通过；PR Sonar 外部质量门通过，
+新代码覆盖率 95.4%。Owner 已批准运行
+[44988226347](https://github.com/vxture/vx-agent-yucer/actions/runs/44988226347)。
+2026-11-22 05:11–05:12 UTC（本地 11 月 21 日），回执为
+`unavailable / context_verification / no_valid_current_provisioning_context`。
+固定测试、Tailnet、SSH 成功，但仍未进入 Atlas／Runos 目录、Skill 或模型调用。
+
+代码核对发现本地 `app_instance.tenant_id` 是可空投影，`PrismaProvisioningStore.upsertInstance`
+只保存 workspace/product/status，事件中的 tenant_id 没有写入；探针将其非空视为前提并不成立。
+本次回执证实没有选出符合旧条件的上下文，并未读取逐行租户内容，不能据此声称工作空间未授权。
+修正改用产品现有的权威平台 provisioning 只读接口，移除本地数据库和历史调用依赖；
+不会为通过探针补写数据库、放宽隔离键或绕过当前关系检查。
+
+当前回归：Python 16 项（含既有库存测试）、Node 14 项；平台两页完整读取、撤销／pending、
+租户缺失／哨兵值、重复空间／游标、缺失末页标记、凭据错误脱敏、当前来源贯穿至实际 plane
+令牌都纳入验证。Runos 失败保留标准错误码和调用编号，未知 code／原始 message 不输出。
+这些仍为夹具证据；下一次真实运行结果待补。
 
 Owner 补充确认：无需逐项重复请求已有授权；授权在路由层，由 Atlas 决定具体模型。
 核验与小聿均只按获授 endpoint 调用，实际 `modelCode` 只用于审计，不固定具体模型或要求额外模型授权。
