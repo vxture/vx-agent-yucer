@@ -37,7 +37,7 @@ export function XiaoyuWorkspace({ initialTask }: { readonly initialTask?: string
 }
 
 export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: boolean; readonly onNavigate?: () => void }) {
-  const { XIAOYU_TEXT: T, DOMAIN_LABEL } = useMessages();
+  const { XIAOYU_TEXT: T, XIAOYU_MEMORY: M, DOMAIN_LABEL } = useMessages();
   const s = useXiaoyu();
   const { client, bundle, tasks, busy, loading } = s;
   const [showTasks, setShowTasks] = useState(full);
@@ -54,6 +54,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
   return <div className={styles.workspace} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={task?.id ?? ""}>
     {full ? <ViewHeader className="shrink-0" icon="sparkles" title={T.title} description={T.subtitle} pageActions={{ secondary: <Button variant="ghost" size="md" asChild><Link href="/copilot?view=proposals"><Icon name="clipboard" size="sm" />{T.proposals}</Link></Button> }} /> : null}
     <div className="flex shrink-0 flex-wrap items-center gap-xs">
+      <Button variant="ghost" size="md" asChild><Link href="/copilot/memory"><Icon name="lock" size="sm" />{M.title}</Link></Button>
       <Button variant="ghost" size="md" onClick={() => setShowTasks(v => !v)} aria-expanded={showTasks}><Icon name="list" size="sm" />{showTasks ? T.hideTasks : T.showTasks}</Button>
       <Button variant="secondary" size="md" disabled={busy || s.notesDirty} onClick={client.newTask}><Icon name="plus" size="sm" />{T.newTask}</Button>
       <Button variant="ghost" size="icon-xl" className="ml-auto" aria-label={T.refresh} title={T.refresh} disabled={loading || busy} onClick={() => void client.refresh()}><Icon name="refresh" size="sm" /></Button>

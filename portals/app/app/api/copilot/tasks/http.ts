@@ -28,6 +28,8 @@ export function taskResponse<T>(result: RuleResult<T>): Response {
                 "request_already_attempted",
                 "rule_changed",
                 "source_changed",
+                "memory_source_changed",
+                "memory_conflict",
                 "checkpoint_changed",
                 "task_finished",
                 "task_not_active",

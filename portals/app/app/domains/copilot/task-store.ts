@@ -84,6 +84,7 @@ export interface TaskStore {
     requestId: string,
   ): Promise<TaskRecord>;
   list(scope: TaskScope): Promise<TaskRecord[]>;
+  search(scope: TaskScope, query: string): Promise<TaskRecord[]>;
   load(
     scope: TaskScope,
     taskId: string,
@@ -200,6 +201,10 @@ export class InMemoryTaskStore implements TaskStore {
   ): Promise<TaskBundle | null> {
     const b = copy(this.owned(scope, id));
     return b && !content ? { ...b, drafts: [], messages: [] } : b;
+  }
+  async search(scope: TaskScope, query: string): Promise<TaskRecord[]> {
+    const q=query.toLocaleLowerCase();
+    return copy([...this.bundles.values()].filter(b=>this.owned(scope,b.task.id)&&b.messages.some(m=>m.content.toLocaleLowerCase().includes(q))).sort((a,b)=>b.task.updatedAt.getTime()-a.task.updatedAt.getTime()).slice(0,50).map(b=>b.task));
   }
   async mutate(
     scope: TaskScope,

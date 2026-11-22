@@ -304,6 +304,16 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 
 -- incr/0127 adds member.role_setup_complete and grants its UPDATE after creation.
 
+-- Private memory tables do not exist on the baseline's first pass.
+DO $$ BEGIN
+  IF to_regclass('yucer_agent.agent_private_memory') IS NOT NULL THEN
+    REVOKE UPDATE, DELETE ON yucer_agent.agent_private_memory FROM yucer_svc;
+    GRANT UPDATE(text,kind,state,revision,updated_at) ON yucer_agent.agent_private_memory TO yucer_svc;
+    REVOKE UPDATE, DELETE ON yucer_agent.agent_private_memory_revision FROM yucer_svc;
+    REVOKE UPDATE, DELETE ON yucer_agent.agent_task_memory FROM yucer_svc;
+  END IF;
+END $$;
+
 -- 0133 private task tables do not exist on the baseline's first pass.
 DO $$ BEGIN
   IF to_regclass('yucer_agent.agent_task') IS NOT NULL THEN

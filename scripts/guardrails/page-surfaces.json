@@ -928,6 +928,15 @@
       },
       "reason": "Read-only customer-linked contact detail, reached through the contact preview drawer.",
       "sample": "/contact/ct_1?account=acc_demo_1"
+    },
+    {
+      "file": "(app)/copilot/memory/page.tsx",
+      "route": "/copilot/memory",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/xiaoyu-workspace.tsx",
+        "needle": "href=\"/copilot/memory\""
+      }
     }
   ],
   "preservedControls": {
