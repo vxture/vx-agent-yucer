@@ -118,7 +118,9 @@ export class XiaoyuClient {
     try {
       const tasks = await this.request<TaskRecord[]>("");
       if (generation === this.generation) this.update({ tasks });
-    } catch (error) { if (generation === this.generation) this.fail(error); }
+    } catch (error) {
+      if (generation === this.generation) { this.update({ tasks: [] }); this.fail(error); }
+    }
   }
   async select(id: string) {
     if (!UUID.test(id) || this.state.busy || this.state.notesDirty) return;
@@ -216,5 +218,6 @@ export class XiaoyuClient {
     this.lifetime++;
     this.generation++;
     this.abort.abort();
+    this.state = { tasks: [], bundle: null, input: "", notes: "", notesDirty: false, busy: false, loading: true, error: null, pending: null, creation: null };
   }
 }

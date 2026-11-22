@@ -79,3 +79,13 @@ test("missing receipt can recover after a notes revision without changing its re
   assert.equal(replay.body.requestId,original.body.requestId);assert.equal(replay.body.question,original.body.question);
   assert.equal(replay.body.revision,Number(original.body.revision)+1);
 });
+
+test("unverifiable task lists do not retain cached private titles",async()=>{
+  const f=await fixture();await f.client.start(f.task.id);assert.ok(f.client.getSnapshot().tasks.length);
+  f.setHook(async()=>Response.json({code:"COPILOT_TASK_UNAVAILABLE"},{status:503}));await f.client.refreshList();
+  assert.deepEqual(f.client.getSnapshot().tasks,[]);
+});
+test("suspending a scope clears private state before any later reactivation",async()=>{
+  const f=await fixture();await f.client.start(f.task.id);f.client.setInput("Secret question");f.client.setNotes("Secret note");f.client.suspend();
+  assert.equal(f.client.getSnapshot().bundle,null);assert.equal(f.client.getSnapshot().input,"");assert.equal(f.client.getSnapshot().notes,"");assert.deepEqual(f.client.getSnapshot().tasks,[]);
+});
