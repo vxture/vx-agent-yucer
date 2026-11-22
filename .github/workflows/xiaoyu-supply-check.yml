@@ -84,7 +84,9 @@ jobs:
           from pathlib import Path
           report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'xiaoyu-supply-report.json').read_text())
           data = report.get('data', {})
-          print(json.dumps({'status': report.get('status'), 'task_id': data.get('task_id'),
+          print(json.dumps({'status': report.get('status'), 'stage': report.get('stage'),
+            'reason': report.get('reason'), 'context_verification': report.get('context_verification'),
+            'task_id': data.get('task_id'),
             'atlas': {k: v.get('status') for k, v in data.get('atlas', {}).items()},
             'runos': {k: {'status': v.get('status'), 'total': v.get('data', {}).get('total'),
               'resolved': v.get('data', {}).get('resolved')} for k, v in data.get('runos', {}).items()}}))
