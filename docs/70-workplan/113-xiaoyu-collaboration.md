@@ -1,10 +1,14 @@
 # XY - 小聿统一协作建设批次
 
-状态：XY-00 规格与设计记录中，尚未实施运行时、数据库或发布。
+状态：XY-00 规格与设计已由 PR #733 合并；执行计划已拆分，运行时、数据库和发布尚未开始。
 总追踪：[Issue #732](https://github.com/vxture/vx-agent-yucer/issues/732)。
 权威：[产品规格](../20-specs/37-xiaoyu-collaboration.md)。
 设计：[统一协作设计](../30-design/design_yucer_240_xiaoyu-collaboration.md)。
 与 #652 的任务授权、执行幂等及后台恢复共同推进；不重复另起同义执行机制。
+
+执行细项、依赖顺序、预览分组和结项要求见
+[114-xiaoyu-execution-batches.md](114-xiaoyu-execution-batches.md)。
+原 XY-01／02／04 拆为 A/B 子批次，另将平台供给核验前移到 XY-00B，不改变五条铁律或业务边界。
 
 ## 一、owner 已确认
 
