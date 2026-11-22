@@ -58,9 +58,10 @@ an isolated test workspace; this distinction is recorded in the report.
 
 It pages all four Runos primitive types (20 per page, at most 200 pages each),
 resolves exact versions with four read workers, fetches one research Skill as
-distribution only, and invokes only the fixed Exa public search/read operations
+distribution only (prefer the business company-enrichment Skill), and invokes only the fixed Exa public search/read operations
 after checking their read-risk contracts. Only official Unitree HTTPS URLs
-without credentials or query strings are passed to page reading. Skill text is
+without credentials or query strings are passed to page reading. Prerequisite flags record references to SandBase tools or a direct Exa SDK without
+returning Skill text. Skill text is
 not executed or treated as trusted system instructions. Declared dependencies
 and actual Connector calls remain separate evidence.
 
@@ -72,7 +73,10 @@ Missing/failed probes and incomplete catalogs produce partial/unavailable and a
 failed run, with safe findings retained. Canonical Runos error codes and failed
 invoke call IDs are preserved without raw error messages. No automatic retry or upstream repair.
 Only endpoint routes are selected; actual model IDs are audit metadata, never a
-consumer-side model grant or pin. Existing route authorization needs no repeat
+consumer-side model grant or pin. Atlas failures retain only canonical error codes,
+HTTP status, retryable and validated request UUIDs; raw messages are never returned.
+The service probe omits incomplete application-instance attribution and keeps
+product identity, tenant/workspace and task/request IDs for normal metering. Existing route authorization needs no repeat
 user confirmation. Production Environment approval is the separate workflow rule.
 
 ```sh
