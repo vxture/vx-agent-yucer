@@ -203,7 +203,7 @@ async function prepared(ctx: TaskContext, input: unknown) {
   demand(
     Array.isArray(objects) &&
       objects.length <= 20 &&
-      objects.every(isTaskObject) && objects.every(o => o.kind !== "judgement"),
+      objects.every(isTaskObject) && objects.every(o=>o.kind!=="access"&&o.kind!=="judgement"),
     "invalid_knowledge_request",
   );
   const sources: TaskSource[] = [];

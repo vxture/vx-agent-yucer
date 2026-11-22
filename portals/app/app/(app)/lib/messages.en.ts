@@ -122,6 +122,7 @@ export const en: Dictionary = {
   "empty": "No accessible team knowledge. Changed or revoked sources stop being shown."
 },
   XIAOYU_TOPICS: {title:"Today's findings",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
+  XIAOYU_FORMS:{labels:{"name": "name", "priority": "priority", "status": "status", "criteria": "criteria", "solutionIds": "solution links", "productIds": "product links", "summary": "summary", "scenario": "scenario", "novelty": "novelty", "items": "items", "period": "period", "ownerSub": "owner", "objective": "objective", "strategyTypeId": "strategyType", "result": "result", "changeReason": "changeReason", "targetMarkets": "targetMarkets", "year": "year", "content": "content"},fields:"Form fields",sources:"Business sources",entries:"items",notSaved:"Private form draft; business record not saved",open:"Review in business form",protected:"Human edited fields preserved",unavailable:"Draft sync is unavailable. Your current form content is retained.",syncing:"Retaining your edits...",retry:"Retry sync",segment:"Market segment",solution:"Solution",strategy:"Strategy",sales_plan:"Sales plan"},
   XIAOYU_MEMORY: {
 
     older:"Older memories",newer:"Newer memories",refresh:"Reload",
@@ -140,7 +141,7 @@ export const en: Dictionary = {
     "emptyTasks": "Start a conversation to create your first task.",
     "noSelection": "New task",
     "privateScope": "Private to you \u00b7 Current workspace",
-    "phase": "Private cross-task memory and independent team knowledge are available. Business queries, form drafts and authorized execution are still being built.",
+    "phase": "Private memory, team knowledge, controlled queries and initial business forms are connected. Drafts still require review and saving.",
     "welcome": "Start with a question",
     "welcomeDescription": "Tell me what you want to analyse or move forward. Continue the same task as you move between modules.",
     "example": "For example: help me plan next year\u2019s target markets and strategic direction",

@@ -56,6 +56,7 @@ export class XiaoyuClient {
   constructor(
     private readonly transport: Transport,
     private readonly remember: (id: string | null) => void,
+    private readonly navigation?: {sync:()=>Promise<void>;open:(href:string)=>void},
   ) {}
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
@@ -170,6 +171,7 @@ export class XiaoyuClient {
     this.update({ busy: true, error: null });
     const lifetime = this.lifetime;
     try {
+      await this.navigation?.sync();
       let task = this.state.bundle?.task;
       if (!task) {
         const creation = this.state.creation ?? { requestId: crypto.randomUUID(), question };
@@ -180,9 +182,12 @@ export class XiaoyuClient {
         this.update({ creation: null });
         this.accept(await this.request<TaskView>(`/${task.id}`));
       }
+      this.accept(await this.request<TaskView>(`/${task.id}`));
+      task=this.state.bundle!.task;
       const pending = { requestId: crypto.randomUUID(), question, revision: task.revision };
       this.update({ pending, input: "" });
-      await this.request(`/${task.id}/turn`, "POST", pending);
+      const result=await this.request<{navigation?:string;replayed?:boolean}>(`/${task.id}/turn`, "POST", pending);
+      if(!result.replayed&&result.navigation&&/^\/(segment|strategy|solution|planning|account|pipeline|catalog)(\/|\?|$)/.test(result.navigation))this.navigation?.open(result.navigation);
       this.update({ pending: null });
     } catch (error) { this.fail(error); }
     finally {

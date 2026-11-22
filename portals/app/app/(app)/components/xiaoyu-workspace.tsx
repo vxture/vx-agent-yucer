@@ -12,6 +12,7 @@ import { UUID } from "../../domains/copilot/lib/task-contract";
 import type { Dictionary } from "../lib/i18n/dictionary";
 import { ViewHeader } from "./business-controls";
 import { XiaoyuTopics } from "./xiaoyu-topics";
+import { XiaoyuFormLinks } from "./xiaoyu-form-link";
 import styles from "./xiaoyu-workspace.module.css";
 
 function errorText(code: string, t: Dictionary["XIAOYU_TEXT"]) {
@@ -93,6 +94,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
           {running && !busy ? <div className="flex flex-wrap items-center gap-sm"><p className="text-body-small text-muted-foreground">{T.interrupted}</p><DestructiveButton size="md" confirm={{verb:T.markInterrupted,target:task?.goal ?? T.conversationFailed,consequence:T.interruptDescription,cancelLabel:T.back,onConfirm:() => client.change({action:"interrupt",requestId:running.requestId})}}>{T.markInterrupted}</DestructiveButton></div> : null}
           {s.creation && !busy ? <Button size="md" variant="secondary" onClick={() => void client.send()}>{T.recover}</Button> : null}
           {s.pending && !running && !busy ? <Button size="md" variant="secondary" onClick={() => void client.continueAfterFailure()}>{T.recover}</Button> : null}
+          <XiaoyuFormLinks />
           {task ? <div className="flex shrink-0 flex-wrap items-center gap-xs">
             <Button size="md" variant="ghost" aria-expanded={showNotes} onClick={() => setShowNotes(v => !v)}><Icon name="clipboard" size="sm" />{showNotes ? T.hideNotes : T.openNotes}</Button>
             {!ended ? <><Button size="md" variant="ghost" disabled={frozen || s.notesDirty} onClick={() => void client.change(task.status === "paused" || bundle.ruleChanged ? {action:"resume",checkpointId:bundle.checkpoint?.id} : {action:"status",status:"paused"})}>{task.status === "paused" || bundle.ruleChanged ? T.resume : T.pause}</Button>

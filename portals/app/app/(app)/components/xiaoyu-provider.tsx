@@ -1,15 +1,18 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { XiaoyuClient, pointerKey } from "../lib/xiaoyu-client";
 
 const Context = createContext<XiaoyuClient | null>(null);
 export function XiaoyuProvider({ workspaceId, actorSub, enabled, children }: {
   readonly workspaceId: string; readonly actorSub: string; readonly enabled: boolean; readonly children: ReactNode;
 }) {
+  const router=useRouter();
   const [client] = useState(() => new XiaoyuClient(
     (path, init) => fetch(path, init),
     id => { try { const key = pointerKey(workspaceId, actorSub); if (id) sessionStorage.setItem(key, id); else sessionStorage.removeItem(key); } catch { /* Storage may be disabled. URLs still work. */ } },
+    {sync:async()=>{const pending:Promise<void>[]=[];window.dispatchEvent(new CustomEvent("xiaoyu:sync-forms",{detail:pending}));await Promise.all(pending);},open:href=>{window.dispatchEvent(new Event("xiaoyu:refresh-forms"));router.push(href);}},
   ));
   useEffect(() => {
     if (!enabled) return;

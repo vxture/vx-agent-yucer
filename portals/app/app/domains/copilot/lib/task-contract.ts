@@ -25,6 +25,8 @@ export const TASK_OBJECT_KINDS = [
   "plan",
   "judgement",
   "sales_target",
+  "sales_plan",
+  "access",
 ] as const;
 export type TaskObjectKind = (typeof TASK_OBJECT_KINDS)[number];
 export interface TaskObject {
@@ -75,7 +77,7 @@ export function taskToolAllowed(
     input.workspaceId === scope.workspaceId &&
     input.actorSub === scope.actorSub &&
     input.ruleVersion === TASK_RULE_VERSION &&
-    ["task.read", "task.update", "draft.notes", "model.chat"].includes(
+    ["task.read", "task.update", "draft.notes", "model.chat", "business.form"].includes(
       input.tool,
     )
   );

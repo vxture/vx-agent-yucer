@@ -1,3 +1,5 @@
+import { BUSINESS_TOOLS, formContract } from "./business-tools";
+import { BUSINESS_FORM_CONTRACT, isFormModule, mergeForm, readBusinessForm, formHref, type BusinessForm } from "./lib/business-form";
 import { createHash } from "node:crypto";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { Entitlement } from "../../entitlement/types";
@@ -32,6 +34,12 @@ import {
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 
 export interface TaskContext {
+  business?: {
+    access: TaskSource;
+    contract?:(module:import("./lib/business-form").FormModule)=>Promise<unknown>;
+    query:(input:Record<string,unknown>)=>Promise<{records:unknown[];sources:TaskSource[];limited:boolean;recordState:string}>;
+    prepare:(form:BusinessForm)=>Promise<BusinessForm>;
+  };
   workspaceId: string;
   sub: string;
   holder: PermissionHolder;
@@ -152,7 +160,7 @@ function active(b: TaskBundle): void {
     "task_finished",
   );
 }
-function publicBundle(b: TaskBundle) {
+function publicBundle(b: TaskBundle, business=false) {
   return {
     ...b,
     currentRuleVersion: TASK_RULE_VERSION,
@@ -160,8 +168,8 @@ function publicBundle(b: TaskBundle) {
     capabilities: {
       conversation: true,
       privateNotes: true,
-      businessRead: false,
-      formDraft: false,
+      businessRead: business,
+      formDraft: business,
       save: false,
       publish: false,
     },
@@ -261,7 +269,7 @@ export async function readPrivateTask(ctx: TaskContext, id: string) {
     const bundle = await owned(await current(ctx), id, true);
     const fresh = await owned(await current(ctx), id);
     demand(bundle.task.revision === fresh.task.revision, "task_conflict");
-    return publicBundle(bundle);
+    return publicBundle(bundle,!!ctx.business);
   });
 }
 
@@ -286,6 +294,16 @@ async function mutation(
       demand(b.references.length < 100, "task_source_limit");
       patch.references = [await source(ctx, v.object, "target")];
       break;
+    case "business_form": {
+      body(v,["action","revision","key","fields"]); active(b);
+      demand(ctx.business && typeof v.key==="string" && /^[a-zA-Z0-9_-]{1,64}$/.test(v.key),"invalid_form_fields");
+      const content=await ctx.store.load(scopeOf(ctx),b.task.id,true),row=content?.drafts.find(d=>d.key===v.key&&d.contractVersion===BUSINESS_FORM_CONTRACT);
+      demand(row,"invalid_form_fields");
+      const previous=readBusinessForm(row.text),form=await ctx.business.prepare(mergeForm(previous,previous.module,previous.targetId,v.fields,true));
+      patch.draft={key:v.key,text:JSON.stringify(form),contractVersion:BUSINESS_FORM_CONTRACT};
+      patch.references=form.sources.map(s=>({...s,role:"context"}));
+      break;
+    }
     case "notes":
       body(v, ["action", "revision", "key", "text", "contractVersion"]);
       active(b);
@@ -382,6 +400,7 @@ export async function changePrivateTask(
       "sessionId",
       "checkpointId",
       "requestId",
+      "fields",
     ]);
     demand(
       Number.isSafeInteger(v.revision) && v.revision === meta.task.revision,
@@ -414,7 +433,7 @@ export async function changePrivateTask(
         demand(
           taskToolAllowed(
             {
-              tool: patch.draft ? "draft.notes" : "task.update",
+              tool: patch.draft?.contractVersion === BUSINESS_FORM_CONTRACT ? "business.form" : patch.draft ? "draft.notes" : "task.update",
               ...scopeOf(ctx),
               ruleVersion: TASK_RULE_VERSION,
             },
@@ -427,7 +446,7 @@ export async function changePrivateTask(
           "task_conflict",
         );
       }
-      return publicBundle(await owned(await current(ctx), id, true));
+      return publicBundle(await owned(await current(ctx), id, true),!!now.business);
     } finally {
       await release();
     }
@@ -523,6 +542,41 @@ export async function runPrivateTaskTurn(
         const knowledge = await recallBusinessKnowledge(now, b, question);
         const memories = await recallPrivateMemories(now, b, question);
         const judgements = now.judgementEvidence ? await now.judgementEvidence(b.references) : [];
+        const turnSources=new Map<string,TaskSource>();
+        const forms=new Map<string,{key:string;text:string}>();
+        let navigation:string|undefined;
+        const bind=(sources:TaskSource[])=>{for(const r of sources){const key=`${r.kind}:${r.id}`,old=turnSources.get(key)??b.references.find(x=>x.kind===r.kind&&x.id===r.id);demand(!old||old.version===r.version,"source_changed");turnSources.set(key,r);}demand(new Set([...b.references,...turnSources.values()].map(r=>`${r.kind}:${r.id}`)).size<=100,"task_source_limit");};
+        const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
+        const localTools=now.business ? {definitions:BUSINESS_TOOLS,invoke:async(name:string,args:Record<string,unknown>)=>{
+          const live=await recheck();demand(live.business,"task_tool_denied");
+          bind([live.business.access]);
+          try {
+            if(name==="query_business"){const result=await live.business.query(args);bind(result.sources);await recheck();return result;}
+            if(name==="business_form_contract"){demand(isFormModule(args.module)&&Object.keys(args).length===1,"invalid_form_fields");return live.business.contract?await live.business.contract(args.module):formContract(args.module);}
+            if(name==="prepare_business_form") {
+              demand(Object.keys(args).every(k=>["module","key","targetId","fields"].includes(k))&&isFormModule(args.module)&&typeof args.key==="string"&&/^[a-zA-Z0-9_-]{1,64}$/.test(args.key)&&(args.targetId===undefined||(typeof args.targetId==="string"&&UUID.test(args.targetId))),"invalid_form_fields");
+              const stored=forms.get(args.key)??b.drafts.find(d=>d.key===args.key&&d.contractVersion===BUSINESS_FORM_CONTRACT);
+              const previous=stored?readBusinessForm(stored.text):null;
+              const prepared=await live.business.prepare(mergeForm(previous,args.module,(args.targetId as string|undefined)??null,args.fields));
+              prepared.sources=[...prepared.sources,...turnSources.values(),...b.references].filter((s,i,rows)=>rows.findIndex(r=>r.kind===s.kind&&r.id===s.id)===i);
+              bind(prepared.sources);await recheck();
+              demand(b.drafts.length+forms.size<20||!!stored,"task_draft_limit");
+              forms.set(args.key,{key:args.key,text:JSON.stringify(prepared)});
+              navigation=formHref(prepared,id,args.key);
+              return {status:"private_form_prepared",key:args.key,fields:prepared.fields,protectedFields:prepared.manualFields,href:navigation,saved:false,published:false};
+            }
+            if(name==="open_business_page"){
+              demand(Object.keys(args).every(k=>["module","id","create"].includes(k))&&typeof args.module==="string"&&(args.id===undefined||(typeof args.id==="string"&&UUID.test(args.id))),"task_tool_denied");
+              const routes:Record<string,string>={segment:"/segment",solution:"/solution",strategy:"/strategy",sales_plan:"/planning",account:"/account",opportunity:"/pipeline",product:"/catalog"};
+              const route=routes[args.module];demand(route,"task_tool_denied");
+              if(args.id){const source=await live.source({kind:args.module as TaskObject["kind"],id:args.id as string});demand(source,"source_unavailable");bind([source]);}
+              navigation=args.create?`${route}/new`:args.id?["product","solution"].includes(args.module as string)?`${route}?id=${args.id}`:`${route}/${args.id}`:route;
+              if(args.module==="sales_plan")navigation=route;
+              return {status:"navigation_ready",href:navigation,saved:false};
+            }
+            throw new TaskRefusal("task_tool_denied");
+          }catch(e){if(e instanceof TaskRefusal)throw e;return {ok:false,error:e instanceof Error&&/^[a-z_]{1,64}$/.test(e.message)?e.message:"business_tool_failed"};}
+        }} : undefined;
         const result = await runTurn(
           {
             question,
@@ -540,6 +594,8 @@ export async function runPrivateTaskTurn(
               task: {
                 id,
                 goal: b.task.goal,
+                businessTools:!!now.business,
+                businessForms:b.drafts.filter(d=>d.contractVersion===BUSINESS_FORM_CONTRACT).map(d=>({key:d.key,...readBusinessForm(d.text)})),
                 targets: b.references
                   .filter((r) => r.role === "target")
                   .map((r) => ({ kind: r.kind, id: r.id })),
@@ -564,19 +620,28 @@ export async function runPrivateTaskTurn(
               sessionId: b.task.sessionId,
             },
             draftOnly: true,
-            rejectUnexpectedTools: true,
+            readOnlyTools: !!now.business,
+            rejectUnexpectedTools: !now.business,
+            localTools,
+            beforeTool: async()=>{await recheck();},
+            profile: /(?:\u586b\u5199|\u65b0\u5efa|\u521b\u5efa|draft|fill|create)/i.test(question)?"drafting":/(?:\u5206\u6790|\u89c4\u5212|\u6218\u7565|analy|plan|strategy)/i.test(question)?"judgement":"dialogue",
+            maxToolRounds: 16,
+            totalBudget:{deadlineMs:240000,maxTokens:40000,maxCalls:64},
           },
           deps,
         );
         demand(result.answer.trim().length > 0, "task_model_failed");
+        if(now.business&&/(?:\u5df2(?:\u6210\u529f)?(?:\u4fdd\u5b58|\u53d1\u5e03|\u63d0\u4ea4|\u521b\u5efa)|successfully (?:saved|published|submitted|created))/i.test(result.answer))result.answer=forms.size?"\u5df2\u51c6\u5907\u8868\u5355\u8349\u7a3f\uff0c\u8bf7\u6253\u5f00\u590d\u6838\u540e\u4fdd\u5b58\u3002":"\u5206\u6790\u5df2\u5b8c\u6210\uff0c\u672c\u56de\u5408\u6ca1\u6709\u4fdd\u5b58\u6216\u53d1\u5e03\u4e1a\u52a1\u8bb0\u5f55\u3002";
+        if(result.truncated)result.answer+="\n\n\u672c\u8f6e\u5df2\u8fbe\u5230\u5de5\u5177\u8f6e\u6b21\u9650\u989d\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u8349\u7a3f\uff1b\u5269\u4f59\u6b65\u9aa4\u5c1a\u672a\u5b8c\u6210\u3002";
         // No model output is persisted or delivered after revocation or source
         // changes. Sources are re-read, not trusted from the old checkpoint.
-        now = await current(ctx);
-        await owned(now, id);
+        now = await recheck();
         demand(
           await ctx.store.finishTurn(scopeOf(ctx), id, turn.id, {
             answer: result.answer,
             tokens: result.totalTokens,
+            references:[...turnSources.values()].map(r=>({...r,role:"context"})),
+            forms:[...forms.values()],
           }),
           "task_conflict",
         );
@@ -597,6 +662,8 @@ export async function runPrivateTaskTurn(
           sessionId: b.task.sessionId,
           requestId: v.requestId,
           answer: result.answer,
+          navigation,
+          incomplete:result.truncated,
           replayed: false,
           ruleVersion: TASK_RULE_VERSION,
         };
@@ -604,7 +671,7 @@ export async function runPrivateTaskTurn(
         const code =
           e instanceof TaskRefusal || e instanceof MemoryRefusal || e instanceof KnowledgeRefusal
             ? e.code
-            : e instanceof Error && e.message === "tool_boundary_denied"
+            : e instanceof Error && e.message === "task_budget_exhausted" ? "task_budget_exhausted" : e instanceof Error && e.message === "tool_boundary_denied"
               ? "task_tool_denied"
               : "task_model_failed";
         await ctx.store.finishTurn(scopeOf(ctx), id, turn.id, {

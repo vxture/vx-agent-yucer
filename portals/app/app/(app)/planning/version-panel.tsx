@@ -1,4 +1,5 @@
 "use client";
+import { useXiaoyuForm, XiaoyuFormNotice } from "../components/use-xiaoyu-form";
 import { initializeNewLogoEstimates } from "../lib/planning-autofill";
 import { StrategyHandoffPanel } from "./strategy-handoff-panel";
 import { companyPlanningRevision, regionalPlanningRevision } from "../../domains/planning/plan-workflow";
@@ -67,7 +68,7 @@ import {
   prerequisiteGroups,
   readPrerequisites,
 } from "../../domains/planning/plan-prerequisites";
-export function PlanningVersionPanel({
+function NativePlanningVersionPanel({
   initialPlan,
   initialNow,
   previewContent,
@@ -1547,4 +1548,50 @@ export function PlanningVersionPanel({
       </Drawer>
     </div>
   );
+}
+
+// Private review uses the same native controls. Only an explicit Save enters
+// the existing planning command service; loading this view never starts a draft.
+export function PlanningVersionPanel(props:Parameters<typeof NativePlanningVersionPanel>[0]) {
+  const {PLAN_VERSION_TEXT:T,PLAN_VERSION_ERROR:E,XIAOYU_FORMS:F}=useMessages();
+  const router=useRouter();
+  const [content,setContent]=useState<PlanContent|null>(null);
+  const [regionId,setRegionId]=useState<string|null>(null);
+  const [plan,setPlan]=useState(props.initialPlan);
+  const [busy,start]=useTransition();
+  const [error,setError]=useState("");
+  const keys=useRef({draft:crypto.randomUUID(),save:crypto.randomUUID()});
+  const binding=useXiaoyuForm("sales_plan",props.initialPlan?.id??null,{year:props.year,content:content??props.previewContent},fields=>{
+    if(fields.content&&fields.year===props.year)setContent(fields.content as PlanContent);
+  });
+  if(binding.state==="off")return <NativePlanningVersionPanel {...props}/>;
+  const state=plan?planVersions(plan,props.initialNow):{draft:null,closed:false,eventNo:0};
+  const edit=props.canEdit&&!busy&&!state.closed?setContent:null;
+  const save=()=>start(async()=>{
+    setError("");
+    try {
+      await binding.sync();
+      let current=plan,version=current?planVersions(current,props.initialNow):{draft:null,eventNo:0};
+      if(!version.draft) {
+        const created=await salesPlanCommandAction({year:props.year,expectedEventNo:version.eventNo,requestKey:keys.current.draft,command:{kind:"draft",content:content!,scope:content!.releaseScope==="regions"?"regions":"company"}});
+        if(!created.ok){setError(E[created.error]??F.unavailable);return;}
+        current=created.plan;setPlan(current);version=planVersions(current,new Date().toISOString());
+      }
+      const result=await salesPlanCommandAction({year:props.year,expectedEventNo:version.eventNo,requestKey:keys.current.save,command:{kind:"save",revisionId:version.draft!.id,editToken:version.draft!.editToken,content:content!}});
+      if(!result.ok){setError(E[result.error]??F.unavailable);return;}
+      router.push(planningHref({year:props.year,revision:planVersions(result.plan,new Date().toISOString()).draft!.id}));router.refresh();
+    }catch {setError(F.unavailable);}
+  });
+  return <div className="flex flex-col gap-xl pb-[var(--vx-content-bottom-inset)]" data-xiaoyu-planning-form>
+    <ModuleHeadline moduleKey="planning" help={F.notSaved} pageActions={{primary:<PageActionButton intent="primary" disabled={!edit||!content||binding.state==="loading"||binding.state==="error"} onClick={save}>{T.save}</PageActionButton>}}/>
+    <XiaoyuFormNotice binding={binding}/>
+    {error?<p role="alert" className="text-body text-destructive">{error}</p>:null}
+    {content?<>
+      <StrategyHandoffPanel content={content} sources={props.sources} edit={edit} regionId={null} disabled={busy}/>
+      <Section icon="target" title={T.company} help={T.targetHint}><PlanTargets content={content} scope="workspace" edit={content.releaseScope==="regions"?null:edit} disabled={busy}/></Section>
+      {content.releaseScope!=="company"?<PlanRegions content={content} onSelect={setRegionId} edit={edit} editing={!!edit} disabled={busy}/>:null}
+      {regionId&&content.regions.some(r=>r.id===regionId)?<Section icon="target" title={content.regions.find(r=>r.id===regionId)!.name}><PlanTargets content={content} scope={`territory:${regionId}`} edit={edit} disabled={busy}/><PlanSupport content={content} regionId={regionId} sources={props.sources} edit={edit} disabled={busy}/></Section>:null}
+      <PlanAssumptions content={content} edit={edit} disabled={busy} onReview={()=>{}}/>
+    </>:null}
+  </div>;
 }

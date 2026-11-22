@@ -1,5 +1,6 @@
 "use client";
 
+import { useXiaoyuForm, XiaoyuFormNotice } from "./use-xiaoyu-form";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 
 import { FormChoice } from "./form-choice";
@@ -187,6 +188,18 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
       ...[...new Set([...(solutionIds ?? []),...targets.flatMap(t=>t.solutionIds ?? [])])].map(id=>({id,kind:"solution" as const,novelty:solutionOptions?.find(p=>p.id===id)?.novelty ?? "unknown" as const}))],
   };
   const draft:PlanEdit={name,period,objective,ownerSub,strategyTypeId:strategyTypeId || null,result:selectedResult,expectations,changeReason,productIds,solutionIds,targetMarkets:targets};
+  const xyForm=useXiaoyuForm("strategy",initial?.id??null,{name,period,objective:objective||null,ownerSub:ownerSub||null,strategyTypeId:strategyTypeId||null,result,changeReason,productIds,solutionIds,targetMarkets:targets},fields=>{
+    if(typeof fields.name==="string")setName(fields.name);
+    if(typeof fields.period==="string")setPeriod(fields.period);
+    if("objective" in fields)setObjective(String(fields.objective??""));
+    if("ownerSub" in fields)setOwnerSub(String(fields.ownerSub??""));
+    if("strategyTypeId" in fields)setStrategyTypeId(String(fields.strategyTypeId??""));
+    if(fields.result)setResult(fields.result as StrategyResult);
+    if(typeof fields.changeReason==="string")setChangeReason(fields.changeReason);
+    if(Array.isArray(fields.productIds))setProductIds(fields.productIds as string[]);
+    if(Array.isArray(fields.solutionIds))setSolutionIds(fields.solutionIds as string[]);
+    if(Array.isArray(fields.targetMarkets))setTargets((fields.targetMarkets as TargetSelection[]).map(t=>({...t,marketName:marketOptions?.find(m=>m.id===t.segmentId)?.name??t.marketName??""})));
+  });
   const signature=JSON.stringify({...draft,planNo});const originalSignature=useRef(signature);const bypassLeave=useRef(false);
   const dirty=signature!==originalSignature.current;
   useEffect(()=>{if(!dirty)return;const unload=(e:BeforeUnloadEvent)=>{if(bypassLeave.current)return;e.preventDefault();e.returnValue="";};
@@ -223,7 +236,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
   return (<>
     <ViewHeader icon="graph" title={name.trim() || initial?.name || STRATEGY_TEXT.newPlanTitle} description={numberLabel}
       help={initial ? STRATEGY_TEXT.editPlanWhy : STRATEGY_TEXT.newPlanWhy} data-strategy-editor-header/>
-    <FormPage
+    <XiaoyuFormNotice binding={xyForm}/><FormPage
       form={
         <div className="@container flex min-w-0 flex-col gap-xl" data-strategy-editor>
           <StrategyDraftAssistant values={draft} editId={initial?.id} enabled={canAssist && !saving} onAssist={onAssist} onApply={applyAssist} onBusy={setAssisting}/>
