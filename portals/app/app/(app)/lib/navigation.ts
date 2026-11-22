@@ -158,7 +158,7 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
     key: "copilot",
     href: "/copilot",
     icon: "sparkles",
-    action: "copilot.playbook.view",
+    action: "copilot.ask",
   },
   // D9. Its action carries `feature: null` - the catalogue is not sold
   // separately (ADR-017) - so this entry can never be "locked", only present or

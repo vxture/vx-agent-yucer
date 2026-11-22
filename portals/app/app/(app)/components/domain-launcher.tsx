@@ -229,7 +229,7 @@ export function DomainLauncher({
         onClick={closePanel}
         chevron={false}
       />
-    ) : m.key === "copilot" || m.key === "national" ||
+    ) : m.key === "national" ||
       m.key === "enablement" ||
       m.key === "strategyDiag" ? (
       // 销售大屏 / 赋能分析 / 战略诊断 OPEN IN A NEW TAB (owner, 2026-09-13;

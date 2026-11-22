@@ -31,7 +31,7 @@ import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
 import { AdminNav } from "./admin-nav";
-import { AssistantPanel } from "./assistant-panel";
+import { XiaoyuDock } from "./xiaoyu-dock";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { HeaderSearch } from "./header-search";
@@ -212,10 +212,11 @@ export function AppShell({
     return () => observer.disconnect();
   }, []);
   const [assistantFullscreen, setAssistantFullscreen] = useState(false);
-  // Entry and entitlement pages have no contextual task; the workbench owns
-  // its main conversation. Every business route retains the dock entry.
-  const assistantAvailable = !["home", "admin", "copilot", "upgrade"].includes(activeKey);
-  const workbench = nav.find(entry => entry.key === "copilot" && entry.state === "visible");
+  // Global surfaces enter the complete workspace. Business pages open the
+  // same task beside the current object.
+  const workbench = nav.some(entry => entry.key === "copilot" && entry.state === "visible");
+  const globalAssistantEntry = ["home", "admin", "copilot", "upgrade"].includes(activeKey);
+  const assistantAvailable = !!workbench && !globalAssistantEntry;
   useEffect(() => {
     if (!assistantFullscreen) return;
     if (!assistantAvailable) { setAssistantFullscreen(false); return; }
@@ -240,6 +241,7 @@ export function AppShell({
     });
 
   const toggleDock = () => {
+    if (globalAssistantEntry) { router.push("/copilot"); return; }
     if (assistantFullscreen) setAssistantFullscreen(false);
     setShowDock((prev) => {
       writeNavCollapsed(DOCK_COOKIE_PREFIX, prev);
@@ -320,11 +322,11 @@ export function AppShell({
           data-assistant-width={assistantWidth} data-assistant-fullscreen={assistantFullscreen}>
           <ShellDock mode={assistantFullscreen ? "full" : assistantWidth}
             className={`${ASSISTANT_PANE_CLASS} ${workspaceInsets.assistantPane} border-0 bg-surface-3`}>
-          <AssistantPanel wide={assistantWidth === "wide"} fullscreen={assistantFullscreen}
-            onToggleWidth={toggleAssistantWidth} onClose={closeAssistant} workbenchHref={workbench?.href}
+          <XiaoyuDock wide={assistantWidth === "wide"} fullscreen={assistantFullscreen}
+            onToggleWidth={toggleAssistantWidth} onClose={closeAssistant}
             onToggleFullscreen={() => setAssistantFullscreen(current => !current)}>
             {deck}
-          </AssistantPanel>
+          </XiaoyuDock>
           </ShellDock>
         </div>
       ) : null}
@@ -401,9 +403,9 @@ export function AppShell({
             <ShellHeaderActions>
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
-              {assistantAvailable ? <AgentDockButton
+              {workbench ? <AgentDockButton
                 count={deckCount}
-                open={deckVisible}
+                open={deckVisible || activeKey === "copilot"}
                 onToggle={toggleDock}
               /> : null}
 
@@ -557,7 +559,7 @@ export function AppShell({
       ) : (
         <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
           data-workspace-full-width={!deckVisible && !isDossierPage ? "" : undefined}>
-          {isDossierPage ? children : <div className={CENTRE_PANE_CLASS}>{children}</div>}
+          {isDossierPage ? children : <div className={activeKey === "copilot" ? workspaceInsets.copilotContent : CENTRE_PANE_CLASS}>{children}</div>}
         </div>
       )}
     </ShellViewport>

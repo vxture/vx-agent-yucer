@@ -19,6 +19,7 @@ import { ADMIN_NAV_ENTRIES } from "./lib/admin-nav";
 import { can } from "../authz/decide";
 import { consoleUrl } from "./lib/console-url";
 import { AssistantProvider } from "./components/assistant-provider";
+import { XiaoyuProvider } from "./components/xiaoyu-provider";
 import { AppShell } from "./components/app-shell";
 import { CollectionViewProvider } from "./components/collection-view-provider";
 import { COLLECTION_VIEW_COOKIE, collectionViewPreference } from "./lib/collection-view";
@@ -299,6 +300,8 @@ export default async function AppLayout({
           to AppShell as a prop and renders outside `children`. */}
       <MemberNamesProvider names={memberNames} members={memberIdentities}>
       <AssistantProvider>
+      <XiaoyuProvider key={`${session.workspaceId}:${session.user.sub}`} workspaceId={session.workspaceId} actorSub={session.user.sub}
+        enabled={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}>
       <AppShell
         adminNavOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
@@ -345,6 +348,7 @@ export default async function AppLayout({
           {children}
         </CollectionViewProvider>
       </AppShell>
+      </XiaoyuProvider>
       </AssistantProvider>
       </MemberNamesProvider>
     </>

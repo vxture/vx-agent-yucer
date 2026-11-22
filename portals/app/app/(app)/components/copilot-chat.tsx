@@ -167,7 +167,7 @@ export function CopilotChat({
         <Button type="button" size="md" variant="outline" disabled={pending || !draft.trim()} onClick={() => submit(draft)}>{COPILOT_TEXT.submit}</Button>
       </Card> : null}
       {outcome && outcome.proposalCount > 0 ? <Card className="p-md"><Button asChild size="md" variant="outline">
-        <Link href="/copilot#copilot-proposals">{COPILOT_TEXT.proposalsFromTurn(outcome.proposalCount)}</Link>
+        <Link href="/copilot?view=proposals#copilot-proposals">{COPILOT_TEXT.proposalsFromTurn(outcome.proposalCount)}</Link>
       </Button></Card> : null}
       {outcome && outcome.droppedProposals > 0 ? <Tag>{COPILOT_TEXT.droppedProposals(outcome.droppedProposals)}</Tag> : null}
       {outcome?.truncated ? <StatusBadge tone="warning">{COPILOT_TEXT.truncated}</StatusBadge> : null}

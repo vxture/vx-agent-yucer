@@ -447,10 +447,10 @@
       "file": "(app)/copilot/page.tsx",
       "kind": "navigation",
       "entry": {
-        "file": "(app)/lib/functional-domains.ts",
-        "needle": "built(\"copilot\")"
+        "file": "(app)/components/app-shell.tsx",
+        "needle": "<AgentDockButton"
       },
-      "reason": "Cross-business AI workspace in the launcher; contextual assistant footer also links here.",
+      "reason": "Dedicated Header G5 entry; contextual collaboration footer links to the same task workspace.",
       "sample": "/copilot"
     },
     {

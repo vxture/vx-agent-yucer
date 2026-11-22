@@ -189,8 +189,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
 /** Cross-business destinations, separate from the five business domains. */
 export const CROSSCUTTING_MODULES: readonly DomainModule[] = [
   built("home"),
-  // Independent workspace: work across business domains without opening each.
-  built("copilot"),
+  // Xiaoyu has a dedicated Header G5 entry, not a duplicate Launcher item.
   /* 销售大屏 sits beside 今日判断 rather than in a domain column, for the same
      reason 今日判断 does: it OWNS NO OBJECT. It is a way of looking at what the
      domains already hold, so putting it in one of their columns would claim it
