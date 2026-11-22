@@ -48,6 +48,10 @@ test(
       // columns enforce OIDC ownership and legacy/task isolation; they are not
       // business identifiers. No arbitrary string/code relationship is allowed.
       const scopeGuards = new Set([
+        "agent_execution_step_draft_fk:actor_sub:actor_sub",
+        "agent_execution_grant_task_fk:actor_sub:actor_sub",
+        "agent_execution_receipt_grant_fk:actor_sub:actor_sub",
+        "agent_execution_receipt_step_fk:actor_sub:actor_sub",
         "agent_task_session_fk:actor_sub:actor_sub",
         "agent_task_session_fk:session_kind:kind",
         "agent_task_reference_owner_fk:actor_sub:actor_sub",

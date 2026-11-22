@@ -321,3 +321,16 @@ test("correcting one need leaves other nested market fields available for model 
  const next=mergeForm(human,"segment",null,{criteria:{needSummary:"Overwrite",customerNeed:"Refined need"}});
  assert.deepEqual(next.fields.criteria,{needSummary:"Corrected",customerNeed:"Refined need"});assert.deepEqual(next.manualFields,["criteria.needSummary"]);assert.deepEqual(readBusinessForm(JSON.stringify(next)),next);
 });
+
+test("execution requests only prepare reviewed proposals after immutable forms are persisted",async()=>{
+ const f=await setup(),proposals:unknown[]=[];
+ f.c.execution={propose:async(id,key,operation)=>{
+  const b=await f.store.load({workspaceId:WS,actorSub:"alice"},id,true);
+  assert.ok(b?.drafts.some(d=>d.key===key&&d.contractVersion==="business-form/1"));
+  assert.equal(b?.turns.at(-1)?.status,"succeeded");
+  proposals.push({key,operation});return {id:randomUUID()};
+ },receipts:async()=>[]};
+ f.set([f.tools("prepare_business_form",{module:"segment",key:"market",fields:{name:"Review me"}}),f.tools("request_business_execution",{key:"market",operation:"save"}),f.tools("read_execution_receipts",{}),{content:"Ready for your authorization"}]);
+ const result=unwrap(await f.turn());assert.equal(proposals.length,1);assert.equal((result as {proposals?:unknown[]}).proposals?.length,1);
+ assert.ok(!JSON.stringify(proposals).includes("grant"));
+});

@@ -264,6 +264,8 @@ export function businessBindings(
         const content = form.fields.content as PlanContent;
         validateContent(content, false);
         if (content.year !== form.fields.year) throw Error("invalid_form_year");
+        const existing=await readSalesPlan({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,scope:session.scope,store:getSalesPlanStore()},content.year);
+        if((existing?.id??null)!==form.targetId)throw Error("planning_target_changed");
       }
       const sources: TaskSource[] = [accessSource(session)];
       if (form.module === "strategy") {

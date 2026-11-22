@@ -212,7 +212,7 @@ test("an authorized caller can still execute an accepted proposal", async () => 
   assert.equal((await moved.getOpportunity(WS, "opp_1"))?.stage, "validate");
 });
 
-test("hoisting the decide gate does not close the autopilot path", async () => {
+test("workspace autonomy alone cannot execute a legacy proposal without task scope", async () => {
   // Autopilot used to skip the decide gate entirely. It now passes through it
   // first, which is only safe because of the implication asserted below.
   const store = new InMemoryCopilotStore();
@@ -221,8 +221,9 @@ test("hoisting the decide gate does not close the autopilot path", async () => {
   // The posture is a stored row now, not a pair of caller-supplied booleans -
   // a caller that can declare it has authority has a parameter, not authority.
   await store.setAutonomy(WS, { mode: "autonomous", decidedBySub: "usr_boss" });
-  const out = unwrap(await execute(copilotCtx("sales_leader", "enterprise", store), "act_1"));
-  assert.equal(out.autonomous, true);
+  const out = await execute(copilotCtx("sales_leader", "enterprise", store), "act_1");
+  assert.equal(out.ok, false);
+  assert.equal(out.ok === false && out.violations[0]!.code, "task_authorization_required");
 });
 
 test("autopilot authorization strictly implies decide authorization", async () => {

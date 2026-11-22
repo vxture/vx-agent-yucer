@@ -9,6 +9,7 @@ export type TaskView = TaskBundle & {
 export interface XiaoyuState {
   tasks: TaskRecord[];
   bundle: TaskView | null;
+  recoveryTaskId: string | null;
   input: string;
   notes: string;
   notesDirty: boolean;
@@ -37,14 +38,14 @@ class RequestFailure extends Error {
 }
 class StaleRequest extends Error {}
 const revoked = (e: unknown) => e instanceof RequestFailure && (
-  e.status === 401 || e.status === 403 || e.status === 404 || /SOURCE_CHANGED/.test(e.code)
+  e.status === 401 || e.status === 403 || e.status === 404 || /(?:source_changed|source_unavailable)/i.test(e.code)
 );
 
 // One owner/workspace controller survives route transitions and surface changes.
 // Only an opaque task pointer may enter sessionStorage, never private content.
 export class XiaoyuClient {
   private state: XiaoyuState = {
-    tasks: [], bundle: null, input: "", notes: "", notesDirty: false,
+    tasks: [], bundle: null, recoveryTaskId: null, input: "", notes: "", notesDirty: false,
     busy: false, loading: true, error: null, pending: null, creation: null,
   };
   private readonly listeners = new Set<() => void>();
@@ -85,17 +86,19 @@ export class XiaoyuClient {
   private fail(error: unknown, clear = revoked(error)) {
     if (error instanceof StaleRequest || !this.active) return;
     const code = error instanceof RequestFailure ? error.code : "COPILOT_TASK_UNAVAILABLE";
+    const recoveryTaskId = clear && error instanceof RequestFailure &&
+      /^(?:COPILOT_TASK_)?SOURCE_CHANGED$/i.test(error.code) ? this.selectedId : null;
     if (clear) {
       this.generation++;
       this.selectedId = null;
       this.remember(null);
     }
-    this.update({ error: code, ...(clear ? { tasks: [], bundle: null, notes: "", input: "", notesDirty: false, pending: null, creation: null, loading: false } : {}) });
+    this.update({ error: code, ...(clear ? { tasks: [], bundle: null, recoveryTaskId, notes: "", input: "", notesDirty: false, pending: null, creation: null, loading: false } : {}) });
   }
   private accept(bundle: TaskView, preserveNotes = false) {
     this.selectedId = bundle.task.id;
     this.remember(bundle.task.id);
-    this.update({ bundle, error: null, ...(preserveNotes && this.state.notesDirty ? {} : {
+    this.update({ bundle, recoveryTaskId: null, error: null, ...(preserveNotes && this.state.notesDirty ? {} : {
       notes: bundle.drafts.find(d => d.key === "notes")?.text ?? "", notesDirty: false,
     }) });
     if (this.state.pending && bundle.turns.some(t => t.requestId === this.state.pending?.requestId && t.status === "succeeded")) {
@@ -127,7 +130,7 @@ export class XiaoyuClient {
     if (!UUID.test(id) || this.state.busy || this.state.notesDirty) return;
     const generation = ++this.generation;
     this.selectedId = id;
-    this.update({ bundle: null, notes: "", input: "", pending: null, creation: null, loading: true, error: null });
+    this.update({ bundle: null, recoveryTaskId: null, notes: "", input: "", pending: null, creation: null, loading: true, error: null });
     try {
       const bundle = await this.request<TaskView>(`/${id}`);
       if (generation === this.generation) this.accept(bundle);
@@ -139,7 +142,7 @@ export class XiaoyuClient {
     this.generation++;
     this.selectedId = null;
     this.remember(null);
-    this.update({ bundle: null, input: "", notes: "", notesDirty: false, error: null, pending: null, creation: null, loading: false });
+    this.update({ bundle: null, recoveryTaskId: null, input: "", notes: "", notesDirty: false, error: null, pending: null, creation: null, loading: false });
   };
   // Refresh is read-only: an orphan request is never automatically replayed.
   async refresh(includeList = true) {
@@ -223,6 +226,6 @@ export class XiaoyuClient {
     this.lifetime++;
     this.generation++;
     this.abort.abort();
-    this.state = { tasks: [], bundle: null, input: "", notes: "", notesDirty: false, busy: false, loading: true, error: null, pending: null, creation: null };
+    this.state = { tasks: [], bundle: null, recoveryTaskId: null, input: "", notes: "", notesDirty: false, busy: false, loading: true, error: null, pending: null, creation: null };
   }
 }

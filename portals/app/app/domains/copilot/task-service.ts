@@ -1,4 +1,4 @@
-import { BUSINESS_TOOLS, formContract } from "./business-tools";
+import { BUSINESS_TOOLS, EXECUTION_TOOLS, formContract } from "./business-tools";
 import { BUSINESS_FORM_CONTRACT, isFormModule, mergeForm, readBusinessForm, formHref, type BusinessForm } from "./lib/business-form";
 import { createHash } from "node:crypto";
 import { can, type PermissionHolder } from "../../authz/decide";
@@ -34,6 +34,10 @@ import {
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 
 export interface TaskContext {
+  execution?: {
+    propose:(taskId:string,key:string,operation:"save"|"publish")=>Promise<unknown>;
+    receipts:(taskId:string)=>Promise<unknown>;
+  };
   business?: {
     access: TaskSource;
     contract?:(module:import("./lib/business-form").FormModule)=>Promise<unknown>;
@@ -160,7 +164,7 @@ function active(b: TaskBundle): void {
     "task_finished",
   );
 }
-function publicBundle(b: TaskBundle, business=false) {
+function publicBundle(b: TaskBundle, business=false, execution=false) {
   return {
     ...b,
     currentRuleVersion: TASK_RULE_VERSION,
@@ -170,8 +174,10 @@ function publicBundle(b: TaskBundle, business=false) {
       privateNotes: true,
       businessRead: business,
       formDraft: business,
-      save: false,
-      publish: false,
+      save: execution,
+      publish: execution,
+      taskGrantRequired: execution,
+      directModelWrite: false,
     },
     recovery: {
       automaticModelRetry: false,
@@ -269,7 +275,7 @@ export async function readPrivateTask(ctx: TaskContext, id: string) {
     const bundle = await owned(await current(ctx), id, true);
     const fresh = await owned(await current(ctx), id);
     demand(bundle.task.revision === fresh.task.revision, "task_conflict");
-    return publicBundle(bundle,!!ctx.business);
+    return publicBundle(bundle,!!ctx.business,!!ctx.execution);
   });
 }
 
@@ -446,7 +452,7 @@ export async function changePrivateTask(
           "task_conflict",
         );
       }
-      return publicBundle(await owned(await current(ctx), id, true),!!now.business);
+      return publicBundle(await owned(await current(ctx), id, true),!!now.business,!!now.execution);
     } finally {
       await release();
     }
@@ -545,12 +551,24 @@ export async function runPrivateTaskTurn(
         const turnSources=new Map<string,TaskSource>();
         const forms=new Map<string,{key:string;text:string}>();
         let navigation:string|undefined;
+        let verifiedReceipt=false;
+        const executionQueue=new Map<string,"save"|"publish">();
         const bind=(sources:TaskSource[])=>{for(const r of sources){const key=`${r.kind}:${r.id}`,old=turnSources.get(key)??b.references.find(x=>x.kind===r.kind&&x.id===r.id);demand(!old||old.version===r.version,"source_changed");turnSources.set(key,r);}demand(new Set([...b.references,...turnSources.values()].map(r=>`${r.kind}:${r.id}`)).size<=100,"task_source_limit");};
         const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
-        const localTools=now.business ? {definitions:BUSINESS_TOOLS,invoke:async(name:string,args:Record<string,unknown>)=>{
+        const localTools=now.business ? {definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>)=>{
           const live=await recheck();demand(live.business,"task_tool_denied");
           bind([live.business.access]);
           try {
+            if(name==="request_business_execution"){
+              demand(live.execution&&Object.keys(args).every(k=>["key","operation"].includes(k))&&typeof args.key==="string"&&/^[a-zA-Z0-9_-]{1,64}$/.test(args.key)&&(args.operation==="save"||args.operation==="publish"),"task_tool_denied");
+              demand(forms.has(args.key)||b.drafts.some(d=>d.key===args.key&&d.contractVersion===BUSINESS_FORM_CONTRACT),"invalid_form_fields");
+              executionQueue.set(args.key,args.operation as "save"|"publish");
+              return {state:"proposal_queued_for_review",saved:false,published:false,authorization:"User must authorize exact form snapshot; workspace mode alone is insufficient."};
+            }
+            if(name==="read_execution_receipts"){
+              demand(live.execution&&Object.keys(args).length===0,"task_tool_denied");
+              const receipts=await live.execution.receipts(id);await recheck();verifiedReceipt=Array.isArray(receipts)&&receipts.length>0;return {receipts};
+            }
             if(name==="query_business"){const result=await live.business.query(args);bind(result.sources);await recheck();return result;}
             if(name==="business_form_contract"){demand(isFormModule(args.module)&&Object.keys(args).length===1,"invalid_form_fields");return live.business.contract?await live.business.contract(args.module):formContract(args.module);}
             if(name==="prepare_business_form") {
@@ -631,7 +649,7 @@ export async function runPrivateTaskTurn(
           deps,
         );
         demand(result.answer.trim().length > 0, "task_model_failed");
-        if(now.business&&/(?:\u5df2(?:\u6210\u529f)?(?:\u4fdd\u5b58|\u53d1\u5e03|\u63d0\u4ea4|\u521b\u5efa)|successfully (?:saved|published|submitted|created))/i.test(result.answer))result.answer=forms.size?"\u5df2\u51c6\u5907\u8868\u5355\u8349\u7a3f\uff0c\u8bf7\u6253\u5f00\u590d\u6838\u540e\u4fdd\u5b58\u3002":"\u5206\u6790\u5df2\u5b8c\u6210\uff0c\u672c\u56de\u5408\u6ca1\u6709\u4fdd\u5b58\u6216\u53d1\u5e03\u4e1a\u52a1\u8bb0\u5f55\u3002";
+        if(now.business&&/(?:\u5df2(?:\u6210\u529f)?(?:\u4fdd\u5b58|\u53d1\u5e03|\u63d0\u4ea4|\u521b\u5efa)|successfully (?:saved|published|submitted|created))/i.test(result.answer))result.answer=verifiedReceipt?"\u5df2\u6838\u5bf9\u73b0\u6709\u6267\u884c\u56de\u6267\uff0c\u8bf7\u4ee5\u6267\u884c\u6e05\u5355\u4e2d\u7684\u5b9e\u9645\u4e1a\u52a1\u8bb0\u5f55\u4e3a\u51c6\u3002":forms.size?"\u5df2\u51c6\u5907\u8868\u5355\u8349\u7a3f\uff0c\u8bf7\u6253\u5f00\u590d\u6838\u540e\u4fdd\u5b58\u3002":"\u5206\u6790\u5df2\u5b8c\u6210\uff0c\u672c\u56de\u5408\u6ca1\u6709\u4fdd\u5b58\u6216\u53d1\u5e03\u4e1a\u52a1\u8bb0\u5f55\u3002";
         if(result.truncated)result.answer+="\n\n\u672c\u8f6e\u5df2\u8fbe\u5230\u5de5\u5177\u8f6e\u6b21\u9650\u989d\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u8349\u7a3f\uff1b\u5269\u4f59\u6b65\u9aa4\u5c1a\u672a\u5b8c\u6210\u3002";
         // No model output is persisted or delivered after revocation or source
         // changes. Sources are re-read, not trusted from the old checkpoint.
@@ -646,6 +664,11 @@ export async function runPrivateTaskTurn(
           "task_conflict",
         );
         await owned(await current(ctx), id);
+        const proposals=[];
+        for(const [key,operation] of executionQueue){
+          try{proposals.push({key,operation,state:"waiting_authorization",proposal:await (await current(ctx)).execution?.propose(id,key,operation)});}
+          catch{proposals.push({key,operation,state:"proposal_unavailable"});}
+        }
         await recordAuditEvent({
           workspaceId: ctx.workspaceId,
           actorId: ctx.sub,
@@ -663,6 +686,7 @@ export async function runPrivateTaskTurn(
           requestId: v.requestId,
           answer: result.answer,
           navigation,
+          proposals,
           incomplete:result.truncated,
           replayed: false,
           ruleVersion: TASK_RULE_VERSION,

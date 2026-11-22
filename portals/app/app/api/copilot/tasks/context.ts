@@ -1,3 +1,8 @@
+import { cookies } from "next/headers";
+import { getOidcConfig } from "../../../auth/lib/config";
+import { prismaEnabled } from "../../../lib/db";
+import { proposeExecution,readExecutions, type ExecutionContext } from "../../../domains/copilot/execution-service";
+import { writeBusinessForm } from "../../../domains/copilot/execution-domain";
 import { topicFeed } from "../../../domains/judgement/topic-feed";
 import { snoozeJudgement } from "../../../domains/judgement/service";
 import {
@@ -222,9 +227,23 @@ export async function taskRequestContext(): Promise<{
     !can(session.authz, session.entitlement, "copilot.ask", "data").allowed
   )
     return null;
+  const cookie=prismaEnabled()?(await cookies()).get(getOidcConfig().cookieName)?.value:null;
+  async function execution():Promise<ExecutionContext> {
+    const access=await taskRequestContext();
+    if(!access||!cookie||access.session.workspaceId!==session!.workspaceId||access.session.user.sub!==session!.user.sub)throw Error("access_changed");
+    return {task:access.context,sessionHash:createHash("sha256").update(cookie).digest("hex"),write:async(...args)=>{
+      const fresh=await taskRequestContext();
+      if(!fresh||fresh.session.workspaceId!==session!.workspaceId||fresh.session.user.sub!==session!.user.sub)throw Error("access_changed");
+      return writeBusinessForm(fresh.session,...args);
+    }};
+  }
   return {
     session,
     context: {
+      execution:cookie?{
+        propose:async(taskId,key,operation)=>{const ctx=await execution(),b=await ctx.task.store.load({workspaceId:ctx.task.workspaceId,actorSub:ctx.task.sub},taskId,true),draft=b?.drafts.find(d=>d.key===key&&d.contractVersion==="business-form/1");if(!draft)throw Error("form_changed");return proposeExecution(ctx,taskId,{key,draftId:draft.id,operation});},
+        receipts:async taskId=>(await readExecutions(await execution(),taskId)).receipts,
+      }:undefined,
       workspaceId: session.workspaceId,
       sub: session.user.sub,
       holder: session.authz,
