@@ -23,11 +23,13 @@ import { listProducts, listSolutions } from "../../../domains/catalog/service";
 import { readSalesPlan } from "../../../domains/planning/plan-service";
 import {
   emptyContent,
+  planVersions,
   validateContent,
   type PlanContent,
 } from "../../../domains/planning/plan-model";
 import {
   fieldsFor,
+  FORM_FIELDS,
   type BusinessForm,
   type FormModule,
 } from "../../../domains/copilot/lib/business-form";
@@ -267,6 +269,7 @@ export function businessBindings(
         const existing=await readSalesPlan({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,scope:session.scope,store:getSalesPlanStore()},content.year);
         if((existing?.id??null)!==form.targetId)throw Error("planning_target_changed");
       }
+      let baseline = {};
       const sources: TaskSource[] = [accessSource(session)];
       if (form.module === "strategy") {
         const store = getStrategyStore();
@@ -329,6 +332,15 @@ export function businessBindings(
           throw Error("source_changed");
         form = { ...form, baseVersion: own.version };
         sources.push(own);
+        const row = (await businessRecords(session, form.module, form.fields.year as number | undefined)).find(r => r.object.id === form.targetId)?.data;
+        if (!row || typeof row !== "object") throw new Error("source_unavailable");
+        let record = row as Record<string, unknown>;
+        if (form.module === "solution") record = {...record, ...record.solution as Record<string, unknown>};
+        if (form.module === "sales_plan") {
+          const versions = planVersions(row as Parameters<typeof planVersions>[0], new Date().toISOString());
+          record = {year: form.fields.year, content: (versions.draft ?? versions.current)?.content};
+        }
+        baseline = Object.fromEntries(FORM_FIELDS[form.module].filter(k => record[k] !== undefined).map(k => [k,record[k]]));
       }
       const fields = form.fields,
         links: TaskObject[] = [];
@@ -394,7 +406,7 @@ export function businessBindings(
         if (!ref) throw Error("source_unavailable");
         sources.push(ref);
       }
-      return { ...form, sources };
+      return { ...form, baseline, sources };
     },
   };
 }

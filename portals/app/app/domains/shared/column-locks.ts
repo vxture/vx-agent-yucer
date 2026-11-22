@@ -307,7 +307,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_agent.agent_business_knowledge": ["title", "text", "kind", "state", "audience", "member_subs", "revision", "updated_at"],
   "yucer_agent.agent_private_memory": ["text", "kind", "state", "revision", "updated_at"],
   "yucer_agent.agent_task": ["status", "rule_version", "revision", "page", "updated_at"],
-  "yucer_agent.agent_task_turn": ["status", "assistant_message_id", "error_key", "finished_at"],
+  "yucer_agent.agent_task_turn": ["status", "assistant_message_id", "error_key", "finished_at", "artifacts"],
   "yucer_agent.agent_session": ["title", "status", "updated_at"],
   // agent_action: the proposal itself is frozen; only the human decision moves.
   "yucer_agent.agent_action": ["status", "decided_by_sub", "decided_at", "executed_at", "updated_at"],

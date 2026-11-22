@@ -1,4 +1,5 @@
 import type { AgentTask, AgentTaskTurn, Prisma } from "@prisma/client";
+import { readTaskArtifacts, type TaskArtifacts } from "./lib/task-artifacts";
 import { getPrismaClient } from "../../lib/db";
 import { lockKey } from "../shared/allocate";
 import { assertWritable } from "../shared/column-locks";
@@ -22,6 +23,7 @@ const taskRow = (r: AgentTask): TaskRecord => ({
 const turnRow = (r: AgentTaskTurn): TaskTurn => ({
   ...r,
   status: r.status as TaskTurn["status"],
+  artifacts: readTaskArtifacts(r.artifacts),
 });
 function writable(table: string, patch: Record<string, unknown>): void {
   const result = assertWritable(table, patch);
@@ -358,7 +360,7 @@ export class PrismaTaskStore implements TaskStore {
     id: string,
     turnId: string,
     result:
-      | { answer: string; tokens: number; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
+      | { answer: string; tokens: number; artifacts?: TaskArtifacts; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
       | { errorCode: string; interrupted?: boolean },
   ): Promise<boolean> {
     const p = await getPrismaClient();
@@ -406,6 +408,7 @@ export class PrismaTaskStore implements TaskStore {
           assistant_message_id: assistantMessageId,
           error_key: null,
           finished_at: new Date(),
+          artifacts: {},
         });
         await tx.agentTaskTurn.updateMany({
           where: { ...scoped(scope, id), id: turnId, status: "running" },
@@ -417,6 +420,7 @@ export class PrismaTaskStore implements TaskStore {
                   ? "interrupted"
                   : "failed",
             assistantMessageId,
+            artifacts: "answer" in result && result.artifacts ? structuredClone(result.artifacts) as unknown as Prisma.InputJsonValue : {},
             errorCode: "errorCode" in result ? result.errorCode : null,
             finishedAt: new Date(),
           },

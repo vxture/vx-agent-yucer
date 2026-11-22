@@ -12,6 +12,7 @@ import { UUID } from "../../domains/copilot/lib/task-contract";
 import type { Dictionary } from "../lib/i18n/dictionary";
 import { ViewHeader } from "./business-controls";
 import { XiaoyuTopics } from "./xiaoyu-topics";
+import { XiaoyuResearch } from "./xiaoyu-research";
 import { XiaoyuFormLinks } from "./xiaoyu-form-link";
 import styles from "./xiaoyu-workspace.module.css";
 
@@ -65,7 +66,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
     </div>
     <div className={styles.layout}>
       {showTasks ? <Card className={styles.tasks} data-xiaoyu-tasks><h2 className="mb-sm text-label text-muted-foreground">{T.recent}</h2>
-        {tasks.length ? <nav className="flex flex-col gap-xs" aria-label={T.recent}>{tasks.map(row => <Button key={row.id} variant={task?.id === row.id ? "secondary" : "ghost"} size="md" className={styles.taskButton} disabled={busy || s.notesDirty} aria-current={task?.id === row.id ? "true" : undefined} onClick={() => { void client.select(row.id); if (!full) setShowTasks(false); }}>
+        {tasks.length ? <nav className="flex flex-col gap-xs" aria-label={T.recent}>{tasks.map(row => <Button key={row.id} variant={task?.id === row.id ? "secondary" : "ghost"} size="md" data-control-size="preserve" className={styles.taskButton} disabled={busy || s.notesDirty} aria-current={task?.id === row.id ? "true" : undefined} onClick={() => { void client.select(row.id); if (!full) setShowTasks(false); }}>
           <span className="min-w-0"><span className="line-clamp-2 break-words text-body">{row.goal}</span><span className="mt-xs block text-body-small text-muted-foreground">{{active:T.statusActive,paused:T.statusPaused,completed:T.statusCompleted,cancelled:T.statusCancelled}[row.status]}</span></span>
         </Button>)}</nav> : <p className="text-body text-muted-foreground">{T.emptyTasks}</p>}
       </Card> : null}
@@ -95,6 +96,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
           {running && !busy ? <div className="flex flex-wrap items-center gap-sm"><p className="text-body-small text-muted-foreground">{T.interrupted}</p><DestructiveButton size="md" confirm={{verb:T.markInterrupted,target:task?.goal ?? T.conversationFailed,consequence:T.interruptDescription,cancelLabel:T.back,onConfirm:() => client.change({action:"interrupt",requestId:running.requestId})}}>{T.markInterrupted}</DestructiveButton></div> : null}
           {s.creation && !busy ? <Button size="md" variant="secondary" onClick={() => void client.send()}>{T.recover}</Button> : null}
           {s.pending && !running && !busy ? <Button size="md" variant="secondary" onClick={() => void client.continueAfterFailure()}>{T.recover}</Button> : null}
+          <XiaoyuResearch />
           <XiaoyuFormLinks />
           {task ? <div className="flex shrink-0 flex-wrap items-center gap-xs">
             <Button size="md" variant="ghost" aria-expanded={showNotes} onClick={() => setShowNotes(v => !v)}><Icon name="clipboard" size="sm" />{showNotes ? T.hideNotes : T.openNotes}</Button>

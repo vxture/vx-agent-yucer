@@ -1,6 +1,7 @@
 import { BUSINESS_TOOLS, EXECUTION_TOOLS, formContract } from "./business-tools";
 import { BUSINESS_FORM_CONTRACT, isFormModule, mergeForm, readBusinessForm, formHref, type BusinessForm } from "./lib/business-form";
 import { createHash } from "node:crypto";
+import { taskArtifacts } from "./lib/task-artifacts";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { Entitlement } from "../../entitlement/types";
 import { featureKeysFor } from "../../entitlement/capability";
@@ -595,6 +596,7 @@ export async function runPrivateTaskTurn(
             throw new TaskRefusal("task_tool_denied");
           }catch(e){if(e instanceof TaskRefusal)throw e;return {ok:false,error:e instanceof Error&&/^[a-z_]{1,64}$/.test(e.message)?e.message:"business_tool_failed"};}
         }} : undefined;
+        const researchStartedAt = Date.now();
         const result = await runTurn(
           {
             question,
@@ -613,7 +615,7 @@ export async function runPrivateTaskTurn(
                 id,
                 goal: b.task.goal,
                 businessTools:!!now.business,
-                businessForms:b.drafts.filter(d=>d.contractVersion===BUSINESS_FORM_CONTRACT).map(d=>({key:d.key,...readBusinessForm(d.text)})),
+                businessForms:b.drafts.filter(d=>d.contractVersion===BUSINESS_FORM_CONTRACT).map(d=>{const {baseline:_baseline,...form}=readBusinessForm(d.text);return {key:d.key,...form};}),
                 targets: b.references
                   .filter((r) => r.role === "target")
                   .map((r) => ({ kind: r.kind, id: r.id })),
@@ -658,6 +660,7 @@ export async function runPrivateTaskTurn(
           await ctx.store.finishTurn(scopeOf(ctx), id, turn.id, {
             answer: result.answer,
             tokens: result.totalTokens,
+            artifacts: taskArtifacts(result, researchStartedAt),
             references:[...turnSources.values()].map(r=>({...r,role:"context"})),
             forms:[...forms.values()],
           }),

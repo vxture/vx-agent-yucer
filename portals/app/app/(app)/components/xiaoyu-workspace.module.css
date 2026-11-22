@@ -6,7 +6,7 @@
 .safeEnd { padding-bottom: calc(var(--space-6xl) + env(safe-area-inset-bottom, 0px)); }
 .composer { padding-bottom: max(var(--space-md), env(safe-area-inset-bottom, 0px)); }
 .notes { max-height: 40vh; overflow-y: auto; padding: var(--space-md); }
-.taskButton { width: 100%; height: auto; min-height: var(--spacing-control-xl); padding-block: var(--space-sm); justify-content: flex-start; white-space: normal; text-align: start; }
+.taskButton { width: 100%; height: auto; min-height: var(--space-control-xl); padding-block: var(--space-sm); justify-content: flex-start; white-space: normal; text-align: start; }
 @media (max-width: 63.999rem) { .tasks { width: var(--vx-pane-nav); } }
 @media (max-width: 43.749rem) {
  .layout { flex-direction: column; }

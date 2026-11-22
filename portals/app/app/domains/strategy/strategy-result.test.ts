@@ -511,6 +511,23 @@ test("goal calendar follows the established workspace business date across UTC m
   assert.equal(strategyToday(new Date("2026-11-18T18:00:00Z")), "2026-11-19");
 });
 
+test("native service projects goals for all callers using workspace currency and rejects conflicting projections",async()=>{
+  const c=context(),catalog=new InMemoryCatalogStore();
+  c.catalog={listSolutions:catalog.listSolutions.bind(catalog),getPricingPolicy:async ws=>({...await catalog.getPricingPolicy(ws),defaultCurrency:"USD"})};
+  const data=result();
+  const p=unwrap(await createPlan(c,{planNo:"PROJECTED",name:"Plan",period:"2099",ownerSub:null,objective:null,result:data}));
+  assert.equal(p.result?.goals[0].unit,"USD");
+  assert.deepEqual(p.expectations,goalExpectations(p.result!,"USD"));
+  const changed={...p.result!,goals:p.result!.goals.map(g=>({...g,target:"800000"}))};
+  const edited=unwrap(await editPlan(c,p.id,{...p,result:changed,expectations:undefined}));
+  assert.equal(edited.expectations?.[0].amount,"800000");
+  const refused=await editPlan(c,p.id,{...p,result:changed,expectations:goalExpectations(data,"USD")});
+  assert.equal(refused.ok,false);
+  if(!refused.ok)assert.equal(refused.violations[0].code,"expectations_invalid");
+  const malformed=await createPlan(c,{planNo:"BAD",name:"Plan",period:"2099",ownerSub:null,objective:null,result:{} as StrategyResult});
+  assert.equal(malformed.ok,false);
+});
+
 
 test("milestone owners use workspace members; retained inactive owners do not break unrelated edits",async()=>{
   const c=context(),id=randomUUID();

@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { TaskArtifacts } from "./lib/task-artifacts";
 import type {
   TaskObject,
   TaskScope,
@@ -45,6 +46,7 @@ export interface TaskMessage {
   createdAt: Date;
 }
 export interface TaskTurn {
+  artifacts?: TaskArtifacts;
   id: string;
   requestId: string;
   questionHash: string;
@@ -112,7 +114,7 @@ export interface TaskStore {
     taskId: string,
     turnId: string,
     result:
-      | { answer: string; tokens: number; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
+      | { answer: string; tokens: number; artifacts?: TaskArtifacts; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
       | { errorCode: string; interrupted?: boolean },
   ): Promise<boolean>;
 }
@@ -307,7 +309,7 @@ export class InMemoryTaskStore implements TaskStore {
     id: string,
     turnId: string,
     result:
-      | { answer: string; tokens: number; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
+      | { answer: string; tokens: number; artifacts?: TaskArtifacts; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
       | { errorCode: string; interrupted?: boolean },
   ): Promise<boolean> {
     const b = this.owned(scope, id),
@@ -332,6 +334,7 @@ export class InMemoryTaskStore implements TaskStore {
         createdAt: new Date(),
       };
       b.messages.push(msg);
+      turn.artifacts = result.artifacts ? copy(result.artifacts) : undefined;
       turn.assistantMessageId = msg.id;
       turn.status = "succeeded";
     } else {

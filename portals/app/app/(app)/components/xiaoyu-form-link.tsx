@@ -14,8 +14,13 @@ import { useXiaoyu } from "./xiaoyu-provider";
 import { useMessages } from "../lib/i18n/provider";
 import {
   readBusinessForm,
+  formChanges,
   formHref,
 } from "../../domains/copilot/lib/business-form";
+function fieldValue(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  return typeof value === "string" ? value : JSON.stringify(value) ?? "-";
+}
 export function XiaoyuFormLinks() {
   const { bundle } = useXiaoyu(),
     { XIAOYU_FORMS: T } = useMessages();
@@ -28,8 +33,9 @@ export function XiaoyuFormLinks() {
         .map((d) => {
           try {
             const form = readBusinessForm(d.text);
+            const changes = formChanges(form);
             return (
-              <Card key={d.key} className="p-md">
+              <Card key={d.key} className="@container p-md">
                 <div className="flex flex-wrap items-center gap-sm">
                   <Icon name="clipboard" size="sm" />
                   <span className="text-label">
@@ -52,38 +58,30 @@ export function XiaoyuFormLinks() {
                 <Collapsible className="mt-md">
                   <CollapsibleTrigger asChild>
                     <Button size="md" variant="ghost">
-                      {T.fields} ({Object.keys(form.fields).length})
+                      {T.fields} ({changes.length})
                       <Icon name="chevron-down" size="sm" />
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <dl className="mt-sm grid grid-cols-1 gap-sm text-body @md:grid-cols-2">
-                      {Object.entries(form.fields).map(([key, value]) => (
+                      {changes.map(({path: key, before, after: value, changed}) => (
                         <div
                           key={key}
                           className="min-w-0 rounded-sm border border-border p-sm"
                         >
                           <dt className="text-muted-foreground">
-                            {T.labels[key as keyof typeof T.labels]}
+                            {T.labels[key.split(".").at(-1) as keyof typeof T.labels] ?? T.labels[key.split(".")[0] as keyof typeof T.labels]}
                             {form.manualFields.some(
-                              (k) => k === key || k.startsWith(key + "."),
+                              (k) => k === key || k.startsWith(key + ".") || key.startsWith(k + "."),
                             ) ? (
                               <span className="ml-sm text-body-small">
                                 {T.protected}
                               </span>
                             ) : null}
                           </dt>
-                          <dd className="mt-xs line-clamp-2 break-words">
-                            {typeof value === "string" &&
-                            !/^[a-f0-9-]{36}$/i.test(value)
-                              ? value
-                              : value === null
-                                ? "-"
-                                : Array.isArray(value)
-                                  ? `${value.length} ${T.entries}`
-                                  : typeof value === "object"
-                                    ? `${Object.keys(value).length} ${T.entries}`
-                                    : String(value)}
+                          <dd className="mt-xs space-y-xs break-words text-body">
+                            {changed && before !== undefined ? <div className="text-muted-foreground"><span>{T.before}: </span><span className="line-clamp-2">{fieldValue(before)}</span></div> : null}
+                            <div><span className="text-muted-foreground">{changed ? T.after : T.unchanged}: </span><span className="line-clamp-3">{fieldValue(value)}</span></div>
                           </dd>
                         </div>
                       ))}

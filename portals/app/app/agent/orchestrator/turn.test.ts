@@ -614,7 +614,7 @@ test("a draft may use read-only capabilities for research but never receives a w
   const out = await runTurn({ ...BASE, question: "\u67e5\u4e00\u4e0b Acme \u7684\u516c\u5f00\u8d44\u6599", draftOnly: true, readOnlyTools: true }, h);
   assert.equal(h.calls[0]?.tools?.some(tool => tool.name === PROPOSE_ACTION_TOOL_NAME), false);
   assert.deepEqual(out.proposals, []);
-  assert.deepEqual(out.readEvidence, [{ id: "read-1-1", content: JSON.stringify({ structured: { name: "Acme", website: "https://acme.example" }, text: "Acme official profile" }) }]);
+  assert.deepEqual(out.readEvidence, [{ id: "read-1-1", content: JSON.stringify({ structured: { name: "Acme", website: "https://acme.example" }, text: "Acme official profile" }), capabilityId:"acme.crm", operation:"lookup", callId:"read-1", versionResolved:"1.0.0" }]);
   assert.deepEqual(h.invoked, [{ capability_id: "acme.crm", operation: "lookup", arguments: { query: "Acme" }, version: "1.0.0" }]);
 });
 

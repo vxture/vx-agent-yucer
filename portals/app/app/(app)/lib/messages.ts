@@ -10190,7 +10190,10 @@ export const XIAOYU_TOPICS = {
 } as const;
 
 export const XIAOYU_FORMS = {
-  labels:{"name": "\u540d\u79f0", "priority": "\u663e\u793a\u987a\u5e8f", "status": "\u72b6\u6001", "criteria": "\u5ba2\u7fa4\u4e0e\u9700\u6c42", "solutionIds": "\u5173\u8054\u65b9\u6848", "productIds": "\u5173\u8054\u4ea7\u54c1", "summary": "\u65b9\u6848\u7b80\u4ecb", "scenario": "\u5e94\u7528\u573a\u666f", "novelty": "\u4ea7\u54c1\u5c5e\u6027", "items": "\u4ea7\u54c1\u6784\u6210", "period": "\u6267\u884c\u5468\u671f", "ownerSub": "\u8d1f\u8d23\u4eba", "objective": "\u6218\u7565\u5b9a\u4f4d", "strategyTypeId": "\u6218\u7565\u7c7b\u578b", "result": "\u76ee\u6807\u4e0e\u843d\u5730", "changeReason": "\u4fee\u8ba2\u8bf4\u660e", "targetMarkets": "\u76ee\u6807\u5e02\u573a", "year": "\u5e74\u5ea6", "content": "\u89c4\u5212\u5185\u5bb9"},
+  "before": "\u539f\u503c",
+  "after": "\u62df\u586b\u503c",
+  "unchanged": "\u4fdd\u7559",
+  labels:{"industries": "\u884c\u4e1a\u8303\u56f4", "regions": "\u533a\u57df\u8303\u56f4", "sizes": "\u5ba2\u6237\u89c4\u6a21", "needSummary": "\u9700\u6c42\u6458\u8981", "customerNeed": "\u5171\u6027\u9700\u6c42", "buyingScenario": "\u91c7\u8d2d\u573a\u666f", "expectedOutcome": "\u9884\u671f\u6210\u6548", "entryBarrier": "\u8fdb\u5165\u6761\u4ef6", "valuePropositionId": "\u4ef7\u503c\u4e3b\u5f20", "goals": "\u6218\u7565\u76ee\u6807", "pathIds": "\u5b9e\u73b0\u8def\u5f84", "people": "\u4eba\u529b\u6570\u91cf", "peopleNote": "\u4eba\u529b\u8bf4\u660e", "funds": "\u8d44\u91d1\u6295\u5165", "fundsNote": "\u8d44\u91d1\u8bf4\u660e", "technology": "\u6280\u672f\u6295\u5165", "technologyNote": "\u6280\u672f\u8bf4\u660e", "milestones": "\u9636\u6bb5\u91cc\u7a0b", "risks": "\u98ce\u9669\u5047\u8bbe", "markets": "\u5e02\u573a\u5c5e\u6027", "offerings": "\u4ea7\u54c1\u65b9\u6848\u5c5e\u6027", "extensions": "\u8865\u5145\u4fe1\u606f", "dependencies": "\u4f9d\u8d56\u6218\u7565", "additionalValueIds": "\u8865\u5145\u4e3b\u5f20", "channels": "\u6e20\u9053\u6a21\u5f0f", "businessModel": "\u5546\u4e1a\u6a21\u5f0f", "strategyAcceptances": "\u6218\u7565\u627f\u63a5", "releaseScope": "\u53d1\u5e03\u8303\u56f4", "companyRevisionId": "\u516c\u53f8\u89c4\u5212\u7248\u672c", "periods": "\u5468\u671f\u8bbe\u7f6e", "targets": "\u7ecf\u8425\u76ee\u6807", "budgets": "\u5ba2\u6237\u9884\u7b97", "contributions": "\u5ba2\u6237\u8d21\u732e", "team": "\u56e2\u961f\u5206\u914d", "actions": "\u6267\u884c\u884c\u52a8", "assumptions": "\u5173\u952e\u5047\u8bbe", "allocationNote": "\u5206\u914d\u8bf4\u660e", "capacityNote": "\u4ea7\u80fd\u8bf4\u660e", "schemaVersion": "\u6570\u636e\u683c\u5f0f", "name": "\u540d\u79f0", "priority": "\u663e\u793a\u987a\u5e8f", "status": "\u72b6\u6001", "criteria": "\u5ba2\u7fa4\u4e0e\u9700\u6c42", "solutionIds": "\u5173\u8054\u65b9\u6848", "productIds": "\u5173\u8054\u4ea7\u54c1", "summary": "\u65b9\u6848\u7b80\u4ecb", "scenario": "\u5e94\u7528\u573a\u666f", "novelty": "\u4ea7\u54c1\u5c5e\u6027", "items": "\u4ea7\u54c1\u6784\u6210", "period": "\u6267\u884c\u5468\u671f", "ownerSub": "\u8d1f\u8d23\u4eba", "objective": "\u6218\u7565\u5b9a\u4f4d", "strategyTypeId": "\u6218\u7565\u7c7b\u578b", "result": "\u76ee\u6807\u4e0e\u843d\u5730", "changeReason": "\u4fee\u8ba2\u8bf4\u660e", "targetMarkets": "\u76ee\u6807\u5e02\u573a", "year": "\u5e74\u5ea6", "content": "\u89c4\u5212\u5185\u5bb9"},
   fields:"\u8868\u5355\u5b57\u6bb5",sources:"\u4e1a\u52a1\u4f9d\u636e",entries:"\u9879",
   "notSaved": "\u5c0f\u807f\u8868\u5355\u8349\u7a3f \u00b7 \u5c1a\u672a\u4fdd\u5b58\u4e1a\u52a1\u8bb0\u5f55",
   "open": "\u6253\u5f00\u8868\u5355\u590d\u6838",
@@ -10231,4 +10234,14 @@ export const XIAOYU_EXECUTION = {
   "autonomous": "\u5145\u5206\u6388\u6743",
   "resume": "\u4e2d\u65ad\u540e\u53ef\u91cd\u65b0\u8bfb\u53d6\u6e05\u5355\uff0c\u6062\u590d\u5c1a\u672a\u5b8c\u6210\u7684\u6b65\u9aa4\u3002",
   "partial": "\u90e8\u5206\u6b65\u9aa4\u53ef\u80fd\u5df2\u5b8c\u6210\uff0c\u8bf7\u4ee5\u5404\u6761\u56de\u6267\u4e3a\u51c6\u3002"
+} as const;
+
+export const XIAOYU_RESEARCH = {
+  "title": "\u7814\u7a76\u6765\u6e90\u4e0e\u7528\u91cf",
+  "duration": "\u5206\u6790\u8017\u65f6",
+  "tokens": "\u6a21\u578b\u7528\u91cf",
+  "calls": "\u80fd\u529b\u8c03\u7528",
+  "source": "\u67e5\u8be2\u6765\u6e90",
+  "noExternal": "\u672c\u56de\u5408\u6ca1\u6709\u5916\u90e8\u67e5\u8be2\u6765\u6e90\uff0c\u4e0d\u80fd\u89c6\u4e3a\u5df2\u8054\u7f51\u6838\u67e5\u3002",
+  "scope": "\u6765\u6e90\u6458\u5f55\u4ec5\u4f9b\u672c\u4eba\u5728\u5f53\u524d\u5de5\u4f5c\u7a7a\u95f4\u590d\u6838\uff1b\u5de5\u5177\u8c03\u7528\u4e0d\u7b49\u4e8e\u4e1a\u52a1\u4fdd\u5b58\u3002"
 } as const;
