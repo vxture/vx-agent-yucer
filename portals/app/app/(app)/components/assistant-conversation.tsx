@@ -7,10 +7,11 @@ import { useAssistantInteraction } from "./assistant-interaction";
 import styles from "./assistant-conversation.module.css";
 
 /** Follow new turns only while the reader is already at the end. */
-export function AssistantTranscript({ children, revision, busy = false }: {
+export function AssistantTranscript({ children, revision, busy = false, flow = false }: {
   readonly children: ReactNode;
   readonly revision: number;
   readonly busy?: boolean;
+  readonly flow?: boolean;
 }) {
   const { ASSISTANT_PANEL_TEXT: T } = useMessages();
   const viewport = useRef<HTMLDivElement>(null);
@@ -22,9 +23,9 @@ export function AssistantTranscript({ children, revision, busy = false }: {
     if (atEnd.current) node.scrollTop = node.scrollHeight;
     else setUnread(true);
   }, [revision, busy]);
-  return <div className="relative flex min-h-0 flex-1 flex-col">
+  return <div className={flow ? "relative flex shrink-0 flex-col" : "relative flex min-h-0 flex-1 flex-col"}>
     <div ref={viewport} role="log" aria-label={T.conversation} aria-live="polite" aria-busy={busy}
-      tabIndex={0} data-assistant-transcript className={`${styles.transcript} flex min-h-0 flex-1 flex-col gap-lg overflow-y-auto`}
+      tabIndex={0} data-assistant-transcript className={`${styles.transcript} ${flow ? styles.flow : "min-h-0 flex-1"} flex flex-col gap-lg overflow-y-auto`}
       onScroll={event => {
         const node = event.currentTarget;
         atEnd.current = node.scrollHeight - node.scrollTop - node.clientHeight < 48;

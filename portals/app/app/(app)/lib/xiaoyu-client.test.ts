@@ -44,9 +44,9 @@ test("dirty notes and composer survive refresh; switching is blocked until expli
   await f.client.saveNotes();assert.equal(f.client.getSnapshot().notesDirty,false);assert.equal((await f.bundle()).drafts.at(-1)?.text,"My decision");
 });
 test("permission/source rejection clears messages, notes, composer and pointers",async()=>{
-  for(const [code,status]of [["POLICY_DENIED",403],["COPILOT_TASK_SOURCE_CHANGED",409],["COPILOT_TASK_NOT_FOUND",404]]as const){
+  for(const [code,status]of [["source_changed",409],["memory_source_changed",409],["knowledge_source_changed",409],["POLICY_DENIED",403],["COPILOT_TASK_SOURCE_CHANGED",409],["COPILOT_TASK_NOT_FOUND",404]]as const){
     const f=await fixture();await f.client.start(f.task.id);f.client.setNotes("secret");f.client.setInput("secret");f.setHook(async()=>Response.json({code},{status}));await f.client.refresh();const s=f.client.getSnapshot();
-    assert.equal(s.bundle,null);assert.equal(s.notes,"");assert.equal(s.input,"");assert.deepEqual(s.tasks,[]);assert.equal(f.pointers.at(-1),null);
+    assert.equal(s.bundle,null);assert.equal(s.notes,"");assert.equal(s.input,"");assert.deepEqual(s.tasks,[]);assert.equal(f.pointers.at(-1), /^(?:COPILOT_TASK_)?SOURCE_CHANGED$/i.test(code) ? f.task.id : null);
   }
 });
 test("list access rejection also clears the already open task",async()=>{
@@ -88,4 +88,20 @@ test("unverifiable task lists do not retain cached private titles",async()=>{
 test("suspending a scope clears private state before any later reactivation",async()=>{
   const f=await fixture();await f.client.start(f.task.id);f.client.setInput("Secret question");f.client.setNotes("Secret note");f.client.suspend();
   assert.equal(f.client.getSnapshot().bundle,null);assert.equal(f.client.getSnapshot().input,"");assert.equal(f.client.getSnapshot().notes,"");assert.deepEqual(f.client.getSnapshot().tasks,[]);
+});
+
+test("changed business source keeps only an opaque receipt-recovery pointer; scope loss clears it", async () => {
+  const f=await fixture(); await f.client.start(f.task.id);
+  f.setHook(async()=>Response.json({code:"COPILOT_TASK_SOURCE_CHANGED"},{status:409}));
+  await f.client.refresh();
+  assert.equal(f.client.getSnapshot().recoveryTaskId,f.task.id);
+  assert.equal(f.pointers.at(-1),f.task.id);
+  assert.equal(f.client.getSnapshot().bundle,null);
+  assert.equal(f.client.getSnapshot().notes,"");
+  f.client.newTask();
+  assert.equal(f.client.getSnapshot().recoveryTaskId,null);
+  f.setHook(undefined); await f.client.select(f.task.id);
+  f.setHook(async()=>Response.json({code:"POLICY_DENIED"},{status:403}));
+  await f.client.refresh();
+  assert.equal(f.client.getSnapshot().recoveryTaskId,null);
 });

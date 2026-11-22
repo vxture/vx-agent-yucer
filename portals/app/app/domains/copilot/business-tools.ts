@@ -94,3 +94,8 @@ export const formContract = (module: keyof typeof FORM_FIELDS) => ({
   save: false,
   publish: false,
 });
+
+export const EXECUTION_TOOLS: ToolDefinition[] = [
+ {name:"request_business_execution",description:"Request an immutable save/publish proposal for a private native form. The server persists it for user review and task-scoped authorization; this tool does not grant or execute. Never claim saved from this result.",parameters:{type:"object",properties:{key:{type:"string"},operation:{type:"string",enum:["save","publish"]}},required:["key","operation"]}},
+ {name:"read_execution_receipts",description:"Read server-verified execution receipts for this private task. Only an accessible real receipt establishes a save or publication. Do not infer success from a draft or queued proposal.",parameters:{type:"object",properties:{}}},
+];

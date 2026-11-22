@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { XiaoyuExecution } from "./xiaoyu-execution";
 import {
   Banner,
   Button,
@@ -18,9 +19,10 @@ import {
 export function XiaoyuFormLinks() {
   const { bundle } = useXiaoyu(),
     { XIAOYU_FORMS: T } = useMessages();
-  if (!bundle) return null;
+  if (!bundle) return <XiaoyuExecution />;
   return (
     <>
+      <XiaoyuExecution />
       {bundle.drafts
         .filter((d) => d.contractVersion === "business-form/1")
         .map((d) => {

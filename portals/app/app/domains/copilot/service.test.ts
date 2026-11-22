@@ -20,7 +20,7 @@ import {
 import type { AgentAction } from "./lib/action";
 
 const WS = "ws_1";
-const CREATED = new Date("2026-08-14T00:00:00Z");
+const CREATED = new Date();
 
 function proposal(id: string, over: Partial<AgentAction> = {}): AgentAction {
   return {
@@ -332,11 +332,10 @@ test("running unasked needs the tier, the permission AND the workspace's own row
     false,
   );
 
-  // All three.
-  const r = unwrap(
-    await execute(ctx("sales_leader", "enterprise", await mk("autonomous")), "a"),
-  );
-  assert.equal(r.autonomous, true);
+  // Mode, tier and role still do not grant a concrete task.
+  const r = await execute(ctx("sales_leader", "enterprise", await mk("autonomous")), "a");
+  assert.equal(r.ok,false);
+  if(!r.ok)assert.equal(r.violations[0].code,"task_authorization_required");
 });
 
 test("ask_high_risk asks before important writes even when reversible", async () => {
@@ -366,17 +365,17 @@ test("ask_high_risk asks before important writes even when reversible", async ()
   assert.equal(unsure.ok, false);
 });
 
-test("an unasked execution leaves the decider null - that null is the marker", async () => {
+test("workspace autonomy alone cannot execute or manufacture a signer", async () => {
   const store = new InMemoryCopilotStore();
   const deals = pipelineWith();
   store.seedProposals(WS, [proposal("a")]);
   await store.setAutonomy(WS, { mode: "autonomous", decidedBySub: "usr_boss" });
   await execute(ctx("sales_leader", "enterprise", store), "a");
   const row = await store.getProposal(WS, "a");
-  assert.equal(row?.status, "executed");
-  assert.equal((await deals.getOpportunity(WS, "opp_1"))?.stage, "validate");
-  assert.equal(row?.decidedBySub, null, "no human signed for this, and the record says so");
-  assert.ok(row?.executedAt instanceof Date);
+  assert.equal(row?.status, "proposed");
+  assert.equal((await deals.getOpportunity(WS, "opp_1"))?.stage, "discover");
+  assert.equal(row?.decidedBySub, null);
+  assert.equal(row?.executedAt,null);
 });
 
 // --- Creating proposals -----------------------------------------------------
@@ -637,4 +636,12 @@ test("extended authority never executes destructive replacements or unknown oper
     assert.equal(result.ok ? "" : result.violations[0].code, "human_decision_required");
     assert.equal((await store.getProposal(WS, "high-risk"))?.status, "proposed");
   }
+});
+
+test("a previously accepted proposal expires by the execution clock before any business effect",async()=>{
+ const store=new InMemoryCopilotStore();store.seedProposals(WS,[proposal("expired",{status:"accepted",decidedBySub:"usr_rep",createdAt:new Date(0)})]);
+ const pipeline=pipelineWith();
+ const result=await execute(ctx("sales_leader","enterprise",store),"expired");
+ assert.equal(result.ok,false);if(!result.ok)assert.equal(result.violations[0].code,"proposal_expired");
+ assert.equal((await pipeline.getOpportunity(WS,"opp_1"))?.stage,"discover");
 });

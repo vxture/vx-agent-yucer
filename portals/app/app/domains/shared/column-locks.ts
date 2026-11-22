@@ -20,6 +20,8 @@ import { fail, ok, violation, type RuleResult } from "./result";
 
 /** schema.table -> columns the service role may UPDATE. */
 export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
+  "yucer_agent.agent_execution_grant": ["revoked_at"],
+  "yucer_agent.agent_execution_step": ["last_error","attempted_at"],
   // --- contract schemas (inherited from the template) ---
   "vx_provision.app_instance": ["status", "env", "provisioned_at", "updated_at"],
   "vx_provision.provision_seq": ["last_seq", "updated_at"],
@@ -437,6 +439,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
  * row, never an in-place edit.
  */
 export const APPEND_ONLY_TABLES: readonly string[] = [
+  "yucer_agent.agent_execution_receipt",
   "yucer_agent.agent_business_knowledge_revision",
   "yucer_agent.agent_task_knowledge",
   "yucer_agent.agent_private_memory_revision",

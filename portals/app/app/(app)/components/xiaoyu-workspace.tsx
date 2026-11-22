@@ -16,6 +16,7 @@ import { XiaoyuFormLinks } from "./xiaoyu-form-link";
 import styles from "./xiaoyu-workspace.module.css";
 
 function errorText(code: string, t: Dictionary["XIAOYU_TEXT"]) {
+  code = code.toUpperCase();
   if (/SOURCE_CHANGED/.test(code)) return t.sourceChanged;
   if (/SOURCE_UNAVAILABLE|NOT_FOUND/.test(code)) return t.sourceUnavailable;
   if (/ACCESS_CHANGED|POLICY_DENIED|NOT_ENTITLED/.test(code)) return t.accessChanged;
@@ -53,7 +54,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
   const statusLabel = task ? { active: T.statusActive, paused: T.statusPaused, completed: T.statusCompleted, cancelled: T.statusCancelled }[task.status] : T.noSelection;
   const frozen = busy || loading || !!running;
   const targets = bundle?.references.filter(r => r.role === "target") ?? [];
-  return <div className={styles.workspace} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={task?.id ?? ""}>
+  return <div className={`${styles.workspace} ${full ? styles.safeEnd : ""}`} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={task?.id ?? ""}>
     {full ? <ViewHeader className="shrink-0" icon="sparkles" title={T.title} description={T.subtitle} pageActions={{ secondary: <Button variant="ghost" size="md" asChild><Link href="/copilot?view=proposals"><Icon name="clipboard" size="sm" />{T.proposals}</Link></Button> }} /> : null}
     <div className="flex shrink-0 flex-wrap items-center gap-xs">
       <Button variant="ghost" size="md" asChild><Link href="/copilot/memory"><Icon name="lock" size="sm" />{M.title}</Link></Button>
@@ -80,7 +81,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
           {s.error ? <Banner tone="warning" title={errorText(s.error, T)} /> : null}
           {s.notesDirty ? <output className="block text-body-small text-warning-text">{T.notesUnsaved}</output> : null}
           {bundle?.ruleChanged ? <Banner tone="warning" title={T.ruleChanged} /> : null}
-          <AssistantTranscript revision={bundle?.messages.length ?? 0} busy={busy}>
+          {loading || busy || !task || bundle?.messages.length ? <AssistantTranscript flow revision={bundle?.messages.length ?? 0} busy={busy}>
             {loading ? <output className="block text-body text-muted-foreground">{T.loading}</output> : null}
             {!loading && !bundle?.messages.length ? <div className="my-auto flex flex-col items-start gap-md py-xl">
               <Icon name="sparkles" size="lg" className="text-primary" /><h2 className="text-heading-3">{T.welcome}</h2><p className="max-w-prose text-body leading-relaxed text-muted-foreground">{T.welcomeDescription}</p>
@@ -90,7 +91,7 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
             {bundle?.messages.map(message => <AssistantMessage key={message.id} role={message.role}><p className="whitespace-pre-wrap break-words">{message.content}</p></AssistantMessage>)}
             {busy ? <output className="block text-body-small text-muted-foreground">{T.sending}</output> : null}
             {(s.pending || s.creation) && !busy ? <Banner tone="warning" title={bundle?.turns.some(t => t.requestId === s.pending?.requestId && t.status !== "running") ? T.failed : T.unknown} /> : null}
-          </AssistantTranscript>
+          </AssistantTranscript> : null}
           {running && !busy ? <div className="flex flex-wrap items-center gap-sm"><p className="text-body-small text-muted-foreground">{T.interrupted}</p><DestructiveButton size="md" confirm={{verb:T.markInterrupted,target:task?.goal ?? T.conversationFailed,consequence:T.interruptDescription,cancelLabel:T.back,onConfirm:() => client.change({action:"interrupt",requestId:running.requestId})}}>{T.markInterrupted}</DestructiveButton></div> : null}
           {s.creation && !busy ? <Button size="md" variant="secondary" onClick={() => void client.send()}>{T.recover}</Button> : null}
           {s.pending && !running && !busy ? <Button size="md" variant="secondary" onClick={() => void client.continueAfterFailure()}>{T.recover}</Button> : null}

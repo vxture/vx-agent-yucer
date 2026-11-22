@@ -10,6 +10,8 @@
 //   - each row is signed individually, even in a batch;
 //   - a proposal someone else already decided is skipped, not overwritten.
 
+import { getPrismaClient, inDomainTransaction, withDomainTransaction } from "../../lib/db";
+import { PrismaCopilotStore } from "./prisma-store";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { autopilotAuthorized, type Decision as GateDecision } from "../../authz/gate";
@@ -18,6 +20,7 @@ import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import { decideAutonomy, isAutonomyMode, type AutonomyMode } from "./lib/autonomy";
 import {
+  DEFAULT_PROPOSAL_TTL_MS,
   planBatchDecision,
   planExecution,
   planExpiry,
@@ -144,6 +147,20 @@ export async function execute(
   // authority rather than having it. The posture is the workspace's stored row
   // and whether THIS proposal may skip a person is the rule's answer.
 ): Promise<RuleResult<{ id: string; autonomous: boolean }>> {
+  if(ctx.store instanceof PrismaCopilotStore && !inDomainTransaction()) {
+    const access=can(ctx.holder,ctx.entitlement,"copilot.action.decide","data");
+    if(!access.allowed)return denied(access);
+    if(!/^[a-f0-9-]{36}$/i.test(id))return fail(violation("not_found","proposal not found","id"));
+    try {
+      return await withDomainTransaction(async()=>{
+        const db=await getPrismaClient();
+        await db.$queryRaw`SELECT id FROM yucer_agent.agent_action WHERE id=${id}::uuid AND workspace_id=${ctx.workspaceId}::uuid FOR UPDATE`;
+        const result=await execute(ctx,id);
+        if(!result.ok)throw new LegacyExecutionRefusal(result);
+        return result;
+      });
+    }catch(error){if(error instanceof LegacyExecutionRefusal)return error.result;throw error;}
+  }
   // The decide gate runs BEFORE the row is loaded. Loading first would answer
   // `not_found` to an unauthorized caller for an id that does not exist and
   // `permission_denied` for one that does - an oracle for enumerating valid
@@ -163,6 +180,9 @@ export async function execute(
   // the same per-row half of the gate adjudicate() applies.
   const own = canDecideProposal(ctx.holder, ctx.entitlement, action.capability);
   if (!own.allowed) return denied(own);
+
+  if(action.status === "executed")return ok({id,autonomous:!action.decidedBySub});
+  if(Date.now()-action.createdAt.getTime()>=DEFAULT_PROPOSAL_TTL_MS)return fail(violation("proposal_expired","proposal authorization expired","id"));
 
   // WHETHER THIS MAY RUN UNASKED IS READ, NOT PASSED. `opts.autopilot` and
   // `opts.workspaceOptIn` were both caller-supplied booleans - a caller that
@@ -208,6 +228,9 @@ export async function execute(
       workspaceOptIn: true,
     });
     if (!auth.allowed) return denied(auth);
+    // A workspace preference is not a task credential. Legacy proposals keep
+    // their explicit human-accept path; unattended work uses the scoped engine.
+    return fail(violation("task_authorization_required","authorize an immutable task form before automatic execution","status"));
   }
 
   // The row's own eligibility is settled BEFORE anything happens to a deal.
@@ -233,13 +256,8 @@ export async function execute(
   // signer, and the context is the member whose turn produced the proposal -
   // the agent is never more permitted than the person it acts for.
   //
-  // ORDER: DO, THEN RECORD. The reverse is unrepresentable - once the row says
-  // `executed`, planFailure refuses it, so a write that claimed success first
-  // could never walk the claim back. The cost is a window between the two: two
-  // concurrent callers can both reach advanceStage. The stage machine closes
-  // it, refusing the second with `stage_unchanged` (from = to is a database
-  // CHECK), so a race ends as one move plus one honest `failed` row rather
-  // than as two moves.
+  // The outer persistence transaction commits the business effect and this
+  // execution status together. Its row lock prevents duplicate side effects.
   const done = await carryOut(ctx, action);
   if (!done.ok) {
     // A FAILED ATTEMPT IS RECORDED, not swallowed. `failed` is terminal on
@@ -419,4 +437,8 @@ export async function setAutonomy(
     at: opts.at,
   });
   return ok({ mode: row.mode });
+}
+
+class LegacyExecutionRefusal extends Error {
+  constructor(readonly result: RuleResult<{id:string;autonomous:boolean}>){super("legacy_execution_refused");}
 }

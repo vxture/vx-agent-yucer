@@ -1565,6 +1565,7 @@ model AgentTaskDraft {
   content Json
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   @@unique([taskId,draftKey,revision], map: "agent_task_draft_revision")
+  @@unique([id,taskId,workspaceId,actorSub], map: "agent_task_draft_owner_key")
   @@map("agent_task_draft")
   @@schema("yucer_agent")
 }
@@ -2675,4 +2676,57 @@ model StrategicResult {
  @@unique([workspaceId,id])
  @@map("strategic_result")
  @@schema("yucer_gtm")
+}
+
+model AgentExecutionStep {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  draftId String @map("draft_id") @db.Uuid
+  operation String @db.VarChar(16)
+  payload Json
+  payloadHash String @map("payload_hash") @db.VarChar(64)
+  lastError String? @map("last_error") @db.VarChar(64)
+  attemptedAt DateTime? @map("attempted_at") @db.Timestamptz()
+  ruleVersion String @map("rule_version") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  expiresAt DateTime @map("expires_at") @db.Timestamptz()
+  @@unique([id,taskId,workspaceId,actorSub], map:"agent_execution_step_owner_key")
+  @@unique([taskId,draftId,operation], map:"agent_execution_step_unique")
+  @@index([taskId,createdAt], map:"agent_execution_step_task")
+  @@map("agent_execution_step")
+  @@schema("yucer_agent")
+}
+model AgentExecutionGrant {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  sessionHash String @map("session_hash") @db.VarChar(64)
+  stepIds String[] @map("step_ids") @db.Uuid
+  confirmedIds String[] @map("confirmed_ids") @db.Uuid
+  mode String @db.VarChar(24)
+  maxActions Int @map("max_actions")
+  ruleVersion String @map("rule_version") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  expiresAt DateTime @map("expires_at") @db.Timestamptz()
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz()
+  @@unique([id,taskId,workspaceId,actorSub], map:"agent_execution_grant_owner_key")
+  @@index([taskId,createdAt], map:"agent_execution_grant_task")
+  @@map("agent_execution_grant")
+  @@schema("yucer_agent")
+}
+model AgentExecutionReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  stepId String @unique @map("step_id") @db.Uuid
+  grantId String @map("grant_id") @db.Uuid
+  ruleVersion String @map("rule_version") @db.VarChar(64)
+  result Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@map("agent_execution_receipt")
+  @@schema("yucer_agent")
 }

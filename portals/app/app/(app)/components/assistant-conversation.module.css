@@ -19,3 +19,5 @@
   .transcript { min-height: 0; }
   .composer { min-height: 48px; max-height: 80px; }
 }
+
+.flow { max-height: max(240px, 50vh); }
