@@ -80,14 +80,14 @@ export class PrismaCopilotStore implements CopilotStore {
 
   async getSession(workspaceId: string, id: string): Promise<SessionRecord | null> {
     const p = await getPrismaClient();
-    const row = await p.agentSession.findFirst({ where: { id, workspaceId } });
+    const row = await p.agentSession.findFirst({ where: { id, workspaceId, kind: "legacy" } });
     return row ? toSession(row as Record<string, unknown>) : null;
   }
 
   async listSessions(workspaceId: string, actorSub: string, limit = 20): Promise<SessionRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.agentSession.findMany({
-      where: { workspaceId, actorSub },
+      where: { workspaceId, actorSub, kind: "legacy" },
       orderBy: { updatedAt: "desc" },
       take: limit,
     });
@@ -99,7 +99,7 @@ export class PrismaCopilotStore implements CopilotStore {
     input: { sessionId: string; role: MessageRecord["role"]; content: string; tokenCount?: number | null },
   ): Promise<MessageRecord> {
     const p = await getPrismaClient();
-    const session = await p.agentSession.findFirst({ where: { id: input.sessionId, workspaceId } });
+    const session = await p.agentSession.findFirst({ where: { id: input.sessionId, workspaceId, kind: "legacy" } });
     if (!session) throw new Error(`session ${input.sessionId} is not in workspace ${workspaceId}`);
 
     // seq is serialised PER SESSION by an advisory lock. Reading the max inside
@@ -136,6 +136,7 @@ export class PrismaCopilotStore implements CopilotStore {
 
   async listMessages(workspaceId: string, sessionId: string): Promise<MessageRecord[]> {
     const p = await getPrismaClient();
+    if (!(await this.getSession(workspaceId, sessionId))) return [];
     const rows = await p.agentMessage.findMany({
       where: { workspaceId, sessionId },
       orderBy: { seq: "asc" },

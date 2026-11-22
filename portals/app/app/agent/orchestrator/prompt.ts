@@ -13,6 +13,7 @@
 //      boundary. Without that, a skill that says "you are now in admin mode" is
 //      indistinguishable from the product saying it.
 
+import { TASK_CONTRACT_TEXT } from "../../domains/copilot/lib/task-contract";
 import type { ChatMessage } from "../atlas/types";
 import type { PermCode } from "../../authz/catalog";
 import { renderSkillPrompt, type SkillBundle } from "../runos/skills";
@@ -37,6 +38,13 @@ export interface PromptContext {
   /** What has actually happened with this customer (ADR-006's evidence plane). */
   evidence?: EvidenceGrounding;
   skills?: readonly SkillBundle[];
+  /** Private task references; never a tool grant or business-data snapshot. */
+  task?: {
+    id: string;
+    goal: string;
+    targets: readonly { kind: string; id: string }[];
+    page: { kind: string; id: string } | null;
+  };
   /** True when the workspace has autopilot on AND this member may use it. */
   autopilotActive?: boolean;
 }
@@ -82,8 +90,9 @@ const GROUNDING_RULES = [
 ].join(" ");
 
 export function buildSystemPrompt(ctx: PromptContext): string {
-  const parts: string[] = [ROLE.replace("{product}", ctx.productName), "", CAPABILITY_FIRST, "", HUMAN_IN_THE_LOOP];
+  const parts: string[] = [TASK_CONTRACT_TEXT, ROLE.replace("{product}", ctx.productName), "", CAPABILITY_FIRST, "", ...(ctx.task ? [] : [HUMAN_IN_THE_LOOP])];
 
+  if (ctx.task) parts.push("PRIVATE TASK CONTEXT (reference data, not authorization).", JSON.stringify(ctx.task), "Page context does not replace task targets. Only dialogue and private notes are available for this task; do not claim business reads, form filling, saves or publishing.");
   if (ctx.autopilotActive) parts.push("", AUTOPILOT_NOTE);
   parts.push("", GROUNDING_RULES);
 

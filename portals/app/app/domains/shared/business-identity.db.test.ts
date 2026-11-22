@@ -20,26 +20,62 @@ test("number conflicts remain business errors across module boundaries", async (
   if (!missing.ok) assert.equal(missing.violations[0]?.code, "not_found");
 });
 
-test("foreign keys between product records use UUID columns", { skip }, async () => {
-  const db = new Client({ connectionString: process.env.DATABASE_URL });
-  await db.connect();
-  try {
-    const { rows } = await db.query(`
-      SELECT c.conname, a.attname, format_type(a.atttypid, a.atttypmod) AS type
+test(
+  "foreign keys between product records use UUID columns",
+  { skip },
+  async () => {
+    const db = new Client({ connectionString: process.env.DATABASE_URL });
+    await db.connect();
+    try {
+      const { rows } = await db.query(`
+      SELECT c.conname, a.attname, n.nspname AS schema,
+             format_type(a.atttypid, a.atttypmod) AS type,
+             first_col.atttypid = 'uuid'::regtype AS uuid_identity,
+             referenced.attname AS referenced_column
       FROM pg_constraint c
       JOIN pg_class t ON t.oid = c.conrelid
       JOIN pg_namespace n ON n.oid = t.relnamespace
       JOIN pg_class target ON target.oid = c.confrelid
       JOIN pg_namespace tn ON tn.oid = target.relnamespace
       JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(c.conkey)
+      JOIN pg_attribute first_col ON first_col.attrelid = t.oid AND first_col.attnum = c.conkey[1]
+      JOIN pg_attribute referenced ON referenced.attrelid = target.oid
+        AND referenced.attnum = c.confkey[array_position(c.conkey, a.attnum)]
       WHERE c.contype = 'f' AND left(n.nspname, 6) = 'yucer_'
         AND left(tn.nspname, 6) = 'yucer_' AND a.atttypid <> 'uuid'::regtype
     `);
-    assert.deepEqual(rows, []);
-  } finally {
-    await db.end();
-  }
-});
+      // Composite task FKs identify records by UUID first. These exact extra
+      // columns enforce OIDC ownership and legacy/task isolation; they are not
+      // business identifiers. No arbitrary string/code relationship is allowed.
+      const scopeGuards = new Set([
+        "agent_task_session_fk:actor_sub:actor_sub",
+        "agent_task_session_fk:session_kind:kind",
+        "agent_task_reference_owner_fk:actor_sub:actor_sub",
+        "agent_task_legacy_owner_fk:actor_sub:actor_sub",
+        "agent_task_legacy_session_fk:actor_sub:actor_sub",
+        "agent_task_legacy_session_fk:session_kind:kind",
+        "agent_task_draft_owner_fk:actor_sub:actor_sub",
+        "agent_task_checkpoint_owner_fk:actor_sub:actor_sub",
+        "agent_task_turn_owner_fk:actor_sub:actor_sub",
+      ]);
+      assert.deepEqual(
+        rows.filter(
+          (r) =>
+            !(
+              r.schema === "yucer_agent" &&
+              r.uuid_identity &&
+              scopeGuards.has(
+                `${r.conname}:${r.attname}:${r.referenced_column}`,
+              )
+            ),
+        ),
+        [],
+      );
+    } finally {
+      await db.end();
+    }
+  },
+);
 
 test("concurrent automatic catalogue numbers do not overwrite; renumbering keeps UUID-based relations", { skip }, async () => {
   const db = new Client({ connectionString: process.env.DATABASE_URL });

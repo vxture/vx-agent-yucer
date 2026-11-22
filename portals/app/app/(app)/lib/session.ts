@@ -140,7 +140,13 @@ async function isMemberActivity(): Promise<boolean> {
   return !(h.has("next-router-prefetch") || h.get("purpose") === "prefetch" || h.get("sec-purpose")?.includes("prefetch"));
 }
 
-async function resolveAppSessionUncached(): Promise<AppSession | null> {
+// Long-running private tasks recheck platform access and local authorization
+// without React or process-cache reuse before delivering any output.
+export async function resolveFreshAppSession(): Promise<AppSession | null> {
+  return resolveAppSessionUncached(true);
+}
+
+async function resolveAppSessionUncached(fresh = false): Promise<AppSession | null> {
   // Local review only, and refused three independent ways - see dev-session.ts.
   // Placed FIRST so it is obvious that it short-circuits the real chain, rather
   // than hidden as a fallback where a reader would have to reason about when it
@@ -171,8 +177,8 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
 
   const activity = await isMemberActivity();
   const requestHeaders = await headers();
-  const syncContext = activity && requestHeaders.get("sec-fetch-dest") === "document";
-  const authSession = await getAuthSession(cfg, rpsid, { activity, forceCheck: activity, syncContext });
+  const syncContext = fresh || (activity && requestHeaders.get("sec-fetch-dest") === "document");
+  const authSession = await getAuthSession(cfg, rpsid, { activity, forceCheck: fresh || activity, syncContext });
   if (!authSession) return null;
   const { user, accessToken } = authSession;
 
@@ -181,8 +187,10 @@ async function resolveAppSessionUncached(): Promise<AppSession | null> {
   if (!workspaceId) return null;
 
   // Confirm product access before initializing the ordinary member's role.
-  const entitlement = await getEntitlementResolver().resolve(workspaceId);
-  const authz = await resolveAuthzContext(user, getAuthzStore(), entitlement);
+  const resolver = getEntitlementResolver();
+  if (fresh) resolver.invalidate(workspaceId);
+  const entitlement = await resolver.resolve(workspaceId);
+  const authz = await resolveAuthzContext(user, getAuthzStore(), entitlement, { fresh });
   if (!authz) return null;
 
   // Offline demo path only. No-op unless YUCER_DEMO_DATA is explicitly "on" AND
