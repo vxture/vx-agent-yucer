@@ -1,0 +1,72 @@
+name: xiaoyu-beta-check
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Exact main commit for fixed read-only beta readiness; no deploy or DB writes"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-beta
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: beta
+    steps:
+      - name: Require pinned main and beta scope
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+          ACTUAL_REF: ${{ github.ref }}
+          STACK_ROOT: ${{ vars.STACK_ROOT }}
+          PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_REF" = refs/heads/main
+          test "$EXPECTED_SHA" = "$ACTUAL_SHA"
+          test "$STACK_ROOT" = /srv/md1/yucer
+          test "$PROJECT_NAME" = yucer-beta
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify beta reader boundaries
+        run: python3 -m unittest discover -s scripts/qa -p 'test_xiaoyu_beta_supply*.py'
+
+      - name: Join tailnet and prepare SSH
+        uses: ./.github/actions/tailnet-ssh-connect
+        with:
+          tailscale-oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          tailscale-oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
+          tailscale-tag: ${{ vars.TAILSCALE_OAUTH_CLIENT_TAG }}
+          deploy-host: ${{ secrets.DEPLOY_HOST }}
+          deploy-port: ${{ secrets.DEPLOY_PORT }}
+          deploy-ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          deploy-ssh-passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          deploy-known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+
+      - name: Read beta readiness only
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 -o ServerAliveInterval=30 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'BETA_STACK_ROOT=/srv/md1/yucer BETA_PROJECT_NAME=yucer-beta python3 -' \
+            < scripts/qa/xiaoyu-beta-supply-readiness.py
