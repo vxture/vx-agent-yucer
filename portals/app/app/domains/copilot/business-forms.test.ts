@@ -334,3 +334,16 @@ test("execution requests only prepare reviewed proposals after immutable forms a
  const result=unwrap(await f.turn());assert.equal(proposals.length,1);assert.equal((result as {proposals?:unknown[]}).proposals?.length,1);
  assert.ok(!JSON.stringify(proposals).includes("grant"));
 });
+
+test("private turn usage survives refresh and revoked sources withhold its derived metadata",async()=>{
+  const f=await setup();
+  f.set([f.tools("query_business",{kind:"segment"}),{content:"Reviewed current market"}]);
+  unwrap(await f.turn());
+  const bundle=unwrap(await readPrivateTask(f.c,f.task.id));
+  assert.ok(bundle.turns[0]!.artifacts);
+  assert.equal(bundle.turns[0]!.artifacts!.usage.totalTokens,4);
+  assert.deepEqual(bundle.turns[0]!.artifacts!.research,[]);
+  f.sources.delete(SEG);
+  const denied=await readPrivateTask(f.c,f.task.id);
+  assert.equal(denied.ok,false);
+});

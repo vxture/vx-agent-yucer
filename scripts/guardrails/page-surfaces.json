@@ -951,6 +951,7 @@
     }
   ],
   "preservedControls": {
+    "(app)/components/xiaoyu-workspace.tsx": "Task navigation contains a multiline goal and status; content controls its height with a DS 32px minimum so rows cannot overlap.",
     "(app)/components/strategy-preview-card.tsx": "Accessible card preview trigger fills the card surface; its height follows content rather than the operation-control height ladder.",
     "(app)/components/login-home.tsx": "Previously approved public sign-in CTA: 48px high, 14px label.",
     "(app)/components/gate-actions.tsx": "Shared public access-state primary and secondary actions: 48px high, 14px label."

@@ -39,6 +39,7 @@ export interface BusinessForm {
   module: FormModule;
   targetId: string | null;
   baseVersion: string | null;
+  baseline?: FormFields;
   fields: FormFields;
   manualFields: string[];
   sources: TaskSource[];
@@ -209,6 +210,7 @@ export function mergeForm(
     module,
     targetId,
     baseVersion: previous?.baseVersion ?? null,
+    ...(previous?.baseline ? {baseline: previous.baseline} : {}),
     fields,
     manualFields: [...manual],
     sources: previous?.sources ?? [],
@@ -262,6 +264,7 @@ export function readBusinessForm(text: string): BusinessForm {
   )
     throw Error("invalid_form_fields");
   fieldsFor(v.module, v.fields);
+  if (v.baseline !== undefined && (!object(v.baseline) || JSON.stringify(v.baseline).length > 100000)) throw Error("invalid_form_fields");
   return v as BusinessForm;
 }
 export function formHref(form: BusinessForm, taskId: string, key: string) {
@@ -277,4 +280,18 @@ export function formHref(form: BusinessForm, taskId: string, key: string) {
   if (form.module === "sales_plan" && Number.isInteger(form.fields.year))
     query.set("year", String(form.fields.year));
   return `${route}?${query}`;
+}
+
+export interface FormChange { path: string; before: unknown; after: unknown; changed: boolean }
+export function formChanges(form: BusinessForm): FormChange[] {
+  const changes: FormChange[] = [];
+  function visit(next: FormFields, old: FormFields, prefix: string) {
+    for (const [key, value] of Object.entries(next)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (object(value)) visit(value, object(old[key]) ? old[key] as FormFields : {}, path);
+      else changes.push({path, before: old[key], after: value, changed: JSON.stringify(old[key]) !== JSON.stringify(value)});
+    }
+  }
+  visit(form.fields, form.baseline ?? {}, "");
+  return changes;
 }

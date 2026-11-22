@@ -110,7 +110,7 @@ export interface TurnResult {
 }
 
 /** Only successful gateway results may ground externally filled form fields. */
-export interface ReadEvidence { id: string; content: string }
+export interface ReadEvidence { id: string; content: string; capabilityId?: string; operation?: string; callId?: string; versionResolved?: string }
 
 export interface TurnDeps {
   atlasClient: AtlasClient;
@@ -495,7 +495,7 @@ async function handleToolCall(
     const usable = hasReferenceData(data);
     return {
       content: JSON.stringify({ ok: true, result: data, ...(!usable ? { note: "The call completed but returned no reference data, only an empty result or acknowledgement. Try a relevant alternative; this is not verified company information." } : {}), ...(input.readOnlyTools && usable ? { sourceId } : {}) }),
-      ...(input.readOnlyTools && usable ? { evidence: { id: sourceId, content: typeof data === "string" ? data : JSON.stringify(data) } } : {}),
+      ...(input.readOnlyTools && usable ? { evidence: { id: sourceId, content: typeof data === "string" ? data : JSON.stringify(data), capabilityId: binding.capabilityId, operation: binding.operation, callId: typeof result.meta.call_id === "string" ? result.meta.call_id : undefined, versionResolved } } : {}),
       invocation: {
         toolName: call.name,
         capabilityId: binding.capabilityId,

@@ -582,3 +582,17 @@ test("business form snapshots and query source closure commit atomically with th
  const rolled=await store.load(scope,task.id,true);assert.equal(rolled!.drafts[0]!.text,text);assert.equal(rolled!.messages.length,3);assert.equal(rolled!.task.revision,saved!.task.revision+1);
  await c.query("SET ROLE yucer_svc");await assert.rejects(c.query("UPDATE yucer_agent.agent_task_draft SET content=$1 WHERE task_id=$2",[{text:"mutated"},task.id]),/permission denied/);
 }));
+
+test("private research provenance commits with its answer, survives reload and freezes on completion",{skip},()=>fixture(async(s,scope,c)=>{
+  const {taskArtifacts}=await import("./lib/task-artifacts");
+  const task=await s.create(scope,"Research",TASK_RULE_VERSION,[],randomUUID());
+  const turn=await s.beginTurn(scope,task.id,task.revision,randomUUID(),"Research","hash",TASK_RULE_VERSION);
+  const artifacts=taskArtifacts({answer:"Evidence",proposals:[],invocations:[],proposalOnlyCapabilities:[],toolRounds:1,truncated:false,totalTokens:12,modelCodes:[],readEvidence:[{id:"read-1-1",content:'{"url":"https://example.org/evidence","text":"Public source"}',callId:"call-verified",capabilityId:"exa.web-research",operation:"search",versionResolved:"1.0.0"}]},Date.now());
+  assert.equal(await s.finishTurn(scope,task.id,turn!.id,{answer:"Evidence",tokens:12,artifacts}),true);
+  const restored=await new PrismaTaskStore().load(scope,task.id,true);
+  assert.equal(restored!.turns[0]!.artifacts!.research[0]!.callId,"call-verified");
+  assert.equal((await s.load({...scope,actorSub:"other"},task.id,true)),null);
+  assert.equal((await s.load({...scope,workspaceId:randomUUID()},task.id,true)),null);
+  await c.query("SET ROLE yucer_svc");
+  await assert.rejects(c.query("UPDATE yucer_agent.agent_task_turn SET artifacts='{}' WHERE id=$1",[turn!.id]),/task_turn_finished/);
+}));

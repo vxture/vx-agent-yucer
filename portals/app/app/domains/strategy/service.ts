@@ -65,7 +65,7 @@ export interface StrategyContext {
   holder: PermissionHolder;
   entitlement: Entitlement;
   store: StrategyStore;
-  catalog?: Pick<CatalogStore, "listSolutions"> & Partial<Pick<CatalogStore, "listProducts" | "listStatusConfigs">>;
+  catalog?: Pick<CatalogStore, "listSolutions"> & Partial<Pick<CatalogStore, "listProducts" | "listStatusConfigs" | "getPricingPolicy">>;
   memberDirectory?: { listMembers(workspaceId: string): Promise<readonly Pick<MemberRecord, "sub" | "status" | "displayName">[]> };
 }
 
@@ -258,10 +258,15 @@ export async function listPlans(
  */
 
 async function catalogResult(ctx:StrategyContext,input:PlanEdit):Promise<PlanEdit> {
-  if(!input.result)return input;
+  if(!input.result || !validStrategyResult(input.result))return input;
+  const currency=ctx.catalog?.getPricingPolicy
+    ? (await ctx.catalog.getPricingPolicy(ctx.workspaceId)).defaultCurrency
+    : input.expectations?.find(e=>e.metric==="revenue")?.currency ?? "CNY";
   const [products,solutions]=await Promise.all([ctx.catalog?.listProducts&&ctx.catalog?.listStatusConfigs?listProductReferences({...ctx,store:{listProducts:ctx.catalog.listProducts.bind(ctx.catalog),listStatusConfigs:ctx.catalog.listStatusConfigs.bind(ctx.catalog)}}):null,ctx.catalog?listSolutionReferences({...ctx,store:ctx.catalog}):null]);
-  const result={...input.result,offerings:input.result.offerings.map(o=>({...o,novelty:((o.kind==="product"?(products?.ok?products.value:[]):(solutions?.ok?solutions.value:[])).find(row=>row.id===o.id)?.novelty??"unknown") as import("./lib/strategy-result").Novelty}))};
-  return {...input,result};
+  const result={...input.result,goals:input.result.goals.map(g=>({...g,unit:g.metric==="revenue"?currency:g.unit||"count"})),offerings:input.result.offerings.map(o=>({...o,novelty:((o.kind==="product"?(products?.ok?products.value:[]):(solutions?.ok?solutions.value:[])).find(row=>row.id===o.id)?.novelty??"unknown") as import("./lib/strategy-result").Novelty}))};
+  // Every caller, including task execution, uses the same goal projection.
+  // Explicit projections are still validated rather than silently replaced.
+  return {...input,result,expectations:input.expectations??goalExpectations(result,currency)};
 }
 async function validateResult(ctx:StrategyContext,input:import("./lib/lifecycle").PlanEdit,previous?:PlanRecord):Promise<RuleResult<true>> {
   if(input.result===undefined){
