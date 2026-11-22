@@ -64,3 +64,9 @@ export function PageAssistantOutlet({ children }: { readonly children: ReactNode
   if (!ctx || !ownsConversation) return children;
   return <div ref={ctx.setConversationSlot} className="flex min-h-0 flex-1 flex-col" data-page-assistant-slot />;
 }
+
+export function usePageAssistantAvailable(): boolean {
+  const ctx = useContext(SlotContext);
+  const path = usePathname();
+  return path === "/account/new" || path === "/segment/new" || path === "/strategy/new" || !!ctx?.conversationOwner;
+}

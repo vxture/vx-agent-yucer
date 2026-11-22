@@ -1,0 +1,15 @@
+.workspace { display: flex; height: 100%; min-height: 0; flex-direction: column; gap: var(--space-lg); }
+.layout { display: flex; flex: 1; min-height: 0; gap: var(--space-lg); }
+.tasks { width: var(--vx-pane-nav); flex-shrink: 0; min-height: 0; overflow-y: auto; padding: var(--space-md); }
+.conversation { display: flex; flex: 1; min-height: 0; min-width: 0; flex-direction: column; gap: var(--space-md); }
+.canvas { display: flex; min-height: 0; flex: 1; flex-direction: column; width: 100%; max-width: var(--vx-container-4xl); margin-inline: auto; gap: var(--space-lg); }
+.safeEnd { padding-bottom: calc(var(--space-6xl) + env(safe-area-inset-bottom, 0px)); }
+.composer { padding-bottom: max(var(--space-md), env(safe-area-inset-bottom, 0px)); }
+.notes { max-height: 40vh; overflow-y: auto; padding: var(--space-md); }
+.taskButton { width: 100%; height: auto; min-height: var(--spacing-control-xl); padding-block: var(--space-sm); justify-content: flex-start; white-space: normal; text-align: start; }
+@media (max-width: 63.999rem) { .tasks { width: var(--vx-pane-nav); } }
+@media (max-width: 43.749rem) {
+ .layout { flex-direction: column; }
+ .tasks { width: 100%; max-height: 28vh; }
+ .workspace { gap: var(--space-sm); }
+}

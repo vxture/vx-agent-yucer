@@ -106,7 +106,7 @@ export function AgentPanel({
         trail: p.source,
         // A proposal is decided in the copilot's own thread, where the whole
         // payload is visible - not from a one-line summary.
-        link: { label: BOARD_TEXT.openThread, href: "/copilot#copilot-proposals" },
+        link: { label: BOARD_TEXT.openThread, href: "/copilot?view=proposals#copilot-proposals" },
       })),
     },
   ]),

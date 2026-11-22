@@ -17,7 +17,7 @@ export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onTo
   readonly onClose: () => void;
   readonly workbenchHref?: string;
 }) {
-  const { BOARD_TEXT: B, ASSISTANT_PANEL_TEXT: T, DOMAIN_LABEL, HEADER_TEXT } = useMessages();
+  const { XIAOYU_TEXT: X, ASSISTANT_PANEL_TEXT: T, HEADER_TEXT } = useMessages();
   const frame = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const close = () => {
@@ -30,7 +30,7 @@ export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onTo
     <div className="flex shrink-0 items-center gap-xs" data-assistant-header>
       <div className="flex min-w-0 items-center gap-2xs">
         <Icon name="sparkles" size="sm" className="shrink-0 text-primary" />
-        <h2 className="min-w-0 truncate text-label" title={B.agent}>{B.agent}</h2>
+        <h2 className="min-w-0 truncate text-label" title={X.name}>{X.name}</h2>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2xs" role="group" aria-label={T.controls}>
         <Button type="button" variant="ghost" size="icon-xl" aria-label={wide ? T.narrow : T.wide}
@@ -50,8 +50,8 @@ export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onTo
     <div className="flex shrink-0 items-center justify-between gap-xs border-t border-border pt-xs" data-assistant-footer>
       <AssistantMode />
       {workbenchHref ? <Button asChild size="md" variant="ghost" className="text-muted-foreground">
-        <Link href={workbenchHref} target="_blank" rel="noopener noreferrer" data-assistant-workbench>
-          <Icon name="squares-four" size="sm" />{DOMAIN_LABEL.copilot}<Icon name="external-link" size="xs" />
+        <Link href={workbenchHref} data-assistant-workbench>
+          <Icon name="squares-four" size="sm" />{X.full}
         </Link>
       </Button> : null}
     </div>

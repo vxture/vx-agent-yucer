@@ -1,6 +1,6 @@
 # XY - 小聿统一协作建设批次
 
-状态：XY-00 规格与设计已合并；XY-00B 供给核验已完成并记录上游缺口；XY-01A 私有任务底座已实现、待联合预览和实调；生产未改库、未发布。
+状态：XY-00 规格与设计已合并；XY-00B 供给核验已完成并记录上游缺口；XY-01A 私有任务底座及 XY-01B 界面已实现，本地联合贯穿通过、待 owner 预览和真实 OBO／撤权实调；生产未改库、未发布。
 总追踪：[Issue #732](https://github.com/vxture/vx-agent-yucer/issues/732)。
 权威：[产品规格](../20-specs/37-xiaoyu-collaboration.md)。
 设计：[统一协作设计](../30-design/design_yucer_240_xiaoyu-collaboration.md)。

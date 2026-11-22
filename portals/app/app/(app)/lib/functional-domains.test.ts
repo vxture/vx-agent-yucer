@@ -55,7 +55,7 @@ test("every built module points at a real nav entry", () => {
 test("every domain page is reachable from the launcher, exactly once", () => {
   const listed = builtKeys.filter((k) => k !== "home");
 
-  for (const entry of DOMAIN_NAV_ENTRIES) {
+  for (const entry of DOMAIN_NAV_ENTRIES.filter(e => e.key !== "copilot")) {
     assert.ok(
       listed.includes(entry.key),
       `domain page "${entry.key}" exists but no launcher module points at it - it would be reachable only by URL`,
@@ -154,19 +154,10 @@ test("a permission gap drops the row; an entitlement gap keeps it", () => {
   );
 });
 
-test("the AI workspace is crosscutting and obeys the resolved member gates", () => {
-  assert.ok(CROSSCUTTING_MODULES.some(m => m.kind === "built" && m.navKey === "copilot"));
+test("Xiaoyu is reached from Header G5 rather than duplicated in the Launcher", () => {
+  assert.ok(!CROSSCUTTING_MODULES.some(m => m.kind === "built" && m.navKey === "copilot"));
   assert.ok(!FUNCTIONAL_DOMAINS.some(d => d.modules.some(m => m.kind === "built" && m.navKey === "copilot")));
-  assert.ok(!resolveCrosscutting([]).some(m => m.key === "copilot"));
-  const entry = NAV_ENTRIES.find(e => e.key === "copilot");
-  assert.ok(entry);
-  for (const state of ["visible", "locked"] as const) {
-    const result = resolveCrosscutting([{ ...entry, state, decision: { allowed: state === "visible" } as never }]);
-    const workspace = result.find(m => m.key === "copilot");
-    assert.ok(workspace?.kind === "built");
-    assert.equal(workspace.href, "/copilot");
-    assert.equal(workspace.state, state);
-  }
+  assert.equal(NAV_ENTRIES.find(e => e.key === "copilot")?.action, "copilot.ask");
 });
 
 test("activeDomainKey finds the domain holding a route", () => {

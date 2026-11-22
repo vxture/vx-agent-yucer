@@ -27,9 +27,8 @@ export const ENTRY_TARGETS: readonly EntryTarget[] = [
      reads signed value against what was committed. /pipeline would land the
      reader on the same list 商机储备 already offers. */
   { key: "contract", href: "/attainment", action: "pipeline.view" },
-  /* The plays, not the queue: /copilot is gated on copilot.playbook.view,
-     while this screen only ever asked for copilot.action.view. */
-  { key: "copilot", href: "/copilot", action: "copilot.playbook.view" },
+  /* The dedicated Xiaoyu workspace uses the conversation permission. */
+  { key: "copilot", href: "/copilot", action: "copilot.ask" },
   { key: "delivery", href: "/delivery", action: "delivery.project.view" },
   /* The money, not the project. /collection needs delivery.revenue.view, which
      is NOT among the five gates this screen requires - the instalments reach it

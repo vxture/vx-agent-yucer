@@ -47,11 +47,11 @@ export function AgentDockButton({
   open,
   onToggle,
 }: AgentDockButtonProps) {
-  const { HEADER_TEXT } = useMessages();
+  const { XIAOYU_TEXT: T, HEADER_TEXT } = useMessages();
   // The accessible name carries the count too. A screen reader landing on a bare
   // "智能助手" would get the badge as a separate, contextless number.
   const label =
-    count > 0 ? HEADER_TEXT.agentDockWithCount(count) : HEADER_TEXT.agentDock;
+    count > 0 ? `${T.entry} (${HEADER_TEXT.agentDockWithCount(count)})` : T.entry;
 
   return (
     <span className="relative inline-flex shrink-0" data-assistant-dock-trigger data-header-group="assistant">

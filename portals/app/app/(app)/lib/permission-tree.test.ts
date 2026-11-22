@@ -116,13 +116,13 @@ test("GROUP_MODULES agrees with FUNCTIONAL_DOMAINS - every nav module sits under
 });
 
 test("crosscutting destinations agree with permission groups and keep workspace actions", () => {
-  // The AI workspace is a destination with existing actions. Reporting screens
-  // remain placeholders; restoring the launcher entry must not change grants.
+  // Xiaoyu uses Header G5. The reporting destinations remain in the launcher;
+  // moving an entry does not change the permission groups.
   const crosscuttingKeys = new Set(CROSSCUTTING_MODULES.filter((m) => m.kind === "built").map((m) => m.navKey));
-  assert.deepEqual(crosscuttingKeys, new Set(["home", "copilot", "national", "enablement", "strategyDiag"]));
+  assert.deepEqual(crosscuttingKeys, new Set(["home", "national", "enablement", "strategyDiag"]));
   for (const key of crosscuttingKeys) {
     assert.deepEqual(GROUP_MODULES[key], [key], `GROUP_MODULES.${key} should be a single self-named module`);
-    assert.equal(PLACEHOLDER_MODULES.has(key), key !== "copilot");
+    assert.equal(PLACEHOLDER_MODULES.has(key), true);
   }
 });
 
