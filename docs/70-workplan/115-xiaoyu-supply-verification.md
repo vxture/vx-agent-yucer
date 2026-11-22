@@ -1,7 +1,8 @@
 # XY-00B - 平台供给核验记录
 
 追踪：[#734](https://github.com/vxture/vx-agent-yucer/issues/734)，总表：[114](114-xiaoyu-execution-batches.md)。
-状态：🟡 实施中；没有把配置、目录或夹具测试计为真实业务执行成功。
+状态：✅ 供给核验结项；真实供给结果为 partial，Atlas 上游账户与 Runos 专用依赖缺口继续跟踪。
+本批交付目录、回执、任务映射及缺口边界；小聿运行时、私人记忆与业务提交仍由后续批次实施。
 
 ## 一、验收清单
 
@@ -13,9 +14,9 @@
 - [x] Atlas 获授 10 条 active 路由、状态、容量、接口与预算清单；多模态未实测。
 - [x] Runos 四类目录计数、分页完整性、受控版本、相关依赖与首 20 项以外发现证据。
 - [x] 真实公开资料搜索、网页读取和 Skill 分发回执。
-- [ ] 业务相关 Skill 依赖适配与 Atlas 成功调用／安全失败回执补齐；本次对话 400、向量／重排 503。
-- [ ] 任务映射、可用／已授权待验证／契约缺失／平台异常矩阵及必要上游 Issue。
-- [ ] 核验报告回填、PR／CI 记录、批次验收；未实测部分保持未完成。
+- [x] 业务相关 Skill 前置依赖核验及 Atlas 成功／安全失败回执；专用依赖缺失另立 Runos #142。
+- [x] 任务映射、已可用／已授权待验证／契约缺失／平台异常矩阵；Atlas #147、Runos #142 跟踪缺口。
+- [x] 核验报告、PR／CI 和 CAP-01/02 证据归档；未实测及失效能力分别保留限制。
 
 ## 二、已取得的证据与环境边界
 
@@ -164,6 +165,54 @@ Skill 分发与 Exa 调用分别记证据；当前所加载 Skill 没有声明 E
 
 当前 34 项诊断回归通过（Python 16、Node 18）；真实补充核验待本轮修正合并与运行。
 
+### 第四次真实核验与本批结项
+
+运行 [44991868609](https://github.com/vxture/vx-agent-yucer/actions/runs/44991868609)，
+精确 main `7e517963eda86ba88554ce65de3f9d3e9335301f`。Owner 已在 GitHub 批准，
+2026-11-21 22:08 America/Los_Angeles（2026-11-22 06:08 UTC）执行，探针耗时 10,165 ms。
+主分支六项必需检查已通过；PR #748 的 CodeQL、Sonar 外部质量门通过，新代码覆盖率 98.7%，
+无未解决新问题；本地 34 项诊断测试通过。未发布应用、未重启或写入业务数据。
+
+taskId：`xy00b:159503a2-fa70-4971-96f2-162d7be87535`。
+报告 SHA-256：`97dea4278e6539bbdc01f821c619eae144a79f9ee5bdc8eb68c4768129164cef`。
+Artifact 仍保留 14 天，本节保留持续安全摘要；目录数量、版本分布及 manifest 哈希与第三次相同。
+
+| 调用 | 版本／路由 | 实际回执 | 结果 |
+|---|---|---|---|
+| 企业补全 Skill fetch | sandbaseai.research-company-enrichment@1.0.1 | 01a201de-fdc7-7f5f-8ce2-f049174fa2af | distributed；1,774 字符，14 ms；内容未执行 |
+| 公开搜索 | exa.web-research@1.0.0 / web_search_exa | 01a201de-fdd5-746d-b02f-41c98f8ecb3c | executed；3,358 字符，3,436 ms |
+| 网页读取 | exa.web-research@1.0.0 / web_fetch_exa | 01a201df-0b45-7da8-aefd-e5a188cc8cf7 | executed；1,638 字符，1,737 ms；官方来源与正文哈希同第三次 |
+| 公开资料摘要 | chat/default | 5d93251b-3089-4378-9712-154a815951e6 | 成功；196 字符，1,268 ms；735 input＋34 output＝769 tokens |
+| 向量样本 | embedding/default | f37766d4-c54a-46ef-b15a-ad98bf1b5a41 | HTTP 503 / UPSTREAM_ACCOUNT_REFUSED；retryable=false；231 ms |
+| 重排样本 | rerank/default | 4c472273-4c91-4795-9449-ceb88ed1585d | HTTP 503 / UPSTREAM_ACCOUNT_REFUSED；retryable=false；149 ms |
+
+对话实际模型 `deepseek-v4-flash` 仅作审计，产品仍只选 endpoint；不据此固定模型或重授模型权限。
+摘要输出 SHA-256：`6851978676ed60d5b7d6502aea2adfdec5eee684c46be65ad598eb33b2753f2b`。
+上游账户拒绝的具体凭据／余额／策略原因需要 Atlas 账本确认，不从错误码推断具体一种。
+[Atlas #147](https://github.com/vxture-foundation/vxture-atlas/issues/147) 已补回失败请求编号和标准码；
+不循环重试 retryable=false 的请求，不把路由 active 当作实时可用。
+
+企业补全 Skill 正文 SHA-256：`b2dac2bc3bf9f0cf8e1a407c466088f9b991182a9277ce29c3959443de9fd790`。
+实际分发文本触发 `references_sandbase_tools=true`，但 dependencies 为空，当前完整目录没有
+对应 SandBase Connector。已立 [Runos #142](https://github.com/vxture-foundation/vxture-runos/issues/142)，
+明确输入输出、只读风险、依赖、空间隔离、凭据类别和真实回执验收。
+Exa 公开资料研究可用；工商、融资、受益人或技术栈等专有数据补全未获证明。
+
+本批验收与残留：
+
+- CAP-01：44 页／877 项完整解析，第 21 项以外发现真实能力；不是只取前 20 条。
+- CAP-02：Skill 仅标 distributed，搜索／读取才标 executed；业务保存从未调用，明确 business_saved=false。
+- 当前可用：chat/default 公开摘要、Exa 搜索和网页读取、已验证 Skill 的分发。
+- 已授权但当前失败：embedding/default、rerank/default，独立上游 Issue 跟踪；quality 路由保持未测。
+- 已发现依赖缺口：企业补全 Skill 的 SandBase 工具链，Runos #142；不绕过平台直连或持有第三方密钥。
+- 未测：其他 chat 路由任务质量、模型工具调用、多模态、MarkItDown、其他 Skill 任务执行。
+- 后续实施：01A 会话／任务与系统契约；02A 若供给未恢复采用同空间／本人／来源／撤权保护的
+  关键词和结构化检索；04A 按任务适配已验证 Skill／工具；04B 才接业务保存／发布。
+- 工作流因已知失败仍为 failure / partial；供给核验结项保留这个事实，不修改探针判定或质量门。
+
+本批不再为已查明的非重试性供给问题重复请求 production 运行。
+平台修复完成后按对应 Issue 验收复验；私人记忆、业务隔离及表单提交仍需后续专项实测。
+
 ## 三、证据口径
 
 目录与调用分开；Skill 加载与执行分开；服务身份供给核验与交互式用户 OBO／业务写入验收分开。
@@ -177,10 +226,10 @@ Skill 分发与 Exa 调用分别记证据；当前所加载 Skill 没有声明 E
 
 | 任务 | 当前供给／状态 | 消费批次与限制 |
 |---|---|---|
-| 普通对话、研究摘要 | chat/default 已获授；本次探针 400，消费归属修正后待成功回执 | 01B／04A；不能宣称本批对话实调通过 |
+| 普通对话、研究摘要 | chat/default 真实公开摘要成功，769 tokens／1,268 ms | 01B／04A；工具调用与复杂任务质量仍需专项验证 |
 | 复杂规划、结构化草稿、评分解释 | reasoning／extract／deterministic 已获授，尚未做任务样本 | 04A／05；金额、差额、进度继续由业务规则计算 |
-| 记忆向量与重排 | 两类各 2 条已获授；default 各 503，quality 未测 | 02A；采用明确的关键词／结构化降级，保留隔离和撤权校验 |
+| 记忆向量与重排 | 两类各 2 条已获授；default 均 UPSTREAM_ACCOUNT_REFUSED，quality 未测 | Atlas #147；02A 采用明确的关键词／结构化降级，保留隔离和撤权校验 |
 | 公开检索、网页读取 | exa.web-research@1.0.0 两个 read 操作实调成功 | 04A；接入来源与表单草稿，联网不等于业务已保存 |
-| 企业补全、市场研究、销售支持 Skill | 相关目录可发现／版本已解析；877 个 Skill 的依赖声明均为空 | 04A；业务样本分发及工具适配待核验，不信任 Skill 提供新权限 |
+| 企业补全、市场研究、销售支持 Skill | 目录已解析；企业补全分发成功，所需 SandBase 工具缺少可调用依赖 | Runos #142、04A；普通 Exa 研究可用，专有补全保持缺口，不扩大 Skill 权限 |
 | 文档转 Markdown | markitdown.document-to-markdown@1.0.0 已解析 convert_to_markdown/read | 尚未实调；不等于已具备任意文档、OCR 或私有文件访问权限 |
 | UUID 关联、保存、发布 | 本次不调用业务写入，执行器目录为空 | 04A 字段契约草稿、04B 原域服务／#652 授权，05 贯穿 |

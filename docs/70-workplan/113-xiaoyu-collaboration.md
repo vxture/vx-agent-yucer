@@ -1,6 +1,6 @@
 # XY - 小聿统一协作建设批次
 
-状态：XY-00 规格与设计已由 PR #733 合并；执行计划已拆分，运行时、数据库和发布尚未开始。
+状态：XY-00 规格与设计已合并；XY-00B 供给核验已完成并记录上游缺口；运行时、数据库和发布尚未开始。
 总追踪：[Issue #732](https://github.com/vxture/vx-agent-yucer/issues/732)。
 权威：[产品规格](../20-specs/37-xiaoyu-collaboration.md)。
 设计：[统一协作设计](../30-design/design_yucer_240_xiaoyu-collaboration.md)。
@@ -62,6 +62,8 @@
 换页面、换侧栏形态、刷新和跨日续聊后仍保留目标、人工修改与真实进度。
 全程不跨工作空间、不读取他人私聊、不以历史建议覆盖当前生效规划；按三种授权模式提交并可核对结果。
 
-Atlas 12 路由、Runos 约 800 Skill 是 owner 提供的背景。本次源码核对确认已有路由目录、
-四类调用档位、Runos 动态发现与分页加载机制，未进行生产授权全量清点或逐项实调；
-不能记为全部路由和 Skill 均已验收。XY-04 需按实际能力目录及任务补齐映射和调用证据。
+Atlas 12 路由、Runos 约 800 Skill 是 owner 提供的背景。XY-00B 已按聿策实际身份核对
+10 条 active 路由、877 个 Skill 与 2 个 Connector；chat/default、Exa 搜索与网页读取实调成功。
+向量／重排为上游账户拒绝，企业补全 Skill 所需 SandBase 工具链缺少可调用依赖，分别跟踪
+Atlas #147、Runos #142。目录、版本、回执、任务映射和验收边界见 [115](115-xiaoyu-supply-verification.md)。
+其他路由质量、私人记忆隔离和业务提交由后续批次验收。
