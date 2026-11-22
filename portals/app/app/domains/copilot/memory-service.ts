@@ -1,3 +1,4 @@
+import { checkKnowledgeDependencies, checkTaskKnowledge, KnowledgeRefusal } from "./knowledge-service";
 import { createHash } from "node:crypto";
 import { can } from "../../authz/decide";
 import { recordAuditEvent } from "../../audit/lib/record";
@@ -54,7 +55,7 @@ async function guarded<T>(
   try {
     return ok(await fn());
   } catch (e) {
-    if (!(e instanceof MemoryRefusal)) {
+    if (!(e instanceof MemoryRefusal) && !(e instanceof KnowledgeRefusal)) {
       await recordAuditEvent({
         workspaceId: ctx.workspaceId,
         actorId: ctx.sub,
@@ -110,9 +111,16 @@ export async function memoryUsable(
     (!allowStopped && r.state !== "active") ||
     seen.has(r.id) ||
     seen.size >= 32
-  )
+  ) {
     return false;
+  }
   if (!(await validSources(ctx, r.sources))) return false;
+  try {
+    await checkKnowledgeDependencies(ctx, r.knowledgeSources ?? []);
+  } catch (e) {
+    if (e instanceof KnowledgeRefusal) return false;
+    throw e;
+  }
   const next = new Set(seen).add(r.id);
   for (const d of r.parents) {
     const parent = await ctx.memory.get(scope(ctx), d.id);
@@ -148,6 +156,7 @@ async function legalTask(ctx: TaskContext, id: string, content = false) {
   const meta = await ctx.store.load(scope(ctx), id);
   demand(meta, "not_found");
   demand(await validSources(ctx, meta.references), "source_changed");
+  await checkTaskKnowledge(ctx, id);
   await checkTaskMemory(ctx, id);
   if (!content) return meta;
   const all = await ctx.store.load(scope(ctx), id, true);
@@ -262,6 +271,7 @@ export async function createPrivateMemory(ctx: TaskContext, input: unknown) {
       messageIds: [],
       sources,
       parents,
+      knowledgeSources: task && now.knowledge ? await now.knowledge.dependencies(scope(now), task.task.id) : [],
     };
     const r = await now.memory.create(data);
     demand(
@@ -428,7 +438,7 @@ export async function searchPrivateHistory(ctx: TaskContext, query: unknown) {
             createdAt: m.createdAt,
           });
       } catch (e) {
-        if (!(e instanceof MemoryRefusal)) throw e;
+        if (!(e instanceof MemoryRefusal) && !(e instanceof KnowledgeRefusal)) throw e;
       }
       if (hits.length >= 20) break;
     }
@@ -439,7 +449,7 @@ export async function searchPrivateHistory(ctx: TaskContext, query: unknown) {
         await legalTask(now, h.taskId);
         allowed.push(h);
       } catch (e) {
-        if (!(e instanceof MemoryRefusal)) throw e;
+        if (!(e instanceof MemoryRefusal) && !(e instanceof KnowledgeRefusal)) throw e;
       }
     }
     return {
@@ -556,6 +566,7 @@ export async function captureTaskMemories(
           version,
         })),
         parents,
+        knowledgeSources: now.knowledge ? await now.knowledge.dependencies(scope(now), taskId) : [],
       });
       saved.push(r);
       await recordAuditEvent({

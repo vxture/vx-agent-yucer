@@ -11,6 +11,7 @@ XY-01A 私有任务底座与 XY-01B 统一工作区已实现，本地联合贯�
 每批汇报验收证据与残留。[116 任务底座](116-xiaoyu-task-foundation.md) 记录 01A 的实现、验证与待验收项。
 [117 协作工作区](117-xiaoyu-workspace-preview.md) 记录统一入口、侧栏、恢复及本地预览证据。
 [118 私人记忆](118-xiaoyu-private-memory.md) 记录 XY-02A 的长期记忆、管理、来源撤权和验证。
+[119 团队知识](119-xiaoyu-business-knowledge.md) 记录 XY-02B 的独立审阅、共享范围及来源撤回。
 受控业务字段查询、表单回填和原服务提交仍按 04A／04B 实施。
 
 ## 发布镜像身份校验

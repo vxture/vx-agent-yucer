@@ -18,6 +18,7 @@ const row = (r: AgentPrivateMemory): PrivateMemory => ({
   origin: r.origin as PrivateMemory["origin"],
   sources: r.sources as unknown as PrivateMemory["sources"],
   parents: r.parents as unknown as MemoryDependency[],
+  knowledgeSources: r.knowledgeSources as unknown as MemoryDependency[],
 });
 const json = (v: unknown) => v as Prisma.InputJsonValue;
 async function snapshot(tx: Prisma.TransactionClient, r: AgentPrivateMemory) {
@@ -90,6 +91,7 @@ export class PrismaMemoryStore implements MemoryStore {
           ...input,
           sources: json(input.sources),
           parents: json(input.parents),
+          knowledgeSources: json(input.knowledgeSources ?? []),
         },
       });
       await snapshot(tx, r);

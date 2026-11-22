@@ -22,7 +22,7 @@
 const LOCK_NAMESPACE = 0x595543;
 
 /** What is being allocated. Distinct keys never block each other. */
-export type AllocationScope = "opportunity_no" | "lead_no" | "agent_message_seq" | "account_no" | "agent_session_turn" | "account_hierarchy" | "agent_task_create" | "private_memory" | "task_memory";
+export type AllocationScope = "opportunity_no" | "lead_no" | "agent_message_seq" | "account_no" | "agent_session_turn" | "account_hierarchy" | "agent_task_create" | "private_memory" | "task_memory" | "business_knowledge" | "task_knowledge";
 
 /**
  * The two 32-bit halves of the advisory lock key.
@@ -44,6 +44,8 @@ export function lockKey(scope: AllocationScope): number {
     agent_task_create: 7,
     private_memory: 8,
     task_memory: 9,
+    business_knowledge: 10,
+    task_knowledge: 11,
   };
   return LOCK_NAMESPACE + offset[scope];
 }

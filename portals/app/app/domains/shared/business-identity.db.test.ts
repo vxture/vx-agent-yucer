@@ -64,6 +64,8 @@ test(
         "agent_task_memory_task:actor_sub:actor_sub",
         "agent_task_memory_source:actor_sub:actor_sub",
         "agent_task_memory_source:memory_revision:revision",
+        "agent_task_knowledge_task:actor_sub:actor_sub",
+        "agent_task_knowledge_source:knowledge_revision:revision",
       ]);
       assert.deepEqual(
         rows.filter(

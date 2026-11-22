@@ -1615,6 +1615,7 @@ model AgentPrivateMemory {
   messageIds String[] @default([]) @map("message_ids") @db.Uuid
   sources Json @default("[]")
   parents Json @default("[]")
+  knowledgeSources Json @default("[]") @map("knowledge_sources")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
   @@unique([workspaceId,actorSub,requestId], map: "agent_private_memory_request")
@@ -1646,6 +1647,56 @@ model AgentTaskMemory {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   @@unique([taskId,memoryId], map: "agent_task_memory_once")
   @@map("agent_task_memory")
+  @@schema("yucer_agent")
+}
+
+model AgentBusinessKnowledge {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  requestId String @map("request_id") @db.Uuid
+  revision Int @default(1)
+  title String @db.VarChar(100)
+  text String @db.VarChar(4000)
+  kind String @db.VarChar(16)
+  state String @default("active") @db.VarChar(16)
+  audience String @db.VarChar(16)
+  memberSubs String[] @default([]) @map("member_subs") @db.VarChar(128)
+  sources Json
+  reviewedDigest String @map("reviewed_digest") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  @@unique([workspaceId,actorSub,requestId], map: "agent_business_knowledge_request")
+  @@unique([id,workspaceId], map: "agent_business_knowledge_scope")
+  @@map("agent_business_knowledge")
+  @@schema("yucer_agent")
+}
+model AgentBusinessKnowledgeRevision {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  knowledgeId String @map("knowledge_id") @db.Uuid
+  revision Int
+  title String @db.VarChar(100)
+  text String @db.VarChar(4000)
+  kind String @db.VarChar(16)
+  state String @db.VarChar(16)
+  audience String @db.VarChar(16)
+  memberSubs String[] @map("member_subs") @db.VarChar(128)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([knowledgeId,workspaceId,revision], map: "agent_business_knowledge_revision_key")
+  @@map("agent_business_knowledge_revision")
+  @@schema("yucer_agent")
+}
+model AgentTaskKnowledge {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  knowledgeId String @map("knowledge_id") @db.Uuid
+  knowledgeRevision Int @map("knowledge_revision")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([taskId,knowledgeId], map: "agent_task_knowledge_once")
+  @@map("agent_task_knowledge")
   @@schema("yucer_agent")
 }
 
