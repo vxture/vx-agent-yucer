@@ -121,7 +121,9 @@ export function taskCreationFingerprint(
   goal: string,
   refs: readonly TaskSource[],
 ): string {
-  const targets = [...new Set(refs.map((r) => `${r.kind}:${r.id}`))].sort();
+  const targets = [...new Set(refs.map((r) => `${r.kind}:${r.id}`))].sort(
+    (left, right) => left.localeCompare(right, "en"),
+  );
   return createHash("sha256")
     .update(JSON.stringify({ goal, targets }))
     .digest("hex");
