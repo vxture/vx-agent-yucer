@@ -45,7 +45,8 @@ function provisionPage(raw) {
   if (!object(raw) || !Array.isArray(raw.items) || raw.items.length > 200 ||
       !(raw.nextCursor === null || (typeof raw.nextCursor === "string" && raw.nextCursor.length > 0))) fail("platform_provisioning_page_invalid");
   for (const row of raw.items) {
-    if (!object(row) || !UUID.test(row.tenant_id) || !UUID.test(row.workspace_id) ||
+    if (!object(row) || typeof row.tenant_id !== "string" || !UUID.test(row.tenant_id) ||
+        typeof row.workspace_id !== "string" || !UUID.test(row.workspace_id) ||
         !["pending", "provisioned", "deprovisioned"].includes(row.state) ||
         !Number.isSafeInteger(row.seq) || row.seq < 0 ||
         typeof row.updated_at !== "string" || !Number.isFinite(Date.parse(row.updated_at))) fail("platform_provisioning_item_invalid");

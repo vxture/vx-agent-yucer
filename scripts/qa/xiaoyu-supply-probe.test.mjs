@@ -196,6 +196,7 @@ test("malformed, revoked, duplicate and incomplete provisioning cannot trigger p
     { items: [provision({ state: "deprovisioned" })], nextCursor: null },
     { items: [provision({ state: "pending" })], nextCursor: null },
     { items: [provision({ tenant_id: null })], nextCursor: null },
+    { items: [provision({ tenant_id: [context.tenantId] })], nextCursor: null },
     { items: [provision({ tenant_id: "none" })], nextCursor: null },
     { items: [provision({ workspace_id: "'; SELECT secret; --" })], nextCursor: null },
     { items: [provision({ seq: -1 })], nextCursor: null },
