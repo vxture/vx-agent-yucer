@@ -56,6 +56,8 @@ export interface TurnInput {
   maxToolRounds?: number;
   /** Form extraction receives only the supplied text and has no tool surface. */
   draftOnly?: boolean;
+  /** Server-owned task mode: unexpected tool calls fail closed. */
+  rejectUnexpectedTools?: boolean;
   /** Allow Runos read operations while retaining the draft's no-write boundary. */
   readOnlyTools?: boolean;
   /** Form-owned validation; one correction stays in this metered Atlas turn. */
@@ -194,6 +196,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     if (reply.content) answer = reply.content;
 
     const calls = reply.toolCalls ?? [];
+    if (input.rejectUnexpectedTools && calls.length) throw new Error("tool_boundary_denied");
     if (calls.length === 0 || noTools || correctingAnswer) {
       const review = input.reviewAnswer?.(answer, readEvidence);
       if (review?.feedback && !correctingAnswer) {

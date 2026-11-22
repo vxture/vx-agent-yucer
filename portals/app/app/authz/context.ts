@@ -79,6 +79,7 @@ export async function resolveAuthzContext(
   user: AuthUser,
   store: AuthzStore = getAuthzStore(),
   entitlement?: Entitlement,
+  options: { fresh?: boolean } = {},
 ): Promise<AuthzContext | null> {
   const workspaceId = user.activeWorkspace;
   if (!workspaceId) return null;
@@ -88,7 +89,7 @@ export async function resolveAuthzContext(
   const generation = invalidationGeneration;
   const now = Date.now();
   const hit = cache.get(k);
-  if (hit && hit.expiresAt > now && hit.defaultEligible === defaultEligible
+  if (!options.fresh && hit && hit.expiresAt > now && hit.defaultEligible === defaultEligible
     && hit.value.isWorkspaceOwner === user.isWorkspaceOwner) return hit.value;
 
   // THE ROSTER'S NAMES COME FROM HERE (2026-09-29). Every "who" outside the

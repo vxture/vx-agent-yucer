@@ -1480,10 +1480,12 @@ model AgentSession {
   subjectType String?  @map("subject_type") @db.VarChar(32)
   subjectId   String?  @map("subject_id") @db.Uuid
   title       String?  @db.VarChar(255)
+  kind        String   @default("legacy") @db.VarChar(16)
   status      String   @default("open") @db.VarChar(32)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  @@unique([id, workspaceId, actorSub, kind], map: "agent_session_owner_key")
   @@map("agent_session")
   @@schema("yucer_agent")
 }
@@ -1499,7 +1501,103 @@ model AgentMessage {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   @@unique([sessionId, seq], map: "uidx_agent_message_session_seq")
+  @@unique([id, workspaceId, sessionId], map: "agent_message_scope_key")
   @@map("agent_message")
+  @@schema("yucer_agent")
+}
+
+model AgentTask {
+  requestHash String @map("request_hash") @db.VarChar(64)
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  requestId String @map("request_id") @db.Uuid
+  sessionId String @unique @map("session_id") @db.Uuid
+  sessionKind String @default("task") @map("session_kind") @db.VarChar(16)
+  goal String @db.VarChar(1000)
+  status String @default("active") @db.VarChar(16)
+  ruleVersion String @map("rule_version") @db.VarChar(64)
+  revision Int @default(1)
+  page Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  @@unique([workspaceId,actorSub,requestId], map: "agent_task_request_key")
+  @@unique([id,workspaceId,actorSub], map: "agent_task_owner_key")
+  @@unique([id,workspaceId,actorSub,sessionId], map: "agent_task_session_key")
+  @@map("agent_task")
+  @@schema("yucer_agent")
+}
+model AgentTaskReference {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  objectKind String @map("object_kind") @db.VarChar(32)
+  objectId String @map("object_id") @db.Uuid
+  sourceVersion String @map("source_version") @db.VarChar(128)
+  role String @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([taskId,objectKind,objectId,role], map: "agent_task_reference_unique")
+  @@map("agent_task_reference")
+  @@schema("yucer_agent")
+}
+model AgentTaskSession {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  sessionId String @map("session_id") @db.Uuid
+  sessionKind String @default("legacy") @map("session_kind") @db.VarChar(16)
+  historyPolicy String @default("excluded") @map("history_policy") @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([taskId,sessionId], map: "agent_task_legacy_unique")
+  @@map("agent_task_session")
+  @@schema("yucer_agent")
+}
+model AgentTaskDraft {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  draftKey String @map("draft_key") @db.VarChar(64)
+  contractVersion String @map("contract_version") @db.VarChar(64)
+  revision Int
+  content Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([taskId,draftKey,revision], map: "agent_task_draft_revision")
+  @@map("agent_task_draft")
+  @@schema("yucer_agent")
+}
+model AgentTaskCheckpoint {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  ruleVersion String @map("rule_version") @db.VarChar(64)
+  taskRevision Int @map("task_revision")
+  lastSeq BigInt @map("last_seq")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([taskId,taskRevision], map: "agent_task_checkpoint_revision")
+  @@map("agent_task_checkpoint")
+  @@schema("yucer_agent")
+}
+model AgentTaskTurn {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  sessionId String @map("session_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  questionHash String @map("question_hash") @db.VarChar(64)
+  ruleVersion String @map("rule_version") @db.VarChar(64)
+  status String @default("running") @db.VarChar(16)
+  userMessageId String @map("user_message_id") @db.Uuid
+  assistantMessageId String? @map("assistant_message_id") @db.Uuid
+  errorCode String? @map("error_key") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz()
+  @@unique([taskId,requestId], map: "agent_task_turn_request")
+  @@map("agent_task_turn")
   @@schema("yucer_agent")
 }
 

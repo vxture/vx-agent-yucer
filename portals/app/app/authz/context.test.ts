@@ -366,3 +366,15 @@ test("an in-flight role lookup cannot restore stale permissions after invalidati
   await stale;
   assert.ok((await resolveAuthzContext(user(), store))?.roles.includes("sales_rep"));
 });
+
+// Another replica can revoke a role without invalidating this process's cache.
+test("fresh authorization bypasses a still-live cache before private task delivery", async () => {
+  const store=fresh();
+  await store.grantRole(WS,"usr_1","sales_rep");
+  const before=await resolveAuthzContext(user(),store);
+  assert.ok(before!.permissions.has("copilot.use"));
+  await store.revokeRole(WS,"usr_1","sales_rep");
+  assert.ok((await resolveAuthzContext(user(),store))!.permissions.has("copilot.use"));
+  const after=await resolveAuthzContext(user(),store,undefined,{fresh:true});
+  assert.equal(after!.permissions.has("copilot.use"),false);
+});

@@ -168,3 +168,13 @@ permission denied。这是有意的失败模式：让遗漏在开发期暴露，
 `product.novelty` 与 `solution.novelty` 为可空目录属性，只接受 existing/new，
 未配置为 NULL。关联均以 UUID 识别，属性不改变关联标识。服务角色拥有列级 UPDATE；
 战略编辑与助手只能读取目录值，不能通过战略关联回写目录。发布快照冻结已关联产品方案的属性。
+
+
+## 小聿私有任务底座（incr/0133）
+
+D8 新增 agent_task、agent_task_reference、agent_task_session、agent_task_draft、
+agent_task_checkpoint、agent_task_turn 六表；agent_session 增加不可变 kind 区分旧会话与任务会话。
+对象身份使用 UUID，复合外键额外校验 workspace、OIDC actor_sub 和会话种类，防止私有内容混连。
+目标、请求指纹、归属不可变；来源依赖、私有笔记快照与检查点只追加；模型回执只可从运行中进入不可改写终态。
+DDL、Prisma、列锁及服务角色授权同步，升级／新库／重复应用均须验证。
+数据字典、事务与读取边界见 [240 第七节](design_yucer_240_xiaoyu-collaboration.md)。
