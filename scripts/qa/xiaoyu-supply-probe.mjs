@@ -95,7 +95,7 @@ export async function runProbe(context, env, request = fetch) {
   const taskId = `xy00b:${randomUUID()}`;
   const report = { task_id: taskId, at: new Date().toISOString(),
     context: { tenant_id: context.tenantId, workspace_id: context.workspaceId,
-      mode: "service", source: "recent_success_and_current_provisioning", business_writes: false },
+      mode: "service", source: context.source ?? "current_provisioning", business_writes: false },
     atlas: {}, runos: {}, calls: [], limitations: ["service_identity_not_user_obo", "not_business_form_acceptance"] };
   const clientId = present(env.S2S_CLIENT_ID) || present(env.OIDC_CLIENT_ID) || "yucer";
   const clientSecret = present(env.S2S_CLIENT_SECRET) || present(env.OIDC_CLIENT_SECRET);
