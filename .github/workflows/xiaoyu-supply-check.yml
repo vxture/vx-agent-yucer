@@ -1,0 +1,100 @@
+name: xiaoyu-supply-check
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Exact main commit: catalog and fixed metered public probes; no business writes"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Require pinned main
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          ACTUAL_SHA: ${{ github.sha }}
+          ACTUAL_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_REF" = refs/heads/main
+          test "$EXPECTED_SHA" = "$ACTUAL_SHA"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Verify fixed probes
+        run: |
+          python3 -m unittest discover -s scripts/qa -p 'test_xiaoyu_supply*.py'
+          node --test scripts/qa/xiaoyu-supply-probe.test.mjs
+
+      - name: Join tailnet and prepare SSH
+        uses: ./.github/actions/tailnet-ssh-connect
+        with:
+          tailscale-oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          tailscale-oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
+          tailscale-tag: ${{ vars.TAILSCALE_OAUTH_CLIENT_TAG }}
+          deploy-host: ${{ secrets.DEPLOY_HOST }}
+          deploy-port: ${{ secrets.DEPLOY_PORT }}
+          deploy-ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          deploy-ssh-passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          deploy-known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+
+      - name: Verify consumer catalog and public calls on worker02
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          python3 - <<'PY' > "$RUNNER_TEMP/xiaoyu-supply-host.py"
+          import json
+          from pathlib import Path
+          module = Path('scripts/qa/xiaoyu-supply-probe.mjs').read_text()
+          print('SUPPLY_SCRIPT=' + json.dumps(module))
+          print(Path('scripts/qa/xiaoyu-supply-host.py').read_text())
+          PY
+          result=0
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 -o ServerAliveInterval=30 \
+            "$DEPLOY_USER@$DEPLOY_HOST" python3 - \
+            < "$RUNNER_TEMP/xiaoyu-supply-host.py" > "$RUNNER_TEMP/xiaoyu-supply-report.json" || result=$?
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'xiaoyu-supply-report.json').read_text())
+          data = report.get('data', {})
+          print(json.dumps({'status': report.get('status'), 'task_id': data.get('task_id'),
+            'atlas': {k: v.get('status') for k, v in data.get('atlas', {}).items()},
+            'runos': {k: {'status': v.get('status'), 'total': v.get('data', {}).get('total'),
+              'resolved': v.get('data', {}).get('resolved')} for k, v in data.get('runos', {}).items()}}))
+          PY
+          exit "$result"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: xiaoyu-supply-report
+          path: ${{ runner.temp }}/xiaoyu-supply-report.json
+          if-no-files-found: ignore
+          retention-days: 14
