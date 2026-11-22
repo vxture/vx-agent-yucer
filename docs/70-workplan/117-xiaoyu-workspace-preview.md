@@ -52,8 +52,9 @@
   PR 及 CI 结果继续在 Issue 更新中记录。
 
 重复检查脚本：`scripts/qa/xiaoyu-workspace-preview.mjs`。需本地 Chrome CDP 9334，
-运行 `node scripts/qa/xiaoyu-workspace-preview.mjs http://localhost:16414`。
-脚本强制仅连接 localhost 的 dev＋mock、无数据库且未配置 Atlas 的预览，避免误写业务或产生平台调用。
+运行 `node scripts/qa/xiaoyu-workspace-preview.mjs`；目标地址固定为 localhost:16414。
+脚本强制仅连接固定 localhost 的 dev＋mock、无数据库且未配置 Atlas 的预览；CDP 固定回环地址与端口并校验 target 路径，证据写入唯一私有临时目录，避免误写业务、产生平台调用或跟随预置临时文件。
+此 Chrome 驱动与既有外部浏览器检查脚本使用相同覆盖率边界，保留完整静态分析，以实际浏览器运行验证；客户端任务控制器仍有独立 node:test 用例，不借此排除产品逻辑。
 它只创建私有测试任务及笔记，不保存细分市场或其他业务记录。
 
 预览启动：在本工作树运行

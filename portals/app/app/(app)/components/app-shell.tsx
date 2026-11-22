@@ -214,7 +214,7 @@ export function AppShell({
   const [assistantFullscreen, setAssistantFullscreen] = useState(false);
   // Global surfaces enter the complete workspace. Business pages open the
   // same task beside the current object.
-  const workbench = nav.find(entry => entry.key === "copilot" && entry.state === "visible");
+  const workbench = nav.some(entry => entry.key === "copilot" && entry.state === "visible");
   const globalAssistantEntry = ["home", "admin", "copilot", "upgrade"].includes(activeKey);
   const assistantAvailable = !!workbench && !globalAssistantEntry;
   useEffect(() => {

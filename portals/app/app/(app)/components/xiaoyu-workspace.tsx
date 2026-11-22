@@ -73,17 +73,17 @@ export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: bo
             {targets.length ? <p className="text-body-small text-muted-foreground">{T.targets}: {targets.length}</p> : null}
           </div>
           {s.error ? <Banner tone="warning" title={errorText(s.error, T)} /> : null}
-          {s.notesDirty ? <p role="status" className="text-body-small text-warning-text">{T.notesUnsaved}</p> : null}
+          {s.notesDirty ? <output className="block text-body-small text-warning-text">{T.notesUnsaved}</output> : null}
           {bundle?.ruleChanged ? <Banner tone="warning" title={T.ruleChanged} /> : null}
           <AssistantTranscript revision={bundle?.messages.length ?? 0} busy={busy}>
-            {loading ? <p role="status" className="text-body text-muted-foreground">{T.loading}</p> : null}
+            {loading ? <output className="block text-body text-muted-foreground">{T.loading}</output> : null}
             {!loading && !bundle?.messages.length ? <div className="my-auto flex flex-col items-start gap-md py-xl">
               <Icon name="sparkles" size="lg" className="text-primary" /><h2 className="text-heading-3">{T.welcome}</h2><p className="max-w-prose text-body leading-relaxed text-muted-foreground">{T.welcomeDescription}</p>
               <Button variant="secondary" size="md" onClick={() => client.setInput(T.example)}>{T.strategyHome}</Button>
               <p className="text-body-small text-muted-foreground">{T.startHint}</p>
             </div> : null}
             {bundle?.messages.map(message => <AssistantMessage key={message.id} role={message.role}><p className="whitespace-pre-wrap break-words">{message.content}</p></AssistantMessage>)}
-            {busy ? <p role="status" className="text-body-small text-muted-foreground">{T.sending}</p> : null}
+            {busy ? <output className="block text-body-small text-muted-foreground">{T.sending}</output> : null}
             {(s.pending || s.creation) && !busy ? <Banner tone="warning" title={bundle?.turns.some(t => t.requestId === s.pending?.requestId && t.status !== "running") ? T.failed : T.unknown} /> : null}
           </AssistantTranscript>
           {running && !busy ? <div className="flex flex-wrap items-center gap-sm"><p className="text-body-small text-muted-foreground">{T.interrupted}</p><DestructiveButton size="md" confirm={{verb:T.markInterrupted,target:task?.goal ?? T.conversationFailed,consequence:T.interruptDescription,cancelLabel:T.back,onConfirm:() => client.change({action:"interrupt",requestId:running.requestId})}}>{T.markInterrupted}</DestructiveButton></div> : null}

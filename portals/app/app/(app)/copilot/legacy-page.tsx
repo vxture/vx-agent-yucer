@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { citationsForAnswer } from "../../domains/copilot/lib/citations";
 import { listInteractions } from "../../domains/account/field-service";
-import { Button, Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { listLeads } from "../../domains/signal/service";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import {
-  getAccountStore,
   getCopilotStore,
   getFieldStore,
 } from "../../domains/shared/registry";
@@ -45,7 +44,7 @@ export const dynamic = "force-dynamic";
 export default async function CopilotPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; ask?: string; opportunity?: string; mode?: string; thread?: string; view?: string }>;
+  readonly searchParams: Promise<{ account?: string; ask?: string; opportunity?: string; mode?: string; thread?: string; view?: string }>;
 }) {
   const { COPILOT_TEXT, PROPOSAL_TEXT, SHELL_TEXT, LOAD_ERROR, XIAOYU_TEXT: X } = await getMessages();
   const { account: accountId, ask, opportunity: opportunityId, mode, thread, view } = await searchParams;

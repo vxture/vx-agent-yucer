@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
-import {writeFile} from 'node:fs/promises';
+import {writeFile, mkdtemp} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 // Only run against the explicitly enabled local, in-memory review server.
-const base=process.argv[2] ?? 'http://localhost:16414';
-const url=new URL(base);
-if (!['localhost','127.0.0.1'].includes(url.hostname) || url.protocol!=='http:') throw new Error('Local preview only');
+const base='http://localhost:16414';
+const output=await mkdtemp(join(tmpdir(),'yucer-xiaoyu-preview-'));
+console.log('Preview evidence directory:',output);
 const status=await(await fetch(base+'/api/status')).json();
 assert.equal(status.c2.deployStage,'dev'); assert.equal(status.c2.resolver,'mock');
 assert.equal(status.data.database.configured,false); assert.equal(status.planes.atlas.configured,false);
 const info=await(await fetch('http://localhost:9334/json/version')).json();
 class CDP{
- constructor(url){this.ws=new WebSocket(url);this.next=0;this.pending=new Map();this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=this.pending.get(m.id);this.pending.delete(m.id);m.error?p.reject(new Error(m.error.message)):p.resolve(m.result)}})}
- async send(method,params={}){if(this.ws.readyState!==1)await new Promise(r=>this.ws.addEventListener('open',r,{once:true}));const id=++this.next;const p=new Promise((resolve,reject)=>this.pending.set(id,{resolve,reject}));this.ws.send(JSON.stringify({id,method,params}));return p}
+ constructor(url){const path=new URL(url).pathname;if(!/^\/devtools\/(browser|page)\/[A-Za-z0-9-]+$/.test(path)){throw new Error('Invalid local CDP target');}this.ws=new WebSocket('ws://127.0.0.1:9334'+path);this.next=0;this.pending=new Map();this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=this.pending.get(m.id);this.pending.delete(m.id);m.error?p.reject(new Error(m.error.message)):p.resolve(m.result)}})}
+ async send(method,params={}){if(this.ws.readyState!==1){await new Promise(r=>this.ws.addEventListener('open',r,{once:true}));}const id=++this.next;const p=new Promise((resolve,reject)=>this.pending.set(id,{resolve,reject}));this.ws.send(JSON.stringify({id,method,params}));return p}
 }
 const browser=new CDP(info.webSocketDebuggerUrl);
 const {targetId}=await browser.send('Target.createTarget',{url:'about:blank'});
@@ -18,7 +20,7 @@ const list=await(await fetch('http://localhost:9334/json/list')).json();
 const page=new CDP(list.find(t=>t.id===targetId).webSocketDebuggerUrl);
 await page.send('Page.enable');await page.send('Network.enable');
 await page.send('Network.setExtraHTTPHeaders',{headers:{'Accept-Language':'zh-CN'}});
-const evaluate=async expression=>{const r=await page.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value};
+const evaluate=async expression=>{const r=await page.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails){throw new Error(JSON.stringify(r.exceptionDetails));}return r.result.value};
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(expression){for(let i=0;i<240;i++){try{if(await evaluate(expression))return;}catch{}await pause(250)}throw new Error('Timeout '+expression)}
 await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
@@ -60,7 +62,7 @@ await click('\u6536\u8d77\u7b14\u8bb0');
 for(const width of [1440,1024,720,390]){
  await page.send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});await pause(350);
  const dims=await evaluate(`({width:innerWidth,scroll:document.documentElement.scrollWidth,input:document.querySelector('#xiaoyu-dock-input').getBoundingClientRect().toJSON(),dock:document.querySelector('[data-assistant-frame]').getBoundingClientRect().toJSON()})`);assert.ok(dims.scroll<=width+1);console.log('DOCK',dims);
- const shot=await page.send('Page.captureScreenshot',{format:'png'});await writeFile('/tmp/xy01b-dock-'+width+'.png',Buffer.from(shot.data,'base64'));
+ const shot=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'dock-'+width+'.png'),Buffer.from(shot.data,'base64'),{mode:0o600,flag:'wx'});
 }
 await click('\u5b8c\u6574\u5de5\u4f5c\u533a');await until('location.pathname==="/copilot"');await until(`document.querySelector('[data-xiaoyu-surface]')?.dataset.taskId===${JSON.stringify(id)}`);assert.equal(await count(),1);
 await page.send('Page.reload');await until(`document.querySelector('[data-xiaoyu-surface]')?.dataset.taskId===${JSON.stringify(id)}`);await click('\u67e5\u770b\u7b14\u8bb0');assert.equal(await evaluate(`document.querySelector('textarea[maxlength="10000"]').value`),before.notes);

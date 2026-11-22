@@ -20,10 +20,10 @@ export function XiaoyuDock({ children, ...frame }: Omit<ComponentProps<typeof As
   // stays mounted, retaining its portal/draft without a second active input.
   const pageActive = !frame.fullscreen && selectedPage === pathname;
   return <AssistantPanel {...frame} workbenchHref={workspaceHref(bundle?.task.id)}>
-    {!frame.fullscreen ? <div role="group" aria-label={T.dock} className="mb-md flex shrink-0 flex-wrap gap-xs">
+    {!frame.fullscreen ? <fieldset aria-label={T.dock} className="mb-md flex shrink-0 flex-wrap gap-xs">
       <Button size="md" variant={pageActive ? "ghost" : "secondary"} aria-pressed={!pageActive} onClick={() => setSelectedPage(null)}>{T.conversation}</Button>
       <Button size="md" variant={pageActive ? "secondary" : "ghost"} aria-pressed={pageActive} onClick={() => setSelectedPage(pathname)}>{pageAssist ? T.pageAssist : T.pageTools}</Button>
-    </div> : null}
+    </fieldset> : null}
     <div className={pageActive ? "hidden" : "flex min-h-0 flex-1 flex-col"} hidden={pageActive} inert={pageActive}><XiaoyuSurface full={frame.fullscreen} onNavigate={frame.fullscreen ? frame.onToggleFullscreen : undefined} /></div>
     <div className={pageActive ? "flex min-h-0 flex-1 flex-col gap-sm" : "hidden"} hidden={!pageActive} inert={!pageActive} data-xiaoyu-page-tools>
       <p className="shrink-0 text-body-small text-muted-foreground">{T.legacyPageHint}</p>

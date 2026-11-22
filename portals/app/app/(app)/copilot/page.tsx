@@ -7,7 +7,7 @@ import LegacyCopilotPage from "./legacy-page";
 
 export const dynamic = "force-dynamic";
 type Query = { task?: string; view?: string; account?: string; ask?: string; opportunity?: string; mode?: string; thread?: string };
-export default async function CopilotPage({ searchParams }: { searchParams: Promise<Query> }) {
+export default async function CopilotPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
   if (query.view === "proposals" || query.account || query.opportunity || query.thread || query.ask || query.mode) {
     return <LegacyCopilotPage searchParams={Promise.resolve(query)} />;
