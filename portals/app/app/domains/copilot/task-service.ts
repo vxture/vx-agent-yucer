@@ -17,6 +17,8 @@ import {
   type TaskSource,
 } from "./lib/task-contract";
 import type { CopilotStore } from "./store";
+import type { MemoryStore } from "./memory-store";
+import { checkTaskMemory, recallPrivateMemories, MemoryRefusal } from "./memory-service";
 import {
   taskCreationFingerprint,
   type TaskBundle,
@@ -34,6 +36,7 @@ export interface TaskContext {
   entitlement: Entitlement;
   store: TaskStore;
   sessions: CopilotStore;
+  memory?: MemoryStore;
   source: (object: TaskObject) => Promise<TaskSource | null>;
   // Must re-read current identity, entitlement, permissions and data scope.
   // An in-flight model result must not use a request-start permission snapshot.
@@ -66,7 +69,7 @@ async function guarded<T>(
   try {
     return ok(await fn());
   } catch (e) {
-    if (!(e instanceof TaskRefusal)) throw e;
+    if (!(e instanceof TaskRefusal) && !(e instanceof MemoryRefusal)) throw e;
     await recordAuditEvent({
       workspaceId: ctx.workspaceId,
       actorId: ctx.sub,
@@ -100,6 +103,7 @@ async function current(ctx: TaskContext): Promise<TaskContext> {
   return now;
 }
 async function checkSources(ctx: TaskContext, b: TaskBundle): Promise<void> {
+  await checkTaskMemory(ctx, b.task.id);
   for (const r of b.references) {
     const live = await ctx.source({ kind: r.kind, id: r.id });
     demand(live, "source_unavailable");
@@ -510,6 +514,7 @@ export async function runPrivateTaskTurn(
       demand(turn, "task_conflict");
       try {
         await meter.record(ctx.workspaceId, turn.userMessageId);
+        const memories = await recallPrivateMemories(now, b, question);
         const result = await runTurn(
           {
             question,
@@ -521,6 +526,7 @@ export async function runPrivateTaskTurn(
               productName: "Yucer",
               permissions: [...now.holder.permissions],
               features: featureKeysFor(now.entitlement),
+              privateMemories: memories.map(r => ({id:r.id, revision:r.revision, text:r.text, kind:r.kind, createdAt:r.createdAt.toISOString(), updatedAt:r.updatedAt.toISOString(), sources:r.sources})),
               task: {
                 id,
                 goal: b.task.goal,
@@ -586,7 +592,7 @@ export async function runPrivateTaskTurn(
         };
       } catch (e) {
         const code =
-          e instanceof TaskRefusal
+          e instanceof TaskRefusal || e instanceof MemoryRefusal
             ? e.code
             : e instanceof Error && e.message === "tool_boundary_denied"
               ? "task_tool_denied"

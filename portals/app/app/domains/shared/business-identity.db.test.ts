@@ -57,6 +57,13 @@ test(
         "agent_task_draft_owner_fk:actor_sub:actor_sub",
         "agent_task_checkpoint_owner_fk:actor_sub:actor_sub",
         "agent_task_turn_owner_fk:actor_sub:actor_sub",
+        // The UUID still identifies each source. These extra components bind
+        // its private owner and immutable revision, not a human-facing code.
+        "agent_private_memory_task:actor_sub:actor_sub",
+        "agent_private_memory_revision_owner:actor_sub:actor_sub",
+        "agent_task_memory_task:actor_sub:actor_sub",
+        "agent_task_memory_source:actor_sub:actor_sub",
+        "agent_task_memory_source:memory_revision:revision",
       ]);
       assert.deepEqual(
         rows.filter(

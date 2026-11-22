@@ -1601,6 +1601,54 @@ model AgentTaskTurn {
   @@schema("yucer_agent")
 }
 
+model AgentPrivateMemory {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  requestId String @map("request_id") @db.Uuid
+  revision Int @default(1)
+  text String @db.VarChar(1200)
+  kind String @db.VarChar(16)
+  state String @default("active") @db.VarChar(16)
+  origin String @db.VarChar(16)
+  taskId String? @map("task_id") @db.Uuid
+  messageIds String[] @default([]) @map("message_ids") @db.Uuid
+  sources Json @default("[]")
+  parents Json @default("[]")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  @@unique([workspaceId,actorSub,requestId], map: "agent_private_memory_request")
+  @@unique([id,workspaceId,actorSub], map: "agent_private_memory_owner")
+  @@map("agent_private_memory")
+  @@schema("yucer_agent")
+}
+model AgentPrivateMemoryRevision {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  memoryId String @map("memory_id") @db.Uuid
+  revision Int
+  text String @db.VarChar(1200)
+  kind String @db.VarChar(16)
+  state String @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([memoryId,workspaceId,actorSub,revision], map: "agent_private_memory_revision_key")
+  @@map("agent_private_memory_revision")
+  @@schema("yucer_agent")
+}
+model AgentTaskMemory {
+  id String @id @default(uuid()) @db.Uuid
+  workspaceId String @map("workspace_id") @db.Uuid
+  actorSub String @map("actor_sub") @db.VarChar(128)
+  taskId String @map("task_id") @db.Uuid
+  memoryId String @map("memory_id") @db.Uuid
+  memoryRevision Int @map("memory_revision")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  @@unique([taskId,memoryId], map: "agent_task_memory_once")
+  @@map("agent_task_memory")
+  @@schema("yucer_agent")
+}
+
 model AgentAutonomy {
   workspaceId  String   @id @map("workspace_id") @db.Uuid
   mode         String   @default("ask_always") @db.VarChar(32)

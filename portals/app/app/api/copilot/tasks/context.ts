@@ -21,6 +21,7 @@ import {
   getDeliveryStore,
   getStrategyStore,
   getTaskStore,
+  getMemoryStore,
 } from "../../../domains/shared/registry";
 import type {
   TaskObject,
@@ -142,6 +143,7 @@ export async function taskRequestContext(): Promise<{
       holder: session.authz,
       entitlement: session.entitlement,
       store: getTaskStore(),
+      memory: getMemoryStore(),
       sessions: getCopilotStore(),
       source: (object) => readTaskSource(session, object),
       refresh: async () => (await taskRequestContext())?.context ?? null,

@@ -105,6 +105,15 @@ export class PrismaTaskStore implements TaskStore {
       })
     ).map(taskRow);
   }
+  async search(scope: TaskScope, query: string): Promise<TaskRecord[]> {
+    const p=await getPrismaClient();
+    // Match all owner tasks, not just the recent navigation window. Select
+    // identity only; source checks still precede loading any matching text.
+    const tasks=await p.agentTask.findMany({where:scope,orderBy:{updatedAt:"desc"}});
+    const matches=await p.agentMessage.findMany({where:{workspaceId:scope.workspaceId,sessionId:{in:tasks.map(t=>t.sessionId)},content:{contains:query,mode:"insensitive"}},distinct:["sessionId"],select:{sessionId:true},take:50});
+    const ids=new Set(matches.map(m=>m.sessionId));
+    return tasks.filter(t=>ids.has(t.sessionId)).map(taskRow);
+  }
   async load(
     scope: TaskScope,
     id: string,

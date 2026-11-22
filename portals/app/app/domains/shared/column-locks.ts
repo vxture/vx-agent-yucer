@@ -301,6 +301,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   ],
 
   // --- yucer_agent ---
+  "yucer_agent.agent_private_memory": ["text", "kind", "state", "revision", "updated_at"],
   "yucer_agent.agent_task": ["status", "rule_version", "revision", "page", "updated_at"],
   "yucer_agent.agent_task_turn": ["status", "assistant_message_id", "error_key", "finished_at"],
   "yucer_agent.agent_session": ["title", "status", "updated_at"],
@@ -434,6 +435,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
  * row, never an in-place edit.
  */
 export const APPEND_ONLY_TABLES: readonly string[] = [
+  "yucer_agent.agent_private_memory_revision",
+  "yucer_agent.agent_task_memory",
   "yucer_agent.agent_task_reference",
   "yucer_agent.agent_task_session",
   "yucer_agent.agent_task_draft",
