@@ -824,3 +824,13 @@ test("a source revoked while loading a private transcript cannot reach the read 
   };
   code(await readPrivateTask(f.c, task.id), "source_unavailable");
 });
+
+
+test("creation fingerprint is stable when a multi-object retry reverses target order", async () => {
+  const f = fixture(), requestId = randomUUID();
+  const input = {requestId,goal:"multi-object task",targets:[ACCOUNT, SEGMENT]};
+  const first = unwrap(await createPrivateTask(f.c,input));
+  const retried = unwrap(await createPrivateTask(f.c,{...input,targets:[SEGMENT,ACCOUNT]}));
+  assert.equal(retried.id,first.id);
+  assert.equal(retried.requestHash,first.requestHash);
+});
