@@ -306,6 +306,10 @@ GRANT UPDATE (name, trigger, content, version, status, updated_at)
 
 -- Private memory tables do not exist on the baseline's first pass.
 DO $$ BEGIN
+  IF to_regclass('yucer_agent.agent_judgement_topic') IS NOT NULL THEN
+    REVOKE UPDATE, DELETE ON yucer_agent.agent_judgement_topic FROM yucer_svc;
+    GRANT UPDATE(basis_version,access_version,status,task_id,verified_at,revision,updated_at) ON yucer_agent.agent_judgement_topic TO yucer_svc;
+  END IF;
   IF to_regclass('yucer_agent.agent_business_knowledge') IS NOT NULL THEN
     REVOKE UPDATE, DELETE ON yucer_agent.agent_business_knowledge FROM yucer_svc;
     GRANT UPDATE(title,text,kind,state,audience,member_subs,revision,updated_at) ON yucer_agent.agent_business_knowledge TO yucer_svc;

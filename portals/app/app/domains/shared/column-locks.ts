@@ -301,6 +301,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   ],
 
   // --- yucer_agent ---
+  "yucer_agent.agent_judgement_topic": ["basis_version", "access_version", "status", "task_id", "verified_at", "revision", "updated_at"],
   "yucer_agent.agent_business_knowledge": ["title", "text", "kind", "state", "audience", "member_subs", "revision", "updated_at"],
   "yucer_agent.agent_private_memory": ["text", "kind", "state", "revision", "updated_at"],
   "yucer_agent.agent_task": ["status", "rule_version", "revision", "page", "updated_at"],

@@ -1,3 +1,10 @@
+import { topicFeed } from "../../../domains/judgement/topic-feed";
+import { snoozeJudgement } from "../../../domains/judgement/service";
+import {
+  readTopicEvidence,
+  type TopicContext,
+} from "../../../domains/judgement/topic-service";
+import { listTargets, attainment } from "../../../domains/planning/service";
 import { readProductRoster } from "../../../platform/product-roster";
 import { getAuthzStore } from "../../../authz/store";
 import { createHash } from "node:crypto";
@@ -18,6 +25,8 @@ import {
 } from "../../../domains/strategy/service";
 import { listProjects } from "../../../domains/delivery/service";
 import {
+  getTopicStore,
+  getPlanningStore,
   getCatalogStore,
   getCopilotStore,
   getDeliveryStore,
@@ -31,6 +40,53 @@ import type {
   TaskSource,
 } from "../../../domains/copilot/lib/task-contract";
 import type { TaskContext } from "../../../domains/copilot/task-service";
+
+export function topicBindings(session: AppSession) {
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    stores: session.stores,
+    allowWorkspaceMetrics: session.scope.kind === "workspace",
+  };
+  return {
+    ...base,
+    topics: getTopicStore(),
+    accessVersion: createHash("sha256")
+      .update(
+        JSON.stringify({
+          permissions: [...session.authz.permissions].sort((a, b) =>
+            a.localeCompare(b),
+          ),
+          scope: session.scope,
+          tier: session.entitlement.tier,
+          bundled: session.entitlement.bundled,
+        }),
+      )
+      .digest("hex"),
+    judgements: (scope?: "mine" | "all", includeSnoozed = false) =>
+      topicFeed(base, { scope, includeSnoozed }),
+    snooze: (
+      id: string,
+      urgency: import("../../../domains/judgement/lib/judgement").Urgency,
+    ) =>
+      snoozeJudgement(
+        { ...base, store: getCopilotStore() },
+        { judgementId: id, urgency },
+      ),
+  };
+}
+export async function topicRequestContext(): Promise<TopicContext | null> {
+  const access = await taskRequestContext();
+  return access
+    ? {
+        ...access.context,
+        ...topicBindings(access.session),
+        refresh: topicRequestContext,
+      }
+    : null;
+}
 
 // Only identity and source-version metadata cross this boundary in 01A.
 // Business field query/form adapters belong to 04A. Scoped stores are mandatory.
@@ -46,6 +102,30 @@ export async function readTaskSource(
   };
   let value: unknown = null;
   switch (object.kind) {
+    case "judgement": {
+      const evidence = await readTopicEvidence(
+        topicBindings(session),
+        object.id,
+      );
+      return evidence ? { ...object, version: evidence.version } : null;
+    }
+    case "sales_target": {
+      const ctx = { ...base, store: getPlanningStore() },
+        rows = await listTargets(ctx);
+      const target = rows.ok
+        ? rows.value.find((t) => t.id === object.id)
+        : null;
+      if (
+        !target ||
+        (session.scope.kind !== "workspace" &&
+          target.ownerSub !== session.user.sub)
+      )
+        return null;
+      const actual = await attainment(ctx, target.period);
+      if (!actual.ok) return null;
+      value = actual.value.find((r) => r.target.id === object.id) ?? null;
+      break;
+    }
     case "account": {
       const r = await getAccountDetail(
         { ...base, store: session.stores.account() },
@@ -149,13 +229,35 @@ export async function taskRequestContext(): Promise<{
       memory: getMemoryStore(),
       knowledge: getKnowledgeStore(),
       knowledgeMembers: async () => {
-        const roster = await readProductRoster(session.workspaceId, session.user.activeOrg);
-        if (roster !== null) return roster.map(m => ({sub:m.subject,displayName:m.displayName}));
-        if (process.env.DEPLOY_STAGE === "production" || process.env.DEPLOY_STAGE === "beta") throw new Error("knowledge_roster_unavailable");
-        return (await getAuthzStore().listMembers(session.workspaceId)).filter(m => m.status === "active").map(m => ({sub:m.sub,displayName:m.displayName}));
+        const roster = await readProductRoster(
+          session.workspaceId,
+          session.user.activeOrg,
+        );
+        if (roster !== null)
+          return roster.map((m) => ({
+            sub: m.subject,
+            displayName: m.displayName,
+          }));
+        if (
+          process.env.DEPLOY_STAGE === "production" ||
+          process.env.DEPLOY_STAGE === "beta"
+        )
+          throw new Error("knowledge_roster_unavailable");
+        return (await getAuthzStore().listMembers(session.workspaceId))
+          .filter((m) => m.status === "active")
+          .map((m) => ({ sub: m.sub, displayName: m.displayName }));
       },
       sessions: getCopilotStore(),
       source: (object) => readTaskSource(session, object),
+      judgementEvidence: async (objects) => {
+        const rows = [];
+        for (const o of objects.filter((o) => o.kind === "judgement")) {
+          const r = await readTopicEvidence(topicBindings(session), o.id);
+          if (!r || r.version !== o.version) throw new Error("source_changed");
+          rows.push(r.finding);
+        }
+        return rows;
+      },
       refresh: async () => (await taskRequestContext())?.context ?? null,
     },
   };

@@ -23,6 +23,8 @@ export const TASK_OBJECT_KINDS = [
   "campaign",
   "project",
   "plan",
+  "judgement",
+  "sales_target",
 ] as const;
 export type TaskObjectKind = (typeof TASK_OBJECT_KINDS)[number];
 export interface TaskObject {

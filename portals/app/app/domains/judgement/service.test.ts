@@ -548,3 +548,12 @@ test("the feed reads the workspace's own quietDays, not judgement.ts's shipped d
 // Also uncovered here, deliberately: every rule that decides WHICH judgements
 // fire. That is lib/judgement.ts's, it is pure, and it is tested there. This
 // file is only about the assembly around it.
+
+test("all still uses the caller's scoped stores rather than the global registry", async()=>{
+ const global=install({accounts:[account({id:"hidden",ownerSub:"other"})]});
+ try {
+  const scoped=new InMemoryAccountStore();scoped.seed({accounts:[account({id:"visible"})]});
+  const feed=unwrap(await judgementFeed({...ctx("sales_leader","pro"),stores:{account:()=>scoped,pipeline:()=>new InMemoryPipelineStore()},allowWorkspaceMetrics:false},{scope:"all",now:NOW}));
+  assert.equal(feed.scanned,1);assert.ok(feed.judgements.every(j=>j.subjectId!=="hidden"));
+ } finally {global.dispose();}
+});

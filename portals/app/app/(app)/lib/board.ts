@@ -281,6 +281,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     sub: ctx.sub,
     holder: ctx.holder,
     entitlement: ctx.entitlement,
+    stores: ctx.stores,
   };
 
   const [
@@ -772,6 +773,7 @@ export async function agentPanel(
     sub: ctx.sub,
     holder: ctx.holder,
     entitlement: ctx.entitlement,
+    stores: ctx.stores,
   };
 
   const feed = await cachedFeed(base);
