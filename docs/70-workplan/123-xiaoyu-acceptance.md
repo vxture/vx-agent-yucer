@@ -1,7 +1,7 @@
 # XY-05 联合验收与阶段收尾
 
 Issue：#742，总追踪 #732。状态：🔎 PR #758／#759／#760 已合并，工程检查完成；
-真实用户联合验收待完成，beta 尚未搭建，未发布。
+真实用户联合验收待完成，进入本地预览及正式发布准备；本轮不部署 beta。
 日期：2026-11-22。依据：[执行批次](114-xiaoyu-execution-batches.md)、
 [产品规格](../20-specs/37-xiaoyu-collaboration.md)。
 
@@ -153,8 +153,9 @@ CodeQL 通过；Sonar 扫描成功，外部质量门因 previous_version 存量�
 没有从生产提取凭据或拿虚构工作空间冒充平台授权身份；00B 服务身份探针不替代用户 OBO。
 
 已询问现成测试环境地址和工作空间名称；owner 已确认当前单工作区限制和先验跨租户的顺序，
-测试环境地址尚未确认，第二测试租户当前不存在。收到可用环境后按上述调整范围补真实登录与样本验收，
-不重新询问已授权路由，也不再要求为本轮创建同租户第二工作区。
+第二测试租户当前不存在。owner 随后否定本轮自行搭建 beta 的路径；改按本地预览、正式发布及
+正式环境的受控验收推进，未完成的真实验收继续标待验。
+不再要求提供 beta 配置或创建同租户第二工作区，也不重新询问已授权路由。
 真实平台完整耗时、首个回答耗时、检索耗时及模型用量尚不能报告为通过。
 本轮界面记录的是分析阶段耗时，含模型和工具调用，不误称首 token 延迟或含权限初始化的总耗时。
 
@@ -172,87 +173,37 @@ CodeQL 通过；Sonar 扫描成功，外部质量门因 previous_version 存量�
 | 撤权与中断 | 生成中撤回源权限／停用记忆，刷新并恢复；执行后丢响应再核对回执 | 派生资料不交付；只有同登录主体、当前权限与有效来源可恢复，无重复业务记录 |
 
 只保存非敏感样本摘要与上述编号，不记录口令、令牌、私人聊天正文或真实客户机密。
-需要现成可登录的测试环境、两个真实测试租户各自的工作区，以及至少一个租户内两个有产品席位的
-测试成员；第二租户可由同一真实用户加入，无需本轮新增同租户工作区。若没有第二测试租户，
+本轮使用现有单租户及其工作区，真实成员与业务验收随正式发布按明确范围进行；跨租户仍需
+第二租户具备后补验，无需本轮新增同租户工作区。若没有第二测试租户，
 跨租户真实验收继续标待验，不拿自动化夹具替代。不能把本地伪造主体或生产服务票据作为替代。
 准备后沿用本页清单补验，不重做已通过的工程批次。
 
-## beta 就绪核验与本地预览
+## 运行路径调整与本地预览
 
-当前缺口需要先核对 beta 主机实际状态，不能只根据 GitHub Secret 名单推断远端配置为空。
-新增固定只读 `xiaoyu-beta-check.yml`：只允许精确 main SHA 和已登记的 beta 目录／项目，
-使用现有 beta Environment 的 SSH／tailnet，检查 `/srv/md1/yucer` 中的配置及部署文件、
-`yucer-beta-app/db/redis` 三个容器的健康和 Compose 项目归属。没有生产路径、容器选择输入，
-不读取 Docker Env，不访问会话存储或业务数据库，不启动容器、不应用 DDL、不发布应用。
+2026-11-22，代理为真实验收自行选择搭建 beta，owner 随后明确质疑此范围扩展。
+本轮停止 beta 搭建，不以其配置、容器或客户端作为小聿正式发布的前置条件。
+索要 `PLATFORM_API_URL` 的请求已撤回，不要求 owner 为此转运已有正式环境配置。
+继续本地预览 → owner 确认当前预览 → 生产数据库及应用审批 → 正式环境受控验收。
+这项路径调整不免除隐私、隔离及真实 OBO 验证，未执行项目继续标待验，不提前关单。
 
-远端 `.env` 仅在 beta 主机内解析，不执行或展开脚本；输出仅包含必需项是否填写、beta OIDC／
-数据库／Redis／回调作用域是否匹配及容器健康布尔值。不输出配置值、原始命令错误或凭据，
-拒绝符号链接越出 beta 根目录、重复变量和模板／命令插值。若配置或容器缺失，输出
-`not_ready`，不能算真实登录或业务验收通过；`ready_for_login_check` 也仅允许继续登录核对。
-凭固定结果决定能否直接恢复 beta，缺少平台注册客户端时另列实际交付条件，不复用生产密钥。
+本轮已经发生的操作与撤回结果：
 
-执行：main 合并并通过检查后，
-`gh workflow run xiaoyu-beta-check.yml --ref main -f expected_sha=<exact-main-sha>`。
-beta 按已有规范无需 production 审批，诊断不触发部署；不能用 beta 身份访问生产配置绕过审批。
-本地新增边界专项 7 项通过，包括凭据脱敏、作用域／路径、只读命令和精确 main 门禁，
-并纳入现有诊断 CI 和覆盖率。实际远端结果另回填 #742／#732，未提前宣称恢复。
+- PR #760／#761 已合并；固定只读核验
+  [45056379584](https://github.com/vxture/vx-agent-yucer/actions/runs/45056379584)
+  于 2026-11-22 18:40:24 UTC 返回 `not_ready`：beta 配置及部署文件不存在，
+  三个数据／应用容器均未取得存在／健康结果。工作流 success 不代表真实验收通过。
+- owner 平台登录后，原接口核对确认只有正式客户端。代理新增的 `yucer-beta` 已随后
+  经同一平台接口停用，并回读确认为 `inactive`；正式 `yucer` 仍为 `active`。
+  客户端停用留审计记录，不宣称已物理删除。
+- 代理新建的 beta Environment `OIDC_CLIENT_SECRET` 已删除，本机临时凭据副本已删除。
+  原有 beta SSH 配置和正式环境凭据未修改。
+- 首次启动提案 PR #762 已关闭、未合并，相关未完成 CI 已取消；未调度启动工作流，
+  没有启动任何 beta 容器、写入远端运行配置、执行 beta DDL 或推送应用标签。
+- 固定诊断保留为已有只读工具，停止本轮 beta 后续工作；不因诊断存在而推断用户授权了搭建。
 
-### 已实跑：beta 尚未搭建
-
-PR #760 已合并为 `d03ccc26598fc02e88036b23a32cc597cac8f090`；PR 六项必需检查、
-CodeQL 和 Sonar 外部质量门通过，main 六项必需检查通过。
-固定核验 [45056379584](https://github.com/vxture/vx-agent-yucer/actions/runs/45056379584)
-于 2026-11-22 18:40:24 UTC 成功完成诊断，业务就绪结论为 `not_ready`。
-工作流 success 仅表示检查运行成功，不表示环境可登录或真实验收通过。
-
-| 核验对象 | 实际结果 |
-|---|---|
-| `/srv/md1/yucer/etc/.env` | 不存在，配置尚不能核验 |
-| `/srv/md1/yucer/deploy/docker-compose.yml` | 不存在 |
-| `/srv/md1/yucer/deploy/VERSION` | 不存在 |
-| `yucer-beta-app`／`yucer-beta-db`／`yucer-beta-redis` | 三个容器均未取得存在／健康结果 |
-| Tailnet／SSH、精确 main 与固定 beta 边界 | 通过 |
-| 真实用户验收 | 未执行 |
-
-脱敏 JSON 报告本机副本 SHA-256：
+脱敏诊断报告本机副本 SHA-256：
 `12e351a9dd04d9f38b8b29a78bd063d0fc9bef8162873f2d653278d96ad83c83`。
-结合先前明确的 `No such container: yucer-beta-db`，当前是未搭建的 beta 栈，
-不能归因于应用宕机、路由未授权或 OBO 被拒；也不继续重复 db-init verify。
-此结果未查询平台注册客户端，不能据此断言 `yucer-beta` 尚未注册或需要轮换密钥。
-
-### beta 配置交接与恢复次序
-
-配置权威仍为根目录 `.env.example`，本表仅明确本次 beta 的已登记作用域和实际欠缺，
-不创建第二份运行配置标准。平台交付／owner 转运的内容通过 beta Environment Secret
-`ENV_FILE_BASE64` 或主机 `etc/.env` 传递，不在聊天、Issue 或构建日志发送值。
-GitHub 配置入口：
-<https://github.com/vxture/vx-agent-yucer/settings/environments> → `beta`。
-
-| 配置／登记 | 固定值或交付条件 |
-|---|---|
-| 栈、Compose、宿主端口 | `/srv/md1/yucer`、`yucer-beta`、`4061`，已有 GitHub vars |
-| 公网入口 | `https://yucer-beta.vxture.com`；需平台核验 DNS／TLS／边缘代理到已登记端口 |
-| OIDC 客户端 | `yucer-beta`，产品仍为 `yucer`；确认现有登记及其专属 secret，不重新申请模型／路由授权 |
-| 回调、登出、后通道登出 | 分别为 beta origin 下 `/api/auth/oidc/callback`、`/`、`/auth/backchannel-logout`，须与平台登记逐字一致 |
-| OIDC 发行者和 scope | 沿用已支持的 Accounts 契约；scope 为 `openid profile email phone`，不自行扩展 |
-| 平台／Atlas／Runos 地址 | 平台交付的真实地址，核对 beta 主机可达；不猜测内网地址 |
-| 数据库 | `vxturebiz_yucer_beta`，主机 `yucer-beta-db`，应用角色 `yucer_svc`；owner 与服务角色分别配置非空密码 |
-| Redis | `redis://yucer-beta-redis:6379`，不复用生产会话存储 |
-| 产品开通及 OBO | 现有租户／工作区的产品席位和实际两成员登录；不另造租户 UUID 或用 service 票据代替用户 |
-| C3 | 明确 beta 的受支持交付方式及所需密钥，不覆盖现有生产 webhook 地址 |
-| 运行边界 | OIDC 开启；mock、开发会话和 demo 数据关闭；`STATUS_PAGE=authed`、`STATUS_SHOW_INFRA=off` |
-
-恢复顺序：
-
-1. 核验平台注册／端点，交付 beta 完整配置；只恢复 beta，生产接入 #329 保持已完成状态。
-2. 用已审查 Compose 建立 beta 的数据库和 Redis，确认固定项目、独立数据目录及健康。
-3. 仅由现有 `db-init.yml` 对 beta 应用已通过双库的 DDL 0133–0139 等缺失结构；不由应用自建表。
-4. owner 预览确认后，按现有 beta tag 发布流程部署应用；不以 `main` 加环境覆盖伪造 beta 发布。
-5. 固定就绪检查 → Accounts 真实登录 → 单租户 OBO／表单／回执 → 两成员私有边界／知识共享。
-
-本轮已经具备只读检查和本地预览；缺少的真实配置不能由本地 mock 补齐。
-没有复制生产 secret、触发平台全量密钥 provision／重启、创建发布 tag 或修改生产数据库。
-当前需要的是 beta 的现成配置或正式平台交付，不是重新授权已授予的 Atlas 路由。
+以上是运行历史和纠正记录，不是新的 beta 交接要求。
 
 最新本地内存预览保持在 `http://localhost:16414/copilot`，已放入明确标注的演示任务、私人假设记忆
 及独立业务假设知识；Chrome 核对 taskId 恢复、单活动输入及 1440px 无横溢出。状态为 dev＋mock，
