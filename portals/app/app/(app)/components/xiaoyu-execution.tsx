@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Banner,
@@ -58,19 +58,28 @@ function ExecutionList() {
     [error, setError] = useState(false),
     [publish, setPublish] = useState<string | null>(null);
   const path = `/api/copilot/tasks/${taskId}/execution`;
+  const lifecycle = useRef(0);
+  useEffect(() => { lifecycle.current++; return () => { lifecycle.current++; }; }, []);
   async function request(input?: unknown) {
-    const response = await fetch(path, {
-      method: input ? "POST" : "GET",
-      cache: "no-store",
-      headers: input ? { "Content-Type": "application/json" } : undefined,
-      body: input ? JSON.stringify(input) : undefined,
-    });
-    if (!response.ok) {
-      setData({ steps: [], receipts: [], grants: [] });
-      setSelected([]);
-      throw Error("execution_failed");
+    const current = lifecycle.current;
+    try {
+      const response = await fetch(path, {
+        method: input ? "POST" : "GET",
+        cache: "no-store",
+        headers: input ? { "Content-Type": "application/json" } : undefined,
+        body: input ? JSON.stringify(input) : undefined,
+      });
+      const value = await response.json();
+      if (current !== lifecycle.current) throw Error("stale_execution_view");
+      if (!response.ok) throw Error("execution_failed");
+      return value;
+    } catch (error) {
+      if (current === lifecycle.current) {
+        setData({ steps: [], receipts: [], grants: [] });
+        setSelected([]);
+      }
+      throw error;
     }
-    return response.json();
   }
   async function refresh() {
     setData(await request());
