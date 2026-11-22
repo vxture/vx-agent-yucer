@@ -1,5 +1,6 @@
 "use client";
 
+import { useXiaoyuForm, XiaoyuFormNotice } from "./use-xiaoyu-form";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 
 import { Section } from "./help-section";
@@ -336,6 +337,13 @@ export function NewSolutionForm({
   const edits = useCatalogManualEdits();
   const busy = submit.pending || assisting;
 
+  const xyForm=useXiaoyuForm("solution",initial?.solution.id??null,{name,summary:summary||null,scenario:scenario||null,novelty,items:items.filter(i=>i.productId).map(i=>({...i,quantity:Number(i.quantity),note:i.note||null}))},fields=>{
+    if(typeof fields.name==="string")setName(fields.name);
+    if("summary" in fields)setSummary(String(fields.summary??""));
+    if("scenario" in fields)setScenario(String(fields.scenario??""));
+    if("novelty" in fields)setNovelty(fields.novelty as "existing"|"new"|null);
+    if(Array.isArray(fields.items))setItems(fields.items.map(i=>({productId:i.productId,quantity:String(i.quantity),optional:i.optional,note:i.note??""})));
+  });
   const onSaleId = statuses.find((r) => r.statusCode === "active")?.id ?? null;
   const active = products.filter((p) => p.statusId === onSaleId);
   const productName = new Map(products.map((p) => [p.id, p.name]));
@@ -367,7 +375,7 @@ export function NewSolutionForm({
     parsed.some((it) => !it.optional);
 
   return (
-    <FormPage
+    <><XiaoyuFormNotice binding={xyForm}/><FormPage
       form={
         /* No heading of its own: the page's header already says 新建方案 /
            修改方案 and what a solution is (owner 2026-09-28: 标题重复). */
@@ -563,7 +571,7 @@ export function NewSolutionForm({
           </fieldset>
         </Section>
       }
-    />
+    /></>
   );
 }
 

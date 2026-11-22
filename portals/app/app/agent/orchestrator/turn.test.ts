@@ -783,3 +783,10 @@ test("a form review also runs after the research tool budget is exhausted", asyn
   assert.equal(h.calls.at(-1)!.tools, undefined);
   assert.equal(h.invoked.length, 0);
 });
+
+test("whole-task budgets cap each Atlas request and stop before another tool side effect",async()=>{
+ const h=harness({replies:[{toolCalls:[{id:"a",name:"native_read",arguments:{}}]}]});let invoked=0;const requests:{maxTokens?:number;timeoutMs?:number}[]=[];const chat=h.atlasClient.chat.bind(h.atlasClient);h.atlasClient.chat=async(p,r,c)=>{requests.push(r);return chat(p,r,c);};
+ await assert.rejects(runTurn({...BASE,question:"research",draftOnly:true,readOnlyTools:true,rejectUnexpectedTools:false,localTools:{definitions:[{name:"native_read",description:"read",parameters:{type:"object"}}],invoke:async()=>{invoked++;return {}; }},totalBudget:{deadlineMs:10000,maxTokens:3,maxCalls:1}},h),/task_budget_exhausted/);
+ assert.equal(invoked,1);assert.equal(requests[0]!.maxTokens,3);assert.equal(requests[1]!.maxTokens,1);assert.ok(requests[0]!.timeoutMs!<=10000);
+ const before=h.calls.length;await assert.rejects(runTurn({...BASE,question:"expired",draftOnly:true,totalBudget:{deadlineMs:0,maxTokens:100,maxCalls:1}},h),/task_budget_exhausted/);assert.equal(h.calls.length,before);
+});

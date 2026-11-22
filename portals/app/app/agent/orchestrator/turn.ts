@@ -32,6 +32,9 @@ import {
 //     with whatever it has, rather than looping against a metered plane.
 
 export interface TurnInput {
+  localTools?: {definitions: import("../atlas/types").ToolDefinition[]; invoke:(name:string,args:Record<string,unknown>)=>Promise<unknown>};
+  beforeTool?:()=>Promise<void>;
+  totalBudget?: {deadlineMs:number;maxTokens:number;maxCalls:number};
   question: string;
   history?: readonly ChatMessage[];
   prompt: PromptContext;
@@ -117,6 +120,7 @@ export interface TurnDeps {
 const DEFAULT_MAX_TOOL_ROUNDS = 8;
 
 export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnResult> {
+  const startedAt=Date.now(); let toolCalls=0;
   const maxRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
   const profile: CallProfile = input.profile ?? "dialogue";
   const noTools = input.draftOnly && !input.readOnlyTools;
@@ -128,6 +132,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     surface.proposalOnly = [];
   }
   if (!noTools) surface.definitions.push(...CATALOG_TOOLS);
+  if(input.localTools)surface.definitions.push(...input.localTools.definitions);
 
   // Which follow-up notes to show, when the customer has more than fit: by what
   // was asked, not just by recency. Floors at the old behaviour.
@@ -160,15 +165,22 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   let totalTokens = 0;
   const modelCodes = new Set<string>();
   const readEvidence: ReadEvidence[] = [];
+  const requestBudget=()=>{
+    if(!input.totalBudget)return {};
+    const remainingMs=input.totalBudget.deadlineMs-(Date.now()-startedAt),remainingTokens=input.totalBudget.maxTokens-totalTokens;
+    if(remainingMs<1000||remainingTokens<=0)throw Error("task_budget_exhausted");
+    return {timeoutMs:Math.min(profileSettings(profile).timeoutMs,remainingMs),maxTokens:Math.min(profileSettings(profile).maxTokens,remainingTokens)};
+  };
   let correctingAnswer = false;
   let reviewedFallback: string | undefined;
 
   for (;;) {
+    if(input.totalBudget&&(Date.now()-startedAt>=input.totalBudget.deadlineMs||totalTokens>=input.totalBudget.maxTokens))throw Error("task_budget_exhausted");
     let res;
     try {
       res = await deps.atlasClient.chat(
         profile,
-        noTools || correctingAnswer ? { messages } : { messages, tools: surface.definitions, toolChoice: "auto" },
+        noTools || correctingAnswer ? { messages,...requestBudget() } : { messages, tools: surface.definitions, toolChoice: "auto",...requestBudget() },
         input.atlas,
       );
     } catch (e) {
@@ -190,6 +202,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       throw e;
     }
     totalTokens += res.usage.totalTokens;
+    if(input.totalBudget&&(totalTokens>input.totalBudget.maxTokens||Date.now()-startedAt>input.totalBudget.deadlineMs))throw Error("task_budget_exhausted");
     if (res.modelCode) modelCodes.add(res.modelCode);
 
     const reply = res.message;
@@ -224,8 +237,9 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
         content:
           "Tool budget for this turn is spent. Answer with what you already have, and say what you could not check.",
       });
-      const final = await deps.atlasClient.chat(profile, { messages }, input.atlas);
+      const final = await deps.atlasClient.chat(profile, { messages,...requestBudget() }, input.atlas);
       totalTokens += final.usage.totalTokens;
+      if(input.totalBudget&&(totalTokens>input.totalBudget.maxTokens||Date.now()-startedAt>input.totalBudget.deadlineMs))throw Error("task_budget_exhausted");
       if (final.modelCode) modelCodes.add(final.modelCode);
       if (final.message.content) answer = final.message.content;
       const review = input.reviewAnswer?.(answer, readEvidence);
@@ -241,6 +255,8 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
 
     rounds += 1;
     for (const call of calls) {
+      if(input.totalBudget&&(++toolCalls>input.totalBudget.maxCalls||Date.now()-startedAt>=input.totalBudget.deadlineMs))throw Error("task_budget_exhausted");
+      await input.beforeTool?.();
       const outcome = await handleToolCall(call, surface, input, deps, proposals, pinnedVersions, `read-${rounds}-${readEvidence.length + 1}`);
       if (outcome.invocation) invocations.push(outcome.invocation);
       if (outcome.evidence) readEvidence.push(outcome.evidence);
@@ -388,6 +404,7 @@ async function handleToolCall(
   sourceId: string,
 ): Promise<ToolOutcome> {
   const args = parseArgs(call.arguments);
+  if(input.localTools?.definitions.some(d=>d.name===call.name))return {content:JSON.stringify(await input.localTools.invoke(call.name,args))};
 
   if (call.name === FIND_CAPABILITIES || call.name === LOAD_CAPABILITY) {
     try {

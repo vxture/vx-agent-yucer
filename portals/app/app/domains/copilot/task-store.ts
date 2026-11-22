@@ -25,7 +25,7 @@ export interface TaskReference extends TaskSource {
 export interface TaskDraft {
   id: string;
   key: string;
-  contractVersion: "private-notes/1";
+  contractVersion: "private-notes/1" | "business-form/1";
   revision: number;
   text: string;
   createdAt: Date;
@@ -72,7 +72,7 @@ export interface TaskMutation {
   status?: TaskState;
   page?: TaskObject | null;
   references?: Omit<TaskReference, "referenceId">[];
-  draft?: { key: string; text: string };
+  draft?: { key: string; text: string; contractVersion?: "private-notes/1" | "business-form/1" };
   legacySessionId?: string;
 }
 export interface TaskStore {
@@ -112,7 +112,7 @@ export interface TaskStore {
     taskId: string,
     turnId: string,
     result:
-      | { answer: string; tokens: number }
+      | { answer: string; tokens: number; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
       | { errorCode: string; interrupted?: boolean },
   ): Promise<boolean>;
 }
@@ -246,7 +246,7 @@ export class InMemoryTaskStore implements TaskStore {
         {
           id: randomUUID(),
           key: patch.draft.key,
-          contractVersion: "private-notes/1",
+          contractVersion: patch.draft.contractVersion ?? "private-notes/1",
           revision: b.task.revision,
           text: patch.draft.text,
           createdAt: new Date(),
@@ -307,12 +307,22 @@ export class InMemoryTaskStore implements TaskStore {
     id: string,
     turnId: string,
     result:
-      | { answer: string; tokens: number }
+      | { answer: string; tokens: number; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
       | { errorCode: string; interrupted?: boolean },
   ): Promise<boolean> {
     const b = this.owned(scope, id),
       turn = b?.turns.find((t) => t.id === turnId && t.status === "running");
     if (!b || !turn) return false;
+    if ("answer" in result) {
+      for(const ref of result.references??[]) {
+        const old=b.references.find(r=>r.kind===ref.kind&&r.id===ref.id&&r.role===ref.role);
+        if(old&&old.version!==ref.version)throw Error("source_changed");
+      }
+      for(const ref of result.references??[]) {
+        if(!b.references.some(r=>r.kind===ref.kind&&r.id===ref.id&&r.role===ref.role))b.references.push({...copy(ref),referenceId:randomUUID()});
+      }
+      for(const form of result.forms??[])b.drafts=[...b.drafts.filter(d=>d.key!==form.key),{id:randomUUID(),key:form.key,text:form.text,contractVersion:"business-form/1",revision:b.task.revision+1,createdAt:new Date()}];
+    }
     if ("answer" in result) {
       const msg: TaskMessage = {
         id: randomUUID(),

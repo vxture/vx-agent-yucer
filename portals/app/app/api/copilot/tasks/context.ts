@@ -5,6 +5,7 @@ import {
   type TopicContext,
 } from "../../../domains/judgement/topic-service";
 import { listTargets, attainment } from "../../../domains/planning/service";
+import { accessSource, businessBindings, businessRecords, digest } from "./business";
 import { readProductRoster } from "../../../platform/product-roster";
 import { getAuthzStore } from "../../../authz/store";
 import { createHash } from "node:crypto";
@@ -126,6 +127,9 @@ export async function readTaskSource(
       value = actual.value.find((r) => r.target.id === object.id) ?? null;
       break;
     }
+    case "access": {const access=accessSource(session);return access.id===object.id?access:null;}
+    case "sales_plan": {const rows=await businessRecords(session,"sales_plan");const row=rows.find(r=>r.object.id===object.id);return row?{...object,version:digest(row.data)}:null;}
+
     case "account": {
       const r = await getAccountDetail(
         { ...base, store: session.stores.account() },
@@ -156,7 +160,7 @@ export async function readTaskSource(
               const current = currentStrategyPlans(r.value).find(
                 (p) => (p.lineageId ?? p.id) === (x.lineageId ?? x.id),
               );
-              return current?.id === x.id;
+              return current?.id === x.id || x.status === "draft";
             })
             .find((x) => x.id === object.id)
         : null;
@@ -248,6 +252,7 @@ export async function taskRequestContext(): Promise<{
           .map((m) => ({ sub: m.sub, displayName: m.displayName }));
       },
       sessions: getCopilotStore(),
+      business: businessBindings(session, object=>readTaskSource(session,object)),
       source: (object) => readTaskSource(session, object),
       judgementEvidence: async (objects) => {
         const rows = [];

@@ -181,7 +181,7 @@ export class PrismaTaskStore implements TaskStore {
           drafts: latestDrafts.map((d) => ({
             id: d.id,
             key: d.draftKey,
-            contractVersion: "private-notes/1" as const,
+            contractVersion: d.contractVersion as "private-notes/1" | "business-form/1",
             revision: d.revision,
             text: (d.content as { text: string }).text,
             createdAt: d.createdAt,
@@ -268,7 +268,7 @@ export class PrismaTaskStore implements TaskStore {
             data: {
               ...where,
               draftKey: patch.draft.key,
-              contractVersion: "private-notes/1",
+              contractVersion: patch.draft.contractVersion ?? "private-notes/1",
               revision: revision + 1,
               content: { text: patch.draft.text },
             },
@@ -358,7 +358,7 @@ export class PrismaTaskStore implements TaskStore {
     id: string,
     turnId: string,
     result:
-      | { answer: string; tokens: number }
+      | { answer: string; tokens: number; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
       | { errorCode: string; interrupted?: boolean },
   ): Promise<boolean> {
     const p = await getPrismaClient();
@@ -379,6 +379,12 @@ export class PrismaTaskStore implements TaskStore {
         if (!turn) throw new TaskWriteConflict();
         let assistantMessageId: string | null = null;
         if ("answer" in result) {
+          for(const ref of result.references??[]) {
+            const old=await tx.agentTaskReference.findFirst({where:{...scoped(scope,id),objectKind:ref.kind,objectId:ref.id,role:ref.role}});
+            if(old&&old.sourceVersion!==ref.version)throw Error("source_changed");
+            if(!old)await tx.agentTaskReference.create({data:{...scoped(scope,id),objectKind:ref.kind,objectId:ref.id,sourceVersion:ref.version,role:ref.role}});
+          }
+          for(const form of result.forms??[])await tx.agentTaskDraft.create({data:{...scoped(scope,id),draftKey:form.key,contractVersion:"business-form/1",revision:row.revision,content:{text:form.text}}});
           const last = await tx.agentMessage.findFirst({
             where: { workspaceId: scope.workspaceId, sessionId: row.sessionId },
             orderBy: { seq: "desc" },

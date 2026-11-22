@@ -1,0 +1,96 @@
+import type { ToolDefinition } from "../../agent/atlas/types";
+import { FORM_FIELDS, FORM_MODULES } from "./lib/business-form";
+export const BUSINESS_TOOLS: ToolDefinition[] = [
+  {
+    name: "query_business",
+    description:
+      "Read current authorized Yucer business records beyond the current page. Sources are workspace scoped and permission checked. Query by module and optional UUID. Current records override memory; published and draft states are distinct. Never send SQL.",
+    parameters: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          enum: [
+            "account",
+            "opportunity",
+            "segment",
+            "solution",
+            "product",
+            "strategy",
+            "sales_plan",
+          ],
+        },
+        id: { type: "string" },
+        query: { type: "string" },
+        year: { type: "integer" },
+      },
+      required: ["kind"],
+    },
+  },
+  {
+    name: "business_form_contract",
+    description:
+      "Get the native versioned form fields before preparing a business draft. This does not save or publish business records.",
+    parameters: {
+      type: "object",
+      properties: { module: { type: "string", enum: [...FORM_MODULES] } },
+      required: ["module"],
+    },
+  },
+  {
+    name: "prepare_business_form",
+    description:
+      "Prepare or refine a private native business form draft, then open it for human review. Only listed native fields are accepted. Reuse the same key to refine; human edits are preserved. Relations require UUIDs from authorized queries. This never saves or publishes a business record.",
+    parameters: {
+      type: "object",
+      properties: {
+        module: { type: "string", enum: [...FORM_MODULES] },
+        key: {
+          type: "string",
+          description:
+            "Stable draft key, 1-64 letters/digits/underscore/hyphen",
+        },
+        targetId: {
+          type: "string",
+          description: "Existing business UUID; omit for new",
+        },
+        fields: { type: "object" },
+      },
+      required: ["module", "key", "fields"],
+    },
+  },
+  {
+    name: "open_business_page",
+    description:
+      "Open a registered business page in Yucer. Use to navigate or review a prepared form. Does not submit anything.",
+    parameters: {
+      type: "object",
+      properties: {
+        module: {
+          type: "string",
+          enum: [...FORM_MODULES, "account", "opportunity", "product"],
+        },
+        id: { type: "string" },
+        create: { type: "boolean" },
+      },
+      required: ["module"],
+    },
+  },
+];
+export const formContract = (module: keyof typeof FORM_FIELDS) => ({
+  version: "business-form/1",
+  module,
+  fields: FORM_FIELDS[module],
+  notes: {
+    segment:
+      "criteria={industries:string[],regions:string[],sizes:string[],needSummary:string,customerNeed:string,buyingScenario:string,expectedOutcome:string,entryBarrier:string}; priority 0-9999; status active/paused/retired. solutionIds and productIds are UUID arrays.",
+    solution:
+      "items=[{productId:UUID,quantity:number,optional:boolean,note:string|null}]. novelty existing/new/null. Only real catalog product UUIDs.",
+    strategy:
+      "result is the native StrategyResult structure. targetMarkets=[{segmentId:UUID,intent:focus|validate,approach:string|null}]. Required strategyTypeId and value proposition use configured UUIDs. No fabricated owners or metrics.",
+    sales_plan:
+      "year=integer; content=the full existing PlanContent aggregate (schemaVersion=1,year,periods,regions,targets,budgets,contributions,team,actions,assumptions,allocationNote,capacityNote,strategyAcceptances). Read it first. Preserve UUIDs and published strategy snapshots.",
+  }[module],
+  save: false,
+  publish: false,
+});

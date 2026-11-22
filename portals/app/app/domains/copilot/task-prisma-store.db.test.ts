@@ -569,3 +569,16 @@ test(
       );
     }),
 );
+
+test("business form snapshots and query source closure commit atomically with the assistant answer",{skip},async()=>fixture(async(store,scope,c)=>{
+ const ref={kind:"access" as const,id:randomUUID(),version:"acl-v1",role:"context" as const};
+ const task=await store.create(scope,"form review",TASK_RULE_VERSION,[],randomUUID());
+ const turn=await store.beginTurn(scope,task.id,task.revision,randomUUID(),"prepare market","hash",TASK_RULE_VERSION);
+ const text=JSON.stringify({module:"segment",targetId:null,baseVersion:null,manualFields:[],sources:[ref],fields:{name:"GIS market"}});
+ assert.equal(await store.finishTurn(scope,task.id,turn!.id,{answer:"Private draft ready",tokens:2,references:[ref],forms:[{key:"market",text}]}),true);
+ const saved=await new PrismaTaskStore().load(scope,task.id,true);assert.equal(saved!.drafts[0]!.contractVersion,"business-form/1");assert.equal(saved!.drafts[0]!.text,text);assert.equal(saved!.references[0]!.kind,"access");assert.equal(saved!.messages.length,2);
+ const next=await store.beginTurn(scope,task.id,saved!.task.revision,randomUUID(),"next","next-hash",TASK_RULE_VERSION);
+ await assert.rejects(store.finishTurn(scope,task.id,next!.id,{answer:"must roll back",tokens:2,references:[{...ref,version:"acl-v2"}],forms:[{key:"market",text:"must roll back"}]}));
+ const rolled=await store.load(scope,task.id,true);assert.equal(rolled!.drafts[0]!.text,text);assert.equal(rolled!.messages.length,3);assert.equal(rolled!.task.revision,saved!.task.revision+1);
+ await c.query("SET ROLE yucer_svc");await assert.rejects(c.query("UPDATE yucer_agent.agent_task_draft SET content=$1 WHERE task_id=$2",[{text:"mutated"},task.id]),/permission denied/);
+}));

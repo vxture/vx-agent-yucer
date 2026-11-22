@@ -1,5 +1,6 @@
 "use client";
 
+import { useXiaoyuForm, XiaoyuFormNotice } from "./use-xiaoyu-form";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Banner, Button, Card, Field, FieldError, FieldLabel, Icon, Input, NativeSelect, Section, SectionHeader, Textarea, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
@@ -84,6 +85,14 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
     } catch { setAssistError(SEGMENT_ERROR.turn_failed); }
     finally { inFlight.current = false; setAssisting(false); }
   }
+  const xyForm=useXiaoyuForm("segment",original?.id??null,{name:values.name,priority:Number(priority),status,criteria:{industries:values.industries,regions:values.regions,sizes:values.sizes,needSummary:values.needSummary,customerNeed:values.customerNeed,buyingScenario:values.buyingScenario,expectedOutcome:values.expectedOutcome,entryBarrier:values.entryBarrier},solutionIds:values.solutionIds,productIds:values.productIds},fields=>{
+    if(typeof fields.name==="string")setValues(v=>({...v,name:fields.name as string}));
+    if(fields.criteria)setValues(v=>({...v,...fields.criteria as Partial<SegmentFillValues>}));
+    if(Array.isArray(fields.solutionIds))setValues(v=>({...v,solutionIds:fields.solutionIds as string[]}));
+    if(Array.isArray(fields.productIds))setValues(v=>({...v,productIds:fields.productIds as string[]}));
+    if(typeof fields.priority==="number")setPriority(String(fields.priority));
+    if(typeof fields.status==="string")setStatus(fields.status);
+  });
   const label = (key: keyof typeof T.help, required = false) => <div className="flex items-center gap-xs">
     <FieldLabel htmlFor={`${id}-${key}`} required={required}>{T[key]}</FieldLabel>
     <SegmentHelp label={`${T[key]} \u00b7 ${H.help}`}>{T.help[key]}</SegmentHelp>
@@ -110,6 +119,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
     <SectionHeader title={T[key]} icon={icon} />;
   return <>
     {assistant}
+    <XiaoyuFormNotice binding={xyForm}/>
     <FormPage form={<div className="flex flex-col gap-xl" data-segment-form>
       <Card className="flex flex-col gap-md border-primary/10 bg-primary/5 p-lg" data-segment-assistant="inline">
         <div className="flex items-center gap-xs"><Icon name="magic-wand" size="md" className="text-primary" /><h2 className="text-label-medium">{T.assist}</h2><SegmentHelp label={T.assist}>{T.help.assist}</SegmentHelp></div>
