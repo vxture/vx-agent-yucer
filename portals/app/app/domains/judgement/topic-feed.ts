@@ -5,8 +5,12 @@ import {
   type FeedOptions,
 } from "./service";
 import type { Judgement, Scope } from "./lib/judgement";
-import { listTargets, attainment, type AttainmentRow } from "../planning/service";
-import { getPlanningStore } from "../shared/registry";
+import {
+  listTargets,
+  attainment,
+  type AttainmentRow,
+} from "../planning/service";
+import { getPlanningStore, getCopilotStore } from "../shared/registry";
 import { periodRange } from "../shared/period";
 import { ok } from "../shared/result";
 
@@ -129,8 +133,15 @@ export async function topicFeed(
       }
   }
   const rank = { today: 0, week: 1, watch: 2 };
+  const snoozed = options.includeSnoozed
+    ? []
+    : await getCopilotStore().listSnoozes(ctx.workspaceId, ctx.sub, now);
+  const visible = extra.filter((j) => {
+    const old = snoozed.find((r) => r.judgementId === j.id);
+    return !old || rank[j.urgency] < rank[old.urgency as keyof typeof rank];
+  });
   return ok({
-    judgements: [...extra, ...feed.value.judgements].sort(
+    judgements: [...visible, ...feed.value.judgements].sort(
       (a, b) => rank[a.urgency] - rank[b.urgency],
     ),
     scope: feed.value.scope,

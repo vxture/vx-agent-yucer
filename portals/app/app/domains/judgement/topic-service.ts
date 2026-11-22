@@ -77,12 +77,14 @@ export async function listTopics(ctx: TopicContext, scope?: Scope) {
     now = await fresh(ctx);
     const checked = await now.judgements(f.value.scope);
     demand(checked.ok, "topic_feed_unavailable");
+    const raw = await now.judgements(checked.value.scope, true);
+    demand(raw.ok, "topic_feed_unavailable");
     const history = [];
     for (const r of rows.filter(
       (r) =>
         r.scope === checked.value.scope &&
         r.accessVersion === now.accessVersion &&
-        !checked.value.judgements.some((j) => j.id === r.judgementId),
+        !raw.value.judgements.some((j) => j.id === r.judgementId),
     )) {
       const task = r.taskId ? await now.store.load(owner(now), r.taskId) : null;
       const subjects =
