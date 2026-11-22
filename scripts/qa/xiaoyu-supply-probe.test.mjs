@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { currentContext, paginate, publicUrls, runConsumerProbe, runProbe, safeReason } from "./xiaoyu-supply-probe.mjs";
+import { currentContext, paginate, publicUrls, runConsumerProbe, runProbe, safeReason, skillPrerequisites } from "./xiaoyu-supply-probe.mjs";
 
 const context = { tenantId: "11111111-1111-4111-8111-111111111111", workspaceId: "22222222-2222-4222-8222-222222222222" };
 const env = { OIDC_CLIENT_ID: "yucer", OIDC_CLIENT_SECRET: "private-credential",
@@ -69,6 +69,9 @@ function fixture(change = () => undefined) {
     assert.equal(body.workspaceId, context.workspaceId);
     assert.equal(body.tenantId, context.tenantId);
     assert.match(body.taskId, /^xy00b:/);
+    assert.equal(body.applicationType, undefined);
+    assert.equal(body.applicationId, undefined);
+    assert.equal(body.modelCode, undefined);
     if (url.endsWith("/v1/chat")) return json({ id: "response-1", modelCode: "public-model", message: { content: "Unitree develops robots." },
       usage: { promptTokens: 50, completionTokens: 8, totalTokens: 58 } });
     if (url.endsWith("/v1/embed")) return json({ modelCode: "embed-model", vectors: [[1, 0], [0, 1]] });
@@ -258,4 +261,70 @@ test("upstream Runos failures retain canonical code and call receipt without raw
   const result = await runConsumerProbe({ ...env, ATLAS_BASE_URL: "" }, f.request);
   assert.equal(result.stage, "consumer_probe");
   assert.equal(result.reason, "consumer_not_configured");
+});
+
+test("Atlas failure receipts retain canonical diagnostics and the caller request ID", async () => {
+  const requestId = "33333333-3333-4333-8333-333333333333";
+  const f = fixture(url => url.endsWith("/v1/embed") ? new Response(JSON.stringify({ code: "PROVIDER_UNAVAILABLE",
+    retryable: true, requestId, message: "private-secret", provider: "private-secret" }), { status: 503 }) : undefined);
+  const result = await runConsumerProbe(env, f.request);
+  const receipt = result.data.calls.find(c => c.plane === "atlas" && c.outcome === "failed");
+  assert.equal(receipt.route, "embedding/default");
+  assert.equal(receipt.http_status, 503);
+  assert.equal(receipt.error_code, "PROVIDER_UNAVAILABLE");
+  assert.equal(receipt.retryable, true);
+  assert.equal(receipt.server_request_id, requestId);
+  assert.match(receipt.request_id, /^[a-f0-9-]{36}$/);
+  assert.equal(result.data.atlas.embedding_sample.failure.error_code, "PROVIDER_UNAVAILABLE");
+  assert.equal(result.data.atlas.chat_sample.status, "ok");
+  assert.equal(result.data.atlas.rerank_sample.status, "ok");
+  assert.ok(!JSON.stringify(result).includes("private-"));
+});
+
+test("unknown or unreadable Atlas errors stay redacted and still produce failed call receipts", async () => {
+  for (const body of ["private-secret", JSON.stringify({ code: "private-secret", requestId: "private-secret",
+    message: "private-secret", retryable: "private-secret" })]) {
+    const f = fixture(url => url.endsWith("/v1/chat") ? new Response(body, { status: 400 }) : undefined);
+    const result = await runConsumerProbe(env, f.request);
+    const receipt = result.data.calls.find(c => c.plane === "atlas" && c.outcome === "failed");
+    assert.equal(receipt.error_code, null);
+    assert.equal(receipt.server_request_id, null);
+    assert.equal(receipt.http_status, 400);
+    assert.ok(!JSON.stringify(result).includes("private-"));
+  }
+});
+
+test("Skill prerequisites are metadata flags, never a claim of executable connector supply", () => {
+  assert.deepEqual(skillPrerequisites("sandbase_describe_tool sandbase_call_tool private-secret"), {
+    references_sandbase_tools: true, references_direct_exa_sdk: false });
+  assert.deepEqual(skillPrerequisites("exa-py EXA_API_KEY=private-secret"), {
+    references_sandbase_tools: false, references_direct_exa_sdk: true });
+  assert.ok(!JSON.stringify(skillPrerequisites("EXA_API_KEY=private-secret")).includes("private-"));
+});
+
+test("business Skill is preferred while undeclared tool dependencies are never attributed as executed", async () => {
+  const businessId = "sandbaseai.research-company-enrichment";
+  const f = fixture((url, init, body) => {
+    const params = body?.params;
+    if (params?.name === "runos_discover" && params.arguments.filter.primitive_type === "skill") {
+      return json({ result: { structuredContent: { capabilities: [row(businessId, "skill")], total: 1 } } });
+    }
+    if (params?.name === "runos_resolve" && params.arguments.capability_id === businessId) {
+      return json({ result: { structuredContent: { capability_id: businessId, version: "1.0.1", state: "stable",
+        contract: { operations: [{ operation: "fetch" }], dependencies: [] } } } });
+    }
+    if (params?.name === "runos_invoke" && params.arguments.capability_id === businessId) {
+      return json({ result: { content: [{ type: "text", text: "Call sandbase_describe_tool then sandbase_call_tool. private-secret" }],
+        structuredContent: meta("1.0.1", "distributed") } });
+    }
+  });
+  const result = await runConsumerProbe(env, f.request);
+  const sample = result.data.runos.skill_sample.data;
+  assert.equal(sample.capability_id, businessId);
+  assert.equal(sample.version, "1.0.1");
+  assert.equal(sample.prerequisites.references_sandbase_tools, true);
+  assert.equal(sample.execution_status, "not_executed");
+  assert.equal(result.data.runos.public_research.data.declared_skill_dependency_used, false);
+  assert.ok(!f.requests.some(r => /sandbase/.test(r.url)));
+  assert.ok(!JSON.stringify(result).includes("private-"));
 });

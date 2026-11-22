@@ -10,6 +10,19 @@ const RUNOS_ERRORS = new Set([
   "NOT_ENTITLED", "POLICY_DENIED", "APPROVAL_REQUIRED", "QUOTA_EXCEEDED", "RATE_LIMITED",
   "CAPABILITY_PROVIDER_UNAVAILABLE", "CAPABILITY_PROVIDER_ERROR", "CAPABILITY_CONTRACT_VIOLATION", "CAPABILITY_TIMEOUT",
 ]);
+const ATLAS_ERRORS = new Set([
+  "MODEL_NOT_ROUTABLE", "ENDPOINT_NOT_ROUTABLE", "TASK_PROFILE_NOT_ROUTABLE", "MODEL_NOT_IMPLEMENTED",
+  "NOT_ENTITLED", "QUOTA_EXCEEDED", "RATE_LIMITED", "PROVIDER_UNAVAILABLE", "UPSTREAM_REJECTED_REQUEST",
+  "UPSTREAM_ACCOUNT_REFUSED", "CONTEXT_LENGTH_EXCEEDED", "THINKING_MODE_UNSUPPORTED", "TOOL_CALLING_UNSUPPORTED",
+  "DEADLINE_EXCEEDED", "OUTPUT_BUDGET_EXHAUSTED", "PAYLOAD_TOO_LARGE", "REQUEST_BODY_MALFORMED",
+  "S2S_TOKEN_MISSING", "S2S_TOKEN_INVALID", "S2S_TOKEN_MISSING_ACT", "S2S_TOKEN_WRONG_SCOPE", "S2S_TOKEN_INVALID_MODE",
+  "AUTH_ISSUER_NOT_CONFIGURED", "INVALID_TENANT_ID", "INVALID_APPLICATION_ID", "TARGET_SELECTOR_REQUIRED",
+  "TASK_ID_REQUIRED", "TENANT_ID_REQUIRED", "WORKSPACE_ID_REQUIRED", "APPLICATION_ID_REQUIRED",
+  "APPLICATION_TYPE_REQUIRED", "APPLICATION_TYPE_INVALID", "USAGE_TYPE_INVALID", "CHAT_MESSAGES_REQUIRED",
+  "CHAT_MESSAGES_INVALID", "CHAT_THINKING_INVALID", "CHAT_TIMEOUT_INVALID", "EMBED_TEXTS_REQUIRED",
+  "EMBED_TEXTS_INVALID", "RERANK_QUERY_REQUIRED", "RERANK_CANDIDATES_REQUIRED", "RERANK_CANDIDATES_INVALID",
+  "CANDIDATE_POOL_TOO_LARGE",
+]);
 const sha = value => createHash("sha256").update(value).digest("hex");
 const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const id = value => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._:/@+-]{0,199}$/.test(value) ? value : null;
@@ -20,7 +33,9 @@ const http = value => {
   catch { return undefined; }
 };
 
-export class ProbeError extends Error {}
+export class ProbeError extends Error {
+  constructor(code, receipt) { super(code); this.receipt = receipt; }
+}
 function fail(code) { throw new ProbeError(code); }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function credentials(env) {
@@ -36,9 +51,19 @@ function jsonReader(request, deadline) {
     let res;
     try { res = await request(url, { ...init, redirect: "error", signal: AbortSignal.timeout(Math.min(timeout, deadline - Date.now())) }); }
     catch { fail(`${plane}_transport_failed`); }
-    if (!res.ok) fail(`${plane}_http_${res.status}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      const receipt = plane === "atlas" ? atlasFailure(body, res.status) : undefined;
+      throw new ProbeError(`${plane}_http_${res.status}`, receipt);
+    }
     try { return await res.json(); } catch { fail(`${plane}_body_invalid`); }
   };
+}
+
+function atlasFailure(body, status) {
+  return { http_status: status, error_code: ATLAS_ERRORS.has(body?.code) ? body.code : null,
+    retryable: typeof body?.retryable === "boolean" ? body.retryable : null,
+    server_request_id: typeof body?.requestId === "string" && UUID.test(body.requestId) ? body.requestId : null };
 }
 
 function provisionPage(raw) {
@@ -158,7 +183,8 @@ export async function paginate(discover, type) {
 
 async function section(target, key, work) {
   try { target[key] = { status: "ok", data: await work() }; }
-  catch (error) { target[key] = { status: "unavailable", reason: safeReason(error) }; }
+  catch (error) { target[key] = { status: "unavailable", reason: safeReason(error),
+    ...(error instanceof ProbeError && error.receipt ? { failure: error.receipt } : {}) }; }
 }
 
 // Sequence metered category probes rather than starting all of them at once.
@@ -248,11 +274,20 @@ export async function runProbe(context, env, request = fetch) {
   }
   async function atlas(path, body) {
     const callStarted = Date.now(), requestId = randomUUID();
-    const res = await json(`${env.ATLAS_BASE_URL.replace(/\/$/, "")}${path}`, {
-      method: body ? "POST" : "GET", headers: { authorization: `Bearer ${await token("atlas")}`, "content-type": "application/json" },
-      ...(body ? { body: JSON.stringify({ ...body, taskId, requestId, tenantId: context.tenantId,
-        workspaceId: context.workspaceId, applicationType: "agent" }) } : {}),
-    }, "atlas", 90_000);
+    let res;
+    try {
+      res = await json(`${env.ATLAS_BASE_URL.replace(/\/$/, "")}${path}`, {
+        method: body ? "POST" : "GET", headers: { authorization: `Bearer ${await token("atlas")}`, "content-type": "application/json" },
+        ...(body ? { body: JSON.stringify({ ...body, taskId, requestId, tenantId: context.tenantId,
+          workspaceId: context.workspaceId }) } : {}),
+      }, "atlas", 90_000);
+    } catch (error) {
+      if (body) report.calls.push({ plane: "atlas", request_id: requestId, route: body.endpointCode,
+        outcome: "failed", reason: safeReason(error),
+        ...(error instanceof ProbeError && error.receipt ? error.receipt : {}),
+        latency_ms: Date.now() - callStarted, cost: null });
+      throw error;
+    }
     if (body) report.calls.push({ plane: "atlas", request_id: requestId, route: body.endpointCode,
       model: id(res.modelCode), latency_ms: Date.now() - callStarted,
       usage: { input_tokens: number(res.usage?.promptTokens), output_tokens: number(res.usage?.completionTokens),
@@ -292,7 +327,8 @@ export async function runProbe(context, env, request = fetch) {
   let skillContext;
   await section(report.runos, "skill_sample", async () => {
     const rows = catalogs.get("skill") ?? [];
-    const row = rows.find(r => /research|web.search|market/i.test(`${r.capability_id} ${r.summary}`) && contracts.has(r.capability_id));
+    const row = rows.find(r => r.capability_id === "sandbaseai.research-company-enrichment" && contracts.has(r.capability_id))
+      ?? rows.find(r => /research|web.search|market/i.test(`${r.capability_id} ${r.summary}`) && contracts.has(r.capability_id));
     if (!row) fail("research_skill_not_discovered");
     const c = contracts.get(row.capability_id);
     const result = await runos("runos_invoke", { capability_id: row.capability_id, version: c.version, operation: "fetch", arguments: {} });
@@ -302,6 +338,7 @@ export async function runProbe(context, env, request = fetch) {
     return { capability_id: row.capability_id, version: c.version, call_id: id(meta.call_id),
       result_kind: "distributed", content_sha256: sha(content), characters: content.length,
       dependencies: safeContract(row, c).dependencies, execution_status: "not_executed",
+      prerequisites: skillPrerequisites(content),
       note: "distribution_and_connector_probes_are_separate" };
   });
   let evidence = "";
@@ -358,6 +395,11 @@ export async function runProbe(context, env, request = fetch) {
   const failures = [...Object.values(report.atlas), ...Object.values(report.runos)].some(v => v.status !== "ok");
   const unresolved = TYPES.some(type => report.runos[type]?.data?.resolved !== report.runos[type]?.data?.total);
   return { status: failures || unresolved ? "partial" : "ok", data: report };
+}
+
+export function skillPrerequisites(content) {
+  return { references_sandbase_tools: /sandbase_describe_tool|sandbase_call_tool/.test(content),
+    references_direct_exa_sdk: /exa-py|EXA_API_KEY/.test(content) };
 }
 
 export async function runConsumerProbe(env, request = fetch) {

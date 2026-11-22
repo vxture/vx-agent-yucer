@@ -9,10 +9,11 @@
 - [x] 核对现有 Atlas／Runos 消费协议、分页能力与既有生产诊断流程。
 - [x] 线上 `/api/status` 显示两个平台配置存在且可达；仅属连接证据。
 - [x] 准备固定核验脚本及精确 main／production 审批工作流；本地失败与脱敏测试通过。
-- [ ] 使用聿策实际身份与经过核验的 workspace 分页读取目录，不替换为运维账号授权。
-- [ ] Atlas 获授路由、状态、容量、接口／模态、用途与预算清单。
-- [ ] Runos 四类目录计数、分页完整性、受控版本、相关依赖与首 20 项以外发现证据。
-- [ ] 真实公开资料搜索、网页读取、Skill 加载／依赖及 Atlas 调用回执。
+- [x] 使用聿策实际 service 身份与平台当前核验的 workspace 分页读取目录，不替换为运维账号授权。
+- [x] Atlas 获授 10 条 active 路由、状态、容量、接口与预算清单；多模态未实测。
+- [x] Runos 四类目录计数、分页完整性、受控版本、相关依赖与首 20 项以外发现证据。
+- [x] 真实公开资料搜索、网页读取和 Skill 分发回执。
+- [ ] 业务相关 Skill 依赖适配与 Atlas 成功调用／安全失败回执补齐；本次对话 400、向量／重排 503。
 - [ ] 任务映射、可用／已授权待验证／契约缺失／平台异常矩阵及必要上游 Issue。
 - [ ] 核验报告回填、PR／CI 记录、批次验收；未实测部分保持未完成。
 
@@ -44,7 +45,7 @@ Atlas 仅在实际获授且 active 的 chat、embedding、rerank 分类各选择
 无路由、调用失败、截断或缺失回执记录 partial，不将其他路由视为已验证。
 费用未由响应提供时记未知，不估算成零。报告以 14 天 Artifact 保存，不在 Actions 日志展开目录正文。
 
-本地验证为夹具，不是生产证据：Python 7 项边界测试、Node 14 项控制流／协议测试；
+本地验证为夹具，不是生产证据：Python 7 项边界测试、Node 18 项控制流／协议测试；
 原只读库存的 9 项安全测试继续保留。检查精确 main 门、只读事务、上下文 UUID、
 平台撤销关系、完整分页、错误脱敏、写风险拒绝、分发／执行回执及无效资料不进入模型。
 
@@ -89,6 +90,80 @@ PR #746 已合并（`ee937a2c`），主分支六项必需检查通过；PR Sonar
 Owner 补充确认：无需逐项重复请求已有授权；授权在路由层，由 Atlas 决定具体模型。
 核验与小聿均只按获授 endpoint 调用，实际 `modelCode` 只用于审计，不固定具体模型或要求额外模型授权。
 
+### 第三次真实核验：已取得目录与联网证据
+
+运行 [44989687196](https://github.com/vxture/vx-agent-yucer/actions/runs/44989687196)，
+main `d6c49f6e102e52ec8ef24cac214c2178eb8824f4`，状态 `partial`。
+时间：2026-11-21 21:36 America/Los_Angeles（2026-11-22 05:36 UTC）；供给探针总耗时 8,271 ms。
+平台 provisioning 读取 1 页／2 条关系，1 条 provisioned；以当前关系选取 service 上下文成功。
+该上下文不是本人交互 OBO／隔离测试工作空间，不据此完成私人记忆 ACL 验收。
+
+taskId：`xy00b:802a3ead-1433-4aca-8d1d-71fd441a79d9`。
+完整脱敏报告保存在运行 Artifact `xiaoyu-supply-report`，保留 14 天；本段安全摘要持续保留。
+原报告 SHA-256：`c064c776e1470e1709dafd2f79cdd0ce99e733aa5aaec23e038b08788974cea6`。
+
+| 供给 | 实际可发现／解析 | 分页与版本 | 实调状态 |
+|---|---|---|---|
+| Atlas | 10 条 active 路由 | 6 chat、2 embedding、2 rerank | 目录成功；三个分类样本均未成功，详见下文 |
+| Runos Skill | 877／877 | 44 页，20 条／页；1.0.0=503、1.0.1=326、1.0.2=46、1.0.3=2 | `fetch` 分发样本成功，未执行 Skill 内容 |
+| Runos Connector | 2／2 | 1 页；均 1.0.0 | Exa 搜索／读取成功；MarkItDown 未实调 |
+| Runos Executor | 0 | 1 页完整空目录 | 不宣称存在已验证执行器 |
+| Runos Asset | 0 | 1 页完整空目录 | 不宣称存在已验证资产 |
+
+Skill 首 20 项之外发现：`addyosmani.shipping-and-launch`。
+Skill manifest SHA-256：`44c678b1e1286307f0e95e0ce40c3da3a86b649b8073f4bcc36514267f0b59ed`。
+Connector manifest SHA-256：`cd0b507f8c61230aaa970dbd99a4318c3acee89846a838e176dcd12a1b47d5c8`。
+877 个 Skill 均只声明 `fetch`，依赖数组均为空，不能把 Skill 分发目录计为同等数量的可执行工具。
+
+#### Atlas 获授路由与任务用途
+
+以下为当前实际目录。owner 提供的 12 路由是背景，本次产品身份返回 10 条；不虚构缺失名称，
+不自动重授或改为逐模型授权。目录容量为注册信息，不是本批实测的最大值。
+所有 chat 路由登记 tools/toolChoice=true、thinking=off/on；其工具执行和多模态仍未实调。
+
+| endpoint | 分类 | 上下文／最大输出 token | 小聿候选用途（任务质量后续验证） |
+|---|---|---|---|
+| chat/default | chat | 512000／256000 | 常规协作与研究摘要 |
+| chat/deterministic | chat | 512000／256000 | 结构化整理与一致性检查，不代替确定性业务计算 |
+| chat/extract | chat | 128000／128000 | 信息提取与表单草稿 |
+| chat/fast | chat | 256000／128000 | 简短问答与轻量整理 |
+| chat/reasoning | chat | 512000／256000 | 复杂规划与跨对象分析 |
+| chat/vision | chat | 512000／256000 | 图像／文档候选，模态能力待专项验证 |
+| embedding/default、embedding/quality | embedding | 3072／未提供 | 私人记忆候选向量；default 本次 503，quality 未测 |
+| rerank/default、rerank/quality | rerank | 512000／128000 | 检索候选排序；default 本次 503，quality 未测 |
+
+顶层请求体上限：16,777,216 bytes。目录与调用权限单位均是 endpoint；不将背后的模型名称固化进业务选择。
+
+#### 已完成的 Runos 调用
+
+| 能力／操作 | 版本 | callId | 结果与耗时 |
+|---|---|---|---|
+| github.autoresearch / fetch | 1.0.0 | 01a201c1-68c1-7a50-973b-b0811701ea88 | distributed；11,126 字符，11 ms；内容未执行 |
+| exa.web-research / web_search_exa | 1.0.0 | 01a201c1-68cd-79f2-8106-7b55d0290fe6 | executed；3,358 字符，2,949 ms |
+| exa.web-research / web_fetch_exa | 1.0.0 | 01a201c1-7454-749c-b758-908e1ff756ac | executed；1,638 字符，1,324 ms |
+
+来源：`https://www.unitree.com/`、`https://www.unitree.com/about/`、`https://www.unitree.com/contact/`。
+读取正文 SHA-256：`6041fadffc0460d98e14d0a791ad689fc28dd3b65946774a0f298dca3ef1af2d`。
+Skill 分发与 Exa 调用分别记证据；当前所加载 Skill 没有声明 Exa 依赖，因此未伪造 Skill 依赖归属。
+费用响应未提供，均记未知，不能计零费用。未创建或保存任何业务对象。
+
+#### 尚未完成与修正
+
+- `chat/default` / `/v1/chat` 返回 HTTP 400。代码核对发现探针发送 `applicationType=agent`
+  却未提供 applicationId，与 Atlas `validateChatRequest` 不符；该缺陷属消费探针，不能归为平台供给故障。
+  补丁移除不完整应用归属字段，使用正常 service 默认归属，仍带产品票据、tenant/workspace、taskId/requestId。
+  本次原报告没有保留标准错误码，不能声称该次实际返回码已被确认是 `APPLICATION_ID_REQUIRED`。
+- `embedding/default` / `/v1/embed`、`rerank/default` / `/v1/rerank` 各返回 HTTP 503。
+  属已确认的调用失败，具体根因未知；已向 [Atlas #147](https://github.com/vxture-foundation/vxture-atlas/issues/147) 提单。不能推断缺少模型授权。
+- 原探针未记录 Atlas 失败请求编号／标准错误码，补丁增加仅白名单 code、状态、retryable 和 UUID 请求编号，
+  不输出原始 message、provider 或请求正文；成功回执与失败分开，不以请求发出就计成功。
+- 下一次优先分发业务相关企业补全 Skill，记录其对 SandBase／直接 Exa SDK 的依赖标记（仅布尔值），
+  与实际 2 个连接器目录对照；不执行 Skill 里的外部调用或脚本，不把本地源文件当作生产分发证据。
+- 向量／重排未恢复前，02A 可采用满足本人／同空间／来源／撤权条件的关键词和结构化检索；
+  不能因此宣称语义记忆已验收，也不能用未测 quality 路由假装恢复。
+
+当前 34 项诊断回归通过（Python 16、Node 18）；真实补充核验待本轮修正合并与运行。
+
 ## 三、证据口径
 
 目录与调用分开；Skill 加载与执行分开；服务身份供给核验与交互式用户 OBO／业务写入验收分开。
@@ -96,15 +171,16 @@ Owner 补充确认：无需逐项重复请求已有授权；授权在路由层�
 保留 taskId、callId、requestId、版本、路由、耗时、计量（平台未提供时记未知）、结果摘要与来源。
 任何缺失、分页截断、协议异常或失败都明确标记，不输出凭据、原始异常、私人内容或环境值。
 
-真实矩阵和平台缺口在核验运行后填写；当前不虚构能力名、数量或成功状态。
+下表按本次真实目录和回执填写；目录、实调成功、已知失败及待后续质量验收分别标记。
 
-## 四、任务映射核验模板
+## 四、任务映射与消费边界
 
-| 任务 | 供给证据 | 实调状态与消费批次 |
+| 任务 | 当前供给／状态 | 消费批次与限制 |
 |---|---|---|
-| 普通对话、公开研究摘要 | 获授 chat 分类，沿用当前配置优先 | 等本次固定摘要探针；01B／04A |
-| 复杂规划、结构化草稿、评分 | 目录容量、推理与工具支持；实际任务质量样本 | 本次仅清点，04A／05 分任务验证，不能由普通对话通过推定 |
-| 记忆检索 | embedding／rerank 授权及对应接口 | 本次固定探针；02A 仍须验证隔离与来源，未可用采用明确的关键词／结构化降级 |
-| 公开资料检索与网页读取 | 连接器契约、只读风险、真实正文与来源、callId | 等本次实调；04A 接入真实表单 |
-| Skill 调度与依赖 | 分页目录、版本、分发回执、声明依赖 | 本次目录与样本分发；依赖不匹配明确待补，04A 接调度 |
-| 业务关联、保存、发布 | 原域服务、字段契约、#652 授权与业务回执 | 本批不写业务；04A 草稿、04B 提交，05 贯穿 |
+| 普通对话、研究摘要 | chat/default 已获授；本次探针 400，消费归属修正后待成功回执 | 01B／04A；不能宣称本批对话实调通过 |
+| 复杂规划、结构化草稿、评分解释 | reasoning／extract／deterministic 已获授，尚未做任务样本 | 04A／05；金额、差额、进度继续由业务规则计算 |
+| 记忆向量与重排 | 两类各 2 条已获授；default 各 503，quality 未测 | 02A；采用明确的关键词／结构化降级，保留隔离和撤权校验 |
+| 公开检索、网页读取 | exa.web-research@1.0.0 两个 read 操作实调成功 | 04A；接入来源与表单草稿，联网不等于业务已保存 |
+| 企业补全、市场研究、销售支持 Skill | 相关目录可发现／版本已解析；877 个 Skill 的依赖声明均为空 | 04A；业务样本分发及工具适配待核验，不信任 Skill 提供新权限 |
+| 文档转 Markdown | markitdown.document-to-markdown@1.0.0 已解析 convert_to_markdown/read | 尚未实调；不等于已具备任意文档、OCR 或私有文件访问权限 |
+| UUID 关联、保存、发布 | 本次不调用业务写入，执行器目录为空 | 04A 字段契约草稿、04B 原域服务／#652 授权，05 贯穿 |
