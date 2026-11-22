@@ -52,7 +52,7 @@ export function accessSource(session: AppSession): TaskSource {
         a.localeCompare(b),
       ),
       scope: session.scope,
-      features: featureKeysFor(session.entitlement).sort(),
+      features: featureKeysFor(session.entitlement).sort((a, b) => a.localeCompare(b)),
     }),
   };
 }

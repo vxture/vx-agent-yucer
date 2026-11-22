@@ -273,7 +273,7 @@ export function formHref(form: BusinessForm, taskId: string, key: string) {
   }[form.module];
   const query = new URLSearchParams({ xyTask: taskId, xyForm: key });
   if (form.targetId)
-    query.set(form.module === "strategy" ? "id" : "id", form.targetId);
+    query.set("id", form.targetId);
   if (form.module === "sales_plan" && Number.isInteger(form.fields.year))
     query.set("year", String(form.fields.year));
   return `${route}?${query}`;
