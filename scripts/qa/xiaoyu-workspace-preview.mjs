@@ -49,6 +49,13 @@ await click('\u67e5\u770b\u7b14\u8bb0');await fill('textarea[maxlength="10000"]'
 await fill('#xiaoyu-dock-input','');
 await evaluate(`(()=>{const e=document.querySelector('#xiaoyu-dock-input');e.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',keyCode:229,isComposing:true,bubbles:true}));e.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}));})()`);
 const before=await evaluate(`fetch('/api/copilot/tasks/${id}').then(r=>r.json()).then(b=>({turns:b.turns.length,notes:b.drafts.find(d=>d.key==='notes')?.text}))`);assert.equal(before.turns,0);assert.equal(before.notes,'Private checkpoint saved through the real task API');
+// Expanded notes on shorter screens must leave a reachable send control.
+for(const [width,height] of [[390,844],[390,720],[720,640],[1440,800]]) {
+ await page.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(300);
+ const fit=await evaluate(`(()=>{const e=document.querySelector('[data-xiaoyu-surface]');e.scrollTop=e.scrollHeight;const button=e.querySelector('[data-assistant-composer] button[type=submit]');return {send:button.getBoundingClientRect().bottom,bottom:document.querySelector('[data-assistant-body]').getBoundingClientRect().bottom};})()`);
+ assert.ok(fit.send<=fit.bottom+1,'Short-screen send control is clipped');
+}
+await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await pause(300);
 await click('\u6536\u8d77\u7b14\u8bb0');
 for(const width of [1440,1024,720,390]){
  await page.send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});await pause(350);

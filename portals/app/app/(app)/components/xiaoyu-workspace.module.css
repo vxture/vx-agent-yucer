@@ -1,4 +1,4 @@
-.workspace { display: flex; height: 100%; min-height: 0; flex-direction: column; gap: var(--space-lg); }
+.workspace { display: flex; height: 100%; min-height: 0; flex-direction: column; gap: var(--space-lg); overflow-y: auto; overscroll-behavior: contain; }
 .layout { display: flex; flex: 1; min-height: 0; gap: var(--space-lg); }
 .tasks { width: var(--vx-pane-nav); flex-shrink: 0; min-height: 0; overflow-y: auto; padding: var(--space-md); }
 .conversation { display: flex; flex: 1; min-height: 0; min-width: 0; flex-direction: column; gap: var(--space-md); }
