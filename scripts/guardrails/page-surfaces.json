@@ -937,6 +937,17 @@
         "file": "(app)/components/xiaoyu-workspace.tsx",
         "needle": "href=\"/copilot/memory\""
       }
+    },
+    {
+      "file": "(app)/copilot/knowledge/page.tsx",
+      "route": "/copilot/knowledge",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/xiaoyu-workspace.tsx",
+        "needle": "href=\"/copilot/knowledge\""
+      },
+      "sample": "/copilot/knowledge",
+      "reason": "Independent reviewed team knowledge, separate from personal memory."
     }
   ],
   "preservedControls": {

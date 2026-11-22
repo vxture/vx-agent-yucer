@@ -99,7 +99,29 @@ const companyPlanningText = {
 
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
+  XIAOYU_KNOWLEDGE: {
+  "title": "Team knowledge",
+  "description": "Maintain business knowledge independently of private memories.",
+  "add": "New knowledge",
+  "boundary": "Share reviewed business content only. Source permissions still apply; chats, private memories and notes are never shared automatically.",
+  "error": "Could not finish. Reload current state; sources or audience may have changed.",
+  "edit": "Revise knowledge",
+  "name": "Knowledge title",
+  "content": "Business content",
+  "scope": "Audience",
+  "workspace": "Workspace",
+  "members": "Selected members",
+  "findMembers": "Find authorized members",
+  "sources": "Business sources",
+  "sourcesHint": "Select business records linked to the current task. Only UUIDs and versions are saved, without conversation references.",
+  "reviewOnly": "I reviewed this business content and excluded private conversations and memories.",
+  "preview": "Preview shared content",
+  "previewNote": "Only this business content and its sources enter team knowledge. Source access and audience both apply.",
+  "share": "Confirm sharing",
+  "empty": "No accessible team knowledge. Changed or revoked sources stop being shown."
+},
   XIAOYU_MEMORY: {
+
     older:"Older memories",newer:"Newer memories",refresh:"Reload",
     title:"My memory", subtitle:"Private to you and this workspace",hint:"Stopping and corrections apply immediately. Tasks using old versions stop replaying them. Team knowledge is managed separately.",back:"Back to Xiaoyu",new:"New memory",text:"Memory",kind:"Type",fact:"Business fact",decision:"User decision",inference:"Model inference",hypothesis:"Unverified hypothesis",save:"Save",cancel:"Cancel",edit:"Correct",stop:"Stop using",restore:"Restore",active:"In use",stopped:"Stopped",unavailable:"Source unavailable; content is hidden",empty:"No memories yet. Conversations are summarized privately, or add one yourself.",failure:"Could not finish. Reload the latest state.",updated:"Updated",source:"Source",user:"Written by you",model:"Conversation extraction",revision:"Revision",history:"Find my conversations",search:"Search",query:"At least two characters; searches only accessible personal history",openTask:"Open source task",capture:"Extract current conversation again",loading:"Loading...",limit:"Up to 1200 characters. Business facts require a verifiable source. Manual memories can start as decisions or hypotheses."
   },
@@ -116,7 +138,7 @@ export const en: Dictionary = {
     "emptyTasks": "Start a conversation to create your first task.",
     "noSelection": "New task",
     "privateScope": "Private to you \u00b7 Current workspace",
-    "phase": "Continuous conversations and private notes are available. Long-term memory and business form adapters are coming next.",
+    "phase": "Private cross-task memory and independent team knowledge are available. Business queries, form drafts and authorized execution are still being built.",
     "welcome": "Start with a question",
     "welcomeDescription": "Tell me what you want to analyse or move forward. Continue the same task as you move between modules.",
     "example": "For example: help me plan next year\u2019s target markets and strategic direction",

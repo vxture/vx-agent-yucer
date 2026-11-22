@@ -25,6 +25,8 @@ import { InMemoryCopilotStore, type CopilotStore } from "../copilot/store";
 import { InMemoryTaskStore, type TaskStore } from "../copilot/task-store";
 import { PrismaTaskStore } from "../copilot/task-prisma-store";
 import { InMemoryMemoryStore, type MemoryStore } from "../copilot/memory-store";
+import { InMemoryKnowledgeStore, type KnowledgeStore } from "../copilot/knowledge-store";
+import { PrismaKnowledgeStore } from "../copilot/knowledge-prisma-store";
 import { PrismaMemoryStore } from "../copilot/memory-prisma-store";
 import { PrismaCopilotStore } from "../copilot/prisma-store";
 import { InMemoryAccountStore, type AccountStore } from "../account/store";
@@ -130,6 +132,12 @@ export function getTaskStore(): TaskStore {
   const memo = memoTable();
   if (!memo.xiaoyuTasks) memo.xiaoyuTasks = prismaEnabled() ? new PrismaTaskStore() : new InMemoryTaskStore();
   return memo.xiaoyuTasks as TaskStore;
+}
+
+export function getKnowledgeStore(): KnowledgeStore {
+  const memo = memoTable();
+  if (!memo.xiaoyuKnowledge) memo.xiaoyuKnowledge = prismaEnabled() ? new PrismaKnowledgeStore() : new InMemoryKnowledgeStore();
+  return memo.xiaoyuKnowledge as KnowledgeStore;
 }
 
 export function getMemoryStore(): MemoryStore {

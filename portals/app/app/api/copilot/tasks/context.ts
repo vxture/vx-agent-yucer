@@ -1,3 +1,5 @@
+import { readProductRoster } from "../../../platform/product-roster";
+import { getAuthzStore } from "../../../authz/store";
 import { createHash } from "node:crypto";
 import { can } from "../../../authz/decide";
 import {
@@ -22,6 +24,7 @@ import {
   getStrategyStore,
   getTaskStore,
   getMemoryStore,
+  getKnowledgeStore,
 } from "../../../domains/shared/registry";
 import type {
   TaskObject,
@@ -144,6 +147,13 @@ export async function taskRequestContext(): Promise<{
       entitlement: session.entitlement,
       store: getTaskStore(),
       memory: getMemoryStore(),
+      knowledge: getKnowledgeStore(),
+      knowledgeMembers: async () => {
+        const roster = await readProductRoster(session.workspaceId, session.user.activeOrg);
+        if (roster !== null) return roster.map(m => ({sub:m.subject,displayName:m.displayName}));
+        if (process.env.DEPLOY_STAGE === "production" || process.env.DEPLOY_STAGE === "beta") throw new Error("knowledge_roster_unavailable");
+        return (await getAuthzStore().listMembers(session.workspaceId)).filter(m => m.status === "active").map(m => ({sub:m.sub,displayName:m.displayName}));
+      },
       sessions: getCopilotStore(),
       source: (object) => readTaskSource(session, object),
       refresh: async () => (await taskRequestContext())?.context ?? null,

@@ -24,6 +24,7 @@ export interface PrivateMemory extends TaskScope {
   messageIds: string[];
   sources: TaskSource[];
   parents: MemoryDependency[];
+  knowledgeSources?: MemoryDependency[];
   createdAt: Date;
   updatedAt: Date;
 }
