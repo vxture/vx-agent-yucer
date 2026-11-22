@@ -56,9 +56,9 @@ class HostTests(unittest.TestCase):
 
     def test_process_return_error_is_redacted(self):
         result = subprocess.CompletedProcess(["secret"], 1, "secret", "secret")
-        with patch.object(host.subprocess, "run", return_value=result):
-            with self.assertRaisesRegex(RuntimeError, "^operation_failed$"):
-                host.run(["secret"], "secret")
+        with patch.object(host.subprocess, "run", return_value=result), \
+             self.assertRaisesRegex(RuntimeError, "^operation_failed$"):
+            host.run(["secret"], "secret")
 
     def test_partial_report_is_not_completed_and_uses_existing_consumer(self):
         output = io.StringIO()
