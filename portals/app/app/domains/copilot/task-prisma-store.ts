@@ -361,7 +361,7 @@ export class PrismaTaskStore implements TaskStore {
     turnId: string,
     result:
       | { answer: string; tokens: number; artifacts?: TaskArtifacts; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
-      | { errorCode: string; interrupted?: boolean },
+      | { errorCode: string; interrupted?: boolean; artifacts?: TaskArtifacts },
   ): Promise<boolean> {
     const p = await getPrismaClient();
     return p
@@ -420,7 +420,7 @@ export class PrismaTaskStore implements TaskStore {
                   ? "interrupted"
                   : "failed",
             assistantMessageId,
-            artifacts: "answer" in result && result.artifacts ? structuredClone(result.artifacts) as unknown as Prisma.InputJsonValue : {},
+            artifacts: result.artifacts ? structuredClone(result.artifacts) as unknown as Prisma.InputJsonValue : {},
             errorCode: "errorCode" in result ? result.errorCode : null,
             finishedAt: new Date(),
           },

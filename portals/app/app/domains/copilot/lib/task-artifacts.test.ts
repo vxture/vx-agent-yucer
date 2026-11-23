@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { taskArtifacts, publicSourceUrl, readTaskArtifacts } from "./task-artifacts";
+import { budgetFailureArtifacts, taskArtifacts, publicSourceUrl, readTaskArtifacts } from "./task-artifacts";
 import { formChanges, mergeForm } from "./business-form";
 import type { TurnResult } from "../../../agent/orchestrator/turn";
 test("research metadata comes from actual successful evidence and excludes credential or unsafe links",()=>{
@@ -50,4 +50,14 @@ test("field review compares nested proposed fields with server baseline and keep
   assert.equal(formChanges(first).find(c=>c.path==="criteria.buyingScenario")!.changed,false);
   const fresh=formChanges(mergeForm(null,"solution",null,{items:[]}));
   assert.equal(fresh[0]!.before,undefined);
+});
+
+test("budget failure metadata contains counts only and rejects sources or invalid reasons", () => {
+  const a = budgetFailureArtifacts({ reason: "tokens", elapsedMs: 30000, totalTokens: 40100, toolRounds: 4, modelRequests: 5, toolCalls: 4 });
+  assert.equal(readTaskArtifacts(a), a);
+  assert.deepEqual(a.research, []); assert.deepEqual(a.calls, []);
+  assert.equal(a.usage.totalTokens, 40100); assert.equal(a.failure!.reason, "tokens");
+  assert.equal(readTaskArtifacts({ ...a, failure: { ...a.failure, reason: "unknown" } }), undefined);
+  assert.equal(readTaskArtifacts({ ...a, failure: { ...a.failure, modelRequests: -1 } }), undefined);
+  assert.equal(readTaskArtifacts({ ...a, calls: [{ capabilityId: "x", operation: "read", callId: null, version: null, ok: true }] }), undefined);
 });

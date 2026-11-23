@@ -115,7 +115,7 @@ export interface TaskStore {
     turnId: string,
     result:
       | { answer: string; tokens: number; artifacts?: TaskArtifacts; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
-      | { errorCode: string; interrupted?: boolean },
+      | { errorCode: string; interrupted?: boolean; artifacts?: TaskArtifacts },
   ): Promise<boolean>;
 }
 
@@ -310,7 +310,7 @@ export class InMemoryTaskStore implements TaskStore {
     turnId: string,
     result:
       | { answer: string; tokens: number; artifacts?: TaskArtifacts; references?: Omit<TaskReference,"referenceId">[]; forms?: {key:string;text:string}[] }
-      | { errorCode: string; interrupted?: boolean },
+      | { errorCode: string; interrupted?: boolean; artifacts?: TaskArtifacts },
   ): Promise<boolean> {
     const b = this.owned(scope, id),
       turn = b?.turns.find((t) => t.id === turnId && t.status === "running");
@@ -340,6 +340,7 @@ export class InMemoryTaskStore implements TaskStore {
     } else {
       turn.status = result.interrupted ? "interrupted" : "failed";
       turn.errorCode = result.errorCode;
+      turn.artifacts = result.artifacts ? copy(result.artifacts) : undefined;
     }
     b.task.revision++;
     b.task.updatedAt = new Date();

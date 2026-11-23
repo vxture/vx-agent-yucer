@@ -8,6 +8,7 @@ import { RunosError } from "../runos/errors";
 import type { ResolvedCapability } from "../runos/types";
 import { readDistribution, renderSkillPrompt } from "../runos/skills";
 import { buildTurnMessages, estimateMessages, estimateTokens, fitTurnToWindow, type PromptContext } from "./prompt";
+import { catalogContext, contractContext, referenceContext, referenceData } from "./tool-context";
 import {
   PROPOSE_ACTION_TOOL_NAME,
   CATALOG_TOOLS, FIND_CAPABILITIES, LOAD_CAPABILITY,
@@ -119,8 +120,21 @@ export interface TurnDeps {
 
 const DEFAULT_MAX_TOOL_ROUNDS = 8;
 
+export type BudgetReason = "tokens" | "deadline" | "tool_calls";
+export interface BudgetUsage {
+  reason: BudgetReason;
+  elapsedMs: number;
+  totalTokens: number;
+  toolRounds: number;
+  modelRequests: number;
+  toolCalls: number;
+}
+export class TurnBudgetError extends Error {
+  constructor(readonly usage: BudgetUsage) { super("task_budget_exhausted"); }
+}
+
 export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnResult> {
-  const startedAt=Date.now(); let toolCalls=0;
+  const startedAt=Date.now(); let toolCalls=0, modelRequests=0;
   const maxRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
   const profile: CallProfile = input.profile ?? "dialogue";
   const noTools = input.draftOnly && !input.readOnlyTools;
@@ -165,22 +179,32 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   let totalTokens = 0;
   const modelCodes = new Set<string>();
   const readEvidence: ReadEvidence[] = [];
+  const exhausted = (reason: BudgetReason) => new TurnBudgetError({ reason,
+    elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens, toolRounds: rounds, modelRequests, toolCalls });
+  const checkBudget = () => {
+    if (!input.totalBudget) return;
+    if (Date.now()-startedAt >= input.totalBudget.deadlineMs) throw exhausted("deadline");
+    if (totalTokens >= input.totalBudget.maxTokens) throw exhausted("tokens");
+  };
   const requestBudget=()=>{
     if(!input.totalBudget)return {};
     const remainingMs=input.totalBudget.deadlineMs-(Date.now()-startedAt),remainingTokens=input.totalBudget.maxTokens-totalTokens;
-    if(remainingMs<1000||remainingTokens<=0)throw Error("task_budget_exhausted");
+    if(remainingMs<1000)throw exhausted("deadline");
+    if(remainingTokens<=0)throw exhausted("tokens");
     return {timeoutMs:Math.min(profileSettings(profile).timeoutMs,remainingMs),maxTokens:Math.min(profileSettings(profile).maxTokens,remainingTokens)};
   };
   let correctingAnswer = false;
   let reviewedFallback: string | undefined;
 
   for (;;) {
-    if(input.totalBudget&&(Date.now()-startedAt>=input.totalBudget.deadlineMs||totalTokens>=input.totalBudget.maxTokens))throw Error("task_budget_exhausted");
+    checkBudget();
     let res;
     try {
+      const budget = requestBudget();
+      modelRequests++;
       res = await deps.atlasClient.chat(
         profile,
-        noTools || correctingAnswer ? { messages,...requestBudget() } : { messages, tools: surface.definitions, toolChoice: "auto",...requestBudget() },
+        noTools || correctingAnswer ? { messages,...budget } : { messages, tools: surface.definitions, toolChoice: "auto",...budget },
         input.atlas,
       );
     } catch (e) {
@@ -202,7 +226,8 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       throw e;
     }
     totalTokens += res.usage.totalTokens;
-    if(input.totalBudget&&(totalTokens>input.totalBudget.maxTokens||Date.now()-startedAt>input.totalBudget.deadlineMs))throw Error("task_budget_exhausted");
+    if(input.totalBudget&&totalTokens>input.totalBudget.maxTokens)throw exhausted("tokens");
+    if(input.totalBudget&&Date.now()-startedAt>input.totalBudget.deadlineMs)throw exhausted("deadline");
     if (res.modelCode) modelCodes.add(res.modelCode);
 
     const reply = res.message;
@@ -237,9 +262,12 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
         content:
           "Tool budget for this turn is spent. Answer with what you already have, and say what you could not check.",
       });
-      const final = await deps.atlasClient.chat(profile, { messages,...requestBudget() }, input.atlas);
+      const budget = requestBudget();
+      modelRequests++;
+      const final = await deps.atlasClient.chat(profile, { messages,...budget }, input.atlas);
       totalTokens += final.usage.totalTokens;
-      if(input.totalBudget&&(totalTokens>input.totalBudget.maxTokens||Date.now()-startedAt>input.totalBudget.deadlineMs))throw Error("task_budget_exhausted");
+      if(input.totalBudget&&totalTokens>input.totalBudget.maxTokens)throw exhausted("tokens");
+      if(input.totalBudget&&Date.now()-startedAt>input.totalBudget.deadlineMs)throw exhausted("deadline");
       if (final.modelCode) modelCodes.add(final.modelCode);
       if (final.message.content) answer = final.message.content;
       const review = input.reviewAnswer?.(answer, readEvidence);
@@ -255,8 +283,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
 
     rounds += 1;
     for (const call of calls) {
-      if(input.totalBudget&&(++toolCalls>input.totalBudget.maxCalls||Date.now()-startedAt>=input.totalBudget.deadlineMs))throw Error("task_budget_exhausted");
+      checkBudget();
+      if(input.totalBudget&&toolCalls>=input.totalBudget.maxCalls)throw exhausted("tool_calls");
       await input.beforeTool?.();
+      toolCalls++;
       const outcome = await handleToolCall(call, surface, input, deps, proposals, pinnedVersions, `read-${rounds}-${readEvidence.length + 1}`);
       if (outcome.invocation) invocations.push(outcome.invocation);
       if (outcome.evidence) readEvidence.push(outcome.evidence);
@@ -412,16 +442,16 @@ async function handleToolCall(
         if (typeof args.query !== "string" || !args.query.trim() || args.query.length > 2000) return { content: JSON.stringify({ ok: false, error: "A short tool-purpose query is required." }) };
         if (args.primitive_type !== undefined && !["connector", "skill", "executor", "asset"].includes(String(args.primitive_type))) return { content: JSON.stringify({ ok: false, error: "Unknown primitive_type." }) };
         if (args.cursor !== undefined && (typeof args.cursor !== "string" || args.cursor.length > 2000 || args.query !== "*")) return { content: JSON.stringify({ ok: false, error: "A cursor is valid only for catalog enumeration with query='*'." }) };
-        const query = { query: args.query, limit: 100, ...(typeof args.primitive_type === "string" ? { filter: { primitive_type: args.primitive_type } } : {}), ...(typeof args.cursor === "string" ? { cursor: args.cursor } : {}) };
+        const query = { query: args.query, limit: 20, ...(typeof args.primitive_type === "string" ? { filter: { primitive_type: args.primitive_type } } : {}), ...(typeof args.cursor === "string" ? { cursor: args.cursor } : {}) };
         const page = await deps.runosClient.discoverPage(query, input.runos);
-        return { content: JSON.stringify({ ok: true, ...page, note: "Tool catalog only; no web search or company lookup executed. Load a relevant capability_id to use its registered operations. Continue enumeration with next_cursor when present." }) };
+        return { content: JSON.stringify({ ok: true, ...catalogContext(page), note: "Abbreviated tool catalog only; no web search or company lookup executed. Load a relevant capability_id to use its registered operations. Continue enumeration with next_cursor when present." }) };
       }
       if (typeof args.capability_id !== "string" || !args.capability_id.trim() || args.capability_id.length > 256) return { content: JSON.stringify({ ok: false, error: "A registered capability_id is required." }) };
       const contract = await deps.runosClient.resolve(args.capability_id, input.runos, pinnedVersions.get(args.capability_id) ?? "stable");
       pinnedVersions.set(contract.capability_id, contract.version);
       const loaded = loadReadTools(surface, contract);
       console.info("[copilot-tools] loaded", { taskId: input.runos.taskId, capabilityId: contract.capability_id, title: contract.title, state: contract.state, version: contract.version, tools: loaded });
-      return { content: JSON.stringify({ ok: true, tools: loaded, contract, note: "Contract only; no company facts retrieved. Call the loaded tools to execute research. Skill dependency IDs may be loaded the same way." }) };
+      return { content: JSON.stringify({ ok: true, tools: loaded, contract: contractContext(contract), note: "Contract summary only; registered input schemas are in the loaded tool definitions. No company facts retrieved. Call the loaded tools to execute research. Skill dependency IDs may be loaded the same way." }) };
     } catch (error) {
       const err = error instanceof RunosError ? error : null;
       return { content: JSON.stringify({ ok: false, error: err ? `${err.errorClass}/${err.errorCode}: ${err.message}` : "Capability catalog request failed.", retryable: err?.retryable ?? false }) };
@@ -482,9 +512,7 @@ async function handleToolCall(
     if (versionResolved && !pinned) pinnedVersions.set(binding.capabilityId, versionResolved);
     // MCP can return status in structuredContent and the actual report in
     // content[].text. Neither channel may hide the other.
-    const text = textOf(result.content);
-    const data = result.structured === undefined ? text : text && text !== JSON.stringify(result.structured)
-      ? { structured: result.structured, text } : result.structured;
+    const data = referenceData(result);
     if (result.meta.result_kind === "distributed") {
       const guidance = renderSkillPrompt(readDistribution(binding.capabilityId, result));
       return {
@@ -494,7 +522,7 @@ async function handleToolCall(
     }
     const usable = hasReferenceData(data);
     return {
-      content: JSON.stringify({ ok: true, result: data, ...(!usable ? { note: "The call completed but returned no reference data, only an empty result or acknowledgement. Try a relevant alternative; this is not verified company information." } : {}), ...(input.readOnlyTools && usable ? { sourceId } : {}) }),
+      content: JSON.stringify({ ok: true, ...referenceContext(data), ...(!usable ? { note: "The call completed but returned no reference data, only an empty result or acknowledgement. Try a relevant alternative; this is not verified company information." } : {}), ...(input.readOnlyTools && usable ? { sourceId } : {}) }),
       ...(input.readOnlyTools && usable ? { evidence: { id: sourceId, content: typeof data === "string" ? data : JSON.stringify(data), capabilityId: binding.capabilityId, operation: binding.operation, callId: typeof result.meta.call_id === "string" ? result.meta.call_id : undefined, versionResolved } } : {}),
       invocation: {
         toolName: call.name,
@@ -544,13 +572,6 @@ function parseArgs(raw: ToolCall["arguments"]): Record<string, unknown> {
     }
   }
   return {};
-}
-
-function textOf(content: Array<{ type: string; text?: string }>): string {
-  return content
-    .filter((c) => c.type === "text" && c.text)
-    .map((c) => c.text)
-    .join("\n");
 }
 
 /** The newest notes are shown whatever they resemble: "where do we stand" lives
