@@ -6,6 +6,8 @@ import { permissionsForRoles } from "../../authz/catalog";
 import type { AtlasClient } from "../../agent/atlas/client";
 import type { RunosClient } from "../../agent/runos/client";
 import type { ChatResponse } from "../../agent/atlas/types";
+import { FIND_CAPABILITIES, LOAD_CAPABILITY, toolNameFor } from "../../agent/orchestrator/tools";
+import type { DiscoveredCapability } from "../../agent/runos/types";
 import { unwrap } from "../shared/result";
 import { InMemoryTaskStore } from "./task-store";
 import { InMemoryCopilotStore } from "./store";
@@ -26,7 +28,7 @@ import type { TaskSource } from "./lib/task-contract";
 const WS = randomUUID(),
   ACCESS = randomUUID(),
   SEG = randomUUID();
-async function setup() {
+async function setup(question = "create a segment") {
   const store = new InMemoryTaskStore(),
     sessions = new InMemoryCopilotStore();
   const access: TaskSource = {
@@ -99,7 +101,7 @@ async function setup() {
   const task = unwrap(
     await createPrivateTask(c, {
       requestId: randomUUID(),
-      goal: "create a segment",
+      goal: question,
       targets: [],
     }),
   );
@@ -115,7 +117,7 @@ async function setup() {
       {
         requestId: randomUUID(),
         revision: b!.task.revision,
-        question: "create a segment",
+        question,
       },
       deps,
     );
@@ -127,6 +129,7 @@ async function setup() {
     c,
     store,
     task,
+    deps,
     sources,
     prompts,
     profiles,
@@ -141,6 +144,75 @@ async function setup() {
     },
   };
 }
+test("a compound first question reads Runos evidence and prepares a bound native draft within one budget", async () => {
+  const question = "Read https://example.org/market, then create a segment draft for human review. " +
+    "Use explicit assumptions, do not save or publish. ".repeat(10).trimEnd();
+  const f = await setup(question);
+  const capabilityId = "example.public-research";
+  const schema = { type: "object", properties: { url: { type: "string", format: "uri" } }, required: ["url"] };
+  const capabilities: DiscoveredCapability[] = Array.from({ length: 20 }, (_, i) => ({
+    capability_id: i === 0 ? capabilityId : `example.connector-${i}`,
+    title: `Research connector ${i}`, primitive_type: "connector", provider: "example", admission_tier: "official",
+    summary: "Read open market statistics and company reports. ".repeat(10),
+    use_when: "Choose when retrieving currently published information. ".repeat(10),
+    avoid_when: "Ignore unverified sources and paywalled materials. ".repeat(10),
+    operations: [{ operation: "fetch", description: "Fetch a page", interaction_mode: "sync", risk_level: "read" }],
+  }));
+  const steps: string[] = [];
+  f.deps.runosClient.discoverPage = async () => { steps.push("find"); return { capabilities, total: 20 }; };
+  f.deps.runosClient.resolve = async (id) => {
+    assert.equal(id, capabilityId);
+    steps.push("load");
+    return { capability_id: id, title: "Public research", state: "stable", version: "1.0.1", primitive_type: "connector", provider: "example", contract: {
+      summary: "Retrieve official statistics", useWhen: "Read a named public page", avoidWhen: "Do not use for internal records",
+      operations: [{ operation: "fetch", description: "Read URL", riskLevel: "read", interactionMode: "sync", inputSchema: schema, outputSchema: {}, idempotent: true }],
+    } };
+  };
+  f.deps.runosClient.invoke = async (args) => {
+    assert.deepEqual(args, { capability_id: capabilityId, operation: "fetch", arguments: { url: "https://example.org/market" }, version: "1.0.1" });
+    steps.push("fetch");
+    const content = [{ type: "text", text: "Source: https://example.org/market\nPublished permit records. " + "Public reference paragraph. ".repeat(600) }];
+    return { content, structured: { content }, meta: { call_id: "fetch-1", version_resolved: "1.0.1" } };
+  };
+  f.set([
+    f.tools(FIND_CAPABILITIES, { query: "fetch public webpage", primitive_type: "connector" }),
+    f.tools(LOAD_CAPABILITY, { capability_id: capabilityId }),
+    f.tools(toolNameFor(capabilityId, "fetch"), { url: "https://example.org/market" }),
+    f.tools("business_form_contract", { module: "segment" }),
+    f.tools("prepare_business_form", { module: "segment", key: "market", fields: { name: "Permit software users", priority: 1, criteria: { customerNeed: "Hypothesis: easier permit lookup." } } }),
+    { content: "Study excerpt read [read-3-1]. Private draft ready for review." },
+  ]);
+  const chat = f.deps.atlasClient.chat.bind(f.deps.atlasClient);
+  f.deps.atlasClient.chat = async (profile, request, context) => {
+    // Local gateway stand-in approximates serialized request sizes; the real
+    // tokenizer and routing remain part of the owner-reviewed live acceptance.
+    const promptTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ messages: request.messages, tools: request.tools })) / 3) + 400;
+    return { ...await chat(profile, request, context), usage: { promptTokens, completionTokens: 100, totalTokens: promptTokens + 100 } };
+  };
+  const result = unwrap(await f.turn());
+  const b = unwrap(await readPrivateTask(f.c, f.task.id));
+  assert.equal(b.task.goal, question);
+  assert.deepEqual(steps, ["find", "load", "fetch"]);
+  assert.equal(f.discoveryCount(), 0);
+  assert.equal("navigation" in result ? result.navigation : undefined, `/segment/new?xyTask=${f.task.id}&xyForm=market`);
+  assert.equal(b.drafts.length, 1);
+  assert.equal(readBusinessForm(b.drafts[0]!.text).fields.name, "Permit software users");
+  assert.deepEqual(b.turns[0]!.artifacts!.research[0]!.links, ["https://example.org/market"]);
+  const usage = b.turns[0]!.artifacts!.usage;
+  assert.ok(usage.totalTokens < 40000);
+  assert.equal(usage.modelUsage!.length, 6);
+  assert.equal(usage.modelUsage!.reduce((sum, row) => sum + row.totalTokens, 0), usage.totalTokens);
+  assert.equal(usage.modelUsage![0]!.toolResultTokens, 0);
+  assert.ok(usage.modelUsage![3]!.toolResultTokens > usage.modelUsage![2]!.toolResultTokens);
+  assert.equal(b.capabilities.save, false);
+  assert.equal(b.capabilities.publish, false);
+  const first = JSON.parse(f.prompts[0]!);
+  assert.equal(first.messages.at(-1).content, question);
+  assert.ok(!first.messages[0].content.includes(question.trim()));
+  const read = JSON.parse(f.prompts[2]!);
+  assert.deepEqual(read.tools.find((t: {name: string}) => t.name === toolNameFor(capabilityId, "fetch")).parameters, schema);
+});
+
 test("research prepares and opens a sourced private form; human corrections survive the next model turn", async () => {
   const f = await setup();
   f.set([

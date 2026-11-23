@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AtlasClient } from "../atlas/client";
+import { AtlasError } from "../atlas/errors";
 import type { ChatMessage, ChatResponse, ToolDefinition } from "../atlas/types";
 import { RunosClient } from "../runos/client";
 import { RunosError } from "../runos/errors";
@@ -784,11 +785,51 @@ test("a form review also runs after the research tool budget is exhausted", asyn
   assert.equal(h.invoked.length, 0);
 });
 
-test("whole-task budgets cap each Atlas request and stop before another tool side effect",async()=>{
- const h=harness({replies:[{toolCalls:[{id:"a",name:"native_read",arguments:{}}]}]});let invoked=0;const requests:{maxTokens?:number;timeoutMs?:number}[]=[];const chat=h.atlasClient.chat.bind(h.atlasClient);h.atlasClient.chat=async(p,r,c)=>{requests.push(r);return chat(p,r,c);};
- await assert.rejects(runTurn({...BASE,question:"research",draftOnly:true,readOnlyTools:true,rejectUnexpectedTools:false,localTools:{definitions:[{name:"native_read",description:"read",parameters:{type:"object"}}],invoke:async()=>{invoked++;return {}; }},totalBudget:{deadlineMs:10000,maxTokens:3,maxCalls:1}},h),/task_budget_exhausted/);
- assert.equal(invoked,1);assert.equal(requests[0]!.maxTokens,3);assert.equal(requests[1]!.maxTokens,1);assert.ok(requests[0]!.timeoutMs!<=10000);
- const before=h.calls.length;await assert.rejects(runTurn({...BASE,question:"expired",draftOnly:true,totalBudget:{deadlineMs:0,maxTokens:100,maxCalls:1}},h),/task_budget_exhausted/);assert.equal(h.calls.length,before);
+test("the next model request reserves its input or stops before another tool call", async () => {
+  const h = harness({ replies: [{ toolCalls: [{ id: "a", name: "native_read", arguments: {} }] }] });
+  let invoked = 0;
+  const requests: Array<{ maxTokens?: number; timeoutMs?: number }> = [];
+  const chat = h.atlasClient.chat.bind(h.atlasClient);
+  h.atlasClient.chat = async (p, r, c) => {
+    requests.push(r);
+    return { ...await chat(p, r, c), usage: { promptTokens: 1500, completionTokens: 50, totalTokens: 1550 } };
+  };
+  await assert.rejects(runTurn({ ...BASE, question: "research", draftOnly: true, deferCapabilities: true, readOnlyTools: true,
+    localTools: { definitions: [{ name: "native_read", description: "read", parameters: { type: "object" } }], invoke: async () => { invoked++; return { note: "reference ".repeat(800) }; } },
+    totalBudget: { deadlineMs: 10000, maxTokens: 3000, maxCalls: 5 },
+  }, h), (e: unknown) => {
+    assert.ok(e instanceof TurnBudgetError);
+    assert.equal(e.usage.modelRequests, 1);
+    const [usage] = e.usage.modelUsage!;
+    assert.equal(requests[0]!.maxTokens, 3000 - usage!.messageTokens - usage!.schemaTokens);
+    assert.equal(usage!.promptTokens, 1500);
+    assert.equal(e.usage.totalTokens, 1550);
+    return true;
+  });
+  assert.equal(invoked, 1);
+  assert.ok(requests[0]!.maxTokens! > 0 && requests[0]!.timeoutMs! <= 10000);
+});
+
+test("partial output or an empty Atlas reply at the turn output cap is a budget failure", async () => {
+  const input = { ...BASE, question: "Answer fully", draftOnly: true,
+    totalBudget: { deadlineMs: 10000, maxTokens: 1600, maxCalls: 1 },
+  };
+  const h = harness({ replies: [{ content: "An incomplete answer" }] });
+  const chat = h.atlasClient.chat.bind(h.atlasClient);
+  for (const empty of [false, true]) {
+    h.atlasClient.chat = async (p, r, c) => {
+      const completionTokens = r.maxTokens!;
+      assert.ok(completionTokens > 0 && completionTokens < 1000);
+      if (empty) throw new AtlasError({ code: "OUTPUT_BUDGET_EXHAUSTED", status: 422, message: "No output" });
+      return { ...await chat(p, r, c), finishReason: "length", usage: { promptTokens: 500, completionTokens, totalTokens: 500 + completionTokens } };
+    };
+    await assert.rejects(runTurn(input, h), (e: unknown) => {
+      assert.ok(e instanceof TurnBudgetError && e.usage.reason === "tokens");
+      assert.ok(e.usage.totalTokens < input.totalBudget.maxTokens);
+      assert.equal(e.usage.modelRequests, 1);
+      return true;
+    });
+  }
 });
 
 test("long search receipts retain provenance while model context and registered schemas remain bounded", async () => {
@@ -811,9 +852,12 @@ test("long search receipts retain provenance while model context and registered 
 test("budget errors distinguish token, deadline and tool-call limits with counts and no transcripts", async () => {
   const base = { ...BASE, question: "Private question", draftOnly: true };
   const h = harness({ replies: [{ content: "Unreviewed private answer" }] });
-  await assert.rejects(runTurn({ ...base, totalBudget: { deadlineMs: 10000, maxTokens: 1, maxCalls: 1 } }, h), (e: unknown) => {
+  // Atlas may tokenize differently from the reservation estimate.
+  const chat = h.atlasClient.chat.bind(h.atlasClient);
+  h.atlasClient.chat = async (p, r, c) => ({ ...await chat(p, r, c), usage: { promptTokens: 3100, completionTokens: 1, totalTokens: 3101 } });
+  await assert.rejects(runTurn({ ...base, totalBudget: { deadlineMs: 10000, maxTokens: 3000, maxCalls: 1 } }, h), (e: unknown) => {
     assert.ok(e instanceof TurnBudgetError);
-    assert.equal(e.usage.reason, "tokens"); assert.equal(e.usage.totalTokens, 2); assert.equal(e.usage.modelRequests, 1);
+    assert.equal(e.usage.reason, "tokens"); assert.equal(e.usage.totalTokens, 3101); assert.equal(e.usage.modelRequests, 1);
     assert.doesNotMatch(JSON.stringify(e), /Private question|Unreviewed private answer/);
     return true;
   });
@@ -822,7 +866,7 @@ test("budget errors distinguish token, deadline and tool-call limits with counts
   });
   const tools = harness({ replies: [{ toolCalls: [{ id: "one", name: "native_read", arguments: {} }, { id: "two", name: "native_read", arguments: {} }] }] });
   let calls = 0;
-  await assert.rejects(runTurn({ ...base, readOnlyTools: true, localTools: { definitions: [{ name: "native_read", description: "Read", parameters: {} }], invoke: async () => { calls++; return {}; } }, totalBudget: { deadlineMs: 10000, maxTokens: 100, maxCalls: 1 } }, tools), (e: unknown) => {
+  await assert.rejects(runTurn({ ...base, readOnlyTools: true, localTools: { definitions: [{ name: "native_read", description: "Read", parameters: {} }], invoke: async () => { calls++; return {}; } }, totalBudget: { deadlineMs: 10000, maxTokens: 4000, maxCalls: 1 } }, tools), (e: unknown) => {
     assert.ok(e instanceof TurnBudgetError); assert.equal(e.usage.reason, "tool_calls"); assert.equal(e.usage.toolCalls, 1); return true;
   });
   assert.equal(calls, 1);
@@ -876,6 +920,11 @@ test("on-demand research retains full catalog pagination and loads only the sele
   assert.deepEqual(h.calls[0]!.tools!.map(t => t.name), [FIND_CAPABILITIES, LOAD_CAPABILITY]);
   assert.ok(h.calls[1]!.messages.some(m => m.content?.includes("next-page") && m.content.includes(selected.capability_id)));
   assert.ok(h.calls[1]!.tools!.every(t => t.name !== lookup));
+  const indexBefore = h.calls[1]!.messages.find(m => m.toolCallId === "find")!;
+  const indexAfter = h.calls[2]!.messages.find(m => m.toolCallId === "find")!;
+  assert.ok(indexAfter.content.length < indexBefore.content.length / 2);
+  assert.deepEqual(JSON.parse(indexAfter.content).capability_ids, caps.map(c => c.capability_id));
+  assert.equal(JSON.parse(indexAfter.content).next_cursor, "next-page");
   assert.deepEqual(h.calls[2]!.tools!.find(t => t.name === lookup)?.parameters, { type: "object", properties: { query: { type: "string" } } });
   assert.ok(h.calls.every(c => c.tools?.every(t => t.name !== write)));
   assert.ok(h.calls.at(-1)!.messages.some(m => m.role === "tool" && m.content?.includes(`unknown tool ${write}`)));

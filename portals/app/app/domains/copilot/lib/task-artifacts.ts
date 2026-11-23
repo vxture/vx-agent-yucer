@@ -1,4 +1,9 @@
 import type { BudgetReason, BudgetUsage, TurnResult } from "../../../agent/orchestrator/turn";
+import type { ModelUsage } from "../../../agent/orchestrator/turn-budget";
+
+const MAX_MODEL_USAGE_ROWS = 20;
+const MODEL_USAGE_FIELDS = ["promptTokens", "completionTokens", "totalTokens", "messageTokens", "schemaTokens", "toolResultTokens"] as const;
+
 export interface ResearchSource {
   id: string;
   capabilityId: string | null;
@@ -12,9 +17,18 @@ export interface TaskArtifacts {
   version: "task-artifacts/1";
   capturedAt: string;
   research: ResearchSource[];
-  usage: { elapsedMs: number; totalTokens: number; toolRounds: number; truncated: boolean };
+  usage: { elapsedMs: number; totalTokens: number; toolRounds: number; truncated: boolean; modelUsage?: ModelUsage[] };
   calls: Array<{ capabilityId: string; operation: string; callId: string | null; version: string | null; ok: boolean }>;
   failure?: { reason: BudgetReason; modelRequests: number; toolCalls: number };
+}
+
+function perModelUsage(rows: ModelUsage[] | undefined): { modelUsage?: ModelUsage[] } {
+  // List the numeric fields explicitly so a future caller cannot persist
+  // request payloads alongside metering data by extending the trace.
+  return rows?.length ? { modelUsage: rows.slice(0, MAX_MODEL_USAGE_ROWS).map((row) => ({
+    promptTokens: row.promptTokens, completionTokens: row.completionTokens, totalTokens: row.totalTokens,
+    messageTokens: row.messageTokens, schemaTokens: row.schemaTokens, toolResultTokens: row.toolResultTokens,
+  })) } : {};
 }
 
 /** Counts only: a failed or revoked turn must not deliver partial private
@@ -22,7 +36,7 @@ export interface TaskArtifacts {
 export function budgetFailureArtifacts(usage: BudgetUsage): TaskArtifacts {
   return {
     version: "task-artifacts/1", capturedAt: new Date().toISOString(), research: [], calls: [],
-    usage: { elapsedMs: usage.elapsedMs, totalTokens: usage.totalTokens, toolRounds: usage.toolRounds, truncated: true },
+    usage: { elapsedMs: usage.elapsedMs, totalTokens: usage.totalTokens, toolRounds: usage.toolRounds, truncated: true, ...perModelUsage(usage.modelUsage) },
     failure: { reason: usage.reason, modelRequests: usage.modelRequests, toolCalls: usage.toolCalls },
   };
 }
@@ -57,7 +71,7 @@ export function taskArtifacts(result: TurnResult, startedAt: number): TaskArtifa
       callId: tag(e.callId), version: tag(e.versionResolved),
       excerpt: e.content.replace(/https?:\/\/[^\s<>"\\]+/gi, url => publicSourceUrl(url) ?? "[link omitted]").slice(0, 1500), links: links(e.content),
     })),
-    usage: { elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens: result.totalTokens, toolRounds: result.toolRounds, truncated: result.truncated },
+    usage: { elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens: result.totalTokens, toolRounds: result.toolRounds, truncated: result.truncated, ...perModelUsage(result.modelUsage) },
     calls: result.invocations.slice(0, 64).map(c => ({capabilityId:c.capabilityId.slice(0,256),operation:c.operation.slice(0,256),callId:tag(c.callId),version:tag(c.versionResolved),ok:c.ok})),
   };
   // UTF-8 excerpts and many long URLs can exceed the SQL byte ceiling even
@@ -75,6 +89,9 @@ export function readTaskArtifacts(value: unknown): TaskArtifacts | undefined {
   const count=(n:unknown)=>typeof n==="number"&&Number.isFinite(n)&&n>=0;
   if(!str(v.capturedAt)||!Number.isFinite(Date.parse(v.capturedAt))||!v.usage||
     !count(v.usage.elapsedMs)||!count(v.usage.totalTokens)||!count(v.usage.toolRounds)||typeof v.usage.truncated!=="boolean"||
+    (v.usage.modelUsage !== undefined && (!Array.isArray(v.usage.modelUsage) || v.usage.modelUsage.length > MAX_MODEL_USAGE_ROWS ||
+      !v.usage.modelUsage.every(row => row && Object.keys(row).length === MODEL_USAGE_FIELDS.length &&
+        MODEL_USAGE_FIELDS.every(k => Number.isSafeInteger(row[k]) && row[k] >= 0)))) ||
     !Array.isArray(v.research)||v.research.length>20||!Array.isArray(v.calls)||v.calls.length>64||
     (v.failure && (!["tokens","deadline","tool_calls"].includes(v.failure.reason)||!count(v.failure.modelRequests)||!count(v.failure.toolCalls)||v.research.length!==0||v.calls.length!==0))||
     !v.research.every(s=>s&&str(s.id)&&tag(s.capabilityId)&&tag(s.operation)&&tag(s.callId)&&tag(s.version)&&str(s.excerpt)&&s.excerpt.length<=1500&&Array.isArray(s.links)&&s.links.length<=8&&s.links.every(l=>str(l)&&publicSourceUrl(l)===l))||

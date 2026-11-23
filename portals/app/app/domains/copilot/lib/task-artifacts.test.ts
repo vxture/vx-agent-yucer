@@ -53,10 +53,15 @@ test("field review compares nested proposed fields with server baseline and keep
 });
 
 test("budget failure metadata contains counts only and rejects sources or invalid reasons", () => {
-  const a = budgetFailureArtifacts({ reason: "tokens", elapsedMs: 30000, totalTokens: 40100, toolRounds: 4, modelRequests: 5, toolCalls: 4 });
+  const row = { promptTokens: 6000, completionTokens: 150, totalTokens: 6150, messageTokens: 5000, schemaTokens: 900, toolResultTokens: 2500 };
+  const a = budgetFailureArtifacts({ reason: "tokens", elapsedMs: 30000, totalTokens: 40100, toolRounds: 4, modelRequests: 5, toolCalls: 4,
+    modelUsage: [{ ...row, ...{ privateText: "never persisted" } }],
+  });
   assert.equal(readTaskArtifacts(a), a);
   assert.deepEqual(a.research, []); assert.deepEqual(a.calls, []);
   assert.equal(a.usage.totalTokens, 40100); assert.equal(a.failure!.reason, "tokens");
+  assert.deepEqual(a.usage.modelUsage, [row]);
+  assert.equal(readTaskArtifacts({ ...a, usage: { ...a.usage, modelUsage: [{ ...row, privateText: "rejected" }] } }), undefined);
   assert.equal(readTaskArtifacts({ ...a, failure: { ...a.failure, reason: "unknown" } }), undefined);
   assert.equal(readTaskArtifacts({ ...a, failure: { ...a.failure, modelRequests: -1 } }), undefined);
   assert.equal(readTaskArtifacts({ ...a, calls: [{ capabilityId: "x", operation: "read", callId: null, version: null, ok: true }] }), undefined);

@@ -3,14 +3,16 @@ import { estimateTokens } from "./prompt";
 
 // Discovery is an index, not a second copy of every registered contract.
 // Exact IDs, operation risks and pagination remain available for lazy loading.
-export function catalogContext(page: DiscoveryPage) {
-  const brief = (value: string | undefined) => value && value.length > 240 ? `${value.slice(0, 240)}...` : value;
+export function catalogContext(page: DiscoveryPage, compact = false) {
+  const limit = compact ? 96 : 240;
+  const brief = (value: string | undefined) => value && value.length > limit ? `${value.slice(0, limit)}...` : value;
   return {
     total: page.total,
     next_cursor: page.next_cursor,
     capabilities: page.capabilities.map(cap => ({
       capability_id: cap.capability_id, title: cap.title, primitive_type: cap.primitive_type,
-      summary: brief(cap.summary), use_when: brief(cap.use_when), avoid_when: brief(cap.avoid_when),
+      ...(compact ? { summary: brief(cap.summary || cap.use_when) } :
+        { summary: brief(cap.summary), use_when: brief(cap.use_when), avoid_when: brief(cap.avoid_when) }),
       operations: cap.operations?.map(op => ({ operation: op.operation, risk_level: op.risk_level, interaction_mode: op.interaction_mode })),
     })),
   };
