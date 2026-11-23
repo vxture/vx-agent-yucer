@@ -1,13 +1,13 @@
 import { BUSINESS_TOOLS, EXECUTION_TOOLS, formContract } from "./business-tools";
 import { BUSINESS_FORM_CONTRACT, isFormModule, mergeForm, readBusinessForm, formHref, type BusinessForm } from "./lib/business-form";
 import { createHash } from "node:crypto";
-import { taskArtifacts } from "./lib/task-artifacts";
+import { budgetFailureArtifacts, taskArtifacts } from "./lib/task-artifacts";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { Entitlement } from "../../entitlement/types";
 import { featureKeysFor } from "../../entitlement/capability";
 import { recordAuditEvent } from "../../audit/lib/record";
 import { defaultTurnMeter } from "../../usage/lib/copilot-turns";
-import { runTurn } from "../../agent/orchestrator/turn";
+import { runTurn, TurnBudgetError } from "../../agent/orchestrator/turn";
 import type { TurnDeps } from "./turn-service";
 import {
   TASK_RULE_VERSION,
@@ -703,6 +703,7 @@ export async function runPrivateTaskTurn(
               : "task_model_failed";
         await ctx.store.finishTurn(scopeOf(ctx), id, turn.id, {
           errorCode: code,
+          ...(e instanceof TurnBudgetError ? { artifacts: budgetFailureArtifacts(e.usage) } : {}),
         });
         await recordAuditEvent({
           workspaceId: ctx.workspaceId,
@@ -712,6 +713,7 @@ export async function runPrivateTaskTurn(
           action: `${TASK_RULE_VERSION}.copilot.ask`,
           outcome: e instanceof TaskRefusal ? "denied" : "error",
           taskId: id,
+          ...(e instanceof TurnBudgetError ? { costAmount: e.usage.totalTokens, costUnit: "tokens" } : {}),
         });
         throw new TaskRefusal(code);
       }

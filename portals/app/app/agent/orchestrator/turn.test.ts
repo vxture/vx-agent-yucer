@@ -5,7 +5,7 @@ import type { ChatMessage, ChatResponse, ToolDefinition } from "../atlas/types";
 import { RunosClient } from "../runos/client";
 import { RunosError } from "../runos/errors";
 import type { DiscoveredCapability } from "../runos/types";
-import { runTurn, type TurnInput } from "./turn";
+import { runTurn, TurnBudgetError, type TurnInput } from "./turn";
 import { PROPOSE_ACTION_TOOL_NAME, FIND_CAPABILITIES, LOAD_CAPABILITY, buildToolSurface, readProposalDraft, toolNameFor } from "./tools";
 import { buildSystemPrompt, renderPlaybook } from "./prompt";
 
@@ -720,7 +720,7 @@ test("catalog navigation can enumerate connectors independently of a large skill
   const queries: unknown[] = [];
   h.runosClient.discover = async args => { queries.push(args); return []; };
   await runTurn({ ...BASE, question: "Find public search", readOnlyTools: true }, h);
-  assert.deepEqual(queries[1], { query: "*", limit: 100, filter: { primitive_type: "connector" } });
+  assert.deepEqual(queries[1], { query: "*", limit: 20, filter: { primitive_type: "connector" } });
 });
 
 test("structured status cannot hide company evidence returned in MCP text content", async () => {
@@ -789,4 +789,41 @@ test("whole-task budgets cap each Atlas request and stop before another tool sid
  await assert.rejects(runTurn({...BASE,question:"research",draftOnly:true,readOnlyTools:true,rejectUnexpectedTools:false,localTools:{definitions:[{name:"native_read",description:"read",parameters:{type:"object"}}],invoke:async()=>{invoked++;return {}; }},totalBudget:{deadlineMs:10000,maxTokens:3,maxCalls:1}},h),/task_budget_exhausted/);
  assert.equal(invoked,1);assert.equal(requests[0]!.maxTokens,3);assert.equal(requests[1]!.maxTokens,1);assert.ok(requests[0]!.timeoutMs!<=10000);
  const before=h.calls.length;await assert.rejects(runTurn({...BASE,question:"expired",draftOnly:true,totalBudget:{deadlineMs:0,maxTokens:100,maxCalls:1}},h),/task_budget_exhausted/);assert.equal(h.calls.length,before);
+});
+
+test("long search receipts retain provenance while model context and registered schemas remain bounded", async () => {
+  const report = "Source: https://example.org/report\n" + "\u53c2\u8003".repeat(40000);
+  const content = [{ type: "text", text: report }];
+  const h = harness({ capabilities: [cap()], replies: [
+    { toolCalls: [{ id: "search", name: toolNameFor("acme.crm", "lookup"), arguments: { query: "public facts" } }] },
+    { content: "Verified an excerpt; more remains unread." },
+  ], invoke: async () => ({ content, structured: { content }, meta: { call_id: "real-read", version_resolved: "1.0.0" } }) });
+  const result = await runTurn({ ...BASE, question: "Research", readOnlyTools: true, totalBudget: { deadlineMs: 240000, maxTokens: 40000, maxCalls: 64 } }, h);
+  const message = JSON.parse(h.calls[1]!.messages.find(m => m.role === "tool")!.content);
+  assert.equal(message.sourceId, "read-1-1");
+  assert.equal(message.resultTruncated, true);
+  assert.ok(message.result.excerpt.length < 8000);
+  assert.equal(result.readEvidence[0]!.callId, "real-read");
+  assert.ok(result.readEvidence[0]!.content.includes(report.replaceAll("\n", "\\n")));
+  assert.deepEqual(h.calls[1]!.tools!.find(t => t.name === toolNameFor("acme.crm", "lookup"))!.parameters, { type: "object", properties: { query: { type: "string" } } });
+});
+
+test("budget errors distinguish token, deadline and tool-call limits with counts and no transcripts", async () => {
+  const base = { ...BASE, question: "Private question", draftOnly: true };
+  const h = harness({ replies: [{ content: "Unreviewed private answer" }] });
+  await assert.rejects(runTurn({ ...base, totalBudget: { deadlineMs: 10000, maxTokens: 1, maxCalls: 1 } }, h), (e: unknown) => {
+    assert.ok(e instanceof TurnBudgetError);
+    assert.equal(e.usage.reason, "tokens"); assert.equal(e.usage.totalTokens, 2); assert.equal(e.usage.modelRequests, 1);
+    assert.doesNotMatch(JSON.stringify(e), /Private question|Unreviewed private answer/);
+    return true;
+  });
+  await assert.rejects(runTurn({ ...base, totalBudget: { deadlineMs: 0, maxTokens: 100, maxCalls: 1 } }, h), (e: unknown) => {
+    assert.ok(e instanceof TurnBudgetError); assert.equal(e.usage.reason, "deadline"); assert.equal(e.usage.modelRequests, 0); return true;
+  });
+  const tools = harness({ replies: [{ toolCalls: [{ id: "one", name: "native_read", arguments: {} }, { id: "two", name: "native_read", arguments: {} }] }] });
+  let calls = 0;
+  await assert.rejects(runTurn({ ...base, readOnlyTools: true, localTools: { definitions: [{ name: "native_read", description: "Read", parameters: {} }], invoke: async () => { calls++; return {}; } }, totalBudget: { deadlineMs: 10000, maxTokens: 100, maxCalls: 1 } }, tools), (e: unknown) => {
+    assert.ok(e instanceof TurnBudgetError); assert.equal(e.usage.reason, "tool_calls"); assert.equal(e.usage.toolCalls, 1); return true;
+  });
+  assert.equal(calls, 1);
 });

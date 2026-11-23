@@ -5,6 +5,7 @@ import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
 import { permissionsForRoles } from "../../authz/catalog";
 import type { AtlasClient } from "../../agent/atlas/client";
 import type { ChatResponse } from "../../agent/atlas/types";
+import { TurnBudgetError } from "../../agent/orchestrator/turn";
 import type { RunosClient } from "../../agent/runos/client";
 import { InMemoryCopilotStore } from "./store";
 import { InMemoryTaskStore } from "./task-store";
@@ -118,6 +119,21 @@ function code<T>(r: RuleResult<T>, expected: string) {
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.violations[0].code, expected);
 }
+
+test("budget failures persist private counts without an answer, form or partial source", async () => {
+  const f = fixture(), t = await f.create();
+  f.setChat(async () => { throw new TurnBudgetError({ reason: "tokens", elapsedMs: 30162, totalTokens: 41234, toolRounds: 4, modelRequests: 5, toolCalls: 4 }); });
+  code(await runPrivateTaskTurn(f.c, t.id, { revision: t.revision, requestId: randomUUID(), question: "Research without saving" }, f.deps), "task_budget_exhausted");
+  const b = unwrap(await readPrivateTask(f.c, t.id));
+  assert.equal(b.turns[0]!.status, "failed");
+  assert.equal(b.turns[0]!.artifacts!.failure!.reason, "tokens");
+  assert.equal(b.turns[0]!.artifacts!.usage.totalTokens, 41234);
+  assert.deepEqual(b.turns[0]!.artifacts!.research, []);
+  assert.equal(b.messages.filter(m => m.role === "assistant").length, 0);
+  assert.deepEqual(b.drafts, []);
+  assert.equal(await f.store.load({ ...f.scope, actorSub: "bob" }, t.id, true), null);
+  assert.equal(await f.store.finishTurn(f.scope, t.id, b.turns[0]!.id, { errorCode: "overwritten" }), false);
+});
 
 test("owned task persists goal, page context, independent targets, note revisions and checkpoints", async () => {
   const f = fixture(),

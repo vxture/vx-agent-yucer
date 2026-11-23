@@ -1,4 +1,4 @@
-import type { TurnResult } from "../../../agent/orchestrator/turn";
+import type { BudgetReason, BudgetUsage, TurnResult } from "../../../agent/orchestrator/turn";
 export interface ResearchSource {
   id: string;
   capabilityId: string | null;
@@ -14,6 +14,17 @@ export interface TaskArtifacts {
   research: ResearchSource[];
   usage: { elapsedMs: number; totalTokens: number; toolRounds: number; truncated: boolean };
   calls: Array<{ capabilityId: string; operation: string; callId: string | null; version: string | null; ok: boolean }>;
+  failure?: { reason: BudgetReason; modelRequests: number; toolCalls: number };
+}
+
+/** Counts only: a failed or revoked turn must not deliver partial private
+ * content, tool arguments, sources, forms or an unverified model answer. */
+export function budgetFailureArtifacts(usage: BudgetUsage): TaskArtifacts {
+  return {
+    version: "task-artifacts/1", capturedAt: new Date().toISOString(), research: [], calls: [],
+    usage: { elapsedMs: usage.elapsedMs, totalTokens: usage.totalTokens, toolRounds: usage.toolRounds, truncated: true },
+    failure: { reason: usage.reason, modelRequests: usage.modelRequests, toolCalls: usage.toolCalls },
+  };
 }
 export function publicSourceUrl(value: string): string | null {
   try {
@@ -65,6 +76,7 @@ export function readTaskArtifacts(value: unknown): TaskArtifacts | undefined {
   if(!str(v.capturedAt)||!Number.isFinite(Date.parse(v.capturedAt))||!v.usage||
     !count(v.usage.elapsedMs)||!count(v.usage.totalTokens)||!count(v.usage.toolRounds)||typeof v.usage.truncated!=="boolean"||
     !Array.isArray(v.research)||v.research.length>20||!Array.isArray(v.calls)||v.calls.length>64||
+    (v.failure && (!["tokens","deadline","tool_calls"].includes(v.failure.reason)||!count(v.failure.modelRequests)||!count(v.failure.toolCalls)||v.research.length!==0||v.calls.length!==0))||
     !v.research.every(s=>s&&str(s.id)&&tag(s.capabilityId)&&tag(s.operation)&&tag(s.callId)&&tag(s.version)&&str(s.excerpt)&&s.excerpt.length<=1500&&Array.isArray(s.links)&&s.links.length<=8&&s.links.every(l=>str(l)&&publicSourceUrl(l)===l))||
     !v.calls.every(c=>c&&str(c.capabilityId)&&str(c.operation)&&tag(c.callId)&&tag(c.version)&&typeof c.ok==="boolean"))return undefined;
   return v;

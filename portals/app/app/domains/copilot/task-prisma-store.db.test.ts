@@ -596,3 +596,19 @@ test("private research provenance commits with its answer, survives reload and f
   await c.query("SET ROLE yucer_svc");
   await assert.rejects(c.query("UPDATE yucer_agent.agent_task_turn SET artifacts='{}' WHERE id=$1",[turn!.id]),/task_turn_finished/);
 }));
+
+test("budget failure usage persists without an assistant message and freezes at completion", {skip}, () => fixture(async (s, scope, c) => {
+  const { budgetFailureArtifacts } = await import("./lib/task-artifacts");
+  const task = await s.create(scope, "Budget test", TASK_RULE_VERSION, [], randomUUID());
+  const turn = await s.beginTurn(scope, task.id, task.revision, randomUUID(), "Research", "hash", TASK_RULE_VERSION);
+  const artifacts = budgetFailureArtifacts({ reason: "tokens", elapsedMs: 30000, totalTokens: 41000, toolRounds: 4, modelRequests: 5, toolCalls: 4 });
+  assert.equal(await s.finishTurn(scope, task.id, turn!.id, { errorCode: "task_budget_exhausted", artifacts }), true);
+  const restored = await new PrismaTaskStore().load(scope, task.id, true);
+  assert.equal(restored!.turns[0]!.status, "failed");
+  assert.equal(restored!.turns[0]!.artifacts!.usage.totalTokens, 41000);
+  assert.equal(restored!.messages.length, 1);
+  assert.deepEqual(restored!.turns[0]!.artifacts!.research, []);
+  assert.equal(await s.load({ ...scope, actorSub: "other" }, task.id, true), null);
+  await c.query("SET ROLE yucer_svc");
+  await assert.rejects(c.query("UPDATE yucer_agent.agent_task_turn SET artifacts='{}' WHERE id=$1", [turn!.id]), /task_turn_finished/);
+}));
