@@ -1,5 +1,7 @@
 import { errorResponse, violationEnvelope } from "../../../platform/envelope";
 import type { RuleResult } from "../../../domains/shared/result";
+import { getOidcConfig } from "../../../auth/lib/config";
+import { isDeployedStage } from "../../../lib/deploy-stage";
 
 export function taskResponse<T>(result: RuleResult<T>): Response {
   if (result.ok)
@@ -45,11 +47,29 @@ export function taskResponse<T>(result: RuleResult<T>): Response {
     { status, headers: { "Cache-Control": "private, no-store" } },
   );
 }
+function mutationOrigin(request: Request): string | null {
+  // A TLS proxy can leave Request.url pointing at the HTTP container. Only
+  // server configuration establishes the public origin; forwarded headers do not.
+  const configured = getOidcConfig().appOrigin;
+  const candidate = configured || (isDeployedStage() ? "" : request.url);
+  try {
+    const url = new URL(candidate);
+    return ["https:", "http:"].includes(url.protocol) &&
+      !url.username && !url.password
+      ? url.origin
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function privateRequest(request: Request): Response | null {
   const origin = request.headers.get("origin");
+  const expectedOrigin = mutationOrigin(request);
   if (
+    !expectedOrigin ||
     request.headers.get("sec-fetch-site") === "cross-site" ||
-    (origin && origin !== new URL(request.url).origin)
+    (origin && origin !== expectedOrigin)
   )
     return errorResponse(
       403,
