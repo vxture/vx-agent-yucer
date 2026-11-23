@@ -5,8 +5,8 @@ import { LoginStateUnavailableError } from "../auth/lib/login-state";
 import { SWITCH_COOKIE } from "../auth/lib/logout";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import { pricingUrl } from "../entitlement/deeplink";
-import { resolveAppSession } from "./lib/session";
+import { resolveAppSession, resolveAppEntry } from "./lib/session";
+import { productAccessRevision } from "../auth/product-access";
 import { resolveLocale } from "./lib/i18n/locale";
 import { buildMetadata } from "../metadata";
 import { MemberNamesProvider } from "./lib/member-names";
@@ -17,13 +17,14 @@ import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
 import { ADMIN_NAV_ENTRIES } from "./lib/admin-nav";
 import { can } from "../authz/decide";
-import { consoleUrl } from "./lib/console-url";
+import { accountCenterUrl, consoleUrl } from "./lib/console-url";
 import { AssistantProvider } from "./components/assistant-provider";
 import { XiaoyuProvider } from "./components/xiaoyu-provider";
 import { AppShell } from "./components/app-shell";
 import { CollectionViewProvider } from "./components/collection-view-provider";
 import { COLLECTION_VIEW_COOKIE, collectionViewPreference } from "./lib/collection-view";
 import { ASSISTANT_WIDTH_COOKIE, BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
+import { ProductAccessGate } from "./components/entry-panel";
 import { SignIn } from "./components/sign-in";
 import { SignedOut } from "./components/signed-out";
 import { NoSubscription } from "./components/no-subscription";
@@ -43,6 +44,14 @@ import { listPipeline, listPendingReviews } from "../domains/pipeline/service";
 import { listCommitments } from "../domains/account/field-service";
 import { listProjects, projectView } from "../domains/delivery/service";
 import { notificationItems, notificationTotal } from "./lib/notifications";
+
+type LayoutEntry = Awaited<ReturnType<typeof resolveAppEntry>>;
+function needsRenewal(status: string | null | undefined): boolean {
+  return ["expired", "cancelled", "suspended", "overdue"].includes(status ?? "");
+}
+function entryBoundaryAccess(entry: LayoutEntry) {
+  return { initialAccess: entry?.access.state ?? "ready", accessRevision: entry ? productAccessRevision(entry.access) : undefined };
+}
 
 // The product shell.
 //
@@ -80,6 +89,8 @@ export default async function AppLayout({
     unavailable = true;
     return null;
   });
+  const entry = await resolveAppEntry().catch(() => null);
+  const boundary = entryBoundaryAccess(entry);
   // Resolved on the SERVER so the first paint is already in the right language.
   const locale = await resolveLocale();
   const { SHELL_TEXT } = await getMessages();
@@ -93,6 +104,14 @@ export default async function AppLayout({
   // there is no address in the product that answers a session-less visitor
   // with anything else.
   if (unavailable) return <MessagesProvider locale={locale}><SessionUnavailableReload /></MessagesProvider>;
+  if (!session && entry) {
+    return <MessagesProvider locale={locale}>
+      <SessionBoundary enabled={getOidcConfig().enabled} identity={entry.user} initialAccess={entry.access.state} accessRevision={productAccessRevision(entry.access)}>
+        <ProductAccessGate state={entry.access.state} expired={needsRenewal(entry.access.entitlement?.status)} person={{ name: entry.user.displayName, org: entry.user.activeOrgName }} />
+      </SessionBoundary>
+    </MessagesProvider>;
+  }
+
   if (!session) {
     // WRAPPED, and every early return below is too.
     //
@@ -125,7 +144,7 @@ export default async function AppLayout({
     });
     return (
       <MessagesProvider locale={locale}>
-        {justSignedOut ? <SignedOut consoleHref={consoleUrl()} /> : <SignIn resume={resume} />}
+        {justSignedOut ? <SignedOut accountHref={accountCenterUrl()} /> : <SignIn resume={resume} />}
       </MessagesProvider>
     );
   }
@@ -136,6 +155,7 @@ export default async function AppLayout({
     <MessagesProvider locale={locale}>
       <SessionBoundary
         enabled={oidc.enabled && jar.has(oidc.cookieName)}
+        {...boundary}
         identity={{ sub: session.user.sub, activeOrg: session.user.activeOrg, activeWorkspace: session.user.activeWorkspace, roles: session.user.roles, accountStatus: session.user.accountStatus }}
       >{content}</SessionBoundary>
     </MessagesProvider>
@@ -156,10 +176,7 @@ export default async function AppLayout({
       <>
         <NoRoles
           userName={session.user.displayName}
-          userPhone={session.user.phone}
-          userPicture={session.user.picture}
           orgLabel={session.user.activeOrgName}
-          workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
       </>
     );
@@ -176,12 +193,12 @@ export default async function AppLayout({
           // subscribe for a workspace that never subscribed, renew for one
           // that lapsed - the console shows a different flow for each, and
           // "upgrade from nothing" was the wrong CTA for a first purchase.
-          subscribeHref={pricingUrl()}
+          // No authoritative billing-management permission is supplied by C2.
+          // Do not infer purchase rights from a local product administrator role.
+          subscribeHref={null}
+          expired={needsRenewal(session.entitlement.status)}
           userName={session.user.displayName}
-          userPhone={session.user.phone}
-          userPicture={session.user.picture}
           orgLabel={session.user.activeOrgName}
-          workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
       </>
     );

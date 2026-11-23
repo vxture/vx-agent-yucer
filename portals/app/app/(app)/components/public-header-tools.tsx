@@ -30,7 +30,7 @@ export function PublicHeaderTools() {
         <FullscreenIcon size={16} weight="regular" aria-hidden="true" />
       </Button>
       <Button asChild variant="ghost" size="icon-xl" className={styles.toolButton}>
-        <a href="https://ruyin.work" aria-label={SHELL_TEXT.website}><Icon name="home" size={16} /></a>
+        <a href="https://vxture.com" aria-label={SHELL_TEXT.website}><Icon name="home" size={16} /></a>
       </Button>
     </div>
   );

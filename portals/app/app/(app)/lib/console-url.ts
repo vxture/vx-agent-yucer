@@ -38,3 +38,8 @@ export function consoleUrl(): string | null {
   if (raw === "") return null;
   return (raw ?? "https://console.vxture.com").replace(/\/$/, "");
 }
+
+/** Known platform account-center route, shared with the product user menu. */
+export function accountCenterUrl(): string {
+  return "https://accounts.vxture.com/account";
+}

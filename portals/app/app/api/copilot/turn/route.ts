@@ -1,3 +1,4 @@
+import { copilotSessionStillCurrent } from "../../../(app)/lib/session-access-current";
 import { AtlasClient } from "../../../agent/atlas/client";
 import { envelope, errorResponse, violationEnvelope } from "../../../platform/envelope";
 import { RunosClient } from "../../../agent/runos/client";
@@ -102,6 +103,8 @@ export async function POST(request: Request): Promise<Response> {
       recovery: result.recovery,
     });
   }
+
+  if (!await copilotSessionStillCurrent(session)) return errorResponse(403, "COPILOT_ACCESS_CHANGED", "product access changed during the turn");
 
   const { session: chat, answer, proposals, droppedProposals, invocations, truncated } = result.value;
   return json(200, {

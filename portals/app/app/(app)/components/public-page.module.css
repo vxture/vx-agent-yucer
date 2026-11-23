@@ -24,25 +24,16 @@
 .main { box-sizing: border-box; flex: 1; display: flex; align-items: center; width: calc(100% - 96px); max-width: 1440px; margin-inline: auto; padding-block: 40px; }
 .inner { width: 100%; max-width: 1280px; margin-inline: auto; display: flex; flex-direction: column; align-items: center; gap: 32px; }
 .eyebrow { color: var(--primary-text); font-size: 12px; font-weight: 500; letter-spacing: .12em; text-align: center; }
-.card { box-sizing: border-box; display: flex; flex-direction: column; gap: 72px; width: 408px; max-width: 100%; padding: 40px; border: 1px solid var(--primary-border-soft); border-radius: 14px; background: color-mix(in srgb, var(--card) 12%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 8%, transparent); }
-.gate { width: 408px; }
-.wideGate { width: 760px; }
-.heading { text-align: center; }
-.heading p { color: var(--muted-foreground); font-size: 12px; font-weight: 500; line-height: 1.58; }
-.heading h1 { margin: 16px 0 0; font-family: "Funnel Display", Inter, "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 600; line-height: 38px; }
-.actions { display: flex; flex-direction: column; gap: 40px; }
+.card { box-sizing: border-box; display: flex; flex-direction: column; gap: 0; width: 408px; max-width: 100%; padding: 40px; border: 1px solid var(--primary-border-soft); border-radius: 14px; background: color-mix(in srgb, var(--card) 12%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 8%, transparent); }
 .account { display: flex; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--primary-border-soft); border-radius: 8px; background: color-mix(in srgb, var(--primary-muted) 45%, transparent); }
 .account > svg { color: var(--primary-text); flex-shrink: 0; }
 .account strong { display: block; font-size: 14px; font-weight: 500; line-height: 1.58; }
 .account p { margin-top: 4px; font-size: 12px; line-height: 1.58; color: var(--muted-foreground); }
-.cta { width: 100%; height: 48px; min-height: 48px; border-radius: 8px; background: var(--primary); color: var(--primary-foreground); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 500; }
 .cta:hover { background: var(--primary-hover); }
 .security { border-top: 1px solid var(--primary-border-soft); padding-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; line-height: 1.58; }
-.security svg { flex-shrink: 0; }
 .message { padding-top: 16px; text-align: center; }
 .message p { font-size: 14px; line-height: 1.57857; }
 .message p + p { margin-top: 10px; color: var(--muted-foreground); font-size: 12px; letter-spacing: .08em; }
-.resuming { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted-foreground); font-size: 14px; }
 .footer { background: color-mix(in srgb, var(--card) 12%, transparent); border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent); color: var(--muted-foreground); font-size: 12px; }
 .footer .chrome { min-height: 48px; padding-block: 16px; gap: 16px; flex-wrap: wrap; }
 .footer nav { display: flex; flex-wrap: wrap; gap: 16px; }
@@ -54,7 +45,7 @@
   .header .chrome { flex-wrap: wrap; gap: 12px; padding-block: 16px; }
   .main { width: calc(100% - 48px); padding-block: 32px; }
   .inner { gap: 24px; }
-  .card { padding: 32px 24px; gap: 48px; }
+  .card { padding: 32px 24px; gap: 0; }
   .footer .chrome { gap: 8px; }
 }
 @media (min-width: 380px) and (max-width: 699px) {
@@ -64,17 +55,28 @@
   .brandPart { gap: 4px; }
 }
 
-.gateBody { display: flex; flex-direction: column; gap: 40px; width: 100%; }
 .stateHeading { display: flex; flex-direction: column; gap: 16px; text-align: center; }
 .stateHeading h1 { margin: 0; font-family: "Funnel Display", Inter, "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 600; line-height: 38px; text-wrap: balance; }
-.stateDescription { text-wrap: balance; color: var(--muted-foreground); font-size: 14px; line-height: 1.58; }
-.stateDescription > span { margin-inline-end: 8px; vertical-align: middle; }
 .gateActions { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-.gateButton { width: 100%; min-height: 48px; height: 48px; border-radius: 8px; font-size: 14px; font-weight: 500; }
-.identityCard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px; width: 100%; border: 1px solid var(--primary-border-soft); border-radius: 8px; background: color-mix(in srgb, var(--primary-muted) 45%, transparent); box-shadow: none; }
-.identityCell { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; }
-.identityAvatar, .identityIcon { width: 32px; height: 32px; flex-shrink: 0; }
-.identityIcon { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--muted); color: var(--muted-foreground); }
-.identityName { font-size: 14px; font-weight: 500; line-height: 1.58; overflow-wrap: anywhere; }
-.root .identityMeta { margin-top: 4px; font-size: 12px; line-height: 1.58; color: var(--muted-foreground); overflow-wrap: anywhere; }
-@media (max-width: 699px) { .identityCard { grid-template-columns: minmax(0, 1fr); } }
+.gateButton { width: 100%; min-height: 48px; height: 48px; border-radius: 8px; font-size: 14px; font-weight: 500; padding-inline: 16px; gap: 8px; white-space: normal; }
+
+/* CoSpace v1.3.1 composition mapped to DS semantic tokens. */
+.entryStatus { --entry-art-center-y: 169px; position: relative; display: flex; flex-direction: column; width: 100%; min-height: 480px; text-align: center; }
+.entryStatus .stateHeading { position: relative; z-index: 1; gap: 16px; }
+.welcome { color: var(--muted-foreground); font-size: 12px; font-weight: 500; line-height: 1.58; letter-spacing: .12em; }
+.entryArt { position: absolute; top: var(--entry-art-center-y); left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.stateArt { display: block; width: 280px; height: 155px; color: var(--primary-text); opacity: .52; transform: scale(.8, 1.08); }
+.entryCore { position: relative; z-index: 1; margin-top: auto; padding-top: 144px; }
+.entryOperations { display: flex; flex-direction: column; gap: 24px; }
+.entryOperations .account { text-align: left; min-width: 0; }
+.entryOperations .account > div { min-width: 0; }
+.identityCopy { flex: 1; }
+.identityCopy strong, .identityCopy p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entryStatus .security { flex: none; display: block; min-height: 41px; margin-top: 24px; padding-top: 20px; line-height: 1.7; text-wrap: pretty; }
+@media (max-width: 520px) {
+  .entryStatus { --entry-art-center-y: 149px; min-height: 440px; }
+  .stateArt { width: 244px; height: 136px; }
+  .entryCore { padding-top: 136px; }
+  .entryOperations { gap: 20px; }
+}
+@media (max-width: 340px) { .entryStatus { --entry-art-center-y: 139.5px; } }

@@ -1,106 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SegmentedControl } from "@vxture/design-ui";
+import { useEffect, useState, type MouseEvent } from "react";
+import { NativeSelect } from "@vxture/design-ui";
 import { DEFAULT_LOCALE, LOCALE_CONSTANTS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
-import { MessagesProvider } from "../../(app)/lib/i18n/provider";
-import { LoginHome } from "../../(app)/components/login-home";
-import { SignIn } from "../../(app)/components/sign-in";
-import { SignedOut } from "../../(app)/components/signed-out";
-import { NoSubscription } from "../../(app)/components/no-subscription";
-import { NoRoles } from "../../(app)/components/no-roles";
-import { pricingUrl } from "../../entitlement/deeplink";
-import { GATE_PREVIEW_TEXT } from "../../(app)/lib/messages";
+import { MessagesProvider, useMessages } from "../../(app)/lib/i18n/provider";
+import { EntryPanel, type EntryPanelState } from "../../(app)/components/entry-panel";
 
-// Five public display states, with no session and no platform.
-//
-// WHY A PREVIEW ROUTE AT ALL. Each gate answers a DIFFERENT absence -
-// no session, no subscription, no role, a session just ended; recovery is an
-// additional presentation state. Seeing them
-// in the product means arranging four states that are mutually exclusive by
-// construction. Locally two of them also need the dev-session switch in
-// opposite positions, which is a server restart between screens.
-//
-// Same pattern and same limits as the entitlement-matrix and product-preview
-// pages next to it: fixtures only, no session, no database, and it makes
-// `next build` exercise all three rather than only the one the current
-// environment happens to reach.
-
+// Display fixtures only: no credentials, authority requests or account writes.
 export const dynamic = "force-static";
-
-type Screen = "sign-in" | "resuming" | "no-subscription" | "no-roles" | "signed-out";
-
+const SCREENS: readonly EntryPanelState[] = ["signin", "connecting", "restoring", "checking", "no-subscription", "expired", "unassigned", "no-roles", "unavailable", "recovery", "unavailableConnection", "signed-out"];
+function Preview() {
+  const [state, setState] = useState<EntryPanelState>("signin");
+  const { ENTRY_TEXT: t, GATE_PREVIEW_TEXT: fixture } = useMessages();
+  const preventAccountActions = (event: MouseEvent) => {
+    const anchor = (event.target as Element).closest("a");
+    if (anchor && (/\/auth\/login/.test(anchor.getAttribute("href") ?? "") || anchor.host === "accounts.vxture.com")) event.preventDefault();
+  };
+  return <div onClickCapture={preventAccountActions}>
+    <div className="fixed bottom-4 left-1/2 z-50 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg border bg-card p-2 shadow-sm">
+      <NativeSelect aria-label={fixture.ariaLabel} value={state} onChange={event => setState(event.target.value as EntryPanelState)}>
+        {SCREENS.map(value => <option key={value} value={value}>{t[value]}</option>)}
+      </NativeSelect>
+      <p className="mt-1 text-center text-caption text-muted-foreground">{t.previewNote}</p>
+    </div>
+    <EntryPanel key={state} state={state}
+      person={state === "signin" || state === "signed-out" || state === "connecting" ? undefined : { name: fixture.sampleUser, org: fixture.sampleOrg }}
+      loginHref={state === "signin" || state === "signed-out" || state === "recovery" ? "/auth/login" : undefined}
+      accountHref="https://accounts.vxture.com/account" preserveWork={state === "recovery"}
+      retry={!["signin", "signed-out", "connecting", "restoring", "checking"].includes(state) ? async () => {} : undefined} />
+  </div>;
+}
 export default function GateScreensPreview() {
-  const [screen, setScreen] = useState<Screen>("sign-in");
-
-  // THE REVIEWER'S OWN LANGUAGE, read from the cookie the header's switcher
-  // writes. This page is static and had the default locale hard-coded, so the
-  // control in the frame wrote the cookie and nothing on screen changed - the
-  // one surface built for reviewing these screens could not show half of them.
-  // Read after mount rather than during render: the cookie does not exist on
-  // the server, and reading it in the first pass would be a hydration
-  // mismatch.
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
   useEffect(() => {
-    const found = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith(`${LOCALE_CONSTANTS.COOKIE_KEY}=`))
-      ?.slice(LOCALE_CONSTANTS.COOKIE_KEY.length + 1);
-    if (found && (SUPPORTED_LOCALES as readonly string[]).includes(found)) {
-      setLocale(found as Locale);
-    }
+    const found = document.cookie.split("; ").find(c => c.startsWith(`${LOCALE_CONSTANTS.COOKIE_KEY}=`))?.slice(LOCALE_CONSTANTS.COOKIE_KEY.length + 1);
+    if (found && (SUPPORTED_LOCALES as readonly string[]).includes(found)) setLocale(found as Locale);
   }, []);
-
-  return (
-    <MessagesProvider locale={locale}>
-      {/* Floats over the screen being reviewed rather than pushing it down:
-          each of the three is a full viewport, and a picker in the flow above
-          them would mean none of them is ever seen at the size it ships at.
-          AT THE BOTTOM, because the top is where the product puts its own
-          brand lockup - on a phone the two collided. */}
-      <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-sm">
-        <div className="bg-card/90 border-border gap-sm p-xs flex items-center rounded-full border shadow-sm backdrop-blur">
-          <SegmentedControl
-            size="sm"
-            ariaLabel={GATE_PREVIEW_TEXT.ariaLabel}
-            value={screen}
-            onChange={setScreen}
-            items={[
-              { value: "sign-in", label: GATE_PREVIEW_TEXT.signIn },
-              { value: "resuming", label: GATE_PREVIEW_TEXT.resuming },
-              { value: "no-subscription", label: GATE_PREVIEW_TEXT.noSubscription },
-              { value: "no-roles", label: GATE_PREVIEW_TEXT.noRoles },
-              { value: "signed-out", label: GATE_PREVIEW_TEXT.signedOut },
-            ]}
-          />
-        </div>
-      </div>
-
-      {screen === "sign-in" && <SignIn />}
-      {/* Presentation only: do not start an IdP navigation from the preview. */}
-      {screen === "resuming" && <LoginHome href="/auth/login" resume />}
-      {screen === "no-subscription" && (
-        <NoSubscription
-          // The intent a never-subscribed workspace calls for, from the same
-          // constructor the layout uses - not a hand-written URL.
-          subscribeHref={pricingUrl()}
-          userName={GATE_PREVIEW_TEXT.sampleUser}
-          userPhone={GATE_PREVIEW_TEXT.samplePhone}
-          userPicture={null}
-          orgLabel={GATE_PREVIEW_TEXT.sampleOrg}
-          workspaceLabel={GATE_PREVIEW_TEXT.sampleWorkspace}
-        />
-      )}
-      {screen === "no-roles" && (
-        <NoRoles
-          userName={GATE_PREVIEW_TEXT.sampleUser}
-          userPhone={GATE_PREVIEW_TEXT.samplePhone}
-          userPicture={null}
-          orgLabel={GATE_PREVIEW_TEXT.sampleOrg}
-          workspaceLabel={GATE_PREVIEW_TEXT.sampleWorkspace}
-        />
-      )}
-      {screen === "signed-out" && <SignedOut consoleHref="https://console.vxture.com" />}
-    </MessagesProvider>
-  );
+  return <MessagesProvider locale={locale}><Preview /></MessagesProvider>;
 }

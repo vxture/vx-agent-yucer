@@ -37,13 +37,12 @@ test("the business header retains its product title override", () => {
 
 // Regression: fixing public chrome must reach every session/access state.
 test("all public states share one header, footer and backdrop", () => {
-  for (const name of ["login-home.tsx", "gate-frame.tsx"]) {
-    const src = read(name);
-    assert.match(src, /<PublicPageFrame>/);
-    assert.doesNotMatch(src, /<(?:header|footer|main)\b/);
-  }
-  for (const name of ["no-roles.tsx", "no-subscription.tsx", "signed-out.tsx"]) {
-    assert.match(read(name), /<GateFrame\b/);
+  assert.match(read("gate-frame.tsx"), /<PublicPageFrame>/);
+  assert.doesNotMatch(read("gate-frame.tsx"), /<(?:header|footer|main)\b/);
+  assert.match(read("entry-panel.tsx"), /<GateFrame\b/);
+  for (const name of ["login-home.tsx", "no-roles.tsx", "no-subscription.tsx", "signed-out.tsx", "session-unavailable.tsx"]) {
+    assert.match(read(name), /<EntryPanel\b/);
+    assert.doesNotMatch(read(name), /<PublicPageFrame|<GateFrame/);
   }
   const frame = read("public-page-frame.tsx");
   for (const element of ["header", "main", "footer"]) {

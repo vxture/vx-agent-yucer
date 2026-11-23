@@ -41,3 +41,10 @@ test("foreground context POST opts in to refresh without changing background GET
   assert.equal((await response.json()).user.activeWorkspace, "current");
   assert.equal(response.headers.get("set-cookie"), null);
 });
+
+test("probe returns current admission without exposing roster or local roles", async () => {
+  for (const state of ["ready", "unassigned", "no-roles", "unavailable"] as const) {
+    const response = await sessionResponse(cfg, "rp", true, async () => toAuthUser({ sub: "customer", active_workspace: "workspace" }), false, async () => ({ state, revision: "opaque" }));
+    const body = await response.json(); assert.equal(body.authenticated, true); assert.equal(body.productAccess, state); assert.equal(body.accessRevision, "opaque"); assert.equal(body.members, undefined); assert.equal(body.authz, undefined);
+  }
+});

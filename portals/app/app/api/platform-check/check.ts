@@ -1,8 +1,7 @@
+import { resolveAppSession } from "../../(app)/lib/session";
 import { createHmac, randomUUID } from "node:crypto";
-import { cookies } from "next/headers";
 import { probeHttp } from "../../lib/status-probe";
 import { getOidcConfig } from "../../auth/lib/config";
-import { getAuthUser } from "../../auth/lib/session";
 import { assertInternalTarget } from "../../lib/internal-target";
 import { getPlatformClientConfig, parseEntitlementEnvelope } from "../../entitlement/platform-client";
 import { getUsageStore } from "../../usage/lib/store";
@@ -377,14 +376,8 @@ function c3ReplayDescription(): ProbeResult {
 export async function resolveWorkspace(): Promise<string | null> {
   const cfg = getOidcConfig();
   if (!cfg.enabled) return null;
-  try {
-    const jar = await cookies();
-    const rpsid = jar.get(cfg.cookieName)?.value;
-    const user = rpsid ? await getAuthUser(cfg, rpsid) : null;
-    return user?.activeWorkspace ?? null;
-  } catch {
-    return null;
-  }
+  const session = await resolveAppSession().catch(() => null);
+  return session?.workspaceId ?? null;
 }
 
 /**

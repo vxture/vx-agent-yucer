@@ -1,3 +1,4 @@
+import { copilotSessionStillCurrent } from "../../../(app)/lib/session-access-current";
 import { AtlasClient } from "../../../agent/atlas/client";
 import { RunosClient } from "../../../agent/runos/client";
 import { envelope, errorResponse } from "../../../platform/envelope";
@@ -72,8 +73,17 @@ export async function POST(request: Request): Promise<Response> {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let checkedAt = 0;
       try {
         for await (const event of events) {
+          if (Date.now() - checkedAt >= 5000 || event.type === "done") {
+            if (!await copilotSessionStillCurrent(session)) {
+              controller.enqueue(encoder.encode(`data:${JSON.stringify({ type: "error", code: "access_changed", message: "product access changed", retryable: false })}\n\n`));
+              await events.return(undefined);
+              break;
+            }
+            checkedAt = Date.now();
+          }
           controller.enqueue(encoder.encode(`data:${JSON.stringify(event)}\n\n`));
         }
       } catch (e) {
