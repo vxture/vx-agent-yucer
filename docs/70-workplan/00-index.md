@@ -1,5 +1,11 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 联合实调收尾
+
+[125-joint-live-acceptance.md](125-joint-live-acceptance.md) 拉通 NB-03 与 XY-05：
+先完成单账号真实研究／原表单、记忆生命周期，再做指定成员授权与两成员知识边界。
+缺少真实身份或明确测试业务范围的项目保留待验；跨租户与同租户双空间按既有决定暂缓。
+
 ## 非业务入口与成员授权
 
 [124-nonbusiness-product-access.md](124-nonbusiness-product-access.md) 跟踪 #768：按 CoSpace v1.3.1 统一入口，

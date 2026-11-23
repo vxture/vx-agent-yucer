@@ -51,7 +51,7 @@ function harness(opts: {
 
   const atlasClient = {
     async chat(task: string, req: { messages: ChatMessage[]; tools?: ToolDefinition[] }) {
-      calls.push({ task, messages: [...req.messages], tools: req.tools });
+      calls.push({ task, messages: [...req.messages], tools: req.tools ? structuredClone(req.tools) : undefined });
       const reply = opts.replies[Math.min(i, opts.replies.length - 1)];
       i += 1;
       return {
@@ -826,4 +826,60 @@ test("budget errors distinguish token, deadline and tool-call limits with counts
     assert.ok(e instanceof TurnBudgetError); assert.equal(e.usage.reason, "tool_calls"); assert.equal(e.usage.toolCalls, 1); return true;
   });
   assert.equal(calls, 1);
+});
+
+test("private native tasks need no Runos discovery or unrelated schemas before a tool is requested", async () => {
+  const h = harness({ replies: [
+    { toolCalls: [{ id: "native", name: "native_form", arguments: {} }] },
+    { content: "Private form ready, not saved." },
+  ], capabilities: Array.from({ length: 20 }, (_, i) => cap({ capability_id: `catalog.tool${i}` })) });
+  let discoveries = 0;
+  h.runosClient.discover = async () => { discoveries++; throw Error("Unrequested discovery"); };
+  let prepared = 0;
+  const result = await runTurn({ ...BASE, question: "Prepare a native form", deferCapabilities: true, readOnlyTools: true,
+    localTools: { definitions: [{ name: "native_form", description: "Prepare a private form", parameters: { type: "object" } }], invoke: async () => { prepared++; return { saved: false }; } },
+  }, h);
+  assert.equal(prepared, 1);
+  assert.equal(discoveries, 0);
+  assert.match(result.answer, /not saved/);
+  for (const request of h.calls) {
+    assert.deepEqual(request.tools?.map(t => t.name), [FIND_CAPABILITIES, LOAD_CAPABILITY, "native_form"]);
+    assert.equal(request.messages[0]?.content.includes("XIAOYU EXECUTION CONTRACT"), true);
+  }
+});
+
+test("on-demand research retains full catalog pagination and loads only the selected read contract", async () => {
+  const caps = Array.from({ length: 20 }, (_, i) => cap({ capability_id: `catalog.tool${i}` }));
+  const selected = caps[17]!;
+  const lookup = toolNameFor(selected.capability_id, "lookup");
+  const write = toolNameFor(selected.capability_id, "update");
+  const h = harness({ capabilities: caps, replies: [
+    { toolCalls: [{ id: "find", name: FIND_CAPABILITIES, arguments: { query: "*", primitive_type: "connector" } }] },
+    { toolCalls: [{ id: "load", name: LOAD_CAPABILITY, arguments: { capability_id: selected.capability_id } }] },
+    { toolCalls: [{ id: "read", name: lookup, arguments: { query: "public facts" } }] },
+    { toolCalls: [{ id: "write", name: write, arguments: {} }] },
+    { content: "Read completed; direct write refused." },
+  ] });
+  let resolved = 0, discoveries = 0;
+  const originalResolve = h.runosClient.resolve.bind(h.runosClient);
+  h.runosClient.discover = async () => { discoveries++; throw Error("Eager discovery is forbidden in this task"); };
+  h.runosClient.discoverPage = async () => ({ capabilities: caps, next_cursor: "next-page", total: 877 });
+  h.runosClient.resolve = async (...args) => {
+    resolved++;
+    const contract = await originalResolve(...args);
+    contract.contract.operations.push({ operation: "update", riskLevel: "write", interactionMode: "sync", description: "Update", inputSchema: { type: "object" }, outputSchema: { type: "object" }, idempotent: false });
+    return contract;
+  };
+  const result = await runTurn({ ...BASE, question: "Research", readOnlyTools: true, deferCapabilities: true }, h);
+  assert.equal(resolved, 1);
+  assert.equal(discoveries, 0);
+  assert.deepEqual(h.calls[0]!.tools!.map(t => t.name), [FIND_CAPABILITIES, LOAD_CAPABILITY]);
+  assert.ok(h.calls[1]!.messages.some(m => m.content?.includes("next-page") && m.content.includes(selected.capability_id)));
+  assert.ok(h.calls[1]!.tools!.every(t => t.name !== lookup));
+  assert.deepEqual(h.calls[2]!.tools!.find(t => t.name === lookup)?.parameters, { type: "object", properties: { query: { type: "string" } } });
+  assert.ok(h.calls.every(c => c.tools?.every(t => t.name !== write)));
+  assert.ok(h.calls.at(-1)!.messages.some(m => m.role === "tool" && m.content?.includes(`unknown tool ${write}`)));
+  assert.equal(h.invoked.length, 1);
+  assert.equal(result.readEvidence.length, 1);
+  assert.equal(result.proposals.length, 0);
 });
