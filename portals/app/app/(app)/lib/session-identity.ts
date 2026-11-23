@@ -7,8 +7,13 @@ export interface SessionIdentity {
   accountStatus?: string | null;
 }
 
+export function sessionIdentityKey(identity: SessionIdentity): string {
+  return JSON.stringify([
+    identity.sub, identity.activeOrg, identity.activeWorkspace, identity.accountStatus ?? null,
+    [...(identity.roles ?? [])].sort((a, b) => a.localeCompare(b, "en") || (a < b ? -1 : Number(a > b))),
+  ]);
+}
+
 export function sameSessionIdentity(a: SessionIdentity, b: SessionIdentity): boolean {
-  const roles = (identity: SessionIdentity) => JSON.stringify([...(identity.roles ?? [])].sort((x, y) => x < y ? -1 : Number(x > y)));
-  return a.sub === b.sub && a.activeOrg === b.activeOrg && a.activeWorkspace === b.activeWorkspace
-    && (a.accountStatus ?? null) === (b.accountStatus ?? null) && roles(a) === roles(b);
+  return sessionIdentityKey(a) === sessionIdentityKey(b);
 }

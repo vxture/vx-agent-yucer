@@ -220,7 +220,7 @@ async function checkOnce(
   rpsid: string,
   purpose: CheckPurpose,
   deps: LoginStateDeps,
-  ask: (session: RpSession) => Promise<CheckResult>,
+  ask: ((session: RpSession) => Promise<CheckResult>) | null,
   onlyIf: (session: RpSession) => boolean,
 ): Promise<RpSession | null | "busy"> {
   const lease = await deps.acquireCheckLock(cfg.clientId, rpsid, LOCK_HOLD_SECONDS);
@@ -229,7 +229,7 @@ async function checkOnce(
     // RE-READ INSIDE THE LOCK: whoever held it last may already have asked.
     let current = await deps.getSession(cfg.clientId, rpsid);
     if (!current) return null;
-    if (!onlyIf(current)) return current;
+    if (!ask || !onlyIf(current)) return current;
     if (purpose === "context") {
       // Other requests must not authorize old claims during this round trip.
       const pending = { ...current, contextUnavailable: true };
@@ -278,7 +278,7 @@ function checkedRecord(session: RpSession, purpose: CheckPurpose, now: number): 
 
 async function settleCheck(
   cfg: OidcConfig, rpsid: string, purpose: "status" | "context", deps: LoginStateDeps,
-  initial: RpSession, ask: (s: RpSession) => Promise<CheckResult>, onlyIf: (s: RpSession) => boolean,
+  initial: RpSession, ask: ((s: RpSession) => Promise<CheckResult>) | null, onlyIf: (s: RpSession) => boolean,
 ): Promise<RpSession | null> {
   let session = initial;
   for (let attempt = 0; attempt < 120; attempt++) {
@@ -311,6 +311,7 @@ export async function resolveLoginState(
   }
 
   const previousClaims = session.claims;
+  const previousContextCheck = session.contextCheckedAt;
   const requestedAt = deps.now();
   const shouldCheck = (s: RpSession) => due(s, deps.now()) || (!!opts.forceCheck && (s.statusUnavailable || (s.checkedAt ?? 0) < requestedAt));
   session = await settleCheck(cfg, rpsid, "status", deps, session,
@@ -322,13 +323,26 @@ export async function resolveLoginState(
   // A still-fresh access token is a signed snapshot, not the current selection.
   // Overlapping tabs share the existing lease and the completed refresh.
   const needsContext = (s: RpSession) => !!s.contextUnavailable || (s.contextCheckedAt ?? 0) < requestedAt;
+  const joiningContext = !opts.syncContext && session.contextUnavailable;
   if (opts.syncContext) {
     session = await settleCheck(cfg, rpsid, "context", deps, session,
       (s) => deps.authority.freshToken(cfg, s), needsContext);
     if (!session) return null;
+  } else if (joiningContext) {
+    // A foreground refresh fences the old scope while it runs. Let concurrent
+    // requests join it, without refreshing a token or retrying failed authority.
+    session = await settleCheck(cfg, rpsid, "context", deps, session, null,
+      (s) => s.contextUnavailable === true);
+    if (!session) return null;
   }
-  if (session.contextUnavailable) throw new LoginStateUnavailableError();
+  if (session.statusUnavailable || session.contextUnavailable) throw new LoginStateUnavailableError();
   if (!session.claims) return null;
+  // A request already in progress cannot switch scopes, even if it happened
+  // to receive the completed refresh while waiting for the status check.
+  if (!opts.syncContext && (joiningContext || session.contextCheckedAt !== previousContextCheck)
+    && previousClaims && !sameAccessScope(previousClaims, session.claims)) {
+    throw new LoginStateUnavailableError();
+  }
   return { session, claims: session.claims, previousClaims };
 }
 

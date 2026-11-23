@@ -141,7 +141,7 @@ async function setup() {
     },
   };
 }
-test("research prepares a sourced private form; human corrections survive the next model turn", async () => {
+test("research prepares and opens a sourced private form; human corrections survive the next model turn", async () => {
   const f = await setup();
   f.set([
     f.tools("query_business", { kind: "segment" }),
@@ -161,14 +161,13 @@ test("research prepares a sourced private form; human corrections survive the ne
         },
       },
     }),
+    f.tools("open_business_page", { module: "segment", create: true }),
     { content: "successfully saved" },
   ]);
   const result = unwrap(await f.turn());
   assert.equal(f.discoveryCount(), 0);
-  assert.match(
-    ("navigation" in result ? result.navigation : undefined)!,
-    /segment\/new\?xyTask=/,
-  );
+  assert.equal("navigation" in result ? result.navigation : undefined,
+    `/segment/new?xyTask=${f.task.id}&xyForm=market`);
   assert.doesNotMatch(result.answer, /successfully saved/);
   const b = unwrap(await readPrivateTask(f.c, f.task.id));
   assert.equal(b.drafts.length, 1);

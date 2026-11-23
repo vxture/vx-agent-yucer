@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { ProductEntryState } from "../../auth/product-access";
-import { type SessionIdentity } from "../lib/session-identity";
+import { sessionIdentityKey, type SessionIdentity } from "../lib/session-identity";
 import { sessionProbeDecision } from "../lib/session-probe";
 import { SignIn } from "./sign-in";
 import { SessionUnavailable, SessionUpdating } from "./session-unavailable";
@@ -26,6 +26,8 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
   readonly children: ReactNode;
 }) {
   const pathname = usePathname();
+  // Route renders can supply a new object for the same confirmed session.
+  const identityKey = sessionIdentityKey(identity);
   const [state, setState] = useState<BoundaryState>("ready");
   const stateRef = useRef(state);
   const generation = useRef(0);
@@ -51,7 +53,7 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
         });
         const body = await response.json();
         if (request !== sequence.current) return;
-        const decision = sessionProbeDecision(identity, initialAccess, accessRevision, body, response.ok);
+        const decision = sessionProbeDecision(identityKey, initialAccess, accessRevision, body, response.ok);
         show(decision);
         if (decision === "reloading") window.location.reload();
       } catch {
@@ -62,7 +64,7 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
     })();
     inFlight.current = operation;
     return operation;
-  }, [accessRevision, identity, initialAccess, show]);
+  }, [accessRevision, identityKey, initialAccess, show]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -81,7 +83,6 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
       return response;
     };
     window.fetch = guardedFetch;
-    void check(true);
     let foregroundTimer: ReturnType<typeof setTimeout> | undefined;
     const sync = () => {
       clearTimeout(foregroundTimer);
@@ -100,7 +101,13 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
       document.removeEventListener("visibilitychange", sync);
       sequence.current++; inFlight.current = null; controllerRef.current?.abort();
     };
-  }, [check, enabled, initialAccess, pathname]);
+  }, [check, enabled, initialAccess]);
+
+  // A route change checks again without aborting a foreground sync or
+  // reinstalling the guard while a protected request is in progress.
+  useEffect(() => {
+    if (enabled) void check(true);
+  }, [check, enabled, pathname]);
 
   if (state === "reloading") return <SessionUpdating />;
   if (state === "ended" && initialAccess !== "ready") return <SignIn />;
