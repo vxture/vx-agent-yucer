@@ -62,7 +62,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
   {
     name: "open_business_page",
     description:
-      "Open a registered business page in Yucer. Use to navigate or review a prepared form. Does not submit anything.",
+      "Prepare a registered page link for Yucer to open after the turn. A navigation_ready result is not proof the browser already opened it. Does not submit anything.",
     parameters: {
       type: "object",
       properties: {

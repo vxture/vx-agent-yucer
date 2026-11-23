@@ -551,6 +551,7 @@ export async function runPrivateTaskTurn(
         const judgements = now.judgementEvidence ? await now.judgementEvidence(b.references) : [];
         const turnSources=new Map<string,TaskSource>();
         const forms=new Map<string,{key:string;text:string}>();
+        const newFormPages=new Map<string,string>();
         let navigation:string|undefined;
         let verifiedReceipt=false;
         const executionQueue=new Map<string,"save"|"publish">();
@@ -582,6 +583,7 @@ export async function runPrivateTaskTurn(
               demand(b.drafts.length+forms.size<20||!!stored,"task_draft_limit");
               forms.set(args.key,{key:args.key,text:JSON.stringify(prepared)});
               navigation=formHref(prepared,id,args.key);
+              if (prepared.targetId === null) newFormPages.set(navigation.split("?", 1)[0]!, navigation);
               return {status:"private_form_prepared",key:args.key,fields:prepared.fields,protectedFields:prepared.manualFields,href:navigation,saved:false,published:false};
             }
             if(name==="open_business_page"){
@@ -591,6 +593,9 @@ export async function runPrivateTaskTurn(
               if(args.id){const source=await live.source({kind:args.module as TaskObject["kind"],id:args.id as string});demand(source,"source_unavailable");bind([source]);}
               navigation=args.create?`${route}/new`:args.id?["product","solution"].includes(args.module as string)?`${route}?id=${args.id}`:`${route}/${args.id}`:route;
               if(args.module==="sales_plan")navigation=route;
+              // Opening the just-prepared creation page must carry its private
+              // draft binding. Explicit navigation to another page stays bare.
+              if (args.id === undefined) navigation = newFormPages.get(navigation) ?? navigation;
               return {status:"navigation_ready",href:navigation,saved:false};
             }
             throw new TaskRefusal("task_tool_denied");
