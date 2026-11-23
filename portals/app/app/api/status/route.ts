@@ -1,10 +1,8 @@
-import { cookies } from "next/headers";
 import { errorResponse } from "../../platform/envelope";
 import { NextResponse } from "next/server";
 import { buildStatus, statusMode } from "../../lib/status";
 import { PROBE_TIMEOUT_MS, probeHttp, withTimeout } from "../../lib/status-probe";
-import { getOidcConfig } from "../../auth/lib/config";
-import { getAuthUser } from "../../auth/lib/session";
+import { resolveAppSession } from "../../(app)/lib/session";
 import { jobsSnapshot } from "../../jobs/scheduler";
 import { authDropSnapshot } from "../../auth/lib/auth-failures";
 
@@ -69,10 +67,7 @@ export async function GET(): Promise<Response> {
   if (mode === "off") return errorResponse(404, "STATUS_NOT_FOUND", "not found");
 
   if (mode === "authed") {
-    const cfg = getOidcConfig();
-    const jar = await cookies();
-    const rpsid = jar.get(cfg.cookieName)?.value;
-    const user = rpsid ? await getAuthUser(cfg, rpsid).catch(() => null) : null;
+    const user = await resolveAppSession().catch(() => null);
     if (!user) return errorResponse(401, "STATUS_NOT_AUTHENTICATED", "sign in to read the status page");
   }
 

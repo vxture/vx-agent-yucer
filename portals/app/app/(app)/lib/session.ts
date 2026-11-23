@@ -1,11 +1,11 @@
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import type { Entitlement } from "../../entitlement/types";
-import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getOidcConfig } from "../../auth/lib/config";
 import { getAuthSession } from "../../auth/lib/session";
 import type { AuthUser } from "../../auth/lib/claims";
-import { resolveAuthzContext, type AuthzContext } from "../../authz/context";
+import { type AuthzContext } from "../../authz/context";
+import { resolveProductEntryAccess } from "../../auth/product-access";
 import {
   ensureDemoData,
   ensurePlanningDemoData,
@@ -130,6 +130,24 @@ function withStores(
  */
 export const resolveAppSession = cache(resolveAppSessionUncached);
 
+// Shared only within this render. API/actions repeat the authority check on
+// their own requests; existing product roles never stand in for a seat.
+export const resolveAppEntry = cache(resolveAppEntryUncached);
+
+async function resolveAppEntryUncached(fresh = false) {
+  if (await resolveDevSession()) return null;
+  const cfg = getOidcConfig();
+  const jar = await cookies();
+  const rpsid = jar.get(cfg.cookieName)?.value;
+  if (!rpsid) return null;
+  const activity = await isMemberActivity();
+  const requestHeaders = await headers();
+  const syncContext = fresh || (activity && requestHeaders.get("sec-fetch-dest") === "document");
+  const authSession = await getAuthSession(cfg, rpsid, { activity, forceCheck: fresh || activity, syncContext });
+  if (!authSession) return null;
+  return { ...authSession, access: await resolveProductEntryAccess(authSession.user, syncContext) };
+}
+
 /**
  * A request the member made - as opposed to Next prefetching a link they
  * have not clicked. Only the former may ask accounts and so renew the login
@@ -170,28 +188,13 @@ async function resolveAppSessionUncached(fresh = false): Promise<AppSession | nu
     return withStores({ ...dev, scope, accessToken: async () => null });
   }
 
-  const cfg = getOidcConfig();
-  const jar = await cookies();
-  const rpsid = jar.get(cfg.cookieName)?.value;
-  if (!rpsid) return null;
-
-  const activity = await isMemberActivity();
-  const requestHeaders = await headers();
-  const syncContext = fresh || (activity && requestHeaders.get("sec-fetch-dest") === "document");
-  const authSession = await getAuthSession(cfg, rpsid, { activity, forceCheck: fresh || activity, syncContext });
-  if (!authSession) return null;
-  const { user, accessToken } = authSession;
+  const entry = fresh ? await resolveAppEntryUncached(true) : await resolveAppEntry();
+  if (!entry?.access.entitlement || !entry.access.authz?.permissions.size) return null;
+  const { user, accessToken, access: { entitlement, authz } } = entry;
 
   // No active workspace means no isolation key, which means no product surface.
   const workspaceId = user.activeWorkspace;
   if (!workspaceId) return null;
-
-  // Confirm product access before initializing the ordinary member's role.
-  const resolver = getEntitlementResolver();
-  if (fresh) resolver.invalidate(workspaceId);
-  const entitlement = await resolver.resolve(workspaceId);
-  const authz = await resolveAuthzContext(user, getAuthzStore(), entitlement, { fresh });
-  if (!authz) return null;
 
   // Offline demo path only. No-op unless YUCER_DEMO_DATA is explicitly "on" AND
   // there is no DATABASE_URL; see ensureDemoData for why it is guarded twice.
