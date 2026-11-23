@@ -43,6 +43,9 @@ export interface TurnInput {
   runos: RunosContext;
   /** Semantic query used to pull candidate capabilities. Defaults to the question. */
   capabilityQuery?: string;
+  /** Start with catalog navigation only; load exact registered schemas on demand.
+   * Private tasks already have native tools and must not preload every search hit. */
+  deferCapabilities?: boolean;
   /**
    * What the member actually asked, for choosing which follow-up notes to show
    * (rerank). Defaults to `question` - but a rehearsal's question carries a
@@ -138,7 +141,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   const maxRounds = input.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
   const profile: CallProfile = input.profile ?? "dialogue";
   const noTools = input.draftOnly && !input.readOnlyTools;
-  const surface: ToolSurface = noTools
+  const surface: ToolSurface = noTools || input.deferCapabilities
     ? { definitions: [], bindings: new Map(), proposalOnly: [] }
     : await discoverTools(input, deps);
   if (input.readOnlyTools) {

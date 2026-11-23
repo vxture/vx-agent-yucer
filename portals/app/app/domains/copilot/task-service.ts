@@ -640,6 +640,7 @@ export async function runPrivateTaskTurn(
               sessionId: b.task.sessionId,
             },
             draftOnly: true,
+            deferCapabilities: true,
             readOnlyTools: !!now.business,
             rejectUnexpectedTools: !now.business,
             localTools,

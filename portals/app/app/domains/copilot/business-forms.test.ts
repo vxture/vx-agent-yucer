@@ -68,6 +68,7 @@ async function setup() {
   let after: () => void = () => {};
   const prompts: string[] = [],
     profiles: string[] = [];
+  let discoveries = 0;
   const deps = {
     tenantId: "tenant",
     atlasClient: {
@@ -89,7 +90,7 @@ async function setup() {
         };
       },
     } as unknown as AtlasClient,
-    runosClient: { discover: async () => [] } as unknown as RunosClient,
+    runosClient: { discover: async () => { discoveries++; return []; } } as unknown as RunosClient,
     meter: {
       admit: () => ({ ok: true as const }),
       record: async () => "charge",
@@ -129,6 +130,7 @@ async function setup() {
     sources,
     prompts,
     profiles,
+    discoveryCount: () => discoveries,
     turn,
     tools,
     set: (next: typeof messages) => {
@@ -162,6 +164,7 @@ test("research prepares a sourced private form; human corrections survive the ne
     { content: "successfully saved" },
   ]);
   const result = unwrap(await f.turn());
+  assert.equal(f.discoveryCount(), 0);
   assert.match(
     ("navigation" in result ? result.navigation : undefined)!,
     /segment\/new\?xyTask=/,
