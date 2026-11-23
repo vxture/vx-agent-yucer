@@ -53,7 +53,7 @@ export interface PromptContext {
     businessForms?: unknown[];
     businessTools?: boolean;
     id: string;
-    goal: string;
+    goal?: string;
     targets: readonly { kind: string; id: string }[];
     page: { kind: string; id: string } | null;
   };
@@ -294,8 +294,11 @@ export function buildTurnMessages(
   history: readonly ChatMessage[],
   question: string,
 ): ChatMessage[] {
+  // The workspace initializes a task goal from its first question. Keep the
+  // stored goal, but reference identical text in the user message on this turn.
+  const task = ctx.task?.goal?.trim() === question.trim() ? { ...ctx.task, goal: undefined } : ctx.task;
   return [
-    { role: "system", content: buildSystemPrompt(ctx) },
+    { role: "system", content: buildSystemPrompt(task === ctx.task ? ctx : { ...ctx, task }) },
     ...history,
     { role: "user", content: question },
   ];
