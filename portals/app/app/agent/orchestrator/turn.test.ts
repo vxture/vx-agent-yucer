@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AtlasClient } from "../atlas/client";
+import { AtlasError } from "../atlas/errors";
 import type { ChatMessage, ChatResponse, ToolDefinition } from "../atlas/types";
 import { RunosClient } from "../runos/client";
 import { RunosError } from "../runos/errors";
@@ -809,23 +810,26 @@ test("the next model request reserves its input or stops before another tool cal
   assert.ok(requests[0]!.maxTokens! > 0 && requests[0]!.timeoutMs! <= 10000);
 });
 
-test("a response clipped at the remaining output allowance is not delivered", async () => {
+test("partial output or an empty Atlas reply at the turn output cap is a budget failure", async () => {
+  const input = { ...BASE, question: "Answer fully", draftOnly: true,
+    totalBudget: { deadlineMs: 10000, maxTokens: 1600, maxCalls: 1 },
+  };
   const h = harness({ replies: [{ content: "An incomplete answer" }] });
   const chat = h.atlasClient.chat.bind(h.atlasClient);
-  const maxTokens = 1600;
-  h.atlasClient.chat = async (p, r, c) => {
-    const completionTokens = r.maxTokens!;
-    assert.ok(completionTokens > 0 && completionTokens < 1000);
-    return { ...await chat(p, r, c), finishReason: "length", usage: { promptTokens: 500, completionTokens, totalTokens: 500 + completionTokens } };
-  };
-  await assert.rejects(runTurn({ ...BASE, question: "Answer fully", draftOnly: true,
-    totalBudget: { deadlineMs: 10000, maxTokens, maxCalls: 1 },
-  }, h), (e: unknown) => {
-    assert.ok(e instanceof TurnBudgetError && e.usage.reason === "tokens");
-    assert.ok(e.usage.totalTokens < maxTokens);
-    assert.equal(e.usage.modelRequests, 1);
-    return true;
-  });
+  for (const empty of [false, true]) {
+    h.atlasClient.chat = async (p, r, c) => {
+      const completionTokens = r.maxTokens!;
+      assert.ok(completionTokens > 0 && completionTokens < 1000);
+      if (empty) throw new AtlasError({ code: "OUTPUT_BUDGET_EXHAUSTED", status: 422, message: "No output" });
+      return { ...await chat(p, r, c), finishReason: "length", usage: { promptTokens: 500, completionTokens, totalTokens: 500 + completionTokens } };
+    };
+    await assert.rejects(runTurn(input, h), (e: unknown) => {
+      assert.ok(e instanceof TurnBudgetError && e.usage.reason === "tokens");
+      assert.ok(e.usage.totalTokens < input.totalBudget.maxTokens);
+      assert.equal(e.usage.modelRequests, 1);
+      return true;
+    });
+  }
 });
 
 test("long search receipts retain provenance while model context and registered schemas remain bounded", async () => {

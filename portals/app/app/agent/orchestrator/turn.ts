@@ -197,7 +197,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   async function callModel(tools?: ToolDefinition[]): Promise<ChatResponse> {
     checkBudget();
     let limits: { timeoutMs?: number; maxTokens?: number } = {};
-    let cappedByTurn = false;
+    let turnOutputCap: number | undefined;
     const measured = input.totalBudget ? measureTurnInput(messages, tools) : undefined;
     if (input.totalBudget && measured) {
       const remainingMs = input.totalBudget.deadlineMs - (Date.now() - startedAt);
@@ -207,17 +207,22 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       const availableOutput = input.totalBudget.maxTokens - totalTokens - measured.messageTokens - measured.schemaTokens;
       if (availableOutput <= 0) throw exhausted("tokens");
       const settings = profileSettings(profile);
-      cappedByTurn = availableOutput < settings.maxTokens;
+      if (availableOutput < settings.maxTokens) turnOutputCap = availableOutput;
       limits = { timeoutMs: Math.min(settings.timeoutMs, remainingMs), maxTokens: Math.min(settings.maxTokens, availableOutput) };
     }
     modelRequests++;
-    const response = await deps.atlasClient.chat(profile, tools
-      ? { messages, tools, toolChoice: "auto", ...limits } : { messages, ...limits }, input.atlas);
+    const request = tools ? { messages, tools, toolChoice: "auto" as const, ...limits } : { messages, ...limits };
+    const response = await deps.atlasClient.chat(profile, request, input.atlas).catch((error: unknown) => {
+      if (turnOutputCap !== undefined && error instanceof AtlasError && error.code === "OUTPUT_BUDGET_EXHAUSTED") {
+        throw exhausted("tokens");
+      }
+      throw error;
+    });
     const { promptTokens, completionTokens, totalTokens: tokens } = response.usage;
     if (measured) modelUsage.push({ ...measured, promptTokens, completionTokens, totalTokens: tokens });
     totalTokens += tokens;
     if (input.totalBudget && (totalTokens > input.totalBudget.maxTokens ||
-      (cappedByTurn && response.finishReason === "length" && completionTokens >= limits.maxTokens!))) throw exhausted("tokens");
+      (turnOutputCap !== undefined && response.finishReason === "length" && completionTokens >= turnOutputCap))) throw exhausted("tokens");
     if (input.totalBudget && Date.now() - startedAt > input.totalBudget.deadlineMs) throw exhausted("deadline");
     if (response.modelCode) modelCodes.add(response.modelCode);
     return response;
