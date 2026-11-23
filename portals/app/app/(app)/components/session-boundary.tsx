@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { ProductEntryState } from "../../auth/product-access";
-import { sameSessionIdentity, type SessionIdentity } from "../lib/session-identity";
+import { type SessionIdentity } from "../lib/session-identity";
+import { sessionProbeDecision } from "../lib/session-probe";
+import { SignIn } from "./sign-in";
 import { SessionUnavailable, SessionUpdating } from "./session-unavailable";
 
 type BoundaryState = "ready" | "ended" | "unavailable" | "reloading";
@@ -43,16 +45,9 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
         });
         const body = await response.json();
         if (request !== sequence.current) return;
-        if (!response.ok || body.authenticated === null) { show("unavailable"); return; }
-        if (body.authenticated === false) { show("ended"); return; }
-        if (body.authenticated !== true || !body.user?.sub || !body.productAccess || body.productAccess === "unavailable") { show("unavailable"); return; }
-        if (!sameSessionIdentity(identity, body.user) || body.productAccess !== initialAccess || (accessRevision && body.accessRevision !== accessRevision)) {
-          show("reloading");
-          window.location.reload();
-          return;
-        }
-        // Only the same verified identity/authority may resume in-memory work.
-        show("ready");
+        const decision = sessionProbeDecision(identity, initialAccess, accessRevision, body, response.ok);
+        show(decision);
+        if (decision === "reloading") window.location.reload();
       } catch {
         if (!controller.signal.aborted && request === sequence.current) show("unavailable");
       } finally {
@@ -102,6 +97,7 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
   }, [check, enabled, initialAccess, pathname]);
 
   if (state === "reloading") return <SessionUpdating />;
+  if (state === "ended" && initialAccess !== "ready") return <SignIn />;
   const suspended = state !== "ready";
   return <>
     <div style={{ display: suspended ? "none" : "contents" }} aria-hidden={suspended || undefined} inert={suspended || undefined}>{children}</div>
