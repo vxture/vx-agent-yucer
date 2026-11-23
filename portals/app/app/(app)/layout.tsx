@@ -46,8 +46,8 @@ import { listProjects, projectView } from "../domains/delivery/service";
 import { notificationItems, notificationTotal } from "./lib/notifications";
 
 type LayoutEntry = Awaited<ReturnType<typeof resolveAppEntry>>;
-async function readLayoutEntry(unavailable: boolean): Promise<LayoutEntry> {
-  return unavailable ? null : resolveAppEntry();
+function needsRenewal(status: string | null | undefined): boolean {
+  return ["expired", "cancelled", "suspended", "overdue"].includes(status ?? "");
 }
 function entryBoundaryAccess(entry: LayoutEntry) {
   return { initialAccess: entry?.access.state ?? "ready", accessRevision: entry ? productAccessRevision(entry.access) : undefined };
@@ -89,7 +89,7 @@ export default async function AppLayout({
     unavailable = true;
     return null;
   });
-  const entry = await readLayoutEntry(unavailable);
+  const entry = await resolveAppEntry().catch(() => null);
   const boundary = entryBoundaryAccess(entry);
   // Resolved on the SERVER so the first paint is already in the right language.
   const locale = await resolveLocale();
@@ -107,7 +107,7 @@ export default async function AppLayout({
   if (!session && entry) {
     return <MessagesProvider locale={locale}>
       <SessionBoundary enabled={getOidcConfig().enabled} identity={entry.user} initialAccess={entry.access.state} accessRevision={productAccessRevision(entry.access)}>
-        <ProductAccessGate state={entry.access.state} expired={["expired", "cancelled", "suspended", "overdue"].includes(entry.access.entitlement?.status ?? "")} person={{ name: entry.user.displayName, org: entry.user.activeOrgName }} />
+        <ProductAccessGate state={entry.access.state} expired={needsRenewal(entry.access.entitlement?.status)} person={{ name: entry.user.displayName, org: entry.user.activeOrgName }} />
       </SessionBoundary>
     </MessagesProvider>;
   }
@@ -196,7 +196,7 @@ export default async function AppLayout({
           // No authoritative billing-management permission is supplied by C2.
           // Do not infer purchase rights from a local product administrator role.
           subscribeHref={null}
-          expired={["expired", "cancelled", "suspended", "overdue"].includes(session.entitlement.status ?? "")}
+          expired={needsRenewal(session.entitlement.status)}
           userName={session.user.displayName}
           orgLabel={session.user.activeOrgName}
         />
