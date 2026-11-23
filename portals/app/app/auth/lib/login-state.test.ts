@@ -366,25 +366,51 @@ test("failed context refresh keeps credentials, blocks old scope and recovers on
   }
 });
 
-test("business resolution cannot authorize old workspace while foreground context request is pending", async () => {
-  let finish!: () => void;
-  let started!: () => void;
-  const entered = new Promise<void>(r => { started = r; });
-  const gate = new Promise<void>(r => { finish = r; });
-  const w = world(record(600), () => ({
-    check: async (_cfg, session) => ({ kind: "valid", session }),
-    freshToken: async (_cfg, session) => {
-      started(); await gate;
-      return { kind: "valid", session: { ...session, claims: { ...CLAIMS, active_workspace: "next" } } };
-    },
-  }));
-  const pending = resolveLoginState(cfg, "r1", { activity: false, syncContext: true }, w.deps);
-  await entered;
-  await assert.rejects(resolveLoginState(cfg, "r1", { activity: false }, w.deps), LoginStateUnavailableError);
-  await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
-  finish();
-  assert.equal((await pending)?.claims.active_workspace, "next");
-});
+for (const result of ["unchanged", "changed", "unavailable", "logout"] as const) {
+  test(`navigation joining a foreground refresh: ${result}`, async () => {
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const joined = Promise.withResolvers<void>();
+    let refreshes = 0;
+    const w = world(record(600), () => ({
+      check: async (_cfg, session) => ({ kind: "valid", session }),
+      freshToken: async (_cfg, session) => {
+        refreshes++;
+        entered.resolve();
+        await release.promise;
+        if (result === "unavailable") return { kind: "unavailable", detail: "timeout" };
+        if (result === "logout") await w.deps.deleteSession(cfg.clientId, "r1");
+        const workspace = result === "changed" ? "next" : CLAIMS.active_workspace;
+        return { kind: "valid", session: { ...session, claims: { ...CLAIMS, active_workspace: workspace } } };
+      },
+    }));
+    const acquire = w.deps.acquireCheckLock;
+    w.deps.acquireCheckLock = async (...args) => {
+      const lease = await acquire(...args);
+      if (!lease) joined.resolve();
+      return lease;
+    };
+    const outcome = (p: ReturnType<typeof resolveLoginState>) => p.then(
+      state => state?.claims.active_workspace ?? null,
+      error => { assert.ok(error instanceof LoginStateUnavailableError); return "refused"; },
+    );
+    const foreground = outcome(resolveLoginState(cfg, "r1", { activity: false, syncContext: true }, w.deps));
+    await entered.promise;
+    const navigation = outcome(resolveLoginState(cfg, "r1", { activity: false }, w.deps));
+    try {
+      assert.equal(await Promise.race([joined.promise.then(() => "waiting"), navigation]), "waiting");
+      await assert.rejects(accessTokenFor(cfg, "r1", w.deps, CLAIMS), LoginStateUnavailableError);
+    } finally {
+      release.resolve();
+    }
+    const expected = {
+      unchanged: [CLAIMS.active_workspace, CLAIMS.active_workspace], changed: ["next", "refused"],
+      unavailable: ["refused", "refused"], logout: [null, null],
+    }[result];
+    assert.deepEqual(await Promise.all([foreground, navigation]), expected);
+    assert.equal(refreshes, 1, "navigation never starts a new token refresh");
+  });
+}
 
 for (const [name, change] of [
   ["workspace", { active_workspace: "new-workspace" }],

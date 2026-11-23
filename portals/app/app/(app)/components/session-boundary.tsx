@@ -81,7 +81,6 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
       return response;
     };
     window.fetch = guardedFetch;
-    void check(true);
     let foregroundTimer: ReturnType<typeof setTimeout> | undefined;
     const sync = () => {
       clearTimeout(foregroundTimer);
@@ -100,7 +99,13 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
       document.removeEventListener("visibilitychange", sync);
       sequence.current++; inFlight.current = null; controllerRef.current?.abort();
     };
-  }, [check, enabled, initialAccess, pathname]);
+  }, [check, enabled, initialAccess]);
+
+  // A route change checks again without aborting a foreground sync or
+  // reinstalling the guard while a protected request is in progress.
+  useEffect(() => {
+    if (enabled) void check(true);
+  }, [check, enabled, pathname]);
 
   if (state === "reloading") return <SessionUpdating />;
   if (state === "ended" && initialAccess !== "ready") return <SignIn />;
