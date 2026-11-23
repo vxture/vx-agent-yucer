@@ -306,10 +306,9 @@ export async function readExecutions(ctx: ExecutionContext, taskId: string) {
   });
   // Pending proposal content has the original provenance closure; never return
   // it after a source changed. Receipts are checked against the new object.
-  let pendingAllowed = false;
+  let current: Awaited<ReturnType<typeof bundle>> | undefined;
   try {
-    await bundle(ctx, taskId);
-    pendingAllowed = true;
+    current = await bundle(ctx, taskId);
   } catch {
     /* fail closed */
   }
@@ -317,30 +316,46 @@ export async function readExecutions(ctx: ExecutionContext, taskId: string) {
     where: { ...where, sessionHash: ctx.sessionHash },
     orderBy: { createdAt: "desc" },
   });
+  const draftIds = new Set(current?.drafts.map((d) => d.id));
+  const canPrepare = current?.task.status === "active";
+  const completed = new Set(receipts.map((r) => r.stepId));
+  const visible = new Set(safe.map((r) => r.stepId));
+  const used = new Map<string, number>();
+  for (const receipt of receipts)
+    used.set(receipt.grantId, (used.get(receipt.grantId) ?? 0) + 1);
+  const now = new Date();
   return {
-    steps: steps.map((s) => ({
-      id: s.id,
-      draftId: s.draftId,
-      operation: s.operation,
-      expiresAt: s.expiresAt,
-      ruleVersion: s.ruleVersion,
-      ...(pendingAllowed
-        ? {
-            form: formOf(s),
-            risk: executionRisk(formOf(s), s.operation as "save" | "publish"),
-          }
-        : {}),
-      lastError: pendingAllowed ? s.lastError : null,
-      status: safe.some((r) => r.stepId === s.id)
+    canPrepare,
+    steps: steps.map((s) => {
+      let form: BusinessForm | undefined;
+      if (draftIds.has(s.draftId)) {
+        try { form = formOf(s); }
+        catch { /* An obsolete or invalid proposal cannot be selected. */ }
+      }
+      const available = canPrepare && form && s.expiresAt > now;
+      const status = visible.has(s.id)
         ? "succeeded"
-        : receipts.some((r) => r.stepId === s.id)
+        : completed.has(s.id)
           ? "result_unavailable"
-          : s.lastError
-            ? "failed"
-            : "pending",
-    })),
+          : !available
+            ? "proposal_unavailable"
+            : s.lastError ? "failed" : "pending";
+      return {
+        id: s.id,
+        draftId: s.draftId,
+        operation: s.operation,
+        expiresAt: s.expiresAt,
+        ruleVersion: s.ruleVersion,
+        ...(form ? {
+          form,
+          risk: executionRisk(form, s.operation as "save" | "publish"),
+        } : {}),
+        lastError: available && !completed.has(s.id) ? s.lastError : null,
+        status,
+      };
+    }),
     receipts: safe,
-    grants: grants.map((g) => ({
+    grants: grants.filter((g) => g.ruleVersion === EXECUTION_RULE_VERSION).map((g) => ({
       id: g.id,
       stepIds: g.stepIds,
       confirmedIds: g.confirmedIds,
@@ -348,6 +363,7 @@ export async function readExecutions(ctx: ExecutionContext, taskId: string) {
       expiresAt: g.expiresAt,
       revokedAt: g.revokedAt,
       maxActions: g.maxActions,
+      remainingActions: Math.max(0, g.maxActions - (used.get(g.id) ?? 0)),
     })),
   };
 }

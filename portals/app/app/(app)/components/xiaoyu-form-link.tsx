@@ -24,27 +24,25 @@ function fieldValue(value: unknown): string {
 export function XiaoyuFormLinks() {
   const { bundle } = useXiaoyu(),
     { XIAOYU_FORMS: T } = useMessages();
-  if (!bundle) return <XiaoyuExecution />;
   return (
-    <>
-      <XiaoyuExecution />
-      {bundle.drafts
+    <XiaoyuExecution renderDrafts={(saved) => bundle?.drafts
         .filter((d) => d.contractVersion === "business-form/1")
         .map((d) => {
           try {
             const form = readBusinessForm(d.text);
             const changes = formChanges(form);
+            const receipt = saved.get(d.id);
             return (
-              <Card key={d.key} className="@container p-md">
+              <Card key={d.key} className="@container gap-sm p-md">
                 <div className="flex flex-wrap items-center gap-sm">
                   <Icon name="clipboard" size="sm" />
                   <span className="text-label">
                     {String(form.fields.name ?? T[form.module])}
                   </span>
                   <span className="text-body-small text-muted-foreground">
-                    {T.notSaved}
+                    {receipt ? T.savedSnapshot : T.draftSnapshot}
                   </span>
-                  <Button
+                  {receipt ? null : <Button
                     asChild
                     size="md"
                     variant="secondary"
@@ -53,9 +51,9 @@ export function XiaoyuFormLinks() {
                     <Link href={formHref(form, bundle.task.id, d.key)}>
                       {T.open}
                     </Link>
-                  </Button>
+                  </Button>}
                 </div>
-                <Collapsible className="mt-md">
+                <Collapsible>
                   <CollapsibleTrigger asChild>
                     <Button size="md" variant="ghost">
                       {T.fields} ({changes.length})
@@ -97,7 +95,6 @@ export function XiaoyuFormLinks() {
           } catch {
             return <Banner key={d.key} tone="warning" title={T.unavailable} />;
           }
-        })}
-    </>
+        })} />
   );
 }
