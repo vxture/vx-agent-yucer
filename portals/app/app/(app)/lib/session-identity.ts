@@ -10,7 +10,7 @@ export interface SessionIdentity {
 export function sessionIdentityKey(identity: SessionIdentity): string {
   return JSON.stringify([
     identity.sub, identity.activeOrg, identity.activeWorkspace, identity.accountStatus ?? null,
-    [...(identity.roles ?? [])].sort(),
+    [...(identity.roles ?? [])].sort((a, b) => a.localeCompare(b, "en") || (a < b ? -1 : Number(a > b))),
   ]);
 }
 
