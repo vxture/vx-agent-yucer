@@ -201,7 +201,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
   const publishDraft = drafts.find((d) => d.id === publish);
   return (
     <>
-      <Card className="gap-sm p-md">
+      <Card className="@container gap-sm p-md">
         <div className="flex flex-wrap items-center gap-sm">
           <h3 className="text-label">{T.title}</h3>
           <Button
@@ -249,53 +249,55 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
             {steps.map((step) => {
               const receipt = receipts.get(step.id);
               return (
-                <div key={step.id} className="flex flex-wrap items-center gap-sm text-body">
-                  <Checkbox
-                    checked={selected.some((s) => s.id === step.id)}
-                    disabled={pending || busy || !selectable(step)}
-                    aria-label={
-                      step.form
-                        ? String(step.form.fields.name ?? F[step.form.module])
-                        : T.pending
-                    }
-                    onCheckedChange={(checked) => {
-                      setSelection((old) => ({
-                        ids: checked === true ? [...new Set([...old.ids, step.id])] : old.ids.filter((id) => id !== step.id),
-                        confirmed: false,
-                      }));
-                    }}
-                  />
-                  <span className="min-w-0 flex-1 truncate">
-                    {step.form
-                      ? String(step.form.fields.name ?? F[step.form.module])
-                      : step.id.slice(0, 8)}{" "}
-                    {"\u00b7"} {step.operation === "save" ? T.save : T.publish}
-                  </span>
-                  <span className="text-body-small text-muted-foreground">
-                    {T[step.status]}
-                  </span>
-                  {receipt ? (
-                    <Button asChild size="md" variant="ghost">
-                      <Link href={receipt.result.href}>{T.open}</Link>
-                    </Button>
-                  ) : null}
-                  {receipt ? (
-                    <Button
-                      size="md"
-                      variant="secondary"
-                      disabled={pending || busy || notesDirty}
-                      onClick={() =>
-                        void work(async (post) => {
-                          const next = await post<{ taskId: string }>({
-                            action: "continue",
-                            receiptId: receipt.id,
-                          });
-                          await client.select(next.taskId);
-                        })
+                <div key={step.id} className="flex flex-wrap items-center gap-x-sm gap-y-xs text-body">
+                  <div className="flex min-w-0 flex-1 basis-full items-center gap-sm @md:basis-auto">
+                    <Checkbox
+                      checked={selected.some((s) => s.id === step.id)}
+                      disabled={pending || busy || !selectable(step)}
+                      aria-label={
+                        step.form
+                          ? String(step.form.fields.name ?? F[step.form.module])
+                          : T[step.status]
                       }
-                    >
-                      {T.continue}
-                    </Button>
+                      onCheckedChange={(checked) => {
+                        setSelection((old) => ({
+                          ids: checked === true ? [...new Set([...old.ids, step.id])] : old.ids.filter((id) => id !== step.id),
+                          confirmed: false,
+                        }));
+                      }}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {step.form
+                        ? String(step.form.fields.name ?? F[step.form.module])
+                        : step.id.slice(0, 8)}{" "}
+                      {"\u00b7"} {step.operation === "save" ? T.save : T.publish}
+                    </span>
+                    <span className="shrink-0 text-body-small text-muted-foreground">
+                      {T[step.status]}
+                    </span>
+                  </div>
+                  {receipt ? (
+                    <div className="flex w-full flex-wrap items-center gap-xs pl-lg @md:w-auto @md:pl-0">
+                      <Button asChild size="md" variant="ghost">
+                        <Link href={receipt.result.href}>{T.open}</Link>
+                      </Button>
+                      <Button
+                        size="md"
+                        variant="secondary"
+                        disabled={pending || busy || notesDirty}
+                        onClick={() =>
+                          void work(async (post) => {
+                            const next = await post<{ taskId: string }>({
+                              action: "continue",
+                              receiptId: receipt.id,
+                            });
+                            await client.select(next.taskId);
+                          })
+                        }
+                      >
+                        {T.continue}
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
               );
