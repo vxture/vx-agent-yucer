@@ -86,3 +86,20 @@ test("equivalent commercial limits do not invalidate work because object key ord
   access.entitlement!.limits = { members: 5, accounts: 20 };
   assert.equal(productAccessRevision(access), before);
 });
+
+test("read-only probes never materialize a profile, seed roles or initialize defaults", async () => {
+  const f = fixture();
+  const store = new Proxy(f.store, { get(target, key) {
+    if (["seeMember", "seedPresetRoles", "initializeMemberRole"].includes(String(key))) return () => { throw Error("write attempted"); };
+    const value = Reflect.get(target, key); return typeof value === "function" ? value.bind(target) : value;
+  } });
+  const before = await resolveProductEntryAccess(user, true, { ...f.dependencies, store }, { initialize: false });
+  assert.equal(before.state, "no-roles"); assert.deepEqual(await f.store.listMembers(ws), []);
+  const entered = await resolveProductEntryAccess(user, true, f.dependencies);
+  const after = await resolveProductEntryAccess(user, true, { ...f.dependencies, store }, { initialize: false });
+  assert.equal(after.state, "ready"); assert.equal(productAccessRevision(after), productAccessRevision(entered));
+  await f.store.setMemberStatus(ws, sub, "inactive");
+  const inactive = await resolveProductEntryAccess(user, true, f.dependencies);
+  const probed = await resolveProductEntryAccess(user, true, { ...f.dependencies, store }, { initialize: false });
+  assert.equal(probed.state, "no-roles"); assert.equal(productAccessRevision(probed), productAccessRevision(inactive));
+});

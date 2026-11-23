@@ -19,7 +19,7 @@ export async function GET(): Promise<Response> {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 
-  const access = await resolveProductEntryAccess(user, true);
+  const access = await resolveProductEntryAccess(user, true, undefined, { initialize: false });
   const headers = { "Cache-Control": "private, no-store" };
   if (access.state === "unavailable") return NextResponse.json({ code: "PRODUCT_ACCESS_UNAVAILABLE", retryable: true }, { status: 503, headers });
   if (access.state === "unassigned" || access.state === "no-roles") return NextResponse.json({ code: "PRODUCT_ACCESS_REQUIRED", productAccess: access.state }, { status: 403, headers });

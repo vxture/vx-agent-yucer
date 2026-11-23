@@ -8,6 +8,12 @@ import { sessionProbeDecision } from "../lib/session-probe";
 import { SignIn } from "./sign-in";
 import { SessionUnavailable, SessionUpdating } from "./session-unavailable";
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
+
 type BoundaryState = "ready" | "ended" | "unavailable" | "reloading";
 
 /** Unknown authority suspends the same work surface. A confirmed scope/access
@@ -65,7 +71,7 @@ export function SessionBoundary({ identity, enabled, initialAccess = "ready", ac
     const nativeFetch = window.fetch.bind(window);
     const refused = () => new Response(JSON.stringify({ code: "SESSION_CONFIRMATION_REQUIRED" }), { status: 503, headers: { "Content-Type": "application/json" } });
     const guardedFetch: typeof fetch = async (input, init) => {
-      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, window.location.href);
+      const url = new URL(requestUrl(input), window.location.href);
       const protectedRequest = url.origin === window.location.origin && !url.pathname.startsWith("/auth/") && !url.pathname.startsWith("/_next/");
       const revision = generation.current;
       if (protectedRequest && (stateRef.current !== "ready" || initialAccess !== "ready")) return refused();

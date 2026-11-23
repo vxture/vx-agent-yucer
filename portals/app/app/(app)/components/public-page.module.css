@@ -58,7 +58,7 @@
 .stateHeading { display: flex; flex-direction: column; gap: 16px; text-align: center; }
 .stateHeading h1 { margin: 0; font-family: "Funnel Display", Inter, "Noto Sans SC", sans-serif; font-size: 24px; font-weight: 600; line-height: 38px; text-wrap: balance; }
 .gateActions { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-.gateButton { width: 100%; min-height: 48px; height: 48px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+.gateButton { width: 100%; min-height: 48px; height: 48px; border-radius: 8px; font-size: 14px; font-weight: 500; padding-inline: 16px; gap: 8px; white-space: normal; }
 
 /* CoSpace v1.3.1 composition mapped to DS semantic tokens. */
 .entryStatus { --entry-art-center-y: 169px; position: relative; display: flex; flex-direction: column; width: 100%; min-height: 480px; text-align: center; }
@@ -73,7 +73,6 @@
 .identityCopy { flex: 1; }
 .identityCopy strong, .identityCopy p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entryStatus .security { flex: none; display: block; min-height: 41px; margin-top: 24px; padding-top: 20px; line-height: 1.7; text-wrap: pretty; }
-.gateButton { padding-inline: 16px; gap: 8px; white-space: normal; }
 @media (max-width: 520px) {
   .entryStatus { --entry-art-center-y: 149px; min-height: 440px; }
   .stateArt { width: 244px; height: 136px; }

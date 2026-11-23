@@ -3,7 +3,6 @@ import styles from "./public-page.module.css";
 
 /** Decorative spatial motif from the owner-supplied CoSpace v1.3.1 kit. */
 export function EntryIllustration({ state }: { readonly state: EntryPanelState }) {
-  const waiting = ["connecting", "restoring", "checking", "recovery"].includes(state);
   return <svg className={styles.stateArt} viewBox="0 0 460 255" fill="none" aria-hidden="true">
     <g stroke="currentColor" opacity=".16">{Array.from({ length: 13 }, (_, i) => <path key={i} d={`M${30 + i * 17} ${155 - i * 8}l204 96 M${30 + i * 17} ${155 + i * 8}l204 -96`} />)}</g>
     <g stroke="currentColor" strokeLinejoin="round">
@@ -16,8 +15,16 @@ export function EntryIllustration({ state }: { readonly state: EntryPanelState }
     </g>
     <g transform="translate(167 49)"><rect x="158" y="88" width="42" height="36" rx="12" fill="var(--card)" stroke="currentColor" strokeOpacity=".35" />
       <g stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        {state === "signed-out" ? <path d="M170 106h18m-6-6 6 6-6 6" /> : waiting ? <path d="M186 103a8 8 0 1 0-1 9m2-14v6h-6" /> : state === "unavailable" || state === "unavailableConnection" ? <><path d="M172 107a7 7 0 0 1 12-5m-15 10 18-14" /><path d="M185 111h1" /></> : state === "expired" ? <><circle cx="179" cy="106" r="8" /><path d="M179 101v5l4 2" /></> : <><rect x="172" y="104" width="14" height="11" rx="3" /><path d="M175 104v-4a4 4 0 0 1 8 0v4" /></>}
+        <EntryStateMark state={state} />
       </g>
     </g>
   </svg>;
+}
+
+function EntryStateMark({ state }: { readonly state: EntryPanelState }) {
+  if (state === "signed-out") return <path d="M170 106h18m-6-6 6 6-6 6" />;
+  if (["connecting", "restoring", "checking", "recovery"].includes(state)) return <path d="M186 103a8 8 0 1 0-1 9m2-14v6h-6" />;
+  if (state === "unavailable" || state === "unavailableConnection") return <><path d="M172 107a7 7 0 0 1 12-5m-15 10 18-14" /><path d="M185 111h1" /></>;
+  if (state === "expired") return <><circle cx="179" cy="106" r="8" /><path d="M179 101v5l4 2" /></>;
+  return <><rect x="172" y="104" width="14" height="11" rx="3" /><path d="M175 104v-4a4 4 0 0 1 8 0v4" /></>;
 }

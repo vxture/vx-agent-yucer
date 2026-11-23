@@ -4,7 +4,7 @@ import { sessionResponse } from "../lib/session-response";
 import { productAccessRevision, resolveProductEntryAccess } from "../product-access";
 
 const readAccess = async (user: Parameters<typeof resolveProductEntryAccess>[0]) => {
-  const access = await resolveProductEntryAccess(user, true);
+  const access = await resolveProductEntryAccess(user, true, undefined, { initialize: false });
   return { state: access.state, revision: productAccessRevision(access) };
 };
 

@@ -45,6 +45,14 @@ import { listCommitments } from "../domains/account/field-service";
 import { listProjects, projectView } from "../domains/delivery/service";
 import { notificationItems, notificationTotal } from "./lib/notifications";
 
+type LayoutEntry = Awaited<ReturnType<typeof resolveAppEntry>>;
+async function readLayoutEntry(unavailable: boolean): Promise<LayoutEntry> {
+  return unavailable ? null : resolveAppEntry();
+}
+function entryBoundaryAccess(entry: LayoutEntry) {
+  return { initialAccess: entry?.access.state ?? "ready", accessRevision: entry ? productAccessRevision(entry.access) : undefined };
+}
+
 // The product shell.
 //
 // Rendered on the server so the navigation is computed from the real session,
@@ -81,7 +89,8 @@ export default async function AppLayout({
     unavailable = true;
     return null;
   });
-  const entry = !unavailable ? await resolveAppEntry() : null;
+  const entry = await readLayoutEntry(unavailable);
+  const boundary = entryBoundaryAccess(entry);
   // Resolved on the SERVER so the first paint is already in the right language.
   const locale = await resolveLocale();
   const { SHELL_TEXT } = await getMessages();
@@ -146,8 +155,7 @@ export default async function AppLayout({
     <MessagesProvider locale={locale}>
       <SessionBoundary
         enabled={oidc.enabled && jar.has(oidc.cookieName)}
-        initialAccess={entry?.access.state ?? "ready"}
-        accessRevision={entry ? productAccessRevision(entry.access) : undefined}
+        {...boundary}
         identity={{ sub: session.user.sub, activeOrg: session.user.activeOrg, activeWorkspace: session.user.activeWorkspace, roles: session.user.roles, accountStatus: session.user.accountStatus }}
       >{content}</SessionBoundary>
     </MessagesProvider>
@@ -168,10 +176,7 @@ export default async function AppLayout({
       <>
         <NoRoles
           userName={session.user.displayName}
-          userPhone={session.user.phone}
-          userPicture={session.user.picture}
           orgLabel={session.user.activeOrgName}
-          workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
       </>
     );
@@ -193,10 +198,7 @@ export default async function AppLayout({
           subscribeHref={null}
           expired={["expired", "cancelled", "suspended", "overdue"].includes(session.entitlement.status ?? "")}
           userName={session.user.displayName}
-          userPhone={session.user.phone}
-          userPicture={session.user.picture}
           orgLabel={session.user.activeOrgName}
-          workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
       </>
     );

@@ -17,7 +17,7 @@ export interface ProductEntryAccess {
 export function productAccessRevision(access: ProductEntryAccess): string {
   return createHash("sha256").update(JSON.stringify([
     access.state, access.entitlement && [access.entitlement.tier, access.entitlement.status, access.entitlement.bundled, Object.entries(access.entitlement.limits).sort(([a], [b]) => a.localeCompare(b))],
-    [...(access.authz?.roles ?? [])].sort(), [...(access.authz?.permissions ?? [])].sort(),
+    access.state === "ready" ? [...(access.authz?.roles ?? [])].sort((a, b) => a.localeCompare(b)) : [], [...(access.authz?.permissions ?? [])].sort((a, b) => a.localeCompare(b)),
   ])).digest("hex");
 }
 interface Dependencies {
@@ -30,7 +30,7 @@ interface Dependencies {
  * cache an allow between requests, infer seats from limits, or exempt owners.
  * A failed/partial roster is unknown, never an empty successful directory. */
 export async function resolveProductEntryAccess(
-  user: AuthUser, fresh = false, dependencies?: Dependencies,
+  user: AuthUser, fresh = false, dependencies?: Dependencies, options: { initialize?: boolean } = {},
 ): Promise<ProductEntryAccess> {
   const unavailable: ProductEntryAccess = { state: "unavailable", entitlement: null, authz: null };
   if (!user.activeWorkspace || !user.activeOrg) return unavailable;
@@ -50,12 +50,20 @@ export async function resolveProductEntryAccess(
       return { state: "unassigned", entitlement, authz: null };
     }
     // Only a currently assigned member can initialize the default sales role.
-    const authz = await resolveAuthzContext(user, store, entitlement, { fresh });
+    const authz = options.initialize === false ? await readProductAuthz(user, store) : await resolveAuthzContext(user, store, entitlement, { fresh });
     if (!authz) return unavailable;
-    const state = !hasProductAccess(entitlement) ? "no-subscription" : authz.permissions.size ? "ready" : "no-roles";
+    let state: ProductEntryState = "no-subscription";
+    if (hasProductAccess(entitlement)) state = authz.permissions.size ? "ready" : "no-roles";
     return { state, entitlement, authz };
   } catch {
     invalidateAuthz(workspaceId, user.sub);
     return unavailable;
   }
+}
+
+/** Background probes do not sight profiles, seed presets or initialize roles. */
+async function readProductAuthz(user: AuthUser, store: AuthzStore): Promise<AuthzContext> {
+  const workspaceId = user.activeWorkspace!;
+  const [roles, permissions] = await Promise.all([store.rolesOf(workspaceId, user.sub), store.permissionsOf(workspaceId, user.sub)]);
+  return { workspaceId, sub: user.sub, roles, permissions: new Set(permissions), isWorkspaceOwner: user.isWorkspaceOwner };
 }
