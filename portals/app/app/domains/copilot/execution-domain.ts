@@ -103,17 +103,22 @@ export async function writeBusinessForm(
     );
   }
   if (form.module === "segment") {
-    const input = {
-      ...fields,
+    type SegmentInput = Parameters<typeof upsertSegment>[1];
+    const patch = fields as Partial<Omit<SegmentInput, "criteria">> & {
+      criteria?: Partial<SegmentInput["criteria"]>;
+    };
+    const input: SegmentInput = {
+      ...patch,
       segmentCode: "",
-      criteria: fields.criteria ?? {},
-      priority: fields.priority ?? 0,
-      status: fields.status ?? "active",
+      name: patch.name ?? "",
+      criteria: { industries: [], regions: [], ...patch.criteria },
+      priority: patch.priority ?? 0,
+      status: patch.status ?? "active",
     };
     const value = requireResult(
       await upsertSegment(
         strategy,
-        input as Parameters<typeof upsertSegment>[1],
+        input,
         form.targetId ? { editId: form.targetId } : "create",
       ),
     );

@@ -279,6 +279,9 @@ test(
         }),
         /task_not_active/,
       );
+      const cancelled = await readExecutions(f.ctx, f.record.id);
+      assert.equal(cancelled.canPrepare, false);
+      assert.equal(cancelled.steps[0]?.status, "proposal_unavailable");
       await f.pg.query(
         "UPDATE yucer_agent.agent_task SET status='active' WHERE id=$1",
         [f.record.id],
@@ -301,6 +304,10 @@ test(
         }),
         /form_changed/,
       );
+      const replaced = await readExecutions(f.ctx, f.record.id);
+      assert.equal(replaced.canPrepare, true);
+      assert.equal(replaced.steps[0]?.status, "proposal_unavailable");
+      assert.equal(replaced.steps[0]?.form, undefined);
       assert.equal(
         (
           await f.pg.query(
@@ -361,6 +368,78 @@ test("HTTP authorizes concrete steps, reports partial failure and recovers recei
   const proposal=await executionHttp(request({action:"propose",key:"market",draftId:f.draft.id,operation:"save"}),f.record.id,resolve);
   assert.equal((await proposal.json()).id,f.step.id);
 }));
+
+test("partial native saves recover the completed receipt and resume only the unfinished step", { skip }, () =>
+  fixture(async (f) => {
+    const { executionHttp } = await import("../../api/copilot/tasks/[taskId]/execution/handler");
+    const current = (await f.store.load(f.scope, f.record.id, true))!;
+    const form = await f.ctx.task.business!.prepare(
+      mergeForm(null, "segment", null, {
+        name: "Recovery market", priority: 2, status: "active",
+        criteria: { needSummary: "Optional matching dimensions are not set" },
+      }),
+    );
+    assert.equal(await f.store.mutate(f.scope, f.record.id, current.task.revision, {
+      ruleVersion: TASK_RULE_VERSION,
+      draft: { key: "second", contractVersion: "business-form/1", text: JSON.stringify(form) },
+    }), true);
+    const secondDraft = (await f.store.load(f.scope, f.record.id, true))!.drafts.find((d) => d.key === "second")!;
+    const second = await proposeExecution(f.ctx, f.record.id, {
+      key: secondDraft.key, draftId: secondDraft.id, operation: "save",
+    });
+    const nativeWrites: string[] = [];
+    let interrupt = true;
+    const ctx: ExecutionContext = {
+      ...f.ctx,
+      write: async (...args) => {
+        nativeWrites.push(args[2]);
+        const record = await f.ctx.write(...args);
+        if (interrupt && args[2] === second.id) throw Error("simulated_receipt_failure");
+        return record;
+      },
+    };
+    const call = (body?: object) => executionHttp(
+      new Request("http://localhost/api/copilot/tasks/test/execution", body
+        ? { method: "POST", body: JSON.stringify(body) }
+        : undefined),
+      f.record.id,
+      async () => ctx,
+    );
+    const ids = [f.step.id, second.id];
+    const response = await call({ action: "grant", stepIds: ids, confirmedIds: ids, mode: "ask_always" });
+    assert.equal(response.status, 200);
+    const partial = await response.json();
+    assert.equal(partial.state, "partial_or_waiting");
+    assert.equal(partial.completed.length, 1);
+    assert.deepEqual(nativeWrites, ids);
+
+    const persisted = await (await call()).json();
+    assert.equal(persisted.steps.find((s: { id: string }) => s.id === f.step.id).status, "succeeded");
+    const failed = persisted.steps.find((s: { id: string }) => s.id === second.id);
+    assert.equal(failed.status, "failed");
+    assert.equal(failed.lastError, "simulated_receipt_failure");
+    assert.deepEqual(persisted.receipts.map((r: { id: string }) => r.id), [partial.completed[0].id]);
+    assert.equal(persisted.grants.find((g: { id: string }) => g.id === partial.grant.id).remainingActions, 1);
+    assert.deepEqual(nativeWrites, ids);
+
+    interrupt = false;
+    const resumed = await call({ action: "execute", stepId: second.id, grantId: partial.grant.id });
+    assert.equal(resumed.status, 200);
+    const final = await readExecutions(ctx, f.record.id);
+    assert.deepEqual(final.steps.map((s) => s.status), ["succeeded", "succeeded"]);
+    assert.equal(final.receipts.length, 2);
+    assert.equal(final.grants.find((g) => g.id === partial.grant.id)?.remainingActions, 0);
+    assert.deepEqual(nativeWrites, [...ids, second.id]);
+    const records = await f.pg.query(
+      "SELECT name, criteria FROM yucer_gtm.market_segment WHERE workspace_id=$1 ORDER BY priority",
+      [f.session.workspaceId],
+    );
+    assert.deepEqual(records.rows.map((r) => r.name), ["Receipt market", "Recovery market"]);
+    assert.deepEqual(records.rows[1].criteria, {
+      industries: [], regions: [], needSummary: "Optional matching dimensions are not set",
+    });
+  }),
+);
 
 test("editing an existing source hides obsolete content but preserves independently validated receipt recovery", {skip},()=>fixture(async f=>{
   const first=await executeStep(f.ctx,f.record.id,{stepId:f.step.id,grantId:f.grant.id});
