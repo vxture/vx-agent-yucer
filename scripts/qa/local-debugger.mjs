@@ -10,5 +10,7 @@ export function localDebuggerEndpoint(value) {
   if (!parts) throw new Error("Invalid local CDP target");
   const kind = parts[1] === "browser" ? "browser" : "page";
   const id = encodeURIComponent(parts[2]);
-  return "ws://127.0.0.1:9334/devtools/" + kind + "/" + id;
+  const endpoint = new URL("ws://127.0.0.1:9334");
+  endpoint.pathname = "/devtools/" + kind + "/" + id;
+  return endpoint.toString();
 }
