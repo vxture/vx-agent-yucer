@@ -109,7 +109,7 @@ import { CONFLICT_ACTION_TYPE, CONFLICT_CAPABILITY, lastConsistencyCheck } from 
 import { canRunAdvisor } from "../../../domains/copilot/lib/advisor-gate";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
-import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS } from "../../lib/sidebar-slot";
+import { WorkspaceContent, WorkspaceSidebar } from "../../components/workspace-layout";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import {
   DealLifecyclePanel,
@@ -257,12 +257,12 @@ export default async function AccountDetailPage({
     // The shell hands this route its whole body row (lib/sidebar-slot.ts),
     // so even the refusal sits in the centre pane rather than bare in the row.
     return (
-      <div className={CENTRE_PANE_CLASS}>
+      <WorkspaceContent>
         <EmptyState
           title={SHELL_TEXT.loadFailed}
           description={loadFailureText(detail.violations, LOAD_ERROR)}
         />
-      </div>
+      </WorkspaceContent>
     );
   }
   const { account, contacts } = detail.value;
@@ -1257,7 +1257,7 @@ export default async function AccountDetailPage({
           (owner: 聚焦客户全景图页面 - 全局 header 的战况板开关恢复后, 返回/
           收起展开都变得多余), 只有"客户总编辑"跟着搬到这里, 见下面面包屑行
           自己的说明。 */}
-      <aside className={BOARD_PANE_CLASS}>
+      <WorkspaceSidebar>
       <div className="flex flex-col gap-lg">
         {/* ======== 单位信息 + 联系人 + 决策链摘要 + 档案缺口, portaled into
             the shell's left sidebar. 目标 div 自己已经是 flex flex-col
@@ -1332,9 +1332,9 @@ export default async function AccountDetailPage({
           />
         ) : null}
       </div>
-      </aside>
+      </WorkspaceSidebar>
 
-      <div className={CENTRE_PANE_CLASS}>
+      <WorkspaceContent>
       <ViewLayout>
 
         {/* ======== content: 面包屑行, then 栏2 - the lifecycle spine, then
@@ -1686,7 +1686,7 @@ export default async function AccountDetailPage({
           } />
         </div>
       </ViewLayout>
-      </div>
+      </WorkspaceContent>
     </ChainViewProvider>
     </AccountEditProvider>
   );

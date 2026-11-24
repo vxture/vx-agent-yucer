@@ -21,6 +21,7 @@ import { XiaoyuTopics } from "./xiaoyu-topics";
 import { XiaoyuResearch } from "./xiaoyu-research";
 import { XiaoyuFormLinks } from "./xiaoyu-form-link";
 import { AssistantWidthToggle, useAssistantWidth } from "./assistant-width";
+import { WorkspaceContent } from "./workspace-layout";
 import styles from "./xiaoyu-workspace.module.css";
 
 type Copy = Dictionary["XIAOYU_TEXT"];
@@ -295,7 +296,7 @@ export function XiaoyuSurface({ full = false }: { readonly full?: boolean }) {
       </Button>
     </div> : null}
     <div className={styles.panes} data-mobile-view={mobile}>
-      {full ? <TodayBoard outputKey={outputKey} onDiscuss={() => setMobile("chat")} /> : null}
+      {full ? <WorkspaceContent canvas><TodayBoard outputKey={outputKey} onDiscuss={() => setMobile("chat")} /></WorkspaceContent> : null}
       {full ? <ShellDock mode={width} className={`${styles.conversationPane} shadow-none`}>
         {conversation}
       </ShellDock> : conversation}

@@ -1,5 +1,11 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 全局页面框架
+
+[127-global-workspace-frame.md](127-global-workspace-frame.md) 记录页面分类、按需分栏、DS 两档内容宽度、
+个人偏好与滚动安全区，逐项列出 85 页、76 个 AI 配套路由及非业务状态。
+代码接入与浏览器验收分列标记，本批未发布。
+
 ## 小聿协作工作区调整
 
 [126-xiaoyu-collaboration-board.md](126-xiaoyu-collaboration-board.md) 记录最新 owner 方向：

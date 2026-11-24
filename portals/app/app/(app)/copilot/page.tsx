@@ -5,20 +5,21 @@ import { resolveAppSession } from "../lib/session";
 import { XiaoyuWorkspace } from "../components/xiaoyu-workspace";
 import LegacyJudgementHome from "../components/legacy-judgement-home";
 import LegacyCopilotPage from "./legacy-page";
+import { WorkspaceContent } from "../components/workspace-layout";
 
 export const dynamic = "force-dynamic";
 type Query = { task?: string; view?: string; account?: string; ask?: string; opportunity?: string; mode?: string; thread?: string };
 export default async function CopilotPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
-  if (query.view === "judgements") return <LegacyJudgementHome searchParams={Promise.resolve({})} />;
+  if (query.view === "judgements") return <WorkspaceContent><LegacyJudgementHome searchParams={Promise.resolve({})} /></WorkspaceContent>;
   if (query.view === "proposals" || query.account || query.opportunity || query.thread || query.ask || query.mode) {
-    return <LegacyCopilotPage searchParams={Promise.resolve(query)} />;
+    return <WorkspaceContent><LegacyCopilotPage searchParams={Promise.resolve(query)} /></WorkspaceContent>;
   }
   const session = await resolveAppSession();
   if (!session) return null;
   if (!can(session.authz, session.entitlement, "copilot.ask", "ui").allowed) {
     const { XIAOYU_TEXT: T } = await getMessages();
-    return <Banner tone="warning" title={T.accessChanged} />;
+    return <WorkspaceContent><Banner tone="warning" title={T.accessChanged} /></WorkspaceContent>;
   }
   return <XiaoyuWorkspace initialTask={query.task} />;
 }

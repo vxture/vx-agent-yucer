@@ -10,7 +10,12 @@
         "needle": "/evidence/"
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/account/acc_demo_1/evidence/int_demo_a1a"
+      "sample": "/account/acc_demo_1/evidence/int_demo_a1a",
+      "workspaceLayout": {
+        "title": "\u5ba2\u6237\u8bc1\u636e\u8be6\u60c5",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/account/[id]",
@@ -21,7 +26,12 @@
         "needle": "/account/${"
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/account/acc_demo_1"
+      "sample": "/account/acc_demo_1",
+      "workspaceLayout": {
+        "title": "\u5ba2\u6237\u5168\u666f",
+        "mode": "dossier",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/account/complete",
@@ -32,7 +42,12 @@
         "needle": "href: \"/account/complete\""
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/account/complete"
+      "sample": "/account/complete",
+      "workspaceLayout": {
+        "title": "\u5ba2\u6237\u8d44\u6599\u8865\u9f50",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/account/new",
@@ -43,7 +58,12 @@
         "needle": "/account/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/account/new"
+      "sample": "/account/new",
+      "workspaceLayout": {
+        "title": "\u5ba2\u6237\u65b0\u5efa",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/account",
@@ -54,7 +74,12 @@
         "needle": "href: \"/account\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/account"
+      "sample": "/account",
+      "workspaceLayout": {
+        "title": "\u5ba2\u6237\u6e05\u5355",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/admin/audit",
@@ -65,7 +90,12 @@
         "needle": "/admin/audit"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/audit"
+      "sample": "/admin/audit",
+      "workspaceLayout": {
+        "title": "\u5b89\u5168\u5ba1\u8ba1",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/diagnostics",
@@ -76,7 +106,12 @@
         "needle": "/admin/diagnostics"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/diagnostics"
+      "sample": "/admin/diagnostics",
+      "workspaceLayout": {
+        "title": "\u7cfb\u7edf\u9a8c\u8bc1",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/division/[id]",
@@ -90,6 +125,11 @@
       "entryProbe": {
         "path": "/admin/division",
         "action": "edit"
+      },
+      "workspaceLayout": {
+        "title": "\u533a\u57df\u7f16\u8f91",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
       }
     },
     {
@@ -101,7 +141,12 @@
         "needle": "/admin/division/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/admin/division/new"
+      "sample": "/admin/division/new",
+      "workspaceLayout": {
+        "title": "\u533a\u57df\u65b0\u5efa",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/division",
@@ -112,7 +157,12 @@
         "needle": "/admin/division"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/division"
+      "sample": "/admin/division",
+      "workspaceLayout": {
+        "title": "\u533a\u57df\u8bbe\u7f6e",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/industry",
@@ -123,7 +173,12 @@
         "needle": "/admin/industry"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/industry"
+      "sample": "/admin/industry",
+      "workspaceLayout": {
+        "title": "\u5ba2\u6237\u5206\u7c7b",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/members/[id]",
@@ -137,6 +192,11 @@
       "entryProbe": {
         "path": "/admin/members?view=list",
         "action": "edit"
+      },
+      "workspaceLayout": {
+        "title": "\u6210\u5458\u6743\u9650\u7f16\u8f91",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
       }
     },
     {
@@ -148,7 +208,12 @@
         "needle": "/admin/members"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/members"
+      "sample": "/admin/members",
+      "workspaceLayout": {
+        "title": "\u6210\u5458\u7ba1\u7406",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/migration",
@@ -159,7 +224,12 @@
         "needle": "/admin"
       },
       "reason": "Preserve old bookmarks; no independent operation UI.",
-      "sample": "/admin/migration"
+      "sample": "/admin/migration",
+      "workspaceLayout": {
+        "title": "\u65e7\u8fc1\u79fb\u5165\u53e3",
+        "mode": "redirect",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/opportunity",
@@ -170,7 +240,12 @@
         "needle": "/admin/opportunity"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/opportunity"
+      "sample": "/admin/opportunity",
+      "workspaceLayout": {
+        "title": "\u5546\u673a\u914d\u7f6e",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/org/[id]",
@@ -184,6 +259,11 @@
       "entryProbe": {
         "path": "/admin/org",
         "action": "edit"
+      },
+      "workspaceLayout": {
+        "title": "\u7ec4\u7ec7\u5355\u5143\u7f16\u8f91",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
       }
     },
     {
@@ -195,7 +275,12 @@
         "needle": "/admin/org/kinds"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/admin/org/kinds"
+      "sample": "/admin/org/kinds",
+      "workspaceLayout": {
+        "title": "\u7ec4\u7ec7\u5c42\u7ea7\u914d\u7f6e",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/org/new",
@@ -206,7 +291,12 @@
         "needle": "/admin/org/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/admin/org/new"
+      "sample": "/admin/org/new",
+      "workspaceLayout": {
+        "title": "\u7ec4\u7ec7\u5355\u5143\u65b0\u5efa",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/org",
@@ -217,7 +307,12 @@
         "needle": "/admin/org"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/org"
+      "sample": "/admin/org",
+      "workspaceLayout": {
+        "title": "\u7ec4\u7ec7\u7ed3\u6784",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin",
@@ -228,7 +323,12 @@
         "needle": "\"/admin\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/admin"
+      "sample": "/admin",
+      "workspaceLayout": {
+        "title": "\u914d\u7f6e\u9996\u9875",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/permissions",
@@ -239,7 +339,12 @@
         "needle": "/admin/permissions"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/permissions"
+      "sample": "/admin/permissions",
+      "workspaceLayout": {
+        "title": "\u6743\u9650\u7b56\u7565",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/product",
@@ -250,7 +355,12 @@
         "needle": "/admin/product"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/product"
+      "sample": "/admin/product",
+      "workspaceLayout": {
+        "title": "\u4ea7\u54c1\u914d\u7f6e",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/reminder",
@@ -261,7 +371,12 @@
         "needle": "/admin/reminder"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/reminder"
+      "sample": "/admin/reminder",
+      "workspaceLayout": {
+        "title": "\u63d0\u9192\u9608\u503c",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/roles/[id]",
@@ -275,6 +390,11 @@
       "entryProbe": {
         "path": "/admin/roles",
         "action": "edit"
+      },
+      "workspaceLayout": {
+        "title": "\u89d2\u8272\u7f16\u8f91",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
       }
     },
     {
@@ -286,7 +406,12 @@
         "needle": "/admin/roles/groups"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/admin/roles/groups"
+      "sample": "/admin/roles/groups",
+      "workspaceLayout": {
+        "title": "\u89d2\u8272\u5206\u7ec4",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/roles/new",
@@ -297,7 +422,12 @@
         "needle": "/admin/roles/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/admin/roles/new"
+      "sample": "/admin/roles/new",
+      "workspaceLayout": {
+        "title": "\u89d2\u8272\u65b0\u5efa",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/roles",
@@ -308,7 +438,12 @@
         "needle": "/admin/roles"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/roles"
+      "sample": "/admin/roles",
+      "workspaceLayout": {
+        "title": "\u89d2\u8272\u7ba1\u7406",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/admin/scope",
@@ -319,7 +454,12 @@
         "needle": "/admin/scope"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/admin/scope"
+      "sample": "/admin/scope",
+      "workspaceLayout": {
+        "title": "\u6570\u636e\u8303\u56f4",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/attainment/coverage",
@@ -330,7 +470,12 @@
         "needle": "/attainment/coverage?"
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/attainment/coverage"
+      "sample": "/attainment/coverage",
+      "workspaceLayout": {
+        "title": "\u8fbe\u6210\u660e\u7ec6",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/attainment",
@@ -341,7 +486,12 @@
         "needle": "href: \"/attainment\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/attainment"
+      "sample": "/attainment",
+      "workspaceLayout": {
+        "title": "\u627f\u8bfa\u8fbe\u6210",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/campaign/create",
@@ -352,7 +502,12 @@
         "needle": "/campaign/create"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/campaign/create"
+      "sample": "/campaign/create",
+      "workspaceLayout": {
+        "title": "\u5e02\u573a\u6d3b\u52a8\u521b\u5efa",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/campaign/new",
@@ -363,7 +518,12 @@
         "needle": "/campaign/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/campaign/new"
+      "sample": "/campaign/new",
+      "workspaceLayout": {
+        "title": "\u6267\u884c\u4efb\u52a1\u521b\u5efa",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/campaign",
@@ -374,7 +534,12 @@
         "needle": "href: \"/campaign\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/campaign"
+      "sample": "/campaign",
+      "workspaceLayout": {
+        "title": "\u5e02\u573a\u6d3b\u52a8",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/capture",
@@ -385,7 +550,12 @@
         "needle": "/capture?account="
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/capture?account=acc_demo_1"
+      "sample": "/capture?account=acc_demo_1",
+      "workspaceLayout": {
+        "title": "\u8ddf\u8fdb\u8bb0\u5f55",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/catalog/new",
@@ -396,7 +566,12 @@
         "needle": "/catalog/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/catalog/new"
+      "sample": "/catalog/new",
+      "workspaceLayout": {
+        "title": "\u4ea7\u54c1\u65b0\u5efa\uff0f\u7f16\u8f91",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/catalog",
@@ -407,7 +582,12 @@
         "needle": "href: \"/catalog\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/catalog"
+      "sample": "/catalog",
+      "workspaceLayout": {
+        "title": "\u4ea7\u54c1\u76ee\u5f55",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/collection/instalment",
@@ -418,7 +598,12 @@
         "needle": "/collection/instalment"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/collection/instalment"
+      "sample": "/collection/instalment",
+      "workspaceLayout": {
+        "title": "\u56de\u6b3e\u8ba1\u5212\u65b0\u589e",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/collection",
@@ -429,7 +614,12 @@
         "needle": "/collection"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/collection"
+      "sample": "/collection",
+      "workspaceLayout": {
+        "title": "\u56de\u6b3e\u7ba1\u7406",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/contact/new",
@@ -440,7 +630,12 @@
         "needle": "/contact/new?account="
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/contact/new?account=acc_demo_1"
+      "sample": "/contact/new?account=acc_demo_1",
+      "workspaceLayout": {
+        "title": "\u8054\u7cfb\u4eba\u65b0\u5efa",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/copilot",
@@ -451,7 +646,12 @@
         "needle": "<AgentDockButton"
       },
       "reason": "Dedicated Header G5 entry; contextual collaboration footer links to the same task workspace.",
-      "sample": "/copilot"
+      "sample": "/copilot",
+      "workspaceLayout": {
+        "title": "\u5c0f\u807f\u534f\u4f5c\u7a7a\u95f4",
+        "mode": "collaboration",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/delivery/new",
@@ -462,7 +662,12 @@
         "needle": "/delivery/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/delivery/new?project=prj_demo_1"
+      "sample": "/delivery/new?project=prj_demo_1",
+      "workspaceLayout": {
+        "title": "\u4ea4\u4ed8\u91cc\u7a0b\u7891\u65b0\u589e",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/delivery",
@@ -473,7 +678,12 @@
         "needle": "/delivery"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/delivery"
+      "sample": "/delivery",
+      "workspaceLayout": {
+        "title": "\u4ea4\u4ed8\u7ba1\u7406",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/delivery/project",
@@ -484,7 +694,12 @@
         "needle": "/delivery/project"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/delivery/project"
+      "sample": "/delivery/project",
+      "workspaceLayout": {
+        "title": "\u4ea4\u4ed8\u9879\u76ee\u65b0\u589e",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/domain/[key]",
@@ -495,7 +710,12 @@
         "needle": "primaryHref(d)"
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/domain/position"
+      "sample": "/domain/position",
+      "workspaceLayout": {
+        "title": "\u529f\u80fd\u57df\u6c47\u603b",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/forecast",
@@ -506,7 +726,12 @@
         "needle": "legacyForecastHref"
       },
       "reason": "Preserve old bookmarks; no independent operation UI.",
-      "sample": "/forecast"
+      "sample": "/forecast",
+      "workspaceLayout": {
+        "title": "\u65e7\u9884\u6d4b\u5165\u53e3",
+        "mode": "redirect",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/funnel",
@@ -517,7 +742,12 @@
         "needle": "/funnel"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/funnel"
+      "sample": "/funnel",
+      "workspaceLayout": {
+        "title": "\u9500\u552e\u6f0f\u6597",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/lead/new",
@@ -528,7 +758,12 @@
         "needle": "/lead/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/lead/new"
+      "sample": "/lead/new",
+      "workspaceLayout": {
+        "title": "\u7ebf\u7d22\u65b0\u5efa",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/lead",
@@ -539,7 +774,12 @@
         "needle": "/lead"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/lead"
+      "sample": "/lead",
+      "workspaceLayout": {
+        "title": "\u9500\u552e\u7ebf\u7d22",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/named",
@@ -550,7 +790,12 @@
         "needle": "/named"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/named"
+      "sample": "/named",
+      "workspaceLayout": {
+        "title": "\u91cd\u70b9\u5ba2\u6237",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/",
@@ -561,7 +806,12 @@
         "needle": "/"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/"
+      "sample": "/",
+      "workspaceLayout": {
+        "title": "\u5de5\u4f5c\u9996\u9875",
+        "mode": "redirect",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/pipeline/[id]/lines",
@@ -572,7 +822,12 @@
         "needle": "/lines"
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/pipeline/opp_demo_1/lines"
+      "sample": "/pipeline/opp_demo_1/lines",
+      "workspaceLayout": {
+        "title": "\u5546\u673a\u65b9\u6848\u660e\u7ec6",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/pipeline/[id]",
@@ -583,7 +838,12 @@
         "needle": "/pipeline/${"
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/pipeline/opp_demo_1"
+      "sample": "/pipeline/opp_demo_1",
+      "workspaceLayout": {
+        "title": "\u5546\u673a\u8be6\u60c5",
+        "mode": "dossier",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/pipeline/new",
@@ -594,7 +854,12 @@
         "needle": "/pipeline/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/pipeline/new"
+      "sample": "/pipeline/new",
+      "workspaceLayout": {
+        "title": "\u5546\u673a\u65b0\u5efa",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/pipeline",
@@ -605,7 +870,12 @@
         "needle": "href: \"/pipeline\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/pipeline"
+      "sample": "/pipeline",
+      "workspaceLayout": {
+        "title": "\u5546\u673a\u7ba1\u7406",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/planning/new",
@@ -616,7 +886,12 @@
         "needle": "href=\"/planning/new\""
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/planning/new"
+      "sample": "/planning/new",
+      "workspaceLayout": {
+        "title": "\u9500\u552e\u76ee\u6807\u65b0\u589e",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/planning",
@@ -627,7 +902,12 @@
         "needle": "href: \"/planning\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/planning"
+      "sample": "/planning",
+      "workspaceLayout": {
+        "title": "\u9500\u552e\u89c4\u5212\uff08\u516c\u53f8\uff0f\u533a\u57df\uff09",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/planning/territory/new",
@@ -638,7 +918,12 @@
         "needle": "/admin/division"
       },
       "reason": "Preserve old bookmarks; no independent operation UI.",
-      "sample": "/planning/territory/new"
+      "sample": "/planning/territory/new",
+      "workspaceLayout": {
+        "title": "\u65e7\u533a\u57df\u65b0\u589e\u5165\u53e3",
+        "mode": "redirect",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/pricebook",
@@ -649,7 +934,12 @@
         "needle": "/catalog"
       },
       "reason": "Preserve old bookmarks; no independent operation UI.",
-      "sample": "/pricebook"
+      "sample": "/pricebook",
+      "workspaceLayout": {
+        "title": "\u65e7\u4ea7\u54c1\u5b9a\u4ef7\u5165\u53e3",
+        "mode": "redirect",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/quote",
@@ -660,7 +950,12 @@
         "needle": "/quote"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/quote"
+      "sample": "/quote",
+      "workspaceLayout": {
+        "title": "\u62a5\u4ef7\u7ba1\u7406",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/renewal",
@@ -671,7 +966,12 @@
         "needle": "/renewal"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/renewal"
+      "sample": "/renewal",
+      "workspaceLayout": {
+        "title": "\u7eed\u7ea6\u7ba1\u7406",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/segment/new",
@@ -682,7 +982,12 @@
         "needle": "/segment/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/segment/new"
+      "sample": "/segment/new",
+      "workspaceLayout": {
+        "title": "\u7ec6\u5206\u5e02\u573a\u65b0\u5efa\uff0f\u7f16\u8f91",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/segment/[id]",
@@ -693,7 +998,12 @@
         "needle": "/segment/${"
       },
       "reason": "Market titles and view actions open the read-only segment detail page.",
-      "sample": "/segment/seg_demo_2"
+      "sample": "/segment/seg_demo_2",
+      "workspaceLayout": {
+        "title": "\u7ec6\u5206\u5e02\u573a\u8be6\u60c5",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/segment",
@@ -704,7 +1014,12 @@
         "needle": "{ key: \"segment\", href: \"/segment\""
       },
       "reason": "Reusable market library has its own gated launcher entry.",
-      "sample": "/segment"
+      "sample": "/segment",
+      "workspaceLayout": {
+        "title": "\u7ec6\u5206\u5e02\u573a",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/signal",
@@ -715,7 +1030,12 @@
         "needle": "href: \"/signal\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/signal"
+      "sample": "/signal",
+      "workspaceLayout": {
+        "title": "\u5e02\u573a\u4fe1\u53f7",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/solution/new",
@@ -726,7 +1046,12 @@
         "needle": "/solution/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/solution/new"
+      "sample": "/solution/new",
+      "workspaceLayout": {
+        "title": "\u65b9\u6848\u65b0\u5efa\uff0f\u7f16\u8f91",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/solution",
@@ -737,7 +1062,12 @@
         "needle": "href: \"/solution\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/solution"
+      "sample": "/solution",
+      "workspaceLayout": {
+        "title": "\u89e3\u51b3\u65b9\u6848",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/strategy/[id]",
@@ -748,7 +1078,12 @@
         "needle": "/strategy/${"
       },
       "reason": "Permission and context dependent entry; not every page belongs in the launcher.",
-      "sample": "/strategy/plan_demo_1"
+      "sample": "/strategy/plan_demo_1",
+      "workspaceLayout": {
+        "title": "\u6218\u7565\u8be6\u60c5",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/strategy/new",
@@ -759,7 +1094,12 @@
         "needle": "/strategy/new"
       },
       "reason": "Creation/editing entry on parent page or business panel.",
-      "sample": "/strategy/new"
+      "sample": "/strategy/new",
+      "workspaceLayout": {
+        "title": "\u6218\u7565\u65b0\u5efa\uff0f\u4fee\u8ba2",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/strategy",
@@ -770,7 +1110,12 @@
         "needle": "href: \"/strategy\""
       },
       "reason": "Launcher, configuration navigation or primary page action.",
-      "sample": "/strategy"
+      "sample": "/strategy",
+      "workspaceLayout": {
+        "title": "\u6218\u7565\u603b\u89c8",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/upgrade/[module]",
@@ -784,7 +1129,12 @@
       "sample": "/upgrade/pipeline",
       "allowedRedirects": [
         "/pipeline"
-      ]
+      ],
+      "workspaceLayout": {
+        "title": "\u6a21\u5757\u5347\u7ea7\u63d0\u793a",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/winloss",
@@ -795,7 +1145,12 @@
         "needle": "/winloss"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/winloss"
+      "sample": "/winloss",
+      "workspaceLayout": {
+        "title": "\u8d62\u4e22\u590d\u76d8",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/entitlement-matrix",
@@ -806,7 +1161,12 @@
         "needle": "href=\"/entitlement-matrix\""
       },
       "reason": "Offline design/permission fixtures; links only in development diagnostics.",
-      "sample": "/entitlement-matrix"
+      "sample": "/entitlement-matrix",
+      "workspaceLayout": {
+        "title": "\u6388\u6743\u77e9\u9635\u9884\u89c8",
+        "mode": "standalone",
+        "group": "\u8bca\u65ad\u4e0e\u9884\u89c8"
+      }
     },
     {
       "route": "/gate-screens",
@@ -817,7 +1177,12 @@
         "needle": "href=\"/gate-screens\""
       },
       "reason": "Offline design/permission fixtures; links only in development diagnostics.",
-      "sample": "/gate-screens"
+      "sample": "/gate-screens",
+      "workspaceLayout": {
+        "title": "\u95e8\u7981\u9875\u9762\u9884\u89c8",
+        "mode": "standalone",
+        "group": "\u8bca\u65ad\u4e0e\u9884\u89c8"
+      }
     },
     {
       "route": "/platform-check",
@@ -828,7 +1193,12 @@
         "needle": "href=\"/platform-check\""
       },
       "reason": "Standalone recovery surface; endpoint access controls unchanged.",
-      "sample": "/platform-check"
+      "sample": "/platform-check",
+      "workspaceLayout": {
+        "title": "\u5e73\u53f0\u5bf9\u63a5\u8bca\u65ad",
+        "mode": "standalone",
+        "group": "\u8bca\u65ad\u4e0e\u9884\u89c8"
+      }
     },
     {
       "route": "/product-preview",
@@ -839,7 +1209,12 @@
         "needle": "href=\"/product-preview\""
       },
       "reason": "Offline design/permission fixtures; links only in development diagnostics.",
-      "sample": "/product-preview"
+      "sample": "/product-preview",
+      "workspaceLayout": {
+        "title": "\u4ea7\u54c1\u8bbe\u8ba1\u9884\u89c8",
+        "mode": "standalone",
+        "group": "\u8bca\u65ad\u4e0e\u9884\u89c8"
+      }
     },
     {
       "route": "/progression-preview",
@@ -850,7 +1225,12 @@
         "needle": "href=\"/progression-preview\""
       },
       "reason": "Offline design/permission fixtures; links only in development diagnostics.",
-      "sample": "/progression-preview"
+      "sample": "/progression-preview",
+      "workspaceLayout": {
+        "title": "\u4e1a\u52a1\u8fdb\u7a0b\u9884\u89c8",
+        "mode": "standalone",
+        "group": "\u8bca\u65ad\u4e0e\u9884\u89c8"
+      }
     },
     {
       "route": "/status",
@@ -861,7 +1241,12 @@
         "needle": "href=\"/status\""
       },
       "reason": "Standalone recovery surface; endpoint access controls unchanged.",
-      "sample": "/status"
+      "sample": "/status",
+      "workspaceLayout": {
+        "title": "\u8fd0\u884c\u72b6\u6001",
+        "mode": "standalone",
+        "group": "\u8bca\u65ad\u4e0e\u9884\u89c8"
+      }
     },
     {
       "route": "/enablement",
@@ -872,7 +1257,12 @@
         "needle": "/enablement"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/enablement"
+      "sample": "/enablement",
+      "workspaceLayout": {
+        "title": "\u8d4b\u80fd\u5206\u6790\u5927\u5c4f",
+        "mode": "screen",
+        "group": "\u72ec\u7acb\u5927\u5c4f"
+      }
     },
     {
       "route": "/national",
@@ -883,7 +1273,12 @@
         "needle": "/national"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/national"
+      "sample": "/national",
+      "workspaceLayout": {
+        "title": "\u9500\u552e\u5927\u5c4f",
+        "mode": "screen",
+        "group": "\u72ec\u7acb\u5927\u5c4f"
+      }
     },
     {
       "route": "/strategy-diag",
@@ -894,7 +1289,12 @@
         "needle": "/strategy-diag"
       },
       "reason": "Launcher or configuration navigation.",
-      "sample": "/strategy-diag"
+      "sample": "/strategy-diag",
+      "workspaceLayout": {
+        "title": "\u6218\u7565\u8bca\u65ad\u5927\u5c4f",
+        "mode": "screen",
+        "group": "\u72ec\u7acb\u5927\u5c4f"
+      }
     },
     {
       "route": "/admin/strategy",
@@ -905,7 +1305,12 @@
         "needle": "href: \"/admin/strategy\""
       },
       "reason": "Workspace strategy type configuration; reachable from configuration navigation and strategy overview.",
-      "sample": "/admin/strategy"
+      "sample": "/admin/strategy",
+      "workspaceLayout": {
+        "title": "\u6218\u7565\u5b57\u5178",
+        "mode": "workspace",
+        "group": "\u914d\u7f6e\u7ba1\u7406"
+      }
     },
     {
       "route": "/named/[id]",
@@ -916,7 +1321,12 @@
         "needle": "/named/${"
       },
       "reason": "Period/version-specific customer deployment detail from focus card and table titles.",
-      "sample": "/named/acc_demo_1?year=2026"
+      "sample": "/named/acc_demo_1?year=2026",
+      "workspaceLayout": {
+        "title": "\u91cd\u70b9\u5ba2\u6237\u90e8\u7f72\u8be6\u60c5",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "route": "/contact/[id]",
@@ -927,7 +1337,12 @@
         "needle": "/contact/${"
       },
       "reason": "Read-only customer-linked contact detail, reached through the contact preview drawer.",
-      "sample": "/contact/ct_1?account=acc_demo_1"
+      "sample": "/contact/ct_1?account=acc_demo_1",
+      "workspaceLayout": {
+        "title": "\u8054\u7cfb\u4eba\u8be6\u60c5",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     },
     {
       "file": "(app)/copilot/memory/page.tsx",
@@ -936,6 +1351,11 @@
       "entry": {
         "file": "(app)/components/app-shell.tsx",
         "needle": "href: \"/copilot/memory\""
+      },
+      "workspaceLayout": {
+        "title": "\u4e2a\u4eba\u8bb0\u5fc6\u63a7\u5236",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
       }
     },
     {
@@ -947,7 +1367,12 @@
         "needle": "redirect(\"/copilot\")"
       },
       "sample": "/copilot/knowledge",
-      "reason": "Legacy local knowledge editor retired; team knowledge belongs to the knowledge platform."
+      "reason": "Legacy local knowledge editor retired; team knowledge belongs to the knowledge platform.",
+      "workspaceLayout": {
+        "title": "\u65e7\u56e2\u961f\u77e5\u8bc6\u5165\u53e3",
+        "mode": "redirect",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
     }
   ],
   "preservedControls": {

@@ -27,7 +27,7 @@ export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onTo
   };
   const FullscreenIcon = fullscreen ? ArrowsInSimple : ArrowsOutSimple;
   return <AssistantInteractionProvider><div ref={frame} className="flex h-full min-h-0 w-full flex-col gap-md" data-assistant-frame>
-    <div className="flex shrink-0 items-center gap-xs" data-assistant-header>
+    <div className="flex min-h-header-lg shrink-0 items-center gap-xs" data-assistant-header>
       <div className="flex min-w-0 items-center gap-2xs">
         <Icon name="sparkles" size="sm" className="shrink-0 text-primary" />
         <h2 className="min-w-0 truncate text-label" title={X.name}>{X.name}</h2>

@@ -2892,6 +2892,10 @@ export const HEADER_TEXT = {
   // for a once-a-lifetime decision spends header width every session to serve
   // the first one.
   prefTitle: "偏好设置",
+  prefLayout: "显示与布局",
+  prefContentWidth: "内容宽度",
+  prefWidthStandard: "标准",
+  prefWidthWide: "宽屏",
   prefLocale: "语言",
   prefTheme: "主题",
   prefThemeLight: "浅色",

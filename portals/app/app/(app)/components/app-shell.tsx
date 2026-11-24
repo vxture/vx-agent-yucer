@@ -9,6 +9,8 @@ import {
   ShellProductTitle,
   ShellPreferencePanel,
   ShellPanelSlots,
+  ShellPanelControlRow,
+  ShellPanelSection,
   ShellUserMenu,
   useTheme,
 } from "@vxture/design-system";
@@ -16,9 +18,9 @@ import {
   Separator,
   ShellHeader,
   ShellHeaderActions,
-  ShellPageContainer,
   ShellViewport,
   StatusBadge,
+  NativeSelect,
 } from "@vxture/design-ui";
 import {
   LOCALE_CONFIGS,
@@ -46,7 +48,10 @@ import { useMessages } from "../lib/i18n/provider";
 import { ASSISTANT_WIDTH_COOKIE, BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX, type AssistantWidth } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { CENTRE_PANE_CLASS, ASSISTANT_PANE_CLASS, PAGE_SAFE_END_CLASS, isDossierRoute } from "../lib/sidebar-slot";
+import { ASSISTANT_PANE_CLASS, isDossierRoute } from "../lib/sidebar-slot";
+import { contentWidthCookieName, type ContentWidth } from "../lib/content-width";
+import { WorkspaceContent, WorkspaceLayoutProvider } from "./workspace-layout";
+import { useDockSize } from "./use-dock-size";
 import { FormAssistSlotProvider } from "./form-assist-slot";
 import workspaceInsets from "./workspace-insets.module.css";
 
@@ -151,6 +156,8 @@ export interface AppShellProps {
   readonly adminNavOpen: boolean;
   readonly dockOpen: boolean;
   readonly dockWidth: AssistantWidth;
+  readonly userSubject: string;
+  readonly contentWidth: ContentWidth;
   readonly children: ReactNode;
 }
 
@@ -179,6 +186,8 @@ export function AppShell({
   adminNavOpen,
   dockOpen,
   dockWidth,
+  userSubject,
+  contentWidth,
   children,
 }: AppShellProps) {
   const [query, setQuery] = useState("");
@@ -199,6 +208,11 @@ export function AppShell({
   const isAdmin = segments[0] === "admin";
   const [showDock, setShowDock] = useState(dockOpen);
   const [assistantWidth, setAssistantWidth] = useState<AssistantWidth>(dockWidth);
+  const [pageWidth, setPageWidth] = useState<ContentWidth>(contentWidth);
+  const [dossierOpen, setDossierOpen] = useState(true);
+  const leftAvailable = isDossierPage;
+  const leftOpen = dossierOpen;
+  const toggleLeft = () => setDossierOpen(open => !open);
   const dockRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   // Wrapped headers reserve their actual height in overlay/fullscreen docks.
@@ -218,6 +232,7 @@ export function AppShell({
   const workbench = nav.some(entry => entry.key === "copilot" && entry.state === "visible");
   const globalAssistantEntry = ["home", "admin", "copilot", "upgrade"].includes(activeKey);
   const assistantAvailable = !!workbench && !globalAssistantEntry;
+  useDockSize(dockRef, assistantAvailable);
   useEffect(() => {
     if (!assistantFullscreen) return;
     if (!assistantAvailable) { setAssistantFullscreen(false); return; }
@@ -303,27 +318,16 @@ export function AppShell({
   return (
     <AssistantWidthProvider width={assistantWidth} toggle={changeAssistantWidth}>
     <FormAssistSlotProvider>
+    <WorkspaceLayoutProvider width={pageWidth} leftOpen={leftOpen}>
     <ShellViewport
-      className={[
-        workspaceInsets.workspace,
-        isAdmin ? workspaceInsets.withNavigation : "",
-        !isAdmin && deckVisible ? workspaceInsets.withDock : "",
-      ].filter(Boolean).join(" ")}
+      className={workspaceInsets.workspace}
       // Administration uses the DS navigation slot. Business pages keep their
       // content and assistant in the body; object details also supply a dossier.
-      sidebar={
-        isAdmin ? (
-          <AdminNav
-            nav={admin}
-            pathname={pathname}
-            collapsed={!adminNavExpanded}
-            onToggleCollapsed={toggleAdminNav}
-          />
-        ) : null
-      }
+      sidebar={isAdmin ? <AdminNav nav={admin} pathname={pathname}
+        collapsed={!adminNavExpanded} onToggleCollapsed={toggleAdminNav} /> : null}
       sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed") : "hidden"}
       dock={assistantAvailable ? (
-        <div ref={dockRef} hidden={!deckVisible} inert={!deckVisible} className={workspaceInsets.assistantDock}
+        <div ref={dockRef} aria-hidden={!deckVisible} inert={!deckVisible} className={workspaceInsets.assistantDock} data-pane-open={deckVisible}
           data-assistant-width={assistantWidth} data-assistant-fullscreen={assistantFullscreen}>
           <ShellDock mode={assistantFullscreen ? "full" : assistantWidth}
             className={`${ASSISTANT_PANE_CLASS} ${workspaceInsets.assistantPane} border-0 bg-surface-3`}>
@@ -344,6 +348,11 @@ export function AppShell({
           className={`gap-md border-b border-border ${workspaceInsets.header}`}
           leading={
             <>
+              {leftAvailable ? <span className={workspaceInsets.leftTrigger} data-workspace-left-trigger>
+                <ShellIconButton icon="sidebar"
+                  label={leftOpen ? SHELL_TEXT.collapseNav : SHELL_TEXT.expandNav}
+                  aria-expanded={leftOpen} onClick={toggleLeft} />
+              </span> : null}
               {/* Module switching and its key figures live in one place. */}
               <span className="inline-flex shrink-0" data-header-group="launcher">
                 <DomainLauncher nav={nav} activeKey={activeKey} modules={boardModules} />
@@ -499,6 +508,7 @@ export function AppShell({
                    shape - and pairing them is why the theme toggle came out of
                    the header too. */
                 settings={
+                  <>
                   <ShellPreferencePanel
                     locale={locale}
                     localeOptions={SUPPORTED_LOCALES.map((l) => ({
@@ -549,6 +559,20 @@ export function AppShell({
                     onDensityChange={setDensity}
                     onFontSizeChange={setFontSize}
                   />
+                  <ShellPanelSection title={HEADER_TEXT.prefLayout}>
+                    <ShellPanelControlRow icon="sidebar" label={HEADER_TEXT.prefContentWidth}>
+                      <NativeSelect aria-label={HEADER_TEXT.prefContentWidth} value={pageWidth}
+                        onChange={event => {
+                          const next = event.target.value === "wide" ? "wide" : "standard";
+                          setPageWidth(next);
+                          document.cookie = `${contentWidthCookieName(userSubject)}=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+                        }}>
+                        <option value="standard">{HEADER_TEXT.prefWidthStandard}</option>
+                        <option value="wide">{HEADER_TEXT.prefWidthWide}</option>
+                      </NativeSelect>
+                    </ShellPanelControlRow>
+                  </ShellPanelSection>
+                  </>
                 }
               />
               </span>
@@ -558,19 +582,12 @@ export function AppShell({
         </div>
       }
     >
-      {isAdmin ? (
-        <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}>
-          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <ShellPageContainer width="wide-2xl" className={`${workspaceInsets.adminContent} ${PAGE_SAFE_END_CLASS}`}>{children}</ShellPageContainer>
-          </div>
-        </div>
-      ) : (
-        <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
-          data-workspace-full-width={!deckVisible && !isDossierPage ? "" : undefined}>
-          {isDossierPage ? children : <div className={activeKey === "copilot" ? workspaceInsets.copilotContent : CENTRE_PANE_CLASS}>{children}</div>}
-        </div>
-      )}
+      <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
+        data-workspace-width={pageWidth} data-workspace-full-width={!deckVisible && !isDossierPage ? "" : undefined}>
+        {isDossierPage || pathname === "/copilot" ? children : <WorkspaceContent>{children}</WorkspaceContent>}
+      </div>
     </ShellViewport>
+    </WorkspaceLayoutProvider>
     </FormAssistSlotProvider>
     </AssistantWidthProvider>
   );

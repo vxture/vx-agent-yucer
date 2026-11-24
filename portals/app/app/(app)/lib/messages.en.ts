@@ -4757,6 +4757,10 @@ export const en: Dictionary = {
     agentDockWithCount: (n: number) => `Copilot, ${n} awaiting your call`,
 
     prefTitle: "Preferences",
+    prefLayout: "Display and layout",
+    prefContentWidth: "Content width",
+    prefWidthStandard: "Standard",
+    prefWidthWide: "Wide",
     prefLocale: "Language",
     prefTheme: "Theme",
     prefThemeLight: "Light",
