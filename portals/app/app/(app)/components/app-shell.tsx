@@ -584,7 +584,7 @@ export function AppShell({
     >
       <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
         data-workspace-width={pageWidth} data-workspace-full-width={!deckVisible && !isDossierPage ? "" : undefined}>
-        {isDossierPage || pathname === "/copilot" ? children : <WorkspaceContent>{children}</WorkspaceContent>}
+        {isDossierPage || pathname === "/copilot" || pathname === "/copilot/today" ? children : <WorkspaceContent>{children}</WorkspaceContent>}
       </div>
     </ShellViewport>
     </WorkspaceLayoutProvider>

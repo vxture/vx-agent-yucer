@@ -43,6 +43,12 @@ export function XiaoyuProvider({ workspaceId, actorSub, enabled, children }: {
   return <Context.Provider value={enabled ? client : null}>{children}</Context.Provider>;
 }
 export function useOptionalXiaoyuClient() { return useContext(Context); }
+const emptySubscribe = () => () => {};
+const emptySnapshot = () => null;
+export function useOptionalXiaoyu() {
+  const client = useContext(Context);
+  return useSyncExternalStore(client?.subscribe ?? emptySubscribe, client?.getSnapshot ?? emptySnapshot, emptySnapshot);
+}
 export function useXiaoyu() {
   const client = useContext(Context);
   if (!client) throw new Error("xiaoyu_not_available");

@@ -61,7 +61,10 @@
   gap: var(--space-sm);
   flex-wrap: wrap;
   padding-inline: 0;
-  background: linear-gradient(115deg, var(--primary-muted), var(--card) 85%);
+  background: transparent;
+  height: var(--spacing-header-lg);
+  border-bottom-style: dashed;
+  flex-wrap: nowrap;
 }
 
 .chatHeader {

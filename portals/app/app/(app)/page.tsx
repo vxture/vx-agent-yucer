@@ -1,4 +1,7 @@
-import { redirect } from "next/navigation";
+import { loadHomeOverview } from "./lib/home-overview";
+import { HomeOverviewView } from "./components/home-overview";
 export const dynamic = "force-dynamic";
-// One home for today's findings and their continuing private task.
-export default function HomePage() { redirect("/copilot"); }
+export default async function HomePage() {
+  const data = await loadHomeOverview();
+  return data ? <HomeOverviewView data={data} /> : null;
+}

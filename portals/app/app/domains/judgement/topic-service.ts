@@ -117,6 +117,7 @@ export async function listTopics(ctx: TopicContext, scope?: Scope) {
     demand(end.accessVersion === now.accessVersion, "access_changed");
     return {
       ...checked.value,
+      observedAt: new Date().toISOString(),
       judgements: [
         ...checked.value.judgements.map((j) => {
           const r = rows.find(

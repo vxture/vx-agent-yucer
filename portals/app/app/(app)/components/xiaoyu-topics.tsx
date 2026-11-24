@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Banner,
@@ -17,9 +18,11 @@ import {
   SelectValue,
   StatusBadge,
 } from "@vxture/design-ui";
-import { useMessages } from "../lib/i18n/provider";
+import { useMessages, useLocale } from "../lib/i18n/provider";
 import { useXiaoyu } from "./xiaoyu-provider";
 import type { Judgement } from "../../domains/judgement/lib/judgement";
+import { SourceMark } from "./source-mark";
+import { StaleMark } from "./stale-mark";
 type Row = {
   absent?: boolean;
   finding: Judgement;
@@ -33,15 +36,19 @@ type Feed = {
   scope: "mine" | "all";
   scanned: number;
   dataAvailable: boolean;
+  observedAt?: string;
 };
-export function XiaoyuTopics({ compact = false, onDiscuss }: {
+export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   readonly compact?: boolean;
   readonly onDiscuss?: () => void;
+  readonly daily?: boolean;
 }) {
-  const { XIAOYU_TOPICS: T } = useMessages();
+  const { XIAOYU_TOPICS: T, HOME_OVERVIEW_TEXT: H } = useMessages();
+  const locale = useLocale();
+  const params = useSearchParams();
   const { client, notesDirty, busy } = useXiaoyu();
   const [feed, setFeed] = useState<Feed | null>(null),
-    [scope, setScope] = useState("auto"),
+    [scope, setScope] = useState(() => ["mine", "all"].includes(params.get("scope") ?? "") ? params.get("scope")! : "auto"),
     [expanded, setExpanded] = useState(false),
     [error, setError] = useState(false),
     [pending, setPending] = useState(false);
@@ -168,6 +175,20 @@ export function XiaoyuTopics({ compact = false, onDiscuss }: {
         </Button>
       </div>
       {error ? <Banner tone="warning" title={T.unavailable} /> : null}
+      {daily && !error ? <>
+        <Card className="gap-sm p-lg">
+          <h2 className="flex items-center gap-xs text-heading-3"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
+          <p className="text-body text-muted-foreground">{H.dailyHint}</p>
+          {feed?.observedAt ? <p className="text-body-small text-muted-foreground">{H.summaryAt} <time dateTime={feed.observedAt}>{new Date(feed.observedAt).toLocaleString(locale)}</time></p> : null}
+        </Card>
+        <div className="grid grid-cols-3 gap-sm" aria-label={H.dailyCounts}>
+          {(["today", "week", "watch"] as const).map(urgency => <Card key={urgency} className="gap-xs p-md">
+            <span className="text-body-small text-muted-foreground">{T[urgency]}</span>
+            <span className="text-heading-2">{feed?.dataAvailable ? feed.judgements.filter(r => !r.absent && r.finding.urgency === urgency && r.status !== "verified").length : "\u2014"}</span>
+          </Card>)}
+        </div>
+        <h2 className="flex items-center gap-xs text-heading-3"><Icon name="lightbulb" size="sm" />{H.priorities}</h2>
+      </> : null}
       {!error && feed?.judgements.length === 0 ? (
         <p className="text-body text-muted-foreground">
           {feed.dataAvailable ? T.none : T.insufficient}
@@ -175,7 +196,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss }: {
       ) : null}
       {(expanded ? feed?.judgements : feed?.judgements.slice(0, 3))?.map(
         (row) => (
-          <Card key={row.finding.id} className="gap-sm p-md">
+          <Card key={row.finding.id} className="gap-sm p-md" style={{ borderTopWidth: "var(--space-2xs)", borderTopColor: row.finding.urgency === "today" ? "var(--warning-border)" : row.finding.urgency === "week" ? "var(--info-border)" : "var(--border)" }}>
             <div className="flex flex-wrap items-center gap-sm">
               <Icon name="lightbulb" size="sm" />
               <span className="text-label">{row.finding.subjectName}</span>
@@ -185,6 +206,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss }: {
               >
                 {T[row.finding.urgency]}
               </StatusBadge>
+              {!row.absent ? <><SourceMark source={row.finding.source} /><StaleMark freshness={row.finding.freshness} /></> : null}
               <span className="ml-auto text-body-small text-muted-foreground">
                 {row.status === "verified"
                   ? T.verified
@@ -198,7 +220,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss }: {
             <p className="text-body leading-relaxed">
               {row.absent ? T.noLongerTriggered : row.finding.claim}
             </p>
-            <div className="grid grid-cols-2 gap-x-md gap-y-xs text-body-small text-muted-foreground">
+            <div className="grid grid-cols-1 gap-x-md gap-y-xs text-body text-muted-foreground sm:grid-cols-2">
               {row.finding.facts.map((f, i) => (
                 <span key={i}>
                   {f.label}: {f.value}
@@ -241,6 +263,8 @@ export function XiaoyuTopics({ compact = false, onDiscuss }: {
                   >
                     {T.discuss}
                   </Button>
+                  <Button size="md" variant="ghost" disabled={pending} onClick={() => void act(row, "process")}>{T.process}</Button>
+                  <Button size="md" variant="ghost" disabled={pending} onClick={() => void act(row, "verify")}>{T.verify}</Button>
                 </>
               ) : null}
               <DropdownMenu>
@@ -250,12 +274,9 @@ export function XiaoyuTopics({ compact = false, onDiscuss }: {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" width="sm">
-                  {!row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "process")}>
-                    <Icon name="play" size="sm" />{T.process}
-                  </DropdownMenuItem> : null}
-                  <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "verify")}>
+                  {row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "verify")}>
                     <Icon name="check-circle" size="sm" />{T.verify}
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> : null}
                   {!row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "snooze")}>
                     <Icon name="pause" size="sm" />{T.snooze}
                   </DropdownMenuItem> : null}
@@ -274,6 +295,10 @@ export function XiaoyuTopics({ compact = false, onDiscuss }: {
           {expanded ? T.less : T.more}
         </Button>
       ) : null}
+      {daily ? <div className="grid gap-sm lg:grid-cols-2">
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><p className="text-body text-muted-foreground">{H.dailyHint}</p></Card>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2><p className="text-body text-muted-foreground">{H.hypothesisHint}</p></Card>
+      </div> : null}
     </section>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { ShellDock } from "@vxture/design-system";
 import {
   Banner, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -47,7 +48,7 @@ function AgentMark({ large = false }: { readonly large?: boolean }) {
   </span>;
 }
 
-export function XiaoyuWorkspace({ initialTask }: { readonly initialTask?: string }) {
+export function XiaoyuWorkspace({ initialTask, today = false }: { readonly initialTask?: string; readonly today?: boolean }) {
   const { client, loading, busy, notesDirty } = useXiaoyu();
   const selected = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -55,42 +56,27 @@ export function XiaoyuWorkspace({ initialTask }: { readonly initialTask?: string
     selected.current = initialTask;
     if (client.getSnapshot().bundle?.task.id !== initialTask) void client.select(initialTask);
   }, [client, initialTask, loading, busy, notesDirty]);
-  return <XiaoyuSurface full />;
+  return <XiaoyuSurface full today={today} />;
 }
 
-function TodayBoard({ onDiscuss, outputKey }: {
+function TodayBoard({ onDiscuss, outputKey, today = false }: {
   readonly onDiscuss: () => void;
   readonly outputKey: string;
+  readonly today?: boolean;
 }) {
-  const { XIAOYU_TEXT: T, XIAOYU_TOPICS } = useMessages();
+  const { XIAOYU_TEXT: T, HOME_OVERVIEW_TEXT: H } = useMessages();
   const { bundle, busy } = useXiaoyu();
   const latest = bundle?.messages.findLast(m => m.role === "assistant");
-  const [choice, select] = useState<{ key: string; view: "today" | "results" } | null>(null);
-  const visible = choice?.key === outputKey ? choice.view : outputKey ? "results" : "today";
   return <section data-xiaoyu-board className={styles.board} aria-label={T.boardTitle}>
     <header className={styles.boardHeader}>
       <div className="flex min-w-0 items-center gap-sm">
-        <AgentMark large />
-        <div>
-          <h1 className="text-heading-3">{T.boardTitle}</h1>
-          <p className="mt-2xs text-body-small text-muted-foreground">{T.boardSubtitle}</p>
-        </div>
+        <Icon name={today ? "lightbulb" : "squares-four"} size="sm" />
+        <h1 className="text-heading-2">{today ? H.today : H.workspace}</h1>
       </div>
-      <div className="flex flex-wrap gap-xs" role="group" aria-label={T.boardTitle}>
-        <Button size="md" variant={visible === "today" ? "secondary" : "ghost"} aria-pressed={visible === "today"}
-          onClick={() => select({ key: outputKey, view: "today" })}>
-          <Icon name="lightbulb" size="sm" />{XIAOYU_TOPICS.title}
-        </Button>
-        <Button size="md" variant={visible === "results" ? "secondary" : "ghost"} aria-pressed={visible === "results"}
-          onClick={() => select({ key: outputKey, view: "results" })}>
-          <Icon name="clipboard" size="sm" />{T.boardResults}
-          {outputKey ? <span className={styles.resultDot} aria-hidden="true" /> : null}
-        </Button>
-      </div>
+      <Button asChild size="md" variant="ghost"><Link href={today ? workspaceHref(bundle?.task.id) : "/copilot/today"}>{today ? H.continueTask : H.today}<Icon name="arrow-right" size="sm" /></Link></Button>
     </header>
     <div className={styles.boardScroll} >
-      <div hidden={visible !== "today"} inert={visible !== "today"}><XiaoyuTopics compact onDiscuss={onDiscuss} /></div>
-      {visible === "results" && outputKey ? <>
+      {today ? <XiaoyuTopics compact daily onDiscuss={onDiscuss} /> : outputKey ? <>
         {bundle?.task.goal ? <h2 className="mb-sm line-clamp-2 break-words text-label-medium" title={bundle.task.goal}>{bundle.task.goal}</h2> : null}
         {latest ? <Card className="gap-sm p-md">
           <h3 className="flex items-center gap-sm text-label"><Icon name="lightbulb" size="sm" />{T.boardConclusion}</h3>
@@ -104,12 +90,12 @@ function TodayBoard({ onDiscuss, outputKey }: {
         </Card> : null}
         <XiaoyuFormLinks />
         <XiaoyuResearch />
-      </> : visible === "results" ? <div className={styles.boardEmpty}>
+      </> : <div className={styles.boardEmpty}>
         <Icon name="clipboard" size="lg" className="text-muted-foreground" />
         <h2 className="text-label-medium">{T.boardEmpty}</h2>
         <p className="max-w-prose text-body text-muted-foreground">{T.boardEmptyHint}</p>
-      </div> : null}
-      {visible === "results" && busy ? <p className="text-body-small text-muted-foreground">{T.boardUpdating}</p> : null}
+      </div>}
+      {!today && busy ? <p className="text-body-small text-muted-foreground">{T.boardUpdating}</p> : null}
     </div>
   </section>;
 }
@@ -290,11 +276,12 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
   </section>;
 }
 
-export function XiaoyuSurface({ full = false, controls, pageTools }: { readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools }) {
+export function XiaoyuSurface({ full = false, controls, pageTools, today = false }: { readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools; readonly today?: boolean }) {
   const { XIAOYU_TEXT: T } = useMessages();
-  const { bundle, recoveryTaskId } = useXiaoyu();
+  const { bundle, recoveryTaskId, client } = useXiaoyu();
+  const router = useRouter();
   const { width } = useAssistantWidth();
-  const [mobile, setMobile] = useState<"chat" | "board">("chat");
+  const [mobile, setMobile] = useState<"chat" | "board">(today ? "board" : "chat");
   const [boardJump, setBoardJump] = useState(0);
   const drafts = bundle?.drafts.filter(d => d.contractVersion === "business-form/1").map(d => d.id) ?? [];
   const latest = bundle?.messages.findLast(m => m.role === "assistant");
@@ -313,7 +300,7 @@ export function XiaoyuSurface({ full = false, controls, pageTools }: { readonly 
       </Button>
     </div> : null}
     <div className={styles.panes} data-mobile-view={mobile}>
-      {full ? <WorkspaceContent canvas><TodayBoard outputKey={outputKey} onDiscuss={() => setMobile("chat")} /></WorkspaceContent> : null}
+      {full ? <WorkspaceContent canvas><TodayBoard today={today} outputKey={outputKey} onDiscuss={() => { setMobile("chat"); if (today) router.push(workspaceHref(client.getSnapshot().bundle?.task.id)); }} /></WorkspaceContent> : null}
       {full ? <ShellDock mode={width} className={`${styles.conversationPane} shadow-none`}>
         {conversation}
       </ShellDock> : conversation}

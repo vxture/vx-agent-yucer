@@ -30,7 +30,7 @@ const results=[];const test=(name,value)=>{assert.ok(value,name);results.push(na
 const visibleInput=`[...document.querySelectorAll('[data-xiaoyu-conversation] textarea')].find(e=>e.checkVisibility({visibilityProperty:true}))`;
 const visit=async path=>{await page.send('Page.navigate',{url:base+path});await until(`!!(${visibleInput}) && !(${visibleInput}).disabled`)};
 try{
- await page.send('Page.enable');await page.send('Runtime.enable');await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
+ await page.send('Page.enable');await page.send('Page.bringToFront');await page.send('Runtime.enable');await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
  await visit('/copilot');
  const task=await evaluate(`fetch('/api/copilot/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:crypto.randomUUID(),goal:'XC-01 local continuity acceptance',targets:[]})}).then(r=>r.json())`);
  assert.match(task.id,/^[a-f0-9-]{36}$/);await visit('/copilot?task='+task.id);
@@ -43,24 +43,26 @@ try{
  await evaluate(`document.querySelector('[data-xiaoyu-conversation] [data-assistant-width-toggle]').click()`);await pause(500);
  test('Wide/narrow switch retains the input',await evaluate(`(${visibleInput}).value==='XC-01 unfinished question'`));
  await page.send('Page.reload');await until(`!!(${visibleInput}) && (${visibleInput}).value==='XC-01 unfinished question'`);test('Refresh restores unsent text without a model call',true);
- // A real Next Link from the judgment source navigates without replacing the provider.
+ // Navigate through the independent Today scene, then its real business source Link.
+ await evaluate("document.querySelector('[data-xiaoyu-board] a[href=\"/copilot/today\"]').click()");
+ await until("location.pathname==='/copilot/today'");
  await until("!!document.querySelector('[data-xiaoyu-topics] details a[href^=\"/account/\"]')");
  await evaluate("document.querySelector('[data-xiaoyu-topics] details').open=true;document.querySelector('[data-xiaoyu-topics] details a[href^=\"/account/\"]').click()");
  await until("location.pathname.startsWith('/account/')");
+ await until("!!document.querySelector('[data-assistant-dock-trigger] button')");
+ if(await evaluate("document.querySelector('[data-assistant-width]')?.dataset.paneOpen!=='true'")) await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");
+ await pause(450);
  await until(`!!(${visibleInput})`);
  test('Task input continues from workspace to a business page',await evaluate(`(${visibleInput}).value==='XC-01 unfinished question'`));
  test('Business sidebar has one visible input and one header',await evaluate(`(()=>{const s=document.querySelector('[data-assistant-frame]');return [...s.querySelectorAll('textarea')].filter(e=>e.checkVisibility({visibilityProperty:true})).length===1&&[...s.querySelectorAll('[data-assistant-header]')].filter(e=>e.checkVisibility({visibilityProperty:true})).length===1})()`));
  await evaluate("document.querySelector('[data-assistant-frame] [data-assistant-close]').click()");await pause(450);
  test('Closing preserves mounted input',await evaluate(`!!document.querySelector('[data-assistant-frame] textarea')`));
- const open=await evaluate("[...document.querySelectorAll('button')].find(e=>e.getAttribute('aria-label')?.includes('协作')||e.getAttribute('data-agent-dock-toggle')!==null)?.outerHTML");
- const reopen=await evaluate("[...document.querySelectorAll('button')].find(e=>e.getAttribute('aria-label')==='打开小聿协作栏')?.click()??null");
- // The shell exposes the AI group independently of the route.
- if(!await evaluate(`!!(${visibleInput})`))await evaluate("document.querySelector('[data-header-group=agent] button, [data-header-group=ai] button, [data-assistant-toggle]')?.click()");
- if(!await evaluate(`!!(${visibleInput})`)) { console.log('HEADER BUTTONS',await evaluate("[...document.querySelectorAll('header button')].map(e=>({aria:e.getAttribute('aria-label'),text:e.innerText}))")); }
+ await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");await pause(450);
  await until(`!!(${visibleInput})`);test('Reopening retains the same question',await evaluate(`(${visibleInput}).value==='XC-01 unfinished question'`));
  for(const width of [1440,1024,390,320]){
   await page.send('Emulation.setDeviceMetricsOverride',{width,height:width<500?844:960,deviceScaleFactor:1,mobile:false});await pause(450);
   const m=await evaluate(`(()=>{const h=[...document.querySelectorAll('[data-assistant-header]')].find(e=>e.checkVisibility({visibilityProperty:true}));return {width:innerWidth,doc:document.documentElement.scrollWidth,header:h?.getBoundingClientRect().height,overflow:h?h.scrollWidth-h.clientWidth:0}})()`);
+  if(!(m.doc<=m.width+1&&m.header===56&&m.overflow<=1)) console.log(m);
   test('Sidebar geometry at '+width+'px',m.doc<=m.width+1&&m.header===56&&m.overflow<=1);
  }
  await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});

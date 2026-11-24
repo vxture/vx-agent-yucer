@@ -638,6 +638,22 @@
       }
     },
     {
+      "route": "/copilot/today",
+      "file": "(app)/copilot/today/page.tsx",
+      "kind": "context",
+      "entry": {
+        "file": "(app)/components/home-overview.tsx",
+        "needle": "href=\"/copilot/today\""
+      },
+      "reason": "Independent daily judgment template reached from the real overview and task workspace.",
+      "sample": "/copilot/today",
+      "workspaceLayout": {
+        "title": "\u4eca\u65e5\u5224\u65ad",
+        "mode": "workspace",
+        "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
+      }
+    },
+    {
       "route": "/copilot",
       "file": "(app)/copilot/page.tsx",
       "kind": "navigation",
