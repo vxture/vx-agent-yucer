@@ -61,6 +61,15 @@ try {
  await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
  await visit('/copilot?view=judgements&scope=mine','[data-xiaoyu-topics]');
  test('Legacy daily URL preserves the requested data scope',await evaluate("location.pathname==='/copilot/today'&&new URLSearchParams(location.search).get('scope')==='mine'"));
+ await visit('/copilot','[data-task-identity]');
+ for(const width of [1440,1024,390,320]){
+  await page.send('Emulation.setDeviceMetricsOverride',{width,height:width<500?844:960,deviceScaleFactor:1,mobile:false});await pause(450);
+  if(!await evaluate("document.querySelector('[data-xiaoyu-board]').checkVisibility({visibilityProperty:true})")) await evaluate("document.querySelector('[data-xiaoyu-surface=full] > [role=group] button:last-child').click()");
+  await pause(450);
+  test('Task title and identity fit at '+width+'px',await evaluate("(()=>{const h=document.querySelector('[data-xiaoyu-board] header'),g=document.querySelector('[data-task-identity]');return h.getBoundingClientRect().height===56&&g.getBoundingClientRect().height===32&&g.scrollWidth<=g.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1})()"));
+ }
+ await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
+ const workspace=await page.send('Page.captureScreenshot',{format:'png'});await writeFile('/private/tmp/xc03-task-workspace.png',Buffer.from(workspace.data,'base64'));
  await visit('/','[data-home-overview]');
  await writeFile('/private/tmp/xc02-browser-report.json',JSON.stringify({results,stage:'local-demo',realAcceptance:false},null,2));
  console.log(JSON.stringify({passed:results.length,results}));

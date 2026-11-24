@@ -135,6 +135,10 @@ export const en: Dictionary = {
     title:"My memory", subtitle:"Private to you and this workspace",hint:"Stopping and corrections apply immediately. Tasks using old versions stop replaying them. Team knowledge is managed separately.",back:"Back to Xiaoyu",new:"New memory",text:"Memory",kind:"Type",fact:"Business fact",decision:"User decision",inference:"Model inference",hypothesis:"Unverified hypothesis",save:"Save",cancel:"Cancel",edit:"Correct",stop:"Stop using",restore:"Restore",active:"In use",stopped:"Stopped",unavailable:"Source unavailable; content is hidden",empty:"No memories yet. Conversations are summarized privately, or add one yourself.",failure:"Could not finish. Reload the latest state.",updated:"Updated",source:"Source",user:"Written by you",model:"Conversation extraction",revision:"Revision",history:"Find my conversations",search:"Search",query:"At least two characters; searches only accessible personal history",openTask:"Open source task",capture:"Extract current conversation again",loading:"Loading...",limit:"Up to 1200 characters. Business facts require a verifiable source. Manual memories can start as decisions or hypotheses."
   },
   HOME_OVERVIEW_TEXT: {
+  dailyLead: (accounts: number, findings: number) => `Reviewed ${accounts} accessible accounts and available targets; ${findings} findings need attention.`,
+  dailyPace: (today: number, week: number, watch: number) => `Review ${today} urgent findings, then plan ${week} for this week. Revisit ${watch} watch items as evidence changes.`,
+  noHypotheses: "No separately flagged verification items.",
+
   "insufficient": "Insufficient business records to form a judgement.",
   "noNamed": "No published priority-account plan yet",
     noChanges: "No rule-triggered findings in the accessible data.",
@@ -182,6 +186,33 @@ export const en: Dictionary = {
   "continueTask": "Continue work",
   "workspace": "Collaboration space"
 },
+  XIAOYU_WORKSPACE: {
+  "identity": "Current task",
+  "activity": "Work progress",
+  "activityHint": "These are analysis turns. Business saves and publication require execution receipts.",
+  "previousTurn": "Previous analysis",
+  "kinds": {
+    "conversation": "Collaboration",
+    "research": "Research",
+    "form": "Business form",
+    "judgement": "Follow-up"
+  },
+  "stages": {
+    "awaiting": "Ready to continue",
+    "running": "In progress",
+    "paused": "Paused",
+    "completed": "Ended",
+    "cancelled": "Cancelled",
+    "interrupted": "Interrupted",
+    "failed": "Needs recovery"
+  },
+  "turns": {
+    "running": "Analyzing",
+    "succeeded": "Answer complete",
+    "failed": "Analysis failed",
+    "interrupted": "Interrupted"
+  }
+},
   XIAOYU_TEXT: {
   "focus": "Discussion focus",
   "noFocus": "No focus",
@@ -196,15 +227,15 @@ export const en: Dictionary = {
   "expandConclusion": "Read full content",
   "boardUpdating": "Xiaoyu is updating the results...",
 
-  "boardTitle": "Xiaoyu workboard",
+  "boardTitle": "Collaboration space",
   "boardSubtitle": "A shared space to turn findings into next steps",
-  "boardLabel": "Workboard",
+  "boardLabel": "Collaboration space",
   "boardResults": "Task results",
   "boardEmpty": "Results will appear here",
-  "boardEmptyHint": "Review findings, form drafts and execution progress here while we keep talking.",
+  "boardEmptyHint": "Analysis, business drafts and execution progress appear here. Keep talking on the right.",
   "chatSubtitle": "Your sales partner",
   "chatWelcome": "Hello. What shall we work on?",
-  "chatWelcomeHint": "Pick a finding on the workboard, or tell me what you want to move forward.",
+  "chatWelcomeHint": "Start with a daily judgement, or tell me what you want to work on.",
   "chatPlaceholder": "Tell Xiaoyu what you want to do next...",
   "readyToDiscuss": "Let us work through this together",
   "discussHint": "We can check the current situation and decide what to do next.",

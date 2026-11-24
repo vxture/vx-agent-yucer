@@ -43,7 +43,7 @@
   height: 100%;
   border: 0;
   border-radius: 0;
-  background: var(--card);
+  background: transparent;
 }
 
 .boardHeader, .chatHeader {
@@ -66,6 +66,14 @@
   border-bottom-style: dashed;
   flex-wrap: nowrap;
 }
+
+.taskIdentity { display: flex; min-width: 0; height: var(--space-control-xl); align-items: center; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--muted); font-size: var(--body-small-font-size); line-height: var(--body-small-line-height); }
+.taskType, .taskName, .taskStage { padding-inline: var(--space-sm); }
+.taskType, .taskStage { flex-shrink: 0; color: var(--muted-foreground); white-space: nowrap; }
+.taskName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--label-font-weight); border-inline: 1px solid var(--border); color: var(--foreground); }
+.taskStage[data-stage="running"] { color: var(--primary-muted-foreground); }
+.taskStage:is([data-stage="failed"], [data-stage="interrupted"]) { color: var(--warning-muted-foreground); }
+@media (max-width: 39.999rem) { .sceneLinkLabel { display: none; } .taskType { display: none; } .taskName { border-left: 0; } }
 
 .chatHeader {
   display: flex;

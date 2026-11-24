@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ShellDock } from "@vxture/design-system";
 import {
   Banner, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger, Icon, Popover, PopoverContent,
+  DropdownMenuSeparator, DropdownMenuTrigger, Icon, Popover, PopoverContent, StatusBadge,
   PopoverTrigger, Textarea,
 } from "@vxture/design-ui";
 import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assistant-conversation";
@@ -24,6 +24,7 @@ import { AssistantWidthToggle, useAssistantWidth } from "./assistant-width";
 import { WorkspaceContent } from "./workspace-layout";
 import { AssistantMode } from "./assistant-mode";
 import styles from "./xiaoyu-workspace.module.css";
+import { taskWorkspaceView, type WorkspaceView } from "../../domains/copilot/lib/workspace-view";
 
 type Copy = Dictionary["XIAOYU_TEXT"];
 const taskStatus = (t: Copy, status: TaskRecord["status"]) =>
@@ -65,20 +66,24 @@ function TodayBoard({ onDiscuss, outputKey, today = false }: {
   readonly today?: boolean;
 }) {
   const { XIAOYU_TEXT: T, HOME_OVERVIEW_TEXT: H } = useMessages();
-  const { bundle, busy } = useXiaoyu();
-  const latest = bundle?.messages.findLast(m => m.role === "assistant");
+  const { bundle, busy, recoveryTaskId } = useXiaoyu();
+  const view = taskWorkspaceView(bundle);
+  const latest = bundle?.messages.find(m => m.id === view.overviewMessageId);
   return <section data-xiaoyu-board className={styles.board} aria-label={T.boardTitle}>
     <header className={styles.boardHeader}>
-      <div className="flex min-w-0 items-center gap-sm">
+      <div className="flex min-w-0 flex-1 items-center gap-md">
+        <span className="flex shrink-0 items-center gap-sm">
         <Icon name={today ? "lightbulb" : "squares-four"} size="sm" />
         <h1 className="text-heading-2">{today ? H.today : H.workspace}</h1>
+        </span>
+        {!today && bundle ? <TaskIdentity view={busy && bundle.task.status === "active" ? {...view,stage:"running"} : view} /> : null}
       </div>
-      <Button asChild size="md" variant="ghost"><Link href={today ? workspaceHref(bundle?.task.id) : "/copilot/today"}>{today ? H.continueTask : H.today}<Icon name="arrow-right" size="sm" /></Link></Button>
+      <Button asChild size="md" variant="ghost"><Link href={today ? workspaceHref(bundle?.task.id) : "/copilot/today"} aria-label={today ? H.continueTask : H.today}><span className={styles.sceneLinkLabel}>{today ? H.continueTask : H.today}</span><Icon name="arrow-right" size="sm" /></Link></Button>
     </header>
     <div className={styles.boardScroll} >
       {today ? <XiaoyuTopics compact daily onDiscuss={onDiscuss} /> : outputKey ? <>
-        {bundle?.task.goal ? <h2 className="mb-sm line-clamp-2 break-words text-label-medium" title={bundle.task.goal}>{bundle.task.goal}</h2> : null}
-        {latest ? <Card className="gap-sm p-md">
+        {recoveryTaskId ? <XiaoyuFormLinks /> : null}
+        {view.panels.map(panel => panel === "forms" ? <XiaoyuFormLinks key={panel} /> : panel === "sources" ? <XiaoyuResearch key={panel} /> : panel === "activity" ? <TaskActivity key={panel} /> : latest ? <Card key={panel} className="gap-sm p-md">
           <h3 className="flex items-center gap-sm text-label"><Icon name="lightbulb" size="sm" />{T.boardConclusion}</h3>
           <Collapsible key={latest.id}>
             <p className={`${styles.reportPreview} line-clamp-4 whitespace-pre-wrap break-words text-body leading-relaxed`}>{latest.content}</p>
@@ -87,9 +92,7 @@ function TodayBoard({ onDiscuss, outputKey, today = false }: {
               <span className={styles.expandReport}>{T.expandConclusion}</span><span className={styles.collapseReport}>{T.collapseConclusion}</span><Icon name="chevron-down" size="sm" />
             </Button></CollapsibleTrigger>
           </Collapsible>
-        </Card> : null}
-        <XiaoyuFormLinks />
-        <XiaoyuResearch />
+        </Card> : null)}
       </> : <div className={styles.boardEmpty}>
         <Icon name="clipboard" size="lg" className="text-muted-foreground" />
         <h2 className="text-label-medium">{T.boardEmpty}</h2>
@@ -98,6 +101,31 @@ function TodayBoard({ onDiscuss, outputKey, today = false }: {
       {!today && busy ? <p className="text-body-small text-muted-foreground">{T.boardUpdating}</p> : null}
     </div>
   </section>;
+}
+
+function TaskIdentity({ view }: { readonly view: WorkspaceView }) {
+  const { bundle } = useXiaoyu();
+  const { XIAOYU_WORKSPACE: W } = useMessages();
+  return <div className={styles.taskIdentity} role="group" aria-label={W.identity} data-task-identity>
+    <span className={styles.taskType}>{W.kinds[view.kind]}</span>
+    <span className={styles.taskName} title={bundle?.task.goal}>{bundle?.task.goal}</span>
+    <span className={styles.taskStage} data-stage={view.stage}>{W.stages[view.stage]}</span>
+  </div>;
+}
+
+function TaskActivity() {
+  const { bundle } = useXiaoyu();
+  const { XIAOYU_WORKSPACE: W } = useMessages();
+  if (!bundle) return null;
+  return <Card className="gap-sm p-md" data-task-activity>
+    <h3 className="flex items-center gap-sm text-label"><Icon name="list-checks" size="sm" />{W.activity}</h3>
+    <p className="text-body-small text-muted-foreground">{W.activityHint}</p>
+    {bundle.turns.slice(-5).reverse().map(turn => <div key={turn.id} className="flex min-w-0 items-center gap-md border-t border-border pt-sm">
+      <Icon name={turn.status === "failed" ? "warning" : turn.status === "succeeded" ? "check-circle" : "clock"} size="sm" className="shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate text-body">{bundle.messages.find(m=>m.id===turn.userMessageId)?.content ?? W.previousTurn}</span>
+      <StatusBadge tone={turn.status === "failed" ? "warning" : "neutral"} icon={false}>{W.turns[turn.status]}</StatusBadge>
+    </div>)}
+  </Card>;
 }
 
 function ConversationHistory() {
@@ -285,8 +313,8 @@ export function XiaoyuSurface({ full = false, controls, pageTools, today = false
   const [boardJump, setBoardJump] = useState(0);
   const drafts = bundle?.drafts.filter(d => d.contractVersion === "business-form/1").map(d => d.id) ?? [];
   const latest = bundle?.messages.findLast(m => m.role === "assistant");
-  const lastTurn = bundle?.turns.findLast(t => !!t.artifacts);
-  const hasOutput = drafts.length > 0 || !!latest || !!lastTurn;
+  const lastTurn = bundle?.turns.at(-1);
+  const hasOutput = drafts.length > 0 || !!latest || !!lastTurn || (!!bundle && bundle.task.status !== "active");
   const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
   const conversation = <XiaoyuConversation full={full} controls={controls} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
   return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}

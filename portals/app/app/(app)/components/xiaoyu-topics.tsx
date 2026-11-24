@@ -144,6 +144,9 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
       setPending(false);
     }
   };
+  const active = feed?.judgements.filter(row => !row.absent && row.status !== "verified") ?? [];
+  const counts = { today: active.filter(r => r.finding.urgency === "today").length, week: active.filter(r => r.finding.urgency === "week").length, watch: active.filter(r => r.finding.urgency === "watch").length };
+  const verify = feed?.judgements.filter(row => row.status !== "verified" && (row.absent || row.finding.source === "model" || row.finding.freshness?.stale || row.finding.id.startsWith("target-data:"))) ?? [];
   return (
     <section
       className="flex flex-col gap-sm"
@@ -178,13 +181,13 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
       {daily && !error ? <>
         <Card className="gap-sm p-lg">
           <h2 className="flex items-center gap-xs text-heading-3"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
-          <p className="text-body text-muted-foreground">{H.dailyHint}</p>
+          <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}</p>
           {feed?.observedAt ? <p className="text-body-small text-muted-foreground">{H.summaryAt} <time dateTime={feed.observedAt}>{new Date(feed.observedAt).toLocaleString(locale)}</time></p> : null}
         </Card>
         <div className="grid grid-cols-3 gap-sm" aria-label={H.dailyCounts}>
           {(["today", "week", "watch"] as const).map(urgency => <Card key={urgency} className="gap-xs p-md">
             <span className="text-body-small text-muted-foreground">{T[urgency]}</span>
-            <span className="text-heading-2">{feed?.dataAvailable ? feed.judgements.filter(r => !r.absent && r.finding.urgency === urgency && r.status !== "verified").length : "\u2014"}</span>
+            <span className="text-heading-2">{feed?.dataAvailable ? counts[urgency] : "\u2014"}</span>
           </Card>)}
         </div>
         <h2 className="flex items-center gap-xs text-heading-3"><Icon name="lightbulb" size="sm" />{H.priorities}</h2>
@@ -296,8 +299,11 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         </Button>
       ) : null}
       {daily ? <div className="grid gap-sm lg:grid-cols-2">
-        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><p className="text-body text-muted-foreground">{H.dailyHint}</p></Card>
-        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2><p className="text-body text-muted-foreground">{H.hypothesisHint}</p></Card>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyPace(counts.today,counts.week,counts.watch) : T.insufficient}</p></Card>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2>
+          {verify.length ? <ul className="flex flex-col gap-xs text-body">{verify.slice(0,3).map(row=><li key={row.finding.id} className="line-clamp-2">{row.finding.subjectName}{": "}{row.absent ? T.pendingVerification : row.finding.claim}</li>)}</ul> : <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.noHypotheses : T.insufficient}</p>}
+          <p className="text-body-small text-muted-foreground">{H.hypothesisHint}</p>
+        </Card>
       </div> : null}
     </section>
   );

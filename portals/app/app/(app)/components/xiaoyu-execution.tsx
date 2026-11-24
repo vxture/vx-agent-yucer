@@ -173,7 +173,8 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
     if (receipt && step.operation === "save") saved.set(step.draftId, receipt);
   }
   const forms = (data?.canPrepare ? drafts : []).flatMap((draft) => {
-    const form = readBusinessForm(draft.text);
+    let form: BusinessForm;
+    try { form = readBusinessForm(draft.text); } catch { return []; }
     const proposed = steps.filter((s) => s.draftId === draft.id);
     const save = !proposed.some((s) => s.operation === "save");
     const publish = !!form.targetId && ["strategy", "sales_plan"].includes(form.module) &&

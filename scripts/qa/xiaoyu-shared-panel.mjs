@@ -40,6 +40,11 @@ try{
  const geo=await evaluate(`(()=>{const s=document.querySelector('[data-xiaoyu-surface=full]'),h=s.querySelector('[data-assistant-header]'),b=s.querySelector('[data-assistant-transcript]').parentElement.parentElement,c=s.querySelector('[data-assistant-composer]').parentElement;return {h:h.getBoundingClientRect().height,headers:s.querySelectorAll('[data-assistant-header]').length,bodyLeft:getComputedStyle(b).paddingLeft,bodyRight:getComputedStyle(b).paddingRight,composer:getComputedStyle(c).paddingLeft,mode:s.querySelectorAll('[data-assistant-mode]').length,footer:s.querySelectorAll('[data-assistant-footer]').length}})()`);
  test('One 56px header, inline authority and no extra footer',geo.h===56&&geo.headers===1&&geo.mode===1&&geo.footer===0);
  test('Shared reading insets 24px/32px; composer outer inset16px',geo.bodyLeft==='24px'&&geo.bodyRight==='32px'&&geo.composer==='16px');
+ const identity=await evaluate(`(()=>{const g=document.querySelector('[data-task-identity]');return {height:g.getBoundingClientRect().height,sizes:[...g.children].map(e=>getComputedStyle(e).fontSize),name:g.children[1].textContent,overflow:g.scrollWidth-g.clientWidth}})()`);
+ test('Task type, name and state use one 32px component group',identity.height===32&&identity.overflow<=1);
+ test('The three task elements share 12px typography',identity.sizes.length===3&&identity.sizes.every(s=>s==='12px'));
+ test('Task identity uses the actual task name',identity.name==='XC-01 local continuity acceptance');
+
  await evaluate(`document.querySelector('[data-xiaoyu-conversation] [data-assistant-width-toggle]').click()`);await pause(500);
  test('Wide/narrow switch retains the input',await evaluate(`(${visibleInput}).value==='XC-01 unfinished question'`));
  await page.send('Page.reload');await until(`!!(${visibleInput}) && (${visibleInput}).value==='XC-01 unfinished question'`);test('Refresh restores unsent text without a model call',true);
