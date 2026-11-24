@@ -1,5 +1,6 @@
 "use client";
 
+import { useTaskFormReview } from "./xiaoyu-form-review";
 import { useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -37,10 +38,11 @@ export function FormPage({
   readonly assist?: ReactNode;
 }) {
   const slot = useFormAssistSlot();
+  const review = useTaskFormReview();
   return (
     <div className="flex min-w-0 flex-col gap-lg">
       <div className={`min-w-0 ${FORM_ENTRY_CLASS}`} data-business-form>{form}</div>
-      {assist ? (slot ? createPortal(assist, slot) : assist) : null}
+      {assist && !review ? (slot ? createPortal(assist, slot) : assist) : null}
     </div>
   );
 }
@@ -211,6 +213,7 @@ export function AssistPanel({ suggestions }: { readonly suggestions: readonly As
  */
 export function useFormSubmit(onDone: string) {
   const router = useRouter();
+  const review = useTaskFormReview();
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
   // Lock synchronously: two clicks can arrive before React commits disabled.
@@ -224,6 +227,7 @@ export function useFormSubmit(onDone: string) {
       setErr(null);
       start(async () => {
         try {
+          if (review) { await review.commit(); return; }
           const r = await fn();
           if (r.ok) {
             router.push(onDone);

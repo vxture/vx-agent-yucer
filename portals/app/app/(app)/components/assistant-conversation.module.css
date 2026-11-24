@@ -25,7 +25,8 @@
 .compactComposer {
   display: flex;
   flex-shrink: 0;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-xs);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

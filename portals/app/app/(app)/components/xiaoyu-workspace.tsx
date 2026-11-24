@@ -1,4 +1,5 @@
 "use client";
+import { XiaoyuInputTools } from "./xiaoyu-input-tools";
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -49,7 +50,7 @@ function AgentMark({ large = false }: { readonly large?: boolean }) {
   </span>;
 }
 
-export function XiaoyuWorkspace({ initialTask, today = false }: { readonly initialTask?: string; readonly today?: boolean }) {
+export function XiaoyuWorkspace({ initialTask, today = false, editor }: { readonly initialTask?: string; readonly today?: boolean; readonly editor?: ReactNode }) {
   const { client, loading, busy, notesDirty } = useXiaoyu();
   const selected = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -57,10 +58,11 @@ export function XiaoyuWorkspace({ initialTask, today = false }: { readonly initi
     selected.current = initialTask;
     if (client.getSnapshot().bundle?.task.id !== initialTask) void client.select(initialTask);
   }, [client, initialTask, loading, busy, notesDirty]);
-  return <XiaoyuSurface full today={today} />;
+  return <XiaoyuSurface full today={today} editor={editor} />;
 }
 
-function TodayBoard({ onDiscuss, outputKey, today = false }: {
+function TodayBoard({ onDiscuss, outputKey, today = false, editor }: {
+  readonly editor?: ReactNode;
   readonly onDiscuss: () => void;
   readonly outputKey: string;
   readonly today?: boolean;
@@ -81,6 +83,7 @@ function TodayBoard({ onDiscuss, outputKey, today = false }: {
       <Button asChild size="md" variant="ghost"><Link href={today ? workspaceHref(bundle?.task.id) : "/copilot/today"} aria-label={today ? H.continueTask : H.today}><span className={styles.sceneLinkLabel}>{today ? H.continueTask : H.today}</span><Icon name="arrow-right" size="sm" /></Link></Button>
     </header>
     <div className={styles.boardScroll} >
+      {editor}
       {today ? <XiaoyuTopics compact daily onDiscuss={onDiscuss} /> : outputKey ? <>
         {recoveryTaskId ? <XiaoyuFormLinks /> : null}
         {view.panels.map(panel => panel === "forms" ? <XiaoyuFormLinks key={panel} /> : panel === "sources" ? <XiaoyuResearch key={panel} /> : panel === "activity" ? <TaskActivity key={panel} /> : latest ? <Card key={panel} className="gap-sm p-md">
@@ -234,6 +237,7 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
             <Icon name="refresh" size="sm" />{T.refresh}
           </DropdownMenuItem>
           {task ? <>
+            <DropdownMenuItem asChild><a href={`/api/copilot/tasks/${task.id}/export`} download><Icon name="download" size="sm" />{T.exportCollaboration}</a></DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setShowNotes(v => !v)}><Icon name="clipboard" size="sm" />{showNotes ? T.hideNotes : T.openNotes}</DropdownMenuItem>
             {!ended ? <>
               <DropdownMenuItem disabled={frozen || notesDirty} onSelect={() => void client.change(paused
@@ -295,7 +299,7 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
       <AssistantComposer id={full ? "xiaoyu-full-input" : "xiaoyu-dock-input"} value={s.input}
         onChange={client.setInput} onSend={() => void client.send()} placeholder={T.chatPlaceholder}
         disabled={loading || !!s.creation || ended || paused || !!running} busy={busy} sendDisabled={!!s.pending || notesDirty}
-        compact />
+        extra={<XiaoyuInputTools disabled={frozen || !!ended || !!paused || !!s.pending}/>} compact />
     </div>
     {cancel && task ? <ConfirmDestructive open onOpenChange={setCancel} verb={T.cancel} target={task.goal}
       consequence={T.cancelDescription} onConfirm={() => client.change({ action: "status", status: "cancelled" })} /> : null}
@@ -304,7 +308,7 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
   </section>;
 }
 
-export function XiaoyuSurface({ full = false, controls, pageTools, today = false }: { readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools; readonly today?: boolean }) {
+export function XiaoyuSurface({ full = false, controls, pageTools, today = false, editor }: { readonly editor?: ReactNode; readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools; readonly today?: boolean }) {
   const { XIAOYU_TEXT: T } = useMessages();
   const { bundle, recoveryTaskId, client } = useXiaoyu();
   const router = useRouter();
@@ -328,7 +332,7 @@ export function XiaoyuSurface({ full = false, controls, pageTools, today = false
       </Button>
     </div> : null}
     <div className={styles.panes} data-mobile-view={mobile}>
-      {full ? <WorkspaceContent canvas><TodayBoard today={today} outputKey={outputKey} onDiscuss={() => { setMobile("chat"); if (today) router.push(workspaceHref(client.getSnapshot().bundle?.task.id)); }} /></WorkspaceContent> : null}
+      {full ? <WorkspaceContent canvas><TodayBoard editor={editor} today={today} outputKey={outputKey} onDiscuss={() => { setMobile("chat"); if (today) router.push(workspaceHref(client.getSnapshot().bundle?.task.id)); }} /></WorkspaceContent> : null}
       {full ? <ShellDock mode={width} className={`${styles.conversationPane} shadow-none`}>
         {conversation}
       </ShellDock> : conversation}

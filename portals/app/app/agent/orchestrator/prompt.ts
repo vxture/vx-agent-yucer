@@ -52,6 +52,8 @@ export interface PromptContext {
   /** Private task references; never a tool grant or business-data snapshot. */
   task?: {
     businessForms?: unknown[];
+    materials?: unknown[];
+    privateNotes?: string;
     businessTools?: boolean;
     id: string;
     goal?: string;

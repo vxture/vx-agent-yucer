@@ -1,6 +1,6 @@
 import type { TaskBundle, TaskRecord } from "../../domains/copilot/task-store";
 import { UUID, type TaskObject } from "../../domains/copilot/lib/task-contract";
-import { COMPOSER_DRAFT_KEY, type TaskFocus, type TaskPageContext } from "../../domains/copilot/lib/page-context";
+import { COMPOSER_DRAFT_KEY, validPageFilter, type TaskFocus, type TaskPageContext } from "../../domains/copilot/lib/page-context";
 
 export type TaskView = TaskBundle & {
   currentRuleVersion: string;
@@ -126,12 +126,21 @@ export class XiaoyuClient {
     this.inputs.set(this.selectedId ?? "new", input);
     this.update({ input, inputDirty: input !== (this.state.bundle ? savedInput(this.state.bundle) : "") });
   };
+  private pageListing: { surface:string; filters:Record<string,string>; selection:TaskObject[] } | null = null;
+  private routeContext: TaskPageContext | null = null;
+  setPageListing = (surface:string, listing:{filters:Record<string,string>;selection:TaskObject[]}|null) => {
+    if(!listing && this.pageListing?.surface!==surface)return;
+    this.pageListing=listing?{surface,filters:Object.fromEntries(Object.entries(listing.filters).filter(([k,v])=>v && validPageFilter(k,v))),selection:listing.selection.slice(0,20)}:null;
+    this.setPageContext(this.routeContext);
+  };
   setPageContext = (pageContext: TaskPageContext | null) => {
+    this.routeContext = pageContext;
+    if(pageContext && this.pageListing && pageContext.surface===this.pageListing.surface)pageContext={...pageContext,filters:{...pageContext.filters,...this.pageListing.filters},selection:this.pageListing.selection};
     const form = this.formContext;
-    if (pageContext && form && (form.module === "sales_plan" ? "planning" : form.module) === pageContext.module) {
+    if (pageContext && form && ((form.module === "sales_plan" ? "planning" : form.module) === pageContext.module || pageContext.module === "copilot")) {
       const { targetId, ...metadata } = form;
-      const kind = form.module === "sales_plan" ? "sales_plan" : form.module as TaskObject["kind"];
-      pageContext = { ...pageContext, form: metadata, ...(targetId && UUID.test(targetId) ? { object: { kind, id: targetId } } : {}) };
+      const object = targetId && UUID.test(targetId) ? {kind:form.module as TaskObject["kind"],id:targetId} : null;
+      pageContext = { ...pageContext, form: metadata, ...(object ? pageContext.module === "copilot" ? {selection:[object]} : {object} : {}) };
     }
     if (JSON.stringify(pageContext) !== JSON.stringify(this.state.pageContext)) this.update({ pageContext });
   };
@@ -261,7 +270,7 @@ export class XiaoyuClient {
       this.inputs.set(task.id, "");
       this.update({ pending, input: "", inputDirty: false });
       const result=await this.request<{navigation?:string;replayed?:boolean}>(`/${task.id}/turn`, "POST", pending);
-      if(!result.replayed&&result.navigation&&/^\/(segment|strategy|solution|planning|account|pipeline|catalog)(\/|\?|$)/.test(result.navigation))this.navigation?.open(result.navigation);
+      if(!result.replayed&&result.navigation&&/^\/(copilot|segment|strategy|solution|planning|account|pipeline|catalog)(\/|\?|$)/.test(result.navigation))this.navigation?.open(result.navigation);
       this.update({ pending: null });
     } catch (error) { this.fail(error); }
     finally {
@@ -297,7 +306,7 @@ export class XiaoyuClient {
     this.lifetime++;
     this.generation++;
     this.abort.abort();
-    this.inputs.clear(); this.inputWrite = null; this.formContext = null;
+    this.inputs.clear(); this.inputWrite = null; this.formContext = null; this.pageListing = null; this.routeContext = null;
     this.state = { tasks: [], bundle: null, recoveryTaskId: null, input: "", inputDirty: false, inputSaving: false, pageContext: null, focus: { mode: "auto" }, notes: "", notesDirty: false, busy: false, loading: true, error: null, pending: null, creation: null };
   }
 }

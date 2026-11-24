@@ -1,4 +1,5 @@
 "use client";
+import { useTaskFormReview } from "./xiaoyu-form-review";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Banner, Button } from "@vxture/design-ui";
@@ -22,9 +23,10 @@ export function useXiaoyuForm(
   apply: (fields: FormFields) => void,
 ) {
   const client = useOptionalXiaoyuClient();
+  const review = useTaskFormReview();
   const params = useSearchParams(),
-    taskId = params.get("xyTask"),
-    key = params.get("xyForm");
+    taskId = review?.taskId ?? params.get("xyTask"),
+    key = review?.key ?? params.get("xyForm");
   const current = useRef({ values, apply });
   current.current = { values, apply };
   const baseline = useRef<FormFields>({}),
@@ -147,6 +149,9 @@ export function useXiaoyuForm(
       if (inflight.current === run) inflight.current = null;
     }
   }, [taskId, key]);
+  const register = review?.register;
+  const registerRef = useRef(register); registerRef.current = register;
+  useEffect(() => { registerRef.current?.(sync); return () => registerRef.current?.(null); }, [sync]);
   const signature = JSON.stringify(values);
   useEffect(() => {
     if (!binding.current) return;

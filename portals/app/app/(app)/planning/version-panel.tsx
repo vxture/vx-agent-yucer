@@ -1,4 +1,5 @@
 "use client";
+import { useTaskFormReview } from "../components/xiaoyu-form-review";
 import { useXiaoyuForm, XiaoyuFormNotice } from "../components/use-xiaoyu-form";
 import { initializeNewLogoEstimates } from "../lib/planning-autofill";
 import { StrategyHandoffPanel } from "./strategy-handoff-panel";
@@ -1553,6 +1554,7 @@ function NativePlanningVersionPanel({
 // Private review uses the same native controls. Only an explicit Save enters
 // the existing planning command service; loading this view never starts a draft.
 export function PlanningVersionPanel(props:Parameters<typeof NativePlanningVersionPanel>[0]) {
+  const review=useTaskFormReview();
   const {PLAN_VERSION_TEXT:T,PLAN_VERSION_ERROR:E,XIAOYU_FORMS:F}=useMessages();
   const router=useRouter();
   const [content,setContent]=useState<PlanContent|null>(null);
@@ -1571,6 +1573,7 @@ export function PlanningVersionPanel(props:Parameters<typeof NativePlanningVersi
     setError("");
     try {
       await binding.sync();
+      if(review){await review.commit();return;}
       let current=plan,version=current?planVersions(current,props.initialNow):{draft:null,eventNo:0};
       if(!version.draft) {
         const created=await salesPlanCommandAction({year:props.year,expectedEventNo:version.eventNo,requestKey:keys.current.draft,command:{kind:"draft",content:content!,scope:content!.releaseScope==="regions"?"regions":"company"}});

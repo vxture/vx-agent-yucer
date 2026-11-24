@@ -1,4 +1,5 @@
 "use client";
+import { useXiaoyuPageState } from "./use-xiaoyu-page-state";
 
 import { DataTable, FilterBar, ActionMenu } from "./business-controls";
 import { dealWorkspaceHref } from "../lib/deal-workspace";
@@ -146,6 +147,7 @@ export function PipelineBoard({
   const [forecastFilter, setForecastFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const filtering = query !== "" || stageFilter !== "" || forecastFilter !== "" || priorityFilter !== "";
+  useXiaoyuPageState({query:query.slice(0,160),stage:stageFilter,forecast:forecastFilter,priority:priorityFilter});
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter(

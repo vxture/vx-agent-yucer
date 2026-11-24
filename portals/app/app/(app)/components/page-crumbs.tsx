@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTaskFormReview } from "./xiaoyu-form-review";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -61,6 +62,8 @@ export function PageCrumbs({
   readonly current: string;
 }) {
   const { SHELL_TEXT } = useMessages();
+  const review=useTaskFormReview();
+  if(review)return null;
   const up = trail.at(-1);
 
   return (

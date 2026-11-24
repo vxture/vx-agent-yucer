@@ -156,3 +156,17 @@ test("a successful sent question is not restored as an unsent draft", async () =
   f.client.suspend(); await f.client.start(f.task.id);
   assert.equal(f.client.getSnapshot().input, "");
 });
+
+
+test("local list filters and selections survive form context updates without crossing pages",async()=>{
+ const f=await fixture();await f.client.start(f.task.id);
+ const id=crypto.randomUUID();f.client.setPageContext(routePageContext("/segment"));
+ f.client.setPageListing("/segment",{filters:{query:"GIS",status:"active",token:"refused"},selection:[{kind:"segment",id}]});
+ assert.deepEqual(f.client.getSnapshot().pageContext?.filters,{query:"GIS",status:"active"});
+ assert.equal(f.client.getSnapshot().pageContext?.selection?.[0].id,id);
+ f.client.setPageContext(routePageContext("/account"));
+ assert.equal(f.client.getSnapshot().pageContext?.filters,undefined);
+ f.client.setPageListing("/segment",null);f.client.suspend();
+ await f.client.start(null);f.client.setPageContext(routePageContext("/segment"));
+ assert.equal(f.client.getSnapshot().pageContext?.selection,undefined);
+});

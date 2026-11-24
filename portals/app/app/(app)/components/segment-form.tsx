@@ -1,5 +1,6 @@
 "use client";
 
+import { useTaskFormReview } from "./xiaoyu-form-review";
 import { useXiaoyuForm, XiaoyuFormNotice } from "./use-xiaoyu-form";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -53,6 +54,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
   const manual = useRef(new Set<SegmentFillField>());
   const hasAssisted = useRef(false);
   const inFlight = useRef(false);
+  const review=useTaskFormReview();
   const slot = usePageAssistantSlot();
   const returnTo = original ? `/segment/${encodeURIComponent(original.id)}` : "/segment";
   const submit = useFormSubmit(returnTo);
@@ -118,10 +120,10 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
   const title = (key: "basic" | "conditions" | "insights", icon: "clipboard" | "filter" | "lightbulb") =>
     <SectionHeader title={T[key]} icon={icon} />;
   return <>
-    {assistant}
+    {!review ? assistant : null}
     <XiaoyuFormNotice binding={xyForm}/>
     <FormPage form={<div className="flex flex-col gap-xl" data-segment-form>
-      <Card className="flex flex-col gap-md border-primary/10 bg-primary/5 p-lg" data-segment-assistant="inline">
+      {!review ? <Card className="flex flex-col gap-md border-primary/10 bg-primary/5 p-lg" data-segment-assistant="inline">
         <div className="flex items-center gap-xs"><Icon name="magic-wand" size="md" className="text-primary" /><h2 className="text-label-medium">{T.assist}</h2><SegmentHelp label={T.assist}>{T.help.assist}</SegmentHelp></div>
         {canAssist ? <>
           <form className="flex items-end gap-sm" onSubmit={event => { event.preventDefault(); void send(); }}>
@@ -131,7 +133,7 @@ export function SegmentForm({ original, generatedCode, vocabulary, canAssist, on
           <p className="text-right text-body-small tabular-nums text-muted-foreground">{text.length}/4000</p>
           {!slot ? <div className="flex max-h-48 flex-col gap-sm overflow-y-auto">{messages.map((message, i) => <AssistantMessage key={i} role={message.role}>{message.text}</AssistantMessage>)}{feedback}</div> : null}
         </> : <p className="text-body-small text-muted-foreground">{T.assistDenied}</p>}
-      </Card>
+      </Card> : null}
       <form className="flex flex-col gap-xl" onSubmit={event => {
         event.preventDefault(); if (!ready || busy) return;
         submit.run(() => onSave({ editId: original?.id, name: values.name.trim(), priority: Number(priority), status,

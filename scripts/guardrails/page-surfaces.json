@@ -825,7 +825,7 @@
       "sample": "/",
       "workspaceLayout": {
         "title": "\u5de5\u4f5c\u9996\u9875",
-        "mode": "redirect",
+        "mode": "workspace",
         "group": "\u5de5\u4f5c\u4e0e\u4e1a\u52a1"
       }
     },

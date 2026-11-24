@@ -1,6 +1,11 @@
+import { createAccount } from "../account/service";
+import { getPrismaClient, prismaEnabled } from "../../lib/db";
+import { lockKey } from "../shared/allocate";
+import { duplicateCustomer } from "./lib/customer-registration";
 import { getAuthzStore } from "../../authz/store";
 import type { AppSession } from "../../(app)/lib/session";
 import {
+  getAccountStore,
   getStrategyStore,
   getCatalogStore,
   getSalesPlanStore,
@@ -63,6 +68,20 @@ export async function writeBusinessForm(
   )
     throw Error("operation_not_registered");
   let fields = form.fields;
+  if (form.module === "account") {
+    if (form.targetId || operation !== "save") throw Error("operation_not_registered");
+    if(prismaEnabled()) {
+      // The enclosing execution transaction also owns the native allocation
+      // lock: simultaneous manual/batch creates cannot pass duplicate checks.
+      const db=await getPrismaClient();
+      await db.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("account_no")}::int, hashtext(${session.workspaceId})::int)`;
+    }
+    const known = await getAccountStore().listAccounts(session.workspaceId);
+    if(duplicateCustomer(fields, known)) throw Error("duplicate_customer");
+    const input = {region:null,province:null,industryId:null,segmentId:null,customerTypeId:null,customerSizeId:null,customerNatureId:null,creditCode:null,website:null,employeeCount:null,...fields};
+    const value = requireResult(await createAccount({...base,store:session.stores.account()},input as Parameters<typeof createAccount>[1]));
+    return {kind:"account",id:value.id};
+  }
   if (form.targetId && form.module !== "sales_plan") {
     let original: Record<string, unknown> | undefined;
     if (form.module === "segment")

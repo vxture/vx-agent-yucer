@@ -1,3 +1,4 @@
+import { nativeTaskEditor } from "./native-editor";
 import { Banner } from "@vxture/design-ui";
 import { redirect } from "next/navigation";
 import { getMessages } from "../lib/i18n/server";
@@ -8,7 +9,7 @@ import LegacyCopilotPage from "./legacy-page";
 import { WorkspaceContent } from "../components/workspace-layout";
 
 export const dynamic = "force-dynamic";
-type Query = { task?: string; scope?: string; view?: string; account?: string; ask?: string; opportunity?: string; mode?: string; thread?: string };
+type Query = { form?: string; task?: string; scope?: string; view?: string; account?: string; ask?: string; opportunity?: string; mode?: string; thread?: string };
 export default async function CopilotPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
   if (query.view === "judgements") {
@@ -26,5 +27,5 @@ export default async function CopilotPage({ searchParams }: { readonly searchPar
     const { XIAOYU_TEXT: T } = await getMessages();
     return <WorkspaceContent><Banner tone="warning" title={T.accessChanged} /></WorkspaceContent>;
   }
-  return <XiaoyuWorkspace initialTask={query.task} />;
+  return <XiaoyuWorkspace initialTask={query.task} editor={await nativeTaskEditor(query.task, query.form)} />;
 }

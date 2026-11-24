@@ -1,3 +1,4 @@
+import { runDailyJudgements } from "../domains/judgement/daily-job";
 import { deployStage, isDeployedStage } from "../lib/deploy-stage";
 import { runCommitmentSweep } from "../domains/account/commitment-sweep";
 import { runStrategySnapshots } from "../domains/strategy/snapshot-job";
@@ -128,6 +129,7 @@ export function defaultJobs(env: Record<string, string | undefined> = process.en
       everyMs: intervalFrom(env, "JOBS_INTERVAL_HEALTH_MS", 24 * 60 * 60_000),
       run: async () => runHealthSweep({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
     },
+    {name:"daily-judgements",everyMs:intervalFrom(env,"JOBS_INTERVAL_JUDGEMENTS_MS",15*60_000),run:async()=>runDailyJudgements(await listActiveWorkspaces())},
     {
       name: "provisioning-poll",
       everyMs: intervalFrom(env, "JOBS_INTERVAL_PROVISIONING_MS", 5 * 60_000),

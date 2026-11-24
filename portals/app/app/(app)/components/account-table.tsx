@@ -1,4 +1,5 @@
 "use client";
+import { useXiaoyuPageState } from "./use-xiaoyu-page-state";
 
 import { DataTable, FilterBar, ActionMenu } from "./business-controls";
 
@@ -124,6 +125,7 @@ export function AccountTable({
   const [level, setLevel] = useState("");
   const [health, setHealth] = useState<HealthBand | "">("");
   const filtering = query !== "" || level !== "" || health !== "";
+  useXiaoyuPageState({query:query.slice(0,160),level,health,view});
   const visible = useMemo(() => filterAccounts(rows, { query, level, health }, levelOf), [rows, query, level, health, levelOf]);
   const ordered = useMemo(() => sorted.sortRows(visible), [sorted, visible]);
   const pagination = useListPagination(ordered, 20);

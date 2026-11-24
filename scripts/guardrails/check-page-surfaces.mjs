@@ -83,7 +83,7 @@ for (const file of pages) {
   if (entry.route !== route) errors.push(`${file}: route mismatch ${entry.route} != ${route}`);
   if (!["navigation", "context", "compatibility", "development", "diagnostic"].includes(entry.kind)) errors.push(`${file}: unknown classification`);
   const layout = entry.workspaceLayout;
-  const expectedLayout = entry.kind === "compatibility" || route === "/" ? "redirect"
+  const expectedLayout = entry.kind === "compatibility" ? "redirect"
     : file.startsWith("(screen)/") ? "screen"
     : file.startsWith("(demo)/") ? "standalone"
     : ["/account/[id]", "/pipeline/[id]"].includes(route) ? "dossier"

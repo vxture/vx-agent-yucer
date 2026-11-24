@@ -48,11 +48,12 @@ export function XiaoyuFormLinks() {
                     variant="secondary"
                     className="ml-auto"
                   >
-                    <Link href={formHref(form, bundle.task.id, d.key)}>
+                    <Link href={`/copilot?${new URLSearchParams({task:bundle.task.id, form:d.key})}`}>
                       {T.open}
                     </Link>
                   </Button>}
                 </div>
+                <Button asChild size="md" variant="ghost" className="self-start"><Link href={formHref(form, bundle.task.id, d.key)}>{T.openOriginal}</Link></Button>
                 <Collapsible>
                   <CollapsibleTrigger asChild>
                     <Button size="md" variant="ghost">

@@ -11,8 +11,8 @@ test("every real page has reviewed entry evidence and every UI module is reachab
   const manifest = JSON.parse(readFileSync(join(REPO, "scripts/guardrails/page-surfaces.json"), "utf8"));
   const result = inspectPageSurfaces(join(REPO, "portals/app/app"), manifest);
   assert.deepEqual(result.errors, []);
-  assert.equal(result.pages.length, 85);
-  assert.equal(result.slots.length, 76);
+  assert.equal(result.pages.length, 86);
+  assert.equal(result.slots.length, 77);
   assert.ok(result.controls.length > 800);
 });
 
@@ -22,7 +22,7 @@ function fixture(run: (root: string, manifest: any, put: (file: string, source: 
     mkdirSync(join(root, file, ".."), { recursive: true });
     writeFileSync(join(root, file), source);
   };
-  const manifest = { pages: [{ file: "(app)/sample/page.tsx", route: "/sample", kind: "navigation", entry: { file: "(app)/nav.tsx", needle: 'href="/sample"' } }], preservedControls: {} };
+  const manifest = { pages: [{ file: "(app)/sample/page.tsx", route: "/sample", kind: "navigation", workspaceLayout: { mode: "workspace", title: "Sample", group: "business" }, entry: { file: "(app)/nav.tsx", needle: 'href="/sample"' } }], preservedControls: {} };
   try {
     put("(app)/layout.tsx", 'import "./nav"; export default function Layout(){return null}');
     put("(app)/nav.tsx", 'export const nav = <a href="/sample">Sample</a>');
@@ -70,6 +70,7 @@ test("lost entry evidence and duplicate registration are rejected", () => fixtur
 
 test("compatibility pages must redirect while paired deck pages remain legitimate", () => fixture((root, manifest, put) => {
   manifest.pages[0].kind = "compatibility";
+  manifest.pages[0].workspaceLayout.mode = "redirect";
   put("(app)/@deck/sample/page.tsx", "export default function Slot(){return null}");
   assert.match(inspectPageSurfaces(root, manifest).errors.join("\n"), /no longer redirects/);
   put("(app)/sample/page.tsx", 'export default function Page(){redirect("/new")}');

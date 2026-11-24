@@ -1,5 +1,7 @@
 "use client";
 
+import { useXiaoyuForm, XiaoyuFormNotice } from "./use-xiaoyu-form";
+import { useTaskFormReview } from "./xiaoyu-form-review";
 import { PageActionButton } from "./page-header-actions";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
@@ -34,6 +36,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   readonly onCreate: (input: AccountPatchShape & RegistrationHierarchy & { tier?: AccountTier; plan?: AccountPlanDraft }) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
 }) {
   const { ACCOUNT_BASICS_TEXT: B, ACCOUNT_REGISTRATION_TEXT: T, ACCOUNT_ERROR, ACCOUNT_PARENT_TEXT:P, POSITION_TEXT, COPILOT_TEXT } = useMessages();
+  const taskReview=useTaskFormReview();
   const assistantSlot = usePageAssistantSlot();
   const router = useRouter();
   const { toast } = useToast();
@@ -44,6 +47,15 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   const [relationResult,setRelationResult]=useState<RegistrationHierarchyResult>();
   const [tier, setTier] = useState<AccountTier>(initialTier);
   const [operating, setOperating] = useState(() => operatingValues(defaultPeriod()));
+  const xyForm=useXiaoyuForm("account",null,{...toAccountPatch(values),parentId:hierarchy.parentId||null,childLinks:hierarchy.childIds.map(accountId=>({accountId,expectedParentId:accounts?.find(a=>a.id===accountId)?.parentId??null})),tier,plan:operatingPlan(tier,operating)},fields=>{
+    setValues(previous=>({...previous,...toAccountFieldValues({...toAccountPatch(previous),...fields})}));
+    if(["standard","key","strategic"].includes(String(fields.tier)))setTier(fields.tier as AccountTier);
+    if("parentId" in fields || Array.isArray(fields.childLinks))setHierarchy(previous=>({...previous,...("parentId" in fields?{parentId:String(fields.parentId??"")} : {}),...(Array.isArray(fields.childLinks)?{childIds:fields.childLinks.map(c=>(c as {accountId:string}).accountId)}:{})}));
+    if(fields.plan && typeof fields.plan==="object") {
+      const p=fields.plan as AccountPlanDraft;
+      setOperating(previous=>({...previous,enabled:true,period:p.period,targetAmount:String(p.targetAmount??""),contactCadenceDays:String(p.contactCadenceDays??""),execCadenceDays:String(p.execCadenceDays??"")}));
+    }
+  });
   const [text, setText] = useState("");
   const [thread, setThread] = useState<string>();
   const [recovery, setRecovery] = useState<{ sessionId: string; messageId: string; text: string }>();
@@ -141,6 +153,7 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
       try {
         const invalid = hierarchyError() ?? operatingError(tier, operating);
         if (invalid) { toast({ tone: "danger", title: ACCOUNT_ERROR[invalid] ?? ACCOUNT_ERROR.denied }); return; }
+        if(taskReview){await taskReview.commit();setConfirm(false);return;}
         const r = await onCreate({ ...toAccountPatch(values), ...hierarchyInput(), tier, plan: operatingPlan(tier, operating) });
         if (!r.ok) { toast({ tone: "danger", title: ACCOUNT_ERROR[r.error] ?? ACCOUNT_ERROR.denied }); return; }
         router.push(`/account/${r.id}`); router.refresh();
@@ -194,8 +207,9 @@ export function AccountCreateForm({ vocab, accounts, onCreate, onAssist, canAssi
   return <div className={`flex min-w-0 flex-col gap-lg ${FORM_ENTRY_CLASS}`} data-business-form data-account-registration>
     <ViewHeader icon="user-plus" title={B.createTitle} help={T.createHelp}
       pageActions={{ primary: <PageActionButton intent="primary" disabled={busy || !values.name.trim()} onClick={review}>{T.reviewSubmit}</PageActionButton> }} />
-    <AccountRegistrationAssistant {...assistantProps} compact={!!assistantSlot} />
-    {assistantSlot ? createPortal(<AccountRegistrationAssistant {...assistantProps} dock />, assistantSlot) : null}
+    <XiaoyuFormNotice binding={xyForm}/>
+    {!taskReview ? <AccountRegistrationAssistant {...assistantProps} compact={!!assistantSlot} /> : null}
+    {assistantSlot && !taskReview ? createPortal(<AccountRegistrationAssistant {...assistantProps} dock />, assistantSlot) : null}
     <Card className="flex w-full flex-col gap-lg p-lg">
       <AccountFields values={values} onChange={updateValues} vocab={vocab} pending={busy} accountNo={null} />
       <Separator />

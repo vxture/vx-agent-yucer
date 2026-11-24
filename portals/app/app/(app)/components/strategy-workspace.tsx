@@ -1,4 +1,5 @@
 "use client";
+import { useXiaoyuPageState } from "./use-xiaoyu-page-state";
 import { StrategyFulfillmentPanel } from "./strategy-fulfillment-panel";
 import { StrategyAdvanced } from "./strategy-result-fields";
 import { StrategyDetailBasic, StrategyDetailGoals, StrategyDetailMarkets, StrategyDetailOfferings, StrategyDetailHandoff } from "./strategy-detail-reading";
@@ -57,6 +58,7 @@ export function StrategyWorkspace({ data, view, detailId }: { readonly data: Str
   const scopedPlans=view==="overview"?currentStrategyPlans(data.plans ?? []):data.plans?.filter(p=>p.versionNo || !p.basePlanId) ?? [];
   const plans=scopedPlans.filter(p=>(!planFilter || p.id===planFilter) && (!period || p.period===period) && (!query.trim() || `${p.name} ${p.planNo} ${p.objective ?? ""}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
   const allowedView = data.canPlan;
+  useXiaoyuPageState({query:query.slice(0,160),period,plan:planFilter,view:layout});
   const switchView=(next:StrategyTab)=>{
     if(next === view)return;
     const q=new URLSearchParams(params);q.set("view",next);q.delete("market");q.delete("plan");

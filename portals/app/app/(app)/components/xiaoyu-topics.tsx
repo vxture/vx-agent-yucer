@@ -36,6 +36,7 @@ type Feed = {
   scope: "mine" | "all";
   scanned: number;
   dataAvailable: boolean;
+  daily?: {date:string;generatedAt:string;revalidatedAt:string;changes:number}|null;
   observedAt?: string;
 };
 export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
@@ -182,6 +183,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         <Card className="gap-sm p-lg">
           <h2 className="flex items-center gap-xs text-heading-3"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
           <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}</p>
+          {feed?.daily ? <p className="text-body-small text-muted-foreground">{H.dailyBaseline} <time dateTime={feed.daily.generatedAt}>{new Date(feed.daily.generatedAt).toLocaleString(locale)}</time>{feed.daily.changes ? ` \u00b7 ${H.dailyChanged(feed.daily.changes)}` : ""}</p> : feed ? <p className="text-body-small text-warning-text">{H.dailyUnavailable}</p> : null}
           {feed?.observedAt ? <p className="text-body-small text-muted-foreground">{H.summaryAt} <time dateTime={feed.observedAt}>{new Date(feed.observedAt).toLocaleString(locale)}</time></p> : null}
         </Card>
         <div className="grid grid-cols-3 gap-sm" aria-label={H.dailyCounts}>
