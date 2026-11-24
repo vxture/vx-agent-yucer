@@ -135,6 +135,14 @@ export const en: Dictionary = {
     title:"My memory", subtitle:"Private to you and this workspace",hint:"Stopping and corrections apply immediately. Tasks using old versions stop replaying them. Team knowledge is managed separately.",back:"Back to Xiaoyu",new:"New memory",text:"Memory",kind:"Type",fact:"Business fact",decision:"User decision",inference:"Model inference",hypothesis:"Unverified hypothesis",save:"Save",cancel:"Cancel",edit:"Correct",stop:"Stop using",restore:"Restore",active:"In use",stopped:"Stopped",unavailable:"Source unavailable; content is hidden",empty:"No memories yet. Conversations are summarized privately, or add one yourself.",failure:"Could not finish. Reload the latest state.",updated:"Updated",source:"Source",user:"Written by you",model:"Conversation extraction",revision:"Revision",history:"Find my conversations",search:"Search",query:"At least two characters; searches only accessible personal history",openTask:"Open source task",capture:"Extract current conversation again",loading:"Loading...",limit:"Up to 1200 characters. Business facts require a verifiable source. Manual memories can start as decisions or hypotheses."
   },
   XIAOYU_TEXT: {
+  "focus": "Discussion focus",
+  "noFocus": "No focus",
+  "followPage": "Follow current page",
+  "focusPage": "Keep current object",
+  "linkedFocus": "Linked business object",
+  "clearFocus": "Clear focus",
+  focusTarget: (n: number) => `Linked object ${n}`,
+
   "collapseConclusion": "Collapse content",
   "boardConclusion": "Analysis and suggestions",
   "expandConclusion": "Read full content",

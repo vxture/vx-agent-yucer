@@ -11,6 +11,7 @@ import {
 } from "../../domains/copilot/lib/business-form";
 import type { TaskBundle } from "../../domains/copilot/task-store";
 import { UUID } from "../../domains/copilot/lib/task-contract";
+import { useOptionalXiaoyuClient } from "./xiaoyu-provider";
 type Binding = { taskId: string; key: string; revision: number };
 const equal = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -20,6 +21,7 @@ export function useXiaoyuForm(
   values: FormFields,
   apply: (fields: FormFields) => void,
 ) {
+  const client = useOptionalXiaoyuClient();
   const params = useSearchParams(),
     taskId = params.get("xyTask"),
     key = params.get("xyForm");
@@ -33,6 +35,11 @@ export function useXiaoyuForm(
     "off" | "loading" | "ready" | "dirty" | "error"
   >("off");
   const [reload, setReload] = useState(0);
+  const fieldNames = JSON.stringify(Object.keys(values));
+  useEffect(() => {
+    client?.setFormContext({ module, targetId, fields: JSON.parse(fieldNames) as string[], dirty: state === "dirty", ...(binding.current ? { revision: binding.current.revision } : {}) });
+    return () => client?.setFormContext(null);
+  }, [client, module, targetId, fieldNames, state]);
   useEffect(() => {
     const id = ++generation.current;
     binding.current = null;

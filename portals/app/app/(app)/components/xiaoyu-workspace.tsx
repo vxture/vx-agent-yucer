@@ -2,17 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import { ShellDock } from "@vxture/design-system";
 import {
   Banner, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, Icon, Popover, PopoverContent,
-  PopoverTrigger, StatusBadge, Textarea,
+  PopoverTrigger, Textarea,
 } from "@vxture/design-ui";
 import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assistant-conversation";
 import { useXiaoyu } from "./xiaoyu-provider";
 import { useMessages } from "../lib/i18n/provider";
-import { pageObject } from "../lib/xiaoyu-client";
+import { workspaceHref } from "../lib/xiaoyu-client";
 import { UUID } from "../../domains/copilot/lib/task-contract";
 import type { Dictionary } from "../lib/i18n/dictionary";
 import type { TaskRecord } from "../../domains/copilot/task-store";
@@ -22,6 +21,7 @@ import { XiaoyuResearch } from "./xiaoyu-research";
 import { XiaoyuFormLinks } from "./xiaoyu-form-link";
 import { AssistantWidthToggle, useAssistantWidth } from "./assistant-width";
 import { WorkspaceContent } from "./workspace-layout";
+import { AssistantMode } from "./assistant-mode";
 import styles from "./xiaoyu-workspace.module.css";
 
 type Copy = Dictionary["XIAOYU_TEXT"];
@@ -152,21 +152,44 @@ function AgentReply({ children }: { readonly children: ReactNode }) {
   </div>;
 }
 
-function XiaoyuConversation({ full, showResults, outputKey }: {
+type PageTools = { readonly label: string; readonly open: () => void };
+
+function FocusControl() {
+  const { XIAOYU_TEXT: T, DOMAIN_LABEL } = useMessages();
+  const { client, pageContext, focus, bundle } = useXiaoyu();
+  const moduleLabel = pageContext ? DOMAIN_LABEL[pageContext.module] ?? T.currentPage : T.noFocus;
+  const label = focus.mode === "none" ? T.noFocus : focus.mode === "manual" ? T.linkedFocus : moduleLabel;
+  return <div className={styles.pageContext} data-xiaoyu-focus>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild><Button variant="ghost" size="md" className="min-w-0 max-w-full text-muted-foreground" aria-label={`${T.focus}: ${label}`}>
+        <Icon name="map-pin" size="sm" /><span className="truncate">{label}</span><Icon name="chevron-down" size="xs" />
+      </Button></DropdownMenuTrigger>
+      <DropdownMenuContent align="start" width="sm">
+        <DropdownMenuItem onSelect={() => client.setFocus({ mode: "auto" })}>{T.followPage}</DropdownMenuItem>
+        {pageContext?.object ? <DropdownMenuItem onSelect={() => client.setFocus({ mode: "manual", object: pageContext.object! })}>{T.focusPage}</DropdownMenuItem> : null}
+        {bundle?.references.filter(r => r.role === "target").map((r, index) => <DropdownMenuItem key={r.referenceId}
+          onSelect={() => client.setFocus({ mode: "manual", object: { kind: r.kind, id: r.id } })}>{T.focusTarget(index + 1)}</DropdownMenuItem>)}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => client.setFocus({ mode: "none" })}>{T.clearFocus}</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>;
+}
+
+function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools }: {
   readonly full: boolean;
   readonly showResults: () => void;
   readonly outputKey: string;
+  readonly controls?: ReactNode;
+  readonly pageTools?: PageTools;
 }) {
-  const { XIAOYU_TEXT: T, DOMAIN_LABEL } = useMessages();
+  const { XIAOYU_TEXT: T } = useMessages();
   const { width, toggle } = useAssistantWidth();
   const s = useXiaoyu();
   const { client, bundle, busy, loading, notesDirty } = s;
   const [showNotes, setShowNotes] = useState(false);
   const [cancel, setCancel] = useState(false);
   const [interrupt, setInterrupt] = useState(false);
-  const path = usePathname();
-  const currentObject = pageObject(path);
-  const currentLabel = DOMAIN_LABEL[path.split("/")[1]] ?? T.noObject;
   const task = bundle?.task;
   const ended = task?.status === "completed" || task?.status === "cancelled";
   const paused = task?.status === "paused" || bundle?.ruleChanged;
@@ -175,26 +198,24 @@ function XiaoyuConversation({ full, showResults, outputKey }: {
   const hasMessages = !!bundle?.messages.length;
 
   return <section className={styles.conversation} aria-label={T.conversation} data-xiaoyu-conversation>
-    <header className={styles.chatHeader}>
-      <div className="flex min-w-0 flex-1 items-center gap-sm">
-        {full ? <AgentMark /> : null}
-        <div className="min-w-0">
-          <h2 className="text-label-medium">{full ? T.name : T.conversation}</h2>
-          <p className="truncate text-body-small text-muted-foreground" title={task?.goal}>{task?.goal ?? T.chatSubtitle}</p>
-        </div>
-      </div>
-      {task && <StatusBadge tone={ended || paused ? "neutral" : "brand"} icon={false} size="xs" className={styles.chatStatus}>{taskStatus(T, task.status)}</StatusBadge>}
+    <header className={styles.chatHeader} data-assistant-header>
+      <h2 className="shrink-0 text-label">{T.name}</h2>
+      <AssistantMode placement="header" />
+      <span className="min-w-0 flex-1" />
       <ConversationHistory />
-      <Button size="icon-xl" variant="secondary" aria-label={T.newChat} title={T.newChat}
+      <Button size="icon-xl" variant="secondary" className={styles.newChat} aria-label={T.newChat} title={T.newChat}
         disabled={busy || loading || notesDirty} onClick={client.newTask}>
         <Icon name="plus" size="sm" />
       </Button>
-      {full ? <span className={styles.widthControl}><AssistantWidthToggle wide={width === "wide"} onToggle={toggle} /></span> : null}
+      {controls ?? (full ? <span className={styles.widthControl}><AssistantWidthToggle wide={width === "wide"} onToggle={toggle} /></span> : null)}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="icon-xl" variant="ghost" aria-label={T.moreActions} title={T.moreActions}><Icon name="more-vertical" size="sm" /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="sm">
+          <DropdownMenuItem disabled={busy || loading || notesDirty} onSelect={() => { void client.newTask(); }}><Icon name="plus" size="sm" />{T.newChat}</DropdownMenuItem>
+          {!full ? <DropdownMenuItem asChild><Link href={workspaceHref(task?.id)} data-assistant-workbench><Icon name="squares-four" size="sm" />{T.full}</Link></DropdownMenuItem> : null}
+          {pageTools ? <DropdownMenuItem onSelect={pageTools.open}>{pageTools.label}</DropdownMenuItem> : null}
           <DropdownMenuItem disabled={busy || loading} onSelect={() => void client.refresh()}>
             <Icon name="refresh" size="sm" />{T.refresh}
           </DropdownMenuItem>
@@ -215,11 +236,7 @@ function XiaoyuConversation({ full, showResults, outputKey }: {
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
-    {!full ? <div className={styles.pageContext}>
-      <Icon name="map-pin" size="xs" /><span>{T.currentPage}: {currentLabel}</span>
-      {currentObject && task ? <Button variant="ghost" size="md" className="ml-auto" disabled={frozen || ended || notesDirty}
-        onClick={() => void client.change({ action: "link", object: currentObject })}>{T.linkPage}</Button> : null}
-    </div> : null}
+    <FocusControl />
     <div className={styles.chatBody}>
       <AssistantTranscript key={task?.id ?? "new"} revision={bundle?.messages.length ?? 0} busy={busy}>
         {loading ? <output className="text-body text-muted-foreground">{T.loading}</output> : null}
@@ -273,7 +290,7 @@ function XiaoyuConversation({ full, showResults, outputKey }: {
   </section>;
 }
 
-export function XiaoyuSurface({ full = false }: { readonly full?: boolean }) {
+export function XiaoyuSurface({ full = false, controls, pageTools }: { readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools }) {
   const { XIAOYU_TEXT: T } = useMessages();
   const { bundle, recoveryTaskId } = useXiaoyu();
   const { width } = useAssistantWidth();
@@ -284,7 +301,7 @@ export function XiaoyuSurface({ full = false }: { readonly full?: boolean }) {
   const lastTurn = bundle?.turns.findLast(t => !!t.artifacts);
   const hasOutput = drafts.length > 0 || !!latest || !!lastTurn;
   const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
-  const conversation = <XiaoyuConversation full={full} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
+  const conversation = <XiaoyuConversation full={full} controls={controls} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
   return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}
     data-conversation-width={width}>
     {full ? <div className={styles.mobileSwitch} role="group" aria-label={T.title}>

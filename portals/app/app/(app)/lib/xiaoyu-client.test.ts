@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { XiaoyuClient, pageObject, pointerKey, workspaceHref, type TaskView } from "./xiaoyu-client";
 import { InMemoryTaskStore } from "../../domains/copilot/task-store";
 import { TASK_RULE_VERSION } from "../../domains/copilot/lib/task-contract";
+import { COMPOSER_DRAFT_KEY, routePageContext } from "../../domains/copilot/lib/page-context";
 async function fixture() {
   const store = new InMemoryTaskStore(), scope = { workspaceId: "workspace-a", actorSub: "alice" };
   const task = await store.create(scope,"Private planning",TASK_RULE_VERSION,[],crypto.randomUUID());
@@ -14,7 +15,7 @@ async function fixture() {
     const override=await hook?.(url,method,body);if(override)return override;
     if(method==="POST"&&url.endsWith("/tasks"))return Response.json(task);
     if(method==="PATCH"){
-      await store.mutate(scope,task.id,Number(body.revision),{ruleVersion:TASK_RULE_VERSION,...(body.action==="notes"?{draft:{key:"notes",text:String(body.text)}}:{})});
+      await store.mutate(scope,task.id,Number(body.revision),{ruleVersion:TASK_RULE_VERSION,...(body.action==="notes"?{draft:{key:String(body.key),text:String(body.text)}}:{})});
       return Response.json(await bundle());
     }
     return Response.json(url.endsWith("/tasks")?[task]:await bundle());
@@ -31,7 +32,7 @@ test("refresh restores the same task without a model call",async()=>{
 test("late response from previous task cannot replace the current conversation",async()=>{
   const f=await fixture();await f.client.start(null);let finish!:(r:Response)=>void;
   f.setHook(async url=>url.endsWith(f.task.id)?new Promise(r=>{finish=r;}):undefined);
-  const loading=f.client.select(f.task.id);f.client.newTask();finish(Response.json(await f.bundle()));await loading;assert.equal(f.client.getSnapshot().bundle,null);assert.equal(f.pointers.at(-1),null);
+  const loading=f.client.select(f.task.id);await new Promise(resolve=>setImmediate(resolve));await f.client.newTask();finish(Response.json(await f.bundle()));await loading;assert.equal(f.client.getSnapshot().bundle,null);assert.equal(f.pointers.at(-1),null);
 });
 test("unmount rejects late results and storage writes; effect replay safely restarts",async()=>{
   const f=await fixture();let finish!:(r:Response)=>void;f.setHook(async()=>new Promise(r=>{finish=r;}));
@@ -98,10 +99,60 @@ test("changed business source keeps only an opaque receipt-recovery pointer; sco
   assert.equal(f.pointers.at(-1),f.task.id);
   assert.equal(f.client.getSnapshot().bundle,null);
   assert.equal(f.client.getSnapshot().notes,"");
-  f.client.newTask();
+  await f.client.newTask();
   assert.equal(f.client.getSnapshot().recoveryTaskId,null);
   f.setHook(undefined); await f.client.select(f.task.id);
   f.setHook(async()=>Response.json({code:"POLICY_DENIED"},{status:403}));
   await f.client.refresh();
   assert.equal(f.client.getSnapshot().recoveryTaskId,null);
+});
+
+test("switching to a new conversation saves the current input privately and restores it on return and refresh", async () => {
+  const f = await fixture(); await f.client.start(f.task.id);
+  f.client.setInput("Keep this unfinished work");
+  await f.client.newTask();
+  const stored = (await f.bundle()).drafts.find(d => d.key === COMPOSER_DRAFT_KEY);
+  assert.equal(stored?.text, "Keep this unfinished work");
+  assert.equal(f.client.getSnapshot().input, "");
+  f.client.setInput("Separate new conversation");
+  await f.client.select(f.task.id);
+  assert.equal(f.client.getSnapshot().input, "Keep this unfinished work");
+  await f.client.newTask();
+  assert.equal(f.client.getSnapshot().input, "Separate new conversation");
+  f.client.suspend(); await f.client.start(f.task.id);
+  assert.equal(f.client.getSnapshot().input, "Keep this unfinished work");
+  assert.equal(f.client.getSnapshot().inputDirty, false);
+  assert.ok(f.pointers.every(p => p === null || /^[a-f0-9-]{36}$/.test(p)));
+});
+test("a failed private draft save retains text and blocks task switching", async () => {
+  const f = await fixture(); await f.client.start(f.task.id); f.client.setInput("Do not discard");
+  f.setHook(async (_url, method) => method === "PATCH" ? Response.json({ code: "UNAVAILABLE" }, { status: 503 }) : undefined);
+  await f.client.newTask();
+  assert.equal(f.client.getSnapshot().bundle?.task.id, f.task.id);
+  assert.equal(f.client.getSnapshot().input, "Do not discard");
+  assert.equal(f.client.getSnapshot().inputDirty, true);
+});
+test("navigation metadata and focus never replace the task goal or become a tool grant", async () => {
+  const f = await fixture(); await f.client.start(f.task.id);
+  f.client.setPageContext(routePageContext("/strategy/new"));
+  f.client.setFocus({ mode: "none" });
+  f.client.setInput("Help with this draft"); await f.client.send();
+  const turn = f.calls.find(c => c.url.endsWith("/turn"));
+  assert.equal((turn?.body.pageContext as { module: string }).module, "strategy");
+  assert.deepEqual(turn?.body.focus, { mode: "none" });
+  assert.equal(f.client.getSnapshot().bundle?.task.goal, "Private planning");
+  assert.ok(!Object.hasOwn(turn!.body, "workspaceId"));
+});
+test("a successful sent question is not restored as an unsent draft", async () => {
+  const f = await fixture(); await f.client.start(f.task.id);
+  f.setHook(async (url, method, body) => {
+    if (method === "POST" && url.endsWith("/turn")) {
+      const turn = await f.store.beginTurn(f.scope, f.task.id, Number(body.revision), String(body.requestId), String(body.question), "hash", TASK_RULE_VERSION);
+      await f.store.finishTurn(f.scope, f.task.id, turn!.id, { answer: "Done discussing", tokens: 1 });
+      return Response.json({});
+    }
+  });
+  f.client.setInput("Send once"); await f.client.send();
+  f.client.suspend(); await f.client.start(f.task.id);
+  assert.equal(f.client.getSnapshot().input, "");
 });

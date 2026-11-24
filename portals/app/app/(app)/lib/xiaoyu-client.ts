@@ -1,5 +1,6 @@
 import type { TaskBundle, TaskRecord } from "../../domains/copilot/task-store";
 import { UUID, type TaskObject } from "../../domains/copilot/lib/task-contract";
+import { COMPOSER_DRAFT_KEY, type TaskFocus, type TaskPageContext } from "../../domains/copilot/lib/page-context";
 
 export type TaskView = TaskBundle & {
   currentRuleVersion: string;
@@ -11,12 +12,16 @@ export interface XiaoyuState {
   bundle: TaskView | null;
   recoveryTaskId: string | null;
   input: string;
+  inputDirty: boolean;
+  inputSaving: boolean;
+  pageContext: TaskPageContext | null;
+  focus: TaskFocus;
   notes: string;
   notesDirty: boolean;
   busy: boolean;
   loading: boolean;
   error: string | null;
-  pending: { requestId: string; question: string; revision: number } | null;
+  pending: { requestId: string; question: string; revision: number; pageContext?: TaskPageContext; focus?: TaskFocus } | null;
   creation: { requestId: string; question: string } | null;
 }
 type Transport = (input: string, init?: RequestInit) => Promise<Response>;
@@ -40,12 +45,17 @@ class StaleRequest extends Error {}
 const revoked = (e: unknown) => e instanceof RequestFailure && (
   e.status === 401 || e.status === 403 || e.status === 404 || /(?:source_changed|source_unavailable)/i.test(e.code)
 );
+function savedInput(bundle: TaskView): string {
+  const draft = bundle.drafts.find(d => d.key === COMPOSER_DRAFT_KEY && d.contractVersion === "private-notes/1");
+  const sent = bundle.messages.findLast(m => m.role === "user");
+  return draft && (!sent || new Date(draft.createdAt).getTime() > new Date(sent.createdAt).getTime()) ? draft.text : "";
+}
 
 // One owner/workspace controller survives route transitions and surface changes.
 // Only an opaque task pointer may enter sessionStorage, never private content.
 export class XiaoyuClient {
   private state: XiaoyuState = {
-    tasks: [], bundle: null, recoveryTaskId: null, input: "", notes: "", notesDirty: false,
+    tasks: [], bundle: null, recoveryTaskId: null, input: "", inputDirty: false, inputSaving: false, pageContext: null, focus: { mode: "auto" }, notes: "", notesDirty: false,
     busy: false, loading: true, error: null, pending: null, creation: null,
   };
   private readonly listeners = new Set<() => void>();
@@ -54,6 +64,9 @@ export class XiaoyuClient {
   private active = false;
   private selectedId: string | null = null;
   private abort = new AbortController();
+  private readonly inputs = new Map<string, string>();
+  private inputWrite: Promise<boolean> | null = null;
+  private formContext: (NonNullable<TaskPageContext["form"]> & { targetId: string | null }) | null = null;
   constructor(
     private readonly transport: Transport,
     private readonly remember: (id: string | null) => void,
@@ -89,23 +102,73 @@ export class XiaoyuClient {
     const recoveryTaskId = clear && error instanceof RequestFailure &&
       /^(?:COPILOT_TASK_)?SOURCE_CHANGED$/i.test(error.code) ? this.selectedId : null;
     if (clear) {
+      this.inputs.clear();
       this.generation++;
       this.selectedId = null;
       this.remember(recoveryTaskId);
     }
-    this.update({ error: code, ...(clear ? { tasks: [], bundle: null, recoveryTaskId, notes: "", input: "", notesDirty: false, pending: null, creation: null, loading: false } : {}) });
+    this.update({ error: code, ...(clear ? { tasks: [], bundle: null, recoveryTaskId, notes: "", input: "", inputDirty: false, focus: { mode: "auto" }, notesDirty: false, pending: null, creation: null, loading: false } : {}) });
   }
-  private accept(bundle: TaskView, preserveNotes = false) {
+  private accept(bundle: TaskView, preserveNotes = false, restoreInput = false) {
     this.selectedId = bundle.task.id;
     this.remember(bundle.task.id);
-    this.update({ bundle, recoveryTaskId: null, error: null, ...(preserveNotes && this.state.notesDirty ? {} : {
+    const stored = savedInput(bundle);
+    const input = restoreInput ? this.inputs.get(bundle.task.id) ?? stored : this.state.input;
+    this.update({ bundle, recoveryTaskId: null, error: null, input, inputDirty: input !== stored, ...(preserveNotes && this.state.notesDirty ? {} : {
       notes: bundle.drafts.find(d => d.key === "notes")?.text ?? "", notesDirty: false,
     }) });
     if (this.state.pending && bundle.turns.some(t => t.requestId === this.state.pending?.requestId && t.status === "succeeded")) {
       this.update({ pending: null });
     }
   }
-  setInput = (input: string) => this.update({ input });
+  setInput = (input: string) => {
+    if (!this.active) return;
+    this.inputs.set(this.selectedId ?? "new", input);
+    this.update({ input, inputDirty: input !== (this.state.bundle ? savedInput(this.state.bundle) : "") });
+  };
+  setPageContext = (pageContext: TaskPageContext | null) => {
+    const form = this.formContext;
+    if (pageContext && form && (form.module === "sales_plan" ? "planning" : form.module) === pageContext.module) {
+      const { targetId, ...metadata } = form;
+      const kind = form.module === "sales_plan" ? "sales_plan" : form.module as TaskObject["kind"];
+      pageContext = { ...pageContext, form: metadata, ...(targetId && UUID.test(targetId) ? { object: { kind, id: targetId } } : {}) };
+    }
+    if (JSON.stringify(pageContext) !== JSON.stringify(this.state.pageContext)) this.update({ pageContext });
+  };
+  setFormContext = (form: XiaoyuClient["formContext"]) => {
+    this.formContext = form;
+    const page = this.state.pageContext;
+    if (page) { const { form: _previous, ...route } = page; this.setPageContext(route); }
+  };
+  setFocus = (focus: TaskFocus) => this.update({ focus });
+  /** Store unsubmitted text only in the existing owner-scoped private draft service. */
+  async persistInput(): Promise<boolean> {
+    if (this.inputWrite) return this.inputWrite;
+    if (!this.active || !this.state.bundle || !this.state.inputDirty || this.state.busy || this.state.loading || this.state.pending) return true;
+    if (this.state.bundle.task.status !== "active" || this.state.bundle.ruleChanged) return true;
+    const id = this.state.bundle.task.id, lifetime = this.lifetime;
+    const run = async () => {
+      this.update({ inputSaving: true });
+      try {
+        for (let round = 0; round < 5; round++) {
+          const text = this.state.input;
+          const latest = await this.request<TaskView>(`/${id}`);
+          if (this.selectedId !== id) return false;
+          const next = await this.request<TaskView>(`/${id}`, "PATCH", {
+            action: "notes", revision: latest.task.revision, key: COMPOSER_DRAFT_KEY, text, contractVersion: "private-notes/1",
+          });
+          if (this.selectedId !== id) return false;
+          this.accept(next, true);
+          if (this.state.input === text) return true;
+        }
+        return false;
+      } catch (error) { this.fail(error); return false; }
+      finally { if (lifetime === this.lifetime) this.update({ inputSaving: false }); }
+    };
+    this.inputWrite = run();
+    try { return await this.inputWrite; }
+    finally { if (lifetime === this.lifetime) this.inputWrite = null; }
+  }
   setNotes = (notes: string) => this.update({ notes, notesDirty: true });
   async start(id: string | null) {
     this.active = true;
@@ -128,25 +191,28 @@ export class XiaoyuClient {
   }
   async select(id: string) {
     if (!UUID.test(id) || this.state.busy || this.state.notesDirty) return;
+    if (!await this.persistInput() || !this.active) return;
     const generation = ++this.generation;
     this.selectedId = id;
-    this.update({ bundle: null, recoveryTaskId: null, notes: "", input: "", pending: null, creation: null, loading: true, error: null });
+    this.update({ bundle: null, recoveryTaskId: null, notes: "", input: "", inputDirty: false, focus: { mode: "auto" }, pending: null, creation: null, loading: true, error: null });
     try {
       const bundle = await this.request<TaskView>(`/${id}`);
-      if (generation === this.generation) this.accept(bundle);
+      if (generation === this.generation) this.accept(bundle, false, true);
     } catch (error) { if (generation === this.generation) this.fail(error, true); }
     finally { if (this.active && generation === this.generation) this.update({ loading: false }); }
   }
-  newTask = () => {
+  newTask = async () => {
     if (this.state.busy || this.state.notesDirty) return;
+    if (!await this.persistInput() || !this.active) return;
     this.generation++;
     this.selectedId = null;
     this.remember(null);
-    this.update({ bundle: null, recoveryTaskId: null, input: "", notes: "", notesDirty: false, error: null, pending: null, creation: null, loading: false });
+    const input = this.inputs.get("new") ?? "";
+    this.update({ bundle: null, recoveryTaskId: null, input, inputDirty: !!input, focus: { mode: "auto" }, notes: "", notesDirty: false, error: null, pending: null, creation: null, loading: false });
   };
   // Refresh is read-only: an orphan request is never automatically replayed.
   async refresh(includeList = true) {
-    if (this.state.busy || this.state.loading) return;
+    if (this.state.busy || this.state.loading || this.state.inputSaving) return;
     const id = this.selectedId, generation = this.generation;
     try {
       const bundle = id ? await this.request<TaskView>(`/${id}`) : null;
@@ -156,8 +222,9 @@ export class XiaoyuClient {
     } catch (error) { if (generation === this.generation) this.fail(error, !!id); }
   }
   async change(action: Record<string, unknown>) {
+    if (!this.state.bundle || this.state.busy || !await this.persistInput()) return;
     const bundle = this.state.bundle;
-    if (!bundle || this.state.busy) return;
+    if (!bundle) return;
     this.update({ busy: true, error: null });
     const lifetime = this.lifetime;
     try {
@@ -170,6 +237,7 @@ export class XiaoyuClient {
   saveNotes = () => this.change({ action: "notes", key: "notes", text: this.state.notes, contractVersion: "private-notes/1" });
   async send() {
     if (this.state.busy || this.state.loading || this.state.pending || this.state.notesDirty || !this.state.input.trim()) return;
+    if (!await this.persistInput() || this.state.busy || !this.active) return;
     const question = this.state.creation?.question ?? this.state.input.trim();
     this.update({ busy: true, error: null });
     const lifetime = this.lifetime;
@@ -181,14 +249,17 @@ export class XiaoyuClient {
         this.update({ creation });
         task = await this.request<TaskRecord>("", "POST", { requestId: creation.requestId, goal: question.slice(0, 1000), targets: [] });
         this.selectedId = task.id;
+        this.inputs.delete("new");
         this.remember(task.id);
         this.update({ creation: null });
         this.accept(await this.request<TaskView>(`/${task.id}`));
       }
       this.accept(await this.request<TaskView>(`/${task.id}`));
       task=this.state.bundle!.task;
-      const pending = { requestId: crypto.randomUUID(), question, revision: task.revision };
-      this.update({ pending, input: "" });
+      const pending = { requestId: crypto.randomUUID(), question, revision: task.revision,
+        ...(this.state.pageContext ? { pageContext: this.state.pageContext, focus: this.state.focus } : this.state.focus.mode !== "auto" ? { focus: this.state.focus } : {}) };
+      this.inputs.set(task.id, "");
+      this.update({ pending, input: "", inputDirty: false });
       const result=await this.request<{navigation?:string;replayed?:boolean}>(`/${task.id}/turn`, "POST", pending);
       if(!result.replayed&&result.navigation&&/^\/(segment|strategy|solution|planning|account|pipeline|catalog)(\/|\?|$)/.test(result.navigation))this.navigation?.open(result.navigation);
       this.update({ pending: null });
@@ -209,7 +280,7 @@ export class XiaoyuClient {
     if (!pending || !task) return;
     const turn = this.state.bundle?.turns.find(t => t.requestId === pending.requestId);
     if (turn?.status === "running") return;
-    if (turn) { this.update({ pending: null, input: pending.question, error: null }); return; }
+    if (turn) { this.setInput(pending.question); this.update({ pending: null, error: null }); return; }
     const replay = { ...pending, revision: task.revision };
     this.update({ busy: true, error: null, pending: replay });
     const lifetime = this.lifetime;
@@ -226,6 +297,7 @@ export class XiaoyuClient {
     this.lifetime++;
     this.generation++;
     this.abort.abort();
-    this.state = { tasks: [], bundle: null, recoveryTaskId: null, input: "", notes: "", notesDirty: false, busy: false, loading: true, error: null, pending: null, creation: null };
+    this.inputs.clear(); this.inputWrite = null; this.formContext = null;
+    this.state = { tasks: [], bundle: null, recoveryTaskId: null, input: "", inputDirty: false, inputSaving: false, pageContext: null, focus: { mode: "auto" }, notes: "", notesDirty: false, busy: false, loading: true, error: null, pending: null, creation: null };
   }
 }

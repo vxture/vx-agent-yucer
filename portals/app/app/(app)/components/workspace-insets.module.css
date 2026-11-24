@@ -140,7 +140,7 @@
   z-index: var(--z-index-overlay);
   height: auto;
   max-width: none;
-  padding-inline: var(--space-lg);
+  padding-inline: 0;
   box-shadow: none;
 }
 .assistantDock[data-assistant-fullscreen="true"] { width: 0; }

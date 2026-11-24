@@ -1,4 +1,5 @@
 import { BUSINESS_TOOLS, EXECUTION_TOOLS, formContract } from "./business-tools";
+import { isTaskFocus, isTaskPageContext, type TaskPageContext, type TaskFocus } from "./lib/page-context";
 import { BUSINESS_FORM_CONTRACT, isFormModule, mergeForm, readBusinessForm, formHref, type BusinessForm } from "./lib/business-form";
 import { createHash } from "node:crypto";
 import { budgetFailureArtifacts, taskArtifacts } from "./lib/task-artifacts";
@@ -467,7 +468,10 @@ export async function runPrivateTaskTurn(
   deps: TurnDeps & { tenantId: string; subjectToken?: string },
 ) {
   return guarded(ctx, "turn", async () => {
-    const v = body(input, ["requestId", "revision", "question"]);
+    const v = body(input, ["requestId", "revision", "question", "pageContext", "focus"]);
+    demand(v.pageContext === undefined || isTaskPageContext(v.pageContext), "invalid_task_request");
+    demand(v.focus === undefined || isTaskFocus(v.focus), "invalid_task_request");
+    const pageContext = v.pageContext as TaskPageContext | undefined, focus = v.focus as TaskFocus | undefined;
     demand(
       typeof v.requestId === "string" &&
         UUID.test(v.requestId) &&
@@ -477,9 +481,16 @@ export async function runPrivateTaskTurn(
       "invalid_task_request",
     );
     const question = v.question.trim(),
-      questionHash = hash(question);
+      questionHash = hash(pageContext || focus ? { question, pageContext, focus } : question);
     let now = await current(ctx),
       b = await owned(now, id, true);
+    const contextSources: TaskSource[] = [];
+    for (const object of [pageContext?.object, focus?.mode === "manual" ? focus.object : null]) {
+      if (!object) continue;
+      const found = await now.source(object);
+      demand(found, "source_unavailable");
+      contextSources.push(found);
+    }
     const replay = () => {
       const old = b.turns.find((t) => t.requestId === v.requestId);
       if (!old) return null;
@@ -556,6 +567,7 @@ export async function runPrivateTaskTurn(
         let verifiedReceipt=false;
         const executionQueue=new Map<string,"save"|"publish">();
         const bind=(sources:TaskSource[])=>{for(const r of sources){const key=`${r.kind}:${r.id}`,old=turnSources.get(key)??b.references.find(x=>x.kind===r.kind&&x.id===r.id);demand(!old||old.version===r.version,"source_changed");turnSources.set(key,r);}demand(new Set([...b.references,...turnSources.values()].map(r=>`${r.kind}:${r.id}`)).size<=100,"task_source_limit");};
+        bind(contextSources);
         const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
         const localTools=now.business ? {definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>)=>{
           const live=await recheck();demand(live.business,"task_tool_denied");
@@ -625,6 +637,8 @@ export async function runPrivateTaskTurn(
                   .filter((r) => r.role === "target")
                   .map((r) => ({ kind: r.kind, id: r.id })),
                 page: b.task.page,
+                pageContext,
+                focus,
               },
             },
             atlas: {

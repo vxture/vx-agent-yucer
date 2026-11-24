@@ -10042,6 +10042,14 @@ export const REGIONAL_PLANNING_TEXT = {
 
 
 export const XIAOYU_TEXT = {
+  "focus": "\u8ba8\u8bba\u7126\u70b9",
+  "noFocus": "\u6682\u4e0d\u805a\u7126",
+  "followPage": "\u81ea\u52a8\u8ddf\u968f\u5f53\u524d\u9875\u9762",
+  "focusPage": "\u56fa\u5b9a\u5f53\u524d\u5bf9\u8c61",
+  "linkedFocus": "\u5df2\u56fa\u5b9a\u4e1a\u52a1\u5bf9\u8c61",
+  "clearFocus": "\u89e3\u9664\u7126\u70b9",
+  focusTarget: (n: number) => `\u5173\u8054\u5bf9\u8c61 ${n}`,
+
   "collapseConclusion": "\u6536\u8d77\u5b8c\u6574\u5185\u5bb9",
   "boardConclusion": "\u5206\u6790\u4e0e\u5efa\u8bae",
   "expandConclusion": "\u5c55\u5f00\u5b8c\u6574\u5185\u5bb9",

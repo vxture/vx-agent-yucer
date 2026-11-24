@@ -1,9 +1,9 @@
 /** Shared dock classes and dossier routes. List pages have no left module
  *  menu; object detail pages render their own facts beside the content. */
 
-/** DS viewport dock: independently padded and separated from the work area. */
+/** The shared conversation owns its insets; never pad the complete dock twice. */
 export const ASSISTANT_PANE_CLASS =
-  "h-full min-h-0 overflow-hidden px-lg pb-[calc(var(--space-md)+env(safe-area-inset-bottom,0px))]";
+  "h-full min-h-0 overflow-hidden";
 
 /** The routes whose page renders the board and centre panes itself: an
  *  object's detail page, where 栏1 is that object's own dossier instead of

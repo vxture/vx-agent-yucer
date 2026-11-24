@@ -37,6 +37,7 @@
   flex-direction: column;
   overflow: hidden;
 }
+.conversation { container-type: inline-size; }
 
 .full .board {
   height: 100%;
@@ -67,9 +68,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2xs);
+  height: var(--spacing-header-lg);
   min-height: var(--spacing-header-lg);
+  padding-inline: var(--space-md);
 }
-.full .chatHeader, .full .chatBody, .full .composer { padding-inline: var(--space-md); }
 
 .boardScroll {
   display: flex;
@@ -92,22 +94,22 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: var(--space-md) var(--space-lg) 0;
+  padding: var(--space-md) var(--space-xl) 0 var(--space-lg);
   overflow: hidden;
 }
 
 .composer {
   flex-shrink: 0;
-  padding: var(--space-sm) var(--space-lg) calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+  padding: var(--space-md) var(--space-md) calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
 }
-
-.dock .chatHeader, .dock .chatBody, .dock .composer { padding-inline: 0; }
+.chatBody [data-assistant-transcript] { gap: var(--space-md); }
 
 .pageContext {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding-block: var(--space-xs);
+  min-height: var(--space-control-xl);
+  padding-inline: var(--space-md);
   color: var(--muted-foreground);
   font-size: var(--text-body-small);
 }
@@ -160,6 +162,10 @@
 }
 
 .mobileSwitch { display: none; }
+@container (width < 25rem) {
+  .chatHeader { gap: 0; }
+  .newChat { display: none; }
+}
 .resultDot { width: var(--space-xs); height: var(--space-xs); border-radius: 50%; background: var(--primary); }
 
 @media (max-width: 54.999rem) {
@@ -172,7 +178,7 @@
 
 @media (max-width: 39.999rem) {
   .chatStatus { display: none; }
-  .boardHeader, .boardScroll, .chatHeader, .chatBody, .composer { padding-inline: var(--space-sm); }
+  .boardHeader, .boardScroll { padding-inline: var(--space-sm); }
 }
 
 @media (max-height: 36rem) {

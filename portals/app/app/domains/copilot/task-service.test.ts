@@ -24,6 +24,7 @@ import {
   type TaskContext,
 } from "./task-service";
 import { unwrap, type RuleResult } from "../shared/result";
+import { routePageContext } from "./lib/page-context";
 
 const WS = "aa000000-0000-4000-a000-000000000001",
   OTHER = "aa000000-0000-4000-a000-000000000002";
@@ -119,6 +120,34 @@ function code<T>(r: RuleResult<T>, expected: string) {
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.violations[0].code, expected);
 }
+
+test("validated page context grounds a turn without replacing targets; foreign objects never reach the model", async () => {
+  const f = fixture(), t = await f.create([ACCOUNT]);
+  const pageContext = routePageContext(`/segment/${SEGMENT.id}`)!;
+  const input = { revision: t.revision, requestId: randomUUID(), question: "Review this page", pageContext, focus: { mode: "none" } };
+  const result = unwrap(await runPrivateTaskTurn(f.c, t.id, input, f.deps));
+  assert.ok(f.prompts.some(p => p.includes('"module":"segment"') && p.includes('"mode":"none"')));
+  const saved = unwrap(await readPrivateTask(f.c, t.id));
+  assert.equal(saved.task.goal, "keep this goal");
+  assert.deepEqual(saved.references.filter(r => r.role === "target").map(r => r.id), [ACCOUNT.id]);
+  assert.ok(saved.references.some(r => r.kind === "segment" && r.role === "context"));
+  unwrap(await runPrivateTaskTurn(f.c, t.id, input, f.deps));
+  assert.equal(f.calls(), 1);
+  assert.equal(result.replayed, false);
+  code(await runPrivateTaskTurn(f.c, t.id, { ...input, focus: { mode: "auto" } }, f.deps), "request_conflict");
+  code(await runPrivateTaskTurn(f.c, t.id, { ...input, requestId: randomUUID(), revision: saved.task.revision,
+    pageContext: routePageContext(`/account/${OTHER}`) }, f.deps), "source_unavailable");
+  assert.equal(f.calls(), 1);
+});
+
+test("page source revocation during generation suppresses the result even with no business tool call", async () => {
+  const f = fixture(), t = await f.create();
+  f.setChat(async () => { f.sources.delete(SEGMENT.id); return { content: "Must not deliver" }; });
+  code(await runPrivateTaskTurn(f.c, t.id, { revision: t.revision, requestId: randomUUID(), question: "Review page",
+    pageContext: routePageContext(`/segment/${SEGMENT.id}`) }, f.deps), "source_changed");
+  const saved = await f.store.load(f.scope, t.id, true);
+  assert.ok(!saved?.messages.some(m => m.role === "assistant"));
+});
 
 test("budget failures persist private counts without an answer, form or partial source", async () => {
   const f = fixture(), t = await f.create();
