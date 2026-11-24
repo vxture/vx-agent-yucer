@@ -1,5 +1,11 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 小聿协作工作区调整
+
+[126-xiaoyu-collaboration-board.md](126-xiaoyu-collaboration-board.md) 记录最新 owner 方向：
+左侧工作板、右侧对话；记忆作为跨板块后台能力，个人控制移到头像菜单；
+团队知识维护交回知识平台（待接入）。复用 4060 本地预览，本批未发布。
+
 ## 联合实调收尾
 
 [125-joint-live-acceptance.md](125-joint-live-acceptance.md) 拉通 NB-03 与 XY-05：

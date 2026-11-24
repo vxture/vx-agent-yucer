@@ -24,7 +24,7 @@ export function XiaoyuDock({ children, ...frame }: Omit<ComponentProps<typeof As
       <Button size="md" variant={pageActive ? "ghost" : "secondary"} aria-pressed={!pageActive} onClick={() => setSelectedPage(null)}>{T.conversation}</Button>
       <Button size="md" variant={pageActive ? "secondary" : "ghost"} aria-pressed={pageActive} onClick={() => setSelectedPage(pathname)}>{pageAssist ? T.pageAssist : T.pageTools}</Button>
     </fieldset> : null}
-    <div className={pageActive ? "hidden" : "flex min-h-0 flex-1 flex-col"} hidden={pageActive} inert={pageActive}><XiaoyuSurface full={frame.fullscreen} onNavigate={frame.fullscreen ? frame.onToggleFullscreen : undefined} /></div>
+    <div className={pageActive ? "hidden" : "flex min-h-0 flex-1 flex-col"} hidden={pageActive} inert={pageActive}><XiaoyuSurface full={frame.fullscreen} /></div>
     <div className={pageActive ? "flex min-h-0 flex-1 flex-col gap-sm" : "hidden"} hidden={!pageActive} inert={!pageActive} data-xiaoyu-page-tools>
       <p className="shrink-0 text-body-small text-muted-foreground">{T.legacyPageHint}</p>
       {children}

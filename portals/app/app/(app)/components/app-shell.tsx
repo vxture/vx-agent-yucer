@@ -183,7 +183,7 @@ export function AppShell({
   const [query, setQuery] = useState("");
   const router = useRouter();
   const { mode, setMode, density, setDensity, fontSize, setFontSize } = useTheme();
-  const { DOMAIN_LABEL, HEADER_TEXT, SHELL_TEXT } = useMessages();
+  const { DOMAIN_LABEL, HEADER_TEXT, SHELL_TEXT, XIAOYU_MEMORY } = useMessages();
 
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
@@ -457,6 +457,9 @@ export function AppShell({
                 }
                 links={[
                   { key: "account", label: HEADER_TEXT.accountCentre, href: "https://accounts.vxture.com/account", icon: "user-circle", newTab: true },
+                  ...(nav.some(e => e.key === "copilot" && e.state === "visible")
+                    ? [{ key: "xiaoyu-memory", label: XIAOYU_MEMORY.title, href: "/copilot/memory", icon: "lock" as const }]
+                    : []),
                 ]}
                 actions={[
                   {

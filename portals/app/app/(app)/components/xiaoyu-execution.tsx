@@ -201,7 +201,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
   const publishDraft = drafts.find((d) => d.id === publish);
   return (
     <>
-      <Card className="@container gap-sm p-md">
+      {forms.length || steps.length || hint ? <Card className="@container gap-sm p-md">
         <div className="flex flex-wrap items-center gap-sm">
           <h3 className="text-label">{T.title}</h3>
           <Button
@@ -395,7 +395,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
             }}
           />
         ) : null}
-      </Card>
+      </Card> : null}
       {readError === "denied" ? null : renderDrafts(saved)}
     </>
   );

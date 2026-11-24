@@ -5,6 +5,10 @@ import {
   Banner,
   Button,
   Card,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Icon,
   Select,
   SelectContent,
@@ -30,7 +34,10 @@ type Feed = {
   scanned: number;
   dataAvailable: boolean;
 };
-export function XiaoyuTopics() {
+export function XiaoyuTopics({ compact = false, onDiscuss }: {
+  readonly compact?: boolean;
+  readonly onDiscuss?: () => void;
+}) {
   const { XIAOYU_TOPICS: T } = useMessages();
   const { client, notesDirty, busy } = useXiaoyu();
   const [feed, setFeed] = useState<Feed | null>(null),
@@ -94,6 +101,7 @@ export function XiaoyuTopics() {
         if (request !== generation.current) return;
         if (action === "discuss") {
           await client.select(opened.taskId);
+          if (client.getSnapshot().bundle?.task.id === opened.taskId) onDiscuss?.();
           return;
         }
         const refreshed = await fetch(
@@ -131,17 +139,14 @@ export function XiaoyuTopics() {
   };
   return (
     <section
-      className="flex flex-col gap-md"
+      className="flex flex-col gap-sm"
       aria-label={T.title}
       data-xiaoyu-topics
     >
       <div className="flex flex-wrap items-center gap-sm">
-        <Icon name="sparkles" size="sm" />
-        <h2 className="text-heading-3">{T.title}</h2>
-        <span className="text-body-small text-muted-foreground">
-          {T.scopeHint}
-        </span>
-        <span className="ml-auto w-40">
+        {!compact ? <><Icon name="sparkles" size="sm" /><h2 className="text-heading-3">{T.title}</h2></> : null}
+        <span className="text-body-small text-muted-foreground">{T.scopeHint}</span>
+        <span className="ml-auto w-36">
           <Select value={scope} onValueChange={setScope}>
             <SelectTrigger aria-label={T.scope}>
               <SelectValue />
@@ -154,7 +159,7 @@ export function XiaoyuTopics() {
           </Select>
         </span>
         <Button
-          size="md"
+          size="icon-xl"
           variant="ghost"
           onClick={() => void load()}
           aria-label={T.refresh}
@@ -170,7 +175,7 @@ export function XiaoyuTopics() {
       ) : null}
       {(expanded ? feed?.judgements : feed?.judgements.slice(0, 3))?.map(
         (row) => (
-          <Card key={row.finding.id} className="p-md">
+          <Card key={row.finding.id} className="gap-sm p-md">
             <div className="flex flex-wrap items-center gap-sm">
               <Icon name="lightbulb" size="sm" />
               <span className="text-label">{row.finding.subjectName}</span>
@@ -190,10 +195,10 @@ export function XiaoyuTopics() {
                       : T.open}
               </span>
             </div>
-            <p className="my-sm text-body">
+            <p className="text-body leading-relaxed">
               {row.absent ? T.noLongerTriggered : row.finding.claim}
             </p>
-            <div className="flex flex-wrap gap-md text-body-small text-muted-foreground">
+            <div className="grid grid-cols-2 gap-x-md gap-y-xs text-body-small text-muted-foreground">
               {row.finding.facts.map((f, i) => (
                 <span key={i}>
                   {f.label}: {f.value}
@@ -201,7 +206,7 @@ export function XiaoyuTopics() {
               ))}
             </div>
             {!row.absent ? (
-              <details className="mt-sm text-body-small">
+              <details className="text-body-small">
                 <summary className="cursor-pointer text-muted-foreground">
                   {T.evidence}
                 </summary>
@@ -225,44 +230,37 @@ export function XiaoyuTopics() {
                 </Link>
               </details>
             ) : null}
-            <div className="mt-md flex flex-wrap gap-xs">
+            <div className="flex flex-wrap gap-xs border-t border-border pt-sm">
               {!row.absent ? (
                 <>
                   <Button
                     size="md"
+                    variant="secondary"
                     disabled={pending || busy || notesDirty}
                     onClick={() => void act(row, "discuss")}
                   >
                     {T.discuss}
                   </Button>
-                  <Button
-                    size="md"
-                    variant="secondary"
-                    disabled={pending}
-                    onClick={() => void act(row, "process")}
-                  >
-                    {T.process}
-                  </Button>
                 </>
               ) : null}
-              <Button
-                size="md"
-                variant="ghost"
-                disabled={pending}
-                onClick={() => void act(row, "verify")}
-              >
-                {T.verify}
-              </Button>
-              {!row.absent ? (
-                <Button
-                  size="md"
-                  variant="ghost"
-                  disabled={pending}
-                  onClick={() => void act(row, "snooze")}
-                >
-                  {T.snooze}
-                </Button>
-              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon-xl" variant="ghost" className="ml-auto" aria-label={T.moreActions}>
+                    <Icon name="more-vertical" size="sm" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" width="sm">
+                  {!row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "process")}>
+                    <Icon name="play" size="sm" />{T.process}
+                  </DropdownMenuItem> : null}
+                  <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "verify")}>
+                    <Icon name="check-circle" size="sm" />{T.verify}
+                  </DropdownMenuItem>
+                  {!row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "snooze")}>
+                    <Icon name="pause" size="sm" />{T.snooze}
+                  </DropdownMenuItem> : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </Card>
         ),

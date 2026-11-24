@@ -1,22 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { Banner, Button, Card, DestructiveButton, Icon, StatusBadge, Textarea } from "@vxture/design-ui";
+import {
+  Banner, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger, Icon, Popover, PopoverContent,
+  PopoverTrigger, StatusBadge, Textarea,
+} from "@vxture/design-ui";
 import { AssistantComposer, AssistantMessage, AssistantTranscript } from "./assistant-conversation";
 import { useXiaoyu } from "./xiaoyu-provider";
 import { useMessages } from "../lib/i18n/provider";
 import { pageObject } from "../lib/xiaoyu-client";
 import { UUID } from "../../domains/copilot/lib/task-contract";
 import type { Dictionary } from "../lib/i18n/dictionary";
-import { ViewHeader } from "./business-controls";
+import type { TaskRecord } from "../../domains/copilot/task-store";
+import { ConfirmDestructive } from "./confirm-destructive";
 import { XiaoyuTopics } from "./xiaoyu-topics";
 import { XiaoyuResearch } from "./xiaoyu-research";
 import { XiaoyuFormLinks } from "./xiaoyu-form-link";
 import styles from "./xiaoyu-workspace.module.css";
 
-function errorText(code: string, t: Dictionary["XIAOYU_TEXT"]) {
+type Copy = Dictionary["XIAOYU_TEXT"];
+const taskStatus = (t: Copy, status: TaskRecord["status"]) =>
+  ({ active: t.statusActive, paused: t.statusPaused, completed: t.statusCompleted, cancelled: t.statusCancelled })[status];
+
+function errorText(code: string, t: Copy) {
   code = code.toUpperCase();
   if (/SOURCE_CHANGED/.test(code)) return t.sourceChanged;
   if (/SOURCE_UNAVAILABLE|NOT_FOUND/.test(code)) return t.sourceUnavailable;
@@ -29,88 +38,258 @@ function errorText(code: string, t: Dictionary["XIAOYU_TEXT"]) {
   return t.unavailable;
 }
 
+function AgentMark({ large = false }: { readonly large?: boolean }) {
+  return <span className={large ? styles.agentMarkLarge : styles.agentMark} aria-hidden="true">
+    <Icon name="sparkles" size={large ? "lg" : "sm"} weight="fill" />
+  </span>;
+}
+
 export function XiaoyuWorkspace({ initialTask }: { readonly initialTask?: string }) {
   const { client, loading, busy, notesDirty } = useXiaoyu();
   const selected = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!initialTask || !UUID.test(initialTask) || loading || busy || notesDirty || selected.current === initialTask) return;
     selected.current = initialTask;
-    void client.select(initialTask);
+    if (client.getSnapshot().bundle?.task.id !== initialTask) void client.select(initialTask);
   }, [client, initialTask, loading, busy, notesDirty]);
   return <XiaoyuSurface full />;
 }
 
-export function XiaoyuSurface({ full = false, onNavigate }: { readonly full?: boolean; readonly onNavigate?: () => void }) {
-  const { XIAOYU_TEXT: T, XIAOYU_MEMORY: M, XIAOYU_KNOWLEDGE: K, DOMAIN_LABEL } = useMessages();
+function TodayBoard({ onDiscuss, outputKey }: {
+  readonly onDiscuss: () => void;
+  readonly outputKey: string;
+}) {
+  const { XIAOYU_TEXT: T, XIAOYU_TOPICS } = useMessages();
+  const { bundle, busy } = useXiaoyu();
+  const latest = bundle?.messages.findLast(m => m.role === "assistant");
+  const [choice, select] = useState<{ key: string; view: "today" | "results" } | null>(null);
+  const visible = choice?.key === outputKey ? choice.view : outputKey ? "results" : "today";
+  return <section data-xiaoyu-board className={styles.board} aria-label={T.boardTitle}>
+    <header className={styles.boardHeader}>
+      <div className="flex min-w-0 items-center gap-sm">
+        <AgentMark large />
+        <div>
+          <h1 className="text-heading-3">{T.boardTitle}</h1>
+          <p className="mt-2xs text-body-small text-muted-foreground">{T.boardSubtitle}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-xs" role="group" aria-label={T.boardTitle}>
+        <Button size="md" variant={visible === "today" ? "secondary" : "ghost"} aria-pressed={visible === "today"}
+          onClick={() => select({ key: outputKey, view: "today" })}>
+          <Icon name="lightbulb" size="sm" />{XIAOYU_TOPICS.title}
+        </Button>
+        <Button size="md" variant={visible === "results" ? "secondary" : "ghost"} aria-pressed={visible === "results"}
+          onClick={() => select({ key: outputKey, view: "results" })}>
+          <Icon name="clipboard" size="sm" />{T.boardResults}
+          {outputKey ? <span className={styles.resultDot} aria-hidden="true" /> : null}
+        </Button>
+      </div>
+    </header>
+    <div className={styles.boardScroll} >
+      <div hidden={visible !== "today"} inert={visible !== "today"}><XiaoyuTopics compact onDiscuss={onDiscuss} /></div>
+      {visible === "results" && outputKey ? <>
+        {bundle?.task.goal ? <h2 className="mb-sm line-clamp-2 break-words text-label-medium" title={bundle.task.goal}>{bundle.task.goal}</h2> : null}
+        {latest ? <Card className="gap-sm p-md">
+          <h3 className="flex items-center gap-sm text-label"><Icon name="lightbulb" size="sm" />{T.boardConclusion}</h3>
+          <Collapsible key={latest.id}>
+            <p className={`${styles.reportPreview} line-clamp-4 whitespace-pre-wrap break-words text-body leading-relaxed`}>{latest.content}</p>
+            <CollapsibleContent><p className="mt-sm whitespace-pre-wrap break-words text-body leading-relaxed">{latest.content}</p></CollapsibleContent>
+            <CollapsibleTrigger asChild><Button size="md" variant="ghost" className={styles.reportToggle}>
+              <span className={styles.expandReport}>{T.expandConclusion}</span><span className={styles.collapseReport}>{T.collapseConclusion}</span><Icon name="chevron-down" size="sm" />
+            </Button></CollapsibleTrigger>
+          </Collapsible>
+        </Card> : null}
+        <XiaoyuFormLinks />
+        <XiaoyuResearch />
+      </> : visible === "results" ? <div className={styles.boardEmpty}>
+        <Icon name="clipboard" size="lg" className="text-muted-foreground" />
+        <h2 className="text-label-medium">{T.boardEmpty}</h2>
+        <p className="max-w-prose text-body text-muted-foreground">{T.boardEmptyHint}</p>
+      </div> : null}
+      {visible === "results" && busy ? <p className="text-body-small text-muted-foreground">{T.boardUpdating}</p> : null}
+    </div>
+  </section>;
+}
+
+function ConversationHistory() {
+  const { XIAOYU_TEXT: T } = useMessages();
+  const { client, bundle, tasks, busy, loading, notesDirty } = useXiaoyu();
+  const [open, setOpen] = useState(false);
+  return <Popover open={open} onOpenChange={setOpen}>
+    <PopoverTrigger asChild>
+      <Button size="icon-xl" variant="ghost" aria-label={T.history} title={T.history}>
+        <Icon name="list" size="sm" />
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent align="end" width="md" className={styles.history} aria-label={T.history}>
+      <h3 className="mb-xs text-label">{T.history}</h3>
+      {tasks.length ? <nav className="flex flex-col gap-2xs" aria-label={T.history}>
+        {tasks.map(row => <Button key={row.id} variant={bundle?.task.id === row.id ? "secondary" : "ghost"} size="md"
+          data-control-size="preserve" className={styles.taskButton} disabled={busy || loading || notesDirty}
+          aria-current={bundle?.task.id === row.id ? "true" : undefined}
+          onClick={() => { setOpen(false); void client.select(row.id); }}>
+          <span className="min-w-0">
+            <span className="line-clamp-2 break-words text-body">{row.goal}</span>
+            <span className="block text-body-small text-muted-foreground">{taskStatus(T, row.status)}</span>
+          </span>
+        </Button>)}
+      </nav> : <p className="text-body-small text-muted-foreground">{T.emptyTasks}</p>}
+    </PopoverContent>
+  </Popover>;
+}
+
+function AgentReply({ children }: { readonly children: ReactNode }) {
+  const { XIAOYU_TEXT: T } = useMessages();
+  return <div className={styles.reply} data-role="assistant">
+    <AgentMark />
+    <div className="min-w-0">
+      <p className="mb-2xs text-label">{T.name}</p>
+      <div className="text-body leading-relaxed">{children}</div>
+    </div>
+  </div>;
+}
+
+function XiaoyuConversation({ full, showResults, outputKey }: {
+  readonly full: boolean;
+  readonly showResults: () => void;
+  readonly outputKey: string;
+}) {
+  const { XIAOYU_TEXT: T, DOMAIN_LABEL } = useMessages();
   const s = useXiaoyu();
-  const { client, bundle, tasks, busy, loading } = s;
-  const [showTasks, setShowTasks] = useState(full);
+  const { client, bundle, busy, loading, notesDirty } = s;
   const [showNotes, setShowNotes] = useState(false);
+  const [cancel, setCancel] = useState(false);
+  const [interrupt, setInterrupt] = useState(false);
   const path = usePathname();
   const currentObject = pageObject(path);
   const currentLabel = DOMAIN_LABEL[path.split("/")[1]] ?? T.noObject;
   const task = bundle?.task;
   const ended = task?.status === "completed" || task?.status === "cancelled";
+  const paused = task?.status === "paused" || bundle?.ruleChanged;
   const running = bundle?.turns.find(t => t.status === "running");
-  const statusLabel = task ? { active: T.statusActive, paused: T.statusPaused, completed: T.statusCompleted, cancelled: T.statusCancelled }[task.status] : T.noSelection;
   const frozen = busy || loading || !!running;
-  const targets = bundle?.references.filter(r => r.role === "target") ?? [];
-  return <div className={`${styles.workspace} ${full ? styles.safeEnd : ""}`} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={task?.id ?? ""}>
-    {full ? <ViewHeader className="shrink-0" icon="sparkles" title={T.title} description={T.subtitle} pageActions={{ secondary: <Button variant="ghost" size="md" asChild><Link href="/copilot?view=proposals"><Icon name="clipboard" size="sm" />{T.proposals}</Link></Button> }} /> : null}
-    <div className="flex shrink-0 flex-wrap items-center gap-xs">
-      <Button variant="ghost" size="md" asChild><Link href="/copilot/memory"><Icon name="lock" size="sm" />{M.title}</Link></Button>
-      <Button variant="ghost" size="md" asChild><Link href="/copilot/knowledge"><Icon name="book-open" size="sm" />{K.title}</Link></Button>
-      <Button variant="ghost" size="md" onClick={() => setShowTasks(v => !v)} aria-expanded={showTasks}><Icon name="list" size="sm" />{showTasks ? T.hideTasks : T.showTasks}</Button>
-      <Button variant="secondary" size="md" disabled={busy || s.notesDirty} onClick={client.newTask}><Icon name="plus" size="sm" />{T.newTask}</Button>
-      <Button variant="ghost" size="icon-xl" className="ml-auto" aria-label={T.refresh} title={T.refresh} disabled={loading || busy} onClick={() => void client.refresh()}><Icon name="refresh" size="sm" /></Button>
-    </div>
-    <div className={styles.layout}>
-      {showTasks ? <Card className={styles.tasks} data-xiaoyu-tasks><h2 className="mb-sm text-label text-muted-foreground">{T.recent}</h2>
-        {tasks.length ? <nav className="flex flex-col gap-xs" aria-label={T.recent}>{tasks.map(row => <Button key={row.id} variant={task?.id === row.id ? "secondary" : "ghost"} size="md" data-control-size="preserve" className={styles.taskButton} disabled={busy || s.notesDirty} aria-current={task?.id === row.id ? "true" : undefined} onClick={() => { void client.select(row.id); if (!full) setShowTasks(false); }}>
-          <span className="min-w-0"><span className="line-clamp-2 break-words text-body">{row.goal}</span><span className="mt-xs block text-body-small text-muted-foreground">{{active:T.statusActive,paused:T.statusPaused,completed:T.statusCompleted,cancelled:T.statusCancelled}[row.status]}</span></span>
-        </Button>)}</nav> : <p className="text-body text-muted-foreground">{T.emptyTasks}</p>}
-      </Card> : null}
-      <section className={styles.conversation} aria-label={T.conversation}>
-        <div className={styles.canvas}>
-          <div className="flex shrink-0 flex-col gap-sm">
-            <div className="flex items-start gap-sm"><Icon name="lock" size="sm" className="mt-2xs shrink-0 text-muted-foreground" /><p className="text-body-small text-muted-foreground">{T.privateScope}</p><StatusBadge tone={ended ? "neutral" : "brand"} icon={false} size="xs" className="ml-auto shrink-0">{statusLabel}</StatusBadge></div>
-            {task ? <h2 className="line-clamp-2 break-words text-label-medium" title={task.goal}>{task.goal}</h2> : null}
-            {!full ? <div className="flex items-center gap-xs text-body-small text-muted-foreground"><Icon name="map-pin" size="xs" /><span>{T.currentPage}: {currentLabel}</span>{currentObject && task ? <Button variant="ghost" size="md" className="ml-auto" disabled={frozen || ended || s.notesDirty} onClick={() => void client.change({action:"link",object:currentObject})}>{T.linkPage}</Button> : null}</div> : null}
-            {targets.length ? <p className="text-body-small text-muted-foreground">{T.targets}: {targets.length}</p> : null}
-          </div>
-          {full && !task ? <XiaoyuTopics /> : null}
-          {s.error ? <Banner tone="warning" title={errorText(s.error, T)} /> : null}
-          {s.notesDirty ? <output className="block text-body-small text-warning-text">{T.notesUnsaved}</output> : null}
-          {bundle?.ruleChanged ? <Banner tone="warning" title={T.ruleChanged} /> : null}
-          {loading || busy || !task || bundle?.messages.length ? <AssistantTranscript flow revision={bundle?.messages.length ?? 0} busy={busy}>
-            {loading ? <output className="block text-body text-muted-foreground">{T.loading}</output> : null}
-            {!loading && !bundle?.messages.length ? <div className="my-auto flex flex-col items-start gap-md py-xl">
-              <Icon name="sparkles" size="lg" className="text-primary" /><h2 className="text-heading-3">{T.welcome}</h2><p className="max-w-prose text-body leading-relaxed text-muted-foreground">{T.welcomeDescription}</p>
-              <Button variant="secondary" size="md" onClick={() => client.setInput(T.example)}>{T.strategyHome}</Button>
-              <p className="text-body-small text-muted-foreground">{T.startHint}</p>
-            </div> : null}
-            {bundle?.messages.map(message => <AssistantMessage key={message.id} role={message.role}><p className="whitespace-pre-wrap break-words">{message.content}</p></AssistantMessage>)}
-            {busy ? <output className="block text-body-small text-muted-foreground">{T.sending}</output> : null}
-            {(s.pending || s.creation) && !busy ? <Banner tone="warning" title={bundle?.turns.some(t => t.requestId === s.pending?.requestId && t.status !== "running") ? T.failed : T.unknown} /> : null}
-          </AssistantTranscript> : null}
-          {running && !busy ? <div className="flex flex-wrap items-center gap-sm"><p className="text-body-small text-muted-foreground">{T.interrupted}</p><DestructiveButton size="md" confirm={{verb:T.markInterrupted,target:task?.goal ?? T.conversationFailed,consequence:T.interruptDescription,cancelLabel:T.back,onConfirm:() => client.change({action:"interrupt",requestId:running.requestId})}}>{T.markInterrupted}</DestructiveButton></div> : null}
-          {s.creation && !busy ? <Button size="md" variant="secondary" onClick={() => void client.send()}>{T.recover}</Button> : null}
-          {s.pending && !running && !busy ? <Button size="md" variant="secondary" onClick={() => void client.continueAfterFailure()}>{T.recover}</Button> : null}
-          <XiaoyuResearch />
-          <XiaoyuFormLinks />
-          {task ? <div className="flex shrink-0 flex-wrap items-center gap-xs">
-            <Button size="md" variant="ghost" aria-expanded={showNotes} onClick={() => setShowNotes(v => !v)}><Icon name="clipboard" size="sm" />{showNotes ? T.hideNotes : T.openNotes}</Button>
-            {!ended ? <><Button size="md" variant="ghost" disabled={frozen || s.notesDirty} onClick={() => void client.change(task.status === "paused" || bundle.ruleChanged ? {action:"resume",checkpointId:bundle.checkpoint?.id} : {action:"status",status:"paused"})}>{task.status === "paused" || bundle.ruleChanged ? T.resume : T.pause}</Button>
-            <Button size="md" variant="ghost" disabled={frozen || s.notesDirty} onClick={() => void client.change({action:"status",status:"completed"})}>{T.complete}</Button>
-            <DestructiveButton size="md" disabled={frozen || s.notesDirty} confirm={{verb:T.cancel,target:task.goal,consequence:T.cancelDescription,cancelLabel:T.back,onConfirm:() => client.change({action:"status",status:"cancelled"})}}>{T.cancel}</DestructiveButton></> : <p className="text-body-small text-muted-foreground">{T.readOnly}</p>}
-          </div> : null}
-          {showNotes && task ? <Card className={styles.notes}><div className="mb-sm flex items-center gap-xs"><Icon name="clipboard" size="sm" /><h3 className="text-label">{T.notes}</h3></div><p className="mb-sm text-body-small text-muted-foreground">{T.notesHint}</p><Textarea value={s.notes} aria-label={T.notes} placeholder={T.notesPlaceholder} maxLength={10000} rows={3} disabled={frozen || ended} onChange={e => client.setNotes(e.target.value)} /><div className="mt-sm flex items-center justify-between gap-sm"><span className="text-body-small text-muted-foreground">{s.notes.length}/10000</span><Button size="md" disabled={!s.notesDirty || frozen || ended} onClick={() => void client.saveNotes()}>{T.saveNotes}</Button></div></Card> : null}
-          <div className={styles.composer}><AssistantComposer id={full ? "xiaoyu-full-input" : "xiaoyu-dock-input"} value={s.input} onChange={client.setInput} onSend={() => void client.send()} disabled={loading || !!s.creation || ended || task?.status === "paused" || bundle?.ruleChanged || !!running} busy={busy} sendDisabled={!!s.pending || s.notesDirty} placeholder={T.example} />
-            <p className="mt-xs text-body-small leading-relaxed text-muted-foreground">{T.phase}</p>
-          </div>
-          {full ? <nav className="flex shrink-0 flex-wrap gap-xs pb-md" aria-label={T.navigate}><Button variant="ghost" size="md" asChild><Link href="/segment/new" onClick={onNavigate}><Icon name="plus" size="sm" />{T.segmentNew}</Link></Button><Button variant="ghost" size="md" asChild><Link href="/strategy" onClick={onNavigate}>{T.strategyHome}</Link></Button><Button variant="ghost" size="md" asChild><Link href="/catalog" onClick={onNavigate}>{T.products}</Link></Button></nav> : null}
+  const hasMessages = !!bundle?.messages.length;
+
+  return <section className={styles.conversation} aria-label={T.conversation} data-xiaoyu-conversation>
+    <header className={styles.chatHeader}>
+      <div className="flex min-w-0 flex-1 items-center gap-sm">
+        {full ? <AgentMark /> : null}
+        <div className="min-w-0">
+          <h2 className="text-label-medium">{full ? T.name : T.conversation}</h2>
+          <p className="truncate text-body-small text-muted-foreground" title={task?.goal}>{task?.goal ?? T.chatSubtitle}</p>
         </div>
-      </section>
+      </div>
+      {task && <StatusBadge tone={ended || paused ? "neutral" : "brand"} icon={false} size="xs" className={styles.chatStatus}>{taskStatus(T, task.status)}</StatusBadge>}
+      <ConversationHistory />
+      <Button size={full ? "md" : "icon-xl"} variant="secondary" aria-label={T.newChat} title={T.newChat}
+        disabled={busy || loading || notesDirty} onClick={client.newTask}>
+        <Icon name="plus" size="sm" />{full ? <span className={styles.newLabel}>{T.newChat}</span> : null}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon-xl" variant="ghost" aria-label={T.moreActions} title={T.moreActions}><Icon name="more-vertical" size="sm" /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" width="sm">
+          <DropdownMenuItem disabled={busy || loading} onSelect={() => void client.refresh()}>
+            <Icon name="refresh" size="sm" />{T.refresh}
+          </DropdownMenuItem>
+          {task ? <>
+            <DropdownMenuItem onSelect={() => setShowNotes(v => !v)}><Icon name="clipboard" size="sm" />{showNotes ? T.hideNotes : T.openNotes}</DropdownMenuItem>
+            {!ended ? <>
+              <DropdownMenuItem disabled={frozen || notesDirty} onSelect={() => void client.change(paused
+                ? { action: "resume", checkpointId: bundle?.checkpoint?.id }
+                : { action: "status", status: "paused" })}>{paused ? T.resume : T.pause}</DropdownMenuItem>
+              <DropdownMenuItem disabled={frozen || notesDirty} onSelect={() => void client.change({ action: "status", status: "completed" })}>{T.complete}</DropdownMenuItem>
+              <DropdownMenuItem disabled={frozen || notesDirty} onSelect={() => setCancel(true)}>{T.cancel}</DropdownMenuItem>
+            </> : null}
+          </> : null}
+          {full ? <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild><Link href="/copilot?view=proposals">{T.proposals}</Link></DropdownMenuItem>
+          </> : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
+    {!full ? <div className={styles.pageContext}>
+      <Icon name="map-pin" size="xs" /><span>{T.currentPage}: {currentLabel}</span>
+      {currentObject && task ? <Button variant="ghost" size="md" className="ml-auto" disabled={frozen || ended || notesDirty}
+        onClick={() => void client.change({ action: "link", object: currentObject })}>{T.linkPage}</Button> : null}
+    </div> : null}
+    <div className={styles.chatBody}>
+      <AssistantTranscript key={task?.id ?? "new"} revision={bundle?.messages.length ?? 0} busy={busy}>
+        {loading ? <output className="text-body text-muted-foreground">{T.loading}</output> : null}
+        {!loading && !hasMessages && !busy ? <div className={styles.greeting}>
+          <AgentMark large />
+          <h3 className="text-heading-3">{task ? T.readyToDiscuss : T.chatWelcome}</h3>
+          <p className="max-w-prose text-body leading-relaxed text-muted-foreground">{task ? T.discussHint : T.chatWelcomeHint}</p>
+        </div> : null}
+        {bundle?.messages.map(message => message.role === "assistant"
+          ? <AgentReply key={message.id}><p className="whitespace-pre-wrap break-words">{message.content}</p></AgentReply>
+          : <AssistantMessage key={message.id} role="user"><p className="whitespace-pre-wrap break-words">{message.content}</p></AssistantMessage>)}
+        {busy && s.pending && !bundle?.messages.some(m => m.role === "user" && m.content === s.pending?.question) ? (
+          <AssistantMessage role="user"><p className="whitespace-pre-wrap break-words">{s.pending.question}</p></AssistantMessage>
+        ) : null}
+        {busy ? <AgentReply><output className="text-body-small text-muted-foreground">{T.thinking}</output></AgentReply> : null}
+        {full && outputKey && !busy && !s.error ? <Button variant="ghost" size="md" className="self-start" onClick={showResults}>
+          <Icon name="clipboard" size="sm" />{T.viewResults}
+        </Button> : null}
+        {s.error ? <Banner tone="warning" title={errorText(s.error, T)} /> : null}
+        {bundle?.ruleChanged ? <Banner tone="warning" title={T.ruleChanged} /> : null}
+        {(s.pending || s.creation) && !busy ? <Banner tone="warning" title={bundle?.turns.some(t => t.requestId === s.pending?.requestId && t.status !== "running") ? T.failed : T.unknown} /> : null}
+        {running && !busy ? <div className="flex flex-wrap items-center gap-sm">
+          <p className="text-body-small text-muted-foreground">{T.interrupted}</p>
+          <Button variant="secondary" size="md" onClick={() => setInterrupt(true)}>{T.markInterrupted}</Button>
+        </div> : null}
+        {s.creation && !busy ? <Button size="md" variant="secondary" className="self-start" onClick={() => void client.send()}>{T.recover}</Button> : null}
+        {s.pending && !running && !busy ? <Button size="md" variant="secondary" className="self-start" onClick={() => void client.continueAfterFailure()}>{T.recover}</Button> : null}
+        {!full ? <><XiaoyuResearch /><XiaoyuFormLinks /></> : null}
+      </AssistantTranscript>
+      {showNotes && task ? <Card className={styles.notes}>
+        <h3 className="text-label">{T.notes}</h3>
+        <Textarea value={s.notes} aria-label={T.notes} placeholder={T.notesPlaceholder} maxLength={10000} rows={3}
+          disabled={frozen || ended} onChange={e => client.setNotes(e.target.value)} />
+        <Button size="md" className="self-end" disabled={!notesDirty || frozen || ended} onClick={() => void client.saveNotes()}>{T.saveNotes}</Button>
+      </Card> : null}
+    </div>
+    <div className={styles.composer}>
+      {notesDirty ? <output className="text-body-small text-warning-text">{T.notesUnsaved}</output> : null}
+      {ended ? <p className="text-body-small text-muted-foreground">{T.readOnly}</p> : null}
+      {paused && !ended && !busy ? <Button size="md" variant="secondary" className="mb-xs"
+        disabled={frozen || notesDirty} onClick={() => void client.change({ action: "resume", checkpointId: bundle?.checkpoint?.id })}>{T.resume}</Button> : null}
+      <AssistantComposer id={full ? "xiaoyu-full-input" : "xiaoyu-dock-input"} value={s.input}
+        onChange={client.setInput} onSend={() => void client.send()} placeholder={T.chatPlaceholder}
+        disabled={loading || !!s.creation || ended || paused || !!running} busy={busy} sendDisabled={!!s.pending || notesDirty}
+        compact />
+    </div>
+    {cancel && task ? <ConfirmDestructive open onOpenChange={setCancel} verb={T.cancel} target={task.goal}
+      consequence={T.cancelDescription} onConfirm={() => client.change({ action: "status", status: "cancelled" })} /> : null}
+    {interrupt && running ? <ConfirmDestructive open onOpenChange={setInterrupt} verb={T.markInterrupted} target={task?.goal ?? T.conversationFailed}
+      consequence={T.interruptDescription} onConfirm={() => client.change({ action: "interrupt", requestId: running.requestId })} /> : null}
+  </section>;
+}
+
+export function XiaoyuSurface({ full = false }: { readonly full?: boolean }) {
+  const { XIAOYU_TEXT: T } = useMessages();
+  const { bundle, recoveryTaskId } = useXiaoyu();
+  const [mobile, setMobile] = useState<"chat" | "board">("chat");
+  const [boardJump, setBoardJump] = useState(0);
+  const drafts = bundle?.drafts.filter(d => d.contractVersion === "business-form/1").map(d => d.id) ?? [];
+  const latest = bundle?.messages.findLast(m => m.role === "assistant");
+  const lastTurn = bundle?.turns.findLast(t => !!t.artifacts);
+  const hasOutput = drafts.length > 0 || !!latest || !!lastTurn;
+  const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
+  return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}>
+    {full ? <div className={styles.mobileSwitch} role="group" aria-label={T.title}>
+      <Button size="md" variant={mobile === "chat" ? "secondary" : "ghost"} aria-pressed={mobile === "chat"} onClick={() => setMobile("chat")}>
+        <Icon name="chat-circle" size="sm" />{T.conversation}
+      </Button>
+      <Button size="md" variant={mobile === "board" ? "secondary" : "ghost"} aria-pressed={mobile === "board"} onClick={() => setMobile("board")}>
+        <Icon name="clipboard" size="sm" />{T.boardLabel}{outputKey ? <span className={styles.resultDot} aria-hidden="true" /> : null}
+      </Button>
+    </div> : null}
+    <div className={styles.panes} data-mobile-view={mobile}>
+      {full ? <TodayBoard outputKey={outputKey} onDiscuss={() => setMobile("chat")} /> : null}
+      <XiaoyuConversation full={full} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />
     </div>
   </div>;
 }

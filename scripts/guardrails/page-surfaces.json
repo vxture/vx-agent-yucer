@@ -934,20 +934,20 @@
       "route": "/copilot/memory",
       "kind": "context",
       "entry": {
-        "file": "(app)/components/xiaoyu-workspace.tsx",
-        "needle": "href=\"/copilot/memory\""
+        "file": "(app)/components/app-shell.tsx",
+        "needle": "href: \"/copilot/memory\""
       }
     },
     {
       "file": "(app)/copilot/knowledge/page.tsx",
       "route": "/copilot/knowledge",
-      "kind": "context",
+      "kind": "compatibility",
       "entry": {
-        "file": "(app)/components/xiaoyu-workspace.tsx",
-        "needle": "href=\"/copilot/knowledge\""
+        "file": "(app)/copilot/knowledge/page.tsx",
+        "needle": "redirect(\"/copilot\")"
       },
       "sample": "/copilot/knowledge",
-      "reason": "Independent reviewed team knowledge, separate from personal memory."
+      "reason": "Legacy local knowledge editor retired; team knowledge belongs to the knowledge platform."
     }
   ],
   "preservedControls": {

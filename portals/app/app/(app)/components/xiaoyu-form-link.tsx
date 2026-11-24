@@ -86,10 +86,12 @@ export function XiaoyuFormLinks() {
                     </dl>
                   </CollapsibleContent>
                 </Collapsible>
-                <p className="mt-sm text-body-small text-muted-foreground">
-                  {T.protected}: {form.manualFields.length} / {T.sources}:{" "}
-                  {form.sources.filter((s) => s.kind !== "access").length}
-                </p>
+                {form.manualFields.length || form.sources.some(s => s.kind !== "access") ? (
+                  <p className="text-body-small text-muted-foreground">
+                    {form.manualFields.length ? <span>{T.protected}: {form.manualFields.length}</span> : null}
+                    {form.sources.some(s => s.kind !== "access") ? <span className="ml-sm">{T.sources}: {form.sources.filter(s => s.kind !== "access").length}</span> : null}
+                  </p>
+                ) : null}
               </Card>
             );
           } catch {

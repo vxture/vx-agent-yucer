@@ -121,7 +121,8 @@ export const en: Dictionary = {
   "share": "Confirm sharing",
   "empty": "No accessible team knowledge. Changed or revoked sources stop being shown."
 },
-  XIAOYU_TOPICS: {title:"Today's findings",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
+  XIAOYU_TOPICS: {
+  "moreActions": "More actions",title:"Today's findings",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
   XIAOYU_EXECUTION:{"continue":"Continue from receipt","failed":"Failed; check before retrying","title": "Execution steps", "prepare": "Prepare save", "publish": "Prepare publish", "grant": "Authorize and run", "execute": "Run authorized steps", "confirm": "I reviewed these forms and confirm the selected steps", "scope": "Authorization covers only the selected form versions for 15 minutes; business permissions still apply.", "refresh": "Check execution results", "revoke": "Revoke authorization", "pending": "Pending", "succeeded": "Completed", "result_unavailable": "Result unavailable", "open": "View business record", "error": "The submission response was interrupted. Check the execution receipts.", "save": "Save", "publishing": "Publishing changes the effective business version. Review before confirming.", "confirmPublish": "Confirm publish", "unknown": "Execution results could not be verified. Check again shortly.", "mode": "Authorization mode", "ask_always": "Confirm each action", "ask_high_risk": "Standard authorization", "autonomous": "Full authorization", "resume": "Reload the persisted list after an interruption to resume unfinished steps.", "partial": "Some steps did not complete. Check receipts before continuing.",
   "proposal_unavailable": "Step no longer current",
   "denied": "Execution details are no longer accessible."
@@ -134,6 +135,29 @@ export const en: Dictionary = {
     title:"My memory", subtitle:"Private to you and this workspace",hint:"Stopping and corrections apply immediately. Tasks using old versions stop replaying them. Team knowledge is managed separately.",back:"Back to Xiaoyu",new:"New memory",text:"Memory",kind:"Type",fact:"Business fact",decision:"User decision",inference:"Model inference",hypothesis:"Unverified hypothesis",save:"Save",cancel:"Cancel",edit:"Correct",stop:"Stop using",restore:"Restore",active:"In use",stopped:"Stopped",unavailable:"Source unavailable; content is hidden",empty:"No memories yet. Conversations are summarized privately, or add one yourself.",failure:"Could not finish. Reload the latest state.",updated:"Updated",source:"Source",user:"Written by you",model:"Conversation extraction",revision:"Revision",history:"Find my conversations",search:"Search",query:"At least two characters; searches only accessible personal history",openTask:"Open source task",capture:"Extract current conversation again",loading:"Loading...",limit:"Up to 1200 characters. Business facts require a verifiable source. Manual memories can start as decisions or hypotheses."
   },
   XIAOYU_TEXT: {
+  "collapseConclusion": "Collapse content",
+  "boardConclusion": "Analysis and suggestions",
+  "expandConclusion": "Read full content",
+  "boardUpdating": "Xiaoyu is updating the results...",
+
+  "boardTitle": "Xiaoyu workboard",
+  "boardSubtitle": "A shared space to turn findings into next steps",
+  "boardLabel": "Workboard",
+  "boardResults": "Task results",
+  "boardEmpty": "Results will appear here",
+  "boardEmptyHint": "Review findings, form drafts and execution progress here while we keep talking.",
+  "chatSubtitle": "Your sales partner",
+  "chatWelcome": "Hello. What shall we work on?",
+  "chatWelcomeHint": "Pick a finding on the workboard, or tell me what you want to move forward.",
+  "chatPlaceholder": "Tell Xiaoyu what you want to do next...",
+  "readyToDiscuss": "Let us work through this together",
+  "discussHint": "We can check the current situation and decide what to do next.",
+  "history": "Conversation history",
+  "newChat": "New conversation",
+  "moreActions": "More actions",
+  "viewResults": "View results on the workboard",
+  "thinking": "Working through the information...",
+
     "name": "Xiaoyu",
     "subtitle": "Turn judgement into action, together",
     "entry": "Open Xiaoyu workspace",
@@ -146,7 +170,7 @@ export const en: Dictionary = {
     "emptyTasks": "Start a conversation to create your first task.",
     "noSelection": "New task",
     "privateScope": "Private to you \u00b7 Current workspace",
-    "phase": "Private memory, team knowledge, controlled queries and initial business forms are connected. Drafts still require review and saving.",
+    "phase": "Continue across modules. Review changes in their business forms.",
     "welcome": "Start with a question",
     "welcomeDescription": "Tell me what you want to analyse or move forward. Continue the same task as you move between modules.",
     "example": "For example: help me plan next year\u2019s target markets and strategic direction",

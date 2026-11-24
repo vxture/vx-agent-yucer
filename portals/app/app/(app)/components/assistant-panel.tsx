@@ -46,7 +46,7 @@ export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onTo
           data-assistant-close onClick={close}><Icon name="x" size="sm" /></Button>
       </div>
     </div>
-    <div className="mx-auto flex min-h-0 w-full max-w-[55rem] flex-1 flex-col overflow-hidden" data-assistant-body>{children}</div>
+    <div className={`mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden ${fullscreen ? "" : "max-w-[55rem]"}`} data-assistant-body>{children}</div>
     <div className="flex shrink-0 items-center justify-between gap-xs border-t border-border pt-xs" data-assistant-footer>
       <AssistantMode />
       {workbenchHref ? <Button asChild size="md" variant="ghost" className="text-muted-foreground">
