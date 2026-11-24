@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRef, type ReactNode } from "react";
-import { ArrowsInLineHorizontal, ArrowsInSimple, ArrowsOutLineHorizontal, ArrowsOutSimple } from "@phosphor-icons/react";
+import { ArrowsInSimple, ArrowsOutSimple } from "@phosphor-icons/react";
 import { Button, Icon, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { AssistantMode } from "./assistant-mode";
 import { AssistantInteractionProvider } from "./assistant-interaction";
+import { AssistantWidthToggle } from "./assistant-width";
 
 export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onToggleFullscreen, onClose, workbenchHref }: {
   readonly children: ReactNode;
@@ -24,7 +25,6 @@ export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onTo
     if (frame.current?.querySelector('[aria-busy="true"]')) toast({ tone: "info", title: T.continuesWhenClosed });
     onClose();
   };
-  const WidthIcon = wide ? ArrowsInLineHorizontal : ArrowsOutLineHorizontal;
   const FullscreenIcon = fullscreen ? ArrowsInSimple : ArrowsOutSimple;
   return <AssistantInteractionProvider><div ref={frame} className="flex h-full min-h-0 w-full flex-col gap-md" data-assistant-frame>
     <div className="flex shrink-0 items-center gap-xs" data-assistant-header>
@@ -33,10 +33,7 @@ export function AssistantPanel({ children, wide, fullscreen, onToggleWidth, onTo
         <h2 className="min-w-0 truncate text-label" title={X.name}>{X.name}</h2>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2xs" role="group" aria-label={T.controls}>
-        <Button type="button" variant="ghost" size="icon-xl" aria-label={wide ? T.narrow : T.wide}
-          title={wide ? T.narrow : T.wide} aria-pressed={wide} data-assistant-width-toggle onClick={onToggleWidth}>
-          <WidthIcon size={16} weight="regular" aria-hidden="true" />
-        </Button>
+        <AssistantWidthToggle wide={wide} onToggle={onToggleWidth} />
         <Button type="button" variant="ghost" size="icon-xl" aria-label={fullscreen ? HEADER_TEXT.fullscreenExit : HEADER_TEXT.fullscreen}
           title={fullscreen ? HEADER_TEXT.fullscreenExit : HEADER_TEXT.fullscreen} aria-pressed={fullscreen}
           data-assistant-fullscreen-toggle onClick={onToggleFullscreen}>

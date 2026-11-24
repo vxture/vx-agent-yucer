@@ -32,6 +32,7 @@ import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
 import { AdminNav } from "./admin-nav";
 import { XiaoyuDock } from "./xiaoyu-dock";
+import { AssistantWidthProvider } from "./assistant-width";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { HeaderSearch } from "./header-search";
@@ -249,11 +250,14 @@ export function AppShell({
     });
   };
 
-  const toggleAssistantWidth = () => {
-    if (assistantFullscreen) setAssistantFullscreen(false);
+  const changeAssistantWidth = () => {
     const next = assistantWidth === "narrow" ? "wide" : "narrow";
     setAssistantWidth(next);
     document.cookie = `${ASSISTANT_WIDTH_COOKIE}=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+  };
+  const toggleAssistantWidth = () => {
+    if (assistantFullscreen) setAssistantFullscreen(false);
+    changeAssistantWidth();
   };
   const closeAssistant = () => {
     if (assistantFullscreen) setAssistantFullscreen(false);
@@ -297,6 +301,7 @@ export function AppShell({
           }));
 
   return (
+    <AssistantWidthProvider width={assistantWidth} toggle={changeAssistantWidth}>
     <FormAssistSlotProvider>
     <ShellViewport
       className={[
@@ -567,5 +572,6 @@ export function AppShell({
       )}
     </ShellViewport>
     </FormAssistSlotProvider>
+    </AssistantWidthProvider>
   );
 }

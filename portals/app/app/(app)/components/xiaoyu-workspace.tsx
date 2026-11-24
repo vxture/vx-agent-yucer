@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { ShellDock } from "@vxture/design-system";
 import {
   Banner, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, Icon, Popover, PopoverContent,
@@ -19,6 +20,7 @@ import { ConfirmDestructive } from "./confirm-destructive";
 import { XiaoyuTopics } from "./xiaoyu-topics";
 import { XiaoyuResearch } from "./xiaoyu-research";
 import { XiaoyuFormLinks } from "./xiaoyu-form-link";
+import { AssistantWidthToggle, useAssistantWidth } from "./assistant-width";
 import styles from "./xiaoyu-workspace.module.css";
 
 type Copy = Dictionary["XIAOYU_TEXT"];
@@ -155,6 +157,7 @@ function XiaoyuConversation({ full, showResults, outputKey }: {
   readonly outputKey: string;
 }) {
   const { XIAOYU_TEXT: T, DOMAIN_LABEL } = useMessages();
+  const { width, toggle } = useAssistantWidth();
   const s = useXiaoyu();
   const { client, bundle, busy, loading, notesDirty } = s;
   const [showNotes, setShowNotes] = useState(false);
@@ -181,10 +184,11 @@ function XiaoyuConversation({ full, showResults, outputKey }: {
       </div>
       {task && <StatusBadge tone={ended || paused ? "neutral" : "brand"} icon={false} size="xs" className={styles.chatStatus}>{taskStatus(T, task.status)}</StatusBadge>}
       <ConversationHistory />
-      <Button size={full ? "md" : "icon-xl"} variant="secondary" aria-label={T.newChat} title={T.newChat}
+      <Button size="icon-xl" variant="secondary" aria-label={T.newChat} title={T.newChat}
         disabled={busy || loading || notesDirty} onClick={client.newTask}>
-        <Icon name="plus" size="sm" />{full ? <span className={styles.newLabel}>{T.newChat}</span> : null}
+        <Icon name="plus" size="sm" />
       </Button>
+      {full ? <span className={styles.widthControl}><AssistantWidthToggle wide={width === "wide"} onToggle={toggle} /></span> : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="icon-xl" variant="ghost" aria-label={T.moreActions} title={T.moreActions}><Icon name="more-vertical" size="sm" /></Button>
@@ -271,6 +275,7 @@ function XiaoyuConversation({ full, showResults, outputKey }: {
 export function XiaoyuSurface({ full = false }: { readonly full?: boolean }) {
   const { XIAOYU_TEXT: T } = useMessages();
   const { bundle, recoveryTaskId } = useXiaoyu();
+  const { width } = useAssistantWidth();
   const [mobile, setMobile] = useState<"chat" | "board">("chat");
   const [boardJump, setBoardJump] = useState(0);
   const drafts = bundle?.drafts.filter(d => d.contractVersion === "business-form/1").map(d => d.id) ?? [];
@@ -278,7 +283,9 @@ export function XiaoyuSurface({ full = false }: { readonly full?: boolean }) {
   const lastTurn = bundle?.turns.findLast(t => !!t.artifacts);
   const hasOutput = drafts.length > 0 || !!latest || !!lastTurn;
   const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
-  return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}>
+  const conversation = <XiaoyuConversation full={full} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
+  return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}
+    data-conversation-width={width}>
     {full ? <div className={styles.mobileSwitch} role="group" aria-label={T.title}>
       <Button size="md" variant={mobile === "chat" ? "secondary" : "ghost"} aria-pressed={mobile === "chat"} onClick={() => setMobile("chat")}>
         <Icon name="chat-circle" size="sm" />{T.conversation}
@@ -289,7 +296,9 @@ export function XiaoyuSurface({ full = false }: { readonly full?: boolean }) {
     </div> : null}
     <div className={styles.panes} data-mobile-view={mobile}>
       {full ? <TodayBoard outputKey={outputKey} onDiscuss={() => setMobile("chat")} /> : null}
-      <XiaoyuConversation full={full} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />
+      {full ? <ShellDock mode={width} className={`${styles.conversationPane} shadow-none`}>
+        {conversation}
+      </ShellDock> : conversation}
     </div>
   </div>;
 }

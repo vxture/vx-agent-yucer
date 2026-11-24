@@ -25,7 +25,7 @@ const tabs=await(await fetch(debug+'/json/list')).json(),page=new CDP(tabs.find(
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const evaluate=async expression=>{const r=await page.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
 async function until(expression){for(let i=0;i<160;i++){if(await evaluate(expression).catch(()=>false))return;await pause(250);}throw Error('Timeout: '+expression);}
-async function click(text){assert.ok(await evaluate(`(()=>{const e=[...document.querySelectorAll('button,a')].find(e=>e.checkVisibility()&&!e.disabled&&e.innerText.trim()===${JSON.stringify(text)});e?.click();return !!e;})()`),'Missing '+text);await pause(180);}
+async function click(text){assert.ok(await evaluate(`(()=>{const e=[...document.querySelectorAll('button,a')].find(e=>e.checkVisibility()&&!e.disabled&&(e.innerText.trim()===${JSON.stringify(text)}||e.getAttribute('aria-label')===${JSON.stringify(text)}));e?.click();return !!e;})()`),'Missing '+text);await pause(180);}
 const count=()=>evaluate(`[...document.querySelectorAll('[data-assistant-composer]')].filter(e=>e.checkVisibility()).length`);
 const screenshot=async name=>{const shot=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,name+'.png'),Buffer.from(shot.data,'base64'));};
 let fixtureError;
@@ -47,7 +47,20 @@ try{
  await click('\u65b0\u5bf9\u8bdd');
  assert.equal(await count(),1);
  assert.equal(await evaluate(`!!document.querySelector('[data-xiaoyu-surface] a[href*=memory],[data-xiaoyu-surface] a[href*=knowledge]')`),false);
- await screenshot('welcome-1440');
+ if(await evaluate(`document.querySelector('[data-xiaoyu-surface]').dataset.conversationWidth==='wide'`))await evaluate(`document.querySelector('[data-xiaoyu-conversation] [data-assistant-width-toggle]').click()`);
+ const panelWidth=()=>evaluate(`document.querySelector('[data-xiaoyu-conversation]').parentElement.getBoundingClientRect().width`);
+ const rem=await evaluate(`parseFloat(getComputedStyle(document.documentElement).fontSize)`);
+ assert.equal(await panelWidth(),26.25*rem);
+ assert.ok(await evaluate(`document.querySelector('[data-xiaoyu-board]').getBoundingClientRect().width>document.querySelector('[data-xiaoyu-conversation]').parentElement.getBoundingClientRect().width`));
+ await screenshot('welcome-narrow-1440');
+ await evaluate(`document.querySelector('[data-xiaoyu-conversation] [data-assistant-width-toggle]').click()`);await pause(250);
+ assert.ok(Math.abs(await panelWidth()-Math.min(47.5*rem,Math.max(30*rem,1440*.46)))<1);
+ assert.ok(await evaluate(`document.cookie.includes('yucer_assistant_width=wide')`));
+ await screenshot('welcome-wide-1440');
+ await page.send('Page.reload');await until(`document.querySelector('[data-xiaoyu-surface]')?.dataset.conversationWidth==='wide'&&!!document.querySelector('#xiaoyu-full-input')&&!document.querySelector('#xiaoyu-full-input').disabled`);
+ assert.ok(Math.abs(await panelWidth()-Math.min(47.5*rem,Math.max(30*rem,1440*.46)))<1);
+ await evaluate(`document.querySelector('[data-xiaoyu-conversation] [data-assistant-width-toggle]').click()`);await pause(180);
+ console.log('PASS DS narrow/wide geometry and width preference restored after reload');
  await page.send('Fetch.enable',{patterns:[{urlPattern:base+'/api/copilot/tasks*',requestStage:'Request'}]});
  await page.send('Page.navigate',{url:base+'/copilot?task='+taskId});
  await until(`document.querySelector('[data-xiaoyu-surface]')?.dataset.taskId===${JSON.stringify(taskId)}`);
@@ -66,13 +79,24 @@ try{
  await click('\u5c55\u5f00\u5b8c\u6574\u5185\u5bb9');assert.equal(await evaluate(`document.querySelector('[data-assistant-composer]').getBoundingClientRect().bottom`),before);
  await click('\u6536\u8d77\u5b8c\u6574\u5185\u5bb9');
  await evaluate(`document.querySelector('#xiaoyu-full-input').focus()`);await page.send('Input.insertText',{text:'Keep this unsent requirement across modules'});
+ await evaluate(`document.querySelector('[data-xiaoyu-conversation] [data-assistant-width-toggle]').click()`);await pause(180);
+ const fullWide=await panelWidth();
  await evaluate(`document.querySelector('[data-xiaoyu-board] a[href^="/segment/new?xyTask="]').click()`);
  await until(`location.pathname==='/segment/new'&&document.querySelector('#xiaoyu-dock-input')?.checkVisibility()`);
  assert.equal(await evaluate(`document.querySelector('#xiaoyu-dock-input').value`),'Keep this unsent requirement across modules');assert.equal(await count(),1);
+ assert.equal(await evaluate(`document.querySelector('[data-assistant-width]').dataset.assistantWidth`),'wide');
+ assert.ok(Math.abs(await evaluate(`document.querySelector('[data-assistant-frame]').closest('aside').getBoundingClientRect().width`)-fullWide)<1);
+ await evaluate(`document.querySelector('[data-assistant-frame] [data-assistant-width-toggle]').click()`);await pause(180);
+ assert.equal(await evaluate(`document.querySelector('[data-assistant-frame]').closest('aside').getBoundingClientRect().width`),26.25*rem);
+ console.log('PASS workboard and business dock share width preference, dimensions and switch control');
  await evaluate(`document.querySelector('[data-assistant-fullscreen-toggle]').click()`);await until(`!!document.querySelector('[data-xiaoyu-surface=full]')`);assert.equal(await count(),1);
  await evaluate(`document.querySelector('[data-assistant-close]').click()`);await until(`!document.querySelector('[data-assistant-frame]')?.checkVisibility()`);
  await evaluate(`document.querySelector('[data-assistant-dock-trigger] button').click()`);await until(`document.querySelector('[data-assistant-composer]')?.checkVisibility()`);assert.equal(await count(),1);
  assert.equal(await evaluate(`document.querySelector('[data-assistant-composer] textarea').value`),'Keep this unsent requirement across modules');
+ await evaluate(`document.querySelector('[data-assistant-workbench]').click()`);
+ await until(`location.pathname==='/copilot'&&document.querySelector('[data-xiaoyu-surface]')?.dataset.taskId===${JSON.stringify(taskId)}`);
+ assert.equal(await panelWidth(),26.25*rem);
+ assert.equal(await evaluate(`document.querySelector('#xiaoyu-full-input').value`),'Keep this unsent requirement across modules');
  if(fixtureError)throw fixtureError;
  console.log('PASS default two-pane layout; results stay on board; five viewports; expanded report keeps composer reachable; cross-page task and unsent requirement; close/reopen/fullscreen; one composer. Read-only layout fixtures only, no business writes or model calls.');
 }finally{await page.send('Fetch.disable').catch(()=>{});await browser.send('Target.closeTarget',{targetId}).catch(()=>{});page.close();browser.close();}
