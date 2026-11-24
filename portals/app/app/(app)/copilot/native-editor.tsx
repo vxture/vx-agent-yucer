@@ -40,5 +40,5 @@ export async function nativeTaskEditor(taskId?: string, key?: string) {
       }
     }
   })();
-  return <XiaoyuFormReview taskId={taskId} formKey={key}>{editor}</XiaoyuFormReview>;
+  return <XiaoyuFormReview key={`${taskId}:${key}`} taskId={taskId} formKey={key}>{editor}</XiaoyuFormReview>;
 }
