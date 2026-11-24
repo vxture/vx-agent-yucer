@@ -1,4 +1,5 @@
 "use client";
+import { useXiaoyuPageState } from "./use-xiaoyu-page-state";
 
 import { ModuleHeadline } from "./module-headline";
 import { CollectionHistory, CollectionToolbar } from "./collection-layout";
@@ -146,6 +147,7 @@ export function SolutionRoster({
 
 
   const shown = solutions.filter(match);
+  useXiaoyuPageState({query:query.slice(0,160),type:typeFilter,view});
   const live = shown.filter((s) => s.solution.status !== "retired");
   const retired = shown.filter((s) => s.solution.status === "retired");
 

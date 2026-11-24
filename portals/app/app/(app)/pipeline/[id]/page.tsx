@@ -13,7 +13,7 @@ import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { resolveLocale } from "../../lib/i18n/locale";
-import { BOARD_PANE_CLASS, CENTRE_PANE_CLASS } from "../../lib/sidebar-slot";
+import { WorkspaceContent, WorkspaceSidebar } from "../../components/workspace-layout";
 import {
   FORECAST_TONE,
   STAGE_TONE,
@@ -229,10 +229,9 @@ export default async function OpportunityDetailPage({
     // Both panes even here: the shell leaves them to this route.
     return (
       <>
-        <aside className={BOARD_PANE_CLASS} />
-        <div className={CENTRE_PANE_CLASS}>
+        <WorkspaceContent>
           <EmptyState title={SHELL_TEXT.loadFailed} description={OPPORTUNITY_TEXT.notFound} />
-        </div>
+        </WorkspaceContent>
       </>
     );
   }
@@ -1492,7 +1491,7 @@ export default async function OpportunityDetailPage({
           scheme.ok && can(session.authz, session.entitlement, "pipeline.opportunity.importance", "ui").allowed,
       }}
     >
-      <aside className={BOARD_PANE_CLASS}>
+      <WorkspaceSidebar>
         <div className="flex flex-col gap-lg">
           <DealDossierPanel
             title={opportunity.name}
@@ -1535,9 +1534,9 @@ export default async function OpportunityDetailPage({
             />
           ) : null}
         </div>
-      </aside>
+      </WorkspaceSidebar>
 
-      <div className={CENTRE_PANE_CLASS}>
+      <WorkspaceContent>
         <ViewLayout>
           <div className="flex min-w-0 flex-col gap-lg">
             {/* Crumbs INSIDE 栏2 (owner, 2026-09-24: 只有 header 可以跨栏), the
@@ -2038,7 +2037,7 @@ export default async function OpportunityDetailPage({
 
           </div>
         </ViewLayout>
-      </div>
+      </WorkspaceContent>
     </DealEditProvider>
   );
 }

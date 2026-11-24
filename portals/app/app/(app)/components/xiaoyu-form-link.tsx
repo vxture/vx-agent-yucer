@@ -48,11 +48,12 @@ export function XiaoyuFormLinks() {
                     variant="secondary"
                     className="ml-auto"
                   >
-                    <Link href={formHref(form, bundle.task.id, d.key)}>
+                    <Link href={`/copilot?${new URLSearchParams({task:bundle.task.id, form:d.key})}`}>
                       {T.open}
                     </Link>
                   </Button>}
                 </div>
+                <Button asChild size="md" variant="ghost" className="self-start"><Link href={formHref(form, bundle.task.id, d.key)}>{T.openOriginal}</Link></Button>
                 <Collapsible>
                   <CollapsibleTrigger asChild>
                     <Button size="md" variant="ghost">
@@ -86,10 +87,12 @@ export function XiaoyuFormLinks() {
                     </dl>
                   </CollapsibleContent>
                 </Collapsible>
-                <p className="mt-sm text-body-small text-muted-foreground">
-                  {T.protected}: {form.manualFields.length} / {T.sources}:{" "}
-                  {form.sources.filter((s) => s.kind !== "access").length}
-                </p>
+                {form.manualFields.length || form.sources.some(s => s.kind !== "access") ? (
+                  <p className="text-body-small text-muted-foreground">
+                    {form.manualFields.length ? <span>{T.protected}: {form.manualFields.length}</span> : null}
+                    {form.sources.some(s => s.kind !== "access") ? <span className="ml-sm">{T.sources}: {form.sources.filter(s => s.kind !== "access").length}</span> : null}
+                  </p>
+                ) : null}
               </Card>
             );
           } catch {

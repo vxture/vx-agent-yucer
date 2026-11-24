@@ -21,3 +21,23 @@
 }
 
 .flow { max-height: max(240px, 50vh); }
+
+.compactComposer {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: var(--space-xs);
+}
+.compactComposer:focus-within { border-color: var(--primary); }
+.compactInput {
+  min-height: var(--space-control-xl);
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.compactInput:focus-visible { outline: 0; box-shadow: none; }

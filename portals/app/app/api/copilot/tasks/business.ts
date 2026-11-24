@@ -1,3 +1,6 @@
+import { listLeads } from "../../../domains/signal/service";
+import { listProjects } from "../../../domains/delivery/service";
+import { listTargets } from "../../../domains/planning/service";
 import { featureKeysFor } from "../../../entitlement/capability";
 import { getAuthzStore } from "../../../authz/store";
 import { segmentVocabulary } from "../../../domains/strategy/segment-assist-service";
@@ -15,9 +18,9 @@ import {
   getCatalogStore,
   getSalesPlanStore,
 } from "../../../domains/shared/registry";
-import { listAccounts } from "../../../domains/account/service";
+import { listAccounts, listIndustries, listCustomerTypes, listCustomerSizes, listCustomerNatures, listMarketDivisions } from "../../../domains/account/service";
 import { listPipeline } from "../../../domains/pipeline/service";
-import { listSegments, listPlans } from "../../../domains/strategy/service";
+import { listSegments, listPlans, listCampaigns } from "../../../domains/strategy/service";
 import { currentStrategyPlans } from "../../../domains/strategy/lib/current-plans";
 import { listProducts, listSolutions } from "../../../domains/catalog/service";
 import { readSalesPlan } from "../../../domains/planning/plan-service";
@@ -72,6 +75,27 @@ export async function businessRecords(
   const strategy = { ...base, store: getStrategyStore() },
     catalog = { ...base, store: getCatalogStore() };
   switch (kind) {
+    case "lead": {
+      const result=await listLeads({...base,store:session.stores.signal()});
+      if(!result.ok)throw Error("permission_denied");return result.value.map(data=>({object:{kind,id:data.id},data}));
+    }
+    case "campaign": {
+      const result=await listCampaigns(strategy);
+      if(!result.ok)throw Error("permission_denied");return result.value.map(data=>({object:{kind,id:data.id},data}));
+    }
+    case "project": {
+      const {getDeliveryStore}=await import("../../../domains/shared/registry");
+      const result=await listProjects({...base,store:getDeliveryStore()});
+      if(!result.ok)throw Error("permission_denied");
+      const accounts=await listAccounts({...base,store:session.stores.account()});
+      if(!accounts.ok)throw Error("permission_denied");
+      const visible=new Set(accounts.value.map(row=>row.id));
+      return result.value.filter(row=>visible.has(row.accountId)).map(data=>({object:{kind:"project" as const,id:data.id},data}));
+    }
+    case "sales_target": {
+      const result=await listTargets({...base,store:(await import("../../../domains/shared/registry")).getPlanningStore()});
+      if(!result.ok)throw Error("permission_denied");return result.value.filter(row=>session.scope.kind==="workspace"||row.ownerSub===session.user.sub).map(data=>({object:{kind,id:data.id},data}));
+    }
     case "account": {
       const r = await listAccounts({
         ...base,
@@ -164,6 +188,12 @@ export function businessBindings(
         currency: (await catalog.getPricingPolicy(session.workspaceId))
           .defaultCurrency,
       };
+      if (module === "account") {
+        const ctx={...base,store:session.stores.account()};
+        const rows=await Promise.all([listIndustries(ctx),listCustomerTypes(ctx),listCustomerSizes(ctx),listCustomerNatures(ctx),listMarketDivisions(ctx),listSegments({...base,store:strategy})]);
+        configuration.vocabulary=Object.fromEntries(["industries","customerTypes","customerSizes","customerNatures","regions","segments"].map((k,i)=>[k,rows[i]?.ok?rows[i].value:[]]));
+        configuration.owner="Current user; assignment uses the original customer service.";
+      }
       if (module === "sales_plan") {
         if (
           session.scope.kind !== "workspace" ||
@@ -246,6 +276,7 @@ export function businessBindings(
     async prepare(form: BusinessForm) {
       fieldsFor(form.module, form.fields);
       const permissions = {
+        account: "account.upsert",
         segment: "strategy.segment.upsert",
         solution: "catalog.solution.upsert",
         strategy: form.targetId
@@ -268,6 +299,13 @@ export function businessBindings(
         if (content.year !== form.fields.year) throw Error("invalid_form_year");
         const existing=await readSalesPlan({workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,scope:session.scope,store:getSalesPlanStore()},content.year);
         if((existing?.id??null)!==form.targetId)throw Error("planning_target_changed");
+      }
+      if (form.module === "account") {
+        if(form.targetId)throw Error("operation_not_registered");
+        const ctx={workspaceId:session.workspaceId,sub:session.user.sub,holder:session.authz,entitlement:session.entitlement,store:session.stores.account()};
+        const groups=await Promise.all([listIndustries(ctx),listCustomerTypes(ctx),listCustomerSizes(ctx),listCustomerNatures(ctx)]);
+        const keys=["industryId","customerTypeId","customerSizeId","customerNatureId"];
+        for(let i=0;i<keys.length;i++){const group=groups[i];if(form.fields[keys[i]!] && (!group?.ok || !group.value.some(row=>row.id===form.fields[keys[i]!])))throw Error("invalid_form_configuration");}
       }
       let baseline = {};
       const sources: TaskSource[] = [accessSource(session)];
@@ -344,6 +382,11 @@ export function businessBindings(
       }
       const fields = form.fields,
         links: TaskObject[] = [];
+      if(form.module==="account") {
+        if(fields.segmentId) links.push({kind:"segment",id:String(fields.segmentId)});
+        if(fields.parentId) links.push({kind:"account",id:String(fields.parentId)});
+        for(const child of (fields.childLinks??[]) as {accountId:string}[]) links.push({kind:"account",id:child.accountId});
+      }
       for (const [field, kind] of [
         ["solutionIds", "solution"],
         ["productIds", "product"],

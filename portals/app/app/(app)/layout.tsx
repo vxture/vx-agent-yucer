@@ -23,6 +23,7 @@ import { XiaoyuProvider } from "./components/xiaoyu-provider";
 import { AppShell } from "./components/app-shell";
 import { CollectionViewProvider } from "./components/collection-view-provider";
 import { COLLECTION_VIEW_COOKIE, collectionViewPreference } from "./lib/collection-view";
+import { contentWidthCookieName, contentWidthPreference } from "./lib/content-width";
 import { ASSISTANT_WIDTH_COOKIE, BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { ProductAccessGate } from "./components/entry-panel";
 import { SignIn } from "./components/sign-in";
@@ -320,6 +321,7 @@ export default async function AppLayout({
       <XiaoyuProvider key={`${session.workspaceId}:${session.user.sub}`} workspaceId={session.workspaceId} actorSub={session.user.sub}
         enabled={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}>
       <AppShell
+        key={session.user.sub}
         adminNavOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
         dockWidth={jar.get(ASSISTANT_WIDTH_COOKIE)?.value === "wide" ? "wide" : "narrow"}
@@ -351,6 +353,8 @@ export default async function AppLayout({
         nav={nav}
         admin={admin}
         userName={session.user.displayName}
+        userSubject={session.user.sub}
+        contentWidth={contentWidthPreference(jar.get(contentWidthCookieName(session.user.sub))?.value)}
         userPhone={session.user.phone}
         userEmail={session.user.email}
         userPicture={session.user.picture}

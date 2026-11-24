@@ -22,6 +22,7 @@ import type {
 } from "../../domains/copilot/lib/autonomy";
 import type { BusinessReceipt } from "../../domains/copilot/execution-domain";
 type Step = {
+  lastError?:string|null;
   risk?: OperationRisk;
   id: string;
   draftId: string;
@@ -160,7 +161,15 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
   function prepare(key: string, draftId: string, operation: "save" | "publish") {
     setSelection((old) => ({ ...old, confirmed: false }));
     return work(async (post) => {
-      const step = await post<{ id: string }>({ action: "propose", key, draftId, operation });
+      const waits: Promise<void>[] = [];
+      window.dispatchEvent(new CustomEvent("xiaoyu:sync-forms", {detail: waits}));
+      await Promise.all(waits);
+      const response = await fetch(`/api/copilot/tasks/${taskId}`, {cache:"no-store"});
+      if(!response.ok) throw Error("form_sync_failed");
+      const latest = await response.json();
+      const draft = latest.drafts.find((d: {key:string;id:string}) => d.key === key);
+      if(!draft) throw Error("form_changed");
+      const step = await post<{ id: string }>({ action: "propose", key, draftId: draft.id, operation });
       return { autoSelect: step.id };
     });
   }
@@ -173,7 +182,8 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
     if (receipt && step.operation === "save") saved.set(step.draftId, receipt);
   }
   const forms = (data?.canPrepare ? drafts : []).flatMap((draft) => {
-    const form = readBusinessForm(draft.text);
+    let form: BusinessForm;
+    try { form = readBusinessForm(draft.text); } catch { return []; }
     const proposed = steps.filter((s) => s.draftId === draft.id);
     const save = !proposed.some((s) => s.operation === "save");
     const publish = !!form.targetId && ["strategy", "sales_plan"].includes(form.module) &&
@@ -201,7 +211,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
   const publishDraft = drafts.find((d) => d.id === publish);
   return (
     <>
-      <Card className="@container gap-sm p-md">
+      {forms.length || steps.length || hint ? <Card className="@container gap-sm p-md">
         <div className="flex flex-wrap items-center gap-sm">
           <h3 className="text-label">{T.title}</h3>
           <Button
@@ -215,6 +225,12 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
           </Button>
         </div>
         {data ? <p className="text-body-small text-muted-foreground">{T.scope}</p> : null}
+        {forms.filter(f=>f.save).length>1 ? <Button size="md" variant="secondary" disabled={pending||busy} onClick={()=>void work(async post=>{
+          const waits:Promise<void>[]=[];window.dispatchEvent(new CustomEvent("xiaoyu:sync-forms",{detail:waits}));await Promise.all(waits);
+          const response=await fetch(`/api/copilot/tasks/${taskId}`,{cache:"no-store"});if(!response.ok)throw Error("form_sync_failed");
+          const latest=await response.json();
+          for(const {draft,save} of forms){if(!save)continue;const row=latest.drafts.find((d:{key:string;id:string})=>d.key===draft.key);if(!row)throw Error("form_changed");await post({action:"propose",key:row.key,draftId:row.id,operation:"save"});}
+        })}>{T.prepareAll}</Button> : null}
         {forms.length ? <div className="space-y-sm">
           {forms.map(({ draft: d, form, save, publish: canPublish }) => (
               <div key={d.id} className="flex flex-wrap items-center gap-sm">
@@ -246,6 +262,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
         </div> : null}
         {steps.length ? (
           <div className="space-y-xs border-t border-border pt-sm">
+            <Button size="md" variant="ghost" disabled={pending||busy} onClick={()=>setSelection({ids:steps.filter(selectable).map(s=>s.id),confirmed:false})}>{T.selectAll}</Button>
             {steps.map((step) => {
               const receipt = receipts.get(step.id);
               return (
@@ -276,6 +293,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
                       {T[step.status]}
                     </span>
                   </div>
+                  {step.status==="failed" && step.lastError && step.lastError in T.failureReasons ? <p className="basis-full pl-lg text-body-small text-warning-text">{T.failureReasons[step.lastError as keyof typeof T.failureReasons]}</p> : null}
                   {receipt ? (
                     <div className="flex w-full flex-wrap items-center gap-xs pl-lg @md:w-auto @md:pl-0">
                       <Button asChild size="md" variant="ghost">
@@ -311,8 +329,12 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
               disabled={pending || busy}
               onClick={() =>
                 void work(async (post) => {
-                  for (const step of selected)
-                    await post({ action: "execute", stepId: step.id, grantId: activeGrant.id });
+                  let failed=false;
+                  for (const step of selected) {
+                    try { await post({action:"execute",stepId:step.id,grantId:activeGrant.id}); }
+                    catch { failed=true; }
+                  }
+                  if(failed)return {outcome:"partial"};
                 })
               }
             >
@@ -395,7 +417,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
             }}
           />
         ) : null}
-      </Card>
+      </Card> : null}
       {readError === "denied" ? null : renderDrafts(saved)}
     </>
   );

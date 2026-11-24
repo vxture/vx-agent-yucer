@@ -194,7 +194,7 @@ test("a compound first question reads Runos evidence and prepares a bound native
   assert.equal(b.task.goal, question);
   assert.deepEqual(steps, ["find", "load", "fetch"]);
   assert.equal(f.discoveryCount(), 0);
-  assert.equal("navigation" in result ? result.navigation : undefined, `/segment/new?xyTask=${f.task.id}&xyForm=market`);
+  assert.equal("navigation" in result ? result.navigation : undefined, `/copilot?task=${f.task.id}&form=market`);
   assert.equal(b.drafts.length, 1);
   assert.equal(readBusinessForm(b.drafts[0]!.text).fields.name, "Permit software users");
   assert.deepEqual(b.turns[0]!.artifacts!.research[0]!.links, ["https://example.org/market"]);
@@ -239,7 +239,7 @@ test("research prepares and opens a sourced private form; human corrections surv
   const result = unwrap(await f.turn());
   assert.equal(f.discoveryCount(), 0);
   assert.equal("navigation" in result ? result.navigation : undefined,
-    `/segment/new?xyTask=${f.task.id}&xyForm=market`);
+    `/copilot?task=${f.task.id}&form=market`);
   assert.doesNotMatch(result.answer, /successfully saved/);
   const b = unwrap(await readPrivateTask(f.c, f.task.id));
   assert.equal(b.drafts.length, 1);

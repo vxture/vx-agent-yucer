@@ -29,6 +29,8 @@ const APP = join(import.meta.dirname, "..");
  * omission nobody sees.
  */
 const NO_CRUMB: Record<string, string> = {
+  "copilot/knowledge": "external knowledge maintenance notice with the shared named workspace header",
+  "copilot/today": "independent daily scene; the fixed 56px workspace header names it and links to the continuing task",
   // owner 2026-09-28: the upgrade page STANDS IN for a first-level module
   // page - the same template renders at the module's own address when it is
   // locked - and its headline names that module. There is no parent to name:

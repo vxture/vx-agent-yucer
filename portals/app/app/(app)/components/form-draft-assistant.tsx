@@ -1,4 +1,5 @@
 "use client";
+import { useTaskFormReview } from "./xiaoyu-form-review";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Banner, Button, Card, Icon, Input } from "@vxture/design-ui";
@@ -94,6 +95,8 @@ export function FormDraftAssistant<V extends { name?: string }, P>({
     }
   }
   const feedback = error ? <Banner tone="warning" title={error} /> : null;
+  const review = useTaskFormReview();
+  if (review) return null;
   return (
     <>
       <Card className="flex flex-col gap-md border-primary/10 bg-primary/5 p-lg" data-form-draft-assistant="inline">

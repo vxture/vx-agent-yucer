@@ -14,7 +14,7 @@ yucer 的产品定义落在这一层。yucer 是面向企业市场销售的超�
 | `30-business-rules.md` | 全链路业务规则：阶段机、评分、预测、归因、人机边界 |
 | `35-sales-planning.md` | 区域销售规划：阶梯目标、客户/团队支撑、整版发布、调整与历史口径（已实施；运行验收按当前批次记录） |
 | `36-deployment-workspace.md` | 作战部署四板块目标规格：销售规划、重点客户、承诺达成、赢丢复盘；已确认归集，待实施 |
-| `37-xiaoyu-collaboration.md` | 小聿目标规格：统一协作、五条记忆铁律、私人记忆与共享业务知识、Atlas/Runos 能力调度；尚未实施 |
+| `37-xiaoyu-collaboration.md` | 小聿规格：持续任务、全局业务操作与页面理解、五条记忆铁律及 Atlas/Runos 调度；基础已实施，任务共用面板补充为 HTML 阶段 |
 | `40-capability-matrix.md` | 商业档位 x 能力（tier -> feature key），与 `capability.ts` 一一对应 |
 | `50-role-permission-catalog.md` | 产品角色/权限目录，与 `local_authz` 种子数据一一对应 |
 | `60-metering-capability-inventory.md` | 计量能力盘点（能测什么），给平台侧的对接输入，不等同于 `40-capability-matrix.md` 的计量裁定 |

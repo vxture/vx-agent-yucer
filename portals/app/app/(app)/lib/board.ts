@@ -39,7 +39,7 @@ import {
   listProducts as listCatalogProducts,
   listSolutions,
 } from "../../domains/catalog/service";
-import { judgementFeed } from "../../domains/judgement/service";
+import { judgementFeed, type JudgementContext, type FeedOptions } from "../../domains/judgement/service";
 import { inPeriod, rollUp } from "../../domains/pipeline/lib/forecast";
 import {
   coverage,
@@ -203,7 +203,11 @@ export interface BoardContext {
  * would compute it twice per request. React's cache() keys on the arguments,
  * so both callers share one computation and every other page pays for it once.
  */
-export const cachedFeed = cache(judgementFeed);
+const requestFeed = cache((workspaceId: string, sub: string, holder: JudgementContext["holder"], entitlement: Entitlement, stores: JudgementContext["stores"], scope: FeedOptions["scope"], includeSnoozed: boolean | undefined, now: number | undefined) =>
+  judgementFeed({ workspaceId, sub, holder, entitlement, stores }, { scope, includeSnoozed, ...(now === undefined ? {} : { now: new Date(now) }) }));
+export function cachedFeed(ctx: JudgementContext, options: FeedOptions = {}) {
+  return requestFeed(ctx.workspaceId, ctx.sub, ctx.holder, ctx.entitlement, ctx.stores, options.scope, options.includeSnoozed, options.now?.getTime());
+}
 
 /** A count, or nothing at all if the gate refused. */
 function count(

@@ -1,23 +1,9 @@
-/** Shared content and dossier pane classes. List pages have no left module
+/** Shared dock classes and dossier routes. List pages have no left module
  *  menu; object detail pages render their own facts beside the content. */
 
-/** One end-of-page clearance for business panes and administration.
- * Use the DS ShellPageContainer 80px spacing tier plus device insets, independent of viewport width.
- */
-export const PAGE_SAFE_END_CLASS =
-  "pb-[calc(var(--space-6xl)+env(safe-area-inset-bottom,0px))] scroll-pb-[calc(var(--space-6xl)+env(safe-area-inset-bottom,0px))]";
-
-/** Object dossiers remain visible independently of the administration menu. */
-export const BOARD_PANE_CLASS =
-  `w-(--vx-pane-nav) h-full min-h-0 shrink-0 overflow-y-auto px-lg pt-lg ${PAGE_SAFE_END_CLASS}`;
-
-/** AppShell supplies each edge inset according to the adjacent visible pane. */
-export const CENTRE_PANE_CLASS =
-  `h-full min-h-0 min-w-0 flex-1 overflow-y-auto ps-(--yucer-content-inset-start) pe-(--yucer-content-inset-end) pt-lg ${PAGE_SAFE_END_CLASS}`;
-
-/** DS viewport dock: independently padded and separated from the work area. */
+/** The shared conversation owns its insets; never pad the complete dock twice. */
 export const ASSISTANT_PANE_CLASS =
-  "h-full min-h-0 overflow-hidden px-lg pt-lg pb-md";
+  "h-full min-h-0 overflow-hidden";
 
 /** The routes whose page renders the board and centre panes itself: an
  *  object's detail page, where 栏1 is that object's own dossier instead of

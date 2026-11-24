@@ -46,7 +46,7 @@ export function AssistantMessage({ role, children }: { readonly role: "user" | "
 }
 
 /** Shared composer: IME-safe Enter, growing input and a stable send affordance. */
-export function AssistantComposer({ id, value, onChange, onSend, disabled, sendDisabled, busy, placeholder, extra }: {
+export function AssistantComposer({ id, value, onChange, onSend, disabled, sendDisabled, busy, placeholder, extra, compact = false }: {
   readonly id?: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
@@ -56,6 +56,7 @@ export function AssistantComposer({ id, value, onChange, onSend, disabled, sendD
   readonly busy?: boolean;
   readonly placeholder: string;
   readonly extra?: ReactNode;
+  readonly compact?: boolean;
 }) {
   const { ASSISTANT_PANEL_TEXT: T } = useMessages();
   const interaction = useAssistantInteraction();
@@ -69,12 +70,12 @@ export function AssistantComposer({ id, value, onChange, onSend, disabled, sendD
     node.style.height = "auto";
     node.style.height = `${node.scrollHeight}px`;
   }, [value]);
-  return <form className="flex shrink-0 flex-col gap-xs" data-assistant-composer onSubmit={event => {
+  return <form className={compact ? styles.compactComposer : "flex shrink-0 flex-col gap-xs"} data-assistant-composer onSubmit={event => {
     event.preventDefault();
     if (!disabled && !sendDisabled && !busy && value.trim()) onSend();
   }}>
-    <Textarea ref={input} id={id} rows={2} maxLength={4000} value={value} placeholder={placeholder} aria-label={placeholder}
-      disabled={disabled || busy} className={`${styles.composer} resize-none bg-card`}
+    <Textarea ref={input} id={id} rows={compact ? 1 : 2} maxLength={4000} value={value} placeholder={placeholder} aria-label={placeholder}
+      disabled={disabled || busy} className={`${styles.composer} ${compact ? styles.compactInput : ""} resize-none bg-card`}
       onChange={event => { onChange(event.target.value); const hasText = !!event.target.value.trim(); if (hasText && !hadText.current) interaction?.onInput(); hadText.current = hasText; }}
       onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
       onKeyDown={event => {

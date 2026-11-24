@@ -1,46 +1,118 @@
-/* Exposed canvas edges use page spacing; adjacent panes use section spacing. */
+/* Product composition of DS layout primitives; all measures come from DS. */
 .header { box-shadow: none; }
 
 .workspace {
   --yucer-header-height: var(--spacing-header-md);
-  --yucer-content-edge: var(--space-page-inset);
-  --yucer-content-inset-start: var(--yucer-content-edge);
-  --yucer-content-inset-end: var(--yucer-content-edge);
+  --yucer-scroll-clearance: calc(var(--vx-spacing) * 3);
 }
 
-@media (min-width: 80rem) {
-  .workspace {
-    --yucer-content-edge: var(--space-3xl);
+.workspace > div:last-child { overflow: hidden; }
+.workspace main { overflow: hidden; }
+.body { width: 100%; overflow: hidden; }
+
+.contentPane {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding-top: var(--yucer-scroll-clearance);
+  container-type: inline-size;
+}
+.contentScroll, .canvasViewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--yucer-scroll-clearance) calc(var(--space-6xl) + env(safe-area-inset-bottom, 0px));
+}
+.contentContainer {
+  padding-top: 0;
+  padding-inline: var(--space-3xl);
+  padding-bottom: calc(var(--space-6xl) + env(safe-area-inset-bottom, 0px));
+  transition: max-width var(--transition-duration-slow) var(--ease-standard), padding-inline var(--transition-duration-slow) var(--ease-standard);
+}
+@container (width < 64rem) {
+  .contentContainer { padding-inline: clamp(var(--space-md), 3.2cqi, var(--space-3xl)); }
+}
+.canvasViewport { display: flex; overflow: hidden; }
+.canvasContainer { height: 100%; min-height: 0; padding-bottom: 0; }
+
+.contentScroll, .leftScroll { scrollbar-width: none; }
+.contentScroll::-webkit-scrollbar, .leftScroll::-webkit-scrollbar { display: none; }
+
+.leftPane, .assistantDock {
+  height: 100%;
+  flex-shrink: 0;
+  min-width: 0;
+  width: var(--yucer-dock-size, max-content);
+  overflow: clip;
+  transition: width var(--transition-duration-slow) var(--ease-standard), visibility 0s;
+}
+.leftPane[data-pane-open="false"], .assistantDock[data-pane-open="false"] {
+  width: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: width var(--transition-duration-slow) var(--ease-standard), visibility 0s var(--transition-duration-slow);
+}
+.leftDock, .assistantPane {
+  transition: transform var(--transition-duration-slow) var(--ease-standard), opacity var(--transition-duration-slow) var(--ease-standard), width var(--transition-duration-slow) var(--ease-standard);
+  transform: translateX(0);
+  opacity: 1;
+}
+.leftPane[data-pane-open="false"] .leftDock { transform: translateX(-100%); opacity: 0; }
+.assistantDock[data-pane-open="false"] .assistantPane { transform: translateX(100%); opacity: 0; }
+.leftDock {
+  height: 100%;
+  max-width: 100vw;
+  min-height: 0;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  padding: var(--yucer-scroll-clearance) 0 0;
+  box-shadow: none;
+}
+.leftScroll {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 0 var(--space-lg) calc(var(--space-6xl) + env(safe-area-inset-bottom, 0px));
+  scroll-padding-block: var(--yucer-scroll-clearance) calc(var(--space-6xl) + env(safe-area-inset-bottom, 0px));
+}
+.leftTrigger { flex-shrink: 0; }
+@media (max-width: 79.999rem) {
+  .leftPane { position: fixed; top: var(--yucer-header-height); left: 0; bottom: 0; height: auto; z-index: var(--z-index-overlay); background: var(--background); }
+}
+@media (max-width: 99.999rem) {
+  .workspace:has([data-workspace-left][data-pane-open="true"]) .assistantDock { width: 0; }
+  .workspace:has([data-workspace-left][data-pane-open="true"]) .assistantDock .assistantPane {
+    position: fixed;
+    top: var(--yucer-header-height);
+    right: 0;
+    bottom: 0;
+    height: auto;
+    z-index: var(--z-index-overlay);
   }
 }
 
-.withDock {
-  --yucer-content-inset-end: var(--space-lg);
-}
-
-.withNavigation,
-.body:has(> aside) {
-  --yucer-content-inset-start: var(--space-lg);
-}
-
-/* Keep the DS page container's width and vertical spacing in administration. */
-.adminContent {
-  padding-inline-start: var(--yucer-content-inset-start);
-  padding-inline-end: var(--yucer-content-inset-end);
-}
-
 /* ShellDock owns narrow/wide/full geometry. Keep its mounted slot stable. */
-.assistantDock { height: 100%; flex-shrink: 0; }
 .assistantPane {
   min-width: 0;
   max-width: 100vw;
   border: 0;
   border-radius: 0;
-  box-shadow: calc(-1 * var(--space-2xs)) 0 var(--space-sm) calc(-1 * var(--space-xs)) var(--border);
+  border-left: 1px solid var(--border);
+  padding-top: var(--yucer-scroll-clearance);
+  box-shadow: none;
 }
 
 /* Let a wide dock float on smaller screens, keeping a useful business canvas. */
 @media (max-width: 79.999rem) {
+  .assistantDock[data-assistant-width="wide"] { width: 0; }
   .assistantDock[data-assistant-width="wide"] .assistantPane {
     position: fixed;
     top: var(--yucer-header-height);
@@ -51,6 +123,7 @@
   }
 }
 @media (max-width: 63.999rem) {
+  .assistantDock { width: 0; }
   .assistantPane {
     position: fixed;
     top: var(--yucer-header-height);
@@ -67,8 +140,13 @@
   z-index: var(--z-index-overlay);
   height: auto;
   max-width: none;
-  padding-inline: var(--space-lg);
+  padding-inline: 0;
   box-shadow: none;
+}
+.assistantDock[data-assistant-fullscreen="true"] { width: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .leftPane, .assistantDock, .leftDock, .assistantPane, .contentContainer { transition: none; }
 }
 
 /* Keep each identity and action group intact when a single row cannot fit. */
@@ -82,6 +160,11 @@
     gap: calc(var(--vx-spacing) * 2) calc(var(--vx-spacing) * 4);
   }
   .header > div:first-child { display: contents; }
+  .header:has(.leftTrigger) {
+    grid-template-columns: calc(var(--spacing-icon-xl) * 2 + var(--vx-spacing) * 2) minmax(0, 1fr) auto;
+  }
+  .header .leftTrigger { grid-area: 1 / 1; justify-self: start; }
+  .header:has(.leftTrigger) [data-header-group="launcher"] { justify-self: end; }
   .header [data-header-group="launcher"] { grid-area: 1 / 1; }
   .header [data-slot="header-product"] { grid-area: 1 / 2; }
   .header [data-header-group="scope"] { grid-area: 2 / 1 / 3 / 3; justify-self: start; }
@@ -97,8 +180,9 @@
     grid-template-columns: var(--spacing-icon-xl) minmax(0, 1fr);
     grid-template-rows: repeat(3, var(--spacing-icon-xl));
   }
+  .header:has(.leftTrigger) {
+    grid-template-columns: calc(var(--spacing-icon-xl) * 2 + var(--vx-spacing) * 2) minmax(0, 1fr);
+  }
   .header [data-header-group="scope"] { grid-area: 2 / 1 / 3 / -1; max-width: 100%; overflow-x: auto; }
   .header > div:last-child { grid-area: 3 / 1 / 4 / -1; }
 }
-
-.copilotContent { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; padding: var(--space-lg) var(--yucer-content-inset-end) var(--space-lg) var(--yucer-content-inset-start); }

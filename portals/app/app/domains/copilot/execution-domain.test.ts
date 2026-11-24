@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { afterEach, test } from "node:test";
+import { InMemoryAccountStore } from "../account/store";
 import { writeBusinessForm } from "./execution-domain";
 import { mergeForm, type FormModule } from "./lib/business-form";
 import { InMemoryStrategyStore } from "../strategy/store";
 import { InMemoryCatalogStore } from "../catalog/store";
 import {
+  setAccountStore,
   setStrategyStore,
   setCatalogStore,
   getSalesPlanStore,
@@ -17,6 +19,7 @@ import type { AppSession } from "../../(app)/lib/session";
 import { emptyStrategyResult } from "../strategy/lib/strategy-result";
 import { emptyContent, planVersions } from "../planning/plan-model";
 afterEach(() => {
+  setAccountStore(null);
   setStrategyStore(null);
   setCatalogStore(null);
   setAuthzStore(null);
@@ -262,4 +265,15 @@ test("sales plan uses original draft/save/release services and never publishes u
   plan = (await getSalesPlanStore().read(f.session.workspaceId, 2099))!;
   assert.equal(plan.revisions[0]!.version, 1);
   assert.equal(plan.revisions[0]!.state, "sealed");
+});
+
+test("ten customer drafts use native create; duplicate retry, permission loss and workspace boundaries are enforced",async()=>{
+ const f=fixture(),accounts=new InMemoryAccountStore();setAccountStore(accounts);f.session.stores={account:()=>accounts} as unknown as AppSession["stores"];
+ const forms=Array.from({length:10},(_,i)=>mergeForm(null,"account",null,{name:`Acceptance customer ${i}`,tier:"standard",employeeCount:null}));
+ const results=[];for(const form of forms)results.push(await writeBusinessForm(f.session,form,"save",randomUUID()));
+ assert.equal(new Set(results.map(r=>r.id)).size,10);assert.equal((await accounts.listAccounts(f.session.workspaceId)).length,10);
+ await assert.rejects(writeBusinessForm(f.session,forms[0]!,"save",randomUUID()),/duplicate_customer/);
+ await assert.rejects(writeBusinessForm({...f.session,authz:{...f.session.authz,permissions:new Set()}},mergeForm(null,"account",null,{name:"Refused"}),"save",randomUUID()),/permission/);
+ const other={...f.session,workspaceId:randomUUID(),entitlement:{...f.session.entitlement}};other.entitlement.workspace_id=other.workspaceId;
+ await writeBusinessForm(other,forms[0]!,"save",randomUUID());assert.equal((await accounts.listAccounts(other.workspaceId)).length,1);
 });

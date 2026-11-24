@@ -1,3 +1,4 @@
+import { dailyJudgementBaseline } from "./daily-baseline";
 import { createHash } from "node:crypto";
 import { can } from "../../authz/decide";
 import { recordAuditEvent } from "../../audit/lib/record";
@@ -115,10 +116,15 @@ export async function listTopics(ctx: TopicContext, scope?: Scope) {
     }
     const end = await fresh(ctx);
     demand(end.accessVersion === now.accessVersion, "access_changed");
+    let daily: Awaited<ReturnType<typeof dailyJudgementBaseline>> | null=null;
+    try{daily=await dailyJudgementBaseline(now,checked.value);}catch{/* The current feed remains readable; persistence failure is explicit. */}
+    const final=await fresh(ctx);demand(final.accessVersion===end.accessVersion,"access_changed");
     return {
       ...checked.value,
+      daily: daily ? {date:daily.date,generatedAt:daily.generatedAt,revalidatedAt:daily.revalidatedAt,changes:daily.changes} : null,
+      observedAt: new Date().toISOString(),
       judgements: [
-        ...checked.value.judgements.map((j) => {
+        ...(daily?.judgements ?? checked.value.judgements).map((j) => {
           const r = rows.find(
               (r) => r.judgementId === j.id && r.scope === checked.value.scope,
             ),

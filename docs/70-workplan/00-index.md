@@ -1,5 +1,34 @@
 # 70-workplan - 构建计划与批次跟踪
 
+## 小聿首页与统一协作实施计划
+
+[129-xiaoyu-home-collaboration-rollout.md](129-xiaoyu-home-collaboration-rollout.md) 固定 XC-00–XC-08：
+共用面板与连续工作、真实首页与独立今日判断、动态任务、客户批量登记、全站能力迁移、
+附件／技能／语音／导出、联合验收及统一发布。现有 85 页逐项列出，新增今日判断页单独登记。
+XC-00–06工程已实施，XC-07工程／数据库与浏览器分层验收，XC-08统一发布推进中；owner本轮已授权连续实施与发布。真实平台／麦克风验收与生产审批分别保留状态。
+
+[130逐页能力台账](130-xiaoyu-page-capability-inventory.md) 核对86页，明确受控读取、五类任务表单、原工具及专用框架边界。
+
+## 小聿持续任务与共用面板原型
+
+[128-xiaoyu-task-panel-prototype.md](128-xiaoyu-task-panel-prototype.md) 记录最新产品补充：
+协作空间直接办理跨页面任务，页面侧栏理解并补齐当前业务。仅更新设计与 HTML 原型，
+通过批量登记 10 客户与跨页续接验证交互；追加全局总览首页、今日判断操作与机器人气泡的小聿入口，
+24 项首页浏览器检查通过；任务标题三项统一 12px，首页数字与说明缩进 24px。
+产品实施接续 129，本轮原型不改产品代码、不发布。
+
+## 全局页面框架
+
+[127-global-workspace-frame.md](127-global-workspace-frame.md) 记录页面分类、按需分栏、DS 两档内容宽度、
+个人偏好与滚动安全区，逐项列出 85 页、76 个 AI 配套路由及非业务状态。
+代码接入与浏览器验收分列标记，本批未发布。
+
+## 小聿协作工作区调整
+
+[126-xiaoyu-collaboration-board.md](126-xiaoyu-collaboration-board.md) 记录最新 owner 方向：
+左侧工作板、右侧对话；记忆作为跨板块后台能力，个人控制移到头像菜单；
+团队知识维护交回知识平台（待接入）。复用 4060 本地预览，本批未发布。
+
 ## 联合实调收尾
 
 [125-joint-live-acceptance.md](125-joint-live-acceptance.md) 拉通 NB-03 与 XY-05：

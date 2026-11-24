@@ -82,6 +82,13 @@ for (const file of pages) {
   const route = "/" + file.split("/").filter((s) => !/^\(.*\)$/.test(s) && s !== "page.tsx").join("/");
   if (entry.route !== route) errors.push(`${file}: route mismatch ${entry.route} != ${route}`);
   if (!["navigation", "context", "compatibility", "development", "diagnostic"].includes(entry.kind)) errors.push(`${file}: unknown classification`);
+  const layout = entry.workspaceLayout;
+  const expectedLayout = entry.kind === "compatibility" ? "redirect"
+    : file.startsWith("(screen)/") ? "screen"
+    : file.startsWith("(demo)/") ? "standalone"
+    : ["/account/[id]", "/pipeline/[id]"].includes(route) ? "dossier"
+    : route === "/copilot" ? "collaboration" : "workspace";
+  if (!layout?.title || !layout.group || layout.mode !== expectedLayout) errors.push(`${file}: missing or incorrect workspace layout classification (${expectedLayout})`);
   const evidence = sources.get(entry.entry.file);
   if (!evidence?.source.includes(entry.entry.needle)) errors.push(`${file}: entry evidence disappeared (${entry.entry.file})`);
   if (!reachable.has(entry.entry.file)) errors.push(`${file}: entry module is not imported from any page/layout`);

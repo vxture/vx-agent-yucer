@@ -49,7 +49,7 @@ export function AssistantModeProvider({ mode, canChange, reason, children }: {
 }
 
 /** The footer remains inspectable even when a member cannot change authority. */
-export function AssistantMode() {
+export function AssistantMode({ placement = "footer" }: { readonly placement?: "header" | "footer" }) {
   const state = useContext(ModeContext);
   const { AUTONOMY_TEXT: T } = useMessages();
   const [open, setOpen] = useState(false);
@@ -60,12 +60,12 @@ export function AssistantMode() {
     <DropdownMenuTrigger asChild>
       <Button type="button" variant="ghost" size="md"
         aria-label={`${T.modeLabel}: ${T.modes[state.selected]}`} data-assistant-mode
-        className="min-w-0 gap-xs px-xs text-body-small font-normal text-muted-foreground">
+        className="min-w-0 shrink-0 gap-xs px-xs text-body-small font-normal text-muted-foreground">
         {state.selected === "autonomous" ? <Robot size={16} aria-hidden="true" /> : <Icon name={iconOf(state.selected)} size="sm" />}
-        <span>{T.modes[state.selected]}</span><Icon name="chevron-up" size="xs" />
+        <span>{T.modes[state.selected]}</span><Icon name={placement === "header" ? "chevron-down" : "chevron-up"} size="xs" />
       </Button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent side="top" align="start" width="sm" className="max-w-[calc(100vw-var(--space-lg))]" aria-label={T.modeLabel}
+    <DropdownMenuContent side={placement === "header" ? "bottom" : "top"} align="start" width="sm" className="max-w-[calc(100vw-var(--space-lg))]" aria-label={T.modeLabel}
       onEscapeKeyDown={event => event.stopPropagation()}>
       <DropdownMenuRadioGroup value={state.selected} onValueChange={state.change}>
         {["ask_always", "ask_high_risk", "autonomous"].map(value => <DropdownMenuRadioItem key={value} value={value} disabled={state.disabled}

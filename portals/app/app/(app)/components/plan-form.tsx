@@ -1,5 +1,6 @@
 "use client";
 
+import { useTaskFormReview } from "./xiaoyu-form-review";
 import { useXiaoyuForm, XiaoyuFormNotice } from "./use-xiaoyu-form";
 import { StrategyInfoCard as Card, StrategyInfoContent as CardContent } from "./strategy-info-card";
 
@@ -170,11 +171,12 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
     ]);
     return { ok: true };
   };
+  const review=useTaskFormReview();
   const router=useRouter();
   const [saveError,setSaveError]=useState<string|null>(null);
   const [saving,startSave]=useTransition();
   const submit={pending:saving,err:saveError,run:(save:()=>Promise<Saved>,errorOf:(code:string)=>string)=>{
-    if(saving)return;startSave(async()=>{setSaveError(null);try{const r=await save();if(!r.ok){setSaveError(errorOf(r.error ?? "denied"));return;}
+    if(saving)return;startSave(async()=>{setSaveError(null);try{if(review){await review.commit();return;}const r=await save();if(!r.ok){setSaveError(errorOf(r.error ?? "denied"));return;}
       bypassLeave.current=true;router.push(r.id?`/strategy/${r.id}`:initial?`/strategy/${initial.id}`:"/strategy");router.refresh();
     }catch{setSaveError(errorOf("denied"));}});
   }};
@@ -239,7 +241,7 @@ export function NewPlanForm({ strategyTypes, strategyOptions, currency, userKey,
     <XiaoyuFormNotice binding={xyForm}/><FormPage
       form={
         <div className="@container flex min-w-0 flex-col gap-xl" data-strategy-editor>
-          <StrategyDraftAssistant values={draft} editId={initial?.id} enabled={canAssist && !saving} onAssist={onAssist} onApply={applyAssist} onBusy={setAssisting}/>
+          {!review ? <StrategyDraftAssistant values={draft} editId={initial?.id} enabled={canAssist && !saving} onAssist={onAssist} onApply={applyAssist} onBusy={setAssisting}/> : null}
           <fieldset disabled={saving || assisting} className="flex min-w-0 flex-col gap-xl">
           <Section title={R.basic} icon="clipboard" help={<><p>{T.draftOnlyHint}</p><p>{T.numberHint}</p></>}
             action={<span className="inline-flex items-center gap-sm text-body-small text-muted-foreground">{T.creator} <MemberName sub={creatorSub} fallback={T.creatorUnknown}/></span>}>

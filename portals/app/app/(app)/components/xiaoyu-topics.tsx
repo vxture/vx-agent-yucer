@@ -1,10 +1,15 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Banner,
   Button,
   Card,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Icon,
   Select,
   SelectContent,
@@ -13,9 +18,11 @@ import {
   SelectValue,
   StatusBadge,
 } from "@vxture/design-ui";
-import { useMessages } from "../lib/i18n/provider";
+import { useMessages, useLocale } from "../lib/i18n/provider";
 import { useXiaoyu } from "./xiaoyu-provider";
 import type { Judgement } from "../../domains/judgement/lib/judgement";
+import { SourceMark } from "./source-mark";
+import { StaleMark } from "./stale-mark";
 type Row = {
   absent?: boolean;
   finding: Judgement;
@@ -29,12 +36,20 @@ type Feed = {
   scope: "mine" | "all";
   scanned: number;
   dataAvailable: boolean;
+  daily?: {date:string;generatedAt:string;revalidatedAt:string;changes:number}|null;
+  observedAt?: string;
 };
-export function XiaoyuTopics() {
-  const { XIAOYU_TOPICS: T } = useMessages();
+export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
+  readonly compact?: boolean;
+  readonly onDiscuss?: () => void;
+  readonly daily?: boolean;
+}) {
+  const { XIAOYU_TOPICS: T, HOME_OVERVIEW_TEXT: H } = useMessages();
+  const locale = useLocale();
+  const params = useSearchParams();
   const { client, notesDirty, busy } = useXiaoyu();
   const [feed, setFeed] = useState<Feed | null>(null),
-    [scope, setScope] = useState("auto"),
+    [scope, setScope] = useState(() => ["mine", "all"].includes(params.get("scope") ?? "") ? params.get("scope")! : "auto"),
     [expanded, setExpanded] = useState(false),
     [error, setError] = useState(false),
     [pending, setPending] = useState(false);
@@ -94,6 +109,7 @@ export function XiaoyuTopics() {
         if (request !== generation.current) return;
         if (action === "discuss") {
           await client.select(opened.taskId);
+          if (client.getSnapshot().bundle?.task.id === opened.taskId) onDiscuss?.();
           return;
         }
         const refreshed = await fetch(
@@ -129,19 +145,19 @@ export function XiaoyuTopics() {
       setPending(false);
     }
   };
+  const active = feed?.judgements.filter(row => !row.absent && row.status !== "verified") ?? [];
+  const counts = { today: active.filter(r => r.finding.urgency === "today").length, week: active.filter(r => r.finding.urgency === "week").length, watch: active.filter(r => r.finding.urgency === "watch").length };
+  const verify = feed?.judgements.filter(row => row.status !== "verified" && (row.absent || row.finding.source === "model" || row.finding.freshness?.stale || row.finding.id.startsWith("target-data:"))) ?? [];
   return (
     <section
-      className="flex flex-col gap-md"
+      className="flex flex-col gap-sm"
       aria-label={T.title}
       data-xiaoyu-topics
     >
       <div className="flex flex-wrap items-center gap-sm">
-        <Icon name="sparkles" size="sm" />
-        <h2 className="text-heading-3">{T.title}</h2>
-        <span className="text-body-small text-muted-foreground">
-          {T.scopeHint}
-        </span>
-        <span className="ml-auto w-40">
+        {!compact ? <><Icon name="sparkles" size="sm" /><h2 className="text-heading-3">{T.title}</h2></> : null}
+        <span className="text-body-small text-muted-foreground">{T.scopeHint}</span>
+        <span className="ml-auto w-36">
           <Select value={scope} onValueChange={setScope}>
             <SelectTrigger aria-label={T.scope}>
               <SelectValue />
@@ -154,7 +170,7 @@ export function XiaoyuTopics() {
           </Select>
         </span>
         <Button
-          size="md"
+          size="icon-xl"
           variant="ghost"
           onClick={() => void load()}
           aria-label={T.refresh}
@@ -163,6 +179,21 @@ export function XiaoyuTopics() {
         </Button>
       </div>
       {error ? <Banner tone="warning" title={T.unavailable} /> : null}
+      {daily && !error ? <>
+        <Card className="gap-sm p-lg">
+          <h2 className="flex items-center gap-xs text-heading-3"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
+          <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}</p>
+          {feed?.daily ? <p className="text-body-small text-muted-foreground">{H.dailyBaseline} <time dateTime={feed.daily.generatedAt}>{new Date(feed.daily.generatedAt).toLocaleString(locale)}</time>{feed.daily.changes ? ` \u00b7 ${H.dailyChanged(feed.daily.changes)}` : ""}</p> : feed ? <p className="text-body-small text-warning-text">{H.dailyUnavailable}</p> : null}
+          {feed?.observedAt ? <p className="text-body-small text-muted-foreground">{H.summaryAt} <time dateTime={feed.observedAt}>{new Date(feed.observedAt).toLocaleString(locale)}</time></p> : null}
+        </Card>
+        <div className="grid grid-cols-3 gap-sm" aria-label={H.dailyCounts}>
+          {(["today", "week", "watch"] as const).map(urgency => <Card key={urgency} className="gap-xs p-md">
+            <span className="text-body-small text-muted-foreground">{T[urgency]}</span>
+            <span className="text-heading-2">{feed?.dataAvailable ? counts[urgency] : "\u2014"}</span>
+          </Card>)}
+        </div>
+        <h2 className="flex items-center gap-xs text-heading-3"><Icon name="lightbulb" size="sm" />{H.priorities}</h2>
+      </> : null}
       {!error && feed?.judgements.length === 0 ? (
         <p className="text-body text-muted-foreground">
           {feed.dataAvailable ? T.none : T.insufficient}
@@ -170,7 +201,7 @@ export function XiaoyuTopics() {
       ) : null}
       {(expanded ? feed?.judgements : feed?.judgements.slice(0, 3))?.map(
         (row) => (
-          <Card key={row.finding.id} className="p-md">
+          <Card key={row.finding.id} className="gap-sm p-md" style={{ borderTopWidth: "var(--space-2xs)", borderTopColor: row.finding.urgency === "today" ? "var(--warning-border)" : row.finding.urgency === "week" ? "var(--info-border)" : "var(--border)" }}>
             <div className="flex flex-wrap items-center gap-sm">
               <Icon name="lightbulb" size="sm" />
               <span className="text-label">{row.finding.subjectName}</span>
@@ -180,6 +211,7 @@ export function XiaoyuTopics() {
               >
                 {T[row.finding.urgency]}
               </StatusBadge>
+              {!row.absent ? <><SourceMark source={row.finding.source} /><StaleMark freshness={row.finding.freshness} /></> : null}
               <span className="ml-auto text-body-small text-muted-foreground">
                 {row.status === "verified"
                   ? T.verified
@@ -190,10 +222,10 @@ export function XiaoyuTopics() {
                       : T.open}
               </span>
             </div>
-            <p className="my-sm text-body">
+            <p className="text-body leading-relaxed">
               {row.absent ? T.noLongerTriggered : row.finding.claim}
             </p>
-            <div className="flex flex-wrap gap-md text-body-small text-muted-foreground">
+            <div className="grid grid-cols-1 gap-x-md gap-y-xs text-body text-muted-foreground sm:grid-cols-2">
               {row.finding.facts.map((f, i) => (
                 <span key={i}>
                   {f.label}: {f.value}
@@ -201,7 +233,7 @@ export function XiaoyuTopics() {
               ))}
             </div>
             {!row.absent ? (
-              <details className="mt-sm text-body-small">
+              <details className="text-body-small">
                 <summary className="cursor-pointer text-muted-foreground">
                   {T.evidence}
                 </summary>
@@ -225,44 +257,36 @@ export function XiaoyuTopics() {
                 </Link>
               </details>
             ) : null}
-            <div className="mt-md flex flex-wrap gap-xs">
+            <div className="flex flex-wrap gap-xs border-t border-border pt-sm">
               {!row.absent ? (
                 <>
                   <Button
                     size="md"
+                    variant="secondary"
                     disabled={pending || busy || notesDirty}
                     onClick={() => void act(row, "discuss")}
                   >
                     {T.discuss}
                   </Button>
-                  <Button
-                    size="md"
-                    variant="secondary"
-                    disabled={pending}
-                    onClick={() => void act(row, "process")}
-                  >
-                    {T.process}
-                  </Button>
+                  <Button size="md" variant="ghost" disabled={pending} onClick={() => void act(row, "process")}>{T.process}</Button>
+                  <Button size="md" variant="ghost" disabled={pending} onClick={() => void act(row, "verify")}>{T.verify}</Button>
                 </>
               ) : null}
-              <Button
-                size="md"
-                variant="ghost"
-                disabled={pending}
-                onClick={() => void act(row, "verify")}
-              >
-                {T.verify}
-              </Button>
-              {!row.absent ? (
-                <Button
-                  size="md"
-                  variant="ghost"
-                  disabled={pending}
-                  onClick={() => void act(row, "snooze")}
-                >
-                  {T.snooze}
-                </Button>
-              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon-xl" variant="ghost" className="ml-auto" aria-label={T.moreActions}>
+                    <Icon name="more-vertical" size="sm" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" width="sm">
+                  {row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "verify")}>
+                    <Icon name="check-circle" size="sm" />{T.verify}
+                  </DropdownMenuItem> : null}
+                  {!row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "snooze")}>
+                    <Icon name="pause" size="sm" />{T.snooze}
+                  </DropdownMenuItem> : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </Card>
         ),
@@ -276,6 +300,13 @@ export function XiaoyuTopics() {
           {expanded ? T.less : T.more}
         </Button>
       ) : null}
+      {daily ? <div className="grid gap-sm lg:grid-cols-2">
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyPace(counts.today,counts.week,counts.watch) : T.insufficient}</p></Card>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2>
+          {verify.length ? <ul className="flex flex-col gap-xs text-body">{verify.slice(0,3).map(row=><li key={row.finding.id} className="line-clamp-2">{row.finding.subjectName}{": "}{row.absent ? T.pendingVerification : row.finding.claim}</li>)}</ul> : <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.noHypotheses : T.insufficient}</p>}
+          <p className="text-body-small text-muted-foreground">{H.hypothesisHint}</p>
+        </Card>
+      </div> : null}
     </section>
   );
 }

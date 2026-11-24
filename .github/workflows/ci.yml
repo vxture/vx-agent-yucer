@@ -103,7 +103,7 @@ jobs:
           python3 -m unittest discover -s scripts/qa -p 'test_ai_supply_check.py'
           python3 -m unittest discover -s scripts/qa -p 'test_xiaoyu_supply*.py'
           python3 -m unittest discover -s scripts/qa -p 'test_xiaoyu_beta_supply*.py'
-          node --test scripts/qa/xiaoyu-supply-probe.test.mjs
+          node --test scripts/qa/xiaoyu-supply-probe.test.mjs scripts/qa/local-debugger.test.mjs
 
       - name: Docs numbering guardrail (strict)
         run: node scripts/guardrails/check-docs-numbering.mjs --strict
@@ -268,7 +268,7 @@ jobs:
 
       - name: Xiaoyu supply probe regression checks and coverage
         run: |
-          node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination="$RUNNER_TEMP/xiaoyu-supply.info" scripts/qa/xiaoyu-supply-probe.test.mjs
+          node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination="$RUNNER_TEMP/xiaoyu-supply.info" scripts/qa/xiaoyu-supply-probe.test.mjs scripts/qa/local-debugger.test.mjs
           node scripts/ci/merge-lcov.mjs portals/app/coverage/lcov.info portals/app/coverage/lcov.info "$RUNNER_TEMP/xiaoyu-supply.info"
 
       - name: Python diagnostic coverage

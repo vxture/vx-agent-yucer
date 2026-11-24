@@ -4,6 +4,7 @@ import { validStrategyResult } from "../../strategy/lib/strategy-result";
 import { UUID, type TaskSource } from "./task-contract";
 export const BUSINESS_FORM_CONTRACT = "business-form/1";
 export const FORM_MODULES = [
+  "account",
   "segment",
   "solution",
   "strategy",
@@ -11,6 +12,7 @@ export const FORM_MODULES = [
 ] as const;
 export type FormModule = (typeof FORM_MODULES)[number];
 export const FORM_FIELDS: Record<FormModule, readonly string[]> = {
+  account: ["name","region","province","industryId","segmentId","customerTypeId","customerSizeId","customerNatureId","creditCode","website","employeeCount","tier","parentId","childLinks","plan"],
   segment: [
     "name",
     "priority",
@@ -88,6 +90,17 @@ export function fieldsFor(module: FormModule, value: unknown): FormFields {
   const invalid = () => {
     throw Error("invalid_form_fields");
   };
+  if (module === "account") {
+    for (const k of ["region","province","industryId","segmentId","customerTypeId","customerSizeId","customerNatureId","creditCode","website","parentId"]) {
+      if (k in fields && fields[k] !== null && (typeof fields[k] !== "string" || String(fields[k]).length > 500)) invalid();
+    }
+    for (const k of ["industryId","segmentId","customerTypeId","customerSizeId","customerNatureId","parentId"]) {
+      if (fields[k] && !UUID.test(String(fields[k]))) invalid();
+    }
+    if ("employeeCount" in fields && fields.employeeCount !== null && (!Number.isSafeInteger(fields.employeeCount) || Number(fields.employeeCount)<0)) invalid();
+    if (fields.tier !== undefined && !["standard","key","strategic"].includes(String(fields.tier))) invalid();
+    if (fields.childLinks !== undefined && (!Array.isArray(fields.childLinks) || fields.childLinks.length>100 || fields.childLinks.some(c=>!c || typeof c!=="object" || !UUID.test(c.accountId) || (c.expectedParentId!==null && !UUID.test(c.expectedParentId))))) invalid();
+  }
   if (module === "segment") {
     if (
       "priority" in fields &&
@@ -269,6 +282,7 @@ export function readBusinessForm(text: string): BusinessForm {
 }
 export function formHref(form: BusinessForm, taskId: string, key: string) {
   const route = {
+    account: "/account/new",
     segment: "/segment/new",
     solution: "/solution/new",
     strategy: "/strategy/new",

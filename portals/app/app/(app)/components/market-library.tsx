@@ -1,4 +1,5 @@
 "use client";
+import { useXiaoyuPageState } from "./use-xiaoyu-page-state";
 
 import Link from "next/link";
 import { type ReactNode, useState, useTransition } from "react";
@@ -49,6 +50,7 @@ export function MarketLibrary({ markets, canWrite, actions }: { readonly markets
   const live = filtered.filter(m=>m.status === "active"), shelved = filtered.filter(m=>m.status !== "active");
   const mode = comparing ? "list" : view;
   const chosen = markets.filter(m => selected.includes(m.id));
+  useXiaoyuPageState({query:query.slice(0,160),status,view:mode},selected.map(id=>({kind:"segment",id})));
   const rowActions = (m: MarketView) => <RowActions disabled={pending} items={[
       {id:"view",label:T.openMarket,onSelect:()=>router.push(`/segment/${encodeURIComponent(m.id)}`)},
       ...(canWrite ? [

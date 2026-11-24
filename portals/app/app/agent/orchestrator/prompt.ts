@@ -14,6 +14,7 @@
 //      indistinguishable from the product saying it.
 
 import { TASK_CONTRACT_TEXT } from "../../domains/copilot/lib/task-contract";
+import type { TaskPageContext, TaskFocus } from "../../domains/copilot/lib/page-context";
 import type { ChatMessage } from "../atlas/types";
 import type { PermCode } from "../../authz/catalog";
 import { renderSkillPrompt, type SkillBundle } from "../runos/skills";
@@ -51,11 +52,15 @@ export interface PromptContext {
   /** Private task references; never a tool grant or business-data snapshot. */
   task?: {
     businessForms?: unknown[];
+    materials?: unknown[];
+    privateNotes?: string;
     businessTools?: boolean;
     id: string;
     goal?: string;
     targets: readonly { kind: string; id: string }[];
     page: { kind: string; id: string } | null;
+    pageContext?: TaskPageContext;
+    focus?: TaskFocus;
   };
   /** True when the workspace has autopilot on AND this member may use it. */
   autopilotActive?: boolean;

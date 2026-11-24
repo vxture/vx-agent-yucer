@@ -53,6 +53,7 @@ async function fixture(
       "DELETE FROM yucer_gtm.market_segment WHERE workspace_id=$1",
       [f.session.workspaceId],
     );
+    await f.pg.query("DELETE FROM yucer_core.account WHERE workspace_id=$1",[f.session.workspaceId]);
     await f.pg.end();
   }
 }
@@ -477,4 +478,28 @@ test("grant boundaries refuse malformed scope, changed identity, missing permiss
   await f.pg.query("UPDATE yucer_agent.agent_task SET rule_version='obsolete' WHERE id=$1",[f.record.id]);
   await assert.rejects(proposeExecution(f.ctx,f.record.id,{key:"market",draftId:f.draft.id,operation:"save"}),/rule_changed/);
   assert.equal((await readExecutions(f.ctx,f.record.id)).steps[0]!.form,undefined);
+}));
+
+test("ten customers share one exact-snapshot grant; retries recover original UUIDs and partial failure does not repeat successful registrations",{skip},()=>fixture(async f=>{
+ const steps=[];
+ for(let i=0;i<10;i++){
+  const current=(await f.store.load(f.scope,f.record.id,true))!;
+  const key=`customer_${i}`,form=await f.ctx.task.business!.prepare(mergeForm(null,"account",null,{name:`XC acceptance ${i}`,tier:"standard"}));
+  assert.equal(await f.store.mutate(f.scope,f.record.id,current.task.revision,{ruleVersion:TASK_RULE_VERSION,draft:{key,contractVersion:"business-form/1",text:JSON.stringify(form)}}),true);
+  const draft=(await f.store.load(f.scope,f.record.id,true))!.drafts.find(d=>d.key===key)!;
+  steps.push(await proposeExecution(f.ctx,f.record.id,{key,draftId:draft.id,operation:"save"}));
+ }
+ const ids=steps.map(s=>s.id),grant=await grantExecution(f.ctx,f.record.id,{stepIds:ids,confirmedIds:ids,mode:"ask_always"});
+ const receipts=[];
+ for(let i=0;i<steps.length;i++){
+  const input={stepId:steps[i]!.id,grantId:grant.id};
+  if(i===4){await assert.rejects(executeStep({...f.ctx,write:async()=>{throw Error("temporary_failure");}},f.record.id,input));continue;}
+  receipts.push(await executeStep(f.ctx,f.record.id,input));
+ }
+ assert.equal((await f.pg.query("SELECT count(*) FROM yucer_core.account WHERE workspace_id=$1",[f.session.workspaceId])).rows[0].count,"9");
+ const failed=await executeStep(f.ctx,f.record.id,{stepId:steps[4]!.id,grantId:grant.id});receipts.push(failed);
+ const replayed=await executeStep(f.ctx,f.record.id,{stepId:steps[0]!.id,grantId:grant.id});assert.equal(replayed.id,receipts[0]!.id);
+ assert.equal(new Set(receipts.map(r=>r.id)).size,10);
+ assert.equal((await f.pg.query("SELECT count(*) FROM yucer_core.account WHERE workspace_id=$1",[f.session.workspaceId])).rows[0].count,"10");
+ const results=await readExecutions(f.ctx,f.record.id);assert.equal(results.receipts.length,10);assert.ok(results.receipts.every(r=>(r.result as {object:{kind:string}}).object.kind==="account"));
 }));

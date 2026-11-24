@@ -17,7 +17,7 @@ import type { RenewalRiskBasis, RenewalRiskLevel } from "../../domains/delivery/
 // Each override is TYPE-CHECKED against its Chinese counterpart, so a renamed
 // key breaks the build and a function cannot quietly change its arity.
 //
-// COVERAGE, 2026-09-02: 99 of the 102 constants in messages.ts. Three are not
+// COVERAGE, 2026-11-24: 245 of the 248 constants in messages.ts. Three are not
 // here, and none of the three is merely overdue:
 //
 //   PINNED TO zh-CN BY CONSTRUCTION - PREVIEW_FIXTURES, PREVIEW_TEXT. They
@@ -99,6 +99,7 @@ const companyPlanningText = {
 
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
+  XIAOYU_INPUT: {add:"Add material or action",upload:"Upload text, Markdown, CSV or JSON (24KB)",materialTask:"New collaboration",failed:"Could not complete this action; check the file and retry",materialReady:"Material parsed for this private collaboration",removeMaterial:"Remove material",skills:"Skills",skillSelected:"Skill selected",searchSkills:"Search authorized skills",search:"Search",automatic:"Automatic",more:"Load more",skillsUnavailable:"Skill catalog unavailable; automatic discovery remains available",voice:"Voice input",stopVoice:"Stop voice input",voiceHint:"Browser transcription fills the editable input; never sends automatically",voiceUnavailable:"Voice input is unavailable in this browser",voiceFailed:"Transcription failed; check microphone permission and connection",listening:"Listening; click again to stop"},
   XIAOYU_KNOWLEDGE: {
     newer: "Previous page", older: "Next page",
   "title": "Team knowledge",
@@ -121,19 +122,130 @@ export const en: Dictionary = {
   "share": "Confirm sharing",
   "empty": "No accessible team knowledge. Changed or revoked sources stop being shown."
 },
-  XIAOYU_TOPICS: {title:"Today's findings",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
-  XIAOYU_EXECUTION:{"continue":"Continue from receipt","failed":"Failed; check before retrying","title": "Execution steps", "prepare": "Prepare save", "publish": "Prepare publish", "grant": "Authorize and run", "execute": "Run authorized steps", "confirm": "I reviewed these forms and confirm the selected steps", "scope": "Authorization covers only the selected form versions for 15 minutes; business permissions still apply.", "refresh": "Check execution results", "revoke": "Revoke authorization", "pending": "Pending", "succeeded": "Completed", "result_unavailable": "Result unavailable", "open": "View business record", "error": "The submission response was interrupted. Check the execution receipts.", "save": "Save", "publishing": "Publishing changes the effective business version. Review before confirming.", "confirmPublish": "Confirm publish", "unknown": "Execution results could not be verified. Check again shortly.", "mode": "Authorization mode", "ask_always": "Confirm each action", "ask_high_risk": "Standard authorization", "autonomous": "Full authorization", "resume": "Reload the persisted list after an interruption to resume unfinished steps.", "partial": "Some steps did not complete. Check receipts before continuing.",
+  XIAOYU_TOPICS: {
+  "moreActions": "More actions",title:"Today's findings",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
+  XIAOYU_EXECUTION:{failureReasons:{"duplicate_customer": "A customer with this name or registration code already exists. Review the existing record.", "invalid_form_configuration": "Configuration options changed. Review the form again.", "invalid_form_fields": "Complete or correct the form before retrying.", "source_changed": "The business source changed. Review and prepare a new step.", "permission_denied": "Your current permissions do not allow this operation."},prepareAll:"Prepare all saves",selectAll:"Select pending steps","continue":"Continue from receipt","failed":"Failed; check before retrying","title": "Execution steps", "prepare": "Prepare save", "publish": "Prepare publish", "grant": "Authorize and run", "execute": "Run authorized steps", "confirm": "I reviewed these forms and confirm the selected steps", "scope": "Authorization covers only the selected form versions for 15 minutes; business permissions still apply.", "refresh": "Check execution results", "revoke": "Revoke authorization", "pending": "Pending", "succeeded": "Completed", "result_unavailable": "Result unavailable", "open": "View business record", "error": "The submission response was interrupted. Check the execution receipts.", "save": "Save", "publishing": "Publishing changes the effective business version. Review before confirming.", "confirmPublish": "Confirm publish", "unknown": "Execution results could not be verified. Check again shortly.", "mode": "Authorization mode", "ask_always": "Confirm each action", "ask_high_risk": "Standard authorization", "autonomous": "Full authorization", "resume": "Reload the persisted list after an interruption to resume unfinished steps.", "partial": "Some steps did not complete. Check receipts before continuing.",
   "proposal_unavailable": "Step no longer current",
   "denied": "Execution details are no longer accessible."
 },
   XIAOYU_RESEARCH: {"incomplete": "This turn did not finish. Only usage is retained; unreviewed content is withheld.", "limit_tokens": "Model token limit reached.", "deadline": "Time limit reached.", "tool_calls": "Tool call limit reached.", "modelRequests": "Model requests", "toolCalls": "Tool calls", "title": "Research sources and usage", "duration": "Analysis duration", "tokens": "Model tokens", "calls": "Capability calls", "source": "Source", "noExternal": "No external source was retrieved in this turn. It is not a verified web search.", "scope": "Private to you and this workspace. Tool calls do not establish business saves."},
-  XIAOYU_FORMS:{before:"Before",after:"Proposed",unchanged:"Unchanged",labels:{"industries": "Industries", "regions": "Regions", "sizes": "Customer sizes", "needSummary": "Need summary", "customerNeed": "Shared needs", "buyingScenario": "Buying scenario", "expectedOutcome": "Expected outcomes", "entryBarrier": "Entry requirements", "valuePropositionId": "Value proposition", "goals": "Strategic goals", "pathIds": "Growth paths", "people": "People", "peopleNote": "People notes", "funds": "Funding", "fundsNote": "Funding notes", "technology": "Technology", "technologyNote": "Technology notes", "milestones": "Milestones", "risks": "Risks and assumptions", "markets": "Market attributes", "offerings": "Offering attributes", "extensions": "Additional information", "dependencies": "Dependencies", "additionalValueIds": "Additional propositions", "channels": "Channels", "businessModel": "Business model", "strategyAcceptances": "Strategy commitments", "releaseScope": "Release scope", "companyRevisionId": "Company plan version", "periods": "Periods", "targets": "Operating targets", "budgets": "Customer budgets", "contributions": "Customer contributions", "team": "Team allocation", "actions": "Execution actions", "assumptions": "Assumptions", "allocationNote": "Allocation notes", "capacityNote": "Capacity notes", "schemaVersion": "Data format", "name": "name", "priority": "priority", "status": "status", "criteria": "criteria", "solutionIds": "solution links", "productIds": "product links", "summary": "summary", "scenario": "scenario", "novelty": "novelty", "items": "items", "period": "period", "ownerSub": "owner", "objective": "objective", "strategyTypeId": "strategyType", "result": "result", "changeReason": "changeReason", "targetMarkets": "targetMarkets", "year": "year", "content": "content"},fields:"Form fields",sources:"Business sources",entries:"items","draftSnapshot": "Private form draft", "savedSnapshot": "Saved \u00b7 draft snapshot",notSaved:"Private form draft; business record not saved",open:"Review in business form",protected:"Human edited fields preserved",unavailable:"Draft sync is unavailable. Your current form content is retained.",syncing:"Retaining your edits...",retry:"Retry sync",segment:"Market segment",solution:"Solution",strategy:"Strategy",sales_plan:"Sales plan"},
+  XIAOYU_FORMS:{reviewDone:"Finish review",openOriginal:"Open original editor",account:"Customer registration",before:"Before",after:"Proposed",unchanged:"Unchanged",labels:{"region": "Sales region", "province": "Province", "industryId": "Industry", "segmentId": "Market segment", "customerTypeId": "Customer type", "customerSizeId": "Customer size", "customerNatureId": "Customer ownership", "creditCode": "Business registration code", "website": "Website", "employeeCount": "Employee count", "tier": "Customer tier", "parentId": "Parent customer", "childLinks": "Child customers", "plan": "Operating plan","industries": "Industries", "regions": "Regions", "sizes": "Customer sizes", "needSummary": "Need summary", "customerNeed": "Shared needs", "buyingScenario": "Buying scenario", "expectedOutcome": "Expected outcomes", "entryBarrier": "Entry requirements", "valuePropositionId": "Value proposition", "goals": "Strategic goals", "pathIds": "Growth paths", "people": "People", "peopleNote": "People notes", "funds": "Funding", "fundsNote": "Funding notes", "technology": "Technology", "technologyNote": "Technology notes", "milestones": "Milestones", "risks": "Risks and assumptions", "markets": "Market attributes", "offerings": "Offering attributes", "extensions": "Additional information", "dependencies": "Dependencies", "additionalValueIds": "Additional propositions", "channels": "Channels", "businessModel": "Business model", "strategyAcceptances": "Strategy commitments", "releaseScope": "Release scope", "companyRevisionId": "Company plan version", "periods": "Periods", "targets": "Operating targets", "budgets": "Customer budgets", "contributions": "Customer contributions", "team": "Team allocation", "actions": "Execution actions", "assumptions": "Assumptions", "allocationNote": "Allocation notes", "capacityNote": "Capacity notes", "schemaVersion": "Data format", "name": "name", "priority": "priority", "status": "status", "criteria": "criteria", "solutionIds": "solution links", "productIds": "product links", "summary": "summary", "scenario": "scenario", "novelty": "novelty", "items": "items", "period": "period", "ownerSub": "owner", "objective": "objective", "strategyTypeId": "strategyType", "result": "result", "changeReason": "changeReason", "targetMarkets": "targetMarkets", "year": "year", "content": "content"},fields:"Form fields",sources:"Business sources",entries:"items","draftSnapshot": "Private form draft", "savedSnapshot": "Saved \u00b7 draft snapshot",notSaved:"Private form draft; business record not saved",open:"Review in business form",protected:"Human edited fields preserved",unavailable:"Draft sync is unavailable. Your current form content is retained.",syncing:"Retaining your edits...",retry:"Retry sync",segment:"Market segment",solution:"Solution",strategy:"Strategy",sales_plan:"Sales plan"},
   XIAOYU_MEMORY: {
 
     older:"Older memories",newer:"Newer memories",refresh:"Reload",
     title:"My memory", subtitle:"Private to you and this workspace",hint:"Stopping and corrections apply immediately. Tasks using old versions stop replaying them. Team knowledge is managed separately.",back:"Back to Xiaoyu",new:"New memory",text:"Memory",kind:"Type",fact:"Business fact",decision:"User decision",inference:"Model inference",hypothesis:"Unverified hypothesis",save:"Save",cancel:"Cancel",edit:"Correct",stop:"Stop using",restore:"Restore",active:"In use",stopped:"Stopped",unavailable:"Source unavailable; content is hidden",empty:"No memories yet. Conversations are summarized privately, or add one yourself.",failure:"Could not finish. Reload the latest state.",updated:"Updated",source:"Source",user:"Written by you",model:"Conversation extraction",revision:"Revision",history:"Find my conversations",search:"Search",query:"At least two characters; searches only accessible personal history",openTask:"Open source task",capture:"Extract current conversation again",loading:"Loading...",limit:"Up to 1200 characters. Business facts require a verifiable source. Manual memories can start as decisions or hypotheses."
   },
-  XIAOYU_TEXT: {
+  HOME_OVERVIEW_TEXT: {dailyBaseline:"Daily baseline",dailyChanged:(n:number)=>`${n} changes revalidated`,dailyUnavailable:"Daily baseline unavailable; showing revalidated live findings.",
+  dailyLead: (accounts: number, findings: number) => `Reviewed ${accounts} accessible accounts and available targets; ${findings} findings need attention.`,
+  dailyPace: (today: number, week: number, watch: number) => `Review ${today} urgent findings, then plan ${week} for this week. Revisit ${watch} watch items as evidence changes.`,
+  noHypotheses: "No separately flagged verification items.",
+
+  "insufficient": "Insufficient business records to form a judgement.",
+  "noNamed": "No published priority-account plan yet",
+    noChanges: "No rule-triggered findings in the accessible data.",
+  "title": "Business overview",
+  "hello": "Let us move things forward today.",
+  "subtitle": "See the whole picture, decide, then work with Xiaoyu.",
+  "today": "Today's judgement",
+  "partner": "Xiaoyu \u00b7 Your work partner",
+  "bubble": "Think it through together. Get it done together.",
+  "start": "Let us begin",
+  "scopeWorkspace": "Workspace scope",
+  "scopeVisible": "Your accessible scope",
+  "company": "Company target",
+  "personal": "Personal target",
+  "revenue": "Confirmed revenue",
+  "pipeline": "Open opportunities",
+  "named": "Priority accounts",
+  "newCustomers": "First-time customers",
+  "target": "Baseline target",
+  "unitAccount": "accounts",
+  "unitDeal": "deals",
+  "noTarget": "No effective target yet",
+  "unmeasured": "No matching published attainment data",
+  "denied": "Not available with your current permissions",
+  "unavailable": "Data is temporarily unavailable",
+  "multiCurrency": "Reported separately by currency",
+  "missingAmounts": "Some opportunity amounts are missing",
+  "source": "View source",
+  "supportTitle": "Targets and support",
+  "changesTitle": "Changes worth reviewing",
+  "changesHint": "Find the detailed findings and suggestions in Today's judgement.",
+  "recentTitle": "Recent work",
+  "recentEmpty": "No tasks yet. Tell Xiaoyu what you want to work on.",
+  "covered": "With key-role coverage",
+  "coverageUnknown": "Some key-role coverage is unavailable",
+  "publishedBasis": "Revenue and new customers use published attainment. Open opportunities are not revenue.",
+  "summaryAt": "As of",
+  "dailySummary": "Daily brief",
+  "dailyCounts": "Focus summary",
+  "priorities": "Key judgements",
+  "pace": "Suggested pace",
+  "hypotheses": "Items to verify",
+  "dailyHint": "Start with urgent findings, then this week's work. Review the evidence and continue with Xiaoyu.",
+  "hypothesisHint": "Verify rule-based findings against the business. Snoozing, discussion and drafts do not mean completion.",
+  "continueTask": "Continue work",
+  "workspace": "Collaboration space"
+},
+  XIAOYU_WORKSPACE: {
+  "identity": "Current task",
+  "activity": "Work progress",
+  "activityHint": "These are analysis turns. Business saves and publication require execution receipts.",
+  "previousTurn": "Previous analysis",
+  "kinds": {
+    "conversation": "Collaboration",
+    "research": "Research",
+    "form": "Business form",
+    "judgement": "Follow-up"
+  },
+  "stages": {
+    "awaiting": "Ready to continue",
+    "running": "In progress",
+    "paused": "Paused",
+    "completed": "Ended",
+    "cancelled": "Cancelled",
+    "interrupted": "Interrupted",
+    "failed": "Needs recovery"
+  },
+  "turns": {
+    "running": "Analyzing",
+    "succeeded": "Answer complete",
+    "failed": "Analysis failed",
+    "interrupted": "Interrupted"
+  }
+},
+  XIAOYU_TEXT: {exportCollaboration:"Export this collaboration",
+  "focus": "Discussion focus",
+  "noFocus": "No focus",
+  "followPage": "Follow current page",
+  "focusPage": "Keep current object",
+  "linkedFocus": "Linked business object",
+  "clearFocus": "Clear focus",
+  focusTarget: (n: number) => `Linked object ${n}`,
+
+  "collapseConclusion": "Collapse content",
+  "boardConclusion": "Analysis and suggestions",
+  "expandConclusion": "Read full content",
+  "boardUpdating": "Xiaoyu is updating the results...",
+
+  "boardTitle": "Collaboration space",
+  "boardSubtitle": "A shared space to turn findings into next steps",
+  "boardLabel": "Collaboration space",
+  "boardResults": "Task results",
+  "boardEmpty": "Results will appear here",
+  "boardEmptyHint": "Analysis, business drafts and execution progress appear here. Keep talking on the right.",
+  "chatSubtitle": "Your sales partner",
+  "chatWelcome": "Hello. What shall we work on?",
+  "chatWelcomeHint": "Start with a daily judgement, or tell me what you want to work on.",
+  "chatPlaceholder": "Tell Xiaoyu what you want to do next...",
+  "readyToDiscuss": "Let us work through this together",
+  "discussHint": "We can check the current situation and decide what to do next.",
+  "history": "Conversation history",
+  "newChat": "New conversation",
+  "moreActions": "More actions",
+  "viewResults": "View results on the workboard",
+  "thinking": "Working through the information...",
+
     "name": "Xiaoyu",
     "subtitle": "Turn judgement into action, together",
     "entry": "Open Xiaoyu workspace",
@@ -146,7 +258,7 @@ export const en: Dictionary = {
     "emptyTasks": "Start a conversation to create your first task.",
     "noSelection": "New task",
     "privateScope": "Private to you \u00b7 Current workspace",
-    "phase": "Private memory, team knowledge, controlled queries and initial business forms are connected. Drafts still require review and saving.",
+    "phase": "Continue across modules. Review changes in their business forms.",
     "welcome": "Start with a question",
     "welcomeDescription": "Tell me what you want to analyse or move forward. Continue the same task as you move between modules.",
     "example": "For example: help me plan next year\u2019s target markets and strategic direction",
@@ -4733,6 +4845,10 @@ export const en: Dictionary = {
     agentDockWithCount: (n: number) => `Copilot, ${n} awaiting your call`,
 
     prefTitle: "Preferences",
+    prefLayout: "Display and layout",
+    prefContentWidth: "Content width",
+    prefWidthStandard: "Standard",
+    prefWidthWide: "Wide",
     prefLocale: "Language",
     prefTheme: "Theme",
     prefThemeLight: "Light",

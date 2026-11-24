@@ -18,6 +18,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
             "product",
             "strategy",
             "sales_plan",
+            "sales_target", "campaign", "lead", "project",
           ],
         },
         id: { type: "string" },
@@ -82,6 +83,7 @@ export const formContract = (module: keyof typeof FORM_FIELDS) => ({
   module,
   fields: FORM_FIELDS[module],
   notes: {
+    account: "Customer creation only. name required; optional region/province, configured industryId/segmentId/customerTypeId/customerSizeId/customerNatureId UUIDs, creditCode, website, employeeCount, tier standard/key/strategic, parentId/childLinks and native operating plan. Owner is the current user, never invent contacts. Query accounts first to check duplicates. Prepare one stable key per customer; up to 10 in one task can share a reviewed grant. Missing facts stay null.",
     segment:
       "criteria={industries:string[],regions:string[],sizes:string[],needSummary:string,customerNeed:string,buyingScenario:string,expectedOutcome:string,entryBarrier:string}; priority 0-9999; status active/paused/retired. solutionIds and productIds are UUID arrays.",
     solution:
