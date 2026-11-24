@@ -1,3 +1,4 @@
+import { localDebuggerEndpoint } from "./local-debugger.mjs";
 import assert from "node:assert/strict";
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -16,7 +17,7 @@ console.log("Evidence:", output);
 
 class CDP {
   constructor(url) {
-    this.ws = new WebSocket("ws://127.0.0.1:9334" + new URL(url).pathname);
+    this.ws = new WebSocket(localDebuggerEndpoint(url));
     this.pending = new Map(); this.seq = 0;
     this.ws.addEventListener("message", event => {
       const message = JSON.parse(event.data), pending = this.pending.get(message.id);
@@ -211,15 +212,20 @@ try {
   for (const section of ['division', 'org', 'roles', 'members']) {
     // Discover actual current demo IDs from the server-rendered client props.
     // Their IDs are not stable across memory-store restarts.
-    const html = await (await fetch(base + '/admin/' + section)).text();
+    let html;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try { html = await (await fetch(base + '/admin/' + section)).text(); break; }
+      catch (error) { if (attempt === 3) throw error; await pause(1500); }
+    }
     const row = section === 'members'
       ? html.match(/\\"rows\\":\[\{.*?\\"memberId\\":\\"([^"\\]+)\\"/)
       : html.match(/\\"rows\\":\[\{.*?\\"id\\":\\"([^"\\]+)\\"/);
     if (row) samples['/admin/' + section + '/[id]'] = '/admin/' + section + '/' + encodeURIComponent(row[1]);
   }
-  const selected = process.env.QA_ROUTES_FROM
-    ? [...manifest.pages.slice(Number(process.env.QA_ROUTES_FROM)), manifest.pages.find(p=>p.route==='/admin/members/[id]')]
-    : manifest.pages;
+  const selected = manifest.pages.slice(
+    Number(process.env.QA_ROUTES_FROM ?? 0),
+    process.env.QA_ROUTES_TO ? Number(process.env.QA_ROUTES_TO) : undefined,
+  );
   for (const entry of selected) {
     const path = entry.sample || samples[entry.route] || ({
       "/copilot/memory":"/copilot/memory",

@@ -32,7 +32,7 @@ export function publishedOverviewMetric(rows: readonly AttainmentRow[], targets:
 /** The input is already scoped by the original pipeline service. Keep currencies separate. */
 export function openOpportunityOverview(deals: readonly ForecastableOpportunity[]) {
   const open = deals.filter(d => d.status === "open" || (d.status === undefined && !["won", "lost"].includes(d.stage)));
-  const currencies = [...new Set(open.flatMap(d => d.amount ? [d.amount.currency] : []))].sort();
+  const currencies = [...new Set(open.flatMap(d => d.amount ? [d.amount.currency] : []))].sort((a, b) => a.localeCompare(b));
   const amounts = currencies.map(currency => {
     const values = open.flatMap(d => d.amount?.currency === currency ? [d.amount] : []);
     const sum = sumMoney(values, currency);

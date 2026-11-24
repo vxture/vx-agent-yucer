@@ -1,8 +1,13 @@
+import { localDebuggerEndpoint } from "./local-debugger.mjs";
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const output = await mkdtemp(join(tmpdir(), 'yucer-home-today-'));
+console.log('Evidence directory:', output);
 // Local-only browser acceptance; no model or business writes are permitted.
 async function cdp(url) {
-  const ws = new WebSocket('ws://127.0.0.1:9334' + new URL(url).pathname);
+  const ws = new WebSocket(localDebuggerEndpoint(url));
   await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
   let sequence = 0; const requests = new Map();
   ws.onmessage = event => {
@@ -47,13 +52,13 @@ try {
  await page.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
  test('Robot respects reduced-motion preference',await evaluate("getComputedStyle(document.querySelector('[data-home-xiaoyu] .robot-eyes')).animationName==='none'"));
  await page.send('Emulation.setEmulatedMedia',{features:[]});
- const home=await page.send('Page.captureScreenshot',{format:'png'});await writeFile('/private/tmp/xc02-home.png',Buffer.from(home.data,'base64'));
+ const home=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output, 'xc02-home.png'),Buffer.from(home.data,'base64'));
  await evaluate("document.querySelector('[data-home-overview] a[href=\"/copilot/today\"]').click()");
  await until("location.pathname==='/copilot/today'&&!!document.querySelector('[data-xiaoyu-topics] details')");
  test('Today is an independent fixed-template page',await evaluate("[...document.querySelectorAll('[data-xiaoyu-topics] h2')].map(e=>e.textContent).length===4"));
  test('Today retains provenance and at most three direct actions',await evaluate("[...document.querySelectorAll('[data-xiaoyu-topics] details')].every(d=>d.parentElement.querySelectorAll('button').length===4&&d.parentElement.textContent.includes('\u89c4\u5219'))"));
  test('Both scene headers stay 56px',await evaluate("document.querySelector('[data-xiaoyu-board] header').getBoundingClientRect().height===56&&document.querySelector('[data-assistant-header]').getBoundingClientRect().height===56"));
- const today=await page.send('Page.captureScreenshot',{format:'png'});await writeFile('/private/tmp/xc02-today.png',Buffer.from(today.data,'base64'));
+ const today=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output, 'xc02-today.png'),Buffer.from(today.data,'base64'));
  for(const width of [390,320]){
   await page.send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:false});await pause(450);
   test('Today remains reachable at '+width+'px',await evaluate("document.documentElement.scrollWidth<=innerWidth+1&&document.querySelector('[data-xiaoyu-board]').checkVisibility({visibilityProperty:true})"));
@@ -69,8 +74,8 @@ try {
   test('Task title and identity fit at '+width+'px',await evaluate("(()=>{const h=document.querySelector('[data-xiaoyu-board] header'),g=document.querySelector('[data-task-identity]');return h.getBoundingClientRect().height===56&&g.getBoundingClientRect().height===32&&g.scrollWidth<=g.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1})()"));
  }
  await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
- const workspace=await page.send('Page.captureScreenshot',{format:'png'});await writeFile('/private/tmp/xc03-task-workspace.png',Buffer.from(workspace.data,'base64'));
+ const workspace=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output, 'xc03-task-workspace.png'),Buffer.from(workspace.data,'base64'));
  await visit('/','[data-home-overview]');
- await writeFile('/private/tmp/xc02-browser-report.json',JSON.stringify({results,stage:'local-demo',realAcceptance:false},null,2));
+ await writeFile(join(output, 'xc02-browser-report.json'),JSON.stringify({results,stage:'local-demo',realAcceptance:false},null,2));
  console.log(JSON.stringify({passed:results.length,results}));
 } finally {page.ws.close()}

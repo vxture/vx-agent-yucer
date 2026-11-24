@@ -1,12 +1,17 @@
+import { localDebuggerEndpoint } from "./local-debugger.mjs";
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const output = await mkdtemp(join(tmpdir(), 'yucer-material-export-'));
+console.log('Evidence directory:', output);
 // Local demo transport/UI acceptance. This never calls a model or writes a business record.
 const base='http://localhost:4060';
 const status=await(await fetch(base+'/api/status')).json();
 assert.equal(status.c2.deployStage,'dev');assert.equal(status.data.database.configured,false);
 const tabs=await(await fetch('http://127.0.0.1:9334/json/list')).json();
 const target=tabs.find(t=>t.type==='page'&&t.url.startsWith(base+'/'));assert.ok(target);
-const ws=new WebSocket('ws://127.0.0.1:9334'+new URL(target.webSocketDebuggerUrl).pathname);
+const ws=new WebSocket(localDebuggerEndpoint(target.webSocketDebuggerUrl));
 await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});
 const waiting=new Map();let seq=0;
 ws.onmessage=e=>{const m=JSON.parse(e.data),p=waiting.get(m.id);if(p){clearTimeout(p.timer);waiting.delete(m.id);m.error?p.reject(Error(m.error.message)):p.resolve(m.result);}};
@@ -38,6 +43,6 @@ try{
   test('Composer controls fit at '+width+'px',await evaluate("(()=>{const c=[...document.querySelectorAll('[data-assistant-composer]')].find(e=>e.checkVisibility({visibilityProperty:true}));return c&&c.scrollWidth<=c.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1})()"));
  }
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
- const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile('/private/tmp/xc06-input-export.png',Buffer.from(shot.data,'base64'));
- await writeFile('/private/tmp/xc06-browser-report.json',JSON.stringify({stage:'local-demo',realModel:false,results},null,2));console.log(JSON.stringify({passed:results.length,results}));
+ const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output, 'xc06-input-export.png'),Buffer.from(shot.data,'base64'));
+ await writeFile(join(output, 'xc06-browser-report.json'),JSON.stringify({stage:'local-demo',realModel:false,results},null,2));console.log(JSON.stringify({passed:results.length,results}));
 }finally{ws.close();}

@@ -1,8 +1,13 @@
+import { localDebuggerEndpoint } from "./local-debugger.mjs";
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const output = await mkdtemp(join(tmpdir(), 'yucer-shared-panel-'));
+console.log('Evidence directory:', output);
 // Local-only browser acceptance; no model or business writes are permitted.
 async function cdp(url) {
-  const ws = new WebSocket('ws://127.0.0.1:9334' + new URL(url).pathname);
+  const ws = new WebSocket(localDebuggerEndpoint(url));
   await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
   let sequence = 0; const requests = new Map();
   ws.onmessage = event => {
@@ -71,6 +76,6 @@ try{
   test('Sidebar geometry at '+width+'px',m.doc<=m.width+1&&m.header===56&&m.overflow<=1);
  }
  await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
- const shot=await page.send('Page.captureScreenshot',{format:'png'});await writeFile('/private/tmp/xc01-shared-panel.png',Buffer.from(shot.data,'base64'));
- await writeFile('/private/tmp/xc01-browser-report.json',JSON.stringify({results,geometry:geo,taskId:task.id},null,2));console.log(JSON.stringify({passed:results.length,geometry:geo,taskId:task.id}));
+ const shot=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output, 'xc01-shared-panel.png'),Buffer.from(shot.data,'base64'));
+ await writeFile(join(output, 'xc01-browser-report.json'),JSON.stringify({results,geometry:geo,taskId:task.id},null,2));console.log(JSON.stringify({passed:results.length,geometry:geo,taskId:task.id}));
 }finally{page.ws.close()}
