@@ -53,6 +53,7 @@ import { Tag } from "./tag";
 //     product, so the one time to show it is when it is decided.
 
 export interface LeadListProps {
+  readonly initialQuery?: string;
   readonly leads: readonly LeadRecord[];
   /** lead id -> why it ended, for the ones that did (incr/0033). */
   readonly exitReasons: ReadonlyMap<string, { reasonCode: string; note: string | null }>;
@@ -107,6 +108,7 @@ const SORT_ON = {
   };
 
 export function LeadList({
+  initialQuery = "",
   regionOf,
   exitReasons,
   leads,
@@ -142,6 +144,7 @@ export function LeadList({
   const SOURCE_LABEL: Record<string, string> = {
     campaign: LEAD_TEXT.sourceCampaign,
     signal_campaign: LEAD_TEXT.sourceSignalCampaign,
+    signal: LEAD_TEXT.sourceSignal,
     self_sourced: LEAD_TEXT.sourceSelf,
   };
 
@@ -225,7 +228,7 @@ export function LeadList({
   // SEARCH COVERS WHAT THE READER CAN SEE - company, lead number, contact and
   // owner. Searching a field the table does not show produces hits nobody can
   // explain.
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [statusFilter, setStatusFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
 
@@ -292,13 +295,9 @@ export function LeadList({
       // asked; for the rest the derivation stays, labelled by the same map.
       cell: (row) => {
         const preview = attributionPreviews.get(row.id);
-        const source = preview
+        const source = preview && preview.source !== "self_sourced"
           ? preview.source
-          : row.campaignId
-            ? "campaign"
-            : row.signalId
-              ? "signal_campaign"
-              : "self_sourced";
+          : row.campaignId ? "campaign" : row.signalId ? "signal" : "self_sourced";
         return (
           <Tag tone={source === "campaign" ? "info" : "neutral"}>
             {SOURCE_LABEL[source] ?? source}

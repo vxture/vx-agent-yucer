@@ -14,6 +14,7 @@ import type {
   FunnelExitRecord,
 } from "./store";
 import { isUniqueViolation, lockKey } from "../shared/allocate";
+import type { Prisma } from "@prisma/client";
 
 // Prisma-backed SignalStore over yucer_pipeline.
 //
@@ -29,6 +30,14 @@ import { isUniqueViolation, lockKey } from "../shared/allocate";
 
 const SIGNAL_TABLE = "yucer_pipeline.signal";
 const LEAD_TABLE = "yucer_pipeline.lead";
+
+async function nextLeadNo(tx: Prisma.TransactionClient, workspaceId: string): Promise<string> {
+  // Count + 1 collides after a deleted earlier record leaves a gap. Allocate
+  // above surviving business numbers, under the workspace allocation lock.
+  const [row] = await tx.$queryRaw<{ next_no: bigint }[]>`SELECT COALESCE(MAX(substring(lead_no FROM '^LEAD-([0-9]+)$')::bigint), 0) + 1 AS next_no
+    FROM yucer_pipeline.lead WHERE workspace_id = ${workspaceId}::uuid`;
+  return `LEAD-${String(row!.next_no).padStart(5, "0")}`;
+}
 
 /** One mapping, so the per-subject and workspace-wide reads cannot disagree. */
 function toExit(r: Record<string, unknown>): FunnelExitRecord {
@@ -103,6 +112,7 @@ export class PrismaSignalStore implements SignalStore {
     workspaceId: string,
     id: string,
     patch: { accountId?: string | null; score?: number; status?: SignalStatus },
+    expected?: { accountId: string | null; score: number | null; status: SignalStatus },
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const data: Record<string, unknown> = { ...patch, updatedAt: new Date() };
@@ -114,7 +124,7 @@ export class PrismaSignalStore implements SignalStore {
       );
     }
 
-    const res = await p.signal.updateMany({ where: { id, workspaceId }, data });
+    const res = await p.signal.updateMany({ where: { id, workspaceId, ...expected }, data });
     return res.count > 0;
   }
 
@@ -124,11 +134,11 @@ export class PrismaSignalStore implements SignalStore {
     // advisory lock, not merely by the transaction - see domains/shared/allocate.ts.
     return p.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("lead_no")}::int, hashtext(${workspaceId})::int)`;
-      const count = await tx.lead.count({ where: { workspaceId } });
+      const leadNo = await nextLeadNo(tx, workspaceId);
       const row = await tx.lead.create({
         data: {
           workspaceId,
-          leadNo: `LEAD-${String(count + 1).padStart(5, "0")}`,
+          leadNo,
           companyName: lead.companyName,
           contactName: lead.contactName ?? null,
           accountId: lead.accountId,
@@ -154,6 +164,28 @@ export class PrismaSignalStore implements SignalStore {
       ...(filter.limit ? { take: filter.limit } : {}),
     });
     return rows.map((r: Record<string, unknown>) => toLead(r));
+  }
+
+  async promoteToLead(workspaceId: string, signalId: string, lead: NewLead,
+    expected: { score: number | null; accountId: string | null }): Promise<LeadRecord | null> {
+    const p = await getPrismaClient();
+    return p.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("lead_no")}::int, hashtext(${workspaceId})::int)`;
+      if (expected.score === null) return null;
+      const moved = await tx.signal.updateMany({
+        where: { id: signalId, workspaceId, status: "scored", score: expected.score, accountId: expected.accountId },
+        data: { status: "promoted", updatedAt: new Date() },
+      });
+      if (moved.count !== 1) return null;
+      const leadNo = await nextLeadNo(tx, workspaceId);
+      const row = await tx.lead.create({ data: {
+        workspaceId, leadNo,
+        companyName: lead.companyName, contactName: lead.contactName ?? null,
+        accountId: expected.accountId, signalId, campaignId: lead.campaignId,
+        score: expected.score, ownerSub: lead.ownerSub ?? null,
+      } });
+      return toLead(row as Record<string, unknown>);
+    });
   }
 
   async getLead(workspaceId: string, id: string): Promise<LeadRecord | null> {
@@ -223,6 +255,17 @@ export class PrismaSignalStore implements SignalStore {
       orderBy: { decidedAt: "desc" },
     });
     return rows.map(toExit);
+  }
+
+  async closeSignal(workspaceId: string, id: string, from: SignalStatus,
+    to: "dismissed" | "duplicate", exit: FunnelExitDraft): Promise<boolean> {
+    const p = await getPrismaClient();
+    return p.$transaction(async tx => {
+      const result = await tx.signal.updateMany({ where: { id, workspaceId, status: from }, data: { status: to, updatedAt: new Date() } });
+      if (result.count !== 1) return false;
+      await tx.funnelExit.create({ data: { workspaceId, ...exit } });
+      return true;
+    });
   }
 
   async listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]> {

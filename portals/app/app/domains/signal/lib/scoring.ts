@@ -246,9 +246,14 @@ export function planPromotion(input: {
   const status = planStatusChange(input.signal, "promoted");
   if (!status.ok) return status as RuleResult<{ patch: SignalPatch; lead: LeadDraft }>;
 
-  const companyName = input.companyName?.trim() || input.signal.subject.trim();
+  // A headline describes an event, not a company's identity. Every caller
+  // confirms a company name; the UI may suggest a known account/evidence name.
+  const companyName = input.companyName?.trim();
   if (!companyName) {
     return fail(violation("company_required", "a lead needs a company name", "companyName"));
+  }
+  if (companyName.length > 200) {
+    return fail(violation("company_required", "company name exceeds 200 characters", "companyName"));
   }
 
   return ok({

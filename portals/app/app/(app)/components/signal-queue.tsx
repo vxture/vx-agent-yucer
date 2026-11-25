@@ -1,615 +1,270 @@
 "use client";
 
-import { COLLAPSED_PANEL_CLASS } from "../lib/collapsed-panel";
-
-import { useState, useTransition, useEffect } from "react";
-import {
-  Button,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  Field,
-  FieldLabel,
-  Input,
-  NativeSelect,
-  LabeledValue,
-  Icon,
-  PanelCard,
-  PanelList,
-  Section,
-  StatusBadge,
-} from "@vxture/design-ui";
+import Link from "next/link";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Combobox, Drawer, EmptyState,
+  Field, FieldLabel, Icon, Input, LabeledValue, NativeSelect, PanelCard, PanelList,
+  Section, SegmentedControl, StatusBadge, Textarea, useListPagination } from "@vxture/design-ui";
+import { formatNumber } from "@vxture/shared";
 import { ActionMenu, FilterBar } from "./business-controls";
-import { DialogForm } from "./dialog-form";
-import type { SignalRecord } from "../../domains/signal/store";
-import { SIGNAL_DISMISS_REASONS, type ExitReason } from "../../domains/shared/funnel-exit";
-import { useLocale, useMessages } from "../lib/i18n/provider";
-import type { Dictionary } from "../lib/i18n/dictionary";
-import { confidenceTone } from "../lib/view-model";
-import { formatNumber, type Locale } from "@vxture/shared";
-import { ScoreRing } from "./score-ring";
+import { PaginationFooter, SearchSlot, FilterSlot } from "./table-fittings";
 import { Tag } from "./tag";
+import { ScoreRing } from "./score-ring";
+import { COLLAPSED_PANEL_CLASS } from "../lib/collapsed-panel";
+import { confidenceTone } from "../lib/view-model";
+import { useLocale, useMessages } from "../lib/i18n/provider";
+import { filterSignalInbox, type QueueSignal, type SignalScope } from "../lib/signal-inbox";
+import { isPendingSignal, SIGNAL_INPUT_LIMITS, signalSourceUrl, signalText, type SignalRegistration } from "../../domains/signal/lib/intelligence";
+import { SIGNAL_TYPES } from "../../domains/signal/lib/scoring";
+import { SIGNAL_DISMISS_REASONS, type ExitReason } from "../../domains/shared/funnel-exit";
+import type { SignalActionResult } from "../signal/actions";
+import { proposeAccountMatches, type AccountMatchProposal } from "../../domains/signal/lib/scout";
 
-// The detective's queue.
-//
-// GROUPED BY LINE OF ENQUIRY, not sorted by score alone. ADR-016 puts targeting
-// on the signal precisely so the inbox can be ordered by why we were looking,
-// and keeps it OUT of the score so aim never decides what is true. The
-// untargeted group is therefore shown rather than hidden: aim decides what to
-// read first, never what is allowed in.
-//
-// THE ROW IS THREE LINES, AND EACH LINE READS LEFT TO RIGHT.
-//
-//   ring | 主题                        | 类别 · 推荐程度 · 状态
-//        | 为什么是这个分                | 截止日期 · 额度
-//        | 发现时间 · 来源               | 升级为线索 · 更多 · 展开
-//
-// Left is what the signal IS, right is how it is JUDGED - the same division on
-// all three lines, so a reader scanning the right edge is reading one kind of
-// thing. The columns are NOT a grid and deliberately do not align between
-// items: each line sizes to its own content, because forcing a shared column
-// width would let the longest subject in the list dictate the layout of every
-// other row.
-//
-// WHAT THIS REPLACED, and why the height came down. The old row was a head
-// (70px of content) plus a SEPARATE ACTION BAND underneath (mt-sm + 28px), so
-// every row wore 71px of chrome around 70px of content, and twelve rows spent
-// 456px on nothing but buttons. The actions now ride line three, where there
-// was already vertical space paid for.
-//
-// THE SCORE IS TAKEN APART, still. It was a bare number, which asks a reader to
-// trust an arithmetic they cannot see. The breakdown is RECOMPUTED from the
-// stored inputs by the same pure rule, so it cannot drift from the definition -
-// and its one-line form is now ON THE ROW rather than behind a click, because a
-// number whose derivation costs a click is a number nobody checks.
-//
-// Recomputing has a second payoff: when today's recomputation differs from the
-// stored score, the signal has decayed since it was scored. That is worth
-// saying out loud rather than silently showing a stale number.
-//
-// An unmatched signal shows "new logo" and never a blank. An unrecognised
-// company is the most valuable thing this domain finds, and rendering it as
-// absence would teach people to skip exactly the rows worth reading.
-
-// `dismiss` LEFT THIS UNION on 2026-09-07. Ignoring a signal records WHY now
-// (incr/0033) - without it the same signal arrives next week and nobody can
-// tell whether it was looked at and rejected or never looked at - so it takes
-// a second argument and cannot travel as a bare verb.
-export type SignalAction = "promote" | "duplicate" | "rescore";
-
-export interface QueueSignal {
-  readonly record: SignalRecord;
-  /** Recomputed now, from the same inputs the stored score came from. */
-  readonly recomputed: number | null;
-  readonly baseWeight: number;
-  readonly decay: number;
-  readonly bonus: number;
-  readonly ageDays: number;
-}
+export type { QueueSignal } from "../lib/signal-inbox";
+export type SignalAction = "duplicate" | "rescore";
+type Account = { id: string; name: string };
+type LeadLink = { id: string; name: string; no: string };
+type Dialog = { kind: "register" | "promote" | "match" | "dismiss"; signal?: QueueSignal; suggestedId?: string };
 
 export interface SignalQueueProps {
-  readonly groups: readonly {
-    key: string;
-    title: string;
-    why: string;
-    items: readonly QueueSignal[];
-  }[];
+  readonly groups: readonly { key: string; title: string; why: string; items: readonly QueueSignal[] }[];
+  readonly accounts: readonly Account[];
+  readonly leadBySignal: Readonly<Record<string, LeadLink>>;
+  readonly campaignNames: Readonly<Record<string, string>>;
+  readonly relatedReadFailed: boolean;
   readonly canTriage: boolean;
+  readonly canPromote: boolean;
   readonly canRescore: boolean;
-  /** ?focus=<id> - the signal a link elsewhere (the customer page's 外部动态)
-   *  sent the reader to: its row opens and scrolls into view. */
+  readonly canSync: boolean;
+  readonly feedConfigured: boolean;
   readonly focusId?: string;
-  /** campaign id -> name, for a signal whose source is one of our campaigns. */
-  readonly campaignNames?: Readonly<Record<string, string>>;
-  readonly onAct: (
-    signalId: string,
-    action: SignalAction,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /** 忽略, with the reason it is being ignored. */
-  readonly onDismiss: (
-    signalId: string,
-    reasonCode: ExitReason,
-    note: string | null,
-  ) => Promise<{ ok: boolean; error?: string }>;
+  readonly onAct: (id: string, action: SignalAction) => Promise<SignalActionResult>;
+  readonly onPromote: (id: string, companyName: string) => Promise<SignalActionResult>;
+  readonly onDismiss: (id: string, reason: ExitReason, note: string | null) => Promise<SignalActionResult>;
+  readonly onRegister: (input: SignalRegistration) => Promise<SignalActionResult>;
+  readonly onMatch: (id: string, accountId: string) => Promise<SignalActionResult>;
+  readonly onSync: () => Promise<SignalActionResult>;
 }
 
-/**
- * The verdict band, off the SAME thresholds the ring's colour comes from.
- *
- * Derived rather than stored so the badge and the arc cannot disagree. The old
- * code mapped tones by hand and tested for a "danger" that confidenceTone never
- * returns, so its info branch fell through to the success colour and a 65 was
- * painted the same green as an 85.
- */
-function verdict(score: number | null, t: Dictionary["SIGNAL_TEXT"]): string {
-  const tone = confidenceTone(score);
-  if (score === null) return t.verdictUnknown;
-  if (tone === "success") return t.verdictStrong;
-  if (tone === "info") return t.verdictWorth;
-  return t.verdictLater;
-}
-
-/**
- * Line two's right end: the objective readings.
- *
- * Deadline and budget would come from `payload`, which is an untyped
- * `Record<string, unknown>` and is `{}` on every row the product currently
- * produces - no ingestion writes them yet. So they are READ DEFENSIVELY and the
- * line falls back to the two facts that always exist: how old the signal is,
- * and whether its score has drifted since it was stored. The slot is wired, so
- * the day ingestion starts carrying a tender deadline it appears without a
- * further change here.
- */
-function readings(
-  s: QueueSignal,
-  t: Dictionary["SIGNAL_TEXT"],
-  locale: Locale,
-): string[] {
-  const out: string[] = [];
-  const p = s.record.payload;
-
-  const deadline = p["deadline"] ?? p["closesAt"];
-  if (typeof deadline === "string" && deadline.length > 0) {
-    out.push(t.fieldDeadline(deadline.slice(0, 10)));
-  }
-  const amount = p["amount"] ?? p["budget"];
-  if (typeof amount === "number" && Number.isFinite(amount)) {
-    out.push(t.fieldAmount(formatNumber(amount, locale)));
-  }
-
-  out.push(t.fieldAge(Math.round(s.ageDays)));
-
-  // Only when it would actually move the row. Scores decay continuously, so a
-  // one-point threshold flags essentially every row, and a marker that is
-  // always on is a marker nobody reads.
-  const drift =
-    s.recomputed !== null && s.record.score !== null
-      ? s.record.score - s.recomputed
-      : 0;
-  if (drift >= 5) out.push(t.fieldDrift(drift));
-
-  return out;
-}
-
-/**
- * Line two: the project in a sentence.
- *
- * There is NO summary field on the record - `SignalRecord` carries evidence
- * (source, type, subject) and resolution (account, score, status), and nothing
- * descriptive - and `payload` is `{}` on every row the product currently
- * produces. So this reads defensively and says so plainly when it comes up
- * empty. An absent summary rendered as a blank line teaches a reader that the
- * ROW is thin; one that says it could not be fetched teaches them the
- * INGESTION is, which is the true and actionable version.
- */
-function summary(r: SignalRecord): string | null {
-  const p = r.payload;
-  for (const key of ["summary", "abstract", "description", "brief"]) {
-    const v = p[key];
-    if (typeof v === "string" && v.trim().length > 0) return v.trim();
-  }
-  return null;
-}
-
-export function SignalQueue({
-  groups,
-  canTriage,
-  canRescore,
-  onAct,
-  onDismiss,
-  campaignNames = {},
-  focusId,
-}: SignalQueueProps) {
-  const { DS_LABELS, EXIT_REASON_LABEL, SIGNAL_TEXT, SIGNAL_ACTION_ERROR, TABLE_TOOLBAR_TEXT } = useMessages();
+export function SignalQueue(props: SignalQueueProps) {
+  const { SIGNAL_TEXT: T, SIGNAL_WORKSPACE_TEXT: W, SIGNAL_TYPE_LABEL, SIGNAL_ACTION_ERROR: ERR, TABLE_TOOLBAR_TEXT } = useMessages();
+  const all = useMemo(() => props.groups.flatMap(g => g.items), [props.groups]);
+  const names = useMemo(() => Object.fromEntries(props.accounts.map(a => [a.id, a.name])), [props.accounts]);
+  const suggestions = useMemo(() => proposeAccountMatches(all.map(({ record }) => ({ ...record,
+    companyName: signalText(record.payload, "company_name", "companyName") })), props.accounts), [all, props.accounts]);
+  const focus = all.find(s => s.record.id === props.focusId);
+  const [scope, setScope] = useState<SignalScope>(focus && !isPendingSignal(focus.record) ? "all" : "pending");
+  const [query, setQuery] = useState("");
+  const [type, setType] = useState("");
+  const [match, setMatch] = useState("");
+  const filtered = useMemo(() => filterSignalInbox(all, { scope, query, type, match }, names), [all, scope, query, type, match, names]);
+  const pagination = useListPagination(filtered, 20);
+  const shown = new Set(pagination.pageRows.map(s => s.record.id));
+  const [openId, setOpenId] = useState(props.focusId ?? "");
+  const [dialog, setDialog] = useState<Dialog | null>(null);
   const [pending, start] = useTransition();
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string>(focusId ?? "");
-  useEffect(() => {
-    if (!focusId) return;
-    document.getElementById(`signal-${focusId}`)?.scrollIntoView({ block: "center" });
-  }, [focusId]);
   const [error, setError] = useState<string | null>(null);
-  // 忽略 asks for a reason, so it is a dialog rather than a straight click.
-  const [dismissing, setDismissing] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const [note, setNote] = useState("");
+  const [receipt, setReceipt] = useState<SignalActionResult | null>(null);
+  useEffect(() => {
+    if (!props.focusId) return;
+    const index = filtered.findIndex(s => s.record.id === props.focusId);
+    if (index >= 0) pagination.onPageChange(Math.floor(index / pagination.pageSize) + 1);
+    // Only an incoming focus changes the reader's page, never a later filter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.focusId]);
+  useEffect(() => {
+    if (props.focusId) document.getElementById(`signal-${props.focusId}`)?.scrollIntoView({ block: "center" });
+  }, [props.focusId, pagination.page]);
 
-  function act(id: string, action: SignalAction) {
-    setBusyId(id);
-    setError(null);
-    start(() => {
-      // The result used to be typed void | Promise<unknown> and discarded, so
-      // a refused action left the screen unchanged. The type carried the
-      // defect: you cannot read an error a signature has already thrown away.
-      void onAct(id, action)
-        .then((r) => {
-          if (!r.ok) {
-            setError(SIGNAL_ACTION_ERROR[r.error ?? "denied"] ?? SIGNAL_ACTION_ERROR.not_found);
-          }
-        })
-        .finally(() => setBusyId(null));
+  function errorText(code?: string) {
+    const special: Record<string, string> = { signal_input_invalid: W.inputInvalid, company_required: W.companyRequired,
+      signal_changed: W.signalChanged, signal_feed_disabled: W.syncDisabled, signal_sync_failed: W.syncFailed };
+    return special[code ?? ""] ?? ERR[code ?? "save_failed"] ?? W.saveFailed;
+  }
+  function run(work: () => Promise<SignalActionResult>, done?: () => void) {
+    setError(null); setReceipt(null);
+    start(async () => {
+      try {
+        const result = await work();
+        if (result.recorded !== undefined) setReceipt(result);
+        if (result.ok) { setReceipt(result); done?.(); }
+        else setError(errorText(result.error));
+      } catch { setError(W.saveFailed); }
     });
   }
-
-  return (
-    <Section>
-      <FilterBar heading={{ title: TABLE_TOOLBAR_TEXT.signals, icon: "newspaper" }} count={groups.reduce((total, group) => total + group.items.length, 0)} />
-      {dismissing ? (
-        <DialogForm
-          open
-          onOpenChange={(o: boolean) => {
-            if (!o) setDismissing(null);
-          }}
-          danger
-          title={SIGNAL_TEXT.dismiss}
-          description={SIGNAL_TEXT.dismissWhy}
-          submitLabel={SIGNAL_TEXT.dismiss}
-          cancelLabel={DS_LABELS.confirmCancel}
-          submitting={pending}
-          // 'other' has to say what - refused by the rule and by a CHECK.
-          submitDisabled={reason === "" || (reason === "other" && note.trim() === "")}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const id = dismissing;
-            const code = reason;
-            const text = note.trim() === "" ? null : note.trim();
-            setDismissing(null);
-            setBusyId(id);
-            setError(null);
-            start(async () => {
-              // The select's options come from SIGNAL_DISMISS_REASONS, which
-              // is the same list the rule validates against.
-              const r = await onDismiss(id, code as ExitReason, text);
-              if (!r.ok) {
-                setError(SIGNAL_ACTION_ERROR[r.error ?? "denied"] ?? SIGNAL_ACTION_ERROR.denied);
-              }
-              setBusyId(null);
-            });
-          }}
-        >
-          <Field>
-            <FieldLabel>{SIGNAL_TEXT.dismissReason}</FieldLabel>
-            <NativeSelect value={reason} onChange={(e) => setReason(e.target.value)}>
-              <option value="">{SIGNAL_TEXT.dismissReasonPick}</option>
-              {SIGNAL_DISMISS_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {EXIT_REASON_LABEL[r] ?? r}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel>{SIGNAL_TEXT.dismissNote}</FieldLabel>
-            <Input
-              value={note}
-              placeholder={reason === "other" ? SIGNAL_TEXT.dismissNoteRequired : SIGNAL_TEXT.dismissNoteOptional}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </Field>
-        </DialogForm>
-      ) : null}
-      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-      {groups
-        .filter((g) => g.items.length > 0)
-        .map((g) => (
-          /* GROUPS OPEN BY DEFAULT, and collapsible anyway. The reading order
-             is the product's claim about what matters; folding the largest
-             group by default would quietly turn that claim into a filter. But
-             a reader working one line of enquiry needs to be able to put the
-             other two away, so the control exists - it just starts open. */
-          <Collapsible key={g.key} defaultOpen>
-            <PanelCard
-              className={COLLAPSED_PANEL_CLASS}
-              title={g.title}
-              description={g.why}
-              action={
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="md">
-                    {SIGNAL_TEXT.groupCount(g.items.length)}
-                    <Icon name="chevron-down" size="xs" />
-                  </Button>
-                </CollapsibleTrigger>
-              }
-            >
-              <CollapsibleContent>
-                <PanelList>
-                  {g.items.map((s) => (
-                    <Row
-                      key={s.record.id}
-                      campaignNames={campaignNames}
-                      signal={s}
-                      open={openId === s.record.id}
-                      busy={pending && busyId === s.record.id}
-                      canTriage={canTriage}
-                      canRescore={canRescore}
-                      onToggle={() =>
-                        setOpenId(openId === s.record.id ? "" : s.record.id)
-                      }
-                      onAct={act}
-                      onAskDismiss={(id) => {
-                        setDismissing(id);
-                        setReason("");
-                        setNote("");
-                      }}
-                    />
-                  ))}
-                </PanelList>
-              </CollapsibleContent>
-            </PanelCard>
-          </Collapsible>
-        ))}
-    </Section>
-  );
+  const pendingCount = all.filter(s => isPendingSignal(s.record)).length;
+  const openDialog = (next: Dialog) => { setError(null); setDialog(next); };
+  return <Section>
+    <FilterBar heading={{ title: TABLE_TOOLBAR_TEXT.signals, icon: "newspaper" }} count={filtered.length}
+      scope={<SegmentedControl ariaLabel={TABLE_TOOLBAR_TEXT.signals} value={scope} onChange={value => { setScope(value); pagination.resetPage(); }} items={[
+        { value: "pending", label: W.pending, count: pendingCount },
+        { value: "processed", label: W.processed, count: all.length - pendingCount },
+        { value: "all", label: W.all, count: all.length },
+      ]} />}
+      search={<SearchSlot><Input type="search" value={query} placeholder={W.search} aria-label={W.search}
+        onChange={e => { setQuery(e.target.value); pagination.resetPage(); }} /></SearchSlot>}
+      onReset={query || type || match ? () => { setQuery(""); setType(""); setMatch(""); pagination.resetPage(); } : undefined}
+      actions={<>
+        <Button size="xl" variant="outline" disabled={pending || !props.canSync || !props.feedConfigured}
+          title={!props.feedConfigured ? W.syncDisabled : undefined} onClick={() => run(props.onSync)}><Icon name="refresh" size="xs" />{W.sync}</Button>
+        <Button size="xl" disabled={pending || !props.canTriage} onClick={() => openDialog({ kind: "register" })}><Icon name="plus" size="xs" />{W.register}</Button>
+      </>}>
+      <FilterSlot><NativeSelect value={type} aria-label={W.allTypes} onChange={e => { setType(e.target.value); pagination.resetPage(); }}>
+        <option value="">{W.allTypes}</option>{SIGNAL_TYPES.map(t => <option key={t} value={t}>{SIGNAL_TYPE_LABEL[t]}</option>)}
+      </NativeSelect></FilterSlot>
+      <FilterSlot><NativeSelect value={match} aria-label={W.allAccounts} onChange={e => { setMatch(e.target.value); pagination.resetPage(); }}>
+        <option value="">{W.allAccounts}</option><option value="unmatched">{W.unmatched}</option><option value="matched">{W.matched}</option>
+      </NativeSelect></FilterSlot>
+    </FilterBar>
+    <p className="text-body-small text-muted-foreground" title={W.feedHint}>{props.feedConfigured ? W.feedReady : W.feedOff}</p>
+    {props.relatedReadFailed ? <p role="status" className="text-body-small text-muted-foreground">{W.dataUnavailable}</p> : null}
+    {error && !dialog ? <p role="alert" className="text-body-small text-destructive">{error}</p> : null}
+    {receipt?.leadId ? <p role="status" className="flex items-center gap-sm text-body-small text-success-text">{W.promoteSuccess}
+      <Button asChild size="xl" variant="outline"><Link href={`/lead?search=${encodeURIComponent(receipt.leadNo ?? "")}`}>{W.openLead}</Link></Button></p> : null}
+    {receipt?.recorded !== undefined ? <p role="status" className="text-body-small text-muted-foreground">{W.sync} +{receipt.recorded} / {T.markDuplicate} {receipt.duplicates ?? 0}</p> : null}
+    {filtered.length === 0 ? <EmptyState title={all.length ? W.filteredEmpty : W.empty} description={all.length ? W.filteredEmptyHint : W.emptyHint} /> : null}
+    {props.groups.map(g => ({ ...g, items: g.items.filter(s => shown.has(s.record.id)) })).filter(g => g.items.length).map(g => (
+      <Collapsible key={g.key} defaultOpen><PanelCard className={COLLAPSED_PANEL_CLASS} title={g.title} description={g.why}
+        action={<CollapsibleTrigger asChild><Button size="xl" variant="ghost">{T.groupCount(g.items.length)}<Icon name="chevron-down" size="xs" /></Button></CollapsibleTrigger>}>
+        <CollapsibleContent><PanelList>{g.items.map(s => <SignalRow key={s.record.id} signal={s} props={props} names={names}
+          suggestion={suggestions.find(match => match.signalId === s.record.id)}
+          open={openId === s.record.id} pending={pending} onToggle={() => setOpenId(openId === s.record.id ? "" : s.record.id)}
+          onDialog={kind => openDialog({ kind, signal: s, suggestedId: suggestions.find(match => match.signalId === s.record.id)?.accountId })} onAct={action => run(() => props.onAct(s.record.id, action))} />)}</PanelList></CollapsibleContent>
+      </PanelCard></Collapsible>
+    ))}
+    {filtered.length ? <PaginationFooter pagination={pagination} total={all.length} filteredTotal={filtered.length} /> : null}
+    {dialog ? <SignalDialog key={`${dialog.kind}-${dialog.signal?.record.id ?? "new"}`} dialog={dialog} accounts={props.accounts}
+      pending={pending} error={error} onClose={() => { if (!pending) { setDialog(null); setError(null); } }}
+      onSubmit={input => run(() => dialog.kind === "register" ? props.onRegister(input)
+        : dialog.kind === "promote" ? props.onPromote(dialog.signal!.record.id, input.companyName)
+        : dialog.kind === "match" ? props.onMatch(dialog.signal!.record.id, input.accountId!)
+        : props.onDismiss(dialog.signal!.record.id, input.reason as ExitReason, input.note || null), () => setDialog(null))} /> : null}
+  </Section>;
 }
 
-function Row({
-  campaignNames,
-  signal: s,
-  open,
-  busy,
-  canTriage,
-  canRescore,
-  onToggle,
-  onAct,
-  onAskDismiss,
-}: {
-  campaignNames: Readonly<Record<string, string>>;
-  signal: QueueSignal;
-  open: boolean;
-  busy: boolean;
-  canTriage: boolean;
-  canRescore: boolean;
-  onToggle: () => void;
-  onAct: (id: string, a: SignalAction) => void;
-  /** 忽略 opens a dialog owned by the queue - this row only asks for it. */
-  onAskDismiss: (id: string) => void;
+function SignalRow({ signal: s, props, names, suggestion, open, pending, onToggle, onDialog, onAct }: {
+  signal: QueueSignal; props: SignalQueueProps; names: Readonly<Record<string, string>>;
+  suggestion?: AccountMatchProposal;
+  open: boolean; pending: boolean; onToggle: () => void;
+  onDialog: (kind: "match" | "promote" | "dismiss") => void; onAct: (action: SignalAction) => void;
 }) {
-  const { SIGNAL_TEXT, SIGNAL_STATUS_LABEL, SIGNAL_TYPE_LABEL, SIGNAL_PANEL_TEXT } = useMessages();
+  const { SIGNAL_TEXT: T, SIGNAL_WORKSPACE_TEXT: W, SIGNAL_STATUS_LABEL, SIGNAL_TYPE_LABEL, SIGNAL_PANEL_TEXT } = useMessages();
   const locale = useLocale();
-  const r = s.record;
-  const tone = confidenceTone(r.score);
-  const brief = summary(r);
-
-  // Every verb is always PRESENT, disabled with a reason rather than absent.
-  // A menu whose contents change with the viewer teaches nobody what the
-  // product can do; a greyed item with a hint teaches them why they cannot.
-  const menu = [
-    {
-      id: "duplicate",
-      label: SIGNAL_TEXT.markDuplicate,
-      icon: "copy" as const,
-      disabled: !canTriage || busy,
-      hint: canTriage ? undefined : SIGNAL_TEXT.noPermission,
-      onSelect: () => onAct(r.id, "duplicate"),
-    },
-    {
-      id: "rescore",
-      label: SIGNAL_TEXT.rescore,
-      icon: "refresh" as const,
-      disabled: !canRescore || busy,
-      hint: canRescore ? undefined : SIGNAL_TEXT.noRescorePermission,
-      onSelect: () => onAct(r.id, "rescore"),
-    },
-  ];
-
-  return (
-    <div id={`signal-${r.id}`} className="flex min-w-0 items-start gap-md py-sm">
-      {/* The lead rail. items-start rather than centre: the ring lines up with
-          the subject it scores, not with the middle of three lines. */}
-      <ScoreRing
-        score={r.score}
-        tone={tone}
-        label={`${SIGNAL_TEXT.columnScore} ${r.score ?? "-"}`}
-      />
-
-      <div className="flex min-w-0 flex-1 flex-col gap-xs">
-        {/* L1 - CLASSED, then named, then measured.
-            The tags lead the title rather than trailing it: they are how a
-            reader decides whether to read the sentence at all, and a filter
-            that comes after the thing it filters has already cost the reading
-            it was meant to save. */}
-        {/* NOT justify-between. Pushed to opposite ends, the readings landed
-            against the far edge of a wide column and stopped being about the
-            title they measure - on a short subject they were half a screen
-            away from it. Packed left instead, so they follow the sentence at a
-            fixed remove: gap-lg, wide enough to read as a separate register
-            and narrow enough to stay attached. */}
-        <div className="flex min-w-0 items-center gap-lg">
-          <span className="flex min-w-0 items-center gap-xs">
-            <Tag>
-              {SIGNAL_TYPE_LABEL[r.signalType] ?? r.signalType}
-            </Tag>
-            <StatusBadge tone={tone}>
-              {verdict(r.score, SIGNAL_TEXT)}
-            </StatusBadge>
-            {/* Never a blank: a company we do not recognise is the find. */}
-            {r.accountId === null ? (
-              <StatusBadge tone="brand">
-                {SIGNAL_TEXT.unmatchedAccount}
-              </StatusBadge>
-            ) : null}
-            <p className="text-foreground min-w-0 flex-1 truncate text-body">
-              {r.subject}
-            </p>
-          </span>
-          {/* shrink-0: when the row runs out of width the SUBJECT gives way,
-              not the numbers. A truncated sentence still reads; a truncated
-              measurement is a wrong one. */}
-          <span className="text-muted-foreground shrink-0 text-body-small tabular-nums">
-            {readings(s, SIGNAL_TEXT, locale).join(" \u00b7 ")}
-          </span>
-        </div>
-
-        {/* L2 - the project in a sentence, and NOTHING on the right.
-            The blank right end is deliberate. Three loaded right ends made a
-            column of unrelated things that read as a table it is not; emptying
-            the middle one lets line one's readings and line three's verbs each
-            be seen as what they are.
-
-            WIDTH IS CAPPED AND THE TEXT WRAPS. A summary is prose, and prose
-            set to the full width of a wide column is read by nobody. The cap is
-            the cap names the DS container token DIRECTLY. Tailwind's own
-            `max-w-2xl` is DEAD IN THIS APP: it emits `var(--container-2xl)`,
-            and the DS publishes the scale as `--vx-container-*` without
-            aliasing Tailwind's name, so the variable is empty and the width
-            collapsed to 40px - eight characters wrapped over three lines. */}
-        <p
-          className={`max-w-(--vx-container-2xl) text-body-small ${
-            brief === null
-              ? "text-muted-foreground/70 italic"
-              : "text-muted-foreground"
-          }`}
-        >
-          {brief ?? SIGNAL_TEXT.summaryUnavailable}
-        </p>
-
-        {/* L3 - where it came from | what to do about it.
-            items-START, not centre. The controls are taller than a line of
-            text, so centring them pushes the text down inside its own box and
-            the gap between line two and line three READS as double the gap
-            between one and two - even though both box gaps are the same 8px.
-            Aligning to the top makes the three sections sit on one rhythm,
-            which is what a reader is actually judging. */}
-        <div className="flex min-w-0 items-start justify-between gap-md">
-          <p className="text-muted-foreground min-w-0 truncate text-body-small">
-            {SIGNAL_TEXT.detectedOn(
-              r.detectedAt.toISOString().slice(0, 10),
-              // Where it came from, READABLE (polish, 2026-09-24): the raw ref
-              // printed "camp_demo_3". A campaign reads as its name, a web
-              // address as its host, anything else as the feed's label.
-              r.source === "campaign" && r.sourceRef && campaignNames[r.sourceRef]
-                ? campaignNames[r.sourceRef]!
-                : r.sourceRef && /^https?:\/\//.test(r.sourceRef)
-                  ? new URL(r.sourceRef).host
-                  : (SIGNAL_PANEL_TEXT.sourceLabel[r.source] ?? r.source),
-            )}
-          </p>
-          <span className="flex shrink-0 items-center gap-xs">
-            {/* THE STATUS IS THE HANDLE. It was a badge on line one saying
-                "scored", sitting a whole row away from the arithmetic that
-                word refers to - a label with nothing to do. As the drawer's
-                trigger it says the same thing and also opens the thing it is
-                talking about, and the chevron says which way. The word itself
-                survives on the control's name, so nothing is lost to a reader
-                who cannot see the icon. */}
-            <Button
-              variant="secondary"
-              size="icon-md"
-              aria-expanded={open}
-              onClick={onToggle}
-              title={SIGNAL_STATUS_LABEL[r.status] ?? r.status}
-              aria-label={`${SIGNAL_STATUS_LABEL[r.status] ?? r.status} \u00b7 ${
-                open ? SIGNAL_TEXT.collapse : SIGNAL_TEXT.expand
-              }`}
-            >
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
-            </Button>
-            {/* BOTH OUTCOMES ON THE ROW. Triage is a two-sided decision -
-                this one is worth pursuing, or it is not - and a queue that
-                offers only the yes makes the no cost an extra click, which is
-                how an inbox fills with rows nobody ever closed. What is left in
-                the menu is not an outcome: judging a duplicate or re-running
-                the score are corrections to the record, not verdicts on it. */}
-            <Button
-              size="md"
-              disabled={!canTriage || busy}
-              onClick={() => onAct(r.id, "promote")}
-            >
-              {SIGNAL_TEXT.promote}
-            </Button>
-            <Button
-              size="md"
-              variant="outline"
-              disabled={!canTriage || busy}
-              onClick={() => onAskDismiss(r.id)}
-            >
-              {SIGNAL_TEXT.dismiss}
-            </Button>
-            <ActionMenu items={menu} label={SIGNAL_TEXT.rowMenu} align="end" />
-          </span>
-        </div>
-
-        {/* THE DRAWER IS THE SCORING METHOD, and it is laid out as one:
-            the score on the left, the terms that produced it in the middle.
-            It used to be a flat stack of four numbers, which is a list of
-            values rather than an account of an arithmetic - a reader could see
-            what the inputs were but not that they were inputs TO anything.
-
-            The formula moved here from line two, where it was displacing the
-            thing a reader actually needs while scanning: what the project is.
-            An arithmetic belongs where someone has asked to check it. */}
-        {open ? (
-          <div className="bg-muted/40 border-border mt-2xs rounded-md border p-sm">
-            {/* items-STRETCH (the default), not items-start: the divider
-                between the two zones has to run the whole height, so the score
-                column reads as a column rather than as a first paragraph that
-                happens to sit on the left. */}
-            <div className="flex gap-lg">
-              {/* Left: the score, and nothing else. */}
-              <div className="shrink-0">
-                <LabeledValue
-                  label={SIGNAL_TEXT.columnScore}
-                  value={r.score ?? "-"}
-                  tone={tone}
-                  valueTag={verdict(r.score, SIGNAL_TEXT)}
-                  valueTagTone={tone}
-                />
-              </div>
-
-              {/* Right: how it was reached - the sentence, its four terms two
-                  by two, and anything the arithmetic itself has to say. The
-                  staleness note belongs HERE and not across the foot: it is a
-                  remark about the method, so putting it under the score column
-                  as well would attach it to a number it is not about. */}
-              <div className="border-border min-w-0 flex-1 border-l pl-lg">
-                <p className="text-foreground text-label">
-                  {SIGNAL_TEXT.scoreMethod}
-                </p>
-                <p className="text-muted-foreground mt-2xs text-body-small">
-                  {SIGNAL_TEXT.scoreExplain(s.baseWeight, s.decay, s.bonus)}
-                </p>
-                <div className="mt-sm grid grid-cols-2 gap-x-lg gap-y-sm">
-                  <LabeledValue
-                    label={SIGNAL_TEXT.bdBase}
-                    value={String(s.baseWeight)}
-                  />
-                  <LabeledValue
-                    label={SIGNAL_TEXT.bdDecay}
-                    value={s.decay.toFixed(2)}
-                  />
-                  <LabeledValue
-                    label={SIGNAL_TEXT.bdBonus}
-                    value={String(s.bonus)}
-                  />
-                  <LabeledValue
-                    label={SIGNAL_TEXT.bdAge}
-                    value={String(Math.round(s.ageDays))}
-                  />
-                </div>
-
-                {/* NOT text-warning. `--warning` is a FILL at 82.8%
-                    lightness - it is what a warning surface is PAINTED - and as
-                    ink on this near-white panel it measured 1.64:1, which is
-                    why it could not be read. The DS ships the answer two tokens
-                    over, and every semantic colour in the set carries the same
-                    pair, so this was a misuse of the palette rather than a gap
-                    in it: `--warning-text` (55.5%) for ink on a plain surface,
-                    `--warning-muted-foreground` (47.3%) for ink on a MUTED one.
-                    This panel is bg-muted/40, so it takes the second - and at
-                    12px the extra contrast is worth having: 6.73:1 against
-                    4.78:1, where the bar for small text is 4.5. */}
-                {s.recomputed !== null &&
-                r.score !== null &&
-                Math.abs(s.recomputed - r.score) >= 5 ? (
-                  <p className="border-border mt-sm border-t pt-sm text-body-small text-(color:--warning-muted-foreground)">
-                    {SIGNAL_TEXT.staleWhy(r.score, s.recomputed)}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ) : null}
+  const r = s.record, active = isPendingSignal(r);
+  const score = s.recomputed, tone = confidenceTone(score);
+  const brief = signalText(r.payload, "summary", "abstract", "description", "brief");
+  const company = (r.accountId ? names[r.accountId] : null) ?? signalText(r.payload, "company_name", "companyName");
+  const sourceUrl = signalSourceUrl(r);
+  const sourceName = r.source === "manual" ? W.manual : r.source === "campaign" ? props.campaignNames[r.sourceRef ?? ""] ?? SIGNAL_PANEL_TEXT.sourceLabel.campaign
+    : sourceUrl ? new URL(sourceUrl).host : SIGNAL_PANEL_TEXT.sourceLabel[r.source] ?? W.evidence;
+  const amount = r.payload.amount ?? r.payload.budget;
+  const deadline = signalText(r.payload, "deadline", "bid_deadline");
+  const lead = props.leadBySignal[r.id];
+  const needsScore = r.status !== "scored" || r.score === null;
+  return <div id={`signal-${r.id}`} className="flex min-w-0 items-start gap-md py-sm">
+    <ScoreRing score={score} tone={tone} label={`${W.currentScore} ${score ?? "-"}`} />
+    <div className="flex min-w-0 flex-1 flex-col gap-xs">
+      <div className="flex flex-wrap items-center gap-xs">
+        <Tag>{SIGNAL_TYPE_LABEL[r.signalType]}</Tag>{active ? <StatusBadge tone="info">{SIGNAL_STATUS_LABEL[r.status]}</StatusBadge> : <Tag>{SIGNAL_STATUS_LABEL[r.status]}</Tag>}
+        {!r.accountId ? <StatusBadge tone="brand">{W.unmatched}</StatusBadge> : null}
+        <p className="min-w-0 text-body text-foreground">{r.subject}</p>
       </div>
+      {company ? <p className="text-body-small text-muted-foreground">{company}</p> : r.accountId ? <p className="text-body-small text-muted-foreground">{W.accountUnavailable}</p> : null}
+      <p className="max-w-(--vx-container-2xl) line-clamp-2 text-body-small text-muted-foreground">{brief ?? W.evidenceMissing}</p>
+      {suggestion ? <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground"><span>{T.scoutMatch(suggestion.accountName)}</span>
+        <Button size="md" variant="secondary" disabled={pending || !props.canTriage} onClick={() => onDialog("match")}>{T.scoutMatchAccept}</Button></div> : null}
+      <div className="flex flex-wrap items-center gap-x-md gap-y-xs text-body-small text-muted-foreground">
+        <span>{r.detectedAt.toISOString().slice(0, 10)} · {sourceName}</span>
+        {deadline ? <span>{T.fieldDeadline(deadline)}</span> : null}
+        {typeof amount === "number" && Number.isFinite(amount) ? <span>{T.fieldAmount(formatNumber(amount, locale))}</span> : null}
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-xs pt-2xs">
+        {sourceUrl ? <Button asChild size="xl" variant="ghost"><a href={sourceUrl} target="_blank" rel="noopener noreferrer">{W.source}<Icon name="external-link" size="xs" /></a></Button> : null}
+        <Button size="xl" variant="ghost" aria-expanded={open} onClick={onToggle}>{W.evidence}<Icon name={open ? "chevron-up" : "chevron-down"} size="xs" /></Button>
+        {active ? <>
+          {needsScore ? <Button size="xl" variant="outline" disabled={pending || !props.canRescore} title={!props.canRescore ? T.noRescorePermission : undefined} onClick={() => onAct("rescore")}>{T.rescore}</Button> : null}
+          <Button size="xl" disabled={pending || !props.canPromote || needsScore}
+            title={needsScore ? W.promoteNeedsScore : !props.canPromote ? W.promoteNoPermission : undefined} onClick={() => onDialog("promote")}>{T.promote}</Button>
+          <Button size="xl" variant="outline" disabled={pending || !props.canTriage} onClick={() => onDialog("dismiss")}>{T.dismiss}</Button>
+          <ActionMenu label={T.rowMenu} align="end" items={[
+            { id: "match", label: W.match, icon: "users", disabled: pending || !props.canTriage || !props.accounts.length, onSelect: () => onDialog("match") },
+            { id: "duplicate", label: T.markDuplicate, icon: "copy", disabled: pending || !props.canTriage, onSelect: () => onAct("duplicate") },
+            { id: "rescore", label: T.rescore, icon: "refresh", disabled: pending || !props.canRescore, hint: props.canRescore ? undefined : T.noRescorePermission, onSelect: () => onAct("rescore") },
+          ]} />
+        </> : lead ? <Button asChild size="xl" variant="outline"><Link href={`/lead?search=${encodeURIComponent(lead.no)}`}>{W.openLead}</Link></Button> : <span className="text-body-small text-muted-foreground">{W.completed}</span>}
+      </div>
+      {open ? <div className="mt-xs rounded-md border border-border bg-muted/40 p-md">
+        {brief ? <p className="mb-sm whitespace-pre-wrap text-body-small text-foreground">{brief}</p> : null}
+        <p className="text-body-small text-muted-foreground">{W.ruleHint}</p>
+        <div className="mt-sm grid grid-cols-2 gap-md lg:grid-cols-4">
+          <LabeledValue label={W.currentScore} value={score ?? "-"} tone={tone} />
+          <LabeledValue label={W.recordedScore} value={r.score ?? "-"} />
+          <LabeledValue label={T.bdAge} value={Math.floor(s.ageDays)} />
+          <LabeledValue label={W.account} value={r.accountId ? names[r.accountId] ?? W.accountUnavailable : W.unmatched} />
+        </div>
+        <p className="mt-sm border-t border-border pt-sm text-body-small text-muted-foreground">{T.scoreExplain(s.baseWeight, s.decay, s.bonus)}</p>
+      </div> : null}
     </div>
-  );
+  </div>;
+}
+
+type DialogInput = SignalRegistration & { reason: string; note: string };
+function SignalDialog({ dialog, accounts, pending, error, onClose, onSubmit }: {
+  dialog: Dialog; accounts: readonly Account[]; pending: boolean; error: string | null;
+  onClose: () => void; onSubmit: (input: DialogInput) => void;
+}) {
+  const { DS_LABELS, SIGNAL_WORKSPACE_TEXT: W, SIGNAL_TEXT: T, SIGNAL_TYPE_LABEL, EXIT_REASON_LABEL } = useMessages();
+  const [form, setForm] = useState<DialogInput>(() => ({
+    requestId: crypto.randomUUID(), subject: "", signalType: "intent", summary: "",
+    companyName: accounts.find(a => a.id === dialog.signal?.record.accountId)?.name ?? signalText(dialog.signal?.record.payload ?? {}, "company_name", "companyName") ?? "",
+    accountId: dialog.signal?.record.accountId ?? dialog.suggestedId ?? "", detectedAt: new Date().toISOString().slice(0, 10), reason: "", note: "",
+  }));
+  const update = <K extends keyof DialogInput>(key: K, value: DialogInput[K]) => setForm(f => ({ ...f, [key]: value }));
+  const titles = { register: W.register, promote: W.promoteTitle, match: W.matchTitle, dismiss: T.dismiss };
+  const descriptions = { register: W.registerHint, promote: W.promoteHint, match: W.matchHint, dismiss: T.dismissWhy };
+  const labels = { register: W.register, promote: W.promoteConfirm, match: W.matchConfirm, dismiss: T.dismiss };
+  const count = (value: string, max: number) => <span className="text-body-small text-muted-foreground tabular-nums">{value.length}/{max}</span>;
+  const disabled = pending || (dialog.kind === "match" ? !form.accountId : dialog.kind === "dismiss" ? !form.reason || (form.reason === "other" && !form.note.trim()) : !form.companyName.trim());
+  return <Drawer open width="md" title={titles[dialog.kind]} description={descriptions[dialog.kind]} onClose={onClose}
+    footer={<div className="flex items-center justify-end gap-sm pb-[calc(var(--space-6xl)-var(--space-lg)+env(safe-area-inset-bottom,0px))]">
+      <Button size="xl" variant="secondary" disabled={pending} onClick={onClose}>{DS_LABELS.confirmCancel}</Button>
+      {dialog.kind === "dismiss" ? <Button size="xl" type="submit" form="signal-decision-form" disabled={disabled}
+        variant="destructive" confirmExempt={descriptions.dismiss}>{pending ? DS_LABELS.confirmPending : labels.dismiss}</Button>
+        : <Button size="xl" type="submit" form="signal-decision-form" disabled={disabled}>{pending ? DS_LABELS.confirmPending : labels[dialog.kind]}</Button>}
+    </div>}>
+    <form id="signal-decision-form" data-business-fields className="flex flex-col gap-md pb-[calc(var(--space-6xl)+env(safe-area-inset-bottom,0px))]" onSubmit={e => { e.preventDefault(); if (!disabled) onSubmit(form); }}>
+    {error ? <p role="alert" className="text-body-small text-destructive">{error}</p> : null}
+    {dialog.kind === "register" || dialog.kind === "match" ? <Field><FieldLabel>{W.account}</FieldLabel>
+      <Combobox items={[{ value: "", label: W.chooseAccount }, ...accounts.map(a => ({ value: a.id, label: a.name }))]}
+        value={form.accountId ?? ""} placeholder={W.chooseAccount} onValueChange={id => {
+          setForm(f => ({ ...f, accountId: id, companyName: accounts.find(a => a.id === id)?.name ?? f.companyName }));
+        }} /></Field> : null}
+    {dialog.kind === "register" || dialog.kind === "promote" ? <Field>
+      <FieldLabel className="flex justify-between">{W.company} * {count(form.companyName, SIGNAL_INPUT_LIMITS.companyName)}</FieldLabel>
+      <Input required maxLength={SIGNAL_INPUT_LIMITS.companyName} value={form.companyName} aria-label={W.company} onChange={e => update("companyName", e.target.value)} />
+    </Field> : null}
+    {dialog.kind === "register" ? <>
+      <Field><FieldLabel className="flex justify-between">{W.subject} * {count(form.subject, SIGNAL_INPUT_LIMITS.subject)}</FieldLabel>
+        <Input required maxLength={SIGNAL_INPUT_LIMITS.subject} value={form.subject} aria-label={W.subject} onChange={e => update("subject", e.target.value)} /></Field>
+      <div className="grid grid-cols-2 gap-md">
+        <Field><FieldLabel>{T.columnType}</FieldLabel><NativeSelect value={form.signalType} aria-label={T.columnType} onChange={e => update("signalType", e.target.value as SignalRegistration["signalType"])}>
+          {SIGNAL_TYPES.map(type => <option key={type} value={type}>{SIGNAL_TYPE_LABEL[type]}</option>)}</NativeSelect></Field>
+        <Field><FieldLabel>{W.detectedAt} *</FieldLabel><Input required type="date" value={form.detectedAt} aria-label={W.detectedAt} onChange={e => update("detectedAt", e.target.value)} /></Field>
+      </div>
+      <Field><FieldLabel className="flex justify-between">{W.summary} * {count(form.summary, SIGNAL_INPUT_LIMITS.summary)}</FieldLabel>
+        <Textarea required rows={3} maxLength={SIGNAL_INPUT_LIMITS.summary} value={form.summary} aria-label={W.summary} onChange={e => update("summary", e.target.value)} /></Field>
+      <Field><FieldLabel>{W.sourceUrl}</FieldLabel><Input type="url" maxLength={SIGNAL_INPUT_LIMITS.sourceUrl} value={form.sourceUrl ?? ""} aria-label={W.sourceUrl} onChange={e => update("sourceUrl", e.target.value)} /></Field>
+      <div className="grid grid-cols-2 gap-md">
+        <Field><FieldLabel>{W.deadline}</FieldLabel><Input type="date" value={form.deadline ?? ""} aria-label={W.deadline} onChange={e => update("deadline", e.target.value)} /></Field>
+        <Field><FieldLabel>{W.amount}</FieldLabel><Input type="number" min="0" step="0.01" value={form.amount ?? ""} aria-label={W.amount} onChange={e => update("amount", e.target.value)} /></Field>
+      </div>
+    </> : null}
+    {dialog.kind === "dismiss" ? <>
+      <Field><FieldLabel>{T.dismissReason} *</FieldLabel><NativeSelect required value={form.reason} aria-label={T.dismissReason} onChange={e => update("reason", e.target.value)}>
+        <option value="">{T.dismissReasonPick}</option>{SIGNAL_DISMISS_REASONS.map(reason => <option key={reason} value={reason}>{EXIT_REASON_LABEL[reason]}</option>)}</NativeSelect></Field>
+      <Field><FieldLabel className="flex justify-between">{T.dismissNote}{count(form.note, 500)}</FieldLabel><Textarea rows={2} maxLength={500} required={form.reason === "other"}
+        value={form.note} aria-label={T.dismissNote} onChange={e => update("note", e.target.value)} /></Field>
+    </> : null}
+    </form>
+  </Drawer>;
 }

@@ -24,6 +24,7 @@ import {
   type SignalStatus,
 } from "./lib/scoring";
 import { planLeadAdvance, planLeadDeletion } from "./lib/lead";
+import { planSignalRegistration, type SignalRegistration } from "./lib/intelligence";
 import { planFunnelExit, type ExitReason } from "../shared/funnel-exit";
 import {
   routeLead,
@@ -69,6 +70,16 @@ export interface IngestResult {
   recorded: SignalRecord[];
   /** Signals whose dedup key already existed. Reported, not silently dropped. */
   duplicates: number;
+}
+
+/** User-entered evidence uses inbox triage, never the external-feed entitlement. */
+export async function registerSignal(ctx: SignalContext, input: SignalRegistration): Promise<RuleResult<{ signal: SignalRecord | null; duplicate: boolean }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.triage", "data");
+  if (!gate.allowed) return denied(gate);
+  const planned = planSignalRegistration(input);
+  if (!planned.ok) return planned;
+  const signal = await ctx.store.recordSignal(ctx.workspaceId, planned.value);
+  return ok({ signal, duplicate: signal === null });
 }
 
 /**
@@ -130,11 +141,11 @@ export async function rescoreSignal(
   });
   if (!scored.ok) return scored as RuleResult<ScoredSignal>;
 
-  const patch = planRescore(signal, scored.value, { accountId });
+  const patch = planRescore(signal, scored.value, opts.accountId !== undefined ? { accountId } : {});
   if (!patch.ok) return patch as RuleResult<ScoredSignal>;
 
-  const applied = await ctx.store.resolveSignal(ctx.workspaceId, signalId, patch.value);
-  if (!applied) return fail(violation("not_found", `signal ${signalId} was not found`, "signalId"));
+  const applied = await ctx.store.resolveSignal(ctx.workspaceId, signalId, patch.value, signal);
+  if (!applied) return fail(violation("signal_changed", "signal changed before scoring", "signalId"));
 
   const updated = await ctx.store.getSignal(ctx.workspaceId, signalId);
   return ok({ signal: updated!, breakdown: scored.value });
@@ -181,8 +192,8 @@ export async function triageSignal(
   });
   if (!record.ok) return record as RuleResult<{ status: SignalStatus }>;
 
-  await ctx.store.recordFunnelExit(ctx.workspaceId, record.value);
-  await ctx.store.resolveSignal(ctx.workspaceId, signalId, patch.value);
+  const closed = await ctx.store.closeSignal(ctx.workspaceId, signalId, signal.status, to, record.value);
+  if (!closed) return fail(violation("signal_changed", "signal changed before closure", "signalId"));
   return ok({ status: to });
 }
 
@@ -216,8 +227,8 @@ export async function matchSignalAccount(
   // resolveSignal, not a new port verb: `account_id` is one of the three
   // RESOLUTION columns it already takes, and the port's whole shape is that
   // evidence cannot be written and resolution can.
-  const applied = await ctx.store.resolveSignal(ctx.workspaceId, signalId, { accountId });
-  if (!applied) return fail(violation("not_found", `signal ${signalId} was not found`, "signalId"));
+  const applied = await ctx.store.resolveSignal(ctx.workspaceId, signalId, { accountId }, signal);
+  if (!applied) return fail(violation("signal_changed", "signal changed before matching", "signalId"));
   return ok({ accountId });
 }
 
@@ -247,11 +258,11 @@ export async function promoteSignal(
   const plan = planPromotion({ signal: { ...signal, id: signalId }, companyName: opts.companyName });
   if (!plan.ok) return plan as RuleResult<PromotionResult>;
 
-  const lead = await ctx.store.createLead(ctx.workspaceId, {
+  const lead = await ctx.store.promoteToLead(ctx.workspaceId, signalId, {
     ...plan.value.lead,
     ownerSub: opts.ownerSub ?? ctx.sub,
-  });
-  await ctx.store.resolveSignal(ctx.workspaceId, signalId, plan.value.patch);
+  }, { score: signal.score, accountId: signal.accountId });
+  if (!lead) return fail(violation("signal_changed", "signal changed; reload before promoting", "signalId"));
 
   const updated = await ctx.store.getSignal(ctx.workspaceId, signalId);
   return ok({ lead, signal: updated! });

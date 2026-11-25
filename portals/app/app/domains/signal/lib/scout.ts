@@ -17,11 +17,11 @@
 // WHAT `subject` ACTUALLY HOLDS shaped all three. It is a HEADLINE - "华东零售
 // 集团正在评估 POS 替换方案" - not a company name, which is why matching looks
 // inside it and why clustering does not group on it at all. Worth knowing:
-// planPromotion copies `subject` into a lead's `company_name`, so promoting a
-// signal today names the lead after a whole sentence. That is a real
-// inconsistency in the product and it is NOT fixed here.
+// C01 requires a confirmed company name at promotion. Structured company
+// evidence can propose an exact match, but never silently resolve an identity.
 
 export interface ScoutSignal {
+  readonly companyName?: string | null;
   readonly id: string;
   readonly subject: string;
   readonly signalType: string;
@@ -157,8 +157,9 @@ export function proposeAccountMatches(
 
   return signals.flatMap((s) => {
     if (!isOpen(s) || s.accountId !== null) return [];
+    const company = s.companyName ? nameKey(s.companyName) : null;
     const haystack = nameKey(s.subject);
-    const hits = named.filter((a) => haystack.includes(nameKey(a.name)));
+    const hits = named.filter((a) => company ? company === nameKey(a.name) : haystack.includes(nameKey(a.name)));
     if (hits.length !== 1) return [];
     return [
       {

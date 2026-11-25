@@ -40,7 +40,8 @@ import { lockedPage } from "../components/locked-page";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadPage() {
+export default async function LeadPage({ searchParams }: { readonly searchParams: Promise<{ search?: string }> }) {
+  const { search } = await searchParams;
   const { LEAD_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -162,6 +163,8 @@ export default async function LeadPage() {
       />
 
       <LeadList
+        key={search ?? ""}
+        initialQuery={typeof search === "string" ? search : ""}
         leads={leads.value}
         regionOf={regionOf}
         exitReasons={exitReasons}

@@ -1,193 +1,76 @@
-import { Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { listCampaigns } from "../../domains/strategy/service";
+import { listAccounts } from "../../domains/account/service";
 import { resolveAppSession } from "../lib/session";
-// A SERVER component, so the dictionary is awaited rather than hooked. The
-// locale comes from the request; next/headers caches it, so several server
-// components asking cost one resolution.
 import { getMessages } from "../lib/i18n/server";
-import { getSignalStore, getStrategyStore } from "../../domains/shared/registry";
-import { listSignals } from "../../domains/signal/service";
+import { getStrategyStore } from "../../domains/shared/registry";
+import { listLeads, listSignals } from "../../domains/signal/service";
+import { isPendingSignal } from "../../domains/signal/lib/intelligence";
 import { can } from "../../authz/decide";
-import { SignalQueue, type QueueSignal } from "../components/signal-queue";
-import { scoreSignal } from "../../domains/signal/lib/scoring";
-import { actOnSignal, dismissSignal } from "./actions";
+import { SignalQueue } from "../components/signal-queue";
+import { enrichSignals } from "../lib/signal-inbox";
+import { actOnSignal, confirmSignalPromotion, dismissSignal, fetchSignalUpdates, matchSignal, saveSignalRegistration } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
 import { ModuleHeadline } from "../components/module-headline";
+import { Tag } from "../components/tag";
 import { lockedPage } from "../components/locked-page";
-
-// D5 商机智探 - SIGNALS ONLY since 2026-09-06 (design_yucer_110).
-//
-// The lead list used to sit under this inbox, which made one page manage two
-// objects with two lifecycles: a signal is 升级/忽略/判重/重新评分, a lead runs
-// new -> working -> qualified -> converted. Leads have their own module now,
-// and this page is what its name says.
-//
-// `canTriage` and `canRescore` only decide which buttons render. Every action
-// re-runs both gates on the server, because a disabled button is a courtesy and
-// not a control.
+import { getArdaConfig } from "../../platform/arda/source";
 
 export const dynamic = "force-dynamic";
 
-export default async function SignalPage({
-  searchParams,
-}: {
+export default async function SignalPage({ searchParams }: {
   readonly searchParams: Promise<{ focus?: string }>;
 }) {
   const { focus } = await searchParams;
-  const { SIGNAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { SIGNAL_TEXT: T, SIGNAL_WORKSPACE_TEXT: W, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
-  // Not bought: the upgrade template in place of the page (owner 2026-09-28).
   const locked = lockedPage(session, "signal");
   if (locked) return locked;
-  // Unreachable: (app)/layout.tsx already renders the shared SignIn
-  // screen and never mounts this page when there is no session. Kept
-  // only because TypeScript needs it to narrow `session` below.
-
-  const ctx = {
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: session.stores.signal(),
-  };
-
-  const result = await listSignals(ctx, { limit: 100 });
-
-  if (!result.ok) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.loadFailed}
-        description={loadFailureText(result.violations, LOAD_ERROR)}
-      />
-    );
-  }
-
-  // The breakdown, recomputed from the SAME inputs the stored score came from,
-  // by the same pure rule. Recomputing rather than storing means the shown
-  // arithmetic can never drift from the definition - and when today's answer
-  // differs from the stored one, the signal has decayed since it was scored,
-  // which is worth saying rather than silently showing a stale number.
-  const now = new Date();
-  const enriched: QueueSignal[] = result.value.map((r) => {
-    const b = scoreSignal({
-      signalType: r.signalType,
-      detectedAt: r.detectedAt,
-      accountId: r.accountId,
-      now,
-    });
-    return {
-      record: r,
-      recomputed: b.ok ? b.value.score : null,
-      baseWeight: b.ok ? b.value.baseWeight : 0,
-      decay: b.ok ? b.value.decayMultiplier : 0,
-      bonus: b.ok ? b.value.matchBonus : 0,
-      ageDays: b.ok ? b.value.ageDays : 0,
-    };
-  });
-
-  // Grouped by line of enquiry, highest score first inside each group.
-  //
-  // The untargeted group is SHOWN, not hidden: aim decides what to read first,
-  // never what is allowed in (ADR-016). Hiding it would quietly turn a reading
-  // order into a filter.
-  const byScore = (a: QueueSignal, b: QueueSignal) =>
-    (b.record.score ?? 0) - (a.record.score ?? 0);
+  const ctx = { workspaceId: session.workspaceId, sub: session.user.sub,
+    holder: session.authz, entitlement: session.entitlement, store: session.stores.signal() };
+  // Never report an arbitrary first 100 records as the complete inbox. Failed
+  // ancillary reads do not blank the evidence list or invent empty relations.
+  const [signals, accounts, leads, campaigns] = await Promise.allSettled([
+    listSignals(ctx),
+    listAccounts({ ...ctx, store: session.stores.account() }),
+    listLeads(ctx),
+    listCampaigns({ ...ctx, store: getStrategyStore() }),
+  ]);
+  if (signals.status === "rejected") return <EmptyState title={SHELL_TEXT.loadFailed} description={SHELL_TEXT.loadFailed} />;
+  const signalResult = signals.value;
+  if (!signalResult.ok) return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(signalResult.violations, LOAD_ERROR)} />;
+  const enriched = enrichSignals(signalResult.value);
+  const byScore = (a: typeof enriched[number], b: typeof enriched[number]) =>
+    (b.recomputed ?? 0) - (a.recomputed ?? 0) || b.record.detectedAt.getTime() - a.record.detectedAt.getTime();
   const groups = [
-    {
-      key: "named",
-      title: SIGNAL_TEXT.groupNamed,
-      why: SIGNAL_TEXT.groupNamedWhy,
-      items: enriched
-        .filter((s) => s.record.targeting === "named_account")
-        .sort(byScore),
-    },
-    {
-      key: "domain",
-      title: SIGNAL_TEXT.groupDomain,
-      why: SIGNAL_TEXT.groupDomainWhy,
-      items: enriched
-        .filter((s) => s.record.targeting === "product_domain")
-        .sort(byScore),
-    },
-    {
-      key: "none",
-      title: SIGNAL_TEXT.groupNone,
-      why: SIGNAL_TEXT.groupNoneWhy,
-      items: enriched
-        .filter(
-          (s) =>
-            s.record.targeting !== "named_account" &&
-            s.record.targeting !== "product_domain",
-        )
-        .sort(byScore),
-    },
+    { key: "named", title: T.groupNamed, why: T.groupNamedWhy,
+      items: enriched.filter(s => s.record.targeting === "named_account").sort(byScore) },
+    { key: "domain", title: T.groupDomain, why: T.groupDomainWhy,
+      items: enriched.filter(s => s.record.targeting === "product_domain").sort(byScore) },
+    { key: "none", title: T.groupNone, why: W.noneNamed,
+      items: enriched.filter(s => !["named_account", "product_domain"].includes(s.record.targeting ?? "")).sort(byScore) },
   ];
-  const namedCount = groups[0]!.items.length;
-  // Said once. Decay is continuous, so on a dataset of any age most rows are
-  // stale; flagging each one turns a true statement into wallpaper.
-  const staleCount = enriched.filter(
-    (s) =>
-      s.recomputed !== null &&
-      s.record.score !== null &&
-      Math.abs(s.recomputed - s.record.score) >= 5,
-  ).length;
-
-  // Campaign names for "发现于 … · <campaign>" - a refused read keeps the label.
-  const campaignsRead = await listCampaigns({ ...ctx, store: getStrategyStore() }).catch(() => null);
-  const campaignNames = Object.fromEntries((campaignsRead?.ok ? campaignsRead.value : []).map((c) => [c.id, c.name]));
-
-  return (
-    <ViewLayout>
-      {/* THE MODULE HEADER, no fold (owner, 2026-09-06). Card and icon like
-          every other module; the counts that used to BE the title are badges
-          beside it now.
-
-          THE TITLE IS THE MODULE'S NAME. It used to be "12 条情报待判", which
-          is a reading of today's inbox rather than a name - so the page's
-          heading changed every time a signal arrived, and never matched the
-          menu entry that got you here. The count is still the first thing
-          said; it is just said as a badge, which is what a count is.
-
-          EVERY BADGE IS COUNTED OFF THE SAME `enriched` ARRAY the queue below
-          is built from, so the header cannot describe a different inbox. */}
-      <ModuleHeadline
-        moduleKey="signal"
-        tags={
-          <>
-            <StatusBadge tone="success">
-              {enriched.length > 0 ? SIGNAL_TEXT.tagSignals(enriched.length) : SIGNAL_TEXT.leadNone}
-            </StatusBadge>
-            {namedCount > 0 ? (
-              <StatusBadge tone="info">{SIGNAL_TEXT.tagNamed(namedCount)}</StatusBadge>
-            ) : null}
-            {/* DECAY IS SAID ONCE, HERE. It is continuous, so on a dataset of
-                any age most rows are stale; flagging each one turns a true
-                statement into wallpaper. */}
-            {staleCount > 0 ? (
-              <StatusBadge tone="warning">{SIGNAL_TEXT.tagStale(staleCount)}</StatusBadge>
-            ) : null}
-          </>
-        }
-      />
-
-      <SignalQueue
-        groups={groups}
-        campaignNames={campaignNames}
-        focusId={typeof focus === "string" ? focus : undefined}
-        // Both flags come from the SAME gate the server action re-runs. Naming
-        // tiers here would be the product re-deriving a commercial conclusion,
-        // and it would drift from the matrix the moment packaging changed.
-        canTriage={
-          can(session.authz, session.entitlement, "signal.triage", "ui").allowed
-        }
-        canRescore={
-          can(session.authz, session.entitlement, "signal.rescore", "ui")
-            .allowed
-        }
-        onAct={actOnSignal}
-        onDismiss={dismissSignal}
-      />
-    </ViewLayout>
-  );
+  const accountOptions = accounts.status === "fulfilled" && accounts.value.ok
+    ? accounts.value.value.map(a => ({ id: a.id, name: a.name })) : [];
+  const leadBySignal = Object.fromEntries((leads.status === "fulfilled" && leads.value.ok ? leads.value.value : [])
+    .filter(l => l.signalId).map(l => [l.signalId!, { id: l.id, name: l.companyName, no: l.leadNo }]));
+  const campaignNames = Object.fromEntries((campaigns.status === "fulfilled" && campaigns.value.ok ? campaigns.value.value : []).map(c => [c.id, c.name]));
+  const pending = enriched.filter(s => isPendingSignal(s.record));
+  return <ViewLayout>
+    <ModuleHeadline moduleKey="signal" tags={<>
+      {pending.length ? <StatusBadge tone="info">{T.tagSignals(pending.length)}</StatusBadge> : <Tag>{T.leadNone}</Tag>}
+      {enriched.length > pending.length ? <Tag>{W.processed} {enriched.length - pending.length}</Tag> : null}
+    </>} />
+    <SignalQueue groups={groups} campaignNames={campaignNames} accounts={accountOptions} leadBySignal={leadBySignal}
+      relatedReadFailed={[accounts, leads, campaigns].some(r => r.status === "rejected" || !r.value.ok)}
+      focusId={typeof focus === "string" ? focus : undefined}
+      canTriage={can(session.authz, session.entitlement, "signal.triage", "ui").allowed}
+      canPromote={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed}
+      canRescore={can(session.authz, session.entitlement, "signal.rescore", "ui").allowed}
+      canSync={can(session.authz, session.entitlement, "signal.feed.ingest", "ui").allowed}
+      feedConfigured={getArdaConfig().enabled}
+      onAct={actOnSignal} onPromote={confirmSignalPromotion} onDismiss={dismissSignal}
+      onRegister={saveSignalRegistration} onMatch={matchSignal} onSync={fetchSignalUpdates} />
+  </ViewLayout>;
 }

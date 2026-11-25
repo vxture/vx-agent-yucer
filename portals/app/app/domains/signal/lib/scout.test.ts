@@ -200,3 +200,10 @@ test("unmatched signals do not cluster at all", () => {
     [],
   );
 });
+
+test("structured company evidence proposes an exact name without merging a parent and subsidiary", () => {
+  const accounts = [{ id: "parent", name: "Acme" }, { id: "child", name: "Acme Manufacturing Ltd" }];
+  const result = proposeAccountMatches([sig({ subject: "Platform renewal", companyName: "Acme Manufacturing Ltd" })], accounts);
+  assert.equal(result[0].accountId, "child");
+  assert.equal(proposeAccountMatches([sig({ companyName: "Acme Manufacturing" })], accounts).length, 0);
+});
