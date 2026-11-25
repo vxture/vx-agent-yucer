@@ -5,6 +5,14 @@ import { validFailureCode, validFailureDiagnostic, type TaskFailureDiagnostic } 
 const MAX_MODEL_USAGE_ROWS = 20;
 const MODEL_USAGE_FIELDS = ["promptTokens", "completionTokens", "totalTokens", "messageTokens", "schemaTokens", "toolResultTokens"] as const;
 
+// JSONB rejects lone UTF-16 surrogates (22P02 / Prisma P2007), including a
+// valid supplementary character cut in half by an excerpt's length limit.
+// NUL is also unsupported in PostgreSQL text. Normalize display excerpts and
+// metadata only; canonical source keys and private form values stay unchanged.
+function receiptText(value: string, maximum: number): string {
+  return value.slice(0, maximum).toWellFormed().replaceAll("\u0000", "\ufffd");
+}
+
 export interface ResearchSource {
   id: string;
   capabilityId: string | null;
@@ -73,16 +81,16 @@ function links(content: string): string[] {
 /** Private, bounded provenance from successful tool receipts only. No model
  * text becomes evidence; the task's full source/permission closure guards replay. */
 export function taskArtifacts(result: TurnResult, startedAt: number): TaskArtifacts {
-  const tag = (v: string | undefined): string | null => v?.slice(0, 256) ?? null;
+  const tag = (v: string | undefined): string | null => v === undefined ? null : receiptText(v, 256);
   const artifacts: TaskArtifacts = {
     version: "task-artifacts/1", capturedAt: new Date().toISOString(),
     research: result.readEvidence.slice(0, 20).map(e => ({
-      id: e.id.slice(0, 256), capabilityId: tag(e.capabilityId), operation: tag(e.operation),
+      id: receiptText(e.id, 256), capabilityId: tag(e.capabilityId), operation: tag(e.operation),
       callId: tag(e.callId), version: tag(e.versionResolved),
-      excerpt: e.content.replace(/https?:\/\/[^\s<>"\\]+/gi, url => publicSourceUrl(url) ?? "[link omitted]").slice(0, 1500), links: links(e.content),
+      excerpt: receiptText(e.content.replace(/https?:\/\/[^\s<>"\\]+/gi, url => publicSourceUrl(url) ?? "[link omitted]"), 1500), links: links(e.content),
     })),
     usage: { elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens: result.totalTokens, toolRounds: result.toolRounds, truncated: result.truncated, ...perModelUsage(result.modelUsage) },
-    calls: result.invocations.slice(0, 64).map(c => ({capabilityId:c.capabilityId.slice(0,256),operation:c.operation.slice(0,256),callId:tag(c.callId),version:tag(c.versionResolved),ok:c.ok})),
+    calls: result.invocations.slice(0, 64).map(c => ({capabilityId:receiptText(c.capabilityId,256),operation:receiptText(c.operation,256),callId:tag(c.callId),version:tag(c.versionResolved),ok:c.ok})),
   };
   // UTF-8 excerpts and many long URLs can exceed the SQL byte ceiling even
   // when every individual field is bounded. Leave room for JSONB spacing.

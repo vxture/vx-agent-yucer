@@ -7,6 +7,7 @@ import { Client } from "pg";
 import { PrismaTaskStore } from "./task-prisma-store";
 import { PrismaCopilotStore } from "./prisma-store";
 import { TASK_RULE_VERSION, type TaskScope } from "./lib/task-contract";
+import { taskArtifacts } from "./lib/task-artifacts";
 import {
   createPrivateTask,
   readPrivateTask,
@@ -48,6 +49,34 @@ async function fixture(
     await c.end();
   }
 }
+
+test(
+  "Unicode receipt truncation cannot roll back a completed answer and its source closure",
+  { skip },
+  async () => fixture(async (s, scope) => {
+    const task=await s.create(scope,"Unicode receipt",TASK_RULE_VERSION,[],randomUUID());
+    const turn=await s.beginTurn(scope,task.id,1,randomUUID(),"local question","hash",TASK_RULE_VERSION);
+    assert.ok(turn);
+    const artifacts=taskArtifacts({answer:"Verified answer",totalTokens:20900,toolRounds:2,truncated:false,
+      readEvidence:[{id:"read-1-1",content:"x".repeat(1499)+"\ud83d\ude80",capabilityId:"read",operation:"read"}],
+      invocations:[],
+    } as unknown as Parameters<typeof taskArtifacts>[0],Date.now());
+    const references=Array.from({length:14},()=>({kind:"account" as const,id:randomUUID(),version:"v1",role:"context" as const}));
+    // Reproduce the production error code from slicing a supplementary symbol.
+    const malformed={...artifacts,research:[{...artifacts.research[0]!,excerpt:"x".repeat(1499)+"\ud83d"}]};
+    await assert.rejects(s.finishTurn(scope,task.id,turn.id,{answer:"Verified answer",tokens:20900,artifacts:malformed,references}),
+      (error:unknown)=>!!error && typeof error==="object" && "code" in error && error.code==="P2007");
+    const before=await s.load(scope,task.id,true);
+    assert.equal(before!.task.revision,2);assert.equal(before!.turns[0]!.status,"running");
+    assert.equal(before!.references.length,0);assert.equal(before!.messages.length,1);
+    assert.equal(await s.finishTurn(scope,task.id,turn.id,{answer:"Verified answer",tokens:20900,artifacts,references}),true);
+    const saved=await s.load(scope,task.id,true);
+    assert.equal(saved!.turns[0]!.status,"succeeded");
+    assert.equal(saved!.turns[0]!.artifacts!.research[0]!.excerpt,"x".repeat(1499)+"\ufffd");
+    assert.equal(saved!.messages[1]!.content,"Verified answer");assert.equal(saved!.references.length,14);
+    assert.equal(saved!.checkpoint!.lastSeq,2);
+  }),
+);
 
 test(
   "task and task-session creation is atomic and idempotent across store instances",

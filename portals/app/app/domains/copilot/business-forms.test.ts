@@ -450,14 +450,14 @@ test("successful research facts fill the customer draft through the real tool di
   f.deps.runosClient.resolve=async()=>({capability_id:capabilityId,title:"Company research",state:"stable",version:"1.0.1",primitive_type:"connector",provider:"example",contract:{
     summary:"Public registry",useWhen:"Read",avoidWhen:"No writes",operations:[{operation:"fetch",description:"Read",riskLevel:"read",interactionMode:"sync",inputSchema:{type:"object"},outputSchema:{},idempotent:true}],
   }});
-  const quote="Example customer website https://example.org/ creditCode 91310000123456789X";
+  const quote="Example customer\nwebsite www.example.org\ncreditCode 91310000123456789X";
   f.deps.runosClient.invoke=async()=>{const content=[{type:"text",text:quote}];return {content,structured:{content},meta:{call_id:"source-1",version_resolved:"1.0.1"}};};
   f.set([
     f.tools(FIND_CAPABILITIES,{query:"Company registry",primitive_type:"connector"}),
     f.tools(LOAD_CAPABILITY,{capability_id:capabilityId}),
     f.tools(toolNameFor(capabilityId,"fetch"),{}),
     f.tools("prepare_business_form",{module:"account",key:"customer",fields:{name:"Example customer"},fieldEvidence:[
-      {field:"website",value:"https://example.org/",sourceId:"read-3-1",quote},
+      {field:"website",value:"https://www.example.org/",sourceId:"read-3-1",quote},
       {field:"creditCode",value:"91310000123456789X",sourceId:"read-3-1",quote},
     ]}),
     {content:"Company facts extracted for human review."},
@@ -465,7 +465,7 @@ test("successful research facts fill the customer draft through the real tool di
   unwrap(await f.turn());
   const bundle=unwrap(await readPrivateTask(f.c,f.task.id));
   const form=readBusinessForm(bundle.drafts[0]!.text);
-  assert.equal(form.fields.website,"https://example.org/");assert.equal(form.fields.creditCode,"91310000123456789X");
+  assert.equal(form.fields.website,"https://www.example.org/");assert.equal(form.fields.creditCode,"91310000123456789X");
   assert.equal(form.fieldEvidence!.length,2);assert.equal(bundle.turns[0]!.artifacts!.research.length,1);
   assert.equal(bundle.capabilities.save,false);
 });
