@@ -69,6 +69,24 @@ class SupplyCheckTests(unittest.TestCase):
         with patch.object(check.subprocess, "run", side_effect=subprocess.TimeoutExpired("secret", 40)):
             self.assertEqual(check.attempt(lambda: check.log_counters("app")), {"status": "unavailable"})
 
+    def test_database_input_categories_distinguish_types_without_values(self):
+        raw = ('ERROR: invalid input syntax for type uuid: "private-secret"\n'
+               'ERROR: invalid input syntax for type json\n'
+               'DETAIL: Unicode low surrogate must follow a high surrogate. private-secret\n'
+               'ERROR: invalid input syntax for type integer: "private-secret"\n'
+               'ERROR: invalid input value for enum private_type: "private-secret"\n'
+               'ERROR: unsupported Unicode escape sequence\n'
+               'DETAIL: \\u0000 cannot be converted to text. private-secret\n')
+        result = subprocess.CompletedProcess([], 0, raw)
+        with patch.object(check.subprocess, "run", return_value=result):
+            output = check.log_counters("yucer-db")
+        for category in ("database_invalid_uuid", "database_invalid_json",
+                         "database_invalid_number", "database_invalid_enum",
+                         "database_untranslatable_null"):
+            self.assertEqual(output["counts"][category], 1)
+        self.assertEqual(output["counts"]["database_invalid_unicode"], 2)
+        for sensitive in ("private", "secret", "DETAIL", "ERROR", "\\u0000"):
+            self.assertNotIn(sensitive, json.dumps(output))
     def test_metadata_queries_do_not_select_private_content(self):
         statements = " ".join(check.YUCER_QUERIES.values())
         for forbidden in ("actor_sub", "workspace_id", "question_hash", "content", "goal", "artifacts"):
