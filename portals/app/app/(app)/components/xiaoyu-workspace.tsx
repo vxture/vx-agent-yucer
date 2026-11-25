@@ -168,13 +168,9 @@ function ConversationHistory() {
 }
 
 function AgentReply({ children }: { readonly children: ReactNode }) {
-  const { XIAOYU_TEXT: T } = useMessages();
   return <div className={styles.reply} data-role="assistant">
     <AgentMark />
-    <div className="min-w-0">
-      <p className="mb-2xs text-label">{T.name}</p>
-      <div className="text-body leading-relaxed">{children}</div>
-    </div>
+    <div className={styles.replyContent}>{children}</div>
   </div>;
 }
 

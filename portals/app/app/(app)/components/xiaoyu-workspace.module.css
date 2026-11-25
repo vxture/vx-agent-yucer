@@ -163,7 +163,11 @@
   color: var(--primary-foreground);
 }
 
-.reply { display: flex; gap: var(--space-sm); align-items: flex-start; }
+.reply { display: grid; grid-template-columns: var(--space-control-xl) minmax(0, 1fr); column-gap: var(--space-sm); align-items: start; min-width: 0; }
+.reply > .agentMark { grid-column: 1; grid-row: 1; }
+.replyContent, .replyContent > [data-xiaoyu-rich-content] { display: contents; }
+.replyContent > :not([data-xiaoyu-rich-content]), .replyContent > [data-xiaoyu-rich-content] > * { grid-column: 2; min-width: 0; }
+.replyContent > [data-slot="card"], .replyContent > [data-form-review-card], .replyContent > [data-xiaoyu-rich-content] > [data-xiaoyu-wide-block] { grid-column: 1 / -1; margin-top: var(--space-sm); }
 .greeting, .boardEmpty {
   display: flex;
   flex-direction: column;

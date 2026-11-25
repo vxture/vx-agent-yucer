@@ -90,14 +90,13 @@ try{
  await evaluate(`document.querySelector('[data-assistant-frame] [data-assistant-width-toggle]').click()`);await pause(180);
  assert.equal(await evaluate(`document.querySelector('[data-assistant-frame]').closest('aside').getBoundingClientRect().width`),26.25*rem);
  console.log('PASS workboard and business dock share width preference, dimensions and switch control');
- await evaluate(`document.querySelector('[data-assistant-fullscreen-toggle]').click()`);await until(`!!document.querySelector('[data-xiaoyu-surface=full]')`);assert.equal(await count(),1);
- await evaluate(`document.querySelector('[data-assistant-close]').click()`);await until(`!document.querySelector('[data-assistant-frame]')?.checkVisibility()`);
+ await evaluate(`document.querySelector('[data-assistant-workbench]').click()`);await until(`!!document.querySelector('[data-xiaoyu-surface=full]')`);assert.equal(await count(),1);
+ await evaluate(`document.querySelector('[data-assistant-close]').click()`);await until(`document.querySelector('[data-xiaoyu-surface=full]')?.dataset.conversationOpen==='false'`);
  await evaluate(`document.querySelector('[data-assistant-dock-trigger] button').click()`);await until(`document.querySelector('[data-assistant-composer]')?.checkVisibility()`);assert.equal(await count(),1);
  assert.equal(await evaluate(`document.querySelector('[data-assistant-composer] textarea').value`),'Keep this unsent requirement across modules');
- await evaluate(`document.querySelector('[data-assistant-workbench]').click()`);
  await until(`location.pathname==='/copilot'&&document.querySelector('[data-xiaoyu-surface]')?.dataset.taskId===${JSON.stringify(taskId)}`);
  assert.equal(await panelWidth(),26.25*rem);
  assert.equal(await evaluate(`document.querySelector('#xiaoyu-full-input').value`),'Keep this unsent requirement across modules');
  if(fixtureError)throw fixtureError;
- console.log('PASS default two-pane layout; results stay on board; five viewports; expanded report keeps composer reachable; cross-page task and unsent requirement; close/reopen/fullscreen; one composer. Read-only layout fixtures only, no business writes or model calls.');
+ console.log('PASS default two-pane layout; results stay on board; five viewports; expanded report keeps composer reachable; cross-page task and unsent requirement; close/reopen/collaboration space; one composer. Read-only layout fixtures only, no business writes or model calls.');
 }finally{await page.send('Fetch.disable').catch(()=>{});await browser.send('Target.closeTarget',{targetId}).catch(()=>{});page.close();browser.close();}
