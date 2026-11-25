@@ -7,6 +7,7 @@ import { BUSINESS_FORM_CONTRACT, isFormModule, mergeForm, readBusinessForm, form
 import { createHash } from "node:crypto";
 import { budgetFailureArtifacts, taskArtifacts, turnFailureArtifacts } from "./lib/task-artifacts";
 import { classifyTaskFailure } from "./lib/task-failure-classify";
+import { taskAnswer } from "./lib/task-answer";
 import type { TaskFailureDiagnostic } from "./lib/task-failure";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { Entitlement } from "../../entitlement/types";
@@ -585,7 +586,7 @@ export async function runPrivateTaskTurn(
         bind(contextSources);
         for(const object of pageContext?.selection??[]){const selected=await now.source(object);demand(selected,"source_unavailable");bind([selected]);}
         const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
-        const localTools=now.business ? {definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>,evidence:readonly import("../../agent/orchestrator/turn").ReadEvidence[])=>{
+        const localTools=now.business ? {finishPrivateForms:true,definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>,evidence:readonly import("../../agent/orchestrator/turn").ReadEvidence[])=>{
           const live=await recheck();demand(live.business,"task_tool_denied");
           bind([live.business.access]);
           try {
@@ -701,9 +702,9 @@ export async function runPrivateTaskTurn(
         );
         modelFinished = true;
         stage = "validate";
-        demand(result.answer.trim().length > 0, "task_model_failed");
-        if(now.business&&/(?:\u5df2(?:\u6210\u529f)?(?:\u4fdd\u5b58|\u53d1\u5e03|\u63d0\u4ea4|\u521b\u5efa)|successfully (?:saved|published|submitted|created))/i.test(result.answer))result.answer=verifiedReceipt?"\u5df2\u6838\u5bf9\u73b0\u6709\u6267\u884c\u56de\u6267\uff0c\u8bf7\u4ee5\u6267\u884c\u6e05\u5355\u4e2d\u7684\u5b9e\u9645\u4e1a\u52a1\u8bb0\u5f55\u4e3a\u51c6\u3002":forms.size?"\u5df2\u51c6\u5907\u8868\u5355\u8349\u7a3f\uff0c\u8bf7\u6253\u5f00\u590d\u6838\u540e\u4fdd\u5b58\u3002":"\u5206\u6790\u5df2\u5b8c\u6210\uff0c\u672c\u56de\u5408\u6ca1\u6709\u4fdd\u5b58\u6216\u53d1\u5e03\u4e1a\u52a1\u8bb0\u5f55\u3002";
-        if(result.truncated)result.answer+="\n\n\u672c\u8f6e\u5df2\u8fbe\u5230\u5904\u7406\u4e0a\u9650\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u5206\u6790\u4e0e\u8349\u7a3f\uff1b\u5c1a\u672a\u8bfb\u53d6\u7684\u4fe1\u606f\u548c\u672a\u5b8c\u6210\u7684\u6b65\u9aa4\u9700\u7ee7\u7eed\u5904\u7406\u3002";
+        demand(result.answer.trim().length > 0 || result.privateFormsFinalized, "task_model_failed");
+        if (now.business) result.answer = taskAnswer(result.answer, { forms: forms.size, verifiedReceipt,
+          finalized: result.privateFormsFinalized, truncated: result.truncated });
         // No model output is persisted or delivered after revocation or source
         // changes. Sources are re-read, not trusted from the old checkpoint.
         stage = "verify";

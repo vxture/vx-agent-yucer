@@ -1024,3 +1024,57 @@ test("repeated native reads reserve a final grounded answer within the original 
     assert.ok(h.calls.at(-1)!.messages.some(m => m.content.includes("reserved for your answer")));
   }
 });
+
+test("private form completion exposes only read-contract modules and rejects an entire mixed batch before invoking anything", async () => {
+  const { BUSINESS_TOOLS, EXECUTION_TOOLS, formContract } = await import("../../domains/copilot/business-tools");
+  for (const bad of [null, "query_business", "request_business_execution", "propose_action", "unknown_module"] as const) {
+    const names: string[] = [];
+    const h = harness({ replies: [
+      { toolCalls: [{ id: "contract", name: "business_form_contract", arguments: { module: "account" } }] },
+      { content: "Verified facts only.", toolCalls: [
+        { id: "draft", name: "prepare_business_form", arguments: { module: "account", key: "customer", fields: { name: "Example" } } },
+        ...(bad ? [{ id: "bad", name: bad === "unknown_module" ? "prepare_business_form" : bad, arguments: { module: "strategy" } }] : []),
+      ] },
+    ] });
+    const chat = h.atlasClient.chat.bind(h.atlasClient);
+    h.atlasClient.chat = async (...args) => {
+      const res = await chat(...args);
+      return { ...res, usage: { promptTokens: h.calls.length === 1 ? 31500 : 2000, completionTokens: 500, totalTokens: h.calls.length === 1 ? 32000 : 2500 } };
+    };
+    const run = runTurn({ ...BASE, question: "Prepare customer form", profile: "drafting", readOnlyTools: true, deferCapabilities: true,
+      localTools: { definitions: [...BUSINESS_TOOLS, ...EXECUTION_TOOLS], finishPrivateForms: true, invoke: async (name, args) => {
+        names.push(name);return name === "business_form_contract" ? formContract(args.module as "account") : { status: "private_form_prepared" };
+      } }, totalBudget: { deadlineMs: 240000, maxTokens: 40000, maxCalls: 64 },
+    }, h);
+    if (bad) { await assert.rejects(run, e => e instanceof TurnBudgetError);assert.deepEqual(names, ["business_form_contract"]); }
+    else {
+      const result = await run;
+      assert.equal(result.privateFormsFinalized, true);assert.equal(result.truncated, true);
+      assert.equal(result.answer, "Verified facts only.");assert.ok(result.totalTokens < 40000);
+      assert.deepEqual(names, ["business_form_contract", "prepare_business_form"]);
+    }
+    assert.equal(h.calls.length, 2);
+    assert.deepEqual(h.calls[1]!.tools?.map(t => t.name), ["prepare_business_form"]);
+    assert.deepEqual((h.calls[1]!.tools![0]!.parameters.properties as Record<string, unknown>).module, { type: "string", enum: ["account"] });
+  }
+});
+
+test("an unsuccessful or absent form contract never opens private completion", async () => {
+  const { BUSINESS_TOOLS } = await import("../../domains/copilot/business-tools");
+  for (const response of [{ ok: false, module: "account", version: "business-form/1" }, { module: "strategy", version: "business-form/1" }, null]) {
+    const h = harness({ replies: [
+      { toolCalls: [{ id: "contract", name: "business_form_contract", arguments: { module: "account" } }, { id: "read", name: "query_business", arguments: { kind: "account" } }] },
+      { content: "Contract unavailable; no draft was prepared." },
+    ] });
+    const chat = h.atlasClient.chat.bind(h.atlasClient);
+    h.atlasClient.chat = async (...args) => {
+      const res = await chat(...args);return { ...res, usage: { promptTokens: h.calls.length === 1 ? 31500 : 2000, completionTokens: 500, totalTokens: h.calls.length === 1 ? 32000 : 2500 } };
+    };
+    const result = await runTurn({ ...BASE, question: "Prepare customer", profile: "drafting", readOnlyTools: true, deferCapabilities: true,
+      localTools: { definitions: BUSINESS_TOOLS, finishPrivateForms: true, invoke: async name => name === "business_form_contract" ? response : { records: [], matchedCount: 0, returnedCount: 0 } },
+      totalBudget: { deadlineMs: 240000, maxTokens: 40000, maxCalls: 64 },
+    }, h);
+    assert.equal(h.calls[1]!.tools, undefined);assert.equal(result.privateFormsFinalized, undefined);
+    assert.match(result.answer, /no draft/);
+  }
+});

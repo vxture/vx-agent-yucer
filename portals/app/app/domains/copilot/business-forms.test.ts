@@ -200,7 +200,9 @@ test("a compound first question reads Runos evidence and prepares a bound native
   assert.deepEqual(b.turns[0]!.artifacts!.research[0]!.links, ["https://example.org/market"]);
   const usage = b.turns[0]!.artifacts!.usage;
   assert.ok(usage.totalTokens < 40000);
-  assert.equal(usage.modelUsage!.length, 6);
+  assert.equal(usage.modelUsage!.length, 5);
+  assert.equal(usage.truncated, true);
+  assert.deepEqual(JSON.parse(f.prompts[4]!).tools.map((t: { name: string }) => t.name), ["prepare_business_form"]);
   assert.equal(usage.modelUsage!.reduce((sum, row) => sum + row.totalTokens, 0), usage.totalTokens);
   assert.equal(usage.modelUsage![0]!.toolResultTokens, 0);
   assert.ok(usage.modelUsage![3]!.toolResultTokens > usage.modelUsage![2]!.toolResultTokens);
@@ -469,4 +471,67 @@ test("successful research facts fill the customer draft through the real tool di
   assert.equal(form.fieldEvidence!.length,2);assert.equal(bundle.turns[0]!.artifacts!.research.length,1);
   assert.ok(form.fieldEvidence!.every(e=>quote.includes(e.quote)));
   assert.equal(bundle.capabilities.save,false);
+});
+
+test("budget completion fills verified customer fields once, reports validation failure and refuses revoked access", async () => {
+  for (const mode of ["success", "invalid", "revoked"] as const) {
+    const f = await setup("Research Example customer and create a private form");
+    const capabilityId = "example.company-research";
+    f.deps.runosClient.discoverPage = async () => ({ capabilities: [{
+      capability_id: capabilityId, title: "Research", primitive_type: "connector", provider: "example", admission_tier: "official", summary: "Company facts", use_when: "Research", avoid_when: "No writes",
+      operations: [{ operation: "fetch", description: "Read", interaction_mode: "sync", risk_level: "read" }],
+    }], total: 1 });
+    f.deps.runosClient.resolve = async () => ({ capability_id: capabilityId, title: "Research", state: "stable", version: "1.0.1", primitive_type: "connector", provider: "example", contract: {
+      summary: "Company facts", useWhen: "Research", avoidWhen: "No writes", operations: [{ operation: "fetch", description: "Read", riskLevel: "read", interactionMode: "sync", inputSchema: { type: "object" }, outputSchema: {}, idempotent: true }],
+    } });
+    const quote = "Example customer\nwebsite www.example.org\ncreditCode 91310000123456789X";
+    f.deps.runosClient.invoke = async () => ({ content: [{ type: "text", text: quote }], meta: { call_id: "source-1", version_resolved: "1.0.1" } });
+    let prepared = 0, proposals = 0, requests = 0;
+    f.c.execution = { propose: async () => { proposals++;return {}; }, receipts: async () => [] };
+    f.c.business!.prepare = async form => {
+      prepared++;
+      if (mode === "invalid") throw new Error("invalid_form_fields");
+      if (mode === "revoked") f.sources.delete(ACCESS);
+      return { ...form, sources: [f.c.business!.access] };
+    };
+    f.set([
+      { content: "", toolCalls: [
+        { id: "contract", name: "business_form_contract", arguments: { module: "account" } },
+        { id: "catalog", name: FIND_CAPABILITIES, arguments: { query: "Company registry" } },
+      ] },
+      f.tools(LOAD_CAPABILITY, { capability_id: capabilityId }),
+      f.tools(toolNameFor(capabilityId, "fetch"), {}),
+      f.tools("prepare_business_form", { module: "account", key: "customer", fields: { name: "Example customer" }, fieldEvidence: [
+        { field: "website", value: "https://www.example.org/", sourceId: "read-3-1" },
+        { field: "creditCode", value: "91310000123456789X", sourceId: "read-3-1" },
+      ] }),
+    ]);
+    const chat = f.deps.atlasClient.chat.bind(f.deps.atlasClient);
+    f.deps.atlasClient.chat = async (...args) => {
+      requests++;
+      if (requests === 4) assert.deepEqual(args[1].tools?.map(tool => tool.name), ["prepare_business_form"]);
+      const response = await chat(...args);
+      return requests === 3 ? { ...response, usage: { promptTokens: 31000, completionTokens: 1000, totalTokens: 32000 } } : response;
+    };
+    const result = await f.turn();
+    assert.equal(requests, 4);assert.equal(prepared, 1);assert.equal(proposals, 0);
+    const bundle = (await f.store.load({ workspaceId: WS, actorSub: "alice" }, f.task.id, true))!;
+    if (mode === "revoked") {
+      assert.equal(result.ok, false);assert.equal(bundle.turns[0]!.errorCode, "source_changed");
+      assert.equal(bundle.drafts.length, 0);assert.equal(bundle.messages.length, 1);
+    } else {
+      const answer = unwrap(result);
+      assert.equal(bundle.turns[0]!.status, "succeeded");
+      assert.ok(bundle.turns[0]!.artifacts!.usage.totalTokens < 40000);
+      assert.equal(bundle.drafts.length, mode === "success" ? 1 : 0);
+      if (mode === "success") {
+        const form = readBusinessForm(bundle.drafts[0]!.text);
+        assert.equal(form.fields.website, "https://www.example.org/");
+        assert.equal(form.fields.creditCode, "91310000123456789X");
+        assert.ok(form.fieldEvidence!.every(e => quote.includes(e.quote)));
+        assert.match(answer.answer, /1 \u4efd\u5f85\u590d\u6838\u8868\u5355/);
+      } else assert.match(answer.answer, /\u672a\u751f\u6210\u8868\u5355\u8349\u7a3f/);
+      assert.match(answer.answer, /\u672a\u4fdd\u5b58\u6216\u53d1\u5e03/);
+    }
+  }
 });
