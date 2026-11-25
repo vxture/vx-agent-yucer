@@ -9,6 +9,8 @@ import { TurnBudgetError } from "../../agent/orchestrator/turn";
 import type { RunosClient } from "../../agent/runos/client";
 import { InMemoryCopilotStore } from "./store";
 import { InMemoryTaskStore } from "./task-store";
+import { InMemoryKnowledgeStore } from "./knowledge-store";
+import { InMemoryMemoryStore } from "./memory-store";
 import {
   TASK_RULE_VERSION,
   taskToolAllowed,
@@ -878,4 +880,49 @@ test("creation fingerprint is stable when a multi-object retry reverses target o
   const retried = unwrap(await createPrivateTask(f.c,{...input,targets:[SEGMENT,ACCOUNT]}));
   assert.equal(retried.id,first.id);
   assert.equal(retried.requestHash,first.requestHash);
+});
+
+
+test("task lists omit revoked knowledge and stopped memory dependencies without hiding independent work", async () => {
+  const f = fixture();
+  const safe = await f.create();
+  const knowledgeTask = await f.create();
+  const memoryTask = await f.create();
+  const knowledge = new InMemoryKnowledgeStore(), memory = new InMemoryMemoryStore();
+  f.c.knowledge = knowledge;
+  f.c.memory = memory;
+  const shared = await knowledge.create({
+    ...f.scope, requestId: randomUUID(), title: "Shared business choice", text: "Private source detail",
+    kind: "decision", audience: "workspace", memberSubs: [], sources: [], reviewedDigest: "reviewed",
+  });
+  const personal = await memory.create({
+    ...f.scope, requestId: randomUUID(), text: "Personal decision", kind: "decision", origin: "user",
+    taskId: null, messageIds: [], sources: [], parents: [],
+  });
+  await knowledge.bind(f.scope, knowledgeTask.id, [{ id: shared.id, revision: shared.revision }]);
+  await memory.bind(f.scope, memoryTask.id, [{ id: personal.id, revision: personal.revision }]);
+  assert.equal(unwrap(await listPrivateTasks(f.c)).length, 3);
+  await knowledge.change(WS, shared.id, shared.revision, { state: "stopped" });
+  await memory.change(f.scope, personal.id, personal.revision, { state: "stopped" });
+  assert.deepEqual(unwrap(await listPrivateTasks(f.c)).map(t => t.id), [safe.id]);
+  for (const task of [knowledgeTask, memoryTask]) assert.equal((await readPrivateTask(f.c, task.id)).ok, false);
+  assert.equal(unwrap(await createPrivateTask(f.c, { requestId: randomUUID(), goal: "New independent work", targets: [] })).goal, "New independent work");
+});
+
+test("task lists recheck dependency revocation at response time and retain backend failures", async () => {
+  const f = fixture(), safe = await f.create(), hidden = await f.create();
+  const knowledge = new InMemoryKnowledgeStore();
+  f.c.knowledge = knowledge;
+  const shared = await knowledge.create({
+    ...f.scope, requestId: randomUUID(), title: "Business choice", text: "Dependency content",
+    kind: "decision", audience: "workspace", memberSubs: [], sources: [], reviewedDigest: "reviewed",
+  });
+  await knowledge.bind(f.scope, hidden.id, [{ id: shared.id, revision: shared.revision }]);
+  f.c.refresh = async () => {
+    await knowledge.change(WS, shared.id, shared.revision, { state: "stopped" });
+    return f.c;
+  };
+  assert.deepEqual(unwrap(await listPrivateTasks(f.c)).map(t => t.id), [safe.id]);
+  knowledge.dependencies = async () => { throw new Error("knowledge store offline"); };
+  await assert.rejects(listPrivateTasks(f.c), /knowledge store offline/);
 });

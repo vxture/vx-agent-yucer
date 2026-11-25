@@ -15,6 +15,7 @@ function fixture() {
   const keys = new Set<string>();
   const deps: DailyJobServices = {
     entitlement: async workspace_id => ({ ...EMPTY_ENTITLEMENT, workspace_id, product: "yucer", tier: "pro" }),
+    organizations: async () => new Map([["ws", "org-ws"], ["broken", "org-broken"]]),
     roster: async () => ["alice", "inactive", "no-role"].map(subject => ({ subject, displayName: null })),
     authz: () => new Proxy(authz, { get(target, property, receiver) {
       if (property === "listMembers") return async (ws: string) => (await target.listMembers(ws)).map(m => m.sub === "inactive" ? { ...m, status: "inactive" } : m);
@@ -73,4 +74,26 @@ test("one failing workspace or member does not stop later members and scopes", a
   assert.deepEqual(await runDailyJudgements(["broken", "ws"], now, deps), { generated: 0, skipped: 1, failed: 2 });
   deps.feed = async () => ({ ok: false, violations: [{ code: "denied", message: "denied" }] });
   assert.deepEqual(await runDailyJudgements(["ws"], now, deps), { generated: 0, skipped: 1, failed: 2 });
+});
+
+
+test("background roster reads use each workspace's current organization and skip absent relations", async () => {
+  const { deps } = fixture();
+  deps.organizations = async () => new Map([["ws", "org-ws"], ["other", "org-other"]]);
+  const calls: string[] = [];
+  deps.roster = async (ws, org) => { calls.push(ws + ":" + org); return []; };
+  assert.deepEqual(await runDailyJudgements(["ws", "historical", "other"], now, deps), { generated: 0, skipped: 1, failed: 0 });
+  assert.deepEqual(calls, ["ws:org-ws", "other:org-other"]);
+  deps.organizations = async () => null;
+  assert.deepEqual(await runDailyJudgements(["ws"], now, deps), { generated: 0, skipped: 1, failed: 0 });
+  assert.equal(calls.length, 2);
+});
+
+test("a failed directory cannot generate daily summaries from partial or historical tenant context", async () => {
+  const { deps, scanned } = fixture();
+  deps.organizations = async () => { throw new Error("directory unavailable"); };
+  deps.roster = async () => { assert.fail("roster must not run without authoritative context"); };
+  await assert.rejects(runDailyJudgements(["ws"], now, deps), /directory unavailable/);
+  assert.deepEqual(scanned, []);
+  assert.deepEqual(await runDailyJudgements([], now, deps), { generated: 0, skipped: 0, failed: 0 });
 });
