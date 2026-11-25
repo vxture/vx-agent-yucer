@@ -46,6 +46,39 @@ class SupplyCheckTests(unittest.TestCase):
             output = check.attempt(lambda: check.command(["secret"]))
         self.assertEqual(output, {"status": "unavailable"})
 
+    def test_log_categories_never_return_lines_or_error_payloads(self):
+        raw = ("TypeError: private-dialogue password=secret\n"
+               "PrismaClientKnownRequestError code P2028 private-query\n"
+               "new row violates check constraint private-business\n")
+        result = subprocess.CompletedProcess([], 0, raw)
+        with patch.object(check.subprocess, "run", return_value=result) as run:
+            output = check.log_counters("yucer-app")
+        self.assertEqual(output["counts"]["type_error"], 1)
+        self.assertEqual(output["counts"]["prisma_transaction_error"], 1)
+        self.assertEqual(output["counts"]["database_check_violation"], 1)
+        self.assertFalse(output["possibly_capped"])
+        for sensitive in ("private", "secret", "password", "P2028"):
+            self.assertNotIn(sensitive, json.dumps(output))
+        args = run.call_args.args[0]
+        self.assertEqual(args, ["docker", "logs", "--since", "24h", "--tail", "4000", "yucer-app"])
+
+    def test_log_failure_or_timeout_does_not_echo_raw_output(self):
+        result = subprocess.CompletedProcess([], 1, "secret")
+        with patch.object(check.subprocess, "run", return_value=result):
+            self.assertEqual(check.attempt(lambda: check.log_counters("app")), {"status": "unavailable"})
+        with patch.object(check.subprocess, "run", side_effect=subprocess.TimeoutExpired("secret", 40)):
+            self.assertEqual(check.attempt(lambda: check.log_counters("app")), {"status": "unavailable"})
+
+    def test_metadata_queries_do_not_select_private_content(self):
+        statements = " ".join(check.YUCER_QUERIES.values())
+        for forbidden in ("actor_sub", "workspace_id", "question_hash", "content", "goal", "artifacts"):
+            self.assertNotIn("t." + forbidden, statements)
+        self.assertIn("LIMIT 20", statements)
+        atlas = check.ATLAS_QUERIES["recent_yucer_calls"]
+        for required in ("input_tokens", "output_tokens", "total_tokens", "latency_ms", "max_tokens"):
+            self.assertIn(required, atlas)
+        self.assertNotIn("error_message", atlas)
+
     def test_timeouts_and_bad_json_are_redacted(self):
         for error in (subprocess.TimeoutExpired("secret", 40, output="secret"),
                       ValueError("secret")):
