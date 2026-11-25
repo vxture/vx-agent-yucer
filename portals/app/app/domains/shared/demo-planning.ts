@@ -347,7 +347,15 @@ export async function seedPlanningDemo(
       {id:id(workspaceId,"expect-cases"),metric:"reference_cases",amount:"2",currency:null,criterion:"\u5b8c\u6210\u9a8c\u6536\u5e76\u83b7\u5f97\u5ba2\u6237\u6848\u4f8b\u6388\u6743"},
     ]};
     Object.assign(source,{publishedSnapshot:captureStrategyPublication(source,[],new Date(version1At))});
-    stores.strategy.seed({plans:[source]});
+    const alternatives = [
+      ["geo-subscription", "\u5730\u7406\u4fe1\u606f\u5e73\u53f0\u8ba2\u9605\u589e\u957f\u6218\u7565", "10000000"],
+      ["equipment-service", "\u5236\u9020\u4e1a\u8bbe\u5907\u670d\u52a1\u62d3\u5c55\u6218\u7565", "9000000"],
+    ].map(([key, name, revenue]) => {
+      const p: PlanRecord = { ...source, id: id(workspaceId, key), lineageId: id(workspaceId, key), planNo: `STR-${year}-${key}`, name,
+        expectations: source.expectations!.map(e => ({ ...e, id: id(workspaceId, key + "|" + e.metric), amount: e.metric === "revenue" ? revenue : "2" })) };
+      return { ...p, publishedSnapshot: captureStrategyPublication(p, [], new Date(version1At)) };
+    });
+    stores.strategy.seed({plans:[source, ...alternatives]});
     content.strategyAcceptances=source.expectations!.map(e => allocateStrategicTarget(content,{
       key:id(workspaceId,"acceptance|"+e.id),strategyId:source.id,lineageId:source.id,version:1,name:source.name,period:source.period,expectation:e,
       amount:e.metric==="revenue" ? "28000000" : e.amount,ownerSub:reviewer.sub,note:"",allocations:[],

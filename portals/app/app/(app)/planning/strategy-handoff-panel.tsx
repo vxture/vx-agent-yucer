@@ -5,6 +5,7 @@ import { Button, Card, CardContent, Collapsible, CollapsibleContent, Collapsible
 import { TitleHelp } from "../components/title-help";
 import { StrategyQuantity } from "../components/strategy-detail-label";
 import { useMessages, useLocale } from "../lib/i18n/provider";
+import { PlanError } from "../../domains/planning/plan-values";
 import type { PlanContent } from "../../domains/planning/plan-model";
 import type { PlanSources } from "./plan-data";
 import { validateStrategyAcceptances, type StrategyAcceptance } from "../../domains/planning/strategy-handoff";
@@ -16,7 +17,7 @@ import styles from "./strategy-handoff-panel.module.css";
 
 const preferenceKey = "yucer.planning.strategy-handoff.expanded";
 export function StrategyHandoffPanel({ content, sources, edit, regionId, disabled, lockedPeriods = [] }: { content: PlanContent; sources: PlanSources; edit: ((c: PlanContent) => void) | null; regionId?: string | null; disabled?: boolean; lockedPeriods?: string[] }) {
-  const { STRATEGY_HANDOFF_TEXT: T } = useMessages(), locale = useLocale();
+  const { STRATEGY_HANDOFF_TEXT: T, PLAN_VERSION_ERROR: E } = useMessages(), locale = useLocale();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<StrategyAcceptance | null>(null);
   const [companyDraft, setCompanyDraft] = useState<CompanyHandoffDraft | null>(null);
@@ -38,7 +39,7 @@ export function StrategyHandoffPanel({ content, sources, edit, regionId, disable
     if (!canEdit || disabled) return;
     const next = { ...content, strategyAcceptances: nextRows };
     try { validateStrategyAcceptances(planningValidationContent(next), false); edit?.(next); setError(""); setDraft(null); setCompanyDraft(null); }
-    catch { setError(T.validation); }
+    catch (error) { setError(error instanceof PlanError ? E[error.code] ?? T.validation : T.validation); }
   };
   const startCompany = (strategyId?: string) => {
     setError("");
@@ -50,7 +51,7 @@ export function StrategyHandoffPanel({ content, sources, edit, regionId, disable
     const active = strategyId ?? choices.find(x => !(content.strategyAcceptances ?? []).some(y => y.key === x.key))?.strategyId ?? choices[0]?.strategyId;
     if (!active) return;
     const selected = (content.strategyAcceptances ?? []).map(x => x.key);
-    if (!strategyId) for (const x of choices.filter(x => x.strategyId === active)) if (!selected.includes(x.key)) selected.push(x.key);
+
     setCompanyDraft({ active, choices, selected });
   };
   const canRemove = (x: StrategyAcceptance) => canEdit && company && !x.allocations.some(a => lockedPeriods.includes(a.period));

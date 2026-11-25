@@ -24,13 +24,14 @@ export default async function PlanningPage({
     region?: string | string[];
     revision?: string | string[];
     period?: string | string[];
+    preview?: string | string[];
   }>;
 }) {
   const session = await resolveAppSession();
   if (!session) return null;
   const locked = lockedPage(session, "planning");
   if (locked) return locked;
-  const { year: suppliedYear, region, revision, period } = await searchParams;
+  const { year: suppliedYear, region, revision, period, preview } = await searchParams;
   const {
     PLAN_VERSION_ERROR: E,
     SHELL_TEXT,
@@ -40,7 +41,7 @@ export default async function PlanningPage({
     Array.isArray(suppliedYear) ||
     Array.isArray(region) ||
     Array.isArray(revision) ||
-    Array.isArray(period)
+    Array.isArray(period) || Array.isArray(preview) || (preview !== undefined && preview !== "1")
   )
     return <EmptyState title={AT.contextMissing} />;
   if (session.scope.kind !== "workspace")
@@ -105,6 +106,7 @@ export default async function PlanningPage({
         <PlanningVersionPanel
           key={year}
           initialRevision={revision}
+          initialPreview={preview === "1"}
           initialRegion={region}
           initialPeriod={period}
           initialPlan={plan}

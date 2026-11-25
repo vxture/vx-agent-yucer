@@ -79,3 +79,8 @@ test("company allocation compares tiers independently and uses the selected quar
   assert.deepEqual(companyAllocation(c, quarter), { allocated: "12.00", unknown: 0, balance: "-2.00" });
   assert.equal(companyAllocation(c, company).balance, "20.00");
 });
+
+test("saved draft preview keeps explicit revision and cannot pretend to be the current release", () => {
+  assert.equal(planningHref({ year: 2027, revision: "draft", preview: true }), "/planning?year=2027&revision=draft&preview=1");
+  assert.equal(planningHref({ year: 2027, revision: "current", preview: true }), "/planning?year=2027");
+});
