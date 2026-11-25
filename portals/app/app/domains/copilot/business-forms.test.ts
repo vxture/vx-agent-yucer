@@ -457,8 +457,8 @@ test("successful research facts fill the customer draft through the real tool di
     f.tools(LOAD_CAPABILITY,{capability_id:capabilityId}),
     f.tools(toolNameFor(capabilityId,"fetch"),{}),
     f.tools("prepare_business_form",{module:"account",key:"customer",fields:{name:"Example customer"},fieldEvidence:[
-      {field:"website",value:"https://www.example.org/",sourceId:"read-3-1",quote},
-      {field:"creditCode",value:"91310000123456789X",sourceId:"read-3-1",quote},
+      {field:"website",value:"https://www.example.org/",sourceId:"read-3-1"},
+      {field:"creditCode",value:"91310000123456789X",sourceId:"read-3-1"},
     ]}),
     {content:"Company facts extracted for human review."},
   ]);
@@ -467,5 +467,6 @@ test("successful research facts fill the customer draft through the real tool di
   const form=readBusinessForm(bundle.drafts[0]!.text);
   assert.equal(form.fields.website,"https://www.example.org/");assert.equal(form.fields.creditCode,"91310000123456789X");
   assert.equal(form.fieldEvidence!.length,2);assert.equal(bundle.turns[0]!.artifacts!.research.length,1);
+  assert.ok(form.fieldEvidence!.every(e=>quote.includes(e.quote)));
   assert.equal(bundle.capabilities.save,false);
 });

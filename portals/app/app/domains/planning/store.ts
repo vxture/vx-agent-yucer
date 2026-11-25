@@ -14,6 +14,8 @@ import { DEFAULT_ORG_KINDS, ORG_TEMPLATES, defaultOrgTemplate, type OrgTemplate,
 
 export interface TargetRecord extends SalesTarget {
   managedBySalesPlan?: boolean;
+  /** Compatibility anchor for existing judgement/snooze keys, never a source ID. */
+  legacyProjectionId?: string;
   id: string;
   workspaceId: string;
 }

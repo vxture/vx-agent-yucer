@@ -90,7 +90,7 @@ export default async function PlanningPage({
       .filter(
         (t) =>
           !plan?.legacy.some((entry) => entry.targetId === t.id) &&
-          !t.id.startsWith("plan_") &&
+          !t.managedBySalesPlan &&
           t.status !== "closed" &&
           t.scopeType !== "owner" &&
           (t.period === `${year}` ||

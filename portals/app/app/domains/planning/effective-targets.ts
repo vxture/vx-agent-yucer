@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { demand, planVersions, type SalesPlan } from "./plan-model";
 import { targetValue, type TargetScope } from "./lib/target";
 import type { PlanningStore, TargetFilter, TargetRecord } from "./store";
@@ -19,6 +20,18 @@ const matches = (a: TargetScope, b: TargetScope) =>
   a.territoryId === b.territoryId &&
   a.ownerSub === b.ownerSub &&
   a.metric === b.metric;
+// Projected lines have no sales_target row, but consumers persist references
+// to them. A namespaced SHA-256 UUIDv8 gives each workspace/plan/line a stable UUID,
+// independent of its value or release version. Adopted database IDs stay intact.
+function projectedTargetId(plan: SalesPlan, lineKey: string): string {
+  const bytes = createHash("sha256")
+    .update(`urn:yucer:sales-plan-target:1:${JSON.stringify([plan.workspaceId, plan.id, lineKey])}`)
+    .digest();
+  bytes[6] = (bytes[6]! & 0x0f) | 0x80;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = bytes.subarray(0, 16).toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 export function effectiveTargets(
   legacy: TargetRecord[],
   plans: SalesPlan[],
@@ -73,7 +86,8 @@ export function effectiveTargets(
       );
       out.push({
         ...scope,
-        id: adopted?.id ?? `plan_${t.key}`,
+        id: adopted?.id ?? projectedTargetId(plan, t.key),
+        ...(adopted ? {} : { legacyProjectionId: `plan_${t.key}` }),
         workspaceId: plan.workspaceId,
         managedBySalesPlan: true,
         status: "committed",
@@ -135,7 +149,9 @@ export function withSalesPlanTargets(
       if (prop === "updateTarget" || prop === "removeTarget")
         return async (ws: string, id: string, ...args: unknown[]) => {
           demand(
-            !id.startsWith("plan_") && !(await versions.adopted(ws, id)),
+            !id.startsWith("plan_") &&
+              !(await all(ws)).some((t) => t.id === id && t.managedBySalesPlan) &&
+              !(await versions.adopted(ws, id)),
             "managed_by_sales_plan",
           );
           return (
@@ -149,7 +165,7 @@ export function withSalesPlanTargets(
             !(await all(ws)).some(
               (t) =>
                 matches(t, row) &&
-                (t.id.startsWith("plan_") || t.status === "committed"),
+                (t.managedBySalesPlan || t.status === "committed"),
             ),
             "target_exists",
           );

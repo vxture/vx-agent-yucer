@@ -1057,7 +1057,6 @@ test("a source revoked while loading a private transcript cannot reach the read 
   code(await readPrivateTask(f.c, task.id), "source_unavailable");
 });
 
-
 test("creation fingerprint is stable when a multi-object retry reverses target order", async () => {
   const f = fixture(), requestId = randomUUID();
   const input = {requestId,goal:"multi-object task",targets:[ACCOUNT, SEGMENT]};
@@ -1066,7 +1065,6 @@ test("creation fingerprint is stable when a multi-object retry reverses target o
   assert.equal(retried.id,first.id);
   assert.equal(retried.requestHash,first.requestHash);
 });
-
 
 test("task lists omit revoked knowledge and stopped memory dependencies without hiding independent work", async () => {
   const f = fixture();
@@ -1110,4 +1108,27 @@ test("task lists recheck dependency revocation at response time and retain backe
   assert.deepEqual(unwrap(await listPrivateTasks(f.c)).map(t => t.id), [safe.id]);
   knowledge.dependencies = async () => { throw new Error("knowledge store offline"); };
   await assert.rejects(listPrivateTasks(f.c), /knowledge store offline/);
+});
+
+test("a malformed source from a business adapter is refused before model delivery or persistence", async () => {
+  const f = fixture(), t = await f.create(), access = f.sources.get(SEGMENT.id)!;
+  const bad = { kind: "sales_target" as const, id: "plan_PRIVATE_INVALID_ID", version: "v1" };
+  f.c.business = { access,
+    query: async () => ({ records: [{ source: bad, record: { amount: 1000 } }], sources: [access, bad], limited: false, recordState: "current" }),
+    prepare: async () => { assert.fail("read-only"); },
+  };
+  f.setChat(async () => {
+    if (f.calls() === 1) return { content: "", toolCalls: [{ id: "read", name: "query_business", arguments: { kind: "sales_target" } }] };
+    return { content: "The source needs correction before analysis can continue." };
+  });
+  code(await runPrivateTaskTurn(f.c, t.id, { revision: t.revision, requestId: randomUUID(), question: "Analyze targets" }, f.deps), "source_unavailable");
+  assert.equal(f.calls(), 1);
+  assert.ok(f.prompts.every(p => !p.includes(bad.id)));
+  const saved = (await f.store.load(f.scope, t.id, true))!;
+  assert.ok(saved.references.every(r => r.id !== bad.id));
+  assert.equal(saved.turns[0]!.status, "failed");
+  assert.equal(saved.turns[0]!.errorCode, "source_unavailable");
+  assert.equal(saved.turns[0]!.artifacts!.diagnostic!.stage, "tool");
+  assert.equal(saved.messages.length, 1);
+  assert.equal(saved.drafts.length, 0);
 });

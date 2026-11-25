@@ -15,9 +15,15 @@ import { InMemoryStrategyStore } from "../../../domains/strategy/store";
 import { InMemoryCatalogStore } from "../../../domains/catalog/store";
 import { InMemoryPipelineStore } from "../../../domains/pipeline/store";
 import { emptyStrategyResult } from "../../../domains/strategy/lib/strategy-result";
+import { InMemoryPlanningStore } from "../../../domains/planning/store";
+import { InMemorySalesPlanStore } from "../../../domains/planning/plan-store";
+import { changeSalesPlan } from "../../../domains/planning/plan-service";
+import { withSalesPlanTargets } from "../../../domains/planning/effective-targets";
+import { isTaskObject } from "../../../domains/copilot/lib/task-contract";
 import { emptyContent } from "../../../domains/planning/plan-model";
 import { InMemoryAuthzStore, getAuthzStore, setAuthzStore } from "../../../authz/store";
 import {
+  setPlanningStore,
   setCatalogStore,
   setStrategyStore,
 } from "../../../domains/shared/registry";
@@ -45,6 +51,7 @@ function session(store: InMemoryAccountStore, sub = "alice"): AppSession {
   } as unknown as AppSession;
 }
 afterEach(() => {
+  setPlanningStore(null);
   setStrategyStore(null);
   setCatalogStore(null);
   setAuthzStore(null);
@@ -387,7 +394,6 @@ test("sales planning contract enforces year consistency and workspace scope", as
     await assert.rejects(f.b.query(query), /business_query_denied/);
 });
 
-
 test("review catalogs resolve nested relations, strategy choices and members without displaying stored IDs",async()=>{
   const f=configured(),accounts=new InMemoryAccountStore(),parent=randomUUID(),hidden=randomUUID(),market=randomUUID(),product=randomUUID(),solution=randomUUID();
   accounts.seed({accounts:[{id:parent,workspaceId:WS,name:"Visible parent",accountNo:"ACC-1",ownerSub:"alice",tier:"standard",status:"active"},{id:hidden,workspaceId:WS,name:"Other member customer",accountNo:"ACC-2",ownerSub:"bob",tier:"standard",status:"active"}] as AccountRecord[]});
@@ -413,4 +419,34 @@ test("review catalogs resolve nested relations, strategy choices and members wit
   assert.ok(catalog.strategy!.options.strategyTypes!.length>0);assert.ok(catalog.account!.options.provinces!.length>0);
   assert.ok(catalog.strategy!.options.members!.some(m=>m.value==="alice"));
   assert.doesNotMatch(JSON.stringify(catalog),/Other member customer/);
+});
+
+test("published plan projections are queryable UUID sources with live attainment and access checks", async () => {
+  const f = configured(), plans = new InMemorySalesPlanStore();
+  const raw = new InMemoryPlanningStore();
+  setPlanningStore(withSalesPlanTargets(raw, plans));
+  const ctx = { workspaceId: WS, sub: "alice", holder: f.c.authz, entitlement: f.c.entitlement, scope: f.c.scope, store: plans };
+  const year = new Date().getUTCFullYear(), content = emptyContent(year, [], "CNY");
+  content.targets[0]!.target = "1000";
+  content.allocationNote = "Company target; regions will follow";
+  const plan = await changeSalesPlan(ctx, { year, expectedEventNo: 0, requestKey: randomUUID(), command: { kind: "draft", content } });
+  await changeSalesPlan(ctx, { year, expectedEventNo: 1, requestKey: randomUUID(), command: { kind: "release", revisionId: plan.revisions[0]!.id, editToken: 1, reason: "" } });
+  const page = await f.b.query({ kind: "sales_target" });
+  const source = page.sources.find(s => s.kind === "sales_target")!;
+  assert.ok(source);
+  assert.ok(isTaskObject({ kind: source.kind, id: source.id }));
+  const detail = await f.b.query({ kind: "sales_target", id: source.id });
+  assert.equal(detail.returnedCount, 1);
+  assert.deepEqual(detail.records[0]!.source, source);
+  assert.equal((detail.records[0]!.record as { id: string }).id, source.id);
+  raw.seed({ published: { [`${WS}|Y${year}|workspace||`]: { closedAmount: { amount: 100, currency: "CNY" }, pipelineAmount: { amount: 200, currency: "CNY" }, newLogoCount: 2 } } });
+  const measured = await readTaskSource(f.c, source);
+  assert.ok(measured);
+  assert.notEqual(measured.version, source.version);
+  assert.equal(measured.id, source.id);
+  assert.equal(await readTaskSource({ ...f.c, workspaceId: randomUUID() }, source), null);
+  assert.equal(await readTaskSource({ ...f.c, scope: { kind: "own", sub: "alice", accountIds: [] } }, source), null);
+  f.c.authz = { ...f.c.authz, permissions: new Set() };
+  assert.equal(await readTaskSource(f.c, source), null);
+  await assert.rejects(f.b.query({ kind: "sales_target" }), /permission_denied/);
 });

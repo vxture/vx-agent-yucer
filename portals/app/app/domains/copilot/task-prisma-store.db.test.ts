@@ -15,7 +15,13 @@ import {
   runPrivateTaskTurn,
   type TaskContext,
 } from "./task-service";
-import { permissionsForRoles } from "../../authz/catalog";
+import type { AppSession } from "../../(app)/lib/session";
+import { businessBindings } from "../../api/copilot/tasks/business";
+import { readTaskSource } from "../../api/copilot/tasks/context";
+import { changeSalesPlan } from "../planning/plan-service";
+import { PrismaSalesPlanStore } from "../planning/plan-prisma-store";
+import { emptyContent } from "../planning/plan-model";
+import { PERM_CODES, permissionsForRoles } from "../../authz/catalog";
 import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
 import { unwrap } from "../shared/result";
 import type { AtlasClient } from "../../agent/atlas/client";
@@ -664,4 +670,63 @@ test("post-model failure diagnostics persist counts only, remain private and fre
   assert.equal(await s.load({ ...scope, actorSub: "other" }, task.id, true), null);
   await c.query("SET ROLE yucer_svc");
   await assert.rejects(c.query("UPDATE yucer_agent.agent_task_turn SET artifacts='{}' WHERE id=$1", [turn!.id]), /task_turn_finished/);
+}));
+
+test("released plan sources persist the answer, survive resume and reject later access revocation", { skip }, async () => fixture(async (store, scope, db) => {
+  const session = {
+    workspaceId: scope.workspaceId, user: { sub: scope.actorSub }, scope: { kind: "workspace" },
+    authz: { permissions: new Set(PERM_CODES) },
+    entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: scope.workspaceId, product: "yucer", tier: "enterprise" },
+  } as unknown as AppSession;
+  const year = new Date().getUTCFullYear(), content = emptyContent(year, [], "CNY");
+  content.targets[0]!.target = "1000";
+  content.allocationNote = "Company target; regions will follow";
+  const ctx = { workspaceId: scope.workspaceId, sub: scope.actorSub, scope: session.scope, holder: session.authz, entitlement: session.entitlement, store: new PrismaSalesPlanStore() };
+  try {
+    const plan = await changeSalesPlan(ctx, { year, expectedEventNo: 0, requestKey: randomUUID(), command: { kind: "draft", content } });
+    await changeSalesPlan(ctx, { year, expectedEventNo: 1, requestKey: randomUUID(), command: { kind: "release", revisionId: plan.revisions[0]!.id, editToken: 1, reason: "" } });
+    const bindings = businessBindings(session, object => readTaskSource(session, object));
+    const page = await bindings.query({ kind: "sales_target" });
+    assert.equal(page.returnedCount, 1);
+    const refs = page.sources.map(source => ({ ...source, role: "context" as const }));
+    const task = await store.create(scope, "Analyze current targets", TASK_RULE_VERSION, [], randomUUID());
+    const turn = await store.beginTurn(scope, task.id, 1, randomUUID(), "Analyze", "hash", TASK_RULE_VERSION);
+    assert.ok(turn);
+    // Reproduce the observed agent_task_reference INSERT / invalid UUID pair.
+    const old = refs.map(ref => ref.kind === "sales_target" ? { ...ref, id: `plan_${content.targets[0]!.key}` } : ref);
+    await assert.rejects(store.finishTurn(scope, task.id, turn.id, { answer: "Verified analysis", tokens: 100, references: old }),
+      (error: unknown) => !!error && typeof error === "object" && "code" in error && error.code === "P2007");
+    const rolledBack = await store.load(scope, task.id, true);
+    assert.equal(rolledBack!.messages.length, 1);
+    assert.equal(rolledBack!.references.length, 0);
+    assert.equal(rolledBack!.turns[0]!.status, "running");
+    assert.equal(await store.finishTurn(scope, task.id, turn.id, { answer: "Verified analysis", tokens: 100, references: refs }), true);
+    const taskContext: TaskContext = {
+      workspaceId: scope.workspaceId, sub: scope.actorSub, store: new PrismaTaskStore(), sessions: new PrismaCopilotStore(),
+      holder: session.authz, entitlement: session.entitlement,
+      source: object => readTaskSource(session, object), refresh: async () => taskContext,
+    };
+    const resumed = unwrap(await readPrivateTask(taskContext, task.id));
+    assert.equal(resumed.messages.at(-1)!.content, "Verified analysis");
+    assert.equal(resumed.references.length, refs.length);
+    assert.equal(resumed.turns[0]!.status, "succeeded");
+    assert.equal(resumed.checkpoint!.lastSeq, 2);
+    assert.equal((await bindings.query({ kind: "sales_target", id: refs.find(r => r.kind === "sales_target")!.id })).returnedCount, 1);
+    session.authz = { ...session.authz, permissions: new Set(permissionsForRoles(["sales_rep"])) };
+    const revoked = await readPrivateTask({ ...taskContext, holder: session.authz }, task.id);
+    assert.equal(revoked.ok, false);
+    const stillStored = await store.load(scope, task.id, true);
+    assert.equal(stillStored!.references.length, refs.length);
+    assert.equal(stillStored!.messages.length, 2);
+  } finally {
+    // Only this random fixture workspace; immutable publications are removed
+    // by the local test administrator after assertions, never by application code.
+    await db.query("BEGIN");
+    try {
+      await db.query("SET LOCAL session_replication_role = replica");
+      for (const table of ["sales_plan_event", "sales_plan_legacy_target", "sales_plan_revision", "sales_plan"])
+        await db.query(`DELETE FROM yucer_gtm.${table} WHERE workspace_id=$1`, [scope.workspaceId]);
+      await db.query("COMMIT");
+    } catch (error) { await db.query("ROLLBACK"); throw error; }
+  }
 }));
