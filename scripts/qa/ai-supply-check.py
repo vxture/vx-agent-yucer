@@ -142,6 +142,42 @@ LOG_MARKERS = {
     "fetch_failed": r"\bfetch failed\b",
 }
 
+DB_INPUT_CATEGORIES = (
+    "database_invalid_uuid", "database_invalid_json", "database_invalid_number",
+    "database_invalid_enum", "database_invalid_unicode", "database_untranslatable_null",
+)
+TASK_TABLES = {"agent_task", "agent_task_reference", "agent_task_draft",
+               "agent_message", "agent_task_turn", "agent_task_checkpoint"}
+DB_LOG_PREFIX = re.compile(
+    r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? UTC) \[(\d+)\] (ERROR|STATEMENT):\s*(.*)$")
+TASK_WRITE = re.compile(
+    r'^\s*(INSERT INTO|UPDATE)\s+"?yucer_agent"?\."?([a-z_]+)"?(?:\s|\()', re.IGNORECASE)
+
+
+def database_input_events(lines):
+    """Pair PostgreSQL error/statement headers by backend, emitting enums only."""
+    events, pending = [], {}
+    for line in lines:
+        header = DB_LOG_PREFIX.match(line)
+        if not header:
+            continue
+        at, backend, kind, text = header.groups()
+        if kind == "ERROR":
+            category = next((key for key in DB_INPUT_CATEGORIES
+                             if re.search(LOG_MARKERS[key], text, re.IGNORECASE)), None)
+            pending.pop(backend, None)
+            if category:
+                event = {"at": at, "category": category,
+                         "relation": "unknown", "operation": "unknown"}
+                events.append(event)
+                pending[backend] = event
+        elif backend in pending:
+            event = pending.pop(backend)
+            statement = TASK_WRITE.match(text)
+            if statement and statement[2] in TASK_TABLES:
+                event.update(relation=statement[2], operation=statement[1].upper())
+    return events[-20:]
+
 
 def log_counters(container):
     result = subprocess.run([
@@ -153,6 +189,7 @@ def log_counters(container):
     lines = result.stdout.splitlines()
     return {"window_hours": 24, "line_limit": 4000,
             "possibly_capped": len(lines) >= 4000,
+            "database_input_events": database_input_events(lines),
             "counts": {key: sum(bool(re.search(pattern, line, re.IGNORECASE))
                                 for line in lines)
                        for key, pattern in LOG_MARKERS.items()}}
