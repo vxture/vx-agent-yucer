@@ -1,8 +1,7 @@
 "use client";
 import Link from "next/link";
-import {useState} from "react";
+import {useState,type MouseEvent} from "react";
 import {useRouter,useSearchParams} from "next/navigation";
-import type {MouseEvent} from "react";
 import {Banner,Button,Card,Collapsible,CollapsibleTrigger,CollapsibleContent,Icon} from "@vxture/design-ui";
 import {XiaoyuExecution} from "./xiaoyu-execution";
 import {XiaoyuFormSupplement} from "./xiaoyu-form-supplement";
