@@ -4,7 +4,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
   {
     name: "query_business",
     description:
-      "Read current authorized Yucer business records beyond the current page. Sources are workspace scoped and permission checked. Query by module and optional UUID. Current records override memory; published and draft states are distinct. Never send SQL.",
+      "Read current authorized Yucer business records beyond the current page. Lists return bounded previews with matchedCount and nextOffset; do not mistake a page or omitted text for the full business picture. Continue with offset=nextOffset and identical filters when needed. Use id and optional fields (dot paths/array indices, e.g. criteria.customerNeed or revisions.2.content.targets) to inspect relevant details. For a single string field with id, follow textPage.nextOffset as textOffset for remaining text. Current records override memory; drafts are not published facts. Never send SQL.",
     parameters: {
       type: "object",
       properties: {
@@ -24,6 +24,10 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
         id: { type: "string" },
         query: { type: "string" },
         year: { type: "integer" },
+        offset: { type: "integer", minimum: 0, maximum: 1000000 },
+        limit: { type: "integer", minimum: 1, maximum: 20 },
+        fields: { type: "array", minItems: 1, maxItems: 10, items: { type: "string" } },
+        textOffset: { type: "integer", minimum: 0, description: "Character offset for one string field; requires id and exactly one fields entry." },
       },
       required: ["kind"],
     },

@@ -37,6 +37,7 @@ function errorText(code: string, t: Copy) {
   if (/SOURCE_UNAVAILABLE|NOT_FOUND/.test(code)) return t.sourceUnavailable;
   if (/ACCESS_CHANGED|POLICY_DENIED|NOT_ENTITLED/.test(code)) return t.accessChanged;
   if (/CONFLICT/.test(code)) return t.conflict;
+  if (/BUDGET_EXHAUSTED/.test(code)) return t.budgetExceeded;
   if (/MODEL_FAILED/.test(code)) return t.modelFailed;
   if (/TOOL_DENIED/.test(code)) return t.toolDenied;
   if (/QUOTA/.test(code)) return t.quota;
@@ -213,6 +214,9 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
   const running = bundle?.turns.find(t => t.status === "running");
   const frozen = busy || loading || !!running;
   const hasMessages = !!bundle?.messages.length;
+  const latestTurn = bundle?.turns.at(-1);
+  const failedTurn = !busy && latestTurn?.status === "failed" ? latestTurn : null;
+  const failedQuestion = failedTurn && bundle?.messages.find(message => message.id === failedTurn.userMessageId)?.content;
 
   return <section className={styles.conversation} aria-label={T.conversation} data-xiaoyu-conversation>
     <header className={styles.chatHeader} data-assistant-header>
@@ -274,6 +278,9 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
           <Icon name="clipboard" size="sm" />{T.viewResults}
         </Button> : null}
         {s.error ? <Banner tone="warning" title={errorText(s.error, T)} /> : null}
+        {failedTurn && !s.error && !s.pending ? <Banner tone="warning" title={errorText(failedTurn.errorCode ?? "MODEL_FAILED", T)} /> : null}
+        {failedQuestion && !s.pending && !s.input && !frozen && !ended && !paused ? <Button size="xl" variant="secondary" data-control-emphasis="primary" className="self-start"
+          onClick={() => client.setInput(failedQuestion)}>{T.restoreQuestion}</Button> : null}
         {bundle?.ruleChanged ? <Banner tone="warning" title={T.ruleChanged} /> : null}
         {(s.pending || s.creation) && !busy ? <Banner tone="warning" title={bundle?.turns.some(t => t.requestId === s.pending?.requestId && t.status !== "running") ? T.failed : T.unknown} /> : null}
         {running && !busy ? <div className="flex flex-wrap items-center gap-sm">

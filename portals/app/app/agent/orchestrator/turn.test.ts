@@ -932,3 +932,39 @@ test("on-demand research retains full catalog pagination and loads only the sele
   assert.equal(result.readEvidence.length, 1);
   assert.equal(result.proposals.length, 0);
 });
+
+test("five long native business reads can reach the next model round within the unchanged task budget", async () => {
+  const { businessQueryPage } = await import("../../domains/copilot/lib/business-query");
+  const { BUSINESS_TOOLS } = await import("../../domains/copilot/business-tools");
+  const { estimateTokens } = await import("./prompt");
+  const ids = Array.from({ length: 20 }, (_, i) => `00000000-0000-4000-a000-${String(i).padStart(12, "0")}`);
+  const rows = ids.map(id => ({ object: { kind: "segment" as const, id }, data: { id, name: "A market", criteria: {
+    customerNeed: "A long business need ".repeat(4000), buyingScenario: "Procurement scenario ".repeat(4000),
+  } } }));
+  const queries = ["segment", "strategy", "sales_plan", "opportunity", "campaign"];
+  const h = harness({ replies: [
+    { toolCalls: queries.map((kind, index) => ({ id: String(index), name: "query_business", arguments: { kind } })) },
+    { content: "I reviewed the returned previews; the remaining pages and current published targets still need verification." },
+  ] });
+  const chat = h.atlasClient.chat.bind(h.atlasClient);
+  h.atlasClient.chat = async (profile, request, context) => {
+    const response = await chat(profile, request, context);
+    return { ...response, usage: h.calls.length === 1 ? { promptTokens: 2509, completionTokens: 550, totalTokens: 3059 } :
+      { promptTokens: estimateTokens(JSON.stringify(request.messages)), completionTokens: 100, totalTokens: estimateTokens(JSON.stringify(request.messages)) + 100 } };
+  };
+  let reads = 0;
+  const result = await runTurn({ ...BASE, question: "Analyse recent market progress", draftOnly: true,
+    deferCapabilities: true, readOnlyTools: true, localTools: { definitions: BUSINESS_TOOLS, invoke: async () => {
+      reads++;
+      return businessQueryPage(rows, {}, { kind: "access", id: ids[0]!, version: "v1" }, async object => ({ ...object, version: "v1" }));
+    } }, totalBudget: { deadlineMs: 240000, maxTokens: 40000, maxCalls: 64 },
+  }, h);
+  assert.equal(reads, 5); assert.equal(h.calls.length, 2);
+  assert.equal(result.truncated, false); assert.ok(result.totalTokens < 40000);
+  assert.match(result.answer, /previews/);
+  for (const message of h.calls[1]!.messages.filter(message => message.role === "tool")) {
+    const receipt = JSON.parse(message.content);
+    assert.equal(receipt.matchedCount, 20);
+    assert.ok(receipt.nextOffset > 0); assert.ok(receipt.records.every((record: {truncatedPaths:string[]}) => record.truncatedPaths.length > 0));
+  }
+});
