@@ -252,6 +252,25 @@ test("a stage_event whose from_stage equals to_stage is refused by the real CHEC
 
 // --- updateCommercialTerms -----------------------------------------------------------
 
+test("business copy corrections persist without changing attribution or commercial values", { skip }, async () => {
+  await cleanup();
+  try {
+    await withPg(seed);
+    const s = await store();
+    const created = await s.createOpportunity(WS, newOpp());
+    assert.equal(await s.updateCommercialTerms(WS, created.id, { name: "Subscription expansion", requirement: "Connect the existing platform" }, MANUAL), true);
+    const updated = await s.getOpportunity(WS, created.id);
+    assert.equal(updated?.name, "Subscription expansion");
+    assert.equal(updated?.requirement, "Connect the existing platform");
+    for (const key of ["accountId", "campaignId", "stage", "status", "probability", "ownerSub", "amount", "opportunityNo"] as const)
+      assert.deepEqual(updated?.[key], created[key]);
+    assert.equal(await s.updateCommercialTerms("eeeeeeee-0000-0000-0000-000000000099", created.id, { name: "Forbidden" }, MANUAL), false);
+    assert.equal((await s.getOpportunity(WS, created.id))?.name, "Subscription expansion");
+    assert.deepEqual(await s.listStageEvents(WS, created.id), []);
+  } finally { await cleanup(); }
+});
+
+
 test("updateCommercialTerms writes amount and currency together, and null amount is legal", { skip }, async () => {
   await cleanup();
   try {

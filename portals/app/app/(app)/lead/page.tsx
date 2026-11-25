@@ -12,6 +12,7 @@ import {
   claimLead,
   convertLeadNow,
   endLead,
+  editLeadDetails,
   matchLead,
   removeLead,
 } from "../signal/lead-actions";
@@ -167,6 +168,7 @@ export default async function LeadPage() {
         attributionPreviews={attributionPreviews}
         canTriage={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed}
         canConvert={can(session.authz, session.entitlement, "signal.lead.convert", "ui").allowed}
+        onEdit={editLeadDetails}
         onAct={actOnLead}
         onClaim={claimLead}
         onRemove={removeLead}

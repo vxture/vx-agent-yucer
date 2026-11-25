@@ -9,6 +9,7 @@ import {
   closeLead,
   deleteLead,
   matchLeadAccount,
+  updateLeadDetails,
 } from "../../domains/signal/service";
 import type { ExitReason } from "../../domains/shared/funnel-exit";
 import { convertLeadToOpportunity } from "../../domains/conversion";
@@ -49,6 +50,22 @@ export interface LeadActionResult {
   /** Set after a successful conversion, so the UI can point at the new deal. */
   opportunityNo?: string;
   attributionSource?: string;
+}
+
+export async function editLeadDetails(
+  leadId: string,
+  input: { companyName: string; contactName: string | null },
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await updateLeadDetails({
+    workspaceId: session.workspaceId, sub: session.user.sub,
+    holder: session.authz, entitlement: session.entitlement,
+    store: session.stores.signal(),
+  }, leadId, input);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/lead");
+  return { ok: true };
 }
 
 export async function actOnLead(leadId: string, action: LeadAction): Promise<LeadActionResult> {

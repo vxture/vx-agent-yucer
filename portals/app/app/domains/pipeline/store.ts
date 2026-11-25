@@ -280,6 +280,9 @@ export interface NewOpportunity {
  * 98_column_locks.sql; the stage triple deliberately does not appear.
  */
 export interface CommercialTermsPatch {
+  /** Editable business copy, independent of attribution and stage history. */
+  name?: string;
+  requirement?: string;
   amount?: Money | null;
   probability?: number;
   expectedCloseAt?: Date | null;
@@ -974,6 +977,8 @@ export class InMemoryPipelineStore implements PipelineStore {
     // `expectedCloseAt: null` are meaningful values ("unpriced", "no date"), and
     // a spread of the whole patch would let an absent key overwrite a present
     // one with undefined.
+    if (patch.name !== undefined) row.name = patch.name;
+    if (patch.requirement !== undefined) row.requirement = patch.requirement;
     if (patch.amount !== undefined) row.amount = patch.amount;
     if (patch.probability !== undefined) row.probability = patch.probability;
     if (patch.expectedCloseAt !== undefined) row.expectedCloseAt = patch.expectedCloseAt;

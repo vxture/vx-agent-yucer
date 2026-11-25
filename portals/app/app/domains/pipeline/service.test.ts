@@ -1424,3 +1424,50 @@ test("the last process stage cannot be deleted, however empty it is", async () =
   const r = await removeStageDefinition(c, { stageId: left[0]!.id });
   assert.equal(r.ok === false && r.violations[0]!.code, "last_open_stage");
 });
+
+test("business copy can be corrected on a closed deal without rewriting its result or attribution", async () => {
+  const original = opp({ stage: "won", status: "won", probability: 100, closedAt: new Date("2026-08-01") });
+  const store = new InMemoryPipelineStore();
+  store.seed([original]);
+  const changed = unwrap(await updateCommercialTerms(ctx("sales_rep", "pro", store), original.id, {
+    name: "  Platform subscription  ", requirement: "  Integrate the existing GIS platform  ",
+    ...{ accountId: "acc_other", campaignId: "camp_other", stage: "discover" },
+  }));
+  assert.equal(changed.name, "Platform subscription");
+  assert.equal(changed.requirement, "Integrate the existing GIS platform");
+  for (const key of ["accountId", "campaignId", "stage", "status", "probability", "closedAt", "ownerSub", "amount"] as const)
+    assert.deepEqual(changed[key], original[key]);
+  assert.deepEqual(await store.listStageEvents(WS, original.id), []);
+});
+
+test("business copy keeps the edit gate and workspace scope", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp(), opp({ id: "other", workspaceId: "other_workspace" })]);
+  for (const [role, tier, id, code] of [
+    ["sales_rep", null, "opp_1", "no_data_access"],
+    ["viewer", "pro", "opp_1", "permission_denied"],
+    ["sales_rep", "pro", "other", "not_found"],
+  ] as const) {
+    const result = await updateCommercialTerms(ctx(role, tier, store), id, { name: "Corrected" });
+    assert.equal(result.ok === false && result.violations[0].code, code);
+  }
+  assert.equal((await store.getOpportunity(WS, "opp_1"))!.name, "Deal");
+});
+
+test("invalid business copy refuses the whole patch, while a single field preserves its companion", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "pro", store);
+  for (const [input, code] of [
+    [{ name: " " }, "name_required"],
+    [{ name: "x".repeat(256) }, "details_too_long"],
+    [{ requirement: " " }, "requirement_required"],
+    [{ name: null }, "name_required"],
+  ] as const) {
+    const result = await updateCommercialTerms(c, "opp_1", { ...input, amount: money(1) } as Parameters<typeof updateCommercialTerms>[2]);
+    assert.equal(result.ok === false && result.violations[0].code, code);
+    assert.equal((await store.getOpportunity(WS, "opp_1"))!.amount!.amount, 100_000);
+  }
+  const result = unwrap(await updateCommercialTerms(c, "opp_1", { name: "Corrected" }));
+  assert.equal(result.requirement, "POS replacement");
+});

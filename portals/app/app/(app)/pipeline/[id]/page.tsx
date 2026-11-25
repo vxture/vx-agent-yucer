@@ -80,6 +80,7 @@ import { applySuggestedCategory } from "../../forecast/actions";
 import { DealJudgements, RivalMentions } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline/lib/stage";
+import { DealDetails } from "../../components/deal-details";
 import { DealTerms } from "../../components/deal-terms";
 import { LineEditor } from "../../components/line-editor";
 import {
@@ -1482,6 +1483,7 @@ export default async function OpportunityDetailPage({
     // shell's body row while sharing the editors' state.
     <DealEditProvider
       can={{
+        details: canEditTerms,
         terms: canEditTerms,
         roles:
           can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed &&
@@ -1547,6 +1549,7 @@ export default async function OpportunityDetailPage({
               </PageActionCrumbs>
               {/* The editors, shared by the crumbs "⋮" and the panels' own -
                   rendered here so they add no child to the shell's row. */}
+              <DealDetails opportunityId={id} name={opportunity.name} requirement={opportunity.requirement} canEdit={canEditTerms} onSave={repriceOpportunity} />
               <DealTerms
                 opportunityId={id}
                 stage={opportunity.stage}
