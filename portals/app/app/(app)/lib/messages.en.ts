@@ -214,7 +214,7 @@ export const en: Dictionary = {
     "interrupted": "Interrupted"
   }
 },
-  XIAOYU_TEXT: {exportCollaboration:"Export this collaboration",
+  XIAOYU_TEXT: {budgetExceeded:"This analysis reached its processing limit without a complete answer. Your question is preserved for another attempt. No business record was saved or published.",restoreQuestion:"Restore original question",exportCollaboration:"Export this collaboration",
   "focus": "Discussion focus",
   "noFocus": "No focus",
   "followPage": "Follow current page",

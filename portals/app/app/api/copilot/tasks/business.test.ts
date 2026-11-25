@@ -78,8 +78,23 @@ test("controlled lookup obeys real account scope and never accepts SQL or worksp
     { kind: "account", workspaceId: randomUUID() },
     { kind: "account", id: "ACC-1" },
     { kind: "agent_message" },
+    ...[-1, 0.5, 1000001, "0"].map(offset => ({ kind: "account", offset })),
+    ...[0, 21, 1.5, "10"].map(limit => ({ kind: "account", limit })),
+    ...[[], ["x.constructor"], ["__proto__"], [1], ["x[0]"], Array(11).fill("name"), "name"].map(fields => ({ kind: "account", fields })),
+    { kind: "account", textOffset: 0 },
+    { kind: "account", id: ID, fields: ["name", "status"], textOffset: 0 },
+    { kind: "account", id: ID, fields: ["name"], textOffset: -1 },
+    { kind: "account", id: ID, fields: ["name"], textOffset: 0.5 },
+    { kind: "account", id: ID, fields: ["name"], textOffset: "0" },
+    { kind: "account", id: ID, fields: ["missing"], textOffset: 0 },
   ])
     await assert.rejects(b.query(input));
+  const ref = await readTaskSource(c, { kind: "account", id: ID });
+  const detail = await b.query({ kind: "account", id: ID, fields: ["name"], textOffset: 6 });
+  assert.deepEqual(detail.records[0]!.source, ref);
+  assert.equal((detail.records[0]!.record as Record<string, string>).name, "customer");
+  assert.equal((await businessBindings(session(store, "bob"), o => readTaskSource(session(store, "bob"), o))
+    .query({ kind: "account", id: ID, fields: ["name"] })).returnedCount, 0);
   assert.ok(
     (await b.query({ kind: "account", query: "no match" })).sources.some(
       (s) => s.kind === "access",
@@ -204,6 +219,9 @@ test("controlled records exclude superseded strategies and bind existing relatio
       },
     ],
   });
+  const accountContract = await f.b.contract("account");
+  assert.deepEqual((accountContract.configuration.vocabulary as { segments: unknown[] }).segments,
+    [{ id: market, name: "GIS" }]);
   f.catalog.seed({
     products: [
       {

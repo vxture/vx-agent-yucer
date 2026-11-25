@@ -9,6 +9,7 @@ import {
   listStrategyTypes,
 } from "../../../domains/strategy/type-service";
 import { formContract } from "../../../domains/copilot/business-tools";
+import { businessQueryPage, validBusinessField } from "../../../domains/copilot/lib/business-query";
 import { emptyStrategyResult } from "../../../domains/strategy/lib/strategy-result";
 import { createHash } from "node:crypto";
 import type { AppSession } from "../../../(app)/lib/session";
@@ -191,7 +192,7 @@ export function businessBindings(
       if (module === "account") {
         const ctx={...base,store:session.stores.account()};
         const rows=await Promise.all([listIndustries(ctx),listCustomerTypes(ctx),listCustomerSizes(ctx),listCustomerNatures(ctx),listMarketDivisions(ctx),listSegments({...base,store:strategy})]);
-        configuration.vocabulary=Object.fromEntries(["industries","customerTypes","customerSizes","customerNatures","regions","segments"].map((k,i)=>[k,rows[i]?.ok?rows[i].value:[]]));
+        configuration.vocabulary=Object.fromEntries(["industries","customerTypes","customerSizes","customerNatures","regions","segments"].map((k,i)=>[k,rows[i]?.ok?rows[i].value.map(row => ({ id: row.id, name: row.name })):[]]));
         configuration.owner="Current user; assignment uses the original customer service.";
       }
       if (module === "sales_plan") {
@@ -233,9 +234,13 @@ export function businessBindings(
     async query(input: Record<string, unknown>) {
       if (
         !Object.keys(input).every((k) =>
-          ["kind", "id", "query", "year"].includes(k),
+          ["kind", "id", "query", "year", "offset", "limit", "fields", "textOffset"].includes(k),
         ) ||
         typeof input.kind !== "string" ||
+        (input.offset !== undefined && (!Number.isSafeInteger(input.offset) || Number(input.offset) < 0 || Number(input.offset) > 1000000)) ||
+        (input.limit !== undefined && (!Number.isSafeInteger(input.limit) || Number(input.limit) < 1 || Number(input.limit) > 20)) ||
+        (input.fields !== undefined && (!Array.isArray(input.fields) || input.fields.length < 1 || input.fields.length > 10 || !input.fields.every(validBusinessField))) ||
+        (input.textOffset !== undefined && (!Number.isSafeInteger(input.textOffset) || Number(input.textOffset) < 0 || !input.id || !Array.isArray(input.fields) || input.fields.length !== 1)) ||
         (input.id !== undefined &&
           (typeof input.id !== "string" || !UUID.test(input.id))) ||
         (input.query !== undefined &&
@@ -250,28 +255,13 @@ export function businessBindings(
           session,
           input.kind,
           input.year as number | undefined,
-        ),
-        query = String(input.query ?? "").toLocaleLowerCase();
-      const selected = rows
-          .filter(
-            (r) =>
-              (!input.id || r.object.id === input.id) &&
-              (!query ||
-                JSON.stringify(r.data).toLocaleLowerCase().includes(query)),
-          )
-          .slice(0, 20),
-        records = [];
-      for (const row of selected) {
-        const ref = await source(row.object);
-        if (!ref) throw Error("source_unavailable");
-        records.push({ source: ref, record: row.data });
-      }
-      return {
-        records,
-        sources: [accessSource(session), ...records.map((r) => r.source)],
-        limited: rows.length > 20,
-        recordState: "Current records; draft statuses are not published facts.",
-      };
+        );
+      return businessQueryPage(rows, {
+        id: input.id as string | undefined, query: input.query as string | undefined,
+        offset: input.offset as number | undefined, limit: input.limit as number | undefined,
+        fields: input.fields as string[] | undefined,
+        textOffset: input.textOffset as number | undefined,
+      }, accessSource(session), source);
     },
     async prepare(form: BusinessForm) {
       fieldsFor(form.module, form.fields);
