@@ -3,7 +3,8 @@ import { resolveAppSession } from "../lib/session";
 import { lockedPage } from "../components/locked-page";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { readSalesPlan } from "../../domains/planning/plan-service";
+import { preferredPlanningYear } from "../../domains/planning/plan-years";
+import { listSalesPlanYears, readSalesPlan } from "../../domains/planning/plan-service";
 import { PlanError } from "../../domains/planning/plan-model";
 import { planVersions } from "../../domains/planning/plan-state";
 import { getPlanningStore } from "../../domains/shared/registry";
@@ -50,14 +51,10 @@ export default async function PlanningPage({
     ) : (
       <LegacyPlanningPage />
     );
-  const year =
-    suppliedYear &&
-    /^\d{4}$/.test(suppliedYear) &&
-    Number(suppliedYear) >= 2000 &&
-    Number(suppliedYear) <= 2200
-      ? Number(suppliedYear)
-      : new Date().getUTCFullYear();
   try {
+    const availableYears = await listSalesPlanYears(salesPlanContext(session));
+    const year = suppliedYear && /^\d{4}$/.test(suppliedYear) && Number(suppliedYear) >= 2000 && Number(suppliedYear) <= 2200
+      ? Number(suppliedYear) : suppliedYear ? new Date().getUTCFullYear() : preferredPlanningYear(availableYears);
     const [plan, sources, legacy] = await Promise.all([
       readSalesPlan(salesPlanContext(session), year),
       loadPlanSources(session),
@@ -110,6 +107,7 @@ export default async function PlanningPage({
           initialRegion={region}
           initialPeriod={period}
           initialPlan={plan}
+          availableYears={availableYears}
           initialNow={new Date().toISOString()}
           previewContent={previewContent}
           year={year}

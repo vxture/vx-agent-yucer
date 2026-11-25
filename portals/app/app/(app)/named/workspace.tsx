@@ -1,4 +1,5 @@
 "use client";
+import type { PlanningYearOption } from "../../domains/planning/plan-years";
 import { useRef, useState, type ComponentProps, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,8 +23,8 @@ import { ContactPreview } from "../components/contact-preview";
 import { FocusEditor } from "./editor";
 import { startFocusDraft } from "./focus-actions";
 
-export function FocusWorkspaceView({ workspace: w }: { readonly workspace: FocusWorkspace }) {
-  const { FOCUS_TEXT: T, PLAN_VERSION_ERROR: E, DS_LABELS } = useMessages();
+export function FocusWorkspaceView({ workspace: w, availableYears = [] }: { readonly workspace: FocusWorkspace; readonly availableYears?: PlanningYearOption[] }) {
+  const { FOCUS_TEXT: T, PLAN_VERSION_TEXT: V, PLAN_VERSION_ERROR: E, DS_LABELS } = useMessages();
   const locale = useLocale(), router = useRouter();
   const [view, setView] = useCollectionView("cards"), [query, setQuery] = useState(""), [status, setStatus] = useState("all"), [attention, setAttention] = useState("all"), [editing, setEditing] = useState(false), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const starting = useRef(false);
@@ -42,7 +43,7 @@ export function FocusWorkspaceView({ workspace: w }: { readonly workspace: Focus
   }
   return <>
     <ModuleHeadline moduleKey="namedAccount" brief="named" help={T.help} tags={w.revision ? <StatusBadge tone={w.revision.draft ? "warning" : "info"}>{w.revision.draft ? T.draft : `V${w.revision.version}`}</StatusBadge> : undefined} pageActions={{
-      context: <form action="/named" className="flex items-center gap-xs"><Input aria-label={T.year} name="year" type="number" min={2000} max={2200} defaultValue={w.year} className="w-control-numeric"/><PageActionButton type="submit">{T.applyYear}</PageActionButton></form>,
+      context: <NativeSelect aria-label={T.year} value={w.year} wrapperClassName="w-auto" onChange={e => router.push(focusHref({ year: Number(e.target.value) }))}>{[...new Set([w.year - 1, w.year, w.year + 1, ...availableYears.map(x => x.year)])].sort((a,b) => b-a).map(year => <option key={year} value={year}>Y{year}{availableYears.find(x => x.year === year)?.published ? ` \u00b7 ${V.published}` : availableYears.find(x => x.year === year)?.draft ? ` \u00b7 ${T.draft}` : ""}</option>)}</NativeSelect>,
       secondary: <PageActionButton asChild><Link href={planningHref({ year: w.year, revision: w.revision?.id })}>{T.planning}</Link></PageActionButton>,
       primary: <FocusPrimaryAction workspace={w} busy={busy} onAdd={() => setEditing(true)} onStart={startDraft}/>,
       more: <RowActions label={DS_LABELS.actionMenu} items={[{ id: "customers", label: T.master, icon: "building", onSelect: () => router.push("/account") }, { id: "create", label: T.create, icon: "plus", onSelect: () => window.open("/account/new", "_blank", "noopener,noreferrer") }]}/>,

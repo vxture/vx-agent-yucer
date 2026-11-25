@@ -4,7 +4,7 @@ import { InMemoryAccountStore, type AccountRecord } from "../account/store";
 import { InMemoryPipelineStore } from "../pipeline/store";
 import { InMemorySalesPlanStore } from "./plan-store";
 import { emptyContent, validateContent, type PlanContent, type SalesPlan } from "./plan-model";
-import { readFocusWorkspace, readFocusDetail, type FocusContext } from "./focus-read";
+import { listFocusPlanningYears, readFocusWorkspace, readFocusDetail, type FocusContext } from "./focus-read";
 import { applyFocusChange } from "./focus-change";
 import { permissionsForRoles } from "../../authz/catalog";
 import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
@@ -124,4 +124,12 @@ test("launcher focus projection keeps the roster scope without loading contact d
   assert.deepEqual(roster.rows.map(r => r.id).sort(), ["a", "c"]);
   assert.equal(contactReads, 0);
   assert.ok(roster.rows.every(r => r.contacts.state === "unavailable"));
+});
+
+test("year discovery exposes only years with visible published work, and never foreign workspaces", async () => {
+  const { ctx } = fixture();
+  assert.deepEqual(await listFocusPlanningYears(ctx), [{ year: 2026, published: true, draft: true }]);
+  assert.deepEqual(await listFocusPlanningYears({ ...ctx, workspaceId: "other" }), []);
+  assert.deepEqual(await listFocusPlanningYears({ ...ctx, scope: { kind: "own", sub: "nobody", accountIds: [] } }), []);
+  assert.deepEqual(await listFocusPlanningYears({ ...ctx, sub: "rep", scope: { kind: "own", sub: "rep", accountIds: ["a", "c"] } }), [{ year: 2026, published: true, draft: false }]);
 });

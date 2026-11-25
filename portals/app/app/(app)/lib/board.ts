@@ -1,6 +1,7 @@
-import { readBoardSource, boardSourceFailed, launcherRevenueTargets } from "./launcher-metrics";
+import { readBoardSource, boardSourceFailed, launcherRevenueTargets, launcherAttainment, pendingQuoteOpportunities } from "./launcher-metrics";
 import type { DataScope } from "../../authz/scope";
-import { readFocusWorkspace } from "../../domains/planning/focus-read";
+import { preferredPlanningYear } from "../../domains/planning/plan-years";
+import { listFocusPlanningYears, readFocusWorkspace } from "../../domains/planning/focus-read";
 import { ok } from "../../domains/shared/result";
 import { currentStrategyPlans } from "../../domains/strategy/store";
 import { cache } from "react";
@@ -46,11 +47,7 @@ import {
   listSolutions,
 } from "../../domains/catalog/service";
 import { judgementFeed, type JudgementContext, type FeedOptions } from "../../domains/judgement/service";
-import { inPeriod, rollUp } from "../../domains/pipeline/lib/forecast";
-import {
-  coverage,
-  resolveCoverageFloor,
-} from "../../domains/planning/lib/coverage";
+import { rollUp } from "../../domains/pipeline/lib/forecast";
 // NOT a static import of the Chinese constants. board.ts builds the section
 // titles and metric labels the two flanks render, so it decides copy - and copy
 // follows the request's locale. Both entry points await the dictionary; it is
@@ -322,7 +319,9 @@ export async function boardSections(ctx: BoardContext & { scope: DataScope }): P
       // Keep the exact scope/period projection of the focus roster; skip contacts.
       const allowed = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed && can(ctx.holder, ctx.entitlement, "account.view", "data").allowed;
       if (!allowed) return { ok: false as const, violations: [{ code: "permission_denied", message: "focus denied" }] };
-      return ok(await readFocusWorkspace({ ...base, scope: ctx.scope, store: getSalesPlanStore(), accounts: ctx.stores.account() }, { year: new Date().getUTCFullYear() }, { includeContactDetails: false }));
+      const focusContext = { ...base, scope: ctx.scope, store: getSalesPlanStore(), accounts: ctx.stores.account() };
+      const year = preferredPlanningYear(await listFocusPlanningYears(focusContext));
+      return ok(await readFocusWorkspace(focusContext, { year }, { includeContactDetails: false }));
     }),
   ]);
 
@@ -338,91 +337,22 @@ export async function boardSections(ctx: BoardContext & { scope: DataScope }): P
   // Gate-aware now that these go through the service. A refused read degrades
   // to an empty card, which is what every other card on this board already
   // does - the board reports what you may see, and says nothing about the rest.
-  const lines = lineResult.ok ? lineResult.value : [];
-  const pendingApproval = lines.filter((l) => l.needsApproval && !l.approved);
+  const quoteResult = !lineResult.ok ? lineResult : !deals.ok ? deals : ok(pendingQuoteOpportunities(lineResult.value, deals.value));
+  const pendingApproval = quoteResult.ok ? quoteResult.value : [];
   // Open deals only, and their value. "How many deals exist" is a database
   // fact; "what is still in play and what is it worth" is the question someone
   // opens this product with.
   const open = deals.ok ? deals.value.filter((d) => d.closedAt === null) : [];
   const worth = open.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
-  // Attainment comes from the DOMAIN, not from arithmetic here.
-  //
-  // The first version summed every committed target and every won deal. Both
-  // halves were wrong. Targets are HIERARCHICAL - the workspace target already
-  // contains its territories - so summing them double-counted and produced a
-  // denominator of 21.5M against a 12M quota. And the numerator missed every
-  // closed deal, because listPipeline excludes terminal ones by default.
-  //
-  // planning.attainment() already reconciles a target against what actually
-  // closed for that exact scope, and it keeps apart the two cases this card
-  // could most easily lie about: "nobody has forecast this yet" and "attained
-  // zero". Rendering both as 0% would report an unforecast quarter as a failed
-  // one.
-  // A MONEY target, via the shared rule. This card formats in wan and feeds
-  // `coverage`, which is money arithmetic end to end; a committed new-logo
-  // target picked up here would render "10 customers" as 10 wan and divide a
-  // pipeline by it (TD-013). The selection lives in the rule layer because the
-  // planning page needed the same one and both had written it inline.
+  // Reuse a single domain measurement read when both badges select this period.
   const wsTarget = targets.ok ? (summaryTarget(targets.value) ?? undefined) : undefined;
   const rows = wsTarget
     ? await readBoardSource(() => attainment({ ...base, store: getPlanningStore() }, wsTarget.period))
     : null;
-  const wsRow = rows?.ok
-    ? rows.value.find((r) => r.target.id === wsTarget?.id)
-    : undefined;
-
   // Narrowed once here rather than at the use site: proposals is a RuleResult,
   // and a member who cannot read them gets no figure rather than a zero - "0
   // proposals" and "you cannot see proposals" are different statements.
   const proposalCount = proposals.ok ? proposals.value.length : 0;
-
-  // Coverage needs all three of pipeline, target and closed. Without a
-  // committed target there is no gap to cover and the card stays as it was -
-  // an invented denominator would be worse than no ratio.
-  // The funnel split, from the SAME function the pipeline page and the snapshot
-  // writer use. Recomputing it here with a private sum is how a board and a page
-  // start reporting different money for the same quarter.
-  //
-  // FILTERED TO THIS QUARTER (TD-014). The card says "this quarter's commit"
-  // and until now said it over every open deal in the book, including ones
-  // expected to land next year. `worth` above is deliberately NOT filtered -
-  // "what is still in play" is not a claim about a quarter, and its card does
-  // not make one.
-  // THE TARGET'S PERIOD, NOT TODAY'S. Every figure below belongs to one card,
-  // and that card is about attaining ONE target: its title names the target's
-  // period, `attainment` above reconciles against the target's period, and the
-  // gauge divides this pool by that target's gap.
-  //
-  // It shipped reading `currentPeriod(new Date())` (PR #71). Today the two
-  // agree, so nothing looked wrong - but on the first day of a new quarter, or
-  // for a workspace that commits next quarter's target early, the gauge would
-  // divide one period's pipeline by another period's gap. That is exactly the
-  // numerator/denominator mismatch TD-014 existed to remove, reached by a
-  // different route and silent about it.
-  const window =
-    deals.ok && wsTarget ? inPeriod(open, wsTarget.period) : null;
-  // NO FALLBACK TO THE UNFILTERED LIST. A target whose period this product
-  // cannot parse gets no gauge rather than a pool measured over the whole book:
-  // falling back would restore the defect and hide it behind a rendered number.
-  const quarterOpen = window ? window.kept : [];
-  // THE POOL IS THIS QUARTER'S TOO, and it has to be, because the gauge divides
-  // it by this quarter's gap. A deal expected to land in December does not
-  // cover a September shortfall, and counting it made the coverage ratio
-  // report a pool that could not do the job it was being measured against.
-  //
-  // `worth` above stays unfiltered: it feeds "product lines in play", which
-  // claims no period and should not acquire one.
-  const quarterWorth = quarterOpen.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
-
-  const cover =
-    wsTarget && wsRow
-      ? coverage(
-          quarterWorth,
-          wsTarget.targetValue.amount,
-          wsRow.measurement.kind === "measured" ? wsRow.measurement.achieved.amount : 0,
-          resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
-        )
-      : null;
 
   const sections: BoardSection[] = [
     // ONE queue. These were two cards - "today's judgements" and "awaiting my
@@ -518,13 +448,6 @@ export async function boardSections(ctx: BoardContext & { scope: DataScope }): P
     ),
   ];
 
-  // Shown only with a workspace-scope committed target AND a snapshot behind
-  // it. No target means no denominator; no snapshot means nobody has forecast
-  // the period, which is not the same as having attained nothing.
-  const wsMeasured =
-    wsRow?.measurement.kind === "measured" && wsRow.measurement.ratio !== null
-      ? wsRow.measurement
-      : null;
   // THE QUOTA CARD IS GONE (2026-08-31), with the resource gauge, the product
   // composition and the allies count. All four were cards belonging to no
   // module, which is what made them homeless once the navigation became "the
@@ -553,6 +476,8 @@ export async function boardSections(ctx: BoardContext & { scope: DataScope }): P
     ? projects.value.filter((p) => p.status === "active" || p.status === "on_hold")
     : [];
   const revenueTargets = targets.ok ? launcherRevenueTargets(targets.value, ctx.scope) : [];
+  const scopedRows = !targets.ok ? targets : !revenueTargets.length ? ok([]) : revenueTargets[0].period === wsTarget?.period ? rows : await readBoardSource(() => attainment({ ...base, store: getPlanningStore() }, revenueTargets[0].period));
+  const attained = scopedRows?.ok ? launcherAttainment(scopedRows.value, ctx.scope) : [];
 
   const modules: Record<string, BoardModuleCard> = {
     // 战略武备域
@@ -596,22 +521,10 @@ export async function boardSections(ctx: BoardContext & { scope: DataScope }): P
 
     // 阵地经营域
     attainment: {
-      // THE ATTAINMENT, not the target. What the period asked for is a
-      // constant a reader already knows; how much of it has landed is the
-      // reading that changes and the reason to open the page. No committed
-      // target means no denominator, so the card carries no figure rather
-      // than a 0% - "nobody set a quota" and "we attained none of it" are
-      // opposite statements.
-      metrics:
-        wsTarget && wsMeasured
-          ? [
-              {
-                label: BOARD_TEXT.quotaOf,
-                value: `${Math.max(0, Math.round((wsMeasured.ratio ?? 0) * 100))}%`,
-                ...(cover?.thin ? { tone: "warn" as const } : {}),
-              },
-            ]
-          : [],
+      metrics: attained.map(t => ({
+        label: `${t.period} ${BOARD_TEXT.quotaOf} (${t.currency})`,
+        value: `${Math.max(0, Math.round(t.ratio * 100))}%`,
+      })),
     },
     account: {
       // The roster count, and beside it the decision-makers nobody has
@@ -646,11 +559,11 @@ export async function boardSections(ctx: BoardContext & { scope: DataScope }): P
     quote: {
       // Lines awaiting a signature. The count of quotes is a database fact;
       // what is waiting on a person is the reason to open it.
-      metrics: lineResult.ok
+      metrics: quoteResult.ok
         ? [
             {
               label: BOARD_TEXT.quoteApprovals,
-              value: String(new Set(pendingApproval.map(l => l.opportunityId)).size),
+              value: String(pendingApproval.length),
               ...(pendingApproval.length > 0 ? { tone: "warn" as const } : {}),
             },
           ]
@@ -690,9 +603,9 @@ export async function boardSections(ctx: BoardContext & { scope: DataScope }): P
   };
 
   const sources = { strategy: plans, segment: segments, catalog: catalogueResult, solution: solutions,
-    namedAccount: focus, planning: targets, attainment: rows, winLossReview: unreviewed,
+    namedAccount: focus, planning: targets, attainment: scopedRows, winLossReview: unreviewed,
     campaign: campaigns, signal: signals, lead: leads, funnel: leads,
-    account: accounts, pipeline: deals, quote: lineResult, delivery: projects, collection: collections, renewal: renewals };
+    account: accounts, pipeline: deals, quote: quoteResult, delivery: projects, collection: collections, renewal: renewals };
   for (const [key, result] of Object.entries(sources)) if (result && boardSourceFailed(result)) {
     modules[key] = { ...modules[key], metrics: [], unavailable: true };
   }

@@ -6,6 +6,7 @@ import { InMemorySalesPlanStore } from "./plan-store";
 import {
   changeSalesPlan,
   readSalesPlan,
+  listSalesPlanYears,
   type SalesPlanContext,
   type PlanCommand,
 } from "./plan-service";
@@ -649,4 +650,14 @@ test("company changes publish below carried regional targets and preserve prior 
   assert.equal(current.content.targets.find(t => t.scope !== "workspace")!.target, "1000");
   assert.deepEqual(plan.revisions.find(r => r.id === original.id), original);
   assert.throws(() => validateContent({ ...current.content, releaseScope: "regions" }, true), /overallocated/);
+});
+
+test("planning year options include saved drafts but preserve plan and source gates", async () => {
+  const { ctx, change } = setup();
+  assert.deepEqual(await listSalesPlanYears(ctx), []);
+  await change({ kind: "draft", content: content() });
+  assert.deepEqual(await listSalesPlanYears(ctx), [{ year: 2026, published: false, draft: true }]);
+  assert.deepEqual(await listSalesPlanYears({ ...ctx, workspaceId: "other" }), []);
+  await assert.rejects(listSalesPlanYears({ ...ctx, scope: { kind: "own", sub: "ops", accountIds: [] } }), /plan_scope_required/);
+  await assert.rejects(listSalesPlanYears({ ...ctx, holder: { permissions: new Set() } }), /plan_denied/);
 });
