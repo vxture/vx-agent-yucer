@@ -180,6 +180,10 @@ test("task responses preserve error codes, stable statuses and no-store on priva
     ["rule_changed", 409],
     ["request_in_progress", 409],
     ["task_model_failed", 502],
+    ["task_verification_unavailable", 503],
+    ["task_persistence_failed", 503],
+    ["task_completion_failed", 503],
+    ["task_service_unavailable", 503],
     ["task_tool_denied", 400],
   ] as const) {
     const response = taskResponse(

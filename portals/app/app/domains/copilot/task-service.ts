@@ -4,13 +4,15 @@ import { BUSINESS_TOOLS, EXECUTION_TOOLS, formContract } from "./business-tools"
 import { isTaskFocus, isTaskPageContext, type TaskPageContext, type TaskFocus } from "./lib/page-context";
 import { BUSINESS_FORM_CONTRACT, isFormModule, mergeForm, readBusinessForm, formHref, type BusinessForm } from "./lib/business-form";
 import { createHash } from "node:crypto";
-import { budgetFailureArtifacts, taskArtifacts } from "./lib/task-artifacts";
+import { budgetFailureArtifacts, taskArtifacts, turnFailureArtifacts } from "./lib/task-artifacts";
+import { classifyTaskFailure } from "./lib/task-failure-classify";
+import type { TaskFailureDiagnostic } from "./lib/task-failure";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { Entitlement } from "../../entitlement/types";
 import { featureKeysFor } from "../../entitlement/capability";
 import { recordAuditEvent } from "../../audit/lib/record";
 import { defaultTurnMeter } from "../../usage/lib/copilot-turns";
-import { runTurn, TurnBudgetError } from "../../agent/orchestrator/turn";
+import { runTurn, TurnBudgetError, type TurnProgress } from "../../agent/orchestrator/turn";
 import type { TurnDeps } from "./turn-service";
 import {
   TASK_RULE_VERSION,
@@ -564,6 +566,9 @@ export async function runPrivateTaskTurn(
         TASK_RULE_VERSION,
       );
       demand(turn, "task_conflict");
+      const startedAt = Date.now();
+      let stage: TaskFailureDiagnostic["stage"] = "prepare", progress: TurnProgress | undefined;
+      let modelFinished = false, sourceCount = 0, formCount = 0;
       try {
         await meter.record(ctx.workspaceId, turn.userMessageId);
         const knowledge = await recallBusinessKnowledge(now, b, question);
@@ -575,7 +580,7 @@ export async function runPrivateTaskTurn(
         let navigation:string|undefined;
         let verifiedReceipt=false;
         const executionQueue=new Map<string,"save"|"publish">();
-        const bind=(sources:TaskSource[])=>{for(const r of sources){const key=`${r.kind}:${r.id}`,old=turnSources.get(key)??b.references.find(x=>x.kind===r.kind&&x.id===r.id);demand(!old||old.version===r.version,"source_changed");turnSources.set(key,r);}demand(new Set([...b.references,...turnSources.values()].map(r=>`${r.kind}:${r.id}`)).size<=100,"task_source_limit");};
+        const bind=(sources:TaskSource[])=>{for(const r of sources){const key=`${r.kind}:${r.id}`,old=turnSources.get(key)??b.references.find(x=>x.kind===r.kind&&x.id===r.id);demand(!old||old.version===r.version,"source_changed");turnSources.set(key,r);}sourceCount=turnSources.size;demand(new Set([...b.references,...turnSources.values()].map(r=>`${r.kind}:${r.id}`)).size<=100,"task_source_limit");};
         bind(contextSources);
         for(const object of pageContext?.selection??[]){const selected=await now.source(object);demand(selected,"source_unavailable");bind([selected]);}
         const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
@@ -604,6 +609,7 @@ export async function runPrivateTaskTurn(
               bind(prepared.sources);await recheck();
               demand(b.drafts.length+forms.size<20||!!stored,"task_draft_limit");
               forms.set(args.key,{key:args.key,text:JSON.stringify(prepared)});
+              formCount = forms.size;
               navigation=`/copilot?${new URLSearchParams({task:id,form:args.key})}`;
               if (prepared.targetId === null) newFormPages.set(formHref(prepared,id,args.key).split("?", 1)[0]!, navigation);
               return {status:"private_form_prepared",key:args.key,fields:prepared.fields,protectedFields:prepared.manualFields,href:navigation,saved:false,published:false};
@@ -627,8 +633,10 @@ export async function runPrivateTaskTurn(
         const skills=selectedSkill && /^[a-zA-Z0-9_.-]{1,200}$/.test(selectedSkill) ? [await new SkillLoader(deps.runosClient).load(selectedSkill,{workspaceId:ctx.workspaceId,tenantId:deps.tenantId,subjectToken:deps.subjectToken,taskId:id,sessionId:b.task.sessionId})] : [];
         await recheck();
         const researchStartedAt = Date.now();
+        stage = "model";
         const result = await runTurn(
           {
+            onProgress: value => { progress = value; stage = value.stage; },
             question,
             history: b.messages.map((m) => ({
               role: m.role,
@@ -686,12 +694,16 @@ export async function runPrivateTaskTurn(
           },
           deps,
         );
+        modelFinished = true;
+        stage = "validate";
         demand(result.answer.trim().length > 0, "task_model_failed");
         if(now.business&&/(?:\u5df2(?:\u6210\u529f)?(?:\u4fdd\u5b58|\u53d1\u5e03|\u63d0\u4ea4|\u521b\u5efa)|successfully (?:saved|published|submitted|created))/i.test(result.answer))result.answer=verifiedReceipt?"\u5df2\u6838\u5bf9\u73b0\u6709\u6267\u884c\u56de\u6267\uff0c\u8bf7\u4ee5\u6267\u884c\u6e05\u5355\u4e2d\u7684\u5b9e\u9645\u4e1a\u52a1\u8bb0\u5f55\u4e3a\u51c6\u3002":forms.size?"\u5df2\u51c6\u5907\u8868\u5355\u8349\u7a3f\uff0c\u8bf7\u6253\u5f00\u590d\u6838\u540e\u4fdd\u5b58\u3002":"\u5206\u6790\u5df2\u5b8c\u6210\uff0c\u672c\u56de\u5408\u6ca1\u6709\u4fdd\u5b58\u6216\u53d1\u5e03\u4e1a\u52a1\u8bb0\u5f55\u3002";
         if(result.truncated)result.answer+="\n\n\u672c\u8f6e\u5df2\u8fbe\u5230\u5904\u7406\u4e0a\u9650\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u5206\u6790\u4e0e\u8349\u7a3f\uff1b\u5c1a\u672a\u8bfb\u53d6\u7684\u4fe1\u606f\u548c\u672a\u5b8c\u6210\u7684\u6b65\u9aa4\u9700\u7ee7\u7eed\u5904\u7406\u3002";
         // No model output is persisted or delivered after revocation or source
         // changes. Sources are re-read, not trusted from the old checkpoint.
+        stage = "verify";
         now = await recheck();
+        stage = "persist";
         demand(
           await ctx.store.finishTurn(scopeOf(ctx), id, turn.id, {
             answer: result.answer,
@@ -702,6 +714,7 @@ export async function runPrivateTaskTurn(
           }),
           "task_conflict",
         );
+        stage = "complete";
         await owned(await current(ctx), id);
         const proposals=[];
         for(const [key,operation] of executionQueue){
@@ -731,15 +744,26 @@ export async function runPrivateTaskTurn(
           ruleVersion: TASK_RULE_VERSION,
         };
       } catch (e) {
-        const code =
+        const refusal =
           e instanceof TaskRefusal || e instanceof MemoryRefusal || e instanceof KnowledgeRefusal
             ? e.code
             : e instanceof Error && e.message === "task_budget_exhausted" ? "task_budget_exhausted" : e instanceof Error && e.message === "tool_boundary_denied"
               ? "task_tool_denied"
-              : "task_model_failed";
+              : e instanceof Error && e.message === "source_changed" ? "source_changed"
+              : undefined;
+        const classified = classifyTaskFailure(stage, e, refusal);
+        const { errorCode: code, ...kind } = classified;
+        const counts = e instanceof TurnBudgetError ? e.usage : progress ?? { totalTokens: 0, toolRounds: 0, modelRequests: 0, toolCalls: 0 };
+        const artifacts = turnFailureArtifacts(counts, startedAt, { ...kind, modelFinished, sourceCount, formCount,
+          modelRequests: counts.modelRequests, toolCalls: counts.toolCalls });
+        if (e instanceof TurnBudgetError) artifacts.failure = budgetFailureArtifacts(e.usage).failure;
+        // The original exception is deliberately excluded: it can contain a
+        // private model answer, SQL parameters, tool data or credentials.
+        console.warn("[copilot-task] failed", { turnId: turn.id, errorCode: code, ...artifacts.diagnostic,
+          totalTokens: counts.totalTokens, toolRounds: counts.toolRounds });
         await ctx.store.finishTurn(scopeOf(ctx), id, turn.id, {
           errorCode: code,
-          ...(e instanceof TurnBudgetError ? { artifacts: budgetFailureArtifacts(e.usage) } : {}),
+          artifacts,
         });
         await recordAuditEvent({
           workspaceId: ctx.workspaceId,
@@ -749,7 +773,7 @@ export async function runPrivateTaskTurn(
           action: `${TASK_RULE_VERSION}.copilot.ask`,
           outcome: e instanceof TaskRefusal ? "denied" : "error",
           taskId: id,
-          ...(e instanceof TurnBudgetError ? { costAmount: e.usage.totalTokens, costUnit: "tokens" } : {}),
+          ...(counts.totalTokens > 0 ? { costAmount: counts.totalTokens, costUnit: "tokens" } : {}),
         });
         throw new TaskRefusal(code);
       }

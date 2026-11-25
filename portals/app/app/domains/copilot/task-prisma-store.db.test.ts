@@ -546,9 +546,12 @@ test(
         assert.equal(await store.mutate(scope,t.id,1,{ruleVersion:'xiaoyu/1',draft:{key:'note',text:'private'}}),true);
         const turn = await store.beginTurn(scope,t.id,2,randomUUID(),'question','hash','xiaoyu/1');
         assert.ok(turn);
-        assert.equal(await store.finishTurn(scope,t.id,turn.id,{answer:'answer',tokens:2}),true);
+        const kinds = ['access','account','opportunity','lead','strategy','segment','product','solution','campaign','project','plan','sales_target','sales_plan'];
+        const refs = Array.from({length:100},(_,i)=>({kind:kinds[i%kinds.length],id:randomUUID(),version:'v1',role:'context'}));
+        assert.equal(await store.finishTurn(scope,t.id,turn.id,{answer:'answer',tokens:2,references:[...refs,refs[0]]}),true);
         const loaded = await store.load(scope,t.id,true);
         assert.equal(loaded.turns[0].status,'succeeded');
+        assert.equal(loaded.references.length,100);
         assert.equal(loaded.messages.length,2);
         assert.equal(loaded.drafts[0].text,'private');
         assert.equal(loaded.checkpoint.taskRevision,4);
@@ -608,6 +611,27 @@ test("budget failure usage persists without an assistant message and freezes at 
   assert.equal(restored!.turns[0]!.artifacts!.usage.totalTokens, 41000);
   assert.equal(restored!.messages.length, 1);
   assert.deepEqual(restored!.turns[0]!.artifacts!.research, []);
+  assert.equal(await s.load({ ...scope, actorSub: "other" }, task.id, true), null);
+  await c.query("SET ROLE yucer_svc");
+  await assert.rejects(c.query("UPDATE yucer_agent.agent_task_turn SET artifacts='{}' WHERE id=$1", [turn!.id]), /task_turn_finished/);
+}));
+
+test("post-model failure diagnostics persist counts only, remain private and freeze with the failed turn", {skip}, () => fixture(async (s, scope, c) => {
+  const { turnFailureArtifacts } = await import("./lib/task-artifacts");
+  const task = await s.create(scope, "Synthetic diagnostic", TASK_RULE_VERSION, [], randomUUID());
+  const turn = await s.beginTurn(scope, task.id, task.revision, randomUUID(), "Synthetic question", "hash", TASK_RULE_VERSION);
+  const artifacts = turnFailureArtifacts({ totalTokens: 22734, toolRounds: 2 }, Date.now(), {
+    stage: "persist", category: "database", code: "P2028", modelFinished: true,
+    modelRequests: 3, toolCalls: 12, sourceCount: 100, formCount: 0,
+  });
+  assert.equal(await s.finishTurn(scope, task.id, turn!.id, { errorCode: "task_persistence_failed", artifacts }), true);
+  const restored = (await new PrismaTaskStore().load(scope, task.id, true))!;
+  assert.equal(restored.turns[0].artifacts!.diagnostic!.stage, "persist");
+  assert.equal(restored.turns[0].artifacts!.usage.totalTokens, 22734);
+  assert.equal(restored.turns[0].status, "failed");
+  assert.equal(restored.messages.length, 1);
+  assert.deepEqual(restored.references, []);
+  assert.deepEqual(restored.turns[0].artifacts!.research, []);
   assert.equal(await s.load({ ...scope, actorSub: "other" }, task.id, true), null);
   await c.query("SET ROLE yucer_svc");
   await assert.rejects(c.query("UPDATE yucer_agent.agent_task_turn SET artifacts='{}' WHERE id=$1", [turn!.id]), /task_turn_finished/);

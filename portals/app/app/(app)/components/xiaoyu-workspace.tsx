@@ -38,6 +38,9 @@ function errorText(code: string, t: Copy) {
   if (/ACCESS_CHANGED|POLICY_DENIED|NOT_ENTITLED/.test(code)) return t.accessChanged;
   if (/CONFLICT/.test(code)) return t.conflict;
   if (/BUDGET_EXHAUSTED/.test(code)) return t.budgetExceeded;
+  if (/VERIFICATION_UNAVAILABLE/.test(code)) return t.verificationUnavailable;
+  if (/PERSISTENCE_FAILED/.test(code)) return t.persistenceFailed;
+  if (/COMPLETION_FAILED/.test(code)) return t.completionFailed;
   if (/MODEL_FAILED/.test(code)) return t.modelFailed;
   if (/TOOL_DENIED/.test(code)) return t.toolDenied;
   if (/QUOTA/.test(code)) return t.quota;

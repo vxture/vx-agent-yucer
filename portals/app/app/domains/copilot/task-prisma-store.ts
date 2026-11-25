@@ -381,11 +381,19 @@ export class PrismaTaskStore implements TaskStore {
         if (!turn) throw new TaskWriteConflict();
         let assistantMessageId: string | null = null;
         if ("answer" in result) {
+          const existing = await tx.agentTaskReference.findMany({ where: scoped(scope, id) });
+          const key = (r: { objectKind: string; objectId: string; role: string }) => `${r.objectKind}:${r.objectId}:${r.role}`;
+          const versions = new Map(existing.map(r => [key(r), r.sourceVersion]));
+          const pending: Prisma.AgentTaskReferenceCreateManyInput[] = [];
           for(const ref of result.references??[]) {
-            const old=await tx.agentTaskReference.findFirst({where:{...scoped(scope,id),objectKind:ref.kind,objectId:ref.id,role:ref.role}});
-            if(old&&old.sourceVersion!==ref.version)throw Error("source_changed");
-            if(!old)await tx.agentTaskReference.create({data:{...scoped(scope,id),objectKind:ref.kind,objectId:ref.id,sourceVersion:ref.version,role:ref.role}});
+            const data = { ...scoped(scope,id), objectKind:ref.kind, objectId:ref.id, sourceVersion:ref.version, role:ref.role };
+            const old = versions.get(key(data));
+            if(old !== undefined && old !== ref.version) throw Error("source_changed");
+            if(old === undefined) { versions.set(key(data), ref.version); pending.push(data); }
           }
+          // Keep the complete source closure and its version checks atomic,
+          // without two sequential database round trips per source.
+          if(pending.length) await tx.agentTaskReference.createMany({ data: pending });
           for(const form of result.forms??[])await tx.agentTaskDraft.create({data:{...scoped(scope,id),draftKey:form.key,contractVersion:"business-form/1",revision:row.revision,content:{text:form.text}}});
           const last = await tx.agentMessage.findFirst({
             where: { workspaceId: scope.workspaceId, sessionId: row.sessionId },
