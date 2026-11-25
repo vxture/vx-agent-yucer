@@ -2,6 +2,26 @@ import type { ReadEvidence } from "../../../agent/orchestrator/turn";
 import type { BusinessForm, FormFields } from "./business-form";
 import { publicSourceUrl } from "./task-artifacts";
 export interface FormFieldEvidence { field: "creditCode"|"website"; value:string; sourceId:string; quote:string }
+function receiptContainsQuote(content:string,quote:string):boolean {
+  if(content.includes(quote))return true;
+  // MCP receipts are serialized JSON. Match an exact quote within one decoded
+  // text leaf, without joining documents or treating metadata as a new source.
+  let remaining=2000;
+  const contains=(value:unknown,depth=0):boolean=>{
+    if(--remaining<0 || depth>8)return false;
+    if(typeof value==="string")return value.includes(quote);
+    if(!value || typeof value!=="object")return false;
+    return Object.values(value).some(child=>contains(child,depth+1));
+  };
+  try{return contains(JSON.parse(content));}catch{return false;}
+}
+function websiteValue(value:string):string|null {
+  return publicSourceUrl(value.startsWith("www.")?`https://${value}`:value);
+}
+function quotedWebsite(quote:string,value:string):boolean {
+  return quote.includes(value) || [...quote.matchAll(/(?:https?:\/\/|www\.)[^\s<>"\\]+/gi)]
+    .some(match=>websiteValue(match[0])===value);
+}
 export function validFieldEvidence(value:unknown):value is FormFieldEvidence[]{
   return Array.isArray(value) && value.length<=2 && value.every(row=>row && typeof row==="object" &&
     Object.keys(row).every(k=>["field","value","sourceId","quote"].includes(k)) &&
@@ -20,12 +40,14 @@ export function applyAccountEvidence(previous:BusinessForm|null,fields:FormField
   const name=String(fields.name??previous?.fields.name??"").trim();
   for(const claim of claims){
     const source=evidence.find(row=>row.id===claim.sourceId);
-    if(!name || !source || !source.content.includes(claim.quote) || !claim.quote.includes(name) || !claim.quote.includes(claim.value))throw Error("invalid_form_evidence");
+    if(!name || !source || !receiptContainsQuote(source.content,claim.quote) || !claim.quote.includes(name))throw Error("invalid_form_evidence");
     if(claim.field==="creditCode" && !/^[0-9A-HJ-NPQRTUWXY]{18}$/.test(claim.value))throw Error("invalid_form_evidence");
-    if(claim.field==="website" && !publicSourceUrl(claim.value))throw Error("invalid_form_evidence");
+    const value=claim.field==="website"?websiteValue(claim.value):claim.value;
+    if(!value || !(claim.field==="website"?quotedWebsite(claim.quote,value):claim.quote.includes(value)))throw Error("invalid_form_evidence");
     if(previous?.manualFields.includes(claim.field))continue;
-    if(next[claim.field] && next[claim.field]!==claim.value)throw Error("conflicting_form_evidence");
-    next[claim.field]=claim.value;accepted.push(claim);
+    const existing=next[claim.field];
+    if(existing && (claim.field==="website" && typeof existing==="string"?websiteValue(existing):existing)!==value)throw Error("conflicting_form_evidence");
+    next[claim.field]=value;accepted.push({...claim,value});
   }
   const replaced=new Set(accepted.map(v=>v.field));
   return {fields:next,evidence:[...retained.filter(v=>!replaced.has(v.field)),...accepted]};

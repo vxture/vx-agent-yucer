@@ -45,7 +45,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
   {
     name: "prepare_business_form",
     description:
-      "Prepare or refine a private native business form draft, then open it for human review. Only listed native fields are accepted. Populate researched facts in fields, not just the reply. For customer website and creditCode, fieldEvidence can populate them from an exact source quote containing the full customer name and value. Reuse the same key to refine; human edits are preserved. Relations require UUIDs from authorized queries. This never saves or publishes a business record.",
+      "Prepare a private native form for review, never save or publish. Use listed fields and authorized relation UUIDs; reuse the key, preserving human edits. Put researched facts in fields. Customer website/creditCode fieldEvidence requires an exact quote in one decoded source text containing the full customer name and value, preserving whitespace. Public www. hosts normalize to https. Only a successful result proves a draft exists.",
     parameters: {
       type: "object",
       properties: {
