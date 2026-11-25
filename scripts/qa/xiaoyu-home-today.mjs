@@ -54,9 +54,15 @@ try {
  await page.send('Emulation.setEmulatedMedia',{features:[]});
  const home=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output, 'xc02-home.png'),Buffer.from(home.data,'base64'));
  await evaluate("document.querySelector('[data-home-overview] a[href=\"/copilot/today\"]').click()");
- await until("location.pathname==='/copilot/today'&&!!document.querySelector('[data-xiaoyu-topics] details')");
+ await until("location.pathname==='/copilot/today'&&!!document.querySelector('[data-judgement-card]')");
  test('Today is an independent fixed-template page',await evaluate("[...document.querySelectorAll('[data-xiaoyu-topics] h2')].map(e=>e.textContent).length===4"));
- test('Today retains provenance and at most three direct actions',await evaluate("[...document.querySelectorAll('[data-xiaoyu-topics] details')].every(d=>d.parentElement.querySelectorAll('button').length===4&&d.parentElement.textContent.includes('\u89c4\u5219'))"));
+ test('Today retains provenance and at most three direct actions',await evaluate("[...document.querySelectorAll('[data-judgement-card]')].every(c=>c.querySelector('[data-judgement-actions]').querySelectorAll('button').length===4&&c.textContent.includes('\u89c4\u5219'))"));
+ test('Card body and evidence align with title text',await evaluate("[...document.querySelectorAll('[data-judgement-card]')].every(c=>{const left=c.querySelector('[data-judgement-title]').getBoundingClientRect().left;return Math.abs(c.querySelector('[data-judgement-claim]').getBoundingClientRect().left-left)<1&&Math.abs(c.querySelector('[data-judgement-evidence]').getBoundingClientRect().left-left)<1})"));
+ test('Evidence and right-aligned actions share one footer row',await evaluate("[...document.querySelectorAll('[data-judgement-card]')].every(c=>{const f=c.querySelector('[data-judgement-footer]'),a=c.querySelector('[data-judgement-actions]'),e=c.querySelector('[data-judgement-evidence]');return Math.abs(a.getBoundingClientRect().top-e.getBoundingClientRect().top)<1&&Math.abs(a.getBoundingClientRect().right-f.getBoundingClientRect().right)<1})"));
+ await evaluate("document.querySelector('[data-judgement-evidence]').click()");
+ await until("!!document.querySelector('[data-judgement-evidence-content]')");
+ test('Expanded evidence sits below the action row',await evaluate("(()=>{const c=document.querySelector('[data-judgement-card]');return c.querySelector('[data-judgement-evidence-content]').getBoundingClientRect().top>=c.querySelector('[data-judgement-footer]').getBoundingClientRect().bottom-1})()"));
+ await evaluate("document.querySelector('[data-judgement-evidence]').click()");
  test('Today starts without its AI sidebar',await evaluate("document.querySelector('[data-assistant-width]').dataset.paneOpen==='false'"));
  test('Today title contains three inline label/count tags',await evaluate("document.querySelectorAll('[data-today-header] [data-urgency]').length===3&&document.querySelectorAll('[data-today-content] [data-urgency]').length===0"));
  test('Daily summary is one row with one compact time',await evaluate("(()=>{const s=document.querySelector('[data-daily-summary]');return s.querySelectorAll('time').length===1&&s.querySelector('p').getBoundingClientRect().height<=parseFloat(getComputedStyle(s.querySelector('p')).lineHeight)+1&&s.querySelector('time').textContent.match(/^\\d{2}:\\d{2}$/)})()"));

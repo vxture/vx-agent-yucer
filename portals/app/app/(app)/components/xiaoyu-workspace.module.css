@@ -240,3 +240,18 @@
 @media (prefers-reduced-motion: reduce) {
   .conversationDock, .conversationDock .conversationPane { transition: none; }
 }
+
+/* Judgement bodies and evidence start at the title text, beyond its icon. */
+.findingCard { container-type: inline-size; }
+.findingHeader { display: grid; grid-template-columns: var(--spacing-icon-sm) minmax(0, 1fr); gap: var(--space-sm); align-items: start; }
+.findingHeader > svg { margin-top: var(--space-2xs); }
+.findingContent { display: flex; flex-direction: column; gap: var(--space-sm); padding-inline-start: calc(var(--spacing-icon-sm) + var(--space-sm)); }
+.findingFooter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); border-top: 1px solid var(--border); padding-top: var(--space-sm); }
+.findingActions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-inline-start: auto; }
+.evidenceTrigger { padding-inline: 0; justify-content: flex-start; color: var(--muted-foreground); font-size: var(--body-small-font-size); }
+.evidenceChevron { transition: transform var(--transition-duration-base) var(--ease-standard); }
+.evidenceTrigger[data-state="open"] .evidenceChevron { transform: rotate(180deg); }
+.findingEvidence { padding-bottom: var(--space-xs); font-size: var(--body-small-font-size); }
+@media (prefers-reduced-motion: reduce) { .evidenceChevron { transition: none; } }
+
+.summaryCardContent { display: flex; flex-direction: column; gap: var(--space-sm); padding-inline-start: calc(var(--spacing-icon-sm) + var(--space-xs)); }

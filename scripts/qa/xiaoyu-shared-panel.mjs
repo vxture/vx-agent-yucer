@@ -56,10 +56,12 @@ try{
  // Navigate through the independent Today scene, then its real business source Link.
  await evaluate("document.querySelector('[data-xiaoyu-board] a[href=\"/copilot/today\"]').click()");
  await until("location.pathname==='/copilot/today'");
- await until("!!document.querySelector('[data-xiaoyu-topics] details a')");
+ await until("!!document.querySelector('[data-judgement-evidence]')");
  test('Today opens without a sidebar even after a task conversation',await evaluate("document.querySelector('[data-assistant-width]').dataset.paneOpen==='false'"));
- const sourcePath = await evaluate("document.querySelector('[data-xiaoyu-topics] details a').getAttribute('href')");
- await evaluate("document.querySelector('[data-xiaoyu-topics] details').open=true;document.querySelector('[data-xiaoyu-topics] details a').click()");
+ await evaluate("document.querySelector('[data-judgement-evidence]').click()");
+ await until("!!document.querySelector('[data-judgement-evidence-link]')");
+ const sourcePath = await evaluate("document.querySelector('[data-judgement-evidence-link]').getAttribute('href')");
+ await evaluate("document.querySelector('[data-judgement-evidence-link]').click()");
  await until(`location.pathname===${JSON.stringify(sourcePath)}`);
  await until("!!document.querySelector('[data-assistant-dock-trigger] button')");
  if(await evaluate("document.querySelector('[data-assistant-width]')?.dataset.paneOpen!=='true'")) await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");

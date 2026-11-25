@@ -6,6 +6,9 @@ import {
   Banner,
   Button,
   Card,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -221,10 +224,11 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
       ) : null}
       {(expanded ? feed?.judgements : feed?.judgements.slice(0, 3))?.map(
         (row) => (
-          <Card key={row.finding.id} className="gap-sm p-md" style={{ borderTopWidth: "var(--space-2xs)", borderTopColor: row.finding.urgency === "today" ? "var(--warning-border)" : row.finding.urgency === "week" ? "var(--info-border)" : "var(--border)" }}>
-            <div className="flex flex-wrap items-center gap-sm">
+          <Card key={row.finding.id} className={`${styles.findingCard} gap-sm p-md`} data-judgement-card style={{ borderTopWidth: "var(--space-2xs)", borderTopColor: row.finding.urgency === "today" ? "var(--warning-border)" : row.finding.urgency === "week" ? "var(--info-border)" : "var(--border)" }}>
+            <div className={styles.findingHeader}>
               <Icon name="lightbulb" size="sm" />
-              <span className="text-label">{row.finding.subjectName}</span>
+              <div className="flex min-w-0 flex-wrap items-center gap-sm">
+              <span className="text-label" data-judgement-title>{row.finding.subjectName}</span>
               <StatusBadge
                 tone={row.finding.urgency === "today" ? "warning" : "neutral"}
                 icon={false}
@@ -241,8 +245,10 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
                       ? T.processing
                       : T.open}
               </span>
+              </div>
             </div>
-            <p className="text-body leading-relaxed">
+            <div className={styles.findingContent}>
+            <p className="text-body leading-relaxed" data-judgement-claim>
               {row.absent ? T.noLongerTriggered : row.finding.claim}
             </p>
             <div className="grid grid-cols-1 gap-x-md gap-y-xs text-body text-muted-foreground sm:grid-cols-2">
@@ -252,32 +258,12 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
                 </span>
               ))}
             </div>
-            {!row.absent ? (
-              <details className="text-body-small">
-                <summary className="cursor-pointer text-muted-foreground">
-                  {T.evidence}
-                </summary>
-                <p className="mt-sm text-muted-foreground">
-                  {row.finding.rule}
-                </p>
-                {row.finding.citations.map((c, i) => (
-                  <p key={i} className="mt-xs whitespace-pre-wrap break-words">
-                    {c.text}
-                  </p>
-                ))}
-                <Link
-                  className="mt-sm inline-block text-primary"
-                  href={
-                    row.finding.subjectType === "team"
-                      ? "/planning"
-                      : `/${row.finding.subjectType === "opportunity" ? "pipeline" : "account"}/${row.finding.subjectId}`
-                  }
-                >
-                  {T.source}
-                </Link>
-              </details>
-            ) : null}
-            <div className="flex flex-wrap gap-xs border-t border-border pt-sm">
+            <Collapsible>
+            <div className={styles.findingFooter} data-judgement-footer>
+              {!row.absent ? <CollapsibleTrigger asChild><Button size="md" variant="ghost" className={styles.evidenceTrigger} data-judgement-evidence>
+                {T.evidence}<Icon name="chevron-down" size="xs" className={styles.evidenceChevron} />
+              </Button></CollapsibleTrigger> : null}
+              <div className={styles.findingActions} data-judgement-actions>
               {!row.absent ? (
                 <>
                   <Button
@@ -294,7 +280,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
               ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="icon-xl" variant="ghost" className="ml-auto" aria-label={T.moreActions}>
+                  <Button size="icon-xl" variant="ghost" aria-label={T.moreActions}>
                     <Icon name="more-vertical" size="sm" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -307,6 +293,29 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
                   </DropdownMenuItem> : null}
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
+            </div>
+            {!row.absent ? <CollapsibleContent className={styles.findingEvidence} data-judgement-evidence-content>
+                <p className="mt-sm text-muted-foreground">
+                  {row.finding.rule}
+                </p>
+                {row.finding.citations.map((c, i) => (
+                  <p key={i} className="mt-xs whitespace-pre-wrap break-words">
+                    {c.text}
+                  </p>
+                ))}
+                <Link
+                  data-judgement-evidence-link className="mt-sm inline-block text-primary"
+                  href={
+                    row.finding.subjectType === "team"
+                      ? "/planning"
+                      : `/${row.finding.subjectType === "opportunity" ? "pipeline" : "account"}/${row.finding.subjectId}`
+                  }
+                >
+                  {T.source}
+                </Link>
+            </CollapsibleContent> : null}
+            </Collapsible>
             </div>
           </Card>
         ),
@@ -321,11 +330,11 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         </Button>
       ) : null}
       {daily ? <div className="grid gap-sm lg:grid-cols-2">
-        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyPace(counts.today,counts.week,counts.watch) : T.insufficient}</p></Card>
-        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><div className={styles.summaryCardContent}><p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyPace(counts.today,counts.week,counts.watch) : T.insufficient}</p></div></Card>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2><div className={styles.summaryCardContent}>
           {verify.length ? <ul className="flex flex-col gap-xs text-body">{verify.slice(0,3).map(row=><li key={row.finding.id} className="line-clamp-2">{row.finding.subjectName}{": "}{row.absent ? T.pendingVerification : row.finding.claim}</li>)}</ul> : <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.noHypotheses : T.insufficient}</p>}
           <p className="text-body-small text-muted-foreground">{H.hypothesisHint}</p>
-        </Card>
+        </div></Card>
       </div> : null}
       </div>
     </section>
