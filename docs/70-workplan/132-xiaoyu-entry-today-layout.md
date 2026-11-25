@@ -30,4 +30,7 @@ PR #795 的研究收尾修正已在主分支，但没有 v0.1.141 发布授权�
 - 浏览器实测标题56px，阅读区左右24／32px，输入区外边距16px；无独立 footer。
 - 逐页规范：86页、77并行槽位，0错误；文档编号与差异空白检查通过。
 - 浏览器仅连接本机演示服务；没有调用模型、写正式业务记录或更改线上数据。
-- PR 编号及 CI 结果完成后追加。本轮没有数据库、配置、依赖或模型预算变更。
+- PR [#796](https://github.com/vxture/vx-agent-yucer/pull/796) 汇总审查；CI 结果以该 PR 为准。本轮没有数据库、配置、依赖或模型预算变更。
+
+- 最终1440px预览：`/private/tmp/yucer-entry-today-1440.png`、`/private/tmp/yucer-entry-discussion-1440.png`、`/private/tmp/yucer-entry-workspace-1440.png`。
+  两侧标题实测均为top48px、height56px。服务只保留本机4060端口，本地为演示数据。
