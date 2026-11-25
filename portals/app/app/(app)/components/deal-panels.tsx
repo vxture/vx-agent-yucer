@@ -135,6 +135,7 @@ export function DealDossierPanel({
         edit: edit?.can.terms ? { onSelect: () => edit.open("terms") } : { hint: PANEL_MENU_TEXT.noEditRight },
         // 放弃 / 重开 open the stage drawer, where both already live.
         extra: [
+          ...(edit?.can.details ? [{ id: "details", label: DEAL_PAGE_TEXT.editDetails, onSelect: () => edit.open("details") }] : []),
           ...(edit?.can.importance
             ? [{ id: "importance", label: DEAL_PAGE_TEXT.importanceEdit, onSelect: () => edit.open("importance") }]
             : []),
@@ -477,6 +478,7 @@ export function DealHeaderMenu({ linesHref }: { readonly linesHref: string | nul
   const router = useRouter();
   if (!edit) return null;
   const items = [
+    ...(edit.can.details ? [{ id: "details", label: DEAL_PAGE_TEXT.editDetails, onSelect: () => edit.open("details") }] : []),
     ...(edit.can.terms ? [{ id: "terms", label: DEAL_PAGE_TEXT.editTerms, onSelect: () => edit.open("terms") }] : []),
     ...(edit.can.stage ? [{ id: "stage", label: OPPORTUNITY_TEXT.advanceTitle, onSelect: () => edit.open("stage") }] : []),
     ...(edit.can.roles ? [{ id: "roles", label: DEAL_PAGE_TEXT.editRoles, onSelect: () => edit.open("roles") }] : []),

@@ -1543,6 +1543,10 @@ export const RENEWAL_ERROR: Record<string, string> = {
 };
 
 export const FORECAST_RULE_ERROR: Record<string, string> = {
+  name_required: "\u5546\u673a\u9700\u8981\u4e00\u4e2a\u540d\u79f0",
+  requirement_required: "\u5546\u673a\u5fc5\u987b\u5199\u6e05\u5ba2\u6237\u8981\u4ec0\u4e48",
+  details_too_long: "\u5546\u673a\u540d\u79f0\u6700\u591a255\u5b57\uff0c\u8bf7\u7cbe\u7b80\u540e\u4fdd\u5b58\u3002",
+
   ...GATE_ERROR,
   category_reason_required: "把类别调得比规则建议更乐观，需要写一句理由",
   // Shares updateCommercialTerms with the deal page, so its codes are
@@ -1569,6 +1573,7 @@ export const AUTONOMY_ERROR: Record<string, string> = {
 };
 
 export const SIGNAL_ACTION_ERROR: Record<string, string> = {
+  details_too_long: "\u516c\u53f8\u548c\u8054\u7cfb\u4eba\u540d\u79f0\u6700\u591a255\u5b57\uff0c\u8bf7\u7cbe\u7b80\u540e\u4fdd\u5b58\u3002",
   ...GATE_ERROR,
   not_found: "记录不存在，或不属于当前工作区",
   illegal_transition: "当前状态不能这样变更",
@@ -4769,6 +4774,7 @@ export const FORECAST_ERROR: Record<string, string> = {
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  details_too_long: "\u5546\u673a\u540d\u79f0\u6700\u591a255\u5b57\uff0c\u8bf7\u7cbe\u7b80\u540e\u4fdd\u5b58\u3002",
   // YC-065 R1 未满足推进须理由 (deal batch 5b).
   exit_unmet_reason_required: "本阶段还有推进标准未满足，推进需要写一句理由",
   // YC-065 R9 偏离规则须理由.
@@ -6654,6 +6660,8 @@ export const FUNNEL_TEXT = {
 } as const;
 
 export const LEAD_TEXT = {
+  editDetails: "\u7f16\u8f91\u4fe1\u606f",
+  editDetailsHint: "\u4fee\u6b63\u516c\u53f8\u4e0e\u8054\u7cfb\u4eba\u540d\u79f0\uff0c\u4fdd\u7559\u539f\u6765\u6e90\u548c\u8f6c\u5316\u8bb0\u5f55\u3002",
   title: "线索",
   // 模块头部 (design_yucer_110). `description` above is the SECTION's line and
   // stays with the table; this one explains the module.
@@ -8110,6 +8118,8 @@ export const ICP_TEXT = {
 /** 商机详情页 (deal batch 2, 2026-09-25): 栏1 档案 / 栏2 六板块, the same
  *  build as the customer page (owner: 这两个是同一级别的). */
 export const DEAL_PAGE_TEXT = {
+  editDetails: "\u7f16\u8f91\u4e1a\u52a1\u4fe1\u606f",
+  editDetailsHint: "\u4fee\u6b63\u5546\u673a\u540d\u79f0\u4e0e\u5ba2\u6237\u9700\u6c42\uff0c\u4fdd\u7559\u539f\u6765\u6e90\u3001\u9636\u6bb5\u548c\u5386\u53f2\u4f9d\u636e\u3002",
   workspace: {
     views: "商机工作视图", analysis: "商机分析", progress: "跟进推进", steps: "跟进工作环节",
     plan: "跟进策划", prepare: "拜访准备", feedback: "反馈记录", history: "跟进记录",

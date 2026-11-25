@@ -135,6 +135,8 @@ export interface RepriceResult {
 export async function repriceOpportunity(
   opportunityId: string,
   input: {
+    name?: string;
+    requirement?: string;
     amount?: string;
     currency?: string;
     probability?: string;
@@ -151,6 +153,8 @@ export async function repriceOpportunity(
   if (!session) return { ok: false, error: "not_authenticated" };
 
   const patch: Parameters<typeof updateCommercialTerms>[2] = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.requirement !== undefined) patch.requirement = input.requirement;
   /* The currency an amount typed without one is in: the workspace's 计价规则
      (incr/0044), read through the catalogue's own gate. */
   const policyRead = await pricingPolicy({

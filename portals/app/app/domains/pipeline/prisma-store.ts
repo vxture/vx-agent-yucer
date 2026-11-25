@@ -413,6 +413,8 @@ export class PrismaPipelineStore implements PipelineStore {
     // does not blank the close date. `null` stays: it means "unpriced" / "no
     // date", which are values a user can legitimately set.
     const patch: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.requirement !== undefined) patch.requirement = input.requirement;
     if (input.amount !== undefined) {
       patch.amount = input.amount == null ? null : input.amount.amount;
       if (input.amount != null) patch.currency = input.amount.currency;
