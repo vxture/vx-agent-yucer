@@ -1,3 +1,4 @@
+import { validFieldEvidence, type FormFieldEvidence } from "./form-evidence";
 import { SEGMENT_TEXT_LIMITS } from "../../strategy/lib/segment-text-limits";
 import { CATALOG_TEXT_LIMITS } from "../../catalog/lib/text-limits";
 import { validStrategyResult } from "../../strategy/lib/strategy-result";
@@ -45,6 +46,7 @@ export interface BusinessForm {
   fields: FormFields;
   manualFields: string[];
   sources: TaskSource[];
+  fieldEvidence?: FormFieldEvidence[];
 }
 export function isFormModule(v: unknown): v is FormModule {
   return (
@@ -227,6 +229,7 @@ export function mergeForm(
     fields,
     manualFields: [...manual],
     sources: previous?.sources ?? [],
+    ...(previous?.fieldEvidence ? {fieldEvidence:previous.fieldEvidence.filter(e=>fields[e.field]===e.value && fields.name===previous.fields.name)} : {}),
   };
 }
 function object(v: unknown): v is FormFields {
@@ -277,6 +280,7 @@ export function readBusinessForm(text: string): BusinessForm {
   )
     throw Error("invalid_form_fields");
   fieldsFor(v.module, v.fields);
+  if(v.fieldEvidence!==undefined && !validFieldEvidence(v.fieldEvidence))throw Error("invalid_form_evidence");
   if (v.baseline !== undefined && (!object(v.baseline) || JSON.stringify(v.baseline).length > 100000)) throw new Error("invalid_form_fields");
   return v as BusinessForm;
 }

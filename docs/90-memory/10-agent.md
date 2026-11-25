@@ -57,6 +57,10 @@ to confirm that the reviewed result is ready to release. A prior release request
 does not authorize automatically releasing subsequent preview corrections.
 Production GitHub deployment approval remains a separate owner action.
 
+Owner reiterated (2026-11-25): do not publish without an explicit instruction.
+Continue implementation, checks and previews; do not create release tags, start
+deployments, or treat successful checks as release authorization.
+
 ## Product rules that bite
 
 Read `CLAUDE.md` section "Product domain rules that are now rigid here" before

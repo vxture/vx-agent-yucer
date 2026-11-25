@@ -1,5 +1,7 @@
 # 70-workplan - 构建计划与批次跟踪
 
+[131 小聿可读协作与集中补填](131-xiaoyu-readable-task-review.md)：XR-01–XR-05 实施中，未授权发布。
+
 ## 小聿首页与统一协作实施计划
 
 [129-xiaoyu-home-collaboration-rollout.md](129-xiaoyu-home-collaboration-rollout.md) 固定 XC-00–XC-08：

@@ -5,6 +5,8 @@ register (`TD-NNN`), and incident notes.
 
 ## Tech-debt register (TD-NNN)
 
+TD-041：小聿安全 Markdown 渲染缺口，见本文末尾；临时组合仅使用 DS token。
+
 Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 (never reused).
 
@@ -2256,3 +2258,12 @@ Robot 暂从已安装同源 Phosphor 导入，不自绘图形。
 退出条件：上游提供公开 API 后删除局部表面和消息输入组合，改为共享助手组件。
 业务对象、风险与权限绑定仍归聿策所有。验收矩阵与服务端明确后续项见
 [55-assistant-design-v1](../70-workplan/55-assistant-design-v1.md)。
+
+### TD-041 - 小聿安全 Markdown 内容渲染
+
+2026-11-25 核对安装的 design-ui 12.5.1，公开声明没有 Markdown／RichText／Prose 组件。
+已提出 [vxture-design#150](https://github.com/vxture/vxture-design/issues/150)。
+临时位置：`components/xiaoyu-markdown.tsx` 及同名 CSS module，组合 react-markdown、remark-gfm
+和 DS Table；字体、颜色、间距使用 DS class/token，不复制 DS 源码，不添加本地设计 token。
+原始 HTML、危险链接、远程图片及自定义样式不渲染。业务引用可见文字另行解析，链接目标仍保留内部键。
+退出条件：DS 提供安全富内容组件后替换本地渲染组合，保留业务引用解析与授权边界。

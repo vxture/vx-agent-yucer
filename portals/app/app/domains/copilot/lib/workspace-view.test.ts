@@ -18,7 +18,7 @@ test("structured forms take precedence and use only whitelisted panels",async()=
 });
 test("a failed research turn never makes partial evidence or a completed business result",async()=>{
   const b=await fixture();b.turns.push(turn({status:"failed",artifacts:{version:"task-artifacts/1",capturedAt:new Date().toISOString(),research:[],calls:[],usage:{elapsedMs:100,totalTokens:30,toolRounds:1,truncated:true},failure:{reason:"tokens",modelRequests:1,toolCalls:1}}}));
-  const v=taskWorkspaceView(b);assert.equal(v.kind,"conversation");assert.equal(v.stage,"failed");assert.deepEqual(v.panels,["forms","sources","activity"]);
+  const v=taskWorkspaceView(b);assert.equal(v.kind,"conversation");assert.equal(v.stage,"failed");assert.deepEqual(v.panels,["forms","activity","sources"]);
 });
 test("recorded successful research changes the layout; running and terminal states remain distinct",async()=>{
   const b=await fixture();b.turns.push(turn({artifacts:{version:"task-artifacts/1",capturedAt:new Date().toISOString(),research:[{id:"read-1",capabilityId:"search",operation:"search",callId:null,version:null,excerpt:"Evidence",links:[]}],calls:[],usage:{elapsedMs:100,totalTokens:30,toolRounds:1,truncated:false}}}));

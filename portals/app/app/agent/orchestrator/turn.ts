@@ -37,7 +37,7 @@ import {
 export interface TurnInput {
   /** Server-owned numeric trace only; never receives messages or tool data. */
   onProgress?: (progress: TurnProgress) => void;
-  localTools?: {definitions: import("../atlas/types").ToolDefinition[]; invoke:(name:string,args:Record<string,unknown>)=>Promise<unknown>};
+  localTools?: {definitions: import("../atlas/types").ToolDefinition[]; invoke:(name:string,args:Record<string,unknown>,evidence:readonly ReadEvidence[])=>Promise<unknown>};
   beforeTool?:()=>Promise<void>;
   totalBudget?: {deadlineMs:number;maxTokens:number;maxCalls:number};
   question: string;
@@ -330,7 +330,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       await input.beforeTool?.();
       toolCalls++;
       progress("tool");
-      const outcome = await handleToolCall(call, surface, input, deps, proposals, pinnedVersions, `read-${rounds}-${readEvidence.length + 1}`);
+      const outcome = await handleToolCall(call, surface, input, deps, proposals, pinnedVersions, `read-${rounds}-${readEvidence.length + 1}`,readEvidence);
       if (outcome.invocation) invocations.push(outcome.invocation);
       if (outcome.evidence) readEvidence.push(outcome.evidence);
       if (outcome.catalogSelection) compactSelectedCatalog(messages, catalogReceipts, outcome.catalogSelection);
@@ -504,10 +504,11 @@ async function handleToolCall(
   proposals: ProposalDraft[],
   pinnedVersions: Map<string, string>,
   sourceId: string,
+  evidence: readonly ReadEvidence[],
 ): Promise<ToolOutcome> {
   const args = parseArgs(call.arguments);
   if(input.localTools?.definitions.some(d=>d.name===call.name)) {
-    const result = await input.localTools.invoke(call.name,args);
+    const result = await input.localTools.invoke(call.name,args,evidence);
     return { content:JSON.stringify(result), ...(call.name === "query_business" ? { businessReceipt: { query: args, result } } : {}) };
   }
 

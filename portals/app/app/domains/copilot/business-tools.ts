@@ -45,7 +45,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
   {
     name: "prepare_business_form",
     description:
-      "Prepare or refine a private native business form draft, then open it for human review. Only listed native fields are accepted. Reuse the same key to refine; human edits are preserved. Relations require UUIDs from authorized queries. This never saves or publishes a business record.",
+      "Prepare or refine a private native business form draft, then open it for human review. Only listed native fields are accepted. Populate researched facts in fields, not just the reply. For customer website and creditCode, fieldEvidence can populate them from an exact source quote containing the full customer name and value. Reuse the same key to refine; human edits are preserved. Relations require UUIDs from authorized queries. This never saves or publishes a business record.",
     parameters: {
       type: "object",
       properties: {
@@ -60,6 +60,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
           description: "Existing business UUID; omit for new",
         },
         fields: { type: "object" },
+        fieldEvidence: {type:"array",maxItems:2,items:{type:"object",properties:{field:{type:"string",enum:["creditCode","website"]},value:{type:"string"},sourceId:{type:"string"},quote:{type:"string",maxLength:1500}},required:["field","value","sourceId","quote"]}},
       },
       required: ["module", "key", "fields"],
     },

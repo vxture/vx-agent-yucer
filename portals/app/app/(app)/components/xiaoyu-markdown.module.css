@@ -1,0 +1,15 @@
+.content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.content > * + * { margin-top: var(--space-sm); }
+.content :is(ul,ol) { padding-left: var(--space-lg); }
+.content ul { list-style: disc; }
+.content ol { list-style: decimal; }
+.content li + li { margin-top: var(--space-xs); }
+.content li > p + p { margin-top: var(--space-xs); }
+.content blockquote { border-left: 1px solid var(--border); padding-left: var(--space-md); color: var(--muted-foreground); }
+.content pre { overflow-x: auto; padding: var(--space-sm); border-radius: var(--radius-sm); background: var(--muted); }
+.content a { color: var(--primary-text); }
+.content a:hover { color: var(--primary); }
+.content hr { border-color: var(--border); }
