@@ -1,5 +1,6 @@
 "use client";
 import Markdown from "react-markdown";
+import type { ReactNode } from "react";
 import remarkGfm from "remark-gfm";
 import { Table,TableBody,TableCell,TableHead,TableHeader,TableRow } from "@vxture/design-ui";
 import { readableText } from "../../domains/copilot/lib/form-review";
@@ -22,6 +23,12 @@ function readableReferences(options:{labels:Record<string,string>;unavailable:st
     visit(tree);
   };
 }
+function MarkdownTable({children}:{readonly children?:ReactNode}) {
+  return <div className="min-w-0 overflow-x-auto" data-xiaoyu-wide-block><Table>{children}</Table></div>;
+}
+function MarkdownPre({children}:{readonly children?:ReactNode}) {
+  return <pre data-xiaoyu-wide-block>{children}</pre>;
+}
 /** Domain content wrapper (TD-041). DS owns table, type, spacing and colors.
  * No raw HTML, image requests, embedded widgets or model-supplied styles. */
 export function XiaoyuMarkdown({text,labels={},unavailable}:{text:string;labels?:Record<string,string>;unavailable:string}){
@@ -31,9 +38,10 @@ export function XiaoyuMarkdown({text,labels={},unavailable}:{text:string;labels?
       components={{
         h1:({children})=><h3 className="text-label-medium">{children}</h3>,h2:({children})=><h3 className="text-label-medium">{children}</h3>,h3:({children})=><h3 className="text-label-medium">{children}</h3>,
         h4:({children})=><h4 className="text-label">{children}</h4>,h5:({children})=><h4 className="text-label">{children}</h4>,h6:({children})=><h4 className="text-label">{children}</h4>,
+        pre:MarkdownPre,
         code:({children})=><code className="font-mono text-body-small">{children}</code>,
         a:({href,children,title})=>{const safe=href?collaborationHref(href):undefined;return safe?<a href={safe} title={title} {...(safe.startsWith("/")?{}:{target:"_blank",rel:"noopener noreferrer"})}>{children}</a>:<span>{children}</span>;},
-        table:({children})=><div className="min-w-0 overflow-x-auto"><Table>{children}</Table></div>,
+        table:MarkdownTable,
         thead:({children})=><TableHeader>{children}</TableHeader>,tbody:({children})=><TableBody>{children}</TableBody>,
         tr:({children})=><TableRow>{children}</TableRow>,th:({children})=><TableHead>{children}</TableHead>,td:({children})=><TableCell>{children}</TableCell>,
       }} >{text}</Markdown>

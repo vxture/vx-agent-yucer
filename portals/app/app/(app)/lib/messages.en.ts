@@ -123,7 +123,8 @@ export const en: Dictionary = {
   "empty": "No accessible team knowledge. Changed or revoked sources stop being shown."
 },
   XIAOYU_TOPICS: {
-  "moreActions": "More actions",title:"Today's findings",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
+  todayShort: "Today", weekShort: "Week", watchShort: "Watch",
+  "moreActions": "More actions",title:"Today's judgement",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
   XIAOYU_EXECUTION:{failureReasons:{"duplicate_customer": "A customer with this name or registration code already exists. Review the existing record.", "invalid_form_configuration": "Configuration options changed. Review the form again.", "invalid_form_fields": "Complete or correct the form before retrying.", "source_changed": "The business source changed. Review and prepare a new step.", "permission_denied": "Your current permissions do not allow this operation."},prepareAll:"Prepare all saves",selectAll:"Select pending steps","continue":"Continue from receipt","failed":"Failed; check before retrying","title": "Execution steps", "prepare": "Prepare save", "publish": "Prepare publish", "grant": "Authorize and run", "execute": "Run authorized steps", "confirm": "I reviewed these forms and confirm the selected steps", "scope": "Authorization covers only the selected form versions for 15 minutes; business permissions still apply.", "refresh": "Check execution results", "revoke": "Revoke authorization", "pending": "Pending", "succeeded": "Completed", "result_unavailable": "Result unavailable", "open": "View business record", "error": "The submission response was interrupted. Check the execution receipts.", "save": "Save", "publishing": "Publishing changes the effective business version. Review before confirming.", "confirmPublish": "Confirm publish", "unknown": "Execution results could not be verified. Check again shortly.", "mode": "Authorization mode", "ask_always": "Confirm each action", "ask_high_risk": "Standard authorization", "autonomous": "Full authorization", "resume": "Reload the persisted list after an interruption to resume unfinished steps.", "partial": "Some steps did not complete. Check receipts before continuing.",
   "proposal_unavailable": "Step no longer current",
   "denied": "Execution details are no longer accessible."
@@ -240,7 +241,7 @@ export const en: Dictionary = {
   "chatPlaceholder": "Tell Xiaoyu what you want to do next...",
   "readyToDiscuss": "Let us work through this together",
   "discussHint": "We can check the current situation and decide what to do next.",
-  "history": "Conversation history",
+  "history": "All tasks",
   "newChat": "New conversation",
   "moreActions": "More actions",
   "viewResults": "View results on the workboard",
@@ -248,7 +249,7 @@ export const en: Dictionary = {
 
     "name": "Xiaoyu",
     "subtitle": "Turn judgement into action, together",
-    "entry": "Open Xiaoyu workspace",
+    "entry": "Open Xiaoyu panel",
     "title": "Yucer \u00b7 Xiaoyu",
     "conversation": "Task conversation",
     "pageAssist": "Page assistant",
@@ -279,7 +280,7 @@ export const en: Dictionary = {
     "cancelDescription": "The conversation and notes remain available. Closing the sidebar only hides it.",
     "cancelConfirm": "Cancel task",
     "back": "Back",
-    "full": "Full workspace",
+    "full": "Enter collaboration space",
     "close": "Close sidebar",
     "dock": "Page collaboration",
     "currentPage": "Current page",
@@ -906,7 +907,7 @@ export const en: Dictionary = {
     delivery: "Project delivery",
     copilot: "AI workspace",
     catalog: "Catalogue",
-    home: "Today's calls",
+    home: "Home",
     queue: "Awaiting me",
     members: "Organisation",
     roles: "Roles",
@@ -6940,7 +6941,7 @@ export const en: Dictionary = {
     groupLabel: {
       copilot: "Copilot",
       admin: "Configuration",
-      home: "Today's calls",
+      home: "Home",
       national: "Sales screen",
       enablement: "Enablement Analysis",
     } as Record<string, string>,

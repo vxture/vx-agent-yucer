@@ -19,6 +19,7 @@
   padding-top: var(--yucer-scroll-clearance);
   container-type: inline-size;
 }
+.contentPane[data-workspace-content="canvas"] { padding-top: 0; }
 .contentScroll, .canvasViewport {
   flex: 1;
   min-width: 0;
@@ -106,7 +107,7 @@
   border: 0;
   border-radius: 0;
   border-left: 1px solid var(--border);
-  padding-top: var(--yucer-scroll-clearance);
+  padding: 0;
   box-shadow: none;
 }
 
@@ -133,18 +134,6 @@
     z-index: var(--z-index-overlay);
   }
 }
-/* Keep the form and its conversation mounted. DS menus, help drawers and
- * confirmation dialogs must remain above this viewport-covering surface. */
-.assistantDock[data-assistant-fullscreen="true"] .assistantPane {
-  inset: var(--yucer-header-height) 0 0;
-  z-index: var(--z-index-overlay);
-  height: auto;
-  max-width: none;
-  padding-inline: 0;
-  box-shadow: none;
-}
-.assistantDock[data-assistant-fullscreen="true"] { width: 0; }
-
 @media (prefers-reduced-motion: reduce) {
   .leftPane, .assistantDock, .leftDock, .assistantPane, .contentContainer { transition: none; }
 }

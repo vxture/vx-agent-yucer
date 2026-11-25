@@ -218,7 +218,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   delivery: "项目交付",
   copilot: "\u667a\u80fd\u5de5\u4f5c\u53f0",
   catalog: "产品目录",
-  home: "今日判断",
+  home: "\u9996\u9875",
   queue: "待我裁决",
   // 配置管理平面的条目 (2026-09-08). 四字为准 (owner)，每个条目一件事。
   // 组织管理（owner 2026-09-10：成员管理改为组织管理，含菜单和页面）。
@@ -7784,7 +7784,7 @@ export const PERMISSION_TREE_TEXT = {
   groupLabel: {
     copilot: "智能副驾",
     admin: "配置管理",
-    home: "今日判断",
+    home: "\u9996\u9875",
     national: "销售大屏",
     enablement: "赋能分析",
   } as Record<string, string>,
@@ -10151,7 +10151,7 @@ export const XIAOYU_TEXT = {
   "chatPlaceholder": "\u548c\u5c0f\u807f\u8bf4\u8bf4\uff0c\u63a5\u4e0b\u6765\u60f3\u505a\u4ec0\u4e48\u2026",
   "readyToDiscuss": "\u8fd9\u4ef6\u4e8b\uff0c\u6211\u4eec\u4e00\u8d77\u770b\u770b",
   "discussHint": "\u53ef\u4ee5\u5148\u6838\u5bf9\u4e1a\u52a1\u60c5\u51b5\uff0c\u518d\u4e00\u8d77\u786e\u5b9a\u4e0b\u4e00\u6b65\u3002",
-  "history": "\u5386\u53f2\u5bf9\u8bdd",
+  "history": "\u5168\u90e8\u4efb\u52a1",
   "newChat": "\u65b0\u5bf9\u8bdd",
   "moreActions": "\u66f4\u591a\u64cd\u4f5c",
   "viewResults": "\u67e5\u770b\u5de5\u4f5c\u677f\u4e0a\u7684\u6210\u679c",
@@ -10159,7 +10159,7 @@ export const XIAOYU_TEXT = {
 
   "name": "\u5c0f\u807f",
   "subtitle": "\u4e0e\u4f60\u4e00\u8d77\uff0c\u628a\u5224\u65ad\u53d8\u6210\u884c\u52a8",
-  "entry": "\u6253\u5f00\u5c0f\u807f\u5de5\u4f5c\u533a",
+  "entry": "\u6253\u5f00\u5c0f\u807f\u9762\u677f",
   "title": "\u807f\u7b56 \u00b7 \u5c0f\u807f",
   "conversation": "\u4efb\u52a1\u5bf9\u8bdd",
   "pageAssist": "\u9875\u9762\u586b\u5199",
@@ -10190,7 +10190,7 @@ export const XIAOYU_TEXT = {
   "cancelDescription": "\u5bf9\u8bdd\u548c\u7b14\u8bb0\u4f1a\u4fdd\u7559\uff0c\u4efb\u52a1\u505c\u6b62\u7ee7\u7eed\u3002\u5173\u95ed\u4fa7\u680f\u53ea\u9690\u85cf\u754c\u9762\uff0c\u4e0d\u4f1a\u53d6\u6d88\u4efb\u52a1\u3002",
   "cancelConfirm": "\u786e\u8ba4\u53d6\u6d88",
   "back": "\u8fd4\u56de",
-  "full": "\u5b8c\u6574\u5de5\u4f5c\u533a",
+  "full": "\u8fdb\u5165\u534f\u4f5c\u7a7a\u95f4",
   "close": "\u5173\u95ed\u534f\u4f5c\u680f",
   "dock": "\u9875\u9762\u534f\u4f5c",
   "currentPage": "\u5f53\u524d\u9875\u9762",
@@ -10283,6 +10283,9 @@ export const XIAOYU_KNOWLEDGE = {
 } as const;
 
 export const XIAOYU_TOPICS = {
+  todayShort: "\u4eca\u65e5",
+  weekShort: "\u672c\u5468",
+  watchShort: "\u89c2\u5bdf",
   "moreActions": "\u66f4\u591a\u5904\u7406",
   "verified": "\u5df2\u9a8c\u8bc1",
   "pendingVerification": "\u5f85\u9a8c\u8bc1",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ShellDock,
   ShellHeaderDivider,
@@ -35,6 +35,7 @@ import { DomainLauncher } from "./domain-launcher";
 import { AdminNav } from "./admin-nav";
 import { XiaoyuDock } from "./xiaoyu-dock";
 import { AssistantWidthProvider } from "./assistant-width";
+import { AssistantVisibilityProvider } from "./assistant-visibility";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { HeaderSearch } from "./header-search";
@@ -198,6 +199,7 @@ export function AppShell({
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
   const pathname = usePathname();
+  const params = useSearchParams();
   const segments = pathname.split("/").filter(Boolean);
   const activeKey = segments[0] ?? "home";
 
@@ -206,7 +208,12 @@ export function AppShell({
   const isDossierPage = isDossierRoute(segments);
   const [adminNavExpanded, setAdminNavExpanded] = useState(adminNavOpen);
   const isAdmin = segments[0] === "admin";
-  const [showDock, setShowDock] = useState(dockOpen);
+  const [dockState, setDockState] = useState({ path: pathname, open: pathname === "/copilot/today" ? false : dockOpen });
+  const inheritedDockOpen = pathname !== "/copilot/today" && dockState.open;
+  const showDock = dockState.path === pathname ? dockState.open : inheritedDockOpen;
+  useEffect(() => {
+    setDockState(previous => previous.path === pathname ? previous : { path: pathname, open: pathname === "/copilot/today" ? false : previous.open });
+  }, [pathname]);
   const [assistantWidth, setAssistantWidth] = useState<AssistantWidth>(dockWidth);
   const [pageWidth, setPageWidth] = useState<ContentWidth>(contentWidth);
   const [dossierOpen, setDossierOpen] = useState(true);
@@ -226,25 +233,14 @@ export function AppShell({
     observer.observe(header);
     return () => observer.disconnect();
   }, []);
-  const [assistantFullscreen, setAssistantFullscreen] = useState(false);
-  // Global surfaces enter the complete workspace. Business pages open the
-  // same task beside the current object.
+  // The full workspace owns its conversation; all other supported pages
+  // summon the shared task beside the current content without navigation.
   const workbench = nav.some(entry => entry.key === "copilot" && entry.state === "visible");
-  const globalAssistantEntry = ["home", "admin", "copilot", "upgrade"].includes(activeKey);
-  const assistantAvailable = !!workbench && !globalAssistantEntry;
+  const legacyCopilot = pathname === "/copilot" && (params.get("view") === "proposals" || ["account", "opportunity", "thread", "ask", "mode"].some(key => !!params.get(key)));
+  const collaboration = pathname === "/copilot" && !legacyCopilot;
+  const assistantAvailable = !!workbench && !collaboration && !["admin", "upgrade"].includes(activeKey) &&
+    (activeKey !== "copilot" || pathname === "/copilot/today" || legacyCopilot);
   useDockSize(dockRef, assistantAvailable);
-  useEffect(() => {
-    if (!assistantFullscreen) return;
-    if (!assistantAvailable) { setAssistantFullscreen(false); return; }
-    dockRef.current?.querySelector<HTMLButtonElement>("[data-assistant-fullscreen-toggle]")?.focus();
-  }, [assistantFullscreen, assistantAvailable]);
-  useEffect(() => {
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) setAssistantFullscreen(false);
-    };
-    document.addEventListener("keydown", onEscape);
-    return () => document.removeEventListener("keydown", onEscape);
-  }, []);
 
   const deckVisible = showDock && assistantAvailable;
 
@@ -256,13 +252,17 @@ export function AppShell({
       return !prev;
     });
 
+  const setDock = (open: boolean) => {
+    setDockState({ path: pathname, open });
+    writeNavCollapsed(DOCK_COOKIE_PREFIX, !open);
+  };
   const toggleDock = () => {
-    if (globalAssistantEntry) { router.push("/copilot"); return; }
-    if (assistantFullscreen) setAssistantFullscreen(false);
-    setShowDock((prev) => {
-      writeNavCollapsed(DOCK_COOKIE_PREFIX, prev);
-      return !prev;
-    });
+    if (collaboration) {
+      window.dispatchEvent(new Event("xiaoyu:open-conversation"));
+      document.querySelector<HTMLTextAreaElement>("[data-xiaoyu-conversation] textarea")?.focus();
+      return;
+    }
+    setDock(true);
   };
 
   const changeAssistantWidth = () => {
@@ -270,14 +270,8 @@ export function AppShell({
     setAssistantWidth(next);
     document.cookie = `${ASSISTANT_WIDTH_COOKIE}=${next}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
   };
-  const toggleAssistantWidth = () => {
-    if (assistantFullscreen) setAssistantFullscreen(false);
-    changeAssistantWidth();
-  };
   const closeAssistant = () => {
-    if (assistantFullscreen) setAssistantFullscreen(false);
-    writeNavCollapsed(DOCK_COOKIE_PREFIX, true);
-    setShowDock(false);
+    setDock(false);
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-assistant-dock-trigger] button")?.focus());
   };
 
@@ -317,6 +311,7 @@ export function AppShell({
 
   return (
     <AssistantWidthProvider width={assistantWidth} toggle={changeAssistantWidth}>
+    <AssistantVisibilityProvider open={() => setDock(true)} close={closeAssistant} isOpen={deckVisible}>
     <FormAssistSlotProvider>
     <WorkspaceLayoutProvider width={pageWidth} leftOpen={leftOpen}>
     <ShellViewport
@@ -328,12 +323,11 @@ export function AppShell({
       sidebarMode={isAdmin ? (adminNavExpanded ? "expanded" : "collapsed") : "hidden"}
       dock={assistantAvailable ? (
         <div ref={dockRef} aria-hidden={!deckVisible} inert={!deckVisible} className={workspaceInsets.assistantDock} data-pane-open={deckVisible}
-          data-assistant-width={assistantWidth} data-assistant-fullscreen={assistantFullscreen}>
-          <ShellDock mode={assistantFullscreen ? "full" : assistantWidth}
+          data-assistant-width={assistantWidth}>
+          <ShellDock mode={assistantWidth}
             className={`${ASSISTANT_PANE_CLASS} ${workspaceInsets.assistantPane} border-0 bg-surface-3`}>
-          <XiaoyuDock wide={assistantWidth === "wide"} fullscreen={assistantFullscreen}
-            onToggleWidth={toggleAssistantWidth} onClose={closeAssistant}
-            onToggleFullscreen={() => setAssistantFullscreen(current => !current)}>
+          <XiaoyuDock wide={assistantWidth === "wide"}
+            onToggleWidth={changeAssistantWidth} onClose={closeAssistant}>
             {deck}
           </XiaoyuDock>
           </ShellDock>
@@ -417,9 +411,9 @@ export function AppShell({
             <ShellHeaderActions>
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
-              {workbench ? <AgentDockButton
+              {workbench && (assistantAvailable || collaboration) ? <AgentDockButton
                 count={deckCount}
-                open={deckVisible || activeKey === "copilot"}
+                open={deckVisible || collaboration}
                 onToggle={toggleDock}
               /> : null}
 
@@ -582,13 +576,14 @@ export function AppShell({
         </div>
       }
     >
-      <div id={SHELL_BODY_ID} inert={assistantFullscreen} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
+      <div id={SHELL_BODY_ID} className={`flex h-full min-h-0 ${workspaceInsets.body}`}
         data-workspace-width={pageWidth} data-workspace-full-width={!deckVisible && !isDossierPage ? "" : undefined}>
         {isDossierPage || pathname === "/copilot" || pathname === "/copilot/today" ? children : <WorkspaceContent>{children}</WorkspaceContent>}
       </div>
     </ShellViewport>
     </WorkspaceLayoutProvider>
     </FormAssistSlotProvider>
+    </AssistantVisibilityProvider>
     </AssistantWidthProvider>
   );
 }

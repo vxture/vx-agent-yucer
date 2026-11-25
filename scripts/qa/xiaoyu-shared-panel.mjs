@@ -56,9 +56,13 @@ try{
  // Navigate through the independent Today scene, then its real business source Link.
  await evaluate("document.querySelector('[data-xiaoyu-board] a[href=\"/copilot/today\"]').click()");
  await until("location.pathname==='/copilot/today'");
- await until("!!document.querySelector('[data-xiaoyu-topics] details a[href^=\"/account/\"]')");
- await evaluate("document.querySelector('[data-xiaoyu-topics] details').open=true;document.querySelector('[data-xiaoyu-topics] details a[href^=\"/account/\"]').click()");
- await until("location.pathname.startsWith('/account/')");
+ await until("!!document.querySelector('[data-judgement-evidence]')");
+ test('Today opens without a sidebar even after a task conversation',await evaluate("document.querySelector('[data-assistant-width]').dataset.paneOpen==='false'"));
+ await evaluate("document.querySelector('[data-judgement-evidence]').click()");
+ await until("!!document.querySelector('[data-judgement-evidence-link]')");
+ const sourcePath = await evaluate("document.querySelector('[data-judgement-evidence-link]').getAttribute('href')");
+ await evaluate("document.querySelector('[data-judgement-evidence-link]').click()");
+ await until(`location.pathname===${JSON.stringify(sourcePath)}`);
  await until("!!document.querySelector('[data-assistant-dock-trigger] button')");
  if(await evaluate("document.querySelector('[data-assistant-width]')?.dataset.paneOpen!=='true'")) await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");
  await pause(450);
@@ -69,13 +73,31 @@ try{
  test('Closing preserves mounted input',await evaluate(`!!document.querySelector('[data-assistant-frame] textarea')`));
  await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");await pause(450);
  await until(`!!(${visibleInput})`);test('Reopening retains the same question',await evaluate(`(${visibleInput}).value==='XC-01 unfinished question'`));
+ const toolbar = await evaluate(`(()=>{const h=[...document.querySelectorAll('[data-assistant-header]')].find(e=>e.checkVisibility({visibilityProperty:true}));return [...h.querySelectorAll('button')].map(e=>e.hasAttribute('data-assistant-width-toggle')?'width':e.hasAttribute('data-assistant-history')?'history':e.hasAttribute('data-assistant-more')?'more':e.hasAttribute('data-assistant-close')?'close':e.querySelector('[data-icon=plus]')?'new':e.getAttribute('aria-label'))})()`);
+ test('Toolbar ends with width, new, history, more and close',toolbar.slice(-5).join('|').match(/^width\|.*\|history\|more\|close$/));
+ await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");await pause(450);
+ test('Header only summons a panel and keeps it open on repeat click',await evaluate(`location.pathname===${JSON.stringify(sourcePath)}&&document.querySelector('[data-assistant-width]').dataset.paneOpen==='true'`));
+ await evaluate("document.querySelector('[data-assistant-workbench]').click()");
+ await until("location.pathname==='/copilot'&&!!document.querySelector('[data-xiaoyu-surface=full]')");await until(`!!(${visibleInput})`);
+ test('Sidebar title enters collaboration space with the same task and input',await evaluate(`new URLSearchParams(location.search).get('task')===${JSON.stringify(task.id)}&&(${visibleInput}).value==='XC-01 unfinished question'`));
+ await evaluate("document.querySelector('[data-xiaoyu-surface=full] [data-assistant-close]').click()");
+ await until(`document.querySelector('[data-xiaoyu-surface=full]').dataset.conversationOpen==='false'&&!(${visibleInput})`);
+ test('Closing full workspace chat expands the board and preserves its input',await evaluate(`document.querySelector('[data-xiaoyu-surface=full]').dataset.conversationOpen==='false'&&!!document.querySelector('#xiaoyu-full-input')&&!(${visibleInput})`));
+ await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");await until(`!!(${visibleInput})`);await pause(450);
+ test('Header reopens workspace chat without navigating or losing input',await evaluate(`location.pathname==='/copilot'&&(${visibleInput}).value==='XC-01 unfinished question'`));
  for(const width of [1440,1024,390,320]){
   await page.send('Emulation.setDeviceMetricsOverride',{width,height:width<500?844:960,deviceScaleFactor:1,mobile:false});await pause(450);
   const m=await evaluate(`(()=>{const h=[...document.querySelectorAll('[data-assistant-header]')].find(e=>e.checkVisibility({visibilityProperty:true}));return {width:innerWidth,doc:document.documentElement.scrollWidth,header:h?.getBoundingClientRect().height,overflow:h?h.scrollWidth-h.clientWidth:0}})()`);
   if(!(m.doc<=m.width+1&&m.header===56&&m.overflow<=1)) console.log(m);
   test('Sidebar geometry at '+width+'px',m.doc<=m.width+1&&m.header===56&&m.overflow<=1);
+  if(width<500){
+   await evaluate("document.querySelector('[data-xiaoyu-surface=full] [data-assistant-close]').click()");await until("document.querySelector('[data-xiaoyu-board]').checkVisibility({visibilityProperty:true})");
+   test('Closing mobile conversation reveals its board at '+width+'px',await evaluate("document.querySelector('[data-xiaoyu-board]').checkVisibility({visibilityProperty:true})"));
+   await evaluate("document.querySelector('[data-assistant-dock-trigger] button').click()");await pause(450);
+   test('Header summons the mobile conversation at '+width+'px',await evaluate(`!!(${visibleInput})`));
+  }
  }
- await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});
+ await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:960,deviceScaleFactor:1,mobile:false});await pause(450);
  const shot=await page.send('Page.captureScreenshot',{format:'png'});await writeFile(join(output, 'xc01-shared-panel.png'),Buffer.from(shot.data,'base64'));
  await writeFile(join(output, 'xc01-browser-report.json'),JSON.stringify({results,geometry:geo,taskId:task.id},null,2));console.log(JSON.stringify({passed:results.length,geometry:geo,taskId:task.id}));
 }finally{page.ws.close()}
