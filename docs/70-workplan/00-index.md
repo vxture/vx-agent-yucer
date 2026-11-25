@@ -1,8 +1,9 @@
 # 70-workplan - 构建计划与批次跟踪
 
-[135 C01–C04 业务流程完善](135-business-usability-batches.md)：全部暂不上线，按商机智探、Launcher 数字、销售规划多战略／草稿、区域分解四批交付。C01 调查与实施中；按批检查及预览后，等待 owner 明确指令再安排版本包。
-[136 Launcher 数字口径审计](136-launcher-metric-audit.md)：18 个业务板块及 4 个跨域入口，取消销售规划指标条数，按业务状态补齐。C02 本地实现，未发布。
-- [137 销售规划草稿与多战略承接](137-planning-draft-multi-strategy.md)
+[135 C01–C04 业务流程完善](135-business-usability-batches.md)：四批工程与浏览器验收完成，CI／合并见 #808–#811。全部暂不上线，外部真实信号获取单列待验；版本包等 owner 明确指令。
+[136 Launcher 数字口径审计](136-launcher-metric-audit.md)：18 个业务板块及 4 个跨域入口，营收目标取代指标条数，补齐可见业务计数及未知状态。C02 已合并，权限／年度联合修正随 C04，未发布。
+[137 销售规划草稿与多战略承接](137-planning-draft-multi-strategy.md)：三战略选择、保存预览、刷新、续编通过，#810 六项检查、CodeQL、Sonar 通过并已合并，未发布。
+[138 区域案例核对与年度入口](138-regional-planning-examples.md)：真实 2027 五区及 2,000 万目标核对一致；修正默认年度发现，复用已有案例，未发布。
 
 [134 五套贯通业务的案例](134-connected-demo-scenarios.md)：五套战略及贯通数据已录入并验收；DATA-06按owner确认回溯改为正常业务表述，当前战略V3、公司V5、区域V6；可编辑内容已处理，商机／线索编辑缺口及不可变历史／编号仍单列，未发布应用。
 
