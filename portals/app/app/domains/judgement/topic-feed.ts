@@ -37,11 +37,12 @@ export function targetJudgement(
   )
     return null;
   const label = t.period,
-    unit = t.targetValue.unit === "money" ? t.targetValue.currency : "";
+    unit = t.targetValue.unit === "money" ? t.targetValue.currency : "",
+    findingId = t.legacyProjectionId ?? t.id;
   const days = Math.ceil((range.end.getTime() - now.getTime()) / 86400000);
   if (m.kind !== "measured")
     return {
-      id: `target-data:${t.id}`,
+      id: `target-data:${findingId}`,
       subjectType: "team",
       subjectId: t.id,
       subjectName: label,
@@ -68,7 +69,7 @@ export function targetJudgement(
   const gap = Math.max(0, t.targetValue.amount - m.achieved.amount);
   if (!gap) return null;
   return {
-    id: `target-gap:${t.id}`,
+    id: `target-gap:${findingId}`,
     subjectType: "team",
     subjectId: t.id,
     subjectName: label,

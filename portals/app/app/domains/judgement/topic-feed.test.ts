@@ -34,6 +34,15 @@ afterEach(() => {
   setPlanningStore(null);
   setCopilotStore(null);
 });
+test("projected UUIDs preserve old finding/snooze anchors while subjects and citations use real source IDs", () => {
+  const t = target({ managedBySalesPlan: true, legacyProjectionId: "plan_company_revenue" });
+  for (const input of [null, totals]) {
+    const judgement = targetJudgement({ target: t, measurement: measure(t, input) }, new Date("2026-11-01"))!;
+    assert.equal(judgement.id, `${input ? "target-gap" : "target-data"}:plan_company_revenue`);
+    assert.equal(judgement.subjectId, t.id);
+    assert.equal(judgement.citations[0]!.ref, t.id);
+  }
+});
 test("target findings distinguish missing data, real gaps, current period and completed targets", () => {
   const t = target(),
     row = { target: t, measurement: measure(t, null) },

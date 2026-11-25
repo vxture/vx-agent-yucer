@@ -185,7 +185,7 @@ export async function salesPlanCommandAction(input: {
         );
         const conflicts = legacy.filter(
           (t) =>
-            !t.id.startsWith("plan_") &&
+            !t.managedBySalesPlan &&
             t.status !== "closed" &&
             r.content.periods.some(
               (p) =>

@@ -581,7 +581,7 @@ export async function runPrivateTaskTurn(
         let navigation:string|undefined;
         let verifiedReceipt=false;
         const executionQueue=new Map<string,"save"|"publish">();
-        const bind=(sources:TaskSource[])=>{for(const r of sources){const key=`${r.kind}:${r.id}`,old=turnSources.get(key)??b.references.find(x=>x.kind===r.kind&&x.id===r.id);demand(!old||old.version===r.version,"source_changed");turnSources.set(key,r);}sourceCount=turnSources.size;demand(new Set([...b.references,...turnSources.values()].map(r=>`${r.kind}:${r.id}`)).size<=100,"task_source_limit");};
+        const bind=(sources:TaskSource[])=>{for(const r of sources)demand(isTaskObject({kind:r.kind,id:r.id}),"source_unavailable");for(const r of sources){const key=`${r.kind}:${r.id}`,old=turnSources.get(key)??b.references.find(x=>x.kind===r.kind&&x.id===r.id);demand(!old||old.version===r.version,"source_changed");turnSources.set(key,r);}sourceCount=turnSources.size;demand(new Set([...b.references,...turnSources.values()].map(r=>`${r.kind}:${r.id}`)).size<=100,"task_source_limit");};
         bind(contextSources);
         for(const object of pageContext?.selection??[]){const selected=await now.source(object);demand(selected,"source_unavailable");bind([selected]);}
         const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
