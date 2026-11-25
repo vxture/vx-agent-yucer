@@ -63,8 +63,9 @@ deployments, or treat successful checks as release authorization.
 
 ## Test-account business content
 
-Owner instruction (2026-11-25): subsequent business records added to the
-authorized test account should use normal business names and prose, without
+Owner instruction (2026-11-25): business records added to the authorized
+test account, including records already entered in this batch, should use normal
+business names and prose, without
 visible demo prefixes or data-generation labels. Keep fixture provenance and
 batch tracking internally. This does not authorize inventing real identity
 credentials, verified external sources, or overwriting immutable history.
