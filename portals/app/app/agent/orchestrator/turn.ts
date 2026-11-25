@@ -10,6 +10,7 @@ import { readDistribution, renderSkillPrompt } from "../runos/skills";
 import { buildTurnMessages, estimateMessages, estimateTokens, fitTurnToWindow, type PromptContext } from "./prompt";
 import { catalogContext, contractContext, referenceContext, referenceData } from "./tool-context";
 import { measureTurnInput, type ModelUsage } from "./turn-budget";
+import { BusinessReadContext } from "./business-context";
 import {
   PROPOSE_ACTION_TOOL_NAME,
   CATALOG_TOOLS, FIND_CAPABILITIES, LOAD_CAPABILITY,
@@ -186,6 +187,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   const modelCodes = new Set<string>();
   const readEvidence: ReadEvidence[] = [];
   const catalogReceipts = new Map<number, CatalogReceipt>();
+  const businessContext = new BusinessReadContext();
   const modelUsage: ModelUsage[] = [];
   const exhausted = (reason: BudgetReason) => new TurnBudgetError({ reason,
     elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens, toolRounds: rounds, modelRequests, toolCalls, modelUsage });
@@ -196,6 +198,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   };
   async function callModel(tools?: ToolDefinition[]): Promise<ChatResponse> {
     checkBudget();
+    if (input.totalBudget) {
+      tools = businessContext.prepare(messages, tools, input.totalBudget.maxTokens - totalTokens, profileSettings(profile).maxTokens);
+      truncated ||= businessContext.finalizing;
+    }
     let limits: { timeoutMs?: number; maxTokens?: number } = {};
     let turnOutputCap: number | undefined;
     const measured = input.totalBudget ? measureTurnInput(messages, tools) : undefined;
@@ -257,6 +263,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     if (reply.content) answer = reply.content;
 
     const calls = reply.toolCalls ?? [];
+    if (businessContext.finalizing && calls.length) throw exhausted("tokens");
     if (input.rejectUnexpectedTools && calls.length) throw new Error("tool_boundary_denied");
     if (calls.length === 0 || noTools || correctingAnswer) {
       const review = input.reviewAnswer?.(answer, readEvidence);
@@ -309,6 +316,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       if (outcome.evidence) readEvidence.push(outcome.evidence);
       if (outcome.catalogSelection) compactSelectedCatalog(messages, catalogReceipts, outcome.catalogSelection);
       if (outcome.catalogReceipt) catalogReceipts.set(messages.length, outcome.catalogReceipt);
+      if (outcome.businessReceipt) businessContext.record(messages.length, outcome.businessReceipt.query, outcome.businessReceipt.result);
       messages.push({
         role: "tool",
         toolCallId: call.id,
@@ -457,6 +465,7 @@ interface ToolOutcome {
   evidence?: ReadEvidence;
   catalogReceipt?: CatalogReceipt;
   catalogSelection?: string;
+  businessReceipt?: { query: Record<string, unknown>; result: unknown };
 }
 
 function hasReferenceData(value: unknown): boolean {
@@ -478,7 +487,10 @@ async function handleToolCall(
   sourceId: string,
 ): Promise<ToolOutcome> {
   const args = parseArgs(call.arguments);
-  if(input.localTools?.definitions.some(d=>d.name===call.name))return {content:JSON.stringify(await input.localTools.invoke(call.name,args))};
+  if(input.localTools?.definitions.some(d=>d.name===call.name)) {
+    const result = await input.localTools.invoke(call.name,args);
+    return { content:JSON.stringify(result), ...(call.name === "query_business" ? { businessReceipt: { query: args, result } } : {}) };
+  }
 
   if (call.name === FIND_CAPABILITIES || call.name === LOAD_CAPABILITY) {
     try {

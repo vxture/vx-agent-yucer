@@ -5,6 +5,7 @@ import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
 import { permissionsForRoles } from "../../authz/catalog";
 import type { AtlasClient } from "../../agent/atlas/client";
 import type { ChatResponse } from "../../agent/atlas/types";
+import { measureTurnInput } from "../../agent/orchestrator/turn-budget";
 import { TurnBudgetError } from "../../agent/orchestrator/turn";
 import type { RunosClient } from "../../agent/runos/client";
 import { InMemoryCopilotStore } from "./store";
@@ -164,6 +165,55 @@ test("budget failures persist private counts without an answer, form or partial 
   assert.deepEqual(b.drafts, []);
   assert.equal(await f.store.load({ ...f.scope, actorSub: "bob" }, t.id, true), null);
   assert.equal(await f.store.finishTurn(f.scope, t.id, b.turns[0]!.id, { errorCode: "overwritten" }), false);
+});
+
+test("compacted read sources remain enforced and incomplete analysis survives persistence and replay", async () => {
+  for (const revoke of [false, true]) {
+    const f = fixture(), t = await f.create();
+    const source = f.sources.get(SEGMENT.id)!;
+    let reads = 0, requests = 0;
+    f.c.business = {
+      access: source,
+      query: async () => {
+        reads++;
+        return { records: [{ source, record: { name: "Market", criteria: { customerNeed: "Verified detail ".repeat(400) } } }],
+          sources: [source], limited: true, recordState: "current", matchedCount: 10, returnedCount: 1, nextOffset: 1 };
+      },
+      prepare: async () => { assert.fail("analysis cannot prepare a business form"); },
+    };
+    f.deps.atlasClient.chat = async (_profile, request) => {
+      requests++;
+      const measured = measureTurnInput(request.messages, request.tools);
+      if (requests === 1) return {
+        id: "read", modelCode: "test", latencyMs: 1, message: { role: "assistant", content: "", toolCalls: Array.from({ length: 5 }, (_, i) => ({ id: String(i), name: "query_business", arguments: { kind: "segment", offset: i } })) },
+        usage: { promptTokens: 16000, completionTokens: 2000, totalTokens: 18000 },
+      };
+      assert.equal(request.tools, undefined);
+      assert.ok(request.messages.some(m => m.role === "tool" && JSON.parse(m.content).contextSummary));
+      if (revoke) f.sources.delete(SEGMENT.id);
+      return { id: "analysis", modelCode: "test", latencyMs: 1, message: { role: "assistant", content: "Verified findings; unread pages remain a gap." },
+        usage: { promptTokens: measured.messageTokens, completionTokens: 500, totalTokens: measured.messageTokens + 500 } };
+    };
+    const input = { revision: t.revision, requestId: randomUUID(), question: "Analyse market progress" };
+    const result = await runPrivateTaskTurn(f.c, t.id, input, f.deps);
+    assert.equal(reads, 5);assert.equal(requests, 2);
+    const stored = await f.store.load(f.scope, t.id, true);
+    assert.deepEqual(stored!.drafts, []);
+    if (revoke) {
+      code(result, "source_changed");
+      assert.equal(stored!.messages.some(m => m.role === "assistant"), false);
+      assert.equal(stored!.turns[0]!.status, "failed");
+    } else {
+      const answer = unwrap(result);
+      assert.equal(answer.incomplete, true);
+      assert.match(answer.answer, /unread pages remain a gap/);
+      assert.equal(stored!.turns[0]!.artifacts!.usage.truncated, true);
+      assert.ok(stored!.references.some(r => r.id === source.id && r.version === source.version));
+      const replay = unwrap(await runPrivateTaskTurn(f.c, t.id, input, f.deps));
+      assert.equal(replay.incomplete, true);assert.equal(replay.replayed, true);
+      assert.equal(requests, 2);
+    }
+  }
 });
 
 test("owned task persists goal, page context, independent targets, note revisions and checkpoints", async () => {
