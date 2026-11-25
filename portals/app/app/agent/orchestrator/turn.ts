@@ -359,6 +359,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       });
     }
     if (businessContext.completing) {
+      checkBudget();
       privateFormsFinalized = true;
       // Never pay for another model round merely to acknowledge a private
       // form. The domain caller derives its status from actual prepared forms.

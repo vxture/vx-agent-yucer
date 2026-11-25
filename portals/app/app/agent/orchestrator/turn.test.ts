@@ -1078,3 +1078,25 @@ test("an unsuccessful or absent form contract never opens private completion", a
     assert.match(result.answer, /no draft/);
   }
 });
+
+test("the original deadline still applies after the final private form tool returns", async () => {
+  const { BUSINESS_TOOLS, formContract } = await import("../../domains/copilot/business-tools");
+  const budget = { deadlineMs: 240000, maxTokens: 40000, maxCalls: 64 };
+  const h = harness({ replies: [
+    { toolCalls: [{ id: "contract", name: "business_form_contract", arguments: { module: "account" } }] },
+    { toolCalls: [{ id: "draft", name: "prepare_business_form", arguments: { module: "account", key: "customer", fields: { name: "Example" } } }] },
+  ] });
+  const chat = h.atlasClient.chat.bind(h.atlasClient);
+  h.atlasClient.chat = async (...args) => {
+    const result = await chat(...args);
+    return { ...result, usage: { promptTokens: h.calls.length === 1 ? 31500 : 2000, completionTokens: 500, totalTokens: h.calls.length === 1 ? 32000 : 2500 } };
+  };
+  await assert.rejects(runTurn({ ...BASE, question: "Prepare customer", profile: "drafting", readOnlyTools: true, deferCapabilities: true,
+    localTools: { definitions: BUSINESS_TOOLS, finishPrivateForms: true, invoke: async name => {
+      if (name === "business_form_contract") return formContract("account");
+      budget.deadlineMs = 0;
+      return { status: "private_form_prepared" };
+    } }, totalBudget: budget,
+  }, h), e => e instanceof TurnBudgetError && e.usage.reason === "deadline");
+  assert.equal(h.calls.length, 2);
+});

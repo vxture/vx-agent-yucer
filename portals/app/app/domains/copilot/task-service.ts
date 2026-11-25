@@ -586,7 +586,7 @@ export async function runPrivateTaskTurn(
         bind(contextSources);
         for(const object of pageContext?.selection??[]){const selected=await now.source(object);demand(selected,"source_unavailable");bind([selected]);}
         const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
-        const localTools=now.business ? {finishPrivateForms:true,definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>,evidence:readonly import("../../agent/orchestrator/turn").ReadEvidence[])=>{
+        const localTools=now.business ? {definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>,evidence:readonly import("../../agent/orchestrator/turn").ReadEvidence[])=>{
           const live=await recheck();demand(live.business,"task_tool_denied");
           bind([live.business.access]);
           try {
@@ -692,7 +692,7 @@ export async function runPrivateTaskTurn(
             deferCapabilities: true,
             readOnlyTools: !!now.business,
             rejectUnexpectedTools: !now.business,
-            localTools,
+            localTools: localTools ? { ...localTools, finishPrivateForms: true } : undefined,
             beforeTool: async()=>{await recheck();},
             profile: /(?:\u586b\u5199|\u65b0\u5efa|\u521b\u5efa|draft|fill|create)/i.test(question)?"drafting":/(?:\u5206\u6790|\u89c4\u5212|\u6218\u7565|analy|plan|strategy)/i.test(question)?"judgement":"dialogue",
             maxToolRounds: 16,
