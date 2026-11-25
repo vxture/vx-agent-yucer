@@ -1,3 +1,4 @@
+import { planningYearOption } from "./plan-years";
 import { allocateStrategicTarget } from "./strategy-autofill";
 import { verifyStrategyAcceptance } from "./strategy-handoff";
 import type { StrategyStore } from "../strategy/store";
@@ -361,4 +362,17 @@ export interface TargetBasis {
   target: string | null;
   currency: string | null;
   resolvedAt: string;
+}
+
+/** Discoverable years only; source gates are the same as opening the plan. */
+export async function listSalesPlanYears(ctx: SalesPlanContext) {
+  gate(ctx, false);
+  const at = (ctx.now?.() ?? new Date()).toISOString();
+  const writer = can(ctx.holder, ctx.entitlement, "planning.target.update", "data").allowed;
+  return (await ctx.store.list(ctx.workspaceId)).flatMap(plan => {
+    try { for (const revision of plan.revisions) sourceGate(ctx, revision.content); }
+    catch { return []; }
+    const option = planningYearOption(plan, at, writer);
+    return option ? [option] : [];
+  }).sort((a,b) => b.year-a.year);
 }

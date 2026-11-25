@@ -1,3 +1,4 @@
+import { planningYearOption } from "./plan-years";
 import { readFocusContacts } from "./focus-contacts";
 import { readFocusCoverage } from "./focus-coverage";
 import type { PipelineContext } from "../pipeline/service";
@@ -110,4 +111,23 @@ function editableSelection(ctx: FocusContext, selected: PlanRevision, state: Ret
   if (state?.draft && state.draft.id !== selected.id) return false;
   if (selected.state !== "draft") return selected.id === state?.current?.id;
   return selected.content.releaseScope === "regions" && selected.baseId === (state?.current?.id ?? null);
+}
+
+/** A year without visible customer work must not advertise another team's plan. */
+export async function listFocusPlanningYears(ctx: FocusContext) {
+  demand(can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed && can(ctx.holder, ctx.entitlement, "account.view", "data").allowed, "plan_denied");
+  const [plans, accounts] = await Promise.all([ctx.store.list(ctx.workspaceId), listAccounts({ workspaceId: ctx.workspaceId, sub: ctx.sub, holder: ctx.holder, entitlement: ctx.entitlement, store: ctx.accounts })]);
+  demand(accounts.ok, "plan_source_permission");
+  const at = (ctx.now?.() ?? new Date()).toISOString();
+  const writer = ctx.scope.kind === "workspace" && can(ctx.holder, ctx.entitlement, "planning.target.update", "data").allowed;
+  return plans.flatMap(plan => {
+    const option = planningYearOption(plan, at, writer);
+    if (!option) return [];
+    if (ctx.scope.kind === "workspace") return [option];
+    const content = planVersions(plan, at).current?.content;
+    if (!content) return [];
+    const ids = new Set(content.regions.filter(r => r.included && regionAllowed(ctx.scope, r)).map(r => r.id));
+    const candidates = accounts.value.filter(a => rowAllowed(ctx.scope, a, content, a.id)).map(a => ({ id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub }));
+    return visibleRows(ctx, content, candidates, `Y${plan.year}`, ids, false).length ? [option] : [];
+  }).sort((a,b) => b.year-a.year);
 }

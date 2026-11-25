@@ -1,4 +1,5 @@
 "use client";
+import type { PlanningYearOption } from "../../domains/planning/plan-years";
 import { useTaskFormReview } from "../components/xiaoyu-form-review";
 import { useXiaoyuForm, XiaoyuFormNotice } from "../components/use-xiaoyu-form";
 import { initializeNewLogoEstimates } from "../lib/planning-autofill";
@@ -71,6 +72,7 @@ import {
 } from "../../domains/planning/plan-prerequisites";
 function NativePlanningVersionPanel({
   initialPlan,
+  availableYears = [],
   initialNow,
   previewContent,
   year,
@@ -84,6 +86,7 @@ function NativePlanningVersionPanel({
   initialPeriod,
 }: {
   initialPlan: SalesPlan | null;
+  availableYears?: PlanningYearOption[];
   initialNow: string;
   previewContent: PlanContent;
   year: number;
@@ -581,15 +584,15 @@ function NativePlanningVersionPanel({
           context: (
             <>
               <NativeSelect
-                wrapperClassName="w-28"
+                wrapperClassName="w-auto"
                 aria-label={T.year}
                 value={year}
                 disabled={pending || dirty}
                 onChange={(e) => router.push(`/planning?year=${e.target.value}`)}
               >
-                {[year - 1, year, year + 1].map((y) => (
+                {[...new Set([year - 1, year, year + 1, ...availableYears.map(y => y.year)])].sort((a,b) => b-a).map((y) => (
                   <option key={y} value={y}>
-                    Y{y}
+                    Y{y}{availableYears.find(x => x.year === y)?.published ? ` \u00b7 ${T.published}` : availableYears.find(x => x.year === y)?.draft ? ` \u00b7 ${T.draft}` : ""}
                   </option>
                 ))}
               </NativeSelect>
