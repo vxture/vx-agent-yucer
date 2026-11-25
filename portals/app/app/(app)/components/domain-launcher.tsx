@@ -141,11 +141,12 @@ export function DomainLauncher({
     const label = DOMAIN_LABEL[key] ?? key;
     const metrics = showMetric ? modules[key]?.metrics : undefined;
     const primary = metrics?.[0];
+    const unavailable = showMetric && modules[key]?.unavailable;
     const summary = metrics
       ?.map((metric) => `${metric.value} ${metric.label}`)
       .join(" \u00b7 ");
     return (
-      <span className="inline-flex min-w-0 max-w-full items-center gap-xs align-middle">
+      <span className="inline-flex min-w-0 max-w-full items-center gap-xs align-middle" title={modules[key]?.hint}>
         {moduleName(label)}
         {primary?.value ? (
           <span
@@ -155,6 +156,7 @@ export function DomainLauncher({
             {primary.value}
           </span>
         ) : null}
+        {unavailable ? <span className="shrink-0 text-body-small text-muted-foreground" title={LAUNCHER_TEXT.unavailable} aria-label={LAUNCHER_TEXT.unavailable}>{"\u2014"}</span> : null}
         {FEATURED_MODULE_KEYS.has(key) ? (
           <img
             src="/assets/icons/fire.png"

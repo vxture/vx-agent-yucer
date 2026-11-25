@@ -200,7 +200,7 @@ export interface DeliveryStore {
   listMilestoneChanges(workspaceId: string, projectId: string): Promise<MilestoneChangeRecord[]>;
   /** Hard delete of one gate. The service only asks for one nothing relies on. */
   removeMilestone(workspaceId: string, id: string): Promise<boolean>;
-  listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]>;
+  listInstalments(workspaceId: string, projectId?: string): Promise<InstalmentRecord[]>;
   /** The sequence is chosen by the service; (project, sequence) is unique. */
   createInstalment(
     workspaceId: string,
@@ -445,9 +445,9 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     return true;
   }
 
-  async listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]> {
+  async listInstalments(workspaceId: string, projectId?: string): Promise<InstalmentRecord[]> {
     return this.instalments
-      .filter((i) => i.workspaceId === workspaceId && i.projectId === projectId)
+      .filter((i) => i.workspaceId === workspaceId && (projectId === undefined || i.projectId === projectId))
       .sort((a, b) => a.sequence - b.sequence);
   }
 

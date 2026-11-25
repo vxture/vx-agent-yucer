@@ -115,3 +115,13 @@ test("moving an action clears an incompatible optional target link without chang
   const next = applyFocusChange(content, { kind: "action", key: "ae", accountId: "a", regionId: "west", objective: "Review in west", ownerSub: "rep", due: "2026-08-01" }, [{ id: "a", name: "Ordinary", tier: "standard" }], [], () => "key", at);
   assert.equal(next.actions[0].targetKey, null); assert.deepEqual(next.actions[0].evidenceRefs, ["evidence"]); validateContent(next, false);
 });
+
+test("launcher focus projection keeps the roster scope without loading contact details", async () => {
+  const { ctx } = fixture();
+  let contactReads = 0;
+  ctx.accounts.listContacts = async () => { contactReads++; return []; };
+  const roster = await readFocusWorkspace(ctx, { year: 2026 }, { includeContactDetails: false });
+  assert.deepEqual(roster.rows.map(r => r.id).sort(), ["a", "c"]);
+  assert.equal(contactReads, 0);
+  assert.ok(roster.rows.every(r => r.contacts.state === "unavailable"));
+});

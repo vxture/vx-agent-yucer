@@ -2301,6 +2301,7 @@ export const en: Dictionary = {
   PLANNED_MODULE_LABEL: {},
 
   LAUNCHER_TEXT: {
+    unavailable: "Data temporarily unavailable",
     featured: "Recommended feature",
     locked: (tier: string) => `${tier} plan`,
     lockedNoTier: "unavailable",
@@ -7714,13 +7715,15 @@ export const en: Dictionary = {
   // The left board and the right deck - the two flanks, on every page.
   // Replaces the partial override that pulled `wan` forward for /pipeline.
   BOARD_TEXT: {
+    noRevenueTarget: "No published revenue target in your scope", leadConversion: "All-time lead conversion", noLeadSample: "No lead sample; conversion is not yet measurable",
+    pendingSignals: "signals to triage", focusAccounts: "focus accounts", revenueTarget: "revenue target", openLeads: "open leads", activeProjects: "active projects", openCollections: "open instalments", overdueCollections: "overdue instalments",
     segments: "segments",
     solutions: "solutions",
     pricedProducts: "priced",
     namedAccounts: "tiered",
     forecastDisagreements: "disputed",
     unrouted: "to assign",
-    quoteApprovals: "to sign",
+    quoteApprovals: "deals awaiting quote approval",
     unreviewed: "to review",
     renewalsDue: "due",
     contractValue: "in delivery",

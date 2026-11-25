@@ -231,6 +231,7 @@ export default async function AppLayout({
   );
 
   const board = await boardSections({
+    scope: session.scope,
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,

@@ -1,5 +1,10 @@
+import { readBoardSource, boardSourceFailed, launcherRevenueTargets } from "./launcher-metrics";
+import type { DataScope } from "../../authz/scope";
+import { readFocusWorkspace } from "../../domains/planning/focus-read";
+import { ok } from "../../domains/shared/result";
 import { currentStrategyPlans } from "../../domains/strategy/store";
 import { cache } from "react";
+import { can } from "../../authz/decide";
 import { resolveNavigation } from "./navigation";
 import {
   activeDomainFromPath,
@@ -17,6 +22,7 @@ import {
   getPlanningStore,
   getSignalStore,
   getStrategyStore,
+  getSalesPlanStore,
 } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import {
@@ -32,7 +38,7 @@ import {
   attainment,
 } from "../../domains/planning/service";
 import { listSignals, listLeads } from "../../domains/signal/service";
-import { listProjects, listRenewals } from "../../domains/delivery/service";
+import { listProjects, listRenewals, collectionSummary } from "../../domains/delivery/service";
 import { listProposals } from "../../domains/copilot/service";
 import {
   listOpportunityLines,
@@ -88,6 +94,8 @@ export interface BoardMetric {
  *  data, not a measured zero. Values retain their domain-specific units. */
 export interface BoardModuleCard {
   readonly metrics: readonly BoardMetric[];
+  readonly unavailable?: boolean;
+  readonly hint?: string;
   /** Same meaning as on a section - see the note there. */
   readonly chart?: "lede" | "bars";
 }
@@ -278,7 +286,7 @@ export interface Board {
   readonly modules: Record<string, BoardModuleCard>;
 }
 
-export async function boardSections(ctx: BoardContext): Promise<Board> {
+export async function boardSections(ctx: BoardContext & { scope: DataScope }): Promise<Board> {
   const { BOARD_TEXT, FORECAST_LABEL, DOMAIN_GROUP_LABEL } = await getMessages();
   const base = {
     workspaceId: ctx.workspaceId,
@@ -288,71 +296,44 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     stores: ctx.stores,
   };
 
-  const [
-    feed,
-    deals,
-    proposals,
-    plans,
-    campaigns,
-    targets,
-    territories,
-    accounts,
-    signals,
-    leads,
-    projects,
-    lineResult,
-    catalogueResult,
-    segments,
-    solutions,
-    unreviewed,
-    renewedIds,
-    categories,
-  ] = await Promise.all([
-    cachedFeed(base),
-    listPipeline({ ...base, store: ctx.stores.pipeline() }),
-    listProposals(
-      { ...base, store: getCopilotStore() },
-      { status: "proposed" },
-    ),
-    listPlans({ ...base, store: getStrategyStore() }),
-    listCampaigns({ ...base, store: getStrategyStore() }),
-    listTargets({ ...base, store: getPlanningStore() }),
-    listTerritories({ ...base, store: getPlanningStore() }),
-    listAccounts({ ...base, store: ctx.stores.account() }),
-    listSignals({ ...base, store: ctx.stores.signal() }),
-    listLeads({ ...base, store: ctx.stores.signal() }),
-    listProjects({ ...base, store: getDeliveryStore() }),
-    // THROUGH THE SERVICE, like every sibling on this list. These two were the
-    // only reads on the board holding a store handle directly, which skips both
-    // gates - and a board is the one surface where that is easiest to miss,
-    // because every card is a number rather than a page you notice opening.
-    listOpportunityLines({ ...base, store: getCatalogStore() }),
-    listCatalogProducts({ ...base, store: getCatalogStore() }),
-    // ADDED 2026-08-31 for the per-module navigation cards. Each nav card needs
-    // the ONE figure that is a reason to open its module, and eleven of the
-    // nineteen modules had no number anywhere - the board only ever computed
-    // the eight it grouped into domain rows.
-    //
-    // All in the same Promise.all as their siblings, so the board still costs
-    // one round of parallel reads rather than a waterfall. Every one goes
-    // through the service, so a member who cannot read a domain gets a card
-    // with no number instead of a zero - the distinction the whole board is
-    // built on.
-    listSegments({ ...base, store: getStrategyStore() }),
-    listSolutions({ ...base, store: getCatalogStore() }),
-    listPendingReviews({ ...base, store: ctx.stores.pipeline() }),
-    listRenewedProjectIds({ ...base, store: ctx.stores.pipeline() }),
-    previewCategories({ ...base, store: ctx.stores.pipeline() }),
+  const [feed, deals, proposals, plans, campaigns, targets, territories, accounts,
+    signals, leads, projects, lineResult, catalogueResult, segments, solutions,
+    unreviewed, renewedIds, categories, collections, focus] = await Promise.all([
+    readBoardSource(() => cachedFeed(base)),
+    readBoardSource(() => listPipeline({ ...base, store: ctx.stores.pipeline() })),
+    readBoardSource(() => listProposals({ ...base, store: getCopilotStore() }, { status: "proposed" })),
+    readBoardSource(() => listPlans({ ...base, store: getStrategyStore() })),
+    readBoardSource(() => listCampaigns({ ...base, store: getStrategyStore() })),
+    readBoardSource(() => listTargets({ ...base, store: getPlanningStore() })),
+    readBoardSource(() => listTerritories({ ...base, store: getPlanningStore() })),
+    readBoardSource(() => listAccounts({ ...base, store: ctx.stores.account() })),
+    readBoardSource(() => listSignals({ ...base, store: ctx.stores.signal() })),
+    readBoardSource(() => listLeads({ ...base, store: ctx.stores.signal() })),
+    readBoardSource(() => listProjects({ ...base, store: getDeliveryStore() })),
+    readBoardSource(() => listOpportunityLines({ ...base, store: getCatalogStore() })),
+    readBoardSource(() => listCatalogProducts({ ...base, store: getCatalogStore() })),
+    readBoardSource(() => listSegments({ ...base, store: getStrategyStore() })),
+    readBoardSource(() => listSolutions({ ...base, store: getCatalogStore() })),
+    readBoardSource(() => listPendingReviews({ ...base, store: ctx.stores.pipeline() })),
+    readBoardSource(() => listRenewedProjectIds({ ...base, store: ctx.stores.pipeline() })),
+    readBoardSource(() => previewCategories({ ...base, store: ctx.stores.pipeline() })),
+    readBoardSource(() => collectionSummary({ ...base, store: getDeliveryStore() })),
+    readBoardSource(async () => {
+      // Keep the exact scope/period projection of the focus roster; skip contacts.
+      const allowed = can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed && can(ctx.holder, ctx.entitlement, "account.view", "data").allowed;
+      if (!allowed) return { ok: false as const, violations: [{ code: "permission_denied", message: "focus denied" }] };
+      return ok(await readFocusWorkspace({ ...base, scope: ctx.scope, store: getSalesPlanStore(), accounts: ctx.stores.account() }, { year: new Date().getUTCFullYear() }, { includeContactDetails: false }));
+    }),
   ]);
 
   // Renewals need D6's answer first, so this one cannot join the round above.
   // It is the only sequential read on the board and it is one hop, not a
   // waterfall - the same composition /renewal does, for the same reason: D7 has
   // no read of D6, so the caller carries the fact across.
-  const renewals = await listRenewals(
+  const renewals = renewedIds.ok ? await readBoardSource(() => listRenewals(
     { ...base, store: getDeliveryStore() },
-    renewedIds.ok ? renewedIds.value : new Set<string>(),
-  );
+    renewedIds.value,
+  )) : renewedIds;
 
   // Gate-aware now that these go through the service. A refused read degrades
   // to an empty card, which is what every other card on this board already
@@ -384,7 +365,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
   // planning page needed the same one and both had written it inline.
   const wsTarget = targets.ok ? (summaryTarget(targets.value) ?? undefined) : undefined;
   const rows = wsTarget
-    ? await attainment({ ...base, store: getPlanningStore() }, wsTarget.period)
+    ? await readBoardSource(() => attainment({ ...base, store: getPlanningStore() }, wsTarget.period))
     : null;
   const wsRow = rows?.ok
     ? rows.value.find((r) => r.target.id === wsTarget?.id)
@@ -571,7 +552,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
   const inDelivery = projects.ok
     ? projects.value.filter((p) => p.status === "active" || p.status === "on_hold")
     : [];
-  const deliveryValue = inDelivery.reduce((sum, p) => sum + (p.contractAmount?.amount ?? 0), 0);
+  const revenueTargets = targets.ok ? launcherRevenueTargets(targets.value, ctx.scope) : [];
 
   const modules: Record<string, BoardModuleCard> = {
     // 战略武备域
@@ -582,10 +563,11 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
 
     // 作战部署域
     territory: { metrics: count(territories, BOARD_TEXT.territories) },
-    // Period-specific deployment is not the customer tier roster. No count
-    // until the board carries the exact planning year/revision/scope context.
-    namedAccount: { metrics: [] },
-    planning: { metrics: count(targets, BOARD_TEXT.targets) },
+    namedAccount: { metrics: focus.ok ? [{ label: `${focus.value.year} ${BOARD_TEXT.focusAccounts}`, value: String(focus.value.rows.length) }] : [] },
+    planning: { hint: targets.ok && !revenueTargets.length ? BOARD_TEXT.noRevenueTarget : undefined, metrics: targets.ok ? revenueTargets.map(t => ({
+      label: `${t.period} ${BOARD_TEXT.revenueTarget} (${t.currency})`,
+      value: t.currency === "CNY" ? BOARD_TEXT.wan(t.amount) : `${t.amount.toLocaleString()} ${t.currency}`,
+    })) : [] },
     forecastRule: {
       // The DISAGREEMENTS, not the deal count. A forecast-rule page with
       // nothing to argue about needs no visit, and "12 deals" would send
@@ -603,10 +585,12 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
 
     // 战场侦察域
     campaign: { metrics: count(campaigns, BOARD_TEXT.campaigns) },
-    signal: { metrics: count(signals, BOARD_TEXT.signals) },
+    signal: { metrics: signals.ok ? count({ ok: true, value: signals.value.filter(s => s.status === "new" || s.status === "scored") }, BOARD_TEXT.pendingSignals) : [] },
+    lead: { metrics: leads.ok ? [{ label: BOARD_TEXT.openLeads, value: String(openLeads.length) }, { label: BOARD_TEXT.unrouted, value: String(openLeads.filter(l => !l.ownerSub).length) }] : [] },
+    funnel: { metrics: leads.ok && leads.value.length ? [{ label: BOARD_TEXT.leadConversion, value: `${Math.round(leads.value.filter(l => l.status === "converted").length / leads.value.length * 100)}%` }] : [], hint: leads.ok && !leads.value.length ? BOARD_TEXT.noLeadSample : undefined },
     routing: {
       metrics: leads.ok
-        ? [{ label: BOARD_TEXT.unrouted, value: String(openLeads.length) }]
+        ? [{ label: BOARD_TEXT.unrouted, value: String(openLeads.filter(l => !l.ownerSub).length) }]
         : [],
     },
 
@@ -623,7 +607,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
           ? [
               {
                 label: BOARD_TEXT.quotaOf,
-                value: `${Math.max(0, Math.min(100, Math.round((wsMeasured.ratio ?? 0) * 100)))}%`,
+                value: `${Math.max(0, Math.round((wsMeasured.ratio ?? 0) * 100))}%`,
                 ...(cover?.thin ? { tone: "warn" as const } : {}),
               },
             ]
@@ -666,7 +650,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
         ? [
             {
               label: BOARD_TEXT.quoteApprovals,
-              value: String(pendingApproval.length),
+              value: String(new Set(pendingApproval.map(l => l.opportunityId)).size),
               ...(pendingApproval.length > 0 ? { tone: "warn" as const } : {}),
             },
           ]
@@ -685,16 +669,12 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     },
 
     // 战果沉淀域
-    delivery: { metrics: count(projects, BOARD_TEXT.projects) },
+    delivery: { metrics: projects.ok ? count({ ok: true, value: inDelivery }, BOARD_TEXT.activeProjects) : [] },
     collection: {
-      // Contract value still in delivery. The instalment-level figure would
-      // need a read per project - the port lists instalments per project only -
-      // and an N+1 on a pane that renders on every page is too much to pay for
-      // one number. This is the honest cheaper answer: what is out there to be
-      // collected against.
-      metrics: projects.ok
-        ? [{ label: BOARD_TEXT.contractValue, value: BOARD_TEXT.wan(deliveryValue) }]
-        : [],
+      metrics: collections.ok ? [
+        { label: BOARD_TEXT.openCollections, value: String(collections.value.open) },
+        { label: BOARD_TEXT.overdueCollections, value: String(collections.value.overdue), ...(collections.value.overdue ? { tone: "warn" as const } : {}) },
+      ] : [],
     },
     renewal: {
       metrics: renewals.ok
@@ -709,6 +689,13 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     },
   };
 
+  const sources = { strategy: plans, segment: segments, catalog: catalogueResult, solution: solutions,
+    namedAccount: focus, planning: targets, attainment: rows, winLossReview: unreviewed,
+    campaign: campaigns, signal: signals, lead: leads, funnel: leads,
+    account: accounts, pipeline: deals, quote: lineResult, delivery: projects, collection: collections, renewal: renewals };
+  for (const [key, result] of Object.entries(sources)) if (result && boardSourceFailed(result)) {
+    modules[key] = { ...modules[key], metrics: [], unavailable: true };
+  }
   return { sections, modules };
 }
 
@@ -780,7 +767,7 @@ export async function agentPanel(
     stores: ctx.stores,
   };
 
-  const feed = await cachedFeed(base);
+  const feed = await readBoardSource(() => cachedFeed(base));
 
   return {
     scanned: feed.ok ? feed.value.scanned : 0,

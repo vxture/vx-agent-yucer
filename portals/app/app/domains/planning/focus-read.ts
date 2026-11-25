@@ -55,7 +55,7 @@ function visibleRows(ctx: FocusContext, content: PlanContent, candidates: FocusW
   });
 }
 /** Scope and source gates apply before returning a customer-only projection. */
-export async function readFocusWorkspace(ctx: FocusContext, query: FocusQuery): Promise<FocusWorkspace> {
+export async function readFocusWorkspace(ctx: FocusContext, query: FocusQuery, options: { includeContactDetails?: boolean } = {}): Promise<FocusWorkspace> {
   demand(can(ctx.holder, ctx.entitlement, "planning.target.view", "data").allowed && can(ctx.holder, ctx.entitlement, "account.view", "data").allowed, "plan_denied");
   demand(Number.isInteger(query.year) && query.year >= 2000 && query.year <= 2200, "invalid_period");
   const at = (ctx.now?.() ?? new Date()).toISOString();
@@ -77,8 +77,10 @@ export async function readFocusWorkspace(ctx: FocusContext, query: FocusQuery): 
   const ids = new Set(regions.filter(r => !query.regionId || r.id === query.regionId).map(r => r.id));
   const candidates = accounts.value.filter(a => rowAllowed(ctx.scope, a, content, a.id)).map(a => ({ id: a.id, name: a.name, accountNo: a.accountNo, tier: a.tier, ownerSub: a.ownerSub }));
   const rows = visibleRows(ctx, content, candidates, period, ids, canTeam, query.regionId);
-  const contactCache = await readFocusContacts(ctx, rows);
-  await readFocusCoverage(ctx, rows, contactCache);
+  if (options.includeContactDetails !== false) {
+    const contactCache = await readFocusContacts(ctx, rows);
+    await readFocusCoverage(ctx, rows, contactCache);
+  }
   const visibleRegions = ctx.scope.kind === "own" ? regions.filter(r => rows.some(row => row.regions.some(region => region.id === r.id))) : regions;
   return { ...empty, rows, candidates: writer ? candidates : [], regions: visibleRegions.map(({ id, name }) => ({ id, name })), periods: content.periods.map(({ key, start, end }) => ({ key, start, end })),
     revision: revisionLabel(plan, selected, state?.current?.id),

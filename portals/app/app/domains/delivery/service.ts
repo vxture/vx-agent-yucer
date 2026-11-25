@@ -964,3 +964,17 @@ export async function recordRenewalOutcome(
     }),
   );
 }
+
+/** One workspace read, rather than a project-by-project query in the shell. */
+export async function collectionSummary(ctx: DeliveryContext): Promise<RuleResult<{ open: number; overdue: number }>> {
+  for (const action of ["delivery.project.view", "delivery.revenue.view"] as const) {
+    const gate = can(ctx.holder, ctx.entitlement, action, "data");
+    if (!gate.allowed) return denied(gate);
+  }
+  const [projects, instalments] = await Promise.all([
+    ctx.store.listProjects(ctx.workspaceId), ctx.store.listInstalments(ctx.workspaceId),
+  ]);
+  const ids = new Set(projects.map(p => p.id));
+  const open = instalments.filter(i => ids.has(i.projectId) && i.status !== "settled" && i.status !== "written_off");
+  return ok({ open: open.length, overdue: open.filter(i => i.status === "overdue").length });
+}
