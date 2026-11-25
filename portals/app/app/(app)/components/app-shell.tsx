@@ -235,7 +235,7 @@ export function AppShell({
   // The full workspace owns its conversation; all other supported pages
   // summon the shared task beside the current content without navigation.
   const workbench = nav.some(entry => entry.key === "copilot" && entry.state === "visible");
-  const legacyCopilot = params.get("view") === "proposals" || ["account", "opportunity", "thread", "ask", "mode"].some(key => !!params.get(key));
+  const legacyCopilot = pathname === "/copilot" && (params.get("view") === "proposals" || ["account", "opportunity", "thread", "ask", "mode"].some(key => !!params.get(key)));
   const collaboration = pathname === "/copilot" && !legacyCopilot;
   const assistantAvailable = !!workbench && !collaboration && !["admin", "upgrade"].includes(activeKey) &&
     (activeKey !== "copilot" || pathname === "/copilot/today" || legacyCopilot);

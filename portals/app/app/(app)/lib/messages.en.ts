@@ -241,7 +241,7 @@ export const en: Dictionary = {
   "chatPlaceholder": "Tell Xiaoyu what you want to do next...",
   "readyToDiscuss": "Let us work through this together",
   "discussHint": "We can check the current situation and decide what to do next.",
-  "history": "Conversation history",
+  "history": "All tasks",
   "newChat": "New conversation",
   "moreActions": "More actions",
   "viewResults": "View results on the workboard",
