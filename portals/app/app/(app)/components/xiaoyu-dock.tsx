@@ -15,10 +15,10 @@ export function XiaoyuDock({ children, ...frame }: ComponentProps<typeof Assista
   const [selectedPage, setSelectedPage] = useState<string | null>(null);
   // A new route always returns to the shared task. The legacy page assistant
   // stays mounted, retaining its portal/draft without a second active input.
-  const pageActive = !frame.fullscreen && selectedPage === pathname;
+  const pageActive = selectedPage === pathname;
   return <AssistantPanel {...frame}>
     <div className={pageActive ? "hidden" : "flex min-h-0 flex-1 flex-col"} hidden={pageActive} inert={pageActive}>
-      <XiaoyuSurface full={frame.fullscreen} controls={<AssistantPanelControls {...frame} />}
+      <XiaoyuSurface controls={<AssistantPanelControls {...frame} closeOnly />}
         pageTools={{ label: pageAssist ? T.pageAssist : T.pageTools, open: () => setSelectedPage(pathname) }} />
     </div>
     <div className={pageActive ? "flex min-h-0 flex-1 flex-col gap-sm" : "hidden"} hidden={!pageActive} inert={!pageActive} data-xiaoyu-page-tools>

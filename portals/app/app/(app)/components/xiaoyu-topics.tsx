@@ -9,6 +9,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
   Icon,
   Select,
@@ -23,6 +25,7 @@ import { useXiaoyu } from "./xiaoyu-provider";
 import type { Judgement } from "../../domains/judgement/lib/judgement";
 import { SourceMark } from "./source-mark";
 import { StaleMark } from "./stale-mark";
+import styles from "./xiaoyu-workspace.module.css";
 type Row = {
   absent?: boolean;
   finding: Judgement;
@@ -150,11 +153,33 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   const verify = feed?.judgements.filter(row => row.status !== "verified" && (row.absent || row.finding.source === "model" || row.finding.freshness?.stale || row.finding.id.startsWith("target-data:"))) ?? [];
   return (
     <section
-      className="flex flex-col gap-sm"
-      aria-label={T.title}
+      className={daily ? styles.todayTopics : "flex flex-col gap-sm"}
+      aria-label={daily ? H.today : T.title}
       data-xiaoyu-topics
     >
-      <div className="flex flex-wrap items-center gap-sm">
+      {daily ? <header className={`${styles.boardHeader} ${styles.todayHeader}`} data-today-header>
+        <h1 className="flex shrink-0 items-center gap-xs text-heading-2"><Icon name="lightbulb" size="sm" />{H.today}</h1>
+        <div className={styles.todayStats} aria-label={H.dailyCounts}>
+          {(["today", "week", "watch"] as const).map(urgency => <span key={urgency} className={styles.todayStat} data-urgency={urgency} title={T[urgency]}>
+            <span className={styles.todayStatLong}>{T[urgency]}</span><span className={styles.todayStatShort}>{T[`${urgency}Short`]}</span><strong>{feed?.dataAvailable ? counts[urgency] : "\u2014"}</strong>
+          </span>)}
+        </div>
+        <div className={styles.todayActions}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="md" variant="ghost" className={styles.scopeTrigger} aria-label={`${T.scope}: ${scope === "mine" ? T.mine : scope === "all" ? T.all : T.defaultScope}`} title={T.scope} data-today-scope>
+              <Icon name="filter" size="sm" className={styles.scopeIcon} /><span>{scope === "mine" ? T.mine : scope === "all" ? T.all : T.defaultScope}</span><Icon name="chevron-down" size="xs" />
+            </Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" width="sm">
+              <DropdownMenuRadioGroup value={scope} onValueChange={setScope}>
+                <DropdownMenuRadioItem value="auto">{T.defaultScope}</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="mine">{T.mine}</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="all">{T.all}</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="icon-xl" variant="ghost" onClick={() => void load()} aria-label={T.refresh}><Icon name="refresh" size="sm" /></Button>
+        </div>
+      </header> : <div className="flex flex-wrap items-center gap-sm">
         {!compact ? <><Icon name="sparkles" size="sm" /><h2 className="text-heading-3">{T.title}</h2></> : null}
         <span className="text-body-small text-muted-foreground">{T.scopeHint}</span>
         <span className="ml-auto w-36">
@@ -177,20 +202,15 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         >
           <Icon name="refresh" size="sm" />
         </Button>
-      </div>
+      </div>}
+      <div className={daily ? styles.boardScroll : "contents"} data-today-content={daily || undefined}>
       {error ? <Banner tone="warning" title={T.unavailable} /> : null}
       {daily && !error ? <>
-        <Card className="gap-sm p-lg">
-          <h2 className="flex items-center gap-xs text-heading-3"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
-          <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}</p>
-          {feed?.daily ? <p className="text-body-small text-muted-foreground">{H.dailyBaseline} <time dateTime={feed.daily.generatedAt}>{new Date(feed.daily.generatedAt).toLocaleString(locale)}</time>{feed.daily.changes ? ` \u00b7 ${H.dailyChanged(feed.daily.changes)}` : ""}</p> : feed ? <p className="text-body-small text-warning-text">{H.dailyUnavailable}</p> : null}
-          {feed?.observedAt ? <p className="text-body-small text-muted-foreground">{H.summaryAt} <time dateTime={feed.observedAt}>{new Date(feed.observedAt).toLocaleString(locale)}</time></p> : null}
-        </Card>
-        <div className="grid grid-cols-3 gap-sm" aria-label={H.dailyCounts}>
-          {(["today", "week", "watch"] as const).map(urgency => <Card key={urgency} className="gap-xs p-md">
-            <span className="text-body-small text-muted-foreground">{T[urgency]}</span>
-            <span className="text-heading-2">{feed?.dataAvailable ? counts[urgency] : "\u2014"}</span>
-          </Card>)}
+        <div className={styles.dailySummary} data-daily-summary>
+          <h2 className="flex items-center gap-xs text-label"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
+          <p className="text-body text-muted-foreground" title={feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}>{feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}</p>
+          {feed?.daily === null ? <span className="shrink-0 text-warning-text" title={H.dailyUnavailable}><Icon name="info" size="sm" aria-label={H.dailyUnavailable} /></span> : null}
+          {feed?.observedAt ? <time dateTime={feed.observedAt} title={`${H.summaryAt} ${new Date(feed.observedAt).toLocaleString(locale)}`}>{new Date(feed.observedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false })}</time> : null}
         </div>
         <h2 className="flex items-center gap-xs text-heading-3"><Icon name="lightbulb" size="sm" />{H.priorities}</h2>
       </> : null}
@@ -307,6 +327,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
           <p className="text-body-small text-muted-foreground">{H.hypothesisHint}</p>
         </Card>
       </div> : null}
+      </div>
     </section>
   );
 }

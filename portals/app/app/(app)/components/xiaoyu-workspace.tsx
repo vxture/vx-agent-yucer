@@ -6,7 +6,6 @@ import { XiaoyuInputTools } from "./xiaoyu-input-tools";
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { ShellDock } from "@vxture/design-system";
 import {
   Banner, Button, Card, Collapsible, CollapsibleContent, CollapsibleTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -25,6 +24,8 @@ import { XiaoyuTopics } from "./xiaoyu-topics";
 import { XiaoyuResearch } from "./xiaoyu-research";
 import { XiaoyuFormLinks } from "./xiaoyu-form-link";
 import { AssistantWidthToggle, useAssistantWidth } from "./assistant-width";
+import { useAssistantVisibility } from "./assistant-visibility";
+import { useDockSize } from "./use-dock-size";
 import { WorkspaceContent } from "./workspace-layout";
 import { AssistantMode } from "./assistant-mode";
 import styles from "./xiaoyu-workspace.module.css";
@@ -58,6 +59,7 @@ function AgentMark({ large = false }: { readonly large?: boolean }) {
 }
 
 export function XiaoyuWorkspace({ initialTask, today = false, editor }: { readonly initialTask?: string; readonly today?: boolean; readonly editor?: ReactNode }) {
+  const panel = useAssistantVisibility();
   const { client, loading, busy, notesDirty } = useXiaoyu();
   const selected = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -65,15 +67,14 @@ export function XiaoyuWorkspace({ initialTask, today = false, editor }: { readon
     selected.current = initialTask;
     if (client.getSnapshot().bundle?.task.id !== initialTask) void client.select(initialTask);
   }, [client, initialTask, loading, busy, notesDirty]);
-  return <XiaoyuSurface full today={today} editor={editor} />;
+  if (today) return <WorkspaceContent canvas><section className={styles.todayBoard} data-xiaoyu-board><XiaoyuTopics compact daily onDiscuss={panel.open} /></section></WorkspaceContent>;
+  return <XiaoyuSurface full editor={editor} />;
 }
 
-function TodayBoard({ onDiscuss, outputKey, today = false, editor, labels }: {
+function TaskBoard({ outputKey, editor, labels }: {
   readonly labels: Record<string,string>;
   readonly editor?: ReactNode;
-  readonly onDiscuss: () => void;
   readonly outputKey: string;
-  readonly today?: boolean;
 }) {
   const { XIAOYU_TEXT: T, HOME_OVERVIEW_TEXT: H, XIAOYU_FORMS: F } = useMessages();
   const { bundle, busy, recoveryTaskId } = useXiaoyu();
@@ -83,16 +84,16 @@ function TodayBoard({ onDiscuss, outputKey, today = false, editor, labels }: {
     <header className={styles.boardHeader}>
       <div className="flex min-w-0 flex-1 items-center gap-md">
         <span className="flex shrink-0 items-center gap-sm">
-        <Icon name={today ? "lightbulb" : "squares-four"} size="sm" />
-        <h1 className="text-heading-2">{today ? H.today : H.workspace}</h1>
+        <Icon name="squares-four" size="sm" />
+        <h1 className="text-heading-2">{H.workspace}</h1>
         </span>
-        {!today && bundle ? <TaskIdentity view={busy && bundle.task.status === "active" ? {...view,stage:"running"} : view} /> : null}
+        {bundle ? <TaskIdentity view={busy && bundle.task.status === "active" ? {...view,stage:"running"} : view} /> : null}
       </div>
-      <Button asChild size="md" variant="ghost"><Link href={today ? workspaceHref(bundle?.task.id) : "/copilot/today"} aria-label={today ? H.continueTask : H.today}><span className={styles.sceneLinkLabel}>{today ? H.continueTask : H.today}</span><Icon name="arrow-right" size="sm" /></Link></Button>
+      <Button asChild size="md" variant="ghost"><Link href="/copilot/today" aria-label={H.today}><span className={styles.sceneLinkLabel}>{H.today}</span><Icon name="arrow-right" size="sm" /></Link></Button>
     </header>
     <div className={styles.boardScroll} >
       {editor}
-      {today ? <XiaoyuTopics compact daily onDiscuss={onDiscuss} /> : outputKey ? <>
+      {outputKey ? <>
         {recoveryTaskId ? <XiaoyuFormLinks /> : null}
         {view.panels.map(panel => panel === "forms" ? <XiaoyuFormLinks key={panel} /> : panel === "sources" ? <XiaoyuResearch key={panel} /> : panel === "activity" ? <TaskActivity key={panel} /> : latest ? <Card key={panel} className="gap-sm p-md">
           <h3 className="flex items-center gap-sm text-label"><Icon name="lightbulb" size="sm" />{T.boardConclusion}</h3>
@@ -109,7 +110,7 @@ function TodayBoard({ onDiscuss, outputKey, today = false, editor, labels }: {
         <h2 className="text-label-medium">{T.boardEmpty}</h2>
         <p className="max-w-prose text-body text-muted-foreground">{T.boardEmptyHint}</p>
       </div>}
-      {!today && busy ? <p className="text-body-small text-muted-foreground">{T.boardUpdating}</p> : null}
+      {busy ? <p className="text-body-small text-muted-foreground">{T.boardUpdating}</p> : null}
     </div>
   </section>;
 }
@@ -145,7 +146,7 @@ function ConversationHistory() {
   const [open, setOpen] = useState(false);
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger asChild>
-      <Button size="icon-xl" variant="ghost" aria-label={T.history} title={T.history}>
+      <Button size="icon-xl" variant="ghost" aria-label={T.history} title={T.history} data-assistant-history>
         <Icon name="list" size="sm" />
       </Button>
     </PopoverTrigger>
@@ -210,6 +211,7 @@ function XiaoyuConversation({ full, showResults, labels, outputKey, controls, pa
 }) {
   const { XIAOYU_TEXT: T, XIAOYU_FORMS:F } = useMessages();
   const { width, toggle } = useAssistantWidth();
+  const panel = useAssistantVisibility();
   const s = useXiaoyu();
   const { client, bundle, busy, loading, notesDirty } = s;
   const [showNotes, setShowNotes] = useState(false);
@@ -227,21 +229,20 @@ function XiaoyuConversation({ full, showResults, labels, outputKey, controls, pa
 
   return <section className={styles.conversation} aria-label={T.conversation} data-xiaoyu-conversation>
     <header className={styles.chatHeader} data-assistant-header>
-      <h2 className="shrink-0 text-label">{T.name}</h2>
+      {full ? <h2 className={styles.agentTitle}><Icon name="sparkles" size="sm" />{T.name}</h2> : <Link href={workspaceHref(task?.id)} className={styles.agentTitle} title={T.full} aria-label={`${T.name}: ${T.full}`} data-assistant-workbench><Icon name="sparkles" size="sm" /><span>{T.name}</span></Link>}
       <AssistantMode placement="header" />
       <span className="min-w-0 flex-1" />
-      <ConversationHistory />
+      <span className={styles.widthControl}><AssistantWidthToggle wide={width === "wide"} onToggle={toggle} /></span>
       <Button size="icon-xl" variant="secondary" className={styles.newChat} aria-label={T.newChat} title={T.newChat}
         disabled={busy || loading || notesDirty} onClick={client.newTask}>
         <Icon name="plus" size="sm" />
       </Button>
-      {controls ?? (full ? <span className={styles.widthControl}><AssistantWidthToggle wide={width === "wide"} onToggle={toggle} /></span> : null)}
+      <ConversationHistory />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="icon-xl" variant="ghost" aria-label={T.moreActions} title={T.moreActions}><Icon name="more-vertical" size="sm" /></Button>
+          <Button size="icon-xl" variant="ghost" aria-label={T.moreActions} title={T.moreActions} data-assistant-more><Icon name="more-vertical" size="sm" /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width="sm">
-          <DropdownMenuItem disabled={busy || loading || notesDirty} onSelect={() => { void client.newTask(); }}><Icon name="plus" size="sm" />{T.newChat}</DropdownMenuItem>
           {!full ? <DropdownMenuItem asChild><Link href={workspaceHref(task?.id)} data-assistant-workbench><Icon name="squares-four" size="sm" />{T.full}</Link></DropdownMenuItem> : null}
           {pageTools ? <DropdownMenuItem onSelect={pageTools.open}>{pageTools.label}</DropdownMenuItem> : null}
           <DropdownMenuItem disabled={busy || loading} onSelect={() => void client.refresh()}>
@@ -264,6 +265,7 @@ function XiaoyuConversation({ full, showResults, labels, outputKey, controls, pa
           </> : null}
         </DropdownMenuContent>
       </DropdownMenu>
+      {controls ?? <Button size="icon-xl" variant="ghost" aria-label={T.close} title={T.close} data-assistant-close onClick={panel.close}><Icon name="x" size="sm" /></Button>}
     </header>
     <FocusControl />
     <div className={styles.chatBody}>
@@ -322,25 +324,33 @@ function XiaoyuConversation({ full, showResults, labels, outputKey, controls, pa
   </section>;
 }
 
-export function XiaoyuSurface({ full = false, controls, pageTools, today = false, editor }: { readonly editor?: ReactNode; readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools; readonly today?: boolean }) {
+export function XiaoyuSurface({ full = false, controls, pageTools, editor }: { readonly editor?: ReactNode; readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools }) {
   const { XIAOYU_TEXT: T } = useMessages();
   const {catalogs}=useXiaoyuCatalog();
   const labels=Object.values(catalogs)[0]?.labels??{};
-  const { bundle, recoveryTaskId, client } = useXiaoyu();
-  const router = useRouter();
+  const { bundle, recoveryTaskId } = useXiaoyu();
+  const [conversationOpen, setConversationOpen] = useState(true);
+  const dockRef = useRef<HTMLDivElement>(null);
+  useDockSize(dockRef, full);
+  useEffect(() => {
+    const open = () => { setConversationOpen(true); setMobile("chat"); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("#xiaoyu-full-input")?.focus()); };
+    window.addEventListener("xiaoyu:open-conversation", open);
+    return () => window.removeEventListener("xiaoyu:open-conversation", open);
+  }, []);
   const { width } = useAssistantWidth();
-  const [mobile, setMobile] = useState<"chat" | "board">(today ? "board" : "chat");
+  const [mobile, setMobile] = useState<"chat" | "board">("chat");
   const [boardJump, setBoardJump] = useState(0);
   const drafts = bundle?.drafts.filter(d => d.contractVersion === "business-form/1").map(d => d.id) ?? [];
   const latest = bundle?.messages.findLast(m => m.role === "assistant");
   const lastTurn = bundle?.turns.at(-1);
   const hasOutput = drafts.length > 0 || !!latest || !!lastTurn || (!!bundle && bundle.task.status !== "active");
   const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
-  const conversation = <XiaoyuConversation labels={labels} full={full} controls={controls} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
+  const closeControl = full ? <Button size="icon-xl" variant="ghost" aria-label={T.close} title={T.close} data-assistant-close onClick={() => { setConversationOpen(false); setMobile("board"); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-assistant-dock-trigger] button")?.focus()); }}><Icon name="x" size="sm" /></Button> : controls;
+  const conversation = <XiaoyuConversation labels={labels} full={full} controls={closeControl} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
   return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}
-    data-conversation-width={width}>
+    data-conversation-width={width} data-conversation-open={conversationOpen}>
     {full ? <div className={styles.mobileSwitch} role="group" aria-label={T.title}>
-      <Button size="md" variant={mobile === "chat" ? "secondary" : "ghost"} aria-pressed={mobile === "chat"} onClick={() => setMobile("chat")}>
+      <Button size="md" variant={mobile === "chat" ? "secondary" : "ghost"} aria-pressed={mobile === "chat"} onClick={() => { setMobile("chat"); setConversationOpen(true); }}>
         <Icon name="chat-circle" size="sm" />{T.conversation}
       </Button>
       <Button size="md" variant={mobile === "board" ? "secondary" : "ghost"} aria-pressed={mobile === "board"} onClick={() => setMobile("board")}>
@@ -348,10 +358,10 @@ export function XiaoyuSurface({ full = false, controls, pageTools, today = false
       </Button>
     </div> : null}
     <div className={styles.panes} data-mobile-view={mobile}>
-      {full ? <WorkspaceContent canvas><TodayBoard labels={labels} editor={editor} today={today} outputKey={outputKey} onDiscuss={() => { setMobile("chat"); if (today) router.push(workspaceHref(client.getSnapshot().bundle?.task.id)); }} /></WorkspaceContent> : null}
-      {full ? <ShellDock mode={width} className={`${styles.conversationPane} shadow-none`}>
-        {conversation}
-      </ShellDock> : conversation}
+      {full ? <WorkspaceContent canvas><TaskBoard labels={labels} editor={editor} outputKey={outputKey} />{!conversationOpen ? <Button variant="secondary" size="md" className={styles.reopenConversation} onClick={() => { setConversationOpen(true); setMobile("chat"); }}><Icon name="chat-circle" size="sm" />{T.name}</Button> : null}</WorkspaceContent> : null}
+      {full ? <div ref={dockRef} className={styles.conversationDock} data-pane-open={conversationOpen} aria-hidden={!conversationOpen} inert={!conversationOpen}>
+        <ShellDock mode={width} className={`${styles.conversationPane} shadow-none`}>{conversation}</ShellDock>
+      </div> : conversation}
     </div>
   </div>;
 }
