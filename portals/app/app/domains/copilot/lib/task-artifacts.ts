@@ -1,5 +1,6 @@
 import type { BudgetReason, BudgetUsage, TurnResult } from "../../../agent/orchestrator/turn";
 import type { ModelUsage } from "../../../agent/orchestrator/turn-budget";
+import { validFailureCode, validFailureDiagnostic, type TaskFailureDiagnostic } from "./task-failure";
 
 const MAX_MODEL_USAGE_ROWS = 20;
 const MODEL_USAGE_FIELDS = ["promptTokens", "completionTokens", "totalTokens", "messageTokens", "schemaTokens", "toolResultTokens"] as const;
@@ -20,6 +21,7 @@ export interface TaskArtifacts {
   usage: { elapsedMs: number; totalTokens: number; toolRounds: number; truncated: boolean; modelUsage?: ModelUsage[] };
   calls: Array<{ capabilityId: string; operation: string; callId: string | null; version: string | null; ok: boolean }>;
   failure?: { reason: BudgetReason; modelRequests: number; toolCalls: number };
+  diagnostic?: TaskFailureDiagnostic;
 }
 
 function perModelUsage(rows: ModelUsage[] | undefined): { modelUsage?: ModelUsage[] } {
@@ -39,6 +41,14 @@ export function budgetFailureArtifacts(usage: BudgetUsage): TaskArtifacts {
     usage: { elapsedMs: usage.elapsedMs, totalTokens: usage.totalTokens, toolRounds: usage.toolRounds, truncated: true, ...perModelUsage(usage.modelUsage) },
     failure: { reason: usage.reason, modelRequests: usage.modelRequests, toolCalls: usage.toolCalls },
   };
+}
+export function turnFailureArtifacts(usage: { totalTokens: number; toolRounds: number; modelUsage?: ModelUsage[] }, startedAt: number, diagnostic: TaskFailureDiagnostic): TaskArtifacts {
+  const safe: TaskFailureDiagnostic = { stage: diagnostic.stage, category: diagnostic.category,
+    ...(diagnostic.code !== undefined ? { code: validFailureCode(diagnostic.code) ? diagnostic.code : "OTHER" } : {}),
+    modelFinished: diagnostic.modelFinished, sourceCount: diagnostic.sourceCount, formCount: diagnostic.formCount,
+    modelRequests: diagnostic.modelRequests, toolCalls: diagnostic.toolCalls };
+  return { version: "task-artifacts/1", capturedAt: new Date().toISOString(), research: [], calls: [], diagnostic: safe,
+    usage: { elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens: usage.totalTokens, toolRounds: usage.toolRounds, truncated: true, ...perModelUsage(usage.modelUsage) } };
 }
 export function publicSourceUrl(value: string): string | null {
   try {
@@ -94,6 +104,7 @@ export function readTaskArtifacts(value: unknown): TaskArtifacts | undefined {
         MODEL_USAGE_FIELDS.every(k => Number.isSafeInteger(row[k]) && row[k] >= 0)))) ||
     !Array.isArray(v.research)||v.research.length>20||!Array.isArray(v.calls)||v.calls.length>64||
     (v.failure && (!["tokens","deadline","tool_calls"].includes(v.failure.reason)||!count(v.failure.modelRequests)||!count(v.failure.toolCalls)||v.research.length!==0||v.calls.length!==0))||
+    (v.diagnostic && (!validFailureDiagnostic(v.diagnostic)||v.research.length!==0||v.calls.length!==0))||
     !v.research.every(s=>s&&str(s.id)&&tag(s.capabilityId)&&tag(s.operation)&&tag(s.callId)&&tag(s.version)&&str(s.excerpt)&&s.excerpt.length<=1500&&Array.isArray(s.links)&&s.links.length<=8&&s.links.every(l=>str(l)&&publicSourceUrl(l)===l))||
     !v.calls.every(c=>c&&str(c.capabilityId)&&str(c.operation)&&tag(c.callId)&&tag(c.version)&&typeof c.ok==="boolean"))return undefined;
   return v;

@@ -7,6 +7,8 @@ import type { AtlasClient } from "../../agent/atlas/client";
 import type { ChatResponse } from "../../agent/atlas/types";
 import { measureTurnInput } from "../../agent/orchestrator/turn-budget";
 import { TurnBudgetError } from "../../agent/orchestrator/turn";
+import { AtlasError } from "../../agent/atlas/errors";
+import { LoginStateUnavailableError } from "../../auth/lib/login-state";
 import type { RunosClient } from "../../agent/runos/client";
 import { InMemoryCopilotStore } from "./store";
 import { InMemoryTaskStore } from "./task-store";
@@ -498,6 +500,139 @@ test("model failure retains only the question and never automatically replays an
     "request_already_attempted",
   );
   assert.equal(f.calls(), 1);
+});
+
+test("failed final authorization check is distinct from model generation and never stores an unchecked answer", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => logs.push(args));
+  const f = fixture(), task = await f.create();
+  let generated = false;
+  f.setChat(async () => { generated = true; return { content: "PRIVATE ANSWER NEVER PERSIST" }; });
+  f.c.refresh = async () => { if (generated) throw new LoginStateUnavailableError(); return f.c; };
+  const input = { revision: task.revision, requestId: randomUUID(), question: "PRIVATE QUESTION" };
+  code(await runPrivateTaskTurn(f.c, task.id, input, f.deps), "task_verification_unavailable");
+  const stored = (await f.store.load(f.scope, task.id, true))!;
+  const artifacts = stored.turns[0].artifacts!;
+  assert.equal(artifacts.diagnostic!.stage, "verify");
+  assert.equal(artifacts.diagnostic!.category, "authorization");
+  assert.equal(artifacts.diagnostic!.modelFinished, true);
+  assert.equal(artifacts.diagnostic!.modelRequests, 1);
+  assert.equal(artifacts.usage.totalTokens, 4);
+  assert.deepEqual(artifacts.research, []);
+  assert.deepEqual(artifacts.calls, []);
+  assert.equal(stored.messages.length, 1);
+  assert.doesNotMatch(JSON.stringify([artifacts, logs]), /PRIVATE/);
+  f.c.refresh = async () => f.c;
+  code(await runPrivateTaskTurn(f.c, task.id, input, f.deps), "request_already_attempted");
+  assert.equal(f.calls(), 1);
+});
+
+test("answer persistence failures retain metering and the safe database code without raw parameters", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => logs.push(args));
+  const f = fixture(), task = await f.create();
+  const finish = f.store.finishTurn.bind(f.store);
+  f.store.finishTurn = async (...args) => {
+    if ("answer" in args[3]) throw Object.assign(new Error("PRIVATE SQL PARAMETERS"), { code: "P2028", meta: { privateData: "PRIVATE CREDENTIAL" } });
+    return finish(...args);
+  };
+  const input = { revision: task.revision, requestId: randomUUID(), question: "ask" };
+  code(await runPrivateTaskTurn(f.c, task.id, input, f.deps), "task_persistence_failed");
+  const stored = unwrap(await readPrivateTask(f.c, task.id));
+  const artifacts = stored.turns[0].artifacts!;
+  assert.equal(artifacts.diagnostic!.stage, "persist");
+  assert.equal(artifacts.diagnostic!.category, "database");
+  assert.equal(artifacts.diagnostic!.code, "P2028");
+  assert.equal(artifacts.diagnostic!.modelFinished, true);
+  assert.equal(artifacts.usage.totalTokens, 4);
+  assert.equal(stored.messages.length, 1);
+  assert.doesNotMatch(JSON.stringify([artifacts, logs]), /PRIVATE|privateData|meta/);
+  code(await runPrivateTaskTurn(f.c, task.id, input, f.deps), "request_already_attempted");
+  assert.equal(f.calls(), 1);
+});
+
+test("a source version collision at commit remains a source conflict and never saves an answer", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = fixture(), task = await f.create(), finish = f.store.finishTurn.bind(f.store);
+  f.store.finishTurn = async (...args) => {
+    if ("answer" in args[3]) throw Error("source_changed");
+    return finish(...args);
+  };
+  code(await runPrivateTaskTurn(f.c, task.id, { revision: task.revision, requestId: randomUUID(), question: "ask" }, f.deps), "source_changed");
+  const saved = (await f.store.load(f.scope, task.id, true))!;
+  assert.equal(saved.messages.length, 1);
+  assert.equal(saved.turns[0].artifacts!.diagnostic!.stage, "persist");
+});
+
+test("a committed answer is never rewritten as failure when its final access recheck is unavailable", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = fixture(), task = await f.create(), finish = f.store.finishTurn.bind(f.store);
+  f.store.finishTurn = async (...args) => {
+    const saved = await finish(...args);
+    if ("answer" in args[3]) f.c.refresh = async () => { throw new LoginStateUnavailableError(); };
+    return saved;
+  };
+  const input = { revision: task.revision, requestId: randomUUID(), question: "ask" };
+  code(await runPrivateTaskTurn(f.c, task.id, input, f.deps), "task_verification_unavailable");
+  const stored = (await f.store.load(f.scope, task.id, true))!;
+  assert.equal(stored.turns[0].status, "succeeded");
+  assert.equal(stored.messages.length, 2);
+  f.c.refresh = async () => f.c;
+  assert.equal(unwrap(await runPrivateTaskTurn(f.c, task.id, input, f.deps)).replayed, true);
+  assert.equal(f.calls(), 1);
+});
+
+test("unexpected provider codes and private error envelopes are not copied into diagnostics", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => logs.push(args));
+  const f = fixture(), task = await f.create();
+  f.setChat(async () => { throw new AtlasError({ code: "PRIVATE_SECRET", status: 502, message: "PRIVATE TEXT", raw: { credential: "PRIVATE TOKEN" } }); });
+  code(await runPrivateTaskTurn(f.c, task.id, { revision: task.revision, requestId: randomUUID(), question: "ask" }, f.deps), "task_model_failed");
+  const artifacts = (await f.store.load(f.scope, task.id, true))!.turns[0].artifacts!;
+  assert.equal(artifacts.diagnostic!.stage, "model");
+  assert.equal(artifacts.diagnostic!.code, "OTHER");
+  assert.equal(artifacts.diagnostic!.modelRequests, 1);
+  assert.equal(artifacts.diagnostic!.modelFinished, false);
+  assert.doesNotMatch(JSON.stringify([artifacts, logs]), /PRIVATE/);
+});
+
+test("a later model failure retains earlier real usage and tool counts but no partial read contents", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = fixture(), task = await f.create(), source = f.sources.get(SEGMENT.id)!;
+  f.c.business = { access: source,
+    query: async () => ({ records: [], sources: [source], limited: false, recordState: "current" }),
+    prepare: async () => { assert.fail("no writes"); },
+  };
+  f.setChat(async () => {
+    if (f.calls() === 1) return { content: "", toolCalls: [0, 1].map(i => ({ id: String(i), name: "query_business", arguments: { kind: "segment" } })) };
+    throw new AtlasError({ code: "LOCAL_DEADLINE", status: 0, message: "PRIVATE UPSTREAM" });
+  });
+  code(await runPrivateTaskTurn(f.c, task.id, { revision: task.revision, requestId: randomUUID(), question: "Read records" }, f.deps), "task_model_failed");
+  const saved = (await f.store.load(f.scope, task.id, true))!, a = saved.turns[0].artifacts!;
+  assert.equal(a.usage.totalTokens, 4);
+  assert.equal(a.usage.modelUsage!.length, 1);
+  assert.equal(a.diagnostic!.modelRequests, 2);
+  assert.equal(a.diagnostic!.toolCalls, 2);
+  assert.equal(a.diagnostic!.sourceCount, 1);
+  assert.equal(a.diagnostic!.code, "LOCAL_DEADLINE");
+  assert.equal(saved.references.length, 0);
+  assert.equal(saved.messages.length, 1);
+});
+
+test("pre-model runtime failures are service failures with sanitized codes and zero model spend", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => logs.push(args));
+  for (const error of [new TypeError("PRIVATE TYPE"), new SyntaxError("PRIVATE JSON"), new RangeError("PRIVATE RANGE"), new Error("PRIVATE OTHER")]) {
+    const f = fixture(), task = await f.create();
+    f.deps.meter.record = async () => { throw error; };
+    code(await runPrivateTaskTurn(f.c, task.id, { revision: task.revision, requestId: randomUUID(), question: "ask" }, f.deps), "task_service_unavailable");
+    const a = (await f.store.load(f.scope, task.id, true))!.turns[0].artifacts!;
+    assert.equal(a.diagnostic!.stage, "prepare");
+    assert.equal(a.diagnostic!.modelFinished, false);
+    assert.equal(a.usage.totalTokens, 0);
+    assert.equal(f.calls(), 0);
+    assert.doesNotMatch(JSON.stringify([a, logs]), /PRIVATE/);
+  }
 });
 
 test("orphaned running request is observable and explicit interruption does not retry the model", async () => {

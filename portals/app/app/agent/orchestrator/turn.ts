@@ -35,6 +35,8 @@ import {
 //     with whatever it has, rather than looping against a metered plane.
 
 export interface TurnInput {
+  /** Server-owned numeric trace only; never receives messages or tool data. */
+  onProgress?: (progress: TurnProgress) => void;
   localTools?: {definitions: import("../atlas/types").ToolDefinition[]; invoke:(name:string,args:Record<string,unknown>)=>Promise<unknown>};
   beforeTool?:()=>Promise<void>;
   totalBudget?: {deadlineMs:number;maxTokens:number;maxCalls:number};
@@ -136,6 +138,15 @@ export interface BudgetUsage {
   toolCalls: number;
   modelUsage?: ModelUsage[];
 }
+export interface TurnProgress {
+  stage: "model" | "tool";
+  elapsedMs: number;
+  totalTokens: number;
+  toolRounds: number;
+  modelRequests: number;
+  toolCalls: number;
+  modelUsage: ModelUsage[];
+}
 export class TurnBudgetError extends Error {
   constructor(readonly usage: BudgetUsage) { super("task_budget_exhausted"); }
 }
@@ -189,6 +200,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   const catalogReceipts = new Map<number, CatalogReceipt>();
   const businessContext = new BusinessReadContext();
   const modelUsage: ModelUsage[] = [];
+  const progress = (stage: TurnProgress["stage"]) => input.onProgress?.({ stage,
+    elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens, toolRounds: rounds,
+    modelRequests, toolCalls, modelUsage: modelUsage.map(row => ({ ...row })),
+  });
   const exhausted = (reason: BudgetReason) => new TurnBudgetError({ reason,
     elapsedMs: Math.max(0, Date.now()-startedAt), totalTokens, toolRounds: rounds, modelRequests, toolCalls, modelUsage });
   const checkBudget = () => {
@@ -217,6 +232,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       limits = { timeoutMs: Math.min(settings.timeoutMs, remainingMs), maxTokens: Math.min(settings.maxTokens, availableOutput) };
     }
     modelRequests++;
+    progress("model");
     const request = tools ? { messages, tools, toolChoice: "auto" as const, ...limits } : { messages, ...limits };
     const response = await deps.atlasClient.chat(profile, request, input.atlas).catch((error: unknown) => {
       if (turnOutputCap !== undefined && error instanceof AtlasError && error.code === "OUTPUT_BUDGET_EXHAUSTED") {
@@ -227,6 +243,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     const { promptTokens, completionTokens, totalTokens: tokens } = response.usage;
     if (measured) modelUsage.push({ ...measured, promptTokens, completionTokens, totalTokens: tokens });
     totalTokens += tokens;
+    progress("model");
     if (input.totalBudget && (totalTokens > input.totalBudget.maxTokens ||
       (turnOutputCap !== undefined && response.finishReason === "length" && completionTokens >= turnOutputCap))) throw exhausted("tokens");
     if (input.totalBudget && Date.now() - startedAt > input.totalBudget.deadlineMs) throw exhausted("deadline");
@@ -309,8 +326,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     for (const call of calls) {
       checkBudget();
       if(input.totalBudget&&toolCalls>=input.totalBudget.maxCalls)throw exhausted("tool_calls");
+      progress("tool");
       await input.beforeTool?.();
       toolCalls++;
+      progress("tool");
       const outcome = await handleToolCall(call, surface, input, deps, proposals, pinnedVersions, `read-${rounds}-${readEvidence.length + 1}`);
       if (outcome.invocation) invocations.push(outcome.invocation);
       if (outcome.evidence) readEvidence.push(outcome.evidence);

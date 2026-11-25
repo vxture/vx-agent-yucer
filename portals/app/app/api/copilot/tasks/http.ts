@@ -22,6 +22,8 @@ export function taskResponse<T>(result: RuleResult<T>): Response {
         ? 403
         : ["task_model_failed"].includes(code)
           ? 502
+          : ["task_verification_unavailable", "task_persistence_failed", "task_completion_failed", "task_service_unavailable"].includes(code)
+            ? 503
           : [
                 "task_conflict",
                 "request_conflict",

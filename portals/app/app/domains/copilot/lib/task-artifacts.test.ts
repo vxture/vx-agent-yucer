@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { budgetFailureArtifacts, taskArtifacts, publicSourceUrl, readTaskArtifacts } from "./task-artifacts";
+import { budgetFailureArtifacts, taskArtifacts, publicSourceUrl, readTaskArtifacts, turnFailureArtifacts } from "./task-artifacts";
 import { formChanges, mergeForm } from "./business-form";
 import type { TurnResult } from "../../../agent/orchestrator/turn";
 test("research metadata comes from actual successful evidence and excludes credential or unsafe links",()=>{
@@ -65,4 +65,18 @@ test("budget failure metadata contains counts only and rejects sources or invali
   assert.equal(readTaskArtifacts({ ...a, failure: { ...a.failure, reason: "unknown" } }), undefined);
   assert.equal(readTaskArtifacts({ ...a, failure: { ...a.failure, modelRequests: -1 } }), undefined);
   assert.equal(readTaskArtifacts({ ...a, calls: [{ capabilityId: "x", operation: "read", callId: null, version: null, ok: true }] }), undefined);
+});
+
+test("failed-turn diagnostics keep only bounded enums and counts, never partial evidence or extra error fields", () => {
+  const a = turnFailureArtifacts({ totalTokens: 22734, toolRounds: 2 }, Date.now(), {
+    stage: "persist", category: "database", code: "PRIVATE_SECRET", modelFinished: true,
+    modelRequests: 3, toolCalls: 12, sourceCount: 30, formCount: 0, ...{ privateText: "PRIVATE DATA" },
+  });
+  assert.equal(readTaskArtifacts(a), a);
+  assert.equal(a.diagnostic!.code, "OTHER");
+  assert.doesNotMatch(JSON.stringify(a), /PRIVATE/);
+  assert.equal(readTaskArtifacts({ ...a, diagnostic: { ...a.diagnostic, privateText: "reject" } }), undefined);
+  assert.equal(readTaskArtifacts({ ...a, diagnostic: { ...a.diagnostic, code: "credential=secret" } }), undefined);
+  assert.equal(readTaskArtifacts({ ...a, diagnostic: { ...a.diagnostic, sourceCount: -1 } }), undefined);
+  assert.equal(readTaskArtifacts({ ...a, research: [{ id: "x", capabilityId: null, operation: null, callId: null, version: null, excerpt: "private partial", links: [] }] }), undefined);
 });
