@@ -12,9 +12,12 @@ import { UUID, type TaskScope } from "../copilot/lib/task-contract";
 import type { TopicStore, TopicRecord } from "./topic-store";
 import { judgementVersion, type TopicFeed } from "./topic-feed";
 import type { Scope, Urgency } from "./lib/judgement";
+import type { ScheduledFeed } from "./scheduled-feed";
 export interface TopicContext extends TaskContext {
   topics: TopicStore;
   accessVersion: string;
+  dailyFeed?: (scope?: Scope, mode?: "current" | "snapshot") => Promise<RuleResult<ScheduledFeed>>;
+  judgementRevision?: () => Promise<string | null>;
   judgements: (
     scope?: Scope,
     includeSnoozed?: boolean,
@@ -69,20 +72,22 @@ const requestUuid = (v: string) => {
   const h = createHash("sha256").update(v).digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 };
-export async function listTopics(ctx: TopicContext, scope?: Scope) {
+export async function listTopics(ctx: TopicContext, scope?: Scope, mode: "current" | "snapshot" = "current") {
   return guarded(ctx, "list", async () => {
-    let now = await fresh(ctx);
-    const f = await now.judgements(scope);
+    const now = await fresh(ctx);
+    const accessVersion = now.accessVersion;
+    const snapshot = now.dailyFeed ? await now.dailyFeed(scope, mode) : null;
+    demand(!snapshot || snapshot.ok, "topic_feed_unavailable");
+    const f = snapshot?.ok ? ok(snapshot.value.visible) : await now.judgements(scope);
     demand(f.ok, "topic_feed_unavailable");
     const rows = await now.topics.list(owner(now));
-    now = await fresh(ctx);
-    const checked = await now.judgements(f.value.scope);
-    demand(checked.ok, "topic_feed_unavailable");
-    const raw = await now.judgements(checked.value.scope, true);
+    const checked = f;
+    const raw = snapshot?.ok ? ok(snapshot.value.raw) : await now.judgements(checked.value.scope, true);
     demand(raw.ok, "topic_feed_unavailable");
     const history = [];
     for (const r of rows.filter(
       (r) =>
+        !(snapshot?.ok && snapshot.value.pendingUpdate) &&
         r.scope === checked.value.scope &&
         r.accessVersion === now.accessVersion &&
         !raw.value.judgements.some((j) => j.id === r.judgementId),
@@ -114,15 +119,19 @@ export async function listTopics(ctx: TopicContext, scope?: Scope) {
         revision: r.revision,
       });
     }
-    const end = await fresh(ctx);
-    demand(end.accessVersion === now.accessVersion, "access_changed");
     let daily: Awaited<ReturnType<typeof dailyJudgementBaseline>> | null=null;
-    try{daily=await dailyJudgementBaseline(now,checked.value);}catch{/* The current feed remains readable; persistence failure is explicit. */}
-    const final=await fresh(ctx);demand(final.accessVersion===end.accessVersion,"access_changed");
+    if (!snapshot) try{daily=await dailyJudgementBaseline(now,checked.value);}catch{/* The current feed remains readable; persistence failure is explicit. */}
+    const final = await fresh(ctx);
+    demand(final.accessVersion === accessVersion, "access_changed");
+    if (snapshot?.ok) {
+      demand(final.judgementRevision, "topic_feed_unavailable");
+      demand(await final.judgementRevision() === snapshot.value.dataVersion, "topic_feed_unavailable");
+    }
     return {
       ...checked.value,
-      daily: daily ? {date:daily.date,generatedAt:daily.generatedAt,revalidatedAt:daily.revalidatedAt,changes:daily.changes} : null,
+      daily: snapshot?.ok ? snapshot.value.daily : daily ? {date:daily.date,generatedAt:daily.generatedAt,revalidatedAt:daily.revalidatedAt,changes:daily.changes} : null,
       observedAt: new Date().toISOString(),
+      pendingUpdate: snapshot?.ok ? snapshot.value.pendingUpdate : false,
       judgements: [
         ...(daily?.judgements ?? checked.value.judgements).map((j) => {
           const r = rows.find(

@@ -52,8 +52,8 @@ test("stage decides: deployed on by default, dev off by default, JOBS_SCHEDULER 
 
 test("the default jobs are the sweep, the flush, strategy snapshots, the upsell and health sweeps, with sane periods and a floor on overrides", () => {
   const jobs = defaultJobs({});
-  assert.deepEqual(jobs.map((j) => j.name), ["commitment-sweep", "usage-flush", "strategy-snapshots", "upsell-sweep", "health-sweep", "daily-judgements", "provisioning-poll"]);
-  assert.equal(jobs[6].everyMs, 5 * 60_000);
+  assert.deepEqual(jobs.map((j) => j.name), ["commitment-sweep", "usage-flush", "strategy-snapshots", "upsell-sweep", "health-sweep", "daily-judgements", "daily-judgement-report", "provisioning-poll"]);
+  assert.equal(jobs.find(j => j.name === "provisioning-poll")!.everyMs, 5 * 60_000);
   assert.equal(jobs[0].everyMs, 15 * 60_000);
   assert.equal(jobs[1].everyMs, 5 * 60_000);
   assert.equal(jobs[2].everyMs, 60 * 60_000);
@@ -72,6 +72,17 @@ test("off: nothing is scheduled and the snapshot says why", () => {
   assert.equal(snap.enabled, false);
   assert.equal(t.pending.length, 0);
   assert.equal(jobsSnapshot().reason, "JOBS_SCHEDULER=off");
+});
+test("wall-clock jobs first run at 08:00 and reschedule to the next 08:00 after completion", async () => {
+  process.env.JOBS_SCHEDULER = "on";
+  const t = fakeTimers();
+  let clock = Date.parse("2026-11-24T23:59:00Z");
+  const report = defaultJobs({}).find(j => j.name === "daily-judgement-report")!;
+  startJobScheduler({ jobs: [{ ...report, run: async () => { clock = Date.parse("2026-11-25T00:02:00Z"); return {}; } }],
+    lock: async () => "acquired", setTimer: t.setTimer, clearTimer: t.clearTimer, now: () => clock, log: () => {} });
+  assert.equal(t.pending[0].ms, 60000);
+  await t.fireNext();
+  assert.equal(t.pending[0].ms, (24 * 60 - 2) * 60000);
 });
 
 test("on: each job is scheduled once, staggered; a tick runs it, records the ledger and reschedules", async () => {

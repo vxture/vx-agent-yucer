@@ -29,11 +29,12 @@ export async function topicsHttp(
         "access refused",
       );
     if (operation === "list") {
-      const scope = new URL(request.url).searchParams.get("scope");
+      const params = new URL(request.url).searchParams, scope = params.get("scope");
       return taskResponse(
         await listTopics(
           ctx,
           scope === "all" || scope === "mine" ? scope : undefined,
+          params.get("mode") === "snapshot" ? "snapshot" : "current",
         ),
       );
     }

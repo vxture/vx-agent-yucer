@@ -1,4 +1,5 @@
 import { runDailyJudgements } from "../domains/judgement/daily-job";
+import { nextJudgementAt } from "../domains/judgement/scheduled-feed";
 import { deployStage, isDeployedStage } from "../lib/deploy-stage";
 import { runCommitmentSweep } from "../domains/account/commitment-sweep";
 import { runStrategySnapshots } from "../domains/strategy/snapshot-job";
@@ -37,6 +38,7 @@ export interface JobDef {
   name: string;
   everyMs: number;
   run: () => Promise<unknown>;
+  nextDelayMs?: (now: number) => number;
 }
 
 export interface JobRun {
@@ -130,6 +132,9 @@ export function defaultJobs(env: Record<string, string | undefined> = process.en
       run: async () => runHealthSweep({ workspaces: (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId })) }),
     },
     {name:"daily-judgements",everyMs:intervalFrom(env,"JOBS_INTERVAL_JUDGEMENTS_MS",15*60_000),run:async()=>runDailyJudgements(await listActiveWorkspaces())},
+    {name:"daily-judgement-report",everyMs:24*60*60_000,
+      nextDelayMs:now=>Date.parse(nextJudgementAt(new Date(now)))-now,
+      run:async()=>runDailyJudgements(await listActiveWorkspaces())},
     {
       name: "provisioning-poll",
       everyMs: intervalFrom(env, "JOBS_INTERVAL_PROVISIONING_MS", 5 * 60_000),
@@ -170,6 +175,7 @@ function schedule(job: JobState, ms: number): void {
     void tick(job);
   }, ms);
 }
+function nextDelay(job: JobState) { return job.def.nextDelayMs?.(activeDeps.now()) ?? job.everyMs; }
 
 export async function tick(job: JobState): Promise<void> {
   const d = activeDeps;
@@ -180,12 +186,12 @@ export async function tick(job: JobState): Promise<void> {
     // A lock we cannot reach is a reason to skip this period, not to run twice.
     d.log(`[jobs] ${job.name}: lock unavailable (${e instanceof Error ? e.message : String(e)}), skipping this period`);
     job.skippedLocked += 1;
-    schedule(job, job.everyMs);
+    schedule(job, nextDelay(job));
     return;
   }
   if (outcome === "held") {
     job.skippedLocked += 1;
-    schedule(job, job.everyMs);
+    schedule(job, nextDelay(job));
     return;
   }
   const run: JobRun = { startedAt: new Date(d.now()).toISOString(), finishedAt: null, ok: null, summary: null };
@@ -202,7 +208,7 @@ export async function tick(job: JobState): Promise<void> {
     d.log(`[jobs] ${job.name} FAILED: ${run.summary}`);
   } finally {
     run.finishedAt = new Date(d.now()).toISOString();
-    schedule(job, job.everyMs);
+    schedule(job, nextDelay(job));
   }
 }
 
@@ -234,7 +240,7 @@ export function startJobScheduler(deps: SchedulerDeps = {}): JobsSnapshot {
   if (enabled) {
     const initial = deps.initialDelayMs ?? 30_000;
     const stagger = deps.staggerMs ?? 10_000;
-    s.jobs.forEach((job, i) => schedule(job, job.name === "provisioning-poll" ? initial : initial + i * stagger));
+    s.jobs.forEach((job, i) => schedule(job, job.def.nextDelayMs ? nextDelay(job) : job.name === "provisioning-poll" ? initial : initial + i * stagger));
     activeDeps.log(`[jobs] scheduler on (${reason}): ${s.jobs.map((j) => `${j.name}/${j.everyMs}ms`).join(", ")}`);
   } else {
     activeDeps.log(`[jobs] scheduler off (${reason})`);

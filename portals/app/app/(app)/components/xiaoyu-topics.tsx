@@ -42,9 +42,15 @@ type Feed = {
   scope: "mine" | "all";
   scanned: number;
   dataAvailable: boolean;
-  daily?: {date:string;generatedAt:string;revalidatedAt:string;changes:number}|null;
+  daily?: {date:string;generatedAt:string;revalidatedAt:string;changes:number;nextScheduledAt?:string;reused?:boolean}|null;
+  pendingUpdate?: boolean;
   observedAt?: string;
 };
+function businessRecordHref(finding: Judgement) {
+  if (finding.subjectType === "team") return "/planning";
+  const module = finding.subjectType === "opportunity" ? "pipeline" : "account";
+  return `/${module}/${finding.subjectId}`;
+}
 export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   readonly compact?: boolean;
   readonly onDiscuss?: () => void;
@@ -55,41 +61,65 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   const scopeLabels: Record<string, string> = { auto: T.defaultScope, mine: T.mine, all: T.all };
   const params = useSearchParams();
   const { client, notesDirty, busy } = useXiaoyu();
-  const [feed, setFeed] = useState<Feed | null>(null),
+  const [storedFeed, setStoredFeed] = useState<Feed | null>(null),
+    [loadedScope, setLoadedScope] = useState<string | null>(null),
+    [loading, setLoading] = useState(true),
     [scope, setScope] = useState(() => ["mine", "all"].includes(params.get("scope") ?? "") ? params.get("scope")! : "auto"),
     [expanded, setExpanded] = useState(false),
     [error, setError] = useState(false),
     [pending, setPending] = useState(false);
-  const generation = useRef(0);
-  const load = useCallback(async () => {
+  const generation = useRef(0), requestBusy = useRef(false), actionBusy = useRef(false), queuedChange = useRef(false);
+  const lastCheck = useRef(0), controller = useRef<AbortController | null>(null);
+  const feed = loadedScope === scope ? storedFeed : null;
+  const load = useCallback(async (reason: "initial" | "manual" | "activation" | "poll" | "action" = "manual"): Promise<void> => {
+    if (requestBusy.current || (actionBusy.current && reason !== "action")) {
+      if (reason === "action") queuedChange.current = true;
+      return;
+    }
+    if ((reason === "activation" || reason === "poll") && Date.now() - lastCheck.current < 60000) return;
     const request = ++generation.current;
+    const abort = new AbortController(); controller.current = abort;
+    requestBusy.current = true; setLoading(true);
+    const params = new URLSearchParams(scope === "auto" ? {} : { scope });
+    const read = async (snapshot: boolean) => {
+      if (snapshot) params.set("mode", "snapshot"); else params.delete("mode");
+      const r = await fetch(`/api/copilot/topics?${params}`, { cache: "no-store", signal: abort.signal });
+      if (!r.ok) throw new Error();
+      return await r.json() as Feed;
+    };
     try {
-      const r = await fetch(
-        `/api/copilot/topics${scope !== "auto" ? `?scope=${scope}` : ""}`,
-        { cache: "no-store" },
-      );
-      if (!r.ok) throw Error();
-      const value = (await r.json()) as Feed;
-      if (request === generation.current) {
-        setFeed(value);
-        setError(false);
+      let value = await read(reason === "initial");
+      if (request !== generation.current) return;
+      setStoredFeed(value); setLoadedScope(scope); setError(false);
+      if (value.pendingUpdate) {
+        value = await read(false);
+        if (request !== generation.current) return;
+        setStoredFeed(value);
       }
+      lastCheck.current = Date.now();
     } catch {
+      if (request === generation.current && !abort.signal.aborted) {
+        setStoredFeed(null); setError(true);
+      }
+    } finally {
       if (request === generation.current) {
-        setFeed(null);
-        setError(true);
+        requestBusy.current = false; setLoading(false);
+        if (queuedChange.current) { queuedChange.current = false; void load("action"); }
       }
     }
   }, [scope]);
   useEffect(() => {
-    void load();
-    const focus = () => void load();
+    setError(false); void load("initial");
+    const focus = () => { if (document.visibilityState === "visible") void load("activation"); };
+    const changed = () => void load("action");
     window.addEventListener("focus", focus);
-    const timer = setInterval(focus, 30000);
+    document.addEventListener("visibilitychange", focus);
+    window.addEventListener("yucer:business-updated", changed);
+    const timer = setInterval(() => { if (document.visibilityState === "visible") void load("poll"); }, 5 * 60000);
     return () => {
-      generation.current++;
-      window.removeEventListener("focus", focus);
-      clearInterval(timer);
+      generation.current++; controller.current?.abort(); requestBusy.current = false; queuedChange.current = false;
+      window.removeEventListener("focus", focus); document.removeEventListener("visibilitychange", focus);
+      window.removeEventListener("yucer:business-updated", changed); clearInterval(timer);
     };
   }, [load]);
   const act = async (
@@ -97,7 +127,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
     action: "discuss" | "process" | "verify" | "snooze",
   ) => {
     const request = generation.current;
-    setPending(true);
+    setPending(true); actionBusy.current = true;
     setError(false);
     try {
       let topicId = row.topicId,
@@ -111,7 +141,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
             scope: feed!.scope,
           }),
         });
-        if (!r.ok) throw Error();
+        if (!r.ok) throw new Error();
         const opened = await r.json();
         if (request !== generation.current) return;
         if (action === "discuss") {
@@ -123,7 +153,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
           `/api/copilot/topics?scope=${feed!.scope}`,
           { cache: "no-store" },
         );
-        if (!refreshed.ok) throw Error();
+        if (!refreshed.ok) throw new Error();
         const next = (await refreshed.json()) as Feed,
           current = next.judgements.find(
             (j) => j.finding.id === row.finding.id,
@@ -131,13 +161,13 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         topicId = current?.topicId ?? null;
         revision = current?.revision ?? null;
       }
-      if (!topicId || !revision) throw Error();
+      if (!topicId || !revision) throw new Error();
       const r = await fetch(`/api/copilot/topics/${topicId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, revision }),
       });
-      if (!r.ok) throw Error();
+      if (!r.ok) throw new Error();
       const result = await r.json();
       if (
         request === generation.current &&
@@ -145,21 +175,28 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         result.stillPresent
       )
         setError(true);
-      await load();
+      await load("action");
     } catch {
       if (request === generation.current) setError(true);
     } finally {
-      setPending(false);
+      setPending(false); actionBusy.current = false;
     }
   };
   const active = feed?.judgements.filter(row => !row.absent && row.status !== "verified") ?? [];
   const counts = { today: active.filter(r => r.finding.urgency === "today").length, week: active.filter(r => r.finding.urgency === "week").length, watch: active.filter(r => r.finding.urgency === "watch").length };
   const verify = feed?.judgements.filter(row => row.status !== "verified" && (row.absent || row.finding.source === "model" || row.finding.freshness?.stale || row.finding.id.startsWith("target-data:"))) ?? [];
+  let emptyText: string = T.loading;
+  if (feed) emptyText = T.insufficient;
+  if (feed?.pendingUpdate) emptyText = T.updating;
+  if (error) emptyText = T.unavailable;
+  const summary = feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : emptyText;
+  const pace = feed?.dataAvailable ? H.dailyPace(counts.today, counts.week, counts.watch) : emptyText;
+  const hypotheses = feed?.dataAvailable ? H.noHypotheses : emptyText;
   return (
     <section
       className={daily ? styles.todayTopics : "flex flex-col gap-sm"}
       aria-label={daily ? H.today : T.title}
-      data-xiaoyu-topics
+      data-xiaoyu-topics aria-busy={loading}
     >
       {daily ? <header className={`${styles.boardHeader} ${styles.todayHeader}`} data-today-header>
         <h1 className="flex shrink-0 items-center gap-xs text-heading-2"><Icon name="lightbulb" size="sm" />{H.today}</h1>
@@ -181,7 +218,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="icon-xl" variant="ghost" onClick={() => void load()} aria-label={T.refresh}><Icon name="refresh" size="sm" /></Button>
+          <Button size="icon-xl" variant="ghost" onClick={() => void load("manual")} disabled={loading || pending} title={T.refreshHint} aria-label={T.refresh}><Icon name="refresh" size="sm" className={loading ? "animate-spin" : undefined} /></Button>
         </div>
       </header> : <div className="flex flex-wrap items-center gap-sm">
         {!compact ? <><Icon name="sparkles" size="sm" /><h2 className="text-heading-3">{T.title}</h2></> : null}
@@ -201,10 +238,10 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         <Button
           size="icon-xl"
           variant="ghost"
-          onClick={() => void load()}
+          onClick={() => void load("manual")} disabled={loading || pending} title={T.refreshHint}
           aria-label={T.refresh}
         >
-          <Icon name="refresh" size="sm" />
+          <Icon name="refresh" size="sm" className={loading ? "animate-spin" : undefined} />
         </Button>
       </div>}
       <div className={daily ? styles.boardScroll : "contents"} data-today-content={daily || undefined}>
@@ -212,13 +249,16 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
       {daily && !error ? <>
         <div className={styles.dailySummary} data-daily-summary>
           <h2 className="flex items-center gap-xs text-label"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
-          <p className="text-body text-muted-foreground" title={feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}>{feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : T.insufficient}</p>
+          <p className="text-body text-muted-foreground" role="status" aria-live="polite" title={summary}>
+            {summary}
+          </p>
+          {feed && (loading || feed.pendingUpdate) ? <span className="shrink-0 text-body-small text-muted-foreground" data-judgement-updating><Icon name="refresh" size="xs" className="animate-spin inline-block mr-xs" />{feed.pendingUpdate ? T.updating : T.checking}</span> : null}
           {feed?.daily === null ? <span className="shrink-0 text-warning-text" title={H.dailyUnavailable}><Icon name="info" size="sm" aria-label={H.dailyUnavailable} /></span> : null}
-          {feed?.observedAt ? <time dateTime={feed.observedAt} title={`${H.summaryAt} ${new Date(feed.observedAt).toLocaleString(locale)}`}>{new Date(feed.observedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false })}</time> : null}
+          {feed?.daily?.revalidatedAt ? <time dateTime={feed.daily.revalidatedAt} title={`${H.summaryAt} ${new Date(feed.daily.revalidatedAt).toLocaleString(locale, { timeZone: "Asia/Shanghai", timeZoneName: "short" })} / ${T.scheduleHint}`}>{new Date(feed.daily.revalidatedAt).toLocaleTimeString(locale, { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hour12: false })}</time> : null}
         </div>
         <h2 className="flex items-center gap-xs text-heading-3"><Icon name="lightbulb" size="sm" />{H.priorities}</h2>
       </> : null}
-      {!error && feed?.judgements.length === 0 ? (
+      {!error && feed?.judgements.length === 0 && !feed.pendingUpdate ? (
         <p className="text-body text-muted-foreground">
           {feed.dataAvailable ? T.none : T.insufficient}
         </p>
@@ -264,19 +304,24 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
               {!row.absent ? <CollapsibleTrigger asChild><Button size="md" variant="ghost" className={styles.evidenceTrigger} data-judgement-evidence>
                 {T.evidence}<Icon name="chevron-down" size="xs" className={styles.evidenceChevron} />
               </Button></CollapsibleTrigger> : null}
+              <Button size="md" variant="outline" asChild className={styles.evidenceSource}>
+                <Link data-judgement-evidence-link href={businessRecordHref(row.finding)}>
+                  <Icon name="external-link" size="xs" />{T.source}
+                </Link>
+              </Button>
               <div className={styles.findingActions} data-judgement-actions>
               {!row.absent ? (
                 <>
                   <Button
                     size="md"
                     variant="secondary"
-                    disabled={pending || busy || notesDirty}
+                    disabled={pending || busy || notesDirty || !!feed?.pendingUpdate}
                     onClick={() => void act(row, "discuss")}
                   >
                     {T.discuss}
                   </Button>
-                  <Button size="md" variant="ghost" disabled={pending} onClick={() => void act(row, "process")}>{T.process}</Button>
-                  <Button size="md" variant="ghost" disabled={pending} onClick={() => void act(row, "verify")}>{T.verify}</Button>
+                  <Button size="md" variant="ghost" disabled={pending || !!feed?.pendingUpdate} onClick={() => void act(row, "process")}>{T.process}</Button>
+                  <Button size="md" variant="ghost" disabled={pending || !!feed?.pendingUpdate} onClick={() => void act(row, "verify")}>{T.verify}</Button>
                 </>
               ) : null}
               <DropdownMenu>
@@ -289,7 +334,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
                   {row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "verify")}>
                     <Icon name="check-circle" size="sm" />{T.verify}
                   </DropdownMenuItem> : null}
-                  {!row.absent ? <DropdownMenuItem disabled={pending} onSelect={() => void act(row, "snooze")}>
+                  {!row.absent ? <DropdownMenuItem disabled={pending || !!feed?.pendingUpdate} onSelect={() => void act(row, "snooze")}>
                     <Icon name="pause" size="sm" />{T.snooze}
                   </DropdownMenuItem> : null}
                 </DropdownMenuContent>
@@ -297,24 +342,23 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
               </div>
             </div>
             {!row.absent ? <CollapsibleContent className={styles.findingEvidence} data-judgement-evidence-content>
-                <p className="mt-sm text-muted-foreground">
-                  {row.finding.rule}
-                </p>
-                {row.finding.citations.map((c, i) => (
-                  <p key={i} className="mt-xs whitespace-pre-wrap break-words">
-                    {c.text}
-                  </p>
-                ))}
-                <Link
-                  data-judgement-evidence-link className="mt-sm inline-block text-primary"
-                  href={
-                    row.finding.subjectType === "team"
-                      ? "/planning"
-                      : `/${row.finding.subjectType === "opportunity" ? "pipeline" : "account"}/${row.finding.subjectId}`
-                  }
-                >
-                  {T.source}
-                </Link>
+                <div className={styles.evidenceRule}>
+                  <span className="flex items-center gap-xs text-label"><Icon name="list-checks" size="sm" />{T.triggerRule}</span>
+                  <p className="text-body text-muted-foreground">{row.finding.rule || T.structuralBasis}</p>
+                </div>
+                <div className={styles.evidenceRecords}>
+                  <h3 className="text-label">{T.recordedEvidence}</h3>
+                  {row.finding.citations.length ? row.finding.citations.map(c => (
+                    <div key={`${c.kind}:${c.ref ?? c.text}`} className={styles.evidenceRecord}>
+                      <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
+                        <span>{T.evidenceKinds[c.kind]}</span>
+                        {c.when ? <time dateTime={new Date(c.when).toISOString()}>{c.kind === "commitment" ? `${T.dueAt} ` : ""}{new Date(c.when).toLocaleDateString(locale, { timeZone: "Asia/Shanghai" })}</time> : null}
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-body">{c.text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi, T.recordReference)}</p>
+                    </div>
+                  )) : <p className="text-body text-muted-foreground">{T.structuralBasis}</p>}
+                </div>
+                <p className="text-body-small text-muted-foreground">{T.evidenceHint}</p>
             </CollapsibleContent> : null}
             </Collapsible>
             </div>
@@ -331,9 +375,9 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         </Button>
       ) : null}
       {daily ? <div className="grid gap-sm lg:grid-cols-2">
-        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><div className={styles.summaryCardContent}><p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyPace(counts.today,counts.week,counts.watch) : T.insufficient}</p></div></Card>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><div className={styles.summaryCardContent}><p className="text-body text-muted-foreground">{pace}</p></div></Card>
         <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2><div className={styles.summaryCardContent}>
-          {verify.length ? <ul className="flex flex-col gap-xs text-body">{verify.slice(0,3).map(row=><li key={row.finding.id} className="line-clamp-2">{row.finding.subjectName}{": "}{row.absent ? T.pendingVerification : row.finding.claim}</li>)}</ul> : <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.noHypotheses : T.insufficient}</p>}
+          {verify.length ? <ul className="flex flex-col gap-xs text-body">{verify.slice(0,3).map(row=><li key={row.finding.id} className="line-clamp-2">{row.finding.subjectName}{": "}{row.absent ? T.pendingVerification : row.finding.claim}</li>)}</ul> : <p className="text-body text-muted-foreground">{hypotheses}</p>}
           <p className="text-body-small text-muted-foreground">{H.hypothesisHint}</p>
         </div></Card>
       </div> : null}

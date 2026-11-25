@@ -32,14 +32,16 @@ const store:BaselineStore={
   if(!local.has(key))local.set(key,value);
   return local.get(key)!;
 }};
-/** Only fingerprints persist; every delivered word and number comes from a
- * fresh authorized feed. A permission/scope change creates another baseline. */
-export async function dailyJudgementBaseline(owner:{workspaceId:string;sub:string;accessVersion:string}, feed:TopicFeed, now=new Date(), persistence:BaselineStore=store) {
-  const current:DailyBaseline={version:"daily-judgement/1",date:businessDate(now),generatedAt:now.toISOString(),findings:feed.judgements.map(j=>({id:hash(j.id),version:judgementVersion(j)}))};
+/** This ordering baseline stores fingerprints only. Full private results live
+ * in scheduled-feed and require current access and source revision checks. */
+export async function dailyJudgementBaseline(owner:{workspaceId:string;sub:string;accessVersion:string}, feed:TopicFeed, now=new Date(), persistence:BaselineStore=store, date=businessDate(now)) {
+  const current:DailyBaseline={version:"daily-judgement/1",date,generatedAt:now.toISOString(),findings:feed.judgements.map(j=>({id:hash(j.id),version:judgementVersion(j)}))};
   const baseline=await persistence.ensure(dailyKey(owner.workspaceId,owner.sub,feed.scope,owner.accessVersion,current.date),current);
   const originals=new Map(baseline.findings.map((j,i)=>[j.id,{...j,position:i}]));
-  const ordered=[...feed.judgements].sort((a,b)=>(originals.get(hash(a.id))?.position??Infinity)-(originals.get(hash(b.id))?.position??Infinity));
-  const changes=feed.judgements.filter(j=>originals.get(hash(j.id))?.version!==judgementVersion(j)).length;
+  const rank={today:0,week:1,watch:2};
+  const ordered=[...feed.judgements].sort((a,b)=>rank[a.urgency]-rank[b.urgency] || (originals.get(hash(a.id))?.position??Infinity)-(originals.get(hash(b.id))?.position??Infinity));
+  const ids=new Set(current.findings.map(j=>j.id));
+  const changes=feed.judgements.filter(j=>originals.get(hash(j.id))?.version!==judgementVersion(j)).length+baseline.findings.filter(j=>!ids.has(j.id)).length;
   return {date:baseline.date,generatedAt:baseline.generatedAt,revalidatedAt:now.toISOString(),changes,judgements:ordered};
 }
 

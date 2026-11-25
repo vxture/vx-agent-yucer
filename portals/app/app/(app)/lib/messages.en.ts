@@ -123,6 +123,19 @@ export const en: Dictionary = {
   "empty": "No accessible team knowledge. Changed or revoked sources stop being shown."
 },
   XIAOYU_TOPICS: {
+  loading: "Loading judgements...",
+  checking: "Checking for updates",
+  updating: "Updating results",
+  refreshHint: "Check business changes; keep current judgements if nothing changed",
+  scheduleHint: "Daily report at 08:00 China Standard Time; update when business records change",
+  triggerRule: "Trigger condition",
+  dueAt: "Due date",
+  recordedEvidence: "Recorded evidence",
+  structuralBasis: "Based on the current visible structure and record state. A missing record does not prove an event never happened.",
+  evidenceHint: "Only records supporting this finding are listed. Unrecorded information is not treated as fact.",
+  recordReference: "Related business record",
+  evidenceKinds: {"interaction": "Interaction", "commitment": "Commitment", "structure": "Business structure", "metric": "Calculation"},
+
   todayShort: "Today", weekShort: "Week", watchShort: "Watch",
   "moreActions": "More actions",title:"Today's judgement",scopeHint:"Rule calculated; visible data only",scope:"Scope",defaultScope:"Default scope",mine:"My accounts",all:"Visible scope",refresh:"Refresh",unavailable:"Evidence changed or could not be verified. Refresh before checking the result.",none:"No findings in the current scope.",insufficient:"Insufficient data to make a judgement.",today:"Today",week:"This week",watch:"Monitor",open:"Open",processing:"In progress",evidence:"View evidence",source:"View business record",discuss:"Discuss with Xiaoyu",process:"Start handling",verify:"Verify result",snooze:"Snooze seven days",less:"Show fewer",more:"Show other findings",verified:"Verified",pendingVerification:"Awaiting verification",noLongerTriggered:"The rule no longer fires. Verify the business result."},
   XIAOYU_EXECUTION:{failureReasons:{"duplicate_customer": "A customer with this name or registration code already exists. Review the existing record.", "invalid_form_configuration": "Configuration options changed. Review the form again.", "invalid_form_fields": "Complete or correct the form before retrying.", "source_changed": "The business source changed. Review and prepare a new step.", "permission_denied": "Your current permissions do not allow this operation."},prepareAll:"Prepare all saves",selectAll:"Select pending steps","continue":"Continue from receipt","failed":"Failed; check before retrying","title": "Execution steps", "prepare": "Prepare save", "publish": "Prepare publish", "grant": "Authorize and run", "execute": "Run authorized steps", "confirm": "I reviewed these forms and confirm the selected steps", "scope": "Authorization covers only the selected form versions for 15 minutes; business permissions still apply.", "refresh": "Check execution results", "revoke": "Revoke authorization", "pending": "Pending", "succeeded": "Completed", "result_unavailable": "Result unavailable", "open": "View business record", "error": "The submission response was interrupted. Check the execution receipts.", "save": "Save", "publishing": "Publishing changes the effective business version. Review before confirming.", "confirmPublish": "Confirm publish", "unknown": "Execution results could not be verified. Check again shortly.", "mode": "Authorization mode", "ask_always": "Confirm each action", "ask_high_risk": "Standard authorization", "autonomous": "Full authorization", "resume": "Reload the persisted list after an interruption to resume unfinished steps.", "partial": "Some steps did not complete. Check receipts before continuing.",

@@ -9,8 +9,8 @@
 //
 //   rule  - computed here, deterministically, from rows. A reader can recompute
 //           it. It carries its own trigger condition so they can check the
-//           arithmetic rather than trust it. Costs nothing, so it runs on every
-//           load.
+//           arithmetic rather than trust it. Uses no model; the daily feed
+//           reuses results until business data or the reporting day changes.
 //   model - produced by Atlas from the same evidence. A reader CANNOT recompute
 //           it; the only check available is whether the quotes it cites really
 //           say what it claims. It costs money, so it is never produced
@@ -371,7 +371,12 @@ export function deriveJudgements(
             ? [{ label: "", value: money, tone: "neutral" as const }]
             : []),
         ],
-        citations: a.notes.slice(0, 3).map((n) => note(n, now)),
+        citations: [
+          ...[...theirOverdue].sort((x, y) => x.dueAt.getTime() - y.dueAt.getTime()).slice(0, 3).map(c => ({
+            kind: "commitment" as const, ref: c.id, when: c.dueAt, text: c.statement,
+          })),
+          ...a.notes.slice(0, 2).map(n => note(n, now)),
+        ],
         facts: [
           { label: "最近接触", value: `${quiet} 天前`, tone: "danger" },
           {
