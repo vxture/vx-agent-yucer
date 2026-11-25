@@ -8,9 +8,9 @@
 // sets header size and spacing, never colours, and each is removed
 // when the DS follows the ladder (TD-037).
 
-/** Product name 18px, descriptor 16px; tier shares their vertical center. */
+/** Product name and descriptor share 18px; tier keeps their vertical center. */
 export const PRODUCT_TITLE_ON_LADDER =
-  "gap-[calc(var(--vx-spacing)*2)] [&>img]:size-icon-xl [&>span.font-brand]:text-lg [&>span.text-xl:not(.font-brand)]:text-base [&>[data-slot=header-superscript]]:items-center";
+  "gap-[calc(var(--vx-spacing)*2)] [&>img]:size-icon-xl [&>span.font-brand]:text-lg [&>span.text-xl:not(.font-brand)]:text-lg [&>[data-slot=header-superscript]]:items-center";
 
 /** A 32px hit area does not dictate the glyph size. */
 export const HEADER_ICON_CONTROL = "size-control-xl";
