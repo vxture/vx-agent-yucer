@@ -39,6 +39,19 @@ test("multibyte excerpts and long public URLs fit the database byte ceiling",()=
   assert.ok(a.research.length>0&&a.research.length<20);
   assert.equal(readTaskArtifacts(a),a);
 });
+test("excerpt and metadata limits preserve PostgreSQL-compatible Unicode",()=>{
+  const source="x".repeat(1499)+"\ud83d\ude80",metadata="x".repeat(255)+"\ud83d\ude80";
+  const a=taskArtifacts({totalTokens:1,toolRounds:1,truncated:false,
+    readEvidence:[{id:metadata,content:source,capabilityId:metadata,operation:"read\u0000",callId:"\ud800",versionResolved:"\udc00"},{id:"read-1-2",content:"\ud83d\ude80\u0000ok"}],
+    invocations:[{capabilityId:metadata,operation:metadata,callId:metadata,versionResolved:metadata,ok:true}],
+  } as unknown as TurnResult,Date.now());
+  assert.equal(a.research[0]!.excerpt,"x".repeat(1499)+"\ufffd");
+  assert.equal(a.research[1]!.excerpt,"\ud83d\ude80\ufffdok");
+  for(const row of [...a.research,...a.calls])for(const value of Object.values(row))if(typeof value==="string"){
+    assert.ok(value.isWellFormed());assert.doesNotMatch(value,/\u0000/);
+  }
+  assert.equal(readTaskArtifacts(a),a);
+});
 test("field review compares nested proposed fields with server baseline and keeps human protection",()=>{
   const first={...mergeForm(null,"segment",null,{name:"GIS",criteria:{customerNeed:"Old",buyingScenario:"Same"}}),baseline:{name:"Saved",criteria:{customerNeed:"Old",buyingScenario:"Same"}}};
   const human=mergeForm(first,"segment",null,{criteria:{customerNeed:"Human correction"}},true);
