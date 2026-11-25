@@ -79,6 +79,7 @@ function NativePlanningVersionPanel({
   legacyIds,
   legacyCompanyIds,
   initialRevision,
+  initialPreview = false,
   initialRegion,
   initialPeriod,
 }: {
@@ -91,6 +92,7 @@ function NativePlanningVersionPanel({
   legacyIds: string[];
   legacyCompanyIds: string[];
   initialRevision?: string;
+  initialPreview?: boolean;
   initialRegion?: string;
   initialPeriod?: string;
 }) {
@@ -144,6 +146,7 @@ function NativePlanningVersionPanel({
   }, [plan, state.scheduled, now, router]);
   // A saved draft is an explicit editing session, never the daily landing view.
   const [view, setView] = useState(initialRevision ?? "current");
+  const [draftPreview, setDraftPreview] = useState(initialPreview);
   const revision =
     view === "current"
       ? state.current
@@ -157,14 +160,14 @@ function NativePlanningVersionPanel({
     !!state.draft &&
     revision?.id === state.draft.id &&
     canEdit &&
-    !state.closed;
+    !state.closed && !draftPreview;
   const c = editing
     ? (content ?? state.draft!.content)
     : (revision?.content ?? previewContent);
   const companyEditing = editing && c?.releaseScope === "company";
   const regionalEditing = editing && c?.releaseScope === "regions";
   const companyRevision =
-    plan && revision?.state === "sealed"
+    plan && revision
       ? companyPlanningRevision(plan, revision)
       : plan && state.current
         ? companyPlanningRevision(plan, state.current)
@@ -189,8 +192,9 @@ function NativePlanningVersionPanel({
   );
   useEffect(() => {
     setView(initialRevision ?? "current");
+    setDraftPreview(initialPreview);
     setRegionId(initialRegion ?? null);
-  }, [initialRevision, initialRegion]);
+  }, [initialRevision, initialRegion, initialPreview]);
   const [reason, setReason] = useState("");
   const [effective, setEffective] = useState("");
   const [when, setWhen] = useState("immediate");
@@ -288,7 +292,7 @@ function NativePlanningVersionPanel({
   };
   const run = (
     command: PlanCommand,
-    afterSave?: "publish" | "browse" | "check",
+    afterSave?: "publish" | "browse" | "check" | "preview",
   ) => {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -319,10 +323,11 @@ function NativePlanningVersionPanel({
           setContent(s.draft?.content ?? null);
           const nextView = (command.kind === "draft" || command.kind === "save") && afterSave !== "browse" ? (s.draft?.id ?? "current") : "current";
           setView(nextView);
+          setDraftPreview(afterSave === "preview");
           const nextContent = nextView === "current" ? s.current?.content : s.draft?.content;
           const nextRegion = nextContent?.releaseScope !== "company" && nextContent?.regions.some(r => r.id === regionId) ? regionId : null;
           setRegionId(nextRegion);
-          window.history.replaceState(null, "", planningHref({ year, revision: nextView, region: nextRegion, period: initialPeriod }));
+          window.history.replaceState(null, "", planningHref({ year, revision: nextView, region: nextRegion, period: initialPeriod, preview: afterSave === "preview" }));
         }
         setMessage(command.kind === "save" ? T.saved : T.done);
         setConfirm(null);
@@ -337,14 +342,16 @@ function NativePlanningVersionPanel({
       }
     });
   };
-  const choose = (value: string) => {
+  const choose = (value: string, editDraft = false) => {
     if (dirty) {
       setError(T.saveFirst);
       return false;
     }
     setView(value);
+    const preview = value === state.draft?.id && !editDraft;
+    setDraftPreview(preview);
     const targetRevision = value === "baseline" ? state.baseline?.id : value;
-    window.history.replaceState(null, "", planningHref({ year, revision: targetRevision }));
+    window.history.replaceState(null, "", planningHref({ year, revision: targetRevision, preview }));
     setError("");
     setMessage("");
     setRegionId(null);
@@ -352,7 +359,7 @@ function NativePlanningVersionPanel({
   };
   const selectRegion = (id: string | null) => {
     setRegionId(id);
-    window.history.replaceState(null, "", planningHref({ year, revision: view === "baseline" ? state.baseline?.id : view, region: id, period: initialPeriod }));
+    window.history.replaceState(null, "", planningHref({ year, revision: view === "baseline" ? state.baseline?.id : view, region: id, period: initialPeriod, preview: draftPreview }));
   };
   const metricName: Record<string, string> = {
     revenue: P.metricRevenue,
@@ -561,6 +568,8 @@ function NativePlanningVersionPanel({
               <StatusBadge tone="warning">
                 {dirty ? T.dirty : draftStateLabel}
               </StatusBadge>
+            ) : revision?.state === "draft" ? (
+              <StatusBadge tone="warning">{T.previewDraft}</StatusBadge>
             ) : revision ? (
               <StatusBadge tone="info">
                 {T.published} V{revision.version}
@@ -604,12 +613,12 @@ function NativePlanningVersionPanel({
                   .filter(
                     (r) =>
                       r.state === "sealed" ||
-                      (editing && r.id === state.draft?.id),
+                      (canEdit && r.id === state.draft?.id),
                   )
                   .map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.state === "draft"
-                        ? T.draft
+                        ? T.previewDraft
                         : `V${r.version} · ${r.id === state.scheduled?.id ? T.scheduled : T.snapshot}`}
                     </option>
                   ))}
@@ -663,6 +672,10 @@ function NativePlanningVersionPanel({
                   {T.planRegions}
                 </PageActionButton>
               ) : null}
+              {editing ? <PageActionButton disabled={pending} onClick={() => {
+                if (dirty) run({ kind: "save", revisionId: state.draft!.id, editToken: state.draft!.editToken, content: c! }, "preview");
+                else choose(state.draft!.id);
+              }}>{dirty ? T.savePreviewDraft : T.previewDraft}</PageActionButton> : null}
               {editing ? (
                 <PageActionButton
                   disabled={pending || !dirty}
@@ -685,7 +698,7 @@ function NativePlanningVersionPanel({
               {canEdit && !editing && !state.closed ? (
                 state.draft || state.current ? (
                   <PageActionButton intent="primary" disabled={pending} onClick={() =>
-                    state.draft ? choose(state.draft.id) : run({
+                    state.draft ? choose(state.draft.id, true) : run({
                       kind: "draft",
                       content: {} as PlanContent,
                       scope: "company",
@@ -763,6 +776,7 @@ function NativePlanningVersionPanel({
           </Button>
         </p>
       ) : null}
+      {draftPreview && revision?.state === "draft" ? <p className="text-body-small text-muted-foreground" role="note">{T.previewDraftHint}</p> : null}
       {!revision && !editing ? (
         <EmptyState title={W.noPublication} description={state.draft ? W.draftAvailable : W.noPublicationHint} />
       ) : (
@@ -846,7 +860,7 @@ function NativePlanningVersionPanel({
 
                 {!currentRegion && companyRevision ? (
                   <StatusBadge tone={companyEditing ? "warning" : "info"}>
-                    {companyEditing ? T.draft : `${T.published} V${companyRevision.version}`}
+                    {revision?.state === "draft" && c.releaseScope === "company" ? (draftPreview ? T.previewDraft : T.draft) : `${T.published} V${companyRevision.version}`}
                   </StatusBadge>
                 ) : null}
                 {currentRegion ? (
@@ -934,7 +948,7 @@ function NativePlanningVersionPanel({
               </p>
             )}
           </Section>
-          {companyEditing ? null : currentRegion ? (
+          {revision?.state === "draft" && c.releaseScope === "company" ? null : currentRegion ? (
             currentRegion.included ? (
               <PlanSupport
                 key={currentRegion.id}
@@ -954,7 +968,7 @@ function NativePlanningVersionPanel({
               onSelect={selectRegion}
               basis={regionalEditing && companyRevision ? <span className="text-body-small text-muted-foreground">{R.basis} V{companyRevision.version}</span> : regionalBasis ? <span className="text-body-small text-muted-foreground">{W.regionalBasis} V{regionalBasis.version}</span> : undefined}
               onAttainment={
-                !editing
+                !editing && revision?.state === "sealed"
                   ? (id) =>
                       router.push(
                         attainmentHref({

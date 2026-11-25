@@ -5,11 +5,12 @@ const readMinor = (value: string | null | undefined) => {
   try { return value == null ? null : minor(value); } catch { return null; }
 };
 const signed = (value: bigint) => value < 0n ? `-${amount(-value)}` : amount(value);
-export function planningHref({ year, revision, region, period }: {
-  year: number; revision?: string; region?: string | null; period?: string;
+export function planningHref({ year, revision, region, period, preview }: {
+  year: number; revision?: string; region?: string | null; period?: string; preview?: boolean;
 }) {
   const query = new URLSearchParams({ year: String(year) });
   if (revision && revision !== "current") query.set("revision", revision);
+  if (preview && revision && revision !== "current") query.set("preview", "1");
   if (region) query.set("region", region);
   if (period) query.set("period", period);
   return `/planning?${query}`;

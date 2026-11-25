@@ -221,3 +221,12 @@ test("dates roll to the actual year and quarter, including January and a new cal
     );
   }
 });
+
+test("local planning provides several published strategy choices without pre-accepting them", async () => {
+  const stores = await setup();
+  const sources = (await stores.strategy.listPlans(WS)).filter(p => p.publishedSnapshot && p.expectations?.length);
+  assert.equal(sources.length, 3);
+  assert.equal(new Set(sources.map(p => p.lineageId)).size, 3);
+  const current = planVersions((await stores.plans.read(WS, 2026))!, "2026-11-12T12:00:00Z").current!;
+  assert.equal(new Set(current.content.strategyAcceptances!.map(x => x.strategyId)).size, 1);
+});

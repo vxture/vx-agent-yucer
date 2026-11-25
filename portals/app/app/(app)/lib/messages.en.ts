@@ -533,6 +533,7 @@ export const en: Dictionary = {
   "allPeriods": "Period breakdown"
 },
   STRATEGY_HANDOFF_TEXT: {
+    multiStrategyHelp: "Select metrics across strategies. Expand to adjust amounts, owners and notes. Apply selections, then save the planning draft.", applySelection: "Apply selected commitments", selectStrategy: "Select strategy", selectedSummary: (strategies: number, metrics: number) => `${strategies} strategies selected \u00b7 ${metrics} metrics`,
   batchHint: "Edit targets together; switching strategy retains changes",
   strategyCount: "strategies",
   expand: "Expand strategy alignment",
@@ -634,6 +635,7 @@ export const en: Dictionary = {
   },
   PLAN_VERSION_TEXT: {
     ...zh.PLAN_VERSION_TEXT,
+    previewDraft: "Preview draft", savePreviewDraft: "Save and preview", previewDraftHint: "Previewing the saved, unpublished draft. Continue editing to make changes. The effective version remains unchanged.",
     publishCompany: "Publish company plan",
     publishRegions: "Publish regional plan",
     planRegions: "Plan regions",
