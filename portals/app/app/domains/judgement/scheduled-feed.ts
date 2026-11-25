@@ -42,7 +42,7 @@ const persistence: FeedSnapshotStore = {
       if (value.version !== "judgement-feed/1") return null;
       return value;
     }
-    if (isDeployedStage()) throw Error("judgement_snapshot_unavailable");
+    if (isDeployedStage()) throw new Error("judgement_snapshot_unavailable");
     return memory.get(key) ?? null;
   },
   async write(key, value) {
@@ -51,13 +51,13 @@ const persistence: FeedSnapshotStore = {
       await redis.set(key, JSON.stringify(value), "EX", 3 * 86400);
       return;
     }
-    if (isDeployedStage()) throw Error("judgement_snapshot_unavailable");
+    if (isDeployedStage()) throw new Error("judgement_snapshot_unavailable");
     if (memory.size > 1000) memory.clear();
     memory.set(key, value);
   },
   async acquire(key) {
     if (!process.env.REDIS_URL) {
-      if (isDeployedStage()) throw Error("judgement_snapshot_unavailable");
+      if (isDeployedStage()) throw new Error("judgement_snapshot_unavailable");
       return { publish: (value) => persistence.write(key, value), release: async () => {} };
     }
     redis ??= new Redis(process.env.REDIS_URL, { protocol: 2, maxRetriesPerRequest: 1, connectTimeout: 2000 });
@@ -66,7 +66,7 @@ const persistence: FeedSnapshotStore = {
     return {
       async publish(value) {
         const written = await redis!.eval("if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end; redis.call('SET', KEYS[2], ARGV[2], 'EX', 259200); return 1", 2, lockKey, key, token, JSON.stringify(value));
-        if (written !== 1) throw Error("judgement_generation_expired");
+        if (written !== 1) throw new Error("judgement_generation_expired");
       },
       async release() {
         await redis!.eval("if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) end; return 0", 1, lockKey, token);
@@ -102,7 +102,7 @@ const defaults: ScheduledFeedDeps = {
       listPipeline({ ...owner, store: owner.stores?.pipeline() ?? getPipelineStore() }, { includeClosed: true }),
       listTargets({ ...owner, store: getPlanningStore() }),
     ]);
-    if (!accounts.ok) throw Error("topic_feed_unavailable");
+    if (!accounts.ok) throw new Error("topic_feed_unavailable");
     const ids = accounts.value.filter(a => scope === "all" || a.ownerSub === owner.sub).map(a => a.id);
     return { accounts: ids, opportunities: deals.ok ? deals.value.filter(d => ids.includes(d.accountId)).map(d => d.id) : [],
       targets: targets.ok ? targets.value.filter(t => scope === "mine" || owner.allowWorkspaceMetrics === false ? t.scopeType === "owner" && t.ownerSub === owner.sub : t.scopeType === "workspace").map(t => t.id) : [] };
@@ -117,7 +117,7 @@ const inFlight = new Map<string, Promise<Snapshot>>();
 export async function scheduledJudgementFeed(owner: Owner, scope?: Scope, now = new Date(), deps: ScheduledFeedDeps = defaults, mode: "current" | "snapshot" = "current"): Promise<RuleResult<ScheduledFeed>> {
   if (scope === undefined) {
     const accounts = await listAccounts({ ...owner, store: owner.stores?.account() ?? getAccountStore() });
-    if (!accounts.ok) throw Error("topic_feed_unavailable");
+    if (!accounts.ok) throw new Error("topic_feed_unavailable");
     scope = accounts.value.some(account => account.ownerSub === owner.sub) ? "mine" : "all";
   }
   const key = keyFor(owner, scope, now), revision = await deps.revision(owner.workspaceId);
@@ -156,21 +156,21 @@ export async function scheduledJudgementFeed(owner: Owner, scope?: Scope, now = 
             if (lease) break;
             await new Promise(resolve => setTimeout(resolve, 100));
           }
-          if (!lease) throw Error("judgement_generation_busy");
+          if (!lease) throw new Error("judgement_generation_busy");
         }
         try {
         // A replica may have published between our first read and this lease.
         const ready = revision !== null ? await deps.snapshots.read(key) : null;
         if (ready?.dataVersion === revision && ready.daily.date === judgementReportDate(now)) { reused = true; return ready; }
         const result = await deps.feed(owner, { scope, includeSnoozed: true, now });
-        if (!result.ok) throw Error("topic_feed_unavailable");
+        if (!result.ok) throw new Error("topic_feed_unavailable");
         const baseline = await deps.baseline(owner, result.value, now, undefined, judgementReportDate(now));
         const value: Snapshot = { version: "judgement-feed/1", dataVersion: revision ?? "", checkedAt: now.toISOString(), accessObjects: await deps.inventory(owner, scope),
           raw: { ...result.value, judgements: baseline.judgements }, daily: {
             date: judgementReportDate(now), generatedAt: baseline.generatedAt,
             revalidatedAt: now.toISOString(), changes: baseline.changes, nextScheduledAt: nextJudgementAt(now),
           } };
-        if (revision !== await deps.revision(owner.workspaceId)) throw Error("judgement_data_changed");
+        if (revision !== await deps.revision(owner.workspaceId)) throw new Error("judgement_data_changed");
         if (revision !== null) {
           if (lease) await lease.publish(value);
           else await deps.snapshots.write(key, value);
@@ -182,7 +182,7 @@ export async function scheduledJudgementFeed(owner: Owner, scope?: Scope, now = 
     } else reused = true;
     try { snapshot = await pending; } finally { if (inFlight.get(pendingKey) === pending) inFlight.delete(pendingKey); }
   }
-  if (revision !== await deps.revision(owner.workspaceId)) throw Error("judgement_data_changed");
+  if (revision !== await deps.revision(owner.workspaceId)) throw new Error("judgement_data_changed");
   const snoozes = await deps.snoozes(owner.workspaceId, owner.sub, now), rank = { today: 0, week: 1, watch: 2 };
   const visible = snapshot.raw.judgements.filter(j => {
     const old = snoozes.find(row => row.judgementId === j.id);

@@ -46,6 +46,11 @@ type Feed = {
   pendingUpdate?: boolean;
   observedAt?: string;
 };
+function businessRecordHref(finding: Judgement) {
+  if (finding.subjectType === "team") return "/planning";
+  const module = finding.subjectType === "opportunity" ? "pipeline" : "account";
+  return `/${module}/${finding.subjectId}`;
+}
 export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   readonly compact?: boolean;
   readonly onDiscuss?: () => void;
@@ -56,7 +61,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   const scopeLabels: Record<string, string> = { auto: T.defaultScope, mine: T.mine, all: T.all };
   const params = useSearchParams();
   const { client, notesDirty, busy } = useXiaoyu();
-  const [storedFeed, setFeed] = useState<Feed | null>(null),
+  const [storedFeed, setStoredFeed] = useState<Feed | null>(null),
     [loadedScope, setLoadedScope] = useState<string | null>(null),
     [loading, setLoading] = useState(true),
     [scope, setScope] = useState(() => ["mine", "all"].includes(params.get("scope") ?? "") ? params.get("scope")! : "auto"),
@@ -79,22 +84,22 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
     const read = async (snapshot: boolean) => {
       if (snapshot) params.set("mode", "snapshot"); else params.delete("mode");
       const r = await fetch(`/api/copilot/topics?${params}`, { cache: "no-store", signal: abort.signal });
-      if (!r.ok) throw Error();
+      if (!r.ok) throw new Error();
       return await r.json() as Feed;
     };
     try {
       let value = await read(reason === "initial");
       if (request !== generation.current) return;
-      setFeed(value); setLoadedScope(scope); setError(false);
+      setStoredFeed(value); setLoadedScope(scope); setError(false);
       if (value.pendingUpdate) {
         value = await read(false);
         if (request !== generation.current) return;
-        setFeed(value);
+        setStoredFeed(value);
       }
       lastCheck.current = Date.now();
     } catch {
       if (request === generation.current && !abort.signal.aborted) {
-        setFeed(null); setError(true);
+        setStoredFeed(null); setError(true);
       }
     } finally {
       if (request === generation.current) {
@@ -136,7 +141,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
             scope: feed!.scope,
           }),
         });
-        if (!r.ok) throw Error();
+        if (!r.ok) throw new Error();
         const opened = await r.json();
         if (request !== generation.current) return;
         if (action === "discuss") {
@@ -148,7 +153,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
           `/api/copilot/topics?scope=${feed!.scope}`,
           { cache: "no-store" },
         );
-        if (!refreshed.ok) throw Error();
+        if (!refreshed.ok) throw new Error();
         const next = (await refreshed.json()) as Feed,
           current = next.judgements.find(
             (j) => j.finding.id === row.finding.id,
@@ -156,13 +161,13 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         topicId = current?.topicId ?? null;
         revision = current?.revision ?? null;
       }
-      if (!topicId || !revision) throw Error();
+      if (!topicId || !revision) throw new Error();
       const r = await fetch(`/api/copilot/topics/${topicId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, revision }),
       });
-      if (!r.ok) throw Error();
+      if (!r.ok) throw new Error();
       const result = await r.json();
       if (
         request === generation.current &&
@@ -180,6 +185,13 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
   const active = feed?.judgements.filter(row => !row.absent && row.status !== "verified") ?? [];
   const counts = { today: active.filter(r => r.finding.urgency === "today").length, week: active.filter(r => r.finding.urgency === "week").length, watch: active.filter(r => r.finding.urgency === "watch").length };
   const verify = feed?.judgements.filter(row => row.status !== "verified" && (row.absent || row.finding.source === "model" || row.finding.freshness?.stale || row.finding.id.startsWith("target-data:"))) ?? [];
+  let emptyText: string = T.loading;
+  if (feed) emptyText = T.insufficient;
+  if (feed?.pendingUpdate) emptyText = T.updating;
+  if (error) emptyText = T.unavailable;
+  const summary = feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : emptyText;
+  const pace = feed?.dataAvailable ? H.dailyPace(counts.today, counts.week, counts.watch) : emptyText;
+  const hypotheses = feed?.dataAvailable ? H.noHypotheses : emptyText;
   return (
     <section
       className={daily ? styles.todayTopics : "flex flex-col gap-sm"}
@@ -237,8 +249,8 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
       {daily && !error ? <>
         <div className={styles.dailySummary} data-daily-summary>
           <h2 className="flex items-center gap-xs text-label"><Icon name="sun" size="sm" />{H.dailySummary}</h2>
-          <p className="text-body text-muted-foreground" role="status" aria-live="polite" title={feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : feed?.pendingUpdate ? T.updating : feed ? T.insufficient : T.loading}>
-            {feed?.dataAvailable ? H.dailyLead(feed.scanned, active.length) : feed?.pendingUpdate ? T.updating : feed ? T.insufficient : T.loading}
+          <p className="text-body text-muted-foreground" role="status" aria-live="polite" title={summary}>
+            {summary}
           </p>
           {feed && (loading || feed.pendingUpdate) ? <span className="shrink-0 text-body-small text-muted-foreground" data-judgement-updating><Icon name="refresh" size="xs" className="animate-spin inline-block mr-xs" />{feed.pendingUpdate ? T.updating : T.checking}</span> : null}
           {feed?.daily === null ? <span className="shrink-0 text-warning-text" title={H.dailyUnavailable}><Icon name="info" size="sm" aria-label={H.dailyUnavailable} /></span> : null}
@@ -293,7 +305,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
                 {T.evidence}<Icon name="chevron-down" size="xs" className={styles.evidenceChevron} />
               </Button></CollapsibleTrigger> : null}
               <Button size="md" variant="outline" asChild className={styles.evidenceSource}>
-                <Link data-judgement-evidence-link href={row.finding.subjectType === "team" ? "/planning" : `/${row.finding.subjectType === "opportunity" ? "pipeline" : "account"}/${row.finding.subjectId}`}>
+                <Link data-judgement-evidence-link href={businessRecordHref(row.finding)}>
                   <Icon name="external-link" size="xs" />{T.source}
                 </Link>
               </Button>
@@ -336,8 +348,8 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
                 </div>
                 <div className={styles.evidenceRecords}>
                   <h3 className="text-label">{T.recordedEvidence}</h3>
-                  {row.finding.citations.length ? row.finding.citations.map((c, i) => (
-                    <div key={i} className={styles.evidenceRecord}>
+                  {row.finding.citations.length ? row.finding.citations.map(c => (
+                    <div key={`${c.kind}:${c.ref ?? c.text}`} className={styles.evidenceRecord}>
                       <div className="flex flex-wrap items-center gap-sm text-body-small text-muted-foreground">
                         <span>{T.evidenceKinds[c.kind]}</span>
                         {c.when ? <time dateTime={new Date(c.when).toISOString()}>{c.kind === "commitment" ? `${T.dueAt} ` : ""}{new Date(c.when).toLocaleDateString(locale, { timeZone: "Asia/Shanghai" })}</time> : null}
@@ -363,9 +375,9 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         </Button>
       ) : null}
       {daily ? <div className="grid gap-sm lg:grid-cols-2">
-        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><div className={styles.summaryCardContent}><p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.dailyPace(counts.today,counts.week,counts.watch) : feed?.pendingUpdate ? T.updating : feed ? T.insufficient : error ? T.unavailable : T.loading}</p></div></Card>
+        <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="clock" size="sm" />{H.pace}</h2><div className={styles.summaryCardContent}><p className="text-body text-muted-foreground">{pace}</p></div></Card>
         <Card className="gap-sm p-lg"><h2 className="flex items-center gap-xs text-heading-3"><Icon name="info" size="sm" />{H.hypotheses}</h2><div className={styles.summaryCardContent}>
-          {verify.length ? <ul className="flex flex-col gap-xs text-body">{verify.slice(0,3).map(row=><li key={row.finding.id} className="line-clamp-2">{row.finding.subjectName}{": "}{row.absent ? T.pendingVerification : row.finding.claim}</li>)}</ul> : <p className="text-body text-muted-foreground">{feed?.dataAvailable ? H.noHypotheses : feed?.pendingUpdate ? T.updating : feed ? T.insufficient : error ? T.unavailable : T.loading}</p>}
+          {verify.length ? <ul className="flex flex-col gap-xs text-body">{verify.slice(0,3).map(row=><li key={row.finding.id} className="line-clamp-2">{row.finding.subjectName}{": "}{row.absent ? T.pendingVerification : row.finding.claim}</li>)}</ul> : <p className="text-body text-muted-foreground">{hypotheses}</p>}
           <p className="text-body-small text-muted-foreground">{H.hypothesisHint}</p>
         </div></Card>
       </div> : null}

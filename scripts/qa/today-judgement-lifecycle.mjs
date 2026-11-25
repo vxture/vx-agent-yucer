@@ -24,17 +24,17 @@ ws.onmessage = event => {
   const pending = requests.get(m.id);
   if (!pending) return;
   requests.delete(m.id); clearTimeout(pending.timer);
-  m.error ? pending.reject(Error(m.error.message)) : pending.resolve(m.result);
+  m.error ? pending.reject(new Error(m.error.message)) : pending.resolve(m.result);
 };
 const call = (method, params = {}) => {
   const id = ++sequence;
   const value = new Promise((resolve, reject) => requests.set(id, { resolve, reject,
-    timer: setTimeout(() => { requests.delete(id); reject(Error("CDP timeout: " + method)); }, 20000) }));
+    timer: setTimeout(() => { requests.delete(id); reject(new Error("CDP timeout: " + method)); }, 20000) }));
   ws.send(JSON.stringify({ id, method, params })); return value;
 };
 const evaluate = async expression => {
   const r = await call("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
-  if (r.exceptionDetails) throw Error("Browser evaluation failed");
+  if (r.exceptionDetails) throw new Error("Browser evaluation failed");
   return r.result.value;
 };
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -43,11 +43,14 @@ const until = async expression => {
     if (await evaluate(expression)) return;
     await pause(100);
   }
-  throw Error("Browser state did not settle: " + expression);
+  throw new Error("Browser state did not settle: " + expression);
 };
 const nextRequest = async () => {
-  for (let n = 0; n < 100; n++) { if (held.length) return held.shift(); await pause(100); }
-  throw Error("Missing expected feed request");
+  for (let n = 0; n < 100; n++) {
+    if (held.length) return held.shift();
+    await pause(100);
+  }
+  throw new Error("Missing expected feed request");
 };
 const reply = async (request, value, code = 200) => {
   try {
