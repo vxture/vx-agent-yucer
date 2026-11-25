@@ -343,7 +343,8 @@ export function XiaoyuSurface({ full = false, controls, pageTools, editor }: { r
   const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
   const closeControl = full ? <Button size="icon-xl" variant="ghost" aria-label={T.close} title={T.close} data-assistant-close onClick={() => { setConversationOpen(false); setMobile("board"); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("[data-assistant-dock-trigger] button")?.focus()); }}><Icon name="x" size="sm" /></Button> : controls;
   const conversation = <XiaoyuConversation labels={labels} full={full} controls={closeControl} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
-  return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}
+  const surfaceType = full ? "full" : "dock";
+  return <div className={styles[surfaceType]} data-xiaoyu-surface={surfaceType} data-task-id={bundle?.task.id ?? ""}
     data-conversation-width={width} data-conversation-open={conversationOpen}>
     {full ? <div className={styles.mobileSwitch} role="group" aria-label={T.title}>
       <Button size="md" variant={mobile === "chat" ? "secondary" : "ghost"} aria-pressed={mobile === "chat"} onClick={() => { setMobile("chat"); setConversationOpen(true); }}>

@@ -52,6 +52,7 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
 }) {
   const { XIAOYU_TOPICS: T, HOME_OVERVIEW_TEXT: H } = useMessages();
   const locale = useLocale();
+  const scopeLabels: Record<string, string> = { auto: T.defaultScope, mine: T.mine, all: T.all };
   const params = useSearchParams();
   const { client, notesDirty, busy } = useXiaoyu();
   const [feed, setFeed] = useState<Feed | null>(null),
@@ -169,8 +170,8 @@ export function XiaoyuTopics({ compact = false, onDiscuss, daily = false }: {
         </div>
         <div className={styles.todayActions}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button size="md" variant="ghost" className={styles.scopeTrigger} aria-label={`${T.scope}: ${scope === "mine" ? T.mine : scope === "all" ? T.all : T.defaultScope}`} title={T.scope} data-today-scope>
-              <Icon name="filter" size="sm" className={styles.scopeIcon} /><span>{scope === "mine" ? T.mine : scope === "all" ? T.all : T.defaultScope}</span><Icon name="chevron-down" size="xs" />
+            <DropdownMenuTrigger asChild><Button size="md" variant="ghost" className={styles.scopeTrigger} aria-label={`${T.scope}: ${scopeLabels[scope]}`} title={T.scope} data-today-scope>
+              <Icon name="filter" size="sm" className={styles.scopeIcon} /><span>{scopeLabels[scope]}</span><Icon name="chevron-down" size="xs" />
             </Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end" width="sm">
               <DropdownMenuRadioGroup value={scope} onValueChange={setScope}>

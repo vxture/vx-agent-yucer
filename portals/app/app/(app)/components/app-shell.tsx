@@ -209,7 +209,8 @@ export function AppShell({
   const [adminNavExpanded, setAdminNavExpanded] = useState(adminNavOpen);
   const isAdmin = segments[0] === "admin";
   const [dockState, setDockState] = useState({ path: pathname, open: pathname === "/copilot/today" ? false : dockOpen });
-  const showDock = dockState.path === pathname ? dockState.open : pathname === "/copilot/today" ? false : dockState.open;
+  const inheritedDockOpen = pathname !== "/copilot/today" && dockState.open;
+  const showDock = dockState.path === pathname ? dockState.open : inheritedDockOpen;
   useEffect(() => {
     setDockState(previous => previous.path === pathname ? previous : { path: pathname, open: pathname === "/copilot/today" ? false : previous.open });
   }, [pathname]);
