@@ -14,7 +14,7 @@ function receiptTexts(content:string):string[] {
   try{visit(JSON.parse(content));return texts;}catch{return [content];}
 }
 function receiptContainsQuote(content:string,quote:string):boolean {
-  return content.includes(quote) || receiptTexts(content).some(text=>text.includes(quote));
+  return receiptTexts(content).some(text=>text.includes(quote));
 }
 function websiteValue(value:string):string|null {
   return publicSourceUrl(value.startsWith("www.")?`https://${value}`:value);

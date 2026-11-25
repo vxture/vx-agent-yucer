@@ -49,6 +49,8 @@ test("automatic quotes cannot join documents, use absent values or exceed the pr
     assert.throws(()=>applyAccountEvidence(null,{name},proposed,[{id:"read-3-1",content}]),/invalid_form_evidence/);
   assert.throws(()=>applyAccountEvidence(null,{name},proposed,[]),/invalid_form_evidence/);
   assert.throws(()=>applyAccountEvidence(null,{name},[{...proposed[0]!,value:"https://other.example/"}],evidence),/invalid_form_evidence/);
+  const serialized=JSON.stringify({company:name,creditCode});
+  assert.throws(()=>applyAccountEvidence(null,{name},[{...claims[1]!,quote:serialized}],[{id:"read-3-1",content:serialized}]),/invalid_form_evidence/);
 });
 test("manual edits stay protected and obsolete field provenance is removed",()=>{
   const prepared={...mergeForm(null,"account",null,{name,website}),fieldEvidence:[claims[0]!]};
