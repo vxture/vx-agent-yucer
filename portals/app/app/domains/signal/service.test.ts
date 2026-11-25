@@ -464,3 +464,50 @@ test("previewRouting is gated", async () => {
     false,
   );
 });
+
+test("lead display names can be corrected after conversion without rewriting the conversion or source", async () => {
+  const { updateLeadDetails } = await import("./service");
+  const original = lead({ status: "converted", convertedOpportunityId: "opp_original", campaignId: "camp_original" });
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [original] });
+  const changed = unwrap(await updateLeadDetails(ctx("sales_rep", "pro", store), original.id, {
+    companyName: "  Mapping Systems  ", contactName: "  Chen  ",
+    ...{ campaignId: "camp_wrong", signalId: "sig_wrong", ownerSub: "other", status: "new", convertedOpportunityId: null },
+  }));
+  assert.equal(changed.companyName, "Mapping Systems");
+  assert.equal(changed.contactName, "Chen");
+  for (const key of ["accountId", "campaignId", "signalId", "ownerSub", "status", "convertedOpportunityId", "score"] as const)
+    assert.equal(changed[key], original[key]);
+});
+
+test("lead information editing requires entitlement, permission and scoped visibility", async () => {
+  const { updateLeadDetails } = await import("./service");
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead(), lead({ id: "other", workspaceId: "other_workspace" })] });
+  for (const [role, tier, id, code] of [
+    ["sales_rep", null, "lead_1", "no_data_access"],
+    ["viewer", "pro", "lead_1", "permission_denied"],
+    ["sales_rep", "pro", "other", "not_found"],
+  ] as const) {
+    const result = await updateLeadDetails(ctx(role, tier, store), id, { companyName: "Corrected", contactName: null });
+    assert.equal(result.ok === false && result.violations[0].code, code);
+  }
+  assert.equal((await store.getLead(WS, "lead_1"))!.companyName, "Acme");
+});
+
+test("lead name validation preserves data on failure and allows clearing the optional contact", async () => {
+  const { updateLeadDetails } = await import("./service");
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead({ contactName: "Before" })] });
+  const c = ctx("sales_rep", "pro", store);
+  for (const [input, code] of [
+    [{ companyName: " ", contactName: null }, "company_required"],
+    [{ companyName: "x".repeat(256), contactName: null }, "details_too_long"],
+    [{ companyName: "Acme", contactName: "x".repeat(256) }, "details_too_long"],
+  ] as const) {
+    const result = await updateLeadDetails(c, "lead_1", input);
+    assert.equal(result.ok === false && result.violations[0].code, code);
+    assert.equal((await store.getLead(WS, "lead_1"))!.contactName, "Before");
+  }
+  assert.equal(unwrap(await updateLeadDetails(c, "lead_1", { companyName: "Acme", contactName: " " })).contactName, null);
+});

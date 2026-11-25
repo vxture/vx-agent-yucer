@@ -1241,6 +1241,10 @@ export const en: Dictionary = {
     narrowedNote: "Narrowed by the search above",
   },
   FORECAST_RULE_ERROR: {
+  name_required: "A deal needs a name",
+  requirement_required: "Describe the customer requirement",
+  details_too_long: "The opportunity name may contain at most 255 characters.",
+
     ...GATE_ERROR,
     category_reason_required: "A category above the rule's suggestion needs a reason",
     customer_budget_negative: "The customer project budget cannot be negative",
@@ -3741,6 +3745,7 @@ export const en: Dictionary = {
     }
   },
   SIGNAL_ACTION_ERROR: {
+  details_too_long: "Names may contain at most 255 characters.",
     ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     illegal_transition: "That status change is not allowed from here.",
@@ -4020,6 +4025,7 @@ export const en: Dictionary = {
   },
 
   OPPORTUNITY_ERROR: {
+  details_too_long: "The opportunity name may contain at most 255 characters.",
     exit_unmet_reason_required: "Exit criteria of this stage are not met; moving on needs a reason.",
     category_reason_required: "A category above the rule's suggestion needs a reason.",
     custom_note_too_long: "A customisation note is at most 255 characters.",
@@ -5187,6 +5193,8 @@ export const en: Dictionary = {
   },
 
   LEAD_TEXT: {
+  editDetails: "Edit information",
+  editDetailsHint: "Correct company and contact names without changing the source or conversion history.",
     title: "Leads",
     moduleWhy:
       "Signals become leads; a qualified lead becomes an opportunity. Suggested assignments propose who should work each one by territory then load; a lead nobody owns cannot be qualified.",
@@ -7879,6 +7887,8 @@ export const en: Dictionary = {
             : `${value} - not in target (${targets.join(", ")})`,
   },
   DEAL_PAGE_TEXT: {
+  editDetails: "Edit business information",
+  editDetailsHint: "Correct the name and customer need; source, stage and historical evidence stay unchanged.",
     workspace: {
       views: "Opportunity views", analysis: "Deal analysis", progress: "Follow-up workspace", steps: "Follow-up steps",
       plan: "Plan", prepare: "Prepare", feedback: "Record feedback", history: "Follow-up history",

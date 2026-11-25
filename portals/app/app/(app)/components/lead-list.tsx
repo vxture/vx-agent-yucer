@@ -67,6 +67,7 @@ export interface LeadListProps {
    */
   readonly attributionPreviews: ReadonlyMap<string, { source: string; campaignId: string | null }>;
   readonly canTriage: boolean;
+  readonly onEdit: (leadId: string, input: { companyName: string; contactName: string | null }) => Promise<{ ok: boolean; error?: string }>;
   readonly canConvert: boolean;
   /** 认领 - the caller takes it. No subject crosses the wire: a client that
    * could name the claimer could claim on somebody else's behalf. */
@@ -112,6 +113,7 @@ export function LeadList({
   attributionPreviews,
   canTriage,
   canConvert,
+  onEdit,
   onAct,
   onClaim,
   onRemove,
@@ -196,6 +198,7 @@ export function LeadList({
   // 匹配客户 needs a SECOND value, so it gets a dialog rather than a menu item
   // that fires immediately. Which customer this lead is cannot be guessed - a
   // company name is not an identity (ADR-024's argument, one level down).
+  const [editing, setEditing] = useState<{ id: string; companyName: string; contactName: string } | null>(null);
   const [matching, setMatching] = useState<LeadRecord | null>(null);
   const [matchTo, setMatchTo] = useState("");
   // ENDING A LEAD ASKS FOR A REASON (incr/0033), so it is a dialog rather than
@@ -369,6 +372,8 @@ export function LeadList({
         label={DS_LABELS.actionMenu}
         disabled={busy}
         items={[
+          { id: "edit", label: LEAD_TEXT.editDetails, disabled: !canTriage || pending,
+            onSelect: () => { setError(null); setEditing({ id: row.id, companyName: row.companyName, contactName: row.contactName ?? "" }); } },
           {
             id: "work",
             label: LEAD_TEXT.startWork,
@@ -617,6 +622,26 @@ export function LeadList({
 
   return (
     <Section>
+      {editing ? <DialogForm open onOpenChange={open => { if (!open && !pending) setEditing(null); }}
+        title={LEAD_TEXT.editDetails} description={LEAD_TEXT.editDetailsHint} submitting={pending}
+        submitDisabled={!editing.companyName.trim()} onSubmit={event => {
+          event.preventDefault();
+          const row = editing;
+          setError(null);
+          setBusyId(row.id);
+          startTransition(async () => {
+            try {
+              const result = await onEdit(row.id, { companyName: row.companyName, contactName: row.contactName.trim() || null });
+              if (result.ok) setEditing(null);
+              else setError(SIGNAL_ACTION_ERROR[result.error ?? "denied"] ?? SIGNAL_ACTION_ERROR.denied);
+            } catch { setError(SIGNAL_ACTION_ERROR.denied); }
+            finally { setBusyId(null); }
+          });
+        }}>
+        <Field><FieldLabel required>{LEAD_TEXT.columnCompany}</FieldLabel><Input disabled={pending} maxLength={255} value={editing.companyName} onChange={e => setEditing({ ...editing, companyName: e.target.value })}/></Field>
+        <Field><FieldLabel>{LEAD_TEXT.formContact}</FieldLabel><Input disabled={pending} maxLength={255} value={editing.contactName} onChange={e => setEditing({ ...editing, contactName: e.target.value })}/></Field>
+        {error ? <p role="alert" className="text-body-small text-destructive">{error}</p> : null}
+      </DialogForm> : null}
       {matching ? (
         <DialogForm
           open

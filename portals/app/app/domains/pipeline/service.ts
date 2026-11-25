@@ -516,6 +516,8 @@ export async function updateCommercialTerms(
   const categorizeGate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.categorize", "data");
 
   const wantsEdit =
+    input.name !== undefined ||
+    input.requirement !== undefined ||
     input.amount !== undefined ||
     input.probability !== undefined ||
     input.expectedCloseAt !== undefined ||
@@ -543,6 +545,19 @@ export async function updateCommercialTerms(
 
   const patch: CommercialTermsPatch = {};
   const problems: Violation[] = [];
+
+  // Copy corrections never reopen a deal or alter its frozen attribution.
+  if (input.name !== undefined) {
+    const name = typeof input.name === "string" ? input.name.trim() : "";
+    if (!name) problems.push(violation("name_required", "a deal needs a name", "name"));
+    else if ([...name].length > 255) problems.push(violation("details_too_long", "name exceeds 255 characters", "name"));
+    else patch.name = name;
+  }
+  if (input.requirement !== undefined) {
+    const requirement = typeof input.requirement === "string" ? input.requirement.trim() : "";
+    if (!requirement) problems.push(violation("requirement_required", "describe the customer's requirement", "requirement"));
+    else patch.requirement = requirement;
+  }
 
   if (input.amount !== undefined) {
     if (input.amount != null && !isNonNegative(input.amount)) {

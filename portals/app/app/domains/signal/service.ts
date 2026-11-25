@@ -468,6 +468,27 @@ export async function assignLead(
   return ok({ ownerSub });
 }
 
+/** Correct display copy without rewriting source evidence or conversion links. */
+export async function updateLeadDetails(
+  ctx: SignalContext,
+  leadId: string,
+  input: { companyName: string; contactName: string | null },
+): Promise<RuleResult<LeadRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const current = await ctx.store.getLead(ctx.workspaceId, leadId);
+  if (!current) return fail(violation("not_found", "lead was not found", "leadId"));
+  const companyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
+  const contactName = typeof input.contactName === "string" ? input.contactName.trim() || null : null;
+  if (!companyName) return fail(violation("company_required", "a lead needs a company", "companyName"));
+  if ([...companyName].length > 255 || (contactName && [...contactName].length > 255))
+    return fail(violation("details_too_long", "names may contain at most 255 characters", "companyName"));
+  const applied = await ctx.store.updateLead(ctx.workspaceId, leadId, { companyName, contactName });
+  if (!applied) return fail(violation("not_found", "lead was not found", "leadId"));
+  const updated = await ctx.store.getLead(ctx.workspaceId, leadId);
+  return updated ? ok(updated) : fail(violation("not_found", "lead was not found", "leadId"));
+}
+
 /**
  * Record a lead nobody's signal produced.
  *
