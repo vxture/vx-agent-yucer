@@ -7,8 +7,7 @@ import { getEntitlementResolver } from "../../entitlement/resolver";
 import { readProvisionedOrganizations } from "../../provisioning/lib/read";
 import { readProductRoster } from "../../platform/product-roster";
 import { getAccountStore, getPipelineStore } from "../shared/registry";
-import { dailyJudgementBaseline, hasDailyJudgementBaseline } from "./daily-baseline";
-import { topicFeed } from "./topic-feed";
+import { scheduledJudgementFeed, judgementScheduleDue } from "./scheduled-feed";
 
 const services = {
   entitlement: (workspaceId: string) => getEntitlementResolver().resolve(workspaceId),
@@ -18,9 +17,7 @@ const services = {
   scope: resolveDataScope,
   account: getAccountStore,
   pipeline: getPipelineStore,
-  exists: hasDailyJudgementBaseline,
-  baseline: dailyJudgementBaseline,
-  feed: topicFeed,
+  snapshot: scheduledJudgementFeed,
 };
 export type DailyJobServices = typeof services;
 
@@ -33,6 +30,7 @@ export async function runDailyJudgements(
 ) {
   const ledger = { generated: 0, skipped: 0, failed: 0 };
   if (workspaces.length === 0) return ledger;
+  if (!judgementScheduleDue(now)) return { ...ledger, skipped: workspaces.length };
   // Complete the authoritative directory first. Never borrow an organization
   // from another workspace or use partially read provisioning data.
   const organizations = await deps.organizations();
@@ -69,13 +67,10 @@ export async function runDailyJudgements(
           };
           // Both choices retain the original scoped stores and service rules.
           for (const selected of ["mine", "all"] as const) {
-            if (await deps.exists({ ...ctx, accessVersion }, selected, now)) {
-              ledger.skipped++; continue;
-            }
-            const feed = await deps.feed(ctx, { scope: selected, now });
+            const feed = await deps.snapshot({ ...ctx, accessVersion }, selected, now);
             if (feed.ok) {
-              await deps.baseline({ ...ctx, accessVersion }, feed.value, now);
-              ledger.generated++;
+              if (feed.value.daily.reused) ledger.skipped++;
+              else ledger.generated++;
             } else {
               ledger.failed++;
             }

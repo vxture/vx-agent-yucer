@@ -4,6 +4,8 @@ import { prismaEnabled } from "../../../lib/db";
 import { proposeExecution,readExecutions, type ExecutionContext } from "../../../domains/copilot/execution-service";
 import { writeBusinessForm } from "../../../domains/copilot/execution-domain";
 import { topicFeed } from "../../../domains/judgement/topic-feed";
+import { scheduledJudgementFeed } from "../../../domains/judgement/scheduled-feed";
+import { readJudgementRevision } from "../../../domains/judgement/feed-revision";
 import { snoozeJudgement } from "../../../domains/judgement/service";
 import {
   readTopicEvidence,
@@ -56,10 +58,7 @@ export function topicBindings(session: AppSession) {
     stores: session.stores,
     allowWorkspaceMetrics: session.scope.kind === "workspace",
   };
-  return {
-    ...base,
-    topics: getTopicStore(),
-    accessVersion: createHash("sha256")
+  const accessVersion = createHash("sha256")
       .update(
         JSON.stringify({
           permissions: [...session.authz.permissions].sort((a, b) =>
@@ -70,7 +69,13 @@ export function topicBindings(session: AppSession) {
           bundled: session.entitlement.bundled,
         }),
       )
-      .digest("hex"),
+      .digest("hex");
+  return {
+    ...base,
+    topics: getTopicStore(),
+    accessVersion,
+    dailyFeed: (scope?: "mine" | "all", mode?: "current" | "snapshot") => scheduledJudgementFeed({ ...base, accessVersion }, scope, new Date(), undefined, mode),
+    judgementRevision: () => readJudgementRevision(base.workspaceId),
     judgements: (scope?: "mine" | "all", includeSnoozed = false) =>
       topicFeed(base, { scope, includeSnoozed }),
     snooze: (

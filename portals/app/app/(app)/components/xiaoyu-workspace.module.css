@@ -248,10 +248,14 @@
 .findingContent { display: flex; flex-direction: column; gap: var(--space-sm); padding-inline-start: calc(var(--spacing-icon-sm) + var(--space-sm)); }
 .findingFooter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); border-top: 1px solid var(--border); padding-top: var(--space-sm); }
 .findingActions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-inline-start: auto; }
-.evidenceTrigger { padding-inline: 0; justify-content: flex-start; color: var(--muted-foreground); font-size: var(--body-small-font-size); }
+.evidenceTrigger { padding-inline: var(--space-sm); justify-content: flex-start; color: var(--muted-foreground); font-size: var(--body-small-font-size); }
+.evidenceSource { padding-inline: var(--space-sm); color: var(--muted-foreground); font-size: var(--body-small-font-size); }
 .evidenceChevron { transition: transform var(--transition-duration-base) var(--ease-standard); }
 .evidenceTrigger[data-state="open"] .evidenceChevron { transform: rotate(180deg); }
-.findingEvidence { padding-bottom: var(--space-xs); font-size: var(--body-small-font-size); }
+.findingEvidence { display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in oklab, var(--muted) 30%, var(--card)); padding: var(--space-md); font-size: var(--body-small-font-size); }
+.findingEvidence[data-state="closed"] { display: none; }
+.evidenceRule, .evidenceRecords { display: flex; flex-direction: column; gap: var(--space-xs); }
+.evidenceRecord { display: flex; flex-direction: column; gap: var(--space-xs); border-inline-start: 2px solid var(--border); padding-inline-start: var(--space-sm); padding-block: var(--space-xs); }
 @media (prefers-reduced-motion: reduce) { .evidenceChevron { transition: none; } }
 
 .summaryCardContent { display: flex; flex-direction: column; gap: var(--space-sm); padding-inline-start: calc(var(--spacing-icon-sm) + var(--space-xs)); }

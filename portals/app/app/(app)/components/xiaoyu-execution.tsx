@@ -141,6 +141,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
         });
         if (!response.ok) throw Error("execution_request_failed");
         const value = await response.json();
+        if ((input as {action?:string}).action === "execute") window.dispatchEvent(new Event("yucer:business-updated"));
         request.signal.throwIfAborted();
         return value as T;
       });

@@ -87,6 +87,21 @@ function fixture() {
     },
   };
 }
+test("cached list delivery avoids rule scans and refuses a concurrent source revision or access change", async () => {
+  const f = fixture(), raw = unwrap(await f.ctx.judgements("mine"));
+  f.ctx.dailyFeed = async () => ok({ raw, visible: raw, dataVersion: "one", pendingUpdate: true,
+    daily: { date: "2026-11-25", generatedAt: "2026-11-25T00:00:00Z", revalidatedAt: "2026-11-25T00:00:00Z", changes: 0, nextScheduledAt: "2026-11-26T00:00:00Z", reused: true } });
+  f.ctx.judgements = async () => assert.fail("list must not rerun rules");
+  f.ctx.judgementRevision = async () => "one";
+  const result = unwrap(await listTopics(f.ctx, "mine", "snapshot"));
+  assert.equal(result.pendingUpdate, true); assert.equal(result.judgements.length, 1);
+  f.ctx.judgementRevision = async () => "two";
+  assert.equal((await listTopics(f.ctx, "mine")).ok, false);
+  f.ctx.judgementRevision = async () => "one";
+  let checks = 0;
+  f.ctx.refresh = async () => ({ ...f.ctx, accessVersion: ++checks > 1 ? "changed" : "acl-v1" });
+  assert.equal((await listTopics(f.ctx, "mine")).ok, false);
+});
 test("same authorized finding reuses one private continuing task, concurrent open is idempotent", async () => {
   const f = fixture();
   const [a, b] = await Promise.all([f.start(), f.start()]);

@@ -9,7 +9,7 @@ test("daily baseline is stable but never redelivers revoked or superseded text",
  const rows=new Map<string,DailyBaseline>();const store:BaselineStore={ensure:async(k,v)=>{if(!rows.has(k))rows.set(k,v);return rows.get(k)!;}};
  const first=await dailyJudgementBaseline(owner,feed([finding("a","old"),finding("b","private")]),new Date("2026-11-23T23:00:00Z"),store);
  const next=await dailyJudgementBaseline(owner,feed([finding("c","new"),finding("a","current")]),new Date("2026-11-24T01:00:00Z"),store);
- assert.equal(first.generatedAt,next.generatedAt);assert.equal(next.date,"2026-11-24");assert.equal(next.changes,2);
+ assert.equal(first.generatedAt,next.generatedAt);assert.equal(next.date,"2026-11-24");assert.equal(next.changes,3);
  assert.deepEqual(next.judgements.map(j=>j.claim),["current","new"]);assert.ok(!JSON.stringify(rows.values().next().value).includes("private"));
  assert.notEqual(dailyKey("one","alice","mine","role-1",next.date),dailyKey("one","alice","mine","role-2",next.date));
  for(const key of [dailyKey("two","alice","mine","role-1",next.date),dailyKey("one","bob","mine","role-1",next.date),dailyKey("one","alice","all","role-1",next.date)])assert.notEqual(key,dailyKey("one","alice","mine","role-1",next.date));

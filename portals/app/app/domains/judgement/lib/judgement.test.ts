@@ -76,9 +76,17 @@ test("a rule judgement states the condition that produced it", () => {
 test("every rule judgement cites the rows it read", () => {
   const js = deriveJudgements({ accounts: [account({ commitments: [theyOwe(41)] })], now: NOW });
   const stalled = js.find((j) => j.id === "stalled:acc_1");
-  assert.equal(stalled?.citations.length, 3, "three notes, verbatim");
-  assert.equal(stalled?.citations[0].text, "第三条", "newest first");
+  assert.equal(stalled?.citations.length, 3, "the overdue promise and two recent notes, verbatim");
+  assert.equal(stalled?.citations[0].ref, "cm_1", "the actual trigger is cited before contextual notes");
+  assert.equal(stalled?.citations[0].when?.getTime(), daysAgo(41).getTime());
+  assert.equal(stalled?.citations[1].ref, "int_1", "newest contact first");
   assert.ok(stalled?.citations.every((c) => c.text.length > 0));
+});
+test("stalled evidence cites only overdue open counterparty promises in due-date order", () => {
+  const a = account({ commitments: [theyOwe(3, "recent"), theyOwe(20, "oldest"), theyOwe(-3, "future"),
+    { ...theyOwe(40, "fulfilled"), status: "met" }, { ...theyOwe(30, "ours"), direction: "we_owe" }] });
+  const result = deriveJudgements({ accounts: [a], now: NOW }).find(j => j.id === "stalled:acc_1")!;
+  assert.deepEqual(result.citations.filter(c => c.kind === "commitment").map(c => c.ref), ["oldest", "recent"]);
 });
 
 test("the decision-maker rule needs BOTH the structure and the evidence to agree", () => {
