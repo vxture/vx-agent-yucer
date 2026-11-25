@@ -965,6 +965,62 @@ test("five long native business reads can reach the next model round within the 
   for (const message of h.calls[1]!.messages.filter(message => message.role === "tool")) {
     const receipt = JSON.parse(message.content);
     assert.equal(receipt.matchedCount, 20);
-    assert.ok(receipt.nextOffset > 0); assert.ok(receipt.records.every((record: {truncatedPaths:string[]}) => record.truncatedPaths.length > 0));
+    assert.ok(receipt.nextOffset > 0);
+    assert.ok(receipt.recordBodiesOmitted || receipt.records.every((record: {truncatedPaths:string[]}) => record.truncatedPaths.length > 0));
+  }
+});
+
+test("two rounds of fourteen native reads reach analysis without accumulating every full page", async () => {
+  const { businessQueryPage } = await import("../../domains/copilot/lib/business-query");
+  const { BUSINESS_TOOLS } = await import("../../domains/copilot/business-tools");
+  const { measureTurnInput } = await import("./turn-budget");
+  const kinds = ["segment", "strategy", "sales_plan", "opportunity", "campaign"];
+  const calls = (n: number, round: number) => Array.from({ length: n }, (_, index) => ({ id: `${round}-${index}`, name: "query_business", arguments: { kind: kinds[index % kinds.length], offset: round * 10 } }));
+  const h = harness({ replies: [ { toolCalls: calls(5, 0) }, { content: "Five authorized pages reviewed; more details are needed.", toolCalls: calls(9, 1) }, { content: "Here is a grounded market-progress analysis; unreviewed pages and missing dates remain explicit gaps." } ] });
+  const chat = h.atlasClient.chat.bind(h.atlasClient);
+  h.atlasClient.chat = async (profile, request, context) => {
+    const res = await chat(profile, request, context), size = measureTurnInput(request.messages, request.tools);
+    const observed = [{ promptTokens: 2660, completionTokens: 627, totalTokens: 3287 }, { promptTokens: 13193, completionTokens: 933, totalTokens: 14126 }];
+    return { ...res, usage: observed[h.calls.length - 1] ?? { promptTokens: size.messageTokens + size.schemaTokens, completionTokens: 650, totalTokens: size.messageTokens + size.schemaTokens + 650 } };
+  };
+  const ids = Array.from({ length: 30 }, (_, i) => `00000000-0000-4000-a000-${String(i).padStart(12, "0")}`);
+  const rows = ids.map(id => ({ object: { kind: "segment" as const, id }, data: { id, name: "Market", criteria: { customerNeed: "Verified need ".repeat(1000) } } }));
+  let reads = 0;
+  const result = await runTurn({ ...BASE, question: "Market progress", profile: "judgement", draftOnly: true, deferCapabilities: true, readOnlyTools: true,
+    localTools: { definitions: BUSINESS_TOOLS, invoke: async (_name, args) => { reads++;return businessQueryPage(rows, { offset: Number(args.offset) }, { kind: "access", id: ids[0]!, version: "v1" }, async o => ({ ...o, version: "original-v1" })); } },
+    totalBudget: { deadlineMs: 240000, maxTokens: 40000, maxCalls: 64 },
+  }, h);
+  assert.equal(reads, 14);assert.equal(h.calls.length, 3);assert.ok(result.totalTokens < 40000);
+  assert.equal(result.truncated, true);assert.equal(h.calls[2]!.tools, undefined);
+  assert.match(result.answer, /grounded/);
+  const last = h.calls[2]!.messages;
+  assert.equal(last.filter(m => m.role === "tool").length, 14);
+  assert.ok(last.some(m => m.role === "tool" && JSON.parse(m.content).contextSummary));
+  assert.ok(result.modelUsage!.every(u => u.toolResultTokens <= 6500));
+});
+
+test("repeated native reads reserve a final grounded answer within the original budget and cannot invoke a tool during finalization", async () => {
+  const { BUSINESS_TOOLS } = await import("../../domains/copilot/business-tools");
+  const { measureTurnInput } = await import("./turn-budget");
+  for (const violateFinalization of [false, true]) {
+    const h = harness({ replies: [] });let calls = 0, reads = 0, finalCalls = 0;
+    h.atlasClient.chat = async (_profile, request) => {
+      calls++;
+      h.calls.push({ task: "dialogue", messages: [...request.messages], tools: request.tools });
+      const size = measureTurnInput(request.messages, request.tools);
+      const isFinal = !request.tools?.length;
+      if (isFinal) finalCalls++;
+      return { id: "r", modelCode: "m", latencyMs: 1, message: { role: "assistant", content: isFinal && !violateFinalization ? "Observed findings from verified records; the remaining pages were not reviewed." : "",
+        ...(!isFinal || violateFinalization ? { toolCalls: [{ id: `read-${calls}`, name: "query_business", arguments: { kind: "segment" } }] } : {}) },
+        usage: { promptTokens: size.messageTokens + size.schemaTokens, completionTokens: 500, totalTokens: size.messageTokens + size.schemaTokens + 500 } };
+    };
+    const run = runTurn({ ...BASE, question: "Analyse progress", readOnlyTools: true, deferCapabilities: true,
+      localTools: { definitions: BUSINESS_TOOLS, invoke: async () => { reads++;return { records: [{ source: { kind: "segment", id: "market", version: "v1" }, record: { name: "Market", status: "active", objective: "Current evidence ".repeat(200) } }], sources: [], matchedCount: 1, returnedCount: 1, nextOffset: null }; } },
+      totalBudget: { deadlineMs: 240000, maxTokens: 18000, maxCalls: 64 },
+    }, h);
+    if (violateFinalization) await assert.rejects(run, e => e instanceof TurnBudgetError);
+    else { const result = await run;assert.equal(result.truncated, true);assert.ok(result.totalTokens <= 18000);assert.match(result.answer, /remaining pages were not reviewed/); }
+    assert.equal(finalCalls, 1);assert.equal(reads, calls - 1);
+    assert.ok(h.calls.at(-1)!.messages.some(m => m.content.includes("reserved for your answer")));
   }
 });
