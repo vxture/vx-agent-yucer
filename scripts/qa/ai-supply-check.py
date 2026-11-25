@@ -75,10 +75,81 @@ ATLAS_QUERIES = {
       'request_id', request_id, 'task_id', task_id, 'route', endpoint_code,
       'model', model_code, 'upstream_model', upstream_model, 'status', status,
       'tools_offered', tool_count, 'tools_called', tool_calls_made,
-      'finish_reason', finish_reason) FROM reqlog.request_records
+      'finish_reason', finish_reason, 'input_tokens', input_tokens,
+      'output_tokens', output_tokens, 'total_tokens', total_tokens,
+      'latency_ms', latency_ms, 'max_tokens', max_tokens)
+      FROM reqlog.request_records
       WHERE created_at > now() - interval '7 days' AND product_code='yucer'
       ORDER BY created_at DESC LIMIT 100""",
 }
+
+YUCER_QUERIES = {
+    "recent_task_turns": """SELECT json_build_object(
+      'at', t.created_at, 'turn_id', t.id, 'task_id', t.task_id,
+      'request_id', t.request_id, 'status', t.status,
+      'error_code', CASE WHEN t.error_key IN ('task_model_failed',
+        'task_budget_exhausted', 'source_changed', 'source_unavailable',
+        'task_conflict', 'task_source_limit', 'task_tool_denied')
+        THEN t.error_key WHEN t.error_key IS NOT NULL THEN 'other' END,
+      'elapsed_ms', round(extract(epoch FROM (t.finished_at-t.created_at))*1000),
+      'has_answer', t.assistant_message_id IS NOT NULL,
+      'source_count', (SELECT count(*) FROM yucer_agent.agent_task_reference r
+        WHERE r.task_id=t.task_id),
+      'draft_count', (SELECT count(*) FROM yucer_agent.agent_task_draft d
+        WHERE d.task_id=t.task_id))
+      FROM yucer_agent.agent_task_turn t
+      WHERE t.created_at > now() - interval '1 day'
+      ORDER BY t.created_at DESC LIMIT 20""",
+    "task_schema": """SELECT json_build_object(
+      'reference_constraint_current', EXISTS(SELECT 1 FROM pg_constraint
+        WHERE conrelid='yucer_agent.agent_task_reference'::regclass
+        AND conname='agent_task_reference_object_kind_check'
+        AND position('access' in pg_get_constraintdef(oid))>0),
+      'reference_insert_granted', has_table_privilege('yucer_svc',
+        'yucer_agent.agent_task_reference','INSERT'),
+      'artifacts_update_granted', has_column_privilege('yucer_svc',
+        'yucer_agent.agent_task_turn','artifacts','UPDATE'))""",
+}
+
+# Fixed categories only. Log lines, exception messages, query arguments and
+# matched substrings never enter the report. These are window-wide hints, not
+# proof that a marker belongs to a particular task.
+LOG_MARKERS = {
+    "prisma_known_error": r"\bPrismaClientKnownRequestError\b",
+    "prisma_validation_error": r"\bPrismaClientValidationError\b",
+    "prisma_unknown_error": r"\bPrismaClientUnknownRequestError\b",
+    "prisma_transaction_error": r"\bP2028\b",
+    "prisma_constraint_error": r"\bP200[0234]\b",
+    "transaction_expired": r"Transaction (?:already closed|is no longer valid)|expired transaction",
+    "type_error": r"\bTypeError:",
+    "missing_response_message": r"Cannot read properties of (?:undefined|null) \(reading 'message'\)",
+    "missing_response_usage": r"Cannot (?:read properties of (?:undefined|null) \(reading 'usage'\)|destructure property 'promptTokens')",
+    "invalid_json_response": r"Unexpected (?:token|end).*JSON|JSON\.parse",
+    "range_error": r"\bRangeError:",
+    "syntax_error": r"\bSyntaxError:",
+    "database_check_violation": r"violates check constraint",
+    "database_unique_violation": r"violates unique constraint",
+    "database_foreign_key_violation": r"violates foreign key constraint",
+    "database_permission_denied": r"permission denied for (?:table|schema|column)",
+    "connection_reset": r"\bECONNRESET\b",
+    "connection_refused": r"\bECONNREFUSED\b",
+    "fetch_failed": r"\bfetch failed\b",
+}
+
+
+def log_counters(container):
+    result = subprocess.run([
+        "docker", "logs", "--since", "24h", "--tail", "4000", container,
+    ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=40, check=False)
+    if result.returncode:
+        raise RuntimeError("command_failed")
+    lines = result.stdout.splitlines()
+    return {"window_hours": 24, "line_limit": 4000,
+            "possibly_capped": len(lines) >= 4000,
+            "counts": {key: sum(bool(re.search(pattern, line, re.IGNORECASE))
+                                for line in lines)
+                       for key, pattern in LOG_MARKERS.items()}}
 
 
 def command(args, data=None):
@@ -136,6 +207,12 @@ def inventory():
         for section, sql in queries.items():
             report[product][section] = attempt(
                 lambda container=container, product=product, sql=sql: query(container, f"vx_{product}_db", sql))
+    for section, sql in YUCER_QUERIES.items():
+        report["yucer"][section] = attempt(
+            lambda sql=sql: query("yucer-db", "vxturebiz_yucer_prod", sql))
+    for section, container in (("app_log_categories", "yucer-app"),
+                               ("db_log_categories", "yucer-db")):
+        report["yucer"][section] = attempt(lambda container=container: log_counters(container))
     return report
 
 
