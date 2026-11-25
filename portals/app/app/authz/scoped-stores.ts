@@ -374,12 +374,14 @@ class ScopedSignalStore implements SignalStore {
   resolveSignal: SignalStore["resolveSignal"] = (...a) => this.inner.resolveSignal(...a);
   getSignal: SignalStore["getSignal"] = (...a) => this.inner.getSignal(...a);
   createLead: SignalStore["createLead"] = (...a) => this.inner.createLead(...a);
+  promoteToLead: SignalStore["promoteToLead"] = (...a) => this.inner.promoteToLead(...a);
   updateLead: SignalStore["updateLead"] = (...a) => this.inner.updateLead(...a);
   // Pass-through like the rest: WHO may delete is the permission gate's
   // question and WHETHER this lead may be is the rule's, and neither of them
   // lives in a data-scope wrapper.
   deleteLead: SignalStore["deleteLead"] = (...a) => this.inner.deleteLead(...a);
   recordFunnelExit: SignalStore["recordFunnelExit"] = (...a) => this.inner.recordFunnelExit(...a);
+  closeSignal: SignalStore["closeSignal"] = (...a) => this.inner.closeSignal(...a);
   listFunnelExits: SignalStore["listFunnelExits"] = (...a) => this.inner.listFunnelExits(...a);
   listAllFunnelExits: SignalStore["listAllFunnelExits"] = (...a) =>
     this.inner.listAllFunnelExits(...a);

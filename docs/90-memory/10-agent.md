@@ -61,6 +61,10 @@ Owner reiterated (2026-11-25): do not publish without an explicit instruction.
 Continue implementation, checks and previews; do not create release tags, start
 deployments, or treat successful checks as release authorization.
 
+Owner's current C01-C04 instruction: hold all releases and plan version bundles.
+Track signal intelligence, launcher counts, multi-strategy sales-plan drafts and
+regional examples in `docs/70-workplan/135-business-usability-batches.md`.
+
 ## Test-account business content
 
 Owner instruction (2026-11-25): business records added to the authorized

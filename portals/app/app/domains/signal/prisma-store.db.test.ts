@@ -41,6 +41,7 @@ async function seed(c: Client): Promise<void> {
 
 async function cleanup() {
   await withPg(async (c) => {
+    await c.query(`DELETE FROM yucer_pipeline.funnel_exit WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.lead WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.signal WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
@@ -286,4 +287,63 @@ test("updateLead returns false when nothing matched", { skip }, async () => {
   } finally {
     await cleanup();
   }
+});
+
+test("concurrent signal promotions commit one lead and preserve original evidence", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const signal = (await s.recordSignal(WS, newSignal({ payload: { summary: "Original event" } })))!;
+    await s.resolveSignal(WS, signal.id, { score: 80, status: "scored" });
+    const lead = { companyName: "Acme", accountId: null, signalId: signal.id, campaignId: null, score: 80 };
+    const results = await Promise.all(Array.from({ length: 4 }, () => s.promoteToLead(WS, signal.id, lead, { score: 80, accountId: null })));
+    assert.equal(results.filter(Boolean).length, 1);
+    assert.equal((await s.listLeads(WS)).length, 1);
+    const after = (await s.getSignal(WS, signal.id))!;
+    assert.equal(after.status, "promoted");
+    assert.deepEqual(after.payload, signal.payload);
+    assert.equal(after.sourceRef, signal.sourceRef);
+  } finally { await cleanup(); }
+});
+
+test("a failed lead insert rolls back signal status and crossed workspaces cannot promote", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const signal = (await s.recordSignal(WS, newSignal()))!;
+    await s.resolveSignal(WS, signal.id, { score: 80, status: "scored" });
+    const lead = { companyName: "x".repeat(256), accountId: null, signalId: signal.id, campaignId: null, score: 80 };
+    await assert.rejects(() => s.promoteToLead(WS, signal.id, lead, { score: 80, accountId: null }));
+    assert.equal((await s.getSignal(WS, signal.id))?.status, "scored");
+    assert.equal((await s.listLeads(WS)).length, 0);
+    assert.equal(await s.promoteToLead("eeeeeeee-0000-0000-0000-000000000009", signal.id,
+      { ...lead, companyName: "Acme" }, { score: 80, accountId: null }), null);
+  } finally { await cleanup(); }
+});
+
+test("concurrent signal dismissals save one reason atomically", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const signal = (await s.recordSignal(WS, newSignal()))!;
+    const exit = { stage: "signal" as const, subjectId: signal.id, outcome: "dismissed", reasonCode: "not_a_fit" as const,
+      note: null, decidedBySub: "usr_signal_test" };
+    const results = await Promise.all(Array.from({ length: 3 }, () => s.closeSignal(WS, signal.id, "new", "dismissed", exit)));
+    assert.equal(results.filter(Boolean).length, 1);
+    assert.equal((await s.listFunnelExits(WS, signal.id)).length, 1);
+  } finally { await cleanup(); }
+});
+
+test("lead numbering stays unique when an earlier lead was deleted", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const input = { companyName: "Acme", accountId: null, signalId: null, campaignId: null, score: null };
+    const first = await s.createLead(WS, input);
+    const second = await s.createLead(WS, input);
+    await s.deleteLead(WS, first.id);
+    const third = await s.createLead(WS, input);
+    assert.equal(second.leadNo, "LEAD-00002");
+    assert.equal(third.leadNo, "LEAD-00003");
+  } finally { await cleanup(); }
 });

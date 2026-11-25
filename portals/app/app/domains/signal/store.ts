@@ -116,9 +116,13 @@ export interface SignalStore {
     workspaceId: string,
     id: string,
     patch: { accountId?: string | null; score?: number; status?: SignalStatus },
+    expected?: { accountId: string | null; score: number | null; status: SignalStatus },
   ): Promise<boolean>;
 
   createLead(workspaceId: string, lead: NewLead): Promise<LeadRecord>;
+  /** Compare the resolution, create a lead and close the signal atomically. */
+  promoteToLead(workspaceId: string, signalId: string, lead: NewLead,
+    expected: { score: number | null; accountId: string | null }): Promise<LeadRecord | null>;
   listLeads(workspaceId: string, filter?: LeadFilter): Promise<LeadRecord[]>;
   getLead(workspaceId: string, id: string): Promise<LeadRecord | null>;
   updateLead(
@@ -155,6 +159,8 @@ export interface SignalStore {
    * own ports when their surfaces need it.
    */
   recordFunnelExit(workspaceId: string, input: FunnelExitDraft): Promise<void>;
+  closeSignal(workspaceId: string, id: string, from: SignalStatus,
+    to: "dismissed" | "duplicate", exit: FunnelExitDraft): Promise<boolean>;
 
   /** Why this subject ended, newest first. Empty for anything still running. */
   listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]>;
@@ -244,9 +250,11 @@ export class InMemorySignalStore implements SignalStore {
     workspaceId: string,
     id: string,
     patch: { accountId?: string | null; score?: number; status?: SignalStatus },
+    expected?: { accountId: string | null; score: number | null; status: SignalStatus },
   ): Promise<boolean> {
     const s = this.signals.get(id);
     if (!s || s.workspaceId !== workspaceId) return false;
+    if (expected && (s.status !== expected.status || s.accountId !== expected.accountId || s.score !== expected.score)) return false;
     if (patch.accountId !== undefined) s.accountId = patch.accountId;
     if (patch.score !== undefined) s.score = patch.score;
     if (patch.status !== undefined) s.status = patch.status;
@@ -258,7 +266,8 @@ export class InMemorySignalStore implements SignalStore {
     const record: LeadRecord = {
       id: `lead_${this.seq}`,
       workspaceId,
-      leadNo: `LEAD-${String(this.seq).padStart(5, "0")}`,
+      leadNo: `LEAD-${String([...this.leads.values()].filter(row => row.workspaceId === workspaceId)
+        .reduce((max, row) => Math.max(max, Number(/^LEAD-(\d+)$/.exec(row.leadNo)?.[1] ?? 0)), 0) + 1).padStart(5, "0")}`,
       companyName: lead.companyName,
       contactName: lead.contactName ?? null,
       accountId: lead.accountId,
@@ -272,6 +281,17 @@ export class InMemorySignalStore implements SignalStore {
     };
     this.leads.set(record.id, record);
     return record;
+  }
+
+  async promoteToLead(workspaceId: string, signalId: string, lead: NewLead,
+    expected: { score: number | null; accountId: string | null }): Promise<LeadRecord | null> {
+    const signal = this.signals.get(signalId);
+    if (!signal || signal.workspaceId !== workspaceId || signal.status !== "scored" ||
+      signal.score === null || signal.score !== expected.score || signal.accountId !== expected.accountId) return null;
+    // Synchronous until the signal is reserved, so concurrent calls cannot win twice.
+    signal.status = "promoted";
+    try { return await this.createLead(workspaceId, lead); }
+    catch (error) { signal.status = "scored"; throw error; }
   }
 
   async listLeads(workspaceId: string, filter: LeadFilter = {}): Promise<LeadRecord[]> {
@@ -297,6 +317,15 @@ export class InMemorySignalStore implements SignalStore {
       workspaceId,
       decidedAt: new Date(),
     });
+  }
+
+  async closeSignal(workspaceId: string, id: string, from: SignalStatus,
+    to: "dismissed" | "duplicate", exit: FunnelExitDraft): Promise<boolean> {
+    const signal = this.signals.get(id);
+    if (!signal || signal.workspaceId !== workspaceId || signal.status !== from) return false;
+    signal.status = to;
+    try { await this.recordFunnelExit(workspaceId, exit); return true; }
+    catch (error) { signal.status = from; throw error; }
   }
 
   async listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]> {

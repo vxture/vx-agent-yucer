@@ -18,6 +18,7 @@ import {
   previewRouting,
   promoteSignal,
   rescoreSignal,
+  registerSignal,
   triageSignal,
   type SignalContext,
 } from "./service";
@@ -167,14 +168,14 @@ test("an ingested signal is always born `new`", async () => {
 test("promotion requires a score", async () => {
   const store = new InMemorySignalStore();
   store.seed({ signals: [signal({ status: "scored", score: null })] });
-  const r = await promoteSignal(ctx("sales_rep", "pro", store), "sig_1");
+  const r = await promoteSignal(ctx("sales_rep", "pro", store), "sig_1", { companyName: "Acme" });
   assert.equal(r.ok === false && r.violations[0].code, "score_required");
 });
 
 test("promotion creates the lead and marks the signal promoted", async () => {
   const store = new InMemorySignalStore();
   store.seed({ signals: [signal({ status: "scored", score: 82, accountId: "acc_1" })] });
-  const out = unwrap(await promoteSignal(ctx("sales_rep", "pro", store), "sig_1"));
+  const out = unwrap(await promoteSignal(ctx("sales_rep", "pro", store), "sig_1", { companyName: "Acme" }));
 
   assert.equal(out.signal.status, "promoted");
   assert.equal(out.lead.signalId, "sig_1");
@@ -188,12 +189,12 @@ test("a campaign-sourced signal passes its campaign to the lead; others do not",
   store.seed({
     signals: [signal({ id: "sig_1", status: "scored", score: 80, source: "campaign", sourceRef: "camp_7" })],
   });
-  const withCampaign = unwrap(await promoteSignal(ctx("sales_rep", "pro", store), "sig_1"));
+  const withCampaign = unwrap(await promoteSignal(ctx("sales_rep", "pro", store), "sig_1", { companyName: "Acme" }));
   assert.equal(withCampaign.lead.campaignId, "camp_7");
 
   const store2 = new InMemorySignalStore();
   store2.seed({ signals: [signal({ status: "scored", score: 80, source: "web", sourceRef: "w1" })] });
-  const without = unwrap(await promoteSignal(ctx("sales_rep", "pro", store2), "sig_1"));
+  const without = unwrap(await promoteSignal(ctx("sales_rep", "pro", store2), "sig_1", { companyName: "Acme" }));
   assert.equal(without.lead.campaignId, null, "no lineage must not be invented");
 });
 
@@ -510,4 +511,58 @@ test("lead name validation preserves data on failure and allows clearing the opt
     assert.equal((await store.getLead(WS, "lead_1"))!.contactName, "Before");
   }
   assert.equal(unwrap(await updateLeadDetails(c, "lead_1", { companyName: "Acme", contactName: " " })).contactName, null);
+});
+
+test("manual registration works on starter, is gated and deduplicates retries", async () => {
+  const store = new InMemorySignalStore();
+  const input = { requestId: "registration-unique-1", subject: "Subscription upgrade", signalType: "intent" as const,
+    companyName: "Acme", summary: "A customer is evaluating renewal options.", detectedAt: "2026-11-20" };
+  assert.equal((await registerSignal(ctx("viewer", "business", store), input)).ok, false);
+  const first = unwrap(await registerSignal(ctx("sales_rep", "starter", store), input));
+  assert.equal(first.signal?.source, "manual");
+  assert.equal(unwrap(await registerSignal(ctx("sales_rep", "starter", store), input)).duplicate, true);
+  assert.equal((await store.listSignals(WS)).length, 1);
+});
+test("a company name is required and concurrent confirmations create only one lead", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ signals: [signal({ score: 80, status: "scored" })] });
+  const missing = await promoteSignal(ctx("sales_rep", "pro", store), "sig_1");
+  assert.equal(!missing.ok && missing.violations[0].code, "company_required");
+  const results = await Promise.all(Array.from({ length: 4 }, () => promoteSignal(ctx("sales_rep", "pro", store), "sig_1", { companyName: "Acme" })));
+  assert.equal(results.filter(r => r.ok).length, 1);
+  assert.equal((await store.listLeads(WS)).length, 1);
+});
+test("promotion creates no lead when another action already closed the signal", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ signals: [signal({ score: 80, status: "scored" })] });
+  await triageSignal(ctx("sales_rep", "pro", store), "sig_1", "dismissed");
+  const result = await store.promoteToLead(WS, "sig_1", { companyName: "Acme", accountId: null, signalId: "sig_1", campaignId: null, score: 80 }, { score: 80, accountId: null });
+  assert.equal(result, null);
+  assert.equal((await store.listLeads(WS)).length, 0);
+});
+test("concurrent dismissals record one decision and preserve original evidence", async () => {
+  const store = new InMemorySignalStore();
+  const original = signal({ score: 80, status: "scored" });
+  store.seed({ signals: [original] });
+  const result = await Promise.all(Array.from({ length: 3 }, () => triageSignal(ctx("sales_rep", "pro", store), "sig_1", "dismissed")));
+  assert.equal(result.filter(r => r.ok).length, 1);
+  assert.equal((await store.listFunnelExits(WS, "sig_1")).length, 1);
+  assert.deepEqual((await store.getSignal(WS, "sig_1"))?.payload, original.payload);
+  assert.equal((await store.getSignal(WS, "sig_1"))?.subject, original.subject);
+});
+
+test("new lead numbers do not collide with seeded or gap-containing records", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead({ id: "old", leadNo: "LEAD-00003" })] });
+  const next = await store.createLead(WS, { companyName: "Acme", accountId: null, signalId: null, campaignId: null, score: null });
+  assert.equal(next.leadNo, "LEAD-00004");
+});
+
+test("a stale matcher cannot rewrite the account after promotion", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ signals: [signal({ score: 80, status: "scored" })] });
+  const before = (await store.getSignal(WS, "sig_1"))!;
+  await promoteSignal(ctx("sales_rep", "pro", store), "sig_1", { companyName: "Acme" });
+  assert.equal(await store.resolveSignal(WS, "sig_1", { accountId: "acc_later" }, before), false);
+  assert.equal((await store.getSignal(WS, "sig_1"))?.accountId, null);
 });

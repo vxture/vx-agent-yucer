@@ -213,7 +213,7 @@ const promotable = {
 };
 
 test("promotion produces the lead and the signal patch together", () => {
-  const r = unwrap(planPromotion({ signal: promotable }));
+  const r = unwrap(planPromotion({ signal: promotable, companyName: "Acme Corp" }));
   assert.equal(r.patch.status, "promoted");
   assert.equal(r.lead.signalId, "sig_1");
   assert.equal(r.lead.accountId, "acc_1");
@@ -222,16 +222,17 @@ test("promotion produces the lead and the signal patch together", () => {
 });
 
 test("a campaign-sourced signal passes its campaign to the lead", () => {
-  const r = unwrap(planPromotion({ signal: { ...promotable, source: "campaign", sourceRef: "camp_7" } }));
+  const r = unwrap(planPromotion({ signal: { ...promotable, source: "campaign", sourceRef: "camp_7" }, companyName: "Acme Corp" }));
   assert.equal(r.lead.campaignId, "camp_7");
 });
 
 test("a non-campaign signal must not invent a campaign lineage", () => {
-  assert.equal(unwrap(planPromotion({ signal: promotable })).lead.campaignId, null);
+  assert.equal(unwrap(planPromotion({ signal: promotable, companyName: "Acme Corp" })).lead.campaignId, null);
 });
 
-test("the company name falls back to the signal subject, and can be overridden", () => {
-  assert.equal(unwrap(planPromotion({ signal: promotable })).lead.companyName, promotable.subject);
+test("a headline must never become a company name without confirmation", () => {
+  const result = planPromotion({ signal: promotable });
+  assert.equal(!result.ok && result.violations[0].code, "company_required");
   assert.equal(unwrap(planPromotion({ signal: promotable, companyName: "Acme Corp" })).lead.companyName, "Acme Corp");
 });
 

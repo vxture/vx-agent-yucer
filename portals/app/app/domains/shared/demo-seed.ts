@@ -26,6 +26,7 @@ import { money } from "./money";
 import { periodRange } from "./period";
 import {
   DEMO_ACCOUNTS,
+  C01_SIGNAL_CASES,
   DEMO_CAMPAIGNS,
   DEMO_COMMITMENT_TEXT,
   DEMO_CONTACTS,
@@ -89,6 +90,7 @@ import type { ContractStatus } from "../delivery/lib/contract";
 import type { InMemoryPipelineStore, StageEventRecord } from "../pipeline/store";
 import type { InMemoryPlanningStore } from "../planning/store";
 import type { InMemorySignalStore } from "../signal/store";
+import { scoreSignal } from "../signal/lib/scoring";
 import type { InMemoryStrategyStore } from "../strategy/store";
 
 /**
@@ -987,13 +989,22 @@ function seedField(workspaceId: string, stores: DemoStores): void {
 function seedSignals(workspaceId: string, stores: DemoStores): void {
   stores.signal.seed({
     signals: [
+      ...C01_SIGNAL_CASES.map((item, index) => {
+        const detectedAt = daysAgo(item.age);
+        const scored = scoreSignal({ signalType: item.signalType, detectedAt, now: NOW });
+        return { ...signal(`sig_c01_${item.key}`, workspaceId, "manual", `c01-${item.key}`, item.signalType,
+          item.subject, null, index === 0 ? null : scored.ok ? scored.value.score : null,
+          index === 0 ? "new" : "scored", item.age, "product_domain"),
+          payload: { company_name: item.company, summary: item.summary, amount: item.amount, currency: "CNY",
+            deadline: daysAgo(-14 - index * 3).toISOString().slice(0, 10) } };
+      }),
       signal("sig_demo_1", workspaceId, "campaign", "camp_demo_1", "intent", DEMO_SIGNALS[0], "acc_demo_1", 47, "promoted", 40),
       // Unmatched and high-scoring: the new-logo case the rule exists for.
-      signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 61, "scored", 6),
+      signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 61, "promoted", 6),
       // Scored 95 days ago when the posting was fresh, and never re-scored.
       // Today the rule gives 22 - the gap IS the point: it is the one row where
       // "score is stale" is true, so the marker means something everywhere else.
-      signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 52, "scored", 95),
+      signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 52, "promoted", 95),
       // Tenders. The strongest public evidence there is: a procurement already
       // running, with a budget and a deadline attached (ADR-016).
       //
@@ -1020,7 +1031,7 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       // after creation, so it has to be right here rather than repaired later.
       ...NATIONAL.signals.map((ns) =>
         signal(ns.id, workspaceId, "cohort", null, ns.signalType, ns.subject,
-               ns.accountId, ns.score, "converted", ns.agedDays, "named_account"),
+               ns.accountId, ns.score, "promoted", ns.agedDays, "named_account"),
       ),
     ],
     leads: [
