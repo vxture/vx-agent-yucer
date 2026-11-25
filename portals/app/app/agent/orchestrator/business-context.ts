@@ -41,6 +41,7 @@ function compact(receipt: Receipt, indexOnly: boolean) {
 export class BusinessReadContext {
   private readonly receipts = new Map<number, Receipt>();
   private finalizingReads = false;
+  private completingForms = false;
   record(index: number, query: Record<string, unknown>, result: unknown): boolean {
     if (!object(result) || result.ok === false || !Array.isArray(result.records) ||
       !result.records.every(row => object(row) && object(row.source) && Object.hasOwn(row, "record"))) return false;
@@ -49,11 +50,12 @@ export class BusinessReadContext {
   }
   get size() { return this.receipts.size; }
   get finalizing() { return this.finalizingReads; }
+  get completing() { return this.completingForms; }
   tokens(messages: readonly ChatMessage[]) {
     return [...this.receipts.keys()].reduce((n, i) => n + estimateTokens(messages[i]!.content), 0);
   }
-  prepare(messages: ChatMessage[], tools: ToolDefinition[] | undefined, remaining: number, outputTokens: number) {
-    if (!this.size) return tools;
+  prepare(messages: ChatMessage[], tools: ToolDefinition[] | undefined, remaining: number, outputTokens: number, completionTool?: ToolDefinition) {
+    if (!this.size && !completionTool) return tools;
     const before = measureTurnInput(messages, tools);
     const fixed = before.messageTokens - this.tokens(messages) + before.schemaTokens;
     const allowance = Math.min(6000, Math.max(512, Math.floor((remaining - fixed - outputTokens) / 2)));
@@ -63,9 +65,18 @@ export class BusinessReadContext {
     // Reserve it before another request can consume the original turn budget.
     if (!this.finalizingReads && tools?.length && remaining < 2 * (measured.messageTokens + measured.schemaTokens + outputTokens)) {
       this.finalizingReads = true;
-      messages.push({ role: "user", content: "The remaining read budget is now reserved for your answer. Make no further tool calls. Give a useful analysis grounded in the verified records currently available. Explicitly state any unread pages or missing details and distinguish observations, hypotheses and recommendations. Do not claim a complete review, a business save or a publication without evidence." });
+      const completion = completionTool ? [completionTool] : undefined;
+      const size = measureTurnInput(messages, completion);
+      // A private form needs one bounded call, not another discovery/research
+      // cycle. Its verified result supplies the final status without spending
+      // an additional model request just to acknowledge the form.
+      this.completingForms = !!completion && remaining > size.messageTokens + size.schemaTokens + outputTokens + 512;
+      messages.push({ role: "user", content: this.completing
+        ? "Research is now closed within the original turn budget. If the user requested native forms, use the one remaining prepare_business_form batch for modules whose contracts you already read, using verified facts and authorized options only. Leave unknown or conflicting fields unset. Do not research, query, navigate, request execution or write business records. Include a brief useful explanation in this reply; the server will report the actual preparation result. If no form is warranted, give the grounded answer instead. Explicitly state missing details; do not ask the person to restart the task."
+        : "The remaining read budget is now reserved for your answer. Make no further tool calls. Give a useful analysis grounded in the verified records currently available. Explicitly state any unread pages or missing details and distinguish observations, hypotheses and recommendations. Do not claim a complete review, a business save or a publication without evidence." });
     }
-    return this.finalizingReads ? undefined : tools;
+    if (!this.finalizingReads) return tools;
+    return this.completing && completionTool ? [completionTool] : undefined;
   }
   private replace(messages: ChatMessage[], index: number, value: unknown) {
     const content = JSON.stringify(value);

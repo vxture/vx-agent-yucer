@@ -193,7 +193,7 @@ test("compacted read sources remain enforced and incomplete analysis survives pe
       assert.equal(request.tools, undefined);
       assert.ok(request.messages.some(m => m.role === "tool" && JSON.parse(m.content).contextSummary));
       if (revoke) f.sources.delete(SEGMENT.id);
-      return { id: "analysis", modelCode: "test", latencyMs: 1, message: { role: "assistant", content: "Verified findings; unread pages remain a gap." },
+      return { id: "analysis", modelCode: "test", latencyMs: 1, message: { role: "assistant", content: "## Findings\n\n\u5df2\u53d1\u5e03\u6218\u7565\u4ecd\u5728\u6267\u884c\u3002 Verified findings; unread pages remain a gap." },
         usage: { promptTokens: measured.messageTokens, completionTokens: 500, totalTokens: measured.messageTokens + 500 } };
     };
     const input = { revision: t.revision, requestId: randomUUID(), question: "Analyse market progress" };
@@ -209,6 +209,8 @@ test("compacted read sources remain enforced and incomplete analysis survives pe
       const answer = unwrap(result);
       assert.equal(answer.incomplete, true);
       assert.match(answer.answer, /unread pages remain a gap/);
+      assert.match(answer.answer, /## Findings/);
+      assert.match(answer.answer, /\u5df2\u53d1\u5e03\u6218\u7565/);
       assert.equal(stored!.turns[0]!.artifacts!.usage.truncated, true);
       assert.ok(stored!.references.some(r => r.id === source.id && r.version === source.version));
       const replay = unwrap(await runPrivateTaskTurn(f.c, t.id, input, f.deps));
