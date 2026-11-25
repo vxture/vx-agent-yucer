@@ -45,7 +45,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
   {
     name: "prepare_business_form",
     description:
-      "Prepare a private native form for review, never save or publish. Use listed fields and authorized relation UUIDs; reuse the key, preserving human edits. Put researched facts in fields. Customer website/creditCode fieldEvidence requires an exact quote in one decoded source text containing the full customer name and value, preserving whitespace. Public www. hosts normalize to https. Only a successful result proves a draft exists.",
+      "Prepare a private native form, never save or publish. Use listed fields and authorized relation UUIDs; reuse the key, preserving human edits. Put researched facts in fields. Customer website/creditCode fieldEvidence needs value and sourceId; omit quote for server extraction from one source text containing full customer name and value. A supplied quote must be exact. Public www. hosts normalize to https. Only success proves a draft exists.",
     parameters: {
       type: "object",
       properties: {
@@ -60,7 +60,7 @@ export const BUSINESS_TOOLS: ToolDefinition[] = [
           description: "Existing business UUID; omit for new",
         },
         fields: { type: "object" },
-        fieldEvidence: {type:"array",maxItems:2,items:{type:"object",properties:{field:{type:"string",enum:["creditCode","website"]},value:{type:"string"},sourceId:{type:"string"},quote:{type:"string",maxLength:1500}},required:["field","value","sourceId","quote"]}},
+        fieldEvidence: {type:"array",maxItems:2,items:{type:"object",properties:{field:{type:"string",enum:["creditCode","website"]},value:{type:"string"},sourceId:{type:"string"},quote:{type:"string",maxLength:1500}},required:["field","value","sourceId"]}},
       },
       required: ["module", "key", "fields"],
     },

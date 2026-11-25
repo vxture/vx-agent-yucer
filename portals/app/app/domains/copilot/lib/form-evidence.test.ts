@@ -32,6 +32,24 @@ test("unqueried, altered, mismatched-company and conflicting claims never fill a
   assert.throws(()=>applyAccountEvidence(null,{name},[{...claims[0],quote:quote+" invented"}],evidence),/invalid_form_evidence/);
   assert.throws(()=>applyAccountEvidence(null,{name},[{...claims[0],value:"javascript:alert(1)",quote:`${name} javascript:alert(1)`}],[{id:"read-3-1",content:`${name} javascript:alert(1)`}]),/invalid_form_evidence/);
 });
+test("server derives exact per-field quotes from decoded receipts when the model omits quotes",()=>{
+  const text=`${name}\nWebsite: www.example.org\nCredit code: ${creditCode}`;
+  const source=[{id:"read-3-1",content:JSON.stringify({content:[{type:"text",text}]})}];
+  const proposed=claims.map(({quote:_quote,...claim})=>({...claim,...(claim.field==="website"?{value:"https://www.example.org/"}:{})}));
+  const result=applyAccountEvidence(null,{name},proposed,source);
+  assert.equal(result.fields.website,"https://www.example.org/");assert.equal(result.fields.creditCode,creditCode);
+  for(const accepted of result.evidence){assert.ok(text.includes(accepted.quote));assert.ok(accepted.quote.includes(name));}
+  assert.equal(validFieldEvidence(proposed),false);
+  assert.equal(validFieldEvidence(result.evidence),true);
+  assert.throws(()=>applyAccountEvidence(null,{name},[{...proposed[0]!,quote:"invented"}],source),/invalid_form_evidence/);
+});
+test("automatic quotes cannot join documents, use absent values or exceed the provenance bound",()=>{
+  const proposed=claims.map(({quote:_quote,...claim})=>claim);
+  for(const content of [JSON.stringify({company:name,website,creditCode}),`${name}\n${"x".repeat(1500)}\n${website}\n${creditCode}`,`Other customer ${website} ${creditCode}`])
+    assert.throws(()=>applyAccountEvidence(null,{name},proposed,[{id:"read-3-1",content}]),/invalid_form_evidence/);
+  assert.throws(()=>applyAccountEvidence(null,{name},proposed,[]),/invalid_form_evidence/);
+  assert.throws(()=>applyAccountEvidence(null,{name},[{...proposed[0]!,value:"https://other.example/"}],evidence),/invalid_form_evidence/);
+});
 test("manual edits stay protected and obsolete field provenance is removed",()=>{
   const prepared={...mergeForm(null,"account",null,{name,website}),fieldEvidence:[claims[0]!]};
   const human=mergeForm(prepared,"account",null,{website:"https://human.example/"},true);
