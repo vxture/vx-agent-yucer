@@ -194,7 +194,7 @@ test("a compound first question reads Runos evidence and prepares a bound native
   assert.equal(b.task.goal, question);
   assert.deepEqual(steps, ["find", "load", "fetch"]);
   assert.equal(f.discoveryCount(), 0);
-  assert.equal("navigation" in result ? result.navigation : undefined, `/copilot?task=${f.task.id}&form=market`);
+  assert.equal("navigation" in result ? result.navigation : undefined, `/copilot?task=${f.task.id}`);
   assert.equal(b.drafts.length, 1);
   assert.equal(readBusinessForm(b.drafts[0]!.text).fields.name, "Permit software users");
   assert.deepEqual(b.turns[0]!.artifacts!.research[0]!.links, ["https://example.org/market"]);
@@ -239,7 +239,7 @@ test("research prepares and opens a sourced private form; human corrections surv
   const result = unwrap(await f.turn());
   assert.equal(f.discoveryCount(), 0);
   assert.equal("navigation" in result ? result.navigation : undefined,
-    `/copilot?task=${f.task.id}&form=market`);
+    `/copilot?task=${f.task.id}`);
   assert.doesNotMatch(result.answer, /successfully saved/);
   const b = unwrap(await readPrivateTask(f.c, f.task.id));
   assert.equal(b.drafts.length, 1);
@@ -420,4 +420,52 @@ test("private turn usage survives refresh and revoked sources withhold its deriv
   f.sources.delete(SEG);
   const denied=await readPrivateTask(f.c,f.task.id);
   assert.equal(denied.ok,false);
+});
+
+
+test("one task collects independently editable module forms without claiming a save",async()=>{
+  const f=await setup("prepare a customer and a market");
+  f.set([
+    f.tools("prepare_business_form",{module:"account",key:"customer",fields:{name:"Customer",tier:"standard"}}),
+    f.tools("prepare_business_form",{module:"segment",key:"market",fields:{name:"Market",criteria:{needSummary:"Review"}}}),
+    {content:"Two private drafts await review."},
+  ]);
+  const result=unwrap(await f.turn());
+  assert.equal("navigation" in result?result.navigation:null,`/copilot?task=${f.task.id}`);
+  const bundle=unwrap(await readPrivateTask(f.c,f.task.id));
+  assert.deepEqual(bundle.drafts.map(d=>readBusinessForm(d.text).module).sort(),["account","segment"]);
+  assert.equal(bundle.capabilities.save,false);
+  const changed=unwrap(await changePrivateTask(f.c,f.task.id,{action:"business_form",revision:bundle.task.revision,key:"customer",fields:{website:"https://human.example/"}}));
+  assert.equal(readBusinessForm(changed.drafts.find(d=>d.key==="market")!.text).fields.name,"Market");
+  assert.ok(readBusinessForm(changed.drafts.find(d=>d.key==="customer")!.text).manualFields.includes("website"));
+});
+
+test("successful research facts fill the customer draft through the real tool dispatcher",async()=>{
+  const f=await setup("Research Example customer and prepare registration");
+  const capabilityId="example.company-research";
+  f.deps.runosClient.discoverPage=async()=>({capabilities:[{
+    capability_id:capabilityId,title:"Company research",primitive_type:"connector",provider:"example",admission_tier:"official",summary:"Read company facts",use_when:"Company research",avoid_when:"No writes",
+    operations:[{operation:"fetch",description:"Read page",interaction_mode:"sync",risk_level:"read"}],
+  }],total:1});
+  f.deps.runosClient.resolve=async()=>({capability_id:capabilityId,title:"Company research",state:"stable",version:"1.0.1",primitive_type:"connector",provider:"example",contract:{
+    summary:"Public registry",useWhen:"Read",avoidWhen:"No writes",operations:[{operation:"fetch",description:"Read",riskLevel:"read",interactionMode:"sync",inputSchema:{type:"object"},outputSchema:{},idempotent:true}],
+  }});
+  const quote="Example customer website https://example.org/ creditCode 91310000123456789X";
+  f.deps.runosClient.invoke=async()=>{const content=[{type:"text",text:quote}];return {content,structured:{content},meta:{call_id:"source-1",version_resolved:"1.0.1"}};};
+  f.set([
+    f.tools(FIND_CAPABILITIES,{query:"Company registry",primitive_type:"connector"}),
+    f.tools(LOAD_CAPABILITY,{capability_id:capabilityId}),
+    f.tools(toolNameFor(capabilityId,"fetch"),{}),
+    f.tools("prepare_business_form",{module:"account",key:"customer",fields:{name:"Example customer"},fieldEvidence:[
+      {field:"website",value:"https://example.org/",sourceId:"read-3-1",quote},
+      {field:"creditCode",value:"91310000123456789X",sourceId:"read-3-1",quote},
+    ]}),
+    {content:"Company facts extracted for human review."},
+  ]);
+  unwrap(await f.turn());
+  const bundle=unwrap(await readPrivateTask(f.c,f.task.id));
+  const form=readBusinessForm(bundle.drafts[0]!.text);
+  assert.equal(form.fields.website,"https://example.org/");assert.equal(form.fields.creditCode,"91310000123456789X");
+  assert.equal(form.fieldEvidence!.length,2);assert.equal(bundle.turns[0]!.artifacts!.research.length,1);
+  assert.equal(bundle.capabilities.save,false);
 });

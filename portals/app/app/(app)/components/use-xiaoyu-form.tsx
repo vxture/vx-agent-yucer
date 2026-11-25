@@ -1,4 +1,5 @@
 "use client";
+import { withTaskDraftWrite } from "../lib/task-draft-queue";
 import { useTaskFormReview } from "./xiaoyu-form-review";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -21,12 +22,13 @@ export function useXiaoyuForm(
   targetId: string | null,
   values: FormFields,
   apply: (fields: FormFields) => void,
+  explicit?: {taskId:string;key:string;publishContext?:boolean},
 ) {
   const client = useOptionalXiaoyuClient();
   const review = useTaskFormReview();
   const params = useSearchParams(),
-    taskId = review?.taskId ?? params.get("xyTask"),
-    key = review?.key ?? params.get("xyForm");
+    taskId = explicit?.taskId ?? review?.taskId ?? params.get("xyTask"),
+    key = explicit?.key ?? review?.key ?? params.get("xyForm");
   const current = useRef({ values, apply });
   current.current = { values, apply };
   const baseline = useRef<FormFields>({}),
@@ -38,10 +40,12 @@ export function useXiaoyuForm(
   >("off");
   const [reload, setReload] = useState(0);
   const fieldNames = JSON.stringify(Object.keys(values));
+  const publishContext=explicit?.publishContext!==false;
   useEffect(() => {
+    if(!publishContext)return;
     client?.setFormContext({ module, targetId, fields: JSON.parse(fieldNames) as string[], dirty: state === "dirty", ...(binding.current ? { revision: binding.current.revision } : {}) });
     return () => client?.setFormContext(null);
-  }, [client, module, targetId, fieldNames, state]);
+  }, [client, module, targetId, fieldNames, state, publishContext]);
   useEffect(() => {
     const id = ++generation.current;
     binding.current = null;
@@ -102,7 +106,7 @@ export function useXiaoyuForm(
       return;
     }
     const id = generation.current;
-    const run = (async () => {
+    const run = withTaskDraftWrite(b.taskId,async () => {
       try {
         for (let round = 0; round < 10; round++) {
           if (id !== generation.current) throw Error();
@@ -141,7 +145,7 @@ export function useXiaoyuForm(
         if (id === generation.current) setState("error");
         throw Error("form_sync_failed");
       }
-    })();
+    });
     inflight.current = run;
     try {
       await run;
@@ -152,6 +156,14 @@ export function useXiaoyuForm(
   const register = review?.register;
   const registerRef = useRef(register); registerRef.current = register;
   useEffect(() => { registerRef.current?.(sync); return () => registerRef.current?.(null); }, [sync]);
+  useEffect(()=>{
+    if(state!=="dirty" && state!=="error")return;
+    const beforeUnload=(event:BeforeUnloadEvent)=>{
+      if(Object.entries(current.current.values).some(([key,value])=>!equal(value,baseline.current[key])))event.preventDefault();
+    };
+    window.addEventListener("beforeunload",beforeUnload);
+    return ()=>window.removeEventListener("beforeunload",beforeUnload);
+  },[state]);
   const signature = JSON.stringify(values);
   useEffect(() => {
     if (!binding.current) return;

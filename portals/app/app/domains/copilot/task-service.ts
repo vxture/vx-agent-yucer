@@ -1,3 +1,4 @@
+import { applyAccountEvidence } from "./lib/form-evidence";
 import { readTaskMaterial } from "./lib/task-material";
 import { SkillLoader } from "../../agent/runos/skills";
 import { BUSINESS_TOOLS, EXECUTION_TOOLS, formContract } from "./business-tools";
@@ -584,7 +585,7 @@ export async function runPrivateTaskTurn(
         bind(contextSources);
         for(const object of pageContext?.selection??[]){const selected=await now.source(object);demand(selected,"source_unavailable");bind([selected]);}
         const recheck=async()=>{const live=await current(ctx);await owned(live,id);for(const r of turnSources.values()){const source=await live.source(r);demand(source&&source.version===r.version,"source_changed");}return live;};
-        const localTools=now.business ? {definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>)=>{
+        const localTools=now.business ? {definitions:[...BUSINESS_TOOLS,...(now.execution?EXECUTION_TOOLS:[])],invoke:async(name:string,args:Record<string,unknown>,evidence:readonly import("../../agent/orchestrator/turn").ReadEvidence[])=>{
           const live=await recheck();demand(live.business,"task_tool_denied");
           bind([live.business.access]);
           try {
@@ -601,16 +602,20 @@ export async function runPrivateTaskTurn(
             if(name==="query_business"){const result=await live.business.query(args);bind(result.sources);await recheck();return result;}
             if(name==="business_form_contract"){demand(isFormModule(args.module)&&Object.keys(args).length===1,"invalid_form_fields");return live.business.contract?await live.business.contract(args.module):formContract(args.module);}
             if(name==="prepare_business_form") {
-              demand(Object.keys(args).every(k=>["module","key","targetId","fields"].includes(k))&&isFormModule(args.module)&&typeof args.key==="string"&&/^[a-zA-Z0-9_-]{1,64}$/.test(args.key)&&(args.targetId===undefined||(typeof args.targetId==="string"&&UUID.test(args.targetId))),"invalid_form_fields");
+              demand(Object.keys(args).every(k=>["module","key","targetId","fields","fieldEvidence"].includes(k))&&isFormModule(args.module)&&typeof args.key==="string"&&/^[a-zA-Z0-9_-]{1,64}$/.test(args.key)&&(args.targetId===undefined||(typeof args.targetId==="string"&&UUID.test(args.targetId))),"invalid_form_fields");
               const stored=forms.get(args.key)??b.drafts.find(d=>d.key===args.key&&d.contractVersion===BUSINESS_FORM_CONTRACT);
               const previous=stored?readBusinessForm(stored.text):null;
-              const prepared=await live.business.prepare(mergeForm(previous,args.module,(args.targetId as string|undefined)??null,args.fields));
+              demand(args.module==="account" || args.fieldEvidence===undefined,"invalid_form_evidence");
+              const extraction=args.module==="account"?applyAccountEvidence(previous,args.fields as Record<string,unknown>,args.fieldEvidence,evidence):null;
+              const merged=mergeForm(previous,args.module,(args.targetId as string|undefined)??null,extraction?.fields??args.fields);
+              if(extraction?.evidence.length)merged.fieldEvidence=extraction.evidence.filter(e=>merged.fields[e.field]===e.value);
+              const prepared=await live.business.prepare(merged);
               prepared.sources=[...prepared.sources,...turnSources.values(),...b.references].filter((s,i,rows)=>rows.findIndex(r=>r.kind===s.kind&&r.id===s.id)===i);
               bind(prepared.sources);await recheck();
               demand(b.drafts.length+forms.size<20||!!stored,"task_draft_limit");
               forms.set(args.key,{key:args.key,text:JSON.stringify(prepared)});
               formCount = forms.size;
-              navigation=`/copilot?${new URLSearchParams({task:id,form:args.key})}`;
+              navigation=`/copilot?${new URLSearchParams({task:id})}`;
               if (prepared.targetId === null) newFormPages.set(formHref(prepared,id,args.key).split("?", 1)[0]!, navigation);
               return {status:"private_form_prepared",key:args.key,fields:prepared.fields,protectedFields:prepared.manualFields,href:navigation,saved:false,published:false};
             }

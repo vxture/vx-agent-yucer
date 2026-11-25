@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import {readableText} from "../../domains/copilot/lib/form-review";
 import {
   Banner,
   Button,
@@ -211,6 +212,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
   const publishDraft = drafts.find((d) => d.id === publish);
   return (
     <>
+      {readError === "denied" ? null : renderDrafts(saved)}
       {forms.length || steps.length || hint ? <Card className="@container gap-sm p-md">
         <div className="flex flex-wrap items-center gap-sm">
           <h3 className="text-label">{T.title}</h3>
@@ -235,7 +237,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
           {forms.map(({ draft: d, form, save, publish: canPublish }) => (
               <div key={d.id} className="flex flex-wrap items-center gap-sm">
                 <span className="min-w-0 flex-1 truncate text-body">
-                  {String(form.fields.name ?? F[form.module])}
+                  {readableText(String(form.fields.name ?? F[form.module]),{},F.referenceUnavailable)}
                 </span>
                 {save ? (
                   <Button
@@ -273,7 +275,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
                       disabled={pending || busy || !selectable(step)}
                       aria-label={
                         step.form
-                          ? String(step.form.fields.name ?? F[step.form.module])
+                          ? readableText(String(step.form.fields.name ?? F[step.form.module]),{},F.referenceUnavailable)
                           : T[step.status]
                       }
                       onCheckedChange={(checked) => {
@@ -285,8 +287,8 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
                     />
                     <span className="min-w-0 flex-1 truncate">
                       {step.form
-                        ? String(step.form.fields.name ?? F[step.form.module])
-                        : step.id.slice(0, 8)}{" "}
+                        ? readableText(String(step.form.fields.name ?? F[step.form.module]),{},F.referenceUnavailable)
+                        : T[step.status]}{" "}
                       {"\u00b7"} {step.operation === "save" ? T.save : T.publish}
                     </span>
                     <span className="shrink-0 text-body-small text-muted-foreground">
@@ -409,7 +411,7 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
               if (!open) setPublish(null);
             }}
             verb={T.confirmPublish}
-            target={String(readBusinessForm(publishDraft.text).fields.name ?? publishDraft.key)}
+            target={readableText(String(readBusinessForm(publishDraft.text).fields.name ?? F[readBusinessForm(publishDraft.text).module]),{},F.referenceUnavailable)}
             consequence={T.publishing}
             onConfirm={async () => {
               await prepare(publishDraft.key, publishDraft.id, "publish");
@@ -418,7 +420,6 @@ function ExecutionList({ renderDrafts }: DraftRenderer) {
           />
         ) : null}
       </Card> : null}
-      {readError === "denied" ? null : renderDrafts(saved)}
     </>
   );
 }

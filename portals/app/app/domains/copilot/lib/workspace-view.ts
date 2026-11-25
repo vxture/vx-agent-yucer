@@ -37,7 +37,7 @@ export function taskWorkspaceView(bundle: TaskBundle | null): WorkspaceView {
   // The execution reader may restore receipts even when no editable draft is
   // present. It makes its own fresh authorization and result-state checks.
   if (kind !== "form" && bundle) panels.push("forms");
-  if (turns.some(t => !!t.artifacts && ["succeeded", "failed"].includes(t.status))) panels.push("sources");
   if (turns.length || (status && status !== "active")) panels.push("activity");
+  if (turns.some(t => !!t.artifacts && ["succeeded", "failed"].includes(t.status))) panels.push("sources");
   return { version:"task-workspace/1", kind, stage, modules, panels, overviewMessageId, invalidDrafts };
 }

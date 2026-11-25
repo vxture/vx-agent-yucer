@@ -1,3 +1,5 @@
+import { formReviewCatalog } from "./form-review";
+import { InMemoryTaskStore } from "../../../domains/copilot/task-store";
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -14,7 +16,7 @@ import { InMemoryCatalogStore } from "../../../domains/catalog/store";
 import { InMemoryPipelineStore } from "../../../domains/pipeline/store";
 import { emptyStrategyResult } from "../../../domains/strategy/lib/strategy-result";
 import { emptyContent } from "../../../domains/planning/plan-model";
-import { InMemoryAuthzStore, setAuthzStore } from "../../../authz/store";
+import { InMemoryAuthzStore, getAuthzStore, setAuthzStore } from "../../../authz/store";
 import {
   setCatalogStore,
   setStrategyStore,
@@ -383,4 +385,32 @@ test("sales planning contract enforces year consistency and workspace scope", as
     { kind: "segment", query: "x".repeat(201) },
   ])
     await assert.rejects(f.b.query(query), /business_query_denied/);
+});
+
+
+test("review catalogs resolve nested relations, strategy choices and members without displaying stored IDs",async()=>{
+  const f=configured(),accounts=new InMemoryAccountStore(),parent=randomUUID(),hidden=randomUUID(),market=randomUUID(),product=randomUUID(),solution=randomUUID();
+  accounts.seed({accounts:[{id:parent,workspaceId:WS,name:"Visible parent",accountNo:"ACC-1",ownerSub:"alice",tier:"standard",status:"active"},{id:hidden,workspaceId:WS,name:"Other member customer",accountNo:"ACC-2",ownerSub:"bob",tier:"standard",status:"active"}] as AccountRecord[]});
+  f.c.stores={...f.c.stores,account:()=>scopeAccountStore(accounts,{kind:"own",sub:"alice",accountIds:[]})};
+  f.strategy.seed({segments:[{id:market,workspaceId:WS,name:"Research market",segmentCode:"MKT-1",priority:1,status:"active",criteria:{industries:[],regions:[],sizes:[]},solutionIds:[],productIds:[]}]});
+  f.catalog.seed({products:[{id:product,workspaceId:WS,name:"Core product",productCode:"PRD-1",sortOrder:0} as never],solutions:[{id:solution,workspaceId:WS,name:"Related solution",solutionCode:"SOL-1",status:"active",sortOrder:0} as never]});
+  await getAuthzStore().seeMember({workspaceId:WS,sub:"alice",displayName:"Alice reviewer"});
+  const store=new InMemoryTaskStore(),scope={workspaceId:WS,actorSub:"alice"};
+  const t=await store.create(scope,"Review forms","r1",[],randomUUID()),bundle=(await store.load(scope,t.id,true))!;
+  for(const [module,fields]of [
+    ["account",{name:"Customer",parentId:parent,childLinks:[{accountId:hidden,expectedParentId:null}]}],
+    ["segment",{name:"Market",criteria:{industries:[],regions:[],sizes:[]},solutionIds:[solution],productIds:[product]}],
+    ["solution",{name:"Solution",items:[{productId:product,quantity:2,optional:false,note:null}]}],
+    ["strategy",{name:"Strategy",ownerSub:"alice",targetMarkets:[{segmentId:market,intent:"focus",approach:null}]}],
+    ["sales_plan",{year:2026,content:emptyContent(2026,[],"CNY")}],
+  ] as const){
+    bundle.drafts.push({id:randomUUID(),key:module,revision:1,contractVersion:"business-form/1",text:JSON.stringify(mergeForm(null,module,null,fields)),createdAt:new Date()});
+  }
+  const catalog=await formReviewCatalog(f.c,bundle);
+  assert.equal(catalog.account!.labels[parent],"Visible parent");assert.equal(catalog.account!.labels[hidden],undefined);
+  assert.equal(catalog.solution!.labels[product],"Core product");assert.equal(catalog.segment!.labels[solution],"Related solution");
+  assert.equal(catalog.strategy!.labels[market],"Research market");
+  assert.ok(catalog.strategy!.options.strategyTypes!.length>0);assert.ok(catalog.account!.options.provinces!.length>0);
+  assert.ok(catalog.strategy!.options.members!.some(m=>m.value==="alice"));
+  assert.doesNotMatch(JSON.stringify(catalog),/Other member customer/);
 });

@@ -18,6 +18,7 @@ import {
   type ExecutionContext,
 } from "./execution-service";
 import { writeBusinessForm } from "./execution-domain";
+import { formReviewCatalog } from "../../api/copilot/tasks/form-review";
 import { businessBindings } from "../../api/copilot/tasks/business";
 import { readTaskSource } from "../../api/copilot/tasks/context";
 import { getAccountStore } from "../shared/registry";
@@ -502,4 +503,24 @@ test("ten customers share one exact-snapshot grant; retries recover original UUI
  assert.equal(new Set(receipts.map(r=>r.id)).size,10);
  assert.equal((await f.pg.query("SELECT count(*) FROM yucer_core.account WHERE workspace_id=$1",[f.session.workspaceId])).rows[0].count,"10");
  const results=await readExecutions(f.ctx,f.record.id);assert.equal(results.receipts.length,10);assert.ok(results.receipts.every(r=>(r.result as {object:{kind:string}}).object.kind==="account"));
+}));
+
+
+test("form review resolves configured size names within the current workspace without changing form IDs",{skip},()=>fixture(async f=>{
+  const sizeId=randomUUID(),otherSizeId=randomUUID(),otherWorkspace=randomUUID();
+  await f.pg.query("INSERT INTO yucer_core.customer_size(id,workspace_id,customer_size_code,name,sort_order) VALUES ($1,$2,'M','Medium business',1),($3,$4,'SECRET','Other workspace only',1)",[sizeId,f.session.workspaceId,otherSizeId,otherWorkspace]);
+  try{
+    const current=(await f.store.load(f.scope,f.record.id,true))!;
+    const form=await f.ctx.task.business!.prepare(mergeForm(null,"account",null,{name:"Review customer",customerSizeId:sizeId}));
+    assert.equal(await f.store.mutate(f.scope,f.record.id,current.task.revision,{ruleVersion:TASK_RULE_VERSION,draft:{key:"customer",text:JSON.stringify(form),contractVersion:"business-form/1"}}),true);
+    const bundle=(await f.store.load(f.scope,f.record.id,true))!;
+    const catalog=await formReviewCatalog(f.session,bundle);
+    assert.equal(catalog.customer!.labels[sizeId],"Medium business");
+    assert.equal(catalog.customer!.labels[otherSizeId],undefined);
+    assert.ok(!JSON.stringify(catalog).includes("Other workspace only"));
+    assert.equal(JSON.parse(bundle.drafts.find(d=>d.key==="customer")!.text).fields.customerSizeId,sizeId);
+    const restricted={...f.session,authz:{...f.session.authz,permissions:new Set<never>()}};
+    const denied=await formReviewCatalog(restricted,{...bundle,drafts:bundle.drafts.filter(d=>d.key==="customer")});
+    assert.equal(denied.customer!.labels[sizeId],undefined);
+  }finally{await f.pg.query("DELETE FROM yucer_core.customer_size WHERE id=ANY($1::uuid[])",[[sizeId,otherSizeId]]);}
 }));

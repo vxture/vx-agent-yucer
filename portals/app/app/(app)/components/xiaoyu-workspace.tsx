@@ -1,4 +1,7 @@
 "use client";
+import { XiaoyuMarkdown } from "./xiaoyu-markdown";
+import { useXiaoyuCatalog } from "./use-xiaoyu-catalog";
+import { readableText } from "../../domains/copilot/lib/form-review";
 import { XiaoyuInputTools } from "./xiaoyu-input-tools";
 
 import Link from "next/link";
@@ -65,13 +68,14 @@ export function XiaoyuWorkspace({ initialTask, today = false, editor }: { readon
   return <XiaoyuSurface full today={today} editor={editor} />;
 }
 
-function TodayBoard({ onDiscuss, outputKey, today = false, editor }: {
+function TodayBoard({ onDiscuss, outputKey, today = false, editor, labels }: {
+  readonly labels: Record<string,string>;
   readonly editor?: ReactNode;
   readonly onDiscuss: () => void;
   readonly outputKey: string;
   readonly today?: boolean;
 }) {
-  const { XIAOYU_TEXT: T, HOME_OVERVIEW_TEXT: H } = useMessages();
+  const { XIAOYU_TEXT: T, HOME_OVERVIEW_TEXT: H, XIAOYU_FORMS: F } = useMessages();
   const { bundle, busy, recoveryTaskId } = useXiaoyu();
   const view = taskWorkspaceView(bundle);
   const latest = bundle?.messages.find(m => m.id === view.overviewMessageId);
@@ -93,8 +97,8 @@ function TodayBoard({ onDiscuss, outputKey, today = false, editor }: {
         {view.panels.map(panel => panel === "forms" ? <XiaoyuFormLinks key={panel} /> : panel === "sources" ? <XiaoyuResearch key={panel} /> : panel === "activity" ? <TaskActivity key={panel} /> : latest ? <Card key={panel} className="gap-sm p-md">
           <h3 className="flex items-center gap-sm text-label"><Icon name="lightbulb" size="sm" />{T.boardConclusion}</h3>
           <Collapsible key={latest.id}>
-            <p className={`${styles.reportPreview} line-clamp-4 whitespace-pre-wrap break-words text-body leading-relaxed`}>{latest.content}</p>
-            <CollapsibleContent><p className="mt-sm whitespace-pre-wrap break-words text-body leading-relaxed">{latest.content}</p></CollapsibleContent>
+            <div className={`${styles.reportPreview} line-clamp-4`}><XiaoyuMarkdown text={latest.content} labels={labels} unavailable={F.referenceUnavailable}/></div>
+            <CollapsibleContent className="mt-sm"><XiaoyuMarkdown text={latest.content} labels={labels} unavailable={F.referenceUnavailable}/></CollapsibleContent>
             <CollapsibleTrigger asChild><Button size="md" variant="ghost" className={styles.reportToggle}>
               <span className={styles.expandReport}>{T.expandConclusion}</span><span className={styles.collapseReport}>{T.collapseConclusion}</span><Icon name="chevron-down" size="sm" />
             </Button></CollapsibleTrigger>
@@ -115,7 +119,7 @@ function TaskIdentity({ view }: { readonly view: WorkspaceView }) {
   const { XIAOYU_WORKSPACE: W } = useMessages();
   return <div className={styles.taskIdentity} role="group" aria-label={W.identity} data-task-identity>
     <span className={styles.taskType}>{W.kinds[view.kind]}</span>
-    <span className={styles.taskName} title={bundle?.task.goal}>{bundle?.task.goal}</span>
+    <span className={styles.taskName} title={readableText(bundle?.task.goal??"")}>{readableText(bundle?.task.goal??"")}</span>
     <span className={styles.taskStage} data-stage={view.stage}>{W.stages[view.stage]}</span>
   </div>;
 }
@@ -129,7 +133,7 @@ function TaskActivity() {
     <p className="text-body-small text-muted-foreground">{W.activityHint}</p>
     {bundle.turns.slice(-5).reverse().map(turn => <div key={turn.id} className="flex min-w-0 items-center gap-md border-t border-border pt-sm">
       <Icon name={turn.status === "failed" ? "warning" : turn.status === "succeeded" ? "check-circle" : "clock"} size="sm" className="shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate text-body">{bundle.messages.find(m=>m.id===turn.userMessageId)?.content ?? W.previousTurn}</span>
+      <span className="min-w-0 flex-1 truncate text-body">{readableText(bundle.messages.find(m=>m.id===turn.userMessageId)?.content ?? W.previousTurn)}</span>
       <StatusBadge tone={turn.status === "failed" ? "warning" : "neutral"} icon={false}>{W.turns[turn.status]}</StatusBadge>
     </div>)}
   </Card>;
@@ -153,7 +157,7 @@ function ConversationHistory() {
           aria-current={bundle?.task.id === row.id ? "true" : undefined}
           onClick={() => { setOpen(false); void client.select(row.id); }}>
           <span className="min-w-0">
-            <span className="line-clamp-2 break-words text-body">{row.goal}</span>
+            <span className="line-clamp-2 break-words text-body">{readableText(row.goal)}</span>
             <span className="block text-body-small text-muted-foreground">{taskStatus(T, row.status)}</span>
           </span>
         </Button>)}
@@ -197,14 +201,14 @@ function FocusControl() {
   </div>;
 }
 
-function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools }: {
+function XiaoyuConversation({ full, showResults, labels, outputKey, controls, pageTools }: {
   readonly full: boolean;
-  readonly showResults: () => void;
+  readonly labels: Record<string,string>; readonly showResults: () => void;
   readonly outputKey: string;
   readonly controls?: ReactNode;
   readonly pageTools?: PageTools;
 }) {
-  const { XIAOYU_TEXT: T } = useMessages();
+  const { XIAOYU_TEXT: T, XIAOYU_FORMS:F } = useMessages();
   const { width, toggle } = useAssistantWidth();
   const s = useXiaoyu();
   const { client, bundle, busy, loading, notesDirty } = s;
@@ -271,10 +275,10 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
           <p className="max-w-prose text-body leading-relaxed text-muted-foreground">{task ? T.discussHint : T.chatWelcomeHint}</p>
         </div> : null}
         {bundle?.messages.map(message => message.role === "assistant"
-          ? <AgentReply key={message.id}><p className="whitespace-pre-wrap break-words">{message.content}</p></AgentReply>
-          : <AssistantMessage key={message.id} role="user"><p className="whitespace-pre-wrap break-words">{message.content}</p></AssistantMessage>)}
+          ? <AgentReply key={message.id}><XiaoyuMarkdown text={message.content} labels={labels} unavailable={F.referenceUnavailable}/></AgentReply>
+          : <AssistantMessage key={message.id} role="user"><p className="whitespace-pre-wrap break-words">{readableText(message.content,labels,F.referenceUnavailable)}</p></AssistantMessage>)}
         {busy && s.pending && !bundle?.messages.some(m => m.role === "user" && m.content === s.pending?.question) ? (
-          <AssistantMessage role="user"><p className="whitespace-pre-wrap break-words">{s.pending.question}</p></AssistantMessage>
+          <AssistantMessage role="user"><p className="whitespace-pre-wrap break-words">{readableText(s.pending.question,labels,F.referenceUnavailable)}</p></AssistantMessage>
         ) : null}
         {busy ? <AgentReply><output className="text-body-small text-muted-foreground">{T.thinking}</output></AgentReply> : null}
         {full && outputKey && !busy && !s.error ? <Button variant="ghost" size="md" className="self-start" onClick={showResults}>
@@ -311,15 +315,17 @@ function XiaoyuConversation({ full, showResults, outputKey, controls, pageTools 
         disabled={loading || !!s.creation || ended || paused || !!running} busy={busy} sendDisabled={!!s.pending || notesDirty}
         extra={<XiaoyuInputTools disabled={frozen || !!ended || !!paused || !!s.pending}/>} compact />
     </div>
-    {cancel && task ? <ConfirmDestructive open onOpenChange={setCancel} verb={T.cancel} target={task.goal}
+    {cancel && task ? <ConfirmDestructive open onOpenChange={setCancel} verb={T.cancel} target={readableText(task.goal,labels,F.referenceUnavailable)}
       consequence={T.cancelDescription} onConfirm={() => client.change({ action: "status", status: "cancelled" })} /> : null}
-    {interrupt && running ? <ConfirmDestructive open onOpenChange={setInterrupt} verb={T.markInterrupted} target={task?.goal ?? T.conversationFailed}
+    {interrupt && running ? <ConfirmDestructive open onOpenChange={setInterrupt} verb={T.markInterrupted} target={readableText(task?.goal ?? T.conversationFailed,labels,F.referenceUnavailable)}
       consequence={T.interruptDescription} onConfirm={() => client.change({ action: "interrupt", requestId: running.requestId })} /> : null}
   </section>;
 }
 
 export function XiaoyuSurface({ full = false, controls, pageTools, today = false, editor }: { readonly editor?: ReactNode; readonly full?: boolean; readonly controls?: ReactNode; readonly pageTools?: PageTools; readonly today?: boolean }) {
   const { XIAOYU_TEXT: T } = useMessages();
+  const {catalogs}=useXiaoyuCatalog();
+  const labels=Object.values(catalogs)[0]?.labels??{};
   const { bundle, recoveryTaskId, client } = useXiaoyu();
   const router = useRouter();
   const { width } = useAssistantWidth();
@@ -330,7 +336,7 @@ export function XiaoyuSurface({ full = false, controls, pageTools, today = false
   const lastTurn = bundle?.turns.at(-1);
   const hasOutput = drafts.length > 0 || !!latest || !!lastTurn || (!!bundle && bundle.task.status !== "active");
   const outputKey = recoveryTaskId ?? (hasOutput ? `${bundle?.task.id}:${drafts.join(",")}:${latest?.id ?? ""}:${lastTurn?.id ?? ""}:${boardJump}` : "");
-  const conversation = <XiaoyuConversation full={full} controls={controls} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
+  const conversation = <XiaoyuConversation labels={labels} full={full} controls={controls} pageTools={pageTools} outputKey={outputKey} showResults={() => { setBoardJump(i => i + 1); setMobile("board"); }} />;
   return <div className={full ? styles.full : styles.dock} data-xiaoyu-surface={full ? "full" : "dock"} data-task-id={bundle?.task.id ?? ""}
     data-conversation-width={width}>
     {full ? <div className={styles.mobileSwitch} role="group" aria-label={T.title}>
@@ -342,7 +348,7 @@ export function XiaoyuSurface({ full = false, controls, pageTools, today = false
       </Button>
     </div> : null}
     <div className={styles.panes} data-mobile-view={mobile}>
-      {full ? <WorkspaceContent canvas><TodayBoard editor={editor} today={today} outputKey={outputKey} onDiscuss={() => { setMobile("chat"); if (today) router.push(workspaceHref(client.getSnapshot().bundle?.task.id)); }} /></WorkspaceContent> : null}
+      {full ? <WorkspaceContent canvas><TodayBoard labels={labels} editor={editor} today={today} outputKey={outputKey} onDiscuss={() => { setMobile("chat"); if (today) router.push(workspaceHref(client.getSnapshot().bundle?.task.id)); }} /></WorkspaceContent> : null}
       {full ? <ShellDock mode={width} className={`${styles.conversationPane} shadow-none`}>
         {conversation}
       </ShellDock> : conversation}
