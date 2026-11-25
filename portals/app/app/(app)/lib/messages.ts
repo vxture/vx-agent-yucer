@@ -867,6 +867,7 @@ export const DOMAIN_GROUP_QUESTION: Record<string, string> = {
 export const PLANNED_MODULE_LABEL: Record<string, string> = {};
 
 export const LAUNCHER_TEXT = {
+  unavailable: "\u6570\u636e\u6682\u4e0d\u53ef\u7528",
   buttonLabel: "切换功能域",
   panelLabel: "功能域",
   featured: "推荐功能",
@@ -2634,6 +2635,18 @@ export const GATE_PREVIEW_TEXT = {
  * elements makes the reader reassemble it.
  */
 export const BOARD_TEXT = {
+  noRevenueTarget: "\u5f53\u524d\u53ef\u89c1\u8303\u56f4\u5c1a\u672a\u53d1\u5e03\u8425\u6536\u76ee\u6807",
+  leadConversion: "\u7d2f\u8ba1\u7ebf\u7d22\u8f6c\u5316\u7387",
+  noLeadSample: "\u5c1a\u65e0\u7ebf\u7d22\u6837\u672c\uff0c\u6682\u4e0d\u8ba1\u7b97\u8f6c\u5316\u7387",
+
+  pendingSignals: "\u5f85\u5224\u65ad\u4fe1\u53f7",
+  focusAccounts: "\u91cd\u70b9\u5ba2\u6237",
+  revenueTarget: "\u8425\u6536\u76ee\u6807",
+  openLeads: "\u8ddf\u8fdb\u4e2d\u7ebf\u7d22",
+  activeProjects: "\u5728\u4ea4\u4ed8\u9879\u76ee",
+  openCollections: "\u5f85\u56de\u6b3e\u7b14\u6570",
+  overdueCollections: "\u903e\u671f\u7b14\u6570",
+
   // ONE queue, because it is one question: what is waiting on me right now.
   // "今日判断" and "待我裁决" were two cards restating two panels already on
   // screen - the centre's own tier filter and the agent deck's pending list.
@@ -2723,7 +2736,7 @@ export const BOARD_TEXT = {
   namedAccounts: "已分级",
   forecastDisagreements: "有分歧",
   unrouted: "待分派",
-  quoteApprovals: "待签",
+  quoteApprovals: "\u5f85\u5ba1\u6279\u62a5\u4ef7\u5546\u673a",
   unreviewed: "待复盘",
   renewalsDue: "临近到期",
   contractValue: "在交付合同额",

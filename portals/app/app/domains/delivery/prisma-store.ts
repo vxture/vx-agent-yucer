@@ -275,10 +275,10 @@ export class PrismaDeliveryStore implements DeliveryStore {
     return res.count > 0;
   }
 
-  async listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]> {
+  async listInstalments(workspaceId: string, projectId?: string): Promise<InstalmentRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.revenueSchedule.findMany({
-      where: { workspaceId, projectId },
+      where: { workspaceId, ...(projectId === undefined ? {} : { projectId }) },
       orderBy: { sequence: "asc" },
     });
     return rows.map((r: Record<string, unknown>) => {

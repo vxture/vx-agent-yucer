@@ -7,6 +7,7 @@ import { unwrap } from "../shared/result";
 import { InMemoryDeliveryStore, type InstalmentRecord, type MilestoneRecord, type ProjectRecord } from "./store";
 import {
   listProjects,
+  collectionSummary,
   listRenewals,
   renewalDraft,
   renewalPolicy,
@@ -583,4 +584,15 @@ test("the plan's history travels with the project view", async () => {
   const view = unwrap(await projectView(c, "prj_1"));
   assert.equal(view.planChanges.length, 1);
   assert.equal(view.planChanges[0].field, "name");
+});
+
+test("collection navigation counts outstanding instalments, with both gates and workspace isolation", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()], instalments: [
+    instalment(), instalment({ id: "late", status: "overdue" }),
+    instalment({ id: "done", status: "settled" }), instalment({ id: "off", status: "written_off" }),
+    { ...instalment({ id: "other" }), workspaceId: "another" },
+  ] });
+  assert.deepEqual(unwrap(await collectionSummary(ctx("delivery_manager", "business", store))), { open: 2, overdue: 1 });
+  assert.equal((await collectionSummary(ctx("delivery_manager", "starter", store))).ok, false);
 });
