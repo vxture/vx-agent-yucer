@@ -22,7 +22,7 @@ test("decoded multiline MCP source quotes fill fields without trusting JSON tran
   assert.equal(applyAccountEvidence(null,{name},[{...proposed[0]!,value:"www.example.org"}],source).fields.website,expectedWebsite);
   for(const value of ["https://other.example/","https://www.example.org/extra","https://www.example.org/?token=secret"])
     assert.throws(()=>applyAccountEvidence(null,{name},[{...proposed[0]!,value}],source),/invalid_form_evidence/);
-  assert.throws(()=>applyAccountEvidence(null,{name},[{...proposed[0]!,quote:quoted.replace("\n"," ")}],source),/invalid_form_evidence/);
+  assert.throws(()=>applyAccountEvidence(null,{name},[{...proposed[0]!,quote:quoted.replaceAll("\n"," ")}],source),/invalid_form_evidence/);
   const split=[{id:"read-3-1",content:JSON.stringify({name,body:creditCode})}];
   assert.throws(()=>applyAccountEvidence(null,{name},[{...claims[1]!,quote:`${name}\n${creditCode}`}],split),/invalid_form_evidence/);
 });
