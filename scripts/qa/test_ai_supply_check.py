@@ -69,6 +69,54 @@ class SupplyCheckTests(unittest.TestCase):
         with patch.object(check.subprocess, "run", side_effect=subprocess.TimeoutExpired("secret", 40)):
             self.assertEqual(check.attempt(lambda: check.log_counters("app")), {"status": "unavailable"})
 
+    def test_database_input_categories_distinguish_types_without_values(self):
+        raw = ('ERROR: invalid input syntax for type uuid: "private-secret"\n'
+               'ERROR: invalid input syntax for type json\n'
+               'DETAIL: Unicode low surrogate must follow a high surrogate. private-secret\n'
+               'ERROR: invalid input syntax for type integer: "private-secret"\n'
+               'ERROR: invalid input value for enum private_type: "private-secret"\n'
+               'ERROR: unsupported Unicode escape sequence\n'
+               'DETAIL: \\u0000 cannot be converted to text. private-secret\n')
+        result = subprocess.CompletedProcess([], 0, raw)
+        with patch.object(check.subprocess, "run", return_value=result):
+            output = check.log_counters("yucer-db")
+        for category in ("database_invalid_uuid", "database_invalid_json",
+                         "database_invalid_number", "database_invalid_enum",
+                         "database_untranslatable_null"):
+            self.assertEqual(output["counts"][category], 1)
+        self.assertEqual(output["counts"]["database_invalid_unicode"], 2)
+        for sensitive in ("private", "secret", "DETAIL", "ERROR", "\\u0000"):
+            self.assertNotIn(sensitive, json.dumps(output))
+
+    def test_database_events_pair_by_backend_and_return_only_known_relations(self):
+        lines = [
+            '2026-11-25 10:53:01.123 UTC [10] ERROR: invalid input syntax for type uuid: "secret"',
+            '2026-11-25 10:53:01.123 UTC [11] ERROR: invalid input syntax for type json',
+            '2026-11-25 10:53:01.123 UTC [11] STATEMENT: UPDATE "yucer_agent"."agent_task_turn" SET artifacts=secret',
+            '2026-11-25 10:53:01.123 UTC [10] STATEMENT: INSERT INTO "yucer_agent"."agent_task_reference" VALUES (secret)',
+        ]
+        events = check.database_input_events(lines)
+        self.assertEqual([(row["category"], row["relation"], row["operation"]) for row in events], [
+            ("database_invalid_uuid", "agent_task_reference", "INSERT INTO"),
+            ("database_invalid_json", "agent_task_turn", "UPDATE"),
+        ])
+        self.assertNotIn("secret", json.dumps(events))
+        self.assertTrue(all(set(row) == {"at", "category", "relation", "operation"} for row in events))
+
+    def test_database_events_never_infer_relations_from_payload_or_other_error(self):
+        prefix = '2026-11-25 10:53:01 UTC [10] '
+        cases = [
+            [prefix+'ERROR: invalid input syntax for type json', prefix+"STATEMENT: SELECT 'UPDATE yucer_agent.agent_task_turn SET secret'"],
+            [prefix+'ERROR: invalid input syntax for type json', prefix+'ERROR: unrelated secret', prefix+'STATEMENT: UPDATE yucer_agent.agent_task_turn SET secret'],
+            [prefix+'ERROR: invalid input syntax for type json', prefix+'STATEMENT: UPDATE yucer_agent.private_secret SET secret'],
+        ]
+        for lines in cases:
+            event = check.database_input_events(lines)[0]
+            self.assertEqual(event["relation"], "unknown")
+            self.assertEqual(event["operation"], "unknown")
+            self.assertNotIn("secret", json.dumps(event))
+        self.assertEqual(len(check.database_input_events([prefix+'ERROR: invalid input syntax for type json'] * 25)), 20)
+
     def test_metadata_queries_do_not_select_private_content(self):
         statements = " ".join(check.YUCER_QUERIES.values())
         for forbidden in ("actor_sub", "workspace_id", "question_hash", "content", "goal", "artifacts"):
