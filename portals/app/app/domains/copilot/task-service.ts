@@ -257,7 +257,10 @@ export async function listPrivateTasks(
         await owned(ctx, task.id);
         allowed.push(task);
       } catch (e) {
-        if (!(e instanceof TaskRefusal)) throw e;
+        // A denied dependency hides this task, including its title. It must not
+        // suppress unrelated tasks; infrastructure failures still fail closed.
+        if (!(e instanceof TaskRefusal) && !(e instanceof MemoryRefusal) &&
+            !(e instanceof KnowledgeRefusal)) throw e;
       }
     }
     // Listing must also check freshness before handing out private titles.
@@ -268,7 +271,10 @@ export async function listPrivateTasks(
         await owned(fresh, task.id);
         result.push(task);
       } catch (e) {
-        if (!(e instanceof TaskRefusal)) throw e;
+        // A denied dependency hides this task, including its title. It must not
+        // suppress unrelated tasks; infrastructure failures still fail closed.
+        if (!(e instanceof TaskRefusal) && !(e instanceof MemoryRefusal) &&
+            !(e instanceof KnowledgeRefusal)) throw e;
       }
     }
     return result;

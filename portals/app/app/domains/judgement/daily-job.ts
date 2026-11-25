@@ -4,6 +4,7 @@ import { getAuthzStore } from "../../authz/store";
 import { scopeAccountStore, scopePipelineStore } from "../../authz/scoped-stores";
 import { resolveDataScope } from "../../(app)/lib/resolve-scope";
 import { getEntitlementResolver } from "../../entitlement/resolver";
+import { readProvisionedOrganizations } from "../../provisioning/lib/read";
 import { readProductRoster } from "../../platform/product-roster";
 import { getAccountStore, getPipelineStore } from "../shared/registry";
 import { dailyJudgementBaseline, hasDailyJudgementBaseline } from "./daily-baseline";
@@ -12,6 +13,7 @@ import { topicFeed } from "./topic-feed";
 const services = {
   entitlement: (workspaceId: string) => getEntitlementResolver().resolve(workspaceId),
   roster: readProductRoster,
+  organizations: readProvisionedOrganizations,
   authz: getAuthzStore,
   scope: resolveDataScope,
   account: getAccountStore,
@@ -30,11 +32,17 @@ export async function runDailyJudgements(
   deps: DailyJobServices = services,
 ) {
   const ledger = { generated: 0, skipped: 0, failed: 0 };
+  if (workspaces.length === 0) return ledger;
+  // Complete the authoritative directory first. Never borrow an organization
+  // from another workspace or use partially read provisioning data.
+  const organizations = await deps.organizations();
   for (const workspaceId of workspaces) {
+    const orgId = organizations?.get(workspaceId);
+    if (!orgId) { ledger.skipped++; continue; }
     try {
       const authz = deps.authz();
       const [entitlement, roster, members] = await Promise.all([
-        deps.entitlement(workspaceId), deps.roster(workspaceId), authz.listMembers(workspaceId),
+        deps.entitlement(workspaceId), deps.roster(workspaceId, orgId), authz.listMembers(workspaceId),
       ]);
       if (roster === null) { ledger.skipped++; continue; }
       const authorized = members.filter(m => m.status === "active" && roster.some(r => r.subject === m.sub));
