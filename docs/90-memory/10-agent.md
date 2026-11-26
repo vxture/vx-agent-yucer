@@ -140,6 +140,26 @@ two information rows, then a dashed divider; product type and list price
 both belong below that divider. Do not ask again for release confirmation
 for this authorized bundle. Production Environment approval stays owner-only.
 
+PR #825 is merged at e0d57a7c. All six required checks and CodeQL passed on
+both the PR and main. The PR external Sonar gate remains ERROR at 79.5%:
+all uncovered lines are PostgreSQL trigger code without imported SQL runtime
+coverage; new TS store/Prisma code is 100%, and real twin DB suites passed
+529 each. No gates or exclusions were changed; do not claim Sonar passed.
+The owner personally approved db-init 45847722290 (0141: 1 applied,
+141 recorded) and deploy 45849193192. v0.1.146 / e0d57a7c / production
+is deployed and healthy; registry tag/commit digests, deployment logs and
+live identity agree. Twenty-one real logged-in read-only checks passed:
+four card layouts/links, solution price alignment, product type and all
+prices below the divider, publication metadata, detail/history panels and
+390px dark/large-text reading with the dock closed. All 18 visible legacy
+products show Not recorded. No business writes or model calls were made;
+first-publication writes are proved by real twin DB tests, not a production
+fixture. Temporary display preferences were restored, twin databases dropped,
+and the existing 4060 preview retained. Workplan 147 records the checklist and
+Sonar limitations. Resource-readiness workplan 144 remains unimplemented.
+This authorization covers the reviewed v0.1.146 bundle only; subsequent
+product changes still require explicit owner release confirmation.
+
 ## Test-account business content
 
 Owner instruction (2026-11-25): business records added to the authorized
