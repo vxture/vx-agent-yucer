@@ -41,6 +41,7 @@ export interface PlanRecord {
   id: string;
   workspaceId: string;
   planNo: string;
+  readonly previousNumbers?: readonly string[];
   name: string;
   period: string;
   strategyTypeId?: string | null;
@@ -367,7 +368,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     // service turns this into "that number is taken" rather than a constraint
     // name.
     const taken = [...this.plans.values()].some(
-      (p) => p.workspaceId === workspaceId && p.planNo === input.planNo,
+      (p) => p.workspaceId === workspaceId && (p.planNo === input.planNo || p.previousNumbers?.includes(input.planNo)),
     );
     if (taken) return null;
     if (input.targetMarkets?.some(m => this.segments.get(m.segmentId)?.workspaceId !== workspaceId)) {

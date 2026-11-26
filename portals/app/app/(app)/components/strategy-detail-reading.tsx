@@ -7,7 +7,7 @@ import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Icon, Tabl
 import { Section } from "./help-section";
 import { MemberName } from "../lib/member-names";
 import { useLocale, useMessages } from "../lib/i18n/provider";
-import { strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
+import { strategyPeriodLabel, strategyPeriodRangeLabel } from "../../domains/strategy/lib/plan-period";
 import { strategyOfferings } from "../lib/strategy-offerings";
 import type { StrategyView } from "../lib/market-strategy";
 import type { FulfillmentRow } from "../lib/strategy-fulfillment";
@@ -21,7 +21,7 @@ export function StrategyDetailBasic({ plan:p }: { readonly plan:StrategyView }) 
   const { MARKET_STRATEGY_TEXT:T, STRATEGY_RESULT_TEXT:R, STRATEGY_TEXT:S }=useMessages();
   const locale=useLocale();
   const facts=[
-    {label:R.period,icon:"calendar",value:strategyPeriodRangeLabel(p.period) ?? T.periodNeedsDates},
+    {label:R.period,icon:"calendar",value:<span title={strategyPeriodRangeLabel(p.period) ?? undefined}>{strategyPeriodLabel(p.period)}</span>},
     {label:S.newPlanOwner,icon:"user-circle",value:<MemberName sub={p.ownerSub} name={p.publishedOwnerName} fallback={T.noOwner}/>},
     {label:T.publishedAt,icon:"clock",value:<span className="tabular-nums">{p.approvedAt?new Date(p.approvedAt).toLocaleDateString(locale):"-"}</span>},
     {label:T.strategyType,icon:"tree-structure",value:p.strategyType?.name ?? T.typeUnclassified},

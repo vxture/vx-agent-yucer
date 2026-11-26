@@ -93,6 +93,15 @@ Apply this by action importance, not button appearance alone. Do not mechanicall
 resize existing controls. See the product workspace-layout design's operation
 density section. This does not authorize a release.
 
+## Validation cadence preference
+
+Owner instruction (2026-11-26): implement a coherent stage before running the
+full test suite. Small, reversible adjustments receive only the relevant
+checks; do not rerun the entire local suite after each small step. Run broader
+validation at meaningful batch boundaries or for a concrete unresolved risk.
+Mandatory repository CI checks still gate each PR head and merge; do not bypass
+or weaken them. Keep progressing without unnecessary stops.
+
 ## Test-account business content
 
 Owner instruction (2026-11-25): business records added to the authorized

@@ -28,11 +28,13 @@ import type { AccountTier } from "../../domains/account/store";
 // lib/tag.test.ts is what keeps the two apart as the code grows.
 
 export function Tag({
+  className,
   tone = "neutral",
   dot,
   icon,
   children,
 }: {
+  readonly className?: string;
   readonly tone?: StatusBadgeTone;
   /** The DS's dense-row degradation: a dot instead of an icon. */
   readonly dot?: boolean;
@@ -43,7 +45,7 @@ export function Tag({
   readonly children: ReactNode;
 }) {
   return (
-    <StatusBadge tone={tone} dot={dot} icon={icon ?? (tone === "neutral" ? false : undefined)}>
+    <StatusBadge className={className} tone={tone} dot={dot} icon={icon ?? (tone === "neutral" ? false : undefined)}>
       {children}
     </StatusBadge>
   );

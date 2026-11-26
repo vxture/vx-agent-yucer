@@ -152,28 +152,42 @@
 
 .footer {
   composes: divider from "./strategy-info-card.module.css";
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--strategy-card-row-gap);
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: stretch;
+  column-gap: var(--strategy-card-section-gap);
 }
+
+.resources {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-lg);
+}
+
+.resource { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: var(--space-sm); }
+.resource > dd { overflow-wrap: anywhere; }
 
 .metrics {
   display: flex;
+  align-items: start;
   flex-wrap: wrap;
-  gap: var(--strategy-card-section-gap);
+  gap: var(--space-lg);
+  min-width: 0;
+  border-left: 1px solid color-mix(in srgb, var(--foreground) 6%, transparent);
+  padding-left: var(--strategy-card-section-gap);
 }
 
 @container (max-width: 40rem) {
-  .body { grid-template-columns: minmax(0, 1fr); row-gap: var(--strategy-card-row-gap); }
-  .outcome { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
+  .body, .footer { grid-template-columns: minmax(0, 1fr); row-gap: var(--strategy-card-row-gap); }
+  .outcome, .metrics { border-left: 0; border-top: 1px dashed var(--border); padding-left: 0; padding-top: var(--space-md); }
   .illustration { display: none; }
 }
 
 :global(html:lang(en)) .relation { --strategy-summary-label-width: 9em; }
 
 @container (max-width: 24rem) {
+  .resources { grid-template-columns: minmax(0, 1fr); }
   .relation { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 }
 

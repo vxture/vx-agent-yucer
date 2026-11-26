@@ -1,7 +1,7 @@
 import { isUniqueViolation } from "./allocate";
 import { fail, ok, violation, type RuleResult } from "./result";
 
-export type BusinessCodeKind = "MKT" | "SOL" | "PRD";
+export type BusinessCodeKind = "MKT" | "SOL" | "PRD" | "STR";
 export type BusinessWrite = "create" | { readonly editId: string };
 
 const businessDay = new Intl.DateTimeFormat("en-CA", {

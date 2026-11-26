@@ -22,6 +22,7 @@
 |----|------|-------|
 | `strategy_plan` | 战略及其草稿/版本，lineage 归组（incr/0110） | `plan_no`（战略根唯一） |
 | `strategy_option` | 工作区价值主张与实现路径配置，UUID 引用（incr/0125） | kind + code |
+| `strategy_number_alias` | 存量战略旧号到 lineage UUID 的工作区内只读映射（incr/0140） | 工作区＋旧号 |
 | `strategy_plan_event` | 修订、发布、放弃事件，只读授权服务角色（incr/0110） | - |
 | `market_segment` | 可复用的细分市场（`criteria` 保存过滤条件与场景说明） | `segment_code` |
 | `market_segment_solution` | 市场默认方案；独立维护、供战略首次选入继承（incr/0112） | - |

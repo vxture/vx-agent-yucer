@@ -485,7 +485,6 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",
   "yucer_gtm.sales_plan_event",
-  "yucer_gtm.strategy_plan_event",
   "yucer_gtm.strategic_result",
   "yucer_gtm.sales_plan_legacy_target",
   "yucer_pipeline.forecast_target_basis",
@@ -543,6 +542,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
  * row arrives only from the next increment.
  */
 export const READ_ONLY_TABLES: readonly string[] = [
+  // incr/0110 revokes INSERT as well as UPDATE/DELETE; events use controlled functions.
+  "yucer_gtm.strategy_plan_event",
+  // incr/0140. Migration-owned former strategy numbers; application reads only.
+  "yucer_gtm.strategy_number_alias",
   // incr/0038. 3,611 rows of continent / country / province / city / county,
   // generated from pinned sources. The service role selects them; nothing in
   // the product writes them.

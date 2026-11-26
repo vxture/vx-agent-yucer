@@ -44,3 +44,5 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-040 | [战略类型与视觉表达](ADR-040-strategy-intent-and-visual-identity.md) | accepted | 2026-11-17 |
 
 | ADR-043 | [默认销售角色只做初始化](ADR-043-default-sales-role-is-initialization.md) | accepted | 2026-11-18 |
+
+| ADR-044 | [战略编号独立于周期，存量旧号保留查询](ADR-044-strategy-number-aliases.md) | accepted | 2026-11-26 |

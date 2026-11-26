@@ -8528,6 +8528,8 @@ export const en: Dictionary = {
     coverageHelp: "Matched customers meet the current criteria. Assigned customers explicitly belong to this segment and remain visible if criteria change. Incomplete records lack information needed for matching. These counts may overlap and must not be added. Without criteria, customers are not automatically matched.",
   },
   MARKET_STRATEGY_TEXT: {
+  previousNumbers: "Previous numbers",
+  resourceUnspecified: "Unspecified",
   strategyType: "Strategy type",
   typeUnclassified: "Unclassified",
   typeSelect: "Select strategy type",
@@ -8581,7 +8583,7 @@ export const en: Dictionary = {
   strategyNumber: "Strategy number",
   numberAuto: "Auto",
   numberManual: "Custom",
-  numberHint: "Generated from the period and fixed after creation, including future revisions. You can also use your existing business code.",
+  numberHint: "STR codes use the Beijing creation date and a daily sequence, separate from the execution period. Revisions keep the code; previous numbers remain searchable. You can use your own business code when creating.",
   numberReset: "Auto number",
   numberDone: "Done",
 

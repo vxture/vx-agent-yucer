@@ -1,3 +1,4 @@
+import { nextStrategyNumber } from "./lib/plan-number";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EMPTY_ENTITLEMENT } from "../../entitlement/types";
@@ -133,17 +134,17 @@ test("store reads cannot mutate frozen publications through shared references", 
   assert.equal((await c.store.getPlan(WS, v1.id))?.publishedSnapshot?.name, input.name);
 });
 
-test("automatic numbers follow the period, remain workspace scoped and survive revisions", async () => {
+test("automatic numbers follow the creation day, remain workspace scoped and survive revisions", async () => {
   const c = context();
   const annual = unwrap(await createPlan(c, {...input, planNo: ""}, {autoNumber: true}));
-  assert.equal(annual.planNo, "PLAN-2026-001");
+  assert.equal(annual.planNo, nextStrategyNumber([]));
   const quarterly = unwrap(await createPlan(c, {...input, planNo: "stale-preview", period: "2026-Q1"}, {autoNumber: true}));
-  assert.equal(quarterly.planNo, "PLAN-2026-Q1-001");
-  const parallel = await Promise.all(Array.from({length: 4}, () => createPlan(c, {...input, planNo: "PLAN-2026-Q1-001", period: "2026Q1"}, {autoNumber: true})));
+  assert.equal(quarterly.planNo, nextStrategyNumber([annual.planNo]));
+  const parallel = await Promise.all(Array.from({length: 4}, () => createPlan(c, {...input, planNo: nextStrategyNumber([annual.planNo]), period: "2026Q1"}, {autoNumber: true})));
   assert.equal(parallel.every(r => r.ok), true);
   const numbers = parallel.map(r => unwrap(r).planNo);
   assert.equal(new Set(numbers).size, 4);
-  assert.deepEqual(numbers.toSorted(), ["PLAN-2026-Q1-002", "PLAN-2026-Q1-003", "PLAN-2026-Q1-004", "PLAN-2026-Q1-005"]);
+  assert.deepEqual(numbers.toSorted(), [3,4,5,6].map(n=>`${annual.planNo.slice(0,-3)}${String(n).padStart(3,"0")}`));
   const foreign = unwrap(await createPlan({...c, workspaceId: "other"}, {...input, planNo: ""}, {autoNumber: true}));
   assert.equal(foreign.planNo, annual.planNo);
   const released = unwrap(await publishStrategy(c, annual.id, token(annual)));
@@ -154,14 +155,14 @@ test("automatic numbers follow the period, remain workspace scoped and survive r
   assert.equal(code(await createPlan(c, {...input, planNo: ""})), "plan_no_required");
 });
 
-test("automatic numbering preserves manual codes and uses the full custom execution interval", async () => {
+test("automatic numbering preserves manual codes and remains independent of custom execution dates", async () => {
   const c = context();
   const custom = unwrap(await createPlan(c, {...input, planNo: "CORP-RETAIL-26", period: "2026-11-01/2027-02-28"}));
   assert.equal(custom.planNo, "CORP-RETAIL-26");
   const first = unwrap(await createPlan(c, {...input, planNo: "", period: "2026-11-01/2027-02-28"}, {autoNumber: true}));
-  assert.equal(first.planNo, "PLAN-20261101-20270228-001");
+  assert.equal(first.planNo, nextStrategyNumber([]));
   const second = unwrap(await createPlan(c, {...input, planNo: "", period: "2026-11-01/2027-02-28"}, {autoNumber: true}));
-  assert.equal(second.planNo, "PLAN-20261101-20270228-002");
+  assert.equal(second.planNo, nextStrategyNumber([first.planNo]));
 });
 
 test("new strategies and publication require real windows; unknown legacy labels are preserved until corrected", async () => {
@@ -179,4 +180,15 @@ test("new strategies and publication require real windows; unknown legacy labels
   const v2 = unwrap(await publishStrategy(c,corrected.id,token(corrected)));
   assert.equal(v2.publishedSnapshot?.period,"2026-04-01/2027-03-31");
   assert.equal((await c.store.getPlan(WS,legacy.id))?.period,"FY26");
+});
+
+
+test("retained aliases reserve former numbers within a workspace in memory",async()=>{
+  const c=context();
+  const first=unwrap(await createPlan(c,{...input,planNo:"CURRENT"}));
+  (c.store as InMemoryStrategyStore).seed({plans:[{...first,previousNumbers:[nextStrategyNumber([]),"LEGACY"]}]});
+  assert.equal(code(await createPlan(c,{...input,planNo:"LEGACY"})),"plan_no_taken");
+  const auto=unwrap(await createPlan(c,{...input,planNo:""},{autoNumber:true}));
+  assert.equal(auto.planNo,nextStrategyNumber([nextStrategyNumber([])]));
+  assert.equal(unwrap(await createPlan({...c,workspaceId:"other"},{...input,planNo:"LEGACY"})).planNo,"LEGACY");
 });

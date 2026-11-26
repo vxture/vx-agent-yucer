@@ -40,7 +40,11 @@ export function strategyPeriodRangeLabel(value: string): string | null {
 }
 export function strategyPeriodLabel(value: string): string {
   const period = parseStrategyPeriod(value);
-  return period?.kind === "custom" ? `${period.startOn} ~ ${period.endOn}` : value;
+  if (!period) return value;
+  if (period.kind === "annual") return `Y${period.year}`;
+  if (period.kind === "quarter") return `${period.year}Q${period.quarter}`;
+  if (period.kind === "half") return `${period.year}H${Number(period.startOn.slice(5, 7)) === 1 ? 1 : 2}`;
+  return `${period.startOn} ~ ${period.endOn}`;
 }
 
 /** Presets are shortcuts for the same date range, not separate data modes. */

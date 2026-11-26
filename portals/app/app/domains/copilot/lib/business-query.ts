@@ -3,7 +3,7 @@ import type { TaskObject, TaskSource } from "./task-contract";
 
 export const BUSINESS_QUERY_TOKENS = 2400;
 const LIST_FIELDS = new Set([
-  "id", "name", "title", "accountNo", "segmentCode", "productCode", "solutionCode",
+  "id", "name", "title", "planNo", "previousNumbers", "accountNo", "segmentCode", "productCode", "solutionCode",
   "status", "state", "stage", "priority", "tier", "ownerSub", "assigneeSub",
   "accountId", "segmentId", "region", "industryId", "year", "period", "revision",
   "amount", "currency", "targetValue", "metric", "scopeType", "objective", "summary",

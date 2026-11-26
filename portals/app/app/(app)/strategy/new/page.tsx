@@ -1,3 +1,4 @@
+import { matchesStrategyNumber, strategyNumbers } from "../../../domains/strategy/lib/plan-number";
 import { getAuthzStore } from "../../../authz/store";
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -53,7 +54,12 @@ export default async function NewPlanPage({
 
   const { no, id } = await searchParams;
   // id is the version identity. Old code links prefer the current draft.
-  const found=id ? rows.find(p=>p.id===id) : no ? rows.find(p=>p.planNo===no && p.status==="draft") ?? rows.filter(p=>p.planNo===no).sort((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0] : undefined;
+  let candidate=id ? rows.find(p=>p.id===id) : undefined;
+  if (!id && no) {
+    const matching=rows.filter(p=>matchesStrategyNumber(p,no));
+    candidate=matching.find(p=>p.status==="draft") ?? matching.toSorted((a,b)=>(b.versionNo ?? 0)-(a.versionNo ?? 0))[0];
+  }
+  const found=candidate;
   if((no || id) && !found)notFound();
   if(found && found.status !== "draft")redirect(`/strategy/${found.id}`);
 
@@ -95,7 +101,7 @@ export default async function NewPlanPage({
       <NewPlanForm
         key={editable ? found.id : "new"}
         strategyOptions={optionRead.ok ? optionRead.value : []} currency={policy.defaultCurrency} userKey={`${session.workspaceId}:${session.user.sub}`} canAssist={can(session.authz,session.entitlement,"copilot.ask","ui").allowed} onAssist={assistStrategyDraft}
-        existingPlanNos={rows.map((p) => p.planNo)}
+        existingPlanNos={rows.flatMap(strategyNumbers)}
         strategyTypes={strategyTypes?.ok ? strategyTypes.value : null}
         solutionOptions={solutionOptions}
         productOptions={productOptions}
@@ -109,6 +115,7 @@ export default async function NewPlanPage({
                 result:found.result,expectations:found.expectations,
                 editToken:found.editToken ?? 1,basePlanId:found.basePlanId ?? null,changeReason:found.changeReason ?? "",
                 planNo: found.planNo,
+                previousNumbers: found.previousNumbers,
                 name: found.name,
                 period: found.period,
                 strategyTypeId: found.strategyTypeId ?? null,
