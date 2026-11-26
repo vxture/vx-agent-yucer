@@ -184,7 +184,7 @@
 .metric {
   display: grid;
   min-width: 0;
-  grid-template-columns: var(--strategy-summary-label-width, 5em) minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: start;
   column-gap: var(--space-sm);
   row-gap: var(--space-xs);
@@ -215,7 +215,6 @@
   padding-inline: var(--space-xs);
 }
 .resource :global([data-quantity-unit]) { color: var(--foreground); }
-.metric { grid-template-columns: max-content minmax(0, 1fr); }
 
 .metrics {
   display: grid;
