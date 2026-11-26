@@ -50,6 +50,7 @@ test("ending or replacing a base invalidates its unfinished draft and prevents p
   const draft = plan({ id: "draft", status: "draft", basePlanId: base.id, versionNo: null });
   assert.deepEqual(strategyOperations(draft, [base, draft], all).actions, ["view", "versions", "discard"]);
   assert.equal(strategyOperations(draft, [base, draft], all).staleDraft, true);
+  assert.equal(strategyOperations(draft, [{ ...base, status: "archived" }, draft], all).staleDraft, true);
   const newer = plan({ id: "v2", versionNo: 2 });
   assert.equal(strategyOperations(draft, [base, newer, draft], all).staleDraft, true);
 });

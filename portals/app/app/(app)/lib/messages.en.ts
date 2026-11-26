@@ -8542,8 +8542,8 @@ export const en: Dictionary = {
   endHint: "Execution cannot be resumed and no further revisions can be created or published. Pending revisions become read-only; existing sales-plan handoffs, campaigns and opportunities retain their links.",
   archiveStrategy: "Archive strategy",
   archiveVerb: "Archive",
-  archiveHint: "Moves this strategy to history. Execution cannot be resumed and revisions cannot be created; existing business records and version history remain available.",
-  staleDraftHint: "The base version ended or was replaced. This draft is read-only and can be discarded through strategy actions; editing and publication are unavailable.",
+  archiveHint: "Moves this strategy to history. Execution cannot start and revisions cannot be created or published. Pending revisions become read-only; existing business records and version history remain available.",
+  staleDraftHint: "The base version ended, was archived or was replaced. This draft is read-only and can be discarded through strategy actions; editing and publication are unavailable.",
   discardInitialHint: "This strategy has not been published. Discarding prevents further editing or publication; the draft record remains in strategy history.",
 
   previousNumbers: "Previous numbers",
