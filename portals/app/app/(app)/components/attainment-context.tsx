@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
-import { Card, CardContent, Icon, NativeSelect } from "@vxture/design-ui";
+import { Icon, NativeSelect } from "@vxture/design-ui";
 import type { AttainmentRevision } from "../../domains/planning/attainment-plan";
 import { attainmentHref, planningHref, type AttainmentView } from "../lib/attainment-workspace";
 import { focusHref } from "../lib/focus-workspace";
@@ -23,7 +23,7 @@ export function AttainmentContext({ period, scope, scopeName, view, selected, cu
   const region = scope.startsWith("territory:") ? scope.slice(10) : null;
   const personal = scope === "personal" || scope.startsWith("owner:");
   const historical = !!selected && selected.id !== current?.id;
-  return <Card><CardContent className="flex flex-col gap-md text-body" data-attainment-context>
+  return <div className="flex min-w-0 flex-col gap-md border-b border-dashed border-border pb-md text-body" data-attainment-context>
     {controls ? <div className="border-b border-border pb-md">{controls}</div> : null}
     <div className="flex flex-wrap items-center justify-between gap-md">
     <div className="flex min-w-0 flex-wrap items-center gap-sm">
@@ -41,5 +41,5 @@ export function AttainmentContext({ period, scope, scopeName, view, selected, cu
       {canPlan && !personal ? <PageActionButton asChild><Link href={planningHref(year, region, selected?.id, period)}>{T.planning}</Link></PageActionButton> : null}
     </div>
     </div>
-  </CardContent></Card>;
+  </div>;
 }

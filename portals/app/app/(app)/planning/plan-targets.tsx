@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@vxture/design-ui";
 import { NewLogoEstimateCaption, NewLogoEstimateDrawer } from "./new-logo-estimate-drawer";
+import deploymentStyles from "../components/deployment-card.module.css";
 import { RowActions } from "../components/table-fittings";
 import { TitleHelp } from "../components/title-help";
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -253,6 +254,7 @@ export function PlanTargetLedger({
     PLANNING_TEXT: P,
     DS_LABELS,
     NEW_LOGO_ESTIMATE_TEXT: N,
+    FOCUS_TEXT: F,
   } = useMessages();
   const labels = {
     revenue: P.metricRevenue,
@@ -264,6 +266,10 @@ export function PlanTargetLedger({
   const [mode, setMode] = useState<PeriodMode>("simple");
   const [estimateKey, setEstimateKey] = useState<string | null>(null);
   const [note, setNote] = useState<{ key: string; value: string } | null>(null);
+  const closeNote = () => {
+    if (note && edit && note.value !== content.targets.find(line => line.key === note.key)?.note && !window.confirm(F.unsaved)) return;
+    setNote(null);
+  };
   useEffect(() => {
     try {
       if (localStorage.getItem(modeKey) === "complete") setMode("complete");
@@ -607,7 +613,7 @@ export function PlanTargetLedger({
       </Collapsible>
       <Drawer
         open={note !== null}
-        onClose={() => setNote(null)}
+        onClose={closeNote}
         width="md"
         title={T.note}
         closeLabel={T.cancel}
@@ -618,18 +624,19 @@ export function PlanTargetLedger({
               <FieldLabel htmlFor="plan-target-note">{T.note}</FieldLabel>
               <Textarea
                 id="plan-target-note"
-                rows={4}
+                rows={1}
+                className="min-h-control-xl field-sizing-content"
                 maxLength={8000}
                 value={note.value}
                 disabled={disabled || !edit}
                 onChange={(e) => setNote({ ...note, value: e.target.value })}
               />
             </Field>
-            <div className="flex justify-end gap-sm pb-xl">
+            <div className={deploymentStyles.drawerFooter}>
               <Button data-control-kind="drawer-action"
                 size="xl"
                 variant="secondary"
-                onClick={() => setNote(null)}
+                onClick={closeNote}
               >
                 {T.cancel}
               </Button>
@@ -719,7 +726,7 @@ function MetricSelection({
               ).map((preset) => (
                 <Button
                   key={preset}
-                  size="md"
+                  size="xl"
                   variant="secondary"
                   disabled={disabled}
                   onClick={() => choosePreset(preset)}
@@ -761,7 +768,7 @@ function MetricSelection({
               </label>
             ))}
           </div>
-          <div className="flex justify-end gap-sm pb-xl">
+          <div className={deploymentStyles.drawerFooter}>
             <Button data-control-kind="drawer-action"
               size="xl"
               variant="secondary"

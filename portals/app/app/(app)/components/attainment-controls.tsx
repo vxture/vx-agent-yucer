@@ -3,12 +3,12 @@ import { MemberPicker } from "./member-picker";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { Icon, NativeSelect, Tabs, TabsTrigger } from "@vxture/design-ui";
+import { NativeSelect, Tabs, TabsTrigger } from "@vxture/design-ui";
 import { TabsList } from "./business-controls";
 import { PeriodTabs } from "./period-tabs";
 import { useMemberName } from "../lib/member-names";
 import { useMessages } from "../lib/i18n/provider";
-import { PageActionButton } from "./page-header-actions";
+import { RowActions } from "./table-fittings";
 import {
   attainmentHref,
   ATTAINMENT_VIEWS,
@@ -159,13 +159,16 @@ export function AttainmentControls({
 export function AttainmentViewActions({
   value,
   reportingScope = "workspace",
+  allowForecast = true,
 }: {
   readonly value: AttainmentView;
   readonly reportingScope?: string;
+  readonly allowForecast?: boolean;
 }) {
   const {
     ATTAINMENT_TEXT: { workspace: T },
     ATTAINMENT_DEPLOYMENT_TEXT: D,
+    DS_LABELS,
   } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
@@ -188,19 +191,8 @@ export function AttainmentViewActions({
     );
   };
   const icons = { progress: "chart-bar", review: "list-checks", history: "archive" } as const;
-  return (
-    <div className="flex shrink-0 items-center gap-2xs" role="group" aria-label={T.views} aria-busy={pending} data-attainment-view-actions>
-      {ATTAINMENT_VIEWS.map((view) => (
-            <PageActionButton key={view}
-              intent={value === view ? "primary" : "secondary"}
-              aria-label={view === "history" ? D.history : T[view]}
-              aria-pressed={value === view}
-              disabled={pending}
-              onClick={() => selectView(view)}
-            >
-              <Icon name={icons[view]} size="sm" />{view === "history" ? D.history : T[view]}
-            </PageActionButton>
-      ))}
-    </div>
-  );
+  const items = ATTAINMENT_VIEWS.filter(view => view !== value && (view === "progress" || allowForecast)).map(view => ({
+    id: view, label: view === "history" ? D.history : T[view], icon: icons[view], onSelect: () => selectView(view),
+  }));
+  return items.length ? <RowActions label={DS_LABELS.actionMenu} items={items} disabled={pending}/> : null;
 }

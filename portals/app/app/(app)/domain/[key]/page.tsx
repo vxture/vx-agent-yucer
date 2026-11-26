@@ -105,6 +105,8 @@ export default async function DomainHomePage({
   const moduleHref = (m: Exclude<ResolvedModule, { kind: "planned" }>) => {
     if (deployment && m.key === "planning") return `/planning?year=${year}`;
     if (deployment && m.key === "attainment") return `/attainment?period=Y${year}`;
+    if (deployment && m.key === "namedAccount") return `/named?year=${year}&period=Y${year}`;
+    if (deployment && m.key === "winLossReview") return `/winloss?period=Y${year}`;
     return m.href;
   };
   const moduleDescription = (m: Exclude<ResolvedModule, { kind: "planned" }>) => {
@@ -120,7 +122,7 @@ export default async function DomainHomePage({
   return (
     <ViewLayout>
       {/* A DOMAIN HOME sits under the launcher, and the launcher lives on
-          今日判断 - the one page that is nobody's child. */}
+          the home overview - the one page that is nobody's child. */}
       <PageCrumbs
         trail={[{ label: DOMAIN_LABEL.home, href: "/" }]}
         current={DOMAIN_GROUP_LABEL[key] ?? key}

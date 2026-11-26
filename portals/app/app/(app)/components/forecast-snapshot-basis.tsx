@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { Button, MetricListCard } from "@vxture/design-ui";
+import { DeploymentCard, DeploymentField } from "./deployment-card";
+import { PageActionButton } from "./page-header-actions";
 import type { ForecastSnapshotPoint } from "../../domains/pipeline/lib/forecast";
 import { snapshotAttainment } from "../lib/attainment-progress";
 import { planningHref } from "../lib/attainment-workspace";
@@ -36,49 +37,13 @@ export function ForecastSnapshotBasis({
   const time = `${snapshot.snapshotAt.toLocaleString(locale, { timeZone: "UTC" })} UTC`;
   const money = (n: number, currency = snapshot.currency) =>
     formatMoney(n, currency, locale);
-  const details = (
-    <div className="flex flex-col gap-md">
-      <p className="text-body-small text-muted-foreground">
-        {T.snapshotScope}
-        {" \u00b7 "}
-        {time}
-      </p>
-      <dl className="grid grid-cols-1 gap-md text-body sm:grid-cols-2">
-        {[
-          [T.source, version],
-          [
-            T.snapshotTarget,
-            target === null
-              ? "-"
-              : money(target, basis?.currency ?? snapshot.currency),
-          ],
-          [T.snapshotClosed, money(snapshot.closedAmount.amount)],
-          [
-            T.snapshotRate,
-            ratio === null ? "-" : `${(ratio * 100).toFixed(1)}%`,
-          ],
-        ].map(([label, value]) => (
-          <div key={label} className="flex flex-col gap-xs">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="font-medium tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {canPlan && basis?.sourceKind === "sales_plan" && basis.revisionId ? (
-        <Button asChild size="xl" variant="outline">
-          <Link
-            href={planningHref(
-              Number(period.replace(/^Y/, "").slice(0, 4)),
-              snapshot.territoryId,
-              basis.revisionId,
-              period,
-            )}
-          >
-            {T.planning}
-          </Link>
-        </Button>
-      ) : null}
-    </div>
-  );
-  return <MetricListCard title={T.snapshotDetail} note={details} />;
+  return <DeploymentCard title={T.snapshotDetail} icon="archive" meta={<><span>{T.snapshotScope}</span><time dateTime={snapshot.snapshotAt.toISOString()}>{time}</time></>}
+    actions={canPlan && basis?.sourceKind === "sales_plan" && basis.revisionId ? <PageActionButton asChild><Link href={planningHref(Number(period.replace(/^Y/, "").slice(0, 4)), snapshot.territoryId, basis.revisionId, period)}>{T.planning}</Link></PageActionButton> : undefined}>
+    <dl className="grid grid-cols-1 gap-md @3xl:grid-cols-2 text-body">
+      <DeploymentField label={T.source}>{version}</DeploymentField>
+      <DeploymentField label={T.snapshotTarget}><span className="font-medium tabular-nums text-primary-text">{target === null ? "-" : money(target, basis?.currency ?? snapshot.currency)}</span></DeploymentField>
+      <DeploymentField label={T.snapshotClosed}><span className="tabular-nums">{money(snapshot.closedAmount.amount)}</span></DeploymentField>
+      <DeploymentField label={T.snapshotRate}><span className="tabular-nums">{ratio === null ? "-" : `${(ratio * 100).toFixed(1)}%`}</span></DeploymentField>
+    </dl>
+  </DeploymentCard>;
 }

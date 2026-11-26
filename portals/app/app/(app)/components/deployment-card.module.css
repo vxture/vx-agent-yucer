@@ -1,0 +1,29 @@
+.card { min-width: 0; container: deployment-card / inline-size; }
+.content { display: flex; min-width: 0; flex-direction: column; gap: var(--space-md); }
+.header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-sm); }
+.identity { display: inline-flex; min-width: 0; align-items: start; gap: var(--space-sm); }
+.emblem { flex-shrink: 0; color: var(--primary-text); opacity: var(--opacity-muted); margin-top: calc((1lh - var(--spacing-icon-sm)) / 2); }
+:global(.dark) .emblem { opacity: 1; }
+.indent { margin-inline-start: calc(var(--spacing-icon-sm) + var(--space-sm)); }
+.body, .footer { min-width: 0; display: flex; flex-direction: column; gap: var(--space-md); border-block-start: var(--border-width-thin) dashed var(--border); padding-block-start: var(--space-md); font-size: var(--body-font-size); line-height: var(--body-line-height); }
+.field { display: grid; min-width: 0; grid-template-columns: fit-content(45%) minmax(0, 1fr); align-items: start; gap: var(--space-sm); font-size: var(--body-font-size); line-height: var(--body-line-height); }
+.field > dt, .field > dd { min-width: 0; overflow-wrap: anywhere; }
+.metrics { display: flex; min-width: 0; flex-wrap: wrap; gap: var(--space-md) 0; }
+.metrics > div { display: flex; min-width: 0; flex: 1 1 10ch; flex-direction: column; gap: var(--space-xs); padding-inline: var(--space-md); }
+.metrics > div:first-child { padding-inline-start: 0; }
+.metrics > div + div { border-inline-start: var(--border-width-thin) solid var(--border); }
+.metrics dd { overflow-wrap: anywhere; }
+.tooltip { width: max-content; max-width: min(var(--container-overlay-xl), calc(100vw - 2 * var(--space-md))); }
+.drawerFields { display: grid; min-width: 0; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18ch), 1fr)); gap: var(--space-md); }
+.drawerFields > :global([data-wide]) { grid-column: 1 / -1; }
+.drawerFooter { display: flex; position: sticky; bottom: 0; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-sm); border-block-start: var(--border-width-thin) solid var(--border); background: var(--background); padding-block-start: var(--space-md); padding-block-end: max(var(--space-lg), env(safe-area-inset-bottom)); }
+
+.fields { display: grid; min-width: 0; grid-template-columns: fit-content(45%) minmax(0, 1fr); gap: var(--space-md) var(--space-sm); }
+.fields > .field { grid-column: 1 / -1; grid-template-columns: subgrid; }
+@container deployment-card (max-width: 22rem) {
+  .metrics > div { flex-basis: 100%; padding-inline: 0; }
+  .metrics > div + div { border-inline-start: 0; border-block-start: var(--border-width-thin) solid var(--border); padding-block-start: var(--space-sm); }
+  .content { padding-inline: var(--space-md); }
+  .field, .fields, .fields > .field { grid-template-columns: minmax(0, 1fr); }
+  .field { gap: var(--space-xs); }
+}

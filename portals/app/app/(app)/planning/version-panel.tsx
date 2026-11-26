@@ -40,6 +40,9 @@ import { Tag } from "../components/tag";
 import { PageActionButton } from "../components/page-header-actions";
 import { NewEntryButton } from "../components/form-page";
 import { ModuleHeadline } from "../components/module-headline";
+import deploymentStyles from "../components/deployment-card.module.css";
+import links from "../components/business-reference.module.css";
+import { SalesPlanningModuleSummary } from "../components/deployment-module-summary";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import {
   excludePlanningRegion,
@@ -164,6 +167,7 @@ function NativePlanningVersionPanel({
     revision?.id === state.draft.id &&
     canEdit &&
     !state.closed && !draftPreview;
+  const readonlyVersion = !!revision && revision.state === "sealed" && revision.id !== state.current?.id;
   const c = editing
     ? (content ?? state.draft!.content)
     : (revision?.content ?? previewContent);
@@ -497,7 +501,19 @@ function NativePlanningVersionPanel({
           : confirm === "lock"
             ? T.lock
             : T.close;
+  const inspectPlan = () => {
+    if (editing && dirty)
+      run({ kind: "save", revisionId: state.draft!.id, editToken: state.draft!.editToken, content: c! }, "check");
+    else if (editing && plan)
+      transition(async () => { await checkDraft(plan, false); });
+    else {
+      setCheckError("");
+      setChecksOpen(true);
+    }
+  };
   const auxiliaryActions = [
+    ...(readonlyVersion && state.current ? [{ id: "current", label: T.current, icon: "arrow-right" as const, onSelect: () => choose("current") }] : []),
+    ...(!editing && revision ? [{ id: "inspect", label: T.insights, icon: "list-checks" as const, onSelect: inspectPlan }] : []),
     ...(editing
       ? [
           {
@@ -539,7 +555,7 @@ function NativePlanningVersionPanel({
       icon: "clock-counter-clockwise" as const,
       onSelect: () => setPanel("history"),
     },
-    ...(canEdit &&
+    ...(canEdit && !readonlyVersion &&
     !state.closed &&
     (state.draft || state.current || state.scheduled)
       ? [
@@ -556,6 +572,10 @@ function NativePlanningVersionPanel({
     <div className="@container flex flex-col gap-xl">
       <ModuleHeadline
         moduleKey="planning"
+        description={<SalesPlanningModuleSummary content={c} revision={revision} regionalPublished={!!regionalBasis}
+          draft={!!state.draft} editing={editing} dirty={dirty}
+          historical={readonlyVersion && revision.id !== state.scheduled?.id} scheduled={readonlyVersion && revision.id === state.scheduled?.id}
+          onOpenDraft={!editing && canEdit && state.draft && !state.closed ? () => choose(state.draft!.id, true) : undefined}/>}
         help={
           companyEditing
             ? T.companyFlowHint
@@ -630,33 +650,12 @@ function NativePlanningVersionPanel({
           ),
           secondary: (
             <>
-              <PageActionButton
-                onClick={() => {
-                  if (editing && dirty)
-                    run(
-                      {
-                        kind: "save",
-                        revisionId: state.draft!.id,
-                        editToken: state.draft!.editToken,
-                        content: c!,
-                      },
-                      "check",
-                    );
-                  else if (editing && plan)
-                    transition(async () => {
-                      await checkDraft(plan, false);
-                    });
-                  else {
-                    setCheckError("");
-                    setChecksOpen(true);
-                  }
-                }}
-                disabled={!revision || pending}
-              >
+              {editing ? <PageActionButton onClick={inspectPlan} disabled={pending}>
                 {T.insights}
                 {findings?.length ? ` · ${findings.length}` : ""}
-              </PageActionButton>
+              </PageActionButton> : null}
               {!editing &&
+              !readonlyVersion &&
               !state.draft &&
               state.current &&
               canEdit &&
@@ -698,7 +697,7 @@ function NativePlanningVersionPanel({
           ),
           primary: (
             <>
-              {canEdit && !editing && !state.closed ? (
+              {canEdit && !editing && !readonlyVersion && !state.closed ? (
                 state.draft || state.current ? (
                   <PageActionButton intent="primary" disabled={pending} onClick={() =>
                     state.draft ? choose(state.draft.id, true) : run({
@@ -876,7 +875,7 @@ function NativePlanningVersionPanel({
                     {T.back}
                   </Button>
                 ) : null}
-                {!editing && revision?.state === "sealed" ? (
+                {!editing && sources.canAttainment && revision?.state === "sealed" ? (
                   <Link
                     href={attainmentHref({
                       period: initialPeriod ?? `Y${year}`,
@@ -885,16 +884,11 @@ function NativePlanningVersionPanel({
                         : "workspace",
                       planRevision: revision.id,
                     })}
-                    className="text-body-small text-muted-foreground transition-colors hover:text-primary"
+                    className={`${links.textLink} text-body-small`}
                   >
                     {T.actual}
                   </Link>
                 ) : null}
-                <RowActions
-                  label={`${currentRegion?.name ?? T.company} · ${T.version}`}
-                  items={auxiliaryActions}
-                  disabled={pending}
-                />
               </div>
             }
           >
@@ -971,7 +965,7 @@ function NativePlanningVersionPanel({
               onSelect={selectRegion}
               basis={regionalEditing && companyRevision ? <span className="text-body-small text-muted-foreground">{R.basis} V{companyRevision.version}</span> : regionalBasis ? <span className="text-body-small text-muted-foreground">{W.regionalBasis} V{regionalBasis.version}</span> : undefined}
               onAttainment={
-                !editing && revision?.state === "sealed"
+                !editing && sources.canAttainment && revision?.state === "sealed"
                   ? (id) =>
                       router.push(
                         attainmentHref({
@@ -1177,12 +1171,13 @@ function NativePlanningVersionPanel({
           ) : null}
           <div className="flex flex-col gap-lg">
             <Field>
-              <FieldLabel htmlFor="plan-change-reason">{T.reason}</FieldLabel>
+              <FieldLabel htmlFor="plan-change-reason" required={!!plan?.revisions.some(r => r.state === "sealed")}>{T.reason}</FieldLabel>
               <Textarea
                 id="plan-change-reason"
                 value={reason}
                 maxLength={8000}
-                rows={2}
+                rows={1}
+                className="min-h-control-xl field-sizing-content"
                 disabled={pending}
                 onChange={(e) => setReason(e.target.value)}
               />
@@ -1502,7 +1497,7 @@ function NativePlanningVersionPanel({
               ) : null}
             </>
           ) : null}
-          <div className="flex justify-end gap-sm">
+          <div className={deploymentStyles.drawerFooter}>
             <Button data-control-kind="drawer-action"
               size="xl"
               variant="secondary"

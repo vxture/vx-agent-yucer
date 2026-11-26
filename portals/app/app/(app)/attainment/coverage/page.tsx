@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { PageActionButton } from "../../components/page-header-actions";
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { canReadReportingScope } from "../../../authz/forecast-scope";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -21,11 +23,12 @@ export default async function AttainmentCoveragePage({ searchParams }: {
   const locked = lockedPage(data.session, "attainment");
   if (locked) return locked;
   const selection = resolveAttainmentQuery(await searchParams, data.session.user.sub, data.session.scope);
-  const { ATTAINMENT_PLAN_TEXT: T, DOMAIN_LABEL, ATTAINMENT_DEPLOYMENT_TEXT: D } = await getMessages();
+  const { ATTAINMENT_PLAN_TEXT: T, DOMAIN_LABEL, ATTAINMENT_DEPLOYMENT_TEXT: D, DEPLOYMENT_SUMMARY_TEXT: S } = await getMessages();
   const team = selection.perspective === "team" ? await loadAttainmentTeam() : null;
   if (selection.invalid || !canReadReportingScope(data.session.scope, selection.scope, data.session.user.sub) ||
       (selection.perspective === "team" && !team?.members.some((m) => m.sub === selection.scope.ownerSub)))
     return <EmptyState title={T.invalidScope} />;
+  if (selection.period === "all") return <EmptyState title={S.choosePeriod}/>;
   const year = Number(selection.period.replace(/^Y/, "").slice(0, 4));
   const periods = offeredPeriods(new Date(Date.UTC(year, 0, 1)));
   const scopeName = selection.scope.scopeType === "workspace" ? T.company :
@@ -46,7 +49,7 @@ export default async function AttainmentCoveragePage({ searchParams }: {
         description={[scopeName, selection.period, D.live, revisionLabel].filter(Boolean).join(" / ")}
         help={D.evidenceHelp}
         divider
-        pageActions={{ context: <PeriodTabs value={selection.period} periods={periods.quarters} yearLabel={periods.year} yearText={T.periodYear} compact resetParams={["snapshot"]} /> }}
+        pageActions={{ secondary: <PageActionButton asChild><Link href={back}>{D.back}</Link></PageActionButton>, context: <PeriodTabs value={selection.period} periods={periods.quarters} yearLabel={periods.year} yearText={T.periodYear} compact resetParams={["snapshot"]} /> }}
       />
       <AttainmentProgress selection={selection} />
       <footer className="mt-xl border-t border-dashed border-border pt-lg pb-xl text-body-small text-muted-foreground" data-attainment-cutoff>

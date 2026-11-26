@@ -34,6 +34,8 @@ import { canReadReportingScope } from "../../authz/forecast-scope";
 import { AttainmentContext } from "../components/attainment-context";
 import { PageActionButton } from "../components/page-header-actions";
 import Link from "next/link";
+import { AttainmentModuleSummary } from "./summary";
+import { Tag } from "../components/tag";
 
 export const dynamic = "force-dynamic";
 
@@ -202,10 +204,13 @@ export default async function AttainmentPage({
       <ModuleHeadline
         moduleKey="attainment"
         help={T.why}
+        description={<AttainmentModuleSummary selection={selection} allowForecast={forecastGate.allowed}/>}
+        tags={<Tag>{selection.view === "history" ? DT.history : T[selection.view]}</Tag>}
         pageActions={{
-          view: (
+          more: (
             <AttainmentViewActions
               value={selection.view}
+              allowForecast={forecastGate.allowed}
               reportingScope={
                 selection.perspective === "team"
                   ? `owner:${session.user.sub}`

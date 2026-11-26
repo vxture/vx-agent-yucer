@@ -2,6 +2,7 @@
 import { CollectionTable, CollectionTitleCell } from "./collection-table";
 
 import Link from "next/link";
+import businessLinks from "./business-reference.module.css";
 import { useRouter } from "next/navigation";
 import {
   EmptyState,
@@ -14,8 +15,7 @@ import { PaginationFooter, RowActions, useTableSort } from "./table-fittings";
 import { Tag } from "./tag";
 import { MemberName, useMemberName } from "../lib/member-names";
 
-const LINK =
-  "text-foreground no-underline transition-colors hover:text-primary-text focus-visible:text-primary-text focus-visible:ring-2 focus-visible:ring-ring";
+const LINK = businessLinks.textLink;
 export interface AttainmentDealRow {
   id: string;
   name: string;

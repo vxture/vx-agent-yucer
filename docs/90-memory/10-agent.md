@@ -111,6 +111,13 @@ density section. This does not authorize a release.
 
 ## Validation cadence preference
 
+Owner instruction (2026-11-26, workplan 148): continue DO-02 through DO-08
+without intermediate stops. This authorizes consolidated implementation,
+validation, PR/merge and the unified release for this deployment-domain bundle.
+It supersedes the earlier preview-only hold for this bundle. Report meaningful
+milestones and update the checklist. Production Environment approval remains
+owner-only; never approve it on the owner's behalf.
+
 Owner instruction (2026-11-26): implement a coherent stage before running the
 full test suite. Small, reversible adjustments receive only the relevant
 checks; do not rerun the entire local suite after each small step. Run broader

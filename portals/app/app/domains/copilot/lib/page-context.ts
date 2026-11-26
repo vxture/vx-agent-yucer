@@ -21,8 +21,15 @@ const kinds: Partial<Record<PageModule, TaskObject["kind"]>> = {
   segment: "segment", catalog: "product", solution: "solution", campaign: "campaign", delivery: "project", planning: "sales_plan",
 };
 
-export const PAGE_FILTERS = ["status","year","period","scope","region","owner","sort","dir","revision","query","level","health","stage","forecast","priority","type","plan","view"] as const;
-export const validPageFilter = (key:string,value:unknown):value is string => (PAGE_FILTERS as readonly string[]).includes(key) && typeof value === "string" && (key === "query" ? value.length <= 160 && !/[\x00-\x1f]/.test(value) : /^[a-zA-Z0-9_-]{1,80}$/.test(value));
+export const PAGE_FILTERS = ["status","year","period","scope","region","owner","sort","dir","revision","query","level","health","stage","forecast","priority","type","plan","view","planRevision","perspective","evidence","outcome","reason","dates","q"] as const;
+export const validPageFilter = (key: string, value: unknown): value is string => {
+  if (!(PAGE_FILTERS as readonly string[]).includes(key) || typeof value !== "string") return false;
+  if (key === "query" || key === "q") return value.length <= 160 && !/[\x00-\x1f]/.test(value);
+  if (key === "planRevision") return UUID.test(value);
+  // A display focus only: reporting services still resolve and authorize scope.
+  if (key === "scope") return /^(workspace|team|personal|(?:owner|territory):[a-zA-Z0-9_-]{1,80})$/.test(value);
+  return /^[a-zA-Z0-9_-]{1,80}$/.test(value);
+};
 
 /** Only routing metadata, never an arbitrary URL, DOM snapshot or authority. */
 export function routePageContext(path: string, search = ""): TaskPageContext | null {

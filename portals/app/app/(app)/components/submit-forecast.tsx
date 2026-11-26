@@ -200,7 +200,7 @@ export function SubmitForecast({
           {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
           {!confirmation ? (
             <Button
-              size="md"
+              size="xl"
               variant="outline"
               disabled={pending}
               onClick={() => start(loadPreview)}
@@ -235,7 +235,7 @@ export function SubmitForecast({
               <p className="text-muted-foreground text-body-small">
                 {PIPELINE_TEXT.snapshotComputed}
               </p>
-              <dl className="mt-2xs grid grid-cols-2 gap-x-md gap-y-2xs text-body-small">
+              <dl className="mt-2xs grid grid-cols-1 gap-x-md gap-y-sm text-body">
                 {computed.map(([label, amount]) => (
                   <div
                     key={label}
@@ -256,7 +256,7 @@ export function SubmitForecast({
             </FieldLabel>
             <Input
               disabled={pending}
-              className="h-control-xl"
+              className="h-control-xl w-full max-w-64"
               id="forecast-call"
               type="number"
               inputMode="decimal"
@@ -273,6 +273,8 @@ export function SubmitForecast({
             <Textarea
               disabled={pending}
               id="forecast-call-note"
+              rows={1}
+              className="min-h-control-xl field-sizing-content"
               value={note}
               maxLength={500}
               placeholder={PIPELINE_TEXT.callNoteHint}
